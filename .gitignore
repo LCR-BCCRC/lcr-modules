@@ -1,0 +1,8 @@
+# Hidden files
+.DS_Store
+
+# Byte-compiled files
+__pycache__/
+
+# Distribution folders
+*.egg-info/
