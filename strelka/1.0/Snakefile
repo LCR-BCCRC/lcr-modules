@@ -1,0 +1,114 @@
+#!/usr/bin/env snakemake
+
+##### MODULES #####
+
+from os.path import join
+from snakemake.logging import logger
+from pipeline_utils import (
+    locate_genome_bams, symlink, group_samples, generate_pairs
+)
+
+
+
+##### SETUP #####
+
+NAME = "strelka"
+VERS = "1.0"
+REPO = config['pipelines']["repository"]
+CNFG = config['pipelines'][f'{NAME}-{VERS}']
+ENVS = { k: join(REPO, NAME, VERS, v) for k,v in CNFG["conda_envs"].items() }
+
+PATIENTS = group_samples(SAMPLES, "genome", "patient_id", "tissue_status")
+PAIRS = generate_pairs(PATIENTS)
+
+
+##### SUBDIRECTORIES #####
+
+CNFG["subdir_00"] = join(CNFG["output_root"], "00-input")
+CNFG["subdir_01"] = join(CNFG["output_root"], "01-clip_overlap")
+CNFG["subdir_02"] = join(CNFG["output_root"], "02-strelka")
+CNFG["subdir_03"] = join(CNFG["output_root"], "03-vcf2maf")
+CNFG["subdir_04"] = join(CNFG["output_root"], "04-collate_mafs")
+CNFG["subdir_99"] = join(CNFG["output_root"], "99-output")
+
+
+##### RULES #####
+
+rule strelka_input:
+    input:
+        unpack(locate_genome_bams)
+    output:
+        sample_bam = join(CNFG["subdir_00"], "{sample_id}.bam")
+    run:
+        symlink(input.sample_bam, output.sample_bam)
+
+
+rule strelka_clip_overlap:
+    input:
+        sample_bam = rules.strelka_input.output.sample_bam
+    output:
+        sample_bam = join(CNFG["subdir_01"], "{sample_id}.bam")
+    params:
+        args = CNFG["extra_args"]["clipoverlap"]
+    shadow: 
+        "shallow"
+    shell:
+        "echo {params.args} {input.sample_bam} > {output.sample_bam}"
+
+
+rule strelka_strelka:
+    input:
+        tumour_bam = join(CNFG["subdir_01"], "{tumour_id}.bam"),
+        normal_bam = join(CNFG["subdir_01"], "{normal_id}.bam")
+    output:
+        vcf = join(CNFG["subdir_02"], "{tumour_id}--{normal_id}.vcf")
+    params:
+        args = CNFG["extra_args"]["strelka"]
+    conda: 
+        ENVS["strelka"]
+    shell:
+        "echo {params.args} {input.tumour_bam} "
+        "{input.normal_bam} > {output.vcf}"
+
+
+rule strelka_vcf2maf:
+    input:
+        vcf = rules.strelka_strelka.output.vcf
+    output:
+        maf = join(CNFG["subdir_03"], "{tumour_id}--{normal_id}.maf")
+    params:
+        args = CNFG["extra_args"]["vcf2maf"]
+    shell:
+        "echo {params.args} {input.vcf} > {output.maf}"
+
+
+rule strelka_collate_mafs:
+    input:
+        maf = expand(rules.strelka_vcf2maf.output.maf, zip, 
+                     tumour_id = PAIRS["tumour"], 
+                     normal_id = PAIRS["normal"])
+    output:
+        maf = join(CNFG["subdir_04"], "strelka.maf")
+    shell:
+        "cat {input.maf} > {output.maf}"
+
+
+rule strelka_output:
+    input:
+        maf = rules.strelka_collate_mafs.output.maf
+    output:
+        maf = join(CNFG["subdir_99"], "strelka.maf")
+    run:
+        symlink(input.maf, output.maf)
+
+
+##### CLEANUP #####
+
+del NAME
+del VERS
+del REPO
+del CNFG
+del ENVS
+
+del PATIENTS
+del PAIRS
