@@ -70,13 +70,13 @@ def get_from_dict(dictionary, access_list):
     return reduce(dict.get, access_list, dictionary)
 
 
-def group_samples(samples, seq_type, *subgroups):
-    # import pdb; pdb.set_trace()
+def group_samples(samples, *subgroups):
     samples_dict = {}
-    # Iterate over each row of the specified seq_type
+    # Expect at least one subgroup
+    if not subgroups:
+        raise ValueError("Need to provide at least one subgroup.")
+    # Iterate over each row
     for index, row in samples.iterrows():
-        if row["seq_type"] != seq_type:
-            continue
         values = []
         # Initialize intermediate subgroups with dictionaries
         parent = samples_dict
