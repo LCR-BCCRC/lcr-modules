@@ -9,7 +9,6 @@ from pipeline_utils import (
 )
 
 
-
 ##### SETUP #####
 
 NAME = "strelka"
