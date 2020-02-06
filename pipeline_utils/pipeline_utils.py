@@ -88,6 +88,7 @@ def group_samples(samples, *subgroups):
             parent = get_from_dict(samples_dict, values)
         # Initialize "terminal" subgroups with sets
         value = row[subgroups[-1]]
+        values.append(value)
         if value not in parent:
             parent[value] = list()
         # Add sample ID to the "terminal" subgroup
