@@ -2,12 +2,12 @@
 
 from setuptools import setup
 
-setup(name="pipeline_utils",
+setup(name="modutils",
       version="0.1",
-      description="Shared functions for running Snakemake pipelines",
+      description="Shared functions for running Snakemake modules",
       url="https://github.com/morinlab/pipelines/",
       author="Bruno Grande",
       author_email="bgrande@sfu.ca",
       license="MIT",
-      py_modules=["pipeline_utils"],
+      py_modules=["modutils"],
       zip_safe=False)
