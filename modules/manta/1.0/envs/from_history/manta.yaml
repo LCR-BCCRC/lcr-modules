@@ -1,0 +1,9 @@
+name: null
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - manta=1.6
+prefix: /projects/NCI_Burkitts/adult_blgsp/envs/manta
+

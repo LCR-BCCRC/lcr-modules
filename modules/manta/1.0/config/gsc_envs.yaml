@@ -1,0 +1,5 @@
+modules:
+    manta:
+        conda_envs: 
+            manta: 
+                path: "/projects/rmorin/software/envs/pipelines/manta-1.0/manta"
