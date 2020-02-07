@@ -1,13 +1,43 @@
 #!/usr/bin/env python3
 
+##### MODULES #####
+
 import os
+from os.path import join
 from functools import reduce
 from itertools import product
 from collections import defaultdict
 from glob import glob
+import pandas as pd
 
+
+##### UTILITIES #####
+
+def ifelse(one, two):
+    if one is None:
+        return two
+    return one
+
+
+def symlink(source, target):
+    target_dir = os.path.dirname(target)
+    source_rel = os.path.relpath(source, target_dir)
+    os.symlink(source_rel, target)
+
+
+def get_from_dict(dictionary, access_list):
+    """Access nested index in dictionary"""
+    return reduce(dict.get, access_list, dictionary)
+
+
+##### FILE SEARCHING #####
 
 def locate_file(directory, file_ext, *patterns):
+    """
+    Locate a file with a given file extension in a given directory.
+    The search is done recursively. Optionally filter for file paths 
+    that contain the given patterns.
+    """
     directory = directory.rstrip("/")
     file_ext  = file_ext.strip(".")
     patterns_fmt = "*" + "*, *".join(patterns) + "*" if patterns else None
@@ -59,15 +89,45 @@ locate_mirna_bams   = locate_bams_generator("mirna")
 locate_capture_bams = locate_bams_generator("capture")
 
 
-def symlink(source, target):
-    target_dir = os.path.dirname(target)
-    source_rel = os.path.relpath(source, target_dir)
-    os.symlink(source_rel, target)
+##### SAMPLE PROCESSING #####
+
+def load_samples(file_path, mapper=None, **maps):
+    """
+    Load samples TSV file and rename columns using a `mapper` function,
+    a series of `maps` pairs (after="before"), or both.
+    
+    Returns:
+        A dictionary with the samples table under the "all" key.
+    """
+    # Load samples table into "all" key of dictionary
+    samples = dict()
+    samples["all"] = pd.read_table(file_path)
+    # If a mapper function was provided, use it to rename columns
+    if mapper:
+        samples["all"].rename(columns=mapper, inplace=True)
+    # If maps were provided, use them to rename columns
+    if maps:
+        maps_rev = {v: k for k, v in maps.items()}
+        samples["all"].rename(columns=maps_rev, inplace=True)
+    return samples
 
 
-def get_from_dict(dictionary, access_list):
-    """Access nested index in dictionary"""
-    return reduce(dict.get, access_list, dictionary)
+def filter_samples(samples, **filters):
+    """
+    Filter a samples table based on the provided `filters`.
+    The key of a filter refers to the column to filter on. 
+    The value refers to the filter value. THe value can
+    either be a single value or a list of values. 
+    
+    Returns:
+        A filtered table. 
+    """
+    for column, value in filters.items():
+        if isinstance(value, list):
+            samples = samples[samples[column].isin(value)]
+        else:
+            samples = samples[samples[column] == value]
+    return samples
 
 
 def group_samples(samples, *subgroups):
@@ -101,7 +161,10 @@ def group_samples(samples, *subgroups):
     return samples_dict
 
 
-def generate_pairs(patients):
+def generate_pairs(samples):
+    # Organize samples by patient and tissue status (tumour vs. normal)
+    patients = group_samples(samples, "patient_id", "tissue_status")
+    # Find every possible tumour-normal pair for each patient
     all_pairs = {
         "tumour": [],
         "normal": []
@@ -114,3 +177,27 @@ def generate_pairs(patients):
             all_pairs["tumour"].append(t)
             all_pairs["normal"].append(n)
     return all_pairs
+
+
+##### MODULE SETUP #####
+
+def setup_module(config, name, version):
+    
+    # Get configuration for the given module
+    mconfig = config['modules'][name]
+    
+    # Configure output directory if not specified
+    if mconfig["output_dir"] is None:
+        mconfig["output_dir"] = join(config["modules"]["output_dir"],
+                                     f"{name}_module-{version}")
+    
+    # Figure out path to module sub-directory in repository
+    msubdir = join(config['modules']["repository"], "modules", name, version)
+    for env_name, env_vals in mconfig["conda_envs"].items():
+        if env_vals["path"] is None:
+            mconfig["conda_envs"][env_name] = join(msubdir, env_vals["yaml"])
+        else:
+            mconfig["conda_envs"][env_name] = env_vals["path"]
+    
+    # Return module-specific configuration
+    return mconfig
