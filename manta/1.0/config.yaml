@@ -1,9 +1,0 @@
-pipelines:
-    strelka-1.0:
-        output_root: "results/strelka_pipeline-1.0/"
-        conda_envs: 
-            strelka: "envs/strelka.yaml"
-        extra_args:
-            clipoverlap: ""
-            strelka: ""
-            vcf2maf: ""

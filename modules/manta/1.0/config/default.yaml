@@ -1,0 +1,11 @@
+modules:
+    manta:
+        output_dir: null
+        inputs:
+            sample_bam: null
+        conda_envs: 
+            manta: 
+                yaml: "envs/no_build/manta.yaml"
+                path: null
+        options:
+            manta: ""
