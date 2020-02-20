@@ -3,21 +3,16 @@
 ##### MODULES #####
 
 import os
-from os.path import join
+from os.path import join, realpath, relpath
 from functools import reduce
 from itertools import product
 from collections import defaultdict
 from glob import glob
 import pandas as pd
+from snakemake.logging import logger
 
 
 ##### UTILITIES #####
-
-def ifelse(one, two):
-    if one is None:
-        return two
-    return one
-
 
 def symlink(source, target):
     target_dir = os.path.dirname(target)
@@ -130,7 +125,7 @@ def filter_samples(samples, **filters):
     return samples
 
 
-def group_samples(samples, *subgroups):
+def group_samples(samples, *subgroups, features=["sample_id"]):
     samples_dict = {}
     # Expect at least one subgroup
     if not subgroups:
@@ -186,18 +181,26 @@ def setup_module(config, name, version):
     # Get configuration for the given module
     mconfig = config['modules'][name]
     
+    # Ensure that common module sub-fields are present
+    subfields = ["inputs", "conda_envs", "options"]
+    for subfield in subfields:
+        if subfield not in mconfig:
+            logger.warning(f"Subfield '{subfield}' is missing from config "
+                           f"for module {name}")
+            mconfig[subfield] = {}
+    
     # Configure output directory if not specified
-    if mconfig["output_dir"] is None:
-        mconfig["output_dir"] = join(config["modules"]["output_dir"],
-                                     f"{name}_module-{version}")
+    parent_dir = config["modules"].get("output_dir")
+    parent_dir = parent_dir or "results/"
+    output_subdir = mconfig.get("output_subdir")
+    output_subdir = output_subdir or f"{name}_module-{version}"
+    mconfig["output_dir"] = join(parent_dir, output_subdir)
     
     # Figure out path to module sub-directory in repository
     msubdir = join(config['modules']["repository"], "modules", name, version)
-    for env_name, env_vals in mconfig["conda_envs"].items():
-        if env_vals["path"] is None:
-            mconfig["conda_envs"][env_name] = join(msubdir, env_vals["yaml"])
-        else:
-            mconfig["conda_envs"][env_name] = env_vals["path"]
+    for env_name, env_val in mconfig["conda_envs"].items():
+        if env_val is not None:
+            mconfig["conda_envs"][env_name] = relpath(env_val, msubdir)
     
     # Return module-specific configuration
     return mconfig

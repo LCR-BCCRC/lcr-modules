@@ -4,7 +4,7 @@
 
 from os.path import join
 from snakemake.logging import logger
-from modutils import *
+from modutils import setup_module, generate_pairs, locate_genome_bams
 
 
 ##### SETUP #####
@@ -24,8 +24,7 @@ CFG["subdir_99"] = join(CFG["output_dir"], "99-output")
 
 rule manta_input:
     input:
-        ifelse(CFG["inputs"]["sample_bam"], 
-               unpack(locate_genome_bams))
+        CFG["inputs"].get("sample_bam") or unpack(locate_genome_bams)
     output:
         sample_bam = join(CFG["subdir_00"], "{sample_id}.bam")
     run:
@@ -43,7 +42,7 @@ rule manta_manta:
     shadow:
         "shallow"
     conda:
-        CFG["conda_envs"]["manta"]
+        CFG["conda_envs"]["manta"] or "envs/manta.yaml"
     shell:
         "echo manta {params.opts} {input.tumour_bam} {input.normal_bam} "
             "> "
@@ -52,17 +51,18 @@ rule manta_manta:
 
 rule manta_output:
     input:
+        vcf = rules.manta_manta.output.vcf
+    output:
+        vcf = join(CFG["subdir_99"], "{tumour_id}--{normal_id}.vcf")
+    run:
+        symlink(input.vcf, output.vcf)
+
+
+rule manta_all:
+    input:
         vcfs = expand(rules.manta_manta.output.vcf, zip,
                       tumour_id=PAIRS["tumour"],
                       normal_id=PAIRS["normal"])
-    output:
-        vcfs = expand(join(CFG["subdir_99"], "{tumour_id}--{normal_id}.vcf"), 
-                      zip,
-                      tumour_id=PAIRS["tumour"],
-                      normal_id=PAIRS["normal"])
-    run:
-        for in_vcf, out_vcf in zip(input.vcfs, output.vcfs):
-            symlink(in_vcf, out_vcf)
 
 
 ##### CLEANUP #####
