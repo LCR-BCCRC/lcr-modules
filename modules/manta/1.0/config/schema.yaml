@@ -1,0 +1,14 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+
+description: an entry in the sample sheet
+properties:
+  sample_id:
+    type: string
+    description: foo
+  tissue_status:
+    type: string
+    description: bar
+
+required:
+  - sample_id
+  - tissue_status
