@@ -5,5 +5,7 @@ channels:
   - defaults
 dependencies:
   - manta=1.6
-prefix: /projects/NCI_Burkitts/adult_blgsp/envs/manta
+  - svtools=0.4.0
+  - pyvcf=0.6.8
+prefix: /projects/adult_blgsp/envs/manta
 
