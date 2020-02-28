@@ -1,4 +1,4 @@
-#!+usr/bin/env python3
+#!/usr/bin/env python3
 
 ##### MODULES #####
 
@@ -179,7 +179,8 @@ def group_samples(samples,
 
 
 def generate_runs_for_patient(samples, return_paired=True, 
-                              return_unpaired=False, 
+                              return_unpaired=False,
+                              unpaired_normal_id="Pseudonormal",
                               return_paired_as_unpaired=False):
     runs = defaultdict(list)
     tumour_samples = samples.get("Tumour", [])
@@ -189,18 +190,19 @@ def generate_runs_for_patient(samples, return_paired=True,
     # Add an unpaired normal is there isn't one
     if return_paired_as_unpaired and None not in normal_samples:
         normal_samples.append(None)
-    pairs = product(tumour_samples, normal_samples)
-    for tumour, normal in pairs:
-        # Don't return paired runs if normal is present
-        if not return_paired and normal is not None:
+    for tumour, normal in product(tumour_samples, normal_samples):
+        # Check for paired samples
+        paired = normal is not None
+        if paired and return_paired is False:
             continue
-        # Don't return unpaired runs if normal is absent
-        if not return_unpaired and normal is None:
+        # Check for unpaired samples
+        unpaired = normal is None
+        if unpaired and return_unpaired is False:
             continue
         # Compile features
         tumour = tumour._asdict()
         if normal is None:
-            normal = defaultdict(lambda: None)
+            normal = defaultdict(lambda: unpaired_normal_id)
         else:
             normal = normal._asdict()
         for field in tumour.keys():
@@ -214,9 +216,9 @@ def combine_lists(dictionary):
     for d in dictionary.values():
         for k, v in d.items():
             combined[k].extend(v)
-    combined_plain = dict(combined)
-    combined_df = pd.DataFrame(combined_plain)
-    return combined_df
+    combined = dict(combined)
+    combined = pd.DataFrame(combined)
+    return combined
 
 
 def walk_through_dict(dictionary, end_fn=print, end_depth=None,
