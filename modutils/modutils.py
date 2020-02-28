@@ -267,10 +267,10 @@ def generate_runs(samples,
 def setup_module(config, name, version):
     
     # Get configuration for the given module
-    mconfig = config['modules'][name]
+    mconfig = config["modules"][name]
     
     # Find repository and module directories
-    repodir = normpath(config['modules_shared']["repository"])
+    repodir = normpath(config["modules"]["_shared"]["repository"])
     msubdir = join(repodir, "modules", name, version)
     
     # Ensure that common module sub-fields are present
@@ -290,7 +290,7 @@ def setup_module(config, name, version):
     
     # Configure output directory if not specified and create it
     if mconfig["dirs"].get("_parent") is None:
-        root_output_dir = config["modules_shared"].get("root_output_dir")
+        root_output_dir = config["modules"]["_shared"].get("root_output_dir")
         root_output_dir = root_output_dir or "modules"
         output_dir = join(root_output_dir,  f"{name}-{version}")
         mconfig["dirs"]["_parent"] = output_dir
