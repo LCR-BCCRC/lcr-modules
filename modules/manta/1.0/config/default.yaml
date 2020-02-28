@@ -1,7 +1,14 @@
 modules:
     manta:
-        output_subdir: null
+        inputs:
+            sample_bam: null
+            calc_manta_vaf: "{REPODIR}/scripts/calc_manta_vaf.py"
+        outputs:
+            bedpe: null
+        dirs:
+            _parent: null
         conda_envs: 
             manta: null
         options:
-            manta: ""
+            configure: ""
+            manta: "--mode local"
