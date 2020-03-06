@@ -3,14 +3,13 @@
 ##### MODULES #####
 
 from os.path  import join
-from snakemake.utils import validate, min_version
 from modutils import (setup_module,
-                      setup_subdirs,
                       cleanup_module,
                       generate_runs,
                       symlink,
                       collapse,
                       locate_genome_bams)
+from snakemake.utils import min_version, validate
 
 
 ##### SETUP #####
