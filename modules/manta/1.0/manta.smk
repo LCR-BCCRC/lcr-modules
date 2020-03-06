@@ -16,10 +16,16 @@ from snakemake.utils import min_version, validate
 
 min_version("5.0.0")
 
-CFG = setup_module(config, "manta", "1.0")
+CFG = setup_module(
+    config = config, 
+    name = "manta", 
+    version = "1.0",
+    subdirs = ["manta", "bedpe"]
+)
+
 validate(CFG["samples"], schema="config/schema.yaml")
-CFG = setup_subdirs(CFG, "manta", "bedpe")
-CFG["runs"] = generate_runs(CFG["samples"], subgroups=[])
+
+CFG["runs"] = generate_runs(CFG["samples"], features=["sample_id", "seq_type", "ff_or_ffpe"])
 
 localrules: manta_input, manta_configure, manta_output, manta_all
 
