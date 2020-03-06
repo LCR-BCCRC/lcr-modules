@@ -2,7 +2,7 @@ modules:
     manta:
         inputs:
             sample_bam: null
-            calc_manta_vaf: "{REPODIR}/scripts/calc_manta_vaf.py"
+            calc_manta_vaf: "{REPODIR}/scripts/python/calc_manta_vaf.py"
         outputs:
             bedpe: null
         dirs:
