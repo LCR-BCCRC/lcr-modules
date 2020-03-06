@@ -247,7 +247,7 @@ def walk_through_dict(dictionary, end_fn=print, end_depth=None,
 
 
 def generate_runs(samples,
-                  subgroups=["seq_type"],
+                  subgroups=[],
                   features=["sample_id"],
                   **kwargs):
     # Copy subgroups to avoid using the same mutable object in every call
@@ -258,9 +258,14 @@ def generate_runs(samples,
     patients = group_samples(samples, subgroups, features)
     # Find every possible tumour-normal pair for each patient
     end_depth = len(subgroups) - 1
-    runs_by_patient = walk_through_dict(patients, generate_runs_for_patient, 
+    runs = walk_through_dict(patients, generate_runs_for_patient, 
                                         end_depth, **kwargs)
-    runs = walk_through_dict(runs_by_patient, combine_lists, end_depth - 1)
+    while end_depth > 0:
+        runs = walk_through_dict(runs, combine_lists, end_depth - 1)
+        end_depth -= 1
+    # Warn if runs have duplicates
+    if any(runs.duplicated()):
+        logger.warn("Duplicate runs exist. This probably shouldn't happen.")
     return runs
 
 
