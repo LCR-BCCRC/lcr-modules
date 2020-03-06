@@ -52,10 +52,8 @@ rule manta_configure:
     conda:
         CFG["conda_envs"]["manta"] or "envs/manta.yaml"
     shell:
-        collapse("""
-        configManta.py {params.opts} --referenceFasta {params.fasta} --runDir {params.outdir}
-        --tumourBam {input.tumour_bam} --normalBam {input.normal_bam} > {log} 2>&1
-        """)
+        "configManta.py {params.opts} --referenceFasta {params.fasta} --runDir {params.outdir} "
+        "--tumourBam {input.tumour_bam}  > {log} 2>&1"
 
 
 rule manta_run:
@@ -115,9 +113,7 @@ rule manta_calc_vaf:
     conda:
         CFG["conda_envs"]["manta"] or "envs/manta.yaml"
     shell:
-        collapse("""
-        {input.cvaf} {input.vcf} > {output.vcf} 2> {log}
-        """)
+        "{input.cvaf} {input.vcf} > {output.vcf} 2> {log}"
 
 
 rule manta_vcf_to_bedpe:
@@ -134,9 +130,7 @@ rule manta_vcf_to_bedpe:
     resources: 
         mem_mb = CFG["memory"].get("vcf_to_bedpe") or 1000
     shell:
-        collapse("""
-        svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log}
-        """)
+        "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log}"
 
 
 rule manta_output:
