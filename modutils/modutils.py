@@ -259,7 +259,7 @@ def generate_runs(samples,
     # Find every possible tumour-normal pair for each patient
     end_depth = len(subgroups) - 1
     runs = walk_through_dict(patients, generate_runs_for_patient, 
-                                        end_depth, **kwargs)
+                             end_depth, **kwargs)
     while end_depth > 0:
         runs = walk_through_dict(runs, combine_lists, end_depth - 1)
         end_depth -= 1
@@ -271,7 +271,7 @@ def generate_runs(samples,
 
 ##### MODULE SETUP/CLEANUP #####
 
-def setup_module(config, name, version):
+def setup_module(config, name, version, subdirs):
     
     # Get configuration for the given module
     mconfig = config["modules"][name]
@@ -314,11 +314,14 @@ def setup_module(config, name, version):
             if isinstance(v, str) and "{REPODIR}" in v:
                 pairs[k] = v.replace("{REPODIR}", repodir)
     
+    # Setup sub-directories
+    mconfig = setup_subdirs(mconfig, subdirs)
+    
     # Return module-specific configuration
     return mconfig
 
 
-def setup_subdirs(module_config, *subdirs):
+def setup_subdirs(module_config, subdirs):
     if "_parent" in subdirs:
         raise ValueError("You cannot have a sub-directory called '_parent'. "
                          "Consider using a more specific term.")
