@@ -39,8 +39,8 @@ rule manta_input:
 
 rule manta_configure:
     input:
-        tumour_bam = ancient(join(CFG["dirs"]["input"], "{tumour_id}.bam")),
-        normal_bam = ancient(join(CFG["dirs"]["input"], "{normal_id}.bam"))
+        tumour_bam = join(CFG["dirs"]["input"], "{tumour_id}.bam"),
+        normal_bam = join(CFG["dirs"]["input"], "{normal_id}.bam")
     output:
         runwf = join(CFG["dirs"]["manta"], "{tumour_id}--{normal_id}/runWorkflow.py")
     log:
