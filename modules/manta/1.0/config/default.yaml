@@ -3,8 +3,6 @@ modules:
         inputs:
             sample_bam: null
             calc_manta_vaf: "{REPODIR}/scripts/python/calc_manta_vaf.py"
-        outputs:
-            bedpe: null
         dirs:
             _parent: null
         conda_envs: 
