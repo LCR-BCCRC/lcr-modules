@@ -5,27 +5,20 @@
 from os.path  import join
 from modutils import (setup_module,
                       cleanup_module,
-                      generate_runs,
                       symlink,
                       collapse,
                       locate_genome_bams)
-from snakemake.utils import min_version, validate
 
 
 ##### SETUP #####
-
-min_version("5.0.0")
 
 CFG = setup_module(
     config = config, 
     name = "manta", 
     version = "1.0",
-    subdirs = ["manta", "bedpe"]
+    subdirs = ["manta", "bedpe"],
+    return_unpaired=True
 )
-
-validate(CFG["samples"], schema="config/schema.yaml")
-
-CFG["runs"] = generate_runs(CFG["samples"], features=["sample_id", "seq_type", "ff_or_ffpe"])
 
 localrules: manta_input, manta_configure, manta_output, manta_all
 
@@ -36,7 +29,7 @@ rule manta_input:
     input:
         CFG["inputs"].get("sample_bam") or unpack(locate_genome_bams)
     output:
-        sample_bam = join(CFG["dirs"]["input"], "{sample_id}.bam")
+        sample_bam = join(CFG["dirs"]["inputs"], "{seq_type}", "{sample_id}.bam")
     run:
         symlink(input.sample_bam, output.sample_bam)
         symlink(input.sample_bam + ".bai", output.sample_bam + ".bai")
@@ -44,34 +37,37 @@ rule manta_input:
 
 rule manta_configure:
     input:
-        tumour_bam = join(CFG["dirs"]["input"], "{tumour_id}.bam"),
-        normal_bam = join(CFG["dirs"]["input"], "{normal_id}.bam")
+        tumour_bam = join(CFG["dirs"]["inputs"], "{seq_type}", "{tumour_id}.bam"),
+        normal_bam = join(CFG["dirs"]["inputs"], "{seq_type}", "{normal_id}.bam")
     output:
-        runwf = join(CFG["dirs"]["manta"], "{tumour_id}--{normal_id}/runWorkflow.py")
+        runwf = join(CFG["dirs"]["manta"], "{seq_type}", 
+                     "{tumour_id}--{normal_id}--{is_matched}/runWorkflow.py")
     log:
-        join(CFG["dirs"]["manta"], "{tumour_id}--{normal_id}/log.config.txt")
+        join(CFG["dirs"]["manta"], "{seq_type}", 
+             "{tumour_id}--{normal_id}--{is_matched}/log.config.txt")
     params:
         opts   = CFG["options"]["configure"],
-        fasta  = config["reference"]["genome_fasta"],
-        outdir = join(CFG["dirs"]["manta"], "{tumour_id}--{normal_id}")
+        fasta  = config["reference"]["genome_fasta"]
     conda:
         CFG["conda_envs"]["manta"] or "envs/manta.yaml"
     shell:
-        "configManta.py {params.opts} --referenceFasta {params.fasta} --runDir {params.outdir} "
-        "--tumourBam {input.tumour_bam}  > {log} 2>&1"
+        collapse("""
+        configManta.py {params.opts} --referenceFasta {params.fasta} 
+        --runDir "$(dirname {output.runwf})" --tumourBam {input.tumour_bam} > {log} 2>&1
+        """)
 
 
 rule manta_run:
     input:
         runwf = rules.manta_configure.output.runwf
     output:
-        vcf = join(CFG["dirs"]["manta"], "{tumour_id}--{normal_id}", "results",
-                   "variants", "somaticSV.vcf.gz")
+        vcf = join(CFG["dirs"]["manta"], "{seq_type}", "{tumour_id}--{normal_id}--{is_matched}", 
+                   "results", "variants", "somaticSV.vcf.gz")
     log:
-        join(CFG["dirs"]["manta"], "{tumour_id}--{normal_id}", "log.manta.txt")
+        join(CFG["dirs"]["manta"], "{seq_type}", "{tumour_id}--{normal_id}--{is_matched}", 
+             "log.manta.txt")
     params:
-        opts   = CFG["options"]["manta"],
-        outdir = join(CFG["dirs"]["manta"], "{tumour_id}--{normal_id}")
+        opts   = CFG["options"]["manta"]
     conda:
         CFG["conda_envs"]["manta"] or "envs/manta.yaml"
     threads:
@@ -82,7 +78,7 @@ rule manta_run:
         collapse("""
         {input.runwf} {params.opts} --jobs {threads} > {log} 2>&1
             &&
-        rm -rf {params.outdir}/workspace/
+        rm -rf "$(dirname {input.runwf})/workspace/"
         """)
 
 
@@ -90,11 +86,12 @@ rule manta_fix_vcf_ids:
     input:
         vcf  = rules.manta_run.output.vcf
     output:
-        vcf = pipe(join(CFG["dirs"]["manta"], "{tumour_id}--{normal_id}", "results",
-                        "variants", "somaticSV.with_ids.vcf"))
+        vcf = pipe(join(CFG["dirs"]["manta"], "{seq_type}", 
+                        "{tumour_id}--{normal_id}--{is_matched}", 
+                        "results", "variants", "somaticSV.with_ids.vcf"))
     log:
-        join(CFG["dirs"]["manta"], "{tumour_id}--{normal_id}", "results", "variants", 
-             "log.fix_vcf_ids.txt")
+        join(CFG["dirs"]["manta"], "{seq_type}", "{tumour_id}--{normal_id}--{is_matched}", 
+             "results", "variants", "log.fix_vcf_ids.txt")
     shell:
         collapse("""
         gzip -dc {input.vcf}
@@ -110,11 +107,12 @@ rule manta_calc_vaf:
         vcf  = rules.manta_fix_vcf_ids.output.vcf,
         cvaf = CFG["inputs"]["calc_manta_vaf"]
     output:
-        vcf = pipe(join(CFG["dirs"]["manta"], "{tumour_id}--{normal_id}", "results",
-                        "variants", "somaticSV.with_ids.with_vaf.vcf"))
+        vcf = pipe(join(CFG["dirs"]["manta"], "{seq_type}", 
+                        "{tumour_id}--{normal_id}--{is_matched}", 
+                        "results", "variants", "somaticSV.with_ids.with_vaf.vcf"))
     log:
-        join(CFG["dirs"]["manta"], "{tumour_id}--{normal_id}", "results", "variants", 
-             "log.calc_vaf.txt")
+        join(CFG["dirs"]["manta"], "{seq_type}", "{tumour_id}--{normal_id}--{is_matched}", 
+             "results", "variants", "log.calc_vaf.txt")
     conda:
         CFG["conda_envs"]["manta"] or "envs/manta.yaml"
     shell:
@@ -125,9 +123,11 @@ rule manta_vcf_to_bedpe:
     input:
         vcf  = rules.manta_calc_vaf.output.vcf
     output:
-        bedpe = join(CFG["dirs"]["bedpe"], "{tumour_id}--{normal_id}", "somaticSV.bedpe")
+        bedpe = join(CFG["dirs"]["bedpe"], "{seq_type}", 
+                     "{tumour_id}--{normal_id}--{is_matched}", "somaticSV.bedpe")
     log:
-        join(CFG["dirs"]["bedpe"], "{tumour_id}--{normal_id}", "log.vcf_to_bedpe.txt")
+        join(CFG["dirs"]["bedpe"], "{seq_type}", "{tumour_id}--{normal_id}--{is_matched}", 
+             "log.vcf_to_bedpe.txt")
     conda:
         CFG["conda_envs"]["manta"] or "envs/manta.yaml"
     threads:
@@ -142,7 +142,8 @@ rule manta_output:
     input:
         bedpe = rules.manta_vcf_to_bedpe.output.bedpe
     output:
-        bedpe = join(CFG["dirs"]["output"], "{tumour_id}--{normal_id}.bedpe")
+        bedpe = join(CFG["dirs"]["outputs"], "{seq_type}", 
+                     "{tumour_id}--{normal_id}--{is_matched}.bedpe")
     run:
         symlink(input.bedpe, output.bedpe)
 
@@ -150,8 +151,10 @@ rule manta_output:
 rule manta_all:
     input:
         vcfs = expand(rules.manta_vcf_to_bedpe.output.bedpe, zip,
+                      seq_type=CFG["runs"]["tumour_seq_type"],
                       tumour_id=CFG["runs"]["tumour_sample_id"],
-                      normal_id=CFG["runs"]["normal_sample_id"])
+                      normal_id=CFG["runs"]["normal_sample_id"],
+                      is_matched=CFG["runs"]["is_matched"])
 
 
 ##### CLEANUP #####
