@@ -12,6 +12,7 @@ from glob import glob
 import pandas as pd
 from yaml import dump
 from snakemake.logging import logger
+from snakemake.utils import min_version, validate
 
 
 ##### UTILITIES #####
@@ -140,18 +141,12 @@ def filter_samples(samples, **filters):
     return samples
 
 
-def group_samples(samples, 
-                  subgroups=["seq_type", "patient_id"], 
-                  features=["sample_id"]):
+def group_samples(samples, sample_class, subgroups=["seq_type"]):
     # Setup
     samples_dict = dict()
-    Sample = namedtuple("Sample", features)
     # Expect at least one subgroup
     if len(subgroups) == 0:
         raise ValueError("Need to provide at least one subgroup.")
-    # Expect at least one feature
-    if len(features) == 0:
-        raise ValueError("Need to provide at least one feature.")
     # Iterate over each row
     for index, row in samples.iterrows():
         values = []
@@ -170,7 +165,7 @@ def group_samples(samples,
             parent[value] = list()
         # Add sample ID to the "terminal" subgroup
         parent = parent[value]
-        sample = Sample(*row[features])
+        sample = sample_class(*row)
         if sample in parent:
             raise ValueError(f"`{sample}` not unique for this "
                              f"nested set of subgroups ({values}).")
@@ -180,13 +175,16 @@ def group_samples(samples,
 
 def generate_runs_for_patient(samples, return_paired=True, 
                               return_unpaired=False,
-                              unpaired_normal_id="Pseudonormal",
+                              default_normal=None,
                               return_paired_as_unpaired=False):
     runs = defaultdict(list)
     tumour_samples = samples.get("Tumour", [])
     normal_samples = samples.get("Normal", [None])
     # If return_paired_as_unpaired is True, then return_unpaired should be True
     return_unpaired = return_unpaired or return_paired_as_unpaired
+    # If return_unpaired is True, then default_normal needs to be set
+    if return_unpaired is True and default_normal is None:
+        raise ValueError("Set `default_normal` if return_unpaired=True.")
     # Add an unpaired normal is there isn't one
     if return_paired_as_unpaired and None not in normal_samples:
         normal_samples.append(None)
@@ -202,9 +200,12 @@ def generate_runs_for_patient(samples, return_paired=True,
         # Compile features
         tumour = tumour._asdict()
         if normal is None:
-            normal = defaultdict(lambda: unpaired_normal_id)
+            seq_type = tumour["seq_type"]
+            normal = default_normal[seq_type]._asdict()
+            runs["is_matched"].append("unmatched")
         else:
             normal = normal._asdict()
+            runs["is_matched"].append("matched")
         for field in tumour.keys():
             runs["tumour_" + field].append(tumour[field])
             runs["normal_" + field].append(normal[field])
@@ -246,16 +247,13 @@ def walk_through_dict(dictionary, end_fn=print, end_depth=None,
     return result
 
 
-def generate_runs(samples,
-                  subgroups=[],
-                  features=["sample_id"],
-                  **kwargs):
+def generate_runs(samples, sample_class, subgroups=[], **kwargs):
     # Copy subgroups to avoid using the same mutable object in every call
     subgroups = subgroups.copy()
     # Ensure that patient_id and tissue_status are the last two subgroups
     subgroups.extend(["patient_id", "tissue_status"])
     # Organize samples by patient and tissue status (tumour vs. normal)
-    patients = group_samples(samples, subgroups, features)
+    patients = group_samples(samples, sample_class, subgroups)
     # Find every possible tumour-normal pair for each patient
     end_depth = len(subgroups) - 1
     runs = walk_through_dict(patients, generate_runs_for_patient, 
@@ -271,17 +269,23 @@ def generate_runs(samples,
 
 ##### MODULE SETUP/CLEANUP #####
 
-def setup_module(config, name, version, subdirs):
+def setup_module(config, name, version, subdirs, 
+                 return_unpaired=False, **kwargs):
     
-    # Get configuration for the given module
+    # Ensure minimum version of Snakemake
+    min_version("5.0.0")
+    
+    # Get configuration for the given module and create samples shorthand
     mconfig = config["modules"][name]
+    sconfig = config["modules"]["_shared"]
+    msamples = mconfig["samples"]
     
     # Find repository and module directories
-    repodir = normpath(config["modules"]["_shared"]["repository"])
+    repodir = normpath(sconfig["repository"])
     msubdir = join(repodir, "modules", name, version)
     
     # Ensure that common module sub-fields are present
-    subfields = ["inputs", "outputs", "dirs", "conda_envs", 
+    subfields = ["inputs", "dirs", "conda_envs", 
                  "options", "threads", "memory"]
     for subfield in subfields:
         if subfield not in mconfig:
@@ -295,9 +299,12 @@ def setup_module(config, name, version, subdirs):
             if isinstance(v, str) and "{REPODIR}" in v:
                 pairs[k] = v.replace("{REPODIR}", repodir)
     
+    # Validation samples data frame
+    validate(msamples, schema=join(msubdir, "config", "schema.yaml"))
+    
     # Configure output directory if not specified and create it
     if mconfig["dirs"].get("_parent") is None:
-        root_output_dir = config["modules"]["_shared"].get("root_output_dir")
+        root_output_dir = sconfig.get("root_output_dir")
         root_output_dir = root_output_dir or "modules"
         output_dir = join(root_output_dir,  f"{name}-{version}")
         mconfig["dirs"]["_parent"] = output_dir
@@ -317,6 +324,31 @@ def setup_module(config, name, version, subdirs):
     # Setup sub-directories
     mconfig = setup_subdirs(mconfig, subdirs)
     
+    # Generate runs
+    Sample = namedtuple("Sample", msamples.columns.tolist())
+    default_normal = None
+    if return_unpaired is True:
+        default_normal_id = sconfig.get("default_normal_id")
+        if default_normal_id is None:
+            msg = ("Set `default_normal_id` for each seq_type in "
+                   "_shared configuration if return_unpaired=True.")
+            raise ValueError(msg)
+        default_normal = dict()
+        for seq_type, normal_id in default_normal_id.items():
+            normal_row = msamples[msamples.sample_id == normal_id]
+            num_matches = len(normal_row)
+            if num_matches != 1:
+                msg = (f"There are {num_matches} samples matching the normal "
+                    f"ID ({normal_id}) rather than expected (1)")
+                raise ValueError(msg)
+            default_normal[seq_type] = Sample(*normal_row.squeeze())
+    mconfig["runs"] = generate_runs(msamples, 
+                                    sample_class=Sample,
+                                    subgroups=["seq_type"], 
+                                    return_unpaired=return_unpaired,
+                                    default_normal=default_normal,
+                                    **kwargs)
+    
     # Return module-specific configuration
     return mconfig
 
@@ -325,7 +357,7 @@ def setup_subdirs(module_config, subdirs):
     if "_parent" in subdirs:
         raise ValueError("You cannot have a sub-directory called '_parent'. "
                          "Consider using a more specific term.")
-    subdirs = ["input", *subdirs, "output"]
+    subdirs = ["inputs", *subdirs, "outputs"]
     numbers = [ f"{x:02}" for x in (*range(0, len(subdirs) - 1), 99) ]
     for num, subdir in zip(numbers, subdirs):
         subdir_full = join(module_config["dirs"]["_parent"], f"{num}-{subdir}")
@@ -335,20 +367,25 @@ def setup_subdirs(module_config, subdirs):
 
 
 def cleanup_module(module_config):
+    
     # Define useful variables
     parent_dir = module_config["dirs"]["_parent"]
+    
     # Define fields to be output as TSV files
     tsv_fields = {"samples": None, "runs": None}
     for field in tsv_fields.keys():
         tsv_fields[field] = module_config.pop(field)
         output_file = join(parent_dir, f"{field}.tsv")
         tsv_fields[field].to_csv(output_file, sep="\t", index=False)
+    
     # Output current configuration for future reference
     config_file = join(parent_dir, "config.yaml")
     with open(config_file, "w") as config_file_handler:
         dump(module_config, config_file_handler)
+    
     # Add back the TSV fields
     for field in tsv_fields.keys():
         module_config[field] = tsv_fields[field]
+    
     # Return nothing
     return None
