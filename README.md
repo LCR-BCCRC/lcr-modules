@@ -20,6 +20,6 @@ pipelines:
 3) Load the pipeline configuration first and then include the pipeline Snakefile. 
 
 ```yaml
-configfile: "src/pipelines/strelka/1.0/config.yaml"
-include:    "src/pipelines/strelka/1.0/Snakefile"
+configfile: "src/lcr-modules/strelka/1.0/config.yaml"
+include:    "src/lcr-modules/strelka/1.0/Snakefile"
 ```
