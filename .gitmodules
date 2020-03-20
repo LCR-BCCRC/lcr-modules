@@ -1,3 +1,3 @@
-[submodule "scripts"]
-	path = scripts
+[submodule "lcr-scripts"]
+	path = lcr-scripts
 	url = git@github.com:LCR-BCCRC/lcr-scripts.git
