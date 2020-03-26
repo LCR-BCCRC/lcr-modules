@@ -3,16 +3,12 @@
 ##### MODULES #####
 
 from os.path  import join
-from modutils import (setup_module,
-                      cleanup_module,
-                      symlink,
-                      collapse,
-                      locate_genome_bams)
+import modutils as mod
 
 
 ##### SETUP #####
 
-CFG = setup_module(
+CFG = mod.setup_module(
     config = config, 
     name = "manta", 
     version = "1.0",
@@ -27,12 +23,12 @@ localrules: manta_input, manta_configure, manta_output, manta_all
 
 rule manta_input:
     input:
-        CFG["inputs"].get("sample_bam") or unpack(locate_genome_bams)
+        CFG["inputs"].get("sample_bam") or unpack(mod.locate_genome_bams)
     output:
         sample_bam = join(CFG["dirs"]["inputs"], "{seq_type}", "{sample_id}.bam")
     run:
-        symlink(input.sample_bam, output.sample_bam)
-        symlink(input.sample_bam + ".bai", output.sample_bam + ".bai")
+        mod.symlink(input.sample_bam, output.sample_bam)
+        mod.symlink(input.sample_bam + ".bai", output.sample_bam + ".bai")
 
 
 rule manta_configure:
@@ -51,7 +47,7 @@ rule manta_configure:
     conda:
         CFG["conda_envs"]["manta"] or "envs/manta.yaml"
     shell:
-        collapse("""
+        mod.collapse("""
         configManta.py {params.opts} --referenceFasta {params.fasta} 
         --runDir "$(dirname {output.runwf})" --tumourBam {input.tumour_bam} > {log} 2>&1
         """)
@@ -75,7 +71,7 @@ rule manta_run:
     resources: 
         mem_mb = CFG["memory"].get("manta") or 1000
     shell:
-        collapse("""
+        mod.collapse("""
         {input.runwf} {params.opts} --jobs {threads} > {log} 2>&1
             &&
         rm -rf "$(dirname {input.runwf})/workspace/"
@@ -93,7 +89,7 @@ rule manta_fix_vcf_ids:
         join(CFG["dirs"]["manta"], "{seq_type}", "{tumour_id}--{normal_id}--{is_matched}", 
              "results", "variants", "log.fix_vcf_ids.txt")
     shell:
-        collapse("""
+        mod.collapse("""
         gzip -dc {input.vcf}
             |
         awk 'BEGIN {{FS=OFS="\\t"}}
@@ -145,7 +141,7 @@ rule manta_output:
         bedpe = join(CFG["dirs"]["outputs"], "{seq_type}", 
                      "{tumour_id}--{normal_id}--{is_matched}.bedpe")
     run:
-        symlink(input.bedpe, output.bedpe)
+        mod.symlink(input.bedpe, output.bedpe)
 
 
 rule manta_all:
@@ -159,6 +155,6 @@ rule manta_all:
 
 ##### CLEANUP #####
 
-cleanup_module(CFG)
+mod.cleanup_module(CFG)
 
 del CFG
