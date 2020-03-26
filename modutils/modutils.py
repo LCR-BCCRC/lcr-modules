@@ -149,10 +149,9 @@ def filter_samples(samples, **filters):
         A filtered table. 
     """
     for column, value in filters.items():
-        if isinstance(value, list):
-            samples = samples[samples[column].isin(value)]
-        else:
-            samples = samples[samples[column] == value]
+        if isinstance(value, str):
+            value = [value]
+        samples = samples[samples[column].isin(value)]
     return samples
 
 
