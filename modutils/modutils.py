@@ -103,10 +103,18 @@ locate_capture_bams = locate_bams_generator("capture")
 
 ##### SAMPLE PROCESSING #####
 
-def load_samples(file_path, mapper=None, **maps):
+LOWERCASE_COLS = ("tissue_status", "seq_type", "ff_or_ffpe")
+
+def load_samples(file_path, lowercase_cols=LOWERCASE_COLS, mapper=None, **maps):
     """
     Load samples TSV file and rename columns using a `mapper` function,
     a series of `maps` pairs (after="before"), or both.
+    
+    As a convenience feature, this function will also force a few
+    columns to lower case to avoid issues downstream. The default
+    set of columns to be forced to lower case are defined in:
+    
+        LOWERCASE_COLS
     
     Returns:
         A pandas data frame.
@@ -120,6 +128,13 @@ def load_samples(file_path, mapper=None, **maps):
     if maps:
         maps_rev = {v: k for k, v in maps.items()}
         samples.rename(columns=maps_rev, inplace=True)
+    # Force a few important columns to be lowercase
+    for col in lowercase_cols:
+        if col not in samples.columns:
+            logger.warn(f"The `{col}` column does not exist "
+                        "in the samples data frame.")
+            continue
+        samples[col] = samples[col].str.lower()
     return samples
 
 
@@ -178,8 +193,8 @@ def generate_runs_for_patient(samples, return_paired=True,
                               default_normal=None,
                               return_paired_as_unpaired=False):
     runs = defaultdict(list)
-    tumour_samples = samples.get("Tumour", [])
-    normal_samples = samples.get("Normal", [None])
+    tumour_samples = samples.get("tumour", []) + samples.get("tumor", [])
+    normal_samples = samples.get("normal", [None])
     # If return_paired_as_unpaired is True, then return_unpaired should be True
     return_unpaired = return_unpaired or return_paired_as_unpaired
     # If return_unpaired is True, then default_normal needs to be set
