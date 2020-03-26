@@ -1,0 +1,16 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+
+description: Required fields for each sample row in the samples data frame
+
+properties:
+    ff_or_ffpe:
+        type: string
+        enum:
+            - ff
+            - ffpe
+        description: >
+            Preservation method used to customize rule parameters. 
+            FF, fresh frozen; FFPE, formalin-fixed paraffin-embedded.
+
+required:
+    - ff_or_ffpe

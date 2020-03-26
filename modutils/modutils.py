@@ -300,7 +300,10 @@ def setup_module(config, name, version, subdirs,
                 pairs[k] = v.replace("{REPODIR}", repodir)
     
     # Validation samples data frame
-    validate(msamples, schema=join(msubdir, "config", "schema.yaml"))
+    schemas_dir = join(msubdir, "schemas")
+    schemas = os.listdir(schemas_dir)
+    for schema in schemas:
+        validate(msamples, schema=join(schemas_dir, schema))
     
     # Configure output directory if not specified and create it
     if mconfig["dirs"].get("_parent") is None:
