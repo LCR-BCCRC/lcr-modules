@@ -43,6 +43,26 @@ def collapse(text):
     return " ".join(lines_dedented)
 
 
+##### SNAKEMAKE INPUT/PARAM FUNCTIONS #####
+
+def make_seqtype_specific(param_config):
+    """
+    Return parameter function to be used by Snakemake to
+    retrieve the correct parameters based on the seq_type.
+    """
+    
+    def return_seqtype_param(wildcards):
+        param = [
+            param_config.get("_base", ""),
+            param_config.get(wildcards.seq_type, "")
+        ]
+        # Stich non-null parameters
+        param_str = " ".join(x for x in param if x != "")
+        return param_str
+    
+    return return_seqtype_param
+
+
 ##### FILE SEARCHING #####
 
 def locate_file(directory, file_ext, *patterns):

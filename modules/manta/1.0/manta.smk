@@ -42,7 +42,7 @@ rule manta_configure:
         join(CFG["dirs"]["manta"], "{seq_type}", 
              "{tumour_id}--{normal_id}--{is_matched}/log.config.txt")
     params:
-        opts   = CFG["options"]["configure"],
+        opts   = mod.make_seqtype_specific(CFG["options"]["configure"]),
         fasta  = config["reference"]["genome_fasta"]
     conda:
         CFG["conda_envs"]["manta"] or "envs/manta.yaml"

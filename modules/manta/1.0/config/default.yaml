@@ -8,5 +8,8 @@ modules:
         conda_envs: 
             manta: null
         options:
-            configure: ""
+            configure:
+                _base: ""
+                mrna: "--rna"
+                capture: "--exome"
             manta: "--mode local"
