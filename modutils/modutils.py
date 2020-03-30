@@ -108,58 +108,6 @@ def list_files(directory, file_ext):
     return files_all
 
 
-def locate_file(directory, file_ext, *patterns):
-    """Searches directory for file with given extension and patterns.
-
-    The search is performed recursively.
-
-    Parameters
-    ----------
-    directory : str
-        The directory containing the file of interest.
-    file_ext : str
-        The file extension (excluding the period).
-    *patterns : list of str, optional
-        The patterns that must to appear anywhere in the file path.
-
-    Returns
-    -------
-    str
-       The matching file.
-
-    Raises
-    ------
-    FileNotFoundError
-        Either no file or more than one file was found.
-    """
-
-    file_ext = file_ext.strip(".")
-    patterns_fmt = "*" + "*, *".join(patterns) + "*" if patterns else None
-    matches = []
-    for root, subdirs, _files in os.walk(directory):
-        for subdir in subdirs:
-            glob_pattern = os.path.join(root, subdir, f"*.{file_ext}")
-            matches_here = glob.glob(glob_pattern)
-            matches.extend(matches_here)
-    for pattern in patterns:
-        matches = [x for x in matches if pattern in x]
-    matches = [x for x in matches if "archive" not in x]
-
-    # Check that there is at least one match
-    assert len(matches) > 0, (
-        f"No '.{file_ext}' file was found in '{directory}' "
-        f"with the following patterns: {patterns_fmt}"
-    )
-
-    # Check that there isn't more than one match
-    assert len(matches) < 2, (
-        f"More than one '.{file_ext}' file was found in '{directory}' "
-        f"with the following patterns: {patterns_fmt}"
-    )
-
-    return matches[0]
-
-
 # SNAKEMAKE INPUT/PARAM FUNCTIONS
 
 
