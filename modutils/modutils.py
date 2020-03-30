@@ -5,6 +5,7 @@ import glob
 import copy
 import functools
 import itertools
+import subprocess
 from collections import defaultdict, namedtuple
 
 import yaml
@@ -69,8 +70,48 @@ def collapse(text):
     return " ".join(lines_dedented)
 
 
+def list_files(directory, file_ext):
+    """Searches directory for all files with given extension.
+
+    The search is performed recursively. The function first tries
+    to use the faster `find` UNIX tool before falling back on a
+    slower Python implementation.
+
+    Parameters
+    ----------
+    directory : str
+        The directory to search in.
+    file_ext : str
+        The file extension (excluding the period).
+
+    Returns
+    -------
+    list of str
+        The list of matching files.
+    """
+
+    files_all = []
+
+    try:
+        # Get list of BAM files using `find` UNIX tool (fast)
+        command = ["find", directory, "-name", f"*.{file_ext}"]
+        files = subprocess.check_output(command, text=True)
+        files_split = files.rstrip("\n").split("\n")
+        files_all.extend(files_split)
+    except subprocess.CalledProcessError:
+        # Slower fallback in Python
+        for root, _subdirs, files in os.walk(directory):
+            files = [f for f in files if f.endswith(f".{file_ext}")]
+            files = [os.path.join(root, f) for f in files]
+            files_all.extend(files)
+
+    return files_all
+
+
 def locate_file(directory, file_ext, *patterns):
     """Searches directory for file with given extension and patterns.
+
+    The search is performed recursively.
 
     Parameters
     ----------
@@ -196,14 +237,39 @@ def locate_bam(
     assert len(sample_keys) == len(sample_bams)
     key_to_bam = dict(zip(sample_keys, sample_bams))
 
+    # Use [None] to differentiate from the case where no BAM files are found
+    bam_files = [None]
+    seq_type_memo = dict()
+
     def locate_bam_custom(wildcards):
+
+        # Retrieve list of BAM files (if not already done)
+        if bam_files == [None]:
+            del bam_files[0]
+            bam_files.extend(list_files(bam_directory, "bam"))
+
+        # Retrieve (or create) BAM files by seq_type
+        seq_type = wildcards.seq_type
+        if seq_type not in seq_type_memo:
+            seq_type_memo[seq_type] = [b for b in bam_files if seq_type in b]
+        seqtype_bam_files = seq_type_memo[seq_type]
+
+        # Create dictionary meant for unpacking in Snakemake
         bams = dict()
         for sample_key, sample_id in wildcards.items():
             if sample_key not in sample_keys:
                 continue
+            matches = [b for b in seqtype_bam_files if sample_id in b]
+            assert len(matches) == 1, (
+                f"The given sample ID ({sample_id}) and seq_type "
+                f"({wildcards.seq_type}) failed to identify a unique "
+                f"BAM file in the given directory ({bam_directory}). "
+                f"Instead, {len(matches)} matching files were found: "
+                f"{', '.join(matches)}"
+            )
             bam_name = key_to_bam[sample_key]
-            bam = locate_file(bam_directory, "bam", sample_id, wildcards.seq_type)
-            bams[bam_name] = bam
+            bams[bam_name] = matches[0]
+
         return bams
 
     return locate_bam_custom
