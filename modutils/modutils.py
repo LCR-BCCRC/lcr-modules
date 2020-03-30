@@ -865,10 +865,12 @@ def cleanup_module(module_config):
         "paired_runs": None,
         "unpaired_runs": None,
     }
+    tsv_fields_skip = ["paired_runs", "unpaired_runs"]
     for field in tsv_fields.keys():
         tsv_fields[field] = module_config.pop(field)
-        output_file = os.path.join(parent_dir, f"{field}.tsv")
-        tsv_fields[field].to_csv(output_file, sep="\t", index=False)
+        if field not in tsv_fields_skip:
+            output_file = os.path.join(parent_dir, f"{field}.tsv")
+            tsv_fields[field].to_csv(output_file, sep="\t", index=False)
 
     # Helper function
     def undo_namedtuple(obj):
