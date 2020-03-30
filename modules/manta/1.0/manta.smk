@@ -2,7 +2,7 @@
 
 ##### MODULES #####
 
-from os.path  import join
+from os.path import join
 import modutils as mod
 
 
@@ -22,7 +22,7 @@ localrules: manta_input, manta_configure, manta_output, manta_all
 
 rule manta_input:
     input:
-        CFG["inputs"].get("sample_bam") or unpack(mod.locate_genome_bams)
+        CFG["inputs"].get("sample_bam") or unpack(mod.locate_bam(CFG.get("bam_directory")))
     output:
         sample_bam = join(CFG["dirs"]["inputs"], "{seq_type}", "{sample_id}.bam")
     run:
@@ -68,7 +68,7 @@ rule manta_run:
     threads:
         CFG["threads"].get("manta") or 1
     resources: 
-        mem_mb = CFG["memory"].get("manta") or 1000
+        mem_mb = CFG["mem_mb"].get("manta") or 1000
     shell:
         mod.collapse("""
         {input.runwf} {params.opts} --jobs {threads} > {log} 2>&1
@@ -128,7 +128,7 @@ rule manta_vcf_to_bedpe:
     threads:
         CFG["threads"].get("vcf_to_bedpe") or 1
     resources: 
-        mem_mb = CFG["memory"].get("vcf_to_bedpe") or 1000
+        mem_mb = CFG["mem_mb"].get("vcf_to_bedpe") or 1000
     shell:
         "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log}"
 

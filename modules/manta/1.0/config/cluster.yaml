@@ -1,6 +1,0 @@
-modules:
-    manta:
-        threads:
-            manta: 12
-        memory:
-            manta: 6000

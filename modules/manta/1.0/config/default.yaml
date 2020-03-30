@@ -1,13 +1,5 @@
-modules:
+lcr-modules:
     manta:
-        pairing_config:
-            genome:
-                run_unpaired_tumours_with: "unmatched_normal"
-            capture:
-                run_unpaired_tumours_with: "unmatched_normal"
-            mrna:
-                run_paired_tumour: False
-                run_unpaired_tumours_with: "no_normal"
         inputs:
             sample_bam: null
             calc_manta_vaf: "{REPODIR}/lcr-scripts/python/calc_manta_vaf.py"
@@ -17,7 +9,12 @@ modules:
             manta: null
         options:
             configure:
-                _base: ""
+                _prefix: ""
                 mrna: "--rna"
                 capture: "--exome"
+                _suffix: ""
             manta: "--mode local"
+        threads:
+            manta: 12
+        mem_mb:
+            manta: 6000
