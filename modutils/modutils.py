@@ -834,13 +834,21 @@ def setup_subdirs(module_config, subdirs):
         The updated module-specific configuration with the paths
         to the numbered output subdirectories.
     """
+
+    # Check for any issues with the subdirectory names
     assert "_parent" not in subdirs, "You cannot have a '_parent' sub-directory."
-    subdirs = ["inputs", *subdirs, "outputs"]
+    assert subdirs[0] == "inputs", "The first subdirectory must be 'inputs'."
+    assert subdirs[-1] == "outputs", "The last subdirectory must be 'outputs'."
+
+    # Generate zero-padded numbers
     numbers = [f"{x:02}" for x in (*range(0, len(subdirs) - 1), 99)]
+
+    # Join numbers and names, and create subdirectory
     for num, subdir in zip(numbers, subdirs):
         subdir_full = os.path.join(module_config["dirs"]["_parent"], f"{num}-{subdir}")
         module_config["dirs"][subdir] = subdir_full
         os.makedirs(subdir_full, exist_ok=True)
+
     return module_config
 
 

@@ -12,7 +12,7 @@ CFG = mod.setup_module(
     config = config, 
     name = "manta", 
     version = "1.0",
-    subdirs = ["manta", "bedpe"]
+    subdirs = ["inputs", "manta", "bedpe", "outputs"]
 )
 
 localrules: manta_input, manta_configure, manta_output, manta_all
