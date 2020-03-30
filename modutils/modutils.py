@@ -19,6 +19,40 @@ from snakemake.logging import logger
 LOWERCASE_COLS = ("tissue_status", "seq_type", "ff_or_ffpe")
 
 
+# SESSION
+
+
+class _Session:
+    """Session for storing Snakemake config internally."""
+
+    def __init__(self):
+        self.config = None
+
+    def setup_lcr_modules(self, config):
+        self.config = config
+
+
+_session = _Session()
+
+
+setup_lcr_modules = _session.setup_lcr_modules
+
+
+# CONVENIENCE FUNCTIONS
+
+
+def set_input(module, name, value):
+    """Use given value as input"""
+    config = _session.config
+    config["lcr-modules"][module]["inputs"][name] = value
+
+
+def set_samples(module, *samples):
+    """Use given value as input"""
+    config = _session.config
+    config["lcr-modules"][module]["samples"] = pd.concat(samples)
+
+
 # UTILITIES
 
 
