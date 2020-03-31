@@ -17,6 +17,21 @@ from snakemake.logging import logger
 
 LOWERCASE_COLS = ("tissue_status", "seq_type", "ff_or_ffpe")
 
+DEFAULT_PAIRING_CONFIG = {
+    "genome": {"run_unpaired_tumours_with": "unmatched_normal"},
+    "capture": {"run_unpaired_tumours_with": "unmatched_normal"},
+    "mrna": {
+        "run_paired_tumours_as_unpaired": True,
+        "run_unpaired_tumours_with": "no_normal",
+        "run_paired_tumour": False,
+    },
+    "mirna": {
+        "run_paired_tumours_as_unpaired": True,
+        "run_unpaired_tumours_with": "no_normal",
+        "run_paired_tumour": False,
+    },
+}
+
 
 # SESSION
 
@@ -387,10 +402,10 @@ def group_samples(samples, subgroups):
 
 def generate_runs_for_patient(
     patient_samples,
-    run_unpaired_tumours_with=None,
-    unmatched_normal=None,
-    run_paired_tumour=True,
-    run_paired_tumours_as_unpaired=False,
+    run_unpaired_tumours_with,
+    unmatched_normal,
+    run_paired_tumour,
+    run_paired_tumours_as_unpaired,
 ):
     """Generates a run for every tumour with and/or without a paired normal.
 
@@ -403,18 +418,17 @@ def generate_runs_for_patient(
         Lists of sample IDs (str) organized by tissue_status (tumour vs
         normal) for a given patient. The order of the samples in each
         list is irrelevant.
-    run_unpaired_tumours_with :
-            { None, 'no_normal', 'unmatched_normal' }, optional
+    run_unpaired_tumours_with : { None, 'no_normal', 'unmatched_normal' }
         What to pair with unpaired tumours. This cannot be set to None if
         `run_paired_tumours_as_unpaired` is True. Provide value for
         `unmatched_normal` argument if this is set to 'unmatched_normal'.
-    unmatched_normal : namedtuple, optional
+    unmatched_normal : namedtuple
         The normal sample to be used with unpaired tumours when
         `run_unpaired_tumours_with` is set to 'unmatched_normal'.
-    run_paired_tumour : boolean, optional
+    run_paired_tumour : boolean
         Whether to run paired tumours. Setting this to False is useful
         for naturally unpaired analyses (e.g., for RNA-seq).
-    run_paired_tumours_as_unpaired : boolean, optional
+    run_paired_tumours_as_unpaired : boolean
         Whether paired tumours should also be run as unpaired
         (i.e., separate from their matched normal sample).
         This is useful for benchmarking purposes.
@@ -719,14 +733,27 @@ def setup_module(config, name, version, subdirs):
     # Ensure minimum version of Snakemake
     smk.utils.min_version("5.0.0")
 
+    # Ensure that the lcr-modules _shared config is loaded
+    assert "lcr-modules" in config and "_shared" in config["lcr-modules"], (
+        "Shared lcr-modules configuration is not loaded. "
+        "See README.md for more information."
+    )
+
+    # Ensure that this module's config is loaded
+    assert name in config["lcr-modules"], (
+        f"The configuration for the `{name}` module is not loaded. "
+        "It should be loaded before the module Snakefile (.smk) is "
+        "included. See README.md for more information."
+    )
+
     # Get configuration for the given module and create samples shorthand
     mconfig = copy.deepcopy(config["lcr-modules"]["_shared"])
-    mconfig.update(config["lcr-modules"][name])
+    smk.utils.update_config(mconfig, config["lcr-modules"][name])
     msamples = mconfig["samples"]
 
     # Find repository and module directories
     repodir = os.path.normpath(mconfig["repository"])
-    msubdir = os.path.join(repodir, "modules", name, version)
+    modsdir = os.path.join(repodir, "modules", name, version)
 
     # Ensure that common module sub-fields are present
     subfields = ["inputs", "dirs", "conda_envs", "options", "threads", "mem_mb"]
@@ -734,16 +761,21 @@ def setup_module(config, name, version, subdirs):
         if subfield not in mconfig:
             mconfig[subfield] = dict()
 
-    # Update file paths with "{REPODIR}" to point to the repository directory
-    for pairs in mconfig.values():
-        if not isinstance(pairs, dict):
-            continue
-        for k, v in pairs.items():
-            if isinstance(v, str) and "{REPODIR}" in v:
-                pairs[k] = v.replace("{REPODIR}", repodir)
+    # Update placeholders in any string in the module-specific config
+    def update_placeholders(obj, **placeholders):
+        if isinstance(obj, str):
+            result = obj
+            for placeholder, value in placeholders.items():
+                result = result.replace("{" + placeholder + "}", value)
+        else:
+            result = obj
+        return result
 
-    # Validation samples data frame
-    schemas_dir = os.path.join(msubdir, "schemas")
+    placeholders = {"REPODIR": repodir, "MODSDIR": modsdir}
+    mconfig = walk_through_dict(mconfig, update_placeholders, **placeholders)
+
+    # Validate samples data frame
+    schemas_dir = os.path.join(modsdir, "schemas")
     schemas = os.listdir(schemas_dir)
     for schema in schemas:
         smk.utils.validate(msamples, schema=os.path.join(schemas_dir, schema))
@@ -751,7 +783,7 @@ def setup_module(config, name, version, subdirs):
     # Configure output directory if not specified and create it
     if mconfig["dirs"].get("_parent") is None:
         root_output_dir = mconfig.get("root_output_dir")
-        root_output_dir = root_output_dir or "modules"
+        root_output_dir = root_output_dir or "results"
         output_dir = os.path.join(root_output_dir, f"{name}-{version}")
         mconfig["dirs"]["_parent"] = output_dir
     os.makedirs(mconfig["dirs"]["_parent"], exist_ok=True)
@@ -759,22 +791,17 @@ def setup_module(config, name, version, subdirs):
     # Update paths to conda environments to be relative to the module directory
     for env_name, env_val in mconfig["conda_envs"].items():
         if env_val is not None:
-            mconfig["conda_envs"][env_name] = os.path.relpath(env_val, msubdir)
-
-    # Normalize all paths
-    for pairs in mconfig.values():
-        if not isinstance(pairs, dict):
-            continue
-        for k, v in pairs.items():
-            if isinstance(v, str) and "{REPODIR}" in v:
-                pairs[k] = v.replace("{REPODIR}", repodir)
+            mconfig["conda_envs"][env_name] = os.path.relpath(env_val, modsdir)
 
     # Setup sub-directories
     mconfig = setup_subdirs(mconfig, subdirs)
 
     # Replace unmatched_normal_ids with unmatched_normals
     Sample = namedtuple("Sample", msamples.columns.tolist())
-    pconfig = mconfig["pairing_config"]
+    pconfig = copy.deepcopy(DEFAULT_PAIRING_CONFIG)
+    smk.utils.update_config(pconfig, mconfig.get("pairing_config", {}))
+    mconfig["pairing_config"] = pconfig
+
     for _seq_type, args_dict in pconfig.items():
         if "unmatched_normal" not in args_dict:
             continue
