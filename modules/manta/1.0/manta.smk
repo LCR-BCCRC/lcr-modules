@@ -147,13 +147,16 @@ rule _manta_output_bedpe:
         md.symlink(input.bedpe, output.bedpe)
 
 
+# Generates the target files for every run
 rule _manta_all:
     input:
-        vcfs = expand(rules._manta_vcf_to_bedpe.output.bedpe, zip,
-                      seq_type=CFG["paired_runs"]["tumour_seq_type"],
-                      tumour_id=CFG["paired_runs"]["tumour_sample_id"],
-                      normal_id=CFG["paired_runs"]["normal_sample_id"],
-                      pair_status=CFG["paired_runs"]["pair_status"])
+        paired_runs = expand(
+            rules._manta_vcf_to_bedpe.output.bedpe, 
+            zip,  # Run expand() with zip(), not product()
+            seq_type=CFG["paired_runs"]["tumour_seq_type"],
+            tumour_id=CFG["paired_runs"]["tumour_sample_id"],
+            normal_id=CFG["paired_runs"]["normal_sample_id"],
+            pair_status=CFG["paired_runs"]["pair_status"])
 
 
 ##### CLEANUP #####
