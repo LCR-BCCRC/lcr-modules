@@ -3,7 +3,7 @@ lcr-modules:
         inputs:
             sample_bam: null
             calc_manta_vaf: "{REPODIR}/lcr-scripts/python/calc_manta_vaf.py"
-            manta_config: "{MODSDIR}/config/configManta.py.ini"
+            manta_config: "{MODSDIR}/etc/configManta.py.ini"
         dirs:
             _parent: null
         conda_envs: 
