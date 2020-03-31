@@ -3,12 +3,12 @@
 ##### MODULES #####
 
 from os.path import join
-import modutils as mod
+import modutils as md
 
 
 ##### SETUP #####
 
-CFG = mod.setup_module(
+CFG = md.setup_module(
     config = config, 
     name = "manta", 
     version = "1.0",
@@ -22,12 +22,12 @@ localrules: _manta_input, _manta_configure, _manta_output, _manta_all
 
 rule _manta_input:
     input:
-        CFG["inputs"].get("sample_bam") or unpack(mod.locate_bam(CFG.get("bam_directory")))
+        CFG["inputs"].get("sample_bam") or unpack(md.locate_bam(CFG.get("bam_directory")))
     output:
         sample_bam = join(CFG["dirs"]["inputs"], "{seq_type}", "{sample_id}.bam")
     run:
-        mod.symlink(input.sample_bam, output.sample_bam)
-        mod.symlink(input.sample_bam + ".bai", output.sample_bam + ".bai")
+        md.symlink(input.sample_bam, output.sample_bam)
+        md.symlink(input.sample_bam + ".bai", output.sample_bam + ".bai")
 
 
 rule _manta_configure:
@@ -41,12 +41,12 @@ rule _manta_configure:
         join(CFG["dirs"]["manta"], "{seq_type}", 
              "{tumour_id}--{normal_id}--{pair_status}/log.config.txt")
     params:
-        opts   = mod.make_seqtype_specific(CFG["options"]["configure"]),
+        opts   = md.make_seqtype_specific(CFG["options"]["configure"]),
         fasta  = config["reference"]["genome_fasta"]
     conda:
         CFG["conda_envs"]["manta"] or "envs/manta.yaml"
     shell:
-        mod.collapse("""
+        md.collapse("""
         configManta.py {params.opts} --referenceFasta {params.fasta} 
         --runDir "$(dirname {output.runwf})" --tumourBam {input.tumour_bam} > {log} 2>&1
         """)
@@ -70,7 +70,7 @@ rule _manta_run:
     resources: 
         mem_mb = CFG["mem_mb"].get("manta") or 1000
     shell:
-        mod.collapse("""
+        md.collapse("""
         {input.runwf} {params.opts} --jobs {threads} > {log} 2>&1
             &&
         rm -rf "$(dirname {input.runwf})/workspace/"
@@ -88,7 +88,7 @@ rule _manta_fix_vcf_ids:
         join(CFG["dirs"]["manta"], "{seq_type}", "{tumour_id}--{normal_id}--{pair_status}", 
              "results", "variants", "log.fix_vcf_ids.txt")
     shell:
-        mod.collapse("""
+        md.collapse("""
         gzip -dc {input.vcf}
             |
         awk 'BEGIN {{FS=OFS="\\t"}}
@@ -140,7 +140,7 @@ rule _manta_output:
         bedpe = join(CFG["dirs"]["outputs"], "{seq_type}", 
                      "{tumour_id}--{normal_id}--{pair_status}.bedpe")
     run:
-        mod.symlink(input.bedpe, output.bedpe)
+        md.symlink(input.bedpe, output.bedpe)
 
 
 rule _manta_all:
@@ -154,6 +154,6 @@ rule _manta_all:
 
 ##### CLEANUP #####
 
-mod.cleanup_module(CFG)
+md.cleanup_module(CFG)
 
 del CFG
