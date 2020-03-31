@@ -180,7 +180,7 @@ def make_seqtype_specific(param_config, spacer=" "):
 
 
 def locate_bam(
-    bam_directory="data/",
+    bam_directory=None,
     sample_keys=("sample_id", "tumour_id", "normal_id"),
     sample_bams=("sample_bam", "tumour_bam", "normal_bam"),
 ):
@@ -193,7 +193,7 @@ def locate_bam(
     ----------
     bam_directory : str, optional
         The directory containing all BAM files. If None is provided,
-        then the default value will be enforced.
+        then the default value of 'data/' will be used.
     sample_keys : list of str, optional
         The possible wildcards that contain identifiers for samples
         with BAM files.
@@ -334,14 +334,14 @@ def filter_samples(samples, **filters):
     return samples
 
 
-def group_samples(samples, subgroups=("seq_type",)):
+def group_samples(samples, subgroups):
     """Organizes samples into nested dictionary.
 
     Parameters
     ----------
     samples : pandas.DataFrame
         The samples.
-    subgroups : list of str, optional
+    subgroups : list of str
         Columns of `samples` by which to organize the samples.
         The order determines the nesting order.
 
