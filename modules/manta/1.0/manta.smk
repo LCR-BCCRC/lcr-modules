@@ -51,7 +51,8 @@ rule _manta_configure_paired:
     output:
         runwf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
-        CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.log"
+        stdout = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stdout.log",
+        stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stderr.log"
     params:
         opts   = md.make_seqtype_specific(CFG["options"]["configure"]),
         fasta  = config["reference"]["genome_fasta"]
@@ -61,7 +62,7 @@ rule _manta_configure_paired:
         md.as_one_line("""
         configManta.py {params.opts} --referenceFasta {params.fasta} 
         --runDir "$(dirname {output.runwf})" --tumourBam {input.tumour_bam}
-        --normalBam {input.normal_bam} > {log} 2>&1
+        --normalBam {input.normal_bam} > {log.stdout} 2> {log.stderr}
         """)
 
 
@@ -76,7 +77,8 @@ rule _manta_configure_unpaired:
     output:
         runwf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
-        CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.log"
+        stdout = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stdout.log",
+        stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stderr.log"
     params:
         opts   = md.make_seqtype_specific(CFG["options"]["configure"]),
         fasta  = config["reference"]["genome_fasta"]
@@ -85,7 +87,8 @@ rule _manta_configure_unpaired:
     shell:
         md.as_one_line("""
         configManta.py {params.opts} --referenceFasta {params.fasta} 
-        --runDir "$(dirname {output.runwf})" --tumourBam {input.tumour_bam} > {log} 2>&1
+        --runDir "$(dirname {output.runwf})" --tumourBam {input.tumour_bam}
+        > {log.stdout} 2> {log.stderr}
         """)
 
 
@@ -96,7 +99,8 @@ rule _manta_run:
     output:
         vcf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somaticSV.vcf.gz"
     log:
-        CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_run.log"
+        stdout = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stdout.log",
+        stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stderr.log"
     params:
         opts   = CFG["options"]["manta"]
     conda:
@@ -107,7 +111,7 @@ rule _manta_run:
         mem_mb = CFG["mem_mb"].get("manta") or 1000
     shell:
         md.as_one_line("""
-        {input.runwf} {params.opts} --jobs {threads} > {log} 2>&1
+        {input.runwf} {params.opts} --jobs {threads} > {log.stdout} 2> {log.stderr}
             &&
         rm -rf "$(dirname {input.runwf})/workspace/"
         """)
@@ -121,14 +125,14 @@ rule _manta_fix_vcf_ids:
     output:
         vcf = pipe(CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somaticSV.with_ids.vcf")
     log:
-        CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_fix_vcf_ids.log"
+        stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_fix_vcf_ids.stderr.log"
     shell:
         md.as_one_line("""
         gzip -dc {input.vcf}
             |
         awk 'BEGIN {{FS=OFS="\\t"}}
         $1 == "#CHROM" {{$10="{wildcards.normal_id}"; $11="{wildcards.tumour_id}"}}
-        {{print $0}}' > {output.vcf} 2> {log}
+        {{print $0}}' > {output.vcf} 2> {log.stderr}
         """)
 
 
@@ -141,11 +145,11 @@ rule _manta_calc_vaf:
     output:
         vcf = pipe(CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somaticSV.with_ids.with_vaf.vcf")
     log:
-        CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_calc_vaf.log"
+        stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_calc_vaf.stderr.log"
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
     shell:
-        "{input.cvaf} {input.vcf} > {output.vcf} 2> {log}"
+        "{input.cvaf} {input.vcf} > {output.vcf} 2> {log.stderr}"
 
 
 # Converts the VCF file into a more tabular BEDPE file, which is easier to handle in R
@@ -156,7 +160,7 @@ rule _manta_vcf_to_bedpe:
     output:
         bedpe = CFG["dirs"]["bedpe"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/somaticSV.bedpe"
     log:
-        CFG["logs"]["bedpe"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_vcf_to_bedpe.log"
+        stderr = CFG["logs"]["bedpe"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_vcf_to_bedpe.stderr.log"
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
     threads:
@@ -164,7 +168,7 @@ rule _manta_vcf_to_bedpe:
     resources: 
         mem_mb = CFG["mem_mb"].get("vcf_to_bedpe") or 1000
     shell:
-        "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log}"
+        "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log.stderr}"
 
 
 # Symlinks the final BEDPE file
