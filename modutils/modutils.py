@@ -801,8 +801,14 @@ def setup_module(config, name, version, subdirs):
         if env_val is not None:
             mconfig["conda_envs"][env_name] = os.path.relpath(env_val, modsdir)
 
-    # Setup sub-directories
+    # Setup output sub-directories
     mconfig = setup_subdirs(mconfig, subdirs)
+
+    # Setup log sub-directories
+    mconfig["logs"] = dict()
+    parent_dir = mconfig["dirs"]["_parent"]
+    for subdir, value in mconfig["dirs"].items():
+        mconfig["logs"][subdir] = value.replace(parent_dir, f"{parent_dir}/logs")
 
     # Replace unmatched_normal_ids with unmatched_normals
     Sample = namedtuple("Sample", msamples.columns.tolist())

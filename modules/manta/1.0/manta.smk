@@ -45,7 +45,7 @@ rule _manta_configure:
     output:
         runwf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
-        CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/log.config.txt"
+        CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.log"
     params:
         opts   = md.make_seqtype_specific(CFG["options"]["configure"]),
         fasta  = config["reference"]["genome_fasta"]
@@ -66,7 +66,7 @@ rule _manta_run:
     output:
         vcf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somaticSV.vcf.gz"
     log:
-        CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/log.manta.txt"
+        CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_run.log"
     params:
         opts   = CFG["options"]["manta"]
     conda:
@@ -91,7 +91,7 @@ rule _manta_fix_vcf_ids:
     output:
         vcf = pipe(CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somaticSV.with_ids.vcf")
     log:
-        CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/log.fix_vcf_ids.txt"
+        CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_fix_vcf_ids.log"
     shell:
         md.as_one_line("""
         gzip -dc {input.vcf}
@@ -111,7 +111,7 @@ rule _manta_calc_vaf:
     output:
         vcf = pipe(CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somaticSV.with_ids.with_vaf.vcf")
     log:
-        CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/log.calc_vaf.txt"
+        CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_calc_vaf.log"
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
     shell:
@@ -126,7 +126,7 @@ rule _manta_vcf_to_bedpe:
     output:
         bedpe = CFG["dirs"]["bedpe"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/somaticSV.bedpe"
     log:
-        CFG["dirs"]["bedpe"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/log.vcf_to_bedpe.txt"
+        CFG["logs"]["bedpe"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_vcf_to_bedpe.log"
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
     threads:
