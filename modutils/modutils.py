@@ -860,8 +860,9 @@ def setup_subdirs(module_config, subdirs):
     numbers = [f"{x:02}" for x in (*range(0, len(subdirs) - 1), 99)]
 
     # Join numbers and names, and create subdirectory
+    parent_dir = module_config["dirs"]["_parent"]
     for num, subdir in zip(numbers, subdirs):
-        subdir_full = os.path.join(module_config["dirs"]["_parent"], f"{num}-{subdir}")
+        subdir_full = os.path.join(parent_dir, f"{num}-{subdir}/")
         module_config["dirs"][subdir] = subdir_full
         os.makedirs(subdir_full, exist_ok=True)
 
