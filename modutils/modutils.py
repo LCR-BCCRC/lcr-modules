@@ -105,7 +105,7 @@ def get_from_dict(dictionary, list_of_keys):
     return functools.reduce(dict.get, list_of_keys, dictionary)
 
 
-def collapse(text):
+def as_one_line(text):
     """Collapses a triple-quoted string to one line.
 
     Line endings do not need to be escaped like in a shell script.

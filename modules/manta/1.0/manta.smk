@@ -52,7 +52,7 @@ rule _manta_configure:
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
     shell:
-        md.collapse("""
+        md.as_one_line("""
         configManta.py {params.opts} --referenceFasta {params.fasta} 
         --runDir "$(dirname {output.runwf})" --tumourBam {input.tumour_bam}
         --normalBam {input.normal_bam} > {log} 2>&1
@@ -76,7 +76,7 @@ rule _manta_run:
     resources: 
         mem_mb = CFG["mem_mb"].get("manta") or 1000
     shell:
-        md.collapse("""
+        md.as_one_line("""
         {input.runwf} {params.opts} --jobs {threads} > {log} 2>&1
             &&
         rm -rf "$(dirname {input.runwf})/workspace/"
@@ -93,7 +93,7 @@ rule _manta_fix_vcf_ids:
     log:
         CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/log.fix_vcf_ids.txt"
     shell:
-        md.collapse("""
+        md.as_one_line("""
         gzip -dc {input.vcf}
             |
         awk 'BEGIN {{FS=OFS="\\t"}}
