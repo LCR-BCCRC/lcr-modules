@@ -1,7 +1,6 @@
 # MODULES
 
 import os
-import glob
 import copy
 import functools
 import itertools
