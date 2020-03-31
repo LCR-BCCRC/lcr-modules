@@ -15,12 +15,12 @@ CFG = mod.setup_module(
     subdirs = ["inputs", "manta", "bedpe", "outputs"]
 )
 
-localrules: manta_input, manta_configure, manta_output, manta_all
+localrules: _manta_input, _manta_configure, _manta_output, _manta_all
 
 
 ##### RULES #####
 
-rule manta_input:
+rule _manta_input:
     input:
         CFG["inputs"].get("sample_bam") or unpack(mod.locate_bam(CFG.get("bam_directory")))
     output:
@@ -30,7 +30,7 @@ rule manta_input:
         mod.symlink(input.sample_bam + ".bai", output.sample_bam + ".bai")
 
 
-rule manta_configure:
+rule _manta_configure:
     input:
         tumour_bam = join(CFG["dirs"]["inputs"], "{seq_type}", "{tumour_id}.bam"),
         normal_bam = join(CFG["dirs"]["inputs"], "{seq_type}", "{normal_id}.bam")
@@ -52,9 +52,9 @@ rule manta_configure:
         """)
 
 
-rule manta_run:
+rule _manta_run:
     input:
-        runwf = rules.manta_configure.output.runwf
+        runwf = rules._manta_configure.output.runwf
     output:
         vcf = join(CFG["dirs"]["manta"], "{seq_type}", "{tumour_id}--{normal_id}--{pair_status}", 
                    "results", "variants", "somaticSV.vcf.gz")
@@ -77,9 +77,9 @@ rule manta_run:
         """)
 
 
-rule manta_fix_vcf_ids:
+rule _manta_fix_vcf_ids:
     input:
-        vcf  = rules.manta_run.output.vcf
+        vcf  = rules._manta_run.output.vcf
     output:
         vcf = pipe(join(CFG["dirs"]["manta"], "{seq_type}", 
                         "{tumour_id}--{normal_id}--{pair_status}", 
@@ -97,10 +97,10 @@ rule manta_fix_vcf_ids:
         """)
 
 
-rule manta_calc_vaf:
+rule _manta_calc_vaf:
     input:
-        vcf  = rules.manta_fix_vcf_ids.output.vcf,
-        cvaf = CFG["inputs"]["calc_manta_vaf"]
+        vcf  = rules._manta_fix_vcf_ids.output.vcf,
+        cvaf = CFG["inputs"]["calc__manta_vaf"]
     output:
         vcf = pipe(join(CFG["dirs"]["manta"], "{seq_type}", 
                         "{tumour_id}--{normal_id}--{pair_status}", 
@@ -114,9 +114,9 @@ rule manta_calc_vaf:
         "{input.cvaf} {input.vcf} > {output.vcf} 2> {log}"
 
 
-rule manta_vcf_to_bedpe:
+rule _manta_vcf_to_bedpe:
     input:
-        vcf  = rules.manta_calc_vaf.output.vcf
+        vcf  = rules._manta_calc_vaf.output.vcf
     output:
         bedpe = join(CFG["dirs"]["bedpe"], "{seq_type}", 
                      "{tumour_id}--{normal_id}--{pair_status}", "somaticSV.bedpe")
@@ -133,9 +133,9 @@ rule manta_vcf_to_bedpe:
         "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log}"
 
 
-rule manta_output:
+rule _manta_output:
     input:
-        bedpe = rules.manta_vcf_to_bedpe.output.bedpe
+        bedpe = rules._manta_vcf_to_bedpe.output.bedpe
     output:
         bedpe = join(CFG["dirs"]["outputs"], "{seq_type}", 
                      "{tumour_id}--{normal_id}--{pair_status}.bedpe")
@@ -143,9 +143,9 @@ rule manta_output:
         mod.symlink(input.bedpe, output.bedpe)
 
 
-rule manta_all:
+rule _manta_all:
     input:
-        vcfs = expand(rules.manta_vcf_to_bedpe.output.bedpe, zip,
+        vcfs = expand(rules._manta_vcf_to_bedpe.output.bedpe, zip,
                       seq_type=CFG["paired_runs"]["tumour_seq_type"],
                       tumour_id=CFG["paired_runs"]["tumour_sample_id"],
                       normal_id=CFG["paired_runs"]["normal_sample_id"],
