@@ -19,12 +19,12 @@ LOWERCASE_COLS = ("tissue_status", "seq_type", "ff_or_ffpe")
 
 DEFAULT_PAIRING_CONFIG = {
     "genome": {
-        "run_unpaired_tumours_with": "unmatched_normal",
+        "run_unpaired_tumours_with": None,
         "run_paired_tumours": True,
         "run_paired_tumours_as_unpaired": False,
     },
     "capture": {
-        "run_unpaired_tumours_with": "unmatched_normal",
+        "run_unpaired_tumours_with": None,
         "run_paired_tumours": True,
         "run_paired_tumours_as_unpaired": False,
     },
@@ -665,7 +665,7 @@ def walk_through_dict(
 
 
 def generate_runs(
-    samples, pairing_config, subgroups=("seq_type", "patient_id", "tissue_status")
+    samples, pairing_config=None, subgroups=("seq_type", "patient_id", "tissue_status"),
 ):
     """Produces a data frame of tumour runs from a data frame of samples.
 
@@ -677,10 +677,12 @@ def generate_runs(
     ----------
     samples : pandas.DataFrame
         The samples.
-    pairing_config : dict
-        Same as `generate_runs_for_patient_wrapper()`
+    pairing_config : dict, optional
+        Same as `generate_runs_for_patient_wrapper()`. If left unset
+        (or None is provided), this function will fallback on a
+        default value (see `modutils.DEFAULT_PAIRING_CONFIG`).
     subgroups : list of str, optional
-        Same as `group_samples()`
+        Same as `group_samples()`.
 
     Returns
     -------
@@ -688,6 +690,10 @@ def generate_runs(
         The generated runs with columns matching the keys of the
         return value for `generate_runs_for_patient()`.
     """
+
+    # Set default values
+    if pairing_config is None:
+        pairing_config = DEFAULT_PAIRING_CONFIG
 
     # Organize samples by patient and tissue status (tumour vs. normal)
     patients = group_samples(samples, subgroups)
