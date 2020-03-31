@@ -313,8 +313,11 @@ def load_samples(
         object that maps the original names (keys) to the desired
         names (values).
     **maps : key-value pairs, optional
-        Pairs that map the original names (keys) to the desired
-        names (values).
+        Pairs that specify the actual names (values) of the expected
+        columns (keys). For example, if you had a 'sample' column
+        while `lcr-modules` expects 'sample_id', you can use:
+
+        load_samples(..., sample_id = "sample")
 
     Returns
     -------
@@ -324,7 +327,8 @@ def load_samples(
     if renamer:
         samples.rename(columns=renamer, inplace=True)
     if maps:
-        samples.rename(columns=maps, inplace=True)
+        maps_rev = {v: k for k, v in maps.items()}
+        samples.rename(columns=maps_rev, inplace=True)
     for col in lowercase_cols:
         if col not in samples.columns:
             msg = f"The `{col}` column does not exist " "in the samples data frame."
