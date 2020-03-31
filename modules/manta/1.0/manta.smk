@@ -19,7 +19,12 @@ CFG = md.setup_module(
 )
 
 # Define rules to be run locally when using a compute cluster.
-localrules: _manta_input_bam, _manta_configure, _manta_output_bedpe, _manta_all
+localrules: 
+    _manta_input_bam, 
+    _manta_configure_paired, 
+    _manta_configure_unpaired, 
+    _manta_output_bedpe, 
+    _manta_all
 
 
 ##### RULES #####
@@ -37,7 +42,8 @@ rule _manta_input_bam:
 
 
 # Configures the manta workflow with the input BAM files and reference FASTA file.
-rule _manta_configure:
+# For paired runs.
+rule _manta_configure_paired:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "{seq_type}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "{seq_type}/{normal_id}.bam",
@@ -59,10 +65,34 @@ rule _manta_configure:
         """)
 
 
+# Configures the manta workflow with the input BAM files and reference FASTA file.
+# For unpaired runs.
+rule _manta_configure_unpaired:
+    wildcard_constraints:
+        normal_id = "None"
+    input:
+        tumour_bam = CFG["dirs"]["inputs"] + "{seq_type}/{tumour_id}.bam",
+        config = CFG["inputs"]["manta_config"]
+    output:
+        runwf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
+    log:
+        CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.log"
+    params:
+        opts   = md.make_seqtype_specific(CFG["options"]["configure"]),
+        fasta  = config["reference"]["genome_fasta"]
+    conda:
+        CFG["conda_envs"].get("manta") or "envs/manta.yaml"
+    shell:
+        md.as_one_line("""
+        configManta.py {params.opts} --referenceFasta {params.fasta} 
+        --runDir "$(dirname {output.runwf})" --tumourBam {input.tumour_bam} > {log} 2>&1
+        """)
+
+
 # Launches manta workflow in parallel mode and deletes unnecessary files upon success.
 rule _manta_run:
     input:
-        runwf = rules._manta_configure.output.runwf
+        runwf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     output:
         vcf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somaticSV.vcf.gz"
     log:
@@ -150,13 +180,12 @@ rule _manta_output_bedpe:
 # Generates the target files for every run
 rule _manta_all:
     input:
-        paired_runs = expand(
-            rules._manta_vcf_to_bedpe.output.bedpe, 
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["paired_runs"]["tumour_seq_type"],
-            tumour_id=CFG["paired_runs"]["tumour_sample_id"],
-            normal_id=CFG["paired_runs"]["normal_sample_id"],
-            pair_status=CFG["paired_runs"]["pair_status"])
+        expand(rules._manta_vcf_to_bedpe.output.bedpe, 
+               zip,  # Run expand() with zip(), not product()
+               seq_type=CFG["runs"]["tumour_seq_type"],
+               tumour_id=CFG["runs"]["tumour_sample_id"],
+               normal_id=CFG["runs"]["normal_sample_id"],
+               pair_status=CFG["runs"]["pair_status"])
 
 
 ##### CLEANUP #####
