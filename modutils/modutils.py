@@ -18,17 +18,25 @@ from snakemake.logging import logger
 LOWERCASE_COLS = ("tissue_status", "seq_type", "ff_or_ffpe")
 
 DEFAULT_PAIRING_CONFIG = {
-    "genome": {"run_unpaired_tumours_with": "unmatched_normal"},
-    "capture": {"run_unpaired_tumours_with": "unmatched_normal"},
+    "genome": {
+        "run_unpaired_tumours_with": "unmatched_normal",
+        "run_paired_tumours": True,
+        "run_paired_tumours_as_unpaired": False,
+    },
+    "capture": {
+        "run_unpaired_tumours_with": "unmatched_normal",
+        "run_paired_tumours": True,
+        "run_paired_tumours_as_unpaired": False,
+    },
     "mrna": {
-        "run_paired_tumours_as_unpaired": True,
         "run_unpaired_tumours_with": "no_normal",
-        "run_paired_tumour": False,
+        "run_paired_tumours": False,
+        "run_paired_tumours_as_unpaired": True,
     },
     "mirna": {
-        "run_paired_tumours_as_unpaired": True,
         "run_unpaired_tumours_with": "no_normal",
-        "run_paired_tumour": False,
+        "run_paired_tumours": False,
+        "run_paired_tumours_as_unpaired": True,
     },
 }
 
@@ -402,10 +410,10 @@ def group_samples(samples, subgroups):
 
 def generate_runs_for_patient(
     patient_samples,
+    run_paired_tumours,
     run_unpaired_tumours_with,
-    unmatched_normal,
-    run_paired_tumour,
-    run_paired_tumours_as_unpaired,
+    unmatched_normal=None,
+    run_paired_tumours_as_unpaired=False,
 ):
     """Generates a run for every tumour with and/or without a paired normal.
 
@@ -418,17 +426,17 @@ def generate_runs_for_patient(
         Lists of sample IDs (str) organized by tissue_status (tumour vs
         normal) for a given patient. The order of the samples in each
         list is irrelevant.
+    run_paired_tumours : boolean
+        Whether to run paired tumours. Setting this to False is useful
+        for naturally unpaired analyses (e.g., for RNA-seq).
     run_unpaired_tumours_with : { None, 'no_normal', 'unmatched_normal' }
         What to pair with unpaired tumours. This cannot be set to None if
         `run_paired_tumours_as_unpaired` is True. Provide value for
         `unmatched_normal` argument if this is set to 'unmatched_normal'.
-    unmatched_normal : namedtuple
+    unmatched_normal : namedtuple, optional
         The normal sample to be used with unpaired tumours when
         `run_unpaired_tumours_with` is set to 'unmatched_normal'.
-    run_paired_tumour : boolean
-        Whether to run paired tumours. Setting this to False is useful
-        for naturally unpaired analyses (e.g., for RNA-seq).
-    run_paired_tumours_as_unpaired : boolean
+    run_paired_tumours_as_unpaired : boolean, optional
         Whether paired tumours should also be run as unpaired
         (i.e., separate from their matched normal sample).
         This is useful for benchmarking purposes.
@@ -485,7 +493,7 @@ def generate_runs_for_patient(
     for tumour, normal in itertools.product(tumour_samples, normal_samples):
         # Check for paired samples
         paired = normal is not None
-        if paired and run_paired_tumour is False:
+        if paired and run_paired_tumours is False:
             continue
         # Check for unpaired samples
         unpaired = normal is None
