@@ -100,7 +100,7 @@ rule _manta_fix_vcf_ids:
 rule _manta_calc_vaf:
     input:
         vcf  = rules._manta_fix_vcf_ids.output.vcf,
-        cvaf = CFG["inputs"]["calc__manta_vaf"]
+        cvaf = CFG["inputs"]["calc_manta_vaf"]
     output:
         vcf = pipe(join(CFG["dirs"]["manta"], "{seq_type}", 
                         "{tumour_id}--{normal_id}--{pair_status}", 
