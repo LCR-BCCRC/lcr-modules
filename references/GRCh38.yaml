@@ -1,0 +1,3 @@
+# Ensembl GRCh38/hg38 (without chr prefix)
+reference:
+    genome_fasta: "/projects/clc/references/genomes/GRCh38/build90/Homo_sapiens.GRCh38.dna.primary_assembly.fa"

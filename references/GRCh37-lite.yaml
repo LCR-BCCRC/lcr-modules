@@ -1,0 +1,3 @@
+# GSC GRCh37/hg19 (without chr prefix)
+reference:
+    genome_fasta: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh37-lite/Sequence/WholeGenomeFasta/genome.fa"

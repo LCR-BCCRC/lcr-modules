@@ -1,0 +1,3 @@
+# UCSC GRCh37/hg19 (with chr prefix)
+reference:
+    genome_fasta: "/projects/clc/references/genomes/hg19/hg19.fa"
