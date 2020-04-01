@@ -175,11 +175,14 @@ def list_files(directory, file_ext):
 # SNAKEMAKE INPUT/PARAM FUNCTIONS
 
 
-def make_seqtype_specific(param_config, spacer=" "):
-    """Handles different options for each sequencing data type.
+def parameterize_on(wildcard_name, param_config, spacer=" "):
+    """Get parameter value based on the value of a wildcard.
 
     Parameters
     ----------
+    wildcard_name : str
+        The name of the wildcard (e.g., 'seq_type') whose value
+        will determine which key to use in the `param_config`.
     param_config : dict
         The options (values) for each sequencing data type (keys),
         also known as seq_types. Two special keys, '_prefix' and
@@ -201,7 +204,7 @@ def make_seqtype_specific(param_config, spacer=" "):
     def run_seqtype_param(wildcards):
         param = [
             param_config.get("_prefix", ""),
-            param_config.get(wildcards.seq_type, ""),
+            param_config.get(wildcards.get(wildcard_name), ""),
             param_config.get("_suffix", ""),
         ]
         param_str = spacer.join(x for x in param if x != "")

@@ -55,7 +55,7 @@ rule _manta_configure_paired:
         stdout = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stdout.log",
         stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stderr.log"
     params:
-        opts   = md.make_seqtype_specific(CFG["options"]["configure"]),
+        opts   = md.parameterize_on("seq_type", CFG["options"]["configure"]),
         fasta  = config["reference"]["genome_fasta"]
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
@@ -81,7 +81,7 @@ rule _manta_configure_unpaired:
         stdout = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stdout.log",
         stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stderr.log"
     params:
-        opts   = md.make_seqtype_specific(CFG["options"]["configure"]),
+        opts   = md.parameterize_on("seq_type", CFG["options"]["configure"]),
         fasta  = config["reference"]["genome_fasta"]
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
