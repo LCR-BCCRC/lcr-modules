@@ -332,17 +332,15 @@ def load_samples(
     pandas.DataFrame
     """
     samples = pd.read_table(file_path, sep=sep)
+
     if renamer:
         samples.rename(columns=renamer, inplace=True)
     if maps:
         maps_rev = {v: k for k, v in maps.items()}
         samples.rename(columns=maps_rev, inplace=True)
     for col in lowercase_cols:
-        if col not in samples.columns:
-            msg = f"The `{col}` column does not exist " "in the samples data frame."
-            logger.warning(msg)
-            continue
-        samples[col] = samples[col].str.lower()
+        if col in samples.columns:
+            samples[col] = samples[col].str.lower()
     return samples
 
 
