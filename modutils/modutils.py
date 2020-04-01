@@ -824,8 +824,7 @@ def setup_module(config, name, version, subdirs, req_references=()):
 
     # Configure output directory if not specified and create it
     if mconfig["dirs"].get("_parent") is None:
-        root_output_dir = mconfig.get("root_output_dir")
-        root_output_dir = root_output_dir or "results"
+        root_output_dir = mconfig.get("root_output_dir", "results")
         output_dir = os.path.join(root_output_dir, f"{name}-{version}")
         mconfig["dirs"]["_parent"] = output_dir
     os.makedirs(mconfig["dirs"]["_parent"], exist_ok=True)
