@@ -50,14 +50,22 @@ class _Session:
     def __init__(self):
         self.config = None
 
-    def setup_lcr_modules(self, config):
+    def set_config(self, config):
         self.config = config
 
 
 _session = _Session()
 
 
-setup_lcr_modules = _session.setup_lcr_modules
+def enable_set_functions(config):
+    """Enable the `set_*` modutils convenience functions.
+
+    Parameters
+    ----------
+    config : dict
+        The Snakemake configuration nested dictionary.
+    """
+    _session.set_config(config)
 
 
 # CONVENIENCE FUNCTIONS
