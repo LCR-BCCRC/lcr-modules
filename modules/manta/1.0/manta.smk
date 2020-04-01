@@ -34,7 +34,7 @@ localrules:
 # Symlinks the input BAM files into the module output directory (under '00-inputs/').
 rule _manta_input_bam:
     input:
-        CFG["inputs"].get("sample_bam") or unpack(md.locate_bam(CFG.get("bam_directory")))
+        sample_bam = CFG["inputs"]["sample_bam"]
     output:
         sample_bam = CFG["dirs"]["inputs"] + "{seq_type}/{sample_id}.bam"
     run:
