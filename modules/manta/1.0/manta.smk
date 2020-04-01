@@ -15,7 +15,8 @@ CFG = md.setup_module(
     config = config, 
     name = "manta", 
     version = "1.0",
-    subdirs = ["inputs", "manta", "bedpe", "outputs"]
+    subdirs = ["inputs", "manta", "bedpe", "outputs"],
+    req_references = ["genome_fasta"]
 )
 
 # Define rules to be run locally when using a compute cluster.

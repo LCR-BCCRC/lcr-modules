@@ -724,7 +724,7 @@ def generate_runs(
 # MODULE SETUP/CLEANUP
 
 
-def setup_module(config, name, version, subdirs):
+def setup_module(config, name, version, subdirs, req_references=()):
     """Prepares and validates configuration for the given module.
 
     Parameters
@@ -740,6 +740,10 @@ def setup_module(config, name, version, subdirs):
         The subdirectories of the module output directory where the
         results will be produced. They will be numbered incrementally
         and created on disk.
+    req_references : list of str, optional
+        The list of required keys for the shared reference YAML files.
+        This is provided to ensure they are present before running the
+        module.
 
     Returns
     -------
@@ -763,6 +767,18 @@ def setup_module(config, name, version, subdirs):
         "It should be loaded before the module Snakefile (.smk) is "
         "included. See README.md for more information."
     )
+
+    # Ensure that the required references are present
+    if len(req_references) > 0:
+        msg = (
+            f"The {name} module needs the following reference data, "
+            "but they cannot be found in the Snakemake `config`. "
+            "Please load the appropriate reference YAML file in the "
+            f"`lcr-modules` repository. \n    {req_references}"
+        )
+        assert "reference" in config, msg
+        for ref_key in req_references:
+            assert ref_key in config["reference"], msg
 
     # Get configuration for the given module and create samples shorthand
     mconfig = copy.deepcopy(config["lcr-modules"]["_shared"])
