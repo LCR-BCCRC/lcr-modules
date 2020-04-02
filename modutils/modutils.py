@@ -206,6 +206,13 @@ def parameterize_on(wildcard_name, param_config, spacer=" "):
         option, and the suffix (if any), joined by a spacer.
     """
 
+    assert isinstance(param_config, dict), (
+        "`param_config` must be a dict with keys for each possible value "
+        f"of the `{wildcard_name}` wildcard. Note that you can use the "
+        "'_default', '_prefix', and '_suffix' special keys in `param_config`. "
+        "See `help(modutils.parameterize_on)` for more details."
+    )
+
     def run_seqtype_param(wildcards):
         param = [
             param_config.get("_prefix", ""),
