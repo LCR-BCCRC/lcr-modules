@@ -187,7 +187,9 @@ def parameterize_on(wildcard_name, param_config, spacer=" "):
         The options (values) for each sequencing data type (keys),
         also known as seq_types. Two special keys, '_prefix' and
         '_suffix', can be included to prepend and append options
-        shared between seq_types, respectively.
+        shared between seq_types, respectively. One other special
+        key, '_default', is used if ever the wildcard value is not
+        present in `param_config`.
     spacer : str, optional
         The spacer added between the prefix and the seq_type-specific
         option as well as between that and the suffix.
@@ -204,7 +206,9 @@ def parameterize_on(wildcard_name, param_config, spacer=" "):
     def run_seqtype_param(wildcards):
         param = [
             param_config.get("_prefix", ""),
-            param_config.get(wildcards.get(wildcard_name), ""),
+            param_config.get(
+                wildcards.get(wildcard_name), param_config.get("_default", "")
+            ),
             param_config.get("_suffix", ""),
         ]
         param_str = spacer.join(x for x in param if x != "")
