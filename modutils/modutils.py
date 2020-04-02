@@ -2,6 +2,7 @@
 
 import os
 import copy
+import datetime
 import functools
 import itertools
 import subprocess
@@ -49,6 +50,8 @@ class _Session:
 
     def __init__(self):
         self.config = None
+        self.launched = datetime.datetime.now()
+        self.launched_fmt = self.launched.strftime("launched-%Y-%m-%d-at-%H-%M-%S")
 
     def set_config(self, config):
         self.config = config
@@ -845,8 +848,13 @@ def setup_module(config, name, version, subdirs, req_references=()):
     # Setup log sub-directories
     mconfig["logs"] = dict()
     parent_dir = mconfig["dirs"]["_parent"]
+    launched_fmt = _session.launched_fmt
     for subdir, value in mconfig["dirs"].items():
-        mconfig["logs"][subdir] = value.replace(parent_dir, f"{parent_dir}/logs")
+        if subdir == "_parent":
+            continue
+        mconfig["logs"][subdir] = value.replace(
+            parent_dir, f"{parent_dir}/logs/{launched_fmt}"
+        )
 
     # Replace unmatched_normal_ids with unmatched_normals
     Sample = namedtuple("Sample", msamples.columns.tolist())
