@@ -24,7 +24,8 @@ localrules:
     _manta_input_bam, 
     _manta_configure_paired, 
     _manta_configure_unpaired, 
-    _manta_output_bedpe, 
+    _manta_output_somaticsv_bedpe,
+    _manta_output_candidatesmallindels_vcf, 
     _manta_all
 
 
@@ -98,7 +99,10 @@ rule _manta_run:
     input:
         runwf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     output:
-        vcf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somaticSV.vcf.gz"
+        somaticSV = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somaticSV.vcf.gz",
+        candidateSmallIndels = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/candidateSmallIndels.vcf.gz",
+        candidateSV = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/candidateSV.vcf.gz",
+        diploidSV = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/diploidSV.vcf.gz"
     log:
         stdout = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stdout.log",
         stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stderr.log"
@@ -122,7 +126,7 @@ rule _manta_run:
 # manta uses the sample name from the BAM read groups, which may not be useful.
 rule _manta_fix_vcf_ids:
     input:
-        vcf  = rules._manta_run.output.vcf
+        vcf  = rules._manta_run.output.somaticSV
     output:
         vcf = pipe(CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somaticSV.with_ids.vcf")
     log:
@@ -172,20 +176,31 @@ rule _manta_vcf_to_bedpe:
         "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log.stderr}"
 
 
-# Symlinks the final BEDPE file
-rule _manta_output_bedpe:
+# Symlinks the final somaticSV BEDPE file 
+rule _manta_output_somaticsv_bedpe:
     input:
         bedpe = rules._manta_vcf_to_bedpe.output.bedpe
     output:
-        bedpe = CFG["dirs"]["outputs"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}.bedpe"
+        bedpe = CFG["dirs"]["outputs"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}.somaticSV.bedpe"
     run:
         md.symlink(input.bedpe, output.bedpe)
+
+
+# Symlinks the candidateSmallIndels VCF file
+rule _manta_output_candidatesmallindels_vcf:
+    input:
+        vcf = rules._manta_run.output.candidateSmallIndels
+    output:
+        vcf = CFG["dirs"]["outputs"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf"
+    run:
+        md.symlink(input.vcf, output.vcf)
 
 
 # Generates the target files for every run
 rule _manta_all:
     input:
-        expand(rules._manta_vcf_to_bedpe.output.bedpe, 
+        expand([rules._manta_output_somaticsv_bedpe.output.bedpe,
+                rules._manta_output_candidatesmallindels_vcf.output.vcf], 
                zip,  # Run expand() with zip(), not product()
                seq_type=CFG["runs"]["tumour_seq_type"],
                tumour_id=CFG["runs"]["tumour_sample_id"],
