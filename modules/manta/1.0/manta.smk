@@ -4,6 +4,9 @@
 ##### SETUP #####
 
 
+# Import standard packages
+import os
+
 # Import package with useful functions for developing analysis modules.
 import modutils as md
 
@@ -24,8 +27,9 @@ localrules:
     _manta_input_bam, 
     _manta_configure_paired, 
     _manta_configure_unpaired, 
-    _manta_output_somaticsv_bedpe,
-    _manta_output_candidatesmallindels_vcf, 
+    _manta_output_bedpe,
+    _manta_output_vcf, 
+    _manta_all_dispatch,
     _manta_all
 
 
@@ -89,24 +93,22 @@ rule _manta_configure_unpaired:
     shell:
         md.as_one_line("""
         configManta.py {params.opts} --referenceFasta {params.fasta} 
-        --runDir "$(dirname {output.runwf})" --tumourBam {input.tumour_bam}
+        --runDir "$(dirname {output.runwf})" --bam {input.tumour_bam}
         > {log.stdout} 2> {log.stderr}
         """)
 
 
 # Launches manta workflow in parallel mode and deletes unnecessary files upon success.
-rule _manta_run:
+checkpoint _manta_run:
     input:
         runwf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     output:
-        somaticSV = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somaticSV.vcf.gz",
-        candidateSmallIndels = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/candidateSmallIndels.vcf.gz",
-        candidateSV = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/candidateSV.vcf.gz",
-        diploidSV = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/diploidSV.vcf.gz"
+        vcf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/candidateSV.vcf.gz"
     log:
         stdout = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stdout.log",
         stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stderr.log"
     params:
+        variants_dir = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/",
         opts   = CFG["options"]["manta"]
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
@@ -126,17 +128,19 @@ rule _manta_run:
 # manta uses the sample name from the BAM read groups, which may not be useful.
 rule _manta_fix_vcf_ids:
     input:
-        vcf  = rules._manta_run.output.somaticSV
+        vcf = rules._manta_run.params.variants_dir + "{vcf_name}.vcf.gz"
     output:
-        vcf = pipe(CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somaticSV.with_ids.vcf")
+        vcf = pipe(CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/{vcf_name}.with_ids.vcf")
     log:
-        stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_fix_vcf_ids.stderr.log"
+        stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_fix_vcf_ids.{vcf_name}.stderr.log"
     shell:
         md.as_one_line("""
         gzip -dc {input.vcf}
             |
         awk 'BEGIN {{FS=OFS="\\t"}}
-        $1 == "#CHROM" {{$10="{wildcards.normal_id}"; $11="{wildcards.tumour_id}"}}
+        $1 == "#CHROM" && $10 != "" && $11 != "" {{$10="{wildcards.normal_id}"}}
+        $1 == "#CHROM" && $10 != "" && $11 == "" {{$10="{wildcards.tumour_id}"}}
+        $1 == "#CHROM" && $11 != "" {{$11="{wildcards.tumour_id}"}}
         {{print $0}}' > {output.vcf} 2> {log.stderr}
         """)
 
@@ -148,9 +152,9 @@ rule _manta_calc_vaf:
         vcf  = rules._manta_fix_vcf_ids.output.vcf,
         cvaf = CFG["inputs"]["calc_manta_vaf"]
     output:
-        vcf = pipe(CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somaticSV.with_ids.with_vaf.vcf")
+        vcf = pipe(CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/{vcf_name}.with_ids.with_vaf.vcf")
     log:
-        stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_calc_vaf.stderr.log"
+        stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_calc_vaf.{vcf_name}.stderr.log"
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
     shell:
@@ -163,9 +167,9 @@ rule _manta_vcf_to_bedpe:
     input:
         vcf  = rules._manta_calc_vaf.output.vcf
     output:
-        bedpe = CFG["dirs"]["bedpe"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/somaticSV.bedpe"
+        bedpe = CFG["dirs"]["bedpe"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.bedpe"
     log:
-        stderr = CFG["logs"]["bedpe"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_vcf_to_bedpe.stderr.log"
+        stderr = CFG["logs"]["bedpe"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_vcf_to_bedpe.{vcf_name}.stderr.log"
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
     threads:
@@ -176,31 +180,64 @@ rule _manta_vcf_to_bedpe:
         "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log.stderr}"
 
 
-# Symlinks the final somaticSV BEDPE file 
-rule _manta_output_somaticsv_bedpe:
+# Symlinks the VCF files
+rule _manta_output_vcf:
+    input:
+        vcf = rules._manta_run.params.variants_dir + "{vcf_name}.vcf.gz"
+    output:
+        vcf = CFG["dirs"]["outputs"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf.gz"
+    run:
+        md.symlink(input.vcf, output.vcf)
+        md.symlink(input.vcf + ".tbi", output.vcf + ".tbi")
+
+
+# Symlinks the final BEDPE files
+rule _manta_output_bedpe:
     input:
         bedpe = rules._manta_vcf_to_bedpe.output.bedpe
     output:
-        bedpe = CFG["dirs"]["outputs"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}.somaticSV.bedpe"
+        bedpe = CFG["dirs"]["outputs"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.bedpe"
     run:
         md.symlink(input.bedpe, output.bedpe)
 
 
-# Symlinks the candidateSmallIndels VCF file
-rule _manta_output_candidatesmallindels_vcf:
+def get_manta_files(wildcards):
+    """Request symlinks for all Manta VCF/BEDPE files.
+    
+    This function is required in conjunction with a Snakemake
+    checkpoint because Manta produces different files based
+    on whether it's run in paired mode or not and based on
+    some parameters (like `--rna`). This function dynamically
+    generates target symlinks for the raw VCF files and the
+    processed BEDPE files based on what was actually produced.
+    """
+    # Use sets for easy set operations
+    no_bedpe = set(["candidateSV"])
+    manta_vcf = checkpoints._manta_run.get(**wildcards).output.vcf
+    variants_dir = os.path.dirname(manta_vcf)
+    all_files = os.listdir(variants_dir)
+    vcf_files = {f for f in all_files if f.endswith(".vcf.gz")}
+    vcf_names = {f.replace(".vcf.gz", "") for f in vcf_files}
+    vcf_targets = expand(rules._manta_output_vcf.output.vcf,
+                         vcf_name=vcf_names, **wildcards)
+    bedpe_targets = expand(rules._manta_output_bedpe.output.bedpe,
+                           vcf_name=(vcf_names - no_bedpe), 
+                           **wildcards)
+    return vcf_targets + bedpe_targets
+
+
+# Generates the target symlinks for each run
+rule _manta_all_dispatch:
     input:
-        vcf = rules._manta_run.output.candidateSmallIndels
+        get_manta_files
     output:
-        vcf = CFG["dirs"]["outputs"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf"
-    run:
-        md.symlink(input.vcf, output.vcf)
+        touch(CFG["dirs"]["outputs"] + "{seq_type}/.{tumour_id}--{normal_id}--{pair_status}.dispatched")
 
 
-# Generates the target files for every run
+# Generates the target sentinels for each run, which generate the symlinks
 rule _manta_all:
     input:
-        expand([rules._manta_output_somaticsv_bedpe.output.bedpe,
-                rules._manta_output_candidatesmallindels_vcf.output.vcf], 
+        expand(rules._manta_all_dispatch.output, 
                zip,  # Run expand() with zip(), not product()
                seq_type=CFG["runs"]["tumour_seq_type"],
                tumour_id=CFG["runs"]["tumour_sample_id"],
