@@ -766,7 +766,7 @@ def setup_module(config, name, version, subdirs, req_references=()):
     """
 
     # Ensure minimum version of Snakemake
-    smk.utils.min_version("5.0.0")
+    smk.utils.min_version("5.4.0")
 
     # Ensure that the lcr-modules _shared config is loaded
     assert "lcr-modules" in config and "_shared" in config["lcr-modules"], (
