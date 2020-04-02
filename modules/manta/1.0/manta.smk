@@ -25,8 +25,7 @@ CFG = md.setup_module(
 # Define rules to be run locally when using a compute cluster.
 localrules: 
     _manta_input_bam, 
-    _manta_configure_paired, 
-    _manta_configure_unpaired, 
+    _manta_configure,
     _manta_output_bedpe,
     _manta_output_vcf, 
     _manta_all_dispatch,
@@ -78,11 +77,14 @@ rule _manta_index_bed:
 
 
 # Configures the manta workflow with the input BAM files and reference FASTA file.
-# For paired runs.
-rule _manta_configure_paired:
+rule _manta_configure:
     input:
+        # Do not have a normal_bam as input in 'no_normal' mode
+        unpack(md.parameterize_on("pair_status", {
+            "_default" : {"normal_bam": CFG["dirs"]["inputs"] + "{seq_type}/{normal_id}.bam"},
+            "no_normal" : {}
+        })),
         tumour_bam = CFG["dirs"]["inputs"] + "{seq_type}/{tumour_id}.bam",
-        normal_bam = CFG["dirs"]["inputs"] + "{seq_type}/{normal_id}.bam",
         config = CFG["inputs"]["manta_config"],
         bedz = rules._manta_index_bed.output.bedz
     output:
@@ -92,40 +94,17 @@ rule _manta_configure_paired:
         stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stderr.log"
     params:
         opts   = md.parameterize_on("seq_type", CFG["options"]["configure"]),
-        fasta  = config["reference"]["genome_fasta"]
+        fasta  = config["reference"]["genome_fasta"],
+        normal_bam = md.parameterize_on("pair_status", {
+            "_default" : "--normalBam " + CFG["dirs"]["inputs"] + "{seq_type}/{normal_id}.bam",
+            "no_normal" : ""
+        })
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
     shell:
         md.as_one_line("""
         configManta.py {params.opts} --referenceFasta {params.fasta} --callRegions {input.bedz}
-        --runDir "$(dirname {output.runwf})" --tumourBam {input.tumour_bam}
-        --normalBam {input.normal_bam} > {log.stdout} 2> {log.stderr}
-        """)
-
-
-# Configures the manta workflow with the input BAM files and reference FASTA file.
-# For unpaired runs (mostly pulling values from `rules._manta_configure_paired`).
-rule _manta_configure_unpaired:
-    wildcard_constraints:
-        normal_id = "None"
-    input:
-        tumour_bam = rules._manta_configure_paired.input.tumour_bam,
-        config = rules._manta_configure_paired.input.config,
-        bedz = rules._manta_index_bed.output.bedz
-    output:
-        runwf = rules._manta_configure_paired.output.runwf
-    log:
-        stdout = rules._manta_configure_paired.log.stdout,
-        stderr = rules._manta_configure_paired.log.stderr
-    params:
-        opts   = md.parameterize_on("seq_type", CFG["options"]["configure"]),
-        fasta  = config["reference"]["genome_fasta"]
-    conda:
-        CFG["conda_envs"].get("manta") or "envs/manta.yaml"
-    shell:
-        md.as_one_line("""
-        configManta.py {params.opts} --referenceFasta {params.fasta} --callRegions {input.bedz}
-        --runDir "$(dirname {output.runwf})" --bam {input.tumour_bam}
+        --runDir "$(dirname {output.runwf})" --tumourBam {input.tumour_bam} {params.normal_bam}
         > {log.stdout} 2> {log.stderr}
         """)
 
