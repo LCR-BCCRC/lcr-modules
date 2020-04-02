@@ -89,7 +89,7 @@ def set_samples(module, *samples):
 # UTILITIES
 
 
-def symlink(src, dest):
+def symlink(src, dest, overwrite=True):
     """Creates a relative symlink from any working directory.
 
     Parameters
@@ -100,6 +100,8 @@ def symlink(src, dest):
         The destination file path. This can also be a destination
         directory, and the destination symlink name will be identical
         to the source file name.
+    overwrite : boolean
+        Whether to overwrite the destination file if it exists.
     """
     if os.path.isdir(dest):
         dest_dir = dest
@@ -108,6 +110,8 @@ def symlink(src, dest):
         dest_dir, dest_file = os.path.split(dest)
     src_rel = os.path.relpath(src, dest_dir)
     dest = os.path.join(dest_dir, dest_file)
+    if os.path.exists(dest) and overwrite:
+        os.remove(dest)
     os.symlink(src_rel, dest)
 
 
@@ -261,10 +265,10 @@ def parameterize_on(wildcard_name, param_config, spacer=" ", no_format=False):
         # If the value to be provided is a string, add prefix and suffix
         if isinstance(param_value, str):
             param_value = [
-            param_config.get("_prefix", ""),
+                param_config.get("_prefix", ""),
                 param_value,
-            param_config.get("_suffix", ""),
-        ]
+                param_config.get("_suffix", ""),
+            ]
             param_value = spacer.join(x for x in param_value if x != "")
             param_value = format(param_value)
         elif isinstance(param_value, dict):
