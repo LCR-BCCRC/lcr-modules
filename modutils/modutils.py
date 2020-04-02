@@ -20,12 +20,12 @@ LOWERCASE_COLS = ("tissue_status", "seq_type", "ff_or_ffpe")
 
 DEFAULT_PAIRING_CONFIG = {
     "genome": {
-        "run_unpaired_tumours_with": None,
+        "run_unpaired_tumours_with": "unmatched_normal",
         "run_paired_tumours": True,
         "run_paired_tumours_as_unpaired": False,
     },
     "capture": {
-        "run_unpaired_tumours_with": None,
+        "run_unpaired_tumours_with": "unmatched_normal",
         "run_paired_tumours": True,
         "run_paired_tumours_as_unpaired": False,
     },
@@ -496,17 +496,6 @@ def generate_runs_for_patient(
         "or 'no_normal'."
     )
 
-    # Check that `unmatched_normal` is given if `run_unpaired_tumours_with` is
-    # set to the 'unmatched_normal' mode
-    assert (
-        run_unpaired_tumours_with != "unmatched_normal" or unmatched_normal is not None
-    ), (
-        "`run_unpaired_tumours_with` was set to 'unmatched_normal' "
-        "whereas `unmatched_normal` was None. For each seq_type, "
-        "provide an unmatched normal sample ID in the _shared section "
-        "of the modules configuration under `unmatched_normal_id`."
-    )
-
     # Retrieve tumour and normal samples
     runs = defaultdict(list)
     tumour_samples = patient_samples.get("tumour", [])
@@ -529,6 +518,13 @@ def generate_runs_for_patient(
         # Compile features
         tumour = tumour._asdict()
         if normal is None and run_unpaired_tumours_with == "unmatched_normal":
+            # Check that `unmatched_normal` is given
+            assert unmatched_normal is not None, (
+                "`run_unpaired_tumours_with` was set to 'unmatched_normal' "
+                "whereas `unmatched_normal` was None. For each seq_type, "
+                "provide an unmatched normal sample ID in the _shared section "
+                "of the modules configuration under `unmatched_normal_id`."
+            )
             normal = unmatched_normal._asdict()
             runs["pair_status"].append("unmatched")
         elif normal is None and run_unpaired_tumours_with == "no_normal":
