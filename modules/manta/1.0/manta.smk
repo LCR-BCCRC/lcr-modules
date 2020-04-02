@@ -19,7 +19,7 @@ CFG = md.setup_module(
     name = "manta", 
     version = "1.0",
     subdirs = ["inputs", "manta", "bedpe", "outputs"],
-    req_references = ["genome_fasta"]
+    req_references = ["genome_fasta", "genome_fasta_index", "main_chroms"]
 )
 
 # Define rules to be run locally when using a compute cluster.
@@ -47,13 +47,44 @@ rule _manta_input_bam:
         md.symlink(input.sample_bam + ".bai", output.sample_bam + ".bai")
 
 
+# Generate BED file for main chromosomes to exclude small contigs from Manta run
+rule _manta_generate_bed:
+    input:
+        fai = config["reference"]["genome_fasta_index"]
+    output:
+        bed = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/main_chroms.bed"
+    params:
+        chroms = config["reference"]["main_chroms"]
+    run:
+        with open(input.fai) as fai, open(output.bed, "w") as bed:
+            for line in fai:
+                chrom, length, _, _, _ = line.rstrip("\n").split("\t")
+                if chrom not in params.chroms:
+                    continue
+                bed_line = f"{chrom}\t0\t{length}\n"
+                bed.write(bed_line)
+
+
+# bgzip-compress and tabix-index the BED file to meet Manta requirement
+rule _manta_index_bed:
+    input:
+        bed = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/main_chroms.bed"
+    output:
+        bedz = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/main_chroms.bed.gz"
+    conda:
+        CFG["conda_envs"].get("manta") or "envs/manta.yaml"
+    shell:
+        "bgzip {input.bed} && tabix {output.bedz}"
+
+
 # Configures the manta workflow with the input BAM files and reference FASTA file.
 # For paired runs.
 rule _manta_configure_paired:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "{seq_type}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "{seq_type}/{normal_id}.bam",
-        config = CFG["inputs"]["manta_config"]
+        config = CFG["inputs"]["manta_config"],
+        bedz = rules._manta_index_bed.output.bedz
     output:
         runwf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
@@ -66,7 +97,7 @@ rule _manta_configure_paired:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
     shell:
         md.as_one_line("""
-        configManta.py {params.opts} --referenceFasta {params.fasta} 
+        configManta.py {params.opts} --referenceFasta {params.fasta} --callRegions {input.bedz}
         --runDir "$(dirname {output.runwf})" --tumourBam {input.tumour_bam}
         --normalBam {input.normal_bam} > {log.stdout} 2> {log.stderr}
         """)
@@ -92,7 +123,7 @@ rule _manta_configure_unpaired:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
     shell:
         md.as_one_line("""
-        configManta.py {params.opts} --referenceFasta {params.fasta} 
+        configManta.py {params.opts} --referenceFasta {params.fasta} --callRegions {input.bedz}
         --runDir "$(dirname {output.runwf})" --bam {input.tumour_bam}
         > {log.stdout} 2> {log.stderr}
         """)
