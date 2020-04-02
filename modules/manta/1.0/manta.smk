@@ -104,18 +104,19 @@ rule _manta_configure_paired:
 
 
 # Configures the manta workflow with the input BAM files and reference FASTA file.
-# For unpaired runs.
+# For unpaired runs (mostly pulling values from `rules._manta_configure_paired`).
 rule _manta_configure_unpaired:
     wildcard_constraints:
         normal_id = "None"
     input:
-        tumour_bam = CFG["dirs"]["inputs"] + "{seq_type}/{tumour_id}.bam",
-        config = CFG["inputs"]["manta_config"]
+        tumour_bam = rules._manta_configure_paired.input.tumour_bam,
+        config = rules._manta_configure_paired.input.config,
+        bedz = rules._manta_index_bed.output.bedz
     output:
-        runwf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
+        runwf = rules._manta_configure_paired.output.runwf
     log:
-        stdout = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stdout.log",
-        stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stderr.log"
+        stdout = rules._manta_configure_paired.log.stdout,
+        stderr = rules._manta_configure_paired.log.stderr
     params:
         opts   = md.parameterize_on("seq_type", CFG["options"]["configure"]),
         fasta  = config["reference"]["genome_fasta"]
