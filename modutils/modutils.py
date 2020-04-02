@@ -178,8 +178,43 @@ def list_files(directory, file_ext):
 # SNAKEMAKE INPUT/PARAM FUNCTIONS
 
 
-def parameterize_on(wildcard_name, param_config, spacer=" "):
+def parameterize_on(wildcard_name, param_config, spacer=" ", no_format=False):
     """Get parameter value based on the value of a wildcard.
+
+    This function can be used in one of two ways. In either case, you
+    have access to the '_default' special key and wildcard formatting.
+
+        1) str mode: `param_config` can map wildcard values to
+           strings. In this mode, you can use the '_prefix' and
+           '_suffix' special keys (see below). This is the
+           default mode.
+        2) dict mode: `param_config` can map wildcard values to
+           dictionaries. This mode is primarily intended to be
+           used with `unpack()` in the Snakemake rule. Each value
+           of the returned dictionary should be a string or a list
+           of strings.
+
+    Special keys
+    ------------
+    _default
+        If you provide the '_default' key in `param_config`, the
+        associated value will be used if ever the wildcard value
+        is not among the other keys. This is useful for setting
+        default values, but also for minimizing duplicated text.
+    _prefix
+        In the str mode, the value associated with the '_prefix'
+        key will be prepended to the string value associated with
+        the wildcard value (including the value for '_default' if
+        the wildcard value isn't among the keys).
+    _suffix
+        Same as '_prefix', but the value is appended instead.
+
+    Wildcard formatting
+    -------------------
+    Every string present in the value returned by `param_config`
+    will be formatted with with the wildcard values (unless the
+    `no_format` argument is set to True). This will also be done
+    recursively in dict mode.
 
     Parameters
     ----------
@@ -187,15 +222,12 @@ def parameterize_on(wildcard_name, param_config, spacer=" "):
         The name of the wildcard (e.g., 'seq_type') whose value
         will determine which key to use in the `param_config`.
     param_config : dict
-        The options (values) for each sequencing data type (keys),
-        also known as seq_types. Two special keys, '_prefix' and
-        '_suffix', can be included to prepend and append options
-        shared between seq_types, respectively. One other special
-        key, '_default', is used if ever the wildcard value is not
-        present in `param_config`.
+        The options (values) for each possible wildcard value (keys).
     spacer : str, optional
         The spacer added between the prefix and the seq_type-specific
         option as well as between that and the suffix.
+    no_format : boolean
+        Whether to format strings with the wildcard values.
 
     Returns
     -------
@@ -213,18 +245,48 @@ def parameterize_on(wildcard_name, param_config, spacer=" "):
         "See `help(modutils.parameterize_on)` for more details."
     )
 
-    def run_seqtype_param(wildcards):
-        param = [
+    def get_value(wildcards, input=None, output=None, threads=None, resources=None):
+
+        # Create helper function for formatting wildcards in dictionary
+        def format(text):
+            if no_format:
+                return text
+            return smk.utils.format(text, **wildcards)
+
+        # Get the value corresponding to the wildcard value
+        wildcard_value = wildcards.get(wildcard_name)
+        default_value = param_config.get("_default", "")
+        param_value = param_config.get(wildcard_value, default_value)
+
+        # If the value to be provided is a string, add prefix and suffix
+        if isinstance(param_value, str):
+            param_value = [
             param_config.get("_prefix", ""),
-            param_config.get(
-                wildcards.get(wildcard_name), param_config.get("_default", "")
-            ),
+                param_value,
             param_config.get("_suffix", ""),
         ]
-        param_str = spacer.join(x for x in param if x != "")
-        return param_str
+            param_value = spacer.join(x for x in param_value if x != "")
+            param_value = format(param_value)
+        elif isinstance(param_value, dict):
+            for key, value in param_value.items():
+                if isinstance(value, str):
+                    param_value[key] = format(value)
+                elif isinstance(value, list):
+                    param_value[key] = [format(v) for v in value]
+                else:
+                    raise ValueError(
+                        f"The value in the dictionary for '{wildcard_value}' "
+                        "in `param_config` is not a string or list of strings."
+                    )
+        else:
+            raise ValueError(
+                f"The value associated with '{wildcard_value}' in "
+                "`param_config` is not a string, nor a dictionary."
+            )
 
-    return run_seqtype_param
+        return param_value
+
+    return get_value
 
 
 def locate_bam(
