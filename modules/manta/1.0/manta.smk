@@ -18,7 +18,7 @@ CFG = md.setup_module(
     config = config, 
     name = "manta", 
     version = "1.0",
-    subdirs = ["inputs", "manta", "bedpe", "outputs"],
+    subdirs = ["inputs", "chrom_bed", "manta", "bedpe", "outputs"],
     req_references = ["genome_fasta", "genome_fasta_index", "main_chroms"]
 )
 
@@ -42,7 +42,7 @@ rule _manta_input_bam:
     input:
         sample_bam = CFG["inputs"]["sample_bam"]
     output:
-        sample_bam = CFG["dirs"]["inputs"] + "{seq_type}/{sample_id}.bam"
+        sample_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bam"
     run:
         md.symlink(input.sample_bam, output.sample_bam)
         md.symlink(input.sample_bam + ".bai", output.sample_bam + ".bai")
@@ -51,11 +51,11 @@ rule _manta_input_bam:
 # Generate BED file for main chromosomes to exclude small contigs from Manta run
 rule _manta_generate_bed:
     input:
-        fai = config["reference"]["genome_fasta_index"]
+        fai = lambda wildcards: config["reference"][wildcards.genome_build]["genome_fasta_index"]
     output:
-        bed = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/main_chroms.bed"
+        bed = CFG["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed"
     params:
-        chroms = config["reference"]["main_chroms"]
+        chroms = lambda wildcards: config["reference"][wildcards.genome_build]["main_chroms"]
     run:
         with open(input.fai) as fai, open(output.bed, "w") as bed:
             for line in fai:
@@ -69,9 +69,9 @@ rule _manta_generate_bed:
 # bgzip-compress and tabix-index the BED file to meet Manta requirement
 rule _manta_index_bed:
     input:
-        bed = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/main_chroms.bed"
+        bed = rules._manta_generate_bed.output.bed
     output:
-        bedz = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/main_chroms.bed.gz"
+        bedz = CFG["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz"
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
     shell:
@@ -83,46 +83,51 @@ rule _manta_configure:
     input:
         # Do not have a normal_bam as input in 'no_normal' mode
         unpack(md.switch_on_wildcard("pair_status", {
-            "_default" : {"normal_bam": CFG["dirs"]["inputs"] + "{seq_type}/{normal_id}.bam"},
+            "_default" : {"normal_bam": CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{normal_id}.bam"},
             "no_normal" : {}
         })),
-        tumour_bam = CFG["dirs"]["inputs"] + "{seq_type}/{tumour_id}.bam",
+        tumour_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}.bam",
         config = CFG["inputs"]["manta_config"],
         bedz = rules._manta_index_bed.output.bedz
     output:
-        runwf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
+        runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
-        stdout = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stdout.log",
-        stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stderr.log"
+        stdout = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stdout.log",
+        stderr = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stderr.log"
     params:
         opts   = md.switch_on_column("seq_type", CFG["samples"], CFG["options"]["configure"]),
-        fasta  = config["reference"]["genome_fasta"],
+        fasta  = lambda wildcards: config["reference"][wildcards.genome_build]["genome_fasta"],
         # Omit the normal BAM CLI argument if there is no normal
         normal_bam = md.switch_on_wildcard("pair_status", {
             "_default" : "--normalBam {input.normal_bam}",
             "no_normal" : ""
+        }),
+        # Use --bam for mrna data
+        tumour_bam = md.switch_on_wildcard("seq_type", {
+            "_default" : "--tumourBam {input.tumour_bam}",
+            "mrna" : "--bam {input.tumour_bam}"
         })
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
     shell:
         md.as_one_line("""
         configManta.py {params.opts} --referenceFasta {params.fasta} --callRegions {input.bedz}
-        --runDir "$(dirname {output.runwf})" --tumourBam {input.tumour_bam} {params.normal_bam}
-        > {log.stdout} 2> {log.stderr}
+        --runDir "$(dirname {output.runwf})" {params.tumour_bam} {params.normal_bam}
+        --config {input.config} > {log.stdout} 2> {log.stderr}
         """)
 
 
 # Launches manta workflow in parallel mode and deletes unnecessary files upon success.
 checkpoint _manta_run:
     input:
-        runwf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
+        runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     output:
-        vcf = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/candidateSV.vcf.gz"
+        vcf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/candidateSV.vcf.gz"
     log:
-        stdout = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stdout.log",
-        stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stderr.log"
+        stdout = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stdout.log",
+        stderr = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stderr.log"
     params:
-        variants_dir = CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/",
+        variants_dir = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/",
         opts   = CFG["options"]["manta"]
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
@@ -144,9 +149,9 @@ rule _manta_fix_vcf_ids:
     input:
         vcf = rules._manta_run.params.variants_dir + "{vcf_name}.vcf.gz"
     output:
-        vcf = pipe(CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/{vcf_name}.with_ids.vcf")
+        vcf = pipe(CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/{vcf_name}.with_ids.vcf")
     log:
-        stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_fix_vcf_ids.{vcf_name}.stderr.log"
+        stderr = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_fix_vcf_ids.{vcf_name}.stderr.log"
     shell:
         md.as_one_line("""
         gzip -dc {input.vcf}
@@ -166,9 +171,9 @@ rule _manta_calc_vaf:
         vcf  = rules._manta_fix_vcf_ids.output.vcf,
         cvaf = CFG["inputs"]["calc_manta_vaf"]
     output:
-        vcf = pipe(CFG["dirs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/results/variants/{vcf_name}.with_ids.with_vaf.vcf")
+        vcf = pipe(CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/{vcf_name}.with_ids.with_vaf.vcf")
     log:
-        stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_calc_vaf.{vcf_name}.stderr.log"
+        stderr = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_calc_vaf.{vcf_name}.stderr.log"
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
     shell:
@@ -181,9 +186,9 @@ rule _manta_vcf_to_bedpe:
     input:
         vcf  = rules._manta_calc_vaf.output.vcf
     output:
-        bedpe = CFG["dirs"]["bedpe"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.bedpe"
+        bedpe = CFG["dirs"]["bedpe"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.bedpe"
     log:
-        stderr = CFG["logs"]["bedpe"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_vcf_to_bedpe.{vcf_name}.stderr.log"
+        stderr = CFG["logs"]["bedpe"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_vcf_to_bedpe.{vcf_name}.stderr.log"
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta.yaml"
     threads:
@@ -199,7 +204,7 @@ rule _manta_output_vcf:
     input:
         vcf = rules._manta_run.params.variants_dir + "{vcf_name}.vcf.gz"
     output:
-        vcf = CFG["dirs"]["outputs"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf.gz"
+        vcf = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf.gz"
     run:
         md.symlink(input.vcf, output.vcf)
         md.symlink(input.vcf + ".tbi", output.vcf + ".tbi")
@@ -210,7 +215,7 @@ rule _manta_output_bedpe:
     input:
         bedpe = rules._manta_vcf_to_bedpe.output.bedpe
     output:
-        bedpe = CFG["dirs"]["outputs"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.bedpe"
+        bedpe = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.bedpe"
     run:
         md.symlink(input.bedpe, output.bedpe)
 
@@ -245,7 +250,7 @@ rule _manta_all_dispatch:
     input:
         _get_manta_files
     output:
-        touch(CFG["dirs"]["outputs"] + "{seq_type}/.{tumour_id}--{normal_id}--{pair_status}.dispatched")
+        touch(CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/.{tumour_id}--{normal_id}--{pair_status}.dispatched")
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -254,6 +259,7 @@ rule _manta_all:
         expand(rules._manta_all_dispatch.output, 
                zip,  # Run expand() with zip(), not product()
                seq_type=CFG["runs"]["tumour_seq_type"],
+               genome_build=CFG["runs"]["tumour_genome_build"],
                tumour_id=CFG["runs"]["tumour_sample_id"],
                normal_id=CFG["runs"]["normal_sample_id"],
                pair_status=CFG["runs"]["pair_status"])
@@ -266,6 +272,6 @@ rule _manta_all:
 # configuration on disk (including the samples and runs)
 md.cleanup_module(CFG)
 
-# Delete the CFG variable to avoid interfering with other code
+# Delete any local variables to avoid interfering with other code
 del CFG
 del _get_manta_files
