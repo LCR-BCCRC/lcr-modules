@@ -845,7 +845,9 @@ def walk_through_dict(
 
 
 def generate_runs(
-    samples, pairing_config=None, subgroups=("seq_type", "patient_id", "tissue_status"),
+    samples,
+    pairing_config=None,
+    subgroups=("seq_type", "genome_build", "patient_id", "tissue_status"),
 ):
     """Produces a data frame of tumour runs from a data frame of samples.
 
