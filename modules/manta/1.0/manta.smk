@@ -26,7 +26,7 @@ CFG = md.setup_module(
 localrules: 
     _manta_input_bam,
     _manta_generate_bed,
-    _manta_index_bed
+    _manta_index_bed,
     _manta_configure,
     _manta_output_bedpe,
     _manta_output_vcf, 
