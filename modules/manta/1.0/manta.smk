@@ -213,7 +213,7 @@ rule _manta_output_bedpe:
         md.symlink(input.bedpe, output.bedpe)
 
 
-def get_manta_files(wildcards):
+def _get_manta_files(wildcards):
     """Request symlinks for all Manta VCF/BEDPE files.
     
     This function is required in conjunction with a Snakemake
@@ -241,7 +241,7 @@ def get_manta_files(wildcards):
 # Generates the target symlinks for each run
 rule _manta_all_dispatch:
     input:
-        get_manta_files
+        _get_manta_files
     output:
         touch(CFG["dirs"]["outputs"] + "{seq_type}/.{tumour_id}--{normal_id}--{pair_status}.dispatched")
 
@@ -266,3 +266,4 @@ md.cleanup_module(CFG)
 
 # Delete the CFG variable to avoid interfering with other code
 del CFG
+del _get_manta_files
