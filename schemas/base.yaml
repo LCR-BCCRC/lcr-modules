@@ -26,7 +26,7 @@ properties:
         description: Type of sequencing data used to separate analyses
     genome_build:
         type: string
-        description: Reference genome build (e.g., grch37-lite, hg38_no_alt)
+        description: Reference genome build (e.g., grch37, hg38)
 
 required:
     - sample_id
