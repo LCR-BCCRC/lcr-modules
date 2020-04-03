@@ -6,6 +6,7 @@
 
 # Import standard packages
 import os
+import gzip
 
 # Import package with useful functions for developing analysis modules.
 import modutils as md
@@ -230,17 +231,25 @@ def _get_manta_files(wildcards):
     generates target symlinks for the raw VCF files and the
     processed BEDPE files based on what was actually produced.
     """
-    # Use sets for easy set operations
-    no_bedpe = set(["candidateSV"])
+    no_bedpe = ["candidateSV"]
     manta_vcf = checkpoints._manta_run.get(**wildcards).output.vcf
     variants_dir = os.path.dirname(manta_vcf)
     all_files = os.listdir(variants_dir)
-    vcf_files = {f for f in all_files if f.endswith(".vcf.gz")}
-    vcf_names = {f.replace(".vcf.gz", "") for f in vcf_files}
+    vcf_files = [f for f in all_files if f.endswith(".vcf.gz")]
+    vcf_names = [f.replace(".vcf.gz", "") for f in vcf_files]
+    
+    # Remove any empty VCF files from bedpe_targets
+    vcf_filepaths = [os.path.join(variants_dir, f) for f in vcf_files]
+    for vcf_name, vcf_filepath in zip(vcf_names, vcf_filepaths):
+        with gzip.open(vcf_filepath, "rt") as vcf:
+            content = [l for l in vcf.readlines() if not l.startswith("#")]
+            if len(content) == 0:
+                no_bedpe.append(vcf_name)
+    
     vcf_targets = expand(rules._manta_output_vcf.output.vcf,
                          vcf_name=vcf_names, **wildcards)
     bedpe_targets = expand(rules._manta_output_bedpe.output.bedpe,
-                           vcf_name=(vcf_names - no_bedpe), 
+                           vcf_name=(set(vcf_names) - set(no_bedpe)), 
                            **wildcards)
     return vcf_targets + bedpe_targets
 
