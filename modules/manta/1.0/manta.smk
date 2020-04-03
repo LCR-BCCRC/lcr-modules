@@ -82,7 +82,7 @@ rule _manta_index_bed:
 rule _manta_configure:
     input:
         # Do not have a normal_bam as input in 'no_normal' mode
-        unpack(md.parameterize_on("pair_status", {
+        unpack(md.switch_on_wildcard("pair_status", {
             "_default" : {"normal_bam": CFG["dirs"]["inputs"] + "{seq_type}/{normal_id}.bam"},
             "no_normal" : {}
         })),
@@ -95,10 +95,10 @@ rule _manta_configure:
         stdout = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stdout.log",
         stderr = CFG["logs"]["manta"] + "{seq_type}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stderr.log"
     params:
-        opts   = md.parameterize_on("seq_type", CFG["options"]["configure"]),
+        opts   = md.switch_on_column("seq_type", CFG["samples"], CFG["options"]["configure"]),
         fasta  = config["reference"]["genome_fasta"],
         # Omit the normal BAM CLI argument if there is no normal
-        normal_bam = md.parameterize_on("pair_status", {
+        normal_bam = md.switch_on_wildcard("pair_status", {
             "_default" : "--normalBam {input.normal_bam}",
             "no_normal" : ""
         })

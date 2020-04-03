@@ -182,160 +182,206 @@ def list_files(directory, file_ext):
 # SNAKEMAKE INPUT/PARAM FUNCTIONS
 
 
-def parameterize_on(
-    wildcard_name, param_config, spacer=" ", no_format=False, strict_mode=False
+def create_formatter(wildcards, input, output, threads, resources, strict):
+    """Create formatter function based on rule variables."""
+
+    variables = {
+        "wildcards": wildcards,
+        "input": input,
+        "output": output,
+        "threads": threads,
+        "resources": resources,
+    }
+
+    def check_for_clashes(text, wildcards, strict):
+        """Check for clashes between wildcard names and rule variables."""
+        reserved = ["wildcards", "input", "output", "threads", "resources"]
+        potential_clashes = [k for k in wildcards.keys() if k in reserved]
+        actual_clashes = [c for c in potential_clashes if "{" + c + "}" in text]
+        if len(actual_clashes) > 0 and strict is False:
+            raise ValueError(
+                f"Some wildcards {actual_clashes} cannot be unambiguously "
+                "resolved. Consider setting `strict_mode` to True and "
+                f"accessing the wildcards using `{{wildcards.<name>}}.`"
+            )
+
+    def format_str(text):
+        """Customized format function for strings."""
+        assert isinstance(text, str), "Can only format `str` objects."
+        is_input_function = output is None
+        if is_input_function:
+            text_fmt = smk.utils.format(text, **wildcards)
+        else:
+            check_for_clashes(text, wildcards, strict)
+            if not strict:
+                variables.update(wildcards)
+            text_fmt = smk.utils.format(text, **variables)
+        return text_fmt
+
+    def format_dict(dictionary):
+        """Customized format function for dictionaries."""
+        for key, value in dictionary.items():
+            if isinstance(value, str):
+                dictionary[key] = format_str(value)
+            elif isinstance(value, list):
+                dictionary[key] = [format_str(v) for v in value]
+            else:
+                raise ValueError(
+                    "Can only format `str` or list of `str` objects "
+                    "within a dictionary."
+                )
+        return dictionary
+
+    def formatter(obj):
+        """Customized formatter function."""
+        if isinstance(obj, str):
+            obj_fmt = format_str(obj)
+        elif isinstance(obj, dict):
+            obj_fmt = format_dict(obj)
+        else:
+            raise ValueError("Can only format `str` or `dict` objects.")
+        return obj_fmt
+
+    return formatter
+
+
+def switch_on_column(
+    column, samples, options, match_on="tumour", format=True, strict=False
 ):
-    """Get parameter value based on the value of a wildcard.
+    """Pick an option based on the value of a column for a sample.
 
-    This function can be used in one of two ways. In either case, you
-    have access to the '_default' special key and wildcard formatting.
+    The function finds the relevant row in `samples` for either
+    the tumour (the default) or normal sample, which is determined
+    by the `match_on` argument. To find the row, the `seq_type`
+    and `tumour_id` (or `normal_id`) wildcards are required.
 
-        1) str mode: `param_config` can map wildcard values to
-           strings. In this mode, you can use the '_prefix' and
-           '_suffix' special keys (see below). This is the
-           default mode.
-        2) dict mode: `param_config` can map wildcard values to
-           dictionaries. This mode is primarily intended to be
-           used with `unpack()` in the Snakemake rule. Each value
-           of the returned dictionary should be a string or a list
-           of strings.
-
-    Special keys
+    Special Keys
     ------------
     _default
-        If you provide the '_default' key in `param_config`, the
-        associated value will be used if ever the wildcard value
-        is not among the other keys. This is useful for setting
-        default values, but also for minimizing duplicated text.
-    _prefix
-        In the str mode, the value associated with the '_prefix'
-        key will be prepended to the string value associated with
-        the wildcard value (including the value for '_default' if
-        the wildcard value isn't among the keys).
-    _suffix
-        Same as '_prefix', but the value is appended instead.
-
-    Wildcard formatting
-    -------------------
-    Every string present in the value returned by `param_config`
-    will be formatted with with the wildcard values (unless the
-    `no_format` argument is set to True). This will also be done
-    recursively in dict mode.
+        If you provide a value under the key '_default' in `options`,
+        this value will be used if the column value is not among
+        the other keys in `options` (instead of defaulting to "").
 
     Parameters
     ----------
-    wildcard_name : str
-        The name of the wildcard (e.g., 'seq_type') whose value
-        will determine which key to use in the `param_config`.
-    param_config : dict
-        The options (values) for each possible wildcard value (keys).
-    spacer : str, optional
-        The spacer added between the prefix and the seq_type-specific
-        option as well as between that and the suffix.
-    no_format : boolean
-        Whether to format strings with the wildcard values.
-    strict_mode : boolean
-        Whether to format wildcards when run as a param function.
-        When run as an input file function, only the wildcards are
-        available (e.g., '{seq_type}', where 'seq_type' is a wildcard).
-        This is also works when run as a param function, but there is
-        the risk of name clashes between the wildcard names and the
-        variable names `wildcards`, `input`, `output`, `threads`, and
-        `resources`. If this occurs, you can set`strict_mode` to
-        True and access the wildcards using `{wildcards.key}`.
+    column : str
+        The column name whose value determines the option to pick.
+    samples : pandas.DataFrame
+        The samples data frame for the current module.
+    options : dict
+        The mapping between the possible values in `column` and the
+        corresponding options to be returned. Special key-value
+        pairs can also be included (see above).
+    match_on : {"tumour", "normal"}
+        Whether to match on the `sample_id` column in `samples`
+        using `wildcard.tumour_id` or `wildcard.normal_id`.
+    format : boolean
+        Whether to format the option using the rule variables.
+    strict : boolean
+        Whether to include the bare wildcards in formatting.
+        For example, if you have a wildcards called 'seq_type',
+        without strict mode, you can access it with `{seq_type}`
+        or `{wildcards.seq_type}`, whereas in strict mode, only
+        the latter option is possible. This mode is useful if a
+        wildcard has the same name as a rule variable, namely
+        wildcards, input, output, threads, resources.
 
     Returns
     -------
     function
-        A Snakemake-compatible parameter function taking wildcards as
-        its only argument. This function will return the parameter value
-        constructed from the prefix (if any), the seq_type-specific
-        option, and the suffix (if any), joined by a spacer.
+        A Snakemake-compatible input file or parameter function.
     """
 
-    assert isinstance(param_config, dict), (
-        "`param_config` must be a dict with keys for each possible value "
-        f"of the `{wildcard_name}` wildcard. Note that you can use the "
-        "'_default', '_prefix', and '_suffix' special keys in `param_config`. "
-        "See `help(modutils.parameterize_on)` for more details."
-    )
+    assert isinstance(options, dict), "`options` must be a `dict` object."
+    assert column in samples, "`column` must be a column name in `samples`."
 
-    def get_value(wildcards, input=None, output=None, threads=None, resources=None):
-
-        # Create helper function for formatting wildcards in dictionary
-        def format(text):
-            if no_format:
-                return text
-            # `output` should be None if this is run as an input file function
-            # If run as an input file function, use wildcards only
-            if output is None:
-                text_fmt = smk.utils.format(text, **wildcards)
-            # If run as a param function, use same approach as
-            else:
-                reserved = ["wildcards", "input", "output", "threads", "resources"]
-                clashes = [k for k in wildcards.keys() if k in reserved]
-                clashes_present = [c for c in clashes if "{" + c + "}" in text]
-                if len(clashes_present) > 0 and strict_mode is False:
-                    raise ValueError(
-                        f"Some wildcards {clashes_present} cannot be unambiguously "
-                        "resolved. Consider setting `strict_mode` to True and "
-                        f"accessing the wildcards using `{{wildcards.<name>}}.`"
-                    )
-                if strict_mode:
-                    text_fmt = smk.utils.format(
-                        text,
-                        wildcards=wildcards,
-                        input=input,
-                        output=output,
-                        threads=threads,
-                        resources=resources,
-                    )
-                else:
-                    text_fmt = smk.utils.format(
-                        text,
-                        wildcards=wildcards,
-                        input=input,
-                        output=output,
-                        threads=threads,
-                        resources=resources,
-                        **wildcards,
-                    )
-            return text_fmt
-
-        # Get the value corresponding to the wildcard value
-        wildcard_value = wildcards.get(wildcard_name)
-        default_value = param_config.get("_default", "")
-        param_value = param_config.get(wildcard_value, default_value)
-
-        # If the value to be provided is a string, add prefix and suffix
-        if isinstance(param_value, str):
-            param_value = [
-                param_config.get("_prefix", ""),
-                param_value,
-                param_config.get("_suffix", ""),
-            ]
-            param_value = spacer.join(x for x in param_value if x != "")
-            param_value = format(param_value)
-        elif isinstance(param_value, dict):
-            for key, value in param_value.items():
-                if isinstance(value, str):
-                    param_value[key] = format(value)
-                elif isinstance(value, list):
-                    param_value[key] = [format(v) for v in value]
-                else:
-                    raise ValueError(
-                        f"The value in the dictionary for '{wildcard_value}' "
-                        "in `param_config` is not a string or list of strings."
-                    )
+    def _switch_on_column(
+        wildcards, input=None, output=None, threads=None, resources=None
+    ):
+        """Customized Snakemake input file or param function."""
+        if match_on == "tumour":
+            sample_id = wildcards.tumour_id
+        elif match_on == "normal":
+            sample_id = wildcards.normal_id
         else:
-            raise ValueError(
-                f"The value associated with '{wildcard_value}' in "
-                "`param_config` is not a string, nor a dictionary."
+            raise ValueError("Invalid value for `match_on`.")
+        subset = samples.loc[samples["seq_type"] == wildcards.seq_type]
+        row = subset.loc[subset["sample_id"] == sample_id]
+        assert len(row) == 1, (
+            f"More than one row (or no row) matched the given seq_type "
+            f"({wildcards.seq_type}) and given sample ID ({sample_id})."
+        )
+        series = row.squeeze()
+        column_value = series[column]
+        default_option = options.get("_default", "")
+        selected_option = options.get(column_value, default_option)
+        if isinstance(selected_option, str):
+            prefix = options.get("_prefix", "")
+            suffix = options.get("_suffix", "")
+            combined = [prefix, selected_option, suffix]
+            selected_option = "".join(x for x in combined if x != "")
+        if format:
+            formatter = create_formatter(
+                wildcards, input, output, threads, resources, strict
             )
+            selected_option = formatter(selected_option)
+        return selected_option
 
-        return param_value
+    return _switch_on_column
 
-    return get_value
+
+def switch_on_wildcard(wildcard, options, format=True, strict=False):
+    """Pick an option based on the value of a wildcard for a run.
+
+    Special Keys
+    ------------
+    _default
+        If you provide a value under the key '_default' in `options`,
+        this value will be used if the column value is not among
+        the other keys in `options` (instead of defaulting to "").
+
+    Parameters
+    ----------
+    wildcard : str
+        The wildcard name whose value determines the option to pick.
+    options : dict
+        The mapping between the possible values in `column` and the
+        corresponding options to be returned. Special key-value
+        pairs can also be included (see above).
+    format : boolean
+        Whether to format the option using the rule variables.
+    strict : boolean
+        Whether to include the bare wildcards in formatting.
+        For example, if you have a wildcards called 'seq_type',
+        without strict mode, you can access it with `{seq_type}`
+        or `{wildcards.seq_type}`, whereas in strict mode, only
+        the latter option is possible. This mode is useful if a
+        wildcard has the same name as a rule variable, namely
+        wildcards, input, output, threads, resources.
+
+    Returns
+    -------
+    function
+        A Snakemake-compatible input file or parameter function.
+    """
+
+    assert isinstance(options, dict), "`options` must be a `dict` object."
+
+    def _switch_on_wildcard(
+        wildcards, input=None, output=None, threads=None, resources=None
+    ):
+        """Customized Snakemake input file or param function."""
+        wildcard_value = wildcards.get(wildcard)
+        default_option = options.get("_default", "")
+        selected_option = options.get(wildcard_value, default_option)
+        if format:
+            formatter = create_formatter(
+                wildcards, input, output, threads, resources, strict
+            )
+            selected_option = formatter(selected_option)
+        return selected_option
+
+    return _switch_on_wildcard
 
 
 def locate_bam(
