@@ -11,9 +11,10 @@ lcr-modules:
         options:
             configure:
                 _prefix: ""
+                _suffix: ""
+                _default: ""
                 mrna: "--rna"
                 capture: "--exome"
-                _suffix: ""
             manta: "--mode local"
         threads:
             manta: 12
