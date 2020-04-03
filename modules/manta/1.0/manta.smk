@@ -95,8 +95,9 @@ rule _manta_configure:
     params:
         opts   = md.parameterize_on("seq_type", CFG["options"]["configure"]),
         fasta  = config["reference"]["genome_fasta"],
+        # Omit the normal BAM CLI argument if there is no normal
         normal_bam = md.parameterize_on("pair_status", {
-            "_default" : "--normalBam " + CFG["dirs"]["inputs"] + "{seq_type}/{normal_id}.bam",
+            "_default" : "--normalBam {input.normal_bam}",
             "no_normal" : ""
         })
     conda:
