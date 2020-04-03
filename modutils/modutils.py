@@ -182,7 +182,9 @@ def list_files(directory, file_ext):
 # SNAKEMAKE INPUT/PARAM FUNCTIONS
 
 
-def parameterize_on(wildcard_name, param_config, spacer=" ", no_format=False):
+def parameterize_on(
+    wildcard_name, param_config, spacer=" ", no_format=False, strict_mode=False
+):
     """Get parameter value based on the value of a wildcard.
 
     This function can be used in one of two ways. In either case, you
@@ -232,6 +234,15 @@ def parameterize_on(wildcard_name, param_config, spacer=" ", no_format=False):
         option as well as between that and the suffix.
     no_format : boolean
         Whether to format strings with the wildcard values.
+    strict_mode : boolean
+        Whether to format wildcards when run as a param function.
+        When run as an input file function, only the wildcards are
+        available (e.g., '{seq_type}', where 'seq_type' is a wildcard).
+        This is also works when run as a param function, but there is
+        the risk of name clashes between the wildcard names and the
+        variable names `wildcards`, `input`, `output`, `threads`, and
+        `resources`. If this occurs, you can set`strict_mode` to
+        True and access the wildcards using `{wildcards.key}`.
 
     Returns
     -------
@@ -255,7 +266,41 @@ def parameterize_on(wildcard_name, param_config, spacer=" ", no_format=False):
         def format(text):
             if no_format:
                 return text
-            return smk.utils.format(text, **wildcards)
+            # `output` should be None if this is run as an input file function
+            # If run as an input file function, use wildcards only
+            if output is None:
+                text_fmt = smk.utils.format(text, **wildcards)
+            # If run as a param function, use same approach as
+            else:
+                reserved = ["wildcards", "input", "output", "threads", "resources"]
+                clashes = [k for k in wildcards.keys() if k in reserved]
+                clashes_present = [c for c in clashes if "{" + c + "}" in text]
+                if len(clashes_present) > 0 and strict_mode is False:
+                    raise ValueError(
+                        f"Some wildcards {clashes_present} cannot be unambiguously "
+                        "resolved. Consider setting `strict_mode` to True and "
+                        f"accessing the wildcards using `{{wildcards.<name>}}.`"
+                    )
+                if strict_mode:
+                    text_fmt = smk.utils.format(
+                        text,
+                        wildcards=wildcards,
+                        input=input,
+                        output=output,
+                        threads=threads,
+                        resources=resources,
+                    )
+                else:
+                    text_fmt = smk.utils.format(
+                        text,
+                        wildcards=wildcards,
+                        input=input,
+                        output=output,
+                        threads=threads,
+                        resources=resources,
+                        **wildcards,
+                    )
+            return text_fmt
 
         # Get the value corresponding to the wildcard value
         wildcard_value = wildcards.get(wildcard_name)
