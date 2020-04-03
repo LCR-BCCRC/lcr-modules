@@ -16,7 +16,7 @@ from snakemake.logging import logger
 
 # CONSTANTS
 
-LOWERCASE_COLS = ("tissue_status", "seq_type", "ff_or_ffpe")
+LOWERCASE_COLS = ("tissue_status", "seq_type", "genome_build", "ff_or_ffpe")
 
 DEFAULT_PAIRING_CONFIG = {
     "genome": {
@@ -946,7 +946,13 @@ def setup_module(config, name, version, subdirs, req_references=()):
         "included. See README.md for more information."
     )
 
+    # Get configuration for the given module and create samples shorthand
+    mconfig = copy.deepcopy(config["lcr-modules"]["_shared"])
+    smk.utils.update_config(mconfig, config["lcr-modules"][name])
+    msamples = mconfig["samples"]
+
     # Ensure that the required references are present
+    genome_builds = msamples["genome_build"].unique()
     if len(req_references) > 0:
         msg = (
             f"The {name} module needs the following reference data, "
@@ -955,13 +961,10 @@ def setup_module(config, name, version, subdirs, req_references=()):
             f"`lcr-modules` repository. \n    {req_references}"
         )
         assert "reference" in config, msg
-        for ref_key in req_references:
-            assert ref_key in config["reference"], msg
-
-    # Get configuration for the given module and create samples shorthand
-    mconfig = copy.deepcopy(config["lcr-modules"]["_shared"])
-    smk.utils.update_config(mconfig, config["lcr-modules"][name])
-    msamples = mconfig["samples"]
+        for genome_build in genome_builds:
+            assert genome_build in config["reference"], msg
+            for ref_key in req_references:
+                assert ref_key in config["reference"][genome_build], msg
 
     # Find repository and module directories
     repodir = os.path.normpath(mconfig["repository"])
