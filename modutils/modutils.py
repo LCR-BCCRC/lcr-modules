@@ -110,7 +110,7 @@ def symlink(src, dest, overwrite=True):
         dest_dir, dest_file = os.path.split(dest)
     src_rel = os.path.relpath(src, dest_dir)
     dest = os.path.join(dest_dir, dest_file)
-    if os.path.exists(dest) and overwrite:
+    if os.path.lexists(dest) and os.path.islink(dest) and overwrite:
         os.remove(dest)
     os.symlink(src_rel, dest)
 
