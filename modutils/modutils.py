@@ -623,7 +623,9 @@ def generate_runs_for_patient(
     run_paired_tumours_as_unpaired : boolean, optional
         Whether paired tumours should also be run as unpaired
         (i.e., separate from their matched normal sample).
-        This is useful for benchmarking purposes.
+        This is useful for benchmarking purposes or preventing
+        unwanted paired analyses (e.g., in RNA-seq analyses
+        intended to be tumour-only)
 
     Returns
     -------
