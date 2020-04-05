@@ -676,11 +676,11 @@ def generate_runs_for_patient(
         tumour = tumour._asdict()
         if normal is None and run_unpaired_tumours_with == "unmatched_normal":
             # Check that `unmatched_normal` is given
+            seq_type = tumour["seq_type"]
             assert unmatched_normal is not None, (
                 "`run_unpaired_tumours_with` was set to 'unmatched_normal' "
-                "whereas `unmatched_normal` was None. For each seq_type, "
-                "provide an unmatched normal sample ID in the _shared section "
-                "of the modules configuration under `unmatched_normal_id`."
+                f"whereas `unmatched_normal` was None. For '{seq_type}', "
+                "provide an unmatched normal sample ID. See README for format."
             )
             normal = unmatched_normal._asdict()
             runs["pair_status"].append("unmatched")
