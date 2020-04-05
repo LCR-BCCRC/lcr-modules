@@ -20,3 +20,12 @@ lcr-modules:
             manta: 12
         mem_mb:
             manta: 6000
+        pairing_config:
+            genome:
+                run_unpaired_tumours_with: "unmatched_normal"
+            capture:
+                run_unpaired_tumours_with: "unmatched_normal"
+            mrna:
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours: False
+                run_paired_tumours_as_unpaired: True
