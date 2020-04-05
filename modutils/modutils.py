@@ -538,7 +538,7 @@ def filter_samples(samples, **filters):
         if isinstance(value, str):
             value = [value]
         samples = samples[samples[column].isin(value)]
-    return samples
+    return samples.copy()
 
 
 def group_samples(samples, subgroups):
@@ -996,6 +996,7 @@ def setup_module(config, name, version, subdirs, req_references=()):
     # Get configuration for the given module and create samples shorthand
     mconfig = copy.deepcopy(config["lcr-modules"]["_shared"])
     smk.utils.update_config(mconfig, config["lcr-modules"][name])
+    mconfig["samples"] = mconfig["samples"].copy()
     msamples = mconfig["samples"]
 
     # Ensure that required references are available
