@@ -902,6 +902,53 @@ def generate_runs(
 # MODULE SETUP/CLEANUP
 
 
+def check_references(config, module_config, req_references):
+    """Ensure that all required references are available.
+
+    If there is no 'genome_build' column in `module_samples` and
+    there is only one loaded reference, this function will assume
+    that the loaded reference is the reference to be used.
+
+    Parameters
+    ----------
+    config : dict
+        The snakemake configuration dictionary. This should contain
+        the references under `config['references']`.
+    module_config : dict
+        The module-specific configuration, corresponding to
+        `config['lcr-modules']['<module-name>'].
+    req_references : list of str
+        The list of required keys for the shared reference YAML files.
+
+    Returns
+    -------
+    None
+    """
+
+    error_message = (
+        "Please load the appropriate reference YAML file in the "
+        "`lcr-modules` repository and/or ensure that the following "
+        f"reference data are available: \n    {req_references}"
+    )
+    assert "reference" in config, error_message
+
+    module_samples = module_config["samples"]
+    references_available = list(config["reference"].keys())
+
+    if len(references_available) == 1 and "genome_build" not in module_samples:
+        reference = references_available[0]
+        log_message = f"Defaulting to the only loaded reference, {reference}"
+        logger.warning(log_message)
+        module_samples["genome_build"] = reference
+
+    genome_builds = module_samples["genome_build"].unique()
+
+    for genome_build in genome_builds:
+        assert genome_build in config["reference"], error_message
+        for ref_key in req_references:
+            assert ref_key in config["reference"][genome_build], error_message
+
+
 def setup_module(config, name, version, subdirs, req_references=()):
     """Prepares and validates configuration for the given module.
 
@@ -951,20 +998,9 @@ def setup_module(config, name, version, subdirs, req_references=()):
     smk.utils.update_config(mconfig, config["lcr-modules"][name])
     msamples = mconfig["samples"]
 
-    # Ensure that the required references are present
-    genome_builds = msamples["genome_build"].unique()
+    # Ensure that required references are available
     if len(req_references) > 0:
-        msg = (
-            f"The {name} module needs the following reference data, "
-            "but they cannot be found in the Snakemake `config`. "
-            "Please load the appropriate reference YAML file in the "
-            f"`lcr-modules` repository. \n    {req_references}"
-        )
-        assert "reference" in config, msg
-        for genome_build in genome_builds:
-            assert genome_build in config["reference"], msg
-            for ref_key in req_references:
-                assert ref_key in config["reference"][genome_build], msg
+        check_references(config, mconfig, req_references)
 
     # Find repository and module directories
     repodir = os.path.normpath(mconfig["repository"])

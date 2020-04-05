@@ -33,4 +33,3 @@ required:
     - patient_id
     - tissue_status
     - seq_type
-    - genome_build
