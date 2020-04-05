@@ -4,15 +4,8 @@ lcr-modules:
             sample_bam: null
             calc_manta_vaf: "{REPODIR}/lcr-scripts/python/calc_manta_vaf.py"
             manta_config: "{MODSDIR}/etc/manta_config.default.ini"
-        dirs:
-            _parent: null
-        conda_envs: 
-            manta: null
         options:
             configure:
-                _prefix: ""
-                _suffix: ""
-                _default: ""
                 mrna: "--rna"
                 capture: "--exome"
             manta: "--mode local"
@@ -23,8 +16,12 @@ lcr-modules:
         pairing_config:
             genome:
                 run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours: True
+                run_paired_tumours_as_unpaired: False
             capture:
                 run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours: True
+                run_paired_tumours_as_unpaired: False
             mrna:
                 run_unpaired_tumours_with: "no_normal"
                 run_paired_tumours: False

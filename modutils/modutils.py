@@ -873,9 +873,40 @@ def generate_runs(
         return value for `generate_runs_for_patient()`.
     """
 
-    # Set default values
+    # Set default values and create copy
     if pairing_config is None:
         pairing_config = DEFAULT_PAIRING_CONFIG
+    pairing_config = copy.deepcopy(pairing_config)
+
+    # Drop samples whose seq_types do not appear in pairing_config
+    sample_seq_types = samples["seq_type"].unique()
+    supported_seq_types = pairing_config.keys()
+    unsupported_seq_types = set(sample_seq_types) - set(supported_seq_types)
+    if len(unsupported_seq_types) > 0:
+        logger.warning(
+            f"Some samples have seq_types {unsupported_seq_types} that are "
+            "not configured in the pairing config. They will be dropped."
+        )
+    samples = samples[samples["seq_type"].isin(supported_seq_types)].copy()
+
+    # Generate Sample instances for unmatched normal samples from sample IDs
+    Sample = namedtuple("Sample", samples.columns.tolist())
+    for seq_type, args_dict in pairing_config.items():
+        if (
+            "run_unpaired_tumours_with" in args_dict
+            and args_dict["run_unpaired_tumours_with"] == "unmatched_normal"
+            and "unmatched_normal_id" in args_dict
+        ):
+            normal_id = args_dict.pop("unmatched_normal_id")
+            normal_row = samples[
+                (samples.sample_id == normal_id) & (samples.seq_type == seq_type)
+            ]
+            num_matches = len(normal_row)
+            assert num_matches == 1, (
+                f"There are {num_matches} {seq_type} samples matching "
+                f"the normal ID {normal_id} (instead of just one)."
+            )
+            args_dict["unmatched_normal"] = Sample(*normal_row.squeeze())
 
     # Organize samples by patient and tissue status (tumour vs. normal)
     patients = group_samples(samples, subgroups)
@@ -1058,26 +1089,9 @@ def setup_module(config, name, version, subdirs, req_references=()):
             parent_dir, f"{parent_dir}/logs/{launched_fmt}"
         )
 
-    # Replace unmatched_normal_ids with unmatched_normals
-    Sample = namedtuple("Sample", msamples.columns.tolist())
-    pconfig = copy.deepcopy(DEFAULT_PAIRING_CONFIG)
-    smk.utils.update_config(pconfig, mconfig.get("pairing_config", {}))
-    mconfig["pairing_config"] = pconfig
-
-    for _seq_type, args_dict in pconfig.items():
-        if "unmatched_normal" not in args_dict:
-            continue
-        normal_id = args_dict.pop("unmatched_normal")
-        normal_row = msamples[msamples.sample_id == normal_id]
-        num_matches = len(normal_row)
-        assert num_matches == 1, (
-            f"There are {num_matches} samples matching the normal "
-            f"ID ({normal_id}) rather than expected (1)"
-        )
-        args_dict["unmatched_normal"] = Sample(*normal_row.squeeze())
-
     # Generate runs
-    runs = generate_runs(msamples, pconfig)
+    assert "pairing_config" in mconfig, "Module config must have 'pairing_config'."
+    runs = generate_runs(msamples, mconfig["pairing_config"])
 
     # Split runs based on pair_status
     mconfig["runs"] = runs
@@ -1143,18 +1157,9 @@ def cleanup_module(module_config):
             output_file = os.path.join(parent_dir, f"{field}.tsv")
             tsv_fields[field].to_csv(output_file, sep="\t", index=False)
 
-    # Helper function
-    def undo_namedtuple(obj):
-        if isinstance(obj, tuple) and "sample_id" in obj._asdict():
-            result = obj.sample_id
-        else:
-            result = obj
-        return result
-
     # Output current configuration for future reference
     config_file = os.path.join(parent_dir, "config.yaml")
     with open(config_file, "w") as config_file_handler:
-        module_config = walk_through_dict(module_config, undo_namedtuple)
         yaml.dump(module_config, config_file_handler)
 
     # Add back the TSV fields
