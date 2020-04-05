@@ -1,0 +1,47 @@
+#!/usr/bin/env snakemake
+
+
+##### SETUP #####
+
+
+# Load modutils package for convenience functions
+import modutils as md
+
+# Load project-specific config (including "lcr_modules" section)
+configfile: "config.yaml"
+
+# Optional: Enable convenient `set_*` functions (after loading config)
+# md.enable_set_functions(config)
+
+# Load reference-specific config
+configfile: "../references/hg38.yaml"
+
+# Load samples using convenience function
+SAMPLES = md.load_samples("data/metadata/samples.tsv")
+
+
+##### MANTA MODULE #####
+
+
+# Load module-specific configuration
+configfile: "../modules/manta/1.0/config/default.yaml"
+
+# Provide subset of samples for manta module
+MANTA_SAMPLES = md.filter_samples(SAMPLES, seq_type=["genome", "capture", "mrna"])
+config["lcr-modules"]["manta"]["samples"] = MANTA_SAMPLES
+
+# Optional: Alternatively, you use the `set_samples()` set function
+# This function only works if you've run `md.enable_set_functions(config)`
+# md.set_samples("manta", MANTA_SAMPLES)
+
+# Define where your input files are (here, sample BAM files)
+# The wildcards you can use are listed in the module README
+SAMPLE_BAM = "data/{seq_type}_bams_hg38/{sample_id}.bam"
+config["lcr-modules"]["manta"]["inputs"]["sample_bam"] = SAMPLE_BAM
+
+# Optional: Alternatively, you use the `set_input()` set function
+# This function only works if you've run `md.enable_set_functions(config)`
+# md.set_input("manta", SAMPLE_BAM)
+
+# Load manta module snakefile
+include: "../modules/manta/1.0/manta.smk"
