@@ -40,7 +40,7 @@ config["lcr-modules"]["manta"]["inputs"]["sample_bam"] = SAMPLE_BAM
 
 # Optional: Alternatively, you use the `set_input()` set function
 # This function only works if you've run `md.enable_set_functions(config)`
-# md.set_input("manta", SAMPLE_BAM)
+# md.set_input("manta", "sample_bam", SAMPLE_BAM)
 
 # Load manta module snakefile
 include: "../modules/manta/1.0/manta.smk"
