@@ -15,14 +15,22 @@ git clone --recursive https://github.com/LCR-BCCRC/lcr-modules.git
 2. Install `snakemake` (5.4 or later), `pandas`, and the custom `modutils` Python packages into your conda environment.
 
 ```bash
-# `snakemake-minimal` is faster to install
+# `snakemake-minimal` lacks extraneous dependencies and is faster to install
 conda install snakemake-minimal>=5.4 pandas
 pip install -e lcr-modules/modutils
 ```
 
-3. Create a samples table as a tabular file with the following columns: `seq_type`, `sample_id`, `patient_id`, `tissue_status`, and optionally, `genome_build`. **Important:** You must follow the file format described [below](#samples-table).
+3. (Optional) Test your environment with the demo project in this repository. You shouldn't get any error after running the following `snakemake` command:
 
-4. Create a project configuration YAML file (if you don't already have one), add the following section, and load it using `configfile:` in your project Snakefile. See [Project Configuration](#project-configuration) for more details.
+```bash
+cd lcr-modules/demo
+snakemake -n _manta_all
+cd ../..
+```
+
+4. Create a samples table as a tabular file with the following columns: `seq_type`, `sample_id`, `patient_id`, `tissue_status`, and optionally, `genome_build`. **Important:** You must follow the file format described [below](#samples-table).
+
+5. Create a project configuration YAML file (if you don't already have one), add the following section, and load it using `configfile:` in your project Snakefile. See [Project Configuration](#project-configuration) for more details.
 
 ```yaml
 lcr-modules:
@@ -31,7 +39,7 @@ lcr-modules:
     root_output_dir: "results/"
 ```
 
-5. Add the following lines **once** near the beginning of your project Snakefile, updating any values in angle brackets (`<...>`).
+6. Add the following lines **once** near the beginning of your project Snakefile, updating any values in angle brackets (`<...>`).
 
 ```python
 import modutils as md
@@ -40,7 +48,7 @@ SAMPLES = md.load_samples("<path/to/samples.tsv>")
 config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 ```
 
-6. Add the following lines to your project Snakefile **for each module**, updating any values in angle brackets (`<...>`). This specific order is required. **Important:** Read each module README for any module-specific configuration.
+7. Add the following lines to your project Snakefile **for each module**, updating any values in angle brackets (`<...>`). This specific order is required. **Important:** Read each module README for any module-specific configuration.
 
 ```python
 configfile: "lcr-modules/modules/<manta/1.0>/config/default.yaml"
@@ -49,11 +57,11 @@ config["lcr-modules"]["<manta>"]["inputs"]["<sample_bam>"] = <SAMPLE_BAM>
 include: "lcr-modules/modules/<manta/1.0>/manta.smk"
 ```
 
-7. Launch Snakemake for the target rule of any module you added. See [Snakemake Commands](#snakemake-commands) for suggestions on how to run Snakemake.
+8. Launch Snakemake for the target rule of any module you added. See [Snakemake Commands](#snakemake-commands) for suggestions on how to run Snakemake.
 
-8. ???
+9. ???
 
-9. Profit! And reproducible research!
+10. Profit! And reproducible research!
 
 If you feel comfortable with the above steps, consider reading through the suggestions laid out in [Advanced Usage](#advanced-usage).
 
@@ -63,9 +71,9 @@ This section is a human-friendly summary of what is described in the base schema
 
 ### Entity–relationship model
 
-Before describing the required columns, it is useful to consider the entities related to each sample, namely `patient`, `biopsy`, `sample`, `library`, and `alignment`. The relationships between each entity are spelled out in the blockquote below. While the term "sample" can easily refer to any of these entities except for `patient`, we use it to indicate the entities that will be analyzed, which usually are alignments.
+Before describing the required columns, it is useful to consider the entities related to each sample, namely `patient`, `biopsy`, `sample`, `library`, `dataset`, and `alignment`. The relationships between each entity are spelled out in the blockquote below. While the term "sample" can easily refer to any of these entities except for `patient`, we use it to indicate the entities that will be analyzed, which usually are datasets/alignments.
 
-> Each patient has one or more biopsies (_e.g._ a tumour biopsy and a blood draw). Each biopsy has one or more samples (_e.g._ a tumour biopsy with both FF and FFPE samples), although it's generally a one-to-one relationship. Each sample has one or more sequencing libraries constructed from its nucleic acids (_e.g._ whole genome and RNA sequencing libraries for a tumour FF sample). Each sequenced library has one or more alignments (_e.g._ an hg19 and hg38 alignments), although there is generally a "canonical" alignment and thus a one-to-one relationship.
+> Each patient has one or more biopsies (_e.g._ a tumour biopsy and a blood draw; tumour FF and FFPE biopsies). Each biopsy has one or more nucleic acid samples (_e.g._ DNA and RNA). Each sample has one or more sequencing libraries constructed from its nucleic acid samples (_e.g._ whole genome and RNA sequencing libraries for a tumour FF sample). Each sequenced library produces a a set of sequencing reads (_i.e._ a dataset) with one or more alignments (_e.g._ an hg19 and hg38 alignments), although there is generally a "canonical" alignment if more than one exists and thus a one-to-one relationship between datasets and alignments.
 
 ### Required columns
 
@@ -81,6 +89,14 @@ If you already have a file with this information but using different column name
 
 ```python
 md.load_samples("samples.tsv", sample_id="sample", patient_id="patient")
+```
+
+Alternatively, you can rename the column using a function with the `renamer` argument. For instance, if you use two-letter prefixes to indicate which entity a column describes (_e.g._ `pt.` for patient-related columns, `lb.` for library-related columns, etc.), you can remove the prefix from all columns using a regular expression with the following code:
+
+```python
+import re
+remove_prefix = lambda x: re.sub(r"[a-z]{2}\.", "", x)
+SAMPLES = load_samples("samples.tsv", renamer=remove_prefix)
 ```
 
 ## Project Configuration
@@ -143,19 +159,59 @@ pairing_config:
 
 ## Snakemake Commands
 
-Mention profiles.
+### Creating `nice` processes
 
-### Local Usage
+You will notice that the `snakemake` commands below are all prepended with `nice`. Briefly, this has the effect of lowering the priority of your Snakemake process. Now, you're probably wondering why would you ever want to do that. Granted, compute resources should be utilized on a first come, first served basis, but in practice, not every user will pay close attention to who is already running jobs on a server.
 
-To be completed.
+Ultimately, it doesn't matter whether this act is intentional, an accident, or due to insufficient knowledge of how to manage shared compute resources. If someone launches a job that uses more cores than are available, your Snakemake process will be competing for CPU time, and this will make both processes take longer to complete.
 
-### Cluster Usage
+In this situation, we should fall back on the motto from the wise Michelle Obama: "When they go low, we go high." In this case, we follow this rule quite literally, because the `nice` command will increase the "niceness" value of your Snakemake process, which will cede CPU time to competing processes with lower (usually default) "niceness" values until they're done.
 
-To be completed.
+### Snakemake profiles
+
+In the future, there will be [Snakemake profiles](https://snakemake.readthedocs.io/en/v5.1.4/executable.html#profiles) for conveniently launching jobs on [numbers](https://github.com/BrunoGrandePhD/numbers-profile) or the gphosts using the commands below. Stay tuned! In the meantime, example commands for running Snakemake locally (_e.g._ on a gphost) or on the cluster (_e.g._ on numbers) are given below.
+
+```bash
+nice snakemake --profile numbers <targets>
+nice snakemake --profile gphost <targets>
+```
+
+### Local usage
+
+Don't forget to update any values in angle brackets (`<...>`). See the following section for determining `<cores>`.
+
+```bash
+nice snakemake --printshellcmds --keep-going --use-conda --cores <cores> <targets>
+```
+
+### Determining value for `--cores`
+
+To determine the number of cores to grant to Snakemake, compare the number of installed cores and the current load on the server. These values can either be obtained precisely using the commands below, or they can be estimated by looking at the output of the [`htop` command](https://hisham.hm/htop/index.php?page=screenshots). I generally select a value for `--cores` equal to the number of installed cores minus the server load minus 10-20 to leave some buffer.
+
+```bash
+# Get the number of installed logical cores
+nproc
+# Get the average server load over the past 5 minutes
+cut -d " " -f 2 /proc/loadavg
+```
+
+### Cluster usage
+
+```bash
+nice snakemake --jobs 1000 --max-jobs-per-second 5 --local-cores 1 --latency-wait 120 --default-resources mem_mb=2000 --cluster-sync "srun --partition short --job-name {rule} --error none --output none --cpus-per-task={threads} --mem={resources.mem_mb}" <targets>
+```
+
+Don't forget to update any values in angle brackets (`<...>`).
+
+### Debugging usage
+
+```bash
+snakemake --dryrun --cores 1 --debug
+```
 
 ## Advanced Usage
 
-### Directory Shorthands
+### Directory shorthands
 
 When specifying any value in the module configuration, you can use the following shorthands as placeholders in the string. They will be replaced with the actual values dynamically. See the [Parameterization](#parameterization) section below for example usage.
 
