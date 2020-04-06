@@ -1,0 +1,35 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+
+description: Required fields for each sample row in the samples data frame
+
+properties:
+    sample_id:
+        type: string
+        description: Sample identifier that must be unique within each seq_type
+    patient_id:
+        type: string
+        description: Patient identifier used to pair tumour-normal samples
+    tissue_status:
+        type: string
+        enum: 
+            - tumour
+            - tumor
+            - normal
+        description: Tissue status used to pair tumour-normal samples
+    seq_type:
+        type: string
+        enum:
+            - genome
+            - capture
+            - mrna
+            - mirna
+        description: Type of sequencing data used to separate analyses
+    genome_build:
+        type: string
+        description: Reference genome build (e.g., grch37, hg38)
+
+required:
+    - sample_id
+    - patient_id
+    - tissue_status
+    - seq_type

@@ -1,3 +1,4 @@
 [submodule "lcr-scripts"]
 	path = lcr-scripts
-	url = git@github.com:LCR-BCCRC/lcr-scripts.git
+	url = https://github.com/LCR-BCCRC/lcr-scripts.git
+	ignore = dirty

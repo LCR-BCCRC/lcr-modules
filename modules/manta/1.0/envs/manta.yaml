@@ -12,6 +12,7 @@ dependencies:
   - curl=7.68.0
   - cytoolz=0.10.1
   - krb5=1.16.4
+  - ld_impl_linux-64=2.34
   - libblas=3.8.0
   - libcblas=3.8.0
   - libcurl=7.68.0
@@ -28,13 +29,14 @@ dependencies:
   - manta=1.6.0
   - ncurses=6.1
   - numpy=1.16.5
-  - openssl=1.1.1d
+  - openssl=1.1.1f
   - pandas=0.24.2
   - patsy=0.5.1
   - pip=20.0.2
   - pysam=0.15.4
   - python=2.7.15
   - python-dateutil=2.8.1
+  - python_abi=2.7
   - pytz=2019.3
   - pyvcf=0.6.8
   - readline=8.0
@@ -45,9 +47,11 @@ dependencies:
   - statsmodels=0.9.0
   - svtools=0.4.0
   - svtyper=0.7.0
+  - tabix=0.2.6
   - tk=8.6.10
   - toolz=0.10.0
   - wheel=0.34.2
   - xz=5.2.4
   - zlib=1.2.11
-prefix: /projects/adult_blgsp/envs/manta
+prefix: /home/bgrande/repos/adult_blgsp/envs/manta
+

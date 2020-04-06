@@ -1,0 +1,12 @@
+lcr-modules:
+    _shared:
+        # Typically, this will be something like "src/lcr-modules"
+        repository: "../"
+        # The modules will output in subdirectories of "results/"
+        # For example: "results/manta-1.0/"
+        root_output_dir: "results/"
+        # This specifies the sample to use as a normal for unpaired tumours
+        # (manta runs unpaired tumours with unmatched normal samples)
+        pairing_config:
+            genome:
+                unmatched_normal_id: "BLGSP-71-06-00001-99A-01D"
