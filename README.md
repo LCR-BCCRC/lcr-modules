@@ -159,32 +159,43 @@ pairing_config:
 
 ## Snakemake Commands
 
-### Creating `nice` processes
-
-You will notice that the `snakemake` commands below are all prepended with `nice`. Briefly, this has the effect of lowering the priority of your Snakemake process. Now, you're probably wondering why would you ever want to do that. Granted, compute resources should be utilized on a first come, first served basis, but in practice, not every user will pay close attention to who is already running jobs on a server.
-
-Ultimately, it doesn't matter whether this act is intentional, an accident, or due to insufficient knowledge of how to manage shared compute resources. If someone launches a job that uses more cores than are available, your Snakemake process will be competing for CPU time, and this will make both processes take longer to complete.
-
-In this situation, we should fall back on the motto from the wise Michelle Obama: "When they go low, we go high." In this case, we follow this rule quite literally, because the `nice` command will increase the "niceness" value of your Snakemake process, which will cede CPU time to competing processes with lower (usually default) "niceness" values until they're done.
+**Note:** Don't forget to update any values in angle brackets (`<...>`).
 
 ### Snakemake profiles
 
-In the future, there will be [Snakemake profiles](https://snakemake.readthedocs.io/en/v5.1.4/executable.html#profiles) for conveniently launching jobs on [numbers](https://github.com/BrunoGrandePhD/numbers-profile) or the gphosts using the commands below. Stay tuned! In the meantime, example commands for running Snakemake locally (_e.g._ on a gphost) or on the cluster (_e.g._ on numbers) are given below.
+The most convenient way of running Snakemake is using [Snakemake profiles](https://snakemake.readthedocs.io/en/v5.1.4/executable.html#profiles). Each profile contains a YAML file that dictates the default command-line options to use. This way, you don't have to remember all those Snakemake options.
+
+#### GSC Snakemake profiles
+
+Make sure you first install the custom [GSC Snakemake profiles](https://github.com/LCR-BCCRC/snakemake-profiles.git) using [these instructions](https://github.com/LCR-BCCRC/snakemake-profiles#installation). Then, you can use each profile using the commands below.
 
 ```bash
-nice snakemake --profile numbers <targets>
-nice snakemake --profile gphost <targets>
+# Run this command on numbers (ideally, the n104 node)
+nice snakemake --profile numbers --keep-going <targets>
+# Run this command on the gphosts (see below for determining <cores>)
+nice snakemake --profile gphosts --keep-going --cores <cores> <targets>
 ```
 
-### Local usage
+### Explicit commands
 
-Don't forget to update any values in angle brackets (`<...>`). See the following section for determining `<cores>`.
+If you prefer to spell out all of the command-line options in your Snakemake commands, example commands are included below. These may eventually become out of sync with the above Snakemake profiles. Feel free to compare with the list of arguments for [local usage](https://github.com/LCR-BCCRC/snakemake-profiles/blob/master/gphosts/config.yaml) or [cluster usage](https://github.com/LCR-BCCRC/snakemake-profiles/blob/master/numbers/config.yaml).
+
+#### Local usage
 
 ```bash
-nice snakemake --printshellcmds --keep-going --use-conda --cores <cores> <targets>
+# See below for determining <cores>
+nice snakemake --printshellcmds --use-conda --keep-going --cores <cores> <targets>
 ```
 
-### Determining value for `--cores`
+#### Cluster usage
+
+```bash
+nice snakemake --cluster-sync "srun --partition=all --ntasks=1 --nodes=1 --output=none --error=none --job-name={rule} --cpus-per-task={threads} --mem={resources.mem_mb}" --max-jobs-per-second=5 --max-status-checks-per-second=10 --local-cores=1 --latency-wait=120 --jobs=1000 --default-resources="mem_mb=2000" --printshellcmds --use-conda --keep-going <targets>
+```
+
+### Extra information
+
+#### Determining value for `--cores`
 
 To determine the number of cores to grant to Snakemake, compare the number of installed cores and the current load on the server. These values can either be obtained precisely using the commands below, or they can be estimated by looking at the output of the [`htop` command](https://hisham.hm/htop/index.php?page=screenshots). I generally select a value for `--cores` equal to the number of installed cores minus the server load minus 10-20 to leave some buffer.
 
@@ -195,18 +206,42 @@ nproc
 cut -d " " -f 2 /proc/loadavg
 ```
 
-### Cluster usage
+#### Increasing `ulimit`
+
+Snakemake tends to spawn A LOT of processes and open A LOT of files depending on the number of running and pending jobs. You may eventually start running into cryptic errors about processors not being able to start or files not being able to be opened. This happens when you run into user limits. You can get around this issue by increasing the user limits with the `ulimit` command. However, there are hard limits set by administrators that determine the maximum permitted for non-admin users. You can always ask your administrators to increase these hard limits for certain machines to run Snakemake.
+
+##### GSC `ulimit` setup
+
+GSC users can include the following code in their `.bashrc` file to increase their ulimits based on the server. Notice how the `n104` numbers head node has a much higher hard limit than the other head nodes. This is because it was manually increased when `n104` was the only head node. For this reason, it is recommended that GSC users specically log into `n104` instead of `numbers`, which will assign you to a random head node.
 
 ```bash
-nice snakemake --jobs 1000 --max-jobs-per-second 5 --local-cores 1 --latency-wait 120 --default-resources mem_mb=2000 --cluster-sync "srun --partition short --job-name {rule} --error none --output none --cpus-per-task={threads} --mem={resources.mem_mb}" <targets>
+# Only change these values for interactive shells
+if [[ $- == *i* ]]; then
+  if [[ "$HOSTNAME" == "n104" ]]; then
+    # Change the max number of processes
+    ulimit -u 32768
+    # Change the max number of file descriptors
+    ulimit -n 100000
+  fi
+fi
 ```
 
-Don't forget to update any values in angle brackets (`<...>`).
+#### Creating `nice` processes
 
-### Debugging usage
+You will notice that the `snakemake` commands below are all prepended with `nice`. Briefly, this has the effect of lowering the priority of your Snakemake process. Now, you're probably wondering why would you ever want to do that. Granted, compute resources should be utilized on a first come, first served basis, but in practice, not every user will pay close attention to who is already running jobs on a server.
+
+Ultimately, it doesn't matter whether this act is intentional, an accident, or due to insufficient knowledge of how to manage shared compute resources. If someone launches a job that uses more cores than are available, your Snakemake process will be competing for CPU time, and this will make both processes take longer to complete.
+
+In this situation, we should fall back on the motto from the wise Michelle Obama: "When they go low, we go high." In this case, we follow this rule quite literally, because the `nice` command will increase the "niceness" value of your Snakemake process, which will cede CPU time to competing processes with lower (usually default) "niceness" values until they're done.
+
+#### Submitting cluster jobs remotely
+
+It is possible to submit jobs to a cluster remotely via SSH. This could be useful in situations where you have quick jobs that you don't want to submit to the cluster, but you also don't want to run locally on the cluster head node. **Important:** This section assumes that you have SSH keys set up, allowing SSH login to the head node without entering a password.
+
+The command below differs from the explicit command above simply by prepending the `srun` command in `--cluster-sync` with `ssh <head_node>`, where `<head_node>` is the cluster head node where you run `srun` normally. You can now increase the value for `--local-cores` (see above for how to determine this value).
 
 ```bash
-snakemake --dryrun --cores 1 --debug
+nice snakemake --local-cores=<cores> --cluster-sync "ssh <head_node> srun --partition=all --ntasks=1 --nodes=1 --output=none --error=none --job-name={rule} --cpus-per-task={threads} --mem={resources.mem_mb}" --max-jobs-per-second=5 --max-status-checks-per-second=10 --latency-wait=120 --jobs=1000 --default-resources="mem_mb=2000" --printshellcmds --use-conda --keep-going <targets>
 ```
 
 ## Advanced Usage
@@ -254,9 +289,11 @@ Sometimes, a parameter or input file depends on some sample attribute. This samp
 In the example below, I want to override the default Manta configuration and provide the high-sensitivity version for `mrna` and `capture` tumour samples. This piece of code would be added after loading the module configuration but before including the module Snakefile.
 
 ```python
-md.set_input("manta", "manta_config", md.switch_on_wildcard("seq_type", {
+MANTA_CONFIG_OPTIONS = {
     "_default": "{MODSDIR}/etc/manta_config.default.ini",
     "mrna": "{MODSDIR}/etc/manta_config.high_sensitivity.ini",
     "capture": "{MODSDIR}/etc/manta_config.high_sensitivity.ini",
-}))
+}
+MANTA_CONFIG_SWITCH = md.switch_on_wildcard("seq_type", MANTA_CONFIG_OPTIONS)
+md.set_input("manta", "manta_config", MANTA_CONFIG_SWITCH)
 ```
