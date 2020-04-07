@@ -16,7 +16,8 @@ git clone --recursive https://github.com/LCR-BCCRC/lcr-modules.git
 
 ```bash
 # `snakemake-minimal` lacks extraneous dependencies and is faster to install
-conda install snakemake-minimal>=5.4 pandas
+conda install --satisfied-skip-solve 'snakemake-minimal>=5.4' 'pandas'
+# This is installing from the `lcr-modules` repository clone
 pip install -e lcr-modules/modutils
 ```
 
