@@ -61,7 +61,10 @@ rule _bam2fastq_run:
 
 rule _bam2fastq_all:
     input:
-        fastqs = expand(rules._bam2fastq_run.output.fq, seq_type = CFG["runs"]["tumour_seq_type"], genome_build = CFG["runs"]["tumour_genome_build"], sample_id = list(CFG["samples"]['sample_id']))
+        fastqs = expand(rules._bam2fastq_run.output.fq, zip,
+                seq_type = list(CFG["samples"]['seq_type']),
+                genome_build = list(CFG["samples"]['genome_build']), 
+                sample_id = list(CFG["samples"]['sample_id']))
         
         #expand("{dir}{seq_type}--{genome_build}/{sample_id}.{readNum}.fastq.gz", dir = CFG["dirs"]["outputs"], seq_type = CFG["runs"]["tumour_seq_type"], genome_build = CFG["runs"]["tumour_genome_build"], sample_id = list(CFG["samples"]['sample_id']), readNum = ['1', '2']) 
 
