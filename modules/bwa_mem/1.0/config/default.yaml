@@ -1,0 +1,27 @@
+lcr-modules:
+    bwa_mem:
+        inputs:
+            fastq: ["results/bam2fastq-1.0/99-outputs/{seq_type}--{genome_build}/{sample_id}.1.fastq.gz", "results/bam2fastq-1.0/99-outputs/{seq_type}--{genome_build}/{sample_id}.2.fastq.gz"]
+        dirs:
+            _parent: null
+        conda_envs: 
+            bwa_mem: null
+        options:
+            bwa_mem: '-M -R "@RG\tID:{sample_id}\tLB:{sample_id}\tPL:ILLUMINA\tSM:{sample_id}" -v 3'
+            samtools: "-bhS"
+
+        threads:
+            bwa_mem: null
+        mem_mb:
+            bwa_mem: null
+        
+        pairing_config:
+            genome:
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours: False
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours: False
+                run_paired_tumours_as_unpaired: True
+
