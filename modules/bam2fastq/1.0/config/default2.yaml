@@ -1,0 +1,29 @@
+lcr-modules:
+    bam2fastq:
+        inputs:
+            sample_bam: "gsc_bam/{sample_id}.bam"
+        dirs:
+            _parent: null
+        conda_envs: 
+            bam2fastq: null
+        options:
+            picard: "VALIDATION_STRINGENCY=LENIENT"
+
+        threads:
+            bam2fastq: null
+        mem_mb:
+            bam2fastq: null
+
+        pairing_config:
+            genome:
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours: True
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours: True
+                run_paired_tumours_as_unpaired: False
+            mrna:
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours: False
+                run_paired_tumours_as_unpaired: True
