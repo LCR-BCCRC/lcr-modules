@@ -1,11 +1,14 @@
-import os
-import gzip
-import modutils as md
+#!/usr/bin/env snakemake
+# Author: Helena Winata
+# email/github: hwinata@bccrc.ca / whelena
 
-# Make sure the `CFG` variable doesn't exist yet
-assert "CFG" not in locals(), "`CFG` is a reserved variable for lcr-modules."
 
 ##### SETUP #####
+
+import os
+import modutils as md
+
+assert "CFG" not in locals(), "`CFG` is a reserved variable for lcr-modules."
 
 CFG = md.setup_module(
     config = config, 
