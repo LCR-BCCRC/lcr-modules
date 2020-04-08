@@ -7,7 +7,7 @@ lcr-modules:
         conda_envs: 
             bwa_mem: null
         options:
-            bwa_mem: '-M -R "@RG\tID:{sample_id}\tLB:{sample_id}\tPL:ILLUMINA\tSM:{sample_id}" -v 3'
+            bwa_mem: '-M -R "@RG\tID:{sample_id}\tLB:{sample_id}\tPL:ILLUMINA\tSM:{sample_id}"'
             samtools: "-bhS"
 
         threads:

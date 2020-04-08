@@ -18,8 +18,7 @@ CFG = md.setup_module(
 )
 
 localrules: 
-    _bwa_mem_input, 
-    _bwa_mem_output, 
+    _bwa_mem_input,  
     _bwa_mem_all
 
 ##### RULES #####
@@ -28,7 +27,7 @@ rule _bwa_mem_input:
     input:
         fq = CFG["inputs"].get("fastq")
     output:
-        fq = expand("{fqDIR}/{{seq_type}}--{{genome_build}}/{{sample_id}}.{num}.fastq.gz", fqDIR = CFG["dirs"]["inputs"], num = ["1", "2"]) 
+        fq = expand("{fqDIR}{{seq_type}}--{{genome_build}}/{{sample_id}}.{num}.fastq.gz", fqDIR = CFG["dirs"]["inputs"], num = ["1", "2"]) 
     run:
         md.symlink(input.fq[0], output.fq[0])
         md.symlink(input.fq[1], output.fq[1])
@@ -36,7 +35,7 @@ rule _bwa_mem_input:
 
 rule _bwa_mem_run:
     input:
-        fq = rules.bwa_mem_input.output.fq
+        fq = rules._bwa_mem_input.output.fq
     output:
         bam = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.bam"
     log:
@@ -45,30 +44,31 @@ rule _bwa_mem_run:
     params:
         bwa   = CFG["options"]["bwa_mem"],
         samtools  = CFG["options"]["samtools"],
-        fasta  = lambda wildcards: config["reference"][wildcards.genome_build]["genome_fasta"]
+        fasta  = lambda wildcards: config["reference"][wildcards.genome_build]["bwa_index"]
     conda:
         CFG["conda_envs"].get("bwa_mem") or "envs/bwa_mem.yaml"
     threads:
-        CFG["threads"].get("bwa_mem") or 4
+        CFG["threads"].get("bwa_mem") or 2
     resources: 
-        mem_mb = CFG["mem_mb"].get("bwa_mem") or 16000
+        mem_mb = CFG["mem_mb"].get("bwa_mem") or 10000
     shell:
         md.as_one_line("""
         bwa mem -t {threads} {params.bwa}
         {params.fasta} {input.fq} 
         2> {log.bwa} | samtools view {params.samtools}
-        - > {output.bam} 2> {log.samtools_err}
+        - > {output.bam} 2> {log.samtools}
         """)
 
 
 rule _bwa_mem_all:
     input:
-        fastqs = expand(rules.bwa_mem_output.run.bam, zip,
+        fastqs = expand(rules._bwa_mem_run.output.bam, zip,
                         sample_id = list(CFG["samples"]['sample_id']), 
-                        seq_type = list(CFG["samples"]['seq_type']))
+                        seq_type = list(CFG["samples"]['seq_type']),
+                        genome_build = list(CFG["samples"]['genome_build']))
 
 ##### CLEANUP #####
 
-cleanup_module(CFG)
+md.cleanup_module(CFG)
 
 del CFG
