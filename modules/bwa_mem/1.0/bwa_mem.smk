@@ -4,7 +4,6 @@
 
 ##### SETUP #####
 import os
-import gzip
 import modutils as md
 
 assert "CFG" not in locals(), "`CFG` is a reserved variable for lcr-modules."
@@ -14,7 +13,7 @@ CFG = md.setup_module(
     name = "bwa_mem", 
     version = "1.0", 
     subdirs = ["inputs", "outputs"],
-    req_references = ["genome_fasta"]
+    req_references = ["bwa_index"]
 )
 
 localrules: 
