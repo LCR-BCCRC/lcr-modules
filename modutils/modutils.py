@@ -598,6 +598,7 @@ def generate_runs_for_patient(
     run_unpaired_tumours_with,
     unmatched_normal=None,
     run_paired_tumours_as_unpaired=False,
+    **kwargs,
 ):
     """Generates a run for every tumour with and/or without a paired normal.
 
@@ -626,6 +627,8 @@ def generate_runs_for_patient(
         This is useful for benchmarking purposes or preventing
         unwanted paired analyses (e.g., in RNA-seq analyses
         intended to be tumour-only)
+    **kwargs : key-value pairs
+        Any additional unused arguments (e.g, `unmatched_normal_id`).
 
     Returns
     -------
@@ -899,7 +902,7 @@ def generate_runs(
             and args_dict["run_unpaired_tumours_with"] == "unmatched_normal"
             and "unmatched_normal_id" in args_dict
         ):
-            normal_id = args_dict.pop("unmatched_normal_id")
+            normal_id = args_dict["unmatched_normal_id"]
             normal_row = samples[
                 (samples.sample_id == normal_id) & (samples.seq_type == seq_type)
             ]
