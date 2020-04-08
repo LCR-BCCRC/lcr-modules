@@ -7,3 +7,4 @@ reference:
                       "chr17", "chr18", "chr20", "chrY", "chr19", "chr22", "chr21", "chrM"]
         genome_fasta: "/projects/clc/references/genomes/hg19/hg19.fa"
         genome_fasta_index: "/projects/clc/references/genomes/hg19/hg19.fa.fai"
+        bwa_index: "/projects/clc/references/genomes/hg19/hg19.fa"

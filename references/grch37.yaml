@@ -6,3 +6,4 @@ reference:
                       "14", "15", "16", "17", "18", "19", "20", "21", "22", "X", "Y", "MT"]
         genome_fasta: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh37-lite/Sequence/WholeGenomeFasta/genome.fa"
         genome_fasta_index: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh37-lite/Sequence/WholeGenomeFasta/genome.fa.fai"
+        bwa_index: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh37-lite/Sequence/BWAIndex/genome.fa"
