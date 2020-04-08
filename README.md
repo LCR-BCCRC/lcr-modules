@@ -28,55 +28,55 @@ These instructions assume your working directory is your project root. They also
 
 1. Clone the `lcr-modules` repository **recursively**.
 
-```bash
-git clone --recursive https://github.com/LCR-BCCRC/lcr-modules.git
-```
+   ```bash
+   git clone --recursive https://github.com/LCR-BCCRC/lcr-modules.git
+   ```
 
 2. Install `snakemake` (5.4 or later), `pandas`, and the custom `modutils` Python packages into your conda environment.
 
-```bash
-# `snakemake-minimal` lacks extraneous dependencies and is faster to install
-conda install --satisfied-skip-solve 'snakemake-minimal>=5.4' 'pandas'
-# This is installing from the `lcr-modules` repository clone
-pip install -e lcr-modules/modutils
-```
+   ```bash
+   # `snakemake-minimal` lacks extraneous dependencies and is faster to install
+   conda install --satisfied-skip-solve 'snakemake-minimal>=5.4' 'pandas'
+   # This is installing from the `lcr-modules` repository clone
+   pip install -e lcr-modules/modutils
+   ```
 
 3. (Optional) Test your environment with the demo project in this repository. You shouldn't get any error after running the following `snakemake` command:
 
-```bash
-cd lcr-modules/demo
-snakemake -n _manta_all
-cd ../..
-```
+   ```bash
+   cd lcr-modules/demo
+   snakemake -n _manta_all
+   cd ../..
+   ```
 
 4. Create a samples table as a tabular file with the following columns: `seq_type`, `sample_id`, `patient_id`, `tissue_status`, and optionally, `genome_build`. **Important:** You must follow the file format described [below](#samples-table).
 
 5. Create a project configuration YAML file (if you don't already have one), add the following section, and load it using `configfile:` in your project Snakefile. See [Project Configuration](#project-configuration) for more details.
 
-```yaml
-lcr-modules:
-  _shared:
-    repository: "lcr-modules/"
-    root_output_dir: "results/"
-```
+   ```yaml
+   lcr-modules:
+     _shared:
+       repository: "lcr-modules/"
+       root_output_dir: "results/"
+   ```
 
 6. Add the following lines **once** near the beginning of your project Snakefile, updating any values in angle brackets (`<...>`).
 
-```python
-import modutils as md
-configfile: "lcr-modules/references/<hg38>.yaml"
-SAMPLES = md.load_samples("<path/to/samples.tsv>")
-config["lcr-modules"]["_shared"]["samples"] = SAMPLES
-```
+   ```python
+   import modutils as md
+   configfile: "lcr-modules/references/<hg38>.yaml"
+   SAMPLES = md.load_samples("<path/to/samples.tsv>")
+   config["lcr-modules"]["_shared"]["samples"] = SAMPLES
+   ```
 
 7. Add the following lines to your project Snakefile **for each module**, updating any values in angle brackets (`<...>`). This specific order is required. **Important:** Read each module README for any module-specific configuration.
 
-```python
-configfile: "lcr-modules/modules/<manta/1.0>/config/default.yaml"
-config["lcr-modules"]["<manta>"]["inputs"]["<sample_bam>"] = <SAMPLE_BAM>
-# Repeat previous line for any other required input files
-include: "lcr-modules/modules/<manta/1.0>/manta.smk"
-```
+   ```python
+   configfile: "lcr-modules/modules/<manta/1.0>/config/default.yaml"
+   config["lcr-modules"]["<manta>"]["inputs"]["<sample_bam>"] = <SAMPLE_BAM>
+   # Repeat previous line for any other required input files
+   include: "lcr-modules/modules/<manta/1.0>/manta.smk"
+   ```
 
 8. Launch Snakemake for the target rule of any module you added. See [Snakemake Commands](#snakemake-commands) for suggestions on how to run Snakemake.
 
