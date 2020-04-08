@@ -1,10 +1,30 @@
 # LCR Snakemake Analysis Modules
 
-**Note:** This repository includes a custom Python package called `modutils`. This README assumes that it is loaded into Python using `import modutils as md`. Hence, any functions therein are referred to with the `md.` prefix.
+This repository aims to become a collection of standard analytical modules for genomic and transcriptomic data. Too often do we copy-paste from each other's pipelines, which has several pitfalls:
+
+```plain
+          * Too much time spent on routine analyses            * Increased risk for hidden logical bugs
+          * Duplicated effort within and between labs          * No consistently used pipelining tool
+          * Inefficient dissemination of best practices        * Steep learning curve for new members
+```
+
+Fortunately, all of these problems can be solved with standardized analytical modules, and the benefits are many:
+
+```plain
+                * Projects can ramp up faster             * Consistent intermediate/output files
+                * Streamline efforts between labs         * More reproducible analyses
+                * Define analytical best practices        * Easier-to-write methods
+                * Consolidate collective expertise        * Automated logging and “paper trail”
+                * Simplify member onboarding              * Easier peer review of code
+
+                                     * And happier bioinformaticians!
+```
+
+Check out the [contribution guidelines](CONTRIBUTING.md) to find out how you can contribute to this effort!
 
 ## Setup Instructions
 
-These instructions assume your working directory is your project root. They also assume that you have conda set up and your current environment has Python 3.6 or later.
+These instructions assume your working directory is your project root. They also assume that you have conda set up and your current environment has Python 3.6 or later. **Note:** This repository includes a custom Python package called `modutils`. This README assumes that it is loaded into Python using `import modutils as md`. Hence, any functions therein are referred to with the `md.` prefix.
 
 1. Clone the `lcr-modules` repository **recursively**.
 
@@ -65,6 +85,28 @@ include: "lcr-modules/modules/<manta/1.0>/manta.smk"
 10. Profit! And reproducible research!
 
 If you feel comfortable with the above steps, consider reading through the suggestions laid out in [Advanced Usage](#advanced-usage).
+
+## Available Modules
+
+The modules are organized into levels. Briefly, level-1 modules process the raw sequencing data, generally producing FASTQ or BAM files that serve as input for the next level. In turn, level-2 modules perform sample-level analyses, such as variant calling and gene expression quantification. Level-3 modules aggregate the sample-specific output and generally perform cohort-wide analyses, such as the identification of sifgnificantly mutated genes. Finally, the fourth level corresponds to the analyses that are project-specific and are meant to ask specific questions of the data. These are the analyses you ideally want to spend your time on. See the figure below for examples.
+
+![Module Levels](images/module_levels.png)
+
+### Level-1 modules
+
+- None
+
+### Level-2 modules
+
+- Manta
+
+### Level-3 modules
+
+- None
+
+### Level-4 modules
+
+- Sadly, we can't automate your PhD.
 
 ## Samples Table
 
