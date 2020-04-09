@@ -1,7 +1,17 @@
 #!/usr/bin/env snakemake
-# Author: Helena Winata
-# email/github: hwinata@bccrc.ca / whelena
-
+# -----------------------------------------------------------------------------
+# Author:        Helena Winata
+# email/github:  hwinata@bccrc.ca / whelena
+# -----------------------------------------------------------------------------
+# Input:         {sample_id}.bam  
+#
+# Output:        {sample_id}.1.fastq         
+#                {sample_id}.2.fastq         
+# 
+# Required references:  genome.fa 
+#
+# Purpose: Extract paired-end fastq reads from a BAM file using picard SamToFastq                    
+# -----------------------------------------------------------------------------
 
 ##### SETUP #####
 
@@ -65,8 +75,6 @@ rule _bam2fastq_all:
                 seq_type = list(CFG["samples"]['seq_type']),
                 genome_build = list(CFG["samples"]['genome_build']), 
                 sample_id = list(CFG["samples"]['sample_id']))
-        
-        #expand("{dir}{seq_type}--{genome_build}/{sample_id}.{readNum}.fastq.gz", dir = CFG["dirs"]["outputs"], seq_type = CFG["runs"]["tumour_seq_type"], genome_build = CFG["runs"]["tumour_genome_build"], sample_id = list(CFG["samples"]['sample_id']), readNum = ['1', '2']) 
 
 
 ##### CLEANUP #####
