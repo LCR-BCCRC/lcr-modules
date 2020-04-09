@@ -1,6 +1,17 @@
 #!/usr/bin/env snakemake
-# Author: Helena Winata
-# email/github: hwinata@bccrc.ca / whelena
+# -----------------------------------------------------------------------------
+# Author:        Helena Winata
+# email/github:  hwinata@bccrc.ca / whelena
+# -----------------------------------------------------------------------------
+# Input:         {sample_id}.1.fastq         
+#                {sample_id}.2.fastq         
+#                                           
+# Output:        {sample_id}.bam  
+# 
+# Required references:  genome.fa + indexes (genome.fa.fai, genome.fa.amb, genome.fa.ann, genome.fa.bwt, genome.fa.pas, genome.fa.sa)
+#
+# Purpose: Align paired-end fastq reads (generated using Illumina) using a reference genome to create an aligned BAM file                     
+# -----------------------------------------------------------------------------
 
 ##### SETUP #####
 import os
