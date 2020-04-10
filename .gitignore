@@ -12,3 +12,6 @@ __pycache__/
 # Files creates when testing the demo project
 .snakemake/
 /demo/results/
+
+# VisualStudio Code files
+.vscode/settings.json
