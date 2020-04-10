@@ -1,0 +1,9 @@
+{
+  "module_name": null,
+  "module_author": null,
+  "original_snakefile_author": null,
+  "module_run_per": ["tumour", "sample"],
+  "seq_type.genome": ["paired", "unpaired", "omit"],
+  "seq_type.capture": ["paired", "unpaired", "omit"],
+  "seq_type.mrna": ["unpaired", "paired", "omit"]
+}

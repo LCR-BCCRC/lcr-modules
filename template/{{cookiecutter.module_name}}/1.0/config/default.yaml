@@ -1,0 +1,26 @@
+lcr-modules:
+    {{cookiecutter.module_name}}:
+        inputs:
+            sample_bam: null
+        options:
+            step_1: "--call-indels"
+            step_2: "-w PASS"
+        threads:
+            step_1: 12
+        mem_mb:
+            step_1: 6000
+        pairing_config:
+        {%- for seq_type, mode in cookiecutter.items() if seq_type.startswith("seq_type.") %}
+            {%- if mode != "omit" %}
+            {{ seq_type | replace("seq_type.", "", 1) }}:
+            {%- if mode == "paired" %}
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            {%- elif mode == "unpaired" %}
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            {%- endif %}
+            {%- endif %}
+        {%- endfor %}
