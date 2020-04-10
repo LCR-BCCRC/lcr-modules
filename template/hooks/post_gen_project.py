@@ -8,5 +8,5 @@ os.symlink("../../../../schemas/base.yaml", "1.0/schemas/base.yaml")
 
 # Delete hidden files serving only to have the directories
 # be visible to Git
-os.remove("1.0/etc/.readme")
-os.remove("1.0/schemas/.readme")
+os.remove("1.0/etc/.gitkeep")
+os.remove("1.0/schemas/.gitkeep")
