@@ -43,7 +43,7 @@ rule _manta_input_bam:
     input:
         sample_bam = CFG["inputs"]["sample_bam"]
     output:
-        sample_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bam"
+        sample_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     run:
         md.symlink(input.sample_bam, output.sample_bam)
         md.symlink(input.sample_bam + ".bai", output.sample_bam + ".bai")
@@ -205,7 +205,7 @@ rule _manta_output_vcf:
     input:
         vcf = rules._manta_run.params.variants_dir + "{vcf_name}.vcf.gz"
     output:
-        vcf = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf.gz"
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf.gz"
     run:
         md.symlink(input.vcf, output.vcf)
         md.symlink(input.vcf + ".tbi", output.vcf + ".tbi")
@@ -216,7 +216,7 @@ rule _manta_output_bedpe:
     input:
         bedpe = rules._manta_vcf_to_bedpe.output.bedpe
     output:
-        bedpe = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.bedpe"
+        bedpe = CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.bedpe"
     run:
         md.symlink(input.bedpe, output.bedpe)
 
