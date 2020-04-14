@@ -333,3 +333,17 @@ MANTA_CONFIG_OPTIONS = {
 MANTA_CONFIG_SWITCH = md.switch_on_wildcard("seq_type", MANTA_CONFIG_OPTIONS)
 md.set_input("manta", "manta_config", MANTA_CONFIG_SWITCH)
 ```
+
+## Frequently Asked Questions
+
+### How do I handle a conda environment that fails to build?
+
+While conda brings us much closer to computational reproducibility, it isn't perfect. Issues arise when conda packages are removed from [Anaconda Cloud](https://anaconda.org/) or when the dependency resolution algorithm changes. We suggest you try the following steps in order:
+
+1. Remove the build IDs from the conda environment YAML file, although this should already be the case for all environments in `lcr-modules`.
+2. Remove the versions for the offending package(s) (_i.e._ the one(s) mentioned in the error message).
+3. Remove the offending packages altogether.
+4. Remove the dependency packages, leaving only the "target packages". This generally means subsetting to the core conda packages listed in a module's README for the environment in question. While extreme, the hope is that the versions of the dependency packages are not crucial for maintaining scientific reproducibility.
+5. Remove the versions for the target packages.
+6. If you reach this point, it usually means that a target package is problematic. If possible, replace that package with the same (or similar) version from another Anaconda channel. Ideally, restore the YAML file first and cycle through the previous steps.
+7. Install the software tools manually (ideally the versions specified in the YAML file) and ensure they are available in your `PATH` environment variable.
