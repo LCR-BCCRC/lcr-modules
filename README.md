@@ -210,14 +210,7 @@ The most convenient way of running Snakemake is using [Snakemake profiles](https
 
 #### GSC Snakemake profiles
 
-Make sure you first install the custom [GSC Snakemake profiles](https://github.com/LCR-BCCRC/snakemake-profiles.git) using [these instructions](https://github.com/LCR-BCCRC/snakemake-profiles#installation). Then, you can use each profile using the commands below.
-
-```bash
-# Run this command on numbers (ideally, the n104 node)
-nice snakemake --profile numbers --keep-going <targets>
-# Run this command on the gphosts (see below for determining <cores>)
-nice snakemake --profile gphosts --keep-going --cores <cores> <targets>
-```
+Make sure you first install the custom GSC Snakemake profiles using [these instructions](https://github.com/LCR-BCCRC/snakemake-profiles#installation). Then, you can use each profile using [these commands](https://github.com/LCR-BCCRC/snakemake-profiles#usage).
 
 ### Explicit commands
 
@@ -227,13 +220,13 @@ If you prefer to spell out all of the command-line options in your Snakemake com
 
 ```bash
 # See below for determining <cores>
-nice snakemake --printshellcmds --use-conda --keep-going --cores <cores> <targets>
+nice snakemake --printshellcmds --use-conda --cores <cores> <targets>
 ```
 
 #### Cluster usage
 
 ```bash
-nice snakemake --cluster-sync "srun --partition=all --ntasks=1 --nodes=1 --output=none --error=none --job-name={rule} --cpus-per-task={threads} --mem={resources.mem_mb}" --max-jobs-per-second=5 --max-status-checks-per-second=10 --local-cores=1 --latency-wait=120 --jobs=1000 --default-resources="mem_mb=2000" --printshellcmds --use-conda --keep-going <targets>
+nice snakemake --cluster-sync "srun --partition=all --ntasks=1 --nodes=1 --output=none --error=none --job-name={rule} --cpus-per-task={threads} --mem={resources.mem_mb}" --max-jobs-per-second=5 --max-status-checks-per-second=10 --local-cores=1 --latency-wait=120 --jobs=1000 --default-resources="mem_mb=2000" --printshellcmds --use-conda <targets>
 ```
 
 ### Extra information
@@ -284,7 +277,7 @@ It is possible to submit jobs to a cluster remotely via SSH. This could be usefu
 The command below differs from the explicit command above simply by prepending the `srun` command in `--cluster-sync` with `ssh <head_node>`, where `<head_node>` is the cluster head node where you run `srun` normally. You can now increase the value for `--local-cores` (see above for how to determine this value).
 
 ```bash
-nice snakemake --local-cores=<cores> --cluster-sync "ssh <head_node> srun --partition=all --ntasks=1 --nodes=1 --output=none --error=none --job-name={rule} --cpus-per-task={threads} --mem={resources.mem_mb}" --max-jobs-per-second=5 --max-status-checks-per-second=10 --latency-wait=120 --jobs=1000 --default-resources="mem_mb=2000" --printshellcmds --use-conda --keep-going <targets>
+nice snakemake --local-cores=<cores> --cluster-sync "ssh <head_node> srun --partition=all --ntasks=1 --nodes=1 --output=none --error=none --job-name={rule} --cpus-per-task={threads} --mem={resources.mem_mb}" --max-jobs-per-second=5 --max-status-checks-per-second=10 --latency-wait=120 --jobs=1000 --default-resources="mem_mb=2000" --printshellcmds --use-conda <targets>
 ```
 
 ## Advanced Usage
