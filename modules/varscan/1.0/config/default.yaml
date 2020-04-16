@@ -1,0 +1,41 @@
+lcr-modules:
+    varscan:
+        inputs:
+            sample_bam: "results/bam_util-1.0/99-outputs/{seq_type}--{genome_build}/{sample_id}.bam"
+        outputs:    
+            vcf_names: ["indel", "snp", "cns"]
+        dirs:
+            _parent: null
+        conda_envs: 
+            varscan: null
+        options:
+            bam2mpu: "-A -B -q 20" # countOrphan, noBaq, maxDepth -d 10000000, mapQuality, bedFILE (blank)
+            somatic: 
+                capture: "--min-coverage 20 --min-var-freq 0.01  --somatic-p-value 0.05 --strand-filter 0 --min-strands2 0 --validation 0"
+                genome: ""
+                mrna: ""
+            unpaired:
+                capture: "--min-coverage 20 --min-reads2 10 --min-avg-qual 20 --min-var-freq 0.01  --p-value 0.05 --strand-filter 0 --output-vcf 1 --min-strands2 0"
+                genome: ""
+                mrna: ""
+                cns: "--variants"
+            # "--variants" mpileup2cns flag to report only variant positions
+
+        threads:
+            varscan: null
+        mem_mb:
+            varscan: null
+        
+        pairing_config:
+            genome:
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours: True
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours: True
+                run_paired_tumours_as_unpaired: False
+            mrna:
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours: False
+                run_paired_tumours_as_unpaired: True
