@@ -461,6 +461,14 @@ def locate_bam(
     return locate_bam_custom
 
 
+def get_reference(module_config, reference_key):
+
+    def get_reference_custom(wildcards):
+        return module_config["reference"][wildcards.genome_build][reference_key]
+
+    return get_reference_custom
+
+
 # SAMPLE PROCESSING
 
 
@@ -938,7 +946,7 @@ def generate_runs(
 # MODULE SETUP/CLEANUP
 
 
-def check_references(config, module_config, req_references):
+def check_references(module_config, req_references):
     """Ensure that all required references are available.
 
     If there is no 'genome_build' column in `module_samples` and
@@ -947,9 +955,6 @@ def check_references(config, module_config, req_references):
 
     Parameters
     ----------
-    config : dict
-        The snakemake configuration dictionary. This should contain
-        the references under `config['references']`.
     module_config : dict
         The module-specific configuration, corresponding to
         `config['lcr-modules']['<module-name>'].
@@ -966,10 +971,13 @@ def check_references(config, module_config, req_references):
         "`lcr-modules` repository and/or ensure that the following "
         f"reference data are available: \n    {req_references}"
     )
-    assert "reference" in config, error_message
+    assert "reference" in module_config, error_message
 
     module_samples = module_config["samples"]
-    references_available = list(config["reference"].keys())
+    references_available = list(module_config["reference"].keys())
+
+    if len(references_available) == 0:
+        raise AssertionError(error_message)
 
     if len(references_available) == 1 and "genome_build" not in module_samples:
         reference = references_available[0]
@@ -977,12 +985,19 @@ def check_references(config, module_config, req_references):
         logger.warning(log_message)
         module_samples["genome_build"] = reference
 
+    if len(references_available) > 1 and "genome_build" not in module_samples:
+        raise AssertionError(
+            "More than one loaded reference {references_available}, yet no "
+            "`genome_build` column in the samples table. Thus, the genome build "
+            "cannot be inferred. Add a `genome_build` column to your samples table."
+        )
+
     genome_builds = module_samples["genome_build"].unique()
 
     for genome_build in genome_builds:
-        assert genome_build in config["reference"], error_message
+        assert genome_build in module_config["reference"], error_message
         for ref_key in req_references:
-            assert ref_key in config["reference"][genome_build], error_message
+            assert ref_key in module_config["reference"][genome_build], error_message
 
 
 def setup_module(config, name, version, subdirs, req_references=()):
@@ -1037,7 +1052,7 @@ def setup_module(config, name, version, subdirs, req_references=()):
 
     # Ensure that required references are available
     if len(req_references) > 0:
-        check_references(config, mconfig, req_references)
+        check_references(mconfig, req_references)
 
     # Find repository and module directories
     repodir = os.path.normpath(mconfig["repository"])

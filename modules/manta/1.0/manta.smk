@@ -52,11 +52,11 @@ rule _manta_input_bam:
 # Generate BED file for main chromosomes to exclude small contigs from Manta run
 rule _manta_generate_bed:
     input:
-        fai = lambda wildcards: config["reference"][wildcards.genome_build]["genome_fasta_index"]
+        fai = md.get_reference(CFG, "genome_fasta_index")
     output:
         bed = CFG["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed"
     params:
-        chroms = lambda wildcards: config["reference"][wildcards.genome_build]["main_chroms"]
+        chroms = md.get_reference(CFG, "main_chroms")
     run:
         with open(input.fai) as fai, open(output.bed, "w") as bed:
             for line in fai:
@@ -97,7 +97,7 @@ rule _manta_configure:
         stderr = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stderr.log"
     params:
         opts   = md.switch_on_column("seq_type", CFG["samples"], CFG["options"]["configure"]),
-        fasta  = lambda wildcards: config["reference"][wildcards.genome_build]["genome_fasta"],
+        fasta  = md.get_reference(CFG, "genome_fasta"),
         # Omit the normal BAM CLI argument if there is no normal
         normal_bam = md.switch_on_wildcard("pair_status", {
             "_default" : "--normalBam {input.normal_bam}",
