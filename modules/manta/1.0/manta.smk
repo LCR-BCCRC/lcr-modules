@@ -84,10 +84,10 @@ rule _manta_configure:
     input:
         # Do not have a normal_bam as input in 'no_normal' mode
         unpack(md.switch_on_wildcard("pair_status", {
-            "_default" : {"normal_bam": CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{normal_id}.bam"},
+            "_default" : {"normal_bam": CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam"},
             "no_normal" : {}
         })),
-        tumour_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}.bam",
+        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         config = CFG["inputs"]["manta_config"],
         bedz = rules._manta_index_bed.output.bedz
     output:
@@ -259,7 +259,7 @@ rule _manta_all_dispatch:
     input:
         _get_manta_files
     output:
-        touch(CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/.{tumour_id}--{normal_id}--{pair_status}.dispatched")
+        touch(CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/.{tumour_id}--{normal_id}--{pair_status}.dispatched")
 
 
 # Generates the target sentinels for each run, which generate the symlinks
