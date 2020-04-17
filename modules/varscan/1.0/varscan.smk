@@ -80,6 +80,8 @@ rule _varscan_mpu2vcf_somatic:
         indel = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/indel.vcf",
         # dummy cns output to avoid error
         cns = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/cns.vcf")
+    wildcard_constraints:
+        pair_status = "matched"
     log:
         stdout = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/varscan_somatic.stdout.log",
         stderr = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/varscan_somatic.stderr.log"
@@ -106,6 +108,8 @@ rule _varscan_mpu2vcf_single:
         tumourMPU = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.mpileup"
     output:
         vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
+    wildcard_constraints:
+        normal_id = "None"
     log:
         CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/varscan_{vcf_name}.stderr.log"
     params:
