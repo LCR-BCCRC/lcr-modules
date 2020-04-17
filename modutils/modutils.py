@@ -6,6 +6,7 @@ import datetime
 import functools
 import itertools
 import subprocess
+from datetime import datetime
 from collections import defaultdict, namedtuple
 
 import yaml
@@ -49,9 +50,15 @@ class _Session:
     """Session for storing Snakemake config internally."""
 
     def __init__(self):
+        timestamp_key = "LCR_MODULES_LAUNCH_TIMESTAMP"
+        if timestamp_key not in os.environ:
+            log_path = logger.get_logfile()
+            log_file = os.path.basename(log_path)
+            log_time = datetime.strptime(log_file, "%Y-%m-%dT%H%M%S.%f.snakemake.log")
+            log_time_fmt = log_time.strftime("launched-%Y-%m-%d-at-%H-%M-%S")
+            os.environ[timestamp_key] = log_time_fmt
         self.config = None
-        self.launched = datetime.datetime.now()
-        self.launched_fmt = self.launched.strftime("launched-%Y-%m-%d-at-%H-%M-%S")
+        self.launched_fmt = os.environ[timestamp_key]
 
     def set_config(self, config):
         self.config = config
