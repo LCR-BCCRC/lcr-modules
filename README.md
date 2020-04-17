@@ -26,6 +26,8 @@ Check out the [contribution guidelines](CONTRIBUTING.md) to find out how you can
 
 These instructions assume your working directory is your project root. They also assume that you have conda set up and your current environment has Python 3.6 or later. **Note:** This repository includes a custom Python package called `modutils`. This README assumes that it is loaded into Python using `import modutils as md`. Hence, any functions therein are referred to with the `md.` prefix.
 
+As a companion to these instructions, you can check out the [demo Snakefile](demo/Snakefile), where the placeholders contain actual values that work.
+
 1. Clone the `lcr-modules` repository **recursively**.
 
    ```bash
@@ -49,7 +51,7 @@ These instructions assume your working directory is your project root. They also
    cd ../..
    ```
 
-4. Create a samples table as a tabular file with the following columns: `seq_type`, `sample_id`, `patient_id`, `tissue_status`, and optionally, `genome_build`. **Important:** You must follow the file format described [below](#samples-table).
+4. Create a samples table as a tabular file with the following columns: `seq_type`, `sample_id`, `patient_id`, `tissue_status`, and optionally, `genome_build`. **Important:** You must follow the file format described [below](#samples-table). See [Required columns](#required-columns) for more information.
 
 5. Create a project configuration YAML file (if you don't already have one), add the following section, and load it using `configfile:` in your project Snakefile. See [Project Configuration](#project-configuration) for more details.
 
@@ -64,19 +66,23 @@ These instructions assume your working directory is your project root. They also
 
    ```python
    import modutils as md
-   configfile: "lcr-modules/references/<hg38>.yaml"
+   configfile: "lcr-modules/references/<build>.yaml"
    SAMPLES = md.load_samples("<path/to/samples.tsv>")
    config["lcr-modules"]["_shared"]["samples"] = SAMPLES
    ```
+
+   Here, `<build>` is one of the genome builds available in `lcr-modules/references/*.yaml`; `<path/to/samples.tsv>` is the path to the samples table mentioned in step 4; and `SAMPLES` is the corresponding pandas data frame, which will serve as the default set of samples to analyze for each module.
 
 7. Add the following lines to your project Snakefile **for each module**, updating any values in angle brackets (`<...>`). This specific order is required. **Important:** Read each module README for any module-specific configuration.
 
    ```python
    configfile: "lcr-modules/modules/<manta/1.0>/config/default.yaml"
-   config["lcr-modules"]["<manta>"]["inputs"]["<sample_bam>"] = <SAMPLE_BAM>
+   config["lcr-modules"]["<manta>"]["inputs"]["<sample_bam>"] = "<data/{seq_type}_bams_{genome_build}/{sample_id}.bam>"
    # Repeat previous line for any other required input files
-   include: "lcr-modules/modules/<manta/1.0>/manta.smk"
+   include: "lcr-modules/modules/<name>/<version>/<name>.smk"
    ```
+
+   Here, `<sample_bam>` would be replaced with the keyword for the first input file as listed in the module README; the value after the `=` is an example location of the `sample_bam` input file, using any of the available wildcards specified in the module README; and `<name>` and `<version>` are the name and version for the module you want to load.
 
 8. Launch Snakemake for the target rule of any module you added. See [Snakemake Commands](#snakemake-commands) for suggestions on how to run Snakemake.
 
