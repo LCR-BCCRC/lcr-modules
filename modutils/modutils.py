@@ -1124,12 +1124,13 @@ def setup_module(config, name, version, subdirs, scratch_subdirs=(), req_referen
     mconfig["logs"] = dict()
     parent_dir = mconfig["dirs"]["_parent"]
     launched_fmt = _session.launched_fmt
+    logs_parent_dir = f"{parent_dir}/logs/{launched_fmt}"
+    mconfig["logs"]["_parent"] = logs_parent_dir
+    os.makedirs(logs_parent_dir, exist_ok=True)
     for subdir, value in mconfig["dirs"].items():
         if subdir == "_parent":
             continue
-        mconfig["logs"][subdir] = value.replace(
-            parent_dir, f"{parent_dir}/logs/{launched_fmt}"
-        )
+        mconfig["logs"][subdir] = value.replace(parent_dir, logs_parent_dir)
 
     # Generate runs
     assert "pairing_config" in mconfig, "Module config must have 'pairing_config'."
@@ -1210,7 +1211,7 @@ def cleanup_module(module_config):
     """Save module-specific configuration, sample, and runs to disk."""
 
     # Define useful variables
-    parent_dir = module_config["dirs"]["_parent"]
+    parent_dir = module_config["logs"]["_parent"]
 
     # Define fields to be output as TSV files
     tsv_fields = {
