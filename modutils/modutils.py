@@ -101,23 +101,30 @@ def symlink(src, dest, overwrite=True):
     Parameters
     ----------
     src : str
-        The source file path.
+        The source file or directory path.
     dest : str
         The destination file path. This can also be a destination
         directory, and the destination symlink name will be identical
-        to the source file name.
+        to the source file name (unless directory).
     overwrite : boolean
         Whether to overwrite the destination file if it exists.
     """
-    if os.path.isdir(dest):
+    # Here, you're symlinking a file into a directory (same name)
+    dest = dest.rstrip(os.path.sep)
+    if not os.path.isdir(src) and os.path.isdir(dest):
         dest_dir = dest
         dest_file = os.path.split(src)[1]
+    # Here, you can symlinking a file to a specific location
+    # Or you are symlinking a directory to a specific location
     else:
         dest_dir, dest_file = os.path.split(dest)
-    src_rel = os.path.relpath(src, dest_dir)
     dest = os.path.join(dest_dir, dest_file)
+    # Make `src` relative to destination parent directory
+    os.makedirs(dest_dir, exist_ok=True)
+    src_rel = os.path.relpath(src, dest_dir)
     if os.path.lexists(dest) and os.path.islink(dest) and overwrite:
         os.remove(dest)
+    assert not os.path.exists(dest), f"Destination already exists: {dest}"
     os.symlink(src_rel, dest)
 
 
@@ -468,7 +475,6 @@ def locate_bam(
 
 
 def get_reference(module_config, reference_key):
-
     def get_reference_custom(wildcards):
         return module_config["reference"][wildcards.genome_build][reference_key]
 
@@ -1006,7 +1012,7 @@ def check_references(module_config, req_references):
             assert ref_key in module_config["reference"][genome_build], error_message
 
 
-def setup_module(config, name, version, subdirs, req_references=()):
+def setup_module(config, name, version, subdirs, scratch_subdirs=(), req_references=()):
     """Prepares and validates configuration for the given module.
 
     Parameters
@@ -1021,7 +1027,13 @@ def setup_module(config, name, version, subdirs, req_references=()):
     subdirs : list of str
         The subdirectories of the module output directory where the
         results will be produced. They will be numbered incrementally
-        and created on disk.
+        and created on disk. This should include 'inputs' and 'outputs'.
+    scratch_subdirs : list of str, optional
+        A subset of `subdirs` that should be symlinked into the given
+        scratch directory, specified under:
+            `config["lcr_modules"]["_shared"]["scratch_directory"]`
+        This should not include 'inputs' and 'outputs', which only
+        contain symlinks.
     req_references : list of str, optional
         The list of required keys for the shared reference YAML files.
         This is provided to ensure they are present before running the
@@ -1055,6 +1067,10 @@ def setup_module(config, name, version, subdirs, req_references=()):
     smk.utils.update_config(mconfig, config["lcr-modules"][name])
     mconfig["samples"] = mconfig["samples"].copy()
     msamples = mconfig["samples"]
+
+    # Set module name and version
+    mconfig["name"] = name
+    mconfig["version"] = version
 
     # Ensure that required references are available
     if len(req_references) > 0:
@@ -1102,7 +1118,7 @@ def setup_module(config, name, version, subdirs, req_references=()):
             mconfig["conda_envs"][env_name] = os.path.relpath(env_val, modsdir)
 
     # Setup output sub-directories
-    mconfig = setup_subdirs(mconfig, subdirs)
+    mconfig = setup_subdirs(mconfig, subdirs, scratch_subdirs)
 
     # Setup log sub-directories
     mconfig["logs"] = dict()
@@ -1128,7 +1144,7 @@ def setup_module(config, name, version, subdirs, req_references=()):
     return mconfig
 
 
-def setup_subdirs(module_config, subdirs):
+def setup_subdirs(module_config, subdirs, scratch_subdirs=()):
     """Numbers and creates module output subdirectories.
 
     Parameters
@@ -1136,7 +1152,9 @@ def setup_subdirs(module_config, subdirs):
     module_config : dict
         The module-specific configuration.
     subdirs : list of str
-        The name (without numbering) of the output subdirectories.
+        The names (without numbering) of the output subdirectories.
+    scratch_subdirs : list of str, optional
+        Subset of `subdirs` to be symlinks to the scratch directory.
 
     Returns
     -------
@@ -1150,15 +1168,40 @@ def setup_subdirs(module_config, subdirs):
     assert subdirs[0] == "inputs", "The first subdirectory must be 'inputs'."
     assert subdirs[-1] == "outputs", "The last subdirectory must be 'outputs'."
 
+    # Check if `scratch_directory` is needed
+    if len(scratch_subdirs) > 0 and "scratch_directory" not in module_config:
+        raise AssertionError(
+            "`scratch_directory` is not specified in the `_shared` config."
+        )
+
+    # If `scratch_directory` is None, then don't worry about `scratch_subdirs`
+    scratch_directory = module_config["scratch_directory"]
+    if scratch_directory is None:
+        scratch_subdirs = ()
+        scratch_directory = ""
+
+    # Check it 'inputs' or 'outputs' are among the `scratch_subdirs`
+    msg = "'inputs' and 'outputs' cannot be `scratch_subdirs`."
+    assert "inputs" not in scratch_subdirs, msg
+    assert "outputs" not in scratch_subdirs, msg
+
     # Generate zero-padded numbers
     numbers = [f"{x:02}" for x in (*range(0, len(subdirs) - 1), 99)]
 
     # Join numbers and names, and create subdirectory
+    name = module_config["name"]
+    version = module_config["version"]
     parent_dir = module_config["dirs"]["_parent"]
+    scratch_parent_dir = os.path.join(scratch_directory, f"{name}-{version}")
     for num, subdir in zip(numbers, subdirs):
         subdir_full = os.path.join(parent_dir, f"{num}-{subdir}/")
         module_config["dirs"][subdir] = subdir_full
-        os.makedirs(subdir_full, exist_ok=True)
+        if subdir in scratch_subdirs:
+            scratch_subdir_full = os.path.join(scratch_parent_dir, f"{num}-{subdir}/")
+            os.makedirs(scratch_subdir_full, exist_ok=True)
+            symlink(scratch_subdir_full, subdir_full)
+        else:
+            os.makedirs(subdir_full, exist_ok=True)
 
     return module_config
 

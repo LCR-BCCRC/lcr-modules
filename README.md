@@ -60,7 +60,10 @@ As a companion to these instructions, you can check out the [demo Snakefile](dem
      _shared:
        repository: "lcr-modules/"
        root_output_dir: "results/"
+       scratch_directory: null
    ```
+
+   Here, `scratch_directory` should be set to a directory where large temporary files can be written without worry of running out of space or clogging snapshots/backups. If set to `null`, the files will be output locally.
 
 6. Add the following lines **once** near the beginning of your project Snakefile, updating any values in angle brackets (`<...>`).
 
