@@ -2,7 +2,7 @@ lcr-modules:
     manta:
         inputs:
             sample_bam: null
-            calc_manta_vaf: "{REPODIR}/lcr-scripts/python/calc_manta_vaf.py"
+            calc_manta_vaf: "{SCRIPTSDIR}/python/calc_manta_vaf.py"
             manta_config: "{MODSDIR}/etc/manta_config.default.ini"
         options:
             configure:

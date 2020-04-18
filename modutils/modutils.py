@@ -1079,6 +1079,7 @@ def setup_module(config, name, version, subdirs, scratch_subdirs=(), req_referen
     # Find repository and module directories
     repodir = os.path.normpath(mconfig["repository"])
     modsdir = os.path.join(repodir, "modules", name, version)
+    scriptsdir = os.path.normpath(mconfig["lcr-scripts"])
 
     # Ensure that common module sub-fields are present
     subfields = ["inputs", "dirs", "conda_envs", "options", "threads", "mem_mb"]
@@ -1096,7 +1097,7 @@ def setup_module(config, name, version, subdirs, scratch_subdirs=(), req_referen
             result = obj
         return result
 
-    placeholders = {"REPODIR": repodir, "MODSDIR": modsdir}
+    placeholders = {"REPODIR": repodir, "MODSDIR": modsdir, "SCRIPTSDIR": scriptsdir}
     mconfig = walk_through_dict(mconfig, update_placeholders, **placeholders)
 
     # Validate samples data frame
