@@ -1,4 +1,0 @@
-[submodule "lcr-scripts"]
-	path = lcr-scripts
-	url = https://github.com/LCR-BCCRC/lcr-scripts.git
-	ignore = dirty
