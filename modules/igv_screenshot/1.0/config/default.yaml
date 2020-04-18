@@ -1,0 +1,12 @@
+lcr-modules:
+    igv_screenshot:
+        inputs:
+            sample_bam: null
+            sample_maf: null
+        options:
+            step_1: "--call-indels"
+        threads:
+            step_1: 12
+        mem_mb:
+            step_1: 6000
+        pairing_config:

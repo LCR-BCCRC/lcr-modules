@@ -10,3 +10,5 @@ __pycache__/
 # Files creates when testing the demo project
 .snakemake/
 /demo/results/
+modules/igv_screenshot/1.0/snakeMake_test.py
+modules/igv_screenshot/1.0/envs/igv_screenshot.yaml
