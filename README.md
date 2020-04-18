@@ -28,10 +28,11 @@ These instructions assume your working directory is your project root. They also
 
 As a companion to these instructions, you can check out the [demo Snakefile](demo/Snakefile), where the placeholders contain actual values that work.
 
-1. Clone the `lcr-modules` repository **recursively**.
+1. Clone the `lcr-modules` and `lcr-scripts` repositories.
 
    ```bash
-   git clone --recursive https://github.com/LCR-BCCRC/lcr-modules.git
+   git clone https://github.com/LCR-BCCRC/lcr-modules.git
+   git clone https://github.com/LCR-BCCRC/lcr-scripts.git
    ```
 
 2. Install `snakemake` (5.4 or later), `pandas`, and the custom `modutils` Python packages into your conda environment.
@@ -59,8 +60,12 @@ As a companion to these instructions, you can check out the [demo Snakefile](dem
    lcr-modules:
      _shared:
        repository: "lcr-modules/"
+       lcr-scripts: "lcr-scripts/"
        root_output_dir: "results/"
+       scratch_directory: null
    ```
+
+   Here, `scratch_directory` should be set to a directory where large temporary files can be written without worry of running out of space or clogging snapshots/backups. If set to `null`, the files will be output locally.
 
 6. Add the following lines **once** near the beginning of your project Snakefile, updating any values in angle brackets (`<...>`).
 
@@ -157,6 +162,7 @@ While most configuration is done at the module level, there are some values that
 You will need to specify a value for `repository` and `root_output_dir`. If you have unpaired tumour samples, you will probably need to list the IDs for the samples to be used as unmatched normal samples in paired analyses under `pairing_config`. See the example project configuration below for the required format.
 
 - **`repository`:** File path for the cloned `lcr-modules` repository relative to your project Snakefile. **This parameter is required.**
+- **`lcr-scripts`:** File path for the cloned `lcr-scripts` repository relative to your project Snakefile. **This parameter is required.**
 - **`root_output_dir`:** Directory where all of the module output subdirectories will be created (_e.g._ `results/manta-1.0/`). Technically, this shared parameter is optional and will default to `'results/'`. I include it because I expect most users will want to customize this parameter.
 - **`pairing_config`:** Optional unless you have unpaired tumours, in which case you need to specify which samples to use as unmatched normal samples for each `seq_type` under `unmatched_normal_id`. See below for the required format.
 
@@ -166,6 +172,7 @@ You will need to specify a value for `repository` and `root_output_dir`. If you 
 lcr-modules:
   _shared:
     repository: "lcr-modules/"
+    lcr-scripts: "lcr-scripts/"
     root_output_dir: "results/"
     pairing_config:
       genome:

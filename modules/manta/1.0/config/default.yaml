@@ -2,13 +2,18 @@ lcr-modules:
     manta:
         inputs:
             sample_bam: null
-            calc_manta_vaf: "{REPODIR}/lcr-scripts/python/calc_manta_vaf.py"
+            calc_manta_vaf: "{SCRIPTSDIR}/python/calc_manta_vaf.py"
             manta_config: "{MODSDIR}/etc/manta_config.default.ini"
         options:
             configure:
                 mrna: "--rna"
                 capture: "--exome"
             manta: "--mode local"
+        conda_envs:
+            tabix: null
+            manta: null
+            calc_manta_vaf: "{SCRIPTSDIR}/calc_manta_vaf/1.0/pyvcf-0.6.8.yaml"
+            svtools: null
         threads:
             manta: 12
         mem_mb:

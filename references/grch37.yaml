@@ -3,8 +3,11 @@ lcr-modules:
     _shared:
         reference:
             grch37:
+                version: "GRCh37"
+                source: "ensembl"
                 chr_prefix: false
                 main_chroms: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", 
-                            "14", "15", "16", "17", "18", "19", "20", "21", "22", "X", "Y", "MT"]
-                genome_fasta: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh37-lite/Sequence/WholeGenomeFasta/genome.fa"
-                genome_fasta_index: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh37-lite/Sequence/WholeGenomeFasta/genome.fa.fai"
+                              "14", "15", "16", "17", "18", "19", "20", "21", "22", "X", "Y", "MT"]
+                original_genome_fasta: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh37-lite/Sequence/WholeGenomeFasta/genome.fa"
+                genome_fasta: "{LCR_MODULES_REF_DIR}/genomes/grch37/genome.fa"
+                genome_fasta_index: "{LCR_MODULES_REF_DIR}/genomes/grch37/genome.fa"

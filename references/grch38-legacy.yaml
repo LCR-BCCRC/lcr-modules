@@ -1,0 +1,13 @@
+# Ensembl GRCh38/hg38 (not GATK compatible)
+lcr-modules:
+    _shared:
+        reference:
+            grch38-legacy:
+                version: "GRCh38"
+                source: "ensembl"
+                chr_prefix: false
+                main_chroms: ["1", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "2", 
+                              "20", "21", "22", "3", "4", "5", "6", "7", "8", "9", "MT", "X", "Y"]
+                original_genome_fasta: "/projects/clc/references/genomes/GRCh38/build90/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
+                genome_fasta: "{LCR_MODULES_REF_DIR}/genomes/grch38-legacy/genome.fa"
+                genome_fasta_index: "{LCR_MODULES_REF_DIR}/genomes/grch38-legacy/genome.fa"
