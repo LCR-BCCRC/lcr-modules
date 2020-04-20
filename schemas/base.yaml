@@ -18,12 +18,7 @@ properties:
         description: Tissue status used to pair tumour-normal samples
     seq_type:
         type: string
-        enum:
-            - genome
-            - capture
-            - mrna
-            - mirna
-        description: Type of sequencing data used to separate analyses
+        description: Type of sequencing data (e.g., genome, capture, mrna, mirna)
     genome_build:
         type: string
         description: Reference genome build (e.g., grch37, hg38)

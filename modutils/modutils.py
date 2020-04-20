@@ -2,10 +2,10 @@
 
 import os
 import copy
-import datetime
 import functools
 import itertools
 import subprocess
+from datetime import datetime
 from collections import defaultdict, namedtuple
 
 import yaml
@@ -49,9 +49,15 @@ class _Session:
     """Session for storing Snakemake config internally."""
 
     def __init__(self):
+        timestamp_key = "LCR_MODULES_LAUNCH_TIMESTAMP"
+        if timestamp_key not in os.environ:
+            log_path = logger.get_logfile()
+            log_file = os.path.basename(log_path)
+            log_time = datetime.strptime(log_file, "%Y-%m-%dT%H%M%S.%f.snakemake.log")
+            log_time_fmt = log_time.strftime("launched-%Y-%m-%d-at-%H-%M-%S")
+            os.environ[timestamp_key] = log_time_fmt
         self.config = None
-        self.launched = datetime.datetime.now()
-        self.launched_fmt = self.launched.strftime("launched-%Y-%m-%d-at-%H-%M-%S")
+        self.launched_fmt = os.environ[timestamp_key]
 
     def set_config(self, config):
         self.config = config
@@ -95,23 +101,30 @@ def symlink(src, dest, overwrite=True):
     Parameters
     ----------
     src : str
-        The source file path.
+        The source file or directory path.
     dest : str
         The destination file path. This can also be a destination
         directory, and the destination symlink name will be identical
-        to the source file name.
+        to the source file name (unless directory).
     overwrite : boolean
         Whether to overwrite the destination file if it exists.
     """
-    if os.path.isdir(dest):
+    # Here, you're symlinking a file into a directory (same name)
+    dest = dest.rstrip(os.path.sep)
+    if not os.path.isdir(src) and os.path.isdir(dest):
         dest_dir = dest
         dest_file = os.path.split(src)[1]
+    # Here, you can symlinking a file to a specific location
+    # Or you are symlinking a directory to a specific location
     else:
         dest_dir, dest_file = os.path.split(dest)
-    src_rel = os.path.relpath(src, dest_dir)
     dest = os.path.join(dest_dir, dest_file)
+    # Make `src` relative to destination parent directory
+    os.makedirs(dest_dir, exist_ok=True)
+    src_rel = os.path.relpath(src, dest_dir)
     if os.path.lexists(dest) and os.path.islink(dest) and overwrite:
         os.remove(dest)
+    assert not os.path.exists(dest), f"Destination already exists: {dest}"
     os.symlink(src_rel, dest)
 
 
@@ -459,6 +472,13 @@ def locate_bam(
         return bams
 
     return locate_bam_custom
+
+
+def get_reference(module_config, reference_key):
+    def get_reference_custom(wildcards):
+        return module_config["reference"][wildcards.genome_build][reference_key]
+
+    return get_reference_custom
 
 
 # SAMPLE PROCESSING
@@ -938,7 +958,7 @@ def generate_runs(
 # MODULE SETUP/CLEANUP
 
 
-def check_references(config, module_config, req_references):
+def check_references(module_config, req_references):
     """Ensure that all required references are available.
 
     If there is no 'genome_build' column in `module_samples` and
@@ -947,9 +967,6 @@ def check_references(config, module_config, req_references):
 
     Parameters
     ----------
-    config : dict
-        The snakemake configuration dictionary. This should contain
-        the references under `config['references']`.
     module_config : dict
         The module-specific configuration, corresponding to
         `config['lcr-modules']['<module-name>'].
@@ -966,10 +983,13 @@ def check_references(config, module_config, req_references):
         "`lcr-modules` repository and/or ensure that the following "
         f"reference data are available: \n    {req_references}"
     )
-    assert "reference" in config, error_message
+    assert "reference" in module_config, error_message
 
     module_samples = module_config["samples"]
-    references_available = list(config["reference"].keys())
+    references_available = list(module_config["reference"].keys())
+
+    if len(references_available) == 0:
+        raise AssertionError(error_message)
 
     if len(references_available) == 1 and "genome_build" not in module_samples:
         reference = references_available[0]
@@ -977,15 +997,22 @@ def check_references(config, module_config, req_references):
         logger.warning(log_message)
         module_samples["genome_build"] = reference
 
+    if len(references_available) > 1 and "genome_build" not in module_samples:
+        raise AssertionError(
+            "More than one loaded reference {references_available}, yet no "
+            "`genome_build` column in the samples table. Thus, the genome build "
+            "cannot be inferred. Add a `genome_build` column to your samples table."
+        )
+
     genome_builds = module_samples["genome_build"].unique()
 
     for genome_build in genome_builds:
-        assert genome_build in config["reference"], error_message
+        assert genome_build in module_config["reference"], error_message
         for ref_key in req_references:
-            assert ref_key in config["reference"][genome_build], error_message
+            assert ref_key in module_config["reference"][genome_build], error_message
 
 
-def setup_module(config, name, version, subdirs, req_references=()):
+def setup_module(config, name, version, subdirs, scratch_subdirs=(), req_references=()):
     """Prepares and validates configuration for the given module.
 
     Parameters
@@ -1000,7 +1027,13 @@ def setup_module(config, name, version, subdirs, req_references=()):
     subdirs : list of str
         The subdirectories of the module output directory where the
         results will be produced. They will be numbered incrementally
-        and created on disk.
+        and created on disk. This should include 'inputs' and 'outputs'.
+    scratch_subdirs : list of str, optional
+        A subset of `subdirs` that should be symlinked into the given
+        scratch directory, specified under:
+            `config["lcr_modules"]["_shared"]["scratch_directory"]`
+        This should not include 'inputs' and 'outputs', which only
+        contain symlinks.
     req_references : list of str, optional
         The list of required keys for the shared reference YAML files.
         This is provided to ensure they are present before running the
@@ -1035,13 +1068,13 @@ def setup_module(config, name, version, subdirs, req_references=()):
     mconfig["samples"] = mconfig["samples"].copy()
     msamples = mconfig["samples"]
 
+    # Set module name and version
+    mconfig["name"] = name
+    mconfig["version"] = version
+
     # Ensure that required references are available
     if len(req_references) > 0:
-        check_references(config, mconfig, req_references)
-
-    # Find repository and module directories
-    repodir = os.path.normpath(mconfig["repository"])
-    modsdir = os.path.join(repodir, "modules", name, version)
+        check_references(mconfig, req_references)
 
     # Ensure that common module sub-fields are present
     subfields = ["inputs", "dirs", "conda_envs", "options", "threads", "mem_mb"]
@@ -1059,7 +1092,23 @@ def setup_module(config, name, version, subdirs, req_references=()):
             result = obj
         return result
 
-    placeholders = {"REPODIR": repodir, "MODSDIR": modsdir}
+    # Find repository and module directories
+    repodir = os.path.normpath(mconfig["repository"])
+    modsdir = os.path.join(repodir, "modules", name, version)
+    scriptsdir = os.path.normpath(mconfig["lcr-scripts"])
+    env_refdir = os.environ.get("LCR_MODULES_REF_DIR")
+    refdir = os.path.normpath(mconfig.get("reference_dir", env_refdir))
+    assert refdir, (
+        "`LCR_MODULES_REF_DIR` is not set. Please set it as an environment "
+        "variable or under the `_shared` configuration as `reference_dir`."
+    )
+
+    placeholders = {
+        "REPODIR": repodir,
+        "MODSDIR": modsdir,
+        "SCRIPTSDIR": scriptsdir,
+        "LCR_MODULES_REF_DIR": refdir,
+    }
     mconfig = walk_through_dict(mconfig, update_placeholders, **placeholders)
 
     # Validate samples data frame
@@ -1081,18 +1130,19 @@ def setup_module(config, name, version, subdirs, req_references=()):
             mconfig["conda_envs"][env_name] = os.path.relpath(env_val, modsdir)
 
     # Setup output sub-directories
-    mconfig = setup_subdirs(mconfig, subdirs)
+    mconfig = setup_subdirs(mconfig, subdirs, scratch_subdirs)
 
     # Setup log sub-directories
     mconfig["logs"] = dict()
     parent_dir = mconfig["dirs"]["_parent"]
     launched_fmt = _session.launched_fmt
+    logs_parent_dir = f"{parent_dir}/logs/{launched_fmt}"
+    mconfig["logs"]["_parent"] = logs_parent_dir
+    os.makedirs(logs_parent_dir, exist_ok=True)
     for subdir, value in mconfig["dirs"].items():
         if subdir == "_parent":
             continue
-        mconfig["logs"][subdir] = value.replace(
-            parent_dir, f"{parent_dir}/logs/{launched_fmt}"
-        )
+        mconfig["logs"][subdir] = value.replace(parent_dir, logs_parent_dir)
 
     # Generate runs
     assert "pairing_config" in mconfig, "Module config must have 'pairing_config'."
@@ -1107,7 +1157,7 @@ def setup_module(config, name, version, subdirs, req_references=()):
     return mconfig
 
 
-def setup_subdirs(module_config, subdirs):
+def setup_subdirs(module_config, subdirs, scratch_subdirs=()):
     """Numbers and creates module output subdirectories.
 
     Parameters
@@ -1115,7 +1165,9 @@ def setup_subdirs(module_config, subdirs):
     module_config : dict
         The module-specific configuration.
     subdirs : list of str
-        The name (without numbering) of the output subdirectories.
+        The names (without numbering) of the output subdirectories.
+    scratch_subdirs : list of str, optional
+        Subset of `subdirs` to be symlinks to the scratch directory.
 
     Returns
     -------
@@ -1129,15 +1181,40 @@ def setup_subdirs(module_config, subdirs):
     assert subdirs[0] == "inputs", "The first subdirectory must be 'inputs'."
     assert subdirs[-1] == "outputs", "The last subdirectory must be 'outputs'."
 
+    # Check if `scratch_directory` is needed
+    if len(scratch_subdirs) > 0 and "scratch_directory" not in module_config:
+        raise AssertionError(
+            "`scratch_directory` is not specified in the `_shared` config."
+        )
+
+    # If `scratch_directory` is None, then don't worry about `scratch_subdirs`
+    scratch_directory = module_config["scratch_directory"]
+    if scratch_directory is None:
+        scratch_subdirs = ()
+        scratch_directory = ""
+
+    # Check it 'inputs' or 'outputs' are among the `scratch_subdirs`
+    msg = "'inputs' and 'outputs' cannot be `scratch_subdirs`."
+    assert "inputs" not in scratch_subdirs, msg
+    assert "outputs" not in scratch_subdirs, msg
+
     # Generate zero-padded numbers
     numbers = [f"{x:02}" for x in (*range(0, len(subdirs) - 1), 99)]
 
     # Join numbers and names, and create subdirectory
+    name = module_config["name"]
+    version = module_config["version"]
     parent_dir = module_config["dirs"]["_parent"]
+    scratch_parent_dir = os.path.join(scratch_directory, f"{name}-{version}")
     for num, subdir in zip(numbers, subdirs):
         subdir_full = os.path.join(parent_dir, f"{num}-{subdir}/")
         module_config["dirs"][subdir] = subdir_full
-        os.makedirs(subdir_full, exist_ok=True)
+        if subdir in scratch_subdirs:
+            scratch_subdir_full = os.path.join(scratch_parent_dir, f"{num}-{subdir}/")
+            os.makedirs(scratch_subdir_full, exist_ok=True)
+            symlink(scratch_subdir_full, subdir_full)
+        else:
+            os.makedirs(subdir_full, exist_ok=True)
 
     return module_config
 
@@ -1146,7 +1223,7 @@ def cleanup_module(module_config):
     """Save module-specific configuration, sample, and runs to disk."""
 
     # Define useful variables
-    parent_dir = module_config["dirs"]["_parent"]
+    parent_dir = module_config["logs"]["_parent"]
 
     # Define fields to be output as TSV files
     tsv_fields = {

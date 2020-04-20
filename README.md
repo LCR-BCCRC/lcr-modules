@@ -26,57 +26,68 @@ Check out the [contribution guidelines](CONTRIBUTING.md) to find out how you can
 
 These instructions assume your working directory is your project root. They also assume that you have conda set up and your current environment has Python 3.6 or later. **Note:** This repository includes a custom Python package called `modutils`. This README assumes that it is loaded into Python using `import modutils as md`. Hence, any functions therein are referred to with the `md.` prefix.
 
-1. Clone the `lcr-modules` repository **recursively**.
+As a companion to these instructions, you can check out the [demo Snakefile](demo/Snakefile), where the placeholders contain actual values that work.
 
-```bash
-git clone --recursive https://github.com/LCR-BCCRC/lcr-modules.git
-```
+1. Clone the `lcr-modules` and `lcr-scripts` repositories.
+
+   ```bash
+   git clone https://github.com/LCR-BCCRC/lcr-modules.git
+   git clone https://github.com/LCR-BCCRC/lcr-scripts.git
+   ```
 
 2. Install `snakemake` (5.4 or later), `pandas`, and the custom `modutils` Python packages into your conda environment.
 
-```bash
-# `snakemake-minimal` lacks extraneous dependencies and is faster to install
-conda install --satisfied-skip-solve 'snakemake-minimal>=5.4' 'pandas'
-# This is installing from the `lcr-modules` repository clone
-pip install -e lcr-modules/modutils
-```
+   ```bash
+   # `snakemake-minimal` lacks extraneous dependencies and is faster to install
+   conda install --satisfied-skip-solve 'snakemake-minimal>=5.4' 'pandas'
+   # This is installing from the `lcr-modules` repository clone
+   pip install -e lcr-modules/modutils
+   ```
 
 3. (Optional) Test your environment with the demo project in this repository. You shouldn't get any error after running the following `snakemake` command:
 
-```bash
-cd lcr-modules/demo
-snakemake -n _manta_all
-cd ../..
-```
+   ```bash
+   cd lcr-modules/demo
+   snakemake -n _manta_all
+   cd ../..
+   ```
 
-4. Create a samples table as a tabular file with the following columns: `seq_type`, `sample_id`, `patient_id`, `tissue_status`, and optionally, `genome_build`. **Important:** You must follow the file format described [below](#samples-table).
+4. Create a samples table as a tabular file with the following columns: `seq_type`, `sample_id`, `patient_id`, `tissue_status`, and optionally, `genome_build`. **Important:** You must follow the file format described [below](#samples-table). See [Required columns](#required-columns) for more information.
 
 5. Create a project configuration YAML file (if you don't already have one), add the following section, and load it using `configfile:` in your project Snakefile. See [Project Configuration](#project-configuration) for more details.
 
-```yaml
-lcr-modules:
-  _shared:
-    repository: "lcr-modules/"
-    root_output_dir: "results/"
-```
+   ```yaml
+   lcr-modules:
+     _shared:
+       repository: "lcr-modules/"
+       lcr-scripts: "lcr-scripts/"
+       root_output_dir: "results/"
+       scratch_directory: null
+   ```
+
+   Here, `scratch_directory` should be set to a directory where large temporary files can be written without worry of running out of space or clogging snapshots/backups. If set to `null`, the files will be output locally.
 
 6. Add the following lines **once** near the beginning of your project Snakefile, updating any values in angle brackets (`<...>`).
 
-```python
-import modutils as md
-configfile: "lcr-modules/references/<hg38>.yaml"
-SAMPLES = md.load_samples("<path/to/samples.tsv>")
-config["lcr-modules"]["_shared"]["samples"] = SAMPLES
-```
+   ```python
+   import modutils as md
+   configfile: "lcr-modules/references/<build>.yaml"
+   SAMPLES = md.load_samples("<path/to/samples.tsv>")
+   config["lcr-modules"]["_shared"]["samples"] = SAMPLES
+   ```
+
+   Here, `<build>` is one of the genome builds available in `lcr-modules/references/*.yaml`; `<path/to/samples.tsv>` is the path to the samples table mentioned in step 4; and `SAMPLES` is the corresponding pandas data frame, which will serve as the default set of samples to analyze for each module.
 
 7. Add the following lines to your project Snakefile **for each module**, updating any values in angle brackets (`<...>`). This specific order is required. **Important:** Read each module README for any module-specific configuration.
 
-```python
-configfile: "lcr-modules/modules/<manta/1.0>/config/default.yaml"
-config["lcr-modules"]["<manta>"]["inputs"]["<sample_bam>"] = <SAMPLE_BAM>
-# Repeat previous line for any other required input files
-include: "lcr-modules/modules/<manta/1.0>/manta.smk"
-```
+   ```python
+   configfile: "lcr-modules/modules/<manta/1.0>/config/default.yaml"
+   config["lcr-modules"]["<manta>"]["inputs"]["<sample_bam>"] = "<data/{seq_type}_bams_{genome_build}/{sample_id}.bam>"
+   # Repeat previous line for any other required input files
+   include: "lcr-modules/modules/<name>/<version>/<name>.smk"
+   ```
+
+   Here, `<sample_bam>` would be replaced with the keyword for the first input file as listed in the module README; the value after the `=` is an example location of the `sample_bam` input file, using any of the available wildcards specified in the module README; and `<name>` and `<version>` are the name and version for the module you want to load.
 
 8. Launch Snakemake for the target rule of any module you added. See [Snakemake Commands](#snakemake-commands) for suggestions on how to run Snakemake.
 
@@ -151,6 +162,7 @@ While most configuration is done at the module level, there are some values that
 You will need to specify a value for `repository` and `root_output_dir`. If you have unpaired tumour samples, you will probably need to list the IDs for the samples to be used as unmatched normal samples in paired analyses under `pairing_config`. See the example project configuration below for the required format.
 
 - **`repository`:** File path for the cloned `lcr-modules` repository relative to your project Snakefile. **This parameter is required.**
+- **`lcr-scripts`:** File path for the cloned `lcr-scripts` repository relative to your project Snakefile. **This parameter is required.**
 - **`root_output_dir`:** Directory where all of the module output subdirectories will be created (_e.g._ `results/manta-1.0/`). Technically, this shared parameter is optional and will default to `'results/'`. I include it because I expect most users will want to customize this parameter.
 - **`pairing_config`:** Optional unless you have unpaired tumours, in which case you need to specify which samples to use as unmatched normal samples for each `seq_type` under `unmatched_normal_id`. See below for the required format.
 
@@ -160,6 +172,7 @@ You will need to specify a value for `repository` and `root_output_dir`. If you 
 lcr-modules:
   _shared:
     repository: "lcr-modules/"
+    lcr-scripts: "lcr-scripts/"
     root_output_dir: "results/"
     pairing_config:
       genome:
@@ -210,14 +223,7 @@ The most convenient way of running Snakemake is using [Snakemake profiles](https
 
 #### GSC Snakemake profiles
 
-Make sure you first install the custom [GSC Snakemake profiles](https://github.com/LCR-BCCRC/snakemake-profiles.git) using [these instructions](https://github.com/LCR-BCCRC/snakemake-profiles#installation). Then, you can use each profile using the commands below.
-
-```bash
-# Run this command on numbers (ideally, the n104 node)
-nice snakemake --profile numbers --keep-going <targets>
-# Run this command on the gphosts (see below for determining <cores>)
-nice snakemake --profile gphosts --keep-going --cores <cores> <targets>
-```
+Make sure you first install the custom GSC Snakemake profiles using [these instructions](https://github.com/LCR-BCCRC/snakemake-profiles#installation). Then, you can use each profile using [these commands](https://github.com/LCR-BCCRC/snakemake-profiles#usage).
 
 ### Explicit commands
 
@@ -227,13 +233,13 @@ If you prefer to spell out all of the command-line options in your Snakemake com
 
 ```bash
 # See below for determining <cores>
-nice snakemake --printshellcmds --use-conda --keep-going --cores <cores> <targets>
+nice snakemake --printshellcmds --use-conda --cores <cores> <targets>
 ```
 
 #### Cluster usage
 
 ```bash
-nice snakemake --cluster-sync "srun --partition=all --ntasks=1 --nodes=1 --output=none --error=none --job-name={rule} --cpus-per-task={threads} --mem={resources.mem_mb}" --max-jobs-per-second=5 --max-status-checks-per-second=10 --local-cores=1 --latency-wait=120 --jobs=1000 --default-resources="mem_mb=2000" --printshellcmds --use-conda --keep-going <targets>
+nice snakemake --cluster-sync "srun --partition=all --ntasks=1 --nodes=1 --output=none --error=none --job-name={rule} --cpus-per-task={threads} --mem={resources.mem_mb}" --max-jobs-per-second=5 --max-status-checks-per-second=10 --local-cores=1 --latency-wait=120 --jobs=1000 --default-resources="mem_mb=2000" --printshellcmds --use-conda <targets>
 ```
 
 ### Extra information
@@ -284,7 +290,7 @@ It is possible to submit jobs to a cluster remotely via SSH. This could be usefu
 The command below differs from the explicit command above simply by prepending the `srun` command in `--cluster-sync` with `ssh <head_node>`, where `<head_node>` is the cluster head node where you run `srun` normally. You can now increase the value for `--local-cores` (see above for how to determine this value).
 
 ```bash
-nice snakemake --local-cores=<cores> --cluster-sync "ssh <head_node> srun --partition=all --ntasks=1 --nodes=1 --output=none --error=none --job-name={rule} --cpus-per-task={threads} --mem={resources.mem_mb}" --max-jobs-per-second=5 --max-status-checks-per-second=10 --latency-wait=120 --jobs=1000 --default-resources="mem_mb=2000" --printshellcmds --use-conda --keep-going <targets>
+nice snakemake --local-cores=<cores> --cluster-sync "ssh <head_node> srun --partition=all --ntasks=1 --nodes=1 --output=none --error=none --job-name={rule} --cpus-per-task={threads} --mem={resources.mem_mb}" --max-jobs-per-second=5 --max-status-checks-per-second=10 --latency-wait=120 --jobs=1000 --default-resources="mem_mb=2000" --printshellcmds --use-conda <targets>
 ```
 
 ## Advanced Usage
@@ -340,3 +346,17 @@ MANTA_CONFIG_OPTIONS = {
 MANTA_CONFIG_SWITCH = md.switch_on_wildcard("seq_type", MANTA_CONFIG_OPTIONS)
 md.set_input("manta", "manta_config", MANTA_CONFIG_SWITCH)
 ```
+
+## Frequently Asked Questions
+
+### How do I handle a conda environment that fails to build?
+
+While conda brings us much closer to computational reproducibility, it isn't perfect. Issues arise when conda packages are removed from [Anaconda Cloud](https://anaconda.org/) or when the dependency resolution algorithm changes. We suggest you try the following steps in order:
+
+1. Remove the build IDs from the conda environment YAML file, although this should already be the case for all environments in `lcr-modules`.
+2. Remove the versions for the offending package(s) (_i.e._ the one(s) mentioned in the error message).
+3. Remove the offending packages altogether.
+4. Remove the dependency packages, leaving only the "target packages". This generally means subsetting to the core conda packages listed in a module's README for the environment in question. While extreme, the hope is that the versions of the dependency packages are not crucial for maintaining scientific reproducibility.
+5. Remove the versions for the target packages.
+6. If you reach this point, it usually means that a target package is problematic. If possible, replace that package with the same (or similar) version from another Anaconda channel. Ideally, restore the YAML file first and cycle through the previous steps.
+7. Install the software tools manually (ideally the versions specified in the YAML file) and ensure they are available in your `PATH` environment variable.

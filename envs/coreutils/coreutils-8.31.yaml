@@ -1,0 +1,13 @@
+name: test-coreutils
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1
+  - _openmp_mutex=4.5
+  - coreutils=8.31
+  - libgcc-ng=9.2.0
+  - libgomp=9.2.0
+prefix: /home/bgrande/miniconda3/envs/test-coreutils
+
