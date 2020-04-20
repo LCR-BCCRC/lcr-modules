@@ -272,12 +272,15 @@ rule update_contig_names:
 
 ##### GENOME BUILDS #####
 
-
+ 
 rule fasta_copy:
     input: lambda wildcards: ORIGINAL_FASTAS[wildcards.build]
     output: REF_DIR + "/genomes/{build}/genome.fa"
     log: REF_DIR + "/genomes/{build}/genome.fa.log"
-    shell: "samtools faidx {input} > {log} 2>&1"
+    shell: 
+        "rsync -vhL {input} {output} > {log} 2>&1 "
+            "&& "
+        "chmod a-w {output}"
 
 
 rule fasta_index:
@@ -285,7 +288,10 @@ rule fasta_index:
     output: REF_DIR + "/genomes/{build}/genome.fa.fai"
     log: REF_DIR + "/genomes/{build}/genome.fa.fai.log"
     conda: CONDA_ENVS["samtools"]
-    shell: "samtools faidx {input} > {log} 2>&1"
+    shell: 
+        "samtools faidx {input} > {log} 2>&1"
+            "&& "
+        "chmod a-w {output}"
 
 
 rule bwa_index_symlink:
@@ -293,8 +299,7 @@ rule bwa_index_symlink:
     output: REF_DIR + "/genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa"
     log: REF_DIR + "/genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa.log"
     conda: CONDA_ENVS["coreutils"]
-    shell:
-        "ln -srf {input} {output}"
+    shell: "ln -srf {input} {output}"
 
 
 rule bwa_index:
@@ -303,22 +308,28 @@ rule bwa_index:
     log: REF_DIR + "/genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa.bwt.log"
     conda: CONDA_ENVS["bwa"]
     shell:
-        "bwa index {output} > {log} 2>&1"
+        "bwa index {input} > {log} 2>&1"
+            "&& "
+        "chmod -R a-w `dirname {output}`"
 
 
 rule star_index:
     input: 
         fasta = REF_DIR + "/genomes/{build}/genome.fa",
         gtf = get_download_file(rules.download_gencode_annotation.output.gtf)
-    output: REF_DIR + "/genomes/{build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang_{overhang}/SA"
-    log: REF_DIR + "/genomes/{build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang_{overhang}/SA.log"
+    output: REF_DIR + "/genomes/{build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{overhang}/SA"
+    log: REF_DIR + "/genomes/{build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{overhang}/SA.log"
     conda: CONDA_ENVS["star"]
     threads: 12
     shell:
+        "rm -rf `dirname {output}`/_STARtmp "
+            "&& "
         "STAR --runThreadN {threads} --runMode genomeGenerate --genomeDir `dirname {output}` "
-        "--genomeFastaFiles {input.fasta} --outTmpDir `dirname {output}`/_STARtmp/ "
+        "--genomeFastaFiles {input.fasta} --outTmpDir `dirname {output}`/_STARtmp "
         "--sjdbGTFfile {input.gtf} --sjdbOverhang {wildcards.overhang} "
-        "--outFileNamePrefix `dirname {output}`/ > {log} 2>&1"
+        "--outFileNamePrefix `dirname {output}`/ > {log} 2>&1 "
+            "&& "
+        "chmod -R a-w `dirname {output}`"
 
 
 ##### TARGETS #####
@@ -329,8 +340,8 @@ rule all:
         fai = expand(
             [
                 REF_DIR + "/genomes/{build}/genome.fa.fai",
-                REF_DIR + "/genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa",
-                REF_DIR + "/genomes/{build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang_{overhang}/SA",
+                REF_DIR + "/genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa.bwt",
+                REF_DIR + "/genomes/{build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{overhang}/SA",
             ], 
             build=BUILDS,
             bwa_version=TOOL_VERSIONS["bwa"],
