@@ -1076,11 +1076,6 @@ def setup_module(config, name, version, subdirs, scratch_subdirs=(), req_referen
     if len(req_references) > 0:
         check_references(mconfig, req_references)
 
-    # Find repository and module directories
-    repodir = os.path.normpath(mconfig["repository"])
-    modsdir = os.path.join(repodir, "modules", name, version)
-    scriptsdir = os.path.normpath(mconfig["lcr-scripts"])
-
     # Ensure that common module sub-fields are present
     subfields = ["inputs", "dirs", "conda_envs", "options", "threads", "mem_mb"]
     for subfield in subfields:
@@ -1097,7 +1092,23 @@ def setup_module(config, name, version, subdirs, scratch_subdirs=(), req_referen
             result = obj
         return result
 
-    placeholders = {"REPODIR": repodir, "MODSDIR": modsdir, "SCRIPTSDIR": scriptsdir}
+    # Find repository and module directories
+    repodir = os.path.normpath(mconfig["repository"])
+    modsdir = os.path.join(repodir, "modules", name, version)
+    scriptsdir = os.path.normpath(mconfig["lcr-scripts"])
+    env_refdir = os.environ.get("LCR_MODULES_REF_DIR")
+    refdir = os.path.normpath(mconfig.get("reference_dir", env_refdir))
+    assert refdir, (
+        "`LCR_MODULES_REF_DIR` is not set. Please set it as an environment "
+        "variable or under the `_shared` configuration as `reference_dir`."
+    )
+
+    placeholders = {
+        "REPODIR": repodir,
+        "MODSDIR": modsdir,
+        "SCRIPTSDIR": scriptsdir,
+        "LCR_MODULES_REF_DIR": refdir,
+    }
     mconfig = walk_through_dict(mconfig, update_placeholders, **placeholders)
 
     # Validate samples data frame
