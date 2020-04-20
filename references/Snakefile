@@ -6,7 +6,7 @@
 
 import os
 import re
-import zipfile
+import tarfile
 import urllib.request
 from collections import defaultdict
 
@@ -66,13 +66,14 @@ for build in BUILDS:
 
 # Define method for download ChromosomeMappings repository
 def download_chrom_mappings(chrom_mappings_dir):
-    chrom_mappings_url = "https://github.com/BrunoGrandePhD/ChromosomeMappings/archive/master.zip"
-    zip_file_path = f"{REF_DIR}/ChromosomeMappings.zip"
-    urllib.request.urlretrieve(chrom_mappings_url, zip_file_path)
-    zip_file = zipfile.ZipFile(zip_file_path, "r")
+    chrom_mappings_url = "https://github.com/BrunoGrandePhD/ChromosomeMappings/archive/master.tar.gz"
+    tar_file_path = f"{REF_DIR}/ChromosomeMappings.tar.gz"
+    os.makedirs(REF_DIR, exist_ok=True)
+    urllib.request.urlretrieve(chrom_mappings_url, tar_file_path)
+    zip_file = tarfile.open(tar_file_path, "r:gz")
     zip_file.extractall(REF_DIR)
     zip_file.close()
-    os.remove(zip_file_path)
+    os.remove(tar_file_path)
     os.rename(f"{REF_DIR}/ChromosomeMappings-master", chrom_mappings_dir)
 
 # Download ChromosomeMappings if not already done
