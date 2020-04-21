@@ -9,7 +9,7 @@ lcr-modules:
         conda_envs: 
             varscan: null
         options:
-            bam2mpu: "-A -B -q 20" # countOrphan, noBaq, maxDepth -d 10000000, mapQuality, bedFILE (blank)
+            bam2mpu: "-A -B -q 20 -d 8000" # countOrphan, noBaq, maxDepth -d 10000000, mapQuality, bedFILE (blank)
             somatic: 
                 capture: "--min-coverage 20 --min-var-freq 0.01  --somatic-p-value 0.05 --strand-filter 0 --min-strands2 0 --validation 0"
                 genome: ""
@@ -22,9 +22,13 @@ lcr-modules:
             # "--variants" mpileup2cns flag to report only variant positions
 
         threads:
-            varscan: null
+            bam2mpu: null
+            unpaired: null
+            somatic: null
         mem_mb:
-            varscan: null
+            bam2mpu: null
+            unpaired: null
+            somatic: null
         
         pairing_config:
             genome:

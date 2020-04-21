@@ -26,7 +26,8 @@ CFG = md.setup_module(
     name = "varscan", 
     version = "1.0",
     subdirs = ["inputs", "mpileup", "varscan", "outputs"],
-    req_references = ["genome_fasta"]
+    req_references = ["genome_fasta"],
+    scratch_subdirs = ["mpileup"]
 )
 
 localrules: 
@@ -56,13 +57,13 @@ rule _varscan_bam2mpu:
         CFG["logs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.bam2mpu.stderr.log"
     params:
         opts = CFG["options"]["bam2mpu"],
-        fasta  = lambda wildcards: config["reference"][wildcards.genome_build]["genome_fasta"]
+        fasta  = md.get_reference(CFG, "genome_fasta")
     conda:
         CFG["conda_envs"].get("varscan") or "envs/varscan.yaml"
     threads:
-        CFG["threads"].get("varscan") or 1
+        CFG["threads"].get("bam2mpu") or 1
     resources: 
-        mem_mb = CFG["mem_mb"].get("varscan") or 6000
+        mem_mb = CFG["mem_mb"].get("bam2mpu") or 12000
     shell:
         md.as_one_line("""
         samtools mpileup {params.opts}
@@ -90,9 +91,9 @@ rule _varscan_mpu2vcf_somatic:
     conda:
         CFG["conda_envs"].get("varscan") or "envs/varscan.yaml"
     threads:
-        CFG["threads"].get("varscan") or 1
+        CFG["threads"].get("somatic") or 1
     resources: 
-        mem_mb = CFG["mem_mb"].get("varscan") or 5000
+        mem_mb = CFG["mem_mb"].get("somatic") or 5000
     shell:
         md.as_one_line("""
         varscan somatic 
@@ -103,7 +104,7 @@ rule _varscan_mpu2vcf_somatic:
         """)
 
 
-rule _varscan_mpu2vcf_single:
+rule _varscan_mpu2vcf_unpaired:
     input:
         tumourMPU = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.mpileup"
     output:
@@ -118,9 +119,9 @@ rule _varscan_mpu2vcf_single:
     conda:
         CFG["conda_envs"].get("varscan") or "envs/varscan.yaml"
     threads:
-        CFG["threads"].get("varscan") or 1
+        CFG["threads"].get("unpaired") or 1
     resources: 
-        mem_mb = CFG["mem_mb"].get("varscan") or 5000
+        mem_mb = CFG["mem_mb"].get("unpaired") or 5000
     shell:
         md.as_one_line("""
         varscan mpileup2{wildcards.vcf_name}
