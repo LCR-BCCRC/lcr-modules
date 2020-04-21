@@ -1,7 +1,7 @@
 lcr-modules:
     varscan:
         inputs:
-            sample_bam: "results/bam_util-1.0/99-outputs/{seq_type}--{genome_build}/{sample_id}.bam"
+            sample_bam: "processed_bam/{seq_type}/{sample_id}.bam"
         outputs:    
             vcf_names: ["indel", "snp", "cns"]
         dirs:
