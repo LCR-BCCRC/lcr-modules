@@ -1,12 +1,13 @@
 lcr-modules:
     varscan:
         inputs:
-            sample_bam: "processed_bam/{seq_type}/{sample_id}.bam"
+            sample_bam: null
         outputs:    
             vcf_names: ["indel", "snp", "cns"]
         dirs:
             _parent: null
-        conda_envs: 
+        conda_envs:
+            samtools: null 
             varscan: null
         options:
             bam2mpu: "-A -B -q 20 -d 8000" # countOrphan, noBaq, maxDepth -d 10000000, mapQuality, bedFILE (blank)

@@ -59,7 +59,7 @@ rule _varscan_bam2mpu:
         opts = CFG["options"]["bam2mpu"],
         fasta  = md.get_reference(CFG, "genome_fasta")
     conda:
-        CFG["conda_envs"].get("varscan") or "envs/varscan.yaml"
+        CFG["conda_envs"].get("samtools") or "envs/samtools-0.1.18.yaml"
     threads:
         CFG["threads"].get("bam2mpu") or 1
     resources: 
@@ -89,7 +89,7 @@ rule _varscan_mpu2vcf_somatic:
     params:
         opts = md.switch_on_wildcard("seq_type", CFG["options"]["somatic"])
     conda:
-        CFG["conda_envs"].get("varscan") or "envs/varscan.yaml"
+        CFG["conda_envs"].get("varscan") or "envs/varscan-2.4.4.yaml"
     threads:
         CFG["threads"].get("somatic") or 1
     resources: 
@@ -117,7 +117,7 @@ rule _varscan_mpu2vcf_unpaired:
         opts = md.switch_on_wildcard("seq_type", CFG["options"]["unpaired"]),
         cns = md.switch_on_wildcard("vcf_name", {"cns": CFG["options"]["unpaired"]["cns"], "indel": "", "snp": ""})
     conda:
-        CFG["conda_envs"].get("varscan") or "envs/varscan.yaml"
+        CFG["conda_envs"].get("varscan") or "envs/varscan-2.4.4.yaml"
     threads:
         CFG["threads"].get("unpaired") or 1
     resources: 
