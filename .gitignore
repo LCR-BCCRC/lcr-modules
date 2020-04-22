@@ -1,5 +1,6 @@
 # Hidden files
 .DS_Store
+.envrc
 
 # Byte-compiled files
 __pycache__/
