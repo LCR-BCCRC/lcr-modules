@@ -2,6 +2,7 @@
 
 import os
 import copy
+import inspect
 import functools
 import itertools
 import subprocess
@@ -67,7 +68,7 @@ _session = _Session()
 
 
 def enable_set_functions(config):
-    """Enable the `set_*` modutils convenience functions.
+    """Enable the `set_*` oncopipe convenience functions.
 
     Parameters
     ----------
@@ -83,13 +84,16 @@ def enable_set_functions(config):
 def set_input(module, name, value):
     """Use given value as input"""
     config = _session.config
-    config["lcr-modules"][module]["inputs"][name] = value
+    new_value = {"lcr-modules": {module: {"inputs": {name: value}}}}
+    smk.utils.update_config(config, new_value)
 
 
 def set_samples(module, *samples):
     """Use given value as input"""
     config = _session.config
-    config["lcr-modules"][module]["samples"] = pd.concat(samples)
+    samples_concat = pd.concat(samples)
+    new_value = {"lcr-modules": {module: {"samples": samples_concat}}}
+    smk.utils.update_config(config, new_value)
 
 
 # UTILITIES
@@ -474,7 +478,63 @@ def locate_bam(
     return locate_bam_custom
 
 
+def check_reference(module_config, reference_key=None):
+    """Ensure that a required reference config (and file) is available.
+
+    If there is no 'genome_build' column in `module_samples` and
+    there is only one loaded reference, this function will assume
+    that the loaded reference is the reference to be used.
+
+    Parameters
+    ----------
+    module_config : dict
+        The module-specific configuration, corresponding to
+        `config['lcr-modules']['<module-name>'].
+    reference_key : str, optional
+        The key for a required reference file.
+
+    Returns
+    -------
+    None
+    """
+
+    error_message = (
+        "Load the appropriate reference YAML file in the `lcr-modules` repository. "
+    )
+    assert "reference" in module_config, error_message
+
+    module_samples = module_config["samples"]
+    references_available = list(module_config["reference"].keys())
+
+    if len(references_available) == 0:
+        raise AssertionError(error_message)
+
+    if len(references_available) == 1 and "genome_build" not in module_samples:
+        reference = references_available[0]
+        log_message = f"Defaulting to the only loaded reference, {reference}"
+        logger.warning(log_message)
+        module_samples["genome_build"] = reference
+
+    if len(references_available) > 1 and "genome_build" not in module_samples:
+        raise AssertionError(
+            "More than one loaded reference {references_available}, yet no "
+            "`genome_build` column in the samples table. Thus, the genome build "
+            "cannot be inferred. Add a `genome_build` column to your samples table."
+        )
+
+    genome_builds = module_samples["genome_build"].unique()
+
+    for genome_build in genome_builds:
+        assert genome_build in module_config["reference"], error_message
+        ref_config = module_config["reference"][genome_build]
+        if reference_key is not None:
+            error_message += f"And ensure that `{reference_key}` is available."
+            assert reference_key in ref_config, error_message
+
+
 def get_reference(module_config, reference_key):
+    check_reference(module_config, reference_key)
+
     def get_reference_custom(wildcards):
         return module_config["reference"][wildcards.genome_build][reference_key]
 
@@ -493,7 +553,7 @@ def load_samples(
     directly is that this function processes the data frame as follows:
 
         1) Forces lowercase for key columns with that expectation.
-           These columns are listed in `modutils.LOWERCASE_COLS`.
+           These columns are listed in `oncopipe.LOWERCASE_COLS`.
         2) Renames columns using either a renamer function and/or
            a set of key-value pairs where the values are the
            original names and the keys are the desired names.
@@ -887,7 +947,7 @@ def generate_runs(
     pairing_config : dict, optional
         Same as `generate_runs_for_patient_wrapper()`. If left unset
         (or None is provided), this function will fallback on a
-        default value (see `modutils.DEFAULT_PAIRING_CONFIG`).
+        default value (see `oncopipe.DEFAULT_PAIRING_CONFIG`).
     subgroups : list of str, optional
         Same as `group_samples()`.
 
@@ -958,86 +1018,25 @@ def generate_runs(
 # MODULE SETUP/CLEANUP
 
 
-def check_references(module_config, req_references):
-    """Ensure that all required references are available.
-
-    If there is no 'genome_build' column in `module_samples` and
-    there is only one loaded reference, this function will assume
-    that the loaded reference is the reference to be used.
-
-    Parameters
-    ----------
-    module_config : dict
-        The module-specific configuration, corresponding to
-        `config['lcr-modules']['<module-name>'].
-    req_references : list of str
-        The list of required keys for the shared reference YAML files.
-
-    Returns
-    -------
-    None
-    """
-
-    error_message = (
-        "Please load the appropriate reference YAML file in the "
-        "`lcr-modules` repository and/or ensure that the following "
-        f"reference data are available: \n    {req_references}"
-    )
-    assert "reference" in module_config, error_message
-
-    module_samples = module_config["samples"]
-    references_available = list(module_config["reference"].keys())
-
-    if len(references_available) == 0:
-        raise AssertionError(error_message)
-
-    if len(references_available) == 1 and "genome_build" not in module_samples:
-        reference = references_available[0]
-        log_message = f"Defaulting to the only loaded reference, {reference}"
-        logger.warning(log_message)
-        module_samples["genome_build"] = reference
-
-    if len(references_available) > 1 and "genome_build" not in module_samples:
-        raise AssertionError(
-            "More than one loaded reference {references_available}, yet no "
-            "`genome_build` column in the samples table. Thus, the genome build "
-            "cannot be inferred. Add a `genome_build` column to your samples table."
-        )
-
-    genome_builds = module_samples["genome_build"].unique()
-
-    for genome_build in genome_builds:
-        assert genome_build in module_config["reference"], error_message
-        for ref_key in req_references:
-            assert ref_key in module_config["reference"][genome_build], error_message
-
-
-def setup_module(config, name, version, subdirs, scratch_subdirs=(), req_references=()):
+def setup_module(name, version, subdirectories, scratch_subdirs=()):
     """Prepares and validates configuration for the given module.
 
     Parameters
     ----------
-    config : dict
-        The snakemake configuration dictionary. This should contain
-        the module configuration under `config['lcr-modules'][name]`.
     name : str
         The name of the module.
     version : str
         The semantic version of the module.
-    subdirs : list of str
+    subdirectories : list of str
         The subdirectories of the module output directory where the
         results will be produced. They will be numbered incrementally
         and created on disk. This should include 'inputs' and 'outputs'.
     scratch_subdirs : list of str, optional
-        A subset of `subdirs` that should be symlinked into the given
+        A subset of `subdirectories` that should be symlinked into the given
         scratch directory, specified under:
             `config["lcr_modules"]["_shared"]["scratch_directory"]`
         This should not include 'inputs' and 'outputs', which only
         contain symlinks.
-    req_references : list of str, optional
-        The list of required keys for the shared reference YAML files.
-        This is provided to ensure they are present before running the
-        module.
 
     Returns
     -------
@@ -1045,6 +1044,14 @@ def setup_module(config, name, version, subdirs, scratch_subdirs=(), req_referen
         The module-specific configuration, including any shared
         configuration from `config['lcr-modules']['_shared']`.
     """
+
+    # Get namespace where module is being set up
+    module_frame = inspect.currentframe().f_back
+    module_globals = module_frame.f_globals
+    config = module_globals["config"]
+
+    # Make sure the `CFG` variable doesn't exist yet
+    assert "CFG" not in module_globals, "`CFG` is a reserved variable for lcr-modules."
 
     # Ensure minimum version of Snakemake
     smk.utils.min_version("5.4.0")
@@ -1072,15 +1079,14 @@ def setup_module(config, name, version, subdirs, scratch_subdirs=(), req_referen
     mconfig["name"] = name
     mconfig["version"] = version
 
-    # Ensure that required references are available
-    if len(req_references) > 0:
-        check_references(mconfig, req_references)
-
     # Ensure that common module sub-fields are present
     subfields = ["inputs", "dirs", "conda_envs", "options", "threads", "mem_mb"]
     for subfield in subfields:
         if subfield not in mconfig:
             mconfig[subfield] = dict()
+
+    # Check reference
+    check_reference(mconfig)
 
     # Update placeholders in any string in the module-specific config
     def update_placeholders(obj, **placeholders):
@@ -1130,7 +1136,7 @@ def setup_module(config, name, version, subdirs, scratch_subdirs=(), req_referen
             mconfig["conda_envs"][env_name] = os.path.relpath(env_val, modsdir)
 
     # Setup output sub-directories
-    mconfig = setup_subdirs(mconfig, subdirs, scratch_subdirs)
+    mconfig = setup_subdirs(mconfig, subdirectories, scratch_subdirs)
 
     # Setup log sub-directories
     mconfig["logs"] = dict()
@@ -1157,17 +1163,17 @@ def setup_module(config, name, version, subdirs, scratch_subdirs=(), req_referen
     return mconfig
 
 
-def setup_subdirs(module_config, subdirs, scratch_subdirs=()):
+def setup_subdirs(module_config, subdirectories, scratch_subdirs=()):
     """Numbers and creates module output subdirectories.
 
     Parameters
     ----------
     module_config : dict
         The module-specific configuration.
-    subdirs : list of str
+    subdirectories : list of str
         The names (without numbering) of the output subdirectories.
     scratch_subdirs : list of str, optional
-        Subset of `subdirs` to be symlinks to the scratch directory.
+        Subset of `subdirectories` to be symlinks to the scratch directory.
 
     Returns
     -------
@@ -1177,9 +1183,9 @@ def setup_subdirs(module_config, subdirs, scratch_subdirs=()):
     """
 
     # Check for any issues with the subdirectory names
-    assert "_parent" not in subdirs, "You cannot have a '_parent' sub-directory."
-    assert subdirs[0] == "inputs", "The first subdirectory must be 'inputs'."
-    assert subdirs[-1] == "outputs", "The last subdirectory must be 'outputs'."
+    assert "_parent" not in subdirectories, "You cannot have a '_parent' sub-directory."
+    assert subdirectories[0] == "inputs", "The first subdirectory must be 'inputs'."
+    assert subdirectories[-1] == "outputs", "The last subdirectory must be 'outputs'."
 
     # Check if `scratch_directory` is needed
     if len(scratch_subdirs) > 0 and "scratch_directory" not in module_config:
@@ -1188,10 +1194,9 @@ def setup_subdirs(module_config, subdirs, scratch_subdirs=()):
         )
 
     # If `scratch_directory` is None, then don't worry about `scratch_subdirs`
-    scratch_directory = module_config["scratch_directory"]
+    scratch_directory = module_config.get("scratch_directory", "")
     if scratch_directory is None:
         scratch_subdirs = ()
-        scratch_directory = ""
 
     # Check it 'inputs' or 'outputs' are among the `scratch_subdirs`
     msg = "'inputs' and 'outputs' cannot be `scratch_subdirs`."
@@ -1199,14 +1204,14 @@ def setup_subdirs(module_config, subdirs, scratch_subdirs=()):
     assert "outputs" not in scratch_subdirs, msg
 
     # Generate zero-padded numbers
-    numbers = [f"{x:02}" for x in (*range(0, len(subdirs) - 1), 99)]
+    numbers = [f"{x:02}" for x in (*range(0, len(subdirectories) - 1), 99)]
 
     # Join numbers and names, and create subdirectory
     name = module_config["name"]
     version = module_config["version"]
     parent_dir = module_config["dirs"]["_parent"]
     scratch_parent_dir = os.path.join(scratch_directory, f"{name}-{version}")
-    for num, subdir in zip(numbers, subdirs):
+    for num, subdir in zip(numbers, subdirectories):
         subdir_full = os.path.join(parent_dir, f"{num}-{subdir}/")
         module_config["dirs"][subdir] = subdir_full
         if subdir in scratch_subdirs:
@@ -1221,6 +1226,13 @@ def setup_subdirs(module_config, subdirs, scratch_subdirs=()):
 
 def cleanup_module(module_config):
     """Save module-specific configuration, sample, and runs to disk."""
+
+    # Get namespace where module is being cleaned up
+    module_frame = inspect.currentframe().f_back
+    module_globals = module_frame.f_globals
+
+    # Delete `CFG` from module namespace to avoid conflicts
+    del module_globals["CFG"]
 
     # Define useful variables
     parent_dir = module_config["logs"]["_parent"]
