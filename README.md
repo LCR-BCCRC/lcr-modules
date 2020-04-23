@@ -24,7 +24,7 @@ Check out the [contribution guidelines](CONTRIBUTING.md) to find out how you can
 
 ## Setup Instructions
 
-These instructions assume your working directory is your project root. They also assume that you have conda set up and your current environment has Python 3.6 or later. **Note:** This repository includes a custom Python package called `modutils`. This README assumes that it is loaded into Python using `import modutils as md`. Hence, any functions therein are referred to with the `md.` prefix.
+These instructions assume your working directory is your project root. They also assume that you have conda set up and your current environment has Python 3.6 or later. **Note:** This repository includes a custom Python package called `oncopipe`. This README assumes that it is loaded into Python using `import oncopipe as op`. Hence, any functions therein are referred to with the `op.` prefix.
 
 As a companion to these instructions, you can check out the [demo Snakefile](demo/Snakefile), where the placeholders contain actual values that work.
 
@@ -35,13 +35,13 @@ As a companion to these instructions, you can check out the [demo Snakefile](dem
    git clone https://github.com/LCR-BCCRC/lcr-scripts.git
    ```
 
-2. Install `snakemake` (5.4 or later), `pandas`, and the custom `modutils` Python packages into your conda environment.
+2. Install `snakemake` (5.4 or later), `pandas`, and the custom `oncopipe` Python packages into your conda environment.
 
    ```bash
    # `snakemake-minimal` lacks extraneous dependencies and is faster to install
    conda install --satisfied-skip-solve 'snakemake-minimal>=5.4' 'pandas'
    # This is installing from the `lcr-modules` repository clone
-   pip install -e lcr-modules/modutils
+   pip install -e lcr-modules/oncopipe
    ```
 
 3. (Optional) Test your environment with the demo project in this repository. You shouldn't get any error after running the following `snakemake` command:
@@ -70,7 +70,7 @@ As a companion to these instructions, you can check out the [demo Snakefile](dem
 6. Add the following lines **once** near the beginning of your project Snakefile, updating any values in angle brackets (`<...>`).
 
    ```python
-   import modutils as md
+   import oncopipe as op
    configfile: "lcr-modules/references/<build>.yaml"
    SAMPLES = md.load_samples("<path/to/samples.tsv>")
    config["lcr-modules"]["_shared"]["samples"] = SAMPLES
@@ -99,6 +99,8 @@ If you feel comfortable with the above steps, consider reading through the sugge
 
 ## Available Modules
 
+### Module levels
+
 The modules are organized into levels. Briefly, level-1 modules process the raw sequencing data, generally producing FASTQ or BAM files that serve as input for the next level. In turn, level-2 modules perform sample-level analyses, such as variant calling and gene expression quantification. Level-3 modules aggregate the sample-specific output and generally perform cohort-wide analyses, such as the identification of sifgnificantly mutated genes. Finally, the fourth level corresponds to the analyses that are project-specific and are meant to ask specific questions of the data. These are the analyses you ideally want to spend your time on. See the figure below for examples.
 
 ![Module Levels](images/module_levels.png)
@@ -121,7 +123,7 @@ The modules are organized into levels. Briefly, level-1 modules process the raw 
 
 ## Samples Table
 
-This section is a human-friendly summary of what is described in the base schema (see `lcr-modules/schemas/base.yaml`). In case of any discrepancies, the schema file takes precedence. The samples table can be stored on disk using any column delimiter, but `modutils` expects tab-delimited files by default.
+This section is a human-friendly summary of what is described in the base schema (see `lcr-modules/schemas/base.yaml`). In case of any discrepancies, the schema file takes precedence. The samples table can be stored on disk using any column delimiter, but `oncopipe` expects tab-delimited files by default.
 
 ### Entity–relationship model
 
@@ -139,7 +141,7 @@ Before describing the required columns, it is useful to consider the entities re
 
 ### Renaming columns
 
-If you already have a file with this information but using different column names, you can use the `load_samples()` function in `modutils` to rename your columns. For example, if you use `sample` and `patient` as the column headers for your sample and patient IDs, you can rename them as follows:
+If you already have a file with this information but using different column names, you can use the `load_samples()` function in `oncopipe` to rename your columns. For example, if you use `sample` and `patient` as the column headers for your sample and patient IDs, you can rename them as follows:
 
 ```python
 md.load_samples("samples.tsv", sample_id="sample", patient_id="patient")
@@ -183,7 +185,7 @@ lcr-modules:
 
 ## Pairing Configuration
 
-Each module has a pairing configuration (_i.e._ `pairing_config`). This configuration dictates what the module can handle in terms of paired and/or unpaired analyses for each sequencing data type (_i.e._ `seq_type`). This information is used by the `md.generate_runs_for_patient()` function in `modutils`.
+Each module has a pairing configuration (_i.e._ `pairing_config`). This configuration dictates what the module can handle in terms of paired and/or unpaired analyses for each sequencing data type (_i.e._ `seq_type`). This information is used by the `md.generate_runs_for_patient()` function in `oncopipe`.
 
 Specifically, the following parameters are required for each `seq_type`. The descriptions were taken from `help(md.generate_runs_for_patient)`. An example pairing configuration can be found below.
 
@@ -360,3 +362,7 @@ While conda brings us much closer to computational reproducibility, it isn't per
 5. Remove the versions for the target packages.
 6. If you reach this point, it usually means that a target package is problematic. If possible, replace that package with the same (or similar) version from another Anaconda channel. Ideally, restore the YAML file first and cycle through the previous steps.
 7. Install the software tools manually (ideally the versions specified in the YAML file) and ensure they are available in your `PATH` environment variable.
+
+### What is up with the underscore prefix (_e.g._ in rule names)?
+
+This underscore prefix stems from a Python convention. In `lcr-modules`, it is generally meant to avoid name conflits. For example, in the `manta` module, the final target rule is called `_manta_all` just in case the user already has a rule called `manta_all`. While this is unlikely, as modules are loaded, the risk for a conflict increases. Hence, the underscore prefix is a precautionary measure.
