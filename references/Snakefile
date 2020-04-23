@@ -14,6 +14,8 @@ import yaml
 import snakemake as smk
 from snakemake.logging import logger
 
+import oncopipe as op
+
 
 ##### PARAMS #####
 
@@ -35,7 +37,8 @@ READ_LENGTHS = [75, 100]
 
 # Configure cvbio UpdateContigNames for different file extensions
 CVBIO_CONFIG = {
-    "gtf": {"comment": "#", "columns": "0", "skip": "false", "delimiter": "\t"}
+    "gtf": {"comment": "#", "columns": "0", "skip": "false", "delimiter": "\t"},
+    "txt": {"comment": "#", "columns": "0", "skip": "false", "delimiter": "\t"}
 }
 
 wildcard_constraints:
@@ -112,21 +115,36 @@ def get_version(path):
     yaml_basename, ext = os.path.splitext(yaml)
     package, version = yaml_basename.split("-", 1)
     return version
-    
+
 TOOL_VERSIONS = { pkg: get_version(path) for pkg, path in CONDA_ENVS.items() }
 
 
 ##### DOWNLOAD #####
 
 
+rule download_main_chromosomes:
+    input:
+        mapping = CHROM_MAPPINGS_DIR + "/{version}_ensembl2ucsc.txt"
+    output:
+        txt = REF_DIR + "/downloads/main_chromosomes/main_chromosomes.{version}.txt"
+    params:
+        source = "ensembl"
+    shell:
+        op.as_one_line("""
+        egrep -w "^(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|X|Y|MT)" {input.mapping}
+            |
+        cut -f1 > {output.txt}
+        """)
+
+
 rule download_gencode_annotation:
-    output: 
+    output:
         gtf = REF_DIR + "/downloads/gencode-{gencode_release}/gencode.annotation.{version}.gtf"
     params:
         source = "ucsc"
     run:
         url_parts = [
-            "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human", 
+            "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human",
             f"release_{wildcards.gencode_release}"
         ]
         release_fmt = f"v{wildcards.gencode_release}"
@@ -150,6 +168,9 @@ def get_matching_download_rules(file):
         # At least one output file should produce
         num_matches = []
         for output_file in r.output:
+            assert "{version}" in output_file, (
+                f"A `{{version}}` wildcard should be in the output file '{output_file}'."
+            )
             matches = smk.io.glob_wildcards(output_file, [file])
             num_matches.append(len(matches[0]))
         if any(num > 0 for num in num_matches):
@@ -163,14 +184,15 @@ def symlink_same_source(wildcards):
     suffix = wildcards.suffix
     output_file = f"{REF_DIR}/genomes/{build}/{suffix}"
     raw_download_file = f"{REF_DIR}/downloads/{suffix}"
-    
+
     version = VERSIONS[build]
     to_source = SOURCES[build]
     from_source_options = CHROM_MAPPINGS[version][to_source]
     
+
     dependencies = []
     matching_rules = get_matching_download_rules(raw_download_file)
-    
+
     for r in matching_rules:
         # The source must be among the ones we can convert from
         if r.params.source not in from_source_options:
@@ -180,11 +202,11 @@ def symlink_same_source(wildcards):
     if len(dependencies) == 0:
         msg = f"Could not find rule to generate {output_file}."
         raise Exception(msg)
-    
+
     if len(dependencies) > 1:
         msg = f"Found conflicting rules to generate {output_file}."
         raise Exception(msg)
-    
+
     raw_download_root, raw_download_ext = os.path.splitext(raw_download_file)
     target_download_file = f"{raw_download_root}.{to_source}{raw_download_ext}"
     return target_download_file
@@ -197,13 +219,13 @@ def get_cvbio_params(field):
         dependencies = []
         matching_rules = get_matching_download_rules(input.before)
         assert len(matching_rules) == 1, "Not just one matching rule."
-        
+
         dependency = matching_rules[0]
         version = wildcards.version
         from_source = dependency.params.source
         to_source = wildcards.to_source
         file_ext = wildcards.ext
-        
+
         cvbio_params = {
             "mapping": f"{CHROM_MAPPINGS_DIR}/{version}_{from_source}2{to_source}.txt",
             "from_source": from_source,
@@ -213,11 +235,15 @@ def get_cvbio_params(field):
             "delimiter": CVBIO_CONFIG[file_ext]["delimiter"]
         }
         return cvbio_params[field]
-    
+
     return get_cvbio_params_custom
 
 
 def get_download_file(file):
+    file_root, file_ext = os.path.splitext(file)
+    assert file_ext.lstrip(".") in CVBIO_CONFIG, (
+        f"`{file_ext}` files are not yet configured for cvbio. See `CVBIO_CONFIG` variable."
+    )
     def get_download_file_custom(wildcards):
         build = wildcards.build
         version = VERSIONS[build]
@@ -232,19 +258,16 @@ def get_download_file(file):
 
 
 rule symlink_download:
-    input:
-        target = symlink_same_source
-    output:
-        link = REF_DIR + "/genomes/{build}/downloads/{suffix}"
+    input: symlink_same_source
+    output: REF_DIR + "/genomes/{build}/downloads/{suffix}"
     conda: CONDA_ENVS["coreutils"]
-    shell:
-        "ln -srf {input.target} {output.link}"
+    shell: "ln -srf {input} {output}"
 
 
 rule update_contig_names:
-    input: 
+    input:
         before = REF_DIR + "/downloads/{parent_dir}/{prefix}.{version}.{ext}"
-    output: 
+    output:
         after = REF_DIR + "/downloads/{parent_dir}/{prefix}.{version}.{to_source}.{ext}"
     log:
         REF_DIR + "/downloads/{parent_dir}/{prefix}.{version}.{to_source}.{ext}.log"
@@ -260,92 +283,156 @@ rule update_contig_names:
         to_source = "|".join(TO_SOURCES)
     conda: CONDA_ENVS["cvbio"]
     shell:
-        "if [[ '{wildcards.to_source}' == '{params[from_source]}' ]]; then "
-            "ln -srf {input.before} {output.after}; "
-        "else "
-            "cvbio UpdateContigNames --in {input.before} --out {output.after} "
-            "--mapping {params.mapping} --comment-chars '{params.comment}' "
-            "--columns {params.columns} --skip-missing {params.skip} "
-            "--delimiter '{params.delimiter}' > {log} 2>&1; "
-        "fi"
+        op.as_one_line("""
+        if [[ '{wildcards.to_source}' == '{params[from_source]}' ]]; then
+            ln -sf `basename {input.before}` {output.after};
+        else
+            cvbio UpdateContigNames --in {input.before} --out {output.after}
+            --mapping {params.mapping} --comment-chars '{params.comment}'
+            --columns {params.columns} --skip-missing {params.skip}
+            --delimiter '{params.delimiter}' > {log} 2>&1;
+        fi
+        """)
 
 
 ##### GENOME BUILDS #####
 
- 
+
 rule fasta_copy:
-    input: lambda wildcards: ORIGINAL_FASTAS[wildcards.build]
-    output: REF_DIR + "/genomes/{build}/genome.fa"
-    log: REF_DIR + "/genomes/{build}/genome.fa.log"
-    shell: 
-        "rsync -vhL {input} {output} > {log} 2>&1 "
-            "&& "
-        "chmod a-w {output}"
+    input: 
+        fasta = lambda wildcards: ORIGINAL_FASTAS[wildcards.build]
+    output: 
+        fasta = REF_DIR + "/genomes/{build}/genome_fasta/genome.fa"
+    log: REF_DIR + "/genomes/{build}/genome_fasta/genome.fa.log"
+    shell:
+        "rsync -vhL {input.fasta} {output.fasta} > {log} 2>&1"
 
 
 rule fasta_index:
-    input: REF_DIR + "/genomes/{build}/genome.fa"
-    output: REF_DIR + "/genomes/{build}/genome.fa.fai"
-    log: REF_DIR + "/genomes/{build}/genome.fa.fai.log"
+    input: 
+        fasta = REF_DIR + "/genomes/{build}/genome_fasta/genome.fa"
+    output: 
+        fai = REF_DIR + "/genomes/{build}/genome_fasta/genome.fa.fai"
+    log: REF_DIR + "/genomes/{build}/genome_fasta/genome.fa.fai.log"
     conda: CONDA_ENVS["samtools"]
+    shell:
+        "samtools faidx {input.fasta} > {log} 2>&1"
+
+
+rule fasta_symlink:
+    input:
+        fasta = REF_DIR + "/genomes/{build}/genome_fasta/genome.fa",
+        fasta_index = REF_DIR + "/genomes/{build}/genome_fasta/genome.fa.fai"
+    output:
+        fasta = REF_DIR + "/genomes/{build}/genome.fa",
+        fasta_index = REF_DIR + "/genomes/{build}/genome.fa.fai"
+    conda: CONDA_ENVS["coreutils"]
+    shell:
+        op.as_one_line("""
+        ln -srf {input.fasta} {output.fasta}
+            &&
+        ln -srf {input.fasta_index} {output.fasta_index}
+        """)
+
+
+rule main_chromosomes:
+    input: 
+        txt = get_download_file(rules.download_main_chromosomes.output.txt),
+        fai = rules.fasta_index.output.fai
+    output: 
+        txt = REF_DIR + "/genomes/{build}/genome_fasta/main_chromosomes.txt",
+        bed = REF_DIR + "/genomes/{build}/genome_fasta/main_chromosomes.bed",
+        patterns = temp(REF_DIR + "/genomes/{build}/genome_fasta/main_chromosomes.patterns.txt")
+    conda: CONDA_ENVS["coreutils"]
     shell: 
-        "samtools faidx {input} > {log} 2>&1"
-            "&& "
-        "chmod a-w {output}"
+        op.as_one_line("""
+        sed 's/^/^/' {input.txt} > {output.patterns}
+            &&
+        egrep -w -f {output.patterns} {input.fai}
+            |
+        cut -f1 > {output.txt}
+            &&
+        egrep -w -f {output.patterns} {input.fai}
+            |
+        awk 'BEGIN {{FS=OFS="\t"}} {{print $1, 0, $2}}' > {output.bed}
+        """)
 
 
 rule bwa_index_symlink:
-    input: REF_DIR + "/genomes/{build}/genome.fa"
-    output: REF_DIR + "/genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa"
-    log: REF_DIR + "/genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa.log"
+    input: 
+        fasta = REF_DIR + "/genomes/{build}/genome_fasta/genome.fa"
+    output: 
+        fasta = REF_DIR + "/genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa"
     conda: CONDA_ENVS["coreutils"]
-    shell: "ln -srf {input} {output}"
+    shell: 
+        "ln -srf {input.fasta} {output.fasta}"
 
 
 rule bwa_index:
-    input: REF_DIR + "/genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa"
-    output: REF_DIR + "/genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa.bwt"
+    input: 
+        fasta = REF_DIR + "/genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa"
+    output: 
+        bwt = REF_DIR + "/genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa.bwt"
     log: REF_DIR + "/genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa.bwt.log"
     conda: CONDA_ENVS["bwa"]
     shell:
-        "bwa index {input} > {log} 2>&1"
-            "&& "
-        "chmod -R a-w `dirname {output}`"
+        "bwa index {input.fasta} > {log} 2>&1"
 
 
 rule star_index:
-    input: 
+    input:
         fasta = REF_DIR + "/genomes/{build}/genome.fa",
         gtf = get_download_file(rules.download_gencode_annotation.output.gtf)
-    output: REF_DIR + "/genomes/{build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{overhang}/SA"
+    output: 
+        sa = REF_DIR + "/genomes/{build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{overhang}/SA"
     log: REF_DIR + "/genomes/{build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{overhang}/SA.log"
     conda: CONDA_ENVS["star"]
     threads: 12
     shell:
-        "rm -rf `dirname {output}`/_STARtmp "
-            "&& "
-        "STAR --runThreadN {threads} --runMode genomeGenerate --genomeDir `dirname {output}` "
-        "--genomeFastaFiles {input.fasta} --outTmpDir `dirname {output}`/_STARtmp "
-        "--sjdbGTFfile {input.gtf} --sjdbOverhang {wildcards.overhang} "
-        "--outFileNamePrefix `dirname {output}`/ > {log} 2>&1 "
-            "&& "
-        "chmod -R a-w `dirname {output}`"
+        op.as_one_line("""
+        rm -rf `dirname {output}`/_STARtmp
+            &&
+        STAR --runThreadN {threads} --runMode genomeGenerate --genomeDir `dirname {output.sa}`
+        --genomeFastaFiles {input.fasta} --outTmpDir `dirname {output.sa}`/_STARtmp
+        --sjdbGTFfile {input.gtf} --sjdbOverhang {wildcards.overhang}
+        --outFileNamePrefix `dirname {output}`/ > {log} 2>&1
+        """)
 
 
 ##### TARGETS #####
 
 
-rule all:
+rule targets:
     input:
-        fai = expand(
+        expand(
             [
-                REF_DIR + "/genomes/{build}/genome.fa.fai",
-                REF_DIR + "/genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa.bwt",
-                REF_DIR + "/genomes/{build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{overhang}/SA",
-            ], 
+                rules.fasta_symlink.output.fasta,
+                rules.fasta_symlink.output.fasta_index,
+                rules.main_chromosomes.output.txt,
+                rules.main_chromosomes.output.bed,
+                rules.bwa_index.output.bwt,
+                rules.star_index.output.sa,
+            ],
             build=BUILDS,
             bwa_version=TOOL_VERSIONS["bwa"],
             star_version=TOOL_VERSIONS["star"],
             gencode_release=GENCODE_RELEASES,
             overhang=[ l-1 for l in READ_LENGTHS ]
         )
+
+
+rule read_only:
+    input:
+        rules.targets.input
+    output: 
+        chmod_log = touch(REF_DIR + "/read_only")
+    params:
+        ref_dir = REF_DIR
+    shell:
+        "find {params.ref_dir} -type f -mindepth 2 -exec chmod -Rv a-w {{}} \; > {output.chmod_log} 2>&1"
+
+
+rule all:
+    input:
+        rules.targets.input,
+        rules.read_only.output
