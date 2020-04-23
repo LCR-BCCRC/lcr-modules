@@ -2,6 +2,8 @@
   "module_name": null,
   "module_author": null,
   "original_snakefile_author": null,
+  "input_file_type": null,
+  "output_file_type": null,
   "module_run_per": ["tumour", "sample"],
   "seq_type.genome": ["paired", "unpaired", "omit"],
   "seq_type.capture": ["paired", "unpaired", "omit"],
