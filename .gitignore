@@ -1,6 +1,7 @@
 # Hidden files
 .DS_Store
 .envrc
+.vscode/
 
 # Byte-compiled files
 __pycache__/
