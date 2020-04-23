@@ -61,9 +61,9 @@ rule _varscan_bam2mpu:
     conda:
         CFG["conda_envs"].get("samtools") or "envs/samtools-0.1.18.yaml"
     threads:
-        CFG["threads"].get("bam2mpu") or 1
+        CFG["threads"].get("bam2mpu") or 2
     resources: 
-        mem_mb = CFG["mem_mb"].get("bam2mpu") or 12000
+        mem_mb = CFG["mem_mb"].get("bam2mpu") or 8000
     shell:
         md.as_one_line("""
         samtools mpileup {params.opts}
@@ -124,8 +124,9 @@ rule _varscan_mpu2vcf_unpaired:
         mem_mb = CFG["mem_mb"].get("unpaired") or 5000
     shell:
         md.as_one_line("""
-        varscan mpileup2{wildcards.vcf_name}
-        {input.tumourMPU} {params.opts} {params.cns}
+        varscan mpileup2{wildcards.vcf_name} {input.tumourMPU} 
+        {params.opts}
+        {params.cns}
         > {output.vcf} 2> {log}
         """)
 
