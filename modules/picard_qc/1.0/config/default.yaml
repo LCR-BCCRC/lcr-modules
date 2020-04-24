@@ -13,6 +13,7 @@ lcr-modules:
             rnaseq_metrics:
                 base: "VALIDATION_STRINGENCY=LENIENT"
                 strand:
+                    _default: 'NONE'
                     unstranded: 'NONE'
                     forward: 'FIRST_READ_TRANSCRIPTION_STRAND'
                     reverse: 'SECOND_READ_TRANSCRIPTION_STRAND'
