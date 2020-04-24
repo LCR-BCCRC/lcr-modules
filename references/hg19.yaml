@@ -11,4 +11,4 @@ lcr-modules:
                               "chr17", "chr18", "chr20", "chrY", "chr19", "chr22", "chr21", "chrM"]
                 original_genome_fasta: "/projects/clc/references/genomes/hg19/hg19.fa"
                 genome_fasta: "{LCR_MODULES_REF_DIR}/genomes/hg19/genome.fa"
-                genome_fasta_index: "{LCR_MODULES_REF_DIR}/genomes/hg19/genome.fa"
+                genome_fasta_index: "{LCR_MODULES_REF_DIR}/genomes/hg19/genome.fa.fai"

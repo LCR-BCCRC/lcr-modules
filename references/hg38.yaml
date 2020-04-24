@@ -11,4 +11,4 @@ lcr-modules:
                               "chr18", "chr19", "chr20", "chr21", "chr22", "chrX", "chrY", "chrM"]
                 original_genome_fasta: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh38/Sequence/WholeGenomeFasta/genome.fa"
                 genome_fasta: "{LCR_MODULES_REF_DIR}/genomes/hg38/genome.fa"
-                genome_fasta_index: "{LCR_MODULES_REF_DIR}/genomes/hg38/genome.fa"
+                genome_fasta_index: "{LCR_MODULES_REF_DIR}/genomes/hg38/genome.fa.fai"

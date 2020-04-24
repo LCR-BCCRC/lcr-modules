@@ -1,0 +1,46 @@
+lcr-modules:
+    picard_qc:
+        inputs:
+            sample_bam: "results/bam_util-1.0/99-outputs/{seq_type}--{genome_build}/{sample_id}.bam"
+        dirs:
+            _parent: null
+        conda_envs: 
+            picard: null
+            samtools: null
+        options:
+            alignment_summary: "VALIDATION_STRINGENCY=LENIENT"
+            hs_metrics: " VALIDATION_STRINGENCY=LENIENT LEVEL=ALL_READS CLIP_OVERLAPPING_READS=false"
+            rnaseq_metrics:
+                base: "VALIDATION_STRINGENCY=LENIENT"
+                strand:
+                    unstranded: 'NONE'
+                    forward: 'FIRST_READ_TRANSCRIPTION_STRAND'
+                    reverse: 'SECOND_READ_TRANSCRIPTION_STRAND'
+            wgs_metrics: ""
+        
+        threads:
+            alignment_summary: null
+            hs_metrics: null
+            rnaseq_metrics: null
+            wgs_metrics: null
+            flagstats: null
+        mem_mb:
+            alignment_summary: null
+            hs_metrics: null
+            rnaseq_metrics: null
+            wgs_metrics: null
+            flagstats: null
+        
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

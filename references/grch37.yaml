@@ -10,4 +10,4 @@ lcr-modules:
                               "14", "15", "16", "17", "18", "19", "20", "21", "22", "X", "Y", "MT"]
                 original_genome_fasta: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh37-lite/Sequence/WholeGenomeFasta/genome.fa"
                 genome_fasta: "{LCR_MODULES_REF_DIR}/genomes/grch37/genome.fa"
-                genome_fasta_index: "{LCR_MODULES_REF_DIR}/genomes/grch37/genome.fa"
+                genome_fasta_index: "{LCR_MODULES_REF_DIR}/genomes/grch37/genome.fa.fai"
