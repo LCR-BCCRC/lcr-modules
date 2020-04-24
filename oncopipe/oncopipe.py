@@ -53,9 +53,20 @@ class _Session:
         timestamp_key = "LCR_MODULES_LAUNCH_TIMESTAMP"
         if timestamp_key not in os.environ:
             log_path = logger.get_logfile()
-            log_file = os.path.basename(log_path)
-            log_time = datetime.strptime(log_file, "%Y-%m-%dT%H%M%S.%f.snakemake.log")
-            log_time_fmt = log_time.strftime("launched-%Y-%m-%d-at-%H-%M-%S")
+            if log_path is None:
+                logger.warning(
+                    "Warning: The oncopipe package was imported outside of a "
+                    "snakefile. Most functions are designed to work within a "
+                    "snakefile. Some unexpected behaviour/errors might occur."
+                )
+                now = datetime.now()
+                log_time_fmt = now.strftime("launched-%Y-%m-%d-at-%H-%M-%S")
+            else:
+                log_file = os.path.basename(log_path)
+                log_time = datetime.strptime(
+                    log_file, "%Y-%m-%dT%H%M%S.%f.snakemake.log"
+                )
+                log_time_fmt = log_time.strftime("launched-%Y-%m-%d-at-%H-%M-%S")
             os.environ[timestamp_key] = log_time_fmt
         self.config = None
         self.launched_fmt = os.environ[timestamp_key]
