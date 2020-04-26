@@ -1,0 +1,40 @@
+## Lines commented out with `#!` are required for the module to run
+## Lines commented out with `#?` can optionally be user-configured
+## Lines commented out with `##` act as regular comments
+
+lcr-modules:
+    
+    star:
+
+        ## See main README.md for how to set `samples` in the Snakefile
+        #! samples: null
+
+        inputs:
+            ## Available wildcards: {seq_type} {genome_build} {sample_id}
+            #! sample_fastq: null
+
+        ## See main README.md for how to set `reference` in the Snakefile
+        #? reference:
+        #?    genome_fasta: null
+
+        ## List subdirectories that should be symlinked to the scratch directory
+        scratch_subdirectories: []
+
+        options:
+            step_1: ""
+            step_2: ""
+
+        conda_envs:
+            star: "{MODSDIR}/envs/star-9.9.yaml"
+            
+        threads:
+            step_1: 4
+
+        mem_mb:
+            step_1: 2000
+
+        pairing_config:
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
