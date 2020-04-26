@@ -234,9 +234,10 @@ def _get_manta_files(wildcards):
     vcf_filepaths = [os.path.join(variants_dir, f) for f in vcf_files]
     for vcf_name, vcf_filepath in zip(vcf_names, vcf_filepaths):
         with gzip.open(vcf_filepath, "rt") as vcf:
-            content = [l for l in vcf.readlines() if not l.startswith("#")]
-            if len(content) == 0:
-                no_bedpe.append(vcf_name)
+            for line in vcf:
+                if not line.startswith("#"):
+                    no_bedpe.append(vcf_name)
+                    break
     
     vcf_targets = expand(rules._manta_output_vcf.output.vcf,
                          vcf_name=vcf_names, **wildcards)
