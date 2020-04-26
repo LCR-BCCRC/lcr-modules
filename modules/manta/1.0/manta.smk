@@ -252,7 +252,7 @@ rule _manta_all_dispatch:
     input:
         _get_manta_files
     output:
-        touch(CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/.{tumour_id}--{normal_id}--{pair_status}.dispatched")
+        sentinel = touch(CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/.{tumour_id}--{normal_id}--{pair_status}.dispatched")
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -260,7 +260,7 @@ rule _manta_all:
     input:
         expand(
             [
-                rules._manta_all_dispatch.output, 
+                rules._manta_all_dispatch.output.sentinel, 
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
