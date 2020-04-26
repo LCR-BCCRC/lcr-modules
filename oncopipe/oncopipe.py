@@ -1029,7 +1029,7 @@ def generate_runs(
 # MODULE SETUP/CLEANUP
 
 
-def setup_module(name, version, subdirectories, scratch_subdirs=()):
+def setup_module(name, version, subdirectories):
     """Prepares and validates configuration for the given module.
 
     Parameters
@@ -1042,12 +1042,6 @@ def setup_module(name, version, subdirectories, scratch_subdirs=()):
         The subdirectories of the module output directory where the
         results will be produced. They will be numbered incrementally
         and created on disk. This should include 'inputs' and 'outputs'.
-    scratch_subdirs : list of str, optional
-        A subset of `subdirectories` that should be symlinked into the given
-        scratch directory, specified under:
-            `config["lcr_modules"]["_shared"]["scratch_directory"]`
-        This should not include 'inputs' and 'outputs', which only
-        contain symlinks.
 
     Returns
     -------
@@ -1147,6 +1141,7 @@ def setup_module(name, version, subdirectories, scratch_subdirs=()):
             mconfig["conda_envs"][env_name] = os.path.relpath(env_val, modsdir)
 
     # Setup output sub-directories
+    scratch_subdirs = mconfig.get("scratch_subdirectories", [])
     mconfig = setup_subdirs(mconfig, subdirectories, scratch_subdirs)
 
     # Setup log sub-directories
@@ -1184,7 +1179,11 @@ def setup_subdirs(module_config, subdirectories, scratch_subdirs=()):
     subdirectories : list of str
         The names (without numbering) of the output subdirectories.
     scratch_subdirs : list of str, optional
-        Subset of `subdirectories` to be symlinks to the scratch directory.
+        A subset of `subdirectories` that should be symlinked into the given
+        scratch directory, specified under:
+            `config["lcr_modules"]["_shared"]["scratch_directory"]`
+        This should not include 'inputs' and 'outputs', which only
+        contain symlinks.
 
     Returns
     -------
