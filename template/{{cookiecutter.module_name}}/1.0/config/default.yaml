@@ -1,14 +1,38 @@
+## Lines commented out with `#!` are required for the module to run
+## Lines commented out with `#?` can optionally be user-configured
+## Lines commented out with `##` act as regular comments
+
 lcr-modules:
+    
     {{cookiecutter.module_name}}:
+
+        ## See main README.md for how to set `samples` in the Snakefile
+        #! samples: null
+
         inputs:
-            sample_bam: null
+            ## Available wildcards: {seq_type} {genome_build} {sample_id}
+            #! sample_{{cookiecutter.input_file_type}}: null
+
+        ## See main README.md for how to set `reference` in the Snakefile
+        #? reference:
+        #?    genome_fasta: null
+
+        ## List subdirectories that should be symlinked to the scratch directory
+        scratch_subdirectories: []
+
         options:
-            step_1: "--call-indels"
-            step_2: "-w PASS"
+            step_1: ""
+            step_2: ""
+
+        conda_envs:
+            {{cookiecutter.module_name}}: "{MODSDIR}/envs/{{cookiecutter.module_name}}-9.9.yaml"
+            
         threads:
-            step_1: 12
+            step_1: 4
+
         mem_mb:
-            step_1: 6000
+            step_1: 2000
+
         pairing_config:
         {%- for seq_type, mode in cookiecutter.items() if seq_type.startswith("seq_type.") %}
             {%- if mode != "omit" %}
