@@ -20,8 +20,7 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "star",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "star", "outputs"],
+    subdirectories = ["inputs", "star", "sort_bam", "mark_dups", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -37,39 +36,43 @@ localrules:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
 rule _star_input_fastq:
     input:
-        fastq = CFG["inputs"]["sample_fastq"]
+        fastq_1 = CFG["inputs"]["sample_fastq_1"],
+        fastq_2 = CFG["inputs"]["sample_fastq_2"],
     output:
-        fastq = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.fastq"
+        fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R1.fastq.gz",
+        fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R2.fastq.gz",
     run:
-        op.symlink(input.fastq, output.fastq)
+        op.symlink(input.fastq_1, output.fastq_1)
+        op.symlink(input.fastq_2, output.fastq_2)
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
 # TODO: Replace example rule below with actual rule
-rule _star_step_1:
+rule _star_run:
     input:
         fastq = rules._star_input_fastq.output.fastq,
-        fasta = op.get_reference(CFG, "genome_fasta")
+        fasta = op.get_reference(CFG, "star_index")
     output:
         bam = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/output.bam"
     log:
-        stdout = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stdout.log",
-        stderr = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stderr.log"
+        stdout = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/star.stdout.log",
+        stderr = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/star.stderr.log"
     params:
-        opts = CFG["options"]["step_1"]
+        opts = CFG["options"]["star"]
     conda:
         CFG["conda_envs"]["star"]
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["star"]
     resources:
-        mem_mb = CFG["mem_mb"]["step_1"]
+        mem_mb = CFG["mem_mb"]["star"]
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --input {input.fastq} --ref-fasta {params.fasta}
-        --output {output.bam} --threads {threads} > {log.stdout} 2> {log.stderr}
+        STAR --runMode alignReads --runThreadN {threads} --genomeDir {input.STAR_index} --genomeLoad NoSharedMemory
+        --sjdbGTFfile {input.gtf} --sjdbOverhang 74 --readFilesIn {input.R1} {input.R2} --readFilesCommand zcat
+        --outFileNamePrefix {params.STAR_prefix} --outSAMtype BAM SortedByCoordinate
+        --outSAMattrIHstart 0 --chimOutType WithinBAM SoftClip --chimSegmentMin 20 --twopassMode Basic
         """)
 
 

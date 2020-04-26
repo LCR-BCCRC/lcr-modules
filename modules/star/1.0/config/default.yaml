@@ -11,7 +11,8 @@ lcr-modules:
 
         inputs:
             ## Available wildcards: {seq_type} {genome_build} {sample_id}
-            #! sample_fastq: null
+            #! sample_fastq_1: null
+            #! sample_fastq_2: null
 
         ## See main README.md for how to set `reference` in the Snakefile
         #? reference:
@@ -21,17 +22,17 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
-            step_1: ""
+            star: ""
             step_2: ""
 
         conda_envs:
-            star: "{MODSDIR}/envs/star-9.9.yaml"
+            star: "{MODSDIR}/envs/star-2.7.3a.yaml"
             
         threads:
-            step_1: 4
+            star: 12
 
         mem_mb:
-            step_1: 2000
+            star: 40000
 
         pairing_config:
             mrna:
