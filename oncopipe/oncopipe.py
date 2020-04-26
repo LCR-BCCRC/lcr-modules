@@ -17,7 +17,7 @@ from snakemake.logging import logger
 
 # CONSTANTS
 
-LOWERCASE_COLS = ("tissue_status", "seq_type", "genome_build", "ff_or_ffpe")
+LOWERCASE_COLS = ()
 
 DEFAULT_PAIRING_CONFIG = {
     "genome": {
