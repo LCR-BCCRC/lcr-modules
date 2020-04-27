@@ -1,0 +1,18 @@
+modules:
+    vcf2maf:
+        inputs:
+            vcf: "results/{caller}-1.0/99-outputs/{seq_type}/{tumour_id}--{normal_id}--{is_matched}/{var_type}.vcf"
+            vep: "/projects/clc/references/vep/GRCh37/"
+        dirs:
+            _parent: null
+        conda_envs: 
+            vcf2maf: "/projects/clc/projects/hwinata/seq_workflow/lcr-modules/modules/vcf2maf/1.0/envs/from_history/vcf2maf.yaml"
+        options:
+            vcf2maf: "--filter-vcf 0"
+
+        threads:
+            vcf2maf: null
+        memory:
+            vcf2maf: null
+
+# results/manta-1.0/01-manta/{seq_type}/{tumour_id}--{normal_id}--{is_matched}/results/variants/candidateSmallIndels.vcf.g
