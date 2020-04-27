@@ -1,4 +1,5 @@
 # Ensembl GRCh38/hg38
+<<<<<<< HEAD
 reference:
     grch38:
         chr_prefix: false
@@ -8,3 +9,17 @@ reference:
         genome_fasta_index: "/projects/clc/references/genomes/GRCh38/build90/Homo_sapiens.GRCh38.dna.primary_assembly.fa.fai"
         bwa_index: "/projects/clc/references/genomes/GRCh38/build90/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
 
+=======
+lcr-modules:
+    _shared:
+        reference:
+            grch38:
+                version: "GRCh38"
+                source: "ensembl"
+                chr_prefix: false
+                main_chroms: ["1", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "2", 
+                              "20", "21", "22", "3", "4", "5", "6", "7", "8", "9", "MT", "X", "Y"]
+                original_genome_fasta: "/projects/bgrande/genome.fa"
+                genome_fasta: "{LCR_MODULES_REF_DIR}/genomes/grch38/genome.fa"
+                genome_fasta_index: "{LCR_MODULES_REF_DIR}/genomes/grch38/genome.fa"
+>>>>>>> 346e5ba5e9a75a4317d365b4004bfa2d3e830561
