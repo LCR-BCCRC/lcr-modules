@@ -1,15 +1,4 @@
 # GSC GRCh38/hg38 (with chr prefix)
-<<<<<<< HEAD
-reference:
-    hg38:
-        chr_prefix: true
-        main_chroms: ["chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", 
-                      "chr10", "chr11", "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", 
-                      "chr18", "chr19", "chr20", "chr21", "chr22", "chrX", "chrY", "chrM"]
-        genome_fasta: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh38/Sequence/WholeGenomeFasta/genome.fa"
-        genome_fasta_index: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh38/Sequence/WholeGenomeFasta/genome.fa.fai"
-        bwa_index: "/projects/rmorin/reference/igenomes/Homo_sapiens/NCBI/GRCh38/Sequence/BWAIndex/genome.fa"       
-=======
 lcr-modules:
     _shared:
         reference:
@@ -22,5 +11,4 @@ lcr-modules:
                               "chr18", "chr19", "chr20", "chr21", "chr22", "chrX", "chrY", "chrM"]
                 original_genome_fasta: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh38/Sequence/WholeGenomeFasta/genome.fa"
                 genome_fasta: "{LCR_MODULES_REF_DIR}/genomes/hg38/genome.fa"
-                genome_fasta_index: "{LCR_MODULES_REF_DIR}/genomes/hg38/genome.fa"
->>>>>>> 346e5ba5e9a75a4317d365b4004bfa2d3e830561
+                genome_fasta_index: "{LCR_MODULES_REF_DIR}/genomes/hg38/genome.fa.fai"

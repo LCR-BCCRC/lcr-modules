@@ -1,19 +1,34 @@
 lcr-modules:
     bwa_mem:
+        suffix: ".sorted.filtered.markdup"
         inputs:
             fastq: ["results/bam2fastq-1.0/99-outputs/{seq_type}--{genome_build}/{sample_id}.1.fastq.gz", "results/bam2fastq-1.0/99-outputs/{seq_type}--{genome_build}/{sample_id}.2.fastq.gz"]
         dirs:
             _parent: null
         conda_envs: 
             bwa_mem: null
+            samtools: null
         options:
             bwa_mem: '-M -R "@RG\tID:{sample_id}\tLB:{sample_id}\tPL:ILLUMINA\tSM:{sample_id}"'
             samtools: "-bhS"
+            # BAM utilities options
+            sort: "" # "-n " for namesort
+            filter: "-bh -F 512"
+            rmdup: ""
+            markdup: ""
 
         threads:
             bwa_mem: null
+            sort: null
+            filter: null
+            rmdup: null
+            markdup: null
         mem_mb:
             bwa_mem: null
+            sort: null
+            filter: null
+            rmdup: null
+            markdup: null
         
         pairing_config:
             genome:

@@ -23,13 +23,18 @@ CFG = md.setup_module(
     config = config, 
     name = "bwa_mem", 
     version = "1.0", 
-    subdirs = ["inputs", "outputs"],
-    req_references = ["bwa_index"]
+    subdirs = ["inputs", "bam_util", "outputs"],
+    req_references = ["bwa_index"],
+    scratch_subdirs = ["bam_util"]
 )
 
 localrules: 
-    _bwa_mem_input,  
+    _bwa_mem_input,
+    _bwa_mem_output,
     _bwa_mem_all
+
+# utility rules
+include: "bam_util.smk"
 
 ##### RULES #####
 
@@ -47,16 +52,14 @@ rule _bwa_mem_run:
     input:
         fq = rules._bwa_mem_input.output.fq
     output:
-        bam = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.bam"
+        sam = pipe(CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_id}.sam")
     log:
-        bwa = CFG["logs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.bwa.stderr.log",
-        samtools = CFG["logs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.samtools.stderr.log"
+        bwa = CFG["logs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_id}.bwa.stderr.log",
     params:
         bwa   = CFG["options"]["bwa_mem"],
-        samtools  = CFG["options"]["samtools"],
-        fasta  = lambda wildcards: config["reference"][wildcards.genome_build]["bwa_index"]
+        fai  = md.get_reference(CFG, "bwa_index")
     conda:
-        CFG["conda_envs"].get("bwa_mem") or "envs/bwa_mem.yaml"
+        CFG["conda_envs"].get("bwa_mem") or "envs/bwa-0.7.17.yaml"
     threads:
         CFG["threads"].get("bwa_mem") or 2
     resources: 
@@ -64,19 +67,54 @@ rule _bwa_mem_run:
     shell:
         md.as_one_line("""
         bwa mem -t {threads} {params.bwa}
-        {params.fasta} {input.fq} 
-        2> {log.bwa} | samtools view {params.samtools}
-        - > {output.bam} 2> {log.samtools}
+        {params.fai} {input.fq} 
+        > {output.sam} 2> {log.bwa}
         """)
+
+
+rule _bwa_mem_samtools:
+    input:
+        sam = rules._bwa_mem_run.output.sam
+    output:
+        bam = CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_id}.bam"
+    log:
+        samtools = CFG["logs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_id}.samtools.stderr.log"
+    params:
+        samtools  = CFG["options"]["samtools"]
+    conda:
+        CFG["conda_envs"].get("samtools") or "envs/samtools-1.9.yaml"
+    threads:
+        CFG["threads"].get("samtools") or 1
+    resources: 
+        mem_mb = CFG["mem_mb"].get("samtools") or 5000
+    shell:
+        md.as_one_line("""
+        samtools view {params.samtools}
+        {input.sam} > {output.bam} 2> {log.samtools}
+        """)
+
+
+rule _bwa_mem_output:
+    input:
+        bam = CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["suffix"] + ".bam"
+    output:
+        bam = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.bam"
+    shell:
+        "ln {input} {output}"
 
 
 rule _bwa_mem_all:
     input:
-        fastqs = expand(rules._bwa_mem_run.output.bam, zip,
+        bai = expand(rules._bam_util_index.output.bai, zip,
+                    seq_type = list(CFG["samples"]['seq_type']),
+                    genome_build = list(CFG["samples"]['genome_build']),
+                    sample_id = list(CFG["samples"]['sample_id']))
+'''
+       fastqs = expand(rules._bwa_mem_run.output.bam, zip,
                         sample_id = list(CFG["samples"]['sample_id']), 
                         seq_type = list(CFG["samples"]['seq_type']),
                         genome_build = list(CFG["samples"]['genome_build']))
-
+'''
 ##### CLEANUP #####
 
 md.cleanup_module(CFG)
