@@ -1,0 +1,30 @@
+modules:
+    fastqc:
+        inputs:
+            sample_bam: "results/bwa_mem-1.0/99-outputs/{seq_type}/{sample_id}.bam"
+        dirs:
+            _parent: null
+        conda_envs: 
+            fastqc: null
+        options:
+            fastqc: "--no-group"
+        samples: null
+
+        threads:
+            fastqc: null
+        mem_mb:
+            fastqc: null
+
+        pairing_config:
+            genome:
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours: True
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours: True
+                run_paired_tumours_as_unpaired: False
+            mrna:
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours: False
+                run_paired_tumours_as_unpaired: True

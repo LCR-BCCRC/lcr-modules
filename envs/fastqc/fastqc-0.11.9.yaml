@@ -1,0 +1,22 @@
+name: fastqc
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1
+  - fastqc=0.11.9
+  - font-ttf-dejavu-sans-mono=2.37
+  - fontconfig=2.13.0
+  - freetype=2.9.1
+  - icu=58.2
+  - libgcc-ng=9.1.0
+  - libpng=1.6.37
+  - libstdcxx-ng=9.1.0
+  - libuuid=1.0.3
+  - libxml2=2.9.9
+  - openjdk=8.0.152
+  - perl=5.26.2
+  - xz=5.2.4
+  - zlib=1.2.11
+prefix: /projects/clc/usr/anaconda/workflow_prototype/envs/
