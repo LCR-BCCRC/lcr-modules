@@ -15,11 +15,12 @@
 #   paired: run varscan on paired tumour-normal or tumour-unmatched normal data
 #  -----------------------------------------------------------------------------
 
+##### SETUP #####
+
 import os
 import gzip
 import modutils as md
 
-##### SETUP #####
 
 CFG = md.setup_module(
     config = config, 
