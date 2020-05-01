@@ -16,6 +16,9 @@ configfile: "config.yaml"
 # Load samples using convenience function
 SAMPLES = op.load_samples("data/metadata/samples.tsv")
 
+# Set the genome build for all samples to 'hg38'
+SAMPLES["genome_build"] = "hg38"
+
 # Use all samples as a default sample list for each module
 config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 
