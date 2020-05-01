@@ -19,6 +19,9 @@ SAMPLES = op.load_samples("data/metadata/samples.tsv")
 # Set the genome build for all samples to 'hg38'
 SAMPLES["genome_build"] = "hg38"
 
+# Optional: Create subsets of samples (e.g., to restrict module)
+# GENOMES = md.filter_samples(SAMPLES, seq_type="genome")
+
 # Use all samples as a default sample list for each module
 config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 
