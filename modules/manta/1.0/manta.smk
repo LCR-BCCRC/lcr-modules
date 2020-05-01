@@ -108,12 +108,11 @@ checkpoint _manta_run:
     input:
         runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     output:
-        vcf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/candidateSV.vcf.gz"
+        variants_dir = directory(CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/"),
     log:
         stdout = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stdout.log",
         stderr = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stderr.log"
     params:
-        variants_dir = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/",
         opts = CFG["options"]["manta"]
     conda:
         CFG["conda_envs"]["manta"]
@@ -133,7 +132,7 @@ checkpoint _manta_run:
 # manta uses the sample name from the BAM read groups, which may not be useful.
 rule _manta_fix_vcf_ids:
     input:
-        vcf = rules._manta_run.params.variants_dir + "{vcf_name}.vcf.gz"
+        variants_dir = rules._manta_run.output.variants_dir
     output:
         vcf = pipe(CFG["dirs"]["calc_vaf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.with_ids.vcf")
     log:
@@ -144,7 +143,7 @@ rule _manta_fix_vcf_ids:
         mem_mb = CFG["mem_mb"]["fix_vcf_ids"]
     shell:
         op.as_one_line("""
-        gzip -dc {input.vcf}
+        gzip -dc {input.variants_dir}/{wildcards.vcf_name}.vcf.gz"
             |
         awk 'BEGIN {{FS=OFS="\\t"}}
         $1 == "#CHROM" && $10 != "" && $11 != "" {{$10="{wildcards.normal_id}"}}
@@ -223,28 +222,34 @@ def _get_manta_files(wildcards):
     generates target symlinks for the raw VCF files and the
     processed BEDPE files based on what was actually produced.
     """
-    no_bedpe = ["candidateSV"]
-    manta_vcf = checkpoints._manta_run.get(**wildcards).output.vcf
-    variants_dir = os.path.dirname(manta_vcf)
-    all_files = os.listdir(variants_dir)
-    vcf_files = [f for f in all_files if f.endswith(".vcf.gz")]
-    vcf_names = [f.replace(".vcf.gz", "") for f in vcf_files]
     
-    # Remove any empty VCF files from bedpe_targets
-    vcf_filepaths = [os.path.join(variants_dir, f) for f in vcf_files]
-    for vcf_name, vcf_filepath in zip(vcf_names, vcf_filepaths):
-        with gzip.open(vcf_filepath, "rt") as vcf:
-            for line in vcf:
-                if not line.startswith("#"):
-                    no_bedpe.append(vcf_name)
-                    break
+    # Get module config (since `CFG` is temporary)
+    module_config = config["lcr-modules"]["manta"]
     
-    vcf_targets = expand(rules._manta_output_vcf.output.vcf,
-                         vcf_name=vcf_names, **wildcards)
-    bedpe_targets = expand(rules._manta_output_bedpe.output.bedpe,
-                           vcf_name=(set(vcf_names) - set(no_bedpe)), 
-                           **wildcards)
-    return vcf_targets + bedpe_targets
+    # Standard VCF outputs
+    vcf_names = ["candidateSV", "candidateSmallIndels"]
+    
+    # Create switch to emulate what is done in `_manta_configure`
+    configure_switch = op.switch_on_wildcard("seq_type", module_config["options"]["configure"])
+    # And use the switch right away to get the command-line parameters used
+    configure_params = configure_switch(wildcards)
+    # Check if run with '--rna'
+    if "--rna" in configure_params:
+        vcf_names.append("rnaSV")
+    
+    # Check it run in `no_normal` mode
+    if wildcards.pair_status == "no_normal":
+        vcf_names.append("tumorSV")
+    else:
+        vcf_names.append("diploidSV")
+    
+    # Check the output files for both VCF and BEDPE
+    output_files = [
+        rules._manta_output_vcf.output.vcf, 
+        rules._manta_output_bedpe.output.bedpe
+    ]
+    
+    return expand(output_files, vcf_name=vcf_names, **wildcards)
 
 
 # Generates the target symlinks for each run depending on the Manta output VCF files
@@ -252,7 +257,7 @@ rule _manta_all_dispatch:
     input:
         _get_manta_files
     output:
-        sentinel = touch(CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/.{tumour_id}--{normal_id}--{pair_status}.dispatched")
+        dispatched = touch(CFG["dirs"]["outputs"] + "dispatched/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.dispatched")
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -260,7 +265,7 @@ rule _manta_all:
     input:
         expand(
             [
-                rules._manta_all_dispatch.output.sentinel, 
+                rules._manta_all_dispatch.output.dispatched, 
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
