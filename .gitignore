@@ -13,5 +13,5 @@ __pycache__/
 .snakemake/
 /demo/results/
 
-# VisualStudio Code files
-.vscode/settings.json
+# Ignore example snakefiles
+/examples
