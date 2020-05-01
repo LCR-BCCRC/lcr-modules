@@ -1091,7 +1091,9 @@ def setup_module(name, version, subdirectories):
             mconfig[subfield] = dict()
 
     # Check reference
-    check_reference(mconfig)
+    assert (
+        "genome_build" in msamples
+    ), "Add a `genome_build` column to your samples data frame."
 
     # Update placeholders in any string in the module-specific config
     def update_placeholders(obj, **placeholders):

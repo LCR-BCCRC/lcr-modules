@@ -13,9 +13,6 @@ configfile: "config.yaml"
 # Optional: Enable convenient `set_*` functions (after loading config)
 # op.enable_set_functions(config)
 
-# Load reference-specific config
-configfile: "../references/hg38.yaml"
-
 # Load samples using convenience function
 SAMPLES = op.load_samples("data/metadata/samples.tsv")
 
@@ -25,6 +22,18 @@ config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 # Optional: Alternatively, you use the `set_samples()` set function
 # This function only works if you've run `op.enable_set_functions(config)`
 # op.set_samples("_shared", SAMPLES)
+
+
+##### REFERENCE_FILES SUBWORKFLOW #####
+
+
+subworkflow reference_files:
+    workdir:
+        "/projects/bgrande/reference_files/"
+    snakefile:
+        "../workflows/reference_files/1.0/reference_files.smk"
+    configfile:
+        "../workflows/reference_files/1.0/config/default.yaml"
 
 
 ##### MANTA MODULE #####
