@@ -90,7 +90,7 @@ rule _manta_configure:
         stdout = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stdout.log",
         stderr = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stderr.log"
     params:
-        opts = op.switch_on_column("seq_type", CFG["samples"], CFG["options"]["configure"]),
+        opts = op.switch_on_wildcard("seq_type", CFG["options"]["configure"]),
         normal_bam_arg = op.switch_on_wildcard("pair_status", CFG["switches"]["normal_bam_arg"]),
         tumour_bam_arg = op.switch_on_wildcard("seq_type", CFG["switches"]["tumour_bam_arg"])
     conda:
