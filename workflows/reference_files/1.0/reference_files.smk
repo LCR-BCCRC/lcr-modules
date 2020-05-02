@@ -64,7 +64,7 @@ TOOL_VERSIONS = { pkg: pkg_info["version"] for pkg, pkg_info in config["tools"].
 
 wildcard_constraints:
     build = "|".join(config["genome_builds"].keys()),
-    version = "grch37|grch38",
+    version = "|".join(VERSION_UPPER.keys()),
     bwa_version = TOOL_VERSIONS["bwa"],
     star_version = TOOL_VERSIONS["star"],
     gencode_release = "|".join(config["wildcard_values"]["gencode_release"]),
