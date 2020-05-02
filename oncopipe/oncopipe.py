@@ -1109,18 +1109,11 @@ def setup_module(name, version, subdirectories):
     repodir = os.path.normpath(mconfig["repository"])
     modsdir = os.path.join(repodir, "modules", name, version)
     scriptsdir = os.path.normpath(mconfig["lcr-scripts"])
-    env_refdir = os.environ.get("LCR_MODULES_REF_DIR")
-    refdir = os.path.normpath(mconfig.get("reference_dir", env_refdir))
-    assert refdir, (
-        "`LCR_MODULES_REF_DIR` is not set. Please set it as an environment "
-        "variable or under the `_shared` configuration as `reference_dir`."
-    )
 
     placeholders = {
         "REPODIR": repodir,
         "MODSDIR": modsdir,
         "SCRIPTSDIR": scriptsdir,
-        "LCR_MODULES_REF_DIR": refdir,
     }
     mconfig = walk_through_dict(mconfig, update_placeholders, **placeholders)
 
