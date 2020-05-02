@@ -346,7 +346,7 @@ rule index_genome_fasta:
 rule get_main_chromosomes_download:
     input: 
         txt = get_download_file(rules.download_main_chromosomes.output.txt),
-        fai = rules.fasta_index.output.fai
+        fai = rules.index_genome_fasta.output.fai
     output: 
         txt = "genomes/{build}/genome_fasta/main_chromosomes.txt",
         bed = "genomes/{build}/genome_fasta/main_chromosomes.bed",
@@ -369,8 +369,8 @@ rule get_main_chromosomes_download:
 
 rule create_bwa_index:
     input: 
-        fasta = "genomes/{build}/genome_fasta/genome.fa",
-        fasta_index = "genomes/{build}/genome_fasta/genome.fa.fai"
+        fasta = rules.get_genome_fasta_download.output.fasta,
+        fasta_index = rules.index_genome_fasta.output.fai
     output: 
         fasta = "genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa",
         fasta_index = "genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa.fai"
@@ -400,7 +400,7 @@ rule get_gencode_download:
 
 rule create_star_index:
     input:
-        fasta = "genomes/{build}/genome.fa",
+        fasta = rules.get_genome_fasta_download.output.fasta,
         gtf = get_download_file(rules.download_gencode_annotation.output.gtf)
     output: 
         index = directory("genomes/{build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{star_overhang}")
