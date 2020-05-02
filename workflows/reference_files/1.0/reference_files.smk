@@ -324,7 +324,7 @@ rule get_genome_fasta_download:
         """)
 
 
-rule fasta_index:
+rule index_genome_fasta:
     input: 
         fasta = rules.get_genome_fasta_download.output.fasta
     output: 
@@ -343,7 +343,7 @@ rule fasta_index:
         """)
 
 
-rule main_chromosomes:
+rule get_main_chromosomes_download:
     input: 
         txt = get_download_file(rules.download_main_chromosomes.output.txt),
         fai = rules.fasta_index.output.fai
@@ -367,7 +367,7 @@ rule main_chromosomes:
         """)
 
 
-rule bwa_index:
+rule create_bwa_index:
     input: 
         fasta = "genomes/{build}/genome_fasta/genome.fa",
         fasta_index = "genomes/{build}/genome_fasta/genome.fa.fai"
@@ -398,7 +398,7 @@ rule get_gencode_download:
         "ln -f {input.gtf} {output.gtf}"
 
 
-rule star_index:
+rule create_star_index:
     input:
         fasta = "genomes/{build}/genome.fa",
         gtf = get_download_file(rules.download_gencode_annotation.output.gtf)
