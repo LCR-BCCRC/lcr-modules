@@ -300,7 +300,7 @@ rule update_contig_names:
             cvbio UpdateContigNames --in {input.before} --out {output.after}
             --mapping {params.mapping} --comment-chars '{params.comment}'
             --columns {params.columns} --skip-missing {params.skip}
-            --delimiter '{params.delimiter}' > {log} 2>&1;
+            --delimiter '{params.delimiter}' > {log} 2>&1
                 &&
             chmod a-w {output.after}; 
         fi
