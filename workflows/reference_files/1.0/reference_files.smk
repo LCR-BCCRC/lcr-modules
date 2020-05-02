@@ -385,7 +385,7 @@ rule create_bwa_index:
             &&
         bwa index {output.fasta} > {log} 2>&1
             &&
-        find `dirname {output.fasta}` -type f -exec chmod a-w {} \;
+        find `dirname {output.fasta}` -type f -exec chmod a-w {{}} \;
         """)
 
 
@@ -415,5 +415,5 @@ rule create_star_index:
         --sjdbGTFfile {input.gtf} --outTmpDir {output.index}/_STARtmp > {log} 2>&1
         --outFileNamePrefix {output.index}
             &&
-        find {output.index} -type f -exec chmod a-w {} \;
+        find {output.index} -type f -exec chmod a-w {{}} \;
         """)
