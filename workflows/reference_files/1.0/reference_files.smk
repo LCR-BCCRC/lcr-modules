@@ -385,7 +385,7 @@ rule create_bwa_index:
             &&
         bwa index {output.fasta} > {log} 2>&1
             &&
-        chmod -R a-w `dirname {output.fasta}`
+        find `dirname {output.fasta}` -type f -exec chmod a-w {} \;
         """)
 
 
@@ -413,6 +413,7 @@ rule create_star_index:
         STAR --runThreadN {threads} --runMode genomeGenerate --genomeDir {output.index}
         --genomeFastaFiles {input.fasta} --sjdbOverhang {wildcards.star_overhang}
         --sjdbGTFfile {input.gtf} --outTmpDir {output.index}/_STARtmp > {log} 2>&1
+        --outFileNamePrefix {output.index}
             &&
-        chmod -R a-w {output.index}
+        find {output.index} -type f -exec chmod a-w {} \;
         """)
