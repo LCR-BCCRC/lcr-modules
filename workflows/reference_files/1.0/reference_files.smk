@@ -413,7 +413,7 @@ rule create_star_index:
         STAR --runThreadN {threads} --runMode genomeGenerate --genomeDir {output.index}
         --genomeFastaFiles {input.fasta} --sjdbOverhang {wildcards.star_overhang}
         --sjdbGTFfile {input.gtf} --outTmpDir {output.index}/_STARtmp > {log} 2>&1
-        --outFileNamePrefix {output.index}
+        --outFileNamePrefix {output.index}/
             &&
         find {output.index} -type f -exec chmod a-w {{}} \;
         """)
