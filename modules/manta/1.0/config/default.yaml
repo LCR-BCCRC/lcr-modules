@@ -15,8 +15,8 @@ lcr-modules:
             manta: "--mode local"
 
         conda_envs:
-            tabix: "{MODSDIR}/envs/tabix-0.2.6.yaml"
-            manta: "{MODSDIR}/envs/manta-1.6.0.yaml"
+            tabix: null
+            manta: null
             calc_manta_vaf: "{SCRIPTSDIR}/calc_manta_vaf/1.0/pyvcf-0.6.8.yaml"
             svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
 
