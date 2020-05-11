@@ -1,0 +1,32 @@
+lcr-modules:
+    mutect:
+        inputs:
+            sample_bam: null
+        options:
+            validate: "--MODE=SUMMARY"
+            mutect:
+                _default: '--germline-resource {dir}{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/af-only-gnomad.vcf.gz --panel-of-normals {dir}{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pon.vcf.gz'
+                no_normal: ""
+            filter: "" #     --contamination-table --tumor-segmentation
+        threads:
+            validate: null
+            mutect: null
+            filter: null
+        mem_mb:
+            validate: null
+            mutect: null
+            filter: null
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            mrna:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: False

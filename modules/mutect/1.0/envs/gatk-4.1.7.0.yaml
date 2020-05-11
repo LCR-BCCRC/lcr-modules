@@ -1,0 +1,8 @@
+name: gatk4
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - gatk4=4.1.7.0
+prefix: /projects/clc/usr/anaconda/workflow_prototype/envs/
