@@ -8,12 +8,15 @@ localrules: _vcf2maf_input, _vcf2maf_output, _vcf2maf_all
 
 rule _vcf2maf_run:
     input:
-        vcf = CFG["dirs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
+        vcf = CFG["dirs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
     output:
-        maf = CFG["dirs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
+        maf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
+        #maf = CFG["dirs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
     log:
-        stdout = CFG["logs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf2maf.stdout.log",
-        stderr = CFG["logs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf2maf.stderr.log"
+        stdout = CFG["logs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf2maf.stdout.log",
+        stderr = CFG["logs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf2maf.stderr.log"
+        #stdout = CFG["logs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf2maf.stdout.log",
+        #stderr = CFG["logs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf2maf.stderr.log"
     params:
         opts = "--filter-vcf 0", #CFG["options"]["vcf2maf"],
         fasta  = md.get_reference(CFG, "genome_fasta"),
@@ -21,7 +24,7 @@ rule _vcf2maf_run:
     conda:
         CFG["conda_envs"].get("vcf2maf") or "envs/vcf2maf-1.6.17.yaml"
     threads:
-        CFG["threads"].get("vcf2maf") or 1
+        CFG["threads"].get("vcf2maf") or 2
     resources: 
         mem_mb = CFG["mem_mb"].get("vcf2maf") or 4000
     shell:

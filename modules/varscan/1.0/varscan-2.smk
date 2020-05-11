@@ -25,7 +25,7 @@ CFG = md.setup_module(
     config = config, 
     name = "varscan", 
     version = "1.0",
-    subdirs = ["inputs", "mpileup", "vcf_maf", "outputs"],
+    subdirs = ["inputs", "mpileup", "vcf", "maf", "outputs"],
     req_references = ["genome_fasta", "vep_dir"],
     scratch_subdirs = ["mpileup"]
 )
@@ -78,15 +78,13 @@ rule _varscan_mpu2vcf_somatic:
         normalMPU = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.mpileup",
         tumourMPU = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.mpileup"
     output:
-        snp = CFG["dirs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/snp.vcf",
-        indel = CFG["dirs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/indel.vcf",
-        # dummy cns output to avoid error
-        cns = temp(CFG["dirs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/cns.vcf")
+        snp = CFG["dirs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/snp.vcf",
+        indel = CFG["dirs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/indel.vcf"
     wildcard_constraints:
         pair_status = "matched|unmatched"
     log:
-        stdout = CFG["logs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/varscan_somatic.stdout.log",
-        stderr = CFG["logs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/varscan_somatic.stderr.log"
+        stdout = CFG["logs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/varscan_somatic.stdout.log",
+        stderr = CFG["logs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/varscan_somatic.stderr.log"
     params:
         opts = md.switch_on_wildcard("seq_type", CFG["options"]["somatic"])
     conda:
@@ -109,12 +107,12 @@ rule _varscan_mpu2vcf_unpaired:
     input:
         tumourMPU = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.mpileup"
     output:
-        vcf = CFG["dirs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
+        vcf = CFG["dirs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
     wildcard_constraints:
         normal_id = "None",
         pair_status = "no_normal"
     log:
-        CFG["logs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/varscan_{vcf_name}.stderr.log"
+        CFG["logs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/varscan_{vcf_name}.stderr.log"
     params:
         opts = md.switch_on_wildcard("seq_type", CFG["options"]["unpaired"]),
         cns = md.switch_on_wildcard("vcf_name", {"cns": CFG["options"]["unpaired"]["cns"], "indel": "", "snp": ""})
@@ -135,8 +133,8 @@ rule _varscan_mpu2vcf_unpaired:
 
 rule _varscan_output:
     input: 
-        vcf = CFG["dirs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf",
-        maf = CFG["dirs"]["vcf_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
+        vcf = CFG["dirs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf",
+        maf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
     output:
         vcf = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf",
         maf = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.maf"
@@ -144,19 +142,33 @@ rule _varscan_output:
         md.symlink(input.vcf, output.vcf) 
         md.symlink(input.maf, output.maf) 
 
+single_vcfs = CFG["outputs"]["unpaired_vcfs"]
+def _get_varscan_files(wildcards):
+    if wildcards.pair_status == "no_normal":
+        vcf_names = single_vcfs
+    else:
+        vcf_names = ["snp", "indel"]
+    vcf_targets = expand(rules._varscan_output.output.vcf, vcf_name = vcf_names, **wildcards)
+    return vcf_targets
 
-'''
+
 rule _varscan_all_dispatch:
     input:
-        md.switch_on_wildcard("pair_status", {"matched": [CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/snp.vcf", "indel": CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/indel.vcf"],"unmatched": expand("{dir}/{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/{vcf_name}.vcf", dir = CFG["dirs"]["outputs"], vcf_name = CFG["inputs"]["unpaired_run"])})
-   
+        _get_varscan_files
     output:
-        touch(CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.dispatched"
-'''
+        touch(CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.dispatched")
 
 
 rule _varscan_all:
     input:
+        expand(rules._varscan_all_dispatch.output, zip,
+            seq_type = CFG["runs"]["tumour_seq_type"],
+            genome_build = CFG["runs"]["tumour_genome_build"],
+            tumour_id = CFG["runs"]["tumour_sample_id"],
+            normal_id = CFG["runs"]["normal_sample_id"],
+            pair_status = CFG["runs"]["pair_status"])
+
+'''
         expand(expand("{{dir}}{seq_type}--{genome_build}/{{vcf_name}}/{tumour_id}--{normal_id}--{pair_status}.{{vcf_name}}.vcf", zip,
                     seq_type=CFG["runs"]["tumour_seq_type"],
                     genome_build=CFG["runs"]["tumour_genome_build"],
@@ -165,7 +177,7 @@ rule _varscan_all:
                     pair_status=CFG["runs"]["pair_status"]),
                 vcf_name=["indel", "snp", "cns"],
                 dir = CFG["dirs"]["outputs"])
-
+'''
 
 ##### CLEANUP #####
 
