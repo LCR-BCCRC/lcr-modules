@@ -72,7 +72,7 @@ As a companion to these instructions, you can check out the [demo Snakefile](dem
    ```python
    import oncopipe as op
    configfile: "lcr-modules/references/<build>.yaml"
-   SAMPLES = md.load_samples("<path/to/samples.tsv>")
+   SAMPLES = op.load_samples("<path/to/samples.tsv>")
    config["lcr-modules"]["_shared"]["samples"] = SAMPLES
    ```
 
@@ -97,33 +97,15 @@ As a companion to these instructions, you can check out the [demo Snakefile](dem
 
 If you feel comfortable with the above steps, consider reading through the suggestions laid out in [Advanced Usage](#advanced-usage).
 
-## Available Modules
-
-### Module levels
+## Module levels
 
 The modules are organized into levels. Briefly, level-1 modules process the raw sequencing data, generally producing FASTQ or BAM files that serve as input for the next level. In turn, level-2 modules perform sample-level analyses, such as variant calling and gene expression quantification. Level-3 modules aggregate the sample-specific output and generally perform cohort-wide analyses, such as the identification of sifgnificantly mutated genes. Finally, the fourth level corresponds to the analyses that are project-specific and are meant to ask specific questions of the data. These are the analyses you ideally want to spend your time on. See the figure below for examples.
 
 ![Module Levels](images/module_levels.png)
 
-### Level-1 modules
-
-- None
-
-### Level-2 modules
-
-- Manta
-
-### Level-3 modules
-
-- None
-
-### Level-4 modules
-
-- Sadly, we can't automate your PhD.
-
 ## Samples Table
 
-This section is a human-friendly summary of what is described in the base schema (see `lcr-modules/schemas/base.yaml`). In case of any discrepancies, the schema file takes precedence. The samples table can be stored on disk using any column delimiter, but `oncopipe` expects tab-delimited files by default.
+This section is a human-friendly summary of what is described in the base schema (see `lcr-modules/schemas/base-1.0.yaml`). In case of any discrepancies, the schema file takes precedence. The samples table can be stored on disk using any column delimiter, but `oncopipe` expects tab-delimited files by default.
 
 ### Entity–relationship model
 
@@ -144,7 +126,7 @@ Before describing the required columns, it is useful to consider the entities re
 If you already have a file with this information but using different column names, you can use the `load_samples()` function in `oncopipe` to rename your columns. For example, if you use `sample` and `patient` as the column headers for your sample and patient IDs, you can rename them as follows:
 
 ```python
-md.load_samples("samples.tsv", sample_id="sample", patient_id="patient")
+op.load_samples("samples.tsv", sample_id="sample", patient_id="patient")
 ```
 
 Alternatively, you can rename the column using a function with the `renamer` argument. For instance, if you use two-letter prefixes to indicate which entity a column describes (_e.g._ `pt.` for patient-related columns, `lb.` for library-related columns, etc.), you can remove the prefix from all columns using a regular expression with the following code:
@@ -185,9 +167,9 @@ lcr-modules:
 
 ## Pairing Configuration
 
-Each module has a pairing configuration (_i.e._ `pairing_config`). This configuration dictates what the module can handle in terms of paired and/or unpaired analyses for each sequencing data type (_i.e._ `seq_type`). This information is used by the `md.generate_runs_for_patient()` function in `oncopipe`.
+Each module has a pairing configuration (_i.e._ `pairing_config`). This configuration dictates what the module can handle in terms of paired and/or unpaired analyses for each sequencing data type (_i.e._ `seq_type`). This information is used by the `op.generate_runs_for_patient()` function in `oncopipe`.
 
-Specifically, the following parameters are required for each `seq_type`. The descriptions were taken from `help(md.generate_runs_for_patient)`. An example pairing configuration can be found below.
+Specifically, the following parameters are required for each `seq_type`. The descriptions were taken from `help(op.generate_runs_for_patient)`. An example pairing configuration can be found below.
 
 - **`run_paired_tumours`:** `True` or `False`, specifying whether to run paired tumours. Setting this to `False` is useful for naturally unpaired or tumour-only analyses (_e.g._ for RNA-seq).
 - **`run_unpaired_tumours_with`:** `None`, `'unmatched_normal'`, or `'no_normal'`, specifying what to pair with unpaired tumours. This cannot be set to `None` if `run_paired_tumours_as_unpaired` is `True`. Provide value for `unmatched_normal_id` (see below) if this is set to `'unmatched_normal'`.
@@ -315,27 +297,27 @@ config["lcr-modules"]["manta"]["inputs"]["sample_bam"] = SAMPLE_BAM
 Alternatively, you can use the so-called convenience "set functions" to simplify the code somewhat. In order to use them, you must first enable them. Behind the scenes, the Snakemake `config` object is stored internally for easy access.
 
 ```python
-md.enable_set_functions(config)
+op.enable_set_functions(config)
 ```
 
-The first set function you can use is `md.set_samples()`, which sets the samples you want to use at the shared or module level. This function automatically concatenates the data frames that are provided.
+The first set function you can use is `op.set_samples()`, which sets the samples you want to use at the shared or module level. This function automatically concatenates the data frames that are provided.
 
 ```python
-md.set_samples("_shared", SAMPLES)
-md.set_samples("_shared", GENOMES, CAPTURES)
+op.set_samples("_shared", SAMPLES)
+op.set_samples("_shared", GENOMES, CAPTURES)
 ```
 
-The second function you can use is `md.set_input()`, which set the given input for a module.
+The second function you can use is `op.set_input()`, which set the given input for a module.
 
 ```python
-md.set_input("manta", "sample_bam", SAMPLE_BAM)
+op.set_input("manta", "sample_bam", SAMPLE_BAM)
 ```
 
 While also possible with the more verbose approach,
 
 ### Parameterization
 
-Sometimes, a parameter or input file depends on some sample attribute. This sample attribute can be stored in the file as a wildcard or in the samples tables as a column. Two functions are available to parameterize virtually anything, namely `md.switch_on_wildcard()` and `md.switch_on_column()`. These functions are useful for both module users and module developers. Read their documentation for more details, _e.g._ `help(md.switch_on_wildcard)`.
+Sometimes, a parameter or input file depends on some sample attribute. This sample attribute can be stored in the file as a wildcard or in the samples tables as a column. Two functions are available to parameterize virtually anything, namely `op.switch_on_wildcard()` and `op.switch_on_column()`. These functions are useful for both module users and module developers. Read their documentation for more details, _e.g._ `help(op.switch_on_wildcard)`.
 
 In the example below, I want to override the default Manta configuration and provide the high-sensitivity version for `mrna` and `capture` tumour samples. This piece of code would be added after loading the module configuration but before including the module Snakefile.
 
@@ -345,8 +327,8 @@ MANTA_CONFIG_OPTIONS = {
     "mrna": "{MODSDIR}/etc/manta_config.high_sensitivity.ini",
     "capture": "{MODSDIR}/etc/manta_config.high_sensitivity.ini",
 }
-MANTA_CONFIG_SWITCH = md.switch_on_wildcard("seq_type", MANTA_CONFIG_OPTIONS)
-md.set_input("manta", "manta_config", MANTA_CONFIG_SWITCH)
+MANTA_CONFIG_SWITCH = op.switch_on_wildcard("seq_type", MANTA_CONFIG_OPTIONS)
+op.set_input("manta", "manta_config", MANTA_CONFIG_SWITCH)
 ```
 
 ## Frequently Asked Questions
