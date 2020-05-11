@@ -10,29 +10,54 @@ lcr-modules:
         #! samples: null
 
         inputs:
+            ## The inputs can be configured here or in the Snakefile
             ## Available wildcards: {seq_type} {genome_build} {sample_id}
             #! sample_fastq_1: null
             #! sample_fastq_2: null
 
-        ## See main README.md for how to set `reference` in the Snakefile
-        #? reference:
-        #?    genome_fasta: null
+        reference:
+            ## The overhang should ideally be equal to read_length - 1
+            ## For example, 75-bp reads should use an overhang of 74
+            ## Uncomment *one* of the lines below or specify your own overhang
+            #! star_index: "genomes/{build}/star_index/star-2.7.3a/gencode-33/overhang-74"
+            #! star_index: "genomes/{build}/star_index/star-2.7.3a/gencode-33/overhang-99"
 
         ## List subdirectories that should be symlinked to the scratch directory
-        scratch_subdirectories: []
+        scratch_subdirectories: ["star", "sort_bam"]
 
         options:
-            star: ""
-            step_2: ""
+            ## The value for `--sjdbOverhang` should match the value used in
+            ## in the STAR index above (e.g., 74 or 99)
+            #! star: >
+            #!     --runMode alignReads
+            #!     --twopassMode Basic 
+            #!     --genomeLoad NoSharedMemory 
+            #!     --readFilesCommand zcat 
+            #!     --outSAMtype BAM Unsorted
+            #!     --outSAMattrIHstart 0
+            #!     --chimOutType WithinBAM SoftClip
+            #!     --chimSegmentMin 20
+            #!     --sjdbOverhang <must_match_star_index>
+            utils_bam_sort: ""
+            utils_bam_markdups: ""
+            utils_bam_index: "-b"
 
         conda_envs:
             star: "{MODSDIR}/envs/star-2.7.3a.yaml"
+            samtools: "{REPODIR}/modules/utils/1.0/envs/samtools-1.9.yaml"
+            sambamba: "{REPODIR}/modules/utils/1.0/envs/sambamba-0.7.1.yaml"
             
         threads:
             star: 12
+            utils_bam_sort: 12
+            utils_bam_markdups: 12
+            utils_bam_index: 6
 
         mem_mb:
             star: 40000
+            utils_bam_sort: 12000
+            utils_bam_markdups: 8000
+            utils_bam_index: 4000
 
         pairing_config:
             mrna:

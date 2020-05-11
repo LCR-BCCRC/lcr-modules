@@ -4,13 +4,16 @@
 ##### ATTRIBUTION #####
 
 
-# Original Snakefile Author:    Nicole Thomas
-# Module Author:                Bruno Grande
-# Additional Contributors:      N/A
+# Original Author:  Nicole Thomas
+# Module Author:    Bruno Grande
+# Contributors:     N/A
 
 
 ##### SETUP #####
 
+
+# Import standard modules
+import os
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
@@ -23,11 +26,14 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "star", "sort_bam", "mark_dups", "outputs"],
 )
 
+# Include `utils` module
+include: "../../utils/1.0/utils.smk"
+
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _star_input_fastq,
-    _star_step_2,
+    _star_symlink_star_bam,
+    _star_symlink_sorted_bam,
     _star_output_bam,
     _star_all,
 
@@ -44,18 +50,19 @@ rule _star_input_fastq:
         fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R1.fastq.gz",
         fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R2.fastq.gz",
     run:
-        op.symlink(input.fastq_1, output.fastq_1)
-        op.symlink(input.fastq_2, output.fastq_2)
+        op.relative_symlink(input.fastq_1, output.fastq_1)
+        op.relative_symlink(input.fastq_2, output.fastq_2)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
+# Align reads using STAR (including soft-clipped chimeric reads)
 rule _star_run:
     input:
-        fastq = rules._star_input_fastq.output.fastq,
-        fasta = op.get_reference(CFG, "star_index")
+        fastq_1 = rules._star_input_fastq.output.fastq_1,
+        fastq_2 = rules._star_input_fastq.output.fastq_2,
+        index = reference_files(CFG["reference"]["star_index"])
     output:
-        bam = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/output.bam"
+        bam = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/Aligned.sortedByCoord.out.bam",
+        prefix = directory(CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/")
     log:
         stdout = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/star.stdout.log",
         stderr = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/star.stderr.log"
@@ -69,37 +76,67 @@ rule _star_run:
         mem_mb = CFG["mem_mb"]["star"]
     shell:
         op.as_one_line("""
-        STAR --runMode alignReads --runThreadN {threads} --genomeDir {input.STAR_index} --genomeLoad NoSharedMemory
-        --sjdbGTFfile {input.gtf} --sjdbOverhang 74 --readFilesIn {input.R1} {input.R2} --readFilesCommand zcat
-        --outFileNamePrefix {params.STAR_prefix} --outSAMtype BAM SortedByCoordinate
-        --outSAMattrIHstart 0 --chimOutType WithinBAM SoftClip --chimSegmentMin 20 --twopassMode Basic
+        STAR {params.opts} --readFilesIn {input.fastq_1} {input.fastq_2}
+        --genomeDir {input.index} --outFileNamePrefix {output.prefix}
+        --runThreadN {threads} --sjdbGTFfile {input.gtf}
         """)
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _star_step_2:
+# Create symlink in subdirectory where BAM files will be sorted by the `utils` module
+rule _star_symlink_star_bam:
     input:
-        bam = rules._star_step_1.output.bam
+        bam = rules._star_run.output.bam
     output:
-        bam = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/output.filt.bam"
-    log:
-        stderr = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.bam} > {output.bam} 2> {log.stderr}"
+        bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.bam"
+    run:
+        op.relative_symlink(input.bam, output.bam)
+
+
+# Create symlink in subdirectory where duplicates will be marked by the `utils` module
+# This rule will trigger the `utils` rule for sorting the BAM file
+rule _star_symlink_sorted_bam:
+    input:
+        bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam"
+    output:
+        bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam"
+    run:
+        op.relative_symlink(input.bam, output.bam)
+
+
+# By this point, the sorted BAM file exists, so this rule deletes the original BAM file
+rule _star_delete_star_bam:
+    input:
+        old_bam = rules._star_run.output.bam,
+        new_bam = rules._star_symlink_sorted_bam.input.bam
+    output:
+        bam = touch(rules._star_run.output.bam + ".deleted")
+    run:
+        os.remove(input.old_bam)
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
+# This rule will trigger the `utils` rules for marking duplicates and indexing the BAM file
 rule _star_output_bam:
     input:
-        bam = rules._star_step_2.output.bam
+        bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.mdups.bam",
+        bai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.mdups.bam.bai"
     output:
-        bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.output.filt.bam"
+        bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        bai = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
-        op.symlink(input.bam, output.bam)
+        op.relative_symlink(input.bam, output.bam)
+        op.relative_symlink(input.bai, output.bai)
+
+
+# By this point, the mdups BAM file exists, so this rule deletes the sorted BAM file
+rule _star_delete_sorted_bam:
+    input:
+        old_bam = rules._star_symlink_sorted_bam.input.bam,
+        new_bam = rules._star_output_bam.input.bam
+    output:
+        bam = touch(rules._star_symlink_sorted_bam.input.bam + ".deleted")
+    run:
+        os.remove(input.old_bam)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -108,8 +145,8 @@ rule _star_all:
         expand(
             [
                 rules._star_output_bam.output.bam,
-                # TODO: If applicable, add other output rules here
-            ],
+                rules._star_output_bam.output.bai,
+            ]
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
             genome_build=CFG["samples"]["genome_build"],
