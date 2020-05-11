@@ -4,9 +4,9 @@
 ##### ATTRIBUTION #####
 
 
-# Original Snakefile Author:    {{cookiecutter.original_snakefile_author}}
-# Module Author:                {{cookiecutter.module_author}}
-# Additional Contributors:      N/A
+# Original Author:  {{cookiecutter.original_author}}
+# Module Author:    {{cookiecutter.module_author}}
+# Contributors:     N/A
 
 
 ##### SETUP #####
@@ -44,7 +44,7 @@ rule _{{cookiecutter.module_name}}_input_{{cookiecutter.input_file_type}}:
     output:
         {{cookiecutter.input_file_type}} = CFG["dirs"]["inputs"] + "{{cookiecutter.input_file_type}}/{seq_type}--{genome_build}/{sample_id}.{{cookiecutter.input_file_type}}"
     run:
-        op.symlink(input.{{cookiecutter.input_file_type}}, output.{{cookiecutter.input_file_type}})
+        op.relative_symlink(input.{{cookiecutter.input_file_type}}, output.{{cookiecutter.input_file_type}})
 
 {% if cookiecutter.module_run_per == "tumour" %}
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
@@ -53,7 +53,7 @@ rule _{{cookiecutter.module_name}}_step_1:
     input:
         tumour_{{cookiecutter.input_file_type}} = CFG["dirs"]["inputs"] + "{{cookiecutter.input_file_type}}/{seq_type}--{genome_build}/{tumour_id}.{{cookiecutter.input_file_type}}",
         normal_{{cookiecutter.input_file_type}} = CFG["dirs"]["inputs"] + "{{cookiecutter.input_file_type}}/{seq_type}--{genome_build}/{normal_id}.{{cookiecutter.input_file_type}}",
-        fasta = op.get_reference(CFG, "genome_fasta")
+        fasta = reference_files(CFG["reference"]["genome_fasta"])
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["{{cookiecutter.module_name}}"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.{{cookiecutter.output_file_type}}"
     log:
@@ -98,7 +98,7 @@ rule _{{cookiecutter.module_name}}_output_{{cookiecutter.output_file_type}}:
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["outputs"] + "{{cookiecutter.output_file_type}}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.{{cookiecutter.output_file_type}}"
     run:
-        op.symlink(input, output)
+        op.relative_symlink(input, output)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -122,7 +122,7 @@ rule _{{cookiecutter.module_name}}_all:
 rule _{{cookiecutter.module_name}}_step_1:
     input:
         {{cookiecutter.input_file_type}} = rules._{{cookiecutter.module_name}}_input_{{cookiecutter.input_file_type}}.output.{{cookiecutter.input_file_type}},
-        fasta = op.get_reference(CFG, "genome_fasta")
+        fasta = reference_files(CFG["reference"]["genome_fasta"])
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["{{cookiecutter.module_name}}"] + "{seq_type}--{genome_build}/{sample_id}/output.{{cookiecutter.output_file_type}}"
     log:
@@ -166,7 +166,7 @@ rule _{{cookiecutter.module_name}}_output_{{cookiecutter.output_file_type}}:
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["outputs"] + "{{cookiecutter.output_file_type}}/{seq_type}--{genome_build}/{sample_id}.output.filt.{{cookiecutter.output_file_type}}"
     run:
-        op.symlink(input.{{cookiecutter.output_file_type}}, output.{{cookiecutter.output_file_type}})
+        op.relative_symlink(input.{{cookiecutter.output_file_type}}, output.{{cookiecutter.output_file_type}})
 
 
 # Generates the target sentinels for each run, which generate the symlinks

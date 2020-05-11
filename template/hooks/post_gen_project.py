@@ -4,7 +4,7 @@
 import os
 
 # Symlink schema to avoid duplicating files
-os.symlink("../../../../schemas/base.yaml", "1.0/schemas/base.yaml")
+os.symlink("../../../../schemas/base/base-1.0.yaml", "1.0/schemas/base-1.0.yaml")
 
 # Symlink samtools conda environment to avoid duplicating files
 os.symlink("../../../../envs/samtools/samtools-1.9.yaml", "1.0/envs/samtools-1.9.yaml")

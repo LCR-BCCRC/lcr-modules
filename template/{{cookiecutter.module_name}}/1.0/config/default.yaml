@@ -10,12 +10,12 @@ lcr-modules:
         #! samples: null
 
         inputs:
+            ## The inputs can be configured here or in the Snakefile
             ## Available wildcards: {seq_type} {genome_build} {sample_id}
             #! sample_{{cookiecutter.input_file_type}}: null
 
-        ## See main README.md for how to set `reference` in the Snakefile
-        #? reference:
-        #?    genome_fasta: null
+        reference:
+           genome_fasta: "genomes/{build}/genome_fasta/genome.fa"
 
         ## List subdirectories that should be symlinked to the scratch directory
         scratch_subdirectories: []
