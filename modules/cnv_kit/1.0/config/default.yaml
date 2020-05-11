@@ -1,0 +1,20 @@
+lcr-modules:
+    cnv_kit:
+        inputs:
+            sample_bam: null
+        options:
+            step_1: "--call-indels"
+            step_2: "-w PASS"
+        threads:
+            step_1: 12
+        mem_mb:
+            step_1: 6000
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
