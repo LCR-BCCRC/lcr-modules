@@ -974,17 +974,6 @@ def generate_runs(
         pairing_config = DEFAULT_PAIRING_CONFIG
     pairing_config = copy.deepcopy(pairing_config)
 
-    # Drop samples whose seq_types do not appear in pairing_config
-    sample_seq_types = samples["seq_type"].unique()
-    supported_seq_types = pairing_config.keys()
-    unsupported_seq_types = set(sample_seq_types) - set(supported_seq_types)
-    if len(unsupported_seq_types) > 0:
-        logger.warning(
-            f"Some samples have seq_types {unsupported_seq_types} that are "
-            "not configured in the pairing config. They will be dropped."
-        )
-    samples = samples[samples["seq_type"].isin(supported_seq_types)].copy()
-
     # Generate Sample instances for unmatched normal samples from sample IDs
     Sample = namedtuple("Sample", samples.columns.tolist())
     for seq_type, args_dict in pairing_config.items():
@@ -1032,6 +1021,31 @@ def generate_runs(
 def setup_module(name, version, subdirectories):
     """Prepares and validates configuration for the given module.
 
+    This function performs a number of convenient tasks:
+
+        1) It ensures that the `CFG` variable doesn't exist. This is
+           intended as a safeguard since the modules use `CFG` as a
+           convenient shorthand.
+        2) It ensures that Snakemake meets the required version.
+        3) It ensures that the required configuration is loaded.
+        4) It initializes the module configuration with the `_shared`
+           configuration, but recursively overwrites values from the
+           module-specific configuration. In other words, the
+           specific overrides the general.
+        5) It ensures that the module configuration has the expected
+           fields to avoid errors downstream.
+        6) It's updates any strings containing placeholders such as
+           `{REPODIR}`, `{MODSDIR}`, and `{SCRIPTSDIR}` with the
+           actual values.
+        7) It validates the samples table using all of the schema
+           YAML files in the module's `schemas/` folder.
+        8) It configures, numbers, and creates the output and
+           log subdirectories.
+        9) It generates a table of runs consisting of tumour-
+           normal pairs in case that's useful.
+        10) It will automatically filter the samples for those
+            whose `seq_type` appear in `pairing_config`.
+
     Parameters
     ----------
     name : str
@@ -1064,7 +1078,7 @@ def setup_module(name, version, subdirectories):
     # Ensure that the lcr-modules _shared config is loaded
     assert "lcr-modules" in config and "_shared" in config["lcr-modules"], (
         "Shared lcr-modules configuration is not loaded. "
-        "See README.md for more information."
+        "See README.md in lcr-modules for more information."
     )
 
     # Ensure that this module's config is loaded
@@ -1078,6 +1092,19 @@ def setup_module(name, version, subdirectories):
     mconfig = copy.deepcopy(config["lcr-modules"]["_shared"])
     smk.utils.update_config(mconfig, config["lcr-modules"][name])
     mconfig["samples"] = mconfig["samples"].copy()
+
+    # Drop samples whose seq_types do not appear in pairing_config
+    assert "pairing_config" in mconfig, "`pairing_config` missing from module config."
+    sample_seq_types = mconfig["samples"]["seq_type"].unique()
+    supported_seq_types = mconfig["pairing_config"].keys()
+    unsupported_seq_types = set(sample_seq_types) - set(supported_seq_types)
+    if len(unsupported_seq_types) > 0:
+        logger.warning(
+            f"Some samples have seq_types {unsupported_seq_types} that are "
+            f"not configured in the pairing config for the {name} module. "
+            "They will be excluded from the analysis."
+        )
+    mconfig["samples"] = samples[samples["seq_type"].isin(supported_seq_types)].copy()
     msamples = mconfig["samples"]
 
     # Set module name and version
@@ -1128,6 +1155,7 @@ def setup_module(name, version, subdirectories):
         root_output_dir = mconfig.get("root_output_dir", "results")
         output_dir = os.path.join(root_output_dir, f"{name}-{version}")
         mconfig["dirs"]["_parent"] = output_dir
+    mconfig["dirs"]["_parent"] = mconfig["dirs"]["_parent"].rstrip("/") + "/"
     os.makedirs(mconfig["dirs"]["_parent"], exist_ok=True)
 
     # Update paths to conda environments to be relative to the module directory
@@ -1143,7 +1171,7 @@ def setup_module(name, version, subdirectories):
     mconfig["logs"] = dict()
     parent_dir = mconfig["dirs"]["_parent"]
     launched_fmt = _session.launched_fmt
-    logs_parent_dir = f"{parent_dir}/logs/{launched_fmt}"
+    logs_parent_dir = os.path.join(parent_dir, "logs", launched_fmt)
     mconfig["logs"]["_parent"] = logs_parent_dir
     os.makedirs(logs_parent_dir, exist_ok=True)
     for subdir, value in mconfig["dirs"].items():
