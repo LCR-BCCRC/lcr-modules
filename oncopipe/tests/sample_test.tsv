@@ -1,0 +1,15 @@
+sample_id	sample_type	tissue_status	patient_id	seq_type	genome_build	ff_or_ffpe	strand
+A88333	pair	Tumour	patient1	capture	grch37	FF	
+A88355	pair	Normal	patient1	capture	grch37	FF	
+A88334	pair	Tumour	patient2	capture	grch37	FF	
+A88356	pair	Normal	patient2	capture	grch37	FF	
+A88335	single	Tumour	patient7	capture	grch37	FF	
+A88357	single	Normal	patient8	capture	grch37	FF	
+B00596	single	Tumour	patient3	mrna	grch38	FF	unstranded
+B00599	single	Tumour	patient4	mrna	grch38	FF	forward
+B00600	single	Tumour	patient5	mrna	grch38	FF	reverse
+B00601	single	Tumour	patient6	mrna	grch38	FF	-
+B00602	single	Tumour	patient6	mrna	grch38	FF	
+A55742	pair	Tumour	GE0144	genome	grch37	FF	
+A55756	pair	Normal	GE0144	genome	grch37	FF	
+A48301	single	Tumour	GE0067	genome	grch37	FF	
