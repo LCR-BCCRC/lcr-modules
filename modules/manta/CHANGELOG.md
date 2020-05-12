@@ -5,11 +5,12 @@ All notable changes to the `manta` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0] - 2020-05-11
 
-<!-- Changes slated for the next release can be listed here. -->
+This release was authored by Bruno Grande.
 
-- No unreleased changes yet.
+- Switch to oncopipe
+- Remove checkpoint
 
 ## [1.0] - 2020-04-22
 
@@ -24,7 +25,7 @@ This release was authored by Bruno Grande.
 - In an earlier version of this module, the `normal_bam` input file would be omitted if `pair_status` was `no_normal` using `switch_on_wildcard()`. However, it was clunky because it had to use `unpack()` in case it returned no file. As a workaround, since the argument for the normal BAM file is omitted if the run is `no_normal` (see note on `normal_bam_arg` above), I added the `_manta_input_bam_none` rule to create an empty file to make sure Snakemake doesn't complain about an missing input file. I'm not happy with this approach, but it's cleaner than the messy code below.
 
   ```python
-  unpack(md.switch_on_wildcard("pair_status", {
+  unpack(op.switch_on_wildcard("pair_status", {
       "_default" : {"normal_bam": CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam"},
       "no_normal" : {}
   }))
