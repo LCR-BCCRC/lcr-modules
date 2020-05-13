@@ -1,0 +1,25 @@
+lcr-modules:
+    _shared:
+        repository: "/projects/clc/projects/hwinata/seq_workflow/lcr-modules/"
+        lcr-scripts: "/projects/clc/projects/hwinata/seq_workflow/lcr-modules/lcr-scripts/"
+        reference_dir: "/projects/bgrande/reference/"
+        root_output_dir: "results/"
+        scratch_directory: "/projects/nhl_meta_analysis_scratch/helena_scratch/test/"
+
+        pairing_config:
+            capture: 
+                unmatched_normal_id: "A88357"
+        
+        reference: # for picard_QC
+            grch37:
+                genome_fasta: "grch37.fa"
+                intervals: "grch37_intervals.txt" #"/projects/clc/references/exomes/S07604624/GRCh37/exome_intervals.txt"
+                bwa_index: "bwa_index_grch37" #"{LCR_MODULES_REF_DIR}/grch37/bwa_index/bwa-0.7.17/genome.fa"
+            grch38:
+                refFlat: "/projects/clc/references/genomes/GRCh38/build90/Homo_sapiens.GRCh38.90.refFlat.txt"
+                rRNA_int: "/projects/clc/references/genomes/GRCh38/build90/Homo_sapiens.GRCh38.90.rRNA.interval_list" 
+                bwa_index: "{LCR_MODULES_REF_DIR}/grch38/bwa_index/bwa-0.7.17/genome.fa"
+
+# reference:
+#   genome_fasta: "/projects/clc/references/genomes/GRCh38/build90/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
+#    intervals: "/projects/clc/references/genomes/GRCh38/build90/Homo_sapiens.GRCh38.90.exons.intervals"
