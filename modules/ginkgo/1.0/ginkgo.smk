@@ -11,10 +11,7 @@ CFG = md.setup_module(
     config = config, 
     name = "ginkgo", 
     version = "1.0",
-    # TODO: If applicable, add other output subdirectories
     subdirs = ["inputs", "bed", "ginkgo", "outputs"],
-    # TODO: Replace "genome_fasta" with actual reference requirements
-    req_references = ["genome_fasta"] 
 )
 
 # Define rules to be run locally when using a compute cluster.
@@ -29,13 +26,9 @@ localrules:
 # in single cell modules, sample_id and lib_id refers to patient_id and sample_id respectively on the datasheet
 # for ginkgo purposes, each library = a cell
 
-def get_input_bam(wildcards):
-
-
 rule _ginkgo_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bed"]
-        "results/bwa_mem-1.0/99-outputs/scWGS--{genome_build}/{lib_id}.bam"
+        bam = CFG["inputs"]["sample_bam"]
     output:
         bam = CFG["dirs"]["inputs"] + "{genome_build}/{sample_id}/{lib_id}.bam"
     run:
@@ -51,16 +44,17 @@ rule _ginkgo_bam2bed:
         "/projects/clc/usr/anaconda/workflow_prototype/envs/484bc115.yaml"
     log:
         "logs/{sample}/{lib}_bedtools.log"
-    threads: 1
+    threads:
+        CFG["threads"].get("bam2bed") or 2
     resources:
-        mem_mb = 4000
+        mem_mb = CFG["mem_mb"].get("bam2bed") or 5000
     shell:
         "bedtools bamtobed -i {input} > >(gzip > {output}) 2> {log}"
 
 
 rule _ginkgo_link_bed_to_bins:
     input:
-        bed = rules._ginkgo_bam2bed
+        bed = rules._ginkgo_bam2bed.output.bed
     output:
         bed = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/{lib_id}.bed.gz"
     run:
@@ -68,7 +62,7 @@ rule _ginkgo_link_bed_to_bins:
 
 
 def get_bed_files(wildcards):
-    sub_df = md.filter_samples(CFG["samples", patient_id = wildcards.sample_id])
+    sub_df = md.filter_samples(CFG["samples"], patient_id = wildcards.sample_id)
     libs = list(sub_df["sample_id"])
     bed = expand("{dir}{{genome_build}}_bin{{bin}}/{sample_id}/{lib_id}.bed.gz", dir = CFG["dirs"]["ginkgo"], sample_id = wildcards.sample_id, lib_id = libs)
     return bed
@@ -78,23 +72,24 @@ rule _ginkgo_run:
     input:
         bed = get_bed_files
     output:
-        config["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}.done"
+        CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}.done"
     log: 
         stdout = CFG["logs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}.stdout.log",
         stderr = CFG["logs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}.stderr.log"
     params:
-        ginkgo = CFG["software"],
+        ginkgo = CFG["inputs"]["script"],
         bedDir = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}",
-        genome = {genome_build}
+        genome = "{genome_build}",
         binning = CFG["options"]["binMeth"],
         clustDist = CFG["options"]["distMeth"],
         clustLink = CFG["options"]["clustMeth"],
         opts = CFG["options"]["flags"]
-    threads: 2
+    threads: 
+        CFG["threads"].get("ginkgo") or 4
     resources:
-        mem_mb = 8000
+        mem_mb = CFG["mem_mb"].get("ginkgo") or 8000
     shell:
-        as_one_line("""
+        md.as_one_line("""
         {params.ginkgo} 
         --input {params.bedDir} 
         --genome {params.genome} 
@@ -108,7 +103,7 @@ rule _ginkgo_run:
 
 rule _ginkgo_output:
     input:
-        sc = config["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/SegCopy"
+        sc = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/SegCopy"
     output:
         sc = CFG["dirs"]["outputs"] + "{genome_build}_bin{bin}/{sample_id}_SegCopy"
     run:
@@ -121,7 +116,7 @@ rule _ginkgo_all:
         expand(expand("{{dir}}{genome_build}_bin{{bin}}/{sample_id}_SeqCopy", zip,
                genome_build = sub_df["genome_build"],
                sample_id = sub_df["patient_id"]),
-            dir = CFG["dirs"]["outputs"]
+            dir = CFG["dirs"]["outputs"],
             bin = CFG["inputs"]["bins"])
 
 

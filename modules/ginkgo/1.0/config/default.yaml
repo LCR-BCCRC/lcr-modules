@@ -2,7 +2,7 @@ lcr-modules:
     ginkgo:
         inputs:
             script: "/projects/clc/projects/hwinata/seq_workflow/ginkgo/cli/ginkgo.sh"
-            sample_bed: null
+            sample_bam: null
             bins: ["100000"]
         options:
             flags: "--process"
@@ -30,9 +30,11 @@ lcr-modules:
             color: 3
 
         threads:
+            bam2bed: null
             ginkgo: 4
         mem_mb:
-            ginkgo: 6000
+            bam2bed: null
+            ginkgo: 20000
         pairing_config:
             genome:
                 run_paired_tumours: False
