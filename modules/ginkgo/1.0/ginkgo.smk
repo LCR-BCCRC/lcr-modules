@@ -12,7 +12,7 @@ CFG = md.setup_module(
     name = "ginkgo", 
     version = "1.0",
     # TODO: If applicable, add other output subdirectories
-    subdirs = ["inputs", "ginkgo", "outputs"],
+    subdirs = ["inputs", "bed", "ginkgo", "outputs"],
     # TODO: Replace "genome_fasta" with actual reference requirements
     req_references = ["genome_fasta"] 
 )
@@ -29,18 +29,38 @@ localrules:
 # in single cell modules, sample_id and lib_id refers to patient_id and sample_id respectively on the datasheet
 # for ginkgo purposes, each library = a cell
 
-rule _ginkgo_input_bed:
+def get_input_bam(wildcards):
+
+
+rule _ginkgo_input_bam:
     input:
-        bed = CFG["inputs"]["sample_bed"]
+        bam = CFG["inputs"]["sample_bed"]
+        "results/bwa_mem-1.0/99-outputs/scWGS--{genome_build}/{lib_id}.bam"
     output:
-        bed = CFG["dirs"]["inputs"] + "{genome_build}/{sample_id}/{lib_id}.bed.gz"
+        bam = CFG["dirs"]["inputs"] + "{genome_build}/{sample_id}/{lib_id}.bam"
     run:
-        md.symlink(input.bed, output.bed)
+        md.symlink(input.bam, output.bam)
+
+
+rule _ginkgo_bam2bed:
+    input:
+        bam = CFG["dirs"]["inputs"] + "{genome_build}/{sample_id}/{lib_id}.bam"
+    output:
+        bed = CFG["dirs"]["bed"] + "/{sample}/{lib}.bed.gz"
+    conda:
+        "/projects/clc/usr/anaconda/workflow_prototype/envs/484bc115.yaml"
+    log:
+        "logs/{sample}/{lib}_bedtools.log"
+    threads: 1
+    resources:
+        mem_mb = 4000
+    shell:
+        "bedtools bamtobed -i {input} > >(gzip > {output}) 2> {log}"
 
 
 rule _ginkgo_link_bed_to_bins:
     input:
-        bed = rules._ginkgo_input_bed
+        bed = rules._ginkgo_bam2bed
     output:
         bed = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/{lib_id}.bed.gz"
     run:
@@ -58,92 +78,51 @@ rule _ginkgo_run:
     input:
         bed = get_bed_files
     output:
-        config["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample}.done"
+        config["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}.done"
     log: 
         stdout = CFG["logs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}.stdout.log",
         stderr = CFG["logs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}.stderr.log"
     params:
         ginkgo = CFG["software"],
-        bedDir = CFG["dirs"]["ginkgo"] + "_{bin}/{sample}",
-        genome = CFG["options"]["genome"],
+        bedDir = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}",
+        genome = {genome_build}
         binning = CFG["options"]["binMeth"],
         clustDist = CFG["options"]["distMeth"],
         clustLink = CFG["options"]["clustMeth"],
-        opts = CFG["options"]["opts"]
+        opts = CFG["options"]["flags"]
     threads: 2
     resources:
         mem_mb = 8000
     shell:
         as_one_line("""
-        echo 
         {params.ginkgo} 
         --input {params.bedDir} 
         --genome {params.genome} 
         --binning {params.binning}
         {params.clustDist} {params.clustLink}
         {params.opts} 
-        &> {log}
+        > {log.stdout} 2> {log.stderr}
         && touch {output}
         """)
 
 
-
-    output:
-        vcf = CFG["dirs"]["ginkgo"] + "{seq_type}--{genome_build}/{sample_id}/variants.vcf.gz"
-    log:
-        stdout = CFG["logs"]["ginkgo"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stdout.log",
-        stderr = CFG["logs"]["ginkgo"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stderr.log"
-    params:
-        opts = CFG["options"]["step_1"]
-        fasta = lambda wildcards: config["reference"][wildcards.genome_build]["genome_fasta"]
-    conda:
-        CFG["conda_envs"].get("ginkgo") or "envs/ginkgo.yaml"
-    threads:
-        CFG["threads"]["step_1"]
-    resources: 
-        mem_mb = CFG["mem_mb"]["step_1"]
-    shell:
-        md.as_one_line("""
-        <TODO> {params.opts} --bam {input.bam} --ref-fasta {params.fasta} 
-        --output {output.vcf} --threads {threads} > {log.stdout} 2> {log.stderr}
-        """)
-
-
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _ginkgo_step_2:
+rule _ginkgo_output:
     input:
-        vcf = rules._ginkgo_step_1.output.vcf
+        sc = config["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/SegCopy"
     output:
-        vcf = CFG["dirs"]["ginkgo"] + "{seq_type}--{genome_build}/{sample_id}/variants.filt.vcf"
-    log:
-        stderr = CFG["logs"]["ginkgo"] + "{seq_type}--{genome_build}/{sample_id}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "gzip -dc {input.vcf} | grep {params.opts} > {output.vcf} 2> {log.stderr}"
-
-
-# Symlinks the final output files into the module results directory (under '99-outputs/').
-# TODO: Update output file (and if applicable, add one rule for each output file)
-rule _ginkgo_output_vcf:
-    input:
-        vcf = rules._ginkgo_step_2.output.vcf
-    output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.variants.filt.vcf"
+        sc = CFG["dirs"]["outputs"] + "{genome_build}_bin{bin}/{sample_id}_SegCopy"
     run:
-        md.symlink(input.vcf, output.vcf)
+        md.symlink(input.sc, output.sc)
 
+sub_df = CFG["samples"][["patient_id", "genome_build"]].drop_duplicates()
 
-# Generates the target sentinels for each run, which generate the symlinks
-# TODO: Update to ask for the output of every `_ginkgo_output_*` rule
 rule _ginkgo_all:
     input:
-        expand(rules._ginkgo_output.output.vcf, 
-               zip,  # Run expand() with zip(), not product()
-               seq_type=CFG["samples"]["seq_type"],
-               genome_build=CFG["samples"]["genome_build"],
-               sample_id=CFG["samples"]["sample_id"])
+        expand(expand("{{dir}}{genome_build}_bin{{bin}}/{sample_id}_SeqCopy", zip,
+               genome_build = sub_df["genome_build"],
+               sample_id = sub_df["patient_id"]),
+            dir = CFG["dirs"]["outputs"]
+            bin = CFG["inputs"]["bins"])
 
 
 ##### CLEANUP #####

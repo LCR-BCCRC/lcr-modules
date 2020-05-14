@@ -3,7 +3,7 @@ lcr-modules:
         inputs:
             script: "/projects/clc/projects/hwinata/seq_workflow/ginkgo/cli/ginkgo.sh"
             sample_bed: null
-            bins:
+            bins: ["100000"]
         options:
             flags: "--process"
             # available opts: --process --init --maskbadbins --masksexchrs --maskpsrs

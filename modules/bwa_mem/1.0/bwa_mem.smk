@@ -90,7 +90,8 @@ rule _bwa_mem_samtools:
     shell:
         md.as_one_line("""
         samtools view {params.samtools}
-        {input.sam} > {output.bam} 2> {log.samtools}
+        {input.sam} 
+        > {output.bam} 2> {log.samtools}
         """)
 
 
@@ -100,7 +101,7 @@ rule _bwa_mem_output:
     output:
         bam = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.bam"
     shell:
-        "ln {input} {output}"
+        "ln {input.bam} {output.bam}"
 
 
 rule _bwa_mem_all:
