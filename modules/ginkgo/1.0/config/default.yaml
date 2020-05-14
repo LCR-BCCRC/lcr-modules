@@ -1,0 +1,51 @@
+lcr-modules:
+    ginkgo:
+        inputs:
+            script: "/projects/clc/projects/hwinata/seq_workflow/ginkgo/cli/ginkgo.sh"
+            sample_bed: null
+            bins:
+        options:
+            flags: "--process"
+            # available opts: --process --init --maskbadbins --masksexchrs --maskpsrs
+            # when --maskpsrs is set, ginkgo uses {genomeDIR}/pseudoautosomal instead of {genomeDIR}/original
+
+            # fix: 0 # reclusters and recreate heatmaps (not available in ginkgo.sh and not needed if --process is set)
+
+            segMeth: "global" # independent (normalized read  counts), global (sample with lowest IOD) or custom (upload reference sample)
+            segRef: null # --ref <REF> in seqMeth is set to custom
+
+            #genome: "hg19"
+            
+            binMeth: "variable_{bin}_150_bwa"
+
+            facs: null # set with --facs <facs file> 
+
+            distMeth: "--clustdist euclidean" # euclidian, maximum, manhattan,    vanberra, bnary, minkowsky
+            clustMeth: "--clustlinkage ward.D2" # ward.D, ward.D2, single, complete, average, NJ
+
+            # Color scheme:
+            # - 3: dark blue / red
+            # - 1: light blue / orange
+            # - 2: magenta / gold
+            color: 3
+
+        threads:
+            ginkgo: 4
+        mem_mb:
+            ginkgo: 6000
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+
+
+# SOFTWARE
+#software: 
+#
+#samples: "sample_libs_helena.txt"
+#dirs:
+#    bam: "/projects/clc/projects/hwinata/seq_workflow/ginkgo_testing/bam"
+#    bed: "/projects/clc/projects/hwinata/seq_workflow/ginkgo_testing/bed_files"
+#    ginkgo: "/projects/clc/projects/hwinata/seq_workflow/ginkgo_testing/ginkgo"
+#bin: ["100000", "25000", "50000"]
