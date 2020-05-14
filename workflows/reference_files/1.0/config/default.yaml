@@ -1,5 +1,6 @@
 genome_builds:
     grch37:
+        # GSC GRCh37
         version: "grch37"
         provider: "ensembl"
         genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/grch37.fa"
@@ -12,6 +13,7 @@ genome_builds:
         provider: "ucsc"
         genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg19.fa"
     hg38:
+        # GSC GRCh38
         version: "grch38"
         provider: "ucsc"
         genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg38.fa"
@@ -20,6 +22,11 @@ genome_builds:
         version: "grch38"
         provider: "ensembl"
         genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/grch38-legacy.fa"
+    hs37d5:
+        # ICGC (with decoys)
+        version: "grch37"
+        provider: "ensembl"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hs37d5.fa"
 
 wildcard_values:
     gencode_release: ["33"]
