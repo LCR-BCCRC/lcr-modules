@@ -24,8 +24,8 @@ CFG = md.setup_module(
     name = "bwa_mem", 
     version = "1.0", 
     subdirs = ["inputs", "bam_util", "outputs"],
-    req_references = ["bwa_index"],
-    scratch_subdirs = ["bam_util"]
+    req_references = ["bwa_index"]
+#    scratch_subdirs = ["bam_util"]
 )
 
 localrules: 
@@ -42,15 +42,17 @@ rule _bwa_mem_input:
     input:
         fq = CFG["inputs"].get("fastq")
     output:
-        fq = expand("{fqDIR}{{seq_type}}--{{genome_build}}/{{sample_id}}.{num}.fastq.gz", fqDIR = CFG["dirs"]["inputs"], num = ["1", "2"]) 
+        fq = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.{num}.fastq.gz"
+    wildcard_constraints:
+        num = ["1|2"]
     run:
-        md.symlink(input.fq[0], output.fq[0])
-        md.symlink(input.fq[1], output.fq[1])
+        md.symlink(input.fq, output.fq)
+        #md.symlink(input.fq[1], output.fq[1])
 
 
 rule _bwa_mem_run:
     input:
-        fq = rules._bwa_mem_input.output.fq
+        fq = expand("{fqDIR}{{seq_type}}--{{genome_build}}/{{sample_id}}.{num}.fastq.gz", fqDIR = CFG["dirs"]["inputs"], num = ["1", "2"]) #rules._bwa_mem_input.output.fq
     output:
         sam = pipe(CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_id}.sam")
     log:

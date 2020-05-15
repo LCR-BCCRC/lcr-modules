@@ -5,7 +5,7 @@ rule _bam_util_sort:
         bam = CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.bam"
     output:
         bam = temp(CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.sorted.bam")
-#    priority: 10
+    priority: 10
     log:
         stderr = CFG["logs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.BAMsort.stderr.log"
     params:
@@ -29,7 +29,7 @@ rule _bam_util_filter:
         bam = CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.bam"
     output:
         bam = temp(CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.filtered.bam")
-#    priority: 10
+    priority: 10
     log:
         stderr = CFG["logs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.BAMfilter.stderr.log"
     params:
@@ -52,7 +52,7 @@ rule _bam_util_markdup:
     output:
         bam = temp(CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.markdup.bam"),
         metrics = CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.dup_metrics.bam"
-#    priority: 10
+    priority: 10
     log:
         stdout = CFG["logs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.BAMmarkdup.stdout.log",
         stderr = CFG["logs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.BAMmarkdup.stderr.log"
@@ -77,7 +77,7 @@ rule _bam_util_rmdup:
         bam = CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.bam"
     output:
         bam = temp(CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.rmdup.bam")
-#    priority: 10
+    priority: 10
     log:
          stderr = CFG["logs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.BAMrmdup.stderr.log"
     params:

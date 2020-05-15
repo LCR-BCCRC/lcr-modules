@@ -14,13 +14,12 @@ CFG = md.setup_module(
     subdirs = ["inputs", "bed", "ginkgo", "outputs"],
 )
 
-# Define rules to be run locally when using a compute cluster.
-# TODO: Replace with actual rule names
+
 localrules: 
-    _ginkgo_input_bed,
+    _ginkgo_input_bam,
+    _ginkgo_link_bed_to_bins,
     _ginkgo_output,
     _ginkgo_all
-
 
 ##### RULES #####
 # in single cell modules, sample_id and lib_id refers to patient_id and sample_id respectively on the datasheet
@@ -39,11 +38,11 @@ rule _ginkgo_bam2bed:
     input:
         bam = CFG["dirs"]["inputs"] + "{genome_build}/{sample_id}/{lib_id}.bam"
     output:
-        bed = CFG["dirs"]["bed"] + "/{sample}/{lib}.bed.gz"
+        bed = CFG["dirs"]["bed"] + "{genome_build}/{sample_id}/{lib_id}.bed.gz"
     conda:
-        "/projects/clc/usr/anaconda/workflow_prototype/envs/484bc115.yaml"
+        CFG["conda_envs"].get("bedtools") or "envs/bedtools-2.25.0.yaml"
     log:
-        "logs/{sample}/{lib}_bedtools.log"
+        "logs/{genome_build}/{sample_id}/{lib_id}_bedtools.log"
     threads:
         CFG["threads"].get("bam2bed") or 2
     resources:
@@ -60,19 +59,50 @@ rule _ginkgo_link_bed_to_bins:
     run:
         md.symlink(input.bed, output.bed)
 
-
-def get_bed_files(wildcards):
+"""
+def get_bed_files(config = CFG):
     sub_df = md.filter_samples(CFG["samples"], patient_id = wildcards.sample_id)
     libs = list(sub_df["sample_id"])
-    bed = expand("{dir}{{genome_build}}_bin{{bin}}/{sample_id}/{lib_id}.bed.gz", dir = CFG["dirs"]["ginkgo"], sample_id = wildcards.sample_id, lib_id = libs)
+    ginkgo_dir = CFG["dirs"]["ginkgo"]
+    def _get_bed_files(wildcards):
+        bed = expand("{dir}{{genome_build}}_bin{{bin}}/{sample_id}/{lib_id}.bed.gz", dir = ginkgo_dir, sample_id = wildcards.sample_id, lib_id = libs) 
+        return bed
+    return _get_bed_files
+
+GINKGO_DF = CFG["samples"]
+def get_bed_files(wildcards):
+    sub_df = md.filter_samples(GINKGO_DF, patient_id = wildcards.sample_id)
+    libs = list(sub_df["sample_id"])
+
+    bed = expand("{dir}{{genome_build}}_bin{{bin}}/{sample_id}/{lib_id}.bed.gz", dir = CFG["dirs"]["ginkgo"], sample_id = wildcards.sample_id, lib_id = libs) 
+    
     return bed
+"""
+
+def create_map_dict(df = CFG["samples"]):
+    sample_lib_dict = df.groupby('patient_id')['sample_id'].apply(list).to_dict()
+    return sample_lib_dict
+
+def get_libraries(mconfig = CFG):
+    path = mconfig["dirs"]["ginkgo"]
+    def _get_custom_lib(wildcards):
+        d = create_map_dict()
+        libs = d.get(wildcards.sample_id)
+        if libs:
+            return expand("{DIR}{{genome_build}}_bin{{bin}}/{{sample_id}}/{lib}.bed.gz", DIR = path, lib = libs)
+        else:
+            raise ValueError ('nope')#(f"Invalid value for patient_id : {wildcards.sample_id}")
+    return _get_custom_lib
 
 
 rule _ginkgo_run:
     input:
-        bed = get_bed_files
+        bed = get_libraries(CFG) #expand("{DIR}{{genome_build}}_bin{{bin}}/{{sample_id}}/{lib}.bed.gz", DIR = CFG["dirs"]["ginkgo"], lib = get_libraries)
     output:
-        CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}.done"
+        sc = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/SegCopy",
+        stamp = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}.done"
+    conda:
+        CFG["conda_envs"].get("ginkgo") or "envs/ginkgo_dep.yaml"
     log: 
         stdout = CFG["logs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}.stdout.log",
         stderr = CFG["logs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}.stderr.log"
@@ -97,13 +127,13 @@ rule _ginkgo_run:
         {params.clustDist} {params.clustLink}
         {params.opts} 
         > {log.stdout} 2> {log.stderr}
-        && touch {output}
+        && touch {output.stamp}
         """)
 
 
 rule _ginkgo_output:
     input:
-        sc = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/SegCopy"
+        sc = rules._ginkgo_run.output.sc
     output:
         sc = CFG["dirs"]["outputs"] + "{genome_build}_bin{bin}/{sample_id}_SegCopy"
     run:
@@ -113,7 +143,7 @@ sub_df = CFG["samples"][["patient_id", "genome_build"]].drop_duplicates()
 
 rule _ginkgo_all:
     input:
-        expand(expand("{{dir}}{genome_build}_bin{{bin}}/{sample_id}_SeqCopy", zip,
+        expand(expand("{{dir}}{genome_build}_bin{{bin}}/{sample_id}_SegCopy", zip,
                genome_build = sub_df["genome_build"],
                sample_id = sub_df["patient_id"]),
             dir = CFG["dirs"]["outputs"],

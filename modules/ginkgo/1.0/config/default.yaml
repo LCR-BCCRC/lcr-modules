@@ -1,7 +1,7 @@
 lcr-modules:
     ginkgo:
         inputs:
-            script: "/projects/clc/projects/hwinata/seq_workflow/ginkgo/cli/ginkgo.sh"
+            script: "/projects/clc/usr/ginkgo/cli/ginkgo.sh"
             sample_bam: null
             bins: ["100000"]
         options:
