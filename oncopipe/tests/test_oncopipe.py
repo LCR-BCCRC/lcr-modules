@@ -46,6 +46,17 @@ def test_filter_samples():
     assert "genome" not in result["seq_type"]
 
 
+def test_group_samples():
+    # func -> group_samples(samples, subgroups)
+    result = op.group_samples(DF, ["seq_type", "patient_id", "tissue_status"])
+    key = list(DF.seq_type.unique())
+
+    assert type(result) is pd.DataFrame
+    assert type(result.get("capture").get("patient1").get("Tumour")) is list
+    for i in key:
+        assert i in result.keys()
+
+
 def test_set_samples():
     # func -> set_samples(module, *samples)
     op.set_samples("manta", DF)
