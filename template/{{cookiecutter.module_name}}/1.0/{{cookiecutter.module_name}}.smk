@@ -62,7 +62,7 @@ rule _{{cookiecutter.module_name}}_step_1:
     params:
         opts = CFG["options"]["step_1"]
     conda:
-        CFG["conda_envs"]["{{cookiecutter.module_name}}"]
+        CFG["conda_envs"]["samtools"]
     threads:
         CFG["threads"]["step_1"]
     resources:
@@ -131,7 +131,7 @@ rule _{{cookiecutter.module_name}}_step_1:
     params:
         opts = CFG["options"]["step_1"]
     conda:
-        CFG["conda_envs"]["{{cookiecutter.module_name}}"]
+        CFG["conda_envs"]["samtools"]
     threads:
         CFG["threads"]["step_1"]
     resources:

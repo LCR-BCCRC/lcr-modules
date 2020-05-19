@@ -6,18 +6,17 @@ lcr-modules:
     
     {{cookiecutter.module_name}}:
 
-        ## See main README.md for how to set `samples` in the Snakefile
-        #! samples: null
-
+        ## TODO: Update the list of available wildcards, if applicable
         inputs:
-            ## The inputs can be configured here or in the Snakefile
             ## Available wildcards: {seq_type} {genome_build} {sample_id}
             #! sample_{{cookiecutter.input_file_type}}: null
 
-        reference:
-           genome_fasta: "genomes/{build}/genome_fasta/genome.fa"
+        ## TODO: Update (or remove) this section with any reference parameters
+        reference_params:
+            ## Ideally, `star_overhang` = max(read_length) - 1
+            ## STAR indices were precomputed for "74" and "99"
+            #! star_overhang: "99"
 
-        ## List subdirectories that should be symlinked to the scratch directory
         scratch_subdirectories: []
 
         options:
@@ -25,7 +24,7 @@ lcr-modules:
             step_2: ""
 
         conda_envs:
-            {{cookiecutter.module_name}}: "{MODSDIR}/envs/{{cookiecutter.module_name}}-9.9.yaml"
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             
         threads:
             step_1: 4
