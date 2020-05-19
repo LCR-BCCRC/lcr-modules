@@ -289,6 +289,11 @@ def switch_on_column(
         If you provide a value under the key '_default' in `options`,
         this value will be used if the column value is not among
         the other keys in `options` (instead of defaulting to "").
+    _prefix, _suffix
+        If you provide values for the '_prefix' and/or '_suffix' keys
+        in `options`, these values will be prepended and/or appended,
+        respectively, to the selected value (including '_default') as
+        long as the selected value is a string (not a dictionary).
 
     Parameters
     ----------
@@ -367,6 +372,11 @@ def switch_on_wildcard(wildcard, options, format=True, strict=False):
         If you provide a value under the key '_default' in `options`,
         this value will be used if the column value is not among
         the other keys in `options` (instead of defaulting to "").
+    _prefix, _suffix
+        If you provide values for the '_prefix' and/or '_suffix' keys
+        in `options`, these values will be prepended and/or appended,
+        respectively, to the selected value (including '_default') as
+        long as the selected value is a string (not a dictionary).
 
     Parameters
     ----------
@@ -402,6 +412,11 @@ def switch_on_wildcard(wildcard, options, format=True, strict=False):
         wildcard_value = wildcards.get(wildcard)
         default_option = options.get("_default", "")
         selected_option = options.get(wildcard_value, default_option)
+        if isinstance(selected_option, str):
+            prefix = options.get("_prefix", "")
+            suffix = options.get("_suffix", "")
+            combined = [prefix, selected_option, suffix]
+            selected_option = "".join(x for x in combined if x != "")
         if format:
             formatter = create_formatter(
                 wildcards, input, output, threads, resources, strict
