@@ -58,11 +58,11 @@ As a companion to these instructions, you can check out the [demo Snakefile](dem
 
    ```yaml
    lcr-modules:
-     _shared:
-       repository: "lcr-modules/"
-       lcr-scripts: "lcr-scripts/"
-       root_output_dir: "results/"
-       scratch_directory: null
+       _shared:
+           repository: "lcr-modules/"
+           lcr-scripts: "lcr-scripts/"
+           root_output_dir: "results/"
+           scratch_directory: null
    ```
 
    Here, `scratch_directory` should be set to a directory where large temporary files can be written without worry of running out of space or clogging snapshots/backups. If set to `null`, the files will be output locally.
@@ -154,15 +154,15 @@ You will need to specify a value for `repository` and `root_output_dir`. If you 
 
 ```yaml
 lcr-modules:
-  _shared:
-    repository: "lcr-modules/"
-    lcr-scripts: "lcr-scripts/"
-    root_output_dir: "results/"
-    pairing_config:
-      genome:
-        unmatched_normal_id: "BLGSP-71-06-00286-99A-01D"
-      capture:
-        unmatched_normal_id: "BLGSP-71-08-00508-10A-01D"
+    _shared:
+        repository: "lcr-modules/"
+        lcr-scripts: "lcr-scripts/"
+        root_output_dir: "results/"
+        pairing_config:
+            genome:
+                unmatched_normal_id: "BLGSP-71-06-00286-99A-01D"
+            capture:
+                unmatched_normal_id: "BLGSP-71-08-00508-10A-01D"
 ```
 
 ## Pairing Configuration
@@ -183,18 +183,18 @@ This `pairing_config` was taken from the `manta` module. As you can see, the mod
 ```yaml
 # Taken from lcr-modules/modules/manta/1.0/config/default.yaml
 pairing_config:
-  genome:
-    run_unpaired_tumours_with: "unmatched_normal"
-    run_paired_tumours: True
-    run_paired_tumours_as_unpaired: False
-  capture:
-    run_unpaired_tumours_with: "unmatched_normal"
-    run_paired_tumours: True
-    run_paired_tumours_as_unpaired: False
-  mrna:
-    run_unpaired_tumours_with: "no_normal"
-    run_paired_tumours: False
-    run_paired_tumours_as_unpaired: True
+    genome:
+        run_unpaired_tumours_with: "unmatched_normal"
+        run_paired_tumours: True
+        run_paired_tumours_as_unpaired: False
+    capture:
+        run_unpaired_tumours_with: "unmatched_normal"
+        run_paired_tumours: True
+        run_paired_tumours_as_unpaired: False
+    mrna:
+        run_unpaired_tumours_with: "no_normal"
+        run_paired_tumours: False
+        run_paired_tumours_as_unpaired: True
 ```
 
 ## Snakemake Commands
