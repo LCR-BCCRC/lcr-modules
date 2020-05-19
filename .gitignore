@@ -2,6 +2,7 @@
 .DS_Store
 .envrc
 .vscode/
+.prettierrc
 
 # Byte-compiled files
 __pycache__/
