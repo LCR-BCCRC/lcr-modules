@@ -1106,11 +1106,11 @@ def setup_module(name, version, subdirectories):
     # Get configuration for the given module and create samples shorthand
     mconfig = copy.deepcopy(config["lcr-modules"]["_shared"])
     smk.utils.update_config(mconfig, config["lcr-modules"][name])
-    mconfig["samples"] = mconfig["samples"].copy()
+    msamples = mconfig["samples"].copy()
 
     # Drop samples whose seq_types do not appear in pairing_config
     assert "pairing_config" in mconfig, "`pairing_config` missing from module config."
-    sample_seq_types = mconfig["samples"]["seq_type"].unique()
+    sample_seq_types = msamples["seq_type"].unique()
     supported_seq_types = mconfig["pairing_config"].keys()
     unsupported_seq_types = set(sample_seq_types) - set(supported_seq_types)
     if len(unsupported_seq_types) > 0:
@@ -1119,8 +1119,8 @@ def setup_module(name, version, subdirectories):
             f"not configured in the pairing config for the {name} module. "
             "They will be excluded from the analysis."
         )
-    mconfig["samples"] = samples[samples["seq_type"].isin(supported_seq_types)].copy()
-    msamples = mconfig["samples"]
+    msamples = msamples[msamples["seq_type"].isin(supported_seq_types)].copy()
+    mconfig["samples"] = msamples
 
     # Set module name and version
     mconfig["name"] = name
