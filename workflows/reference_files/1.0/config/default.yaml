@@ -33,17 +33,20 @@ wildcard_values:
     star_overhang: ["74", "99"]
 
 tools:
+    coreutils: 
+        conda_env: "envs/coreutils-8.31.yaml"
+        version: "8.31"
     cvbio: 
-        conda_env: "../../../envs/cvbio/cvbio-3.0.0.yaml"
+        conda_env: "envs/cvbio-3.0.0.yaml"
         version: "3.0.0"
     samtools: 
-        conda_env: "../../../envs/samtools/samtools-1.9.yaml"
+        conda_env: "envs/samtools-1.9.yaml"
         version: "1.9"
     bwa: 
-        conda_env: "../../../envs/bwa/bwa-0.7.17.yaml"
+        conda_env: "envs/bwa-0.7.17.yaml"
         version: "0.7.17"
     star: 
-        conda_env: "../../../envs/star/star-2.7.3a.yaml"
+        conda_env: "envs/star-2.7.3a.yaml"
         version: "2.7.3a"
 
 cvbio_config:

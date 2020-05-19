@@ -40,7 +40,7 @@ rule all:
                 rules.index_genome_fasta.output.fai,
                 rules.get_main_chromosomes_download.output.txt,
                 rules.get_main_chromosomes_download.output.bed,
-                rules.create_bwa_index.output.fasta,
+                rules.create_bwa_index.output.prefix,
                 rules.get_gencode_download.output.gtf,
                 rules.create_star_index.output.index,
             ],

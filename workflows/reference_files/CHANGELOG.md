@@ -17,6 +17,8 @@ This release was authored by Bruno Grande.
 
 - All output files are converted to read-only as a safe guard once they're created by each rule.
 
-- Everything is hard linked (rather than symbolically linked) to simplify permission management. When a hard link is created, it shares the same permissions as the target. In other words, if the target was made read-only, the hard link will automatically be read-only.
+- Downloads are hard linked (rather than symbolically linked) into the individual genome build directories to simplify permission management. When a hard link is created, it shares the same permissions as the target. In other words, if the target was made read-only, the hard link will automatically be read-only. Hard links should be avoided though when linking within the genome build directory to avoid issues where updating one rule would trigger other rules because the last-modified timestamp for all hard links gets updated if a change occurs in one of them. 
 
 - The BWA and STAR indices capture the tool version in the file path in case of backwards-incompatible index changes. Because conda environments cannot be dynamic set (_e.g._ using functions), only one tool version can be used at a time. These are set in the `config/default.yaml`.
+
+- The `create_bwa_index` rule doesn't actually symlink the FASTA file because that's technically not required. This way, the rule can avoid having to encode complicated logic to create a relative symlink since we can't use the `coreutils` conda environment to benefit from the `-r` (relative) option for `ln`. 

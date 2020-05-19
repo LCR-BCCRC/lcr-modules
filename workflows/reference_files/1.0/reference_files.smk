@@ -63,7 +63,7 @@ TOOL_VERSIONS = { pkg: pkg_info["version"] for pkg, pkg_info in config["tools"].
 
 
 wildcard_constraints:
-    build = "|".join(config["genome_builds"].keys()),
+    genome_build = "|".join(config["genome_builds"].keys()),
     version = "|".join(VERSION_UPPER.keys()),
     bwa_version = TOOL_VERSIONS["bwa"],
     star_version = TOOL_VERSIONS["star"],
@@ -110,11 +110,11 @@ for chrom_map_file in CHROM_MAPPINGS_FILES:
 
 rule download_genome_fasta:
     output: 
-        fasta = "downloads/genome_fasta/{build}.fa"
+        fasta = "downloads/genome_fasta/{genome_build}.fa"
     log: 
-        "downloads/genome_fasta/{build}.fa.log"
+        "downloads/genome_fasta/{genome_build}.fa.log"
     params: 
-        url = lambda w: config["genome_builds"][w.build]["genome_fasta_url"]
+        url = lambda w: config["genome_builds"][w.genome_build]["genome_fasta_url"]
     shell:
         op.as_one_line("""
         curl -L {params.url} > {output.fasta} 2> {log}
@@ -192,13 +192,13 @@ def get_matching_download_rules(file):
 
 def hardlink_same_provider(wildcards):
 
-    build = wildcards.build
+    genome_build = wildcards.genome_build
     suffix = wildcards.suffix
-    output_file = f"genomes/{build}/{suffix}"
+    output_file = f"genomes/{genome_build}/{suffix}"
     raw_download_file = f"downloads/{suffix}"
 
-    version = config["genome_builds"][build]["version"]
-    to_provider = config["genome_builds"][build]["provider"]
+    version = config["genome_builds"][genome_build]["version"]
+    to_provider = config["genome_builds"][genome_build]["provider"]
     from_provider_options = CHROM_MAPPINGS[version][to_provider]
     
     dependencies = []
@@ -256,11 +256,11 @@ def get_download_file(file):
         f"`{file_ext}` files are not yet configured for cvbio. See `config['cvbio_config']` variable."
     )
     def get_download_file_custom(wildcards):
-        build = wildcards.build
-        version = config["genome_builds"][build]["version"]
-        provider = config["genome_builds"][build]["provider"]
+        genome_build = wildcards.genome_build
+        version = config["genome_builds"][genome_build]["version"]
+        provider = config["genome_builds"][genome_build]["provider"]
         download_file = file.replace("{version}", version).replace("{provider}", provider)
-        download_file = "genomes/{build}/" + download_file
+        download_file = "genomes/{genome_build}/" + download_file
         return download_file
     return get_download_file_custom
 
@@ -270,7 +270,7 @@ def get_download_file(file):
 
 rule hardlink_download:
     input: hardlink_same_provider
-    output: "genomes/{build}/downloads/{suffix}"
+    output: "genomes/{genome_build}/downloads/{suffix}"
     shell: "ln -f {input} {output}"
 
 
@@ -314,33 +314,26 @@ rule get_genome_fasta_download:
     input: 
         fasta = rules.download_genome_fasta.output.fasta
     output: 
-        fasta = "genomes/{build}/genome_fasta/genome.fa",
-        fasta_hardlink = "genomes/{build}/genome.fa"
+        fasta = "genomes/{genome_build}/genome_fasta/genome.fa"
     shell:
-        op.as_one_line("""
-        ln -f {input.fasta} {output.fasta}
-            &&
-        ln -f {input.fasta} {output.fasta_hardlink}
-        """)
+        "ln -f {input.fasta} {output.fasta}"
 
 
 rule index_genome_fasta:
     input: 
         fasta = rules.get_genome_fasta_download.output.fasta
     output: 
-        fai = "genomes/{build}/genome_fasta/genome.fa.fai",
-        fai_hardlink = "genomes/{build}/genome.fa.fai"
+        fai = "genomes/{genome_build}/genome_fasta/genome.fa.fai"
     log: 
-        "genomes/{build}/genome_fasta/genome.fa.fai.log"
+        "genomes/{genome_build}/genome_fasta/genome.fa.fai.log"
     conda: CONDA_ENVS["samtools"]
     shell:
         op.as_one_line("""
         samtools faidx {input.fasta} > {log} 2>&1
             &&
-        ln -f {output.fai} {output.fai_hardlink}
-            &&
         chmod a-w {output.fai}
         """)
+
 
 
 rule get_main_chromosomes_download:
@@ -348,9 +341,9 @@ rule get_main_chromosomes_download:
         txt = get_download_file(rules.download_main_chromosomes.output.txt),
         fai = rules.index_genome_fasta.output.fai
     output: 
-        txt = "genomes/{build}/genome_fasta/main_chromosomes.txt",
-        bed = "genomes/{build}/genome_fasta/main_chromosomes.bed",
-        patterns = temp("genomes/{build}/genome_fasta/main_chromosomes.patterns.txt")
+        txt = "genomes/{genome_build}/genome_fasta/main_chromosomes.txt",
+        bed = "genomes/{genome_build}/genome_fasta/main_chromosomes.bed",
+        patterns = temp("genomes/{genome_build}/genome_fasta/main_chromosomes.patterns.txt")
     shell: 
         op.as_one_line("""
         sed 's/^/^/' {input.txt} > {output.patterns}
@@ -369,23 +362,17 @@ rule get_main_chromosomes_download:
 
 rule create_bwa_index:
     input: 
-        fasta = rules.get_genome_fasta_download.output.fasta,
-        fasta_index = rules.index_genome_fasta.output.fai
+        fasta = rules.get_genome_fasta_download.output.fasta
     output: 
-        fasta = "genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa",
-        fasta_index = "genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa.fai"
+        prefix = touch("genomes/{genome_build}/bwa_index/bwa-{bwa_version}/genome.fa")
     log: 
-        "genomes/{build}/bwa_index/bwa-{bwa_version}/genome.fa.log"
+        "genomes/{genome_build}/bwa_index/bwa-{bwa_version}/genome.fa.log"
     conda: CONDA_ENVS["bwa"]
     shell:
         op.as_one_line("""
-        ln -f {input.fasta} {output.fasta}
+        bwa index -p {output.prefix} {input.fasta} > {log} 2>&1
             &&
-        ln -f {input.fasta_index} {output.fasta_index}
-            &&
-        bwa index {output.fasta} > {log} 2>&1
-            &&
-        find `dirname {output.fasta}` -type f -exec chmod a-w {{}} \;
+        find `dirname {output.prefix}` -type f -exec chmod a-w {{}} \;
         """)
 
 
@@ -393,7 +380,7 @@ rule get_gencode_download:
     input:
         gtf = get_download_file(rules.download_gencode_annotation.output.gtf)
     output:
-        gtf = "genomes/{build}/annotations/gencode_annotation-{gencode_release}.gtf"
+        gtf = "genomes/{genome_build}/annotations/gencode_annotation-{gencode_release}.gtf"
     shell:
         "ln -f {input.gtf} {output.gtf}"
 
@@ -403,9 +390,9 @@ rule create_star_index:
         fasta = rules.get_genome_fasta_download.output.fasta,
         gtf = get_download_file(rules.download_gencode_annotation.output.gtf)
     output: 
-        index = directory("genomes/{build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{star_overhang}")
+        index = directory("genomes/{genome_build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{star_overhang}")
     log: 
-        "genomes/{build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{star_overhang}/log"
+        "genomes/{genome_build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{star_overhang}/log"
     conda: CONDA_ENVS["star"]
     threads: 12
     shell:
