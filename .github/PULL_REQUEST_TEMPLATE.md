@@ -22,19 +22,23 @@
 
 - [ ] I updated the `default.yaml` configuration file to provide default values for each rule in the module snakefile.
 
+- [ ] I ensured that all symbolic links are relative and self-contained (_i.e._ do not point outside of the repository).
+
 - [ ] I recursively searched for all comments containing `TODO` to ensure none were left. For example:
-     
-     ```bash
-     grep -r TODO modules/<module_name>/1.0
-     ```
+
+  ```bash
+  grep -r TODO modules/<module_name>/1.0
+  ```
 
 ### If applicable
 
-- [ ] I added more granular output subdirectories. 
+- [ ] I added more granular output subdirectories.
 
-- [ ] I added rules to the `reference_files` workflow to generate any new reference files. 
+- [ ] I added rules to the `reference_files` workflow to generate any new reference files.
 
 - [ ] I added subdirectories with large intermediate files to the list of `scratch_subdirectories` in the `default.yaml` configuration file.
+
+- [ ] I updated the list of available wildcards for the input files in the `default.yaml` configuration file.
 
 ## Checklist for Updated Module
 
