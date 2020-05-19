@@ -50,8 +50,8 @@ rule _manta_input_bam:
         sample_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         sample_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
-        op.symlink(input.sample_bam, output.sample_bam)
-        op.symlink(input.sample_bai, output.sample_bai)
+        op.relative_symlink(input.sample_bam, output.sample_bam)
+        op.relative_symlink(input.sample_bai, output.sample_bai)
 
 
 # Create empty file for "no normal" runs (but this is ultimately omitted from downstream rules)
@@ -199,7 +199,7 @@ rule _manta_output_vcf:
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf"
     run:
-        op.symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.vcf, output.vcf)
 
 
 # Symlinks the final BEDPE files
@@ -209,7 +209,7 @@ rule _manta_output_bedpe:
     output:
         bedpe = CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.bedpe"
     run:
-        op.symlink(input.bedpe, output.bedpe)
+        op.relative_symlink(input.bedpe, output.bedpe)
 
 
 def _get_manta_files(wildcards):

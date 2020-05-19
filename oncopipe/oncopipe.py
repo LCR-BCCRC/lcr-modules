@@ -110,7 +110,7 @@ def set_samples(module, *samples):
 # UTILITIES
 
 
-def symlink(src, dest, overwrite=True):
+def relative_symlink(src, dest, overwrite=True):
     """Creates a relative symlink from any working directory.
 
     Parameters
@@ -1250,7 +1250,7 @@ def setup_subdirs(module_config, subdirectories, scratch_subdirs=()):
         if subdir in scratch_subdirs:
             scratch_subdir_full = os.path.join(scratch_parent_dir, f"{num}-{subdir}/")
             os.makedirs(scratch_subdir_full, exist_ok=True)
-            symlink(scratch_subdir_full, subdir_full)
+            relative_symlink(scratch_subdir_full, subdir_full, overwrite=False)
         else:
             os.makedirs(subdir_full, exist_ok=True)
 
