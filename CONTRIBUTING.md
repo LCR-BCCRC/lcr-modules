@@ -457,6 +457,8 @@ The `options` section specifies the command-line options for each tool used in t
 
 Even if a tool has no command-line options beyond those already used in the Snakefile, it is useful to include an entry under `options` with an empty string in case options appear in future versions of the tool. For example, if the user wants to use a command-line option available in a later version of a tool, they can update the conda environment (see [below](#configuring-conda-environments)) and replace the empty string under `options` with the new option, thus avoiding any editing of the underlying Snakefile.
 
+In the example below, the command-line options for STAR are commented out using `#!` because they require user intervention. Specifically, the value provided to the `--sjdbOverhang` argument should match the value provided to the `star_overhang` key under `reference_params` earlier in the configuration file (see [above](#configuring-input-and-reference-files)). A comment explains the user intervention that is required.
+
 ```yaml
         options:
             ## The value for `--sjdbOverhang` must match `star_overhang` above
