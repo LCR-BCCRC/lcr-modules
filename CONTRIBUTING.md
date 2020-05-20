@@ -296,7 +296,7 @@ An example rule that follows most of these principles is included below (taken f
 
 1. Each rule should only consist of one command, unless the rule uses standard tools like `gzip` for additional commands. Otherwise, split into multiple rules, optionally connected using `pipe()` or `temp()` to avoid intermediate files.
 
-   > This guideline ensures that rules are module and can easily be rearranged by the user. It also ensures that tool-specific conda environments (_e.g._ `samtools`, `star`) can be used, which is not possible is more than one tool is used in a rule.
+   > This guideline ensures that rules are modular and can easily be rearranged by the user. It also enables tool-specific conda environments (_e.g._ `samtools`, `star`) to be used, which is not possible is more than one tool is used in a rule.
 
 2. For `input` files, use `rules` references to previous output (or input) files wherever possible.
 
