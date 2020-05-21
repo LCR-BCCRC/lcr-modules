@@ -42,7 +42,7 @@ rule _ginkgo_bam2bed:
     conda:
         CFG["conda_envs"].get("bedtools") or "envs/bedtools-2.25.0.yaml"
     log:
-        "logs/{genome_build}/{sample_id}/{lib_id}_bedtools.log"
+        CFG["logs"]["bed"] + "{genome_build}/{sample_id}/{lib_id}.bedtools.stderr.log"
     threads:
         CFG["threads"].get("bam2bed") or 2
     resources:
@@ -59,25 +59,7 @@ rule _ginkgo_link_bed_to_bins:
     run:
         md.symlink(input.bed, output.bed)
 
-"""
-def get_bed_files(config = CFG):
-    sub_df = md.filter_samples(CFG["samples"], patient_id = wildcards.sample_id)
-    libs = list(sub_df["sample_id"])
-    ginkgo_dir = CFG["dirs"]["ginkgo"]
-    def _get_bed_files(wildcards):
-        bed = expand("{dir}{{genome_build}}_bin{{bin}}/{sample_id}/{lib_id}.bed.gz", dir = ginkgo_dir, sample_id = wildcards.sample_id, lib_id = libs) 
-        return bed
-    return _get_bed_files
 
-GINKGO_DF = CFG["samples"]
-def get_bed_files(wildcards):
-    sub_df = md.filter_samples(GINKGO_DF, patient_id = wildcards.sample_id)
-    libs = list(sub_df["sample_id"])
-
-    bed = expand("{dir}{{genome_build}}_bin{{bin}}/{sample_id}/{lib_id}.bed.gz", dir = CFG["dirs"]["ginkgo"], sample_id = wildcards.sample_id, lib_id = libs) 
-    
-    return bed
-"""
 
 def create_map_dict(df = CFG["samples"]):
     sample_lib_dict = df.groupby('patient_id')['sample_id'].apply(list).to_dict()
@@ -91,13 +73,32 @@ def get_libraries(mconfig = CFG):
         if libs:
             return expand("{DIR}{{genome_build}}_bin{{bin}}/{{sample_id}}/{lib}.bed.gz", DIR = path, lib = libs)
         else:
-            raise ValueError ('nope')#(f"Invalid value for patient_id : {wildcards.sample_id}")
+            raise ValueError (f"Invalid value for patient_id : {wildcards.sample_id}")
     return _get_custom_lib
+
+def get_lib_str(wildcards):
+    d = create_map_dict()
+    libs = d.get(wildcards.sample_id)
+    return "\|".join(libs)
+
+
+rule _ginkgo_create_bed_list:
+    input:
+        bed = get_libraries(CFG),
+        metrics = CFG["inputs"]["metrics"]
+    output:
+        bed_list = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/bed_files.txt"
+    params:
+        lib_str = get_lib_str,
+        opts = CFG["options"]["bed_threshold"]
+    shell:
+        "grep \"{params.lib_str}\" {input.metrics} | awk 'NR > 1 {{if ($2 >= {params.opts}) {{ print $1 \".bed.gz\" }}}}' > {output.bed_list}"
 
 
 rule _ginkgo_run:
     input:
-        bed = get_libraries(CFG) #expand("{DIR}{{genome_build}}_bin{{bin}}/{{sample_id}}/{lib}.bed.gz", DIR = CFG["dirs"]["ginkgo"], lib = get_libraries)
+        bed = rules._ginkgo_create_bed_list.output.bed_list 
+        # get_libraries(CFG) #expand("{DIR}{{genome_build}}_bin{{bin}}/{{sample_id}}/{lib}.bed.gz", DIR = CFG["dirs"]["ginkgo"], lib = get_libraries)
     output:
         sc = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/SegCopy",
         stamp = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}.done"

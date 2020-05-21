@@ -1,13 +1,8 @@
-channels: bedtools # 484bc115
+name: bedtools # 484bc115
+channels:
   - conda-forge
   - bioconda
   - defaults
 dependencies:
   - bedtools=2.25.0
-  - biopython=1.76
-  - natsort=7.0.1
-  - pybedtools=0.8.1
-  - python=3.6.10
-  - samtools=1.9
-  - snpeff=4.2
 prefix: projects/clc/usr/anaconda/workflow_prototype/envs/
