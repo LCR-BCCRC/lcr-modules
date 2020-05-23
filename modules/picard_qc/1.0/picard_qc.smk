@@ -17,6 +17,7 @@ CFG = md.setup_module(
 localrules: 
     _picard_qc_input, 
     _picard_qc_rrna_int,
+    _picard_qc_merge_alignment_summary,
     _picard_qc_output, 
     _picard_qc_all
 
@@ -71,9 +72,9 @@ rule _picard_qc_merge_alignment_summary:
         grep -v '#' {input[0]} | sed '/^$/d' | head -n 1 | cut -f 2- > {output}.header && 
         for file in {input}; do
             grep -v '#' ${{file}} | sed '/^$/d' | tail -n 1 | cut -f 2- >> {output}.tmp;
-        done && 
-        echo {params.libs} | sed 's/ /\\n/g' | paste - {output}.tmp > {output} && 
-        echo -e 'sampleID' | paste - {output}.header | cat - {output} > {output}.tmp && 
+        done &&
+        echo {params.libs} | sed ‘s/ /\\n/g’ paste - {output}.tmp > {output} &&
+        echo -e ‘sampleID’ | paste - {output}.header | cat - {output} > {output}.tmp &&
         mv {output}.tmp {output} && rm {output}.header
         """
 

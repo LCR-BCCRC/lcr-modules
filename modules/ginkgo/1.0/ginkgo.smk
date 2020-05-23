@@ -18,6 +18,7 @@ CFG = md.setup_module(
 localrules: 
     _ginkgo_input_bam,
     _ginkgo_link_bed_to_bins,
+    _ginkgo_create_bed_list,
     _ginkgo_output,
     _ginkgo_all
 
@@ -92,7 +93,9 @@ rule _ginkgo_create_bed_list:
         lib_str = get_lib_str,
         opts = CFG["options"]["bed_threshold"]
     shell:
-        "grep \"{params.lib_str}\" {input.metrics} | awk 'NR > 1 {{if ($2 >= {params.opts}) {{ print $1 \".bed.gz\" }}}}' > {output.bed_list}"
+        md.as_one_line("""
+        grep \"{params.lib_str}\" {input.metrics} | awk 'NR > 1 {{if ($2 >= {params.opts}) {{ print $1 \".bed.gz\" }}}}' > {output.bed_list}
+        """)
 
 
 rule _ginkgo_run:
