@@ -52,10 +52,14 @@ rule vcf2maf_run:
     resources: 
         mem_mb = CFG["memory"].get("vcf2maf") or 4000
     shell:
-        """
-        vepPATH=$(dirname $(which vep))/../share/variant-effect-predictor*
-        vcf2maf.pl --input-vcf {input.vcf} --output-maf {output.maf} --ref-fasta {params.fasta} --vep-data {params.vep} --vep-path $vepPATH {params.opts} 2> {log}
-        """
+        md.as_one_line("""
+        vepPATH=$(dirname $(which vep))/../share/variant-effect-predictor*;
+        vcf2maf.pl --input-vcf {input.vcf} --output-maf {output.maf} 
+        --tumor-id {wildcards.tumour_id} --normal_id {wildcards.normal_id}
+        --vcf-tumor-id TUMOR --vcf-normal_id NORMAL
+        --ref-fasta {params.fasta}
+        --vep-data {params.vep} --vep-path $vepPATH {params.opts} 2> {log}
+        """)
         
 
 rule vcf2maf_output:
