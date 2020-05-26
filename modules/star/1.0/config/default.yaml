@@ -3,11 +3,8 @@
 ## Lines commented out with `##` act as regular comments
 
 lcr-modules:
-    
-    star:
 
-        ## See main README.md for how to set `samples` in the Snakefile
-        #! samples: null
+    star:
 
         inputs:
             ## The inputs can be configured here or in the Snakefile
@@ -15,14 +12,13 @@ lcr-modules:
             #! sample_fastq_1: null
             #! sample_fastq_2: null
 
-        reference:
-            ## The overhang should ideally be equal to read_length - 1
-            ## For example, 75-bp reads should use an overhang of 74
-            ## Uncomment *one* of the lines below or specify your own overhang
-            #! star_index: "genomes/{build}/star_index/star-2.7.3a/gencode-33/overhang-74"
-            #! star_index: "genomes/{build}/star_index/star-2.7.3a/gencode-33/overhang-99"
+        reference_params:
+            ## Ideally, `star_overhang` = max(read_length) - 1
+            ## STAR indices were precomputed for "74" and "99"
+            #! star_overhang: "99"
+            ## The Gencode release to use for the transcript annotation
+            gencode_release: "33"
 
-        ## List subdirectories that should be symlinked to the scratch directory
         scratch_subdirectories: ["star", "sort_bam"]
 
         options:
@@ -44,8 +40,8 @@ lcr-modules:
 
         conda_envs:
             star: "{MODSDIR}/envs/star-2.7.3a.yaml"
-            samtools: "{REPODIR}/modules/utils/1.0/envs/samtools-1.9.yaml"
-            sambamba: "{REPODIR}/modules/utils/1.0/envs/sambamba-0.7.1.yaml"
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            sambamba: "{MODSDIR}/envs/sambamba-0.7.1.yaml"
             
         threads:
             star: 12
