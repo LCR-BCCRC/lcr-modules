@@ -269,7 +269,7 @@ rule _star_all:
             sample_id=CFG["samples"]["sample_id"])
 ```
 
-In this second example, taken from the `manta` module, we can see how the runs table (`CFG["runs"]`) is used to define the targets. Because the runs table list tumour-normal pairs, each column from the samples table is present, but they are prefixed with `tumour_` and `normal_`. The only column that isn't taken from the samples table is `pair_status`, which described the relationship between the tumour-normal pair. Generally, this can be `matched` if the tumour and normal samples come from the same patient; `unmatched` if the two samples come from different patients; and `no_normal` if there is no normal paired with the tumours.
+In this second example, taken from the `manta` module, we can see how the runs table (`CFG["runs"]`) is used to define the targets. Because the runs table lists tumour-normal pairs, each column from the samples table is present, but they are prefixed with `tumour_` and `normal_`. The only column that isn't taken from the samples table is `pair_status`, which described the relationship between the tumour-normal pair. Generally, this can be `matched` if the tumour and normal samples come from the same patient; `unmatched` if the two samples come from different patients; and `no_normal` if there is no normal paired with the tumours.
 
 It's worth noting that the output rule being expanded is `_manta_dispatch` rather than `_manta_output_vcf` and `_manta_output_bedpe`. The reason for this is technical, but briefly, it is because an input file function in the `_manta_dispatch` rule determines which files are converted into BEDPE format.
 
@@ -334,7 +334,7 @@ An example rule that follows most of these principles is included below (taken f
 
     > These directives are essential for running the module on a compute cluster. The values should be as low as possible while ensuring that most jobs are run within a reasonable amount of time (to minimize time spent in the queue).
 
-11. Use the `shell` directive for rules with the `conda` directive. Use the `run` directive instead otherwise if more complicated logic is required.
+11. Use the `shell` directive for rules with the `conda` directive. Use the `run` directive instead if more complicated logic is required.
 
     > The `op.as_one_line()` function is meant to be used with the triple-quoted (`"""`) strings for long commands. The benefits of using this function are: (1) spaces are automatically added at the end of each line; (2) double-quotes do not need to be escaped; and (3) cleaner commands that are easier to organize using indentation. For example, any pipes (`|`) or double-ampersands (`&&`) can be indented to indicate the separation between two commands.
 
