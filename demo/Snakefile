@@ -24,7 +24,7 @@ subworkflow reference_files:
 
 
 # Load module-specific configuration
-configfile: "../modules/manta/1.0/config/default.yaml"
+configfile: "../modules/manta/2.0/config/default.yaml"
 
 # Load project-specific config (including "lcr-modules" section)
 configfile: "config.yaml"
@@ -54,4 +54,4 @@ config["lcr-modules"]["manta"]["inputs"]["sample_bai"] = SAMPLE_BAM + ".bai"
 
 
 # Load manta module snakefile
-include: "../modules/manta/1.0/manta.smk"
+include: "../modules/manta/2.0/manta.smk"
