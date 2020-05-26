@@ -432,7 +432,6 @@ For more information on the approach taken in `reference_files` and its benefits
             #! sample_fastq_1: null
             #! sample_fastq_2: null
 
-        ## These parameters are used to determine which reference files to use
         reference_params:
             ## Ideally, `star_overhang` = max(read_length) - 1
             ## STAR indices were precomputed for "74" and "99"
