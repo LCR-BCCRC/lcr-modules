@@ -1238,7 +1238,9 @@ def setup_subdirs(module_config, subdirectories, scratch_subdirs=()):
     # Check if `scratch_directory` is needed
     if len(scratch_subdirs) > 0 and "scratch_directory" not in module_config:
         raise AssertionError(
-            "`scratch_directory` is not specified in the `_shared` config."
+            "`scratch_directory` is not specified in the `_shared` config. If "
+            "you don't want to use a scratch directory, set the following "
+            "(note the lack of quotes around null): \nscratch_directory: null"
         )
 
     # If `scratch_directory` is None, then don't worry about `scratch_subdirs`
