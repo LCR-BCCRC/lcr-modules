@@ -18,8 +18,8 @@ import oncopipe as op
 # Setup module and store module-specific configuration in `CFG`.
 CFG = op.setup_module(
     name = "manta", 
-    version = "1.0",
-    subdirectories = ["inputs", "chrom_bed", "manta", "calc_vaf", "bedpe", "outputs"]
+    version = "2.0",
+    subdirectories = ["inputs", "chrom_bed", "manta", "augment_vcf", "bedpe", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster.
@@ -30,7 +30,7 @@ localrules:
     _manta_configure,
     _manta_output_bedpe,
     _manta_output_vcf, 
-    _manta_all_dispatch,
+    _manta_dispatch,
     _manta_all
 
 
@@ -77,7 +77,7 @@ rule _manta_configure:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        fasta = reference_files("genomes/{genome_build}/genome.fa"),
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         config = op.switch_on_wildcard("seq_type", CFG["switches"]["manta_config"]),
         bedz = rules._manta_index_bed.output.bedz
     output:
@@ -100,7 +100,7 @@ rule _manta_configure:
 
 
 # Launches manta workflow in parallel mode and deletes unnecessary files upon success.
-checkpoint _manta_run:
+rule _manta_run:
     input:
         runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     output:
@@ -124,56 +124,38 @@ checkpoint _manta_run:
         """)
 
 
-# Fixes sample IDs in VCF header for compatibility with svtools vcftobedpe Otherwise, 
-# manta uses the sample name from the BAM read groups, which may not be useful.
-rule _manta_fix_vcf_ids:
+# Calculates the tumour and/or normal variant allele fractions (VAF) from the allele counts
+# and fixes the sample IDs in the VCF header to match sample IDs used in Snakemake
+rule _manta_augment_vcf:
     input:
-        variants_dir = rules._manta_run.output.variants_dir
+        variants_dir = rules._manta_run.output.variants_dir,
+        aug_vcf = CFG["inputs"]["augment_manta_vcf"]
     output:
-        vcf = CFG["dirs"]["calc_vaf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.with_ids.vcf"
+        vcf = CFG["dirs"]["augment_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.augmented.vcf"
     log:
-        stderr = CFG["logs"]["calc_vaf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_fix_vcf_ids.{vcf_name}.stderr.log"
+        stdout = CFG["logs"]["augment_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_augment_vcf.{vcf_name}.stdout.log",
+        stderr = CFG["logs"]["augment_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_augment_vcf.{vcf_name}.stderr.log"
+    params:
+        opts = CFG["options"]["augment_vcf"]
+    conda:
+        CFG["conda_envs"]["augment_manta_vcf"]
     threads:
-        CFG["threads"]["fix_vcf_ids"]
+        CFG["threads"]["augment_vcf"]
     resources: 
-        mem_mb = CFG["mem_mb"]["fix_vcf_ids"]
+        mem_mb = CFG["mem_mb"]["augment_vcf"]
     shell:
         op.as_one_line("""
-        gzip -dc {input.variants_dir}/{wildcards.vcf_name}.vcf.gz"
-            |
-        awk 'BEGIN {{FS=OFS="\\t"}}
-        $1 == "#CHROM" && $10 != "" && $11 != "" {{$10="{wildcards.normal_id}"}}
-        $1 == "#CHROM" && $10 != "" && $11 == "" {{$10="{wildcards.tumour_id}"}}
-        $1 == "#CHROM" && $11 != "" {{$11="{wildcards.tumour_id}"}}
-        {{print $0}}' > {output.vcf} 2> {log.stderr}
+        {input.aug_vcf} {params.opts} --tumour_id {wildcards.tumour_id} --normal_id {wildcards.normal_id} 
+        --vcf_type {wildcards.vcf_name} {input.variants_dir}/{wildcards.vcf_name}.vcf.gz {output.vcf}
+        > {log.stdout} 2> {log.stderr}
         """)
-
-
-# Calculates the tumour and normal variant allele fraction (VAF) from the allele counts
-# and creates new fields in the INFO column for convenience.
-rule _manta_calc_vaf:
-    input:
-        vcf  = rules._manta_fix_vcf_ids.output.vcf,
-        cvaf = CFG["inputs"]["calc_manta_vaf"]
-    output:
-        vcf = CFG["dirs"]["calc_vaf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.with_ids.with_vaf.vcf"
-    log:
-        stderr = CFG["logs"]["calc_vaf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_calc_vaf.{vcf_name}.stderr.log"
-    conda:
-        CFG["conda_envs"]["calc_manta_vaf"]
-    threads:
-        CFG["threads"]["calc_vaf"]
-    resources: 
-        mem_mb = CFG["mem_mb"]["calc_vaf"]
-    shell:
-        "{input.cvaf} {input.vcf} > {output.vcf} 2> {log.stderr}"
 
 
 # Converts the VCF file into a more tabular BEDPE file, which is easier to handle in R
 # and automatically pairs up breakpoints for interchromosomal events.
 rule _manta_vcf_to_bedpe:
     input:
-        vcf  = rules._manta_calc_vaf.output.vcf
+        vcf  = rules._manta_augment_vcf.output.vcf
     output:
         bedpe = CFG["dirs"]["bedpe"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.bedpe"
     log:
@@ -188,20 +170,10 @@ rule _manta_vcf_to_bedpe:
         "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log.stderr}"
 
 
-# Symlinks the VCF files with FORMAT columns
-rule _manta_output_vcf_with_vafs:
+# Symlinks the augmented VCF files
+rule _manta_output_vcf:
     input:
-        vcf = rules._manta_calc_vaf.output.vcf
-    output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf"
-    run:
-        op.relative_symlink(input.vcf, output.vcf)
-
-
-# Symlinks the VCF files without FORMAT columns
-rule _manta_output_vcf_without_vafs:
-    input:
-        vcf = rules._manta_fix_vcf_ids.output.vcf
+        vcf = rules._manta_augment_vcf.output.vcf
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf"
     run:
@@ -218,7 +190,7 @@ rule _manta_output_bedpe:
         op.relative_symlink(input.bedpe, output.bedpe)
 
 
-def _manta_predict_manta_output(wildcards):
+def _manta_predict_output(wildcards):
     """Request symlinks for all Manta VCF/BEDPE files.
     
     This function is required in conjunction with a Snakemake
@@ -244,35 +216,36 @@ def _manta_predict_manta_output(wildcards):
     # Check if run with '--rna'
     if "--rna" in configure_params:
         vcf_names.append("rnaSV")
-
-    # Check it run in `no_normal` mode
-    if wildcards.pair_status == "no_normal":
+    # Otherwise, check it run in `no_normal` mode
+    elif wildcards.pair_status == "no_normal":
         vcf_names.append("tumorSV")
     else:
         vcf_names.append("diploidSV")
         vcf_names.append("somaticSV")
 
-    # VCF files without VAF information (due to lack of FORMAT columns)
-    no_vafs = ["candidateSV", "candidateSmallIndels"]
-    vcf_names_with_vafs = set(vcf_names) - set(no_vafs)
-    vcf_names_without_vafs = set(vcf_names) & set(no_vafs)
+
+    # Some VCF files can't be converted into BEDPE files
+    no_bedpe = ["candidateSV", "candidateSmallIndels"]
+    vcf_names_with_bedpe = set(vcf_names) - set(no_bedpe)
+    vcf_names_without_bedpe = set(vcf_names) & set(no_bedpe)
 
     # Request the output files based on whether VAF info is available
-    outputs_with_vafs = expand(
+    outputs_with_bedpe = expand(
         [
-            rules._manta_output_vcf_with_vafs.output.vcf,
+            rules._manta_output_vcf.output.vcf,
             rules._manta_output_bedpe.output.bedpe,
         ],
-        vcf_name=vcf_names_with_vafs,
-        **wildcards
-    )
-    outputs_without_vafs = expand(
-        rules._manta_output_vcf_without_vafs.output.vcf,
-        vcf_name=vcf_names_without_vafs,
+        vcf_name=vcf_names_with_bedpe,
         **wildcards
     )
 
-    return outputs_with_vafs + outputs_without_vafs
+    outputs_without_bedpe = expand(
+        rules._manta_output_vcf.output.vcf,
+        vcf_name=vcf_names_without_bedpe,
+        **wildcards
+    )
+
+    return outputs_with_bedpe + outputs_without_bedpe
 
 
 # Generates the target symlinks for each run depending on the Manta output VCF files

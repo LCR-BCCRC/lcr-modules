@@ -5,12 +5,15 @@ All notable changes to the `manta` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0] - 2020-05-11
+## [2.0] - 2020-05-26
 
 This release was authored by Bruno Grande.
 
-- Switch to oncopipe
-- Remove checkpoint
+- The module was updated to follow the latest best practices for `lcr-modules`. For instance, the "switches" (_i.e._ the dictionaries provided to the `switch_on_wildcard()` function) are stored in the configuration file. Another change is the use of the `reference_files` workflow.
+
+- The augment_manta_vcf.py script is used instead of the older calc_manta_vaf.py script, which was written with the `somaticSV` VCF files in mind. The newer script is aware of which samples (_i.e._ tumour and/or normal) are present in each Manta output VCF file (_e.g._ `diploidSV`, `somaticSV`). This awareness also makes it simpler for this script to update the sample IDs (rather than relying on an awk command).
+
+- The Snakemake checkpoint was dropped in version 2.0. Instead, the input file function for the `manta_dispatch` rule predicts which the Manta output VCF files based on the run. For example, if the `--rna` option is used, then the module will expect a `rnaSV` output file. For more details, check out the `_manta_predict_output` function in the module.
 
 ## [1.0] - 2020-04-22
 
