@@ -1187,6 +1187,7 @@ def setup_module(name, version, subdirectories):
     parent_dir = mconfig["dirs"]["_parent"]
     launched_fmt = _session.launched_fmt
     logs_parent_dir = os.path.join(parent_dir, "logs", launched_fmt)
+    logs_parent_dir = logs_parent_dir.rstrip("/") + "/"
     mconfig["logs"]["_parent"] = logs_parent_dir
     os.makedirs(logs_parent_dir, exist_ok=True)
     for subdir, value in mconfig["dirs"].items():
