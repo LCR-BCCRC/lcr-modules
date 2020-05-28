@@ -10,7 +10,7 @@ lcr-modules:
         root_output_dir: "results/"
         # This specifies where to output files that are ideally stored in
         # a scratch directory (e.g., large intermediate files)
-        scratch_directory: "/projects/rmorin_scratch/my_project/"
+        scratch_directory: "/projects/rmorin_scratch/lcr_modules_demo/"
         # This specifies the sample to use as a normal for unpaired tumours
         # (manta runs unpaired tumours with unmatched normal samples)
         pairing_config:
