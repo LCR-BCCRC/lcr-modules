@@ -16,3 +16,6 @@ __pycache__/
 
 # Ignore example snakefiles
 /examples
+
+# Ignore sphinx builds
+/docs/build

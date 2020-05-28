@@ -289,8 +289,8 @@ def switch_on_column(
     by the `match_on` argument. To find the row, the `seq_type`
     and `tumour_id` (or `normal_id`) wildcards are required.
 
-    Special Keys
-    ------------
+    The following special keys are available:
+
     _default
         If you provide a value under the key '_default' in `options`,
         this value will be used if the column value is not among
@@ -372,8 +372,8 @@ def switch_on_column(
 def switch_on_wildcard(wildcard, options, format=True, strict=False):
     """Pick an option based on the value of a wildcard for a run.
 
-    Special Keys
-    ------------
+    The following special keys are available:
+
     _default
         If you provide a value under the key '_default' in `options`,
         this value will be used if the column value is not among
@@ -521,7 +521,7 @@ def check_reference(module_config, reference_key=None):
     ----------
     module_config : dict
         The module-specific configuration, corresponding to
-        `config['lcr-modules']['<module-name>'].
+        `config['lcr-modules']['<module-name>']`.
     reference_key : str, optional
         The key for a required reference file.
 
@@ -745,7 +745,7 @@ def generate_runs_for_patient(
     Returns
     -------
     dict
-        Lists of sample features prefixed with 'tumour_' and 'normal_'
+        Lists of sample features prefixed with `tumour_` and `normal_`
         for all tumours for the given patient. Depending on the argument
         values, tumour-normal pairs may not be matching, and normal
         samples may not be included. The 'pair_status' column specifies
@@ -831,10 +831,10 @@ def generate_runs_for_patient_wrapper(patient_samples, pairing_config):
         to dictionaries (values) specifying argument values meant for
         `generate_runs_for_patient()`. For example:
 
-        {'genome': {'run_unpaired_tumours_with': 'unmatched_normal',
-                    'unmatched_normal': Sample(...)},
-         'mrna': {'run_paired_tumour': False,
-                  'run_unpaired_tumours_with': 'no_normal'}}
+            {'genome': {'run_unpaired_tumours_with': 'unmatched_normal',
+                        'unmatched_normal': Sample(...)},
+            'mrna': {'run_paired_tumour': False,
+                    'run_unpaired_tumours_with': 'no_normal'}}
 
     Returns
     -------
@@ -862,12 +862,14 @@ def combine_lists(dictionary, as_dataframe=False):
     Parameters
     ----------
     dictionary : dict
-        Foo
+        Nested dictionaries where the key names match up.
 
-        {'genome': {'field1': [1, 2, 3],
-                    'field2': [4, 5, 6]},
-         'mrna': {'field1': [11, 12, 13],
-                  'field2': [14, 15, 16]}}
+        ::
+
+            {'genome': {'field1': [1, 2, 3],
+                        'field2': [4, 5, 6]},
+            'mrna': {'field1': [11, 12, 13],
+                    'field2': [14, 15, 16]}}
 
     as_dataframe : boolean, optional
         Whether the return value is coerced to pandas.DataFrame.
@@ -878,18 +880,22 @@ def combine_lists(dictionary, as_dataframe=False):
         The type of the return value depends on `as_dataframe`.
         If `as_dataframe` is False, the output will look like:
 
-        {'field1': [1, 2, 3, 11, 12, 13],
-         'field2': [4, 5, 6, 14, 15, 16]}
+        ::
+
+            {'field1': [1, 2, 3, 11, 12, 13],
+            'field2': [4, 5, 6, 14, 15, 16]}
 
         If `as_dataframe` is True, the output will look like:
 
-            field1  field2
-        0       1       4
-        1       2       5
-        2       3       6
-        3      11      14
-        4      12      15
-        5      13      16
+        ::
+
+                field1  field2
+            0       1       4
+            1       2       5
+            2       3       6
+            3      11      14
+            4      12      15
+            5      13      16
     """
     combined = defaultdict(list)
     for d in dictionary.values():
@@ -1229,7 +1235,9 @@ def setup_subdirs(module_config, subdirectories, scratch_subdirs=()):
     scratch_subdirs : list of str, optional
         A subset of `subdirectories` that should be symlinked into the given
         scratch directory, specified under:
+
             `config["lcr_modules"]["_shared"]["scratch_directory"]`
+
         This should not include 'inputs' and 'outputs', which only
         contain symlinks.
 
