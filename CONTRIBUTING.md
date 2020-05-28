@@ -31,6 +31,7 @@ This document provides a set of guidelines for contributing to the `lcr-modules`
   - [What does the underscore prefix mean?](#what-does-the-underscore-prefix-mean)
   - [What is the difference between `op.relative_symlink()` and `os.symlink()`?](#what-is-the-difference-between-oprelative_symlink-and-ossymlink)
   - [Why am I running into a `NameError: name 'CFG' is not defined` exception?](#why-am-i-running-into-a-nameerror-name-cfg-is-not-defined-exception)
+  - [How do I specify the available memory per thread for a command-line tool?](#how-do-i-specify-the-available-memory-per-thread-for-a-command-line-tool)
 
 ## Contributing a New Module
 
@@ -251,9 +252,16 @@ rule _manta_input_bam_none:
 
 ##### Target rules
 
-Generally, the last rule of the module snakefile is the "master target rule". This rule is usually named `_<module_name>_all` (_e.g._ `_star_all`), and expands all of the output files (the files symlinked into `99-outputs`) using either the samples table (`CFG["samples"]`) or the runs table (`CFG["runs"]`) depending on whether the module is run once per sample or once per tumour. Note the use of the `rules` variable that snakemake automatically generates for retrieving the output files from previous rules in the module.
+Generally, the last rule of the module snakefile is the "master target rule". This rule is usually named `_<module_name>_all` (_e.g._ `_star_all`), and expands all of the output files (the files symlinked into `99-outputs`) using either the samples table (`CFG["samples"]`) or the runs table (`CFG["runs"]`) depending on whether the module is run once per sample or once per tumour. The two examples below show a preview of each table and how each can be used in the target rule.
 
-In the example below, since STAR is run on all RNA-seq BAM file, we are using the samples table, which has been automatically filtered for samples whose `seq_type` appears in the module's `pairing_config`. For more information on the `pairing_config`, check out the [README](README.md#pairing-configuration).
+###### Using the samples table
+
+| sample_id                 | seq_type | patient_id        | tissue_status | genome_build |
+| ------------------------- | -------- | ----------------- | ------------- | ------------ |
+| BLGSP-71-08-00508-01B-01R | mrna     | BLGSP-71-08-00508 | tumour        | hg38         |
+| BLGSP-71-06-00166-01B-01R | mrna     | BLGSP-71-06-00166 | tumour        | hg38         |
+
+In the example below, since STAR is run on all RNA-seq BAM file, we are using the samples table, which has been automatically filtered for samples whose `seq_type` appears in the module's `pairing_config`. For more information on the `pairing_config`, check out the [README](README.md#pairing-configuration). Note the use of the `rules` variable that snakemake automatically generates for retrieving the output files from previous rules in the module.
 
 ```python
 rule _star_all:
@@ -268,6 +276,15 @@ rule _star_all:
             genome_build=CFG["samples"]["genome_build"],
             sample_id=CFG["samples"]["sample_id"])
 ```
+
+###### Using the runs table
+
+| pair_status | tumour_sample_id          | normal_sample_id          | tumour_seq_type | normal_seq_type | tumour_patient_id | normal_patient_id | tumour_tissue_status | normal_tissue_status | tumour_genome_build | normal_genome_build |
+| ----------- | ------------------------- | ------------------------- | --------------- | --------------- | ----------------- | ----------------- | -------------------- | -------------------- | ------------------- | ------------------- |
+| matched     | BLGSP-71-08-00508-01B-01D | BLGSP-71-08-00508-10A-01D | capture         | capture         | BLGSP-71-08-00508 | BLGSP-71-08-00508 | tumour               | normal               | hg38                | hg38                |
+| unmatched   | BLGSP-71-06-00166-01B-01D | BLGSP-71-08-00508-10A-01D | capture         | capture         | BLGSP-71-06-00166 | BLGSP-71-08-00508 | tumour               | normal               | hg38                | hg38                |
+| no_normal   | BLGSP-71-08-00508-01B-01R |                           | mrna            |                 | BLGSP-71-08-00508 |                   | tumour               |                      | hg38                |                     |
+| no_normal   | BLGSP-71-06-00166-01B-01R |                           | mrna            |                 | BLGSP-71-06-00166 |                   | tumour               |                      | hg38                |                     |
 
 In this second example, taken from the `manta` module, we can see how the runs table (`CFG["runs"]`) is used to define the targets. Because the runs table lists tumour-normal pairs, each column from the samples table is present, but they are prefixed with `tumour_` and `normal_`. The only column that isn't taken from the samples table is `pair_status`, which described the relationship between the tumour-normal pair. Generally, this can be `matched` if the tumour and normal samples come from the same patient; `unmatched` if the two samples come from different patients; and `no_normal` if there is no normal paired with the tumours.
 
@@ -302,7 +319,7 @@ An example rule that follows most of these principles is included below (taken f
 
    > These `rules` references minimizes the risk that two files get out of sync, _e.g._ if you update an upstream output file and forget to update every downstream occurrence of that file.
 
-3. Reference data should be provided as input files and ideally have rules in the `reference_files` workflow so they can be generated automatically.
+3. Reference data should be provided as input files and ideally have rules in the `reference_files` workflow so they can be generated automatically. If a reference file has parameters, these can be exposed to the user under the `reference_params` section in the module configuration.
 
    > Having reference data as input files ensures that rules are re-run if the reference data is updated. For more information on the `reference_files` workflow, check out the [Reference Files](#reference-files) section below.
 
@@ -343,15 +360,23 @@ rule _star_run:
     input:
         fastq_1 = rules._star_input_fastq.output.fastq_1,
         fastq_2 = rules._star_input_fastq.output.fastq_2,
-        index = reference_files(CFG["reference"]["star_index"])
+        index = reference_files(
+            "genomes/{genome_build}/star_index/star-2.7.3a" +
+                "/gencode-" + CFG["reference_params"]["gencode_release"] +
+                "/overhang-" + CFG["reference_params"]["star_overhang"]
+        ),
+        gtf = reference_files(
+            "genomes/{genome_build}/annotations" +
+                "/gencode_annotation-" + CFG["reference_params"]["gencode_release"] + ".gtf"
+        )
     output:
-        bam = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/Aligned.sortedByCoord.out.bam",
-        prefix = directory(CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/")
+        bam = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/Aligned.out.bam"
     log:
         stdout = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/star.stdout.log",
         stderr = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/star.stderr.log"
     params:
-        opts = CFG["options"]["star"]
+        opts = CFG["options"]["star"],
+        prefix = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/"
     conda:
         CFG["conda_envs"]["star"]
     threads:
@@ -361,8 +386,9 @@ rule _star_run:
     shell:
         op.as_one_line("""
         STAR {params.opts} --readFilesIn {input.fastq_1} {input.fastq_2}
-        --genomeDir {input.index} --outFileNamePrefix {output.prefix}
-        --runThreadN {threads} --sjdbGTFfile {input.gtf}
+        --genomeDir {input.index} --outFileNamePrefix {params.prefix}
+        --runThreadN {threads} --sjdbGTFfile {input.gtf} 
+        > {log.stdout} 2> {log.stderr}
         """)
 ```
 
@@ -415,9 +441,9 @@ lcr-modules:
 
 #### Configuring input and reference files
 
-Virtually all modules will have input files, and many will also require reference files. These are defined under the `inputs` and `reference` keys, respectively.
+Virtually all modules will have input files, and many will also require reference files. These are defined using the `inputs` and `reference_params` keys, respectively.
 
-The input files will generally be commented out with `#!` since they need to be specified by the user. This can be done in the configuration file or in the Snakefile (see the [demo Snakefile](demo/Snakefile) for an example). Either way, the available wildcards are usually listed in a comment. If not, you can always look at the wildcards in the output files of the rule using the `inputs` configuration section. In general, these are `{seq_type}`, `{genome_build}`, and `{sample_id}`.
+The input files will generally be set to `null` and labelled with `# UPDATE` since they need to be specified by the user. This can be done in the configuration file or in the Snakefile (see the [demo Snakefile](demo/Snakefile) for an example). Either way, the available wildcards are usually listed in a comment. If not, you can always look at the wildcards in the output files of the rule using the `inputs` configuration section. In general, these are `{seq_type}`, `{genome_build}`, and `{sample_id}`.
 
 > One advantage of specifying the input files in the Snakefile (as opposed to in the configuration file) is that the user can provide an [input file function](https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#functions-as-input-files) rather than a string.
 
@@ -427,16 +453,16 @@ For more information on the approach taken in `reference_files` and its benefits
 
 ```yaml
         inputs:
-            ## The inputs can be configured here or in the Snakefile
-            ## Available wildcards: {seq_type} {genome_build} {sample_id}
-            #! sample_fastq_1: null
-            #! sample_fastq_2: null
+            # The inputs can be configured here or in the Snakefile
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_fastq_1: "<path/to/sample.R1.fastq.gz>"  # UPDATE
+            sample_fastq_2: "<path/to/sample.R2.fastq.gz>"  # UPDATE
 
         reference_params:
-            ## Ideally, `star_overhang` = max(read_length) - 1
-            ## STAR indices were precomputed for "74" and "99"
-            #! star_overhang: "99"
-            ## The Gencode release to use for the transcript annotation
+            # Ideally, `star_overhang` = max(read_length) - 1
+            # STAR indices were precomputed for "74" and "99"
+            star_overhang: "99"  # UPDATE
+            # The Gencode release to use for the transcript annotation
             gencode_release: "33"
 ```
 
@@ -526,7 +552,7 @@ The `pairing_config` section is where the module is configured to run for each s
 
 ## Reference files
 
-The `reference_files` workflow is designed to simplify deployment of `lcr-modules` for any reference genome and on any computer system. This is achieved by (1) downloading the genome FASTA files and any additional reference files; (2) converting the additional files to match the same chromosome system as the genome builds (_e.g._ UCSC vs NCBI vs Ensembl); and (3) generate the required reference files from what was downloaded using snakemake rules. This approach also ensures that the steps taken to generate any reference file are tracked, guaranteeing reproducibility.
+The `reference_files` workflow is designed to simplify deployment of `lcr-modules` for any reference genome and on any computer system. This is achieved by (1) downloading the genome FASTA files and any additional reference files; (2) converting the additional files to match the same chromosome system as the genome builds (_e.g._ UCSC vs NCBI vs Ensembl); and (3) generate the required reference files from what was downloaded using snakemake rules. This approach also ensures that the steps taken to generate any reference file are tracked, ensuring their reproducibility.
 
 More details will be added later.
 
@@ -560,7 +586,7 @@ You can use the `op.switch_on_wildcard()` function to dynamically set the value 
 
 This dictionary can make use of special keys. The most important one to note is the `"_default"` special key, whose associated value is selected if the wildcard value isn't among the other keys. You should check out the function docstring with `help(op.switch_on_wildcard)` to find out about the other special keys. See [below](#what-does-the-underscore-prefix-mean) for an explanation for the underscore prefix.
 
-By default, the `op.switch_on_wildcard()` will replace any placeholders (using the same format as the `shell` directive; _e.g._ `{wildcards.seq_type}`) with the actual values. This beheviour can be tweaked with the `format` (default = `True`) and `strict` (default = `False`) optional arguments. See the function docstring for more informaiton on these optional arguments.
+By default, the `op.switch_on_wildcard()` will replace any placeholders (using the same format as the `shell` directive; _e.g._ `{wildcards.seq_type}`) with the actual values. This beheviour can be tweaked with the `format` (default = `True`) and `strict` (default = `False`) optional arguments. See the function docstring for more information on these optional arguments.
 
 An example taken from the `manta` module is included below (only relevant parts are shown). Here, the `_manta_configure` rule needs to use a different configuration file based on the sequencing data type (`seq_type`). Specifically, we wish to provide the high-sensitivity configuration if the `seq_type` is RNA-seq (`mrna`) or capture-based sequencing (`capture`), or the default configuration otherwise. Accordingly, the first argument is `"seq_type"`.
 
@@ -632,4 +658,18 @@ Each module creates a `CFG` variable as a convenient but temporary pointer to th
 ```python
 # Replace <module_name> with the actual module name (e.g., `star`)
 CFG = config["lcr-modules"]["<module_name>"]
+```
+
+### How do I specify the available memory per thread for a command-line tool?
+
+The `mem_mb` resource is meant to represent the total amount of memory used by all threads of a given process. Some tools have command-line arguments allowing the user to specify the amount of memory they can use, such as any Java-based application (_i.e._ using `-Xmx`). In some cases, the tool expects the amount of memory per thread (_e.g._ `samtools sort`), whereas `resources.mem_mb` represents the total amount of memory. [Arithmetic expansion](https://www.shell-tips.com/bash/performing-math-calculation-in-bash#using-arithmetic-expansion-with-or) in Bash allows you to circumvent this issue as long as you are dealing with integers, which should be the case with `threads` and `mem_mb`. For example, here's how you would divide two integers and print the result: `echo $((12000 / 12))`. We can leverage the same syntax within the `shell` directive of a Snakemake rule. The example below is taken from the `samtools sort` rule in the `utils` module.
+
+```bash
+rule:
+    ...
+    shell:
+        op.as_one_line("""
+        samtools sort {params.opts} -@ {threads} -m $(({resources.mem_mb} / {threads}))M
+        -T {params.prefix} -o {output.bam} {input.bam} > {log.stdout} 2> {log.stderr}
+        """)
 ```
