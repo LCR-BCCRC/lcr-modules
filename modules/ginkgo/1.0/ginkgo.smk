@@ -91,6 +91,7 @@ rule _ginkgo_create_bed_list:
         bed_list = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/bed_files.txt"
     params:
         lib_str = get_lib_str,
+        #bedDir = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}",
         opts = CFG["options"]["bed_threshold"]
     shell:
         md.as_one_line("""
@@ -100,7 +101,7 @@ rule _ginkgo_create_bed_list:
 
 rule _ginkgo_run:
     input:
-        bed = rules._ginkgo_create_bed_list.output.bed_list 
+        bed_list = rules._ginkgo_create_bed_list.output.bed_list 
         # get_libraries(CFG) #expand("{DIR}{{genome_build}}_bin{{bin}}/{{sample_id}}/{lib}.bed.gz", DIR = CFG["dirs"]["ginkgo"], lib = get_libraries)
     output:
         sc = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/SegCopy",
@@ -128,6 +129,7 @@ rule _ginkgo_run:
         --input {params.bedDir} 
         --genome {params.genome} 
         --binning {params.binning}
+        --cells {input.bed_list}
         {params.clustDist} {params.clustLink}
         {params.opts} 
         > {log.stdout} 2> {log.stderr}

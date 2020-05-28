@@ -5,7 +5,7 @@ lcr-modules:
             metrics: "results/picard_qc-1.0/02-merged_metrics/genome--{genome_build}/all.alignment_summary.txt"
             #"/projects/clc/usr/ginkgo/cli/ginkgo.sh"
             sample_bam: null
-            bins: ["100000"]
+            bins: ["1000000"]
         options:
             bed_threshold: "500000"
 
