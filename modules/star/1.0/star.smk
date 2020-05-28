@@ -59,15 +59,23 @@ rule _star_run:
     input:
         fastq_1 = rules._star_input_fastq.output.fastq_1,
         fastq_2 = rules._star_input_fastq.output.fastq_2,
-        index = reference_files(CFG["reference"]["star_index"])
+        index = reference_files(
+            "genomes/{genome_build}/star_index/star-2.7.3a" +
+                "/gencode-" + CFG["reference_params"]["gencode_release"] +
+                "/overhang-" + CFG["reference_params"]["star_overhang"]
+        ),
+        gtf = reference_files(
+            "genomes/{genome_build}/annotations" +
+                "/gencode_annotation-" + CFG["reference_params"]["gencode_release"] + ".gtf"
+        )
     output:
-        bam = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/Aligned.sortedByCoord.out.bam",
-        prefix = directory(CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/")
+        bam = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/Aligned.out.bam"
     log:
         stdout = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/star.stdout.log",
         stderr = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/star.stderr.log"
     params:
-        opts = CFG["options"]["star"]
+        opts = CFG["options"]["star"],
+        prefix = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/"
     conda:
         CFG["conda_envs"]["star"]
     threads:
@@ -77,8 +85,11 @@ rule _star_run:
     shell:
         op.as_one_line("""
         STAR {params.opts} --readFilesIn {input.fastq_1} {input.fastq_2}
-        --genomeDir {input.index} --outFileNamePrefix {output.prefix}
-        --runThreadN {threads} --sjdbGTFfile {input.gtf}
+        --genomeDir {input.index} --outFileNamePrefix {params.prefix}
+        --runThreadN {threads} --sjdbGTFfile {input.gtf} 
+        > {log.stdout} 2> {log.stderr}
+            &&
+        rmdir {params.prefix}/_STARtmp
         """)
 
 
@@ -94,59 +105,41 @@ rule _star_symlink_star_bam:
 
 # Create symlink in subdirectory where duplicates will be marked by the `utils` module
 # This rule will trigger the `utils` rule for sorting the BAM file
+# By this point, the sorted BAM file exists, so this rule deletes the original BAM file
 rule _star_symlink_sorted_bam:
     input:
-        bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam"
+        bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam",
+        star_bam = rules._star_run.output.bam
     output:
         bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam"
     run:
         op.relative_symlink(input.bam, output.bam)
-
-
-# By this point, the sorted BAM file exists, so this rule deletes the original BAM file
-rule _star_delete_star_bam:
-    input:
-        old_bam = rules._star_run.output.bam,
-        new_bam = rules._star_symlink_sorted_bam.input.bam
-    output:
-        bam = touch(rules._star_run.output.bam + ".deleted")
-    run:
-        os.remove(input.old_bam)
+        os.remove(input.star_bam)
+        shell("touch {input.star_bam}.deleted")
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 # This rule will trigger the `utils` rules for marking duplicates and indexing the BAM file
+# By this point, the mdups BAM file exists, so this rule deletes the sorted BAM file
 rule _star_output_bam:
     input:
         bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.mdups.bam",
-        bai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.mdups.bam.bai"
+        bai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.mdups.bam.bai",
+        sorted_bam = rules._star_symlink_sorted_bam.input.bam
     output:
-        bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
+        bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     run:
         op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
-
-
-# By this point, the mdups BAM file exists, so this rule deletes the sorted BAM file
-rule _star_delete_sorted_bam:
-    input:
-        old_bam = rules._star_symlink_sorted_bam.input.bam,
-        new_bam = rules._star_output_bam.input.bam
-    output:
-        bam = touch(rules._star_symlink_sorted_bam.input.bam + ".deleted")
-    run:
-        os.remove(input.old_bam)
+        op.relative_symlink(input.bai, output.bam + ".bai")
+        os.remove(input.sorted_bam)
+        shell("touch {input.sorted_bam}.deleted")
 
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _star_all:
     input:
         expand(
-            [
-                rules._star_output_bam.output.bam,
-                rules._star_output_bam.output.bai,
-            ]
+            rules._star_output_bam.output.bam,
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
             genome_build=CFG["samples"]["genome_build"],
