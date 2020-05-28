@@ -1,6 +1,6 @@
-sample_id	seq_type	patient_id	tissue_status	ff_or_ffpe
-BLGSP-71-08-00508-10A-01D	capture	BLGSP-71-08-00508	normal	ff
-BLGSP-71-08-00508-01B-01D	capture	BLGSP-71-08-00508	tumour	ff
-BLGSP-71-08-00508-01B-01R	mrna	BLGSP-71-08-00508	tumour	ff
-BLGSP-71-06-00166-01B-01D	capture	BLGSP-71-06-00166	tumour	ff
-BLGSP-71-06-00166-01B-01R	mrna	BLGSP-71-06-00166	tumour	ff
+sample_id	seq_type	patient_id	tissue_status
+BLGSP-71-08-00508-10A-01D	capture	BLGSP-71-08-00508	normal
+BLGSP-71-08-00508-01B-01D	capture	BLGSP-71-08-00508	tumour
+BLGSP-71-08-00508-01B-01R	mrna	BLGSP-71-08-00508	tumour
+BLGSP-71-06-00166-01B-01D	capture	BLGSP-71-06-00166	tumour
+BLGSP-71-06-00166-01B-01R	mrna	BLGSP-71-06-00166	tumour
