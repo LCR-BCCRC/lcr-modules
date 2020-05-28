@@ -1,39 +1,35 @@
-## Lines commented out with `#!` are required for the module to run
-## Lines commented out with `#?` can optionally be user-configured
-## Lines commented out with `##` act as regular comments
-
 lcr-modules:
 
     star:
 
         inputs:
-            ## The inputs can be configured here or in the Snakefile
-            ## Available wildcards: {seq_type} {genome_build} {sample_id}
-            #! sample_fastq_1: null
-            #! sample_fastq_2: null
+            # The inputs can be configured here or in the Snakefile
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_fastq_1: "<path/to/sample.R1.fastq.gz>"  # UPDATE
+            sample_fastq_2: "<path/to/sample.R2.fastq.gz>"  # UPDATE
 
         reference_params:
-            ## Ideally, `star_overhang` = max(read_length) - 1
-            ## STAR indices were precomputed for "74" and "99"
-            #! star_overhang: "99"
-            ## The Gencode release to use for the transcript annotation
+            # Ideally, `star_overhang` = max(read_length) - 1
+            # STAR indices were precomputed for "74" and "99"
+            star_overhang: "99"  # UPDATE
+            # The Gencode release to use for the transcript annotation
             gencode_release: "33"
 
         scratch_subdirectories: ["star", "sort_bam"]
 
         options:
-            ## The value for `--sjdbOverhang` should match the value used in
-            ## in the STAR index above (e.g., 74 or 99)
-            #! star: >
-            #!     --runMode alignReads
-            #!     --twopassMode Basic 
-            #!     --genomeLoad NoSharedMemory 
-            #!     --readFilesCommand zcat 
-            #!     --outSAMtype BAM Unsorted
-            #!     --outSAMattrIHstart 0
-            #!     --chimOutType WithinBAM SoftClip
-            #!     --chimSegmentMin 20
-            #!     --sjdbOverhang <must_match_star_index>
+            # The value for `--sjdbOverhang` should match the value used in
+            # in the STAR index above (e.g., 74 or 99)
+            star:
+                --runMode alignReads
+                --twopassMode Basic 
+                --genomeLoad NoSharedMemory 
+                --readFilesCommand zcat 
+                --outSAMtype BAM Unsorted
+                --outSAMattrIHstart 0
+                --chimOutType WithinBAM SoftClip
+                --chimSegmentMin 20
+                --sjdbOverhang 99  # UPDATE
             utils_bam_sort: ""
             utils_bam_markdups: ""
             utils_bam_index: "-b"
