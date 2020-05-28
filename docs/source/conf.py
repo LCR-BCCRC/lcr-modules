@@ -36,6 +36,9 @@ extensions = ["sphinx.ext.autodoc", "sphinx.ext.napoleon"]
 
 napoleon_google_docstring = False
 
+# Added based on https://github.com/readthedocs/readthedocs.org/issues/2569
+master_doc = "index"
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
