@@ -1,21 +1,17 @@
-## Lines commented out with `#!` are required for the module to run
-## Lines commented out with `#?` can optionally be user-configured
-## Lines commented out with `##` act as regular comments
-
 lcr-modules:
     
     {{cookiecutter.module_name}}:
 
-        ## TODO: Update the list of available wildcards, if applicable
+        # TODO: Update the list of available wildcards, if applicable
         inputs:
-            ## Available wildcards: {seq_type} {genome_build} {sample_id}
-            #! sample_{{cookiecutter.input_file_type}}: null
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_{{cookiecutter.input_file_type}}: null  # UPDATE
 
-        ## TODO: Update (or remove) this section with any reference parameters
+        # TODO: Update (or remove) this section with any reference parameters
         reference_params:
-            ## Ideally, `star_overhang` = max(read_length) - 1
-            ## STAR indices were precomputed for "74" and "99"
-            #! star_overhang: "99"
+            # Ideally, `star_overhang` = max(read_length) - 1
+            # STAR indices were precomputed for "74" and "99"
+            star_overhang: "99"  # UPDATE
 
         scratch_subdirectories: []
 
