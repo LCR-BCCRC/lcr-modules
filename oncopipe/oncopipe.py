@@ -136,11 +136,17 @@ def relative_symlink(src, dest, overwrite=True):
     dest = os.path.join(dest_dir, dest_file)
     # Make `src` relative to destination parent directory
     os.makedirs(dest_dir, exist_ok=True)
-    src_rel = os.path.relpath(src, dest_dir)
-    if os.path.lexists(dest) and os.path.islink(dest) and overwrite:
-        os.remove(dest)
-    assert not os.path.exists(dest), f"Destination already exists: {dest}"
-    os.symlink(src_rel, dest)
+    if not os.path.isabs(src):
+        src = os.path.relpath(src, dest_dir)
+    if os.path.lexists(dest) and os.path.islink(dest):
+        if os.path.realpath(src) == os.path.realpath(dest):
+            return
+        elif overwrite:
+            os.remove(dest)
+    assert not os.path.exists(
+        dest
+    ), f"Symbolic link already exists but points elsewhere: {dest}"
+    os.symlink(src, dest)
 
 
 def get_from_dict(dictionary, list_of_keys):
@@ -1111,7 +1117,10 @@ def setup_module(name, version, subdirectories):
     # Drop samples whose seq_types do not appear in pairing_config
     assert "pairing_config" in mconfig, "`pairing_config` missing from module config."
     sample_seq_types = msamples["seq_type"].unique()
-    supported_seq_types = mconfig["pairing_config"].keys()
+    pairing_config = mconfig["pairing_config"]
+    supported_seq_types = [
+        k for k, v in mconfig["pairing_config"].items() if "run_paired_tumours" in v
+    ]
     unsupported_seq_types = set(sample_seq_types) - set(supported_seq_types)
     if len(unsupported_seq_types) > 0:
         logger.warning(
