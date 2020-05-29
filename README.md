@@ -2,7 +2,7 @@
 
 This repository aims to become a collection of standard analytical modules for genomic and transcriptomic data. Too often do we copy-paste from each other's pipelines, which has several pitfalls:
 
-```plain
+```text
           * Too much time spent on routine analyses            * Increased risk for hidden logical bugs
           * Duplicated effort within and between labs          * No consistently used pipelining tool
           * Inefficient dissemination of best practices        * Steep learning curve for new members
@@ -10,7 +10,7 @@ This repository aims to become a collection of standard analytical modules for g
 
 Fortunately, all of these problems can be solved with standardized analytical modules, and the benefits are many:
 
-```plain
+```text
                 * Projects can ramp up faster             * Consistent intermediate/output files
                 * Streamline efforts between labs         * More reproducible analyses
                 * Define analytical best practices        * Easier-to-write methods
