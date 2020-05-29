@@ -93,14 +93,41 @@ def enable_set_functions(config):
 
 
 def set_input(module, name, value):
-    """Use given value as input"""
+    """Use given value for an input file in a module.
+
+    Parameters
+    ----------
+    module : str
+        The module name.
+    name : str
+        The name of input file field. This is usually taken from the
+        module's configuration YAML file.
+    value : str or function
+        The value to provide for the named input file. In most cases,
+        this value will be a plain string, but you can also provide
+        an input file function as per the Snakemake documentation,
+        where the function would return strings. In all cases, the
+        strings can make use of the wildcards that are usually listed
+        in the configuration file.
+    """
     config = _session.config
     new_value = {"lcr-modules": {module: {"inputs": {name: value}}}}
     smk.utils.update_config(config, new_value)
 
 
 def set_samples(module, *samples):
-    """Use given value as input"""
+    """Use given samples for a module.
+
+    Parameters
+    ----------
+    module : str
+        The module name. This can also be ``"_shared"`` for a value
+        that should be inherited by all modules.
+    *samples : list of pandas.DataFrame
+        One or more pandas data frames that will be concatenated
+        before being used by the module. These data frames should
+        contain sample tables as described in the documentation.
+    """
     config = _session.config
     samples_concat = pd.concat(samples)
     new_value = {"lcr-modules": {module: {"samples": samples_concat}}}
