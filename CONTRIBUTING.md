@@ -424,11 +424,7 @@ Instead, every user is expected to read through the module configuration file an
 
 ##### Directory placeholders
 
-Since the module developer won't know where the `lcr-modules` (and `lcr-scripts`, if applicable) repository will be located, one of the features of the `setup_module()` function in `oncopipe` is to replace the following directory placeholders with their actual values. This way, you can specify file paths relative to these directories.
-
-- **`{REPODIR}`:** The `lcr-modules` repository directory. This corresponds to the `repository` value under `_shared` in the `lcr-modules` configuration.
-- **`{MODSDIR}`:** The current module subdirectory. This corresponds to `{REPODIR}/modules/<name>/<version>`.
-- **`{SCRIPTSDIR}`:** The `lcr-scripts` repository directory. This corresponds to the `lcr-scripts` value under `_shared` in the `lcr-modules` configuration.
+Since the module developer won't know where the `lcr-modules` (and `lcr-scripts`, if applicable) repository will be located, one of the features of the `setup_module()` function in `oncopipe` is to replace the following directory placeholders with their actual values. This way, you can specify file paths relative to these directories. See the README for the list of [available placeholders](README.md#directory-placeholders).
 
 #### Configuring header
 

@@ -279,12 +279,13 @@ nice snakemake --local-cores=<cores> --cluster-sync "ssh <head_node> srun --part
 
 ## Advanced Usage
 
-### Directory shorthands
+### Directory placeholders
 
 When specifying any value in the module configuration, you can use the following shorthands as placeholders in the string. They will be replaced with the actual values dynamically. See the [Parameterization](#parameterization) section below for example usage.
 
-- **`REPODIR`:** `lcr-modules` repository directory. This is equivalent to the value stored in `config['_shared']['repository']` (see [Project Configuration](#project-configuration)).
-- **`MODSDIR`:** `lcr-modules` module subdirectory. This corresponds to the module subdirectory within `REPODIR`, _e.g._ `lcr-modules/modules/manta/1.0/`.
+- **`{REPODIR}`:** The `lcr-modules` repository directory. This corresponds to the `repository` value under `_shared` in the `lcr-modules` configuration.
+- **`{MODSDIR}`:** The current module subdirectory. This corresponds to `{REPODIR}/modules/<name>/<version>`.
+- **`{SCRIPTSDIR}`:** The `lcr-scripts` repository directory. This corresponds to the `lcr-scripts` value under `_shared` in the `lcr-modules` configuration.
 
 ### Convenience set functions
 
@@ -300,20 +301,18 @@ Alternatively, you can use the so-called convenience "set functions" to simplify
 op.enable_set_functions(config)
 ```
 
-The first set function you can use is `op.set_samples()`, which sets the samples you want to use at the shared or module level. This function automatically concatenates the data frames that are provided.
+The first set function you can use is `op.set_samples()`, which sets the samples you want to use at the shared or module level. The first argument corresponds to the module name (or `"_shared"`), and all subsequent arguments should be sample tables as pandas data frames. This function automatically concatenates the data frames that are provided. Here, `SAMPLES` is the complete samples table, whereas `GENOMES` and `CAPTURES` are sample subsets generated from `SAMPLES` using `op.filter_samples()`.
 
 ```python
 op.set_samples("_shared", SAMPLES)
 op.set_samples("_shared", GENOMES, CAPTURES)
 ```
 
-The second function you can use is `op.set_input()`, which set the given input for a module.
+The second function you can use is `op.set_input()`, which sets the given input for a module. Just like `op.set_samples()`, the first argument is the module name, but this function should not be used for `"shared"`. The second argument is the name of the input file as listed in the module's configuration file. Lastly, the third argument is the value you wish to provide for that input file, which generally is a string value containing the available wildcards (once again, as listed in the module's configuration file). That said, you could provide a conditional value as described below in [Parameterization](#parameterization).
 
 ```python
 op.set_input("manta", "sample_bam", SAMPLE_BAM)
 ```
-
-While also possible with the more verbose approach,
 
 ### Parameterization
 
