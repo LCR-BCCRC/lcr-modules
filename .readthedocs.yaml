@@ -11,6 +11,7 @@ formats:
 
 python:
   version: 3.7
-
-conda:
-  environment: environment.yaml
+  install:
+    - requirements: docs/requirements.txt
+    - method: setuptools
+      path: oncopipe
