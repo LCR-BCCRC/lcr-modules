@@ -9,6 +9,7 @@ __pycache__/
 
 # Distribution folders
 *.egg-info/
+*.egg
 
 # Files creates when testing the demo project
 .snakemake/
