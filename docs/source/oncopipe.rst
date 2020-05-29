@@ -1,5 +1,8 @@
-oncopipe module
-===============
+oncopipe package
+================
+
+Module contents
+---------------
 
 .. automodule:: oncopipe
    :members:

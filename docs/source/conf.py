@@ -48,9 +48,10 @@ templates_path = ["_templates"]
 exclude_patterns = []
 
 # Configure apidoc
-apidoc_module_dir = "../../oncopipe"
+apidoc_module_dir = "../../oncopipe/oncopipe"
 apidoc_output_dir = "./"
 apidoc_excluded_paths = []
+apidoc_toc_file = False
 
 
 # -- Options for HTML output -------------------------------------------------

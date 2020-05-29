@@ -2,10 +2,24 @@ Welcome to lcr-modules's documentation!
 =======================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 4
+   :caption: For Users
+   
+   readme
 
-   modules
+
+.. toctree::
+   :maxdepth: 4
+   :caption: For Developers
+   
+   contributing
+
+
+.. toctree::
+   :maxdepth: 4
+   :caption: Oncopipe
+   
+   oncopipe
 
 
 
