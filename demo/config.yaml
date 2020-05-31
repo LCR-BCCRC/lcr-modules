@@ -15,4 +15,4 @@ lcr-modules:
         # (manta runs unpaired tumours with unmatched normal samples)
         pairing_config:
             capture:
-                unmatched_normal_id: "BLGSP-71-08-00508-10A-01D"
+                unmatched_normal_id: "TCRBOA7-N-WEX"

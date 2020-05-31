@@ -1,21 +1,14 @@
 #!/usr/bin/env snakemake
 
 
-##### SETUP #####
+##### PACKAGES #####
 
-# Load project-specific config (including "lcr_modules" section)
-configfile: "config.yaml"
 
 # Load oncopipe package for convenience functions
 import oncopipe as op
 
-# Load samples using convenience function
-# Use all samples as a default sample list for each module
-SAMPLES = op.load_samples("data/samples.tsv")
-config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 
-
-##### REFERENCE_FILES SUBWORKFLOW #####
+##### REFERENCE_FILES WORKFLOW #####
 
 
 subworkflow reference_files:
@@ -27,17 +20,38 @@ subworkflow reference_files:
         "../workflows/reference_files/1.0/config/default.yaml"
 
 
-##### MANTA MODULE #####
+##### CONFIGURATION FILES #####
 
 
 # Load module-specific configuration
 configfile: "../modules/manta/1.0/config/default.yaml"
+
+# Load project-specific config (including "lcr-modules" section)
+configfile: "config.yaml"
+
+
+##### CONFIGURATION UPDATES #####
+
+
+# Load samples using convenience function
+# Use all samples as a default sample list for each module
+SAMPLES = op.load_samples("data/samples.tsv")
+config["lcr-modules"]["_shared"]["samples"] = SAMPLES
+
+# Optional: Provide a subset of samples to a module
+# Here, we only want to run Manta on the capture data
+CAPTURES = op.filter_samples(SAMPLES, seq_type=["capture"])
+config["lcr-modules"]["manta"]["samples"] = CAPTURES
 
 # Define where your input files are (here, sample BAM files)
 # The wildcards you can use are listed in the module README
 SAMPLE_BAM = "data/{sample_id}.bam"
 config["lcr-modules"]["manta"]["inputs"]["sample_bam"] = SAMPLE_BAM
 config["lcr-modules"]["manta"]["inputs"]["sample_bai"] = SAMPLE_BAM + ".bai"
+
+
+##### MODULE SNAKEFILES #####
+
 
 # Load manta module snakefile
 include: "../modules/manta/1.0/manta.smk"
