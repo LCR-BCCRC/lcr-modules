@@ -81,7 +81,7 @@ rule _manta_configure:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        fasta = reference_files("genomes/{genome_build}/genome.fa"),
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         config = op.switch_on_wildcard("seq_type", CFG["switches"]["manta_config"]),
         bedz = rules._manta_index_bed.output.bedz
     output:
