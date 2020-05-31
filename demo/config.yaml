@@ -4,7 +4,7 @@ lcr-modules:
         repository: "../"
         # Typically, this will be something like "src/lcr-scripts"
         # The value here assumes `lcr-scripts` is alongside `lcr-modules`
-        lcr-scripts: "../../lcr-scripts-dev"
+        lcr-scripts: "../../lcr-scripts"
         # The modules will output in subdirectories of "results/"
         # For example: "results/manta-1.0/"
         root_output_dir: "results/"

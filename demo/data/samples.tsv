@@ -1,0 +1,6 @@
+sample_id	seq_type	patient_id	tissue_status	genome_build
+BLGSP-71-08-00508-10A-01D	capture	BLGSP-71-08-00508	normal	hg38
+BLGSP-71-08-00508-01B-01D	capture	BLGSP-71-08-00508	tumour	hg38
+BLGSP-71-08-00508-01B-01R	mrna	BLGSP-71-08-00508	tumour	hg38
+BLGSP-71-06-00166-01B-01D	capture	BLGSP-71-06-00166	tumour	hg38
+BLGSP-71-06-00166-01B-01R	mrna	BLGSP-71-06-00166	tumour	hg38

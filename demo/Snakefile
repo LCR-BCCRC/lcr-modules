@@ -3,31 +3,16 @@
 
 ##### SETUP #####
 
+# Load project-specific config (including "lcr_modules" section)
+configfile: "config.yaml"
 
 # Load oncopipe package for convenience functions
 import oncopipe as op
 
-# Load project-specific config (including "lcr_modules" section)
-configfile: "config.yaml"
-
-# Optional: Enable convenient `set_*` functions (after loading config)
-# op.enable_set_functions(config)
-
 # Load samples using convenience function
-SAMPLES = op.load_samples("data/metadata/samples.tsv")
-
-# Set the genome build for all samples to 'hg38'
-SAMPLES["genome_build"] = "hg38"
-
-# Optional: Create subsets of samples (e.g., to restrict module)
-# GENOMES = op.filter_samples(SAMPLES, seq_type="genome")
-
 # Use all samples as a default sample list for each module
+SAMPLES = op.load_samples("data/samples.tsv")
 config["lcr-modules"]["_shared"]["samples"] = SAMPLES
-
-# Optional: Alternatively, you use the `set_samples()` set function
-# This function only works if you've run `op.enable_set_functions(config)`
-# op.set_samples("_shared", SAMPLES)
 
 
 ##### REFERENCE_FILES SUBWORKFLOW #####
@@ -35,7 +20,7 @@ config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 
 subworkflow reference_files:
     workdir:
-        "/projects/bgrande/reference_files/"
+        "reference/"
     snakefile:
         "../workflows/reference_files/1.0/reference_files.smk"
     configfile:
@@ -53,11 +38,6 @@ configfile: "../modules/manta/1.0/config/default.yaml"
 SAMPLE_BAM = "data/{seq_type}_bams_hg38/{sample_id}.bam"
 config["lcr-modules"]["manta"]["inputs"]["sample_bam"] = SAMPLE_BAM
 config["lcr-modules"]["manta"]["inputs"]["sample_bai"] = SAMPLE_BAM + ".bai"
-
-# Optional: Alternatively, you use the `set_input()` set function
-# This function only works if you've run `op.enable_set_functions(config)`
-# op.set_input("manta", "sample_bam", SAMPLE_BAM)
-# op.set_input("manta", "sample_bai", SAMPLE_BAM + ".bai")
 
 # Load manta module snakefile
 include: "../modules/manta/1.0/manta.smk"
