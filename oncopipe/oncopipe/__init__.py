@@ -17,8 +17,6 @@ from snakemake.logging import logger
 
 # CONSTANTS
 
-LOWERCASE_COLS = ()
-
 DEFAULT_PAIRING_CONFIG = {
     "genome": {
         "run_unpaired_tumours_with": "unmatched_normal",
@@ -604,16 +602,15 @@ def get_reference(module_config, reference_key):
 
 
 def load_samples(
-    file_path, sep="\t", lowercase_cols=LOWERCASE_COLS, renamer=None, **maps
+    file_path, sep="\t", to_lowercase=("tissue_status"), renamer=None, **maps
 ):
     """Loads samples metadata with some light processing.
 
     The advantage of using this function over `pandas.read_table()`
     directly is that this function processes the data frame as follows:
 
-        1) Forces lowercase for key columns with that expectation.
-           These columns are listed in `oncopipe.LOWERCASE_COLS`.
-        2) Renames columns using either a renamer function and/or
+        1) Can convert columns to lowercase.
+        2) Can rename columns using either a renamer function or
            a set of key-value pairs where the values are the
            original names and the keys are the desired names.
 
@@ -627,8 +624,8 @@ def load_samples(
         (including any required columns).
     sep : str, optional
         The column separator.
-    lowercase_cols : list of str, optional
-        The columns to be forced to lowercase.
+    to_lowercase : list of str, optional
+        The columns to be converted to lowercase.
     renamer : function or dict-like, optional
         A function that transforms each column name or a dict-like
         object that maps the original names (keys) to the desired
@@ -651,7 +648,7 @@ def load_samples(
     if maps:
         maps_rev = {v: k for k, v in maps.items()}
         samples.rename(columns=maps_rev, inplace=True)
-    for col in lowercase_cols:
+    for col in to_lowercase:
         if col in samples.columns:
             samples[col] = samples[col].str.lower()
     return samples
