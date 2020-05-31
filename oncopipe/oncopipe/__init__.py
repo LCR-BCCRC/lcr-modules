@@ -1063,6 +1063,15 @@ def generate_runs(
     if any(runs.duplicated()):
         logger.warn("Duplicate runs exist. This probably shouldn't happen.")
 
+    # Fix column names if data frame is empty
+    if runs.empty:
+        column_names = (
+            ["pair_status"]
+            + ("tumour_" + samples.columns).to_list()
+            + ("normal_" + samples.columns).to_list()
+        )
+        runs = pd.DataFrame(columns=column_names)
+
     return runs
 
 
@@ -1338,6 +1347,8 @@ def cleanup_module(module_config):
     }
     tsv_fields_skip = ["paired_runs", "unpaired_runs"]
     for field in tsv_fields.keys():
+        if field not in module_config:
+            continue
         tsv_fields[field] = module_config.pop(field)
         if field not in tsv_fields_skip:
             output_file = os.path.join(parent_dir, f"{field}.tsv")
