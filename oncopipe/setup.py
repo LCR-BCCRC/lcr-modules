@@ -11,7 +11,7 @@ setup(
     author_email="bgrande@sfu.ca",
     license="MIT",
     py_modules=["oncopipe"],
-    install_requires=["pyyaml", "pandas", "snakemake",],
+    install_requires=["pyyaml", "pandas", "snakemake>=5.4",],
     zip_safe=False,
     python_requires=">3.6.0",
 )
