@@ -1,15 +1,9 @@
-Contribution Guidelines for LCR Modules
-=======================================
+.. _getting-started-for-developers:
 
-This document provides a set of guidelines for contributing to the ``lcr-modules`` repository of standard analytical pipelines for genomic and transcriptomic data.
-
-Contributing a New Module
--------------------------
+Getting Started for Developers
+==============================
 
 These guidelines rely on Git and GitHub for features like branching and pull requests. If you want to learn Git, it’s suggested that you work through `this tutorial <https://hamwaves.com/collaboration/doc/rypress.com/index.html>`__.
-
-Getting set up
-~~~~~~~~~~~~~~
 
 **Note:** Don’t forget to update any values in angle brackets (``<...>``).
 
@@ -77,10 +71,10 @@ Getting set up
 7. Once you’ve generated your module from the cookiecutter template, you should be able to find it under ``modules/<module_name>/1.0/``. The parts you need to update are annotated with ``TODO``. These can be found in the ``<module_name>.smk`` file and the ``CHANGELOG.md`` file. A more detailed checklist can be found `here <.github/PULL_REQUEST_TEMPLATE.md>`__. You will need to work through this checklist when you submit your module to ``lcr-modules`` through a pull request (described below).
 
 Module Description
-------------------
+==================
 
 Module structure
-~~~~~~~~~~~~~~~~
+----------------
 
 When you create a new module `using the template <#getting-set-up>`__, you obtain the following files:
 
@@ -107,13 +101,13 @@ When you create a new module `using the template <#getting-set-up>`__, you obtai
 -  **``CHANGELOG.md``:** This file contains the release notes for the module. These release notes should list the changes and the rationale for each change.
 
 Module snakefile
-~~~~~~~~~~~~~~~~
+----------------
 
 | This section will describe the key components of a module snakefile. It uses the ``star`` module as an example. Note that ``CFG`` refers to the module-specific configuration. In the case of the ``star`` module, this would correspond to:
 | ``config["lcr-modules"]["star"]``.
 
 Module attribution
-^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~
 
 This section simply lists the individuals who have contributed to the module in one way or another. The ``Original Author`` refers to the person who wrote the Snakefile or script that was adapted for the module. The ``Module Author`` refers to the person who either adapted a previously written Snakefile/script or created the module from scratch. Finally, the ``Contributors`` refers to the list of individuals who have contributed to the module over time, mainly through incremental version updates.
 
@@ -127,7 +121,7 @@ This section simply lists the individuals who have contributed to the module in 
    # Contributors:      N/A
 
 Module setup
-^^^^^^^^^^^^
+~~~~~~~~~~~~
 
 There are a few standard components for the module setup and some optional components. Importing standard modules such as ``os`` (for the ``os.remove()`` function) is optional. On the other hand, importing the ``oncopipe`` module is required because it offers a suite of functions that greatly simplify the process of developing modules and facilitate configuration by the user. For brevity, the module is commonly imported with ``import oncopipe as op``, which allows the functions to be accessible using the ``op`` prefix/namespace (*e.g.* ``op.as_one_line()``).
 
@@ -172,10 +166,10 @@ Finally, the ``localrules`` statement is technically optional, but it is recomme
        _star_all,
 
 Module rules
-^^^^^^^^^^^^
+~~~~~~~~~~~~
 
 Input and output rules
-''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^
 
 The input and output rules serve a few purposes. First, they clearly define the entry and exit points of the module, making the module more modular and easier to tie different modules together. Second, they make it clear to anyone exploring the module output directory what the input files were and what the most useful output files (or deliverables) are. Third, by symlinking the most important files in subdirectories with the same name (*i.e.* ``99-outputs``), it makes it easier to archive those files (*e.g.* from scratch space to backed-up storage).
 
@@ -232,12 +226,12 @@ In some situations, it is useful to have more than one input or output symlinkin
            touch(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/None.bam")
 
 Target rules
-''''''''''''
+^^^^^^^^^^^^
 
 Generally, the last rule of the module snakefile is the “master target rule”. This rule is usually named ``_<module_name>_all`` (*e.g.* ``_star_all``), and expands all of the output files (the files symlinked into ``99-outputs``) using either the samples table (``CFG["samples"]``) or the runs table (``CFG["runs"]``) depending on whether the module is run once per sample or once per tumour. The two examples below show a preview of each table and how each can be used in the target rule.
 
 Using the samples table
-                       
+'''''''''''''''''''''''
 
 +---------------------------+----------+-------------------+---------------+--------------+
 | sample_id                 | seq_type | patient_id        | tissue_status | genome_build |
@@ -264,7 +258,7 @@ In the example below, since STAR is run on all RNA-seq BAM file, we are using th
                sample_id=CFG["samples"]["sample_id"])
 
 Using the runs table
-                    
+''''''''''''''''''''
 
 +-------------+---------------------------+---------------------------+-----------------+-----------------+-------------------+-------------------+----------------------+----------------------+---------------------+---------------------+
 | pair_status | tumour_sample_id          | normal_sample_id          | tumour_seq_type | normal_seq_type | tumour_patient_id | normal_patient_id | tumour_tissue_status | normal_tissue_status | tumour_genome_build | normal_genome_build |
@@ -277,6 +271,7 @@ Using the runs table
 +-------------+---------------------------+---------------------------+-----------------+-----------------+-------------------+-------------------+----------------------+----------------------+---------------------+---------------------+
 | no_normal   | BLGSP-71-06-00166-01B-01R |                           | mrna            |                 | BLGSP-71-06-00166 |                   | tumour               |                      | hg38                |                     |
 +-------------+---------------------------+---------------------------+-----------------+-----------------+-------------------+-------------------+----------------------+----------------------+---------------------+---------------------+
+
 
 In this second example, taken from the ``manta`` module, we can see how the runs table (``CFG["runs"]``) is used to define the targets. Because the runs table lists tumour-normal pairs, each column from the samples table is present, but they are prefixed with ``tumour_`` and ``normal_``. The only column that isn’t taken from the samples table is ``pair_status``, which described the relationship between the tumour-normal pair. Generally, this can be ``matched`` if the tumour and normal samples come from the same patient; ``unmatched`` if the two samples come from different patients; and ``no_normal`` if there is no normal paired with the tumours.
 
@@ -298,7 +293,7 @@ It’s worth noting that the output rule being expanded is ``_manta_dispatch`` r
                pair_status=CFG["runs"]["pair_status"])
 
 Other rules
-'''''''''''
+^^^^^^^^^^^
 
 Every other rule serve to complete the module. These other rules can vary considerably in scope. Therefore, below is a list of guiding principles to follow when designing these rules. These principles simply make it easier for users to achieve what they want. If one of these guidelines gets in the way of designing your module, feel free to employ a different approach, ideally not at the cost of flexibility for the user.
 
@@ -386,7 +381,7 @@ An example rule that follows most of these principles is included below (taken f
            """)
 
 Module cleanup
-^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~
 
 Every module ends with a clean-up step. At the moment, this mainly consists of outputting the module configuration, including the samples and runs, to disk for future reference. These files are output in a timestampted directory in the ``logs/`` subdirectory. Additionally, this function will delete the ``CFG`` variable from the environment to ensure it does not interfere with other modules.
 
@@ -397,17 +392,17 @@ Every module ends with a clean-up step. At the moment, this mainly consists of o
    op.cleanup_module(CFG)
 
 Module configuration
-~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 One of the core principles of ``lcr-modules`` is configurability, and this is primarily achieved by storing anything that can be adjusted in a configuration file separate from the Snakefile. For most modules, there will be a single configuration file called ``default.yaml``. On the other hand, some modules might have multiple configuration files to account for different scenarios. For this reason, there is a ``config/`` subdirectory for each module where all of these configuration files live.
 
 In theory, configuration YAML files can take on any structure. However, it helps both module users and developers to start with a standard structure. This also facilitates feature development. Below is a description of each section of a typical ``default.yaml`` file using the ``star`` module as an example.
 
 Configuration features
-^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~
 
 Configuration comments
-''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^
 
 It’s important to note the comment system used in the configuration files, which is explained at the top of every configuration file generated by the cookiecutter template. This comment system is intended to promote self-documentation as opposed to having the developer maintain a separate ``README.md`` file describing the ``default.yaml`` file. This latter approach is prone to files becoming out of sync.
 
@@ -420,12 +415,12 @@ Instead, every user is expected to read through the module configuration file an
    ## Lines commented out with `##` act as regular comments
 
 Directory placeholders
-''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^
 
 Since the module developer won’t know where the ``lcr-modules`` (and ``lcr-scripts``, if applicable) repository will be located, one of the features of the ``setup_module()`` function in ``oncopipe`` is to replace the following directory placeholders with their actual values. This way, you can specify file paths relative to these directories. See the README for the list of `available placeholders <README.md#directory-placeholders>`__.
 
 Configuring header
-^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~
 
 Each module configuration should fall under the ``lcr-modules`` and ``<module_name>`` (*e.g.* ``star``) keys. The ``lcr-modules`` top-level configuration key is considered reserved for use by modules in this project and the ``oncopipe`` package. This ensures that the module configuration is properly siloed and avoids clashes with other configuration set by the user.
 
@@ -435,7 +430,7 @@ Each module configuration should fall under the ``lcr-modules`` and ``<module_na
        star:
 
 Configuring input and reference files
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Virtually all modules will have input files, and many will also require reference files. These are defined using the ``inputs`` and ``reference_params`` keys, respectively.
 
@@ -463,7 +458,7 @@ For more information on the approach taken in ``reference_files`` and its benefi
                gencode_release: "33"
 
 Configuring scratch subdirectories
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``scratch_subdirectories`` section provides the user with the ability of storing intermediate files in a scratch directory. Essentially, the listed subdirectories, which must match the names provided to the ``subdirectories`` argument in ``op.setup_module()``, will be made into symlinks to corresponding directories in a scratch space. This scratch space is also specified by the user, generally with the ``scratch_directory`` key under ``_shared``.
 
@@ -474,7 +469,7 @@ Note that if you’ve already run your Snakefile, the subdirectories will alread
            scratch_subdirectories: ["star", "sort_bam"]
 
 Configuring options
-^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~
 
 The ``options`` section specifies the command-line options for each tool used in the module (where such options exist). Generally, any command-line option not linked to a placeholder (*e.g.* ``{input}``, ``{output}``, ``{params}``) should be listed under the tool’s corresponding entry in ``options``. This provides the user with ultimate control over how the tool is run without having to deal with the Snakefile.
 
@@ -501,7 +496,7 @@ In the example below, the command-line options for STAR are commented out using 
                utils_bam_index: "-b"
 
 Configuring conda environments
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The conda environments that power each module are listed under ``conda_envs``. These allow for specific versions of tools to be automatically installed, which facilitates reproducibility. Each module will specify a set of default versions of each tool. The user can update this conda environments (*e.g.* to use a more recent version), but this might break the module if there are backwards-incompatible changes to the tool’s command-line interface.
 
@@ -517,7 +512,7 @@ Note that Snakemake expects the paths to be relative to the Snakefile. This is a
                sambamba: "{MODSDIR}/envs/sambamba-0.7.1.yaml"
 
 Configuring compute resources
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Many users will be launching the modules on a high-performance computing cluster. Hence, all non-local rules should have sensible default values for resources such as CPU (``threads``) and memory (``mem_mb``). These settings should strike a balance between the time spent waiting in the queue (with higher resource values) and the time spent running (with lower resource values).
 
@@ -539,7 +534,7 @@ Many users will be launching the modules on a high-performance computing cluster
                utils_bam_index: 4000
 
 Configuring sequencing data types
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``pairing_config`` section is where the module is configured to run for each sequencing data type (``seq_type``). For example, in the STAR module, the pairing configuration obviously lists ``mrna`` for RNA-seq samples. The `user documentation <README.md#pairing-configuration>`__ on pairing configuration provides a description of each parameter (*e.g.* ``run_paired_tumours``).
 
@@ -551,18 +546,11 @@ The ``pairing_config`` section is where the module is configured to run for each
                    run_unpaired_tumours_with: "no_normal"
                    run_paired_tumours_as_unpaired: True
 
-Reference files
----------------
-
-The ``reference_files`` workflow is designed to simplify deployment of ``lcr-modules`` for any reference genome and on any computer system. This is achieved by (1) downloading the genome FASTA files and any additional reference files; (2) converting the additional files to match the same chromosome system as the genome builds (*e.g.* UCSC vs NCBI vs Ensembl); and (3) generate the required reference files from what was downloaded using snakemake rules. This approach also ensures that the steps taken to generate any reference file are tracked, ensuring their reproducibility.
-
-More details will be added later.
-
 Advanced module features
-------------------------
+========================
 
 Required sample metadata
-~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------
 
 Every module requires the samples table, which contains metadata on the samples being analyzed. The minimum set of columns expected by ``lcr-modules`` are the ``sample_id``, ``patient_id``, ``seq_type``, and ``tissue_status`` columns (see `README <README.md#required-columns>`__ for more info). These requirements are spelled out using schemas in YAML format. The base requirements can be found in ``schemas/base/base-1.0.yaml``.
 
@@ -573,7 +561,7 @@ An example single-column schema file can be found in ``schemas/ffpe_status/ffpe_
 **Important:** Read the section below on `Conditional module behaviour <#conditional-module-behaviour>`__ for an explanation on why you should avoid adding new wildcards beyond the standard ones described `above <#other-rules>`__.
 
 Conditional module behaviour
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------
 
 One size doesn’t always fit all, so modules sometimes have to tailor their behaviour based on sample attributes. Snakemake offers more than one avenue to implement these conditional behaviours. The simplest approach is to create parallel rules, which will handle samples differently based on the file names, potentially using wildcard constraints. However, this approach has two major issues.
 
@@ -586,7 +574,7 @@ Second, it requires the module developer to encode the sample attributes in the 
 **Important:** The ``op.switch_on_wildcard()`` and ``op.switch_on_column()`` functions do not currently support `Directory placeholders <#directory-placeholders>`__. This `issue <https://github.com/LCR-BCCRC/lcr-modules/issues/27>`__ will track the implementation.
 
 Switch on wildcard value
-^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can use the ``op.switch_on_wildcard()`` function to dynamically set the value of an input file or parameter for a snakemake rule based on the value of a wildcard. The first argument (``wildcard``) is the name of the wildcard, and the second argument (``options``) is a dictionary mapping possible values for the wildcard to the corresponding values that should be returned.
 
@@ -626,7 +614,7 @@ The second argument is a reference to the module configuration (``CFG``), specif
    }
 
 Switch on sample metadata
-^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 As I mentioned `above <#conditional-module-behaviour>`__, adding wildcards for conditional behaviour in a Snakefile is unsustainable and goes against the core principle of modularity. One workaround is to query the metadata for each sample (or each tumour-normal pair) and to update the tool command accordingly. The approach is similar to a `Switch on wildcard value <#switch-on-wildcard-value>`__, but with a few notable differences.
 
@@ -643,27 +631,27 @@ The code block below shows how we could achieve the same outcome using ``op.swit
            config = op.switch_on_column("seq_type", CFG["samples"], CFG["switches"]["manta_config"])
 
 Switch on file contents
-~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------
 
 The behaviour of some module depends on the contents (or existence) of input or intermediate files. The best way to address this is using `Snakemake checkpoints <https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#data-dependent-conditional-execution>`__. They are a bit complicated to implement, but you can look at the ``manta`` module (version 1.0) for an example. Do note that checkpoints can be slow because the function using the checkpoint is run sequentially for each sample.
 
 Frequently Asked Questions
---------------------------
+==========================
 
 What does the underscore prefix mean?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------------
 
 The underscore prefix is mainly used to avoid name conflicts. This convention is borrowed from Python. For instance, ``collections.namedtuple`` has an ``_asdict()`` method, where the underscore helps prevent clashes with user-defined attributes for the ``namedtuple``. For more examples in Python, check out this `blog post <https://medium.com/python-features/naming-conventions-with-underscores-in-python-791251ac7097>`__.
 
 In ``lcr-modules``, the underscore prefix is used in a few areas. First, the name of every rule or function defined in a module starts with an underscore followed by the module name (*e.g.* ``_manta``). This minimizes the risk for clashing with other rule/function names defined elsewhere by the user, which isn’t allowed by Snakemake. Second, the underscore prefix is used for dictionary keys with special behaviour, such as the ``"_default"`` key in the ``op.switch_on_wildcard()`` `function <#switch-on-wildcard-value>`__. Third, the shared ``lcr-modules`` configuration is stored under the ``_shared`` key, which is done to avoid clashing with a potential module called ``shared``.
 
 What is the difference between ``op.relative_symlink()`` and ``os.symlink()``?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------------------------------------------------------
 
 Behind the scenes, ``op.relative_symlink()`` uses ``os.symlink()`` while ensuring that the symlinks are relative and correct regardless of the current working directory. This is equivalent to the ``-r`` option on modern version of the ``ln`` command-line tool.
 
 Why am I running into a ``NameError: name 'CFG' is not defined`` exception?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------------------------------------------------------
 
 Each module creates a ``CFG`` variable as a convenient but temporary pointer to the module configuration (*i.e.* ``config["lcr-modules"]["<module_name>"]``). Because each module uses this variable name, the ``op.cleanup_module()`` function deletes the variable to be safe. Hence, you will run into this ``NameError`` exception if some code tries to use ``CFG`` after it’s been deleted. If you use ``CFG`` in the rule directives that are evaluated when the module snakefile is parsed (*e.g.* ``input``, ``output``, ``log``, ``params``, etc.), it’s not an issue. However, if you use this variable in a function or ``run`` directive, *i.e.* code that is run after the ``op.cleanup_module()`` function is run, you will get the error above. You can fix this error by adding this line of code before using the ``CFG`` variable, which recreates the variable in a local scope:
 
@@ -673,7 +661,7 @@ Each module creates a ``CFG`` variable as a convenient but temporary pointer to 
    CFG = config["lcr-modules"]["<module_name>"]
 
 How do I specify the available memory per thread for a command-line tool?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------------------------------------------------
 
 The ``mem_mb`` resource is meant to represent the total amount of memory used by all threads of a given process. Some tools have command-line arguments allowing the user to specify the amount of memory they can use, such as any Java-based application (*i.e.* using ``-Xmx``). In some cases, the tool expects the amount of memory per thread (*e.g.* ``samtools sort``), whereas ``resources.mem_mb`` represents the total amount of memory. `Arithmetic expansion <https://www.shell-tips.com/bash/performing-math-calculation-in-bash#using-arithmetic-expansion-with-or>`__ in Bash allows you to circumvent this issue as long as you are dealing with integers, which should be the case with ``threads`` and ``mem_mb``. For example, here’s how you would divide two integers and print the result: ``echo $((12000 / 12))``. We can leverage the same syntax within the ``shell`` directive of a Snakemake rule. The example below is taken from the ``samtools sort`` rule in the ``utils`` module.
 
