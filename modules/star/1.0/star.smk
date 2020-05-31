@@ -59,15 +59,12 @@ rule _star_run:
     input:
         fastq_1 = rules._star_input_fastq.output.fastq_1,
         fastq_2 = rules._star_input_fastq.output.fastq_2,
-        index = reference_files(
-            "genomes/{genome_build}/star_index/star-2.7.3a" +
-                "/gencode-" + CFG["reference_params"]["gencode_release"] +
-                "/overhang-" + CFG["reference_params"]["star_overhang"]
-        ),
-        gtf = reference_files(
-            "genomes/{genome_build}/annotations" +
-                "/gencode_annotation-" + CFG["reference_params"]["gencode_release"] + ".gtf"
-        )
+        index = reference_files("genomes/{{genome_build}}/star_index/star-2.7.3a/gencode-{}/overhang-{}".format(
+            CFG["reference_params"]["gencode_release"], CFG["reference_params"]["star_overhang"]
+        )),
+        gtf = reference_files("genomes/{{genome_build}}/annotations/gencode_annotation-{}.gtf".format(
+            CFG["reference_params"]["gencode_release"]
+        ))
     output:
         bam = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/Aligned.out.bam"
     log:
@@ -75,7 +72,8 @@ rule _star_run:
         stderr = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/star.stderr.log"
     params:
         opts = CFG["options"]["star"],
-        prefix = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/"
+        prefix = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/",
+        star_overhang = CFG["reference_params"]["star_overhang"]
     conda:
         CFG["conda_envs"]["star"]
     threads:
@@ -84,10 +82,9 @@ rule _star_run:
         mem_mb = CFG["mem_mb"]["star"]
     shell:
         op.as_one_line("""
-        STAR {params.opts} --readFilesIn {input.fastq_1} {input.fastq_2}
-        --genomeDir {input.index} --outFileNamePrefix {params.prefix}
-        --runThreadN {threads} --sjdbGTFfile {input.gtf} 
-        > {log.stdout} 2> {log.stderr}
+        STAR {params.opts} --readFilesIn {input.fastq_1} {input.fastq_2} --genomeDir {input.index} 
+        --outFileNamePrefix {params.prefix} --runThreadN {threads} --sjdbGTFfile {input.gtf}
+        --sjdbOverhang {params.star_overhang} > {log.stdout} 2> {log.stderr}
             &&
         rmdir {params.prefix}/_STARtmp
         """)

@@ -18,8 +18,6 @@ lcr-modules:
         scratch_subdirectories: ["star", "sort_bam"]
 
         options:
-            # The value for `--sjdbOverhang` should match the value used in
-            # in the STAR index above (e.g., 74 or 99)
             star:
                 --runMode alignReads
                 --twopassMode Basic 
@@ -28,8 +26,7 @@ lcr-modules:
                 --outSAMtype BAM Unsorted
                 --outSAMattrIHstart 0
                 --chimOutType WithinBAM SoftClip
-                --chimSegmentMin 20
-                --sjdbOverhang 99  # UPDATE
+                --chimSegmentMin 20 
             utils_bam_sort: ""
             utils_bam_markdups: ""
             utils_bam_index: "-b"
