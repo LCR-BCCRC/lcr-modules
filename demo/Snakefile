@@ -35,7 +35,7 @@ configfile: "../modules/manta/1.0/config/default.yaml"
 
 # Define where your input files are (here, sample BAM files)
 # The wildcards you can use are listed in the module README
-SAMPLE_BAM = "data/{seq_type}_bams_hg38/{sample_id}.bam"
+SAMPLE_BAM = "data/{sample_id}.bam"
 config["lcr-modules"]["manta"]["inputs"]["sample_bam"] = SAMPLE_BAM
 config["lcr-modules"]["manta"]["inputs"]["sample_bai"] = SAMPLE_BAM + ".bai"
 
