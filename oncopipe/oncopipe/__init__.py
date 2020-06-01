@@ -132,6 +132,30 @@ def set_samples(module, *samples):
     smk.utils.update_config(config, new_value)
 
 
+def set_value(value, *keys):
+    """Update lcr-modules configuration using simpler syntax.
+
+    This function will automatically create dictionaries if
+    accessing a key that doesn't exist and notify the user.
+
+    Parameters
+    ----------
+    value : anything
+        The value to be set at the location specified by ``*keys``.
+    *keys : list of str
+        All subsequent arguments will be collected into a list of
+        strings, which specify the location where to set ``value``.
+        You do not need to include the ``"lcr-modules"`` key; it is
+        assumed that you are accessing keys therein.
+    """
+    keys = ["lcr-modules"] + keys
+    current_location = _session.config
+    for key in keys:
+        pass
+    # ...
+    smk.utils.update_config(current_location, value)
+
+
 # UTILITIES
 
 
@@ -1196,7 +1220,7 @@ def setup_module(name, version, subdirectories):
         return result
 
     # Find repository and module directories
-    repodir = os.path.normpath(mconfig["repository"])
+    repodir = os.path.normpath(mconfig["lcr-modules"])
     modsdir = os.path.join(repodir, "modules", name, version)
     scriptsdir = os.path.normpath(mconfig["lcr-scripts"])
 
