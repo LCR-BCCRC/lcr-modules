@@ -1067,7 +1067,7 @@ def setup_module(config, name, version, subdirs, scratch_subdirs=(), req_referen
     smk.utils.update_config(mconfig, config["lcr-modules"][name])
     mconfig["samples"] = mconfig["samples"].copy()
     msamples = mconfig["samples"]
-
+    
     # Set module name and version
     mconfig["name"] = name
     mconfig["version"] = version
@@ -1113,7 +1113,7 @@ def setup_module(config, name, version, subdirs, scratch_subdirs=(), req_referen
 
     # Validate samples data frame
     schemas_dir = os.path.join(modsdir, "schemas")
-    schemas = os.listdir(schemas_dir)
+    schemas = os.listdir(schemas_dir)sx
     for schema in schemas:
         smk.utils.validate(msamples, schema=os.path.join(schemas_dir, schema))
 

@@ -2,10 +2,10 @@ lcr-modules:
     ginkgo:
         inputs:
             script: "/projects/clc/usr/ginkgo/cli/ginkgo.sh" 
-            metrics: "results/picard_qc-1.0/02-merged_metrics/genome--{genome_build}/all.alignment_summary.txt"
+            metrics: "results/picard_qc-1.0/02-merged_metrics/genome--{genome_build}/all.alignment_summary_metrics.txt"
             #"/projects/clc/usr/ginkgo/cli/ginkgo.sh"
             sample_bam: null
-            bins: ["1000000"]
+            bins: ["100000"]
         options:
             bed_threshold: "500000"
 

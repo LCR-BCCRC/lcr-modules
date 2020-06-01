@@ -62,19 +62,23 @@ rule _picard_qc_alignment_summary:
 
 rule _picard_qc_merge_alignment_summary:
     input: 
-        expand("{dir}{{seq_type}}--{{genome_build}}/{sample_id}.alignment_summary_metrics", dir = CFG["dirs"]["metrics"], sample_id = CFG["samples"]["sample_id"])
+        expand("{dir}{{seq_type}}--{{genome_build}}/{sample_id}.alignment_summary_metrics", dir = CFG["dirs"]["metrics"], sample_id = list(CFG["samples"]["sample_id"]))
     output: 
         CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.alignment_summary_metrics.txt"
     params:
-        samples = list(CFG["samples"]["sample_id"])
+        samples = list(CFG["samples"]["sample_id"]),
+        pattern = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/*alignment*"
     shell:
         """
+        ls {params.pattern} | tr '\\n' ' '  >  alignment_sum_files.txt && 
+        echo {params.samples} | sed 's/ /\\n/g' > library.txt &&
         grep -v '#' {input[0]} | sed '/^$/d' | head -n 1 | cut -f 2- > {output}.header && 
-        for file in {input}; do
+        for file in $(cat alignment_sum_files.txt); do
             grep -v '#' ${{file}} | sed '/^$/d' | tail -n 1 | cut -f 2- >> {output}.tmp;
         done &&
-        echo {params.samples} | sed ‘s/ /\\n/g’ | paste - {output}.tmp > {output} &&
-        echo -e ‘sampleID’ | paste - {output}.header | cat - {output}
+        paste library.txt {output}.tmp > {output} &&
+        echo -e ‘sampleID’ | paste - {output}.header | cat - {output} > {output}.tmp && 
+        mv {output}.tmp {output}
         """
 
 
@@ -279,24 +283,24 @@ outputs:
 def _get_picard_qc_files(wildcards):
     # base metrics to calculate for all seq_type
     base = ["alignment_summary_metrics", "insert_size_metrics", "flagstats"]
-    m_base = ["alignment_summary_metrics", "insert_size_metrics"]
+    # m_base = ["alignment_summary_metrics", "insert_size_metrics"]
     # additional seq-type-specific metrics
     if wildcards.seq_type == 'mrna':
         metrics = base + ["rnaseq_metrics"]
-        m_metrics = mbase + ["rnaseq_metrics"]
+    #    m_metrics = mbase + ["rnaseq_metrics"]
     elif wildcards.seq_type == 'genome':
         metrics = base + ["wgs_metrics"]
-        m_metrics = mbase + ["wgs_metrics"]
+    #    m_metrics = mbase + ["wgs_metrics"]
     elif wildcards.seq_type == 'capture':
         metrics = base + ["hs_metrics", "interval_hs_metrics"]
-        m_metrics = mbase + ["hs_metrics"]
+    #    m_metrics = mbase + ["hs_metrics"]
     else:
         metrics = base
-        m_metrics = m_base
+    #    m_metrics = m_base
 
     targets = expand(rules._picard_qc_output.output.metrics, **wildcards, qc_type = metrics)
 
-    merged_targets = expand("{dir}{seq_type}--{genome_build}/all.{qc_type}.txt", dir = CFG["dirs"]["merged_metrics"], **wildcards, qc_type = m_metrics)
+    # merged_targets = expand("{dir}{seq_type}--{genome_build}/all.{qc_type}.txt", dir = CFG["dirs"]["merged_metrics"], **wildcards, qc_type = m_metrics)
 
     return targets + merged_targets
 

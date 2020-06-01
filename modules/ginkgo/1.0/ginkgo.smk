@@ -14,7 +14,6 @@ CFG = md.setup_module(
     subdirs = ["inputs", "bed", "ginkgo", "outputs"],
 )
 
-
 localrules: 
     _ginkgo_input_bam,
     _ginkgo_link_bed_to_bins,
@@ -61,10 +60,10 @@ rule _ginkgo_link_bed_to_bins:
         md.symlink(input.bed, output.bed)
 
 
-
 def create_map_dict(df = CFG["samples"]):
     sample_lib_dict = df.groupby('patient_id')['sample_id'].apply(list).to_dict()
     return sample_lib_dict
+    
 
 def get_libraries(mconfig = CFG):
     path = mconfig["dirs"]["ginkgo"]
@@ -80,6 +79,7 @@ def get_libraries(mconfig = CFG):
 def get_lib_str(wildcards):
     d = create_map_dict()
     libs = d.get(wildcards.sample_id)
+    print(len(libs))
     return "\|".join(libs)
 
 
@@ -91,11 +91,11 @@ rule _ginkgo_create_bed_list:
         bed_list = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/bed_files.txt"
     params:
         lib_str = get_lib_str,
-        #bedDir = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}",
+        bedDir = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}",
         opts = CFG["options"]["bed_threshold"]
     shell:
         md.as_one_line("""
-        grep \"{params.lib_str}\" {input.metrics} | awk 'NR > 1 {{if ($2 >= {params.opts}) {{ print $1 \".bed.gz\" }}}}' > {output.bed_list}
+        grep \"{params.lib_str}\" {input.metrics} | awk -v P=`pwd` 'NR > 1 {{if ($2 >= {params.opts}) {{ print P \"/{params.bedDir}/\" $1 \".bed.gz\" }}}}' > {output.bed_list}
         """)
 
 
