@@ -1,0 +1,27 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+
+description: Required fields for each sample row in the samples data frame
+
+properties:
+    sample_id:
+        type: string
+        description: Sample identifier that must be unique within each seq_type
+    index:
+        type: string
+        description: null
+    seq_type:
+        type: string
+        description: Type of sequencing data (sc_mrna)
+    lane:
+        type: string
+        description: number of lanes sample is loaded to
+    chip_id:
+        type: string
+        description: flow cell id
+
+
+required:
+    - sample_id
+    - index
+    - lane
+    - seq_type

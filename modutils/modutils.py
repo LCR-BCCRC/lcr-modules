@@ -1146,6 +1146,7 @@ def setup_module(config, name, version, subdirs, scratch_subdirs=(), req_referen
 
     # Generate runs
     assert "pairing_config" in mconfig, "Module config must have 'pairing_config'."
+    
     runs = generate_runs(msamples, mconfig["pairing_config"])
 
     # Split runs based on pair_status
