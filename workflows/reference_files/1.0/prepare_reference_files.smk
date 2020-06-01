@@ -44,7 +44,7 @@ rule all:
                 rules.get_gencode_download.output.gtf,
                 rules.create_star_index.output.index,
             ],
-            build=config["genome_builds"].keys(),
+            genome_build=config["genome_builds"].keys(),
             bwa_version=config["tools"]["bwa"]["version"],
             gencode_release=config["wildcard_values"]["gencode_release"],
             star_version=config["tools"]["star"]["version"],
