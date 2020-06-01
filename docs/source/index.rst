@@ -1,19 +1,19 @@
-Welcome to lcr-modules's documentation!
+Welcome to lcr-modules's Documentation!
 =======================================
 
-Getting started with lcr-modules
+Getting Started With lcr-modules
 --------------------------------
 
-- **Users:** Check out this :ref:`getting-started-for-users` guide.
+- **Users:** Check out this :ref:`getting-started-user` guide.
 
-- **Contributors:** Check out this :ref:`getting-started-for-developers` guide.
+- **Contributors:** Check out this :ref:`getting-started-dev` guide.
 
 Motivation
 ----------
 
 This project aims to become a collection of standard analytical modules for genomic and transcriptomic data. Too often do we copy-paste from each other’s pipelines, which has several pitfalls:
 
-.. code:: text
+.. code::
 
    * Too much time spent on routine analyses           * Increased risk for hidden logical bugs
    * Duplicated effort within and between labs         * No consistently used pipelining tool
@@ -21,7 +21,7 @@ This project aims to become a collection of standard analytical modules for geno
 
 Fortunately, all of these problems can be solved with standardized analytical modules, and the benefits are many:
 
-.. code:: text
+.. code::
 
    * Projects can ramp up faster                       * Consistent intermediate/output files
    * Streamline efforts between labs                   * More reproducible analyses
@@ -32,7 +32,7 @@ Fortunately, all of these problems can be solved with standardized analytical mo
                               * And happier bioinformaticians!
 
 
-What are modules?
+What Are Modules?
 -----------------
 
 Each module accomplishes a specific analysis, generally centered around a specific tool (*e.g.* Strelka2, Manta, MutSigCV). Analyses—and by extension, modules—can be organized into different levels. The figure below contains for examples for each level.
@@ -47,6 +47,7 @@ Each module accomplishes a specific analysis, generally centered around a specif
    :target: _images/module_levels.png
 
    Module Levels
+
 
 .. toctree::
    :maxdepth: 4
@@ -71,3 +72,11 @@ Each module accomplishes a specific analysis, generally centered around a specif
    :caption: Oncopipe
    
    oncopipe/*
+
+
+.. toctree::
+   :maxdepth: 4
+   :hidden:
+   :caption: Frequently Asked Questions
+   
+   faq.rst
