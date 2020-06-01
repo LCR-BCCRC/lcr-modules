@@ -47,3 +47,11 @@ config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 # Load module-specific snakefiles
 include: "../modules/star/1.0/star.smk"
 include: "../modules/manta/2.0/manta.smk"
+
+
+##### TARGETS ######
+
+rule all:
+    input:
+        rules._manta_all.input,
+        rules._star_all.input

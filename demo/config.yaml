@@ -1,27 +1,22 @@
 lcr-modules:
+
     _shared:
-        # Typically, this will be something like "src/lcr-modules"
-        repository: "../"
-        # Typically, this will be something like "src/lcr-scripts"
-        # The value here assumes `lcr-scripts` is alongside `lcr-modules`
+        lcr-modules: "../"
         lcr-scripts: "../../lcr-scripts"
-        # The modules will output in subdirectories of "results/"
-        # For example: "results/manta-1.0/"
         root_output_dir: "results/"
-        # This specifies where to output files that are ideally stored in
-        # a scratch directory (e.g., large intermediate files)
-        scratch_directory: "/projects/rmorin_scratch/lcr_modules_demo/"
-        # This specifies the sample to use as a normal for unpaired tumours
-        # (manta runs unpaired tumours with unmatched normal samples)
+        scratch_directory: "scratch/"
         pairing_config:
             capture:
                 unmatched_normal_id: "TCRBOA7-N-WEX"
+
     star:
         inputs:
             sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
             sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
         reference_params:
             star_overhang: "99"
+        scratch_subdirectories: ["star", "sort_bam", "mark_dups"]
+
     manta:
         inputs:
             sample_bam: "data/{sample_id}.bam"

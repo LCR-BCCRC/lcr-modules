@@ -15,6 +15,7 @@ __pycache__/
 .snakemake/
 /demo/results/
 /demo/reference
+/demo/scratch
 /demo/data/*
 !/demo/data/samples.tsv
 
