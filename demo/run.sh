@@ -1,3 +1,3 @@
 #!/bin/bash
 
-snakemake --dryrun --cores 2 --printshellcmds --reason --use-conda _manta_all
+snakemake --dryrun --cores 1 --printshellcmds --reason --use-conda all
