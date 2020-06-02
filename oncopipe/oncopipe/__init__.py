@@ -173,6 +173,7 @@ def relative_symlink(src, dest, overwrite=True):
     overwrite : boolean
         Whether to overwrite the destination file if it exists.
     """
+
     # Here, you're symlinking a file into a directory (same name)
     dest = dest.rstrip(os.path.sep)
     if not os.path.isdir(src) and os.path.isdir(dest):
@@ -182,19 +183,23 @@ def relative_symlink(src, dest, overwrite=True):
     # Or you are symlinking a directory to a specific location
     else:
         dest_dir, dest_file = os.path.split(dest)
-    dest = os.path.join(dest_dir, dest_file)
-    # Make `src` relative to destination parent directory
     os.makedirs(dest_dir, exist_ok=True)
-    if not os.path.isabs(src):
-        src = os.path.relpath(src, dest_dir)
+
+    dest = os.path.join(dest_dir, dest_file)
     if os.path.lexists(dest) and os.path.islink(dest):
         if os.path.realpath(src) == os.path.realpath(dest):
             return
         elif overwrite:
             os.remove(dest)
-    assert not os.path.exists(
-        dest
-    ), f"Symbolic link already exists but points elsewhere: {dest}"
+    assert not os.path.exists(dest), (
+        "Symbolic link already exists but points elsewhere: \n"
+        f"    Current: {dest} -> {os.path.realpath(dest)} \n"
+        f"    Attempted: {dest} -> {os.path.realpath(src)}"
+    )
+
+    # Make `src` relative to destination parent directory
+    if not os.path.isabs(src):
+        src = os.path.relpath(src, dest_dir)
     os.symlink(src, dest)
 
 
