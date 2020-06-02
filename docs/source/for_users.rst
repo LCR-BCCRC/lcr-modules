@@ -5,6 +5,8 @@ Getting Started
 
 .. Links (begin)
 
+.. _Demo Project: https://github.com/LCR-BCCRC/lcr-modules/blob/master/demo/
+
 .. _Demo Snakefile: https://github.com/LCR-BCCRC/lcr-modules/blob/master/demo/snakefile
 
 .. _Demo Configuration: https://github.com/LCR-BCCRC/lcr-modules/blob/master/demo/config.yaml
@@ -18,6 +20,8 @@ Getting Started
 .. _lcr-scripts repository: https://github.com/LCR-BCCRC/lcr-scripts
 
 .. _Test Data: https://www.bcgsc.ca/downloads/lcr-modules/test_data/
+
+.. _Test Data README: https://www.bcgsc.ca/downloads/lcr-modules/test_data/README.txt
 
 .. _Snakemake Validation: https://snakemake.readthedocs.io/en/stable/snakefiles/configuration.html?highlight=schema#validation
 
@@ -35,12 +39,16 @@ Getting Started
 
 .. Links (end)
 
-**Important:** Be sure to update any values in angle brackets (``<...>``). If they are file paths, they can generally be absolute or relative to the working directory (usually where you run your ``snakemake`` command). 
+**Important:** Be sure to update any values in angle brackets (``<...>``). File paths can either be absolute or relative to the working directory (usually where you run your ``snakemake`` command). 
 
 1. Install ``conda`` (Python version 3.6 or later) with Miniconda_ or Anaconda_. Ideally, create a project-specific conda environment. You can install Git using conda if need be.
 
    .. code:: bash
 
+      # Optional: Create a project-specific conda environment
+      # conda create -n <project_name> "python>=3.6"
+      # conda activate <project_name>
+      
       conda install git
 
 2. Clone the `lcr-modules repository`_ and the `lcr-scripts repository`_.
@@ -62,9 +70,9 @@ Getting Started
    .. code:: bash
 
       cd demo
-      nice snakemake --dry-run --use-conda _manta_all
+      nice snakemake --dry-run --use-conda all
 
-5. Create a :ref:`sample-table` as a tab-delimited file with these :ref:`required-columns`. The following sample table is an example taken from the `Demo Snakefile`_ (``demo/data/samples.tsv``).
+5. Create a :ref:`sample-table` as a tab-delimited file with these :ref:`required-columns`. The following sample table is an example taken from the `Demo Project`_ (``demo/data/samples.tsv``).
 
    +---------------+----------+------------+---------------+--------------+
    | sample_id     | seq_type | patient_id | tissue_status | genome_build |
@@ -76,7 +84,7 @@ Getting Started
    | TCRBOA7-T-RNA | mrna     | TCRBOA7    | tumour        | grch37       |
    +---------------+----------+------------+---------------+--------------+
 
-6. Add the :ref:`lcr-modules-configuration` to your project configuration YAML file (*e.g.* ``config.yaml``). If you have unpaired tumour samples, you will need to add a :ref:`pairing-configuration` under ``pairing_config``.
+6. Add the :ref:`lcr-modules-configuration` to your project configuration YAML file (*e.g.* ``config.yaml``). If you have unpaired tumour samples, you will need to add a ``pairing_config``. Check out :ref:`pairing-configuration` for more information and :ref:`within-the-configuration-file` for an example of how this is done.
 
    .. code:: yaml
 
@@ -88,7 +96,7 @@ Getting Started
             root_output_dir: "results/"
             scratch_directory: null
 
-7. Load the :ref:`sample-table` and the :ref:`reference-files-workflow` by adding the following lines to your project snakefile anywhere before you include the module snakefiles (see next step). 
+7. Load the :ref:`sample-table`, :ref:`specify-the-input-samples`, and add the :ref:`reference-files-workflow` by including the following lines in your project snakefile anywhere before the module snakefiles (see next step).
 
    .. code:: python
 
@@ -136,17 +144,18 @@ Getting Started
 
       nice snakemake --dry-run --use-conda --cores <cores> _<star>_all _<manta>_all
 
-10. If you feel comfortable with the above steps, consider reading through the :ref:`advanced-usage`. For example, you can set :ref:`module-specific-sample-tables` if you want to run your module on a specific set of samples. Another advanced feature is :ref:`conditional-module-behaviour-user`, which you can use to set different input file paths for different sequencing data types (*e.g.* ``genome`` and ``mrna``).
+10. If you feel comfortable with the above steps, consider reading through the :ref:`advanced-usage`. For example, you can use :ref:`conditional-module-behaviour-user` to set different input file paths for different sequencing data types (*e.g.* ``genome`` and ``mrna``).
 
 .. _running-the-demo-project:
 
 Running the Demo Project
 ========================
 
-To be completed.
+Before running the `Demo Project`_, you will need to download the `Test Data`_, which is composed of exome and RNA sequencing data for a follicular lymphoma case. Specifically, the tumour sample has both exome and RNA data, whereas the normal sample only has exome data. We acknowledge the Texas Cancer Research Biobank, Baylor College of Medicine Human Genome Sequencing Center, and the study participants for graciously providing these open-access data. These data are described in more detail in the following paper. **Important:** Before downloading the data, you must first read and agree to the terms laid out in the `Test Data README`_, which is a requirement for redistributing the data. 
 
-.. Update scratch_directory or symlink
-   You can omit the ``--dry-run`` option if you first replace the placeholders in ``demo/data/`` with the actual `Test Data`_.
+   Becnel, L. B. et al. An open access pilot freely sharing cancer genomic data from participants in Texas. Sci. Data 3:160010 doi: 10.1038/sdata.2016.10 (2016).
+
+Once the `Test Data`_ is downloaded, you will need to update the placeholders in ``demo/data/`` with the downloaded files (or symbolic links to the files). At that point, you can technically run the `Demo Snakefile`_ by omitting the ``--dry-run`` option from the command in the :ref:`getting-started-user` instructions, but you might want to update the value set in ``demo/config.yaml`` under ``scratch_directory`` to an space where you can readily store large intermediate files (*e.g.* a directory without snapshots or backups).
 
 .. _reference-files-workflow:
 
@@ -263,13 +272,13 @@ Pairing Configuration Options
 
 Here's a brief description of each of the options that go into a ``pairing_config``. Here, the term "unpaired tumour" refers to tumours that lack a matched normal sample with the same ``seq_type``.
 
-``run_paired_tumours``: Possible values are ``True`` or ``False``. This option determines whether to run paired tumours. Setting this to ``False`` is useful for naturally unpaired or tumour-only analyses (*e.g.* for RNA-seq), which is normally done while setting ``run_paired_tumours_as_unpaired`` to True in case there are any paired tumours.
+- ``run_paired_tumours``: Possible values are ``True`` or ``False``. This option determines whether to run paired tumours. Setting this to ``False`` is useful for naturally unpaired or tumour-only analyses (*e.g.* for RNA-seq), which is normally done while setting ``run_paired_tumours_as_unpaired`` to True in case there are any paired tumours.
 
-``run_unpaired_tumours_with``: Possible values are ``None``, ``"unmatched_normal"``, or ``"no_normal"``. This option determines what to pair with unpaired tumours. Specifying ``None`` means that unpaired tumours will be skipped for the given module. This option cannot be set to ``None`` if ``run_paired_tumours_as_unpaired`` is ``True``. Specifying ``"unmatched_normal"`` means that unpaired tumours will be run by being paired with the unmatched normal sample given by ``unmatched_normal_id`` (see below). Specifying ``"no_normal"`` means that unpaired tumours will be run without a normal sample. Note that modules need to be specifically configured to be run in paired and/or unpaired mode, since the commands of the underlying tools probably need to be tailored accordingly.
+- ``run_unpaired_tumours_with``: Possible values are ``None``, ``"unmatched_normal"``, or ``"no_normal"``. This option determines what to pair with unpaired tumours. Specifying ``None`` means that unpaired tumours will be skipped for the given module. This option cannot be set to ``None`` if ``run_paired_tumours_as_unpaired`` is ``True``. Specifying ``"unmatched_normal"`` means that unpaired tumours will be run by being paired with the unmatched normal sample given by ``unmatched_normal_id`` (see below). Specifying ``"no_normal"`` means that unpaired tumours will be run without a normal sample. Note that modules need to be specifically configured to be run in paired and/or unpaired mode, since the commands of the underlying tools probably need to be tailored accordingly.
 
-``unmatched_normal_id``: This option must be set to a sample identifier (``sample_id``) that exists in the :ref:`sample-table`. This option determines which normal sample will be used with unpaired tumours when ``run_unpaired_tumours_with`` is set to ``'unmatched_normal'``. This is only required if you have unpaired tumour samples, even if ``run_unpaired_tumours_with`` is set to ``'unmatched_normal'``. 
+- ``unmatched_normal_id``: This option must be set to a sample identifier (``sample_id``) that exists in the :ref:`sample-table`. This option determines which normal sample will be used with unpaired tumours when ``run_unpaired_tumours_with`` is set to ``"unmatched_normal"``. This is only required if you have unpaired tumour samples, even if ``run_unpaired_tumours_with`` is set to ``"unmatched_normal"``. 
 
-``run_paired_tumours_as_unpaired``: Possible values are ``True`` or ``False``. This option determines whether paired tumours should be run as unpaired (*i.e.* separate from their matched normal sample). This is useful for benchmarking purposes or preventing unwanted paired analyses (*e.g.* in RNA-seq analyses intended to be tumour-only).
+- ``run_paired_tumours_as_unpaired``: Possible values are ``True`` or ``False``. This option determines whether paired tumours should be run as unpaired (*i.e.* separate from their matched normal sample). This is useful for benchmarking purposes or preventing unwanted paired analyses (*e.g.* in RNA-seq analyses intended to be tumour-only).
 
 Example Pairing Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -292,6 +301,53 @@ This ``pairing_config`` was taken from the ``manta`` module. As you can see, the
          run_paired_tumours: False
          run_unpaired_tumours_with: "no_normal"
          run_paired_tumours_as_unpaired: True
+
+.. _shared-configuration:
+
+Shared Configuration
+---------------------
+
+.. code:: python
+
+   # Shared configuration
+   config["lcr-modules"]["_shared"]
+
+One of the components of the :ref:`lcr-modules-configuration` is the shared configuration. As the name implies, the purpose of this shared configuration is to provide some common and relevant information to all modules. To avoid clashing with module names, this configuration is stored under the ``"_shared"`` key. (:ref:`faq-underscore`) 
+
+**Important:** The configuration of each module is "merged" with the shared configuration, and when there are conflicts, the module configuration takes precedence. In other words, everything under ``"_shared"`` is used as default values when configuring each module unless the :ref:`module-configuration` already has a value, which will override the shared value. To demonstrate this point, consider the following shared configuration and the module configuration before merging. Once they have been merged, you can see that ``key2`` now appears in the module configuration using the value from the shared configuration, whereas the value for ``key1`` didn't change.
+
+.. code:: yaml
+
+   # Shared configuration
+   _shared:
+      key1: "a"
+      key2: "b"
+   
+   # Module configuration (before merging)
+   module_x:
+      key1: "x"
+      key3: "z"
+   
+   # Module configuration (after merging)
+   module_x:
+      key1: "x"
+      key2: "b"
+      key3: "z"
+
+This behaviour can be leveraged in a number of ways. For example, by setting ``unmatched_normal_id`` under the ``"_shared"`` key, you avoid having to specify that value for every module that performs paired analyses (assuming you have unpaired tumours). That said, if you want to use a different ``unmatched_normal_id`` for a subset of modules, you can override the shared value. Another useful instance is the sharing of the :ref:`sample-table` between modules. This way, the user doesn't have to repeatedly provide the same sample table to each module. Note that this is only possible because each module automatically filters the samples based on the sequencing data types (``seq_type``) listed in their :ref:`pairing-configuration`. 
+
+Common Shared Configuration Fields
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ``repository``: This field specifies the file path for the cloned ``lcr-modules`` repository. This path can be relative to your project snakefile or absolute. **This parameter is required.**
+
+- ``lcr-scripts``: This field specifies the file path for the cloned ``lcr-scripts`` repository. This path can be relative to your project snakefile or absolute. **This parameter is required.**
+
+- ``root_output_dir``: This field specifies the directory (*e.g.* ``"results/"``) where the modules will produce their output files in their respective subdirectories (*e.g.* ``results/star-1.0/``, ``results/manta-2.0/``). Technically, this shared parameter is optional, as it will default to ``"results/"``. 
+
+- ``scratch_directory``: This field specifies the directory where large intermediate files can be written without worry of running out of space or clogging snapshots/backups. If set to ``null``, the files will be output locally.
+
+- ``pairing_config``: This field is optional, but it's useful for specifying the normal samples to use in paired analyses with unpaired tumours. See :ref:`pairing-configuration` for more details and :ref:`updating-configuration-values` for an example configuration file where this is provided.
 
 .. _updating-configuration-values:
 
@@ -394,82 +450,6 @@ Alternatively, some of the redundancy can be avoided by using the `Snakemake upd
    })
 
 If you want a simpler syntax, you can consider using the :ref:`convenience-set-functions`. That said, a good compromise might be to store as much of these configuration updates :ref:`within-the-configuration-file` (*i.e.* anything that isn't a function), and you can update values with functions :ref:`within-the-snakefile`.
-
-.. _shared-configuration:
-
-Shared Configuration
----------------------
-
-.. code:: python
-
-   # Shared configuration
-   config["lcr-modules"]["_shared"]
-
-One of the components of the :ref:`lcr-modules-configuration` is the shared configuration. As the name implies, the purpose of this shared configuration is to provide some common and relevant information to all modules. To avoid clashing with module names, this configuration is stored under the ``'_shared'`` key. (:ref:`faq-underscore`) 
-
-**Important:** The configuration of each module is "merged" with the shared configuration, and when there are conflicts, the module configuration takes precedence. In other words, everything under ``'_shared'`` is used as default values when configuring each module unless the :ref:`module-configuration` already has a value, which will override the shared value. To demonstrate this point, consider the following shared configuration and the module configuration before merging. Once they have been merged, you can see that ``key2`` now appears in the module configuration using the value from the shared configuration, whereas the value for ``key1`` didn't change.
-
-.. code:: yaml
-
-   # Shared configuration
-   _shared:
-      key1: "a"
-      key2: "b"
-   
-   # Module configuration (before merging)
-   module_x:
-      key1: "x"
-      key3: "z"
-   
-   # Module configuration (after merging)
-   module_x:
-      key1: "x"
-      key2: "b"
-      key3: "z"
-
-Two examples:
-
-- ``unmatched_normal_id``
-
-- The sample table.
-
-Required Shared Configuration Fields
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-You will need to specify a value for ``repository`` and ``root_output_dir``. If you have unpaired tumour samples, you will probably need to list the IDs for the samples to be used as unmatched normal samples in paired analyses under ``pairing_config``. See the example project configuration below for the required format.
-
-
-``repository``
-^^^^^^^^^^^^^^
-
-File path for the cloned ``lcr-modules`` repository relative to your project snakefile. **This parameter is required.**
-
-``lcr-scripts``
-^^^^^^^^^^^^^^^
-
-File path for the cloned ``lcr-scripts`` repository relative to your project snakefile. **This parameter is required.**
-
-``root_output_dir``
-^^^^^^^^^^^^^^^^^^^
-
-Directory where all of the module output subdirectories will be created (*e.g.* ``results/manta-1.0/``). Technically, this shared parameter is optional and will default to ``'results/'``. I include it because I expect most users will want to customize this parameter.
-
-``scratch_directory``
-^^^^^^^^^^^^^^^^^^^^^
-
-Directory where large temporary files can be written without worry of running out of space or clogging snapshots/backups. If set to ``null``, the files will be output locally.
-
-``pairing_config``
-^^^^^^^^^^^^^^^^^^
-
-Optional unless you have unpaired tumours, in which case you need to specify which samples to use as unmatched normal samples for each ``seq_type`` under ``unmatched_normal_id``. See below for the required format.
-
-.. _default-configuration-values:
-
-Default Configuration Values
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-To be completed.
 
 .. _sample-table:
 
@@ -590,12 +570,14 @@ A similar approach can be taken if you have the columns, but they are formatted 
    SAMPLES = op.load_samples("samples.tsv")
    SAMPLES["seq_type"] = SAMPLES["seq_type"].map({"WGS": "genome", "Exome": "capture"})
 
-Specifying the Input Samples
-----------------------------
+.. _specify-the-input-samples:
 
-TODO
-_shared
-module-specific
+Specify the Input Samples
+-------------------------
+
+Once you have a sample table, you need to inform the modules which samples they need to run on. Normally, this is accomplished by storing the customized sample table under the ``"samples"`` key in the :ref:`module-configuration`. Because each module automatically filters for samples whose ``seq_type`` appear in their respective :ref:`pairing-configuration`, the user doesn't need to worry about pre-filtering the samples. For example, the user doesn't need to filter for RNA-seq samples for the ``star`` RNA-seq alignment module. That said, if the user had RNA-seq samples they didn't want processed by the ``star`` module, they can remove the samples in question and set this pre-filtered sample table as the value for the ``"samples"`` key.
+
+However, since most users will probably want to run all samples through all applicable modules, it is possible to avoid the step of setting the sample table for each module. To skip this step, you can simply set the full sample table under the ``"samples"`` key in the :ref:`shared-configuration` (``"_shared"``). This is the method used in the :ref:`getting-started-user` instructions. The :ref:`shared-configuration` section explains why this works. 
 
 .. _snakemake-commands:
 
@@ -696,13 +678,6 @@ The command below differs from the explicit command above simply by prepending t
 Advanced Usage
 ==============
 
-.. _module-specific-sample-tables:
-
-Module-Specific Sample Tables
------------------------------
-
-To be completed.
-
 .. _directory-placeholders:
 
 Directory Placeholders
@@ -719,15 +694,17 @@ When specifying any value in the module configuration, you can use the following
 Convenience Set Functions
 -------------------------
 
-The `Setup Instructions <#setup-instructions>`__ demonstrate that everything is configured using the same snakemake ``config`` nested dictionary object, generally under the ``'lcr-modules'`` key. While transparent, it results in verbose code, such as:
+The `Setup Instructions <#setup-instructions>`__ demonstrate that everything is configured using the same snakemake ``config`` nested dictionary object, generally under the ``"lcr-modules"`` key. While transparent, it results in verbose code, such as:
 
 .. code:: python
 
-   config["lcr-modules"]["manta"]["inputs"]["sample_bam"] = SAMPLE_BAM
+   config["lcr-modules"]["manta"]["inputs"]["sample_bam"] = "data/{sample_id}.bam"
 
 Alternatively, you can use the so-called convenience “set functions” to simplify the code somewhat. In order to use them, you must first enable them. Behind the scenes, the snakemake ``config`` object is stored internally for easy access.
 
 .. code:: python
+
+   import oncopipe as op
 
    op.enable_set_functions(config)
 
@@ -735,6 +712,8 @@ The first set function you can use is :py:func:`oncopipe.set_samples()`, which s
 
 .. code:: python
 
+   import oncopipe as op
+   
    op.set_samples("_shared", SAMPLES)
    op.set_samples("_shared", GENOMES, CAPTURES)
 
@@ -742,20 +721,22 @@ The second function you can use is :py:func:`oncopipe.set_input()`, which sets t
 
 .. code:: python
 
-   op.set_input("manta", "sample_bam", SAMPLE_BAM)
+   import oncopipe as op
+
+   op.set_input("manta", "sample_bam", "data/{sample_id}.bam")
 
 .. _conditional-module-behaviour-user:
 
 Conditional Module Behaviour
 ----------------------------
 
-For more information, check out :ref:`conditional-module-behaviour-dev`.
-
-Sometimes, a parameter or input file depends on some sample attribute. This sample attribute can be stored in the file as a wildcard or in the sample tables as a column. Two functions are available to parameterize virtually anything, namely ``op.switch_on_wildcard()`` and ``op.switch_on_column()``. These functions are useful for both module users and module developers. Read their documentation for more details, *e.g.* ``help(op.switch_on_wildcard)``.
+Sometimes, a parameter or input file depends on some sample attribute. This sample attribute can be stored in the file as a wildcard or in the sample tables as a column. Two functions are available to parameterize virtually anything, namely :py:func:`oncopipe.switch_on_wildcard` and :py:func:`op.switch_on_column`. These functions are useful for both module users and module developers. Read their documentation for more details, *e.g.* ``help(op.switch_on_wildcard)``.
 
 In the example below, I want to override the default Manta configuration and provide the high-sensitivity version for ``mrna`` and ``capture`` tumour samples. This piece of code would be added after loading the module configuration but before including the module snakefile.
 
 .. code:: python
+
+   import oncopipe as op
 
    MANTA_CONFIG_OPTIONS = {
        "_default": "{MODSDIR}/etc/manta_config.default.ini",
@@ -764,3 +745,5 @@ In the example below, I want to override the default Manta configuration and pro
    }
    MANTA_CONFIG_SWITCH = op.switch_on_wildcard("seq_type", MANTA_CONFIG_OPTIONS)
    op.set_input("manta", "manta_config", MANTA_CONFIG_SWITCH)
+
+For more information, check out :ref:`conditional-module-behaviour-dev`.
