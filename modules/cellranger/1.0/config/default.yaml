@@ -1,16 +1,23 @@
 lcr-modules:
     cellranger:
+        software: "/projects/clc/usr/cellranger/cellranger-3.1.0/cellranger"
         inputs:
-            sample_bam: null
+            sample_dir: null
         options:
-            step_1: "--call-indels"
-            step_2: "-w PASS"
+            mkfastq: "--qc"
+            count: "--expect-cells=5000"
+            vdj: ""
         threads:
-            step_1: 12
+            mkfastq: null
+            count: null
+            vdj: null
         mem_mb:
-            step_1: 6000
+            mkfastq: null
+            count: null
+            vdj: null
+
         pairing_config:
-            mrna:
+            sc_mrna:
                 run_paired_tumours: False
                 run_unpaired_tumours_with: "no_normal"
                 run_paired_tumours_as_unpaired: True

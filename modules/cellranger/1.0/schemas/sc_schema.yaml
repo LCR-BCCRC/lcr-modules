@@ -18,10 +18,14 @@ properties:
     chip_id:
         type: string
         description: flow cell id
+    genome_build: 
+        type: string
+        description: Reference genome build (e.g., grch37, hg38)
 
 
 required:
     - sample_id
+    - chip_id
     - index
     - lane
     - seq_type
