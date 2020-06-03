@@ -260,28 +260,6 @@ Below is the input and output rules for the ``star`` module. Because STAR operat
          os.remove(input.sorted_bam)
          shell("touch {input.sorted_bam}.deleted")
 
-In some situations, it is useful to have more than one input or output symlinking rule. The example below is taken from the ``manta`` module, which can run on paired and unpaired tumour samples. To minimize duplicated code, the same rule is used for running paired and unpaired tumour samples, but the ``--normalBam`` argument is omitted for unpaired tumours. Unfortunately, the value for the ``normal_id`` in the filename is ``None``, which causes snakemake to look for a ``None.bam`` input file. While it is technically possible to omit the normal input file for unpaired tumours using duplicated rules, it’s harder to maintain. Hence, I added a second input rule that simply created an empty ``None.bam`` file.
-
-.. code:: python
-
-   # Symlinks the input BAM files into the module output directory (under '00-inputs/').
-   rule _manta_input_bam:
-       input:
-           sample_bam = CFG["inputs"]["sample_bam"],
-           sample_bai = CFG["inputs"]["sample_bai"]
-       output:
-           sample_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-           sample_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
-       run:
-           op.relative_symlink(input.sample_bam, output.sample_bam)
-           op.relative_symlink(input.sample_bai, output.sample_bai)
-
-
-   # Create empty file for "no normal" runs (but this is ultimately omitted from downstream rules)
-   rule _manta_input_bam_none:
-       output:
-           touch(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/None.bam")
-
 Target Rules
 ^^^^^^^^^^^^
 

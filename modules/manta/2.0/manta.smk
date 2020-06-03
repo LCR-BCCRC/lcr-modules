@@ -50,12 +50,6 @@ rule _manta_input_bam:
         op.relative_symlink(input.sample_bai, output.sample_bai)
 
 
-# Create empty file for "no normal" runs (but this is ultimately omitted from downstream rules)
-rule _manta_input_bam_none:
-    output:
-        touch(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/None.bam")
-
-
 # bgzip-compress and tabix-index the BED file to meet Manta requirement
 rule _manta_index_bed:
     input:
@@ -73,7 +67,7 @@ rule _manta_index_bed:
 
 
 # Configures the manta workflow with the input BAM files and reference FASTA file.
-rule _manta_configure:
+rule _manta_configure_paired:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
@@ -87,14 +81,42 @@ rule _manta_configure:
         stderr = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stderr.log"
     params:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["configure"]),
-        normal_bam_arg = op.switch_on_wildcard("pair_status", CFG["switches"]["normal_bam_arg"]),
-        tumour_bam_arg = op.switch_on_wildcard("seq_type", CFG["switches"]["tumour_bam_arg"])
+        tumour_bam_arg_name = op.switch_on_wildcard("seq_type", CFG["switches"]["tumour_bam_arg_name"])
+    wildcard_constraints:
+        pair_status = "matched|unmatched"
     conda:
         CFG["conda_envs"]["manta"]
     shell:
         op.as_one_line("""
         configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {input.bedz}
-        --runDir "$(dirname {output.runwf})" {params.tumour_bam_arg} {params.normal_bam_arg}
+        --runDir "$(dirname {output.runwf})" {params.tumour_bam_arg_name} {input.tumour_bam}
+        --normalBam {input.normal_bam} --config {input.config} > {log.stdout} 2> {log.stderr}
+        """)
+
+
+# Configures the manta workflow with the input BAM files and reference FASTA file.
+rule _manta_configure_unpaired:
+    input:
+        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        config = op.switch_on_wildcard("seq_type", CFG["switches"]["manta_config"]),
+        bedz = rules._manta_index_bed.output.bedz
+    output:
+        runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
+    log:
+        stdout = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stdout.log",
+        stderr = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stderr.log"
+    params:
+        opts = op.switch_on_wildcard("seq_type", CFG["options"]["configure"]),
+        tumour_bam_arg_name = op.switch_on_wildcard("seq_type", CFG["switches"]["tumour_bam_arg_name"])
+    wildcard_constraints:
+        pair_status = "no_normal"
+    conda:
+        CFG["conda_envs"]["manta"]
+    shell:
+        op.as_one_line("""
+        configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {input.bedz}
+        --runDir "$(dirname {output.runwf})" {params.tumour_bam_arg_name} {input.tumour_bam}
         --config {input.config} > {log.stdout} 2> {log.stderr}
         """)
 

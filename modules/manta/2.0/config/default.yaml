@@ -27,14 +27,10 @@ lcr-modules:
                 _default: "{MODSDIR}/etc/manta_config.default.ini"
                 mrna: "{MODSDIR}/etc/manta_config.high_sensitivity.ini"
                 capture: "{MODSDIR}/etc/manta_config.high_sensitivity.ini"
-            # Omit the normal BAM CLI argument if there is no normal
-            normal_bam_arg:
-                _default: "--normalBam {input.normal_bam}"
-                no_normal: ""
             # Use `--bam` for mrna data
-            tumour_bam_arg:
-                _default: "--tumourBam {input.tumour_bam}"
-                mrna: "--bam {input.tumour_bam}"
+            tumour_bam_arg_name:
+                _default: "--tumourBam"
+                mrna: "--bam"
 
         threads:
             manta: 12
