@@ -25,9 +25,9 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster.
 localrules: 
     _manta_input_bam,
-    _manta_input_bam_none,
     _manta_index_bed,
-    _manta_configure,
+    _manta_configure_paired,
+    _manta_configure_unpaired,
     _manta_output_bedpe,
     _manta_output_vcf, 
     _manta_dispatch,
