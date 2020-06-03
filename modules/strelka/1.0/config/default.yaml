@@ -1,0 +1,41 @@
+lcr-modules:
+    
+    strelka:
+
+        # TODO: Update the list of available wildcards, if applicable
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: null 
+            sample_bai: null
+            candidate_indel: null
+
+        scratch_subdirectories: []
+
+        options:
+            configure:
+                mrna: "--rna"
+                capture: "--exome"
+            strelka: "-m local"
+
+        conda_envs:
+            strelka: "{MODSDIR}/envs/samtools-1.9.yaml"
+            
+        threads:
+            strelka: 4
+
+        mem_mb:
+            strelka: 2000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
