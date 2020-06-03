@@ -1,11 +1,12 @@
 #!/usr/bin/env snakemake
 
 
-##### PACKAGES #####
+##### SETUP #####
 
 
-# Load oncopipe package for convenience functions
 import oncopipe as op
+
+SAMPLES = op.load_samples("data/samples.tsv")
 
 
 ##### REFERENCE_FILES WORKFLOW #####
@@ -27,15 +28,13 @@ subworkflow reference_files:
 configfile: "../modules/star/1.0/config/default.yaml"
 configfile: "../modules/manta/2.0/config/default.yaml"
 
-# Load project-specific config (including "lcr-modules" section)
+# Load project-specific config, which includes the shared 
+# configuration and some module-specific config updates
 configfile: "config.yaml"
 
 
 ##### CONFIGURATION UPDATES #####
 
-
-# Load samples using convenience function
-SAMPLES = op.load_samples("data/samples.tsv")
 
 # Use all samples as a default sample list for each module
 config["lcr-modules"]["_shared"]["samples"] = SAMPLES
@@ -50,6 +49,7 @@ include: "../modules/manta/2.0/manta.smk"
 
 
 ##### TARGETS ######
+
 
 rule all:
     input:
