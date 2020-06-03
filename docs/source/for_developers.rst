@@ -513,7 +513,7 @@ In the example below, you can see that any command-line options associated with 
             utils_bam_markdups: ""
             utils_bam_index: "-b"
 
-You will also notice the various ``utils_bam_*`` fields. These correspond to rules in the ``utils`` module. For example, the following ``utils`` rule can index a BAM file, and you can see how it has an ``opts`` parameter that looks up the ``utils_bam_index`` field under ``options``. If it doesn't find a value, it defaults to ``"-b"``. In this case, the module developer exposed these fields to the user by including them in the ``star`` default configuration. IN this case, the same default values as in the ``utils`` module were used, but that might not always be the case depending on the module.
+You will also notice the various ``utils_bam_*`` fields. These correspond to rules in the ``utils`` module. For example, the following ``utils`` rule can index a BAM file, and you can see how it has an ``opts`` parameter that looks up the ``utils_bam_index`` field under ``options``. If it doesn't find a value, it defaults to ``"-b"``. In this case, the module developer exposed these fields to the user by including them in the ``star`` default configuration. In this case, the same default values as in the ``utils`` module were used, but that might not always be the case depending on the module.
 
 .. code:: yaml
 
