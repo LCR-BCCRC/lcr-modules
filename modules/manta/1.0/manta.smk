@@ -45,8 +45,8 @@ rule _manta_input_bam:
     output:
         sample_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     run:
-        md.symlink(input.sample_bam, output.sample_bam)
-        md.symlink(input.sample_bam + ".bai", output.sample_bam + ".bai")
+        op.relative_symlink(input.sample_bam, output.sample_bam)
+        op.relative_symlink(input.sample_bai, output.sample_bai)
 
 
 # Generate BED file for main chromosomes to exclude small contigs from Manta run
@@ -88,7 +88,9 @@ rule _manta_configure:
             "no_normal" : {}
         })),
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        config = CFG["inputs"]["manta_config"],
+        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        config = op.switch_on_wildcard("seq_type", CFG["switches"]["manta_config"]),
         bedz = rules._manta_index_bed.output.bedz
     output:
         runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
@@ -207,8 +209,7 @@ rule _manta_output_vcf:
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf.gz"
     run:
-        md.symlink(input.vcf, output.vcf)
-        md.symlink(input.vcf + ".tbi", output.vcf + ".tbi")
+        op.relative_symlink(input.vcf, output.vcf)
 
 
 # Symlinks the final BEDPE files
@@ -218,7 +219,7 @@ rule _manta_output_bedpe:
     output:
         bedpe = CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.bedpe"
     run:
-        md.symlink(input.bedpe, output.bedpe)
+        op.relative_symlink(input.bedpe, output.bedpe)
 
 
 def _get_manta_files(wildcards):

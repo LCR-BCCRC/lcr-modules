@@ -1,14 +1,33 @@
 lcr-modules:
+    
     {{cookiecutter.module_name}}:
+
+        # TODO: Update the list of available wildcards, if applicable
         inputs:
-            sample_bam: null
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_{{cookiecutter.input_file_type}}: null  # UPDATE
+
+        # TODO: Update (or remove) this section with any reference parameters
+        reference_params:
+            # Ideally, `star_overhang` = max(read_length) - 1
+            # STAR indices were precomputed for "74" and "99"
+            star_overhang: "99"  # UPDATE
+
+        scratch_subdirectories: []
+
         options:
-            step_1: "--call-indels"
-            step_2: "-w PASS"
+            step_1: ""
+            step_2: ""
+
+        conda_envs:
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            
         threads:
-            step_1: 12
+            step_1: 4
+
         mem_mb:
-            step_1: 6000
+            step_1: 2000
+
         pairing_config:
         {%- for seq_type, mode in cookiecutter.items() if seq_type.startswith("seq_type.") %}
             {%- if mode != "omit" %}

@@ -1,0 +1,8 @@
+.rst-content .section ul li,
+.rst-content .section ol li {
+  margin-bottom: 12px;
+}
+
+table p {
+  margin-bottom: 0;
+}

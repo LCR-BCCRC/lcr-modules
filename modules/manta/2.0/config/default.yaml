@@ -1,0 +1,57 @@
+lcr-modules:
+
+    manta:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: null  # UPDATE
+            sample_bai: null  # UPDATE
+            augment_manta_vcf: "{SCRIPTSDIR}/augment_manta_vcf/1.0/augment_manta_vcf.py"
+
+        options:
+            configure:
+                mrna: "--rna"
+                capture: "--exome"
+            manta: "--mode local"
+            augment_vcf: ""
+
+        conda_envs:
+            tabix: "{MODSDIR}/envs/tabix-0.2.6.yaml"
+            manta: "{MODSDIR}/envs/manta-1.6.0.yaml"
+            augment_manta_vcf: "{SCRIPTSDIR}/augment_manta_vcf/1.0/augment_manta_vcf-1.yaml"
+            svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
+
+        switches:
+            # Run Manta in high-sensitivity mode for RNA-seq and capture data
+            manta_config:
+                _default: "{MODSDIR}/etc/manta_config.default.ini"
+                mrna: "{MODSDIR}/etc/manta_config.high_sensitivity.ini"
+                capture: "{MODSDIR}/etc/manta_config.high_sensitivity.ini"
+            # Use `--bam` for mrna data
+            tumour_bam_arg_name:
+                _default: "--tumourBam"
+                mrna: "--bam"
+
+        threads:
+            manta: 12
+            augment_vcf: 1
+            vcf_to_bedpe: 1
+
+        mem_mb:
+            manta: 6000
+            augment_vcf: 2000
+            vcf_to_bedpe: 2000
+            
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
