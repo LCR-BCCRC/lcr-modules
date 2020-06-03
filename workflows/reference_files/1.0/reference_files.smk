@@ -18,6 +18,12 @@ import oncopipe as op
 
 
 ##### CONFIG #####
+localrules: download_chrom_mappings, download_genome_fasta,
+            download_main_chromosomes, download_gencode_annotation,
+            hardlink_download, update_contig_names,
+            get_genome_fasta_download, index_genome_fasta,
+            get_main_chromosomes_download, create_bwa_index,
+            get_gencode_download, create_star_index
 
 
 # Check for genome builds
