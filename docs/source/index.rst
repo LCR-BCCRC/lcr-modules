@@ -31,6 +31,7 @@ Fortunately, all of these problems can be solved with standardized analytical mo
 
                               * And happier bioinformaticians!
 
+.. _what-are-modules:
 
 What Are Modules?
 -----------------

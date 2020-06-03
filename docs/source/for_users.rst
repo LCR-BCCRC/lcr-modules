@@ -1,43 +1,9 @@
+.. include:: links.rst
+
 .. _getting-started-user:
 
 Getting Started
 ===============
-
-.. Links (begin)
-
-.. _Demo Project: https://github.com/LCR-BCCRC/lcr-modules/blob/master/demo/
-
-.. _Demo Snakefile: https://github.com/LCR-BCCRC/lcr-modules/blob/master/demo/snakefile
-
-.. _Demo Configuration: https://github.com/LCR-BCCRC/lcr-modules/blob/master/demo/config.yaml
-
-.. _Miniconda: https://docs.conda.io/en/latest/miniconda.html
-
-.. _Anaconda: https://docs.anaconda.com/anaconda/install/
-
-.. _lcr-modules repository: https://github.com/LCR-BCCRC/lcr-modules
-
-.. _lcr-scripts repository: https://github.com/LCR-BCCRC/lcr-scripts
-
-.. _Test Data: https://www.bcgsc.ca/downloads/lcr-modules/test_data/
-
-.. _Test Data README: https://www.bcgsc.ca/downloads/lcr-modules/test_data/README.txt
-
-.. _Snakemake Validation: https://snakemake.readthedocs.io/en/stable/snakefiles/configuration.html?highlight=schema#validation
-
-.. _pandas DataFrame: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
-
-.. _pandas: https://pandas.pydata.org/docs/index.html
-
-.. _Snakemake Sub-Workflows: https://snakemake.readthedocs.io/en/stable/snakefiles/modularization.html#sub-workflows
-
-.. _Input File Functions: https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#input-functions-and-unpack
-
-.. _Parameter Functions: https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#non-file-parameters-for-rules
-
-.. _Snakemake update_config() Function: https://snakemake.readthedocs.io/en/stable/api_reference/snakemake_utils.html#snakemake.utils.update_config
-
-.. Links (end)
 
 **Important:** Be sure to update any values in angle brackets (``<...>``). File paths can either be absolute or relative to the working directory (usually where you run your ``snakemake`` command). 
 
@@ -58,11 +24,11 @@ Getting Started
       git clone https://github.com/LCR-BCCRC/lcr-modules.git
       git clone https://github.com/LCR-BCCRC/lcr-scripts.git
 
-3. Install the custom :py:mod:`oncopipe` python package included in the lcr-modules repository, which will also install dependencies such as ``snakemake`` and ``pandas``.
+3. Install the custom :py:mod:`oncopipe` python package included in the `lcr-modules repository`_, which will also install dependencies such as ``snakemake`` and ``pandas``.
 
    .. code:: bash
 
-      cd lcr-modules
+      cd lcr-modules/
       pip install -e oncopipe/
 
 4. Test your environment with the `Demo Snakefile`_ using the following ``snakemake`` command. If you want to actually run the test, check out :ref:`running-the-demo-project`.
@@ -84,7 +50,7 @@ Getting Started
    | TCRBOA7-T-RNA | mrna     | TCRBOA7    | tumour        | grch37       |
    +---------------+----------+------------+---------------+--------------+
 
-6. Add the :ref:`lcr-modules-configuration` to your project configuration YAML file (*e.g.* ``config.yaml``). If you have unpaired tumour samples, you will need to add a ``pairing_config``. Check out :ref:`pairing-configuration` for more information and :ref:`within-the-configuration-file` for an example of how this is done.
+6. Add the :ref:`lcr-modules-configuration` to your project configuration YAML file (*e.g.* ``config.yaml``). If you have unpaired tumour samples, you will need to add a ``pairing_config``. Check out :ref:`handling-unpaired-tumours` section for more information and :ref:`within-the-configuration-file` for an example of how this is done.
 
    .. code:: yaml
 
@@ -115,7 +81,7 @@ Getting Started
 
 8. Include and configure the modules you want to run by adding the following lines to your project snakefile. 
 
-   **Important Notes** 
+   **Important** 
    
    - Any values that need to be updated by the user will be indicated in the default :ref:`module-configuration` by ``UPDATE`` comments. 
 
@@ -258,57 +224,13 @@ The intent behind these module configuration files is that any field can be (and
 
 **Important:** Before running any module, you must search for any ``UPDATE`` comments in the default configuration file. See :ref:`updating-configuration-values` for different approaches on how to override the default configuration for each module.
 
-.. _pairing-configuration:
-
-Pairing Configuration
-~~~~~~~~~~~~~~~~~~~~~
-
-Each module has a pairing configuration (``pairing_config``) in their default configuration file. This ``pairing_config`` dictates which sequencing data types (``seq_type``) are supported by the module, whether the module runs in paired or unpaired mode for each ``seq_type``, and if so, how it performs these analyses for each ``seq_type``. This information is ultimately used by the :py:func:`oncopipe.generate_runs_for_patient` function when producing (or not) tumour-normal pairs.
-
-The user doesn't need to worry about the ``pairing_config`` unless they have unpaired tumour samples or they wish to configure modules for new sequencing data types (``seq_type``). If they have unpaired tumours, for each ``seq_type``, they need to specify which normal sample to use for paired analyses where an unmatched normal sample will be used instead of a matched normal sample. This is done by providing values for ``unmatched_normal_id``, as demonstrated in the :ref:`within-the-configuration-file` section. 
-
-Pairing Configuration Options
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Here's a brief description of each of the options that go into a ``pairing_config``. Here, the term "unpaired tumour" refers to tumours that lack a matched normal sample with the same ``seq_type``.
-
-- ``run_paired_tumours``: Possible values are ``True`` or ``False``. This option determines whether to run paired tumours. Setting this to ``False`` is useful for naturally unpaired or tumour-only analyses (*e.g.* for RNA-seq), which is normally done while setting ``run_paired_tumours_as_unpaired`` to True in case there are any paired tumours.
-
-- ``run_unpaired_tumours_with``: Possible values are ``None``, ``"unmatched_normal"``, or ``"no_normal"``. This option determines what to pair with unpaired tumours. Specifying ``None`` means that unpaired tumours will be skipped for the given module. This option cannot be set to ``None`` if ``run_paired_tumours_as_unpaired`` is ``True``. Specifying ``"unmatched_normal"`` means that unpaired tumours will be run by being paired with the unmatched normal sample given by ``unmatched_normal_id`` (see below). Specifying ``"no_normal"`` means that unpaired tumours will be run without a normal sample. Note that modules need to be specifically configured to be run in paired and/or unpaired mode, since the commands of the underlying tools probably need to be tailored accordingly.
-
-- ``unmatched_normal_id``: This option must be set to a sample identifier (``sample_id``) that exists in the :ref:`sample-table`. This option determines which normal sample will be used with unpaired tumours when ``run_unpaired_tumours_with`` is set to ``"unmatched_normal"``. This is only required if you have unpaired tumour samples, even if ``run_unpaired_tumours_with`` is set to ``"unmatched_normal"``. 
-
-- ``run_paired_tumours_as_unpaired``: Possible values are ``True`` or ``False``. This option determines whether paired tumours should be run as unpaired (*i.e.* separate from their matched normal sample). This is useful for benchmarking purposes or preventing unwanted paired analyses (*e.g.* in RNA-seq analyses intended to be tumour-only).
-
-Example Pairing Configuration
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-This ``pairing_config`` was taken from the ``manta`` module. As you can see, the module can handle ``genome``, ``capture``, and ``mrna`` data. It treats ``genome`` and ``capture`` data the same way, namely by allowing unpaired tumours to be analyzed using unmatched normals (as opposed to a truly unpaired analysis without a normal sample). Also, paired tumours are not unnecessarily run as unpaired. In contrast, ``mrna`` data is run specifically in an unpaired fashion without a normal sample because tumour RNA-seq alignments generally do not have matched normal RNA-seq data. 
-
-.. code:: yaml
-
-   # Taken from lcr-modules/modules/manta/2.0/config/default.yaml
-   pairing_config:
-      genome:
-         run_paired_tumours: True
-         run_unpaired_tumours_with: "unmatched_normal"
-         run_paired_tumours_as_unpaired: False
-      capture:
-         run_paired_tumours: True
-         run_unpaired_tumours_with: "unmatched_normal"
-         run_paired_tumours_as_unpaired: False
-      mrna:
-         run_paired_tumours: False
-         run_unpaired_tumours_with: "no_normal"
-         run_paired_tumours_as_unpaired: True
-
 .. _shared-configuration:
 
 Shared Configuration
 ---------------------
 
 .. code:: python
-
+ 
    # Shared configuration
    config["lcr-modules"]["_shared"]
 
@@ -347,7 +269,18 @@ Common Shared Configuration Fields
 
 - ``scratch_directory``: This field specifies the directory where large intermediate files can be written without worry of running out of space or clogging snapshots/backups. If set to ``null``, the files will be output locally.
 
-- ``pairing_config``: This field is optional, but it's useful for specifying the normal samples to use in paired analyses with unpaired tumours. See :ref:`pairing-configuration` for more details and :ref:`updating-configuration-values` for an example configuration file where this is provided.
+- ``pairing_config``: This field is optional, but it's useful for specifying the normal samples to use in paired analyses with unpaired tumours. See :ref:`handling-unpaired-tumours` for more details and :ref:`updating-configuration-values` for an example configuration file where this is provided.
+
+.. _handling-unpaired-tumours:
+
+Handling Unpaired Tumours
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Each module has a pairing configuration (``pairing_config``) in their default configuration file. This ``pairing_config`` dictates which sequencing data types (``seq_type``) are supported by the module, whether the module runs in paired or unpaired mode for each ``seq_type``, and if so, how it performs these analyses for each ``seq_type``. This information is ultimately used by the :py:func:`oncopipe.generate_runs_for_patient` function when producing (or not) tumour-normal pairs. If you want to learn more, check out the :ref:`pairing-configuration` section in the developer documentation. 
+
+That said, the user doesn't need to worry about the ``pairing_config`` unless they have unpaired tumour samples or they wish to configure modules for new sequencing data types (``seq_type``). If they have unpaired tumours, for each ``seq_type``, they need to specify which normal sample to use for paired analyses where an unmatched normal sample will be used instead of a matched normal sample. This is done by providing values for ``unmatched_normal_id``, as demonstrated in the :ref:`within-the-configuration-file` section. 
+
+If the user wants to configure new sequencing data types, they should check out the :ref:`configuring-new-seqtypes` section. 
 
 .. _updating-configuration-values:
 
@@ -365,7 +298,7 @@ By the way, there is nothing forcing you to store your project-specific configur
 
 One of the main limitations of this approach is that you are restricted to value types that can be encoded in YAML format. For the most part, this means numbers, strings and booleans organized into lists or dictionaries. In other words, this precludes the use of functions as values, such as `Input File Functions`_. If you need to specify functions, you will have to update configuration values :ref:`within-the-snakefile`, or use a hybrid approach.
 
-The example YAML file below is taken from the `Demo Configuration`_. You can see that it includes a :ref:`pairing-configuration` (``pairing_config``) under ``_shared`` to indicate which normal samples to use for unpaired tumours for paired analyses. It also updates a number of configuration values for the ``star`` and ``manta`` modules. All of these fields were labelled with an ``UPDATE`` comment in the modules' respective default configuration file. The only exception is the ``scratch_subdirectories`` field for the ``star`` module, which was updated here to include the ``"mark_dups"`` subdirectory such that the final BAM files from the module are also stored in the scratch directory.
+The example YAML file below is taken from the `Demo Configuration`_. You can see that it includes a ``pairing_config`` under ``_shared`` to indicate which normal samples to use for unpaired tumours for paired analyses (see :ref:`handling-unpaired-tumours`). It also updates a number of configuration values for the ``star`` and ``manta`` modules. All of these fields were labelled with an ``UPDATE`` comment in the modules' respective default configuration file. The only exception is the ``scratch_subdirectories`` field for the ``star`` module, which was updated here to include the ``"mark_dups"`` subdirectory such that the final BAM files from the module are also stored in the scratch directory.
 
 .. code:: yaml
 
@@ -491,7 +424,7 @@ Check out the :ref:`renaming-columns` section if your sample table has some of t
 ``seq_type`` – Sequencing data type
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The most common values for this column are ``genome`` (whole genome sequencing), ``mrna`` (RNA sequencing), ``capture`` (hybridization-capture or exome sequencing), and ``mirna`` (miRNA sequencing). While ``lcr-modules`` can handle any value for ``seq_type``, the modules are pre-configured for these common values. New values for ``seq_type`` will need to be added to the :ref:`pairing-configuration` of each module. If the pairing configuration would be same across multiple modules, it might be easier to set it under the ``_shared`` key in your :ref:`lcr-modules-configuration`.
+The most common values for this column are ``genome`` (whole genome sequencing), ``mrna`` (RNA sequencing), ``capture`` (hybridization-capture or exome sequencing), and ``mirna`` (miRNA sequencing). While ``lcr-modules`` can handle any value for ``seq_type``, the modules are pre-configured for these common values. If you have new ``seq_type`` values, you can configure them for modules of interest; this is explained in the :ref:`configuring-new-seqtypes` section under :ref:`advanced-usage`.
 
 ``sample_id`` – Sample identifiers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -501,7 +434,7 @@ Every ``seq_type`` and ``sample_id`` pair must be unique. In other words, if a t
 ``tissue_status`` – Tumour or normal
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This column classifies the samples as either ``tumour`` (or ``tumor``) and ``normal``. This information is required for tumour-normal paired analyses such as somatic variant calling. If you lack a matched normal samples, most modules support being run with an unmatched normal sample with the obvious caveats that the results will not be as clean. Check out :ref:`pairing-configuration` for more information on how to achieve this.
+This column classifies the samples as either ``tumour`` (or ``tumor``) and ``normal``. This information is required for tumour-normal paired analyses such as somatic variant calling. If you lack a matched normal samples, most modules support being run with an unmatched normal sample with the obvious caveats that the results will not be as clean. Check out :ref:`handling-unpaired-tumours` for more information on how to achieve this.
 
 ``patient_id`` – Patient identifiers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -678,7 +611,7 @@ The command below differs from the explicit command above simply by prepending t
 Advanced Usage
 ==============
 
-.. _directory-placeholders:
+.. _directory-placeholders-users:
 
 Directory Placeholders
 ----------------------
@@ -747,3 +680,10 @@ In the example below, I want to override the default Manta configuration and pro
    op.set_input("manta", "manta_config", MANTA_CONFIG_SWITCH)
 
 For more information, check out :ref:`conditional-module-behaviour-dev`.
+
+.. _configuring-new-seqtypes:
+
+Configuring New Sequencing Data Types
+-------------------------------------
+
+This section is a work in progress, but you should be able to get started by reading the :ref:`pairing-configuration` section in the developer documentation. It's not recommended to add new sequencing data types (``seq_type``) under the ``_shared`` key because that will trigger all modules to try to run on the new ``seq_type``. It's best to configure the ``seq_type`` on a module-by-module basis.
