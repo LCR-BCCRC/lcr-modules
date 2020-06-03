@@ -6,7 +6,7 @@ import re
 # Get cookiecutter variables
 module_name = "{{ cookiecutter.module_name }}"
 module_author = "{{ cookiecutter.module_author }}"
-original_snakefile_author = "{{ cookiecutter.original_snakefile_author }}"
+original_author = "{{ cookiecutter.original_author }}"
 input_file_type = "{{ cookiecutter.input_file_type }}"
 output_file_type = "{{ cookiecutter.input_file_type }}"
 module_run_per = "{{ cookiecutter.module_run_per }}"
