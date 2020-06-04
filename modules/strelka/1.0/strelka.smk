@@ -24,7 +24,6 @@ CFG = op.setup_module(
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _strelka_input_bam,
     _strelka_configure_paired,
@@ -56,7 +55,8 @@ rule _strelka_configure_paired: # Somatic
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{normal_id}.bam",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        indels = CFG["inputs"].get("candidate_indel")
     output:
         runwf = CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
@@ -64,7 +64,6 @@ rule _strelka_configure_paired: # Somatic
         stderr = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_configure.stderr.log"
     params:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["configure"]),
-        indels = "--indelCandidates=" + CFG["inputs"].get("candidate_indel")
     wildcard_constraints:
         pair_status = "matched|unmatched"
     conda:
@@ -76,7 +75,7 @@ rule _strelka_configure_paired: # Somatic
         --tumorBam={input.tumour_bam}
         --referenceFasta={input.fasta}
         --runDir=$(dirname {output.runwf})
-        {params.indels}
+        --indelCandidates={input.indels}
         {params.opts} 
         > {log.stdout} 2> {log.stderr}
         """)
