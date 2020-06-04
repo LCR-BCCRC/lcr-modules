@@ -1,5 +1,0 @@
-Some samples have seq_types {'capture'} that are not configured in the pairing config for the star module. They will be excluded from the analysis.
-AttributeError in line 110 of /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/modules/strelka/1.0/strelka.smk:
-'Rules' object has no attribute '_strelka_configure'
-  File "/projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/demo/Snakefile", line 50, in <module>
-  File "/projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/modules/strelka/1.0/strelka.smk", line 110, in <module>
