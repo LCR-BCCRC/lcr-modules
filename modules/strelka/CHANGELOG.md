@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Helena Winata.
 
+
 <!-- TODO: Explain each important module design decision below. -->
 
-- No module design decisions explained here yet.
+- `_strelka_run` outputs to a directory because strelka creates vcf files in `${STRELKA_ANALYSIS_PATH}/results/variants`
+- `_strelka_dispatch` is used to call outputs based on the `{pair_status}` wildcard since outputs files are automatically generate.
+    - somatic workflow outputs `somatic.snvs.vcf.gz` and `somatic.indels.vcf.gz`
+    -germline workflow outputs `variants.vcf.gz`
