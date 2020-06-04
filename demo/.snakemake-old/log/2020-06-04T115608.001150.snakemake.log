@@ -1,0 +1,67 @@
+Some samples have seq_types {'capture'} that are not configured in the pairing config for the star module. They will be excluded from the analysis.
+Building DAG of jobs...
+Executing subworkflow reference_files.
+localrules directive specifies rules that are not present in the Snakefile:
+	download_chrom_mappings
+
+Building DAG of jobs...
+Using shell: /bin/bash
+Provided cluster nodes: 1
+Job counts:
+	count	jobs
+	1	create_star_index
+	1	download_gencode_annotation
+	1	download_genome_fasta
+	1	download_main_chromosomes
+	1	get_gencode_download
+	1	get_genome_fasta_download
+	1	get_main_chromosomes_download
+	2	hardlink_download
+	1	index_genome_fasta
+	2	update_contig_names
+	12
+
+[Thu Jun  4 11:56:10 2020]
+localrule download_main_chromosomes:
+    input: chrom_mappings/GRCh37_ensembl2ucsc.txt
+    output: downloads/main_chromosomes/main_chromosomes.grch37.txt
+    jobid: 11
+    wildcards: version=grch37
+
+[Thu Jun  4 11:56:10 2020]
+Finished job 11.
+1 of 12 steps (8%) done
+
+[Thu Jun  4 11:56:10 2020]
+localrule update_contig_names:
+    input: downloads/main_chromosomes/main_chromosomes.grch37.txt
+    output: downloads/main_chromosomes/main_chromosomes.grch37.ensembl.txt
+    log: downloads/main_chromosomes/main_chromosomes.grch37.ensembl.txt.log
+    jobid: 9
+    wildcards: parent_dir=main_chromosomes, prefix=main_chromosomes, version=grch37, to_provider=ensembl, ext=txt
+
+Activating conda environment: /projects/clc/usr/anaconda/workflow_prototype/lcr-modules-envs/13f7e27b
+[Thu Jun  4 11:56:16 2020]
+Finished job 9.
+2 of 12 steps (17%) done
+
+[Thu Jun  4 11:56:16 2020]
+localrule hardlink_download:
+    input: downloads/main_chromosomes/main_chromosomes.grch37.ensembl.txt
+    output: genomes/grch37/downloads/main_chromosomes/main_chromosomes.grch37.txt
+    jobid: 6
+    wildcards: genome_build=grch37, suffix=main_chromosomes/main_chromosomes.grch37.txt
+
+[Thu Jun  4 11:56:16 2020]
+Finished job 6.
+3 of 12 steps (25%) done
+
+[Thu Jun  4 11:56:16 2020]
+localrule download_gencode_annotation:
+    output: downloads/gencode-33/gencode.annotation.grch37.gtf
+    jobid: 10
+    wildcards: gencode_release=33, version=grch37
+
+Terminating processes on user request, this might take some time.
+Will exit after finishing currently running jobs.
+Cancelling snakemake on user request.

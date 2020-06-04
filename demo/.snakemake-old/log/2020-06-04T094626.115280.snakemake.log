@@ -1,0 +1,5 @@
+Some samples have seq_types {'capture'} that are not configured in the pairing config for the star module. They will be excluded from the analysis.
+Building DAG of jobs...
+MissingInputException in line 151 of /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/modules/manta/2.0/manta.smk:
+Missing input files for rule _manta_augment_vcf:
+../../lcr-scripts/augment_manta_vcf/1.0/augment_manta_vcf.py

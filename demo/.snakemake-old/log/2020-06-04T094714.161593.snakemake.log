@@ -1,0 +1,6 @@
+Some samples have seq_types {'capture'} that are not configured in the pairing config for the star module. They will be excluded from the analysis.
+Building DAG of jobs...
+MissingInputException in line 54 of /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/modules/strelka/1.0/strelka.smk:
+Missing input files for rule _strelka_configure:
+results/strelka-1.0/00-inputs/capture--grch37/TCRBOA7-T-WEX.bam
+results/strelka-1.0/00-inputs/capture--grch37/TCRBOA7-N-WEX.bam

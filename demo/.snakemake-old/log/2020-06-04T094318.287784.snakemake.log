@@ -1,0 +1,3 @@
+WorkflowError in line 30 of /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/demo/Snakefile:
+Config file ../modules/strelka/2.0/config/default.yaml not found.
+  File "/projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/demo/Snakefile", line 30, in <module>

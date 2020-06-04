@@ -1,0 +1,8 @@
+Some samples have seq_types {'capture'} that are not configured in the pairing config for the star module. They will be excluded from the analysis.
+localrules directive specifies rules that are not present in the Snakefile:
+	_strelka_configure
+
+Building DAG of jobs...
+MissingInputException in line 136 of /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/modules/strelka/1.0/strelka.smk:
+Missing input files for rule _strelka_unzip:
+results/strelka-1.0/01-strelka/capture--grch37/TCRBOA7-T-WEX--TCRBOA7-N-WEX--matched/results/variants/somatic.snvs.vcf.gz

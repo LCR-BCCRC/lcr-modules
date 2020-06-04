@@ -1,0 +1,265 @@
+Some samples have seq_types {'capture'} that are not configured in the pairing config for the star module. They will be excluded from the analysis.
+Building DAG of jobs...
+Executing subworkflow reference_files.
+localrules directive specifies rules that are not present in the Snakefile:
+	download_chrom_mappings
+
+Building DAG of jobs...
+Conda environment /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/workflows/reference_files/1.0/envs/star-2.7.3a.yaml will be created.
+Conda environment /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/workflows/reference_files/1.0/envs/cvbio-3.0.0.yaml will be created.
+Conda environment /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/workflows/reference_files/1.0/envs/samtools-1.9.yaml will be created.
+Job counts:
+	count	jobs
+	1	create_star_index
+	1	download_gencode_annotation
+	1	download_genome_fasta
+	1	download_main_chromosomes
+	1	get_gencode_download
+	1	get_genome_fasta_download
+	1	get_main_chromosomes_download
+	2	hardlink_download
+	1	index_genome_fasta
+	2	update_contig_names
+	12
+
+[Thu Jun  4 10:14:08 2020]
+localrule download_main_chromosomes:
+    input: chrom_mappings/GRCh37_ensembl2ucsc.txt
+    output: downloads/main_chromosomes/main_chromosomes.grch37.txt
+    jobid: 11
+    reason: Missing output files: downloads/main_chromosomes/main_chromosomes.grch37.txt
+    wildcards: version=grch37
+
+egrep -w "^(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|X|Y|MT)" chrom_mappings/GRCh37_ensembl2ucsc.txt | cut -f1 > downloads/main_chromosomes/main_chromosomes.grch37.txt && chmod a-w downloads/main_chromosomes/main_chromosomes.grch37.txt
+
+[Thu Jun  4 10:14:08 2020]
+localrule download_gencode_annotation:
+    output: downloads/gencode-33/gencode.annotation.grch37.gtf
+    jobid: 10
+    reason: Missing output files: downloads/gencode-33/gencode.annotation.grch37.gtf
+    wildcards: gencode_release=33, version=grch37
+
+[Thu Jun  4 10:14:08 2020]
+localrule download_genome_fasta:
+    output: downloads/genome_fasta/grch37.fa
+    log: downloads/genome_fasta/grch37.fa.log
+    jobid: 4
+    reason: Missing output files: downloads/genome_fasta/grch37.fa
+    wildcards: genome_build=grch37
+
+curl -L https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/grch37.fa > downloads/genome_fasta/grch37.fa 2> downloads/genome_fasta/grch37.fa.log && chmod a-w downloads/genome_fasta/grch37.fa
+
+[Thu Jun  4 10:14:08 2020]
+localrule update_contig_names:
+    input: downloads/gencode-33/gencode.annotation.grch37.gtf
+    output: downloads/gencode-33/gencode.annotation.grch37.ensembl.gtf
+    log: downloads/gencode-33/gencode.annotation.grch37.ensembl.gtf.log
+    jobid: 8
+    reason: Missing output files: downloads/gencode-33/gencode.annotation.grch37.ensembl.gtf; Input files updated by another job: downloads/gencode-33/gencode.annotation.grch37.gtf
+    wildcards: parent_dir=gencode-33, prefix=gencode.annotation, version=grch37, to_provider=ensembl, ext=gtf
+
+if [[ 'ensembl' == 'ucsc' ]]; then ln -f downloads/gencode-33/gencode.annotation.grch37.gtf downloads/gencode-33/gencode.annotation.grch37.ensembl.gtf; else cvbio UpdateContigNames --in downloads/gencode-33/gencode.annotation.grch37.gtf --out downloads/gencode-33/gencode.annotation.grch37.ensembl.gtf --mapping chrom_mappings/GRCh37_ucsc2ensembl.txt --comment-chars '#' --columns 0 --skip-missing false --delimiter '	' > downloads/gencode-33/gencode.annotation.grch37.ensembl.gtf.log 2>&1 && chmod a-w downloads/gencode-33/gencode.annotation.grch37.ensembl.gtf; fi
+
+[Thu Jun  4 10:14:08 2020]
+localrule get_genome_fasta_download:
+    input: downloads/genome_fasta/grch37.fa
+    output: genomes/grch37/genome_fasta/genome.fa
+    jobid: 0
+    reason: Missing output files: genomes/grch37/genome_fasta/genome.fa; Input files updated by another job: downloads/genome_fasta/grch37.fa
+    wildcards: genome_build=grch37
+
+ln -f downloads/genome_fasta/grch37.fa genomes/grch37/genome_fasta/genome.fa
+
+[Thu Jun  4 10:14:08 2020]
+localrule update_contig_names:
+    input: downloads/main_chromosomes/main_chromosomes.grch37.txt
+    output: downloads/main_chromosomes/main_chromosomes.grch37.ensembl.txt
+    log: downloads/main_chromosomes/main_chromosomes.grch37.ensembl.txt.log
+    jobid: 9
+    reason: Missing output files: downloads/main_chromosomes/main_chromosomes.grch37.ensembl.txt; Input files updated by another job: downloads/main_chromosomes/main_chromosomes.grch37.txt
+    wildcards: parent_dir=main_chromosomes, prefix=main_chromosomes, version=grch37, to_provider=ensembl, ext=txt
+
+if [[ 'ensembl' == 'ensembl' ]]; then ln -f downloads/main_chromosomes/main_chromosomes.grch37.txt downloads/main_chromosomes/main_chromosomes.grch37.ensembl.txt; else cvbio UpdateContigNames --in downloads/main_chromosomes/main_chromosomes.grch37.txt --out downloads/main_chromosomes/main_chromosomes.grch37.ensembl.txt --mapping chrom_mappings/GRCh37_ensembl2ensembl.txt --comment-chars '#' --columns 0 --skip-missing false --delimiter '	' > downloads/main_chromosomes/main_chromosomes.grch37.ensembl.txt.log 2>&1 && chmod a-w downloads/main_chromosomes/main_chromosomes.grch37.ensembl.txt; fi
+
+[Thu Jun  4 10:14:08 2020]
+localrule index_genome_fasta:
+    input: genomes/grch37/genome_fasta/genome.fa
+    output: genomes/grch37/genome_fasta/genome.fa.fai
+    log: genomes/grch37/genome_fasta/genome.fa.fai.log
+    jobid: 7
+    reason: Missing output files: genomes/grch37/genome_fasta/genome.fa.fai; Input files updated by another job: genomes/grch37/genome_fasta/genome.fa
+    wildcards: genome_build=grch37
+
+samtools faidx genomes/grch37/genome_fasta/genome.fa > genomes/grch37/genome_fasta/genome.fa.fai.log 2>&1 && chmod a-w genomes/grch37/genome_fasta/genome.fa.fai
+
+[Thu Jun  4 10:14:08 2020]
+localrule hardlink_download:
+    input: downloads/gencode-33/gencode.annotation.grch37.ensembl.gtf
+    output: genomes/grch37/downloads/gencode-33/gencode.annotation.grch37.gtf
+    jobid: 5
+    reason: Missing output files: genomes/grch37/downloads/gencode-33/gencode.annotation.grch37.gtf; Input files updated by another job: downloads/gencode-33/gencode.annotation.grch37.ensembl.gtf
+    wildcards: genome_build=grch37, suffix=gencode-33/gencode.annotation.grch37.gtf
+
+ln -f downloads/gencode-33/gencode.annotation.grch37.ensembl.gtf genomes/grch37/downloads/gencode-33/gencode.annotation.grch37.gtf
+
+[Thu Jun  4 10:14:08 2020]
+localrule hardlink_download:
+    input: downloads/main_chromosomes/main_chromosomes.grch37.ensembl.txt
+    output: genomes/grch37/downloads/main_chromosomes/main_chromosomes.grch37.txt
+    jobid: 6
+    reason: Missing output files: genomes/grch37/downloads/main_chromosomes/main_chromosomes.grch37.txt; Input files updated by another job: downloads/main_chromosomes/main_chromosomes.grch37.ensembl.txt
+    wildcards: genome_build=grch37, suffix=main_chromosomes/main_chromosomes.grch37.txt
+
+ln -f downloads/main_chromosomes/main_chromosomes.grch37.ensembl.txt genomes/grch37/downloads/main_chromosomes/main_chromosomes.grch37.txt
+
+[Thu Jun  4 10:14:08 2020]
+localrule get_gencode_download:
+    input: genomes/grch37/downloads/gencode-33/gencode.annotation.grch37.gtf
+    output: genomes/grch37/annotations/gencode_annotation-33.gtf
+    jobid: 1
+    reason: Missing output files: genomes/grch37/annotations/gencode_annotation-33.gtf; Input files updated by another job: genomes/grch37/downloads/gencode-33/gencode.annotation.grch37.gtf
+    wildcards: genome_build=grch37, gencode_release=33
+
+ln -f genomes/grch37/downloads/gencode-33/gencode.annotation.grch37.gtf genomes/grch37/annotations/gencode_annotation-33.gtf
+
+[Thu Jun  4 10:14:08 2020]
+localrule create_star_index:
+    input: genomes/grch37/genome_fasta/genome.fa, genomes/grch37/downloads/gencode-33/gencode.annotation.grch37.gtf
+    output: genomes/grch37/star_index/star-2.7.3a/gencode-33/overhang-99
+    log: genomes/grch37/star_index/star-2.7.3a/gencode-33/overhang-99/log
+    jobid: 2
+    reason: Missing output files: genomes/grch37/star_index/star-2.7.3a/gencode-33/overhang-99; Input files updated by another job: genomes/grch37/downloads/gencode-33/gencode.annotation.grch37.gtf, genomes/grch37/genome_fasta/genome.fa
+    wildcards: genome_build=grch37, star_version=2.7.3a, gencode_release=33, star_overhang=99
+
+STAR --runThreadN 1 --runMode genomeGenerate --genomeDir genomes/grch37/star_index/star-2.7.3a/gencode-33/overhang-99 --genomeFastaFiles genomes/grch37/genome_fasta/genome.fa --sjdbOverhang 99 --sjdbGTFfile genomes/grch37/downloads/gencode-33/gencode.annotation.grch37.gtf --outTmpDir genomes/grch37/star_index/star-2.7.3a/gencode-33/overhang-99/_STARtmp > genomes/grch37/star_index/star-2.7.3a/gencode-33/overhang-99/log 2>&1 --outFileNamePrefix genomes/grch37/star_index/star-2.7.3a/gencode-33/overhang-99/ && find genomes/grch37/star_index/star-2.7.3a/gencode-33/overhang-99 -type f -exec chmod a-w {} \;
+
+[Thu Jun  4 10:14:08 2020]
+localrule get_main_chromosomes_download:
+    input: genomes/grch37/downloads/main_chromosomes/main_chromosomes.grch37.txt, genomes/grch37/genome_fasta/genome.fa.fai
+    output: genomes/grch37/genome_fasta/main_chromosomes.txt, genomes/grch37/genome_fasta/main_chromosomes.bed, genomes/grch37/genome_fasta/main_chromosomes.patterns.txt
+    jobid: 3
+    reason: Missing output files: genomes/grch37/genome_fasta/main_chromosomes.bed; Input files updated by another job: genomes/grch37/downloads/main_chromosomes/main_chromosomes.grch37.txt, genomes/grch37/genome_fasta/genome.fa.fai
+    wildcards: genome_build=grch37
+
+sed 's/^/^/' genomes/grch37/downloads/main_chromosomes/main_chromosomes.grch37.txt > genomes/grch37/genome_fasta/main_chromosomes.patterns.txt && egrep -w -f genomes/grch37/genome_fasta/main_chromosomes.patterns.txt genomes/grch37/genome_fasta/genome.fa.fai | cut -f1 > genomes/grch37/genome_fasta/main_chromosomes.txt && egrep -w -f genomes/grch37/genome_fasta/main_chromosomes.patterns.txt genomes/grch37/genome_fasta/genome.fa.fai | awk 'BEGIN {FS=OFS="	"} {print $1,  0, $2}' > genomes/grch37/genome_fasta/main_chromosomes.bed && chmod a-w genomes/grch37/genome_fasta/main_chromosomes.txt genomes/grch37/genome_fasta/main_chromosomes.bed
+Job counts:
+	count	jobs
+	1	create_star_index
+	1	download_gencode_annotation
+	1	download_genome_fasta
+	1	download_main_chromosomes
+	1	get_gencode_download
+	1	get_genome_fasta_download
+	1	get_main_chromosomes_download
+	2	hardlink_download
+	1	index_genome_fasta
+	2	update_contig_names
+	12
+This was a dry-run (flag -n). The order of jobs does not reflect the order of execution.
+Executing main workflow.
+Conda environment ../modules/star/1.0/envs/star-2.7.3a.yaml will be created.
+Conda environment ../modules/manta/2.0/envs/manta-1.6.0.yaml will be created.
+Conda environment ../modules/strelka/1.0/envs/strelka-2.9.10.yaml will be created.
+Conda environment ../modules/manta/2.0/envs/svtools-0.5.1.yaml will be created.
+Conda environment /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/modules/manta/2.0/../../../../lcr-scripts/augment_manta_vcf/1.0/augment_manta_vcf-1.yaml will be created.
+Conda environment ../modules/utils/1.0/envs/sambamba-0.7.1.yaml will be created.
+Conda environment ../modules/utils/1.0/envs/samtools-1.9.yaml will be created.
+Conda environment ../modules/manta/2.0/envs/tabix-0.2.6.yaml will be created.
+Job counts:
+	count	jobs
+	1	1
+	1	2
+	1	3
+	7	_manta_augment_vcf
+	1	_manta_configure_paired
+	1	_manta_configure_unpaired
+	2	_manta_dispatch
+	1	_manta_index_bed
+	3	_manta_input_bam
+	3	_manta_output_bedpe
+	7	_manta_output_vcf
+	2	_manta_run
+	3	_manta_vcf_to_bedpe
+	1	_star_input_fastq
+	1	_star_output_bam
+	1	_star_run
+	1	_star_symlink_sorted_bam
+	1	_star_symlink_star_bam
+	1	_strelka_configure
+	2	_strelka_filter
+	2	_strelka_input_bam
+	2	_strelka_output_vcf
+	1	_strelka_run
+	2	_strelka_unzip
+	1	all
+	49
+
+[Thu Jun  4 10:14:08 2020]
+localrule _manta_input_bam:
+    input: data/TCRBOA7-T-WEX.bam, data/TCRBOA7-T-WEX.bam.bai
+    output: results/manta-2.0/00-inputs/bam/capture--grch37/TCRBOA7-T-WEX.bam, results/manta-2.0/00-inputs/bam/capture--grch37/TCRBOA7-T-WEX.bam.bai
+    jobid: 43
+    reason: Missing output files: results/manta-2.0/00-inputs/bam/capture--grch37/TCRBOA7-T-WEX.bam
+    wildcards: seq_type=capture, genome_build=grch37, sample_id=TCRBOA7-T-WEX
+
+[Thu Jun  4 10:14:08 2020]
+localrule _manta_index_bed:
+    input: /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/demo/reference/genomes/grch37/genome_fasta/main_chromosomes.bed
+    output: results/manta-2.0/01-chrom_bed/grch37.main_chroms.bed.gz
+    jobid: 45
+    reason: Missing output files: results/manta-2.0/01-chrom_bed/grch37.main_chroms.bed.gz; Updated input files: /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/demo/reference/genomes/grch37/genome_fasta/main_chromosomes.bed
+    wildcards: genome_build=grch37
+
+bgzip -c /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/demo/reference/genomes/grch37/genome_fasta/main_chromosomes.bed > results/manta-2.0/01-chrom_bed/grch37.main_chroms.bed.gz && tabix results/manta-2.0/01-chrom_bed/grch37.main_chroms.bed.gz
+
+[Thu Jun  4 10:14:08 2020]
+localrule _strelka_input_bam:
+    input: data/TCRBOA7-N-WEX.bam, data/TCRBOA7-N-WEX.bam.bai
+    output: results/strelka-1.0/00-inputs/capture--grch37/TCRBOA7-N-WEX.bam, results/strelka-1.0/00-inputs/capture--grch37/TCRBOA7-N-WEX.bam.bai
+    jobid: 48
+    reason: Missing output files: results/strelka-1.0/00-inputs/capture--grch37/TCRBOA7-N-WEX.bam
+    wildcards: seq_type=capture, genome_build=grch37, sample_id=TCRBOA7-N-WEX
+
+[Thu Jun  4 10:14:08 2020]
+localrule _manta_input_bam:
+    input: data/TCRBOA7-N-WEX.bam, data/TCRBOA7-N-WEX.bam.bai
+    output: results/manta-2.0/00-inputs/bam/capture--grch37/TCRBOA7-N-WEX.bam, results/manta-2.0/00-inputs/bam/capture--grch37/TCRBOA7-N-WEX.bam.bai
+    jobid: 44
+    reason: Missing output files: results/manta-2.0/00-inputs/bam/capture--grch37/TCRBOA7-N-WEX.bam
+    wildcards: seq_type=capture, genome_build=grch37, sample_id=TCRBOA7-N-WEX
+
+[Thu Jun  4 10:14:08 2020]
+localrule _strelka_input_bam:
+    input: data/TCRBOA7-T-WEX.bam, data/TCRBOA7-T-WEX.bam.bai
+    output: results/strelka-1.0/00-inputs/capture--grch37/TCRBOA7-T-WEX.bam, results/strelka-1.0/00-inputs/capture--grch37/TCRBOA7-T-WEX.bam.bai
+    jobid: 47
+    reason: Missing output files: results/strelka-1.0/00-inputs/capture--grch37/TCRBOA7-T-WEX.bam
+    wildcards: seq_type=capture, genome_build=grch37, sample_id=TCRBOA7-T-WEX
+
+[Thu Jun  4 10:14:08 2020]
+localrule _star_input_fastq:
+    input: data/TCRBOA7-T-RNA.read1.fastq.gz, data/TCRBOA7-T-RNA.read2.fastq.gz
+    output: results/star-1.0/00-inputs/fastq/mrna--grch37/TCRBOA7-T-RNA.R1.fastq.gz, results/star-1.0/00-inputs/fastq/mrna--grch37/TCRBOA7-T-RNA.R2.fastq.gz
+    jobid: 42
+    reason: Missing output files: results/star-1.0/00-inputs/fastq/mrna--grch37/TCRBOA7-T-RNA.R1.fastq.gz, results/star-1.0/00-inputs/fastq/mrna--grch37/TCRBOA7-T-RNA.R2.fastq.gz
+    wildcards: seq_type=mrna, genome_build=grch37, sample_id=TCRBOA7-T-RNA
+
+[Thu Jun  4 10:14:08 2020]
+localrule _manta_input_bam:
+    input: data/TCRBOA7-T-RNA.bam, data/TCRBOA7-T-RNA.bam.bai
+    output: results/manta-2.0/00-inputs/bam/mrna--grch37/TCRBOA7-T-RNA.bam, results/manta-2.0/00-inputs/bam/mrna--grch37/TCRBOA7-T-RNA.bam.bai
+    jobid: 46
+    reason: Missing output files: results/manta-2.0/00-inputs/bam/mrna--grch37/TCRBOA7-T-RNA.bam
+    wildcards: seq_type=mrna, genome_build=grch37, sample_id=TCRBOA7-T-RNA
+
+[Thu Jun  4 10:14:08 2020]
+localrule _strelka_configure:
+    input: results/strelka-1.0/00-inputs/capture--grch37/TCRBOA7-T-WEX.bam, results/strelka-1.0/00-inputs/capture--grch37/TCRBOA7-N-WEX.bam, /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/demo/reference/genomes/grch37/genome_fasta/genome.fa
+    output: results/strelka-1.0/01-strelka/capture--grch37/TCRBOA7-T-WEX--TCRBOA7-N-WEX--matched/runWorkflow.py
+    log: results/strelka-1.0/logs/launched-2020-06-04-at-10-14-05/01-strelka/capture--grch37/TCRBOA7-T-WEX--TCRBOA7-N-WEX--matched/strelka_configure.stdout.log, results/strelka-1.0/logs/launched-2020-06-04-at-10-14-05/01-strelka/capture--grch37/TCRBOA7-T-WEX--TCRBOA7-N-WEX--matched/strelka_configure.stderr.log
+    jobid: 41
+    reason: Missing output files: results/strelka-1.0/01-strelka/capture--grch37/TCRBOA7-T-WEX--TCRBOA7-N-WEX--matched/runWorkflow.py; Updated input files: /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/demo/reference/genomes/grch37/genome_fasta/genome.fa; Input files updated by another job: results/strelka-1.0/00-inputs/capture--grch37/TCRBOA7-T-WEX.bam, results/strelka-1.0/00-inputs/capture--grch37/TCRBOA7-N-WEX.bam
+    wildcards: seq_type=capture, genome_build=grch37, tumour_id=TCRBOA7-T-WEX, normal_id=TCRBOA7-N-WEX, pair_status=matched
+
+RuleException in line 54 of /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/modules/strelka/1.0/strelka.smk:
+'Params' object has no attribute 'outDIR'

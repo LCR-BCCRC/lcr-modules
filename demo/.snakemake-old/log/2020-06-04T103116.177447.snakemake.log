@@ -1,0 +1,5 @@
+Some samples have seq_types {'capture'} that are not configured in the pairing config for the star module. They will be excluded from the analysis.
+KeyError in line 112 of /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/modules/strelka/1.0/strelka.smk:
+'manta'
+  File "/projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/demo/Snakefile", line 50, in <module>
+  File "/projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/modules/strelka/1.0/strelka.smk", line 112, in <module>

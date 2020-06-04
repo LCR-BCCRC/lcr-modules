@@ -1,8 +1,6 @@
 lcr-modules:
     
     strelka:
-
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: null 
@@ -18,7 +16,7 @@ lcr-modules:
             strelka: "-m local"
 
         conda_envs:
-            strelka: "{MODSDIR}/envs/samtools-1.9.yaml"
+            strelka: "{MODSDIR}/envs/strelka-2.9.10.yaml"
             
         threads:
             strelka: 4

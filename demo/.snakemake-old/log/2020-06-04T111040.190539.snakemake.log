@@ -1,0 +1,13 @@
+Some samples have seq_types {'capture'} that are not configured in the pairing config for the star module. They will be excluded from the analysis.
+localrules directive specifies rules that are not present in the Snakefile:
+	_strelka_configure
+
+Building DAG of jobs...
+InputFunctionException in line 176 of /projects/clc/clc_scratch/projects/hwinata/dev-modules/lcr-modules/modules/strelka/1.0/strelka.smk:
+KeyError: 'dirs'
+Wildcards:
+seq_type=capture
+genome_build=grch37
+tumour_id=TCRBOA7-T-WEX
+normal_id=TCRBOA7-N-WEX
+pair_status=matched

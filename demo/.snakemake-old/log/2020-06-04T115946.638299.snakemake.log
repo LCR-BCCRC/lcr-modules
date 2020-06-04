@@ -1,0 +1,4 @@
+Some samples have seq_types {'capture'} that are not configured in the pairing config for the star module. They will be excluded from the analysis.
+Building DAG of jobs...
+MissingRuleException:
+No rule to produce all--rerun-incomplete (if you use input functions make sure that they don't raise unexpected exceptions).
