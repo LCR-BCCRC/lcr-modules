@@ -11,86 +11,106 @@
 
 ##### SETUP #####
 
+import sys, os
+from os.path import join
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 
+CFG = config["lcr-modules"]["utils"]
+
+def _get_log_dirs(wildcards):
+    path = (wildcards.prefix).split(os.sep)
+    root_dir = config["lcr-modules"]["_shared"]["root_output_dir"]
+
+    # split root directory and remove 
+    lroot = list(filter(None, root_dir.split(os.sep)))
+
+    # get logs/launched...
+    LOG = "logs/" + op._session.launched_fmt
+
+    path.insert((len(lroot) + 1), LOG)
+    log_path = "/".join(path)
+    print(log_path)
+
+    logs = [log_path + "bam_sort.stdout.log", log_path + "bam_sort.stderr.log"]
+
+    return logs
+
 
 ##### RULES #####
-print(CFG["dirs"]["_parent"])
-
 # _utils_bam_sort: Sort a BAM file using coordinates
 rule:
     input:
-        bam = CFG["dirs"]["_parent"] + "{prefix}/{suffix}.bam"
+        bam = "{prefix}/{suffix}.bam"
     output:
-        bam = CFG["dirs"]["_parent"] + "{prefix}/{suffix}.sort.bam"
-    priority: 5
-    log:
-        stdout = CFG["logs"]["_parent"] + "{prefix}/{suffix}/bam_sort.stdout.log",
-        stderr = CFG["logs"]["_parent"] + "{prefix}/{suffix}/bam_sort.stderr.log"
+        bam = "{prefix}/{suffix}.sort.bam"
     params:
-        opts = CFG["options"].get("utils_bam_sort", ""),
-        prefix = CFG["dirs"]["_parent"] + "{prefix}/{suffix}"
+        logs = _get_log_dirs,
+        opts = CFG["options"].get("bam_sort", ""),
+        prefix ="{prefix}/{suffix}"
     conda:
         CFG["conda_envs"].get("samtools", "envs/samtools-1.9.yaml")
     threads:
-        CFG["threads"].get("utils_bam_sort", 12)
+        CFG["threads"].get("bam_sort", 12)
     resources: 
-        mem_mb = CFG["mem_mb"].get("utils_bam_sort", 12000)
+        mem_mb = CFG["mem_mb"].get("bam_sort", 12000)
     shell:
         op.as_one_line("""
         samtools sort {params.opts} -@ {threads} -m $(({resources.mem_mb} / {threads}))M
-        -T {params.prefix} -o {output.bam} {input.bam} > {log.stdout} 2> {log.stderr}
+        -T {params.prefix} -o {output.bam} {input.bam} 
+        > {params.logs}[0]
+        2> {params.logs}[1]
         """)
 
 
 # _utils_bam_markdups: Mark duplicates in a BAM file using Picard criteria
 rule:
     input:
-        bam = CFG["dirs"]["_parent"] + "{prefix}/{suffix}.bam"
+        bam = "{prefix}/{suffix}.bam"
     output:
-        bam = CFG["dirs"]["_parent"] + "{prefix}/{suffix}.mdups.bam"
-    priority: 5
-    log:
-        stdout = CFG["logs"]["_parent"] + "{prefix}/{suffix}/bam_markdups.stdout.log",
-        stderr = CFG["logs"]["_parent"] + "{prefix}/{suffix}/bam_markdups.stderr.log"
+        bam = "{prefix}/{suffix}.mdups.bam"
     params:
-        opts = CFG["options"].get("utils_bam_markdups", ""),
-        prefix = CFG["dirs"]["_parent"] + "{prefix}/{suffix}"
+        logs = _get_log_dirs,
+        opts = CFG["options"].get("bam_markdups", ""),
+        prefix = "{prefix}/{suffix}"
     conda:
         CFG["conda_envs"].get("sambamba", "envs/sambamba-0.7.1.yaml")
     threads:
-        CFG["threads"].get("utils_bam_markdups", 12)
+        CFG["threads"].get("bam_markdups", 12)
     resources: 
-        mem_mb = CFG["mem_mb"].get("utils_bam_markdups", 8000)
+        mem_mb = CFG["mem_mb"].get("bam_markdups", 8000)
     shell:
         op.as_one_line("""
         sambamba markdup {params.opts} --nthreads {threads} 
-        {input.bam} {output.bam} > {log.stdout} 2> {log.stderr}
+        {input.bam} {output.bam} 
+        > {params.logs}[0]
+        2> {params.logs}[1]
         """)
 
 
 # _utils_bam_index: Index a BAM file
 rule:
     input:
-        bam = CFG["dirs"]["_parent"] + "{prefix}/{suffix}.bam"
+        bam = "{prefix}/{suffix}.bam"
     output:
-        bam = CFG["dirs"]["_parent"] + "{prefix}/{suffix}.bam.bai"
-    log:
-        stdout = CFG["logs"]["_parent"] + "{prefix}/{suffix}/bam_index.stdout.log",
-        stderr = CFG["logs"]["_parent"] + "{prefix}/{suffix}/bam_index.stderr.log"
+        bam = "{prefix}/{suffix}.bam.bai"
     params:
-        opts = CFG["options"].get("utils_bam_index", "-b"),
-        prefix = CFG["dirs"]["_parent"] + "{prefix}/{suffix}"
+        logs = _get_log_dirs,
+        opts = CFG["options"].get("bam_index", "-b"),
+        prefix = "{prefix}/{suffix}"
     conda:
         CFG["conda_envs"].get("samtools", "envs/samtools-1.9.yaml")
     threads:
-        CFG["threads"].get("utils_bam_index", 6)
+        CFG["threads"].get("bam_index", 6)
     resources: 
-        mem_mb = CFG["mem_mb"].get("utils_bam_index", 4000)
+        mem_mb = CFG["mem_mb"].get("bam_index", 4000)
     shell:
         op.as_one_line("""
         samtools index {params.opts} -@ {threads} 
-        {input.bam} > {log.stdout} 2> {log.stderr}
+        {input.bam} 
+        > {params.logs}[0]
+        2> {params.logs}[1]
         """)
+
+del CFG
