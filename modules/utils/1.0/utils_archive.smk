@@ -17,7 +17,7 @@ import oncopipe as op
 
 
 ##### RULES #####
-print(CFG["dirs"]["_parent"])
+
 
 # _utils_bam_sort: Sort a BAM file using coordinates
 rule:
@@ -25,7 +25,6 @@ rule:
         bam = CFG["dirs"]["_parent"] + "{prefix}/{suffix}.bam"
     output:
         bam = CFG["dirs"]["_parent"] + "{prefix}/{suffix}.sort.bam"
-    priority: 5
     log:
         stdout = CFG["logs"]["_parent"] + "{prefix}/{suffix}/bam_sort.stdout.log",
         stderr = CFG["logs"]["_parent"] + "{prefix}/{suffix}/bam_sort.stderr.log"
@@ -51,7 +50,6 @@ rule:
         bam = CFG["dirs"]["_parent"] + "{prefix}/{suffix}.bam"
     output:
         bam = CFG["dirs"]["_parent"] + "{prefix}/{suffix}.mdups.bam"
-    priority: 5
     log:
         stdout = CFG["logs"]["_parent"] + "{prefix}/{suffix}/bam_markdups.stdout.log",
         stderr = CFG["logs"]["_parent"] + "{prefix}/{suffix}/bam_markdups.stderr.log"
