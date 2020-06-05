@@ -3,9 +3,9 @@ lcr-modules:
     strelka:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
-            sample_bam: null 
-            sample_bai: null
-            candidate_indel: null
+            sample_bam: null  # UPDATE
+            sample_bai: null  # UPDATE
+            candidate_indel: null  # UPDATE
 
         scratch_subdirectories: []
 
@@ -33,7 +33,3 @@ lcr-modules:
                 run_paired_tumours: True
                 run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: False
-            mrna:
-                run_paired_tumours: False
-                run_unpaired_tumours_with: "no_normal"
-                run_paired_tumours_as_unpaired: True
