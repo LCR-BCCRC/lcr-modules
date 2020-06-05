@@ -26,6 +26,7 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _strelka_input_bam,
+    _strelka_input_vcf,
     _strelka_configure_paired,
     _strelka_configure_unpaired,
     _strelka_unzip,
@@ -50,13 +51,22 @@ rule _strelka_input_bam:
         op.relative_symlink(input.bai, output.bai)
 
 
+rule _strelka_input_vcf:
+    input:
+        vcf = CFG["inputs"].get("candidate_indel")
+    output:
+        vcf = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz"
+    shell:
+        "bgzip -c {input.vcf} > {outputs.vcf} && tabix -p vcf {outputs.vcf}"
+
+
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
 rule _strelka_configure_paired: # Somatic
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        indels = CFG["inputs"].get("candidate_indel")
+        indels = rules._strelka_input_vcf.output.vcf
     output:
         runwf = CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
