@@ -26,8 +26,8 @@ lcr-modules:
             bam_index: null
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            sambamba: "{MODSDIR}/envs/sambamba-0.7.1.yaml"
+            samtools: null #"{MODSDIR}/envs/samtools-1.9.yaml"
+            sambamba: null #"{MODSDIR}/envs/sambamba-0.7.1.yaml"
             
         threads:
             bam_sort: null
