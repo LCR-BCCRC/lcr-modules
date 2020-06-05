@@ -12,6 +12,8 @@
 
 .. _lcr-modules open issues: https://github.com/LCR-BCCRC/lcr-modules/issues?q=is%3Aopen+is%3Aissue+label%3Anew-module
 
+.. _lcr-modules active branches: https://github.com/LCR-BCCRC/lcr-modules/branches/active
+
 .. _lcr-scripts repository: https://github.com/LCR-BCCRC/lcr-scripts
 
 .. _Test Data: https://www.bcgsc.ca/downloads/lcr-modules/test_data/

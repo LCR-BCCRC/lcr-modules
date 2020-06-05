@@ -71,11 +71,7 @@ Getting Started
       git merge master
       git push origin "module/<module_name>/1.0"
 
-9. Submit a pull request (PR) with your module branch. After pushing to GitHub, you should be able to see a green button to create a new pull request on the `lcr-modules repository`_ page pushing the merge commit. If not, you can create one using a link with the following structure:
-
-   .. code::
-      
-      https://github.com/LCR-BCCRC/lcr-modules/compare/master...module/<module_name>/1.0
+9. Submit a pull request (PR) with your module branch. After pushing to GitHub, you should be able to see a green button to create a new pull request on the `lcr-modules repository`_ page pushing the merge commit. If not, you should be able to create one for your branch on the `lcr-modules active branches`_ page.
 
 10. Work through the checklist that will appear when you open the PR. Once this checklist is done, you can request someone to review your PR. They can test the module if they have time and/or provide feedback on its design. Finally, once the reviewer(s) are happy, the PR can be merged. Congratulations! 
 

@@ -143,6 +143,8 @@ Before running the `Demo Project`_, you will need to download the `Test Data`_, 
 
 Once the `Test Data`_ is downloaded, you will need to update the placeholders in ``demo/data/`` with the downloaded files (or symbolic links to the files). At that point, you can technically run the `Demo Snakefile`_ by omitting the ``--dry-run`` option from the command in the :ref:`getting-started-user` instructions, but you might want to update the value set in ``demo/config.yaml`` under ``scratch_directory`` to an space where you can readily store large intermediate files (*e.g.* a directory without snapshots or backups).
 
+If you are interested in learning how you can conditionally use the STAR BAM files for RNA-seq samples while using the BAM files in ``data/`` for other samples, check out the :ref:`conditional-module-behaviour-user` section.
+
 .. _reference-files-workflow:
 
 Reference Files Workflow
