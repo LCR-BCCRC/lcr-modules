@@ -1,12 +1,14 @@
+.. include:: links.rst
+
 Welcome to lcr-modules's Documentation!
 =======================================
 
 Getting Started With lcr-modules
 --------------------------------
 
-- **Users:** Check out this :ref:`getting-started-user` guide.
+- **Users:** Check out this :ref:`getting-started-user` guide and the `Demo Project`_.
 
-- **Contributors:** Check out this :ref:`getting-started-dev` guide.
+- **Contributors:** Check out this :ref:`getting-started-dev` guide and the `lcr-modules repository`_.
 
 Motivation
 ----------

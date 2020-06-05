@@ -135,7 +135,7 @@ Before running the `Demo Project`_, you will need to download the `Test Data`_, 
 .. note::
 
    | **BCGSC Users**
-   | You can symlink local copies of the test data using the following command:
+   | You can replace the empty placeholder files with symbolic links to the local copies of the test data using the following command:
    
    .. code:: bash
 
