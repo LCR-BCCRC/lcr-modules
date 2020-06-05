@@ -1,3 +1,6 @@
 #!/bin/bash
-snakemake --keep-going --latency-wait 120 --jobs 100 --cluster-sync "srun -J {rule} --cpus-per-task {threads} --mem {resources.mem_mb}" \
---use-conda --conda-prefix /projects/clc/usr/anaconda/workflow_prototype/lcr-modules-envs/ all
+
+# Number of cores set by first command-line argument (default is 4)
+NUM_CORES=${1:-4}
+
+snakemake --cores "${NUM_CORES}" --printshellcmds --use-conda all
