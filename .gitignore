@@ -11,7 +11,7 @@ __pycache__/
 *.egg-info/
 *.egg
 
-# Files creates when testing the demo project
+# Files created when testing the demo project
 .snakemake/
 /demo/results/
 /demo/reference
@@ -19,8 +19,11 @@ __pycache__/
 /demo/data/*
 !/demo/data/samples.tsv
 
+demo/run_clc.sh
+
 # Ignore example snakefiles
 /examples
 
 # Ignore sphinx builds
 /docs/build
+
