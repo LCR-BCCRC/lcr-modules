@@ -162,7 +162,7 @@ rule _strelka_output_vcf:
     output:
         vcf = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{var_type}.vcf"
     run:
-        op.relative_symlink(input, output)
+        op.relative_symlink(input.vcf, output.vcf)
 
 
 def _get_strelka_output(wildcards):
