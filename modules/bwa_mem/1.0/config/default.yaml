@@ -1,0 +1,38 @@
+lcr-modules:
+    bwa_mem:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_fastq_1: null
+            sample_fastq_2: null
+
+        scratch_subdirectories: ["bwa_mem", "sort_bam"]
+
+        options:
+            suffix: ".sort.mdups"
+            bwa_mem: '-M -R "@RG\tID:{sample_id}\tLB:{sample_id}\tPL:ILLUMINA\tSM:{sample_id}"'
+            samtools: "-bhS"
+            utils_bam_sort: ""
+            utils_bam_markdups: ""
+            utils_bam_index: "-b"
+
+        conda_envs:
+            bwa: "{MODSDIR}/envs/bwa-0.7.17.yaml"
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            
+        threads:
+            bwa_mem: 4
+            samtools: 1
+
+        mem_mb:
+            bwa_mem: 5000
+            samtools: 5000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
