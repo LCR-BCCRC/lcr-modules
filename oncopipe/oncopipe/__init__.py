@@ -1173,6 +1173,20 @@ def generate_pairs(samples, **seq_types):
         unmatched. If the normal sample is omitted due
         to the ``no_normal`` mode, this column will be
         set to ``no_normal``.
+
+    Examples
+    --------
+    Among the samples in the ``SAMPLES`` data frame, the
+    ``genome`` tumour samples will be paired with a matched
+    normal samples if one exists or with the given unmatched
+    normal sample (``PT003-N``) if no matched normal samples
+    are present; the ``capture`` tumour samples will only be
+    paired with matched normal samples; and the ``mrna``
+    tumour samples will be returned without matched or
+    unmatched normal samples.
+
+    >>> PAIRS = generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'),
+    >>>                        capture='matched_only', mrna='no_normal')
     """
 
     # Define pairing modes
