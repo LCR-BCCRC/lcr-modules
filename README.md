@@ -4,6 +4,8 @@ This project aims to become a collection of standard analytical modules for geno
 
 **Homepage:** https://lcr-modules.readthedocs.io/
 
+**oncopipe:** `pip install oncopipe`
+
 **License:** [LICENSE](LICENSE)
 
 ![Module levels](images/module_levels.png)
