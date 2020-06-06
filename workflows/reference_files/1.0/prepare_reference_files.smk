@@ -36,6 +36,7 @@ rule all:
     input:
         expand(
             [
+                rules.download_genome_gc.output.gc,
                 rules.get_genome_fasta_download.output.fasta,
                 rules.index_genome_fasta.output.fai,
                 rules.get_main_chromosomes_download.output.txt,

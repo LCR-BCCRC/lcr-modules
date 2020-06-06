@@ -19,6 +19,7 @@ import oncopipe as op
 
 ##### CONFIG #####
 localrules: download_genome_fasta,
+            download_genome_gc,
             download_main_chromosomes, download_gencode_annotation,
             hardlink_download, update_contig_names,
             get_genome_fasta_download, index_genome_fasta,
@@ -113,6 +114,19 @@ for chrom_map_file in CHROM_MAPPINGS_FILES:
 
 ##### DOWNLOAD #####
 
+rule download_genome_gc:
+    output:
+        gc = "downloads/genome_gc/{genome_build}.gc50Base.txt.gz"
+    log:
+        "downloads/genome_gc/{genome_build}.gc50Base.txt.gz.log"
+    params: 
+        url = lambda w: config["genome_builds"][w.genome_build]["genome_gc_url"]
+    shell:
+        op.as_one_line("""
+        curl -L {params.url} > {output.gc} 2> {log}
+            &&
+        chmod a-w {output.gc}
+        """)
 
 rule download_genome_fasta:
     output: 
@@ -172,7 +186,7 @@ rule download_gencode_annotation:
 
 
 def get_matching_download_rules(file):
-    ignored_rules = ["download_genome_fasta"]
+    ignored_rules = ["download_genome_fasta","download_genome_gc"]
     rule_names = [ r for r in dir(rules) if r.startswith("download_")]
     rule_names = [ r for r in rule_names if r not in ignored_rules ]
     rule_list = [ getattr(rules, name) for name in rule_names ]
@@ -315,6 +329,13 @@ rule update_contig_names:
 
 ##### GENOME BUILDS #####
 
+rule get_genome_gc_download:
+    input: 
+        gc = rules.download_genome_gc.output.gc
+    output: 
+        gc = "genomes/{genome_build}/genome_gc/gc50Base.txt.gz"
+    shell:
+        "ln -f {input.gc} {output.gc}"
 
 rule get_genome_fasta_download:
     input: 

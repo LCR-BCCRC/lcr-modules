@@ -20,13 +20,13 @@ lcr-modules:
             step_2: ""
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            sequenza: "{MODSDIR}/envs/sequenza.yaml"
             
         threads:
-            step_1: 4
+            bam2seqz: 3
 
         mem_mb:
-            step_1: 2000
+            bam2seqz: 10000
 
         pairing_config:
             genome:
