@@ -19,7 +19,7 @@ setup(
     author=about["__author__"],
     author_email=about["__author_email__"],
     license=about["__license__"],
-    packages=["oncopipe"],
+    py_modules=["oncopipe"],
     install_requires=["pyyaml", "pandas", "snakemake>=5.4",],
     zip_safe=False,
     python_requires=">=3.6.0",
