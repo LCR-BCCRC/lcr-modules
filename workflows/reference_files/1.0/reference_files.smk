@@ -20,6 +20,7 @@ import oncopipe as op
 ##### CONFIG #####
 localrules: download_genome_fasta,
             download_genome_gnomad,
+            download_genome_dbsnp,
             #download_genome_gc,
             download_main_chromosomes, download_gencode_annotation,
             hardlink_download, update_contig_names,
@@ -115,6 +116,26 @@ for chrom_map_file in CHROM_MAPPINGS_FILES:
 
 ##### DOWNLOAD #####
 
+#I added the sort step so we use the existing locale to avoid annoying locale incompatibilities with GNU sort. Untested. 
+rule download_genome_dbsnp:
+    output:
+        dbsnp = "genomes/{genome_build}/annotations/{genome_build}.dbsnp.pos",
+        dbsnp_sorted = "genomes/{genome_build}/annotations/{genome_build}.dbsnp.pos.sort"
+    log:
+        "genomes/{genome_build}/annotations/{genome_build}.dbsnp.pos.log"
+    params: 
+        url = lambda w: config["genome_builds"][w.genome_build]["dbsnp_url"]
+    shell:
+        op.as_one_line("""
+        curl -L {params.url} > {output.dbsnp}.gz 2> {log}
+            &&
+        gunzip {output.dbsnp}.gz
+            &&
+        chmod a-w {output.dbsnp}
+            &&
+        sort -S 2G {output.dbsnp} > {output.dbsnp_sorted}
+        """)
+
 rule download_genome_gnomad:
     output:
         gnomad = "genomes/{genome_build}/annotations/af-only-gnomad.{genome_build}.vcf.gz",
@@ -204,7 +225,7 @@ rule download_gencode_annotation:
 
 
 def get_matching_download_rules(file):
-    ignored_rules = ["download_genome_fasta","download_genome_gnomad","download_genome_gc"]
+    ignored_rules = ["download_genome_fasta","download_genome_gnomad","download_genome_gc","download_genome_dbsnp"]
     rule_names = [ r for r in dir(rules) if r.startswith("download_")]
     rule_names = [ r for r in rule_names if r not in ignored_rules ]
     rule_list = [ getattr(rules, name) for name in rule_names ]

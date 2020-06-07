@@ -37,6 +37,7 @@ rule all:
         expand(
             [
                 rules.download_genome_gc.output.gc,
+                rules.download_genome_dbsnp.output.dbsnp,
                 rules.download_genome_gnomad.output.gnomad,
                 rules.get_genome_fasta_download.output.fasta,
                 rules.index_genome_fasta.output.fai,
