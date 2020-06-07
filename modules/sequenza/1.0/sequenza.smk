@@ -28,7 +28,10 @@ CFG = op.setup_module(
 # TODO: Replace with actual rules once you change the rule names
 localrules:
     _sequenza_input_bam,
-#    _sequenza_output_seg,
+    _sequenza_output_seg,
+    _sequenza_merge_seqz,
+    _sequenza_unfiltered_igv_segments,
+    _sequenza_filtered_igv_segments,
     _sequenza_all,
 
 
@@ -100,6 +103,7 @@ rule _sequenza_filter_seqz:
         stdout = CFG["logs"]["sequenza"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sequenza_filter_seqz.stdout.log",
         stderr = CFG["logs"]["sequenza"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sequenza_filter_seqz.stderr.log"
     resources: mem_mb = 20000
+    threads: 1
     params:
         dbsnp_pos = "reference/genomes/{genome_build}/annotations/{genome_build}.dbsnp.pos.sort.C", #fix this to use the path to the reference files based on the config
         filter_seqz = CFG["options"]["filter_seqz"]
