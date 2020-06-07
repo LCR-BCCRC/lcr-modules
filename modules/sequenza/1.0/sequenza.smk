@@ -20,12 +20,10 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "sequenza",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "sequenza","seqz_filtered","plots","outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _sequenza_input_bam,
     _sequenza_output_seg,
@@ -42,7 +40,6 @@ localrules:
 print("Sequenza CFG inputs")
 print(CFG["inputs"])
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
 rule _sequenza_input_bam:
     input:
         bam = CFG["inputs"]["sample_bam"],
@@ -193,7 +190,6 @@ rule _sequenza_filtered_igv_segments:
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _sequenza_output_seg:
     input:
         seg = rules._sequenza_filtered_igv_segments.output.igv
@@ -215,7 +211,6 @@ rule _sequenza_all:
                 rules._sequenza_filtered_igv_segments.output.igv,
                 rules._sequenza_unfiltered_igv_segments.output.igv,
                 rules._sequenza_output_seg.output.seg
-                # TODO: If applicable, add other output rules here
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
