@@ -307,12 +307,12 @@ If the user wants to configure new sequencing data types, they should check out 
 .. _updating-configuration-values:
 
 Updating Configuration Values
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
 .. _within-the-configuration-file:
 
 Within a Configuration File
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you followed the :ref:`getting-started-user` instructions, you should have a section in your project configuration file for ``lcr-modules`` (with at least the ``_shared`` sub-section). One approach to updating configuration values is to add to this section. **Important:** One requirement for this to work is that you need to load your project configuration file **after** the default module configuration files. Again, if you followed the :ref:`getting-started-user` instructions, this should already be the case. 
 
@@ -356,7 +356,7 @@ The example YAML file below is taken from the `Demo Configuration`_. You can see
 .. _within-the-snakefile:
 
 Within the Snakefile
-^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~
 
 You can always update configurations values within the snakefile **after** the default configuration files have been loaded. The advantage of this approach is that you can update the value to anything that Python allows, including functions. This is incredibly powerful in snakemake thanks to `Input File Functions`_ and `Parameter Functions`_. Also, :py:mod:`oncopipe` includes some useful functions that make use of these snakemake features (*e.g.* :ref:`conditional-module-behaviour-user`).
 
