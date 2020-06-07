@@ -810,7 +810,7 @@ def generate_runs_for_patient(
     run_unpaired_tumours_with_options = (None, "no_normal", "unmatched_normal")
     assert run_unpaired_tumours_with in run_unpaired_tumours_with_options, (
         "`run_unpaired_tumours_with` must be one of the values below "
-        f"(not `{run_unpaired_tumours_with}`): \n"
+        f"(not `{run_unpaired_tumours_with!r}`): \n"
         f"{run_unpaired_tumours_with_options}"
     )
 
@@ -850,7 +850,7 @@ def generate_runs_for_patient(
             seq_type = tumour["seq_type"]
             assert unmatched_normal is not None, (
                 "`run_unpaired_tumours_with` was set to 'unmatched_normal' "
-                f"whereas `unmatched_normal` was None. For '{seq_type}', "
+                f"whereas `unmatched_normal` was None. For {seq_type!r}, "
                 "provide an unmatched normal sample ID. See README for format."
             )
             normal = unmatched_normal._asdict()
@@ -1222,7 +1222,7 @@ def generate_pairs(samples, **seq_types):
 
         # Make sure mode is a string and among the available options
         assert isinstance(mode, str) and mode in available_pairing_modes, (
-            f"The pairing mode specified for '{seq_type}' isn't valid. "
+            f"The pairing mode specified for {seq_type!r} isn't valid. "
             f"The available modes are: {available_pairing_modes}."
         )
 
@@ -1257,6 +1257,26 @@ def generate_pairs(samples, **seq_types):
 
 
 # MODULE SETUP/CLEANUP
+
+
+def check_for_none_strings(config, name):
+    """Warn the user if 'None' strings are found in config."""
+
+    def check_for_none_strings_(obj):
+        if isinstance(obj, str):
+            if obj == "None":
+                logger.warning(
+                    "Found the value `'None'` (string) in the configuration for "
+                    f"the {name} module. Are you sure you didn't want to use "
+                    "the value `None` instead? This might have happened by using "
+                    "`None` or `'None'` in a YAML file instead of `null`."
+                )
+            result = obj
+        else:
+            result = obj
+        return result
+
+    walk_through_dict(config, check_for_none_strings_)
 
 
 def setup_module(name, version, subdirectories):
@@ -1324,7 +1344,7 @@ def setup_module(name, version, subdirectories):
 
     # Ensure that this module's config is loaded
     assert name in config["lcr-modules"], (
-        f"The configuration for the `{name}` module is not loaded. "
+        f"The configuration for the {name!r} module is not loaded. "
         "It should be loaded before the module Snakefile (.smk) is "
         "included. See README.md for more information."
     )
@@ -1334,12 +1354,15 @@ def setup_module(name, version, subdirectories):
     smk.utils.update_config(mconfig, config["lcr-modules"][name])
     msamples = mconfig["samples"].copy()
 
+    # Check whether there are "None" strings
+    check_for_none_strings(mconfig, name)
+
     # Drop samples whose seq_types do not appear in pairing_config
     assert "pairing_config" in mconfig, "`pairing_config` missing from module config."
     sample_seq_types = msamples["seq_type"].unique()
     pairing_config = mconfig["pairing_config"]
     supported_seq_types = [
-        k for k, v in mconfig["pairing_config"].items() if "run_paired_tumours" in v
+        k for k, v in pairing_config.items() if "run_paired_tumours" in v
     ]
     unsupported_seq_types = set(sample_seq_types) - set(supported_seq_types)
     if len(unsupported_seq_types) > 0:
