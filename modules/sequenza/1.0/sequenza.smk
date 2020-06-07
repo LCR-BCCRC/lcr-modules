@@ -21,7 +21,7 @@ CFG = op.setup_module(
     name = "sequenza",
     version = "1.0",
     # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "sequenza","seqz_filtered", "outputs"]
+    subdirectories = ["inputs", "sequenza","seqz_filtered","plots","outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -111,10 +111,10 @@ rule _sequenza_unfiltered_analysis:
         merged_seqz = rules._sequenza_merge_seqz.output.merged_seqz,
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam"
     output:
-        segments = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_unfiltered_segments.txt"
+        segments = CFG["dirs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_unfiltered_segments.txt"
     log:
-        stdout = CFG["logs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sequenza_unfiltered_analysis.stdout.log",
-        stderr = CFG["logs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sequenza_unfiltered_analysis.stderr.log"
+        stdout = CFG["logs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sequenza_unfiltered_analysis.stdout.log",
+        stderr = CFG["logs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sequenza_unfiltered_analysis.stderr.log"
     resources: mem_mb = 100000
     conda:
         CFG["conda_envs"]["sequenza"]
@@ -122,7 +122,7 @@ rule _sequenza_unfiltered_analysis:
         CFG["threads"]["sequenza"]
     params:
         sequenza_analysis = CFG["options"]["sequenza_analysis"],
-        outdir = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}",
+        outdir = CFG["dirs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}",
         sample_id = "{tumour_id}_unfiltered",
         calc_sex_status = CFG["options"]["calc_sex_status"]
     shell:
@@ -134,10 +134,10 @@ rule _sequenza_filtered_analysis:
         filtered_seqz = rules._sequenza_filter_seqz.output.filtered_seqz,
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam"
     output:
-        segments = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_filtered_segments.txt"
+        segments = CFG["dirs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_filtered_segments.txt"
     log:
-        stdout = CFG["logs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sequenza_filtered_analysis.stdout.log",
-        stderr = CFG["logs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sequenza_filtered_analysis.stderr.log"
+        stdout = CFG["logs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sequenza_filtered_analysis.stdout.log",
+        stderr = CFG["logs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sequenza_filtered_analysis.stderr.log"
     resources: mem_mb = 100000
     conda:
         CFG["conda_envs"]["sequenza"]
@@ -145,7 +145,7 @@ rule _sequenza_filtered_analysis:
         CFG["threads"]["sequenza"]
     params:
         sequenza_analysis = CFG["options"]["sequenza_analysis"],
-        outdir = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}",
+        outdir = CFG["dirs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}",
         sample_id = "{tumour_id}_filtered",
         calc_sex_status = CFG["options"]["calc_sex_status"]
     shell:
@@ -157,9 +157,9 @@ rule _sequenza_unfiltered_igv_segments:
     input:
         rules._sequenza_unfiltered_analysis.output.segments
     output:
-        igv = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_unfiltered_segments.igv.seg"
+        igv = CFG["dirs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_unfiltered_segments.igv.seg"
     log:
-        stderr = CFG["logs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_unfiltered_cnv2igv.stderr.log"
+        stderr = CFG["logs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_unfiltered_cnv2igv.stderr.log"
     conda:
         CFG["conda_envs"]["sequenza"]
     params:
@@ -174,9 +174,9 @@ rule _sequenza_filtered_igv_segments:
     input:
         rules._sequenza_filtered_analysis.output.segments
     output:
-        igv = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_filtered_segments.igv.seg"
+        igv = CFG["dirs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_filtered_segments.igv.seg"
     log:
-        stderr = CFG["logs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_filtered_cnv2igv.stderr.log"
+        stderr = CFG["logs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_filtered_cnv2igv.stderr.log"
     conda:
         CFG["conda_envs"]["sequenza"]
     params:
@@ -186,6 +186,18 @@ rule _sequenza_filtered_igv_segments:
         "python "
         "{params.cnv2igv} --mode sequenza --sample {params.sample_id} "
         "{input} > {output} 2> {log.stderr}"
+
+
+# Symlinks the final output files into the module results directory (under '99-outputs/')
+# TODO: If applicable, add an output rule for each file meant to be exposed to the user
+rule _sequenza_output_seg:
+    input:
+        seg = rules._sequenza_filtered_igv_segments.output.igv
+    output:
+        seg = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.seg"
+    run:
+        op.relative_symlink(input.seg, output.seg)
+
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _sequenza_all:
@@ -197,7 +209,8 @@ rule _sequenza_all:
                 rules._sequenza_filtered_analysis.output.segments,
                 rules._sequenza_unfiltered_analysis.output.segments,
                 rules._sequenza_filtered_igv_segments.output.igv,
-                rules._sequenza_unfiltered_igv_segments.output.igv
+                rules._sequenza_unfiltered_igv_segments.output.igv,
+                rules._sequenza_output_seg.output.seg
                 # TODO: If applicable, add other output rules here
             ],
             zip,  # Run expand() with zip(), not product()
