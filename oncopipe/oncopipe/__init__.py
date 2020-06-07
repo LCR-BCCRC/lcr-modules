@@ -41,6 +41,10 @@ DEFAULT_PAIRING_CONFIG = {
     },
 }
 
+DOCS = {
+    "update_config": "https://lcr-modules.readthedocs.io/en/latest/for_users.html#updating-configuration-values"
+}
+
 
 # SESSION
 
@@ -1271,12 +1275,25 @@ def check_for_none_strings(config, name):
                     "the value `None` instead? This might have happened by using "
                     "`None` or `'None'` in a YAML file instead of `null`."
                 )
-            result = obj
-        else:
-            result = obj
-        return result
+        return obj
 
     walk_through_dict(config, check_for_none_strings_)
+
+
+def check_for_update_strings(config, name):
+    """Warn the user if '__UPDATE__' strings are found in config."""
+
+    def check_for_update_strings_(obj):
+        if isinstance(obj, str):
+            assert "__UPDATE__" not in obj, (
+                "Found the value '__UPDATE__' in the configuration for the "
+                f"{name} module. This usually means some values from the "
+                "module's default configuration file haven't been updated. "
+                f"For more info, check out {DOCS['update_config']}."
+            )
+        return obj
+
+    walk_through_dict(config, check_for_update_strings_)
 
 
 def setup_module(name, version, subdirectories):
@@ -1356,6 +1373,9 @@ def setup_module(name, version, subdirectories):
 
     # Check whether there are "None" strings
     check_for_none_strings(mconfig, name)
+
+    # Check whether there are "__UPDATE__" strings
+    check_for_update_strings(mconfig, name)
 
     # Drop samples whose seq_types do not appear in pairing_config
     assert "pairing_config" in mconfig, "`pairing_config` missing from module config."

@@ -5,11 +5,15 @@ All notable changes to the `star` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0] - 2020-04-25
+## [1.1] - 2020-06-06
 
 This release was authored by Bruno Grande.
 
-<!-- TODO: Explain each important module design decision below. -->
+- The default configuration file was updated to include '__UPDATE__'.
+
+## [1.0] - 2020-04-25
+
+This release was authored by Bruno Grande.
 
 - `utils.smk`
 - `os.remove` is used instead of `temp()` since we can't modify the `utils` rules and we want to make sure the new BAM exists before deleting the old BAM
