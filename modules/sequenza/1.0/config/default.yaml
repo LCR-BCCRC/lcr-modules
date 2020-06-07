@@ -6,24 +6,25 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: null  # UPDATE
-
-        # TODO: Update (or remove) this section with any reference parameters
-        reference_params:
-            # Ideally, `star_overhang` = max(read_length) - 1
-            # STAR indices were precomputed for "74" and "99"
-            star_overhang: "99"  # UPDATE
+            sample_bai: null  # UPDATE
 
         scratch_subdirectories: []
 
+        chroms: [1, 2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, X,  Y]
+        
         options:
-            step_1: ""
-            step_2: ""
+            merge_seqz: "{MODSDIR}/src/bash/merge_seqz.sh"
+            filter_seqz: "{MODSDIR}/src/bash/filter_seqz.sh"
+            calc_sex_status: "{MODSDIR}/src/bash/calc_sex_status.sh"
+            sequenza_analysis: "{MODSDIR}/src/R/run_sequenza_with_options.R"
+            cnv2igv: "{MODSDIR}/src/python/cnv2igv.py"
 
         conda_envs:
             sequenza: "{MODSDIR}/envs/sequenza.yaml"
             
         threads:
             bam2seqz: 3
+            sequenza: 8 
 
         mem_mb:
             bam2seqz: 10000
@@ -35,5 +36,5 @@ lcr-modules:
                 run_paired_tumours_as_unpaired: False
             capture:
                 run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
+                run_unpaired_tumours_with: null
                 run_paired_tumours_as_unpaired: False
