@@ -179,6 +179,24 @@ def relative_symlink(src, dest, overwrite=True):
         Whether to overwrite the destination file if it exists.
     """
 
+    # Coerce length-1 NamedList instances to strings
+    def coerce_namedlist_to_string(obj):
+        if isinstance(obj, smk.io.Namedlist) and len(obj) == 1:
+            obj = str(obj)
+        elif isinstance(obj, smk.io.Namedlist) and len(obj) != 1:
+            raise AssertionError(
+                f"Got the following Namedlist: {obj!r}. This function "
+                "only supports Namedlists of length 1."
+            )
+        return obj
+
+    src = coerce_namedlist_to_string(src)
+    dest = coerce_namedlist_to_string(dest)
+
+    # Check whether arguments are strings
+    assert isinstance(src, str), "Source file path must be a string."
+    assert isinstance(dest, str), "Destination file path must be a string."
+
     # Here, you're symlinking a file into a directory (same name)
     dest = dest.rstrip(os.path.sep)
     if not os.path.isdir(src) and os.path.isdir(dest):
