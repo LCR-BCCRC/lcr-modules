@@ -71,7 +71,7 @@ rule _cellranger_mkfastq:
     input:
         run_dir = rules._cellranger_input.output.lib,
         ss = _create_samplesheet(), #rules._cellranger_create_samplesheet.output.ss,
-        check = _get_completion_files()
+        #check = _get_completion_files()
     output:
         stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}_mkfastq.stamp"
     log:
@@ -105,10 +105,10 @@ rule _cellranger_count:
     input:
         stamp = rules._cellranger_mkfastq.output.stamp
     output:
-        stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}_{sample_id}_count.stamp"
+        stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}--{sample_id}_count.stamp"
     log:
-        stdout = CFG["logs"]["count"] + "{seq_type}--{genome_build}/{chip_id}_{sample_id}_count.stdout.log",
-        stderr = CFG["logs"]["count"] + "{seq_type}--{genome_build}/{chip_id}_{sample_id}_count.stderr.log"
+        stdout = CFG["logs"]["count"] + "{seq_type}--{genome_build}/{chip_id}--{sample_id}_count.stdout.log",
+        stderr = CFG["logs"]["count"] + "{seq_type}--{genome_build}/{chip_id}--{sample_id}_count.stderr.log"
     params:
         cr = CFG["software"],
         fastq_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}/",
@@ -137,15 +137,15 @@ rule _cellranger_count:
 
 rule _cellranger_vdj:
     input:
-        stamp = rules._cellranger_mkfastq.output.stamp,
-        fastq_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/{chip_id}"
+        stamp = rules._cellranger_mkfastq.output.stamp
     output:
-        stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}_{sample_id}_vdj.stamp"
+        stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}--{sample_id}_vdj.stamp"
     log:
-        stdout = CFG["logs"]["vdj"] + "{seq_type}--{genome_build}/{chip_id}_{sample_id}_vdj.stdout.log",
-        stderr = CFG["logs"]["vdj"] + "{seq_type}--{genome_build}/{chip_id}_{sample_id}_vdj.stderr.log"
+        stdout = CFG["logs"]["vdj"] + "{seq_type}--{genome_build}/{chip_id}--{sample_id}_vdj.stdout.log",
+        stderr = CFG["logs"]["vdj"] + "{seq_type}--{genome_build}/{chip_id}--{sample_id}_vdj.stderr.log"
     params:
         cr = CFG["software"],
+        fastq_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}",
         opts = CFG["options"]["vdj"],
         ref = md.get_reference(CFG, "vdj")
 #    conda:
@@ -160,10 +160,10 @@ rule _cellranger_vdj:
         {params.opts}
         --id={wildcards.sample_id}
         --sample={wildcards.sample_id}
-        --fastqs={input.fastq_dir} 
+        --fastqs={params.fastq_dir} 
         --reference={params.ref}
         --localcores={threads}
-        --localmem=$(({resources.mem_mb}/1000))
+        --localmem=$(({resources.mem_gb}/1000))
         > {log.stdout} 2> {log.stderr}
         && touch {output.stamp}
         """)
@@ -173,7 +173,7 @@ rule _cellranger_vdj:
 # TODO: Update to ask for the output of every `_cellranger_output_*` rule
 rule _cellranger_all:
     input:
-        expand(expand("{{dir}}stamps/{seq_type}--{genome_build}/{chip_id}_{sample_id}_{analysis}.stamp",
+        expand(expand("{{dir}}stamps/{seq_type}--{genome_build}/{chip_id}--{sample_id}_{analysis}.stamp",
                zip,  
                seq_type=CFG["samples"]["seq_type"],
                genome_build=CFG["samples"]["genome_build"],
