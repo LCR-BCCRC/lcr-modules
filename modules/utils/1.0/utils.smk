@@ -57,10 +57,11 @@ rule:
         mem_mb = CFG["mem_mb"].get("bam_sort", 12000)
     shell:
         op.as_one_line("""
-        samtools sort {params.opts} -@ {threads} -m $(({resources.mem_mb} / {threads}))M
+        samtools sort {params.opts}
+        -@ {threads} -m $(({resources.mem_mb} / {threads}))M
         -T {params.prefix} -o {output.bam} {input.bam} 
-        > {params.logs}[0]
-        2> {params.logs}[1]
+        > {params.logs[0]}
+        2> {params.logs[1]}
         """)
 
 
@@ -82,10 +83,11 @@ rule:
         mem_mb = CFG["mem_mb"].get("bam_markdups", 8000)
     shell:
         op.as_one_line("""
-        sambamba markdup {params.opts} --nthreads {threads} 
+        sambamba markdup {params.opts} 
+        --nthreads {threads} 
         {input.bam} {output.bam} 
-        > {params.logs}[0]
-        2> {params.logs}[1]
+        > {params.logs[0]}
+        2> {params.logs[1]}
         """)
 
 
@@ -109,8 +111,8 @@ rule:
         op.as_one_line("""
         samtools index {params.opts} -@ {threads} 
         {input.bam} 
-        > {params.logs}[0]
-        2> {params.logs}[1]
+        > {params.logs[0]}
+        2> {params.logs[1]}
         """)
 
 del CFG
