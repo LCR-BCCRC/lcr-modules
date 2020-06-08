@@ -67,7 +67,6 @@ def _get_completion_files(raw_dir = CFG["inputs"]["sample_dir"], suffix = ["RTAC
     return _get_custom_files
 
 
-
 rule _cellranger_mkfastq:
     input:
         run_dir = rules._cellranger_input.output.lib,
@@ -80,7 +79,7 @@ rule _cellranger_mkfastq:
         stderr = CFG["logs"]["mkfastq"] + "{seq_type}--{genome_build}/{chip_id}/mkfastq.stderr.log"
     params:
         cr = CFG["software"],
-        out_dir = CFG["dirs"]["mkfastq"],
+        out_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}",
         opts = CFG["options"]["mkfastq"]
 #    conda:
 #        CFG["conda_envs"].get("cellranger") or "envs/cellranger-3.0.2.yaml"
@@ -92,7 +91,6 @@ rule _cellranger_mkfastq:
         md.as_one_line("""
         {params.cr} mkfastq
         {params.opts}
-        --id={wildcards.chip_id}
         --run={input.run_dir} 
         --samplesheet={input.ss}
         --output-dir={params.out_dir}
@@ -113,7 +111,7 @@ rule _cellranger_count:
         stderr = CFG["logs"]["count"] + "{seq_type}--{genome_build}/{chip_id}_{sample_id}_count.stderr.log"
     params:
         cr = CFG["software"],
-        fastq_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/{chip_id}",
+        fastq_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}/",
         opts = CFG["options"]["count"],
         ref = md.get_reference(CFG, "transcriptome")
 #    conda:
