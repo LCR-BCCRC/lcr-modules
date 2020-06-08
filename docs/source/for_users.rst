@@ -132,6 +132,14 @@ Before running the `Demo Project`_, you will need to download the `Test Data`_, 
 
    Becnel, L. B. et al. An open access pilot freely sharing cancer genomic data from participants in Texas. Sci. Data 3:160010 doi: 10.1038/sdata.2016.10 (2016).
 
+You can download the test data and verify the checksums using the following commands. Note that this will overwrite the empty placeholder files. If you don't have enough space where you cloned the repository, you can download the test data elsewhere and create symbolic links.
+
+.. code:: bash
+
+   cd demo/data/
+   wget --recursive --no-parent --no-host-directories --cut-dirs=3 --execute robots=off --reject="index.html*" https://www.bcgsc.ca/downloads/lcr-modules/test_data/
+   md5sum --check checksums.txt
+
 .. note::
 
    | **BCGSC Users**
@@ -141,7 +149,7 @@ Before running the `Demo Project`_, you will need to download the `Test Data`_, 
 
       ln -sf /projects/bgrande/lcr-modules/test_data/*.{bam,bai,fastq.gz} ./demo/data/
 
-Once the `Test Data`_ is downloaded, you will need to update the placeholders in ``demo/data/`` with the downloaded files (or symbolic links to the files). At that point, you can technically run the `Demo Snakefile`_ by omitting the ``--dry-run`` option from the command in the :ref:`getting-started-user` instructions, but you might want to update the value set in ``demo/config.yaml`` under ``scratch_directory`` to an space where you can readily store large intermediate files (*e.g.* a directory without snapshots or backups).
+At that point, you can technically run the `Demo Snakefile`_ by omitting the ``--dry-run`` option from the command in the :ref:`getting-started-user` instructions, but you might want to update the value set in ``demo/config.yaml`` under ``scratch_directory`` to an space where you can readily store large intermediate files (*e.g.* a directory without snapshots or backups). For more information check out the :ref:`common-shared-configuration-fields` section.
 
 If you are interested in learning how you can conditionally use the STAR BAM files for RNA-seq samples while using the BAM files in ``data/`` for other samples, check out the :ref:`conditional-module-behaviour-user` section.
 
@@ -279,6 +287,8 @@ One of the components of the :ref:`lcr-modules-configuration` is the shared conf
       key3: "z"
 
 This behaviour can be leveraged in a number of ways. For example, by setting ``unmatched_normal_id`` under the ``"_shared"`` key, you avoid having to specify that value for every module that performs paired analyses (assuming you have unpaired tumours). That said, if you want to use a different ``unmatched_normal_id`` for a subset of modules, you can override the shared value. Another useful instance is the sharing of the :ref:`sample-table` between modules. This way, the user doesn't have to repeatedly provide the same sample table to each module. Note that this is only possible because each module automatically filters the samples based on the sequencing data types (``seq_type``) listed in their :ref:`pairing-configuration`. 
+
+.. _common-shared-configuration-fields:
 
 Common Shared Configuration Fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
