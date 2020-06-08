@@ -102,7 +102,7 @@ rule _sequenza_filter_seqz:
     resources: mem_mb = 20000
     threads: 1
     params:
-        dbsnp_pos = "reference/genomes/{genome_build}/annotations/{genome_build}.dbsnp.pos.sort.C", #fix this to use the path to the reference files based on the config
+        dbsnp_pos = "reference/genomes/{genome_build}/annotations/{genome_build}.dbsnp.pos.sort", #fix this to use the path to the reference files based on the config
         filter_seqz = CFG["options"]["filter_seqz"]
     shell:
         "{params.filter_seqz} {input.merged_seqz} {params.dbsnp_pos} | gzip > {output.filtered_seqz}"
