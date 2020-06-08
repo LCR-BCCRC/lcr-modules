@@ -30,10 +30,11 @@ def _get_log_dirs(wildcards):
     LOG = "logs/" + op._session.launched_fmt
 
     path.insert((len(lroot) + 1), LOG)
+    path.append(wildcards.suffix)
     log_path = "/".join(path)
     print(log_path)
 
-    logs = [log_path + "bam_sort.stdout.log", log_path + "bam_sort.stderr.log"]
+    logs = [log_path + "_bam_sort.stdout.log", log_path + "_bam_sort.stderr.log"]
 
     return logs
 
