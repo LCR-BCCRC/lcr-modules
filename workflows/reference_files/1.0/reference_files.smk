@@ -410,3 +410,45 @@ rule create_star_index:
             &&
         find {output.index} -type f -exec chmod a-w {{}} \;
         """)
+
+
+##### PICARD METRICS
+rule create_seq_dict:
+    input:
+        fasta = rules.get_genome_fasta_download.output.fasta
+    output: 
+        seq_dict = "genomes/{genome_build}/genome_fasta/genome.dict"
+    log: 
+        "genomes/{genome_build}/genome_fasta/genome_dict.log"
+    conda: CONDA_ENVS["picard"]
+    shell:
+        op.as_one_line("""
+        picard CreateSequenceDictionary
+        R={input.fasta}
+        O={output.seq_dict}
+        &> {log}
+        &&
+        chmod a-w {output.seq_dict}
+        """)
+
+rule create_interval_list:
+    input:
+        bed = config["inputs"]["bed"],
+        seq_dict = rules.create_seq_dict.output.seq_dict
+    output: 
+        intervals = "intervals/{genome_build}/{id}/intervals.txt"
+    log: 
+        "intervals/{genome_build}/{id}/log"
+    conda: CONDA_ENVS["picard"]
+    shell:
+        op.as_one_line("""
+        picard BedToIntervalList
+        I={input.bed}
+        O={output.intervals}
+        SD={input.seq_dict}
+        &> {log}
+        &&
+        chmod a-w {output.intervals}
+        """)
+
+"intervals/{genome_build}/bed/{id}/regions.bed"
