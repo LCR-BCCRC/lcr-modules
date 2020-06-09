@@ -6,6 +6,7 @@ import inspect
 import functools
 import itertools
 import subprocess
+import collections.abc
 from datetime import datetime
 from collections import defaultdict, namedtuple
 
@@ -78,7 +79,6 @@ _session = _Session()
 
 def enable_set_functions(config):
     """Enable the `set_*` oncopipe convenience functions.
-
     Parameters
     ----------
     config : dict
@@ -92,7 +92,6 @@ def enable_set_functions(config):
 
 def set_input(module, name, value):
     """Use given value for an input file in a module.
-
     Parameters
     ----------
     module : str
@@ -115,7 +114,6 @@ def set_input(module, name, value):
 
 def set_samples(module, *samples):
     """Use given samples for a module.
-
     Parameters
     ----------
     module : str
@@ -134,10 +132,8 @@ def set_samples(module, *samples):
 
 def set_value(value, *keys):
     """Update lcr-modules configuration using simpler syntax.
-
     This function will automatically create dictionaries if
     accessing a key that doesn't exist and notify the user.
-
     Parameters
     ----------
     value : anything
@@ -161,7 +157,6 @@ def set_value(value, *keys):
 
 def relative_symlink(src, dest, overwrite=True):
     """Creates a relative symlink from any working directory.
-
     Parameters
     ----------
     src : str
@@ -210,15 +205,12 @@ def get_from_dict(dictionary, list_of_keys):
 
 def as_one_line(text):
     """Collapses a triple-quoted string to one line.
-
     Line endings do not need to be escaped like in a shell script.
     Spaces and tabs are stripped from each side of each line to
     remove the indentation included in triple-quoted strings.
-
     This function is useful for long shell commands in a Snakefile,
     especially if it contains quotes that would need to be escaped
     (e.g., in an awk command).
-
     Returns
     -------
     str
@@ -231,18 +223,15 @@ def as_one_line(text):
 
 def list_files(directory, file_ext):
     """Searches directory for all files with given extension.
-
     The search is performed recursively. The function first tries
     to use the faster `find` UNIX tool before falling back on a
     slower Python implementation.
-
     Parameters
     ----------
     directory : str
         The directory to search in.
     file_ext : str
         The file extension (excluding the period).
-
     Returns
     -------
     list of str
@@ -337,14 +326,11 @@ def switch_on_column(
     column, samples, options, match_on="tumour", format=True, strict=False
 ):
     """Pick an option based on the value of a column for a sample.
-
     The function finds the relevant row in `samples` for either
     the tumour (the default) or normal sample, which is determined
     by the `match_on` argument. To find the row, the `seq_type`
     and `tumour_id` (or `normal_id`) wildcards are required.
-
     The following special keys are available:
-
     _default
         If you provide a value under the key '_default' in `options`,
         this value will be used if the column value is not among
@@ -354,7 +340,6 @@ def switch_on_column(
         in `options`, these values will be prepended and/or appended,
         respectively, to the selected value (including '_default') as
         long as the selected value is a string (not a dictionary).
-
     Parameters
     ----------
     column : str
@@ -378,7 +363,6 @@ def switch_on_column(
         the latter option is possible. This mode is useful if a
         wildcard has the same name as a rule variable, namely
         wildcards, input, output, threads, resources.
-
     Returns
     -------
     function
@@ -396,6 +380,8 @@ def switch_on_column(
             sample_id = wildcards.tumour_id
         elif match_on == "normal":
             sample_id = wildcards.normal_id
+        elif match_on == "sample":
+            sample_id = wildcards.sample_id
         else:
             raise ValueError("Invalid value for `match_on`.")
         subset = samples.loc[samples["seq_type"] == wildcards.seq_type]
@@ -425,9 +411,7 @@ def switch_on_column(
 
 def switch_on_wildcard(wildcard, options, format=True, strict=False):
     """Pick an option based on the value of a wildcard for a run.
-
     The following special keys are available:
-
     _default
         If you provide a value under the key '_default' in `options`,
         this value will be used if the column value is not among
@@ -437,7 +421,6 @@ def switch_on_wildcard(wildcard, options, format=True, strict=False):
         in `options`, these values will be prepended and/or appended,
         respectively, to the selected value (including '_default') as
         long as the selected value is a string (not a dictionary).
-
     Parameters
     ----------
     wildcard : str
@@ -456,7 +439,6 @@ def switch_on_wildcard(wildcard, options, format=True, strict=False):
         the latter option is possible. This mode is useful if a
         wildcard has the same name as a rule variable, namely
         wildcards, input, output, threads, resources.
-
     Returns
     -------
     function
@@ -493,10 +475,8 @@ def locate_bam(
     sample_bams=("sample_bam", "tumour_bam", "normal_bam"),
 ):
     """Locates BAM file for a given sample ID in a directory.
-
     This function actually configures another function, which is
     returned to be used by Snakemake.
-
     Parameters
     ----------
     bam_directory : str, optional
@@ -511,7 +491,6 @@ def locate_bam(
         function. For example, the BAM file for the sample specified
         in 'sample_id' wildcard will be stored under the key
         'sample_bam' in the returned dictionary.
-
     Returns
     -------
     function
@@ -566,11 +545,9 @@ def locate_bam(
 
 def check_reference(module_config, reference_key=None):
     """Ensure that a required reference config (and file) is available.
-
     If there is no 'genome_build' column in `module_samples` and
     there is only one loaded reference, this function will assume
     that the loaded reference is the reference to be used.
-
     Parameters
     ----------
     module_config : dict
@@ -578,7 +555,6 @@ def check_reference(module_config, reference_key=None):
         `config['lcr-modules']['<module-name>']`.
     reference_key : str, optional
         The key for a required reference file.
-
     Returns
     -------
     None
@@ -631,21 +607,17 @@ def get_reference(module_config, reference_key):
 
 
 def load_samples(
-    file_path, sep="\t", to_lowercase=("tissue_status"), renamer=None, **maps
+    file_path, sep="\t", to_lowercase=("tissue_status",), renamer=None, **maps
 ):
     """Loads samples metadata with some light processing.
-
     The advantage of using this function over `pandas.read_table()`
     directly is that this function processes the data frame as follows:
-
         1) Can convert columns to lowercase.
         2) Can rename columns using either a renamer function or
            a set of key-value pairs where the values are the
            original names and the keys are the desired names.
-
     If a renamer function is provided in addition to a set of key-value
     pairs, the renamer function will be used first.
-
     Parameters
     ----------
     file_path : str
@@ -663,9 +635,7 @@ def load_samples(
         Pairs that specify the actual names (values) of the expected
         columns (keys). For example, if you had a 'sample' column
         while `lcr-modules` expects 'sample_id', you can use:
-
         load_samples(..., sample_id = "sample")
-
     Returns
     -------
     pandas.DataFrame
@@ -685,7 +655,6 @@ def load_samples(
 
 def filter_samples(samples, **filters):
     """Subsets for rows with certain values in the given columns.
-
     Parameters
     ----------
     samples : pandas.DataFrame
@@ -693,14 +662,13 @@ def filter_samples(samples, **filters):
     **filters : key-value pairs
         Columns (keys) and the values they need to contain (values).
         Values can either be an str or a list of str.
-
     Returns
     -------
     pandas.DataFrame
         A subset of rows from the input data frame.
     """
     for column, value in filters.items():
-        if isinstance(value, str):
+        if not isinstance(value, collections.abc.Sequence):
             value = [value]
         samples = samples[samples[column].isin(value)]
     return samples.copy()
@@ -708,7 +676,6 @@ def filter_samples(samples, **filters):
 
 def group_samples(samples, subgroups):
     """Organizes samples into nested dictionary.
-
     Parameters
     ----------
     samples : pandas.DataFrame
@@ -716,7 +683,6 @@ def group_samples(samples, subgroups):
     subgroups : list of str
         Columns of `samples` by which to organize the samples.
         The order determines the nesting order.
-
     Returns
     -------
     nested dict
@@ -766,10 +732,8 @@ def generate_runs_for_patient(
     **kwargs,
 ):
     """Generates a run for every tumour with and/or without a paired normal.
-
     Note that 'unpaired tumours' in the argument names and documentation
     refers to tumours without a matched normal sample.
-
     Parameters
     ----------
     patient_samples : dict
@@ -794,7 +758,6 @@ def generate_runs_for_patient(
         intended to be tumour-only)
     **kwargs : key-value pairs
         Any additional unused arguments (e.g, `unmatched_normal_id`).
-
     Returns
     -------
     dict
@@ -809,7 +772,7 @@ def generate_runs_for_patient(
     run_unpaired_tumours_with_options = (None, "no_normal", "unmatched_normal")
     assert run_unpaired_tumours_with in run_unpaired_tumours_with_options, (
         "`run_unpaired_tumours_with` must be one of the values below "
-        f"(not `{run_unpaired_tumours_with}`): \n"
+        f"(not `{run_unpaired_tumours_with!r}`): \n"
         f"{run_unpaired_tumours_with_options}"
     )
 
@@ -849,7 +812,7 @@ def generate_runs_for_patient(
             seq_type = tumour["seq_type"]
             assert unmatched_normal is not None, (
                 "`run_unpaired_tumours_with` was set to 'unmatched_normal' "
-                f"whereas `unmatched_normal` was None. For '{seq_type}', "
+                f"whereas `unmatched_normal` was None. For {seq_type!r}, "
                 "provide an unmatched normal sample ID. See README for format."
             )
             normal = unmatched_normal._asdict()
@@ -869,12 +832,10 @@ def generate_runs_for_patient(
 
 def generate_runs_for_patient_wrapper(patient_samples, pairing_config):
     """Runs generate_runs_for_patient based on the current seq_type.
-
     This function is meant as a wrapper for `generate_runs_for_patient()`,
     whose parameters depend on the sequencing data type (seq_type) of the
     samples at hand. It assumes that all samples for the given patient
     share the same seq_type.
-
     Parameters
     ----------
     patient_samples : dict
@@ -883,12 +844,10 @@ def generate_runs_for_patient_wrapper(patient_samples, pairing_config):
         The top level is sequencing data types (seq_type; keys) mapped
         to dictionaries (values) specifying argument values meant for
         `generate_runs_for_patient()`. For example:
-
             {'genome': {'run_unpaired_tumours_with': 'unmatched_normal',
                         'unmatched_normal': Sample(...)},
             'mrna': {'run_paired_tumour': False,
                     'run_unpaired_tumours_with': 'no_normal'}}
-
     Returns
     -------
     dict
@@ -911,37 +870,27 @@ def generate_runs_for_patient_wrapper(patient_samples, pairing_config):
 
 def combine_lists(dictionary, as_dataframe=False):
     """Merges lists for matching keys in nested dictionary.
-
     Parameters
     ----------
     dictionary : dict
         Nested dictionaries where the key names match up.
-
         ::
-
             {'genome': {'field1': [1, 2, 3],
                         'field2': [4, 5, 6]},
             'mrna': {'field1': [11, 12, 13],
                     'field2': [14, 15, 16]}}
-
     as_dataframe : boolean, optional
         Whether the return value is coerced to pandas.DataFrame.
-
     Returns
     -------
     dict or pandas.DataFrame
         The type of the return value depends on `as_dataframe`.
         If `as_dataframe` is False, the output will look like:
-
         ::
-
             {'field1': [1, 2, 3, 11, 12, 13],
             'field2': [4, 5, 6, 14, 15, 16]}
-
         If `as_dataframe` is True, the output will look like:
-
         ::
-
                 field1  field2
             0       1       4
             1       2       5
@@ -964,10 +913,8 @@ def walk_through_dict(
     dictionary, end_fn, max_depth=None, _trace=None, _result=None, **kwargs
 ):
     """Runs a function at a given level in a nested dictionary.
-
     If `max_depth` is unspecified, `end_fn()` will be run whenever
     the recursion encounters an object other than a dictionary.
-
     Parameters
     ----------
     dictionary : foo
@@ -986,7 +933,6 @@ def walk_through_dict(
         input dictionary.
     **kwargs : key-value pairs
         Argument values that are passed to `end_fn()`.
-
     Returns
     -------
     dict
@@ -1026,11 +972,9 @@ def generate_runs(
     subgroups=("seq_type", "genome_build", "patient_id", "tissue_status"),
 ):
     """Produces a data frame of tumour runs from a data frame of samples.
-
     Here, a 'tumour run' can consist of a tumour-only run or
     a paired run. In the case of a paired run, it can either
     be with a matched or unmatched normal sample.
-
     Parameters
     ----------
     samples : pandas.DataFrame
@@ -1041,7 +985,6 @@ def generate_runs(
         default value (see `oncopipe.DEFAULT_PAIRING_CONFIG`).
     subgroups : list of str, optional
         Same as `group_samples()`.
-
     Returns
     -------
     pandas.DataFrame
@@ -1090,7 +1033,7 @@ def generate_runs(
 
     # Warn if runs have duplicates
     if any(runs.duplicated()):
-        logger.warn("Duplicate runs exist. This probably shouldn't happen.")
+        logger.warning("Duplicate runs exist. This probably shouldn't happen.")
 
     # Fix column names if data frame is empty
     if runs.empty:
@@ -1104,14 +1047,169 @@ def generate_runs(
     return runs
 
 
+def generate_pairs(samples, **seq_types):
+    """Generate tumour-normal pairs using sensible defaults.
+    Each sequencing data type (``seq_type``) is provided as
+    separate arguments with a specified "pairing mode". This
+    mode determines how the samples for that ``seq_type``
+    are paired. Only the listed ``seq_type`` values will be
+    included in the output. The available pairing modes are:
+    1. ``matched_only``: Only tumour samples with matched
+       normal samples will be returned. In other words,
+       unpaired tumour or normal samples will be omitted.
+       .. code:: python
+          generate_pairs(SAMPLES, genome='matched_only')
+    2. ``allow_unmatched``: All tumour samples will be returned
+       whether they are paired with a matched normal sample
+       or not. If they are not paired, they will be returned
+       with an unmatched normal sample specified by the user.
+       This mode must be specified alongside the ID for the
+       sample to be paired with unpaired tumours as a tuple.
+       This sample must be present in the ``samples`` table.
+       .. code:: python
+          generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'))
+    3. ``no_normal``: All tumour samples will be returned
+       without a paired normal sample. This is simply a
+       shortcut for filtering for tumour samples, but this
+       ensures that the column names will be consistent
+       with other calls to ``generate_pairs()``.
+       .. code:: python
+          generate_pairs(SAMPLES, mrna='no_normal')
+    Parameters
+    ----------
+    samples : pandas.DataFrame
+        The sample table. This data frame must include the
+        following columns: ``sample_id``, ``patient_id``,
+        ``seq_type``, and ``tissue_status`` ('normal' or
+        'tumour'/'tumor'). If ``genome_build`` is included,
+        no tumour-normal pairs will be made between different
+        genome builds.
+    **seq_types : {'matched_only', 'allow_unmatched', 'no_normal'}
+        A mapping between values of ``seq_type`` and
+        pairing modes. See above for description of each
+        pairing mode.
+    Returns
+    -------
+    pandas.DataFrame
+        The tumour-normal pairs (one pair per row), but
+        the normal sample is omitted if the ``no_normal``
+        pairing mode is used. Every column in the input
+        ``samples`` data frame will appear twice in the
+        output, once for the tumour sample and once for
+        the normal sample, prefixed by ``tumour_`` and
+        ``normal_``, respectively. An additional column
+        called ``pair_status`` will indicate whether the
+        tumour-normal samples in the row are matched or
+        unmatched. If the normal sample is omitted due
+        to the ``no_normal`` mode, this column will be
+        set to ``no_normal``.
+    Examples
+    --------
+    Among the samples in the ``SAMPLES`` data frame, the
+    ``genome`` tumour samples will be paired with a matched
+    normal samples if one exists or with the given unmatched
+    normal sample (``PT003-N``) if no matched normal samples
+    are present; the ``capture`` tumour samples will only be
+    paired with matched normal samples; and the ``mrna``
+    tumour samples will be returned without matched or
+    unmatched normal samples.
+    >>> PAIRS = generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'),
+    >>>                        capture='matched_only', mrna='no_normal')
+    """
+
+    # Define pairing modes
+    pairing_modes = {
+        "matched_only": {
+            "run_paired_tumours": True,
+            "run_unpaired_tumours_with": None,
+            "run_paired_tumours_as_unpaired": False,
+        },
+        "allow_unmatched": {
+            "run_paired_tumours": True,
+            "run_unpaired_tumours_with": "unmatched_normal",
+            "run_paired_tumours_as_unpaired": False,
+            # unmatched_normal_id must be added
+        },
+        "no_normal": {
+            "run_paired_tumours": False,
+            "run_unpaired_tumours_with": "no_normal",
+            "run_paired_tumours_as_unpaired": True,
+        },
+    }
+
+    # Iterate over seq_types
+    pairing_config = dict()
+    available_pairing_modes = list(pairing_modes.keys())
+    for seq_type, mode in seq_types.items():
+
+        # Check if mode was provided as a two-element iterable (list or tuple)
+        unmatched_normal_id = None
+        if len(mode) == 2 and mode[0] == "allow_unmatched":
+            unmatched_normal_id = mode[1]
+            mode = "allow_unmatched"
+
+        # Make sure mode is a string and among the available options
+        assert isinstance(mode, str) and mode in available_pairing_modes, (
+            f"The pairing mode specified for {seq_type!r} isn't valid. "
+            f"The available modes are: {available_pairing_modes}."
+        )
+
+        # Make sure that the `allow_unmatched` mode is provided
+        assert mode != "allow_unmatched" or unmatched_normal_id is not None, (
+            "The 'allow_unmatched' mode must be paired with a normal sample ID, such "
+            "as:\n    generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'))\n"
+        )
+
+        pairing_config[seq_type] = pairing_modes[mode]
+
+        if mode == "allow_unmatched":
+            pairing_config[seq_type]["unmatched_normal_id"] = unmatched_normal_id
+
+    # Subgroup using `genome_build` if available
+    if "genome_build" in samples:
+        subgroups = ("seq_type", "genome_build", "patient_id", "tissue_status")
+    else:
+        subgroups = ("seq_type", "patient_id", "tissue_status")
+
+    # Make sure all of the required columns are present
+    required_columns = list(subgroups) + ["sample_id"]
+    assert all(column in samples for column in required_columns), (
+        "The sample table doesn't include all of the "
+        f"expected columns, namely {required_columns}."
+    )
+
+    # Generate the runs using the generated pairing configuration
+    runs = generate_runs(samples, pairing_config, subgroups)
+
+    return runs
+
+
 # MODULE SETUP/CLEANUP
+
+
+def check_for_none_strings(config, name):
+    """Warn the user if 'None' strings are found in config."""
+
+    def check_for_none_strings_(obj):
+        if isinstance(obj, str):
+            if obj == "None":
+                logger.warning(
+                    "Found the value `'None'` (string) in the configuration for "
+                    f"the {name} module. Are you sure you didn't want to use "
+                    "the value `None` instead? This might have happened by using "
+                    "`None` or `'None'` in a YAML file instead of `null`."
+                )
+            result = obj
+        else:
+            result = obj
+        return result
+
+    walk_through_dict(config, check_for_none_strings_)
 
 
 def setup_module(name, version, subdirectories):
     """Prepares and validates configuration for the given module.
-
     This function performs a number of convenient tasks:
-
         1) It ensures that the `CFG` variable doesn't exist. This is
            intended as a safeguard since the modules use `CFG` as a
            convenient shorthand.
@@ -1134,7 +1232,6 @@ def setup_module(name, version, subdirectories):
            normal pairs in case that's useful.
         10) It will automatically filter the samples for those
             whose `seq_type` appear in `pairing_config`.
-
     Parameters
     ----------
     name : str
@@ -1145,7 +1242,6 @@ def setup_module(name, version, subdirectories):
         The subdirectories of the module output directory where the
         results will be produced. They will be numbered incrementally
         and created on disk. This should include 'inputs' and 'outputs'.
-
     Returns
     -------
     dict
@@ -1172,7 +1268,7 @@ def setup_module(name, version, subdirectories):
 
     # Ensure that this module's config is loaded
     assert name in config["lcr-modules"], (
-        f"The configuration for the `{name}` module is not loaded. "
+        f"The configuration for the {name!r} module is not loaded. "
         "It should be loaded before the module Snakefile (.smk) is "
         "included. See README.md for more information."
     )
@@ -1182,12 +1278,15 @@ def setup_module(name, version, subdirectories):
     smk.utils.update_config(mconfig, config["lcr-modules"][name])
     msamples = mconfig["samples"].copy()
 
+    # Check whether there are "None" strings
+    check_for_none_strings(mconfig, name)
+
     # Drop samples whose seq_types do not appear in pairing_config
     assert "pairing_config" in mconfig, "`pairing_config` missing from module config."
     sample_seq_types = msamples["seq_type"].unique()
     pairing_config = mconfig["pairing_config"]
     supported_seq_types = [
-        k for k, v in mconfig["pairing_config"].items() if "run_paired_tumours" in v
+        k for k, v in pairing_config.items() if "run_paired_tumours" in v
     ]
     unsupported_seq_types = set(sample_seq_types) - set(supported_seq_types)
     if len(unsupported_seq_types) > 0:
@@ -1287,7 +1386,6 @@ def setup_module(name, version, subdirectories):
 
 def setup_subdirs(module_config, subdirectories, scratch_subdirs=()):
     """Numbers and creates module output subdirectories.
-
     Parameters
     ----------
     module_config : dict
@@ -1297,12 +1395,9 @@ def setup_subdirs(module_config, subdirectories, scratch_subdirs=()):
     scratch_subdirs : list of str, optional
         A subset of `subdirectories` that should be symlinked into the given
         scratch directory, specified under:
-
             `config["lcr_modules"]["_shared"]["scratch_directory"]`
-
         This should not include 'inputs' and 'outputs', which only
         contain symlinks.
-
     Returns
     -------
     dict
