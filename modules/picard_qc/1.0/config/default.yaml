@@ -1,0 +1,54 @@
+lcr-modules:
+    
+    picard_qc:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: null  # UPDATE
+            intervals : "intervals/{genome_build}/S07604624/intervals.txt"  #UPDATE default is grch37 exome kit
+            rrna_intervals: "reference/intervals/{genome_build}/rrna/intervals.txt"
+            refFlat: "reference/intervals/grch38/refFlat.txt"
+
+        options:
+            alignment_summary: "VALIDATION_STRINGENCY=LENIENT"
+            hs_metrics: "VALIDATION_STRINGENCY=LENIENT LEVEL=ALL_READS CLIP_OVERLAPPING_READS=false"
+            rnaseq_metrics:
+                base: "VALIDATION_STRINGENCY=LENIENT"
+                strand:
+                    _default: "NONE"
+                    forward: "FIRST_READ_TRANSCRIPTION_STRAND"
+                    reverse: "SECOND_READ_TRANSCRIPTION_STRAND" 
+            wgs_metrics: ""
+
+
+        conda_envs:
+            picard: "{MODSDIR}/envs/picard-2.22.3.yaml"
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            
+        threads:
+            alignment_summary: 2
+            hs_metrics: 2
+            rnaseq_metrics: 2
+            wgs_metrics: 4
+            flagstats: 2
+
+        mem_mb:
+            alignment_summary: 6000
+            hs_metrics: 5000
+            rnaseq_metrics: 5000
+            wgs_metrics: 10000
+            flagstats: 8000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
