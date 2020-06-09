@@ -1,0 +1,9 @@
+To get started with lcr-modules, you first need to install the
+custom `oncopipe` Python package. 
+
+    git clone https://github.com/LCR-BCCRC/lcr-modules.git
+    pip install -e lcr-modules/oncopipe
+
+For more information, visit:
+
+    https://lcr-modules.readthedocs.io/en/latest/for_users.html
