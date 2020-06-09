@@ -1,0 +1,62 @@
+lcr-modules:
+
+    manta:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: null  # UPDATE
+            sample_bai: null  # UPDATE
+            calc_manta_vaf: "{SCRIPTSDIR}/calc_manta_vaf/1.0/calc_manta_vaf.py"
+
+        options:
+            configure:
+                mrna: "--rna"
+                capture: "--exome"
+            manta: "--mode local"
+
+        conda_envs:
+            tabix: null
+            manta: null
+            calc_manta_vaf: "{SCRIPTSDIR}/calc_manta_vaf/1.0/pyvcf-0.6.8.yaml"
+            svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
+
+        switches:
+            # Run Manta in high-sensitivity mode for RNA-seq and capture data
+            manta_config:
+                _default: "{MODSDIR}/etc/manta_config.default.ini"
+                mrna: "{MODSDIR}/etc/manta_config.high_sensitivity.ini"
+                capture: "{MODSDIR}/etc/manta_config.high_sensitivity.ini"
+            # Omit the normal BAM CLI argument if there is no normal
+            normal_bam_arg:
+                _default: "--normalBam {input.normal_bam}"
+                no_normal: ""
+            # Use `--bam` for mrna data
+            tumour_bam_arg:
+                _default: "--tumourBam {input.tumour_bam}"
+                mrna: "--bam {input.tumour_bam}"
+
+        threads:
+            manta: 12
+            fix_vcf_ids: 1
+            calc_vaf: 1
+            vcf_to_bedpe: 1
+
+        mem_mb:
+            manta: 6000
+            fix_vcf_ids: 2000
+            calc_vaf: 2000
+            vcf_to_bedpe: 2000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

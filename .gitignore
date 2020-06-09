@@ -1,12 +1,44 @@
 # Hidden files
 .DS_Store
+.envrc
+.vscode/
+.prettierrc
 
 # Byte-compiled files
 __pycache__/
 
-# Distribution folders
+# Python distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
 # Files creates when testing the demo project
 .snakemake/
 /demo/results/
+/demo/reference
+/demo/scratch
+/demo/data/*
+!/demo/data/samples.tsv
+
+# Ignore example snakefiles
+/examples
+
+# Ignore sphinx builds
+/docs/build
+/docs/source/_build

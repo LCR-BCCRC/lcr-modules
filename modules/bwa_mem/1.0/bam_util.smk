@@ -51,7 +51,7 @@ rule _bam_util_markdup:
         bam = CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.bam"
     output:
         bam = temp(CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.markdup.bam"),
-        metrics = CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.dup_metrics.bam"
+        metrics = CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/metrics/{sample_name}.dup_metrics"
     priority: 10
     log:
         stdout = CFG["logs"]["bam_util"] + "{seq_type}--{genome_build}/{sample_name}.BAMmarkdup.stdout.log",
@@ -69,6 +69,23 @@ rule _bam_util_markdup:
         bammarkduplicates2 {params.opts}
         I={input.bam} O={output.bam} M={output.metrics}
         > {log.stdout} 2> {log.stderr}
+        """)
+
+
+rule bam_util_merge_dup_metrics:
+    input: 
+        expand("{dir}{{seq_type}}--{{genome_build}}/metrics/{sample_name}.dup_metrics", dir = CFG["dirs"]["bam_util"], sample_name = CFG["samples"]["sample_id"])
+    output:
+        CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/merged_metrics/all.dup_metrics"
+    threads: 1
+    resources: 
+        mem_mb = 4000
+    shell:
+        md.as_one_line("""
+        grep -v '#' {input[0]} | sed '/^$/d' | head -n 1 > {output} && 
+        for file in {input}; do
+            grep -v '#' ${{file}} | sed '/^$/d' | tail -n+2 | head -n 1 >> {output};
+        done
         """)
 
 

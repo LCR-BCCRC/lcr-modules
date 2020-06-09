@@ -153,7 +153,7 @@ rule _picard_qc_rrna_int:
     input:
         bam = rules._picard_qc_input.output.bam
     output:
-        int = CFG["dirs"]["metrics"]+ "{seq_type}--{genome_build}/{sample_id}.rrna_int_list"
+        interval = CFG["dirs"]["metrics"]+ "{seq_type}--{genome_build}/{sample_id}.rrna_int_list"
     log:
         CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}.rrna_int.stderr.log"
     params: 
@@ -161,13 +161,13 @@ rule _picard_qc_rrna_int:
     conda: 
         CFG["conda_envs"].get("samtools") or "envs/samtools-1.9.yaml"
     shell:
-        'samtools view -H {input.bam} | grep -v "@RG" | cat - {params.rRNA} > {output}'
+        'samtools view -H {input.bam} | grep -v "@RG" | cat - {params.rRNA} > {output.interval}'
 
 
 rule _picard_qc_rnaseq_metrics:
     input:
         bam = rules._picard_qc_input.output.bam,
-        rRNA_int = rules._picard_qc_rrna_int.output.int
+        rRNA_int = rules._picard_qc_rrna_int.output.interval
     output:
         metrics = CFG["dirs"]["metrics"]+ "{seq_type}--{genome_build}/{sample_id}.rnaseq_metrics"
     log:
@@ -302,7 +302,7 @@ def _get_picard_qc_files(wildcards):
 
     # merged_targets = expand("{dir}{seq_type}--{genome_build}/all.{qc_type}.txt", dir = CFG["dirs"]["merged_metrics"], **wildcards, qc_type = m_metrics)
 
-    return targets + merged_targets
+    return targets
 
  
 rule _picard_qc_all_dispatch:
@@ -316,7 +316,7 @@ rule _picard_qc_all_dispatch:
 
 rule _picard_qc_all:
     input:
-        vcfs = expand(expand("{{dir}}{seq_type}--{genome_build}/{sample_id}.dispatched", zip,
+        metrics = expand(expand("{{dir}}{seq_type}--{genome_build}/{sample_id}.dispatched", zip,
                     seq_type = CFG["samples"]["seq_type"],
                     genome_build = CFG["samples"]["genome_build"],
                     sample_id = CFG["samples"]["sample_id"]),
