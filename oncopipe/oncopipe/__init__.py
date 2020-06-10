@@ -706,27 +706,46 @@ def load_samples(
     return samples
 
 
-def filter_samples(samples, **filters):
+def filter_samples(samples, invert=False, **filters):
     """Subsets for rows with certain values in the given columns.
 
     Parameters
     ----------
     samples : pandas.DataFrame
         The samples.
+    invert : boolean
+        Whether to keep or discard samples that match the filters.
     **filters : key-value pairs
         Columns (keys) and the values they need to contain (values).
-        Values can either be an str or a list of str.
+        Values can be any value or a list of values.
 
     Returns
     -------
     pandas.DataFrame
         A subset of rows from the input data frame.
     """
+    samples = samples.copy()
     for column, value in filters.items():
-        if not isinstance(value, collections.abc.Sequence):
+        if column not in samples:
+            logger.warning(f"Column '{column}' not in sample table. Skipping.")
+            continue
+        if not isinstance(value, (list, tuple)):
             value = [value]
-        samples = samples[samples[column].isin(value)]
-    return samples.copy()
+        if invert:
+            samples = samples[~samples[column].isin(value)]
+        else:
+            samples = samples[samples[column].isin(value)]
+    return samples
+
+
+def keep_samples(samples, **filters):
+    """Convenience wrapper around ``filter_samples``."""
+    return filter_samples(samples, invert=False, **filters)
+
+
+def discard_samples(samples, **filters):
+    """Convenience wrapper around ``filter_samples``."""
+    return filter_samples(samples, invert=True, **filters)
 
 
 def group_samples(samples, subgroups):
