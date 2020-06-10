@@ -57,7 +57,7 @@ rule _strelka_input_vcf:
     output:
         vcf = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz"
     shell:
-        "bgzip -c {input.vcf} > {outputs.vcf} && tabix -p vcf {outputs.vcf}"
+        "bgzip -c {input.vcf} > {output.vcf} && tabix -p vcf {output.vcf}"
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
