@@ -25,7 +25,7 @@ CFG = op.setup_module(
 )
 
 # Include `utils` module
-include: "../../utils/1.0/utils.smk"
+#include: "../../utils/2.0/utils.smk"
 
 
 # Define rules to be run locally when using a compute cluster
@@ -60,7 +60,7 @@ rule _bwa_mem_run:
         fastq_2 = rules._bwa_mem_input_fastq.output.fastq_2,
         fasta = reference_files("genomes/{genome_build}/bwa_index/bwa-0.7.17/genome.fa")
     output:
-        sam = pipe(CFG["dirs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}.sam")
+        sam = pipe(CFG["dirs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}_out.sam")
     log:
         stderr = CFG["logs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}/bwa.stderr.log"
     params:
@@ -87,7 +87,7 @@ rule _bwa_mem_samtools:
     input:
         sam = rules._bwa_mem_run.output.sam
     output:
-        bam = CFG["dirs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}.bam"
+        bam = CFG["dirs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}_out.bam"
     log:
         stderr = CFG["logs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}/samtools.stderr.log"
     params:
@@ -111,9 +111,6 @@ rule _bwa_mem_symlink_bam:
         bam = rules._bwa_mem_samtools.output.bam
     output:
         bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.bam"
-    #priority: 5
-    #wildcard_constraints:
-    #   sample_id = "(?!sort)"
     run:
         op.relative_symlink(input.bam, output.bam)
 
@@ -121,14 +118,14 @@ rule _bwa_mem_symlink_bam:
 rule _bwa_mem_symlink_sorted_bam:
     input:
         bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam",
-        #bwa_mem_bam = rules._bwa_mem_samtools.output.bam
+        bwa_mem_bam = rules._bwa_mem_samtools.output.bam
     output:
         bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam"
     #priority: 5
     run:
         op.relative_symlink(input.bam, output.bam)
-        #os.remove(input.bwa_mem_bam)
-        #shell("touch {input.bwa_mem_bam}.deleted")
+        os.remove(input.bwa_mem_bam)
+        shell("touch {input.bwa_mem_bam}.deleted")
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
@@ -142,8 +139,8 @@ rule _bwa_mem_output_bam:
     run:
         op.relative_symlink(input.bam, output.bam)
         op.relative_symlink(input.bai, output.bam + ".bai")
-        #os.remove(input.sorted_bam)
-        #shell("touch {input.sorted_bam}.deleted")
+        os.remove(input.sorted_bam)
+        shell("touch {input.sorted_bam}.deleted")
 
 
 # Generates the target sentinels for each run, which generate the symlinks
