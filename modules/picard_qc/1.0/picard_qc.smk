@@ -76,7 +76,7 @@ rule _picard_qc_hs_metrics:
     input:
         bam = rules._picard_qc_input_bam.output.bam,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        intervals = reference_files(CFG["inputs"]["intervals"])
+        intervals = CFG["inputs"]["intervals"]
     output:
         hs = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/hs_metrics",
         intervals = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/interval_hs_metrics"

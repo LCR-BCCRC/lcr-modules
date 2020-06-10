@@ -23,7 +23,8 @@ localrules: download_genome_fasta,
             hardlink_download, update_contig_names,
             get_genome_fasta_download, index_genome_fasta,
             get_main_chromosomes_download, create_bwa_index,
-            get_gencode_download, create_star_index
+            get_gencode_download, create_star_index,
+            create_seq_dict, create_interval_list
 
 
 # Check for genome builds
@@ -426,7 +427,7 @@ rule create_seq_dict:
         picard CreateSequenceDictionary
         R={input.fasta}
         O={output.seq_dict}
-        &> {log}
+        2> {log}
         &&
         chmod a-w {output.seq_dict}
         """)
@@ -446,9 +447,7 @@ rule create_interval_list:
         I={input.bed}
         O={output.intervals}
         SD={input.seq_dict}
-        &> {log}
+        2> {log}
         &&
         chmod a-w {output.intervals}
         """)
-
-"intervals/{genome_build}/bed/{id}/regions.bed"
