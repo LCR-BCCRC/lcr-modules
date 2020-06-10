@@ -83,8 +83,9 @@ Getting Started
 
    .. note::
 
-      | **BCGSC Users**
-      | You can set the ``reference_files`` working directory (``workdir``) to the following file path in order to benefit from pregenerated reference files:
+      **BCGSC Users**
+
+      You can set the ``reference_files`` working directory (``workdir``) to the following file path in order to benefit from pregenerated reference files:
       
       .. code::
 
@@ -142,8 +143,9 @@ You can download the test data and verify the checksums using the following comm
 
 .. note::
 
-   | **BCGSC Users**
-   | You can replace the empty placeholder files with symbolic links to the local copies of the test data using the following command:
+   **BCGSC Users**
+   
+   You can replace the empty placeholder files with symbolic links to the local copies of the test data using the following command:
    
    .. code:: bash
 
