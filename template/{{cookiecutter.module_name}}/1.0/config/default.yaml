@@ -5,13 +5,13 @@ lcr-modules:
         # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_{{cookiecutter.input_file_type}}: null  # UPDATE
+            sample_{{cookiecutter.input_file_type}}: "__UPDATE__"
 
         # TODO: Update (or remove) this section with any reference parameters
         reference_params:
             # Ideally, `star_overhang` = max(read_length) - 1
             # STAR indices were precomputed for "74" and "99"
-            star_overhang: "99"  # UPDATE
+            star_overhang: "__UPDATE__"
 
         scratch_subdirectories: []
 

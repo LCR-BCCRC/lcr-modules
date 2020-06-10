@@ -95,7 +95,7 @@ Getting Started
 
    **Important** 
    
-   - Any values that need to be updated by the user will be indicated in the default :ref:`module-configuration` by ``UPDATE`` comments. 
+   - Any fields that need to be updated by the user will contain ``__UPDATE__`` in the default :ref:`module-configuration`. You will run into errors if you fail to update these fields. 
 
    - We recommend following the order shown below: (1) load the default module configuration files; (2) load the project-specific configuration file; and (3) include the module snakefiles. 
    
@@ -247,14 +247,14 @@ Each module in the `lcr-modules repository`_ comes bundled with a default config
       manta:
          inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bam: null  # UPDATE
-            sample_bai: null  # UPDATE
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
             augment_manta_vcf: "{SCRIPTSDIR}/augment_manta_vcf/1.0/augment_manta_vcf.py"
          # ...
 
-The intent behind these module configuration files is that any field can be (and often should be) updated by the user. In fact, some fields **must** be updated before the module can be run. These are indicated by ``UPDATE`` comments in the default configuration file. In the above excerpt, the two input files ``sample_bam`` and ``sample_bai`` are set to ``null`` and labelled with ``UPDATE`` comments, indicating that these must be updated by the user.
+The intent behind these module configuration files is that any field can be (and often should be) updated by the user. In fact, some fields **must** be updated before the module can be run. These are indicated by the ``__UPDATE__`` placeholder in the default configuration file. In the above excerpt, the two input files ``sample_bam`` and ``sample_bai`` are set to ``__UPDATE__``, indicating that these must be updated by the user.
 
-**Important:** Before running any module, you must search for any ``UPDATE`` comments in the default configuration file. See :ref:`updating-configuration-values` for different approaches on how to override the default configuration for each module.
+**Important:** Before running any module, you must search for any instances of ``__UPDATE__`` in the default configuration file. See :ref:`updating-configuration-values` for different approaches on how to override the default configuration for each module.
 
 .. _shared-configuration:
 
@@ -336,7 +336,7 @@ One of the main limitations of this approach is that you are restricted to value
 
    The value ``null`` is parsed as ``None`` in Python. If you provide the value ``None`` in the YAML file, it will be parsed as the string ``"None"``.
 
-The example YAML file below is taken from the `Demo Configuration`_. You can see that it includes a ``pairing_config`` under ``_shared`` to indicate which normal samples to use for unpaired tumours for paired analyses (see :ref:`handling-unpaired-tumours`). It also updates a number of configuration values for the ``star`` and ``manta`` modules. All of these fields were labelled with an ``UPDATE`` comment in the modules' respective default configuration file. The only exception is the ``scratch_subdirectories`` field for the ``star`` module, which was updated here to include the ``"mark_dups"`` subdirectory such that the final BAM files from the module are also stored in the scratch directory.
+The example YAML file below is taken from the `Demo Configuration`_. You can see that it includes a ``pairing_config`` under ``_shared`` to indicate which normal samples to use for unpaired tumours for paired analyses (see :ref:`handling-unpaired-tumours`). It also updates a number of configuration values for the ``star`` and ``manta`` modules. All of these fields contain ``__UPDATE__`` in the modules' respective default configuration file. The only exception is the ``scratch_subdirectories`` field for the ``star`` module, which was updated here to include the ``"mark_dups"`` subdirectory such that the final BAM files from the module are also stored in the scratch directory.
 
 .. code:: yaml
 
