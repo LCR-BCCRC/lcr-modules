@@ -28,7 +28,7 @@ CFG = op.setup_module(
 localrules:
     _picard_qc_input_bam,
     _picard_qc_rrna_int,
-    _picard_qc_output_txt,
+    _picard_qc_output,
     _picard_qc_all,
 
 
@@ -104,7 +104,7 @@ rule _picard_qc_rrna_int:
     input:
         bam = rules._picard_qc_input_bam.output.bam,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        rrna_int = CFG["inputs"]["rrna_intervals"]
+        rrna_int = reference_files(CFG["inputs"]["rrna_intervals"])
     output:
         rrna_int = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/rrna_int_list"
     log:

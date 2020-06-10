@@ -5,8 +5,8 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: null  # UPDATE
-            intervals : "intervals/{genome_build}/S07604624/intervals.txt"  #UPDATE default is grch37 exome kit
-            rrna_intervals: "reference/intervals/{genome_build}/rrna/intervals.txt"
+            intervals : "genomes/{genome_build}/exome_interval/S07604624_intervals.txt"  #UPDATE default is grch37 exome kit
+            rrna_intervals: genomes/{genome_build}/rrna_intervals/rRNA_int_gencode-33.txt
             refFlat: "reference/intervals/grch38/refFlat.txt"
 
         options:
