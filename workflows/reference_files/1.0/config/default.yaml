@@ -1,3 +1,5 @@
+reference_directory: "reference/"
+
 inputs:
     bed: "intervals/{genome_build}/bed/{id}/S07604624_Regions_GRCh37.bed"
 

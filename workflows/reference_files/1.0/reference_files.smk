@@ -24,7 +24,8 @@ localrules: download_genome_fasta,
             get_genome_fasta_download, index_genome_fasta,
             get_main_chromosomes_download, create_bwa_index,
             get_gencode_download, create_star_index,
-            create_seq_dict, create_interval_list
+            create_seq_dict, create_interval_list,
+            create_rRNA_interval
 
 
 # Check for genome builds
@@ -434,12 +435,12 @@ rule create_seq_dict:
 
 rule create_interval_list:
     input:
-        bed = config["inputs"]["bed"],
+        bed = config["inputs"].get("bed","genomes/{genome_build}/bed/{id}"),
         seq_dict = rules.create_seq_dict.output.seq_dict
     output: 
-        intervals = "intervals/{genome_build}/{id}/intervals.txt"
+        intervals = "genomes/{genome_build}/exome_interval/{id}_intervals.txt"
     log: 
-        "intervals/{genome_build}/{id}/log"
+        "genomes/{genome_build}/exome_interval/{id}_intervals.log"
     conda: CONDA_ENVS["picard"]
     shell:
         op.as_one_line("""
@@ -450,4 +451,26 @@ rule create_interval_list:
         2> {log}
         &&
         chmod a-w {output.intervals}
+        """)
+
+rule create_rRNA_interval:
+    input:
+        gtf = rules.get_gencode_download.output.gtf
+    output: 
+        rrna_int = "genomes/{genome_build}/rrna_intervals/rRNA_int_gencode-{gencode_release}.txt"
+    log: 
+        "genomes/{genome_build}/rrna_intervals/rRNA_int_gencode-{gencode_release}.log"
+    conda: CONDA_ENVS["picard"]
+    shell:
+        op.as_one_line("""
+        grep 'gene_biotype "rRNA"' {input.gtf} |
+        awk '$3 == "transcript"' |
+        cut -f1,4,5,7,9 |
+        perl -lane '
+            /transcript_id "([^"]+)"/ or die "no transcript_id on $.";
+            print join "\t", (@F[0,1,2,3], $1)
+        ' | 
+        sort -k1V -k2n -k3n >> {output.rrna_int}
+        &&
+        chmod a-w {output.rrna_int}
         """)
