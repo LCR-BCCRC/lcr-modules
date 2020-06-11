@@ -78,6 +78,18 @@ Getting Started
             "<path/to/lcr-modules/workflows/reference_files/1.0/reference_files.smk>"
          configfile:
             "<path/to/lcr-modules/workflows/reference_files/1.0/config/default.yaml>"
+   
+   .. gap
+
+   .. note::
+
+      **BCGSC Users**
+
+      You can set the ``reference_files`` working directory (``workdir``) to the following file path in order to benefit from pregenerated reference files:
+      
+      .. code::
+
+         /projects/bgrande/reference_files
 
 8. Include and configure the modules you want to run by adding the following lines to your project snakefile. 
 
@@ -121,7 +133,27 @@ Before running the `Demo Project`_, you will need to download the `Test Data`_, 
 
    Becnel, L. B. et al. An open access pilot freely sharing cancer genomic data from participants in Texas. Sci. Data 3:160010 doi: 10.1038/sdata.2016.10 (2016).
 
-Once the `Test Data`_ is downloaded, you will need to update the placeholders in ``demo/data/`` with the downloaded files (or symbolic links to the files). At that point, you can technically run the `Demo Snakefile`_ by omitting the ``--dry-run`` option from the command in the :ref:`getting-started-user` instructions, but you might want to update the value set in ``demo/config.yaml`` under ``scratch_directory`` to an space where you can readily store large intermediate files (*e.g.* a directory without snapshots or backups).
+You can download the test data and verify the checksums using the following commands. Note that this will overwrite the empty placeholder files. If you don't have enough space where you cloned the repository, you can download the test data elsewhere and create symbolic links.
+
+.. code:: bash
+
+   cd demo/data/
+   wget --recursive --no-parent --no-host-directories --cut-dirs=3 --execute robots=off --reject="index.html*" https://www.bcgsc.ca/downloads/lcr-modules/test_data/
+   md5sum --check checksums.txt
+
+.. note::
+
+   **BCGSC Users**
+   
+   You can replace the empty placeholder files with symbolic links to the local copies of the test data using the following command:
+   
+   .. code:: bash
+
+      ln -sf /projects/bgrande/lcr-modules/test_data/*.{bam,bai,fastq.gz} ./demo/data/
+
+At that point, you can technically run the `Demo Snakefile`_ by omitting the ``--dry-run`` option from the command in the :ref:`getting-started-user` instructions, but you might want to update the value set in ``demo/config.yaml`` under ``scratch_directory`` to an space where you can readily store large intermediate files (*e.g.* a directory without snapshots or backups). For more information check out the :ref:`common-shared-configuration-fields` section.
+
+If you are interested in learning how you can conditionally use the STAR BAM files for RNA-seq samples while using the BAM files in ``data/`` for other samples, check out the :ref:`conditional-module-behaviour-user` section.
 
 .. _reference-files-workflow:
 
@@ -258,6 +290,8 @@ One of the components of the :ref:`lcr-modules-configuration` is the shared conf
 
 This behaviour can be leveraged in a number of ways. For example, by setting ``unmatched_normal_id`` under the ``"_shared"`` key, you avoid having to specify that value for every module that performs paired analyses (assuming you have unpaired tumours). That said, if you want to use a different ``unmatched_normal_id`` for a subset of modules, you can override the shared value. Another useful instance is the sharing of the :ref:`sample-table` between modules. This way, the user doesn't have to repeatedly provide the same sample table to each module. Note that this is only possible because each module automatically filters the samples based on the sequencing data types (``seq_type``) listed in their :ref:`pairing-configuration`. 
 
+.. _common-shared-configuration-fields:
+
 Common Shared Configuration Fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -285,18 +319,22 @@ If the user wants to configure new sequencing data types, they should check out 
 .. _updating-configuration-values:
 
 Updating Configuration Values
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
 .. _within-the-configuration-file:
 
 Within a Configuration File
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you followed the :ref:`getting-started-user` instructions, you should have a section in your project configuration file for ``lcr-modules`` (with at least the ``_shared`` sub-section). One approach to updating configuration values is to add to this section. **Important:** One requirement for this to work is that you need to load your project configuration file **after** the default module configuration files. Again, if you followed the :ref:`getting-started-user` instructions, this should already be the case. 
 
 By the way, there is nothing forcing you to store your project-specific configuration in the same file as the lcr-modules configuration. You can easily have a ``project.yaml`` file loaded near the beginning of your snakefile and a ``lcr-modules.yaml`` file loaded as described in the :ref:`getting-started-user` instructions.
 
 One of the main limitations of this approach is that you are restricted to value types that can be encoded in YAML format. For the most part, this means numbers, strings and booleans organized into lists or dictionaries. In other words, this precludes the use of functions as values, such as `Input File Functions`_. If you need to specify functions, you will have to update configuration values :ref:`within-the-snakefile`, or use a hybrid approach.
+
+.. note::
+
+   The value ``null`` is parsed as ``None`` in Python. If you provide the value ``None`` in the YAML file, it will be parsed as the string ``"None"``.
 
 The example YAML file below is taken from the `Demo Configuration`_. You can see that it includes a ``pairing_config`` under ``_shared`` to indicate which normal samples to use for unpaired tumours for paired analyses (see :ref:`handling-unpaired-tumours`). It also updates a number of configuration values for the ``star`` and ``manta`` modules. All of these fields were labelled with an ``UPDATE`` comment in the modules' respective default configuration file. The only exception is the ``scratch_subdirectories`` field for the ``star`` module, which was updated here to include the ``"mark_dups"`` subdirectory such that the final BAM files from the module are also stored in the scratch directory.
 
@@ -330,7 +368,7 @@ The example YAML file below is taken from the `Demo Configuration`_. You can see
 .. _within-the-snakefile:
 
 Within the Snakefile
-^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~
 
 You can always update configurations values within the snakefile **after** the default configuration files have been loaded. The advantage of this approach is that you can update the value to anything that Python allows, including functions. This is incredibly powerful in snakemake thanks to `Input File Functions`_ and `Parameter Functions`_. Also, :py:mod:`oncopipe` includes some useful functions that make use of these snakemake features (*e.g.* :ref:`conditional-module-behaviour-user`).
 
@@ -627,13 +665,13 @@ When specifying any value in the module configuration, you can use the following
 Convenience Set Functions
 -------------------------
 
-The `Setup Instructions <#setup-instructions>`__ demonstrate that everything is configured using the same snakemake ``config`` nested dictionary object, generally under the ``"lcr-modules"`` key. While transparent, it results in verbose code, such as:
+The :ref:`getting-started-user` instructions demonstrate that everything is configured using the same snakemake ``config`` nested dictionary object, generally under the ``"lcr-modules"`` key. While transparent, it results in verbose code, such as:
 
 .. code:: python
 
    config["lcr-modules"]["manta"]["inputs"]["sample_bam"] = "data/{sample_id}.bam"
 
-Alternatively, you can use the so-called convenience “set functions” to simplify the code somewhat. In order to use them, you must first enable them. Behind the scenes, the snakemake ``config`` object is stored internally for easy access.
+Alternatively, you can use the so-called convenience “set functions” to simplify the code somewhat. In order to use them, you must first enable them. Behind the scenes, the snakemake ``config`` object is stored internally for easy access. Note that you only need to use the :py:func:`oncopipe.enable_set_functions` function once.
 
 .. code:: python
 
@@ -650,7 +688,7 @@ The first set function you can use is :py:func:`oncopipe.set_samples()`, which s
    op.set_samples("_shared", SAMPLES)
    op.set_samples("_shared", GENOMES, CAPTURES)
 
-The second function you can use is :py:func:`oncopipe.set_input()`, which sets the given input for a module. Just like ``op.set_samples()``, the first argument is the module name, but this function should not be used for ``"shared"``. The second argument is the name of the input file as listed in the module’s configuration file. Lastly, the third argument is the value you wish to provide for that input file, which generally is a string value containing the available wildcards (once again, as listed in the module’s configuration file). That said, you could provide a conditional value as described below in :ref:`conditional-module-behaviour-user`.
+The second function you can use is :py:func:`oncopipe.set_input()`, which sets the given input for a module. Just like :py:func:`oncopipe.set_samples`, the first argument is the module name, but this function should not be used for ``"shared"``. The second argument is the name of the input file as listed in the module’s configuration file. Lastly, the third argument is the value you wish to provide for that input file, which generally is a string value containing the available wildcards (once again, as listed in the module’s configuration file). That said, you could provide a conditional value as described below in :ref:`conditional-module-behaviour-user`.
 
 .. code:: python
 
@@ -658,26 +696,70 @@ The second function you can use is :py:func:`oncopipe.set_input()`, which sets t
 
    op.set_input("manta", "sample_bam", "data/{sample_id}.bam")
 
+Currently, only ``samples`` and ``inputs`` can be updated using these convenience set functions, but a more general set function will be implemented soon.
+
 .. _conditional-module-behaviour-user:
 
 Conditional Module Behaviour
 ----------------------------
 
-Sometimes, a parameter or input file depends on some sample attribute. This sample attribute can be stored in the file as a wildcard or in the sample tables as a column. Two functions are available to parameterize virtually anything, namely :py:func:`oncopipe.switch_on_wildcard` and :py:func:`op.switch_on_column`. These functions are useful for both module users and module developers. Read their documentation for more details, *e.g.* ``help(op.switch_on_wildcard)``.
+Sometimes, a parameter or input file depends on some sample attribute. In snakemake, this kind of conditional behaviour is usually achieved with `Input File Functions`_ and `Parameter Functions`_. :py:mod:`oncopipe` offers two convenience functions that utilize these features to conditionally provide values depending on the value of a wildcard or in a column of the sample table, namely :py:func:`oncopipe.switch_on_wildcard` and :py:func:`oncopipe.switch_on_column`. These functions are useful for both module users and module developers. Read their documentation for more details, which you can access by clicking the function names above. 
 
-In the example below, I want to override the default Manta configuration and provide the high-sensitivity version for ``mrna`` and ``capture`` tumour samples. This piece of code would be added after loading the module configuration but before including the module snakefile.
+Essentially, both functions create switches, which return a value based on a sample attribute, which can be stored in a wildcard or a column in the sample table, respectively. For example, :py:func:`oncopipe.switch_on_wildcard` takes in two arguments. The first argument is the name of the wildcard that contains the sample attribute on which the behaviour should be based. The second argument is a dictionary mapping possible values for that wildcard to the values that should be returned in the event of each wildcard. This is best illustrated by the example below. For more information, you can also check out the :ref:`conditional-module-behaviour-dev` section in the developer documentation.
+
+Here, I am updating the `Demo Snakefile`_ such that the ``manta`` module uses BAM files from different sources depending on the sequencing data type (``seq_type``). Specifically, I want to configure the module to use the BAM files in the ``data/`` directory unless the ``seq_type`` is ``mrna`` (*i.e.* RNA-seq data), in which case the module should use the BAM file produced by the ``star`` module. Since ``seq_type`` is a wildcard in our file names, we can use the :py:func:`oncopipe.switch_on_wildcard` function. 
+
+For simplicity, I am only updating the ``sample_bam`` input file, but the same would have to be done for the ``sample_bai`` input file. Also, this code assumes you have ``import oncopipe as op`` somewhere beforehand in your snakefile.
 
 .. code:: python
 
-   import oncopipe as op
+   MANTA_BAM_SWITCH = op.switch_on_wildcard("seq_type", {
+      "genome": "data/{sample_id}.bam",
+      "capture": "data/{sample_id}.bam",
+      "mrna": "results/star-1.0/99-outputs/bam/mrna--{genome_build}/{sample_id}.bam",
+   })
 
-   MANTA_CONFIG_OPTIONS = {
-       "_default": "{MODSDIR}/etc/manta_config.default.ini",
-       "mrna": "{MODSDIR}/etc/manta_config.high_sensitivity.ini",
-       "capture": "{MODSDIR}/etc/manta_config.high_sensitivity.ini",
-   }
-   MANTA_CONFIG_SWITCH = op.switch_on_wildcard("seq_type", MANTA_CONFIG_OPTIONS)
-   op.set_input("manta", "manta_config", MANTA_CONFIG_SWITCH)
+   config["lcr-modules"]["manta"]["inputs"]["sample_bam"] = MANTA_BAM_SWITCH
+
+While this is a good start, the redundancy between ``genome`` and ``capture`` is less than ideal. To address this, we can use the ``_default`` key to, well, set a default value. In other words, we can achieve the same thing using the code below. 
+
+.. code:: python
+
+   MANTA_BAM_SWITCH = op.switch_on_wildcard("seq_type", {
+      "_default": "data/{sample_id}.bam",
+      "mrna": "results/star-1.0/99-outputs/bam/mrna--{genome_build}/{sample_id}.bam"
+   })
+
+   config["lcr-modules"]["manta"]["inputs"]["sample_bam"] = MANTA_BAM_SWITCH
+
+In the code above, I knew where the ``star`` module was going to output the BAM file. Alternatively, you can use the useful ``rules`` variable in snakemake. This highlights another reason why it's sometimes useful to update configuration values :ref:`within-the-snakefile`. **Important:** This will only work if you include the ``star`` module before the code below. In other words, the code snippet will only work if you add it between the ``star`` include and the ``manta`` include. 
+
+.. code:: python
+
+   MANTA_BAM_SWITCH = op.switch_on_wildcard("seq_type", {
+      "_default": "data/{sample_id}.bam",
+      "mrna": rules._star_output_bam.output.bam
+   })
+
+   config["lcr-modules"]["manta"]["inputs"]["sample_bam"] = MANTA_BAM_SWITCH
+
+Lastly, we can make use of the :ref:`convenience-set-functions` and simplify the code just a bit more. If we also update ``sample_bai``, the final code would look like the following, added after the ``star`` include and before the ``manta`` include. 
+
+.. code:: python
+
+   op.enable_set_functions(config)
+   
+   MANTA_BAM_SWITCH = op.switch_on_wildcard("seq_type", {
+      "_default": "data/{sample_id}.bam",
+      "mrna": rules._star_output_bam.output.bam
+   })   
+   MANTA_BAI_SWITCH = op.switch_on_wildcard("seq_type", {
+      "_default": "data/{sample_id}.bam.bai",
+      "mrna": rules._star_output_bam.output.bam + ".bai
+   })
+
+   op.set_input("manta", "sample_bam", MANTA_BAM_SWITCH)
+   op.set_input("manta", "sample_bai", MANTA_BAI_SWITCH)
 
 For more information, check out :ref:`conditional-module-behaviour-dev`.
 

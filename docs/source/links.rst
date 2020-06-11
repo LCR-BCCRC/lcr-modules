@@ -1,3 +1,5 @@
+.. _Python Package Index: https://pypi.org/project/oncopipe/
+
 .. _Demo Project: https://github.com/LCR-BCCRC/lcr-modules/blob/master/demo/
 
 .. _Demo Snakefile: https://github.com/LCR-BCCRC/lcr-modules/blob/master/demo/snakefile
@@ -11,6 +13,8 @@
 .. _lcr-modules repository: https://github.com/LCR-BCCRC/lcr-modules
 
 .. _lcr-modules open issues: https://github.com/LCR-BCCRC/lcr-modules/issues?q=is%3Aopen+is%3Aissue+label%3Anew-module
+
+.. _lcr-modules active branches: https://github.com/LCR-BCCRC/lcr-modules/branches/active
 
 .. _lcr-scripts repository: https://github.com/LCR-BCCRC/lcr-scripts
 

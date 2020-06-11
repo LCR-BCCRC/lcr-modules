@@ -1,12 +1,30 @@
+.. include:: links.rst
+
 Welcome to lcr-modules's Documentation!
 =======================================
 
 Getting Started With lcr-modules
 --------------------------------
 
-- **Users:** Check out this :ref:`getting-started-user` guide.
+- **Users:** Check out this :ref:`getting-started-user` guide and the `Demo Project`_.
 
-- **Contributors:** Check out this :ref:`getting-started-dev` guide.
+- **Contributors:** Check out this :ref:`getting-started-dev` guide and the `lcr-modules repository`_.
+
+Installing oncopipe
+-------------------
+
+You can install the latest version of ``oncopipe`` released on the `Python Package Index`_ using ``pip``. 
+
+.. code:: bash
+
+   pip install oncopipe
+
+Alternatively, you can install the development version of ``oncopipe`` from the `lcr-modules repository`_. This way, your installation will automatically update when you pull from GitHub.
+
+.. code:: bash
+
+   git clone https://github.com/LCR-BCCRC/lcr-modules.git
+   pip install -e lcr-modules/oncopipe
 
 Motivation
 ----------
