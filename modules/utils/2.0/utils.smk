@@ -17,9 +17,12 @@ from os.path import join
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 
-print("utilities module is included")
 CONFIG = config["lcr-modules"]["utils"]
 PATH = ".*\/(" + "|".join(CONFIG["paired_modules"]) + ").*\/"
+LOG = "/logs/" + op._session.launched_fmt
+
+wildcard_constraints:
+    prefix = "[0-9]{2}-.*"
 
 '''
 
@@ -48,8 +51,6 @@ def _get_log_dirs(wildcards):
 
     return logs
 
-wildcard_constraints:
-    prefix = "[0-9]{2}-.*"
 
 ##### RULES #####
 # _utils_bam_sort: Sort a BAM file using coordinates
@@ -58,24 +59,29 @@ rule:
         bam = "{out_dir}/{prefix}/{suffix}.bam"
     output:
         bam = "{out_dir}/{prefix}/{suffix}.sort.bam"
+    log:
+        stdout = "{out_dir}" + LOG + "/{prefix}/{suffix}_sort.stdout.log",
+        stderr = "{out_dir}" + LOG + "/{prefix}/{suffix}_sort.stderr.log"
     priority: 5
     params:
-        logs = _get_log_dirs,
-        opts = CONFIG["options"].get("bam_sort", ""),
+        #logs = _get_log_dirs,
+        opts = CONFIG["options"]["bam_sort"],
         prefix ="{out_dir}/{prefix}/{suffix}"
     conda:
-        CONFIG["conda_envs"].get("samtools", "envs/samtools-1.9.yaml")
+        CONFIG["conda_envs"].get("samtools") or "envs/samtools-1.9.yaml"
     threads:
-        CONFIG["threads"].get("bam_sort", 12)
+        CONFIG["threads"].get("bam_sort") or 8
     resources: 
-        mem_mb = CONFIG["mem_mb"].get("bam_sort", 12000)
+        mem_mb = CONFIG["mem_mb"].get("bam_sort") or 12000
     shell:
         op.as_one_line("""
-        samtools sort {params.opts}
+        samtools sort 
         -@ {threads} -m $(({resources.mem_mb} / {threads}))M
-        -T {params.prefix} -o {output.bam} {input.bam} 
-        > {params.logs[0]}
-        2> {params.logs[1]}
+        {params.opts}
+        -T {params.prefix} -o {output.bam} 
+        {input.bam} 
+        > {log.stdout}
+        2> {log.stderr}
         """)
 
 
@@ -85,24 +91,28 @@ rule:
         bam = "{out_dir}/{prefix}/{suffix}.bam"
     output:
         bam = "{out_dir}/{prefix}/{suffix}.mdups.bam"
+    log:
+        stdout = "{out_dir}" + LOG + "/{prefix}/{suffix}_mark_dups.stdout.log",
+        stderr = "{out_dir}" + LOG + "/{prefix}/{suffix}_mark_dups.stderr.log"
     priority: 5
     params:
-        logs = _get_log_dirs,
-        opts = CONFIG["options"].get("bam_markdups", ""),
+        #logs = _get_log_dirs,
+        opts = CONFIG["options"]["bam_markdups"],
         prefix = "{out_dir}/{prefix}/{suffix}"
     conda:
-        CONFIG["conda_envs"].get("sambamba", "envs/sambamba-0.7.1.yaml")
+        CONFIG["conda_envs"].get("sambamba") or "envs/sambamba-0.7.1.yaml"
     threads:
-        CONFIG["threads"].get("bam_markdups", 12)
+        CONFIG["threads"].get("bam_markdups") or 12
     resources: 
-        mem_mb = CONFIG["mem_mb"].get("bam_markdups", 8000)
+        mem_mb = CONFIG["mem_mb"].get("bam_markdups") or 8000
     shell:
         op.as_one_line("""
-        sambamba markdup {params.opts} 
+        sambamba markdup 
+        {params.opts} 
         --nthreads {threads} 
         {input.bam} {output.bam} 
-        > {params.logs[0]}
-        2> {params.logs[1]}
+        > {log.stdout}
+        2> {log.stderr}
         """)
 
 
@@ -112,23 +122,28 @@ rule:
         bam = "{out_dir}/{prefix}/{suffix}.bam"
     output:
         bam = "{out_dir}/{prefix}/{suffix}.bam.bai"
+    log:
+        stdout = "{out_dir}" + LOG + "/{prefix}/{suffix}_index.stdout.log",
+        stderr = "{out_dir}" + LOG + "/{prefix}/{suffix}_index.stderr.log"
     priority: 5
     params:
-        logs = _get_log_dirs,
-        opts = CONFIG["options"].get("bam_index", "-b"),
+        #logs = _get_log_dirs,
+        opts = CONFIG["options"]["bam_index"],
         prefix = "{out_dir}/{prefix}/{suffix}"
     conda:
-        CONFIG["conda_envs"].get("samtools", "envs/samtools-1.9.yaml")
+        CONFIG["conda_envs"].get("samtools") or "envs/samtools-1.9.yaml"
     threads:
-        CONFIG["threads"].get("bam_index", 6)
+        CONFIG["threads"].get("bam_index") or 6
     resources: 
-        mem_mb = CONFIG["mem_mb"].get("bam_index", 4000)
+        mem_mb = CONFIG["mem_mb"].get("bam_index") or 4000
     shell:
         op.as_one_line("""
-        samtools index {params.opts} -@ {threads} 
+        samtools index 
+        {params.opts} 
+        -@ {threads} 
         {input.bam} 
-        > {params.logs[0]}
-        2> {params.logs[1]}
+        > {log.stdout}
+        2> {log.stderr}
         """)
 
 del CONFIG
