@@ -56,6 +56,8 @@ rule _strelka_input_vcf:
         vcf = CFG["inputs"].get("candidate_indel")
     output:
         vcf = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz"
+    conda:
+        CFG["conda_envs"]["tabix"]
     shell:
         "bgzip -c {input.vcf} > {output.vcf} && tabix -p vcf {output.vcf}"
 

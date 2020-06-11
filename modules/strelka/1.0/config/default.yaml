@@ -17,6 +17,7 @@ lcr-modules:
 
         conda_envs:
             strelka: "{MODSDIR}/envs/strelka-2.9.10.yaml"
+            tabix: "{MODSDIR}/envs/tabix-0.2.6.yaml"
             
         threads:
             strelka: 4
