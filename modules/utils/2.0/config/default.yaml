@@ -30,8 +30,8 @@ lcr-modules:
             sambamba: null #"{MODSDIR}/envs/sambamba-0.7.1.yaml"
             
         threads:
-            bam_sort: 6
-            bam_markdups: 6
+            bam_sort: null
+            bam_markdups: null
             bam_index: null
 
         mem_mb:
