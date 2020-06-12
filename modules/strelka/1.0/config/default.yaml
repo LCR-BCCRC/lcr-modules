@@ -21,7 +21,7 @@ lcr-modules:
             strelka: "{MODSDIR}/envs/strelka-2.9.10.yaml"
             
         threads:
-            strelka: 4
+            strelka: 12
 
         mem_mb:
             strelka: 2000
