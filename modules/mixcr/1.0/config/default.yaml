@@ -1,0 +1,39 @@
+lcr-modules:
+    
+    mixcr:
+
+        # TODO: Update the list of available wildcards, if applicable
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_fastq: null  # UPDATE
+
+        # TODO: Update (or remove) this section with any reference parameters
+        reference_params:
+            # Ideally, `star_overhang` = max(read_length) - 1
+            # STAR indices were precomputed for "74" and "99"
+            star_overhang: "99"  # UPDATE
+
+        scratch_subdirectories: []
+
+        options:
+            step_1: ""
+            step_2: ""
+
+        conda_envs:
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            
+        threads:
+            step_1: 4
+
+        mem_mb:
+            step_1: 2000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
