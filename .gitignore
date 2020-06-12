@@ -19,7 +19,7 @@ __pycache__/
 /demo/data/*
 !/demo/data/samples.tsv
 
-demo/run_clc.sh
+*tmp.*
 
 # Ignore example snakefiles
 /examples
