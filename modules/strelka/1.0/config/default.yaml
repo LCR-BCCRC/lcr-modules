@@ -2,10 +2,12 @@ lcr-modules:
     
     strelka:
         inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: null  # __UPDATE__
+            sample_bai: null  # __UPDATE__
+            
             # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
-            sample_bam: null  # UPDATE
-            sample_bai: null  # UPDATE
-            candidate_indel: null  # UPDATE
+            candidate_small_indels_vcf: null  # __UPDATE__
 
         scratch_subdirectories: []
 

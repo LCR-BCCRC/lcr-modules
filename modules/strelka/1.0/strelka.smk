@@ -53,7 +53,7 @@ rule _strelka_input_bam:
 
 rule _strelka_input_vcf:
     input:
-        vcf = CFG["inputs"].get("candidate_indel")
+        vcf = CFG["inputs"].get("candidate_small_indels_vcf")
     output:
         vcf = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz"
     shell:
