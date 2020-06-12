@@ -76,17 +76,22 @@ rule bam_util_merge_dup_metrics:
     input: 
         expand("{dir}{{seq_type}}--{{genome_build}}/metrics/{sample_name}.dup_metrics", dir = CFG["dirs"]["bam_util"], sample_name = CFG["samples"]["sample_id"])
     output:
-        CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/merged_metrics/all.dup_metrics"
+        tmp = "results/bwa_mem-1.0/01-bam_util/genome--hg19/merged_metrics/dup_metrics.txt", 
+        fin = "results/bwa_mem-1.0/01-bam_util/genome--hg19/merged_metrics/all.dup_metrics"
+    params:
+        pattern = "results/bwa_mem-1.0/01-bam_util/genome--hg19/*.sorted.filtered.dup_metrics.bam"
     threads: 1
     resources: 
         mem_mb = 4000
     shell:
         md.as_one_line("""
-        grep -v '#' {input[0]} | sed '/^$/d' | head -n 1 > {output} && 
-        for file in {input}; do
-            grep -v '#' ${{file}} | sed '/^$/d' | tail -n+2 | head -n 1 >> {output};
+        ls {params.pattern} | tr '\\n' ' ' > {output.tmp} &&
+        grep -v '#' {input[0]} | sed '/^$/d' | head -n 1 > {output.fin} && 
+        for file in $( cat {output.tmp}); do
+            grep -v '#' ${{file}} | sed '/^$/d' | tail -n+2 | head -n 1 >> {output.fin};
         done
         """)
+
 
 
 rule _bam_util_rmdup:

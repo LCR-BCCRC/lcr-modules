@@ -104,7 +104,6 @@ rule _ginkgo_run:
         bed_list = rules._ginkgo_create_bed_list.output.bed_list 
         # get_libraries(CFG) #expand("{DIR}{{genome_build}}_bin{{bin}}/{{sample_id}}/{lib}.bed.gz", DIR = CFG["dirs"]["ginkgo"], lib = get_libraries)
     output:
-        sc = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/SegCopy",
         stamp = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}.done"
     conda:
         CFG["conda_envs"].get("ginkgo") or "envs/ginkgo_dep.yaml"
@@ -139,11 +138,13 @@ rule _ginkgo_run:
 
 rule _ginkgo_output:
     input:
-        sc = rules._ginkgo_run.output.sc
+        sc = rules._ginkgo_run.output.stamp
     output:
         sc = CFG["dirs"]["outputs"] + "{genome_build}_bin{bin}/{sample_id}_SegCopy"
+    params:
+        sc = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/SegCopy"
     run:
-        md.symlink(input.sc, output.sc)
+        md.symlink(params.sc, output.sc)
 
 sub_df = CFG["samples"][["patient_id", "genome_build"]].drop_duplicates()
 
