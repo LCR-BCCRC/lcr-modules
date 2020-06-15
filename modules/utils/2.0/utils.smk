@@ -24,13 +24,6 @@ LOG = "/logs/" + op._session.launched_fmt
 wildcard_constraints:
     prefix = "[0-9]{2}-.*"
 
-'''
-
-for m in CONFIG["paired_modules"]:
-    print (config["lcr-modules"])
-    pdir = config["lcr-modules"][m]["dirs"]["_parent"]
-    print(p_dir)
-'''
 
 def _get_log_dirs(wildcards):
     path = (wildcards.prefix).split(os.sep)
@@ -62,17 +55,18 @@ rule:
     log:
         stdout = "{out_dir}" + LOG + "/{prefix}/{suffix}_sort.stdout.log",
         stderr = "{out_dir}" + LOG + "/{prefix}/{suffix}_sort.stderr.log"
-    priority: 5
+    wildcard_constraints:
+        prefix = ".*(sort).*"
     params:
         #logs = _get_log_dirs,
         opts = CONFIG["options"]["bam_sort"],
         prefix ="{out_dir}/{prefix}/{suffix}"
     conda:
-        CONFIG["conda_envs"].get("samtools") or "envs/samtools-1.9.yaml"
+        CONFIG["conda_envs"]["samtools"]
     threads:
-        CONFIG["threads"].get("bam_sort") or 8
+        CONFIG["threads"]["bam_sort"]
     resources: 
-        mem_mb = CONFIG["mem_mb"].get("bam_sort") or 12000
+        mem_mb = CONFIG["mem_mb"]["bam_sort"]
     shell:
         op.as_one_line("""
         samtools sort 
@@ -94,17 +88,18 @@ rule:
     log:
         stdout = "{out_dir}" + LOG + "/{prefix}/{suffix}_mark_dups.stdout.log",
         stderr = "{out_dir}" + LOG + "/{prefix}/{suffix}_mark_dups.stderr.log"
-    priority: 5
+    wildcard_constraints:
+        prefix = ".*(mark_dups).*"
     params:
         #logs = _get_log_dirs,
         opts = CONFIG["options"]["bam_markdups"],
         prefix = "{out_dir}/{prefix}/{suffix}"
     conda:
-        CONFIG["conda_envs"].get("sambamba") or "envs/sambamba-0.7.1.yaml"
+        CONFIG["conda_envs"]["sambamba"]
     threads:
-        CONFIG["threads"].get("bam_markdups") or 12
+        CONFIG["threads"]["bam_markdups"]
     resources: 
-        mem_mb = CONFIG["mem_mb"].get("bam_markdups") or 8000
+        mem_mb = CONFIG["mem_mb"]["bam_markdups"]
     shell:
         op.as_one_line("""
         sambamba markdup 
@@ -125,17 +120,16 @@ rule:
     log:
         stdout = "{out_dir}" + LOG + "/{prefix}/{suffix}_index.stdout.log",
         stderr = "{out_dir}" + LOG + "/{prefix}/{suffix}_index.stderr.log"
-    priority: 5
     params:
         #logs = _get_log_dirs,
         opts = CONFIG["options"]["bam_index"],
         prefix = "{out_dir}/{prefix}/{suffix}"
     conda:
-        CONFIG["conda_envs"].get("samtools") or "envs/samtools-1.9.yaml"
+        CONFIG["conda_envs"]["samtools"]
     threads:
-        CONFIG["threads"].get("bam_index") or 6
+        CONFIG["threads"]["bam_index"]
     resources: 
-        mem_mb = CONFIG["mem_mb"].get("bam_index") or 4000
+        mem_mb = CONFIG["mem_mb"]["bam_index"]
     shell:
         op.as_one_line("""
         samtools index 
