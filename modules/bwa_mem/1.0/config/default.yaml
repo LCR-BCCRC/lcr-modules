@@ -2,10 +2,10 @@ lcr-modules:
     bwa_mem:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_fastq_1: null
-            sample_fastq_2: null
+            sample_fastq_1: "__UPDATE__"
+            sample_fastq_2: "__UPDATE__"
 
-        scratch_subdirectories: ["bwa_mem", "sort_bam"]
+        scratch_subdirectories: "__UPDATE__"
 
         options:
             suffix: ".sort.mdups"
