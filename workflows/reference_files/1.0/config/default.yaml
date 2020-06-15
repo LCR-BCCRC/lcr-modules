@@ -59,6 +59,9 @@ tools:
     star: 
         conda_env: "envs/star-2.7.3a.yaml"
         version: "2.7.3a"
+    sequenza-utils:
+        conda_env: "sequenza-utils-3.0.0.yaml"
+        version: "3.0.0"
 
 cvbio_config:
     gtf: 

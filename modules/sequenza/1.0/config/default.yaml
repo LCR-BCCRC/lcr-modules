@@ -2,32 +2,34 @@ lcr-modules:
     
     sequenza:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bam: null  # UPDATE
-            sample_bai: null  # UPDATE
-
-        scratch_subdirectories: []
-
-        chroms: [1, 2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, X,  Y]
-        
-        options:
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
             merge_seqz: "{MODSDIR}/src/bash/merge_seqz.sh"
             filter_seqz: "{MODSDIR}/src/bash/filter_seqz.sh"
-            calc_sex_status: "{MODSDIR}/src/bash/calc_sex_status.sh"
-            sequenza_analysis: "{MODSDIR}/src/R/run_sequenza_with_options.R"
+            run_sequenza: "{MODSDIR}/src/R/run_sequenza.R"
             cnv2igv: "{MODSDIR}/src/python/cnv2igv.py"
+
+        scratch_subdirectories: []
+        
+        options:
+            # TODO: Add params
 
         conda_envs:
             sequenza: "{MODSDIR}/envs/sequenza.yaml"
             
         threads:
             bam2seqz: 3
+            merge_seqz: 1
+            filter_seqz: 1
             sequenza: 8 
 
         mem_mb:
             bam2seqz: 10000
+            merge_seqz: 10000
+            filter_seqz: 20000
+            sequenza: 100000
 
         pairing_config:
             genome:

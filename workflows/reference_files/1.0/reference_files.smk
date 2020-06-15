@@ -136,6 +136,7 @@ rule download_genome_dbsnp:
         sort -S 2G {output.dbsnp} > {output.dbsnp_sorted}
         """)
 
+
 rule download_genome_gnomad:
     output:
         gnomad = "genomes/{genome_build}/annotations/af-only-gnomad.{genome_build}.vcf.gz",
@@ -153,19 +154,6 @@ rule download_genome_gnomad:
         chmod a-w {output.gnomad_tbi}
         """)
 
-rule download_genome_gc:
-    output:
-        gc = "genomes/{genome_build}/annotations/{genome_build}.gc50Base.txt.gz"
-    log:
-        "genomes/{genome_build}/annotations/{genome_build}.gc50Base.txt.gz.log"
-    params: 
-        url = lambda w: config["genome_builds"][w.genome_build]["genome_gc_url"]
-    shell:
-        op.as_one_line("""
-        curl -L {params.url} > {output.gc} 2> {log}
-            &&
-        chmod a-w {output.gc}
-        """)
 
 rule download_genome_fasta:
     output: 
@@ -191,9 +179,22 @@ rule download_main_chromosomes:
         provider = "ensembl"
     shell:
         op.as_one_line("""
-        egrep -w "^(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|X|Y|MT)" {input.mapping}
+        egrep -w "^(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|X|Y)" {input.mapping}
             |
         cut -f1 > {output.txt}
+            &&
+        chmod a-w {output.txt}
+        """)
+
+
+rule download_chromosome_x:
+    output:
+        txt = "downloads/main_chromosomes/chromosome_x.{version}.txt"
+    params:
+        provider = "ensembl"
+    shell:
+        op.as_one_line("""
+        echo "X" > {output.txt}
             &&
         chmod a-w {output.txt}
         """)
@@ -368,6 +369,24 @@ rule update_contig_names:
 
 ##### GENOME BUILDS #####
 
+
+rule store_genome_build_info:
+    output: 
+        version = "genomes/{genome_build}/version.txt",
+        provider = "genomes/{genome_build}/provider.txt"
+    params:
+        version = lambda w: config["genome_builds"][w.genome_build]["version"],
+        provider = lambda w: config["genome_builds"][w.genome_build]["provider"]
+    shell: 
+        op.as_one_line("""
+        echo "{params.version}" > {output.version}
+            &&
+        echo "{params.provider}" > {output.provider}
+            &&
+        chmod a-w {output.version} {output.provider}
+        """)
+
+
 rule get_genome_fasta_download:
     input: 
         fasta = rules.download_genome_fasta.output.fasta
@@ -393,14 +412,15 @@ rule index_genome_fasta:
         """)
 
 
-
 rule get_main_chromosomes_download:
     input: 
         txt = get_download_file(rules.download_main_chromosomes.output.txt),
+        chrx = get_download_file(rules.download_chromosome_x.output.txt),
         fai = rules.index_genome_fasta.output.fai
     output: 
         txt = "genomes/{genome_build}/genome_fasta/main_chromosomes.txt",
         bed = "genomes/{genome_build}/genome_fasta/main_chromosomes.bed",
+        chrx = "genomes/{genome_build}/genome_fasta/chromosome_x.txt",
         patterns = temp("genomes/{genome_build}/genome_fasta/main_chromosomes.patterns.txt")
     shell: 
         op.as_one_line("""
@@ -413,6 +433,8 @@ rule get_main_chromosomes_download:
         egrep -w -f {output.patterns} {input.fai}
             |
         awk 'BEGIN {{FS=OFS="\t"}} {{print $1,  0, $2}}' > {output.bed}
+            &&
+        ln -f {input.chrx} {output.chrx}
             &&
         chmod a-w {output.txt} {output.bed}
         """)
@@ -462,3 +484,23 @@ rule create_star_index:
             &&
         find {output.index} -type f -exec chmod a-w {{}} \;
         """)
+
+
+rule calc_gc_content:
+    input:
+        fasta = rules.get_genome_fasta_download.output.fasta
+    output:
+        wig = "genomes/{genome_build}/annotations/gc_wiggle.window_{window_size}.wig.gz"
+    log:
+        "genomes/{genome_build}/annotations/gc_wiggle.window_{window_size}.wig.gz.log"
+    conda: CONDA_ENVS["sequenza-utils"]
+    shell:
+        op.as_one_line("""
+        sequenza-utils gc_wiggle --fasta {input.fasta} -w {wildcards.window_size} -o -
+            |
+        gzip -c > {output.wig}
+            &&
+        chmod a-w {output.wig}
+        """)
+    
+    
