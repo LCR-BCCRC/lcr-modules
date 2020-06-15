@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Helena Winata.
 
-<!-- TODO: Explain each important module design decision below. -->
 
-- No module design decisions explained here yet.
+- The `bwa_mem` module is designed to work with the `utils` module.
+- `bwa_mem.smk` contain multiple symlinking rules to move `utils.smk` output to the next directory (e.g. sorted bam files are moved to `mark_dups` to be used as input to a rule that mark duplicates in `utils.smk`)
+- Final output is a bam file with a naming format: `{sample_id}.{suffix}.bam` where the suffix is specified in `CFG["options"]["suffix"]`. The final output is symlinked to `99-outputs`.
+
