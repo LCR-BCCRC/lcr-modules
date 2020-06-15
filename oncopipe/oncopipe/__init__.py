@@ -6,6 +6,7 @@ import inspect
 import functools
 import itertools
 import subprocess
+import collections.abc
 from datetime import datetime
 from collections import defaultdict, namedtuple
 
@@ -631,7 +632,7 @@ def get_reference(module_config, reference_key):
 
 
 def load_samples(
-    file_path, sep="\t", to_lowercase=("tissue_status"), renamer=None, **maps
+    file_path, sep="\t", to_lowercase=("tissue_status",), renamer=None, **maps
 ):
     """Loads samples metadata with some light processing.
 
@@ -700,7 +701,7 @@ def filter_samples(samples, **filters):
         A subset of rows from the input data frame.
     """
     for column, value in filters.items():
-        if isinstance(value, str):
+        if not isinstance(value, collections.abc.Sequence):
             value = [value]
         samples = samples[samples[column].isin(value)]
     return samples.copy()
@@ -809,7 +810,7 @@ def generate_runs_for_patient(
     run_unpaired_tumours_with_options = (None, "no_normal", "unmatched_normal")
     assert run_unpaired_tumours_with in run_unpaired_tumours_with_options, (
         "`run_unpaired_tumours_with` must be one of the values below "
-        f"(not `{run_unpaired_tumours_with}`): \n"
+        f"(not `{run_unpaired_tumours_with!r}`): \n"
         f"{run_unpaired_tumours_with_options}"
     )
 
@@ -849,7 +850,7 @@ def generate_runs_for_patient(
             seq_type = tumour["seq_type"]
             assert unmatched_normal is not None, (
                 "`run_unpaired_tumours_with` was set to 'unmatched_normal' "
-                f"whereas `unmatched_normal` was None. For '{seq_type}', "
+                f"whereas `unmatched_normal` was None. For {seq_type!r}, "
                 "provide an unmatched normal sample ID. See README for format."
             )
             normal = unmatched_normal._asdict()
@@ -1090,7 +1091,7 @@ def generate_runs(
 
     # Warn if runs have duplicates
     if any(runs.duplicated()):
-        logger.warn("Duplicate runs exist. This probably shouldn't happen.")
+        logger.warning("Duplicate runs exist. This probably shouldn't happen.")
 
     # Fix column names if data frame is empty
     if runs.empty:
@@ -1104,7 +1105,178 @@ def generate_runs(
     return runs
 
 
+def generate_pairs(samples, **seq_types):
+    """Generate tumour-normal pairs using sensible defaults.
+
+    Each sequencing data type (``seq_type``) is provided as
+    separate arguments with a specified "pairing mode". This
+    mode determines how the samples for that ``seq_type``
+    are paired. Only the listed ``seq_type`` values will be
+    included in the output. The available pairing modes are:
+
+    1. ``matched_only``: Only tumour samples with matched
+       normal samples will be returned. In other words,
+       unpaired tumour or normal samples will be omitted.
+
+       .. code:: python
+
+          generate_pairs(SAMPLES, genome='matched_only')
+
+    2. ``allow_unmatched``: All tumour samples will be returned
+       whether they are paired with a matched normal sample
+       or not. If they are not paired, they will be returned
+       with an unmatched normal sample specified by the user.
+       This mode must be specified alongside the ID for the
+       sample to be paired with unpaired tumours as a tuple.
+       This sample must be present in the ``samples`` table.
+
+       .. code:: python
+
+          generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'))
+
+    3. ``no_normal``: All tumour samples will be returned
+       without a paired normal sample. This is simply a
+       shortcut for filtering for tumour samples, but this
+       ensures that the column names will be consistent
+       with other calls to ``generate_pairs()``.
+
+       .. code:: python
+
+          generate_pairs(SAMPLES, mrna='no_normal')
+
+    Parameters
+    ----------
+    samples : pandas.DataFrame
+        The sample table. This data frame must include the
+        following columns: ``sample_id``, ``patient_id``,
+        ``seq_type``, and ``tissue_status`` ('normal' or
+        'tumour'/'tumor'). If ``genome_build`` is included,
+        no tumour-normal pairs will be made between different
+        genome builds.
+    **seq_types : {'matched_only', 'allow_unmatched', 'no_normal'}
+        A mapping between values of ``seq_type`` and
+        pairing modes. See above for description of each
+        pairing mode.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The tumour-normal pairs (one pair per row), but
+        the normal sample is omitted if the ``no_normal``
+        pairing mode is used. Every column in the input
+        ``samples`` data frame will appear twice in the
+        output, once for the tumour sample and once for
+        the normal sample, prefixed by ``tumour_`` and
+        ``normal_``, respectively. An additional column
+        called ``pair_status`` will indicate whether the
+        tumour-normal samples in the row are matched or
+        unmatched. If the normal sample is omitted due
+        to the ``no_normal`` mode, this column will be
+        set to ``no_normal``.
+
+    Examples
+    --------
+    Among the samples in the ``SAMPLES`` data frame, the
+    ``genome`` tumour samples will be paired with a matched
+    normal samples if one exists or with the given unmatched
+    normal sample (``PT003-N``) if no matched normal samples
+    are present; the ``capture`` tumour samples will only be
+    paired with matched normal samples; and the ``mrna``
+    tumour samples will be returned without matched or
+    unmatched normal samples.
+
+    >>> PAIRS = generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'),
+    >>>                        capture='matched_only', mrna='no_normal')
+    """
+
+    # Define pairing modes
+    pairing_modes = {
+        "matched_only": {
+            "run_paired_tumours": True,
+            "run_unpaired_tumours_with": None,
+            "run_paired_tumours_as_unpaired": False,
+        },
+        "allow_unmatched": {
+            "run_paired_tumours": True,
+            "run_unpaired_tumours_with": "unmatched_normal",
+            "run_paired_tumours_as_unpaired": False,
+            # unmatched_normal_id must be added
+        },
+        "no_normal": {
+            "run_paired_tumours": False,
+            "run_unpaired_tumours_with": "no_normal",
+            "run_paired_tumours_as_unpaired": True,
+        },
+    }
+
+    # Iterate over seq_types
+    pairing_config = dict()
+    available_pairing_modes = list(pairing_modes.keys())
+    for seq_type, mode in seq_types.items():
+
+        # Check if mode was provided as a two-element iterable (list or tuple)
+        unmatched_normal_id = None
+        if len(mode) == 2 and mode[0] == "allow_unmatched":
+            unmatched_normal_id = mode[1]
+            mode = "allow_unmatched"
+
+        # Make sure mode is a string and among the available options
+        assert isinstance(mode, str) and mode in available_pairing_modes, (
+            f"The pairing mode specified for {seq_type!r} isn't valid. "
+            f"The available modes are: {available_pairing_modes}."
+        )
+
+        # Make sure that the `allow_unmatched` mode is provided
+        assert mode != "allow_unmatched" or unmatched_normal_id is not None, (
+            "The 'allow_unmatched' mode must be paired with a normal sample ID, such "
+            "as:\n    generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'))\n"
+        )
+
+        pairing_config[seq_type] = pairing_modes[mode]
+
+        if mode == "allow_unmatched":
+            pairing_config[seq_type]["unmatched_normal_id"] = unmatched_normal_id
+
+    # Subgroup using `genome_build` if available
+    if "genome_build" in samples:
+        subgroups = ("seq_type", "genome_build", "patient_id", "tissue_status")
+    else:
+        subgroups = ("seq_type", "patient_id", "tissue_status")
+
+    # Make sure all of the required columns are present
+    required_columns = list(subgroups) + ["sample_id"]
+    assert all(column in samples for column in required_columns), (
+        "The sample table doesn't include all of the "
+        f"expected columns, namely {required_columns}."
+    )
+
+    # Generate the runs using the generated pairing configuration
+    runs = generate_runs(samples, pairing_config, subgroups)
+
+    return runs
+
+
 # MODULE SETUP/CLEANUP
+
+
+def check_for_none_strings(config, name):
+    """Warn the user if 'None' strings are found in config."""
+
+    def check_for_none_strings_(obj):
+        if isinstance(obj, str):
+            if obj == "None":
+                logger.warning(
+                    "Found the value `'None'` (string) in the configuration for "
+                    f"the {name} module. Are you sure you didn't want to use "
+                    "the value `None` instead? This might have happened by using "
+                    "`None` or `'None'` in a YAML file instead of `null`."
+                )
+            result = obj
+        else:
+            result = obj
+        return result
+
+    walk_through_dict(config, check_for_none_strings_)
 
 
 def setup_module(name, version, subdirectories):
@@ -1172,7 +1344,7 @@ def setup_module(name, version, subdirectories):
 
     # Ensure that this module's config is loaded
     assert name in config["lcr-modules"], (
-        f"The configuration for the `{name}` module is not loaded. "
+        f"The configuration for the {name!r} module is not loaded. "
         "It should be loaded before the module Snakefile (.smk) is "
         "included. See README.md for more information."
     )
@@ -1182,12 +1354,15 @@ def setup_module(name, version, subdirectories):
     smk.utils.update_config(mconfig, config["lcr-modules"][name])
     msamples = mconfig["samples"].copy()
 
+    # Check whether there are "None" strings
+    check_for_none_strings(mconfig, name)
+
     # Drop samples whose seq_types do not appear in pairing_config
     assert "pairing_config" in mconfig, "`pairing_config` missing from module config."
     sample_seq_types = msamples["seq_type"].unique()
     pairing_config = mconfig["pairing_config"]
     supported_seq_types = [
-        k for k, v in mconfig["pairing_config"].items() if "run_paired_tumours" in v
+        k for k, v in pairing_config.items() if "run_paired_tumours" in v
     ]
     unsupported_seq_types = set(sample_seq_types) - set(supported_seq_types)
     if len(unsupported_seq_types) > 0:

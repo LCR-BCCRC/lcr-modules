@@ -6,3 +6,11 @@
 table p {
   margin-bottom: 0;
 }
+
+.rst-content div.note div[class^="highlight"] {
+  margin-bottom: 0;
+}
+
+.rst-content div.note div.line-block {
+  margin-bottom: 12px;
+}
