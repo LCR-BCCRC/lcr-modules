@@ -82,7 +82,6 @@ rule _bwa_mem_run:
         """)
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
 rule _bwa_mem_samtools:
     input:
         sam = rules._bwa_mem_run.output.sam
@@ -121,7 +120,6 @@ rule _bwa_mem_symlink_sorted_bam:
         bwa_mem_bam = rules._bwa_mem_samtools.output.bam
     output:
         bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam"
-    #priority: 5
     run:
         op.relative_symlink(input.bam, output.bam)
         os.remove(input.bwa_mem_bam)
@@ -131,8 +129,8 @@ rule _bwa_mem_symlink_sorted_bam:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _bwa_mem_output_bam:
     input:
-        bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.mdups.bam",
-        bai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.mdups.bam.bai",
+        bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".bam",
+        bai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".bam.bai",
         sorted_bam = rules._bwa_mem_symlink_sorted_bam.input.bam
     output:
         bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
