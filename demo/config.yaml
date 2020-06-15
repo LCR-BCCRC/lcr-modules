@@ -16,8 +16,16 @@ lcr-modules:
         reference_params:
             star_overhang: "99"
         scratch_subdirectories: ["star", "sort_bam", "mark_dups"]
-
+    sequenza:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
     manta:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+    
+    battenberg:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"

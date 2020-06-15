@@ -1,39 +1,39 @@
 lcr-modules:
     
     battenberg:
-
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bam: null  # UPDATE
-
-        # TODO: Update (or remove) this section with any reference parameters
-        reference_params:
-            # Ideally, `star_overhang` = max(read_length) - 1
-            # STAR indices were precomputed for "74" and "99"
-            star_overhang: "99"  # UPDATE
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+            battenberg_script: "{MODSDIR}/src/R/battenberg_wgs_hg38.R"
+            calc_sex_status: "{MODSDIR}/src/bash/calc_sex_status.sh"
 
         scratch_subdirectories: []
 
+        reference_path:
+            #hg38: "/projects/rmorin_scratch/reference/battenberg_hg38" #UPDATE
+            grch37: "/projects/rmorin/reference/battenberg" #UPDATE
+
         options:
-            step_1: ""
-            step_2: ""
+            chr_prefixed_reference: "--chr_prefixed_genome"  #UPDATE include this only if your reference includes the chr prefix for chromosome names. Set to "" otherwise???
+            x_chrom: "chrX"
+            y_chrom: "chrY" #these would be X and Y if you have a genome that is not chr prefixed
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            battenberg: "{MODSDIR}/envs/battenberg-1.0.yaml"
             
         threads:
-            step_1: 4
+            battenberg: 24
 
         mem_mb:
-            step_1: 2000
+            battenberg: 200000
 
         pairing_config:
             genome:
                 run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
+                run_unpaired_tumours_with: null
                 run_paired_tumours_as_unpaired: False
             capture:
                 run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
+                run_unpaired_tumours_with: null
                 run_paired_tumours_as_unpaired: False
