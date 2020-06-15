@@ -3,20 +3,12 @@
 ## Lines commented out with `##` act as regular comments
 
 lcr-modules:
-    
     utils:
         paired_modules: ["bwa_mem", "star"]
         ## See main README.md for how to set `samples` in the Snakefile
         #! samples: null
 
         inputs:
-            ## Available wildcards: {seq_type} {genome_build} {sample_id}
-            #! sample_fastq: null
-
-        ## See main README.md for how to set `reference` in the Snakefile
-        #? reference:
-        #?    genome_fasta: null
-
         ## List subdirectories that should be symlinked to the scratch directory
         scratch_subdirectories: []
 
@@ -26,13 +18,13 @@ lcr-modules:
             bam_index: "-b"
 
         conda_envs:
-            samtools: null #"{MODSDIR}/envs/samtools-1.9.yaml"
-            sambamba: null #"{MODSDIR}/envs/sambamba-0.7.1.yaml"
+            samtools: "envs/samtools-1.9.yaml"
+            sambamba: "envs/sambamba-0.7.1.yaml"
             
         threads:
-            bam_sort: null
-            bam_markdups: null
-            bam_index: null
+            bam_sort: 12
+            bam_markdups: 12
+            bam_index: 6
 
         mem_mb:
             bam_sort: 12000
