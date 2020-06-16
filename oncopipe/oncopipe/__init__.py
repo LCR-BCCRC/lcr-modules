@@ -41,6 +41,10 @@ DEFAULT_PAIRING_CONFIG = {
     },
 }
 
+DOCS = {
+    "update_config": "https://lcr-modules.readthedocs.io/en/latest/for_users.html#updating-configuration-values"
+}
+
 
 # SESSION
 
@@ -174,6 +178,24 @@ def relative_symlink(src, dest, overwrite=True):
     overwrite : boolean
         Whether to overwrite the destination file if it exists.
     """
+
+    # Coerce length-1 NamedList instances to strings
+    def coerce_namedlist_to_string(obj):
+        if isinstance(obj, smk.io.Namedlist) and len(obj) == 1:
+            obj = str(obj)
+        elif isinstance(obj, smk.io.Namedlist) and len(obj) != 1:
+            raise AssertionError(
+                f"Got the following Namedlist: {obj!r}. This function "
+                "only supports Namedlists of length 1."
+            )
+        return obj
+
+    src = coerce_namedlist_to_string(src)
+    dest = coerce_namedlist_to_string(dest)
+
+    # Check whether arguments are strings
+    assert isinstance(src, str), "Source file path must be a string."
+    assert isinstance(dest, str), "Destination file path must be a string."
 
     # Here, you're symlinking a file into a directory (same name)
     dest = dest.rstrip(os.path.sep)
@@ -685,27 +707,46 @@ def load_samples(
     return samples
 
 
-def filter_samples(samples, **filters):
+def filter_samples(samples, invert=False, **filters):
     """Subsets for rows with certain values in the given columns.
 
     Parameters
     ----------
     samples : pandas.DataFrame
         The samples.
+    invert : boolean
+        Whether to keep or discard samples that match the filters.
     **filters : key-value pairs
         Columns (keys) and the values they need to contain (values).
-        Values can either be an str or a list of str.
+        Values can be any value or a list of values.
 
     Returns
     -------
     pandas.DataFrame
         A subset of rows from the input data frame.
     """
+    samples = samples.copy()
     for column, value in filters.items():
-        if not isinstance(value, collections.abc.Sequence):
+        if column not in samples:
+            logger.warning(f"Column '{column}' not in sample table. Skipping.")
+            continue
+        if not isinstance(value, (list, tuple)):
             value = [value]
-        samples = samples[samples[column].isin(value)]
-    return samples.copy()
+        if invert:
+            samples = samples[~samples[column].isin(value)]
+        else:
+            samples = samples[samples[column].isin(value)]
+    return samples
+
+
+def keep_samples(samples, **filters):
+    """Convenience wrapper around ``filter_samples``."""
+    return filter_samples(samples, invert=False, **filters)
+
+
+def discard_samples(samples, **filters):
+    """Convenience wrapper around ``filter_samples``."""
+    return filter_samples(samples, invert=True, **filters)
 
 
 def group_samples(samples, subgroups):
@@ -1272,12 +1313,25 @@ def check_for_none_strings(config, name):
                     "the value `None` instead? This might have happened by using "
                     "`None` or `'None'` in a YAML file instead of `null`."
                 )
-            result = obj
-        else:
-            result = obj
-        return result
+        return obj
 
     walk_through_dict(config, check_for_none_strings_)
+
+
+def check_for_update_strings(config, name):
+    """Warn the user if '__UPDATE__' strings are found in config."""
+
+    def check_for_update_strings_(obj):
+        if isinstance(obj, str):
+            assert "__UPDATE__" not in obj, (
+                "Found the value '__UPDATE__' in the configuration for the "
+                f"{name} module. This usually means some values from the "
+                "module's default configuration file haven't been updated. "
+                f"For more info, check out {DOCS['update_config']}."
+            )
+        return obj
+
+    walk_through_dict(config, check_for_update_strings_)
 
 
 def setup_module(name, version, subdirectories):
@@ -1357,6 +1411,9 @@ def setup_module(name, version, subdirectories):
 
     # Check whether there are "None" strings
     check_for_none_strings(mconfig, name)
+
+    # Check whether there are "__UPDATE__" strings
+    check_for_update_strings(mconfig, name)
 
     # Drop samples whose seq_types do not appear in pairing_config
     assert "pairing_config" in mconfig, "`pairing_config` missing from module config."

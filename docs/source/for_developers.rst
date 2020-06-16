@@ -431,10 +431,10 @@ In theory, configuration YAML files can take on any structure. However, it helps
 Configuration Features
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Configuration Comments
-^^^^^^^^^^^^^^^^^^^^^^
+Requiring User Intervention
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Make sure that anything that needs to be updated by the user is indicated by an ``UPDATE`` comment. You can see examples in the excerpts below taken from the ``star`` default configuration.
+Make sure that anything that needs to be updated by the user contains ``__UPDATE__`` in the configuration file. You can see examples in the excerpts below taken from the ``star`` default configuration. If the string ``__UPDATE__`` is detected anywhere in the module configuration, an error will inform the user that they need to update a configuration field.
 
 .. _directory-placeholders-dev:
 
@@ -458,7 +458,7 @@ Configuring Input and Reference Files
 
 Virtually all modules will have input files, and many will also require reference files. These are defined using the ``inputs`` and ``reference_params`` keys, respectively.
 
-The input files will generally be set to ``null`` and labelled with ``UPDATE`` comments since they need to be specified by the user. This can be done in the configuration file or in the Snakefile (see the `Demo Snakefile`_ for an example). Either way, the available wildcards are usually listed in a comment. If not, you can always look at the wildcards in the output files of the rule using the ``inputs`` configuration section. In general, these are ``{seq_type}``, ``{genome_build}``, and ``{sample_id}``.
+The input files will generally be set to ``__UPDATE__`` since they need to be specified by the user. This can be done in the configuration file or in the Snakefile (see the `Demo Snakefile`_ for an example). Either way, the available wildcards are usually listed in a comment. If not, you can always look at the wildcards in the output files of the rule using the ``inputs`` configuration section. In general, these are ``{seq_type}``, ``{genome_build}``, and ``{sample_id}``.
 
    One advantage of specifying the input files in the Snakefile (as opposed to in the configuration file) is that the user can provide `Input File Functions`_ rather than a string.
 
@@ -471,13 +471,13 @@ For more information on the approach taken in ``reference_files`` and its benefi
          inputs:
             # The inputs can be configured here or in the Snakefile
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_fastq_1: "<path/to/sample.R1.fastq.gz>"  # UPDATE
-            sample_fastq_2: "<path/to/sample.R2.fastq.gz>"  # UPDATE
+            sample_fastq_1: "__UPDATE__"
+            sample_fastq_2: "__UPDATE__"
 
          reference_params:
             # Ideally, `star_overhang` = max(read_length) - 1
             # STAR indices were precomputed for "74" and "99"
-            star_overhang: "99"  # UPDATE
+            star_overhang: "__UPDATE__"
             # The Gencode release to use for the transcript annotation
             gencode_release: "33"
 
