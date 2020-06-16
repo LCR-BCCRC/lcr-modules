@@ -200,6 +200,7 @@ def relative_symlink(src, dest, overwrite=True):
 
     # Make `src` relative to destination parent directory
     if not os.path.isabs(src):
+        dest_dir = os.path.realpath(dest_dir)
         src = os.path.relpath(src, dest_dir)
     os.symlink(src, dest)
 
