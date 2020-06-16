@@ -1,8 +1,5 @@
 reference_directory: "reference/"
 
-inputs:
-    bed: "intervals/{genome_build}/bed/{id}/S07604624_Regions_GRCh37.bed"
-
 genome_builds:
     grch37:
         # GSC GRCh37
@@ -56,6 +53,10 @@ tools:
     picard: 
         conda_env: "envs/picard-2.22.3.yaml"
         version: "2.22.3"
+    gtfToGenePred:
+        conda_env: "envs/gtfToGenePred.yaml"
+        version: ""
+
 
 cvbio_config:
     gtf: 

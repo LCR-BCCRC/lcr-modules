@@ -43,7 +43,8 @@ rule all:
                 rules.create_bwa_index.output.prefix,
                 rules.get_gencode_download.output.gtf,
                 rules.create_star_index.output.index,
-               rules.create_rRNA_interval.output.rrna_int
+                rules.create_rRNA_interval.output.rrna_int,
+                rules.create_refFlat.output.txt
             ],
             genome_build=config["genome_builds"].keys(),
             bwa_version=config["tools"]["bwa"]["version"],

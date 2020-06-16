@@ -1,0 +1,7 @@
+name: gtfToGeneOred
+channels:
+  - bioconda
+  - defaults
+dependencies:
+  - ucsc-gtftogenepred=377
+prefix: /projects/clc/usr/aaconda/workflow_prototype/envs/

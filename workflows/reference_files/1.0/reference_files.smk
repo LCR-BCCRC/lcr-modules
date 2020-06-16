@@ -433,25 +433,6 @@ rule create_seq_dict:
         chmod a-w {output.seq_dict}
         """)
 
-rule create_interval_list:
-    input:
-        bed = config["inputs"].get("bed","genomes/{genome_build}/bed/{id}"),
-        seq_dict = rules.create_seq_dict.output.seq_dict
-    output: 
-        intervals = "genomes/{genome_build}/exome_interval/{id}_intervals.txt"
-    log: 
-        "genomes/{genome_build}/exome_interval/{id}_intervals.log"
-    conda: CONDA_ENVS["picard"]
-    shell:
-        op.as_one_line("""
-        picard BedToIntervalList
-        I={input.bed}
-        O={output.intervals}
-        SD={input.seq_dict}
-        2> {log}
-        &&
-        chmod a-w {output.intervals}
-        """)
 
 rule create_rRNA_interval:
     input:
@@ -473,4 +454,20 @@ rule create_rRNA_interval:
         sort -k1V -k2n -k3n >> {output.rrna_int}
         &&
         chmod a-w {output.rrna_int}
+        """)
+
+
+rule create_refFlat:
+    input:
+        gtf = rules.get_gencode_download.output.gtf
+    output:
+        txt = "genomes/{genome_build}/refFlat/refFlat.txt"
+    log: "genomes/{genome_build}/refFlat/gtfToGenePred.log"
+    conda: CONDA_ENVS["gtfToGenePred"]
+    shell:
+        op.as_one_line("""
+        gtfToGenePred -genePredExt -geneNameAsName2 
+        {input.gtf} {output.txt}.tmp 
+        2> {log} &&
+        paste <(cut -f 12 {output.txt}.tmp) <(cut -f 1-10 {output.txt}.tmp) > {output.txt}
         """)
