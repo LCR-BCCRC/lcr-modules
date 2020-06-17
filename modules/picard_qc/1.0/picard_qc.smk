@@ -28,6 +28,7 @@ localrules:
     _picard_qc_input_bam,
     _picard_qc_rrna_int,
     _picard_qc_merge_alignment_summary,
+    _picard_qc_merge_insert_size_metrics,
     _picard_qc_output,
     _picard_qc_all
 
@@ -213,10 +214,9 @@ rule _picard_qc_merge_alignment_summary:
     input:
         expand("{dir}{{seq_type}}--{{genome_build}}/{sample_id}/alignment_summary_metrics", dir = CFG["dirs"]["metrics"], sample_id = list(CFG["samples"]["sample_id"]))
     output: 
-        all = CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.alignment_summary_metrics.txt"
+        CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.alignment_summary_metrics.txt"
     params:
-        samples = list(CFG["samples"]["sample_id"]),
-        pattern = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/*alignment*"
+        samples = list(CFG["samples"]["sample_id"])
     run:
         samples = input
         with open(output[0], "w") as out:
@@ -231,6 +231,27 @@ rule _picard_qc_merge_alignment_summary:
                     f.close()
         out.close()
 
+
+rule _picard_qc_merge_metrics:
+    input:
+        expand("{dir}{{seq_type}}--{{genome_build}}/{sample_id}/{{metrics}}", dir = CFG["dirs"]["metrics"], sample_id = list(CFG["samples"]["sample_id"]))
+    output: 
+        CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.insert_size_metrics.txt"
+    params:
+        samples = list(CFG["samples"]["sample_id"])
+    run:
+        samples = input
+        with open(output[0], "w") as out:
+            for i in range(0,len(samples)):
+                with open(samples[i], "r") as f:
+                    data = [l for l in f.readlines() if not (l.startswith('#') or l == '\n')]
+                    if i == 0:
+                        header = "SAMPLEID\t" + "\t".join(data[0].split("\t")[1:])
+                        out.write(header)
+                    line = params.samples[i] + "\t" + "\t".join(data[1].split("\t")[1:])
+                    out.write(line)
+                    f.close()
+        out.close()
 
 '''
     shell:
@@ -339,7 +360,7 @@ rule _picard_qc_all_dispatch:
 
 rule _picard_qc_all:
     input: 
-        expand(CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.alignment_summary_metrics.txt",
+        expand([CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.alignment_summary_metrics.txt", CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.insert_size_metrics.txt"],
             seq_type = ["capture"],
             genome_build = "grch37")
         #expand(rules._picard_qc_all_dispatch.output, zip,
