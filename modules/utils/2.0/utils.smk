@@ -146,7 +146,7 @@ rule: # create_interval_list from bed; default exomes
         bed = CONFIG["inputs"]["bed"],
         seq_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
     output: 
-        intervals = "exomes/{genome_build}/interval/{id}_intervals.txt"
+        intervals = "reference/exomes/{genome_build}/interval/{id}_intervals.txt"
     log: 
         "exomes/{genome_build}/interval/{id}_intervals.log"
     conda: 

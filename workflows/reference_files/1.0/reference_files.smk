@@ -461,8 +461,8 @@ rule create_refFlat:
     input:
         gtf = rules.get_gencode_download.output.gtf
     output:
-        txt = "genomes/{genome_build}/refFlat/refFlat.txt"
-    log: "genomes/{genome_build}/refFlat/gtfToGenePred.log"
+        txt = "genomes/{genome_build}/annotations/refFlat_gencode-{gencode_release}.txt"
+    log: "genomes/{genome_build}/annotations/gtfToGenePred-{gencode_release}.log"
     conda: CONDA_ENVS["gtfToGenePred"]
     shell:
         op.as_one_line("""
