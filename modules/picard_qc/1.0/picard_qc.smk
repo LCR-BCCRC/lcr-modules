@@ -20,16 +20,16 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "picard_qc",
     version = "1.0",
-    subdirectories = ["inputs", "metrics", "outputs"]
+    subdirectories = ["inputs", "metrics", "merged_metrics", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _picard_qc_input_bam,
     _picard_qc_rrna_int,
+    _picard_qc_merge_alignment_summary,
     _picard_qc_output,
-    _picard_qc_all,
+    _picard_qc_all
 
 
 ##### RULES #####
@@ -46,18 +46,20 @@ rule _picard_qc_input_bam:
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
+'''
 rule _picard_qc_alignment_summary:
     input:
         bam = rules._picard_qc_input_bam.output.bam,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        summary = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/alignment_summary_metrics",
-        insert_size = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/insert_size_metrics"
+        summary = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.alignment_summary_metrics",
+        insert_size = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.insert_size_metrics"
     log:
-        stdout = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/alignment_summary.stdout.log",
-        stderr = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/alignment_summary.stderr.log"
+        stdout = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.alignment_summary.stdout.log",
+        stderr = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.alignment_summary.stderr.log"
     params:
-        opts = CFG["options"]["alignment_summary"]
+        opts = CFG["options"]["alignment_summary"],
+        prefix = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}"
     conda:
         CFG["conda_envs"]["samtools"]
     threads:
@@ -67,7 +69,61 @@ rule _picard_qc_alignment_summary:
     shell:
         op.as_one_line("""
         picard -Xmx{resources.mem_mb}m CollectMultipleMetrics {params.opts} 
-        I={input.bam} O=$( dirname {output.summary}) R={input.fasta} 
+        I={input.bam} O={params.prefix} R={input.fasta} 
+        > {log.stdout} 2> {log.stderr}
+        """)
+'''
+
+
+rule _picard_qc_alignment_summary:
+    input:
+        bam = rules._picard_qc_input_bam.output.bam,
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+    output:
+        metrics = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/alignment_summary_metrics",
+    log:
+        stdout = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/alignment_summary.stdout.log",
+        stderr = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/alignment_summary.stderr.log"
+    params:
+        opts = CFG["options"]["alignment_summary"]
+    conda:
+        CFG["conda_envs"]["picard"]
+    threads:
+        CFG["threads"]["alignment_summary"]
+    resources:
+        mem_mb = CFG["mem_mb"]["alignment_summary"]
+    shell:
+        op.as_one_line("""
+        picard -Xmx{resources.mem_mb}m CollectAlignmentSummaryMetrics
+        {params.opts} 
+        I={input.bam} O={output.metrics} R={input.fasta} 
+        > {log.stdout} 2> {log.stderr}
+        """)
+
+
+rule _picard_qc_insert_size:
+    input:
+        bam = rules._picard_qc_input_bam.output.bam,
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+    output:
+        metrics = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/insert_size_metrics",
+        histogram = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/insert_size_histogram.pdf"
+    log:
+        stderr = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/insert_size.stderr.log",
+        stdout = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/insert_size.stdout.log"
+    params:
+        opts = CFG["options"]["insert_size"]
+    conda:
+        CFG["conda_envs"]["picard"]
+    threads:
+        CFG["threads"]["insert_size"]
+    resources:
+        mem_mb = CFG["mem_mb"]["insert_size"]
+    shell:
+        op.as_one_line("""
+        picard -Xmx{resources.mem_mb}m CollectInsertSizeMetrics
+        {params.opts} 
+        I={input.bam} O={output.metrics} H={output.histogram}
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -152,6 +208,44 @@ rule _picard_qc_rnaseq_metrics:
         > {log.stdout} 2> {log.stderr}
         """)
 
+
+rule _picard_qc_merge_alignment_summary:
+    input:
+        expand("{dir}{{seq_type}}--{{genome_build}}/{sample_id}/alignment_summary_metrics", dir = CFG["dirs"]["metrics"], sample_id = list(CFG["samples"]["sample_id"]))
+    output: 
+        all = CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.alignment_summary_metrics.txt"
+    params:
+        samples = list(CFG["samples"]["sample_id"]),
+        pattern = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/*alignment*"
+    run:
+        samples = input
+        with open(output[0], "w") as out:
+            for i in range(0,len(samples)):
+                with open(samples[i], "r") as f:
+                    data = [l for l in f.readlines() if not (l.startswith('#') or l == '\n')]
+                    if i == 0:
+                        header = "SAMPLEID\t" + "\t".join(data[0].split("\t")[1:])
+                        out.write(header)
+                    line = params.samples[i] + "\t" + "\t".join(data[-1].split("\t")[1:])
+                    out.write(line)
+                    f.close()
+        out.close()
+
+
+'''
+    shell:
+        """
+        ls {params.pattern} | tr '\\n' ' '  >  alignment_sum_files.txt && 
+        echo {params.samples} | sed 's/ /\\n/g' > library.txt &&
+        grep -v '#' {input[0]} | sed '/^$/d' | head -n 1 | cut -f 2- > {output}.header && 
+        for file in $(cat alignment_sum_files.txt); do
+            grep -v '#' ${{file}} | sed '/^$/d' | tail -n 1 | cut -f 2- >> {output}.tmp;
+        done &&
+        paste library.txt {output}.tmp > {output} &&
+        echo -e ‘sampleID’ | paste - {output}.header | cat - {output} > {output}.tmp && 
+        mv {output}.tmp {output}
+        """
+'''
 
 rule _picard_qc_wgs_metrics:
     input:
@@ -244,11 +338,14 @@ rule _picard_qc_all_dispatch:
 
 
 rule _picard_qc_all:
-    input:
-        expand(rules._picard_qc_all_dispatch.output, zip,
-            seq_type = CFG["samples"]["seq_type"],
-            genome_build = CFG["samples"]["genome_build"],
-            sample_id = CFG["samples"]["sample_id"])
+    input: 
+        expand(CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.alignment_summary_metrics.txt",
+            seq_type = ["capture"],
+            genome_build = "grch37")
+        #expand(rules._picard_qc_all_dispatch.output, zip,
+        #    seq_type = CFG["samples"]["seq_type"],
+        #    genome_build = CFG["samples"]["genome_build"],
+        #    sample_id = CFG["samples"]["sample_id"])
 
 
 ##### CLEANUP #####
