@@ -1,16 +1,16 @@
 lcr-modules:
     
     picard_qc:
-
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: null  # UPDATE
             intervals : "genomes/{genome_build}/exome_interval/S07604624_intervals.txt"  #UPDATE default is grch37 exome kit
-            rrna_intervals: genomes/{genome_build}/rrna_intervals/rRNA_int_gencode-33.txt
-            refFlat: "reference/intervals/grch38/refFlat.txt"
+            rrna_intervals: "genomes/{genome_build}/rrna_intervals/rRNA_int_gencode-33.txt"
+            refFlat: "genomes/grch38/annotations/refFlat.txt"
 
         options:
             alignment_summary: "VALIDATION_STRINGENCY=LENIENT"
+            insert_size: "VALIDATION_STRINGENCY=LENIENT"
             hs_metrics: "VALIDATION_STRINGENCY=LENIENT LEVEL=ALL_READS CLIP_OVERLAPPING_READS=false"
             rnaseq_metrics:
                 base: "VALIDATION_STRINGENCY=LENIENT"
@@ -27,6 +27,7 @@ lcr-modules:
             
         threads:
             alignment_summary: 2
+            insert_size: 2
             hs_metrics: 2
             rnaseq_metrics: 2
             wgs_metrics: 4
@@ -34,6 +35,7 @@ lcr-modules:
 
         mem_mb:
             alignment_summary: 6000
+            insert_size: 6000
             hs_metrics: 5000
             rnaseq_metrics: 5000
             wgs_metrics: 10000
