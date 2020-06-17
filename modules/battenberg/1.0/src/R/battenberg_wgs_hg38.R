@@ -28,11 +28,11 @@ REFERENCE_BASE = opt$reference
 
 TUMOURNAME = opt$tumourname
 NORMALNAME = opt$normalname
-NORMALBAM = opt$nb
-TUMOURBAM = opt$tb
+
 IS.MALE = opt$sex=="male" | opt$sex=="Male"
-RUN_DIR = opt$output
+RUN_DIR = opt$o
 CHR_PREFIXED = opt$chr_prefixed_genome
+print(paste("chr prefix present?",CHR_PREFIXED))
 SKIP_ALLELECOUNTING = opt$skip_allelecount
 SKIP_PREPROCESSING = opt$skip_preprocessing
 SKIP_PHASING = opt$skip_phasing
@@ -79,7 +79,12 @@ PROBLEMLOCI = paste0(REFERENCE_BASE,"/probloci_270415.txt.gz")
 print(PROBLEMLOCI);
 
 # Change to work directory and load the chromosome information
+original_dir = getwd()
 setwd(RUN_DIR)
+NORMALBAM = paste0(normalizePath(original_dir,"\\"), "/",opt$nb)
+TUMOURBAM = paste0(normalizePath(original_dir,"\\"), "/",opt$tb)
+
+#this should be the full path to the files after changing directories
 
 #debugging lines added here:
 #SKIP_ALLELECOUNTING = TRUE

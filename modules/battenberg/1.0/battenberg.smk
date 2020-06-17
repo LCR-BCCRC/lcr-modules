@@ -24,6 +24,9 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "battenberg", "outputs"],
 )
 
+#this preserves the variable when using lambda functions
+_battenberg_CFG = CFG
+
 # Define rules to be run locally when using a compute cluster
 # TODO: Replace with actual rules once you change the rule names
 localrules:
@@ -34,19 +37,22 @@ localrules:
 
 
 ##### RULES #####
-print(CFG)
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 # TODO: If applicable, add an input rule for each input file used by the module
 rule _battenberg_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        bam = CFG["inputs"]["sample_bam"],
+        bai = CFG["inputs"]["sample_bai"]
     output:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
+        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
         op.relative_symlink(input.bam, output.bam)
+        op.relative_symlink(input.bai, output.bai)
 
-#Currently I think this rule has to be run twice for it to work properly because the conda environment is created here. 
+# Installs the Battenberg R dependencies and associated software (impute2, alleleCounter)
+# Currently I think this rule has to be run twice for it to work properly because the conda environment is created here. 
 rule _install_battenberg:
     output:
         complete = "config/envs/battenberg_dependencies_installed.success"
@@ -54,23 +60,23 @@ rule _install_battenberg:
         CFG["conda_envs"]["battenberg"]
     shell:
         """
-        R -q -e 'BiocManager::install(c("devtools", "splines", "readr", "doParallel", "ggplot2", "RColorBrewer", "gridExtra", "gtools", "parallel"));' && 
-        R -q -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' &&
-        R -q -e 'devtools::install_github("morinlab/battenberg")' &&
+        R -q -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' && ##move some of this to config?
+        R -q -e 'devtools::install_github("morinlab/battenberg")' &&              ##move some of this to config?
         touch {output.complete}"""
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
+#This rule runs the entire Battenberg pipeline
 rule _run_battenberg:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
+        tumour_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam.bai",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-#        _install_battenberg.outputs.complete
+        normal_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam.bai",
+        installed = "config/envs/battenberg_dependencies_installed.success"
     output:
         refit=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_refit_suggestion.txt",
         sub=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.txt",
-        sub_1=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones_1.txt",
+        sub1=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones_1.txt",
         ac=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_alleleCounts.tab",
         mb=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantBAF.tab",
         mlrg=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantLogR_gcCorrected.tab",
@@ -81,12 +87,12 @@ rule _run_battenberg:
         stdout = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stdout.log",
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stderr.log"
     params:
-        reference_path = CFG["reference_path"],
+        reference_path = lambda w: _battenberg_CFG["options"]["reference_path"][w.genome_build],
         script = CFG["inputs"]["battenberg_script"],
         calc_sex_status = CFG["inputs"]["calc_sex_status"],
-        x_chrom = CFG["options"]["x_chrom"],
-        y_chrom = CFG["options"]["y_chrom"],
-        chr_prefixed = CFG["options"]["chr_prefixed_reference"],
+        x_chrom = lambda w: _battenberg_CFG["options"]["x_chrom"][w.genome_build],
+        y_chrom = lambda w: _battenberg_CFG["options"]["y_chrom"][w.genome_build],
+        chr_prefixed = lambda w: _battenberg_CFG["options"]["chr_prefixed_reference"][w.genome_build],
         out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}"
     conda:
         CFG["conda_envs"]["battenberg"]
@@ -98,34 +104,41 @@ rule _run_battenberg:
     shell:
         """sex=$({params.calc_sex_status} {input.normal_bam} {params.x_chrom} {params.y_chrom} | tail -1 | awk '{{if( $3/$2 > 0.1) print "male"; else print "female"}}') ;"""
         "Rscript {params.script} -t {wildcards.tumour_id} "
-        "-n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} --cpu {threads} "
-        "-o {params.out_dir} --sex $sex --reference {params.reference_path} {params.chr_prefixed}  > {log.stdout} 2> {log.stderr} "
+        "-n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam}  "
+        "-o {params.out_dir} --sex $sex --reference {params.reference_path} {params.chr_prefixed} --cpu {threads} > {log.stdout} 2> {log.stderr} "
 
-
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-#rule _battenberg_step_2:
-#    input:
-#        seg = rules._battenberg_step_1.output.seg
-#    output:
-#        seg = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.seg"
-#    log:
-#        stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
-#    params:
-#        opts = CFG["options"]["step_2"]
-#    shell:
-#        "grep {params.opts} {input.seg} > {output.seg} 2> {log.stderr}"
+# Converts the subclones.txt (best fit) and subclones_1.txt (second best fit) to igv-friendly SEG files. 
+rule _battenberg_to_igv_seg:
+    input:
+        sub = rules._run_battenberg.output.sub,
+        sub1 = rules._run_battenberg.output.sub1,
+        cnv2igv = CFG["inputs"]["cnv2igv"]
+    output:
+        seg = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.igv.seg",
+        seg1 = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones_1.igv.seg"
+    log:
+        stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_seg2igv.stderr.log"
+    threads: 1
+    shell:
+        op.as_one_line("""
+        python {input.cnv2igv} --mode battenberg --sample {wildcards.tumour_id} 
+        {input.sub} > {output.seg} 2> {log.stderr} &&
+        python {input.cnv2igv} --mode battenberg --sample {wildcards.tumour_id} 
+        {input.sub1} > {output.seg1} 2>> {log.stderr}
+        """)
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
-#rule _battenberg_output_seg:
-#    input:
-#        seg = rules._battenberg_step_2.output.seg
-#    output:
-#        seg = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.seg"
-#    run:
-#        op.relative_symlink(input, output)
+rule _battenberg_output_seg:
+    input:
+        seg = rules._battenberg_to_igv_seg.output.seg,
+        seg1 = rules._battenberg_to_igv_seg.output.seg1
+    output:
+        seg = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.igv.seg",
+        seg1 = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones_1.igv.seg"
+    run:
+        op.relative_symlink(input.seg, output.seg)  #note: I think there's a bug in the cookicutter. This line is op.relative_symlink(input, output) but presumably should include the names
+        op.relative_symlink(input.seg1, output.seg1)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -135,9 +148,10 @@ rule _battenberg_all:
             [
                 rules._run_battenberg.output.refit,
                 rules._install_battenberg.output.complete,
-                #rules._battenberg_input_bam.output.bam,
-                #rules._battenberg_output_seg.output.refit,
-                # TODO: If applicable, add other output rules here
+                rules._battenberg_to_igv_seg.output.seg,
+                rules._battenberg_to_igv_seg.output.seg1,
+                rules._battenberg_output_seg.output.seg,
+                rules._battenberg_output_seg.output.seg1,
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],

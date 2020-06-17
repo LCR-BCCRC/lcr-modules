@@ -7,20 +7,27 @@ lcr-modules:
             sample_bai: "data/{sample_id}.bam.bai"
             battenberg_script: "{MODSDIR}/src/R/battenberg_wgs_hg38.R"
             calc_sex_status: "{MODSDIR}/src/bash/calc_sex_status.sh"
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.0/cnv2igv.py"
 
         scratch_subdirectories: []
 
         reference_path:
-            #hg38: "/projects/rmorin_scratch/reference/battenberg_hg38" #UPDATE
+            hg38: "/projects/rmorin_scratch/reference/battenberg_hg38" #UPDATE
             grch37: "/projects/rmorin/reference/battenberg" #UPDATE
 
         options:
-            chr_prefixed_reference: "--chr_prefixed_genome"  #UPDATE include this only if your reference includes the chr prefix for chromosome names. Set to "" otherwise???
-            x_chrom: "chrX"
-            y_chrom: "chrY" #these would be X and Y if you have a genome that is not chr prefixed
+            chr_prefixed_reference:
+                hg38: " --chr_prefixed_genome "
+                grch37: " "
+            x_chrom: 
+                grch37: "X"
+                hg38: "chrX"
+            y_chrom: 
+                grch37: "Y" 
+                hg38: "chrY"
 
         conda_envs:
-            battenberg: "{MODSDIR}/envs/battenberg-1.0.yaml"
+            battenberg: "{MODSDIR}/envs/battenberg_fresh.yml"
             
         threads:
             battenberg: 24

@@ -2,7 +2,7 @@ lcr-modules:
 
     _shared:
         lcr-modules: "../"
-        lcr-scripts: "../../lcr-scripts"
+        lcr-scripts: "/home/rmorin/lcr-scripts"
         root_output_dir: "results/"
         scratch_directory: "scratch/"
         pairing_config:
