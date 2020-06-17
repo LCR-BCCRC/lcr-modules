@@ -87,7 +87,7 @@ rule _run_battenberg:
         stdout = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stdout.log",
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stderr.log"
     params:
-        reference_path = lambda w: _battenberg_CFG["options"]["reference_path"][w.genome_build],
+        reference_path = lambda w: _battenberg_CFG["reference_path"][w.genome_build],
         script = CFG["inputs"]["battenberg_script"],
         calc_sex_status = CFG["inputs"]["calc_sex_status"],
         x_chrom = lambda w: _battenberg_CFG["options"]["x_chrom"][w.genome_build],
