@@ -27,9 +27,10 @@ CFG = op.setup_module(
 localrules:
     _picard_qc_input_bam,
     _picard_qc_rrna_int,
-    _picard_qc_merge_alignment_summary,
-    _picard_qc_merge_insert_size_metrics,
-    _picard_qc_output,
+    _picard_qc_merge_metrics,    
+    _picard_qc_merged_output,
+    _picard_qc_flagstats_output,
+    _picard_qc_merged_dispatch,
     _picard_qc_all
 
 
@@ -133,7 +134,7 @@ rule _picard_qc_hs_metrics:
     input:
         bam = rules._picard_qc_input_bam.output.bam,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        intervals = reference_files(CFG["inputs"]["intervals"])
+        intervals = CFG["inputs"]["intervals"]
     output:
         hs = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/hs_metrics",
         intervals = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/interval_hs_metrics"
@@ -182,7 +183,7 @@ rule _picard_qc_rnaseq_metrics:
         bam = rules._picard_qc_input_bam.output.bam,
         rrna_int = rules._picard_qc_rrna_int.output.rrna_int,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        refFlat = CFG["inputs"]["refFlat"]
+        refFlat = reference_files(CFG["inputs"]["refFlat"])
     output:
         metrics = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/rnaseq_metrics"
     log:
@@ -210,64 +211,6 @@ rule _picard_qc_rnaseq_metrics:
         """)
 
 
-rule _picard_qc_merge_alignment_summary:
-    input:
-        expand("{dir}{{seq_type}}--{{genome_build}}/{sample_id}/alignment_summary_metrics", dir = CFG["dirs"]["metrics"], sample_id = list(CFG["samples"]["sample_id"]))
-    output: 
-        CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.alignment_summary_metrics.txt"
-    params:
-        samples = list(CFG["samples"]["sample_id"])
-    run:
-        samples = input
-        with open(output[0], "w") as out:
-            for i in range(0,len(samples)):
-                with open(samples[i], "r") as f:
-                    data = [l for l in f.readlines() if not (l.startswith('#') or l == '\n')]
-                    if i == 0:
-                        header = "SAMPLEID\t" + "\t".join(data[0].split("\t")[1:])
-                        out.write(header)
-                    line = params.samples[i] + "\t" + "\t".join(data[-1].split("\t")[1:])
-                    out.write(line)
-                    f.close()
-        out.close()
-
-
-rule _picard_qc_merge_metrics:
-    input:
-        expand("{dir}{{seq_type}}--{{genome_build}}/{sample_id}/{{metrics}}", dir = CFG["dirs"]["metrics"], sample_id = list(CFG["samples"]["sample_id"]))
-    output: 
-        CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.insert_size_metrics.txt"
-    params:
-        samples = list(CFG["samples"]["sample_id"])
-    run:
-        samples = input
-        with open(output[0], "w") as out:
-            for i in range(0,len(samples)):
-                with open(samples[i], "r") as f:
-                    data = [l for l in f.readlines() if not (l.startswith('#') or l == '\n')]
-                    if i == 0:
-                        header = "SAMPLEID\t" + "\t".join(data[0].split("\t")[1:])
-                        out.write(header)
-                    line = params.samples[i] + "\t" + "\t".join(data[1].split("\t")[1:])
-                    out.write(line)
-                    f.close()
-        out.close()
-
-'''
-    shell:
-        """
-        ls {params.pattern} | tr '\\n' ' '  >  alignment_sum_files.txt && 
-        echo {params.samples} | sed 's/ /\\n/g' > library.txt &&
-        grep -v '#' {input[0]} | sed '/^$/d' | head -n 1 | cut -f 2- > {output}.header && 
-        for file in $(cat alignment_sum_files.txt); do
-            grep -v '#' ${{file}} | sed '/^$/d' | tail -n 1 | cut -f 2- >> {output}.tmp;
-        done &&
-        paste library.txt {output}.tmp > {output} &&
-        echo -e ‘sampleID’ | paste - {output}.header | cat - {output} > {output}.tmp && 
-        mv {output}.tmp {output}
-        """
-'''
-
 rule _picard_qc_wgs_metrics:
     input:
         bam = rules._picard_qc_input_bam.output.bam,
@@ -294,6 +237,36 @@ rule _picard_qc_wgs_metrics:
         """)
 
 
+def _get_sample_metrics(metrics_dir):
+    DIR = metrics_dir
+    def _get_sample_metrics_custom(wildcards):
+        CFG = config["lcr-modules"]["picard_qc"]
+        sample = op.filter_samples(CFG["samples"], seq_type = [wildcards.seq_type])
+        return expand("{dir}{seq_type}--{genome_build}/{sample_id}/{metrics}", dir = DIR, sample_id = list(sample["sample_id"]), **wildcards)
+    return _get_sample_metrics_custom
+
+
+rule _picard_qc_merge_metrics:
+    input: 
+        _get_sample_metrics(metrics_dir = CFG["dirs"]["metrics"])
+    output: 
+        CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.{metrics}.txt"
+    run:
+        samples = input
+        with open(output[0], "w") as out:
+            for i in range(0,len(samples)):
+                s_id = samples[i].split("/")[-2]
+                with open(samples[i], "r") as f:
+                    data = [l for l in f.readlines() if not (l.startswith('#') or l == '\n')]
+                    if i == 0:
+                        header = "SAMPLEID\t" + "\t".join(data[0].split("\t")[1:])
+                        out.write(header)
+                    line = s_id + "\t" + "\t".join(data[1].split("\t")[1:])
+                    out.write(line)
+                    f.close()
+        out.close()
+
+
 rule _picard_qc_flagstats:
     input:
         bam = rules._picard_qc_input_bam.output.bam
@@ -315,58 +288,59 @@ rule _picard_qc_flagstats:
         """)
 
 
-rule _picard_qc_output:
+rule _picard_qc_merged_output:
     input:
-        metrics = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/{qc_type}"
+        metrics = rules._picard_qc_merge_metrics.output
     output:
-        metrics = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{qc_type}/{sample_id}.{qc_type}"
-    wildcard_constraints:
-        qc_type = ".*_metrics|flagstats"
+        metrics = CFG["dirs"]["outputs"] + "merged_metrics/{seq_type}--{genome_build}/all.{metrics}.txt"
     run:
         op.relative_symlink(input.metrics, output.metrics)
 
 
+rule _picard_qc_flagstats_output:
+    input:
+        flagstats = rules._picard_qc_flagstats.output.flagstats
+    output:
+        flagstats = CFG["dirs"]["outputs"] + "flagstats/{seq_type}--{genome_build}/{sample_id}.flagstats"
+    run:
+        op.relative_symlink(input.flagstats, output.flagstats)
+
+
 def _get_picard_qc_files(wildcards):
     # base metrics to calculate for all seq_type
-    base = ["alignment_summary_metrics", "insert_size_metrics", "flagstats"]
-    # m_base = ["alignment_summary_metrics", "insert_size_metrics"]
-    # additional seq-type-specific metrics
+    base = ["alignment_summary_metrics", "insert_size_metrics"]
+    
+    # get seq_type specific metrics
     if wildcards.seq_type == 'mrna':
-        metrics = base + ["rnaseq_metrics"]
-    #    m_metrics = mbase + ["rnaseq_metrics"]
+        m = base + ["rnaseq_metrics"]
     elif wildcards.seq_type == 'genome':
-        metrics = base + ["wgs_metrics"]
-    #    m_metrics = mbase + ["wgs_metrics"]
+        m = base + ["wgs_metrics"]
     elif wildcards.seq_type == 'capture':
-        metrics = base + ["hs_metrics", "interval_hs_metrics"]
-    #    m_metrics = mbase + ["hs_metrics"]
+        m = base + ["hs_metrics", "interval_hs_metrics"]
     else:
-        metrics = base
-    #    m_metrics = m_base
+        m = base
 
-    targets = expand(rules._picard_qc_output.output.metrics, **wildcards, qc_type = metrics)
-
-    # merged_targets = expand("{dir}{seq_type}--{genome_build}/all.{qc_type}.txt", dir = CFG["dirs"]["merged_metrics"], **wildcards, qc_type = m_metrics)
+    targets = expand(rules._picard_qc_merged_output.output.metrics, **wildcards, metrics = m)
 
     return targets
 
  
-rule _picard_qc_all_dispatch:
+rule _picard_qc_merged_dispatch:
     input:
         _get_picard_qc_files
     output:
-        touch(CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.dispatched")
+        touch(CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/merged.dispatched")
 
 
 rule _picard_qc_all:
     input: 
-        expand([CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.alignment_summary_metrics.txt", CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.insert_size_metrics.txt"],
-            seq_type = ["capture"],
-            genome_build = "grch37")
-        #expand(rules._picard_qc_all_dispatch.output, zip,
-        #    seq_type = CFG["samples"]["seq_type"],
-        #    genome_build = CFG["samples"]["genome_build"],
-        #    sample_id = CFG["samples"]["sample_id"])
+        expand(rules._picard_qc_merged_dispatch.output, zip,
+            seq_type = CFG["samples"]["seq_type"],
+            genome_build = CFG["samples"]["genome_build"]),
+        expand(rules._picard_qc_flagstats_output.output.flagstats, zip,
+            seq_type = CFG["samples"]["seq_type"],
+            genome_build = CFG["samples"]["genome_build"],
+            sample_id = CFG["samples"]["sample_id"])
 
 
 ##### CLEANUP #####
