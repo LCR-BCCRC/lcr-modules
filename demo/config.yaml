@@ -21,7 +21,12 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
-    
+
+    utils:
+        inputs:
+            bed: "reference/exomes/grch37/bed/{id}.bed"
+            
     picard_qc:
         inputs:
             sample_bam: "data/{sample_id}.bam"
+            intervals: "reference/exomes/{genome_build}/interval/S07604624_intervals.txt"

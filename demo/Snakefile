@@ -25,8 +25,10 @@ subworkflow reference_files:
 
 
 # Load module-specific configuration
+configfile: "../modules/utils/2.0/config/default.yaml"
 configfile: "../modules/star/1.0/config/default.yaml"
 configfile: "../modules/manta/2.0/config/default.yaml"
+configfile: "../modules/picard_qc/1.0/config/default.yaml"
 
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
@@ -38,14 +40,16 @@ configfile: "config.yaml"
 
 # Use all samples as a default sample list for each module
 config["lcr-modules"]["_shared"]["samples"] = SAMPLES
-
+config["lcr-modules"]["picard_qc"]["samples"] = SAMPLES
 
 ##### MODULE SNAKEFILES #####
 
 
 # Load module-specific snakefiles
+include: "../modules/utils/2.0/utils.smk"
 include: "../modules/star/1.0/star.smk"
 include: "../modules/manta/2.0/manta.smk"
+include: "../modules/picard_qc/1.0/picard_qc.smk"
 
 
 ##### TARGETS ######
@@ -54,4 +58,5 @@ include: "../modules/manta/2.0/manta.smk"
 rule all:
     input:
         rules._manta_all.input,
-        rules._star_all.input
+        rules._star_all.input,
+        rules._picard_qc_all.input
