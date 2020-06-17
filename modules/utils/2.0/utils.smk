@@ -151,6 +151,10 @@ rule: # create_interval_list from bed; default exomes
         "exomes/{genome_build}/interval/{id}_intervals.log"
     conda: 
         CONFIG["conda_envs"]["picard"]
+    threads:
+        CONFIG["threads"]["interval"]
+    resources: 
+        mem_mb = CONFIG["mem_mb"]["interval"]
     shell:
         op.as_one_line("""
         picard BedToIntervalList

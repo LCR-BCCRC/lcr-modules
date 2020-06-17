@@ -3,7 +3,7 @@ lcr-modules:
     picard_qc:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bam: null  # UPDATE
+            sample_bam: "__UPDATE__"
             intervals : "reference/exomes/{genome_build}/interval/S07604624_intervals.txt"  #UPDATE default is grch37 exome kit
             rrna_intervals: "genomes/{genome_build}/rrna_intervals/rRNA_int_gencode-33.txt"
             refFlat: "genomes/{genome_build}/annotations/refFlat_gencode-33.txt"

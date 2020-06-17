@@ -250,7 +250,7 @@ rule _picard_qc_merge_metrics:
     input: 
         _get_sample_metrics(metrics_dir = CFG["dirs"]["metrics"])
     output: 
-        CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.{metrics}.txt"
+        metrics = CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.{metrics}.txt"
     run:
         samples = input
         with open(output[0], "w") as out:
@@ -290,7 +290,7 @@ rule _picard_qc_flagstats:
 
 rule _picard_qc_merged_output:
     input:
-        metrics = rules._picard_qc_merge_metrics.output
+        metrics = rules._picard_qc_merge_metrics.output.metrics
     output:
         metrics = CFG["dirs"]["outputs"] + "merged_metrics/{seq_type}--{genome_build}/all.{metrics}.txt"
     run:

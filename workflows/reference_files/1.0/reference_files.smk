@@ -24,8 +24,7 @@ localrules: download_genome_fasta,
             get_genome_fasta_download, index_genome_fasta,
             get_main_chromosomes_download, create_bwa_index,
             get_gencode_download, create_star_index,
-            create_seq_dict, create_interval_list,
-            create_rRNA_interval
+            create_seq_dict, create_rRNA_interval
 
 
 # Check for genome builds
@@ -444,7 +443,7 @@ rule create_rRNA_interval:
     conda: CONDA_ENVS["picard"]
     shell:
         op.as_one_line("""
-        grep 'gene_biotype "rRNA"' {input.gtf} |
+        grep 'gene_type "rRNA"' {input.gtf} |
         awk '$3 == "transcript"' |
         cut -f1,4,5,7,9 |
         perl -lane '
@@ -464,6 +463,9 @@ rule create_refFlat:
         txt = "genomes/{genome_build}/annotations/refFlat_gencode-{gencode_release}.txt"
     log: "genomes/{genome_build}/annotations/gtfToGenePred-{gencode_release}.log"
     conda: CONDA_ENVS["gtfToGenePred"]
+    threads: 4
+    resources:
+        mem_mb = 6000
     shell:
         op.as_one_line("""
         gtfToGenePred -genePredExt -geneNameAsName2 
