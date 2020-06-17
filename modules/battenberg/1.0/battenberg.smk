@@ -8,7 +8,6 @@
 # Module Author:    Ryan Morin
 # Contributors:     N/A
 
-
 ##### SETUP #####
 
 
@@ -20,7 +19,6 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "battenberg",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "battenberg", "outputs"],
 )
 
@@ -30,16 +28,16 @@ _battenberg_CFG = CFG
 # Define rules to be run locally when using a compute cluster
 # TODO: Replace with actual rules once you change the rule names
 localrules:
+    _install_battenberg,
     _battenberg_input_bam,
-    _battenberg_step_2,
     _battenberg_output_seg,
+    _battenberg_to_igv_seg,
     _battenberg_all,
 
 
 ##### RULES #####
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
 rule _battenberg_input_bam:
     input:
         bam = CFG["inputs"]["sample_bam"],
