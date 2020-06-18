@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Anita dos Santos.
 
-<!-- TODO: Explain each important module design decision below. -->
-
-- No module design decisions explained here yet.
+- The `mixcr` module can process RNA-seq or non-targeted genomic raw data
+- Default options are used for all optional arguments.
+- Final outputs are named `mixcr.{sample_id}.clonotypes.ALL.txt` and `mixcr.{sample_id}.report` and are symlinked to `99-outputs`
+- A `mixcr.{sample_id}.clonotypes.ALL.txt` file will be created regardless of the success of `mixcr` to circumvent cases where no clonotypes are found and no such file is created.
+- A conda environment for `mixcr` is expected to be released in July.

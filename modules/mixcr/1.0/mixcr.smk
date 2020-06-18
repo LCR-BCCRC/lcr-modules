@@ -20,15 +20,12 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "mixcr",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "mixcr", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _mixcr_input_fastq,
-    _mixcr_step_2,
     _mixcr_output_txt,
     _mixcr_all,
 
@@ -37,68 +34,57 @@ localrules:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
 rule _mixcr_input_fastq:
     input:
-        fastq = CFG["inputs"]["sample_fastq"]
+        fastq_1 = CFG["inputs"]["sample_fastq_1"],
+        fastq_2 = CFG["inputs"]["sample_fastq_2"],
     output:
-        fastq = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.fastq"
+        fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R1.fastq.gz",
+        fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R2.fastq.gz",
     run:
-        op.relative_symlink(input.fastq, output.fastq)
+        op.relative_symlink(input.fastq_1, output.fastq_1)
+        op.relative_symlink(input.fastq_2, output.fastq_2)
 
-
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _mixcr_step_1:
+# Run MiXCR rule
+rule _mixcr_run:
     input:
-        tumour_fastq = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{tumour_id}.fastq",
-        normal_fastq = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{normal_id}.fastq",
-        fasta = reference_files(CFG["reference"]["genome_fasta"])
+        fastq_1 = rules._mixcr_input_fastq.output.fastq_1,
+        fastq_2 = rules._mixcr_input_fastq.output.fastq_2,
     output:
-        txt = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.txt"
+         txt = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr.{sample_id}.clonotypes.ALL.txt",
+         report = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr.{sample_id}.report"
     log:
-        stdout = CFG["logs"]["mixcr"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-        stderr = CFG["logs"]["mixcr"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
+        stdout = CFG["logs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr_run.stdout.log",
+        stderr = CFG["logs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr_run.stderr.log"
     params:
-        opts = CFG["options"]["step_1"]
-    conda:
-        CFG["conda_envs"]["samtools"]
+        opts = op.switch_on_wildcard("seq_type", CFG["options"]["mixcr_run"]),
+        prefix = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr.{sample_id}", 
+        mixcr = "/home/adossantos/repos/lcr-modules/modules/mixcr/1.0/envs/mixcr"
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["mixcr_run"]
     resources:
-        mem_mb = CFG["mem_mb"]["step_1"]
+        mem_mb = CFG["mem_mb"]["mixcr_run"]
+    message:
+        "{params.mixcr}"    
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --tumour {input.tumour_fastq} --normal {input.normal_fastq}
-        --ref-fasta {params.fasta} --output {output.txt} --threads {threads}
-        > {log.stdout} 2> {log.stderr}
+        {params.mixcr} analyze shotgun -s hsa -t {threads} {params.opts} {input.fastq_1} {input.fastq_2} {params.prefix} > {log.stdout} 2> {log.stderr};
+        touch "{output.txt}"
         """)
-
-
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _mixcr_step_2:
-    input:
-        txt = rules._mixcr_step_1.output.txt
-    output:
-        txt = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.txt"
-    log:
-        stderr = CFG["logs"]["mixcr"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.txt} > {output.txt} 2> {log.stderr}"
+        
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _mixcr_output_txt:
     input:
-        txt = rules._mixcr_step_2.output.txt
+        txt = rules._mixcr_run.output.txt,
+        report = rules._mixcr_run.output.report
     output:
-        txt = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.txt"
+        txt = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/mixcr.{sample_id}.clonotypes.ALL.txt",
+        report = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/mixcr.{sample_id}.report"
     run:
-        op.relative_symlink(input, output)
+        op.relative_symlink(input.txt, output.txt)
+        op.relative_symlink(input.report, output.report)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -106,15 +92,12 @@ rule _mixcr_all:
     input:
         expand(
             [
-                rules._mixcr_output_txt.output.txt,
-                # TODO: If applicable, add other output rules here
+                rules._mixcr_output_txt.output.txt
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            sample_id=CFG["samples"]["sample_id"])
 
 
 ##### CLEANUP #####
