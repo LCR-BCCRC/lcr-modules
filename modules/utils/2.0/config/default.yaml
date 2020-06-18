@@ -6,7 +6,7 @@ lcr-modules:
     utils:
         inputs:
             bed: "__UPDATE__"
-            
+
         options:
             bam_sort: ""
             bam_markdups: ""
