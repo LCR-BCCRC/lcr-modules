@@ -76,6 +76,7 @@ def get_libraries(mconfig = CFG):
             raise ValueError (f"Invalid value for patient_id : {wildcards.sample_id}")
     return _get_custom_lib
 
+
 def get_lib_str(wildcards):
     d = create_map_dict()
     libs = d.get(wildcards.sample_id)
@@ -104,7 +105,7 @@ rule _ginkgo_run:
         bed_list = rules._ginkgo_create_bed_list.output.bed_list 
         # get_libraries(CFG) #expand("{DIR}{{genome_build}}_bin{{bin}}/{{sample_id}}/{lib}.bed.gz", DIR = CFG["dirs"]["ginkgo"], lib = get_libraries)
     output:
-        stamp = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}.done"
+        sc = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/SegCopy"
     conda:
         CFG["conda_envs"].get("ginkgo") or "envs/ginkgo_dep.yaml"
     log: 
@@ -119,9 +120,9 @@ rule _ginkgo_run:
         clustLink = CFG["options"]["clustMeth"],
         opts = CFG["options"]["flags"]
     threads: 
-        CFG["threads"].get("ginkgo") or 4
+        CFG["threads"].get("ginkgo") or 8
     resources:
-        mem_mb = CFG["mem_mb"].get("ginkgo") or 8000
+        mem_mb = CFG["mem_mb"].get("ginkgo") or 16000
     shell:
         md.as_one_line("""
         {params.ginkgo} 
@@ -132,19 +133,18 @@ rule _ginkgo_run:
         {params.clustDist} {params.clustLink}
         {params.opts} 
         > {log.stdout} 2> {log.stderr}
-        && touch {output.stamp}
         """)
 
 
 rule _ginkgo_output:
     input:
-        sc = rules._ginkgo_run.output.stamp
+        sc = rules._ginkgo_run.output.sc
     output:
         sc = CFG["dirs"]["outputs"] + "{genome_build}_bin{bin}/{sample_id}_SegCopy"
-    params:
-        sc = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/SegCopy"
+    #params:
+    #    sc = CFG["dirs"]["ginkgo"] + "{genome_build}_bin{bin}/{sample_id}/SegCopy"
     run:
-        md.symlink(params.sc, output.sc)
+        md.symlink(input.sc, output.sc)
 
 sub_df = CFG["samples"][["patient_id", "genome_build"]].drop_duplicates()
 

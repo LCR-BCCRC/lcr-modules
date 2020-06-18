@@ -5,11 +5,11 @@ lcr-modules:
             metrics: "results/picard_qc-1.0/02-merged_metrics/genome--{genome_build}/all.alignment_summary_metrics.txt"
             #"/projects/clc/usr/ginkgo/cli/ginkgo.sh"
             sample_bam: null
-            bins: ["1000000"]
+            bins: ["25000", "100000", "1000000"]
         options:
             bed_threshold: "500000"
 
-            flags: "--process --init"
+            flags: "--process" #"--process --init"
             # available opts: --process --init --maskbadbins --masksexchrs --maskpsrs
             # when --maskpsrs is set, ginkgo uses {genomeDIR}/pseudoautosomal instead of {genomeDIR}/original
 
@@ -32,7 +32,8 @@ lcr-modules:
             # - 1: light blue / orange
             # - 2: magenta / gold
             color: 3
-
+        conda_envs:
+            ginkgo: null
         threads:
             bam2bed: null
             ginkgo: 4
