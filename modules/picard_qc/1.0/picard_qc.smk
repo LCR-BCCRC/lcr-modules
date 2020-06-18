@@ -245,10 +245,20 @@ def _get_sample_metrics(metrics_dir):
         return expand("{dir}{seq_type}--{genome_build}/{sample_id}/{metrics}", dir = DIR, sample_id = list(sample["sample_id"]), **wildcards)
     return _get_sample_metrics_custom
 
+"""
+def _get_sample_metrics(metrics_dir, samples):
+    DIR = metrics_dir
+    DF = samples
+    def _get_sample_metrics_custom(wildcards):
+        sample = op.filter_samples(DF, seq_type = [wildcards.seq_type])
+        return expand("{dir}{seq_type}--{genome_build}/{sample_id}/{metrics}", dir = DIR, sample_id = list(DF["sample_id"]), **wildcards)
+    return _get_sample_metrics_custom
+"""
 
 rule _picard_qc_merge_metrics:
     input: 
         _get_sample_metrics(metrics_dir = CFG["dirs"]["metrics"])
+        # _get_sample_metrics(metrics_dir = CFG["dirs"]["metrics"], samples = CFG["samples"])
     output: 
         metrics = CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.{metrics}.txt"
     run:

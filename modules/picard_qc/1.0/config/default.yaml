@@ -18,7 +18,7 @@ lcr-modules:
                     _default: "NONE"
                     forward: "FIRST_READ_TRANSCRIPTION_STRAND"
                     reverse: "SECOND_READ_TRANSCRIPTION_STRAND" 
-            wgs_metrics: ""
+            wgs_metrics: "VALIDATION_STRINGENCY=LENIENT"
 
 
         conda_envs:
