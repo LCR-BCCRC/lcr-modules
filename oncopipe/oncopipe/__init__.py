@@ -1302,16 +1302,15 @@ def generate_pairs(samples, **seq_types):
 
 
 def check_for_none_strings(config, name):
-    """Warn the user if 'None' strings are found in config."""
+    """Warn the user if 'None'/'null' strings are found in config."""
 
     def check_for_none_strings_(obj):
         if isinstance(obj, str):
-            if obj == "None":
+            if obj in ["None", "null"]:
                 logger.warning(
-                    "Found the value `'None'` (string) in the configuration for "
-                    f"the {name} module. Are you sure you didn't want to use "
-                    "the value `None` instead? This might have happened by using "
-                    "`None` or `'None'` in a YAML file instead of `null`."
+                    f"Found the value `{obj!r}` (string) in the configuration for "
+                    f"the {name} module. You probably intended to use the value "
+                    "`null` (without quotes) in the YAML configuration files."
                 )
         return obj
 
