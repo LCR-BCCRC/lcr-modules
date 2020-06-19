@@ -1117,6 +1117,7 @@ def generate_runs(
 
     # Generate Sample instances for unmatched normal samples from sample IDs
     Sample = namedtuple("Sample", samples.columns.tolist())
+    sample_genome_builds = samples["genome_build"].unique()
     for seq_type, args_dict in pairing_config.items():
         if (
             "run_unpaired_tumours_with" in args_dict
@@ -1125,7 +1126,11 @@ def generate_runs(
         ):
             unmatched_normals = dict()
             for key, normal_id in unmatched_normal_ids.items():
-                if not key.startswith(f"{seq_type}--"):
+                _, genome_build = key.split("--", 1)
+                if (
+                    not key.startswith(f"{seq_type}--")
+                    or genome_build not in sample_genome_builds
+                ):
                     continue
                 normal_row = samples[
                     (samples.sample_id == normal_id) & (samples.seq_type == seq_type)
