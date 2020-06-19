@@ -805,6 +805,7 @@ def generate_runs_for_patient(
     run_paired_tumours,
     run_unpaired_tumours_with,
     unmatched_normal=None,
+    unmatched_normals=None,
     run_paired_tumours_as_unpaired=False,
     **kwargs,
 ):
@@ -829,6 +830,13 @@ def generate_runs_for_patient(
     unmatched_normal : namedtuple, optional
         The normal sample to be used with unpaired tumours when
         `run_unpaired_tumours_with` is set to 'unmatched_normal'.
+    unmatched_normals : dict, optional
+        The normal samples to be used with unpaired tumours when
+        `run_unpaired_tumours_with` is set to 'unmatched_normal'.
+        Unlike `unmatched_normal`, this parameter expects a mapping
+        from "{seq_type}--{genome_build}" to Sample namedtuples.
+        If this option is provided, it will take precedence over
+        `unmatched_normal`.
     run_paired_tumours_as_unpaired : boolean, optional
         Whether paired tumours should also be run as unpaired
         (i.e., separate from their matched normal sample).
@@ -888,14 +896,19 @@ def generate_runs_for_patient(
         # Compile features
         tumour = tumour._asdict()
         if normal is None and run_unpaired_tumours_with == "unmatched_normal":
-            # Check that `unmatched_normal` is given
+            # Check that `unmatched_normal` or `unmatched_normals` is given
             seq_type = tumour["seq_type"]
-            assert unmatched_normal is not None, (
+            genome_build = tumour["genome_build"]
+            assert unmatched_normal is not None or unmatched_normals is not None, (
                 "`run_unpaired_tumours_with` was set to 'unmatched_normal' "
-                f"whereas `unmatched_normal` was None. For {seq_type!r}, "
-                "provide an unmatched normal sample ID. See README for format."
+                f"whereas `unmatched_normal` and `unmatched_normals` were both "
+                "None. For {seq_type!r}, provide an unmatched normal sample ID. "
+                "See README for format."
             )
-            normal = unmatched_normal._asdict()
+            if unmatched_normals is not None:
+                normal = unmatched_normals[f"{seq_type}--{genome_build}"]._asdict()
+            else:
+                normal = unmatched_normal._asdict()
             runs["pair_status"].append("unmatched")
         elif normal is None and run_unpaired_tumours_with == "no_normal":
             normal = {key: None for key in tumour.keys()}
@@ -911,12 +924,12 @@ def generate_runs_for_patient(
 
 
 def generate_runs_for_patient_wrapper(patient_samples, pairing_config):
-    """Runs generate_runs_for_patient based on the current seq_type.
+    """Runs generate_runs_for_patient for the current seq_type/genome_build.
 
     This function is meant as a wrapper for `generate_runs_for_patient()`,
-    whose parameters depend on the sequencing data type (seq_type) of the
-    samples at hand. It assumes that all samples for the given patient
-    share the same seq_type.
+    whose parameters depend on the sequencing data type (seq_type) and
+    genome_build of the samples at hand. It assumes that all samples for
+    the given patient share the same seq_type and genome_build.
 
     Parameters
     ----------
@@ -1066,6 +1079,7 @@ def walk_through_dict(
 def generate_runs(
     samples,
     pairing_config=None,
+    unmatched_normal_ids=None,
     subgroups=("seq_type", "genome_build", "patient_id", "tissue_status"),
 ):
     """Produces a data frame of tumour runs from a data frame of samples.
@@ -1082,6 +1096,9 @@ def generate_runs(
         Same as `generate_runs_for_patient_wrapper()`. If left unset
         (or None is provided), this function will fallback on a
         default value (see `oncopipe.DEFAULT_PAIRING_CONFIG`).
+    unmatched_normal_ids : dict, optional
+        The mapping from seq_type and genome_build to the unmatched
+        normal sample IDs that should be used for unmatched analyses.
     subgroups : list of str, optional
         Same as `group_samples()`.
 
@@ -1101,6 +1118,25 @@ def generate_runs(
     Sample = namedtuple("Sample", samples.columns.tolist())
     for seq_type, args_dict in pairing_config.items():
         if (
+            "run_unpaired_tumours_with" in args_dict
+            and args_dict["run_unpaired_tumours_with"] == "unmatched_normal"
+            and unmatched_normal_ids is not None
+        ):
+            unmatched_normals = dict()
+            for key, normal_id in unmatched_normal_ids.items():
+                if not key.startswith(f"{seq_type}--"):
+                    continue
+                normal_row = samples[
+                    (samples.sample_id == normal_id) & (samples.seq_type == seq_type)
+                ]
+                num_matches = len(normal_row)
+                assert num_matches == 1, (
+                    f"There are {num_matches} {seq_type} samples matching "
+                    f"the normal ID {normal_id} (instead of just one)."
+                )
+                unmatched_normals[key] = Sample(*normal_row.squeeze())
+            args_dict["unmatched_normals"] = unmatched_normals
+        elif (
             "run_unpaired_tumours_with" in args_dict
             and args_dict["run_unpaired_tumours_with"] == "unmatched_normal"
             and "unmatched_normal_id" in args_dict
@@ -1507,7 +1543,9 @@ def setup_module(name, version, subdirectories):
 
     # Generate runs
     assert "pairing_config" in mconfig, "Module config must have 'pairing_config'."
-    runs = generate_runs(msamples, mconfig["pairing_config"])
+    runs = generate_runs(
+        msamples, mconfig["pairing_config"], mconfig.get("unmatched_normal_ids")
+    )
 
     # Split runs based on pair_status
     mconfig["runs"] = runs
