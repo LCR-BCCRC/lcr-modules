@@ -1099,6 +1099,7 @@ def generate_runs(
     unmatched_normal_ids : dict, optional
         The mapping from seq_type and genome_build to the unmatched
         normal sample IDs that should be used for unmatched analyses.
+        The keys must take the form of '{seq_type}--{genome_build}'.
     subgroups : list of str, optional
         Same as `group_samples()`.
 
@@ -1183,7 +1184,7 @@ def generate_runs(
     return runs
 
 
-def generate_pairs(samples, **seq_types):
+def generate_pairs(samples, unmatched_normal_ids=None, **seq_types):
     """Generate tumour-normal pairs using sensible defaults.
 
     Each sequencing data type (``seq_type``) is provided as
@@ -1231,6 +1232,10 @@ def generate_pairs(samples, **seq_types):
         'tumour'/'tumor'). If ``genome_build`` is included,
         no tumour-normal pairs will be made between different
         genome builds.
+    unmatched_normal_ids : dict, optional
+        The mapping from seq_type and genome_build to the unmatched
+        normal sample IDs that should be used for unmatched analyses.
+        The keys must take the form of '{seq_type}--{genome_build}'.
     **seq_types : {'matched_only', 'allow_unmatched', 'no_normal'}
         A mapping between values of ``seq_type`` and
         pairing modes. See above for description of each
@@ -1305,14 +1310,19 @@ def generate_pairs(samples, **seq_types):
         )
 
         # Make sure that the `allow_unmatched` mode is provided
-        assert mode != "allow_unmatched" or unmatched_normal_id is not None, (
-            "The 'allow_unmatched' mode must be paired with a normal sample ID, such "
-            "as:\n    generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'))\n"
+        # with unmatched_normal_id or unmatched_normal_ids
+        assert mode != "allow_unmatched" or (
+            unmatched_normal_id is not None or unmatched_normal_ids is not None
+        ), (
+            "The 'allow_unmatched' mode must be provided with the "
+            "`unmatched_normal_ids` parameter or paired with a normal "
+            "sample ID, such as:\n    "
+            "generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'))\n"
         )
 
         pairing_config[seq_type] = pairing_modes[mode]
 
-        if mode == "allow_unmatched":
+        if mode == "allow_unmatched" and unmatched_normal_id is not None:
             pairing_config[seq_type]["unmatched_normal_id"] = unmatched_normal_id
 
     # Subgroup using `genome_build` if available
@@ -1329,7 +1339,8 @@ def generate_pairs(samples, **seq_types):
     )
 
     # Generate the runs using the generated pairing configuration
-    runs = generate_runs(samples, pairing_config, subgroups)
+    samples = filter_samples(samples, seq_type=list(seq_types.keys()))
+    runs = generate_runs(samples, pairing_config, unmatched_normal_ids, subgroups)
 
     return runs
 
