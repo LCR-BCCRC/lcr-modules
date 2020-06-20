@@ -83,8 +83,9 @@ Getting Started
 
    .. note::
 
-      | **BCGSC Users**
-      | You can set the ``reference_files`` working directory (``workdir``) to the following file path in order to benefit from pregenerated reference files:
+      **BCGSC Users**
+
+      You can set the ``reference_files`` working directory (``workdir``) to the following file path in order to benefit from pregenerated reference files:
       
       .. code::
 
@@ -132,16 +133,25 @@ Before running the `Demo Project`_, you will need to download the `Test Data`_, 
 
    Becnel, L. B. et al. An open access pilot freely sharing cancer genomic data from participants in Texas. Sci. Data 3:160010 doi: 10.1038/sdata.2016.10 (2016).
 
+You can download the test data and verify the checksums using the following commands. Note that this will overwrite the empty placeholder files. If you don't have enough space where you cloned the repository, you can download the test data elsewhere and create symbolic links.
+
+.. code:: bash
+
+   cd demo/data/
+   wget --recursive --no-parent --no-host-directories --cut-dirs=3 --execute robots=off --reject="index.html*" https://www.bcgsc.ca/downloads/lcr-modules/test_data/
+   md5sum --check checksums.txt
+
 .. note::
 
-   | **BCGSC Users**
-   | You can replace the empty placeholder files with symbolic links to the local copies of the test data using the following command:
+   **BCGSC Users**
+   
+   You can replace the empty placeholder files with symbolic links to the local copies of the test data using the following command:
    
    .. code:: bash
 
       ln -sf /projects/bgrande/lcr-modules/test_data/*.{bam,bai,fastq.gz} ./demo/data/
 
-Once the `Test Data`_ is downloaded, you will need to update the placeholders in ``demo/data/`` with the downloaded files (or symbolic links to the files). At that point, you can technically run the `Demo Snakefile`_ by omitting the ``--dry-run`` option from the command in the :ref:`getting-started-user` instructions, but you might want to update the value set in ``demo/config.yaml`` under ``scratch_directory`` to an space where you can readily store large intermediate files (*e.g.* a directory without snapshots or backups).
+At that point, you can technically run the `Demo Snakefile`_ by omitting the ``--dry-run`` option from the command in the :ref:`getting-started-user` instructions, but you might want to update the value set in ``demo/config.yaml`` under ``scratch_directory`` to an space where you can readily store large intermediate files (*e.g.* a directory without snapshots or backups). For more information check out the :ref:`common-shared-configuration-fields` section.
 
 If you are interested in learning how you can conditionally use the STAR BAM files for RNA-seq samples while using the BAM files in ``data/`` for other samples, check out the :ref:`conditional-module-behaviour-user` section.
 
@@ -280,6 +290,8 @@ One of the components of the :ref:`lcr-modules-configuration` is the shared conf
 
 This behaviour can be leveraged in a number of ways. For example, by setting ``unmatched_normal_id`` under the ``"_shared"`` key, you avoid having to specify that value for every module that performs paired analyses (assuming you have unpaired tumours). That said, if you want to use a different ``unmatched_normal_id`` for a subset of modules, you can override the shared value. Another useful instance is the sharing of the :ref:`sample-table` between modules. This way, the user doesn't have to repeatedly provide the same sample table to each module. Note that this is only possible because each module automatically filters the samples based on the sequencing data types (``seq_type``) listed in their :ref:`pairing-configuration`. 
 
+.. _common-shared-configuration-fields:
+
 Common Shared Configuration Fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -307,18 +319,22 @@ If the user wants to configure new sequencing data types, they should check out 
 .. _updating-configuration-values:
 
 Updating Configuration Values
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
 .. _within-the-configuration-file:
 
 Within a Configuration File
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you followed the :ref:`getting-started-user` instructions, you should have a section in your project configuration file for ``lcr-modules`` (with at least the ``_shared`` sub-section). One approach to updating configuration values is to add to this section. **Important:** One requirement for this to work is that you need to load your project configuration file **after** the default module configuration files. Again, if you followed the :ref:`getting-started-user` instructions, this should already be the case. 
 
 By the way, there is nothing forcing you to store your project-specific configuration in the same file as the lcr-modules configuration. You can easily have a ``project.yaml`` file loaded near the beginning of your snakefile and a ``lcr-modules.yaml`` file loaded as described in the :ref:`getting-started-user` instructions.
 
 One of the main limitations of this approach is that you are restricted to value types that can be encoded in YAML format. For the most part, this means numbers, strings and booleans organized into lists or dictionaries. In other words, this precludes the use of functions as values, such as `Input File Functions`_. If you need to specify functions, you will have to update configuration values :ref:`within-the-snakefile`, or use a hybrid approach.
+
+.. note::
+
+   The value ``null`` is parsed as ``None`` in Python. If you provide the value ``None`` in the YAML file, it will be parsed as the string ``"None"``.
 
 The example YAML file below is taken from the `Demo Configuration`_. You can see that it includes a ``pairing_config`` under ``_shared`` to indicate which normal samples to use for unpaired tumours for paired analyses (see :ref:`handling-unpaired-tumours`). It also updates a number of configuration values for the ``star`` and ``manta`` modules. All of these fields were labelled with an ``UPDATE`` comment in the modules' respective default configuration file. The only exception is the ``scratch_subdirectories`` field for the ``star`` module, which was updated here to include the ``"mark_dups"`` subdirectory such that the final BAM files from the module are also stored in the scratch directory.
 
@@ -352,7 +368,7 @@ The example YAML file below is taken from the `Demo Configuration`_. You can see
 .. _within-the-snakefile:
 
 Within the Snakefile
-^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~
 
 You can always update configurations values within the snakefile **after** the default configuration files have been loaded. The advantage of this approach is that you can update the value to anything that Python allows, including functions. This is incredibly powerful in snakemake thanks to `Input File Functions`_ and `Parameter Functions`_. Also, :py:mod:`oncopipe` includes some useful functions that make use of these snakemake features (*e.g.* :ref:`conditional-module-behaviour-user`).
 

@@ -1,3 +1,5 @@
+.. _Python Package Index: https://pypi.org/project/oncopipe/
+
 .. _Demo Project: https://github.com/LCR-BCCRC/lcr-modules/blob/master/demo/
 
 .. _Demo Snakefile: https://github.com/LCR-BCCRC/lcr-modules/blob/master/demo/snakefile

@@ -1054,11 +1054,15 @@ def generate_pairs(samples, **seq_types):
     mode determines how the samples for that ``seq_type``
     are paired. Only the listed ``seq_type`` values will be
     included in the output. The available pairing modes are:
+
     1. ``matched_only``: Only tumour samples with matched
        normal samples will be returned. In other words,
        unpaired tumour or normal samples will be omitted.
+
        .. code:: python
+
           generate_pairs(SAMPLES, genome='matched_only')
+
     2. ``allow_unmatched``: All tumour samples will be returned
        whether they are paired with a matched normal sample
        or not. If they are not paired, they will be returned
@@ -1066,15 +1070,21 @@ def generate_pairs(samples, **seq_types):
        This mode must be specified alongside the ID for the
        sample to be paired with unpaired tumours as a tuple.
        This sample must be present in the ``samples`` table.
+
        .. code:: python
+
           generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'))
+
     3. ``no_normal``: All tumour samples will be returned
        without a paired normal sample. This is simply a
        shortcut for filtering for tumour samples, but this
        ensures that the column names will be consistent
        with other calls to ``generate_pairs()``.
+
        .. code:: python
+
           generate_pairs(SAMPLES, mrna='no_normal')
+
     Parameters
     ----------
     samples : pandas.DataFrame
