@@ -5,38 +5,19 @@ lcr-modules:
         # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_vcf: null  # UPDATE
-            vep_cache:
-            vcf_caller:
-                varscan: ["indels", "snvs"]
-                strelka: ["indels", "snvs"]
-                manta: null
-
-        scratch_subdirectories: []
+            vep_cache: "/projects/rmorin/reference/ensembl_vep_cache/"
 
         options:
-            step_1: ""
-            step_2: ""
+            vcf2maf: "--filter-vcf 0"
+            # --filter-vcf     A VCF for FILTER tag common_variant. Set to 0 to disable [~/.vep/ExAC_nonTCGA.r0.3.1.sites.vep.vcf.gz]
+            #--species        Ensembl-friendly name of species (e.g. mus_musculus for mouse) [homo_sapiens]
+            #--cache-version  Version of offline cache to use with VEP (e.g. 75, 84, 91) [Default: Installed version]
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            vcf2maf: "{MODSDIR}/envs/vcf2maf-1.6.17.yaml"
             
         threads:
-            step_1: 4
+            vcf2maf: 2
 
         mem_mb:
-            step_1: 2000
-
-        pairing_config:
-            genome:
-                run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
-                run_paired_tumours_as_unpaired: False
-            capture:
-                run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
-                run_paired_tumours_as_unpaired: False
-            mrna:
-                run_paired_tumours: False
-                run_unpaired_tumours_with: "no_normal"
-                run_paired_tumours_as_unpaired: True
+            vcf2maf: 4000
