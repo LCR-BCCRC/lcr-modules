@@ -20,7 +20,7 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "varscan",
     version = "1.0",
-    subdirectories = ["inputs", "mpileup", "varscan", "outputs"]
+    subdirectories = ["inputs", "mpileup", "varscan", "maf","outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -111,7 +111,7 @@ rule _varscan_unpaired:
         stderr = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/varscan_{vcf_name}.stderr.log"
     params:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["unpaired"]),
-        cns = op.switch_on_wildcard("seq_type", {"cns": CFG["options"]["unpaired"]["cns"], "indel": "", "snp": ""})
+        cns = op.switch_on_wildcard("seq_type", {"cns": "--variants", "indel": "", "snp": ""})
     conda:
         CFG["conda_envs"]["varscan"]
     threads:
@@ -138,11 +138,30 @@ rule _varscan_output_vcf:
         op.relative_symlink(input.vcf, output.vcf)
 
 
+rule _varscan_symlink_maf:
+    input:
+        vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
+    output:
+        vcf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
+    run:
+        op.relative_symlink(input.vcf, output.vcf)
+
+
+rule _varscan_output_maf:
+    input:
+        maf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
+    output:
+        maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.maf"
+    run:
+        op.relative_symlink(input.maf, output.maf)
+
+
+
 def _varscan_get_output(wildcards):
     if wildcards.pair_status == "no_normal":
-        return expand(rules._varscan_output_vcf.output.vcf, vcf_name = ["indel", "snp", "cns"], **wildcards)
+        return expand([rules._varscan_output_vcf.output.vcf, rules._varscan_output_maf.output.maf], vcf_name = ["indel", "snp", "cns"], **wildcards)
     else: 
-        return expand(rules._varscan_output_vcf.output.vcf, vcf_name = ["indel", "snp"], **wildcards)
+        return expand([rules._varscan_output_vcf.output.vcf, rules._varscan_output_maf.output.maf], vcf_name = ["indel", "snp"], **wildcards)
 
 rule _varscan_dispatch:
     input:

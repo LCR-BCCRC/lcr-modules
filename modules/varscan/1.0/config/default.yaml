@@ -19,7 +19,7 @@ lcr-modules:
                 capture: "--min-coverage 20 --min-reads2 10 --min-avg-qual 20 --min-var-freq 0.01  --p-value 0.05 --strand-filter 0 --output-vcf 1 --min-strands2 0"
                 genome: ""
                 mrna: ""
-                cns: "--variants"
+
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
