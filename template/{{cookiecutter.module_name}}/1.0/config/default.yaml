@@ -32,11 +32,15 @@ lcr-modules:
         {%- for seq_type, mode in cookiecutter.items() if seq_type.startswith("seq_type.") %}
             {%- if mode != "omit" %}
             {{ seq_type | replace("seq_type.", "", 1) }}:
-            {%- if mode == "paired" %}
+            {%- if mode == "matched_only" %}
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False
+            {%- elif mode == "allow_unmatched" %}
                 run_paired_tumours: True
                 run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: False
-            {%- elif mode == "unpaired" %}
+            {%- elif mode == "no_normal" %}
                 run_paired_tumours: False
                 run_unpaired_tumours_with: "no_normal"
                 run_paired_tumours_as_unpaired: True
