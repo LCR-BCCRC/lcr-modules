@@ -14,7 +14,7 @@ lcr-modules:
             #--cache-version  Version of offline cache to use with VEP (e.g. 75, 84, 91) [Default: Installed version]
 
         conda_envs:
-            vcf2maf: "{MODSDIR}/envs/vcf2maf-1.6.17.yaml"
+            vcf2maf: "envs/vcf2maf-1.6.17.yaml"
             
         threads:
             vcf2maf: 2
