@@ -98,7 +98,7 @@ rule _{{cookiecutter.module_name}}_output_{{cookiecutter.output_file_type}}:
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["outputs"] + "{{cookiecutter.output_file_type}}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.{{cookiecutter.output_file_type}}"
     run:
-        op.relative_symlink(input, output)
+        op.relative_symlink(input.{{cookiecutter.output_file_type}}, output.{{cookiecutter.output_file_type}})
 
 
 # Generates the target sentinels for each run, which generate the symlinks
