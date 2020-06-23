@@ -27,7 +27,10 @@ CFG = op.setup_module(
 # TODO: Replace with actual rules once you change the rule names
 localrules:
     _varscan_input_bam,
+    _varscan_symlink_maf,
     _varscan_output_vcf,
+    _varscan_output_maf,
+    _varscan_dispatch,
     _varscan_all,
 
 
@@ -128,21 +131,21 @@ rule _varscan_unpaired:
         """)
 
 
+rule _varscan_symlink_maf:
+    input:
+        vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
+    output:
+        vcf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
+    run:
+        op.relative_symlink(input.vcf, output.vcf)
+
+
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _varscan_output_vcf:
     input:
         vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf"
-    run:
-        op.relative_symlink(input.vcf, output.vcf)
-
-
-rule _varscan_symlink_maf:
-    input:
-        vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
-    output:
-        vcf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
     run:
         op.relative_symlink(input.vcf, output.vcf)
 
@@ -154,7 +157,6 @@ rule _varscan_output_maf:
         maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.maf"
     run:
         op.relative_symlink(input.maf, output.maf)
-
 
 
 def _varscan_get_output(wildcards):
