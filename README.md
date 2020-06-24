@@ -12,6 +12,11 @@ Clone modified ginkgo repository (originally by robertaboukhalil)
 ```bash
 git clone --single-branch -b LCR-ginkgo https://github.com/LCR-BCCRC/ginkgo.git
 ```
+or use the one located in `/projects/clc/usr/ginkgo`.
+
+If you are cloning the repository, download binning data for hg19 here: http://qb.cshl.edu/ginkgo/uploads/hg19.original.tar.gz
+other genomes: http://labshare.cshl.edu/shares/schatzlab/www-data/ginkgo/genomes/
+
 Clone the ginkgo module from lcr-modules and install modutils
 ```bash
 git clone --single-branch -b ginkgo_scWGS https://github.com/LCR-BCCRC/lcr-modules.git
@@ -32,7 +37,6 @@ script = location of ginkgo.sh script, which is executed to run ginkgo
 metrics = merged alignment summary metrics from picard_qc to filter out low count cells
 
 see `modules/ginkgo/1.0/config/default.yaml` for more information
-
 
 
 Example working directory containing `Snakefile`, `sample_libs.txt`, `datasheet.tsv`:
