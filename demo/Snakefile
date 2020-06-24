@@ -27,6 +27,8 @@ subworkflow reference_files:
 # Load module-specific configuration
 configfile: "../modules/star/1.1/config/default.yaml"
 configfile: "../modules/manta/2.1/config/default.yaml"
+configfile: "../modules/vcf2maf/1.0/config/default.yaml"
+configfile: "../modules/varscan/1.0/config/default.yaml"
 
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
@@ -46,7 +48,8 @@ config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 # Load module-specific snakefiles
 include: "../modules/star/1.1/star.smk"
 include: "../modules/manta/2.1/manta.smk"
-
+include: "../modules/vcf2maf/1.0/vcf2maf.smk"
+include: "../modules/varscan/1.0/varscan.smk"
 
 ##### TARGETS ######
 
@@ -54,4 +57,5 @@ include: "../modules/manta/2.1/manta.smk"
 rule all:
     input:
         rules._manta_all.input,
-        rules._star_all.input
+        rules._star_all.input,
+        rules._varscan_all.input
