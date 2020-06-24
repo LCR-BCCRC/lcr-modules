@@ -60,7 +60,11 @@ rule _strelka_input_vcf:
     conda:
         CFG["conda_envs"]["tabix"]
     shell:
-        "bgzip -c {input.vcf} > {output.vcf} && tabix -p vcf {output.vcf}"
+        op.as_one_line("""
+        bgzip -c {input.vcf} > {output.vcf} 
+            && 
+        tabix -p vcf {output.vcf}
+        """)
 
 
 rule _strelka_dummy_vcf:
