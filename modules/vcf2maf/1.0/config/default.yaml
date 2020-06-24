@@ -5,7 +5,7 @@ lcr-modules:
         # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            vep_cache: "/projects/rmorin/reference/ensembl_vep_cache/"
+            vep_cache: "/projects/clc/references/vep/GRCh37"
 
         options:
             vcf2maf: "--filter-vcf 0"
@@ -14,7 +14,7 @@ lcr-modules:
             #--cache-version  Version of offline cache to use with VEP (e.g. 75, 84, 91) [Default: Installed version]
 
         conda_envs:
-            vcf2maf: "envs/vcf2maf-1.6.17.yaml"
+            vcf2maf: "envs/vcf2maf-1.6.18.yaml"
             
         threads:
             vcf2maf: 2

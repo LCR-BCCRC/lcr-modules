@@ -23,6 +23,12 @@ LOG = "/logs/" + op._session.launched_fmt
 wildcard_constraints:
     prefix = "[0-9]{2}-.*"
 
+VERSION_UPPER = {
+    "grch37": "GRCh37",
+    "GRCh37": "GRCh37",
+    "grch38": "GRCh38",
+    "GRCh38": "GRCh38",
+}
 
 ##### RULES #####
 
@@ -37,7 +43,8 @@ rule:
         stdout = "{out_dir}" + LOG + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}_vcf2maf.stdout.log",
         stderr = "{out_dir}" + LOG + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}_vcf2maf.stderr.log",
     params:
-        opts = CONFIG["options"]["vcf2maf"]
+        opts = CONFIG["options"]["vcf2maf"],
+        build = lambda w: f"{VERSION_UPPER[w.genome_build]}"
     conda:
         CONFIG["conda_envs"]["vcf2maf"]
     threads:
@@ -50,10 +57,11 @@ rule:
         vcf2maf.pl 
         --input-vcf {input.vcf} 
         --output-maf {output.maf} 
-        --tumor-id {wildcards.tumour_id} --normal_id {wildcards.normal_id}
-        --vcf-tumor-id TUMOR --vcf-normal_id NORMAL
+        --tumor-id {wildcards.tumour_id} --normal-id {wildcards.normal_id}
+        --vcf-tumor-id TUMOR --vcf-normal-id NORMAL
         --ref-fasta {input.fasta}
-        --ncbi-build {wildcards.genome_build}
-        --vep-data {input.vep_cache} --vep-path $vepPATH {params.opts} 2> {log}
+        --ncbi-build {params.build}
+        --vep-data {input.vep_cache} --vep-path $vepPATH {params.opts}
+        > {log.stdout} 2> {log.stderr}
         """)
 

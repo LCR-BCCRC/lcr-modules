@@ -12,13 +12,13 @@ lcr-modules:
         options:
             mpileup: "-A -B -q 20 -d 8000" # countOrphan, noBaq, maxDepth -d 10000000, mapQuality, bedFILE (blank)
             somatic: 
-                capture: "--min-coverage 20 --min-var-freq 0.01  --somatic-p-value 0.05 --strand-filter 0 --min-strands2 0 --validation 0"
-                genome: ""
-                mrna: ""
+                capture: "--min-coverage 20 --min-var-freq 0.01  --somatic-p-value 0.05 --strand-filter 0 --min-strands2 0 --validation 0 --output-vcf"
+                genome: "--output-vcf"
+                mrna: "--output-vcf"
             unpaired:
                 capture: "--min-coverage 20 --min-reads2 10 --min-avg-qual 20 --min-var-freq 0.01  --p-value 0.05 --strand-filter 0 --output-vcf 1 --min-strands2 0"
-                genome: ""
-                mrna: ""
+                genome: "--output-vcf"
+                mrna: "--output-vcf"
 
 
         conda_envs:
