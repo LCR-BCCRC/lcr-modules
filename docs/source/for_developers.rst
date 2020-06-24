@@ -112,13 +112,13 @@ When you run the command listed in the :ref:`getting-started-dev` instructions, 
 
    Additional options will be added later, such as ``tumour_cohort`` and ``sample_cohort`` for level-3 modules (see :ref:`what-are-modules` for more details).
 
--  ``seq_type.genome``, ``seq_type.capture``, and ``seq_type.mrna``: Possible values are ``paired``, ``unpaired``, and ``omit``. These fields determine which sequencing data types (``seq_type``) are intended as input for the module and whether each ``seq_type`` is intended to be run in paired or unpaired mode. The fields correspond to whole genome, hybrid capture-based, and RNA sequencing, respectively. Select ``omit`` if a ``seq_type`` is not applicable for the module. 
+-  ``seq_type.genome``, ``seq_type.capture``, and ``seq_type.mrna``: Possible values are ``matched_only``, ``allow_unmatched``, ``no_normal``, and ``omit``. These fields determine which sequencing data types (``seq_type``) are intended as input for the module and whether each ``seq_type`` is intended to be run in paired or unpaired mode, and if in paired mode, whether to allow unmatched pairs. For more information on these modes, check out the documentation for the :py:func:`oncopipe.generate_pairs` function. Select ``omit`` if a ``seq_type`` is not applicable for the module. The fields correspond to whole genome, hybrid capture-based, and RNA sequencing, respectively.
 
    **Important**
 
-   - If you selected “sample” for ``module_run_per``, then you should use ``unpaired`` here. If this is a ``paired`` analysis, you should start over (cancel with Ctrl-C) and select ``tumour`` for ``module_run_per``. 
+   - If you selected ``sample`` for ``module_run_per``, then you should use ``no_normal`` here. If this is a paired analysis, you should start over (cancel with Ctrl-C) and select ``tumour`` for ``module_run_per``. 
    
-   - If you selected ``tumour`` for ``module_run_per``, you can select ``paired`` or ``unpaired`` depending on whether the module is meant to be run on tumour-normal pairs or not. 
+   - If you selected ``tumour`` for ``module_run_per``, you can select ``matched_only``, ``allow_unmatched``, or ``no_normal`` depending on whether the module is meant to be run on only matched tumour-normal pairs, on potentially unmatched tumour-normal pairs, or on tumours only. 
 
 Module Description
 ==================
@@ -431,10 +431,10 @@ In theory, configuration YAML files can take on any structure. However, it helps
 Configuration Features
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Configuration Comments
-^^^^^^^^^^^^^^^^^^^^^^
+Requiring User Intervention
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Make sure that anything that needs to be updated by the user is indicated by an ``UPDATE`` comment. You can see examples in the excerpts below taken from the ``star`` default configuration.
+Make sure that anything that needs to be updated by the user contains ``__UPDATE__`` in the configuration file. You can see examples in the excerpts below taken from the ``star`` default configuration. If the string ``__UPDATE__`` is detected anywhere in the module configuration, an error will inform the user that they need to update a configuration field.
 
 .. _directory-placeholders-dev:
 
@@ -458,7 +458,7 @@ Configuring Input and Reference Files
 
 Virtually all modules will have input files, and many will also require reference files. These are defined using the ``inputs`` and ``reference_params`` keys, respectively.
 
-The input files will generally be set to ``null`` and labelled with ``UPDATE`` comments since they need to be specified by the user. This can be done in the configuration file or in the Snakefile (see the `Demo Snakefile`_ for an example). Either way, the available wildcards are usually listed in a comment. If not, you can always look at the wildcards in the output files of the rule using the ``inputs`` configuration section. In general, these are ``{seq_type}``, ``{genome_build}``, and ``{sample_id}``.
+The input files will generally be set to ``__UPDATE__`` since they need to be specified by the user. This can be done in the configuration file or in the Snakefile (see the `Demo Snakefile`_ for an example). Either way, the available wildcards are usually listed in a comment. If not, you can always look at the wildcards in the output files of the rule using the ``inputs`` configuration section. In general, these are ``{seq_type}``, ``{genome_build}``, and ``{sample_id}``.
 
    One advantage of specifying the input files in the Snakefile (as opposed to in the configuration file) is that the user can provide `Input File Functions`_ rather than a string.
 
@@ -471,13 +471,13 @@ For more information on the approach taken in ``reference_files`` and its benefi
          inputs:
             # The inputs can be configured here or in the Snakefile
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_fastq_1: "<path/to/sample.R1.fastq.gz>"  # UPDATE
-            sample_fastq_2: "<path/to/sample.R2.fastq.gz>"  # UPDATE
+            sample_fastq_1: "__UPDATE__"
+            sample_fastq_2: "__UPDATE__"
 
          reference_params:
             # Ideally, `star_overhang` = max(read_length) - 1
             # STAR indices were precomputed for "74" and "99"
-            star_overhang: "99"  # UPDATE
+            star_overhang: "__UPDATE__"
             # The Gencode release to use for the transcript annotation
             gencode_release: "33"
 
@@ -666,8 +666,6 @@ Here's a brief description of each of the options that go into a ``pairing_confi
 - ``run_paired_tumours``: Possible values are ``True`` or ``False``. This option determines whether to run paired tumours. Setting this to ``False`` is useful for naturally unpaired or tumour-only analyses (*e.g.* for RNA-seq), which is normally done while setting ``run_paired_tumours_as_unpaired`` to True in case there are any paired tumours.
 
 - ``run_unpaired_tumours_with``: Possible values are ``None``, ``"unmatched_normal"``, or ``"no_normal"``. This option determines what to pair with unpaired tumours. Specifying ``None`` means that unpaired tumours will be skipped for the given module. This option cannot be set to ``None`` if ``run_paired_tumours_as_unpaired`` is ``True``. Specifying ``"unmatched_normal"`` means that unpaired tumours will be run by being paired with the unmatched normal sample given by ``unmatched_normal_id`` (see below). Specifying ``"no_normal"`` means that unpaired tumours will be run without a normal sample. Note that modules need to be specifically configured to be run in paired and/or unpaired mode, since the commands of the underlying tools probably need to be tailored accordingly.
-
-- ``unmatched_normal_id``: This option must be set to a sample identifier (``sample_id``) that exists in the :ref:`sample-table`. This option determines which normal sample will be used with unpaired tumours when ``run_unpaired_tumours_with`` is set to ``"unmatched_normal"``. This is only required if you have unpaired tumour samples, even if ``run_unpaired_tumours_with`` is set to ``"unmatched_normal"``. 
 
 - ``run_paired_tumours_as_unpaired``: Possible values are ``True`` or ``False``. This option determines whether paired tumours should be run as unpaired (*i.e.* separate from their matched normal sample). This is useful for benchmarking purposes or preventing unwanted paired analyses (*e.g.* in RNA-seq analyses intended to be tumour-only).
 
