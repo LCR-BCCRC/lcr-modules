@@ -76,10 +76,10 @@ rule bam_util_merge_dup_metrics:
     input: 
         expand("{dir}{{seq_type}}--{{genome_build}}/metrics/{sample_name}.dup_metrics", dir = CFG["dirs"]["bam_util"], sample_name = CFG["samples"]["sample_id"])
     output:
-        tmp = "results/bwa_mem-1.0/01-bam_util/genome--hg19/merged_metrics/dup_metrics.txt", 
-        fin = "results/bwa_mem-1.0/01-bam_util/genome--hg19/merged_metrics/all.dup_metrics"
+        tmp = CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/merged_metrics/dup_metrics.txt", 
+        fin = CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/merged_metrics/all.dup_metrics"
     params:
-        pattern = "results/bwa_mem-1.0/01-bam_util/genome--hg19/*.sorted.filtered.dup_metrics.bam"
+        pattern = CFG["dirs"]["bam_util"] + "{seq_type}--{genome_build}/*.sorted.filtered.dup_metrics.bam"
     threads: 1
     resources: 
         mem_mb = 4000

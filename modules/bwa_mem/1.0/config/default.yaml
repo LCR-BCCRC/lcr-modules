@@ -2,7 +2,7 @@ lcr-modules:
     bwa_mem:
         suffix: ".sorted.filtered.markdup"
         inputs:
-            fastq: ["results/bam2fastq-1.0/99-outputs/{seq_type}--{genome_build}/{sample_id}.1.fastq.gz", "results/bam2fastq-1.0/99-outputs/{seq_type}--{genome_build}/{sample_id}.2.fastq.gz"]
+            fastq: null
         dirs:
             _parent: null
         conda_envs: 

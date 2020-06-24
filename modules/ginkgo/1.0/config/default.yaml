@@ -7,9 +7,8 @@ lcr-modules:
             sample_bam: null
             bins: ["25000", "100000", "1000000"]
         options:
-            bed_threshold: "500000"
-
-            flags: "--process" #"--process --init"
+            bed_threshold: "500000" # min counts
+            flags: "--process --init" #"--process --init"
             # available opts: --process --init --maskbadbins --masksexchrs --maskpsrs
             # when --maskpsrs is set, ginkgo uses {genomeDIR}/pseudoautosomal instead of {genomeDIR}/original
 

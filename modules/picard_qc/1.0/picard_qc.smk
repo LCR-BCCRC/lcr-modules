@@ -283,32 +283,22 @@ outputs:
 def _get_picard_qc_files(wildcards):
     # base metrics to calculate for all seq_type
     base = ["alignment_summary_metrics", "insert_size_metrics", "flagstats"]
-    # m_base = ["alignment_summary_metrics", "insert_size_metrics"]
-    # additional seq-type-specific metrics
     if wildcards.seq_type == 'mrna':
         metrics = base + ["rnaseq_metrics"]
-    #    m_metrics = mbase + ["rnaseq_metrics"]
     elif wildcards.seq_type == 'genome':
         metrics = base + ["wgs_metrics"]
-    #    m_metrics = mbase + ["wgs_metrics"]
     elif wildcards.seq_type == 'capture':
         metrics = base + ["hs_metrics", "interval_hs_metrics"]
-    #    m_metrics = mbase + ["hs_metrics"]
     else:
         metrics = base
-    #    m_metrics = m_base
 
     targets = expand(rules._picard_qc_output.output.metrics, **wildcards, qc_type = metrics)
-
-    # merged_targets = expand("{dir}{seq_type}--{genome_build}/all.{qc_type}.txt", dir = CFG["dirs"]["merged_metrics"], **wildcards, qc_type = m_metrics)
 
     return targets
 
  
 rule _picard_qc_all_dispatch:
     input:
-        #base = expand("{DIR}{{seq_type}}--{{genome_build}}/{{sample_id}}.{qc_type}", DIR = CFG["dirs"]["outputs"], qc_type = ["alignment_summary_metrics", "insert_size_metrics", "flagstats"]),
-        #opt = expand("{DIR}{{seq_type}}--{{genome_build}}/{{sample_id}}.{qc_type}", DIR = CFG["dirs"]["outputs"], qc_type = md.switch_on_wildcard("seq_type", {"_default" : "", "mrna" : "collect_rnaseq_metrics", "genome" : "collect_wgs_metrics", "capture": ["hs_metrics", "interval_hs_metrics"]}))
         _get_picard_qc_files
     output:
         touch(CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.dispatched")

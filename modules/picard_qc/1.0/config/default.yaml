@@ -7,7 +7,7 @@ lcr-modules:
             samtools: null
         options:
             alignment_summary: "VALIDATION_STRINGENCY=LENIENT"
-            hs_metrics: " VALIDATION_STRINGENCY=LENIENT LEVEL=ALL_READS CLIP_OVERLAPPING_READS=false"
+            hs_metrics: "VALIDATION_STRINGENCY=LENIENT LEVEL=ALL_READS CLIP_OVERLAPPING_READS=false"
             rnaseq_metrics:
                 base: "VALIDATION_STRINGENCY=LENIENT"
                 strand:
