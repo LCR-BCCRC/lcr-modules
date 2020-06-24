@@ -7,12 +7,12 @@ dependencies:
   - _libgcc_mutex=0.1
   - _openmp_mutex=4.5
   - bzip2=1.0.8
-  - ca-certificates=2019.11.28
+  - ca-certificates=2020.6.20
   - cairo=1.16.0
-  - certifi=2019.11.28
+  - certifi=2020.6.20
   - clustalw=2.1
   - curl=7.68.0
-  - ensembl-vep=99.1
+  - ensembl-vep=100.2
   - expat=2.2.9
   - fontconfig=2.13.1
   - freetype=2.10.0
@@ -50,7 +50,7 @@ dependencies:
   - lz4-c=1.8.3
   - mysql-connector-c=6.1.11
   - ncurses=6.1
-  - openssl=1.1.1d
+  - openssl=1.1.1g
   - paml=4.9
   - pango=1.42.4
   - pcre=8.44
@@ -288,6 +288,7 @@ dependencies:
   - pixman=0.38.0
   - pthread-stubs=0.4
   - python=3.7.6
+  - python_abi=3.7
   - readline=8.0
   - samtools=1.9
   - setuptools=45.2.0
@@ -297,7 +298,7 @@ dependencies:
   - tk=8.6.10
   - unzip=6.0
   - variant-effect-predictor=86
-  - vcf2maf=1.6.17
+  - vcf2maf=1.6.18
   - wheel=0.34.2
   - xorg-kbproto=1.0.7
   - xorg-libice=1.0.10

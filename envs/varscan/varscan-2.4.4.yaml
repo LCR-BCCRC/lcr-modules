@@ -10,3 +10,4 @@ dependencies:
   - varscan=2.4.4
   - zlib=1.2.11
 prefix: /projects/clc/usr/anaconda/workflow_prototype/envs
+#b108aa54
