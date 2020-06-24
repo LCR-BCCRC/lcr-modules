@@ -47,36 +47,6 @@ rule _picard_qc_input_bam:
         op.relative_symlink(input.bam, output.bam)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-'''
-rule _picard_qc_alignment_summary:
-    input:
-        bam = rules._picard_qc_input_bam.output.bam,
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
-    output:
-        summary = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.alignment_summary_metrics",
-        insert_size = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.insert_size_metrics"
-    log:
-        stdout = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.alignment_summary.stdout.log",
-        stderr = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.alignment_summary.stderr.log"
-    params:
-        opts = CFG["options"]["alignment_summary"],
-        prefix = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}"
-    conda:
-        CFG["conda_envs"]["samtools"]
-    threads:
-        CFG["threads"]["alignment_summary"]
-    resources:
-        mem_mb = CFG["mem_mb"]["alignment_summary"]
-    shell:
-        op.as_one_line("""
-        picard -Xmx{resources.mem_mb}m CollectMultipleMetrics {params.opts} 
-        I={input.bam} O={params.prefix} R={input.fasta} 
-        > {log.stdout} 2> {log.stderr}
-        """)
-'''
-
-
 rule _picard_qc_alignment_summary:
     input:
         bam = rules._picard_qc_input_bam.output.bam,
@@ -106,7 +76,6 @@ rule _picard_qc_alignment_summary:
 rule _picard_qc_insert_size:
     input:
         bam = rules._picard_qc_input_bam.output.bam,
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         metrics = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/insert_size_metrics",
         histogram = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/insert_size_histogram.pdf"
@@ -258,7 +227,6 @@ def _get_sample_metrics(metrics_dir, samples):
 rule _picard_qc_merge_metrics:
     input: 
         _get_sample_metrics(metrics_dir = CFG["dirs"]["metrics"])
-        # _get_sample_metrics(metrics_dir = CFG["dirs"]["metrics"], samples = CFG["samples"])
     output: 
         metrics = CFG["dirs"]["merged_metrics"] + "{seq_type}--{genome_build}/all.{metrics}.txt"
     run:
