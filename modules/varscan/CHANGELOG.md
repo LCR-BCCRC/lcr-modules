@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Helena Winata.
 
-<!-- TODO: Explain each important module design decision below. -->
 
-- No module design decisions explained here yet.
+- The `varscan` module supports somatic variant calling for paired tumour-normal samples and germline variant calling for unpaired (`no_normal`) samples.
+- Command line parameters for somatic and germline calls are specified for each `seq-type`.
+- Intermediate mpileup files are temporary due to file size.
+- Requires the `vcf2maf` module to convert VCF files to MAF files (final outputs).
+
