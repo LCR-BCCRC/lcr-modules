@@ -27,7 +27,7 @@ CFG = op.setup_module(
 localrules:
     _picard_qc_input_bam,
     _picard_qc_rrna_int,
-    _picard_qc_merge_metrics,    
+    _picard_qc_merge_metrics,
     _picard_qc_merged_output,
     _picard_qc_flagstats_output,
     _picard_qc_merged_dispatch,
@@ -98,7 +98,7 @@ rule _picard_qc_insert_size:
         > {log.stdout} 2> {log.stderr}
         """)
 
-
+# capture metrics
 rule _picard_qc_hs_metrics:
     input:
         bam = rules._picard_qc_input_bam.output.bam,
@@ -126,7 +126,7 @@ rule _picard_qc_hs_metrics:
         > {log.stdout} 2> {log.stderr}
         """)
 
-
+# mRNA metrics
 rule _picard_qc_rrna_int:
     input:
         bam = rules._picard_qc_input_bam.output.bam,
@@ -179,7 +179,7 @@ rule _picard_qc_rnaseq_metrics:
         > {log.stdout} 2> {log.stderr}
         """)
 
-
+# genome metrics
 rule _picard_qc_wgs_metrics:
     input:
         bam = rules._picard_qc_input_bam.output.bam,
@@ -210,19 +210,12 @@ def _get_sample_metrics(metrics_dir):
     DIR = metrics_dir
     def _get_sample_metrics_custom(wildcards):
         CFG = config["lcr-modules"]["picard_qc"]
-        sample = op.filter_samples(CFG["samples"], seq_type = [wildcards.seq_type])
+        sample = op.filter_samples(
+            (CFG.get("samples") or config['lcr-modules']["_shared"]["samples"]),
+            seq_type = [wildcards.seq_type])
         return expand("{dir}{seq_type}--{genome_build}/{sample_id}/{metrics}", dir = DIR, sample_id = list(sample["sample_id"]), **wildcards)
     return _get_sample_metrics_custom
 
-"""
-def _get_sample_metrics(metrics_dir, samples):
-    DIR = metrics_dir
-    DF = samples
-    def _get_sample_metrics_custom(wildcards):
-        sample = op.filter_samples(DF, seq_type = [wildcards.seq_type])
-        return expand("{dir}{seq_type}--{genome_build}/{sample_id}/{metrics}", dir = DIR, sample_id = list(DF["sample_id"]), **wildcards)
-    return _get_sample_metrics_custom
-"""
 
 rule _picard_qc_merge_metrics:
     input: 
@@ -239,7 +232,10 @@ rule _picard_qc_merge_metrics:
                     if i == 0:
                         header = "SAMPLEID\t" + "\t".join(data[0].split("\t")[0:])
                         out.write(header)
-                    line = s_id + "\t" + "\t".join(data[1].split("\t")[0:])
+                    if wildcards.metrics == "alignment_summary_metrics":
+                        line = s_id + "\t" + "\t".join(data[3].split("\t")[0:])
+                    else:
+                        line = s_id + "\t" + "\t".join(data[1].split("\t")[0:])
                     out.write(line)
                     f.close()
         out.close()
