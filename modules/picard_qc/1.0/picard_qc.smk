@@ -237,9 +237,9 @@ rule _picard_qc_merge_metrics:
                 with open(samples[i], "r") as f:
                     data = [l for l in f.readlines() if not (l.startswith('#') or l == '\n')]
                     if i == 0:
-                        header = "SAMPLEID\t" + "\t".join(data[0].split("\t")[1:])
+                        header = "SAMPLEID\t" + "\t".join(data[0].split("\t")[0:])
                         out.write(header)
-                    line = s_id + "\t" + "\t".join(data[1].split("\t")[1:])
+                    line = s_id + "\t" + "\t".join(data[1].split("\t")[0:])
                     out.write(line)
                     f.close()
         out.close()
