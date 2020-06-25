@@ -47,13 +47,12 @@ rule _varscan_input_bam:
         op.relative_symlink(input.bam + ".bai", output.bam + ".bai")
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
 rule _varscan_bam2mpu:
     input:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        mpu = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.mpileup"
+        mpu = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.mpileup")
     log:
         stderr = CFG["logs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.bam2mpu.stderr.log"
     params:

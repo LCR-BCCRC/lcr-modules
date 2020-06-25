@@ -1,8 +1,5 @@
-lcr-modules:
-    
+lcr-modules:  
     varscan:
-
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id}
             sample_bam: "__UPDATE__"

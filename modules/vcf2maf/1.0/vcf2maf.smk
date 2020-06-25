@@ -32,7 +32,7 @@ VERSION_UPPER = {
 
 ##### RULES #####
 
-rule:
+rule _vcf2maf_run:
     input:
         vcf = "{out_dir}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
