@@ -7,7 +7,9 @@ lcr-modules:
             sample_bai: "__UPDATE__"
             
             # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
+            # Set these values to `null` (no quotes) if you don't have these files
             candidate_small_indels_vcf: "__UPDATE__"
+            candidate_small_indels_tbi: "__UPDATE__"
 
         scratch_subdirectories: []
 
@@ -26,7 +28,7 @@ lcr-modules:
             strelka: 12
 
         mem_mb:
-            strelka: 2000
+            strelka: 4000
 
         pairing_config:
             genome:

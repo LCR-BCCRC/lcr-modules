@@ -54,17 +54,14 @@ rule _strelka_input_bam:
 
 rule _strelka_input_vcf:
     input:
-        vcf = CFG["inputs"]["candidate_small_indels_vcf"]
+        vcf = CFG["inputs"]["candidate_small_indels_vcf"],
+        tbi = CFG["inputs"]["candidate_small_indels_tbi"]
     output:
-        vcf = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz.tbi"
-    conda:
-        CFG["conda_envs"]["tabix"]
-    shell:
-        op.as_one_line("""
-        bgzip -c {input.vcf} > {output.vcf} 
-            && 
-        tabix -p vcf {output.vcf}
-        """)
+        vcf = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz",
+        tbi = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz.tbi"
+    run:
+        op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.tbi, output.tbi)
 
 
 rule _strelka_dummy_vcf:
@@ -89,9 +86,11 @@ rule _strelka_index_bed:
 
 
 def _get_indel_cli_arg(wildcards, input):
-    if "dummy" in {input.indels}:
-        return ""
-    else: return f"--indelCandidates={input.indels}"
+    if "dummy" in input.indels:
+        param = ""
+    else: 
+        param = f"--indelCandidates={input.indels}"
+    return param
 
 
 rule _strelka_configure_paired: # Somatic
@@ -155,7 +154,6 @@ rule _strelka_configure_unpaired: # germline
         {params.opts} 
         > {log.stdout} 2> {log.stderr}
         """)
-CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
 
 
 rule _strelka_run:
@@ -173,10 +171,10 @@ rule _strelka_run:
     threads:
         CFG["threads"]["strelka"]
     resources: 
-        mem_mb = CFG["mem_mb"]["strelka"]
+        mem_mb = op.retry(CFG["mem_mb"]["strelka"], 2)
     shell:
         op.as_one_line("""
-        {input.runwf} -j {threads} {params.opts} >{log.stdout} 2> {log.stderr}
+        {input.runwf} {params.opts} --jobs {threads} > {log.stdout} 2> {log.stderr}
             &&
         rm -rf "$(dirname {input.runwf})/workspace/"
         """)
@@ -198,8 +196,7 @@ rule _strelka_filter:
         vcf = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{var_type}.passed.vcf"
     shell:
         op.as_one_line("""
-        grep '^#' {input.vcf} > {output.vcf} && 
-        awk 'BEGIN {{FS=OFS="\t"}} $0 ~ /^#/ || $7 == "PASS"' {input.vcf} >> {output.vcf}
+        awk 'BEGIN {{FS=OFS="\t"}} $0 ~ /^#/ || $7 == "PASS"' {input.vcf} > {output.vcf}
         """)
 
 
