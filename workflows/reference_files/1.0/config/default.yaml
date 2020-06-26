@@ -53,10 +53,9 @@ tools:
     picard: 
         conda_env: "envs/picard-2.22.3.yaml"
         version: "2.22.3"
-    gtfToGenePred:
-        conda_env: "envs/gtfToGenePred.yaml"
-        version: ""
-
+    ucsc-gtftogenepred:
+        conda_env: "envs/ucsc-gtftogenepred-377.yaml"
+        version: "377"
 
 cvbio_config:
     gtf: 
