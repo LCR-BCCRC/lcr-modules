@@ -1,0 +1,11 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+
+description: Required fields for each sample row in the samples data frame
+
+properties:
+    strand:
+        type: string
+        description: strandedness of mRNA sequence
+
+required:
+    - strand
