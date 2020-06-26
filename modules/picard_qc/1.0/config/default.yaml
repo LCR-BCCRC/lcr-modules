@@ -4,29 +4,27 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
             intervals : "__UPDATE__"
-
-            # by default are generate by reference_files subworkflow
-            rrna_intervals: "genomes/{genome_build}/rrna_intervals/rRNA_int_gencode-33.txt"
-            refFlat: "genomes/{genome_build}/annotations/refFlat_gencode-33.txt"
 
         options:
             alignment_summary: "VALIDATION_STRINGENCY=LENIENT"
             insert_size: "VALIDATION_STRINGENCY=LENIENT"
             hs_metrics: "VALIDATION_STRINGENCY=LENIENT LEVEL=ALL_READS CLIP_OVERLAPPING_READS=false"
             rnaseq_metrics:
-                base: "VALIDATION_STRINGENCY=LENIENT"
-                strand:
-                    _default: "NONE"
-                    forward: "FIRST_READ_TRANSCRIPTION_STRAND"
-                    reverse: "SECOND_READ_TRANSCRIPTION_STRAND" 
+                base: "VALIDATION_STRINGENCY=LENIENT" 
             wgs_metrics: "VALIDATION_STRINGENCY=LENIENT"
 
+        switches:
+            rnaseq_metrics:
+                _default: "NONE"
+                forward: "FIRST_READ_TRANSCRIPTION_STRAND"
+                reverse: "SECOND_READ_TRANSCRIPTION_STRAND"
 
         conda_envs:
             picard: "{MODSDIR}/envs/picard-2.22.3.yaml"
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            
+
         threads:
             alignment_summary: 2
             insert_size: 2

@@ -40,16 +40,19 @@ localrules:
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _picard_qc_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        sample_bam = CFG["inputs"]["sample_bam"],
+        sample_bai = CFG["inputs"]["sample_bai"]
     output:
-        bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bam"
+        sample_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bam",
+        sample_bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
-        op.relative_symlink(input.bam, output.bam)
+        op.relative_symlink(input.sample_bam, output.sample_bam)
+        op.relative_symlink(input.sample_bai, output.sample_bai)
 
 
 rule _picard_qc_alignment_summary:
     input:
-        bam = rules._picard_qc_input_bam.output.bam,
+        bam = rules._picard_qc_input_bam.output.sample_bam,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         metrics = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/alignment_summary_metrics",
@@ -75,7 +78,7 @@ rule _picard_qc_alignment_summary:
 
 rule _picard_qc_insert_size:
     input:
-        bam = rules._picard_qc_input_bam.output.bam,
+        bam = rules._picard_qc_input_bam.output.sample_bam,
     output:
         metrics = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/insert_size_metrics",
         histogram = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/insert_size_histogram.pdf"
@@ -101,7 +104,7 @@ rule _picard_qc_insert_size:
 # capture metrics
 rule _picard_qc_hs_metrics:
     input:
-        bam = rules._picard_qc_input_bam.output.bam,
+        bam = rules._picard_qc_input_bam.output.sample_bam,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         intervals = CFG["inputs"]["intervals"]
     output:
@@ -129,9 +132,9 @@ rule _picard_qc_hs_metrics:
 # mRNA metrics
 rule _picard_qc_rrna_int:
     input:
-        bam = rules._picard_qc_input_bam.output.bam,
+        bam = rules._picard_qc_input_bam.output.sample_bam,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        rrna_int = reference_files(CFG["inputs"]["rrna_intervals"])
+        rrna_int = reference_files("genomes/{genome_build}/rrna_intervals/rRNA_int_gencode-33.txt")
     output:
         rrna_int = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/rrna_int_list"
     log:
@@ -149,10 +152,10 @@ rule _picard_qc_rrna_int:
 
 rule _picard_qc_rnaseq_metrics:
     input:
-        bam = rules._picard_qc_input_bam.output.bam,
+        bam = rules._picard_qc_input_bam.output.sample_bam,
         rrna_int = rules._picard_qc_rrna_int.output.rrna_int,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        refFlat = reference_files(CFG["inputs"]["refFlat"])
+        refFlat = reference_files("genomes/{genome_build}/annotations/refFlat_gencode-33.txt")
     output:
         metrics = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/rnaseq_metrics"
     log:
@@ -160,7 +163,7 @@ rule _picard_qc_rnaseq_metrics:
         stderr = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/rnaseq_metrics.stderr.log"
     params:
         opts = CFG["options"]["rnaseq_metrics"]["base"],
-        strand = op.switch_on_column("strand", CFG["samples"], CFG["options"]["rnaseq_metrics"]["strand"], match_on = "sample")
+        strand = op.switch_on_column("strand", CFG["samples"], CFG["switches"]["rnaseq_metrics"], match_on = "sample")
     conda:
         CFG["conda_envs"]["picard"]
     threads:
@@ -182,7 +185,7 @@ rule _picard_qc_rnaseq_metrics:
 # genome metrics
 rule _picard_qc_wgs_metrics:
     input:
-        bam = rules._picard_qc_input_bam.output.bam,
+        bam = rules._picard_qc_input_bam.output.sample_bam,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         metrics = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/wgs_metrics"
@@ -243,7 +246,7 @@ rule _picard_qc_merge_metrics:
 
 rule _picard_qc_flagstats:
     input:
-        bam = rules._picard_qc_input_bam.output.bam
+        bam = rules._picard_qc_input_bam.output.sample_bam
     output:
         flagstats = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/flagstats"
     log:
