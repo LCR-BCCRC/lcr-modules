@@ -462,7 +462,7 @@ rule create_refFlat:
     output:
         txt = "genomes/{genome_build}/annotations/refFlat_gencode-{gencode_release}.txt"
     log: "genomes/{genome_build}/annotations/gtfToGenePred-{gencode_release}.log"
-    conda: CONDA_ENVS["gtfToGenePred"]
+    conda: CONDA_ENVS["ucsc-gtftogenepred"]
     threads: 4
     resources:
         mem_mb = 6000

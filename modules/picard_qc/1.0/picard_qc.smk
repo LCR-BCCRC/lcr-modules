@@ -213,9 +213,7 @@ def _get_sample_metrics(metrics_dir):
     DIR = metrics_dir
     def _get_sample_metrics_custom(wildcards):
         CFG = config["lcr-modules"]["picard_qc"]
-        sample = op.filter_samples(
-            (CFG.get("samples") or config['lcr-modules']["_shared"]["samples"]),
-            seq_type = [wildcards.seq_type])
+        sample = op.filter_samples(CFG["samples"], seq_type=wildcards.seq_type)
         return expand("{dir}{seq_type}--{genome_build}/{sample_id}/{metrics}", dir = DIR, sample_id = list(sample["sample_id"]), **wildcards)
     return _get_sample_metrics_custom
 

@@ -41,6 +41,12 @@ Each module creates a ``CFG`` variable as a convenient but temporary pointer to 
    # Replace <module_name> with the actual module name (e.g., `star`)
    CFG = config["lcr-modules"]["<module_name>"]
 
+If you're using ``CFG`` in an anonymous ``lambda`` function, then you can just use the ``config`` object directly. For example:
+
+.. code:: python
+
+   lambda w: config["lcr-modules"]["<module_name>"][w.genome_build]["some_ref"]
+
 .. _faq-memory-per-thread:
 
 How do I specify the available memory per thread for a command-line tool?
