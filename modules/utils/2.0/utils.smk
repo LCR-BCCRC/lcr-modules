@@ -17,7 +17,7 @@ from os.path import join
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 
-CONFIG = config["lcr-modules"]["utils"]
+_UTILS = config["lcr-modules"]["utils"]
 LOG = "/logs/" + op._session.launched_fmt
 
 wildcard_constraints:
@@ -58,14 +58,14 @@ rule:
         prefix = ".*(sort).*"
     params:
         #logs = _get_log_dirs,
-        opts = CONFIG["options"]["bam_sort"],
+        opts = _UTILS["options"]["bam_sort"],
         prefix ="{out_dir}/{prefix}/{suffix}"
     conda:
-        CONFIG["conda_envs"]["samtools"]
+        _UTILS["conda_envs"]["samtools"]
     threads:
-        CONFIG["threads"]["bam_sort"]
+        _UTILS["threads"]["bam_sort"]
     resources: 
-        mem_mb = CONFIG["mem_mb"]["bam_sort"]
+        mem_mb = _UTILS["mem_mb"]["bam_sort"]
     shell:
         op.as_one_line("""
         samtools sort 
@@ -91,14 +91,14 @@ rule:
         prefix = ".*(mark_dups).*"
     params:
         #logs = _get_log_dirs,
-        opts = CONFIG["options"]["bam_markdups"],
+        opts = _UTILS["options"]["bam_markdups"],
         prefix = "{out_dir}/{prefix}/{suffix}"
     conda:
-        CONFIG["conda_envs"]["sambamba"]
+        _UTILS["conda_envs"]["sambamba"]
     threads:
-        CONFIG["threads"]["bam_markdups"]
+        _UTILS["threads"]["bam_markdups"]
     resources: 
-        mem_mb = CONFIG["mem_mb"]["bam_markdups"]
+        mem_mb = _UTILS["mem_mb"]["bam_markdups"]
     shell:
         op.as_one_line("""
         sambamba markdup 
@@ -121,14 +121,14 @@ rule:
         stderr = "{out_dir}" + LOG + "/{prefix}/{suffix}_index.stderr.log"
     params:
         #logs = _get_log_dirs,
-        opts = CONFIG["options"]["bam_index"],
+        opts = _UTILS["options"]["bam_index"],
         prefix = "{out_dir}/{prefix}/{suffix}"
     conda:
-        CONFIG["conda_envs"]["samtools"]
+        _UTILS["conda_envs"]["samtools"]
     threads:
-        CONFIG["threads"]["bam_index"]
+        _UTILS["threads"]["bam_index"]
     resources: 
-        mem_mb = CONFIG["mem_mb"]["bam_index"]
+        mem_mb = _UTILS["mem_mb"]["bam_index"]
     shell:
         op.as_one_line("""
         samtools index 
@@ -142,18 +142,18 @@ rule:
 
 rule: # create_interval_list from bed; default exomes
     input:
-        bed = CONFIG["inputs"]["bed"],
+        bed = _UTILS["inputs"]["bed"],
         seq_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
     output: 
         intervals = "reference/exomes/{genome_build}/interval/{id}_intervals.txt"
     log: 
         "exomes/{genome_build}/interval/{id}_intervals.log"
     conda: 
-        CONFIG["conda_envs"]["picard"]
+        _UTILS["conda_envs"]["picard"]
     threads:
-        CONFIG["threads"]["interval"]
+        _UTILS["threads"]["interval"]
     resources: 
-        mem_mb = CONFIG["mem_mb"]["interval"]
+        mem_mb = _UTILS["mem_mb"]["interval"]
     shell:
         op.as_one_line("""
         picard BedToIntervalList
@@ -166,5 +166,4 @@ rule: # create_interval_list from bed; default exomes
         """)
 
 
-del CONFIG
 

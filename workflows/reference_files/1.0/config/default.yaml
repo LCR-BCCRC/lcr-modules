@@ -1,5 +1,3 @@
-reference_directory: "reference/"
-
 genome_builds:
     grch37:
         # GSC GRCh37
