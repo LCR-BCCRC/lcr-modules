@@ -13,4 +13,4 @@ This release was authored by Anita dos Santos.
 - Default options are used for all optional arguments.
 - Final outputs are named `mixcr.{sample_id}.clonotypes.ALL.txt` and `mixcr.{sample_id}.report` and are symlinked to `99-outputs`
 - A `mixcr.{sample_id}.clonotypes.ALL.txt` file will be created regardless of the success of `mixcr` to circumvent cases where no clonotypes are found and no such file is created.
-- A conda environment for `mixcr` is expected to be released in July.
+- The latest release of MiXCR is installed from the milaboratory MiXCR github. A conda environment for `mixcr` is expected to be released in July.

@@ -25,6 +25,7 @@ CFG = op.setup_module(
 
 # Define rules to be run locally when using a compute cluster
 localrules:
+    _install_mixcr,
     _mixcr_input_fastq,
     _mixcr_output_txt,
     _mixcr_all,
@@ -45,11 +46,31 @@ rule _mixcr_input_fastq:
         op.relative_symlink(input.fastq_1, output.fastq_1)
         op.relative_symlink(input.fastq_2, output.fastq_2)
 
+# Installs latest MiXCR release from github if the mixcr folder is not present yet
+rule _install_mixcr:
+    params:
+        mixcr = CFG["lcr-modules"] + CFG["conda_envs"]["mixcr"]
+    output: 
+        complete = "config/envs/mixcr_dependencies_installed.success"
+    shell:
+        '''
+        latest_tag=$(curl --silent "https://api.github.com/repos/milaboratory/mixcr/releases/latest" |  grep '"tag_name":'| sed -E "s/v//" | sed -E 's/.*\"([^\"]+)\".*/\\1/');
+        download_url=$(curl --silent "https://api.github.com/repos/milaboratory/mixcr/releases/latest" | grep '"browser_download_url":' | sed -E 's/.*\"([^\"]+)\".*/\\1/');
+       
+        if [ ! -f {params.mixcr}/mixcr ]; then
+            wget $download_url -P {params.mixcr}/ && unzip {params.mixcr}/${{download_url##*/}} -d {params.mixcr}/ && rm {params.mixcr}/${{download_url##*/}};
+            mv {params.mixcr}/mixcr-$latest_tag/* {params.mixcr}/ && rm -r {params.mixcr}/mixcr-$latest_tag/;
+        fi
+
+        touch  {output.complete};
+        '''
+
 # Run MiXCR rule
 rule _mixcr_run:
     input:
         fastq_1 = rules._mixcr_input_fastq.output.fastq_1,
         fastq_2 = rules._mixcr_input_fastq.output.fastq_2,
+        installed = rules._install_mixcr.output.complete
     output:
          txt = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr.{sample_id}.clonotypes.ALL.txt",
          report = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr.{sample_id}.report"
@@ -59,7 +80,7 @@ rule _mixcr_run:
     params:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["mixcr_run"]),
         prefix = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr.{sample_id}", 
-        mixcr = "/home/adossantos/repos/lcr-modules/modules/mixcr/1.0/envs/mixcr"
+        mixcr = CFG["lcr-modules"] + CFG["conda_envs"]["mixcr"] + "/mixcr"
     threads:
         CFG["threads"]["mixcr_run"]
     resources:
@@ -69,7 +90,7 @@ rule _mixcr_run:
     shell:
         op.as_one_line("""
         {params.mixcr} analyze shotgun -s hsa -t {threads} {params.opts} {input.fastq_1} {input.fastq_2} {params.prefix} > {log.stdout} 2> {log.stderr};
-        touch "{output.txt}"
+        touch "{output.txt}";
         """)
         
 
@@ -92,6 +113,7 @@ rule _mixcr_all:
     input:
         expand(
             [
+                rules._install_mixcr.output.complete,
                 rules._mixcr_output_txt.output.txt
             ],
             zip,  # Run expand() with zip(), not product()
