@@ -1,7 +1,3 @@
-## Lines commented out with `#!` are required for the module to run
-## Lines commented out with `#?` can optionally be user-configured
-## Lines commented out with `##` act as regular comments
-
 lcr-modules:
     utils:
         inputs:

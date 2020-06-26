@@ -18,7 +18,6 @@ from os.path import join
 import oncopipe as op
 
 CONFIG = config["lcr-modules"]["utils"]
-#PATH = ".*\/(" + "|".join(CONFIG["paired_modules"]) + ").*\/"
 LOG = "/logs/" + op._session.launched_fmt
 
 wildcard_constraints:
