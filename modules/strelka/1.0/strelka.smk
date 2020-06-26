@@ -57,19 +57,19 @@ rule _strelka_dummy_vcf:
         touch(CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.dummy.tbi")
 
 
-if not CFG["inputs"]["candidate_small_indels_tbi"] and CFG["inputs"]["candidate_small_indels_vcf"]:
-    rule _strelka_input_vcf:
-        input:
-            vcf = CFG["inputs"]["candidate_small_indels_vcf"],
-            #extend(CFG["inputs"]["candidate_small_indels_vcf"], proxy=[] if no_input else [None]),
-            tbi = CFG["inputs"]["candidate_small_indels_tbi"]
-            #extend(CFG["inputs"]["candidate_small_indels_tbi"], proxy=[] if no_input else [None]),
-        output:
-            vcf = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz",
-            tbi = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz.tbi"
-        run:
-            op.relative_symlink(input.vcf, output.vcf)
-            op.relative_symlink(input.tbi, output.tbi)
+#if not CFG["inputs"]["candidate_small_indels_tbi"] and CFG["inputs"]["candidate_small_indels_vcf"]:
+rule _strelka_input_vcf:
+    input:
+        vcf = CFG["inputs"].get("candidate_small_indels_vcf") or "",
+        #extend(CFG["inputs"]["candidate_small_indels_vcf"], proxy=[] if no_input else [None]),
+        #tbi = CFG["inputs"].get("candidate_small_indels_tbi") or ""
+        #extend(CFG["inputs"]["candidate_small_indels_tbi"], proxy=[] if no_input else [None]),
+    output:
+        vcf = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz",
+        #tbi = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz.tbi"
+    run:
+        op.relative_symlink(input.vcf, output.vcf)
+        #op.relative_symlink(input.tbi, output.tbi)
 
 
 
@@ -97,13 +97,14 @@ def _get_indel_cli_arg(vcf_in = config["lcr-modules"]["strelka"]["inputs"]["cand
         return param
     return _get_indel_cli_custom
 
+
 rule _strelka_configure_paired: # Somatic
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         bedz = rules._strelka_index_bed.output.bedz,
-        indels = rules._strelka_input_vcf.output.tbi if CFG["inputs"]["candidate_small_indels_tbi"] else rules._strelka_dummy_vcf.output
+        indels = rules._strelka_input_vcf.output.vcf if CFG["inputs"]["candidate_small_indels_tbi"] else rules._strelka_dummy_vcf.output
     output:
         runwf = CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
