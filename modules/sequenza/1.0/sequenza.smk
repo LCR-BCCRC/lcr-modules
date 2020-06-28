@@ -17,6 +17,7 @@ import oncopipe as op
 
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["sequenza"]`
+print(config["lcr-modules"]["sequenza"])
 CFG = op.setup_module(
     name = "sequenza",
     version = "1.0",
@@ -26,10 +27,9 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _sequenza_input_bam,
-    _sequenza_output_seg,
     _sequenza_merge_seqz,
-    _sequenza_unfiltered_igv_segments,
-    _sequenza_filtered_igv_segments,
+    _sequenza_cnv2igv,
+    _sequenza_output_seg,
     _sequenza_all,
 
 
@@ -76,18 +76,24 @@ rule _sequenza_bam2seqz:
         gzip > {output}
         """)
         
-
+print(config["lcr-modules"]["sequenza"])
 def _sequenza_request_chrom_seqz_files(wildcards):
-    reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
-    pass
+    CFG = config["lcr-modules"]["sequenza"]
+    print(CFG)
+    mains_chroms_file = reference_files(
+        "genomes/{genome_build}/genome_fasta/main_chromosomes.txt".format(**wildcards)
+    )
+    mains_chroms = open(mains_chroms_file).read().rstrip("\n").split("\n")
+    seqz_files = expand(
+        CFG["dirs"]["seqz"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/chromosomes/{chrom}.binned.seqz.gz", 
+        chrom=mains_chroms
+    )
+    return seqz_files
 
 
 rule _sequenza_merge_seqz:
     input:
-        seqz = expand(
-            CFG["dirs"]["seqz"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/chromosomes/{chr}.binned.seqz.gz", 
-            chr=CFG["chroms"]
-        ),
+        seqz = _sequenza_request_chrom_seqz_files,
         merge_seqz = CFG["inputs"]["merge_seqz"]
     output:
         seqz = CFG["dirs"]["seqz"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/merged.binned.unfiltered.seqz.gz"
@@ -153,14 +159,14 @@ rule _sequenza_run:
 
 rule _sequenza_cnv2igv:
     input:
-        segments = rules._sequenza_unfiltered_analysis.output.segments,
+        segments = rules._sequenza_run.output.segments,
         cnv2igv =  CFG["inputs"]["cnv2igv"]
     output:
-        igv = CFG["dirs"]["igv_seg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_unfiltered_segments.igv.seg"
+        igv = CFG["dirs"]["igv_seg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{filter_status}/sequenza_segments.igv.seg"
     log:
-        stderr = CFG["logs"]["igv_seg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_unfiltered_cnv2igv.stderr.log"
+        stderr = CFG["logs"]["igv_seg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/cnv2igv.{filter_status}.stderr.log"
     conda:
-        CFG["conda_envs"]["sequenza"]
+        CFG["conda_envs"]["cnv2igv"]
     shell:
         op.as_one_line("""
         python {input.cnv2igv} --mode sequenza --sample {wildcards.tumour_id} 
@@ -171,9 +177,9 @@ rule _sequenza_cnv2igv:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _sequenza_output_seg:
     input:
-        seg = rules._sequenza_filtered_igv_segments.output.igv
+        seg = rules._sequenza_cnv2igv.output.igv
     output:
-        seg = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.seg"
+        seg = CFG["dirs"]["outputs"] + "{filter_status}_seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.igv.seg"
     run:
         op.relative_symlink(input.seg, output.seg)
 
@@ -183,13 +189,8 @@ rule _sequenza_all:
     input:
         expand(
             [
-                rules._sequenza_filter_seqz.output.filtered_seqz,
-                rules._sequenza_merge_seqz.output.merged_seqz,
-                rules._sequenza_filtered_analysis.output.segments,
-                rules._sequenza_unfiltered_analysis.output.segments,
-                rules._sequenza_filtered_igv_segments.output.igv,
-                rules._sequenza_unfiltered_igv_segments.output.igv,
-                rules._sequenza_output_seg.output.seg
+                rules._sequenza_output_seg.output.seg.replace("{filter_status}", "filtered"),
+                rules._sequenza_output_seg.output.seg.replace("{filter_status}", "unfiltered")
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
