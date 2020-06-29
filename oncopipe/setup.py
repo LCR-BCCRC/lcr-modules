@@ -7,6 +7,7 @@ from setuptools import setup
 # Load package info from __version__.py
 about = dict()
 here = os.path.abspath(os.path.dirname(__file__))
+pkg_path = os.path.join(here, "oncopipe")
 with open(os.path.join(here, "oncopipe", "__version__.py")) as f:
     exec(f.read(), about)
 
@@ -20,7 +21,8 @@ setup(
     author_email=about["__author_email__"],
     license=about["__license__"],
     packages=["oncopipe"],
-    install_requires=["pyyaml", "pandas", "snakemake>=5.4",],
+    package_dir={"oncopipe": pkg_path},
+    install_requires=["pyyaml", "pandas", "snakemake>=5.4,<5.19"],
     zip_safe=False,
     python_requires=">=3.6.0",
     classifiers=[

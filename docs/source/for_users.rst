@@ -50,7 +50,7 @@ Getting Started
    | TCRBOA7-T-RNA | mrna     | TCRBOA7    | tumour        | grch37       |
    +---------------+----------+------------+---------------+--------------+
 
-6. Add the :ref:`lcr-modules-configuration` to your project configuration YAML file (*e.g.* ``config.yaml``). If you have unpaired tumour samples, you will need to add a ``pairing_config``. Check out :ref:`handling-unpaired-tumours` section for more information and :ref:`within-the-configuration-file` for an example of how this is done.
+6. Add the :ref:`lcr-modules-configuration` to your project configuration YAML file (*e.g.* ``config.yaml``). If you have unpaired tumour samples, you will need to add a ``unmatched_normal_ids`` section. Check out :ref:`handling-unpaired-tumours` section for more information and :ref:`within-the-configuration-file` for an example of how this is done.
 
    .. code:: yaml
 
@@ -83,8 +83,9 @@ Getting Started
 
    .. note::
 
-      | **BCGSC Users**
-      | You can set the ``reference_files`` working directory (``workdir``) to the following file path in order to benefit from pregenerated reference files:
+      **BCGSC Users**
+
+      You can set the ``reference_files`` working directory (``workdir``) to the following file path in order to benefit from pregenerated reference files:
       
       .. code::
 
@@ -94,7 +95,7 @@ Getting Started
 
    **Important** 
    
-   - Any values that need to be updated by the user will be indicated in the default :ref:`module-configuration` by ``UPDATE`` comments. 
+   - Any fields that need to be updated by the user will contain ``__UPDATE__`` in the default :ref:`module-configuration`. You will run into errors if you fail to update these fields. 
 
    - We recommend following the order shown below: (1) load the default module configuration files; (2) load the project-specific configuration file; and (3) include the module snakefiles. 
    
@@ -132,16 +133,25 @@ Before running the `Demo Project`_, you will need to download the `Test Data`_, 
 
    Becnel, L. B. et al. An open access pilot freely sharing cancer genomic data from participants in Texas. Sci. Data 3:160010 doi: 10.1038/sdata.2016.10 (2016).
 
+You can download the test data and verify the checksums using the following commands. Note that this will overwrite the empty placeholder files. If you don't have enough space where you cloned the repository, you can download the test data elsewhere and create symbolic links.
+
+.. code:: bash
+
+   cd demo/data/
+   wget --recursive --no-parent --no-host-directories --cut-dirs=3 --execute robots=off --reject="index.html*" https://www.bcgsc.ca/downloads/lcr-modules/test_data/
+   md5sum --check checksums.txt
+
 .. note::
 
-   | **BCGSC Users**
-   | You can replace the empty placeholder files with symbolic links to the local copies of the test data using the following command:
+   **BCGSC Users**
+   
+   You can replace the empty placeholder files with symbolic links to the local copies of the test data using the following command:
    
    .. code:: bash
 
       ln -sf /projects/bgrande/lcr-modules/test_data/*.{bam,bai,fastq.gz} ./demo/data/
 
-Once the `Test Data`_ is downloaded, you will need to update the placeholders in ``demo/data/`` with the downloaded files (or symbolic links to the files). At that point, you can technically run the `Demo Snakefile`_ by omitting the ``--dry-run`` option from the command in the :ref:`getting-started-user` instructions, but you might want to update the value set in ``demo/config.yaml`` under ``scratch_directory`` to an space where you can readily store large intermediate files (*e.g.* a directory without snapshots or backups).
+At that point, you can technically run the `Demo Snakefile`_ by omitting the ``--dry-run`` option from the command in the :ref:`getting-started-user` instructions, but you might want to update the value set in ``demo/config.yaml`` under ``scratch_directory`` to an space where you can readily store large intermediate files (*e.g.* a directory without snapshots or backups). For more information check out the :ref:`common-shared-configuration-fields` section.
 
 If you are interested in learning how you can conditionally use the STAR BAM files for RNA-seq samples while using the BAM files in ``data/`` for other samples, check out the :ref:`conditional-module-behaviour-user` section.
 
@@ -237,14 +247,14 @@ Each module in the `lcr-modules repository`_ comes bundled with a default config
       manta:
          inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bam: null  # UPDATE
-            sample_bai: null  # UPDATE
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
             augment_manta_vcf: "{SCRIPTSDIR}/augment_manta_vcf/1.0/augment_manta_vcf.py"
          # ...
 
-The intent behind these module configuration files is that any field can be (and often should be) updated by the user. In fact, some fields **must** be updated before the module can be run. These are indicated by ``UPDATE`` comments in the default configuration file. In the above excerpt, the two input files ``sample_bam`` and ``sample_bai`` are set to ``null`` and labelled with ``UPDATE`` comments, indicating that these must be updated by the user.
+The intent behind these module configuration files is that any field can be (and often should be) updated by the user. In fact, some fields **must** be updated before the module can be run. These are indicated by the ``__UPDATE__`` placeholder in the default configuration file. In the above excerpt, the two input files ``sample_bam`` and ``sample_bai`` are set to ``__UPDATE__``, indicating that these must be updated by the user.
 
-**Important:** Before running any module, you must search for any ``UPDATE`` comments in the default configuration file. See :ref:`updating-configuration-values` for different approaches on how to override the default configuration for each module.
+**Important:** Before running any module, you must search for any instances of ``__UPDATE__`` in the default configuration file. See :ref:`updating-configuration-values` for different approaches on how to override the default configuration for each module.
 
 .. _shared-configuration:
 
@@ -280,6 +290,8 @@ One of the components of the :ref:`lcr-modules-configuration` is the shared conf
 
 This behaviour can be leveraged in a number of ways. For example, by setting ``unmatched_normal_id`` under the ``"_shared"`` key, you avoid having to specify that value for every module that performs paired analyses (assuming you have unpaired tumours). That said, if you want to use a different ``unmatched_normal_id`` for a subset of modules, you can override the shared value. Another useful instance is the sharing of the :ref:`sample-table` between modules. This way, the user doesn't have to repeatedly provide the same sample table to each module. Note that this is only possible because each module automatically filters the samples based on the sequencing data types (``seq_type``) listed in their :ref:`pairing-configuration`. 
 
+.. _common-shared-configuration-fields:
+
 Common Shared Configuration Fields
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -291,7 +303,7 @@ Common Shared Configuration Fields
 
 - ``scratch_directory``: This field specifies the directory where large intermediate files can be written without worry of running out of space or clogging snapshots/backups. If set to ``null``, the files will be output locally.
 
-- ``pairing_config``: This field is optional, but it's useful for specifying the normal samples to use in paired analyses with unpaired tumours. See :ref:`handling-unpaired-tumours` for more details and :ref:`updating-configuration-values` for an example configuration file where this is provided.
+- ``unmatched_normal_ids``: This field is optional, but it's useful for specifying the normal samples to use in paired analyses with unpaired tumours. See :ref:`handling-unpaired-tumours` for more details and :ref:`updating-configuration-values` for an example configuration file where this is provided.
 
 .. _handling-unpaired-tumours:
 
@@ -300,19 +312,27 @@ Handling Unpaired Tumours
 
 Each module has a pairing configuration (``pairing_config``) in their default configuration file. This ``pairing_config`` dictates which sequencing data types (``seq_type``) are supported by the module, whether the module runs in paired or unpaired mode for each ``seq_type``, and if so, how it performs these analyses for each ``seq_type``. This information is ultimately used by the :py:func:`oncopipe.generate_runs_for_patient` function when producing (or not) tumour-normal pairs. If you want to learn more, check out the :ref:`pairing-configuration` section in the developer documentation. 
 
-That said, the user doesn't need to worry about the ``pairing_config`` unless they have unpaired tumour samples or they wish to configure modules for new sequencing data types (``seq_type``). If they have unpaired tumours, for each ``seq_type``, they need to specify which normal sample to use for paired analyses where an unmatched normal sample will be used instead of a matched normal sample. This is done by providing values for ``unmatched_normal_id``, as demonstrated in the :ref:`within-the-configuration-file` section. 
+That said, the user doesn't need to worry about the ``pairing_config`` unless they have unpaired tumour samples or they wish to configure modules for new sequencing data types (``seq_type``). If they have unpaired tumours, they will need to specify the normal sample IDs to use for each ``seq_type`` and ``genome_build``. This is done using the ``unmatched_normal_ids`` key, as demonstrated in the :ref:`within-the-configuration-file` section. Briefly, the keys under ``unmatched_normal_ids`` take on the form ``<seq_type>--<genome_build>``, and the values are the sample IDs. Normally, ``unmatched_normal_ids`` is set under ``_shared`` such that this configuration is inherited by all modules, but it can also be provided at the module level if some modules should use different unmatched normal samples. 
+
+.. code:: yaml
+
+   lcr-modules:
+      _shared:
+         # [...]
+         unmatched_normal_ids:
+            capture--grch37: "TCRBOA7-N-WEX"
 
 If the user wants to configure new sequencing data types, they should check out the :ref:`configuring-new-seqtypes` section. 
 
 .. _updating-configuration-values:
 
 Updating Configuration Values
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------------
 
 .. _within-the-configuration-file:
 
 Within a Configuration File
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you followed the :ref:`getting-started-user` instructions, you should have a section in your project configuration file for ``lcr-modules`` (with at least the ``_shared`` sub-section). One approach to updating configuration values is to add to this section. **Important:** One requirement for this to work is that you need to load your project configuration file **after** the default module configuration files. Again, if you followed the :ref:`getting-started-user` instructions, this should already be the case. 
 
@@ -320,7 +340,11 @@ By the way, there is nothing forcing you to store your project-specific configur
 
 One of the main limitations of this approach is that you are restricted to value types that can be encoded in YAML format. For the most part, this means numbers, strings and booleans organized into lists or dictionaries. In other words, this precludes the use of functions as values, such as `Input File Functions`_. If you need to specify functions, you will have to update configuration values :ref:`within-the-snakefile`, or use a hybrid approach.
 
-The example YAML file below is taken from the `Demo Configuration`_. You can see that it includes a ``pairing_config`` under ``_shared`` to indicate which normal samples to use for unpaired tumours for paired analyses (see :ref:`handling-unpaired-tumours`). It also updates a number of configuration values for the ``star`` and ``manta`` modules. All of these fields were labelled with an ``UPDATE`` comment in the modules' respective default configuration file. The only exception is the ``scratch_subdirectories`` field for the ``star`` module, which was updated here to include the ``"mark_dups"`` subdirectory such that the final BAM files from the module are also stored in the scratch directory.
+.. note::
+
+   The value ``null`` is parsed as ``None`` in Python. If you provide the value ``None`` in the YAML file, it will be parsed as the string ``"None"``.
+
+The example YAML file below is taken from the `Demo Configuration`_. You can see that it includes ``unmatched_normal_ids`` under ``_shared`` to indicate which normal samples to use for unpaired tumours for paired analyses (see :ref:`handling-unpaired-tumours`). It also updates a number of configuration values for the ``star`` and ``manta`` modules. All of these fields contain ``__UPDATE__`` in the modules' respective default configuration file. The only exception is the ``scratch_subdirectories`` field for the ``star`` module, which was updated here to include the ``"mark_dups"`` subdirectory such that the final BAM files from the module are also stored in the scratch directory.
 
 .. code:: yaml
 
@@ -332,9 +356,8 @@ The example YAML file below is taken from the `Demo Configuration`_. You can see
          lcr-scripts: "../../lcr-scripts"
          root_output_dir: "results/"
          scratch_directory: "scratch/"
-         pairing_config:
-            capture:
-                  unmatched_normal_id: "TCRBOA7-N-WEX"
+         unmatched_normal_ids:
+            capture--grch37: "TCRBOA7-N-WEX"
 
       star:
          inputs:
@@ -352,7 +375,7 @@ The example YAML file below is taken from the `Demo Configuration`_. You can see
 .. _within-the-snakefile:
 
 Within the Snakefile
-^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~
 
 You can always update configurations values within the snakefile **after** the default configuration files have been loaded. The advantage of this approach is that you can update the value to anything that Python allows, including functions. This is incredibly powerful in snakemake thanks to `Input File Functions`_ and `Parameter Functions`_. Also, :py:mod:`oncopipe` includes some useful functions that make use of these snakemake features (*e.g.* :ref:`conditional-module-behaviour-user`).
 
@@ -360,10 +383,8 @@ The main drawback of this approach is that it can be rather verbose, not very el
 
 .. code:: python
 
-   config["lcr-modules"]["_shared"]["pairing_config"] = {
-      "capture": {
-         "unmatched_normal_id": "TCRBOA7-N-WEX"
-      }
+   config["lcr-modules"]["_shared"]["unmatched_normal_ids"] = {
+      "capture--grch37": "TCRBOA7-N-WEX"
    }
 
    config["lcr-modules"]["star"]["inputs"]["sample_fastq_1"] = "data/{sample_id}.read1.fastq.gz"
@@ -381,10 +402,8 @@ Alternatively, some of the redundancy can be avoided by using the `Snakemake upd
    import snakemake as smk
 
    smk.utils.update_config(config["lcr-modules"]["_shared"], {
-      "pairing_config": {
-         "capture": {
-            "unmatched_normal_id": "TCRBOA7-N-WEX"
-         }
+      "unmatched_normal_ids": {
+         "capture--grch37": "TCRBOA7-N-WEX"
       }
    })
 

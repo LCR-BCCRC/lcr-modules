@@ -1,4 +1,5 @@
 sample_id	seq_type	patient_id	tissue_status	genome_build
 TCRBOA7-N-WEX	capture	TCRBOA7	normal	grch37
 TCRBOA7-T-WEX	capture	TCRBOA7	tumour	grch37
+TCRBOA7-ALT-T-WEX	capture	TCRBOA7-ALT	tumour	grch37
 TCRBOA7-T-RNA	mrna	TCRBOA7	tumour	grch37
