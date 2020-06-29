@@ -20,7 +20,7 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "sequenza",
     version = "1.0",
-    subdirectories = ["inputs", "seqz", "sex", "sequenza", "igv_seg", "outputs"]
+    subdirectories = ["inputs", "seqz", "sequenza", "igv_seg", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -65,13 +65,15 @@ rule _sequenza_input_dbsnp_pos:
         vcf = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf")
     output:
         pos = CFG["dirs"]["inputs"] + "dbsnp/{genome_build}/dbsnp.common_all-151.pos"
+    log:
+        stderr = CFG["logs"]["inputs"] + "{genome_build}/sequenza_input_dbsnp_pos.stderr.log"
     resources:
         mem_mb = CFG["mem_mb"]["vcf_sort"]
     shell:
         op.as_one_line("""
-        awk 'BEGIN {{FS="\t"}} $0 !~ /^#/ {{print $1 ":" $2}}' {input.vcf}
+        awk 'BEGIN {{FS="\t"}} $0 !~ /^#/ {{print $1 ":" $2}}' {input.vcf} 2>> {log.stderr}
             |
-        LC_ALL=C sort -S {resources.mem_mb}M > {output.pos}
+        LC_ALL=C sort -S {resources.mem_mb}M > {output.pos} 2>> {log.stderr}
         """)
 
 
@@ -84,7 +86,6 @@ rule _sequenza_bam2seqz:
     output:
         seqz = CFG["dirs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.binned.seqz.gz"
     log:
-        stdout = CFG["logs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_bam2seqz.{chrom}.stdout.log",
         stderr = CFG["logs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_bam2seqz.{chrom}.stderr.log"
     params:
         bam2seqz_opts = CFG["options"]["bam2seqz"],
@@ -98,17 +99,17 @@ rule _sequenza_bam2seqz:
     shell:
         op.as_one_line("""
         sequenza-utils bam2seqz {params.bam2seqz_opts} -gc {input.gc_wiggle} --fasta {input.genome} 
-        --normal {input.normal_bam} --tumor {input.tumour_bam} --chromosome {wildcards.chrom} 
+        --normal {input.normal_bam} --tumor {input.tumour_bam} --chromosome {wildcards.chrom} 2>> {log.stderr}
             | 
-        sequenza-utils seqz_binning {params.seqz_binning_opts} --seqz - 
+        sequenza-utils seqz_binning {params.seqz_binning_opts} --seqz - 2>> {log.stderr}
             |
-        gzip > {output}
+        gzip > {output} 2>> {log.stderr}
         """)
 
 
 def _sequenza_request_chrom_seqz_files(wildcards):
     CFG = config["lcr-modules"]["sequenza"]
-    with checkpoints._sequenza_input_chroms.get(genome_build=wildcards.genome_build).txt as f:
+    with open(checkpoints._sequenza_input_chroms.get(**wildcards).output.txt) as f:
         mains_chroms = f.read().rstrip("\n").split("\n")
     seqz_files = expand(
         CFG["dirs"]["seqz"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/chromosomes/{chrom}.binned.seqz.gz", 
@@ -124,20 +125,18 @@ rule _sequenza_merge_seqz:
     output:
         seqz = CFG["dirs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged.binned.unfiltered.seqz.gz"
     log:
-        stdout = CFG["logs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_merge_seqz.stdout.log",
         stderr = CFG["logs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_merge_seqz.stderr.log"
     threads: CFG["threads"]["merge_seqz"]
     resources: 
         mem_mb = CFG["mem_mb"]["merge_seqz"]
     shell:
         op.as_one_line("""
-        bash {input.merge_seqz} {input} 
+        bash {input.merge_seqz} {input} 2>> {log.stderr}
             | 
-        gzip > {output.seqz}
+        gzip > {output.seqz} 2>> {log.stderr}
         """)
 
 
-#fix `dbsnp_pos` to use the path to the reference files based on the config
 rule _sequenza_filter_seqz:
     input:
         seqz = rules._sequenza_merge_seqz.output.seqz,
@@ -146,16 +145,15 @@ rule _sequenza_filter_seqz:
     output:
         seqz = CFG["dirs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged.binned.filtered.seqz.gz"
     log:
-        stdout = CFG["logs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_filter_seqz.stdout.log",
         stderr = CFG["logs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_filter_seqz.stderr.log"
     threads: CFG["threads"]["filter_seqz"]
     resources: 
         mem_mb = CFG["mem_mb"]["filter_seqz"]
     shell:
         op.as_one_line("""
-        {input.filter_seqz} {input.seqz} {input.dbsnp_pos} 
+        {input.filter_seqz} {input.seqz} {input.dbsnp_pos} 2>> {log.stderr}
             |
-        gzip > {output.seqz}
+        gzip > {output.seqz} 2>> {log.stderr}
         """)
 
 
@@ -164,7 +162,8 @@ rule _sequenza_run:
         seqz = CFG["dirs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged.binned.{filter_status}.seqz.gz",
         run_sequenza = CFG["inputs"]["run_sequenza"],
         assembly = reference_files("genomes/{genome_build}/version.txt"),
-        chroms = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
+        chroms = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt"),
+        x_chrom = reference_files("genomes/{genome_build}/genome_fasta/chromosome_x.txt")
     output:
         segments = CFG["dirs"]["sequenza"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{filter_status}/sequenza_segments.txt"
     log:
@@ -177,8 +176,8 @@ rule _sequenza_run:
         mem_mb = CFG["mem_mb"]["sequenza"]
     shell:
         op.as_one_line("""
-        Rscript {input.run_sequenza} {input.seqz} {input.assembly} 
-        {input.chroms} $(dirname {output.segments}) {threads}
+        Rscript {input.run_sequenza} {input.seqz} {input.assembly} {input.chroms} {input.x_chrom} 
+        $(dirname {output.segments}) {threads} > {log.stdout} 2> {log.stderr}
         """)
 
 
@@ -214,6 +213,10 @@ rule _sequenza_output_seg:
 # Generates the target sentinels for each run, which generate the symlinks
 rule _sequenza_all:
     input:
+        reference_files(
+            expand("genomes/{genome_build}/annotations/gc_wiggle.window_50.wig.gz",
+                   genome_build=CFG["runs"]["tumour_genome_build"])
+        ),
         expand(
             [
                 rules._sequenza_output_seg.output.seg.replace("{filter_status}", "filtered"),

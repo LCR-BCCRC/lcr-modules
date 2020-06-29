@@ -11,7 +11,7 @@ lcr-modules:
             run_sequenza: "{MODSDIR}/src/R/run_sequenza.R"
             cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.0/cnv2igv.py"
 
-        scratch_subdirectories: []
+        scratch_subdirectories: ["seqz"]
         
         options:
             bam2seqz: "--qlimit 30"
@@ -34,12 +34,13 @@ lcr-modules:
             bam2seqz: 10000
             merge_seqz: 10000
             filter_seqz: 20000
-            sequenza: 100000
+            sequenza: 20000
 
+        # For now, only supporting matched tumour-normal pairs
         pairing_config:
             genome:
                 run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
+                run_unpaired_tumours_with: null
                 run_paired_tumours_as_unpaired: False
             capture:
                 run_paired_tumours: True
