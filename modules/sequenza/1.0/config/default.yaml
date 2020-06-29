@@ -17,7 +17,8 @@ lcr-modules:
             # TODO: Add params
 
         conda_envs:
-            sequenza: "{MODSDIR}/envs/sequenza.yaml"
+            sequenza-utils: "{MODSDIR}/envs/sequenza-utils-3.0.0.yaml"
+            r-sequenza: "{MODSDIR}/envs/r-sequenza-3.0.0.yaml"
             cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.0/python-3.8.3.yaml"
             
         threads:
