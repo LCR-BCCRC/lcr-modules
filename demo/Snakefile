@@ -16,9 +16,9 @@ subworkflow reference_files:
     workdir:
         "reference/"
     snakefile:
-        "../workflows/reference_files/1.0/reference_files.smk"
+        "../workflows/reference_files/2.0/reference_files.smk"
     configfile:
-        "../workflows/reference_files/1.0/config/default.yaml"
+        "../workflows/reference_files/2.0/config/default.yaml"
 
 
 ##### CONFIGURATION FILES #####
