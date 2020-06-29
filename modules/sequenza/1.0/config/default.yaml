@@ -14,7 +14,9 @@ lcr-modules:
         scratch_subdirectories: []
         
         options:
-            # TODO: Add params
+            bam2seqz: "--qlimit 30"
+            seqz_binning: "--window 300"
+            cnv2igv: "--mode sequenza"
 
         conda_envs:
             sequenza-utils: "{MODSDIR}/envs/sequenza-utils-3.0.0.yaml"
@@ -28,6 +30,7 @@ lcr-modules:
             sequenza: 8 
 
         mem_mb:
+            vcf_sort: 2000
             bam2seqz: 10000
             merge_seqz: 10000
             filter_seqz: 20000
