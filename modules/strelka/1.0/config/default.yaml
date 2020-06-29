@@ -25,7 +25,7 @@ lcr-modules:
             tabix: "{MODSDIR}/envs/tabix-0.2.6.yaml"
             
         threads:
-            strelka: 12
+            strelka: 1
 
         mem_mb:
             strelka: 4000
