@@ -4,44 +4,35 @@ genome_builds:
         version: "grch37"
         provider: "ensembl"
         genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/grch37.fa"
-        genome_gc_url: "https://www.bcgsc.ca/downloads/morinlab/reference/grch37.gc50Base.txt.gz"
-        genome_gnomad_url: "https://www.bcgsc.ca/downloads/morinlab/reference/af-only-gnomad.raw.sites.grch37.vcf.gz"
-        dbsnp_url: "https://www.bcgsc.ca/downloads/morinlab/reference/common_all_dbSNP138.hg19.pos.gz"
+    hg38:
+        # GSC GRCh38
+        version: "grch38"
+        provider: "ucsc"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg38.fa"
     grch38:
         version: "grch38"
         provider: "ensembl"
         genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/grch38.fa"
-        genome_gc_url: "https://www.bcgsc.ca/downloads/morinlab/reference/hg38.gc50Base.txt.gz"
-        genome_gnomad_url: "https://www.bcgsc.ca/downloads/morinlab/reference/af-only-gnomad.hg38.vcf.gz"
-        dbsnp_url: "https://www.bcgsc.ca/downloads/morinlab/reference/grch38.dbsnp.gatk.common_all_20170403.sort.pos.gz"
-#    hg19:
-#        version: "grch37"
-#        provider: "ucsc"
-#        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg19.fa"
-#        genome_gc_url: "https://www.bcgsc.ca/downloads/morinlab/reference/grch37.gc50Base.txt.gz"
-#        #duplicate files added by Ryan in lieu of having one for each version. Not tested for compatibility.
-#    hg38:
-#        # GSC GRCh38
-#        version: "grch38"
-#        provider: "ucsc"
-#        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg38.fa"
-#        genome_gc_url: "https://www.bcgsc.ca/downloads/morinlab/reference/hg38.gc50Base.txt.gz"
-#    grch38-legacy:
-#        # Not GATK-compatible
-#        version: "grch38"
-#        provider: "ensembl"
-#        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/grch38-legacy.fa"
-#        genome_gc_url: "https://www.bcgsc.ca/downloads/morinlab/reference/hg38.gc50Base.txt.gz"
-#    hs37d5:
-#        # ICGC (with decoys)
-#        version: "grch37"
-#        provider: "ensembl"
-#        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hs37d5.fa"
-#        genome_gc_url: "https://www.bcgsc.ca/downloads/morinlab/reference/grch37.gc50Base.txt.gz"
+    hg19:
+        version: "grch37"
+        provider: "ucsc"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg19.fa"
+    grch38-legacy:
+        # Not GATK-compatible
+        version: "grch38"
+        provider: "ensembl"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/grch38-legacy.fa"
+    hs37d5:
+        # ICGC (with decoys)
+        version: "grch37"
+        provider: "ensembl"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hs37d5.fa"
 
 wildcard_values:
     gencode_release: ["33"]
+    dbsnp_build: ["151"]
     star_overhang: ["74", "99"]
+    gc_window_size: ["50"]
 
 tools:
     coreutils: 
@@ -70,6 +61,11 @@ cvbio_config:
         skip: "false"
         delimiter: "\t"
     txt: 
+        comment: "#"
+        columns: "0"
+        skip: "false"
+        delimiter: "\t"
+    vcf:
         comment: "#"
         columns: "0"
         skip: "false"

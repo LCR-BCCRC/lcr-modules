@@ -19,14 +19,16 @@ import oncopipe as op
 
 ##### CONFIG #####
 localrules: download_genome_fasta,
-            download_genome_gnomad,
-            download_genome_dbsnp,
-            #download_genome_gc,
-            download_main_chromosomes, download_gencode_annotation,
-            hardlink_download, update_contig_names,
-            get_genome_fasta_download, index_genome_fasta,
-            get_main_chromosomes_download, create_bwa_index,
-            get_gencode_download, create_star_index
+            download_main_chromosomes, 
+            download_gencode_annotation,
+            hardlink_download, 
+            update_contig_names,
+            get_genome_fasta_download, 
+            index_genome_fasta,
+            get_main_chromosomes_download, 
+            create_bwa_index,
+            get_gencode_download, 
+            create_star_index
 
 
 # Check for genome builds
@@ -37,9 +39,7 @@ assert "genome_builds" in config and len(config["genome_builds"]) > 0, (
 # Switch between case for version names
 VERSION_UPPER = {
     "grch37": "GRCh37",
-    "GRCh37": "GRCh37",
     "grch38": "GRCh38",
-    "GRCh38": "GRCh38",
 }
 
 # Check genome build versions, providers, and genome_fasta
@@ -77,6 +77,7 @@ wildcard_constraints:
     bwa_version = TOOL_VERSIONS["bwa"],
     star_version = TOOL_VERSIONS["star"],
     gencode_release = "|".join(config["wildcard_values"]["gencode_release"]),
+    dbsnp_build = "|".join(config["wildcard_values"]["dbsnp_build"]),
 
 
 ##### CHROMOSOME MAPPINGS #####
@@ -115,44 +116,6 @@ for chrom_map_file in CHROM_MAPPINGS_FILES:
 
 
 ##### DOWNLOAD #####
-
-#I added the sort step so we use the existing locale to avoid annoying locale incompatibilities with GNU sort. Untested. 
-rule download_genome_dbsnp:
-    output:
-        dbsnp = "genomes/{genome_build}/annotations/{genome_build}.dbsnp.pos",
-        dbsnp_sorted = "genomes/{genome_build}/annotations/{genome_build}.dbsnp.pos.sort"
-    log:
-        "genomes/{genome_build}/annotations/{genome_build}.dbsnp.pos.log"
-    params: 
-        url = lambda w: config["genome_builds"][w.genome_build]["dbsnp_url"]
-    shell:
-        op.as_one_line("""
-        curl -L {params.url} > {output.dbsnp}.gz 2> {log}
-            &&
-        gunzip {output.dbsnp}.gz
-            &&
-        chmod a-w {output.dbsnp}
-            &&
-        sort -S 2G {output.dbsnp} > {output.dbsnp_sorted}
-        """)
-
-
-rule download_genome_gnomad:
-    output:
-        gnomad = "genomes/{genome_build}/annotations/af-only-gnomad.{genome_build}.vcf.gz",
-        gnomad_tbi = "genomes/{genome_build}/annotations/af-only-gnomad.{genome_build}.vcf.gz.tbi"
-    log:
-        "genomes/{genome_build}/annotations/af-only-gnomad.{genome_build}.vcf.gz.log"
-    params: 
-        url = lambda w: config["genome_builds"][w.genome_build]["genome_gnomad_url"]
-    shell:
-        op.as_one_line("""
-        curl -L {params.url} > {output.gnomad} 2> {log}
-            &&
-        curl -L {params.url}.tbi > {output.gnomad_tbi}
-            &&
-        chmod a-w {output.gnomad_tbi}
-        """)
 
 
 rule download_genome_fasta:
@@ -204,15 +167,14 @@ rule download_gencode_annotation:
     output:
         gtf = "downloads/gencode-{gencode_release}/gencode.annotation.{version}.gtf"
     params:
-        provider = "ucsc"
+        provider = "ensembl"
     run:
         url_parts = [
             "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human",
             f"release_{wildcards.gencode_release}"
         ]
         release_fmt = f"v{wildcards.gencode_release}"
-        version = VERSION_UPPER[wildcards.version]
-        if version == "GRCh37":
+        if wildcards.version == "grch37":
             url_parts.append("GRCh37_mapping")
             release_fmt += "lift37"
         url_parts.append(f"gencode.{release_fmt}.annotation.gtf.gz")
@@ -222,11 +184,31 @@ rule download_gencode_annotation:
         shell("chmod a-w {output.gtf}")
 
 
+rule download_dbsnp_vcf:
+    output:
+        vcf = "downloads/dbsnp-{dbsnp_build}/dbsnp.common_all.{version}.vcf"
+    log:
+        stderr = "downloads/dbsnp-{dbsnp_build}/dbsnp.common_all.{version}.vcf"
+    params: 
+        provider = "ensembl",
+        url = lambda w: {"grch37": "GRCh37p13", "grch38": "GRCh38p7"}[w.version]
+    shell:
+        op.as_one_line("""
+        curl -s https://ftp.ncbi.nih.gov/snp/organisms/human_9606_b{wildcards.dbsnp_build}_{params.url}/VCF/00-common_all.vcf.gz 2> {log.stderr}
+            | 
+        gzip -dc 2>> {log.stderr}
+            | 
+        awk 'BEGIN {{FS=OFS="\t"}} $0 !~ /^#/ {{$8="."}} $0 !~ /^##INFO/' > {output.vcf} 2>> {log.stderr}
+            &&
+        chmod a-w {output.vcf} 2>> {log.stderr}
+        """)
+
+
 ##### FUNCTIONS #####
 
 
 def get_matching_download_rules(file):
-    ignored_rules = ["download_genome_fasta","download_genome_gnomad","download_genome_gc","download_genome_dbsnp"]
+    ignored_rules = ["download_genome_fasta"]
     rule_names = [ r for r in dir(rules) if r.startswith("download_")]
     rule_names = [ r for r in rule_names if r not in ignored_rules ]
     rule_list = [ getattr(rules, name) for name in rule_names ]
@@ -267,6 +249,12 @@ def hardlink_same_provider(wildcards):
     for r in matching_rules:
         # The provider must be among the ones we can convert from
         if r.params.provider not in from_provider_options:
+            logger.warning(
+                f"The {r.rule} rule can generate the {output_file} file, but the chromosomes "
+                f"from the associated provider ({r.params.provider}) cannot be converted to "
+                f"the destination provider ({to_provider}). Make sure the providers in the "
+                "download rules are correct and that no chromosome mappings are missing."
+            )
             continue
         dependencies.append(r)
 
@@ -465,6 +453,15 @@ rule get_gencode_download:
         "ln -f {input.gtf} {output.gtf}"
 
 
+rule get_dbsnp_download: 
+    input:
+        vcf = get_download_file(rules.download_dbsnp_vcf.output.vcf)
+    output:
+        vcf = "genomes/{genome_build}/variation/dbsnp.common_all-{dbsnp_build}.vcf"
+    shell:
+        "ln -f {input.vcf} {output.vcf}"
+
+
 rule create_star_index:
     input:
         fasta = rules.get_genome_fasta_download.output.fasta,
@@ -490,17 +487,15 @@ rule calc_gc_content:
     input:
         fasta = rules.get_genome_fasta_download.output.fasta
     output:
-        wig = "genomes/{genome_build}/annotations/gc_wiggle.window_{window_size}.wig.gz"
+        wig = "genomes/{genome_build}/annotations/gc_wiggle.window_{gc_window_size}.wig.gz"
     log:
-        "genomes/{genome_build}/annotations/gc_wiggle.window_{window_size}.wig.gz.log"
+        "genomes/{genome_build}/annotations/gc_wiggle.window_{gc_window_size}.wig.gz.log"
     conda: CONDA_ENVS["sequenza-utils"]
     shell:
         op.as_one_line("""
-        sequenza-utils gc_wiggle --fasta {input.fasta} -w {wildcards.window_size} -o -
+        sequenza-utils gc_wiggle --fasta {input.fasta} -w {wildcards.gc_window_size} -o -
             |
         gzip -c > {output.wig}
             &&
         chmod a-w {output.wig}
         """)
-    
-    

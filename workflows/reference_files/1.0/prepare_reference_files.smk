@@ -36,9 +36,6 @@ rule all:
     input:
         expand(
             [
-                rules.download_genome_gc.output.gc,
-                rules.download_genome_dbsnp.output.dbsnp,
-                rules.download_genome_gnomad.output.gnomad,
                 rules.get_genome_fasta_download.output.fasta,
                 rules.index_genome_fasta.output.fai,
                 rules.get_main_chromosomes_download.output.txt,
@@ -48,11 +45,14 @@ rule all:
                 rules.store_genome_build_info.output.provider,
                 rules.create_bwa_index.output.prefix,
                 rules.get_gencode_download.output.gtf,
+                rules.get_dbsnp_download.output.vcf,
                 rules.create_star_index.output.index,
+                rules.calc_gc_content.output.wig,
             ],
             genome_build=config["genome_builds"].keys(),
             bwa_version=config["tools"]["bwa"]["version"],
             gencode_release=config["wildcard_values"]["gencode_release"],
+            dbsnp_build=config["wildcard_values"]["dbsnp_build"],
             star_version=config["tools"]["star"]["version"],
             star_overhang=config["wildcard_values"]["star_overhang"],
         )
