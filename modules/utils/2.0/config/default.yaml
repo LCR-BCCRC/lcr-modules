@@ -5,7 +5,7 @@ lcr-modules:
 
         options:
             bam_sort: ""
-            bam_markdups: ""
+            bam_markdups: "--overflow-list-size 600000"
             bam_index: "-b"
 
         conda_envs:
