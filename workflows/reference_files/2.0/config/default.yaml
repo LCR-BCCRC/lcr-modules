@@ -4,6 +4,11 @@ genome_builds:
         version: "grch37"
         provider: "ensembl"
         genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/grch37.fa"
+    hg38:
+        # GSC GRCh38
+        version: "grch38"
+        provider: "ucsc"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg38.fa"
     grch38:
         version: "grch38"
         provider: "ensembl"
@@ -12,11 +17,6 @@ genome_builds:
         version: "grch37"
         provider: "ucsc"
         genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg19.fa"
-    hg38:
-        # GSC GRCh38
-        version: "grch38"
-        provider: "ucsc"
-        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg38.fa"
     grch38-legacy:
         # Not GATK-compatible
         version: "grch38"
@@ -30,7 +30,9 @@ genome_builds:
 
 wildcard_values:
     gencode_release: ["33"]
+    dbsnp_build: ["151"]
     star_overhang: ["74", "99"]
+    gc_window_size: ["50"]
 
 tools:
     coreutils: 
@@ -48,6 +50,9 @@ tools:
     star: 
         conda_env: "envs/star-2.7.3a.yaml"
         version: "2.7.3a"
+    sequenza-utils:
+        conda_env: "envs/sequenza-utils-3.0.0.yaml"
+        version: "3.0.0"
 
 cvbio_config:
     gtf: 
@@ -56,6 +61,11 @@ cvbio_config:
         skip: "false"
         delimiter: "\t"
     txt: 
+        comment: "#"
+        columns: "0"
+        skip: "false"
+        delimiter: "\t"
+    vcf:
         comment: "#"
         columns: "0"
         skip: "false"
