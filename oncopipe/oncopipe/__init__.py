@@ -1469,6 +1469,7 @@ def setup_module(name, version, subdirectories):
     # Drop samples whose seq_types do not appear in pairing_config
     assert "pairing_config" in mconfig, "`pairing_config` missing from module config."
     sample_seq_types = msamples["seq_type"].unique()
+    pairing_config = mconfig["pairing_config"]
     supported_seq_types = [
         k for k, v in pairing_config.items() if "run_paired_tumours" in v
     ]
