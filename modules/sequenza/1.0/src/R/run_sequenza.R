@@ -3,6 +3,9 @@
 
 # Load Packages -----------------------------------------------------------
 
+remotes::install_github("ShixiangWang/copynumber", dependencies = FALSE, 
+                        upgrade = "never")
+
 library(sequenza)
 
 
