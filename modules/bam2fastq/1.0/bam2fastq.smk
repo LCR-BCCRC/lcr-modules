@@ -18,14 +18,12 @@ import oncopipe as op
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["outputs"]`
 CFG = op.setup_module(
-    name = "outputs",
+    name = "bam2fastq",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _bam2fastq_input_bam,
     _bam2fastq_all,
@@ -35,7 +33,6 @@ localrules:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
 rule _bam2fastq_input_bam:
     input:
         bam = CFG["inputs"]["sample_bam"]
@@ -64,19 +61,15 @@ rule _bam2fastq_run:
     shell:
         op.as_one_line("""
         picard -Xmx{resources.mem_mb}m SamToFastq {params.opts}
-        I={input.bam} FASTQ=>(gzip > {output.fq[0]}) SECOND_END_FASTQ=>(gzip > {output.fq[1]}) 
+        I={input.bam} FASTQ=>(gzip > {output.fastq[0]}) SECOND_END_FASTQ=>(gzip > {output.fastq[1]}) 
         > {log.stdout} &> {log.stderr}
         """)
 
 
 rule _bam2fastq_all:
     input:
-        expand(
-            [
-                rules._bam2fastq_run.output.fastq,
-                # TODO: If applicable, add other output rules here
-            ],
-            zip,  # Run expand() with zip(), not product()
+        expand(rules._bam2fastq_run.output.fastq,
+            zip,
             seq_type=CFG["samples"]["seq_type"],
             genome_build=CFG["samples"]["genome_build"],
             sample_id=CFG["samples"]["sample_id"])
