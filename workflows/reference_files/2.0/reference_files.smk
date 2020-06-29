@@ -188,19 +188,20 @@ rule download_dbsnp_vcf:
     output:
         vcf = "downloads/dbsnp-{dbsnp_build}/dbsnp.common_all.{version}.vcf"
     log:
-        stderr = "downloads/dbsnp-{dbsnp_build}/dbsnp.common_all.{version}.vcf"
+        "downloads/dbsnp-{dbsnp_build}/dbsnp.common_all.{version}.vcf.log"
     params: 
         provider = "ensembl",
         url = lambda w: {"grch37": "GRCh37p13", "grch38": "GRCh38p7"}[w.version]
+    conda: CONDA_ENVS["coreutils"]
     shell:
         op.as_one_line("""
-        curl -s https://ftp.ncbi.nih.gov/snp/organisms/human_9606_b{wildcards.dbsnp_build}_{params.url}/VCF/00-common_all.vcf.gz 2> {log.stderr}
+        curl -s https://ftp.ncbi.nih.gov/snp/organisms/human_9606_b{wildcards.dbsnp_build}_{params.url}/VCF/00-common_all.vcf.gz 2> {log}
             | 
-        gzip -dc 2>> {log.stderr}
+        gzip -dc 2>> {log}
             | 
-        awk 'BEGIN {{FS=OFS="\t"}} $0 !~ /^#/ {{$8="."}} $0 !~ /^##INFO/' > {output.vcf} 2>> {log.stderr}
+        awk 'BEGIN {{FS=OFS="\t"}} $0 !~ /^#/ {{$8="."}} $0 !~ /^##INFO/' 2>> {log} 
             &&
-        chmod a-w {output.vcf} 2>> {log.stderr}
+        chmod a-w {output.vcf}
         """)
 
 
@@ -460,10 +461,14 @@ rule get_dbsnp_download:
     input:
         vcf = get_download_file(rules.download_dbsnp_vcf.output.vcf)
     output:
-        vcf = "genomes/{genome_build}/variation/dbsnp.common_all-{dbsnp_build}.vcf"
-    conda: CONDA_ENVS["coreutils"]
+        vcf = "genomes/{genome_build}/variation/dbsnp.common_all-{dbsnp_build}.vcf.gz"
+    conda: CONDA_ENVS["samtools"]
     shell:
-        "ln -srf {input.vcf} {output.vcf}"
+        op.as_one_line("""
+        bgzip -c {input.vcf} > {output.vcf}
+            &&
+        tabix {output.vcf}
+        """)
 
 
 rule create_star_index:

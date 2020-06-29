@@ -62,7 +62,7 @@ checkpoint _sequenza_input_chroms:
 # Pulls in list of chromosomes for the genome builds
 rule _sequenza_input_dbsnp_pos:
     input:
-        vcf = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf")
+        vcf = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")
     output:
         pos = CFG["dirs"]["inputs"] + "dbsnp/{genome_build}/dbsnp.common_all-151.pos"
     log:
@@ -71,7 +71,9 @@ rule _sequenza_input_dbsnp_pos:
         mem_mb = CFG["mem_mb"]["vcf_sort"]
     shell:
         op.as_one_line("""
-        awk 'BEGIN {{FS="\t"}} $0 !~ /^#/ {{print $1 ":" $2}}' {input.vcf} 2>> {log.stderr}
+        gzip -dc {input.vcf}
+            |
+        awk 'BEGIN {{FS="\t"}} $0 !~ /^#/ {{print $1 ":" $2}}' 2>> {log.stderr}
             |
         LC_ALL=C sort -S {resources.mem_mb}M > {output.pos} 2>> {log.stderr}
         """)
