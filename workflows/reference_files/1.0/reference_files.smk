@@ -168,6 +168,20 @@ rule download_gencode_annotation:
         shell("chmod a-w {output.gtf}")
 
 
+rule download_vep_cache:
+    output: 
+        vep = directory("vep_caches/{species}/{vep_genome_build}")
+    log: 
+        "vep_caches/{species}/{vep_genome_build}.log"
+    params: 
+        url = config["vep"]["cache_url"]
+    shell:
+        op.as_one_line("""
+        curl -L {params.url} | tar -xvf -C {output.vep} 2> {log}
+            &&
+        chmod a-w {output.vep}
+        """)
+
 ##### FUNCTIONS #####
 
 

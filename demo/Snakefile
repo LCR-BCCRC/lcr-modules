@@ -56,4 +56,4 @@ include: "../modules/manta/2.2/manta.smk"
 rule all:
     input:
         rules._manta_all.input,
-        rules._star_all.input
+        #rules._star_all.input

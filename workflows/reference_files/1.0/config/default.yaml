@@ -28,6 +28,9 @@ genome_builds:
         provider: "ensembl"
         genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hs37d5.fa"
 
+vep:
+    cache_url: "https://www.bcgsc.ca/downloads/morinlab/reference/{species}_vep_{vep_genome_build}.tar.gz"
+
 wildcard_values:
     gencode_release: ["33"]
     star_overhang: ["74", "99"]

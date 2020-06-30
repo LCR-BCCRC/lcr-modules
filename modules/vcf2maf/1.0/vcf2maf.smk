@@ -60,7 +60,8 @@ rule _vcf2maf_run:
         --tumor-id {wildcards.tumour_id} --normal-id {wildcards.normal_id}
         --ref-fasta {input.fasta}
         --ncbi-build {params.build}
-        --vep-data {input.vep_cache} --vep-path $vepPATH {params.opts}
+        --vep-data $(dirname $(dirname {input.vep_cache}))
+        --vep-path $vepPATH {params.opts}
         > {log.stdout} 2> {log.stderr}
         """)
 

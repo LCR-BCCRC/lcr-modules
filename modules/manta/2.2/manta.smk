@@ -227,7 +227,7 @@ rule _manta_output_bedpe:
 # Symlinks the maf files
 rule _manta_output_maf:
     input:
-        maf = CFG["dirs"]["maf"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
+        maf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
     output:
         maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.maf"
     run:
