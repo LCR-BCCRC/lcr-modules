@@ -24,7 +24,7 @@
 
 - [ ] I ensured that all symbolic links are relative and self-contained (_i.e._ do not point outside of the repository).
 
-- [ ] I labelled every value that should (or might need to) be updated in the default configuration file with `UPDATE` comments.
+- [ ] I replaced every value that should (or might need to) be updated in the default configuration file with `__UPDATE__`.
 
 - [ ] I recursively searched for all comments containing `TODO` to ensure none were left. For example:
 

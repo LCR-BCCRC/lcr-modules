@@ -64,6 +64,14 @@ Getting Started
       git commit -m "<commit message>"
       git push origin "module/<module_name>/1.0"
 
+   .. note::
+
+      **Testing Your Module**
+
+      There are different methods testing your module. One approach would be to leverage the `Demo Project`_ and the associated test data. Adding to the `Demo Snakefile`_ should be self-explanatory. This method works if your module operates on the kind of samples included in the `Test Data`_. 
+
+      Another approach to consider is testing on your own data. This might be a good way to follow up on successful tests on the `Demo Project`_, which confirm that the syntax of the module works. Running it on a larger dataset will confirm that the commands work on a variety of samples and that the output is sensible.
+
 8. When you are done with your module, commit any remaining changes and merge the `master` branch into your module branch. You shouldn't have any merge conflicts since any new files should be under new versions.
 
    .. code:: bash
@@ -104,13 +112,13 @@ When you run the command listed in the :ref:`getting-started-dev` instructions, 
 
    Additional options will be added later, such as ``tumour_cohort`` and ``sample_cohort`` for level-3 modules (see :ref:`what-are-modules` for more details).
 
--  ``seq_type.genome``, ``seq_type.capture``, and ``seq_type.mrna``: Possible values are ``paired``, ``unpaired``, and ``omit``. These fields determine which sequencing data types (``seq_type``) are intended as input for the module and whether each ``seq_type`` is intended to be run in paired or unpaired mode. The fields correspond to whole genome, hybrid capture-based, and RNA sequencing, respectively. Select ``omit`` if a ``seq_type`` is not applicable for the module. 
+-  ``seq_type.genome``, ``seq_type.capture``, and ``seq_type.mrna``: Possible values are ``matched_only``, ``allow_unmatched``, ``no_normal``, and ``omit``. These fields determine which sequencing data types (``seq_type``) are intended as input for the module and whether each ``seq_type`` is intended to be run in paired or unpaired mode, and if in paired mode, whether to allow unmatched pairs. For more information on these modes, check out the documentation for the :py:func:`oncopipe.generate_pairs` function. Select ``omit`` if a ``seq_type`` is not applicable for the module. The fields correspond to whole genome, hybrid capture-based, and RNA sequencing, respectively.
 
    **Important**
 
-   - If you selected “sample” for ``module_run_per``, then you should use ``unpaired`` here. If this is a ``paired`` analysis, you should start over (cancel with Ctrl-C) and select ``tumour`` for ``module_run_per``. 
+   - If you selected ``sample`` for ``module_run_per``, then you should use ``no_normal`` here. If this is a paired analysis, you should start over (cancel with Ctrl-C) and select ``tumour`` for ``module_run_per``. 
    
-   - If you selected ``tumour`` for ``module_run_per``, you can select ``paired`` or ``unpaired`` depending on whether the module is meant to be run on tumour-normal pairs or not. 
+   - If you selected ``tumour`` for ``module_run_per``, you can select ``matched_only``, ``allow_unmatched``, or ``no_normal`` depending on whether the module is meant to be run on only matched tumour-normal pairs, on potentially unmatched tumour-normal pairs, or on tumours only. 
 
 Module Description
 ==================
@@ -140,7 +148,7 @@ When you create a new module using the :ref:`getting-started-user` instructions,
 
 -  ``envs/``: This folder contains symlinks to individual conda environment YAML files from the ``envs/`` directory, which is found in the root of the repository. These conda environment are generally tool-specific (*e.g.* ``samtools``, ``star``). Symlinks are used to keep the repository lightweight and promote reuse of conda environments between modules.
 
--  ``etc/``: This folder can contain any accessory files required to run the module, such as configuration files (see ``manta`` module for an example).
+-  ``etc/``: This folder can contain any accessory files required to run the module, such as configuration files (see ``manta`` module version 2.0 for an example). For more details, check out the :ref:`module-accessory-files-and-scripts` section. 
 
 -  ``schemas/``: This folder contains symlinks to individual schema YAML files from the ``schemas/`` directory in the root of the repository. These schemas determine the required columns in the samples table. Every module should have the ``base-1.0.yaml`` schema as a minimum requirement. For more information, check out the :ref:`required-sample-metadata` section below. Symlinks are used to keep the repository lightweight and promote reuse of schemas between modules.
 
@@ -423,10 +431,10 @@ In theory, configuration YAML files can take on any structure. However, it helps
 Configuration Features
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Configuration Comments
-^^^^^^^^^^^^^^^^^^^^^^
+Requiring User Intervention
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Make sure that anything that needs to be updated by the user is indicated by an ``UPDATE`` comment. You can see examples in the excerpts below taken from the ``star`` default configuration.
+Make sure that anything that needs to be updated by the user contains ``__UPDATE__`` in the configuration file. You can see examples in the excerpts below taken from the ``star`` default configuration. If the string ``__UPDATE__`` is detected anywhere in the module configuration, an error will inform the user that they need to update a configuration field.
 
 .. _directory-placeholders-dev:
 
@@ -450,7 +458,7 @@ Configuring Input and Reference Files
 
 Virtually all modules will have input files, and many will also require reference files. These are defined using the ``inputs`` and ``reference_params`` keys, respectively.
 
-The input files will generally be set to ``null`` and labelled with ``UPDATE`` comments since they need to be specified by the user. This can be done in the configuration file or in the Snakefile (see the `Demo Snakefile`_ for an example). Either way, the available wildcards are usually listed in a comment. If not, you can always look at the wildcards in the output files of the rule using the ``inputs`` configuration section. In general, these are ``{seq_type}``, ``{genome_build}``, and ``{sample_id}``.
+The input files will generally be set to ``__UPDATE__`` since they need to be specified by the user. This can be done in the configuration file or in the Snakefile (see the `Demo Snakefile`_ for an example). Either way, the available wildcards are usually listed in a comment. If not, you can always look at the wildcards in the output files of the rule using the ``inputs`` configuration section. In general, these are ``{seq_type}``, ``{genome_build}``, and ``{sample_id}``.
 
    One advantage of specifying the input files in the Snakefile (as opposed to in the configuration file) is that the user can provide `Input File Functions`_ rather than a string.
 
@@ -463,13 +471,13 @@ For more information on the approach taken in ``reference_files`` and its benefi
          inputs:
             # The inputs can be configured here or in the Snakefile
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_fastq_1: "<path/to/sample.R1.fastq.gz>"  # UPDATE
-            sample_fastq_2: "<path/to/sample.R2.fastq.gz>"  # UPDATE
+            sample_fastq_1: "__UPDATE__"
+            sample_fastq_2: "__UPDATE__"
 
          reference_params:
             # Ideally, `star_overhang` = max(read_length) - 1
             # STAR indices were precomputed for "74" and "99"
-            star_overhang: "99"  # UPDATE
+            star_overhang: "__UPDATE__"
             # The Gencode release to use for the transcript annotation
             gencode_release: "33"
 
@@ -539,7 +547,7 @@ The conda environments that power each module are listed under ``conda_envs``. T
 
 Each conda environment should ideally be tool-specific because that promotes re-use of environments between modules. Otherwise, commonly used tools such as ``samtools`` would be included in multiple module-specific environments. This also allows for easier tracking of the tool versions in the file names. This can only be achieved if each module rule is indeed only using one tool, which should be the case.
 
-Note that Snakemake expects the paths to be relative to the Snakefile. This is automatically handled by the :py:func:`oncopipe.setup_module` function, so these paths are expected to be relative to the working directory. In the example below, you can see the ``{MODSDIR}`` directory placeholder being used such that the paths are portably regardless of where the user stores the ``lcr-modules`` repository (as long as ``repository`` is specified under ``_shared``). For more information, check out :ref:`directory-placeholders-dev`.
+Note that Snakemake expects the paths to be relative to the Snakefile. This is automatically handled by the :py:func:`oncopipe.setup_module` function, so the paths provided under ``conda_envs`` in the module configuration are expected to be relative to the working directory (usually where you run the ``snakemake`` command). In the example below, you can see the ``{MODSDIR}`` directory placeholder being used such that the paths are portably regardless of where the user stores the ``lcr-modules`` repository (as long as ``repository`` is specified under ``_shared``). For more information, check out :ref:`directory-placeholders-dev`.
 
 .. code:: yaml
 
@@ -547,6 +555,49 @@ Note that Snakemake expects the paths to be relative to the Snakefile. This is a
             star: "{MODSDIR}/envs/star-2.7.3a.yaml"
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             sambamba: "{MODSDIR}/envs/sambamba-0.7.1.yaml"
+
+Creating Conda Environments
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This is a suggested workflow for creating conda environments for your modules. The commands are based on the example of creating a conda environment for the STAR aligner. 
+
+1. Create a conda environment for the tool in question. For example, in the case of STAR, the following command would create a conda environment called ``test-star`` and install the latest version of the ``star`` package from the ``bioconda`` Anaconda channel along with its dependencies
+
+   .. code:: bash
+
+      conda create -c bioconda -n test-<star> <star>
+
+2. Optionally, activate this conda environment before testing any STAR commands. This testing can occur in bash scripts or in a snakefile as long as the rule(s) don't activate their own conda environment, thus relying on the global shell environment.
+
+   .. code:: bash
+
+      conda activate test-<star>
+      bash run_<star>_test_commands.sh ...
+
+3. Create a subdirectory in ``envs/`` named after the tool once you are ready to add the new conda environments to the lcr-modules repository. Again, for the STAR environment, this would look like:
+
+   .. code:: bash
+
+      mkdir envs/<star>/
+
+4. Determine the version of the tool that was installed by conda. You can usually achieve this by grepping the tool from the output of ``conda env export``. 
+
+   .. code:: bash
+
+      conda env export -n test-<star> --no-builds | grep <star>
+
+5. Output the conda environment specification into a file named after the tool and its version. Be sure to use the ``--no-builds`` command-line option to omit build ID, which tend to cause problems recreating environments later. 
+
+   .. code:: bash
+
+      conda env export -n test-<star> --no-builds > envs/<star>/<star>-<2.7.3a>.yaml
+
+6. Symlink this new conda environment YAML file into your module's ``envs/`` directory. The symlinks prevent the repository from becoming bloated with duplicate files. This approach also promotes the re-use of conda environments across modules.
+
+   .. code:: bash
+
+      cd modules/<star>/<1.0>/envs/
+      ln -s ../../../../envs/<star>/<star>-<2.7.3a>.yaml ./
 
 Configuring Compute Resources
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -616,9 +667,16 @@ Here's a brief description of each of the options that go into a ``pairing_confi
 
 - ``run_unpaired_tumours_with``: Possible values are ``None``, ``"unmatched_normal"``, or ``"no_normal"``. This option determines what to pair with unpaired tumours. Specifying ``None`` means that unpaired tumours will be skipped for the given module. This option cannot be set to ``None`` if ``run_paired_tumours_as_unpaired`` is ``True``. Specifying ``"unmatched_normal"`` means that unpaired tumours will be run by being paired with the unmatched normal sample given by ``unmatched_normal_id`` (see below). Specifying ``"no_normal"`` means that unpaired tumours will be run without a normal sample. Note that modules need to be specifically configured to be run in paired and/or unpaired mode, since the commands of the underlying tools probably need to be tailored accordingly.
 
-- ``unmatched_normal_id``: This option must be set to a sample identifier (``sample_id``) that exists in the :ref:`sample-table`. This option determines which normal sample will be used with unpaired tumours when ``run_unpaired_tumours_with`` is set to ``"unmatched_normal"``. This is only required if you have unpaired tumour samples, even if ``run_unpaired_tumours_with`` is set to ``"unmatched_normal"``. 
-
 - ``run_paired_tumours_as_unpaired``: Possible values are ``True`` or ``False``. This option determines whether paired tumours should be run as unpaired (*i.e.* separate from their matched normal sample). This is useful for benchmarking purposes or preventing unwanted paired analyses (*e.g.* in RNA-seq analyses intended to be tumour-only).
+
+.. _module-accessory-files-and-scripts:
+
+Module Accessory Files and Scripts
+----------------------------------
+
+When you create a new module from the cookiecutter template, you will notice an empty ``etc/`` subdirectory in your module directory. This folder is meant to contain any additional file required to run your module. For example, the ``manta`` module requires configuration files, which are stored in ``etc/``. Scripts can also be stored in this directory. That said, if a script is generally useful, you might want to submit a pull request to the `lcr-scripts repository`_. The purpose of this separate repository is to avoid storing useful scripts in a nested directory within the `lcr-modules repository`_. Just as with lcr-modules, lcr-scripts are versioned and come with conda environment YAML files. For your convenience, there is a ``SCRIPTSDIR`` directory placeholder you can use in your default configuration file. 
+
+You can look at how the ``augment_manta_vcf.py`` script from lcr-scripts is used in the ``manta`` module version 2.0. 
 
 Advanced Module Features
 ========================

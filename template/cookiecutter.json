@@ -5,7 +5,7 @@
   "input_file_type": null,
   "output_file_type": null,
   "module_run_per": ["sample", "tumour"],
-  "seq_type.genome": ["unpaired", "paired", "omit"],
-  "seq_type.capture": ["unpaired", "paired", "omit"],
-  "seq_type.mrna": ["unpaired", "paired", "omit"]
+  "seq_type.genome": ["omit", "matched_only", "allow_unmatched", "no_normal"],
+  "seq_type.capture": ["omit", "matched_only", "allow_unmatched", "no_normal"],
+  "seq_type.mrna": ["omit", "matched_only", "allow_unmatched", "no_normal"]
 }

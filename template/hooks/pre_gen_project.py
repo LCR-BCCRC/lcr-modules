@@ -38,7 +38,7 @@ assert re.fullmatch(r"[a-z0-9_]+", output_file_type), (
 # Ensure that a sample-based module isn't run with a paired seq_type
 if module_run_per == "sample":
     for seq_type, mode in seq_types.items():
-        assert mode != "paired", (
+        assert mode not in ["matched_only", "allow_unmatched"], (
             f"`module_run_per` set to 'sample', but `seq_type.{seq_type}` set to "
-            "'paired'. For paired analyses, select 'tumour' for `module_run_per`."
+            f"'{mode}'. For paired analyses, select 'tumour' for `module_run_per`."
         )
