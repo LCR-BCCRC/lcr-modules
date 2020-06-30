@@ -52,7 +52,7 @@ rule _lofreq_run:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        dbsnp = CFG["inputs"]["dbsnp_vcf"]
+        dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")
     output:
         vcf_snvs = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.snvs.vcf.gz",
         vcf_indels = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.indels.vcf.gz"
@@ -60,7 +60,8 @@ rule _lofreq_run:
         stdout = CFG["logs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq.stdout.log",
         stderr = CFG["logs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq.stderr.log"
     params:
-        opts = CFG["options"]["lofreq"]
+        opts = CFG["options"]["lofreq"],
+        regions = op.switch_on_wildcard("seq_type", CFG["switches"]["regions_bed"])
     conda:
         CFG["conda_envs"]["lofreq"]
     threads:
@@ -70,7 +71,8 @@ rule _lofreq_run:
     shell:
         op.as_one_line("""
         lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
-        -f {input.fasta} -o $(dirname {output.vcf_snvs})/ -d {input.dbsnp} > {log.stdout} 2> {log.stderr}
+        -f {input.fasta} -o $(dirname {output.vcf_snvs})/ -d {input.dbsnp} {params.regions} 
+        > {log.stdout} 2> {log.stderr}
         """)
 
 

@@ -7,12 +7,18 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
-            dbsnp_vcf: "__UPDATE__"
 
         scratch_subdirectories: []
 
         options:
             lofreq: ""
+
+        switches:
+            # Capture sequencing panel in BED format
+            regions_bed:
+                _default: ""
+                # Set to "" if you have no capture data
+                capture: "-l __UPDATE__"
 
         conda_envs:
             lofreq: "{MODSDIR}/envs/lofreq-2.1.5.yml"
