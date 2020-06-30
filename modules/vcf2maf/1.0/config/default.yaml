@@ -1,0 +1,21 @@
+lcr-modules:
+    
+    vcf2maf:
+        inputs:
+            # Available wildcards: {out_dir}, {seq_type}, {genome_build}, {tumour_id}, {normal_id}, {pair_status}, {vcf_name}
+            vep_cache: "__UPDATE__"
+
+        options:
+            vcf2maf: "--filter-vcf 0 --vcf-tumor-id TUMOR --vcf-normal-id NORMAL"
+            # --filter-vcf     A VCF for FILTER tag common_variant. Set to 0 to disable [~/.vep/ExAC_nonTCGA.r0.3.1.sites.vep.vcf.gz]
+            #--species        Ensembl-friendly name of species (e.g. mus_musculus for mouse) [homo_sapiens]
+            #--cache-version  Version of offline cache to use with VEP (e.g. 75, 84, 91) [Default: Installed version]
+
+        conda_envs:
+            vcf2maf: "envs/vcf2maf-1.6.18.yaml"
+            
+        threads:
+            vcf2maf: 2
+
+        mem_mb:
+            vcf2maf: 4000
