@@ -18,8 +18,8 @@ import oncopipe as op
 # Setup module and store module-specific configuration in `CFG`.
 CFG = op.setup_module(
     name = "manta", 
-    version = "2.1",
-    subdirectories = ["inputs", "chrom_bed", "manta", "augment_vcf", "bedpe", "outputs"]
+    version = "2.2",
+    subdirectories = ["inputs", "chrom_bed", "manta", "augment_vcf", "bedpe", "maf", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster.
@@ -28,8 +28,10 @@ localrules:
     _manta_index_bed,
     _manta_configure_paired,
     _manta_configure_unpaired,
+    _manta_symlink_maf,
     _manta_output_bedpe,
-    _manta_output_vcf, 
+    _manta_output_vcf,
+    _manta_output_maf, 
     _manta_dispatch,
     _manta_all
 
@@ -192,6 +194,16 @@ rule _manta_vcf_to_bedpe:
         "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log.stderr}"
 
 
+# symlink augmented vcf file to CFG["dirs"]["maf"] to execute vcf2maf module
+rule _manta_symlink_maf:
+    input:
+        vcf = rules._manta_augment_vcf.output.vcf
+    output:
+        vcf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
+    run:
+        op.relative_symlink(input.vcf, output.vcf)
+
+
 # Symlinks the augmented VCF files
 rule _manta_output_vcf:
     input:
@@ -210,6 +222,16 @@ rule _manta_output_bedpe:
         bedpe = CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.bedpe"
     run:
         op.relative_symlink(input.bedpe, output.bedpe)
+
+
+# Symlinks the maf files
+rule _manta_output_maf:
+    input:
+        maf = CFG["dirs"]["maf"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
+    output:
+        maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.maf"
+    run:
+        op.relative_symlink(input.maf, output.maf)
 
 
 def _manta_predict_output(wildcards):
@@ -255,14 +277,19 @@ def _manta_predict_output(wildcards):
     outputs_with_bedpe = expand(
         [
             rules._manta_output_vcf.output.vcf,
-            rules._manta_output_bedpe.output.bedpe,
+            rules._manta_output_maf.output.maf,
+            rules._manta_output_bedpe.output.bedpe
         ],
         vcf_name=vcf_names_with_bedpe,
         **wildcards
     )
 
     outputs_without_bedpe = expand(
-        rules._manta_output_vcf.output.vcf,
+        [
+            rules._manta_output_vcf.output.vcf,
+            rules._manta_output_maf.output.maf
+        ]
+        ,
         vcf_name=vcf_names_without_bedpe,
         **wildcards
     )

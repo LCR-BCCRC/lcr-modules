@@ -20,3 +20,7 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
+    
+    vcf2maf:
+        inputs:
+            vep_cache: "/projects/rmorin/reference/ensembl_vep_cache/"
