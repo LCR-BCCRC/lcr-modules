@@ -294,7 +294,7 @@ def list_files(directory, file_ext):
 # SNAKEMAKE INPUT/PARAM/RESOURCE FUNCTIONS
 
 
-def retry(value, multiplier, max_value=100000):
+def retry(value, multiplier=1.5, max_value=100000):
     """Creates callable that increases resource value on retries.
 
     This function is intended for use with resources,
