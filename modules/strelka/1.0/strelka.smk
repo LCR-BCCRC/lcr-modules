@@ -60,17 +60,18 @@ rule _strelka_dummy_vcf:
 #if not CFG["inputs"]["candidate_small_indels_tbi"] and CFG["inputs"]["candidate_small_indels_vcf"]:
 rule _strelka_input_vcf:
     input:
-        vcf = CFG["inputs"].get("candidate_small_indels_vcf") or ""
+        dummy_vcf = CFG["inputs"]["candidate_small_indels_output"]
     params:
-        in_tbi = CFG["inputs"].get("candidate_small_indels_tbi") or "",
-        out_tbi = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz.tbi"
+        vcf = CFG["inputs"].get("candidate_small_indels_vcf") or "",
+        tbi = CFG["inputs"].get("candidate_small_indels_tbi") or "",
+        
     output:
         vcf = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz",
-        
+        tbi = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz.tbi"
     run:
         shell("touch {params.in_tbi}")
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(params.in_tbi, params.out_tbi)
+        op.relative_symlink(params.vcf, output.vcf)
+        op.relative_symlink(params.tbi, output.tbi)
 
 
 
