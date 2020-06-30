@@ -70,7 +70,7 @@ rule _{{cookiecutter.module_name}}_step_1:
     shell:
         op.as_one_line("""
         <TODO> {params.opts} --tumour {input.tumour_{{cookiecutter.input_file_type}}} --normal {input.normal_{{cookiecutter.input_file_type}}}
-        --ref-fasta {params.fasta} --output {output.{{cookiecutter.output_file_type}}} --threads {threads}
+        --ref-fasta {input.fasta} --output {output.{{cookiecutter.output_file_type}}} --threads {threads}
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -138,7 +138,7 @@ rule _{{cookiecutter.module_name}}_step_1:
         mem_mb = CFG["mem_mb"]["step_1"]
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --input {input.{{cookiecutter.input_file_type}}} --ref-fasta {params.fasta}
+        <TODO> {params.opts} --input {input.{{cookiecutter.input_file_type}}} --ref-fasta {input.fasta}
         --output {output.{{cookiecutter.output_file_type}}} --threads {threads} > {log.stdout} 2> {log.stderr}
         """)
 
