@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1] - 2020-06-06
 
+This release was authored by Helena Winata.
+
+- Added a rule and modified the dispatch function to utilise the vcf2maf module
+- Added a `05-maf` subdirectory and a `99-outputs/maf` directory 
+
+## [2.1] - 2020-06-06
+
 This release was authored by Bruno Grande.
 
 - The default configuration file was updated to include '__UPDATE__'.
