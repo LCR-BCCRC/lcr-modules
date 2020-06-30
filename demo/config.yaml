@@ -25,3 +25,9 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
+    
+    lofreq:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+            dbsnp_vcf: "dbsnp.vcf"

@@ -6,21 +6,22 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            dbsnp_vcf: "__UPDATE__"
 
         scratch_subdirectories: []
 
         options:
-            step_1: ""
-            step_2: ""
+            lofreq: ""
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            lofreq: "{MODSDIR}/envs/lofreq-2.1.5.yml"
             
         threads:
-            step_1: 4
+            lofreq: 12
 
         mem_mb:
-            step_1: 2000
+            lofreq: 20000
 
         pairing_config:
             genome:

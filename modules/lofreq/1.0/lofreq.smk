@@ -20,15 +20,12 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "lofreq",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "lofreq", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _lofreq_input_bam,
-    _lofreq_step_2,
     _lofreq_output_vcf,
     _lofreq_all,
 
@@ -37,68 +34,59 @@ localrules:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
 rule _lofreq_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        bam = CFG["inputs"]["sample_bam"],
+        bai = CFG["inputs"]["sample_bai"]
     output:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
+        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
         op.relative_symlink(input.bam, output.bam)
+        op.relative_symlink(input.bai, output.bai)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _lofreq_step_1:
+# Run LoFreq in somatic variant calling mode
+rule _lofreq_run:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        dbsnp = CFG["inputs"]["dbsnp_vcf"]
     output:
-        vcf = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf"
+        vcf_snvs = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.snvs.vcf.gz",
+        vcf_indels = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.indels.vcf.gz"
     log:
-        stdout = CFG["logs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-        stderr = CFG["logs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
+        stdout = CFG["logs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq.stdout.log",
+        stderr = CFG["logs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq.stderr.log"
     params:
-        opts = CFG["options"]["step_1"]
+        opts = CFG["options"]["lofreq"]
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["lofreq"]
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["lofreq"]
     resources:
-        mem_mb = CFG["mem_mb"]["step_1"]
+        mem_mb = op.retry(CFG["mem_mb"]["lofreq"])
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --tumour {input.tumour_bam} --normal {input.normal_bam}
-        --ref-fasta {input.fasta} --output {output.vcf} --threads {threads}
-        > {log.stdout} 2> {log.stderr}
+        lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
+        -f {input.fasta} -o $(dirname {output.vcf_snvs})/ -d {input.dbsnp} > {log.stdout} 2> {log.stderr}
         """)
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _lofreq_step_2:
-    input:
-        vcf = rules._lofreq_step_1.output.vcf
-    output:
-        vcf = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.vcf"
-    log:
-        stderr = CFG["logs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.vcf} > {output.vcf} 2> {log.stderr}"
-
-
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _lofreq_output_vcf:
     input:
-        vcf = rules._lofreq_step_2.output.vcf
+        vcf_snvs = rules._lofreq_run.output.vcf_snvs,
+        vcf_indels = rules._lofreq_run.output.vcf_indels
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.vcf"
+        vcf_snvs = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.snvs.vcf.gz",
+        vcf_indels = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.indels.vcf.gz"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.vcf_snvs, output.vcf_snvs)
+        op.relative_symlink(input.vcf_snvs + ".tbi", output.vcf_snvs + ".tbi")
+        op.relative_symlink(input.vcf_indels, output.vcf_indels)
+        op.relative_symlink(input.vcf_indels + ".tbi", output.vcf_indels + ".tbi")
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -106,8 +94,8 @@ rule _lofreq_all:
     input:
         expand(
             [
-                rules._lofreq_output_vcf.output.vcf,
-                # TODO: If applicable, add other output rules here
+                rules._lofreq_output_vcf.output.vcf_snvs,
+                rules._lofreq_output_vcf.output.vcf_indels,
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
