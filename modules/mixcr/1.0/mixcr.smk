@@ -51,7 +51,7 @@ rule _install_mixcr:
     params:
         mixcr = CFG["lcr-modules"] + CFG["conda_envs"]["mixcr"]
     output: 
-        complete = "config/envs/mixcr_dependencies_installed.success"
+        complete = CFG["lcr-modules"] + CFG["conda_envs"]["mixcr"] + "/mixcr_dependencies_installed.success"
     shell:
         '''
         latest_tag=$(curl --silent "https://api.github.com/repos/milaboratory/mixcr/releases/latest" |  grep '"tag_name":'| sed -E "s/v//" | sed -E 's/.*\"([^\"]+)\".*/\\1/');
