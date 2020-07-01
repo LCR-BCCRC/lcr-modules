@@ -244,6 +244,7 @@ def _varscan_get_output(wildcards):
         return expand([rules._varscan_combine_vcf.output.snp, rules._varscan_combine_vcf.output.indel], **wildcards)
         #return expand([rules._varscan_combine_vcf.output.{vcf_name}, rules._varscan_output_maf.output.maf], vcf_name = ["indel", "snp"], **wildcards)
 
+#I'm not sure how to change this to not need to expand the chromosome names. Is this to deal with checkpoints? 
 rule _varscan_dispatch:
     input:
         _varscan_get_output
