@@ -177,7 +177,7 @@ rule download_vep_cache:
         url = config["vep"]["cache_url"]
     shell:
         op.as_one_line("""
-        curl -L {params.url} | tar -xvf -C {output.vep} 2> {log}
+        curl -L {params.url} | tar -xz -C vep_caches/ 2> {log}
             &&
         chmod a-w {output.vep}
         """)

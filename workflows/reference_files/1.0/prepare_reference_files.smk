@@ -48,5 +48,5 @@ rule all:
             bwa_version=config["tools"]["bwa"]["version"],
             gencode_release=config["wildcard_values"]["gencode_release"],
             star_version=config["tools"]["star"]["version"],
-            star_overhang=config["wildcard_values"]["star_overhang"],
+            star_overhang=config["wildcard_values"]["star_overhang"]
         )

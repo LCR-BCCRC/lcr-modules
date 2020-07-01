@@ -31,12 +31,16 @@ VERSION_UPPER = {
 }
 
 ##### RULES #####
+rule _vcf2naf_get_vep_cache:
+    : expand(rules.download_vep_cache.output.vep, species=config["vep"]["species"],
+            vep_genome_build=config["vep"]["genome_build"]
+
 
 rule _vcf2maf_run:
     input:
         vcf = "{out_dir}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        vep_cache = CONFIG["inputs"]["vep_cache"]
+        vep_cache = expand("{vep_dir}{species}/{vep_genome_build}", vep_dir = CONFIG["inputs"]["vep_cache"], species = CONFIG["options"]["species"], vep_genome_build = CONFIG["options"]["vep_genome_build"])
     output:
         maf = "{out_dir}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf",
     log:

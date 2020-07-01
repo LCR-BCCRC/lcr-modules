@@ -30,6 +30,8 @@ genome_builds:
 
 vep:
     cache_url: "https://www.bcgsc.ca/downloads/morinlab/reference/{species}_vep_{vep_genome_build}.tar.gz"
+    #species: "homo_sapiens"
+    #genome_build: ["97_GRCh37", "97_GRCh38"]
 
 wildcard_values:
     gencode_release: ["33"]
