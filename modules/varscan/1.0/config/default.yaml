@@ -10,37 +10,35 @@ lcr-modules:
             mpileup: "-A -B -q 20 -d 8000" # countOrphan, noBaq, maxDepth -d 10000000, mapQuality, bedFILE (blank)
             somatic: 
                 capture: "--min-coverage 20 --min-var-freq 0.01  --somatic-p-value 0.05 --strand-filter 0 --min-strands2 0 --validation 0 --output-vcf"
-                genome: "--output-vcf"
-                mrna: "--output-vcf"
+                genome: "--output-vcf" #this will have to be updated to sensible defaults
             unpaired:
                 capture: "--min-coverage 20 --min-reads2 10 --min-avg-qual 20 --min-var-freq 0.01  --p-value 0.05 --strand-filter 0 --output-vcf 1 --min-strands2 0"
-                genome: "--output-vcf"
-                mrna: "--output-vcf"
+                genome: "--output-vcf" #this will have to be updated to sensible defaults
 
+        vcf_header:
+            "{MODSDIR}/header_hg19.txt"
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            varscan: "{MODSDIR}/envs/samtools-1.9.yaml"
+            varscan: "{MODSDIR}/envs/varscan-2.4.4.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.9.yaml"
 
         threads:
-            mpileup: 8
-            somatic: 2
-            unpaired: 2
+            somatic: 3
+            unpaired: 3
+
         mem_mb:
-            mpileup: 8000
-            somatic: 6000
-            unpaired: 6000
+            mpileup: 4000
+            somatic: 12000
+            unpaired: 12000
 
         pairing_config:
             genome:
                 run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
+                run_unpaired_tumours_with: null
                 run_paired_tumours_as_unpaired: False
             capture:
                 run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
+                run_unpaired_tumours_with: null
                 run_paired_tumours_as_unpaired: False
-            mrna:
-                run_paired_tumours: False
-                run_unpaired_tumours_with: "no_normal"
-                run_paired_tumours_as_unpaired: True
+
