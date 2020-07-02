@@ -30,14 +30,26 @@ VERSION_UPPER = {
     "GRCh38": "GRCh38",
 }
 
+localrules: _vcf2maf_decompress_vcf
+
 ##### RULES #####
+rule _vcf2maf_decompress_vcf:
+    input: 
+        vcf = "{out_dir}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf.gz"
+    output: 
+        vcf = temp("{out_dir}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf")
+    shell:
+        "bgzip -d {input.vcf} -c {output.vcf}"
 
 
 rule _vcf2maf_run:
     input:
-        vcf = "{out_dir}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf.gz",
+        vcf = "{out_dir}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        vep_cache = expand("{vep_dir}{species}/{vep_genome_build}", vep_dir = CONFIG["inputs"]["vep_cache"], species = CONFIG["options"]["species"], vep_genome_build = CONFIG["options"]["vep_genome_build"])
+        vep_cache = expand("{vep_dir}{species}/{vep_genome_build}", 
+        vep_dir = CONFIG["inputs"]["vep_cache"], 
+        species = CONFIG["options"]["species"], 
+        vep_genome_build = CONFIG["options"]["vep_genome_build"])
     output:
         maf = "{out_dir}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf",
     log:

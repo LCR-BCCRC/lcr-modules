@@ -6,7 +6,7 @@ lcr-modules:
             vep_cache: "reference/vep_caches/"
 
         options:
-            vcf2maf: "--filter-vcf 0 --vcf-tumor-id TUMOR --vcf-normal-id NORMAL --cache-version 97"
+            vcf2maf: "--filter-vcf 0 --vcf-tumor-id TUMOR --vcf-normal-id NORMAL --cache-version 86"
             # --filter-vcf     A VCF for FILTER tag common_variant. Set to 0 to disable [~/.vep/ExAC_nonTCGA.r0.3.1.sites.vep.vcf.gz]
             #--species        Ensembl-friendly name of species (e.g. mus_musculus for mouse) [homo_sapiens]
             #--cache-version  Version of offline cache to use with VEP (e.g. 75, 84, 91) [Default: Installed version]
