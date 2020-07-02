@@ -1,8 +1,10 @@
 lcr-modules:
     utils:
         inputs:
-            bed: "__UPDATE__"
-
+            bed: 
+                # add mor genome_build if running with multiple capture/exome kit
+                grch37: "__UPDATE__"
+                
         options:
             bam_sort: ""
             bam_markdups: "--overflow-list-size 600000"

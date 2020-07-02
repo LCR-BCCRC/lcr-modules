@@ -23,7 +23,8 @@ lcr-modules:
 
     utils:
         inputs:
-            bed: "reference/exomes/grch37/bed/{id}.bed"
+            bed: 
+                grch37: "reference/exomes/grch37/bed/S07604624.bed" # make sure this corresponds with config["lcr-modules"]["picard_qc"]["inputs"]["intervals"]
             
     picard_qc:
         inputs:
