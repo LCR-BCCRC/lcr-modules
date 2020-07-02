@@ -116,20 +116,22 @@ rule _varscan_somatic:
 
 rule _varscan_reheader_vcf:
     input:
-        snp = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.snp.vcf",
-        indel = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.indel.vcf",
+        vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf",
+        #snp = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.snp.vcf",
+        #indel = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.indel.vcf",
         header = CFG["vcf_header"]  #need to make this work for different genome builds
     output:
-        snp = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.snp.vcf.gz"),
-        indel = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.indel.vcf.gz")
+        vcf = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf.gz"),
+        #snp = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.snp.vcf.gz"),
+        #indel = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.indel.vcf.gz")
     conda:
         CFG["conda_envs"]["bcftools"]
     shell:
         op.as_one_line("""
-        bcftools reheader -h {input.header} {input.snp} | bcftools view -l 1 -o {output.snp} &&
-        bcftools reheader -h {input.header} {input.indel} | bcftools view -l 1 -o {output.indel} 
+        bcftools reheader -h {input.header} {input.vcf} | bcftools view -l 1 -o {output.vcf}
         """)
 
+#bcftools reheader -h {input.header} {input.snp} | bcftools view -l 1 -o {output.snp} && bcftools reheader -h {input.header} {input.indel} | bcftools view -l 1 -o {output.indel} 
 
 #rule _varscan_unpaired:
 #    input:
@@ -158,31 +160,20 @@ rule _varscan_reheader_vcf:
 #        > {output.vcf} 2> {log.stderr}
 #        """)
 
-#currently disabled
-#rule _varscan_symlink_maf:
-#    input:
-#        vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
-#    output:
-#        vcf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
-#    run:
-#        op.relative_symlink(input.vcf, output.vcf)
 
-
-def _varscan_request_chrom_vcf_snp(wildcards):
+def _varscan_request_chrom_vcf(wildcards):
     CFG = config["lcr-modules"]["varscan"]
     with open(checkpoints._varscan_input_chroms.get(**wildcards).output.txt) as f:
         mains_chroms = f.read().rstrip("\n").split("\n")
     print(mains_chroms)
     #the line below was causing and error and I don't know why
-    #vcf_files = expand(
-    #    CFG["dirs"]["varscan"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/{chrom}.{vcf_name}.vcf.gz", 
-    #    chrom=mains_chroms, vcf_name=['snp','indel']
-    #)
-    vcf_files = expand("results/varscan-1.0/01-varscan/{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/{chrom}.snp.vcf.gz",
-     chrom=mains_chroms)
+    vcf_files = expand(rules._varscan_reheader_vcf.output.vcf,
+        chrom = mains_chroms, **wildcards
+    )
     print(vcf_files)
     return vcf_files
 
+"""
 def _varscan_request_chrom_vcf_indel(wildcards):
     CFG = config["lcr-modules"]["varscan"]
     with open(checkpoints._varscan_input_chroms.get(**wildcards).output.txt) as f:
@@ -197,55 +188,66 @@ def _varscan_request_chrom_vcf_indel(wildcards):
      chrom=mains_chroms)
     print(vcf_files)
     return vcf_files
+"""
 
-
+# I generalize this rule for any vcf_type
 rule _varscan_combine_vcf:
     input:
-        snp = _varscan_request_chrom_vcf_snp,
-        indel = _varscan_request_chrom_vcf_indel
+        vcf = _varscan_request_chrom_vcf
     output:
-        snp = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pass.somatic.snp.vcf.gz",
-        indel = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pass.somatic.indel.vcf.gz"
+        vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pass.somatic.{vcf_name}.vcf.gz",
     conda:
         CFG["conda_envs"]["bcftools"]
     shell:
-        op.as_one_line("""
-        bcftools concat -o {output.snp} {input.snp} &&
-        bcftools concat -o {output.indel} {input.indel}
-        """)
+        " bcftools concat -o {output.vcf} {input.vcf}"
+
+#currently disabled
+rule _varscan_symlink_maf:
+    input:
+        vcf = rules._varscan_combine_vcf.output.vcf
+        #CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf.gz"
+    output:
+        vcf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf.gz"
+    run:
+        op.relative_symlink(input.vcf, output.vcf)
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _varscan_output:
+rule _varscan_output_vcf:
     input:
-        snp_vcf = rules._varscan_combine_vcf.output.snp,
-        indel_vcf = rules._varscan_combine_vcf.output.indel
+        vcf = rules._varscan_combine_vcf.output.vcf
+        #snp_vcf = rules._varscan_combine_vcf.output.snp,
+        #indel_vcf = rules._varscan_combine_vcf.output.indel
     output:
-        indel_vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.somatic.indel.vcf.gz",
-        snp_vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.somatic.snp.vcf.gz"
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.somatic.{vcf_name}.vcf.gz"
+        #indel_vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.somatic.indel.vcf.gz",
+        #snp_vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.somatic.snp.vcf.gz"
     run:
-        op.relative_symlink(input.snp_vcf, output.snp_vcf)
-        op.relative_symlink(input.indel_vcf, output.indel_vcf)
+        op.relative_symlink(input.vcf, output.vcf)
 
 #currently not working. Add to inputs at end?
 rule _varscan_output_maf:
     input:
-        snp_maf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pass.somatic.snp.maf",
-        indel_maf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pass.somatic.indel.maf"
+        maf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
+        #snp_maf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pass.somatic.snp.maf",
+        #indel_maf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pass.somatic.indel.maf"
     output:
-        snp_maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/snp/{tumour_id}--{normal_id}--{pair_status}.pass.somatic.snp.maf",
-        indel_maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/snp/{tumour_id}--{normal_id}--{pair_status}.pass.somatic.indel.maf"
+        maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.somatic.{vcf_name}.maf"
+        #snp_maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/snp/{tumour_id}--{normal_id}--{pair_status}.pass.somatic.snp.maf",
+        #indel_maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/snp/{tumour_id}--{normal_id}--{pair_status}.pass.somatic.indel.maf"
     run:
-        op.relative_symlink(input.snp_maf, output.snp_maf)
-        op.relative_symlink(input.indel_maf, output.indel_maf)
+        op.relative_symlink(input.maf, output.maf)
 
 
 def _varscan_get_output(wildcards):
     if wildcards.pair_status == "no_normal":
         #return expand([rules._varscan_combine_vcf.output.vcf, rules._varscan_output_maf.output.maf], vcf_name = ["indel", "snp", "cns"], **wildcards)
-        return expand([rules._varscan_combine_vcf.output.snp, rules._varscan_combine_vcf.output.indel], **wildcards)
+        raise ValueError("wildcards.pair_status = non_normal is currently unsupported, please run in matched or unmatched mode")
+        #return expand([rules._varscan_combine_vcf.output.snp, rules._varscan_combine_vcf.output.indel], **wildcards)
     else: 
-        return expand([rules._varscan_combine_vcf.output.snp, rules._varscan_combine_vcf.output.indel], **wildcards)
+        return expand([
+            rules._varscan_output_vcf.output.vcf,rules._varscan_output_maf.output.maf
+            ], vcf_name = ["snp", "indel"], **wildcards)
         #return expand([rules._varscan_combine_vcf.output.{vcf_name}, rules._varscan_output_maf.output.maf], vcf_name = ["indel", "snp"], **wildcards)
 
 #I'm not sure how to change this to not need to expand the chromosome names. Is this to deal with checkpoints? 
@@ -253,7 +255,7 @@ rule _varscan_dispatch:
     input:
         _varscan_get_output
     output:
-        dispatched = touch(CFG["dirs"]["outputs"] + "dispatched/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{chrom}.dispatched")
+        dispatched = touch(CFG["dirs"]["outputs"] + "dispatched/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.dispatched")
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -261,14 +263,14 @@ rule _varscan_all:
     input:
         expand(
             [
-                #rules._varscan_dispatch.output.dispatched,
+                rules._varscan_dispatch.output.dispatched,
                 #rules._varscan_output.output.snp_vcf,
-                rules._varscan_output_maf.output.snp_maf,
-                rules._varscan_output_maf.output.indel_maf
+                #rules._varscan_output_maf.output.snp_maf,
+                #rules._varscan_output_maf.output.indel_maf
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
-            chrom = ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","X","Y","MT"],
+            #chrom = ["1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","X","Y","MT"],
             genome_build=CFG["runs"]["tumour_genome_build"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],

@@ -16,7 +16,7 @@ from os.path import join
 
 import oncopipe as op
 
-# Setup module and store module-specific configuration in `CONFIG`
+# Setup module and store module-specific configuration in `CONFIG` and use LOG to specify log directory
 CONFIG = config["lcr-modules"]["vcf2maf"]
 LOG = "/logs/" + op._session.launched_fmt
 
