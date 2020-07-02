@@ -165,11 +165,9 @@ def _varscan_request_chrom_vcf(wildcards):
     CFG = config["lcr-modules"]["varscan"]
     with open(checkpoints._varscan_input_chroms.get(**wildcards).output.txt) as f:
         mains_chroms = f.read().rstrip("\n").split("\n")
-    print(mains_chroms)
     vcf_files = expand(rules._varscan_reheader_vcf.output.vcf,
         chrom = mains_chroms, **wildcards
     )
-    print(vcf_files)
     return vcf_files
 
 
@@ -210,7 +208,7 @@ rule _varscan_output_vcf:
 
 rule _varscan_output_maf:
     input:
-        vcf = rules._varscan_combine_vcf.output.vcf_gz, # ensure vcf file is not removed before vcf2maf_run is executed
+        vcf = rules._varscan_combine_vcf.output.vcf, # ensure vcf file is not removed before vcf2maf_run is executed
         maf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
     output:
         maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.somatic.{vcf_name}.maf"
