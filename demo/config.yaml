@@ -5,8 +5,9 @@ lcr-modules:
         lcr-scripts: "../../lcr-scripts"
         root_output_dir: "results/"
         scratch_directory: "scratch/"
-        unmatched_normal_ids:
-            capture--grch37: "TCRBOA7-N-WEX"
+        pairing_config:
+            capture:
+                unmatched_normal_id: "TCRBOA7-N-WEX"
 
     star:
         inputs:
