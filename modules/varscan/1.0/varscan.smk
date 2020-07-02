@@ -27,11 +27,15 @@ CFG = op.setup_module(
 # TODO: Replace with actual rules once you change the rule names
 localrules:
     _varscan_input_bam,
+    _varscan_input_chroms,
+    _varscan_reheader_vcf,
+    _varscan_combine_vcf,
     _varscan_symlink_maf,
     _varscan_output_vcf,
     _varscan_output_maf,
     _varscan_dispatch,
     _varscan_all,
+
 
 
 ##### RULES #####
