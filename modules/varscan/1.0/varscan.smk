@@ -214,6 +214,7 @@ rule _varscan_combine_vcf:
         bcftools concat -o {output.indel} {input.indel}
         """)
 
+
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _varscan_output:
     input:
@@ -226,14 +227,17 @@ rule _varscan_output:
         op.relative_symlink(input.snp_vcf, output.snp_vcf)
         op.relative_symlink(input.indel_vcf, output.indel_vcf)
 
-#currently not set up
+#currently not working. Add to inputs at end?
 rule _varscan_output_maf:
     input:
-        maf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
+        snp_maf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pass.somatic.snp.maf",
+        indel_maf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pass.somatic.indel.maf"
     output:
-        maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.maf"
+        snp_maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/snp/{tumour_id}--{normal_id}--{pair_status}.pass.somatic.snp.maf",
+        indel_maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/snp/{tumour_id}--{normal_id}--{pair_status}.pass.somatic.indel.maf"
     run:
-        op.relative_symlink(input.maf, output.maf)
+        op.relative_symlink(input.snp_maf, output.snp_maf)
+        op.relative_symlink(input.indel_maf, output.indel_maf)
 
 
 def _varscan_get_output(wildcards):
@@ -257,8 +261,10 @@ rule _varscan_all:
     input:
         expand(
             [
-                rules._varscan_dispatch.output.dispatched,
-                rules._varscan_output.output.snp_vcf
+                #rules._varscan_dispatch.output.dispatched,
+                #rules._varscan_output.output.snp_vcf,
+                rules._varscan_output_maf.output.snp_maf,
+                rules._varscan_output_maf.output.indel_maf
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
