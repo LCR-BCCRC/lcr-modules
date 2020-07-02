@@ -28,4 +28,5 @@ lcr-modules:
     picard_qc:
         inputs:
             sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
             intervals: "reference/exomes/{genome_build}/interval/S07604624_intervals.txt"
