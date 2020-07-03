@@ -10,7 +10,7 @@ lcr-modules:
             bam2fastq: "VALIDATION_STRINGENCY=LENIENT"
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/picard-2.22.3.yaml"
+            picard: "{MODSDIR}/envs/picard-2.22.3.yaml"
             
         threads:
             bam2fastq: 4
