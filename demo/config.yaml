@@ -5,8 +5,9 @@ lcr-modules:
         lcr-scripts: "../../lcr-scripts"
         root_output_dir: "results/"
         scratch_directory: "scratch/"
-        unmatched_normal_ids:
-            capture--grch37: "TCRBOA7-N-WEX"
+        pairing_config:
+            capture:
+                unmatched_normal_id: "TCRBOA7-N-WEX"
 
     star:
         inputs:
@@ -23,7 +24,8 @@ lcr-modules:
 
     utils:
         inputs:
-            bed: "reference/exomes/grch37/bed/{id}.bed"
+            bed: 
+                grch37: "reference/exomes/grch37/bed/S07604624.bed" # make sure this corresponds with config["lcr-modules"]["picard_qc"]["inputs"]["intervals"]
             
     picard_qc:
         inputs:

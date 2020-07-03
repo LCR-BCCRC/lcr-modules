@@ -24,26 +24,6 @@ wildcard_constraints:
     prefix = "[0-9]{2}-.*"
 
 
-def _get_log_dirs(wildcards):
-    path = (wildcards.prefix).split(os.sep)
-    root_dir = config["lcr-modules"]["_shared"]["root_output_dir"]
-
-    # split root directory and remove 
-    lroot = list(filter(None, root_dir.split(os.sep)))
-
-    # get logs/launched...
-    LOG = "logs/" + op._session.launched_fmt
-
-    path.insert((len(lroot) + 1), LOG)
-    path.append(wildcards.suffix)
-    log_path = "/".join(path)
-    print(log_path)
-
-    logs = [log_path + "_bam_sort.stdout.log", log_path + "_bam_sort.stderr.log"]
-
-    return logs
-
-
 ##### RULES #####
 # _utils_bam_sort: Sort a BAM file using coordinates
 rule:
@@ -142,7 +122,7 @@ rule:
 
 rule: # create_interval_list from bed; default exomes
     input:
-        bed = _UTILS["inputs"]["bed"],
+        bed = lambda w: _UTILS["inputs"]["bed"][w.genome_build],
         seq_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
     output: 
         intervals = "reference/exomes/{genome_build}/interval/{id}_intervals.txt"
