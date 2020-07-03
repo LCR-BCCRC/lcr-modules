@@ -67,7 +67,7 @@ rule _varscan_bam2mpu:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        mpu = pipe(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{sample_id}.{chrom}.mpileup")
+        mpu = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{sample_id}.{chrom}.mpileup")
     log:
         stderr = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{sample_id}.bam2mpu.{chrom}.stderr.log"
     params:
@@ -118,11 +118,36 @@ rule _varscan_somatic:
         || true
         """)
 
+rule _varscan_unpaired:
+    input:
+        tumour_mpu = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}.{chrom}.mpileup",
+    output:
+        vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf"
+    wildcard_constraints:
+        pair_status = "no_normal"
+    log:
+        stderr = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.varscan_{vcf_name}.stderr.log"
+    params:
+        opts = op.switch_on_wildcard("seq_type", CFG["options"]["unpaired"])
+    conda:
+        CFG["conda_envs"]["varscan"]
+    threads:
+        CFG["threads"]["unpaired"]
+    resources:
+        mem_mb = CFG["mem_mb"]["unpaired"]
+    shell:
+        op.as_one_line("""
+        varscan mpileup2{wildcards.vcf_name} 
+        {input.tumour_mpu} 
+        {params.opts}
+        > {output.vcf} 2> {log.stderr}
+        """)
+
 
 rule _varscan_reheader_vcf:
     input:
         vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf",
-        header = lambda w: CFG["vcf_header"][w.genome_build]
+        header = op.switch_on_wildcard("genome_build", CFG["vcf_header"])
     output:
         vcf = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf.gz"),
     conda:
@@ -131,34 +156,6 @@ rule _varscan_reheader_vcf:
         op.as_one_line("""
         bcftools reheader -h {input.header} {input.vcf} | bcftools view -l 1 -o {output.vcf}
         """)
-
-
-#rule _varscan_unpaired:
-#    input:
-#        tumour_mpu = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.mpileup",
-#    output:
-#        vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
-#    wildcard_constraints:
-#        pair_status = "no_normal"
-#    log:
-#        stderr = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/varscan_{vcf_name}.stderr.log"
-#    params:
-#        opts = op.switch_on_wildcard("seq_type", CFG["options"]["unpaired"]),
-#        cns = op.switch_on_wildcard("seq_type", {"cns": "--variants", "indel": "", "snp": ""})
-#    conda:
-#        CFG["conda_envs"]["varscan"]
-#    threads:
-#        CFG["threads"]["unpaired"]
-#    resources:
-#        mem_mb = CFG["mem_mb"]["unpaired"]
-#    shell:
-#        op.as_one_line("""
-#        varscan mpileup2{wildcards.vcf_name} 
-#        {input.tumour_mpu} 
-#        {params.opts}
-#        {params.cns}
-#        > {output.vcf} 2> {log.stderr}
-#        """)
 
 
 def _varscan_request_chrom_vcf(wildcards):
@@ -186,7 +183,7 @@ rule _varscan_combine_vcf:
         bgzip -c {output.vcf} > {output.vcf_gz} 
         """)
 
-#currently disabled
+# symlink vcf file to maf directory to run vcf2maf
 rule _varscan_symlink_maf:
     input:
         vcf = rules._varscan_combine_vcf.output.vcf
@@ -199,7 +196,7 @@ rule _varscan_symlink_maf:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _varscan_output_vcf:
     input:
-        vcf = rules._varscan_combine_vcf.output.vcf
+        vcf = rules._varscan_combine_vcf.output.vcf_gz
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.somatic.{vcf_name}.vcf.gz"
     run:
@@ -208,7 +205,7 @@ rule _varscan_output_vcf:
 
 rule _varscan_output_maf:
     input:
-        vcf = rules._varscan_combine_vcf.output.vcf, # ensure vcf file is not removed before vcf2maf_run is executed
+        #vcf = rules._varscan_combine_vcf.output.vcf, # ensure vcf file is not removed before vcf2maf_run is executed
         maf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
     output:
         maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.somatic.{vcf_name}.maf"
@@ -217,12 +214,12 @@ rule _varscan_output_maf:
 
 
 def _varscan_get_output(wildcards):
-    if wildcards.pair_status == "no_normal":
-        raise ValueError("wildcards.pair_status = non_normal is currently unsupported, please run in matched or unmatched mode")
-    else: 
-        return expand([
-            rules._varscan_output_vcf.output.vcf,rules._varscan_output_maf.output.maf
-            ], vcf_name = ["snp", "indel"], **wildcards)
+    #if wildcards.pair_status == "no_normal":
+    #    raise ValueError("wildcards.pair_status = non_normal is currently unsupported, please run in matched or unmatched mode")
+    #else: 
+    return expand([
+        rules._varscan_output_vcf.output.vcf,rules._varscan_output_maf.output.maf
+        ], vcf_name = ["snp", "indel"], **wildcards)
 
 
 rule _varscan_dispatch:
