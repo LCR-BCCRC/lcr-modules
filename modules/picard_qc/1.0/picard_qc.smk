@@ -136,7 +136,7 @@ rule _picard_qc_rrna_int:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         rrna_int = reference_files("genomes/{genome_build}/rrna_intervals/rRNA_int_gencode-33.txt")
     output:
-        rrna_int = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/rrna_int_list"
+        sample_rrna = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/rrna_int_list"
     log:
         stderr = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/rrna_int.stderr.log"
     conda:
@@ -145,7 +145,7 @@ rule _picard_qc_rrna_int:
         op.as_one_line("""
         samtools view -H {input.bam} | 
         grep -v "@RG" | cat - {input.rrna_int} 
-        > {output.rrna_int}
+        > {output.sample_rrna}
         2> {log.stderr}
         """)
 
@@ -153,7 +153,7 @@ rule _picard_qc_rrna_int:
 rule _picard_qc_rnaseq_metrics:
     input:
         bam = rules._picard_qc_input_bam.output.sample_bam,
-        rrna_int = rules._picard_qc_rrna_int.output.rrna_int,
+        sample_rrna = rules._picard_qc_rrna_int.output.sample_rrna,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         refFlat = reference_files("genomes/{genome_build}/annotations/refFlat_gencode-33.txt")
     output:
@@ -177,7 +177,7 @@ rule _picard_qc_rnaseq_metrics:
         R={input.fasta} 
         STRAND_SPECIFICITY={params.strand} 
         REF_FLAT={input.refFlat}
-        RIBOSOMAL_INTERVALS={input.rrna_int}
+        RIBOSOMAL_INTERVALS={input.sample_rrna}
         CHART_OUTPUT={output.metrics}.pdf 
         > {log.stdout} 2> {log.stderr}
         """)
