@@ -1,26 +1,5 @@
 lcr-modules:
 
-    _shared:
-        lcr-modules: "../"
-        lcr-scripts: "../../lcr-scripts"
-        root_output_dir: "results/"
-        scratch_directory: "scratch/"
-        unmatched_normal_ids:
-            capture--grch37: "TCRBOA7-N-WEX"
-
-    star:
-        inputs:
-            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
-        reference_params:
-            star_overhang: "99"
-        scratch_subdirectories: ["star", "sort_bam", "mark_dups"]
-
-    manta:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
-
     liftover:
         inputs:
             sample_seg: "data/{sample_id}_subclones.hg38.igv.seg"
