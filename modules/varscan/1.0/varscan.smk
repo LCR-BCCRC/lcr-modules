@@ -122,7 +122,7 @@ rule _varscan_somatic:
 rule _varscan_reheader_vcf:
     input:
         vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf",
-        header = CFG["vcf_header"]  #need to make this work for different genome builds
+        header = lambda w: CFG["vcf_header"][w.genome_build]
     output:
         vcf = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf.gz"),
     conda:
