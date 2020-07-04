@@ -49,17 +49,17 @@ rule _mixcr_input_fastq:
 # Installs latest MiXCR release from github if the mixcr folder is not present yet
 rule _install_mixcr:
     params:
-        mixcr = CFG["lcr-modules"] + CFG["conda_envs"]["mixcr"]
+        mixcr = CFG["inputs"]["mixcr_exec"]
     output: 
-        complete = CFG["lcr-modules"] + CFG["conda_envs"]["mixcr"] + "/mixcr_dependencies_installed.success"
+        complete = CFG["inputs"]["mixcr_exec"] + "/mixcr_dependencies_installed.success"
     shell:
         '''
-        latest_tag=$(curl --silent "https://api.github.com/repos/milaboratory/mixcr/releases/latest" |  grep '"tag_name":'| sed -E "s/v//" | sed -E 's/.*\"([^\"]+)\".*/\\1/');
         download_url=$(curl --silent "https://api.github.com/repos/milaboratory/mixcr/releases/latest" | grep '"browser_download_url":' | sed -E 's/.*\"([^\"]+)\".*/\\1/');
-       
+        mkdir -p {params.mixcr};
+
         if [ ! -f {params.mixcr}/mixcr ]; then
-            wget $download_url -P {params.mixcr}/ && unzip {params.mixcr}/${{download_url##*/}} -d {params.mixcr}/ && rm {params.mixcr}/${{download_url##*/}};
-            mv {params.mixcr}/mixcr-$latest_tag/* {params.mixcr}/ && rm -r {params.mixcr}/mixcr-$latest_tag/;
+            wget -cO - $download_url > {params.mixcr}/mixcr.zip && unzip {params.mixcr}/mixcr.zip -d {params.mixcr}/ && rm {params.mixcr}/mixcr.zip;
+            mv {params.mixcr}/mixcr*/* {params.mixcr}/ && rm -r {params.mixcr}/mixcr*/;
         fi
 
         touch  {output.complete};
@@ -80,7 +80,7 @@ rule _mixcr_run:
     params:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["mixcr_run"]),
         prefix = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr.{sample_id}", 
-        mixcr = CFG["lcr-modules"] + CFG["conda_envs"]["mixcr"] + "/mixcr"
+        mixcr = CFG["inputs"]["mixcr_exec"] + "/mixcr"
     threads:
         CFG["threads"]["mixcr_run"]
     resources:
@@ -93,7 +93,6 @@ rule _mixcr_run:
         touch "{output.txt}";
         """)
         
-
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _mixcr_output_txt:
