@@ -9,6 +9,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Helena Winata.
 
-<!-- TODO: Explain each important module design decision below. -->
 
-- No module design decisions explained here yet.
+- Module take bam inputs and generate fastq pairs using picard's SamToFastq.
