@@ -26,7 +26,7 @@ wildcard_constraints:
 
 ##### RULES #####
 # _utils_bam_sort: Sort a BAM file using coordinates
-rule:
+rule _utils_bam_sort:
     input:
         bam = "{out_dir}/{prefix}/{suffix}.bam"
     output:
@@ -59,7 +59,7 @@ rule:
 
 
 # _utils_bam_markdups: Mark duplicates in a BAM file using Picard criteria
-rule:
+rule _utils_bam_markdups:
     input:
         bam = "{out_dir}/{prefix}/{suffix}.bam"
     output:
@@ -91,7 +91,7 @@ rule:
 
 
 # _utils_bam_index: Index a BAM file
-rule:
+rule _utils_bam_index:
     input:
         bam = "{out_dir}/{prefix}/{suffix}.bam"
     output:
@@ -120,7 +120,7 @@ rule:
         """)
 
 
-rule: # create_interval_list from bed; default exomes
+rule _utils_create_intervals: # create_interval_list from bed; default exomes
     input:
         bed = lambda w: _UTILS["inputs"]["bed"][w.genome_build],
         seq_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
