@@ -22,8 +22,9 @@ localrules: download_genome_fasta,
             download_main_chromosomes, download_gencode_annotation,
             hardlink_download, update_contig_names,
             get_genome_fasta_download, index_genome_fasta,
-            get_main_chromosomes_download, create_bwa_index,
-            get_gencode_download, create_star_index
+            get_main_chromosomes_download, create_bwa_index, 
+            get_gencode_download, create_star_index,
+            get_kallisto_index
 
 
 # Check for genome builds
@@ -330,6 +331,7 @@ rule index_genome_fasta:
         fasta = rules.get_genome_fasta_download.output.fasta
     output: 
         fai = "genomes/{genome_build}/genome_fasta/genome.fa.fai"
+        txt = "genomes/{genome_build}/genome_fasta/genome.chr_sizes.txt"
     log: 
         "genomes/{genome_build}/genome_fasta/genome.fa.fai.log"
     conda: CONDA_ENVS["samtools"]
@@ -337,7 +339,9 @@ rule index_genome_fasta:
         op.as_one_line("""
         samtools faidx {input.fasta} > {log} 2>&1
             &&
-        chmod a-w {output.fai}
+        cut -f1,2 {output.fai} > {output.txt}
+            &&
+        chmod a-w {output.fai} {output.txt}
         """)
 
 
@@ -410,3 +414,23 @@ rule create_star_index:
             &&
         find {output.index} -type f -exec chmod a-w {{}} \;
         """)
+
+
+# Create index for quantification
+rule get_kallisto_index:
+    input:
+        fasta = rules.get_genome_fasta_download.output.fasta
+    output:
+        index = "genomes/{genome_build}/kallisto_index/0.46.2/transcriptome.idx"
+    log:
+        "genomes/{genome_build}/kallisto_index/0.46.2/index_log"
+    conda: CONDA_ENVS["kallisto"]
+    shell:
+        op.as_one_line("""
+        kallisto index --index={output.index} 
+        {index.fasta}
+        > {log} 2>&1
+            &&
+        chmod a-w {output.index}
+        """)
+
