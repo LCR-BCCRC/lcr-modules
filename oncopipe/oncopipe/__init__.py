@@ -456,6 +456,8 @@ def switch_on_column(
             sample_id = wildcards.tumour_id
         elif match_on == "normal":
             sample_id = wildcards.normal_id
+        elif match_on == "sample":
+            sample_id = wildcards.sample_id
         else:
             raise ValueError("Invalid value for `match_on`.")
         subset = samples.loc[samples["seq_type"] == wildcards.seq_type]
