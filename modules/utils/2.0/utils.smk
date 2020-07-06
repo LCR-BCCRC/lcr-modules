@@ -17,37 +17,16 @@ from os.path import join
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 
-CONFIG = config["lcr-modules"]["utils"]
-PATH = ".*\/(" + "|".join(CONFIG["paired_modules"]) + ").*\/"
+_UTILS = config["lcr-modules"]["utils"]
 LOG = "/logs/" + op._session.launched_fmt
 
 wildcard_constraints:
     prefix = "[0-9]{2}-.*"
 
 
-def _get_log_dirs(wildcards):
-    path = (wildcards.prefix).split(os.sep)
-    root_dir = config["lcr-modules"]["_shared"]["root_output_dir"]
-
-    # split root directory and remove 
-    lroot = list(filter(None, root_dir.split(os.sep)))
-
-    # get logs/launched...
-    LOG = "logs/" + op._session.launched_fmt
-
-    path.insert((len(lroot) + 1), LOG)
-    path.append(wildcards.suffix)
-    log_path = "/".join(path)
-    print(log_path)
-
-    logs = [log_path + "_bam_sort.stdout.log", log_path + "_bam_sort.stderr.log"]
-
-    return logs
-
-
 ##### RULES #####
 # _utils_bam_sort: Sort a BAM file using coordinates
-rule:
+rule _utils_bam_sort:
     input:
         bam = "{out_dir}/{prefix}/{suffix}.bam"
     output:
@@ -59,14 +38,14 @@ rule:
         prefix = ".*(sort).*"
     params:
         #logs = _get_log_dirs,
-        opts = CONFIG["options"]["bam_sort"],
+        opts = _UTILS["options"]["bam_sort"],
         prefix ="{out_dir}/{prefix}/{suffix}"
     conda:
-        CONFIG["conda_envs"]["samtools"]
+        _UTILS["conda_envs"]["samtools"]
     threads:
-        CONFIG["threads"]["bam_sort"]
+        _UTILS["threads"]["bam_sort"]
     resources: 
-        mem_mb = CONFIG["mem_mb"]["bam_sort"]
+        mem_mb = _UTILS["mem_mb"]["bam_sort"]
     shell:
         op.as_one_line("""
         samtools sort 
@@ -80,7 +59,7 @@ rule:
 
 
 # _utils_bam_markdups: Mark duplicates in a BAM file using Picard criteria
-rule:
+rule _utils_bam_markdups:
     input:
         bam = "{out_dir}/{prefix}/{suffix}.bam"
     output:
@@ -92,14 +71,14 @@ rule:
         prefix = ".*(mark_dups).*"
     params:
         #logs = _get_log_dirs,
-        opts = CONFIG["options"]["bam_markdups"],
+        opts = _UTILS["options"]["bam_markdups"],
         prefix = "{out_dir}/{prefix}/{suffix}"
     conda:
-        CONFIG["conda_envs"]["sambamba"]
+        _UTILS["conda_envs"]["sambamba"]
     threads:
-        CONFIG["threads"]["bam_markdups"]
+        _UTILS["threads"]["bam_markdups"]
     resources: 
-        mem_mb = CONFIG["mem_mb"]["bam_markdups"]
+        mem_mb = _UTILS["mem_mb"]["bam_markdups"]
     shell:
         op.as_one_line("""
         sambamba markdup 
@@ -112,7 +91,7 @@ rule:
 
 
 # _utils_bam_index: Index a BAM file
-rule:
+rule _utils_bam_index:
     input:
         bam = "{out_dir}/{prefix}/{suffix}.bam"
     output:
@@ -122,14 +101,14 @@ rule:
         stderr = "{out_dir}" + LOG + "/{prefix}/{suffix}_index.stderr.log"
     params:
         #logs = _get_log_dirs,
-        opts = CONFIG["options"]["bam_index"],
+        opts = _UTILS["options"]["bam_index"],
         prefix = "{out_dir}/{prefix}/{suffix}"
     conda:
-        CONFIG["conda_envs"]["samtools"]
+        _UTILS["conda_envs"]["samtools"]
     threads:
-        CONFIG["threads"]["bam_index"]
+        _UTILS["threads"]["bam_index"]
     resources: 
-        mem_mb = CONFIG["mem_mb"]["bam_index"]
+        mem_mb = _UTILS["mem_mb"]["bam_index"]
     shell:
         op.as_one_line("""
         samtools index 
@@ -140,4 +119,4 @@ rule:
         2> {log.stderr}
         """)
 
-del CONFIG
+
