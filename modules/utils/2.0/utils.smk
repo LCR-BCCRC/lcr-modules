@@ -37,9 +37,7 @@ rule _utils_bam_sort:
     wildcard_constraints:
         prefix = ".*(sort).*"
     params:
-        #logs = _get_log_dirs,
-        opts = _UTILS["options"]["bam_sort"],
-        prefix ="{out_dir}/{prefix}/{suffix}"
+        opts = _UTILS["options"]["bam_sort"]
     conda:
         _UTILS["conda_envs"]["samtools"]
     threads:
@@ -70,9 +68,7 @@ rule _utils_bam_markdups:
     wildcard_constraints:
         prefix = ".*(mark_dups).*"
     params:
-        #logs = _get_log_dirs,
-        opts = _UTILS["options"]["bam_markdups"],
-        prefix = "{out_dir}/{prefix}/{suffix}"
+        opts = _UTILS["options"]["bam_markdups"]
     conda:
         _UTILS["conda_envs"]["sambamba"]
     threads:
@@ -100,9 +96,7 @@ rule _utils_bam_index:
         stdout = "{out_dir}" + LOG + "/{prefix}/{suffix}_index.stdout.log",
         stderr = "{out_dir}" + LOG + "/{prefix}/{suffix}_index.stderr.log"
     params:
-        #logs = _get_log_dirs,
         opts = _UTILS["options"]["bam_index"],
-        prefix = "{out_dir}/{prefix}/{suffix}"
     conda:
         _UTILS["conda_envs"]["samtools"]
     threads:
@@ -118,5 +112,3 @@ rule _utils_bam_index:
         > {log.stdout}
         2> {log.stderr}
         """)
-
-
