@@ -26,6 +26,7 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _bam2fastq_input_bam,
+    _bam2fastq_output,
     _bam2fastq_all,
 
 
