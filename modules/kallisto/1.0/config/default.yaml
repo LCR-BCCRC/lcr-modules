@@ -1,0 +1,32 @@
+lcr-modules:
+    
+    kallisto:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_fastq_1: "__UPDATE__"
+            sample_fastq_2: "__UPDATE__"
+
+        options:
+            quant: "-b 100" 
+            # --pseudobam 
+            # --genomebam --gtf <gtf_file> --chromosomes <chrom.tsv>
+            strand:
+                _default: ""
+                forward: "--fr-stranded"
+                reverse: "--rf-stranded"
+
+        conda_envs:
+            kallisto: "{MODSDIR}/envs/kallisto-0.46.2.yaml"
+            
+        threads:
+            quant: 4
+
+        mem_mb:
+            quant: 2000
+
+        pairing_config:
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

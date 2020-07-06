@@ -1,0 +1,14 @@
+name: kallisto
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1
+  - hdf5=1.10.5
+  - kallisto=0.46.2
+  - libgcc-ng=9.1.0
+  - libgfortran-ng=7.3.0
+  - libstdcxx-ng=9.1.0
+  - zlib=1.2.11
+prefix: /projects/clc/usr/anaconda/workflow_prototype/envs/
