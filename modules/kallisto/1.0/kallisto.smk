@@ -38,17 +38,16 @@ rule _kallisto_input_fastq:
         fastq_1 = CFG["inputs"]["sample_fastq_1"],
         fastq_2 = CFG["inputs"]["sample_fastq_2"]
     output:
-        fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.read1.fastq"
-        fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.read2.fastq"
+        fastq = expand("{fqDIR}{{seq_type}}--{{genome_build}}/{{sample_id}}.{read_num}.fastq.gz", fqDIR = CFG["dirs"]["inputs"], read_num = ["read1", "read2"]) 
     run:
-        op.relative_symlink(input.fastq_1, output.fastq_1)
-        op.relative_symlink(input.fastq_2, output.fastq_2)
+        op.relative_symlink(input.fastq_1, output.fastq[0])
+        op.relative_symlink(input.fastq_2, output.fastq[1])
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
 rule _kallisto_quant:
     input:
-        fastq = [rules._kallisto_input_fastq.output.fastq_1, rules._kallisto_input_fastq.output.fastq_2]
+        fastq = expand("{fqDIR}{{seq_type}}--{{genome_build}}/{{sample_id}}.{read_num}.fastq.gz", fqDIR = CFG["dirs"]["inputs"], read_num = ["read1", "read2"]) 
     output:
         tsv = CFG["dirs"]["kallisto"] + "{seq_type}--{genome_build}/{sample_id}/abundance.tsv"
     log:
@@ -56,7 +55,7 @@ rule _kallisto_quant:
         stderr = CFG["logs"]["kallisto"] + "{seq_type}--{genome_build}/{sample_id}/quant.stderr.log"
     params:
         opts = CFG["options"]["quant"],
-        strand = op.switch_on_column("strand", CFG["samples"], CFG["options"]["strand"]),
+        strand = op.switch_on_column("strand", CFG["samples"], CFG["options"]["strand"], match_on="sample"),
         idx = reference_files("genomes/{genome_build}/kallisto_index/0.46.2/transcriptome.idx"),
         gtf = reference_files("genomes/{genome_build}/annotations/gencode_annotation-33.gtf"),
         chrom_sizes = reference_files("genomes/{genome_build}/genome_fasta/genome_chrom_sizes.txt")

@@ -330,7 +330,7 @@ rule index_genome_fasta:
     input: 
         fasta = rules.get_genome_fasta_download.output.fasta
     output: 
-        fai = "genomes/{genome_build}/genome_fasta/genome.fa.fai"
+        fai = "genomes/{genome_build}/genome_fasta/genome.fa.fai",
         txt = "genomes/{genome_build}/genome_fasta/genome.chr_sizes.txt"
     log: 
         "genomes/{genome_build}/genome_fasta/genome.fa.fai.log"
