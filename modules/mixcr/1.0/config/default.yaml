@@ -21,7 +21,7 @@ lcr-modules:
             mixcr_run: 4
 
         mem_mb:
-            mixcr_run: 5300
+            mixcr_run: 6000
 
         pairing_config:
             genome:
