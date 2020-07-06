@@ -77,7 +77,7 @@ rule _bam2fastq_output:
         op.relative_symlink(input.fastq[0], output.fastq_1)
         op.relative_symlink(input.fastq[1], output.fastq_2)
 
-print(CFG["samples"]["sample_id"], type(CFG["samples"]["sample_id"]))
+print(CFG["samples"]["sample_id"], type(CFG["samples"]["sample_id"][0]))
 
 rule _bam2fastq_all:
     input:
