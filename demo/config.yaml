@@ -5,18 +5,10 @@ lcr-modules:
         lcr-scripts: "../../lcr-scripts"
         root_output_dir: "results/"
         scratch_directory: "scratch/"
-        unmatched_normal_ids:
-            capture--grch37: "TCRBOA7-N-WEX"
 
-    star:
+    cellranger:
         inputs:
-            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
-        reference_params:
-            star_overhang: "99"
-        scratch_subdirectories: ["star", "sort_bam", "mark_dups"]
-
-    manta:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
+            sample_dir: "raw_data/"
+        reference:
+            transcriptome: "/projects/clc/references/cellranger/refdata-cellranger-GRCh38-3.0.0"
+            vdj: "/projects/clc/references/cellranger/refdata-cellranger-vdj-GRCh38-alts-ensembl-3.1.0"
