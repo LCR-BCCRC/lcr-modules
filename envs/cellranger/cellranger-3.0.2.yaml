@@ -1,0 +1,7 @@
+name: cellranger-3.0.2
+channels:
+  - hcc
+  - defaults
+dependencies:
+  - cellranger=3.0.2
+prefix: /projects/clc/usr/anaconda/workflow_prototype/envs/

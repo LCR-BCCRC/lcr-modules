@@ -1,0 +1,31 @@
+lcr-modules:
+    cellranger:
+        #software: "/projects/clc/usr/cellranger/cellranger-3.1.0/cellranger"
+
+        inputs:
+            # The inputs can be configured here or in the Snakefile
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_dir: "__UPDATE__"
+
+        options:
+            mkfastq: "--qc"
+            count: "--expect-cells=5000"
+            vdj: ""
+
+        conda_envs:
+            cellranger: "{MODSDIR}/envs/cellranger-3.0.2.yaml"
+        
+        threads:
+            mkfastq: 12
+            count: 12
+            vdj: 12
+        mem_mb:
+            mkfastq: 50000
+            count: 50000
+            vdj: 50000
+
+        pairing_config:
+            sc_mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
