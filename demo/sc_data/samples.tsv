@@ -1,0 +1,13 @@
+sample_id	index	lane	chip_id	analysis	seq_type
+cHL-TCR-05R	SI-GA-B6	*	HNK7CBGXF	count	sc_mrna
+cHL-TCR-06D	SI-GA-C6	*	HNK7CBGXF	count	sc_mrna
+cHL-TCR-06R	SI-GA-D6	*	HNK7CBGXF	count	sc_mrna
+cHL_TCR_04D_TCR	SI-GA-G6	*	H3H5CAFX2	vdj	sc_mrna
+cHL_TCR_04R_TCR	SI-GA-H6	*	H3H5CAFX2	vdj	sc_mrna
+cHL_TCR_05D_TCR	SI-GA-A7	*	H3H5CAFX2	vdj	sc_mrna
+cHL_TCR_05R_TCR	SI-GA-B7	*	H3H5CAFX2	vdj	sc_mrna
+cHL_TCR_06D_TCR	SI-GA-C7	*	H3H5CAFX2	vdj	sc_mrna
+cHL_TCR_06R_TCR	SI-GA-D7	*	H3H5CAFX2	vdj	sc_mrna
+cHL_TCR_07D_TCR	SI-GA-E7	*	H3H5CAFX2	vdj	sc_mrna
+cHL_TCR_07R_TCR	SI-GA-F7	*	H3H5CAFX2	vdj	sc_mrna
+cHL_TCR_08D_TCR	SI-GA-A11	*	H3H5CAFX2	vdj	sc_mrna
