@@ -37,7 +37,8 @@ rule _utils_bam_sort:
     wildcard_constraints:
         prefix = ".*(sort).*"
     params:
-        opts = _UTILS["options"]["bam_sort"]
+        opts = _UTILS["options"]["bam_sort"],
+        prefix ="{out_dir}/{prefix}/{suffix}"
     conda:
         _UTILS["conda_envs"]["samtools"]
     threads:
