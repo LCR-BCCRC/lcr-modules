@@ -9,12 +9,14 @@
 
 
 ##### SETUP #####
+# Import standard modules
+import glob
+
+# Import package with useful functions for developing analysis modules
 import oncopipe as op
 
-# Make sure the `CFG` variable doesn"t exist yet
-assert "CFG" not in locals(), "`CFG` is a reserved variable for lcr-modules."
-
 # Setup module and store module-specific configuration in `CFG`.
+# `CFG` is a shortcut to `config["lcr-modules"]["cellranger"]`
 CFG = op.setup_module(
     name = "cellranger", 
     version = "1.0",
@@ -23,6 +25,7 @@ CFG = op.setup_module(
 
 localrules: 
     _cellranger_input,
+    _cellranger_create_samplesheet,
     _cellranger_all
 
 
@@ -34,6 +37,7 @@ rule _cellranger_input:
         lib = directory(CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{chip_id}")
     run:
         f = glob.glob(input.lib + "*" + wildcards.chip_id + "*")
+        print(f)
         op.symlink(f[0], output.lib)
 
 
@@ -63,7 +67,7 @@ def _create_samplesheet(mconfig = CFG):
 def _get_completion_files(raw_dir = CFG["inputs"]["sample_dir"], suffix = ["RTAComplete*", "RunInfo*", "RunParameters*"]):
     def _get_custom_files(wildcards):
         #path = raw_dir + f"{wildcards.seq_type}--{wildcards.genome_build}/*{wildcards.chip_id}*"
-        runs = glob.glob(raw_dir + f"*{wildcards.chip_id}*")[0]
+        runs = glob.glob(raw_dir + f"/*{wildcards.chip_id}*")[0]
         file = []
         for f in suffix:
             file.append(glob.glob(runs + "/" + f)[0])
@@ -83,7 +87,7 @@ rule _cellranger_mkfastq:
         stdout = CFG["logs"]["mkfastq"] + "{seq_type}--{genome_build}/{chip_id}/mkfastq.stdout.log",
         stderr = CFG["logs"]["mkfastq"] + "{seq_type}--{genome_build}/{chip_id}/mkfastq.stderr.log"
     params:
-        #cr = CFG["software"],
+        cr = CFG["software"],
         out_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}",
         opts = CFG["options"]["mkfastq"]
     conda:
@@ -94,7 +98,7 @@ rule _cellranger_mkfastq:
         mem_mb = CFG["mem_mb"]["mkfastq"]
     shell:
         op.as_one_line("""
-        cellranger mkfastq
+        {params.cr} mkfastq
         {params.opts}
         --run={input.run_dir} 
         --samplesheet={input.ss}
@@ -115,7 +119,7 @@ rule _cellranger_count:
         stdout = CFG["logs"]["count"] + "{seq_type}--{genome_build}/{chip_id}--{sample_id}_count.stdout.log",
         stderr = CFG["logs"]["count"] + "{seq_type}--{genome_build}/{chip_id}--{sample_id}_count.stderr.log"
     params:
-        #cr = CFG["software"],
+        cr = CFG["software"],
         fastq_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}/",
         opts = CFG["options"]["count"],
         ref = CFG["reference"]["transcriptome"]
@@ -127,7 +131,7 @@ rule _cellranger_count:
         mem_mb = CFG["mem_mb"]["count"]
     shell:
         op.as_one_line("""
-        cellranger count
+        {params.cr} count
         {params.opts}
         --id={wildcards.sample_id}
         --sample={wildcards.sample_id}
@@ -149,7 +153,7 @@ rule _cellranger_vdj:
         stdout = CFG["logs"]["vdj"] + "{seq_type}--{genome_build}/{chip_id}--{sample_id}_vdj.stdout.log",
         stderr = CFG["logs"]["vdj"] + "{seq_type}--{genome_build}/{chip_id}--{sample_id}_vdj.stderr.log"
     params:
-        #cr = CFG["software"],
+        cr = CFG["software"],
         fastq_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}",
         opts = CFG["options"]["vdj"],
         ref = CFG["reference"]["vdj"]
@@ -161,7 +165,7 @@ rule _cellranger_vdj:
         mem_gb = CFG["mem_mb"]["vdj"]
     shell:
         op.as_one_line("""
-        cellranger vdj
+        {params.cr} vdj
         {params.opts}
         --id={wildcards.sample_id}
         --sample={wildcards.sample_id}

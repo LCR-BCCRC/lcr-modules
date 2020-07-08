@@ -8,7 +8,7 @@ lcr-modules:
 
     cellranger:
         inputs:
-            sample_dir: "raw_data/"
+            sample_dir: "sc_data/"
         reference:
             transcriptome: "/projects/clc/references/cellranger/refdata-cellranger-GRCh38-3.0.0"
             vdj: "/projects/clc/references/cellranger/refdata-cellranger-vdj-GRCh38-alts-ensembl-3.1.0"

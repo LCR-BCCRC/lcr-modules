@@ -1,10 +1,10 @@
 lcr-modules:
     cellranger:
-        #software: "/projects/clc/usr/cellranger/cellranger-3.1.0/cellranger"
+        software: "/projects/clc/usr/cellranger/cellranger-3.1.0/cellranger"
 
         inputs:
             # The inputs can be configured here or in the Snakefile
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            # Available wildcards: {seq_type} {genome_build} {chip_id}
             sample_dir: "__UPDATE__"
 
         options:
