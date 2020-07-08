@@ -16,7 +16,7 @@
 import oncopipe as op
 
 # Setup module and store module-specific configuration in `CFG`
-# `CFG` is a shortcut to `config["lcr-modules"]["outputs"]`
+# `CFG` is a shortcut to `config["lcr-modules"]["bam2fastq"]`
 CFG = op.setup_module(
     name = "bam2fastq",
     version = "1.0",
@@ -61,7 +61,7 @@ rule _bam2fastq_run:
     shell:
         op.as_one_line("""
         picard -Xmx{resources.mem_mb}m SamToFastq {params.opts}
-        I={input.bam} FASTQ=>(gzip > {output.fq[0]}) SECOND_END_FASTQ=>(gzip > {output.fq[1]}) 
+        I={input.bam} FASTQ=>(gzip > {output.fastq[0]}) SECOND_END_FASTQ=>(gzip > {output.fastq[1]}) 
         > {log.stdout} &> {log.stderr}
         """)
 
@@ -77,21 +77,38 @@ rule _bam2fastq_output:
         op.relative_symlink(input.fastq[0], output.fastq_1)
         op.relative_symlink(input.fastq[1], output.fastq_2)
 
-print(CFG["samples"]["sample_id"], type(CFG["samples"]["sample_id"][0]))
+
 
 rule _bam2fastq_all:
     input:
         expand(
             [
-                rules._bam2fastq_run.output.fastq,
+                rules._bam2fastq_output.output.fastq_1,
+                rules._bam2fastq_output.output.fastq_2,
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
             genome_build=CFG["samples"]["genome_build"],
-            sample_id=["TCRBOA7-N-WEX", "TCRBOA7-T-WEX", "TCRBOA7-ALT-T-WEX", "TCRBOA7-T-RNA"])
-            #CFG["samples"]["sample_id"])
+            sample_id=CFG["samples"]["sample_id"])
 
 
+rule _bam2fastq_delete_fastq:
+    input:
+        fastq = rules._bam2fastq_run.output.fastq,
+        check = CFG["outputs"]
+        #check if outputs exists
+    output: 
+        CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}--{sample_id}_fastq.removed"
+    shell:
+        "rm  -f {input.fastq} && touch {output}"
+
+rule _bam2fastq_delete_fastq_all:
+    input: 
+        expand(rules._bam2fastq_delete_fastq.output, zip, 
+            seq_type=CFG["samples"]["seq_type"],
+            genome_build=CFG["samples"]["genome_build"],
+            sample_id=CFG["samples"]["sample_id"])
+            
 ##### CLEANUP #####
 
 

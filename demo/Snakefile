@@ -45,10 +45,11 @@ config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 
 
 # Load module-specific snakefiles
-include: "../modules/bam2fastq/1.0/bam2fastq.smk"
+
+#include: "../modules/bam2fastq/1.0/bam2fastq_temp.smk"
 include: "../modules/star/1.1/star.smk"
 include: "../modules/manta/2.1/manta.smk"
-
+include: "../modules/bam2fastq/1.0/bam2fastq.smk"
 
 ##### TARGETS ######
 
@@ -56,5 +57,6 @@ include: "../modules/manta/2.1/manta.smk"
 rule all:
     input:
         rules._bam2fastq_all.input,
-        rules._manta_all.input,
+        rules._bam2fastq_delete_fastq_all.input,
+        #rules._manta_all.input,
         rules._star_all.input
