@@ -26,6 +26,7 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _bam2fastq_input_bam,
+    _bam2fastq_output,
     _bam2fastq_all,
 
 
@@ -72,11 +73,9 @@ rule _bam2fastq_output:
     output:
         fastq_1 = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.read1.fastq",
         fastq_2 = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.read2.fastq"
-       # expand("{fq_dir}{{seq_type}}--{{genome_build}}/{{sample_id}}.{read_num}.fastq", fq_dir = CFG["dirs"]["outputs"], read_num = ["read1", "read2"])
     run:
         op.relative_symlink(input.fastq[0], output.fastq_1)
         op.relative_symlink(input.fastq[1], output.fastq_2)
-
 
 
 rule _bam2fastq_all:
@@ -108,7 +107,7 @@ rule _bam2fastq_delete_fastq_all:
             seq_type=CFG["samples"]["seq_type"],
             genome_build=CFG["samples"]["genome_build"],
             sample_id=CFG["samples"]["sample_id"])
-            
+
 ##### CLEANUP #####
 
 
