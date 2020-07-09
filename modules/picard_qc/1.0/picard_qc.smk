@@ -211,10 +211,14 @@ rule _picard_qc_wgs_metrics:
 
 def _get_sample_metrics(metrics_dir):
     DIR = metrics_dir
+    CFG = config["lcr-modules"]["picard_qc"]
     def _get_sample_metrics_custom(wildcards):
-        CFG = config["lcr-modules"]["picard_qc"]
-        sample = op.filter_samples(CFG["samples"], seq_type=wildcards.seq_type)
-        return expand("{dir}{seq_type}--{genome_build}/{sample_id}/{metrics}", dir = DIR, sample_id = list(sample["sample_id"]), **wildcards)
+        # retrieve from CFG["samples"] if specifed, otherwise default to chared smaples
+        sample = CFG.get("samples") or config["lcr-modules"]["_shared"]["samples"]
+        # filter samples by seq_type and genome_build
+        fsample = op.filter_samples(sample, seq_type=wildcards.seq_type, genome_build=wildcards.genome_build)
+        print(fsample)
+        return expand("{dir}{seq_type}--{genome_build}/{sample_id}/{metrics}", dir = DIR, sample_id = list(fsample["sample_id"]), **wildcards)
     return _get_sample_metrics_custom
 
 

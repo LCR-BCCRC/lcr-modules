@@ -40,7 +40,6 @@ configfile: "config.yaml"
 
 # Use all samples as a default sample list for each module
 config["lcr-modules"]["_shared"]["samples"] = SAMPLES
-config["lcr-modules"]["picard_qc"]["samples"] = SAMPLES
 
 ##### MODULE SNAKEFILES #####
 
