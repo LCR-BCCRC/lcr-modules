@@ -48,6 +48,9 @@ tools:
     star: 
         conda_env: "envs/star-2.7.3a.yaml"
         version: "2.7.3a"
+    kallisto: 
+        conda_env: "envs/kallisto-0.46.2.yaml"
+        version: "0.46.2"
 
 cvbio_config:
     gtf: 
