@@ -6,6 +6,7 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
             intervals : "__UPDATE__"
+            # intervals should be specified for each genome build (see demo config)
 
         options:
             alignment_summary: "VALIDATION_STRINGENCY=LENIENT"
