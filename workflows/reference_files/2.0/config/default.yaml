@@ -51,6 +51,9 @@ tools:
     cnvkit: 
         conda_env: "envs/cnvkit-0.9.7.yaml"
         version: "0.9.7"
+    ucsc-gtftogenepred:
+        conda_env: "envs/ucsc-gtftogenepred-377.yaml"
+        version: "377"
 
 
 cvbio_config:
