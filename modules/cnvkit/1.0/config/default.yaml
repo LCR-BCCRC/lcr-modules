@@ -5,11 +5,12 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
+            target_intervals: "__UPDATE__"
 
         options:
             batch:
                 genome: "--method wgs --scatter --diagram"
-                capture: "--targets {inputs.targets} --scatter --diagram"
+                capture: "--targets {input.targets} --scatter --diagram"
             segment: "--method none --drop-low-coverage --drop-outliers"
             call: "--method clonal --purity 0.8"
             scatter: "--range-list {input.chroms}"

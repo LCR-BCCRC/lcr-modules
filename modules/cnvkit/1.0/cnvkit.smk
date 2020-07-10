@@ -53,7 +53,8 @@ rule _cnvkit_batch:
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         access = reference_files("genomes/{genome_build}/cnvkit_access/cnvkit-0.9.7/access.bed"),
         refFlat = reference_files("genomes/{genome_build}/annotations/refFlat_gencode-33.txt"),
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        targets = CFG["inputs"].get("target_intervals") or ""
     output:
         cnr = CFG["dirs"]["batch"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.cnr",
         normal_ref = CFG["dirs"]["batch"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_reference.cnn"
@@ -78,7 +79,7 @@ rule _cnvkit_batch:
         --fasta {input.fasta}
         --processes {threads}
         --output-reference {output.normal_ref}
-        --output-dir $( dirname {output.cnr})
+        --output-dir $(dirname {output.cnr})
         {params.opts}
         > {log.stdout} 2> {log.stderr}
         """)
