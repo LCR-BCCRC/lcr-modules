@@ -14,12 +14,12 @@ lcr-modules:
             call: "--method clonal --purity 0.8"
             scatter: "--range-list {input.chroms}"
                 # use -c or -g to plot specific chromosome or genes
-            diagram:
-            heatmap:
+            diagram: ""
+            heatmap: ""
             
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            cnvkit: "{MODSDIR}/envs/cnvkit-0.9.7.yaml"
             
         threads:
             batch: 8

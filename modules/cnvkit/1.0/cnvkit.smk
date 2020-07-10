@@ -15,21 +15,21 @@
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 
-import glob
-
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["cnvkit"]`
 CFG = op.setup_module(
     name = "cnvkit",
     version = "1.0",
-    subdirectories = ["inputs", "batch", "segment", "outputs"],
+    subdirectories = ["inputs", "batch", "segment", "call", "plots", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
 # TODO: Replace with actual rules once you change the rule names
 localrules:
     _cnvkit_input_bam,
-    _cnvkit_output_vcf,
+    _cnvkit_scatter,
+    _cnvkit_diagram,
+    _cnvkit_output,
     _cnvkit_all,
 
 
@@ -61,7 +61,7 @@ rule _cnvkit_batch:
         stdout = CFG["logs"]["batch"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/batch.stdout.log",
         stderr = CFG["logs"]["batch"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/batch.stderr.log"
     params:
-        opts = op.switch_on_wildcards("seq_type", CFG["options"]["batch"])
+        opts = op.switch_on_wildcard("seq_type", CFG["options"]["batch"])
     conda:
         CFG["conda_envs"]["cnvkit"]
     threads:
@@ -73,9 +73,9 @@ rule _cnvkit_batch:
         cnvkit.py batch
         {input.tumour_bam}
         --normal {input.normal_bam}
-        --access {params.access}
-        --annotate {imput.refFlat}
-        --fasta {params.fasta}
+        --access {input.access}
+        --annotate {input.refFlat}
+        --fasta {input.fasta}
         --processes {threads}
         --output-reference {output.normal_ref}
         --output-dir $( dirname {output.cnr})
@@ -162,68 +162,22 @@ rule _cnvkit_scatter:
         """)
 
 
-def _get_heatmap_samples(wildcards):
-    CFG = config["lcr-modules"]["cnvkit"]
-    pattern = CFG["dirs"]["call"] + f"{wildcards.seq_type}--{wildcards.genome_build}/*/{wildcards.seq_type}
-
-
-CFG["dirs"]["call"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.call.cns"
-
-def _get_heatmap_samples(metrics_dir):
-    DIR = metrics_dir
-    CFG = config["lcr-modules"]["cnvkit"]
-    def _get_heatmap_samples_custom(wildcards):
-        # retrieve from CFG["samples"] if specifed, otherwise default to shared smaples
-        sample = CFG.get("samples") or config["lcr-modules"]["_shared"]["samples"]
-        # filter samples by seq_type and genome_build
-        fsample = op.filter_samples(sample, seq_type=wildcards.seq_type, genome_build=wildcards.genome_build)
-        return expand("{dir}{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.call.cns", 
-        dir = DIR, 
-        sample_id = list(fsample["sample_id"]), **wildcards)
-    return _get_sample_metrics_custom
-
-
-rule _cnvkit_heatmap:
-    input:
-        cns = expand(rules._cnvkit_call.output.cns, zip,
-            tumour_id=CFG["runs"]["tumour_id"],
-            normal_id=CFG["runs"]["normal_id"],
-            pair_status=CFG["runs"]["pair_status"])
-    output:
-        hm = CFG["dirs"]["plots"] + "{seq_type}--{genome_build}/merged_heatmap.pdf"
-    log:
-        stderr = CFG["logs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/heatmap.stderr.log"
-    params:
-        opts = CFG["options"]["heatmap"]
-    conda:
-        CFG["conda_envs"]["cnvkit"]
-    shell:
-        op.as_one_line("""
-        cnvkit.py heatmap
-        {input.cnr}
-        --segment {input.cns}
-        --output {output.heatmap}
-        {params.opts}
-        &> {log.stderr}
-        """)
-
-
-rule _cnvkit_heatmap:
+rule _cnvkit_diagram:
     input:
         cns = rules._cnvkit_segment.output.cns,
         cnr = rules._cnvkit_batch.output.cnr,
         chroms = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed")
     output:
-        diagram = CFG["dirs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_heatmap.pdf"
+        diagram = CFG["dirs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_diagram.pdf"
     log:
-        stderr = CFG["logs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/heatmap.stderr.log"
+        stderr = CFG["logs"]["plots"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/diagram.stderr.log"
     params:
-        opts = CFG["options"]["heatmap"]
+        opts = CFG["options"]["diagram"]
     conda:
         CFG["conda_envs"]["cnvkit"]
     shell:
         op.as_one_line("""
-        cnvkit.py heatmap
+        cnvkit.py diagram
         {input.cnr}
         --segment {input.cns}
         --output {output.diagram}
@@ -231,29 +185,68 @@ rule _cnvkit_heatmap:
         &> {log.stderr}
         """)
 
+'''
+def _get_heatmap_samples(wildcards):
+    CFG = config["lcr-modules"]["cnvkit"]
+    pattern = CFG["dirs"]["call"] + f"{wildcards.seq_type}--{wildcards.genome_build}/*/*"
+    return glob.glob
 
-rule _cnvkit_step_2:
-    input:
-        vcf = rules._cnvkit_step_1.output.vcf
+
+def _get_heatmap_samples(DIR):
+    CFG = config["lcr-modules"]["picard_qc"]
+    def _get_heatmap_samples_custom(wildcards):
+        # retrieve from CFG["samples"] if specifed, otherwise default to chared smaples
+        sample = CFG.get("samples") or config["lcr-modules"]["_shared"]["samples"]
+        # filter samples by seq_type and genome_build
+        fsample = op.filter_samples(sample, tissue_statue="tumour"
+        seq_type=wildcards.seq_type, genome_build=wildcards.genome_build)
+        print(fsample)
+        return expand("{dir}{seq_type}--{genome_build}/{sample_id}/{metrics}", dir = DIR, sample_id = list(fsample["sample_id"]), **wildcards)
+    return _get_sample_metrics_custom
+
+HM_SAMPLES = op.filter_samples(CFG["runs"], seq_type=wildcards.seq_type, genome_build=wildcards.genome_build)
+
+rule _cnvkit_heatmap:
+    input: 
+        CFG["dirs"]["call"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.call.cns"
+        expand(rules._cnvkit_call.output.cns, zip, seq_type=HM_SAMPLES["seq_type"],
+        genome_build=HM_SAMPLES["genome_build"],
+        seq_type=HM_SAMPLES["seq_type"],
+        seq_type=HM_SAMPLES["seq_type"])
     output:
-        vcf = CFG["dirs"]["cnvkit"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.vcf"
+        hm = CFG["dirs"]["plots"] + "{seq_type}--{genome_build}/merged_heatmap.pdf"
     log:
-        stderr = CFG["logs"]["cnvkit"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
+        stderr = CFG["logs"]["plots"] + "{seq_type}--{genome_build}/heatmap.stderr.log"
     params:
-        opts = CFG["options"]["step_2"]
+        opts = CFG["options"]["heatmap"]
+    conda:
+        CFG["conda_envs"]["cnvkit"]
     shell:
-        "grep {params.opts} {input.vcf} > {output.vcf} 2> {log.stderr}"
-
+        op.as_one_line("""
+        cnvkit.py heatmap
+        {input.calls}
+        --output {output.heatmap}
+        {params.opts}
+        &> {log.stderr}
+        """)
+'''
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
-rule _cnvkit_output_vcf:
+rule _cnvkit_output:
     input:
-        vcf = rules._cnvkit_step_2.output.vcf
+        cnr = rules._cnvkit_batch.output.cnr,
+        cns = rules._cnvkit_segment.output.cns,
+        call = rules._cnvkit_call.output.cns
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.vcf"
+        cnr = CFG["dirs"]["outputs"] + "ratio/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.cnr",
+        cns = CFG["dirs"]["outputs"] + "segment/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.cns",
+        call = CFG["dirs"]["outputs"] + "calls/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.call.cns",
+        stamp = touch(CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.done")
     run:
-        op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.cnr, output.cnr)
+        op.relative_symlink(input.cns, output.cns)
+        op.relative_symlink(input.call, output.call)
+
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -261,8 +254,9 @@ rule _cnvkit_all:
     input:
         expand(
             [
-                rules._cnvkit_output_vcf.output.vcf,
-                # TODO: If applicable, add other output rules here
+                rules._cnvkit_output.output.stamp,
+                rules._cnvkit_scatter.output.scatter,
+                rules._cnvkit_diagram.output.diagram
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
