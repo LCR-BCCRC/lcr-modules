@@ -1,0 +1,9 @@
+name: cnvkit
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - cnvkit=0.9.7
+prefix: /projects/clc/usr/anaconda/workflow_prototype/envs/
+
