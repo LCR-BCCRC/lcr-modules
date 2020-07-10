@@ -1,0 +1,42 @@
+lcr-modules:
+    
+    cnvkit:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+
+        options:
+            batch:
+                genome: "--method wgs --scatter --diagram"
+                capture: "--targets {inputs.targets} --scatter --diagram"
+            segment: "--method none --drop-low-coverage --drop-outliers"
+            call: "--method clonal --purity 0.8"
+            scatter: "--range-list {input.chroms}"
+                # use -c or -g to plot specific chromosome or genes
+            diagram:
+            heatmap:
+            
+
+        conda_envs:
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            
+        threads:
+            batch: 8
+            segment: 8
+            call: 8
+
+        mem_mb:
+            batch: 6000
+            segment: 6000
+            call: 6000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False
