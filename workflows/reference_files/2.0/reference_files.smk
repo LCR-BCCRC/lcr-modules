@@ -431,3 +431,22 @@ rule create_cnvkit_access:
             &&
         chmod a-w {output.access}
         """)
+
+
+rule create_refFlat:
+    input:
+        gtf = rules.get_gencode_download.output.gtf
+    output:
+        txt = "genomes/{genome_build}/annotations/refFlat_gencode-{gencode_release}.txt"
+    log: "genomes/{genome_build}/annotations/gtfToGenePred-{gencode_release}.log"
+    conda: CONDA_ENVS["ucsc-gtftogenepred"]
+    threads: 4
+    resources:
+        mem_mb = 6000
+    shell:
+        op.as_one_line("""
+        gtfToGenePred -genePredExt -geneNameAsName2 
+        {input.gtf} {output.txt}.tmp 
+        2> {log} &&
+        paste <(cut -f 12 {output.txt}.tmp) <(cut -f 1-10 {output.txt}.tmp) > {output.txt}
+        """)
