@@ -417,7 +417,7 @@ rule create_cnvkit_access:
     input:
         fasta = rules.get_genome_fasta_download.output.fasta,
     output: 
-        access = directory("genomes/{genome_build}/cnvkit_access/cnvkit-{cnvkit_version}/access.bed")
+        access = "genomes/{genome_build}/cnvkit_access/cnvkit-{cnvkit_version}/access.bed"
     log: 
         "genomes/{genome_build}/cnvkit_access/cnvkit-{cnvkit_version}/access.log"
     conda: CONDA_ENVS["cnvkit"]

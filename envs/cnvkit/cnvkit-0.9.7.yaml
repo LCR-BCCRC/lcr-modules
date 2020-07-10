@@ -5,5 +5,8 @@ channels:
   - defaults
 dependencies:
   - cnvkit=0.9.7
+  - r-cghflasso=0.2_1
+  - bioconductor-dnacopy=1.62.0
+  - hmmlearn=0.2.3
 prefix: /projects/clc/usr/anaconda/workflow_prototype/envs/
 
