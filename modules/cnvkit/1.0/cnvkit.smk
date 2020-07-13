@@ -131,7 +131,6 @@ rule _cnvkit_call:
     shell:
         op.as_one_line("""
         cnvkit.py call
-        -p {threads}
         {params.opts}
         {input.cns}
         -o {output.cns}
@@ -158,6 +157,7 @@ rule _cnvkit_scatter:
         {input.cnr}
         --segment {input.cns}
         --output {output.scatter}
+        --range-list {input.chroms}
         {params.opts}
         &> {log.stderr}
         """)

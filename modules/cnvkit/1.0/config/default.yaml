@@ -11,9 +11,9 @@ lcr-modules:
             batch:
                 genome: "--method wgs --scatter --diagram"
                 capture: "--targets {input.targets} --scatter --diagram"
-            segment: "--method none --drop-low-coverage --drop-outliers"
+            segment: "--method none --drop-low-coverage"
             call: "--method clonal --purity 0.8"
-            scatter: "--range-list {input.chroms}"
+            scatter: ""
                 # use -c or -g to plot specific chromosome or genes
             diagram: ""
             heatmap: ""
