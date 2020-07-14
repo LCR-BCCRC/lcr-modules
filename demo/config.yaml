@@ -36,6 +36,9 @@ lcr-modules:
             # if using one kit per genome build, use _default key
                 grch37: 
                     _default: "reference/exomes/grch37/interval/S07604624_intervals.txt"
+                    S07604624: "reference/exomes/grch37/interval/S07604624_intervals.txt"
+                grch38:
+                    _default: "reference/exomes/grch37/interval/S07604624_intervals.txt"
             # if using more that one kit per genome build, use kit id as key and set _default to null/empty string
             # grch37: 
             #        _default: null

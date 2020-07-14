@@ -100,19 +100,26 @@ rule _picard_qc_insert_size:
         I={input.bam} O={output.metrics} H={output.histogram}
         > {log.stdout} 2> {log.stderr}
         """)
-
 '''
-def _setup_picard_intervals(config = CFG):
-    sample = op.filter_samples(CFG["samples"], seq_type="capture")
-    if sample["capture_kit_id"]: # if capture kit id is present in the dataframe
-        unique_pairs = sample.groupby(["genome_build", "capture_kit_id"]).size().reset_index()
 
-        dict_pairs = unique_pairs.groupby('genome_build')['capture_kit_id'].apply(list).to_dict()
-        for genome, kit in kit_pairs:
+def _setup_picard_intervals(mconfig = CFG):
+    sample = op.filter_samples(mconfig["samples"], seq_type="capture")
+    
+    if not sample["capture_kit_id"]: 
+        sample["capture_kit_id"] = "_default"
+    else:
+        sample["capture_kit_id"].fillna("_default", inplace = True)# if capture kit id is present in the dataframe
+        #unique_pairs = sample.groupby(["genome_build", "capture_kit_id"]).size().reset_index()
+
+        kits = unique_pairs.groupby('genome_build')['capture_kit_id'].apply(list).to_dict()
+
+        for genome, kit in kits.items():
     
     else:
         assert "_default" in CFG["inputs"]["intervals"]
-'''
+    
+    sample_df = mconfig["samples"].update(sample)
+    return sample_df
 
 
 
@@ -127,21 +134,29 @@ def _picard_get_intervals(wildcards):
     # if capture_kit_id column exist and there is only one unique genome_build
     if len(kits) > 1:
         for k in kits:
-            assert k in CFG["inputs"]["intervals"][genome], (f"Intervals file for capture_kit_id = {k} is not specified as an input in the module config. See CHANGELOG.md for detailed instructions")
+            CFG["inputs"]["intervals"][genome].get(k)
+            #assert k in CFG["inputs"]["intervals"][genome], (f"Intervals file for capture_kit_id = {k} is not specified as an input in the module config. See CHANGELOG.md for detailed instructions")
     elif len(kits) == 1:
-        assert (kits[0] in CFG["inputs"]["intervals"][genome] | "_default" in CFG["inputs"]["intervals"][genome]), (f"Intervals file for capture_kit_id = {kits[0]} or '_default' is not specified as an input in the module config. See CHANGELOG.md for detailed instructions")
-        return op.switch_on_column("capture_kit_id", sample, CFG["inputs"]["intervals"][genome], match_on="sample")
+        #if not CFG["inputs"]["intervals"][genome].get(kits[0]):
+        CFG["inputs"]["intervals"][genome].get("_default")
+            #assert "_default" in CFG["inputs"]["intervals"][genome], (f"Intervals file for capture_kit_id = {kits[0]} is not specified as an input in the module config. See CHANGELOG.md and demo/config.yaml for detailed instructions")
     else: # if capture_kit_id column doesn't exist or is empty
-        default_int = CFG["inputs"]["intervals"][genome]["_default"]
-        logger.warning(f"capture_kit_id column does not exist or is empty; defaulting to the only loaded interval file {default_int}")
-        return default_int
-
+        CFG["samples"]["capture_kit_id"] = "_default"
+        #logger.warning(f"capture_kit_id column does not exist or is empty; defaulting to the only loaded interval file {default_int}")
+    kit = op.switch_on_column("capture_kit_id", sample, CFG["inputs"]["intervals"][genome], match_on="sample")
+    print(kit)
+    return 'op.switch_on_column("capture_kit_id", sample, CFG["inputs"]["intervals"][genome], match_on="sample")'
+'''
+def get_sub_CFG(wildcards):
+    CFG = config["lcr-modules"]["picard_qc"]
+    kit = op.switch_on_column("capture_kit_id", CFG["samples"], CFG["inputs"]["intervals"][wildcards.genome_build], match_on="sample")
+    return kit
 # capture metrics
 rule _picard_qc_hs_metrics:
     input:
         bam = rules._picard_qc_input_bam.output.sample_bam,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        intervals = _picard_get_intervals #op.switch_on_wildcard("genome_build", CFG["inputs"]["intervals"])
+        intervals = get_sub_CFG#op.switch_on_wildcard("genome_build", CFG["inputs"]["intervals"])
     output:
         hs = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/hs_metrics",
         intervals = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/interval_hs_metrics"
@@ -252,7 +267,6 @@ def _get_sample_metrics(metrics_dir):
         # sample = CFG.get("samples") or config["lcr-modules"]["_shared"]["samples"]
         # filter samples by seq_type and genome_build
         fsample = op.filter_samples(CFG["samples"], seq_type=wildcards.seq_type, genome_build=wildcards.genome_build)
-        print(fsample)
         return expand("{dir}{seq_type}--{genome_build}/{sample_id}/{metrics}", dir = DIR, sample_id = list(fsample["sample_id"]), **wildcards)
     return _get_sample_metrics_custom
 
