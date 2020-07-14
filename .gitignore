@@ -36,6 +36,7 @@ MANIFEST
 /demo/scratch
 /demo/data/*
 !/demo/data/samples.tsv
+demo/run_clc.sh
 
 # Ignore example snakefiles
 /examples

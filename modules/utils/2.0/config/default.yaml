@@ -1,0 +1,34 @@
+## Lines commented out with `#!` are required for the module to run
+## Lines commented out with `#?` can optionally be user-configured
+## Lines commented out with `##` act as regular comments
+
+lcr-modules:
+    utils:
+        paired_modules: ["bwa_mem", "star"]
+        ## See main README.md for how to set `samples` in the Snakefile
+        #! samples: null
+
+        inputs:
+        ## List subdirectories that should be symlinked to the scratch directory
+        scratch_subdirectories: []
+
+        options:
+            bam_sort: ""
+            bam_markdups: ""
+            bam_index: "-b"
+
+        conda_envs:
+            samtools: "envs/samtools-1.9.yaml"
+            sambamba: "envs/sambamba-0.7.1.yaml"
+            
+        threads:
+            bam_sort: 12
+            bam_markdups: 12
+            bam_index: 6
+
+        mem_mb:
+            bam_sort: 12000
+            bam_markdups: 8000
+            bam_index: 4000
+            
+        pairing_config:
