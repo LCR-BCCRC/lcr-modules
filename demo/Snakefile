@@ -25,11 +25,18 @@ subworkflow reference_files:
 
 
 # Load module-specific configuration
+<<<<<<< HEAD
 configfile: "../modules/bam2fastq/1.0/config/default.yaml"
 configfile: "../modules/utils/2.0/config/default.yaml"
 configfile: "../modules/bwa_mem/1.0/config/default.yaml"
 configfile: "../modules/star/1.1/config/default.yaml"
+=======
+
+configfile: "../modules/star/1.0/config/default.yaml"
+>>>>>>> remotes/origin/module/strelka2/1.0
 configfile: "../modules/manta/2.1/config/default.yaml"
+configfile: "../modules/strelka/1.0/config/default.yaml"
+
 
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
@@ -52,6 +59,7 @@ include: "../modules/utils/2.0/utils.smk"
 include: "../modules/bwa_mem/1.0/bwa_mem.smk"
 include: "../modules/star/1.1/star.smk"
 include: "../modules/manta/2.1/manta.smk"
+include: "../modules/strelka/1.0/strelka.smk"
 
 ##### TARGETS ######
 
@@ -63,3 +71,4 @@ rule all:
         rules._bwa_mem_all.input,
         rules._star_all.input,
         rules._manta_all.input,
+        rules._strelka_all.input,

@@ -1,0 +1,41 @@
+lcr-modules:
+    
+    strelka:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            
+            # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
+            # Set these values to `null` (no quotes) if you don't have these files
+            candidate_small_indels_vcf: "__UPDATE__"
+            candidate_small_indels_tbi: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            configure:
+                _default: ""
+                mrna: "--rna"
+                capture: "--exome"
+            strelka: "-m local"
+
+        conda_envs:
+            strelka: "{MODSDIR}/envs/strelka-2.9.10.yaml"
+            tabix: "{MODSDIR}/envs/tabix-0.2.6.yaml"
+            
+        threads:
+            strelka: 12
+
+        mem_mb:
+            strelka: 4000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False

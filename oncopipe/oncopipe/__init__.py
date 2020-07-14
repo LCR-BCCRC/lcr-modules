@@ -291,7 +291,43 @@ def list_files(directory, file_ext):
     return files_all
 
 
-# SNAKEMAKE INPUT/PARAM FUNCTIONS
+# SNAKEMAKE INPUT/PARAM/RESOURCE FUNCTIONS
+
+
+def retry(value, multiplier=1.5, max_value=100000):
+    """Creates callable that increases resource value on retries.
+
+    This function is intended for use with resources,
+    especially memory (mem_mb).
+
+    Parameters
+    ----------
+    value : int
+        The value that will be multiplied on retries.
+        This value will be used as is in the first try.
+    multiplier: float
+        The factor that the value will be multiplied by
+        on retries. This should usually be a number
+        between 1 and 3.
+    max_value : int
+        The maximum value that should be returned by
+        this function, even on retries. This is meant
+        to prevent excessively high requests that will
+        never be accommodated by the cluster.
+
+    Returns
+    -------
+    function, which returns integer values
+        The function that can be provided to the
+        resource directive in a snakemake rule.
+    """
+
+    def retry_custom(wildcards, attempt):
+        new_value = value * (multiplier ** attempt)
+        new_value = min(new_value, max_value)
+        return int(new_value)
+
+    return retry_custom
 
 
 def create_formatter(wildcards, input, output, threads, resources, strict):

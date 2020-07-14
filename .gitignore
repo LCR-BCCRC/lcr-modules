@@ -29,7 +29,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Files creates when testing the demo project
+# Files created when testing the demo project
 .snakemake/
 /demo/results/
 /demo/reference
@@ -37,6 +37,8 @@ MANIFEST
 /demo/data/*
 !/demo/data/samples.tsv
 demo/run_clc.sh
+
+*tmp.*
 
 # Ignore example snakefiles
 /examples
