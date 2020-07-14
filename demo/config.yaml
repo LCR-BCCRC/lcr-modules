@@ -24,6 +24,7 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
+
     bwa_mem:
         inputs:
             sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
@@ -37,3 +38,8 @@ lcr-modules:
             candidate_small_indels_output: "results/manta-2.1/99-outputs/vcf/{seq_type}--{genome_build}/candidateSmallIndels/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf"
             candidate_small_indels_vcf: "results/manta-2.1/02-manta/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/candidateSmallIndels.vcf.gz"
             candidate_small_indels_tbi: "results/manta-2.1/02-manta/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/candidateSmallIndels.vcf.gz.tbi"
+
+    varscan:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
