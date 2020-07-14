@@ -25,7 +25,7 @@ lcr-modules:
     utils:
         inputs:
             bed: 
-                grch37: "reference/exomes/grch37/bed/S07604624.bed" # make sure this corresponds with config["lcr-modules"]["picard_qc"]["inputs"]["intervals"]
+                grch37: "reference/exomes/grch37/bed/{id}.bed" # make sure this corresponds with config["lcr-modules"]["picard_qc"]["inputs"]["intervals"]
             
     picard_qc:
         inputs:
@@ -33,5 +33,11 @@ lcr-modules:
             sample_bai: "data/{sample_id}.bam.bai"
             # add other genomes
             intervals: 
-                grch37: "reference/exomes/grch37/interval/S07604624_intervals.txt"
-
+            # if using one kit per genome build, use _default key
+                grch37: 
+                    _default: "reference/exomes/grch37/interval/S07604624_intervals.txt"
+            # if using more that one kit per genome build, use kit id as key and set _default to null/empty string
+            # grch37: 
+            #        _default: null
+            #        S07604624: "reference/exomes/grch37/interval/S07604624_intervals.txt"
+            #        kit_2: "reference/exomes/grch37/interval/kit_2_intervals.txt"
