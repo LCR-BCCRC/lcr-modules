@@ -24,7 +24,6 @@ CFG = op.setup_module(
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _varscan_input_bam,
     _varscan_input_chroms,
@@ -214,12 +213,11 @@ rule _varscan_output_maf:
 
 
 def _varscan_get_output(wildcards):
-    #if wildcards.pair_status == "no_normal":
-    #    raise ValueError("wildcards.pair_status = non_normal is currently unsupported, please run in matched or unmatched mode")
-    #else: 
     return expand([
-        rules._varscan_output_vcf.output.vcf,rules._varscan_output_maf.output.maf
-        ], vcf_name = ["snp", "indel"], **wildcards)
+        rules._varscan_output_vcf.output.vcf,
+        rules._varscan_output_maf.output.maf
+        ],
+        vcf_name = ["snp", "indel"], **wildcards)
 
 
 rule _varscan_dispatch:
