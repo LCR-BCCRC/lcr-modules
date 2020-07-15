@@ -20,7 +20,7 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "strelka",
     version = "1.0",
-    subdirectories = ["inputs", "chrom_bed", "strelka", "filtered", "outputs"]
+    subdirectories = ["inputs", "chrom_bed", "strelka", "filtered", "maf", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -33,7 +33,9 @@ localrules:
     _strelka_configure_unpaired,
     _strelka_decompress_vcf,
     _strelka_filter,
+    _strelka_symlink_maf,
     _strelka_output_vcf,
+    _strelka_output_maf,
     _strelka_all,
 
 
@@ -187,37 +189,58 @@ rule _strelka_run:
         """)
 
 
-rule _strelka_decompress_vcf:
+rule _strelka_symlink_filter_vcf:
     input:
         vcf_dir = rules._strelka_run.output.vcf_dir
     output:
-        vcf = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{var_type}.vcf"
-    shell:
-        "gzip -dc {input.vcf_dir}{wildcards.var_type}.vcf.gz > {output.vcf}"
+        vcf = temp(CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf.gz")
+    run:
+        op.relative_symlink(input.vcf + wildcards.vcf_name + ".vcf.gz", output.vcf)
+    #shell:
+    #    "gzip -dc {input.vcf_dir}{wildcards.vcf_name}.vcf.gz > {output.vcf}"
 
 
 rule _strelka_filter:
     input:
-        vcf = rules._strelka_decompress_vcf.output.vcf
+        vcf = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
     output:
-        vcf = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{var_type}.passed.vcf"
+        vcf = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.passed.vcf"
     shell:
         op.as_one_line("""
         awk 'BEGIN {{FS=OFS="\t"}} $0 ~ /^#/ || $7 == "PASS"' {input.vcf} > {output.vcf}
         """)
 
 
+rule _strelka_symlink_maf:
+    input:
+        vcf = rules._strelka_filter.output.vcf
+    output:
+        vcf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
+    run:
+        op.relative_symlink(input.vcf, output.vcf)
+
+
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _strelka_output_vcf:
     input:
-        vcf = rules._strelka_decompress_vcf.output.vcf,
+        vcf_dir = rules._strelka_run.output.vcf_dir,
         vcf_p = rules._strelka_filter.output.vcf
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{var_type}.vcf",
-        vcf_p = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{var_type}.passed.vcf"
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf.gz",
+        vcf_p = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.passed.vcf"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.vcf_dir + wildcards.var_type + ".vcf.gz", output.vcf)
         op.relative_symlink(input.vcf_p, output.vcf_p)
+
+
+rule _strelka_output_maf:
+    input:
+        vcf = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf", # ensure vcf file is not removed before vcf2maf_run is executed
+        maf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
+    output:
+        maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.{vcf_name}.maf"
+    run:
+        op.relative_symlink(input.maf, output.maf)
 
 
 def _get_strelka_output(wildcards):
@@ -227,7 +250,11 @@ def _get_strelka_output(wildcards):
         vcf_files = "variants"
     else:
         vcf_files = ["somatic.snvs", "somatic.indels"]
-    vcf = expand(rules._strelka_output_vcf.output.vcf, var_type = vcf_files, **wildcards)
+    vcf = expand([
+        rules._strelka_output_vcf.output.vcf, 
+        rules._strelka_output_maf.output.maf
+        ], 
+        vcf_name = vcf_files, **wildcards)
     return vcf
 
 
