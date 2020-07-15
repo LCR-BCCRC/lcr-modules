@@ -86,7 +86,7 @@ rule _sequenza_bam2seqz:
         gc_wiggle = reference_files("genomes/{genome_build}/annotations/gc_wiggle.window_50.wig.gz"),
         genome = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        seqz = CFG["dirs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.binned.seqz.gz"
+        seqz = temp(CFG["dirs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.binned.seqz.gz")
     log:
         stderr = CFG["logs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_bam2seqz.{chrom}.stderr.log"
     params:
