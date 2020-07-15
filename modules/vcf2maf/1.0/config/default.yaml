@@ -3,7 +3,7 @@ lcr-modules:
     vcf2maf:
         inputs:
             # Available wildcards: {out_dir}, {seq_type}, {genome_build}, {tumour_id}, {normal_id}, {pair_status}, {vcf_name}
-            vep_cache: "reference/vep_caches/"
+            vep_cache: "__UPDATE__"
 
         options:
             vcf2maf: "--filter-vcf 0 --vcf-tumor-id TUMOR --vcf-normal-id NORMAL --cache-version 86"
