@@ -24,10 +24,6 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "bwa_mem",  "sort_bam", "mark_dups", "outputs"],
 )
 
-# Include `utils` module
-#include: "../../utils/2.0/utils.smk"
-
-
 # Define rules to be run locally when using a compute cluster
 localrules:
     _bwa_mem_input_fastq,
@@ -133,10 +129,11 @@ rule _bwa_mem_output_bam:
         bai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".bam.bai",
         sorted_bam = rules._bwa_mem_symlink_sorted_bam.input.bam
     output:
-        bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
+        bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        bai = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
         op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bam + ".bai")
+        op.relative_symlink(input.bai, output.bai)
         os.remove(input.sorted_bam)
         shell("touch {input.sorted_bam}.deleted")
 

@@ -26,9 +26,6 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "star", "sort_bam", "mark_dups", "outputs"],
 )
 
-# Include `utils` module
-include: "../../utils/1.0/utils.smk"
-
 # Define rules to be run locally when using a compute cluster
 localrules:
     _star_input_fastq,
@@ -124,10 +121,11 @@ rule _star_output_bam:
         bai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.mdups.bam.bai",
         sorted_bam = rules._star_symlink_sorted_bam.input.bam
     output:
-        bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
+        bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        bai = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
         op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bam + ".bai")
+        op.relative_symlink(input.bai, output.bai)
         os.remove(input.sorted_bam)
         shell("touch {input.sorted_bam}.deleted")
 
