@@ -122,7 +122,7 @@ rule _varscan_somatic:
 rule _varscan_reheader_vcf:
     input:
         vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf",
-        header = lambda w: CFG["vcf_header"][w.genome_build]
+        header = op.switch_on_wildcard("genome_build", CFG["vcf_header"])
     output:
         vcf = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf.gz"),
     conda:
@@ -186,7 +186,7 @@ rule _varscan_combine_vcf:
         bgzip -c {output.vcf} > {output.vcf_gz} 
         """)
 
-#currently disabled
+
 rule _varscan_symlink_maf:
     input:
         vcf = rules._varscan_combine_vcf.output.vcf
@@ -199,7 +199,7 @@ rule _varscan_symlink_maf:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _varscan_output_vcf:
     input:
-        vcf = rules._varscan_combine_vcf.output.vcf
+        vcf = rules._varscan_combine_vcf.output.vcf_gz
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.somatic.{vcf_name}.vcf.gz"
     run:
