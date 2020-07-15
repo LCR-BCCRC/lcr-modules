@@ -53,7 +53,7 @@ rule _{{cookiecutter.module_name}}_step_1:
     input:
         tumour_{{cookiecutter.input_file_type}} = CFG["dirs"]["inputs"] + "{{cookiecutter.input_file_type}}/{seq_type}--{genome_build}/{tumour_id}.{{cookiecutter.input_file_type}}",
         normal_{{cookiecutter.input_file_type}} = CFG["dirs"]["inputs"] + "{{cookiecutter.input_file_type}}/{seq_type}--{genome_build}/{normal_id}.{{cookiecutter.input_file_type}}",
-        fasta = reference_files(CFG["reference"]["genome_fasta"])
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["{{cookiecutter.module_name}}"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.{{cookiecutter.output_file_type}}"
     log:
@@ -70,7 +70,7 @@ rule _{{cookiecutter.module_name}}_step_1:
     shell:
         op.as_one_line("""
         <TODO> {params.opts} --tumour {input.tumour_{{cookiecutter.input_file_type}}} --normal {input.normal_{{cookiecutter.input_file_type}}}
-        --ref-fasta {params.fasta} --output {output.{{cookiecutter.output_file_type}}} --threads {threads}
+        --ref-fasta {input.fasta} --output {output.{{cookiecutter.output_file_type}}} --threads {threads}
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -122,7 +122,7 @@ rule _{{cookiecutter.module_name}}_all:
 rule _{{cookiecutter.module_name}}_step_1:
     input:
         {{cookiecutter.input_file_type}} = rules._{{cookiecutter.module_name}}_input_{{cookiecutter.input_file_type}}.output.{{cookiecutter.input_file_type}},
-        fasta = reference_files(CFG["reference"]["genome_fasta"])
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["{{cookiecutter.module_name}}"] + "{seq_type}--{genome_build}/{sample_id}/output.{{cookiecutter.output_file_type}}"
     log:
@@ -138,7 +138,7 @@ rule _{{cookiecutter.module_name}}_step_1:
         mem_mb = CFG["mem_mb"]["step_1"]
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --input {input.{{cookiecutter.input_file_type}}} --ref-fasta {params.fasta}
+        <TODO> {params.opts} --input {input.{{cookiecutter.input_file_type}}} --ref-fasta {input.fasta}
         --output {output.{{cookiecutter.output_file_type}}} --threads {threads} > {log.stdout} 2> {log.stderr}
         """)
 
