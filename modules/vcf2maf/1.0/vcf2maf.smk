@@ -46,10 +46,7 @@ rule _vcf2maf_run:
     input:
         vcf = "{out_dir}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        vep_cache = expand("{vep_dir}{species}/{vep_genome_build}", 
-        vep_dir = CONFIG["inputs"]["vep_cache"], 
-        species = CONFIG["options"]["species"], 
-        vep_genome_build = CONFIG["options"]["vep_genome_build"])
+        vep_cache = CONFIG["inputs"]["vep_cache"]
     output:
         maf = "{out_dir}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf",
     log:
@@ -73,7 +70,7 @@ rule _vcf2maf_run:
         --tumor-id {wildcards.tumour_id} --normal-id {wildcards.normal_id}
         --ref-fasta {input.fasta}
         --ncbi-build {params.build}
-        --vep-data $(dirname $(dirname {input.vep_cache}))
+        --vep-data {input.vep_cache}
         --vep-path $vepPATH {params.opts}
         > {log.stdout} 2> {log.stderr}
         """)
