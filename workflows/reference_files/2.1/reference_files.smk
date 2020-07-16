@@ -61,6 +61,8 @@ rule create_star_index:
     threads: 12
     shell:
         op.as_one_line("""
+        mkdir -p {output.index}
+            &&
         STAR --runThreadN {threads} --runMode genomeGenerate --genomeDir {output.index}
         --genomeFastaFiles {input.fasta} --sjdbOverhang {wildcards.star_overhang}
         --sjdbGTFfile {input.gtf} --outTmpDir {output.index}/_STARtmp > {log} 2>&1
