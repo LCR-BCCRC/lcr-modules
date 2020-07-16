@@ -5,10 +5,6 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
-            intervals:
-                grch37:
-                    _default: "__UPDATE__"
-            # intervals should be specified for each genome build (see demo config)
 
         options:
             alignment_summary: "VALIDATION_STRINGENCY=LENIENT"
@@ -23,6 +19,10 @@ lcr-modules:
                 _default: "NONE"
                 forward: "FIRST_READ_TRANSCRIPTION_STRAND"
                 reverse: "SECOND_READ_TRANSCRIPTION_STRAND"
+            capture_intervals:
+                grch37: "__UPDATE__"
+                grch38: "__UPDATE__"
+            # intervals should be specified for each genome build (see demo config)
 
         conda_envs:
             picard: "{MODSDIR}/envs/picard-2.22.3.yaml"

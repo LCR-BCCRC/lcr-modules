@@ -31,16 +31,8 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
-            # add other genomes
-            intervals: 
-            # if using one kit per genome build, use _default key
-                grch37: 
-                    _default: "reference/exomes/grch37/interval/S07604624_intervals.txt"
-                    S07604624: "reference/exomes/grch37/interval/S07604624_intervals.txt"
-                grch38:
-                    _default: "reference/exomes/grch37/interval/S07604624_intervals.txt"
-            # if using more that one kit per genome build, use kit id as key and set _default to null/empty string
-            # grch37: 
-            #        _default: null
-            #        S07604624: "reference/exomes/grch37/interval/S07604624_intervals.txt"
-            #        kit_2: "reference/exomes/grch37/interval/kit_2_intervals.txt"
+        switches:
+            capture_intervals: 
+                grch37: "reference/exomes/grch37/interval/S07604624_intervals.txt"
+                grch38: "reference/exomes/grch37/interval/S07604624_intervals.txt"
+
