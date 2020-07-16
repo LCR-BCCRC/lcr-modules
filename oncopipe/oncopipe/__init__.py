@@ -1606,6 +1606,7 @@ def setup_module(name, version, subdirectories):
     mconfig["unpaired_runs"] = runs[runs.pair_status == "no_normal"]
 
     # Return module-specific configuration
+    config["lcr-modules"][name] = mconfig
     return mconfig
 
 
