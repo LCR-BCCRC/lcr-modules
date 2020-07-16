@@ -60,19 +60,20 @@ rule _strelka_dummy_vcf:
 #if not CFG["inputs"]["candidate_small_indels_tbi"] and CFG["inputs"]["candidate_small_indels_vcf"]:
 rule _strelka_input_vcf:
     input:
-        dummy_vcf = CFG["inputs"]["candidate_small_indels_output"]
+        # ensure CandidateSmallIndels.vcf exists in manta's output
+        manta_vcf = CFG["inputs"]["candidate_small_indels_output"]
     params:
         vcf = CFG["inputs"].get("candidate_small_indels_vcf") or "",
-        tbi = CFG["inputs"].get("candidate_small_indels_tbi") or "",
-        
+        tbi = CFG["inputs"].get("candidate_small_indels_tbi") or ""
     output:
         vcf = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz",
         tbi = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz.tbi"
     run:
         shell("touch {params.in_tbi}")
-        op.relative_symlink(params.vcf, output.vcf)
-        op.relative_symlink(params.tbi, output.tbi)
-
+        if params.vcf:
+            op.relative_symlink(params.vcf, output.vcf)
+        if params.tbi:
+            op.relative_symlink(params.tbi, output.tbi)
 
 
 # bgzip-compress and tabix-index the BED file to meet strelka requirement
@@ -89,6 +90,7 @@ rule _strelka_index_bed:
             &&
         tabix {output.bedz}
         """)
+
 
 def _get_indel_cli_arg(vcf_in = config["lcr-modules"]["strelka"]["inputs"]["candidate_small_indels_tbi"]):
     def _get_indel_cli_custom(wildcards, input):
