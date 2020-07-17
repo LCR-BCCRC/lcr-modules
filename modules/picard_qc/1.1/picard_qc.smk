@@ -162,7 +162,6 @@ def _picard_get_intervals(wildcards):
 '''
 
 def _picard_qc_get_intervals_file(wildcards):
-#    import pdb; pdb.set_trace()
     CFG = config["lcr-modules"]["picard_qc"]
     options = CFG["switches"]["capture_intervals"]
     
@@ -193,9 +192,7 @@ rule _picard_qc_hs_metrics:
         stdout = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/hs_metrics.stdout.log",
         stderr = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/hs_metrics.stderr.log"
     params:
-        opts = CFG["options"]["hs_metrics"],
-        #intervals = lambda w: CFG["inputs"]["intervals"][w.genome_build][]
-        #op.switch_on_wildcard("genome_build", CFG["inputs"]["intervals"])
+        opts = CFG["options"]["hs_metrics"]
     conda:
         CFG["conda_envs"]["picard"]
     threads:
@@ -206,7 +203,7 @@ rule _picard_qc_hs_metrics:
         op.as_one_line("""
         picard -Xmx{resources.mem_mb}m CollectHsMetrics {params.opts} 
         I={input.bam} O={output.hs} PER_TARGET_COVERAGE={output.intervals} 
-        R={input.fasta} TI={input.intervals} BI={input.intervals} 
+        R={input.fasta} TI={input.interval} BI={input.interval} 
         > {log.stdout} 2> {log.stderr}
         """)
 
