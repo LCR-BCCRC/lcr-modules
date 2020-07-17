@@ -20,9 +20,7 @@ lcr-modules:
                 forward: "FIRST_READ_TRANSCRIPTION_STRAND"
                 reverse: "SECOND_READ_TRANSCRIPTION_STRAND"
             capture_intervals:
-                grch37: "__UPDATE__"
-                grch38: "__UPDATE__"
-            # intervals should be specified for each genome build (see demo config)
+                _default: "__UPDATE__"
 
         conda_envs:
             picard: "{MODSDIR}/envs/picard-2.22.3.yaml"

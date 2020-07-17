@@ -80,7 +80,7 @@ rule _picard_qc_input_bam:
 
 rule _picard_qc_alignment_summary:
     input:
-        bam = rules._picard_qc_input_bam.output.sample_bam,
+        bam = str(rules._picard_qc_input_bam.output.sample_bam),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         metrics = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/alignment_summary_metrics",
@@ -106,7 +106,7 @@ rule _picard_qc_alignment_summary:
 
 rule _picard_qc_insert_size:
     input:
-        bam = rules._picard_qc_input_bam.output.sample_bam,
+        bam = str(rules._picard_qc_input_bam.output.sample_bam),
     output:
         metrics = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/insert_size_metrics",
         histogram = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/insert_size_histogram.pdf"
@@ -162,6 +162,7 @@ def _picard_get_intervals(wildcards):
 '''
 
 def _picard_qc_get_intervals_file(wildcards):
+#    import pdb; pdb.set_trace()
     CFG = config["lcr-modules"]["picard_qc"]
     options = CFG["switches"]["capture_intervals"]
     
@@ -182,8 +183,8 @@ def _picard_qc_get_intervals_file(wildcards):
 # capture metrics
 rule _picard_qc_hs_metrics:
     input:
-        bam = rules._picard_qc_input_bam.output.sample_bam,
-        #fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        bam = str(rules._picard_qc_input_bam.output.sample_bam),
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         interval = _picard_qc_get_intervals_file
     output:
         hs = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/hs_metrics",
@@ -209,10 +210,11 @@ rule _picard_qc_hs_metrics:
         > {log.stdout} 2> {log.stderr}
         """)
 
+
 # mRNA metrics
 rule _picard_qc_rrna_int:
     input:
-        bam = rules._picard_qc_input_bam.output.sample_bam,
+        bam = str(rules._picard_qc_input_bam.output.sample_bam),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         rrna_int = reference_files("genomes/{genome_build}/rrna_intervals/rRNA_int_gencode-33.txt")
     output:
@@ -232,8 +234,8 @@ rule _picard_qc_rrna_int:
 
 rule _picard_qc_rnaseq_metrics:
     input:
-        bam = rules._picard_qc_input_bam.output.sample_bam,
-        sample_rrna = rules._picard_qc_rrna_int.output.sample_rrna,
+        bam = str(rules._picard_qc_input_bam.output.sample_bam),
+        sample_rrna = str(rules._picard_qc_rrna_int.output.sample_rrna),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         refFlat = reference_files("genomes/{genome_build}/annotations/refFlat_gencode-33.txt")
     output:
@@ -265,7 +267,7 @@ rule _picard_qc_rnaseq_metrics:
 # genome metrics
 rule _picard_qc_wgs_metrics:
     input:
-        bam = rules._picard_qc_input_bam.output.sample_bam,
+        bam = str(rules._picard_qc_input_bam.output.sample_bam),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         metrics = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/wgs_metrics"
@@ -327,7 +329,7 @@ rule _picard_qc_merge_metrics:
 
 rule _picard_qc_flagstats:
     input:
-        bam = rules._picard_qc_input_bam.output.sample_bam
+        bam = str(rules._picard_qc_input_bam.output.sample_bam)
     output:
         flagstats = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/flagstats"
     log:
@@ -348,7 +350,7 @@ rule _picard_qc_flagstats:
 
 rule _picard_qc_merged_output:
     input:
-        metrics = rules._picard_qc_merge_metrics.output.metrics
+        metrics = str(rules._picard_qc_merge_metrics.output.metrics)
     output:
         metrics = CFG["dirs"]["outputs"] + "merged_metrics/{seq_type}--{genome_build}/all.{metrics}.txt"
     run:
@@ -357,7 +359,7 @@ rule _picard_qc_merged_output:
 
 rule _picard_qc_flagstats_output:
     input:
-        flagstats = rules._picard_qc_flagstats.output.flagstats
+        flagstats = str(rules._picard_qc_flagstats.output.flagstats)
     output:
         flagstats = CFG["dirs"]["outputs"] + "flagstats/{seq_type}--{genome_build}/{sample_id}.flagstats"
     run:
@@ -378,7 +380,7 @@ def _get_picard_qc_files(wildcards):
     else:
         m = base
 
-    targets = expand(rules._picard_qc_merged_output.output.metrics, **wildcards, metrics = m)
+    targets = expand(str(rules._picard_qc_merged_output.output.metrics), **wildcards, metrics = m)
 
     return targets
 
@@ -392,10 +394,10 @@ rule _picard_qc_merged_dispatch:
 
 rule _picard_qc_all:
     input: 
-        expand(rules._picard_qc_merged_dispatch.output, zip,
+        expand(str(rules._picard_qc_merged_dispatch.output), zip,
             seq_type = CFG["samples"]["seq_type"],
             genome_build = CFG["samples"]["genome_build"]),
-        expand(rules._picard_qc_flagstats_output.output.flagstats, zip,
+        expand(str(rules._picard_qc_flagstats_output.output.flagstats), zip,
             seq_type = CFG["samples"]["seq_type"],
             genome_build = CFG["samples"]["genome_build"],
             sample_id = CFG["samples"]["sample_id"])

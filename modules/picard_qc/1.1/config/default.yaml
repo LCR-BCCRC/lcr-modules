@@ -20,8 +20,7 @@ lcr-modules:
                 forward: "FIRST_READ_TRANSCRIPTION_STRAND"
                 reverse: "SECOND_READ_TRANSCRIPTION_STRAND"
             capture_intervals:
-                grch37:
-                    _default: "__UPDATE__"
+                _default: "__UPDATE__"
             # intervals should be specified for each genome build (see demo config)
 
         conda_envs:
