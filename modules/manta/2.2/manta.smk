@@ -18,7 +18,7 @@ import oncopipe as op
 # Setup module and store module-specific configuration in `CFG`.
 CFG = op.setup_module(
     name = "manta", 
-    version = "2.1",
+    version = "2.2",
     subdirectories = ["inputs", "chrom_bed", "manta", "augment_vcf", "bedpe", "outputs"]
 )
 
@@ -73,7 +73,7 @@ rule _manta_configure_paired:
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         config = op.switch_on_wildcard("seq_type", CFG["switches"]["manta_config"]),
-        bedz = rules._manta_index_bed.output.bedz
+        bedz = str(rules._manta_index_bed.output.bedz)
     output:
         runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
@@ -100,7 +100,7 @@ rule _manta_configure_unpaired:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         config = op.switch_on_wildcard("seq_type", CFG["switches"]["manta_config"]),
-        bedz = rules._manta_index_bed.output.bedz
+        bedz = str(rules._manta_index_bed.output.bedz)
     output:
         runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
@@ -150,7 +150,7 @@ rule _manta_run:
 # and fixes the sample IDs in the VCF header to match sample IDs used in Snakemake
 rule _manta_augment_vcf:
     input:
-        variants_dir = rules._manta_run.output.variants_dir,
+        variants_dir = str(rules._manta_run.output.variants_dir),
         aug_vcf = CFG["inputs"]["augment_manta_vcf"]
     output:
         vcf = CFG["dirs"]["augment_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.augmented.vcf"
@@ -177,7 +177,7 @@ rule _manta_augment_vcf:
 # and automatically pairs up breakpoints for interchromosomal events.
 rule _manta_vcf_to_bedpe:
     input:
-        vcf  = rules._manta_augment_vcf.output.vcf
+        vcf = str(rules._manta_augment_vcf.output.vcf)
     output:
         bedpe = CFG["dirs"]["bedpe"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.bedpe"
     log:
@@ -195,7 +195,7 @@ rule _manta_vcf_to_bedpe:
 # Symlinks the augmented VCF files
 rule _manta_output_vcf:
     input:
-        vcf = rules._manta_augment_vcf.output.vcf
+        vcf = str(rules._manta_augment_vcf.output.vcf)
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf"
     run:
@@ -205,7 +205,7 @@ rule _manta_output_vcf:
 # Symlinks the final BEDPE files
 rule _manta_output_bedpe:
     input:
-        bedpe = rules._manta_vcf_to_bedpe.output.bedpe
+        bedpe = str(rules._manta_vcf_to_bedpe.output.bedpe)
     output:
         bedpe = CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.bedpe"
     run:
@@ -254,15 +254,15 @@ def _manta_predict_output(wildcards):
     # Request the output files based on whether VAF info is available
     outputs_with_bedpe = expand(
         [
-            rules._manta_output_vcf.output.vcf,
-            rules._manta_output_bedpe.output.bedpe,
+            str(rules._manta_output_vcf.output.vcf),
+            str(rules._manta_output_bedpe.output.bedpe),
         ],
         vcf_name=vcf_names_with_bedpe,
         **wildcards
     )
 
     outputs_without_bedpe = expand(
-        rules._manta_output_vcf.output.vcf,
+        str(rules._manta_output_vcf.output.vcf),
         vcf_name=vcf_names_without_bedpe,
         **wildcards
     )
@@ -283,7 +283,7 @@ rule _manta_all:
     input:
         expand(
             [
-                rules._manta_dispatch.output.dispatched, 
+                str(rules._manta_dispatch.output.dispatched),
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],

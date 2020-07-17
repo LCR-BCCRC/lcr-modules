@@ -22,7 +22,7 @@ import oncopipe as op
 # `CFG` is a shortcut to `config["lcr-modules"]["star"]`
 CFG = op.setup_module(
     name = "star",
-    version = "1.1",
+    version = "1.2",
     subdirectories = ["inputs", "star", "sort_bam", "mark_dups", "outputs"],
 )
 
@@ -57,8 +57,8 @@ rule _star_input_fastq:
 # Align reads using STAR (including soft-clipped chimeric reads)
 rule _star_run:
     input:
-        fastq_1 = rules._star_input_fastq.output.fastq_1,
-        fastq_2 = rules._star_input_fastq.output.fastq_2,
+        fastq_1 = str(rules._star_input_fastq.output.fastq_1),
+        fastq_2 = str(rules._star_input_fastq.output.fastq_2),
         index = reference_files("genomes/{{genome_build}}/star_index/star-2.7.3a/gencode-{}/overhang-{}".format(
             CFG["reference_params"]["gencode_release"], CFG["reference_params"]["star_overhang"]
         )),
@@ -93,7 +93,7 @@ rule _star_run:
 # Create symlink in subdirectory where BAM files will be sorted by the `utils` module
 rule _star_symlink_star_bam:
     input:
-        bam = rules._star_run.output.bam
+        bam = str(rules._star_run.output.bam)
     output:
         bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.bam"
     run:
@@ -106,7 +106,7 @@ rule _star_symlink_star_bam:
 rule _star_symlink_sorted_bam:
     input:
         bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam",
-        star_bam = rules._star_run.output.bam
+        star_bam = str(rules._star_run.output.bam)
     output:
         bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam"
     run:
@@ -122,7 +122,7 @@ rule _star_output_bam:
     input:
         bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.mdups.bam",
         bai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.mdups.bam.bai",
-        sorted_bam = rules._star_symlink_sorted_bam.input.bam
+        sorted_bam = str(rules._star_symlink_sorted_bam.input.bam)
     output:
         bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     run:
@@ -136,7 +136,7 @@ rule _star_output_bam:
 rule _star_all:
     input:
         expand(
-            rules._star_output_bam.output.bam,
+            str(rules._star_output_bam.output.bam),
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
             genome_build=CFG["samples"]["genome_build"],

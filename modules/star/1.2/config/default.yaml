@@ -1,0 +1,55 @@
+lcr-modules:
+
+    star:
+
+        inputs:
+            # The inputs can be configured here or in the Snakefile
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_fastq_1: "__UPDATE__"
+            sample_fastq_2: "__UPDATE__"
+
+        reference_params:
+            # Ideally, `star_overhang` = max(read_length) - 1
+            # STAR indices might be precomputed for "74" and "99"
+            star_overhang: "__UPDATE__"
+            # The Gencode release to use for the transcript annotation
+            gencode_release: "33"
+
+        scratch_subdirectories: ["star", "sort_bam"]
+
+        options:
+            star:
+                --runMode alignReads
+                --twopassMode Basic 
+                --genomeLoad NoSharedMemory 
+                --readFilesCommand zcat 
+                --outSAMtype BAM Unsorted
+                --outSAMattrIHstart 0
+                --chimOutType WithinBAM SoftClip
+                --chimSegmentMin 20 
+            utils_bam_sort: ""
+            utils_bam_markdups: ""
+            utils_bam_index: "-b"
+
+        conda_envs:
+            star: "{MODSDIR}/envs/star-2.7.3a.yaml"
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            sambamba: "{MODSDIR}/envs/sambamba-0.7.1.yaml"
+            
+        threads:
+            star: 12
+            utils_bam_sort: 12
+            utils_bam_markdups: 12
+            utils_bam_index: 6
+
+        mem_mb:
+            star: 40000
+            utils_bam_sort: 12000
+            utils_bam_markdups: 8000
+            utils_bam_index: 4000
+
+        pairing_config:
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
