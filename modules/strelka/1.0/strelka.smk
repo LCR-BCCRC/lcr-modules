@@ -92,8 +92,8 @@ rule _strelka_index_bed:
         """)
 
 
-def _get_indel_cli_arg(vcf_in = config["lcr-modules"]["strelka"]["inputs"]["candidate_small_indels_tbi"]):
-    def _get_indel_cli_custom(wildcards, input):
+def _strelka_get_indel_cli_arg(vcf_in = config["lcr-modules"]["strelka"]["inputs"]["candidate_small_indels_tbi"]):
+    def _strelka_get_indel_cli_custom(wildcards, input):
         if vcf_in:
             param = f"--indelCandidates={input.indels}"
         else: 
@@ -222,7 +222,7 @@ rule _strelka_output_vcf:
         op.relative_symlink(input.vcf_p, output.vcf_p)
 
 
-def _get_strelka_output(wildcards):
+def _strelka_get_output(wildcards):
     CFG = config["lcr-modules"]["strelka"]
 
     if wildcards.pair_status == "no_normal":
