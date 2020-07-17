@@ -57,6 +57,5 @@ include: "../modules/bam2fastq/1.0/bam2fastq.smk"
 rule all:
     input:
         rules._bam2fastq_all.input,
-        rules._bam2fastq_delete_fastq_all.input,
-        #rules._manta_all.input,
+        rules._manta_all.input,
         rules._star_all.input

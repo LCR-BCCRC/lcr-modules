@@ -11,6 +11,7 @@ lcr-modules:
     bam2fastq:
         inputs:
             sample_bam: "data/{sample_id}.bam"
+        temp_outputs: True # fastq outputs will be temporary
 
     star:
         inputs:
