@@ -123,11 +123,7 @@ rule download_genome_fasta:
     params: 
         url = lambda w: config["genome_builds"][w.genome_build]["genome_fasta_url"]
     shell:
-        op.as_one_line("""
-        curl -L {params.url} > {output.fasta} 2> {log}
-            &&
-        chmod a-w {output.fasta}
-        """)
+        "curl -L {params.url} > {output.fasta} 2> {log}"
 
 
 rule download_main_chromosomes:
@@ -142,8 +138,6 @@ rule download_main_chromosomes:
         egrep -w "^(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|X)" {input.mapping}
             |
         cut -f1 > {output.txt}
-            &&
-        chmod a-w {output.txt}
         """)
 
 
@@ -153,11 +147,7 @@ rule download_chromosome_x:
     params:
         provider = "ensembl"
     shell:
-        op.as_one_line("""
-        echo "X" > {output.txt}
-            &&
-        chmod a-w {output.txt}
-        """)
+        "echo 'X' > {output.txt}"
 
 
 rule download_gencode_annotation:
@@ -178,7 +168,6 @@ rule download_gencode_annotation:
         url = "/".join(url_parts)
         urllib.request.urlretrieve(url, output.gtf + ".gz")
         shell("gunzip {output.gtf}.gz")
-        shell("chmod a-w {output.gtf}")
 
 
 rule download_dbsnp_vcf:
@@ -196,9 +185,7 @@ rule download_dbsnp_vcf:
             | 
         gzip -dc 2>> {log}
             | 
-        awk 'BEGIN {{FS=OFS="\t"}} $0 !~ /^#/ {{$8="."}} $0 !~ /^##INFO/' 2>> {log} 
-            &&
-        chmod a-w {output.vcf}
+        awk 'BEGIN {{FS=OFS="\t"}} $0 !~ /^#/ {{$8="."}} $0 !~ /^##INFO/' 2>> {log}
         """)
 
 
@@ -346,8 +333,6 @@ rule update_contig_names:
             cvbio UpdateContigNames --in {input.before} --out {output.after}
             --mapping {params.mapping} --comment-chars '{params.comment}'
             --columns {params.columns} --skip-missing {params.skip}
-            --delimiter '{params.delimiter}' > {log} 2>&1
-                &&
-            chmod a-w {output.after}; 
+            --delimiter '{params.delimiter}' > {log} 2>&1; 
         fi
         """)
