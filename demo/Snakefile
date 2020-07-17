@@ -28,7 +28,8 @@ subworkflow reference_files:
 configfile: "../modules/utils/2.0/config/default.yaml"
 configfile: "../modules/star/1.1/config/default.yaml"
 configfile: "../modules/manta/2.1/config/default.yaml"
-configfile: "../modules/picard_qc/1.0/config/default.yaml"
+#configfile: "../modules/picard_qc/1.0/config/default.yaml"
+configfile: "../modules/picard_qc/1.1/config/default.yaml"
 
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
@@ -48,7 +49,8 @@ config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 include: "../modules/utils/2.0/utils.smk"
 include: "../modules/star/1.1/star.smk"
 include: "../modules/manta/2.1/manta.smk"
-include: "../modules/picard_qc/1.0/picard_qc.smk"
+#include: "../modules/picard_qc/1.0/picard_qc.smk"
+include: "../modules/picard_qc/1.1/picard_qc.smk"
 
 
 ##### TARGETS ######

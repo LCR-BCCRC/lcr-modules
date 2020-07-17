@@ -19,7 +19,7 @@ import oncopipe as op
 # `CFG` is a shortcut to `config["lcr-modules"]["picard_qc"]`
 CFG = op.setup_module(
     name = "picard_qc",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "metrics", "merged_metrics", "outputs"]
 )
 
@@ -175,6 +175,7 @@ def _picard_qc_get_intervals_file(wildcards):
         )
         result = switch["_default"]
     print("result:" + result)
+    print("type(result): ", type(result))
     return result
 
 

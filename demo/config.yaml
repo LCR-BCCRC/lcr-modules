@@ -32,7 +32,13 @@ lcr-modules:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
         switches:
-            capture_intervals: 
-                grch37: "reference/exomes/grch37/interval/S07604624_intervals.txt"
-                grch38: "reference/exomes/grch37/interval/S07604624_intervals.txt"
+            #capture_intervals: 
+            #    grch37: "reference/exomes/grch37/interval/S07604624_intervals.txt"
+            #    grch38: "reference/exomes/grch37/interval/S07604624_intervals.txt"
 
+            capture_intervals: 
+                grch37: 
+                    _default: "reference/exomes/grch37/interval/S07604624_intervals.txt"
+                    S07604624: "reference/exomes/grch37/interval/S07604624_intervals.txt"
+                grch38: 
+                    _deafult: "reference/exomes/grch37/interval/S07604624_intervals.txt"
