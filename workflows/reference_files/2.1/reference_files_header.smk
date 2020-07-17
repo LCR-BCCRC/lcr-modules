@@ -164,7 +164,7 @@ rule download_gencode_annotation:
     output:
         gtf = "downloads/gencode-{gencode_release}/gencode.annotation.{version}.gtf"
     params:
-        provider = "ensembl"
+        provider = "ucsc"
     run:
         url_parts = [
             "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human",
