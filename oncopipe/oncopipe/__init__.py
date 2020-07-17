@@ -1649,7 +1649,7 @@ def setup_subdirs(module_config, subdirectories, scratch_subdirs=()):
         )
 
     # If `scratch_directory` is None, then don't worry about `scratch_subdirs`
-    scratch_directory = module_config.get("scratch_directory", "")
+    scratch_directory = module_config.get("scratch_directory")
     if scratch_directory is None:
         scratch_subdirs = ()
 
@@ -1665,11 +1665,11 @@ def setup_subdirs(module_config, subdirectories, scratch_subdirs=()):
     name = module_config["name"]
     version = module_config["version"]
     parent_dir = module_config["dirs"]["_parent"]
-    scratch_parent_dir = os.path.join(scratch_directory, f"{name}-{version}")
     for num, subdir in zip(numbers, subdirectories):
         subdir_full = os.path.join(parent_dir, f"{num}-{subdir}/")
         module_config["dirs"][subdir] = subdir_full
         if subdir in scratch_subdirs:
+            scratch_parent_dir = os.path.join(scratch_directory, f"{name}-{version}")
             scratch_subdir_full = os.path.join(scratch_parent_dir, f"{num}-{subdir}/")
             os.makedirs(scratch_subdir_full, exist_ok=True)
             relative_symlink(scratch_subdir_full, subdir_full, overwrite=False)
