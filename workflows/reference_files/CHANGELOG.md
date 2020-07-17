@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This release was authored by Bruno Grande.
 
 - The log file for the STAR index creation rule was moved to outside of the STAR output directory, which gets deleted whenever the job fails.
+- The provider for the Gencode GTF file was erroneously changed from "ucsc" to "ensembl". This version reverts that error. 
 
 ## [2.0] - 2020-06-29
 
