@@ -1575,7 +1575,7 @@ def setup_module(name, version, subdirectories):
     # Update paths to conda environments to be relative to the module directory
     for env_name, env_val in mconfig["conda_envs"].items():
         if env_val is not None:
-            mconfig["conda_envs"][env_name] = os.path.relpath(env_val, modsdir)
+            mconfig["conda_envs"][env_name] = os.path.realpath(env_val)
 
     # Setup output sub-directories
     scratch_subdirs = mconfig.get("scratch_subdirectories", [])
