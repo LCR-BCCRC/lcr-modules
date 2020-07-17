@@ -116,8 +116,8 @@ rule _mixcr_all:
                 rules._mixcr_output_txt.output.txt
             ],
             zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            genome_build=CFG["runs"]["tumour_genome_build"],
+            seq_type=CFG["samples"]["seq_type"],
+            genome_build=CFG["samples"]["genome_build"],
             sample_id=CFG["samples"]["sample_id"])
 
 
