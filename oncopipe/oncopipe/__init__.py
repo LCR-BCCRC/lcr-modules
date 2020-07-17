@@ -410,7 +410,7 @@ def switch_on_column(
     """
 
     assert isinstance(options, dict), "`options` must be a `dict` object."
-    assert column in samples, "`column` must be a column name in `samples`."
+    assert column in samples, (f"`{column}` must be a column name in `samples`.")
 
     def _switch_on_column(
         wildcards, input=None, output=None, threads=None, resources=None
