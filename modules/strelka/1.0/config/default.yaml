@@ -8,9 +8,7 @@ lcr-modules:
             
             # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
             # Set these values to `null` (no quotes) or "" if you don't have these files
-            candidate_small_indels_output: "__UPDATE__"
-            candidate_small_indels_vcf: "__UPDATE__"
-            candidate_small_indels_tbi: "__UPDATE__"
+            candidate_small_indels: "__UPDATE__"
 
         scratch_subdirectories: []
 
