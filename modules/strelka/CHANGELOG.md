@@ -13,5 +13,5 @@ This release was authored by Helena Winata.
 - `_strelka_dispatch` is used to call outputs based on the `{pair_status}` wildcard since outputs files are automatically generate.
     - somatic workflow outputs `somatic.snvs.vcf.gz` and `somatic.indels.vcf.gz`
     - germline workflow outputs `variants.vcf.gz`
-- It is recommended to run Strelka with [candidates] (https://github.com/Illumina/strelka/blob/v2.9.x/docs/userGuide/README.md#capabilities) from Manta variant caller.
-- If running with Manta module from lcr-modules, use the `candidate_small_indels_output`, `candidate_small_indels_vcf` and `candidate_small_indels_tbi` specified in the demo `config.yaml`.
+- It is recommended to run Strelka with [candidatesSmallIndels.vcf] (https://github.com/Illumina/strelka/blob/v2.9.x/docs/userGuide/README.md#capabilities) from Manta variant caller.
+    - Specify the `candidateSmallIndels.vcf` file under `CFG["inputs"]["candidate_small_indel"]`
