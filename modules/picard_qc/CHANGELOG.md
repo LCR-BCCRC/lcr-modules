@@ -14,7 +14,7 @@ This release was authored by Helena Winata.
     - capture: alignment summary,insert size, and hs metrics.
     - genome: alignment summary,insert size and wgs metrics.
 - Flagstats are also calculated via samtools for each sample.
-- The final outputs are merged metrics from all samples within a `seq_type`. 
+- The final outputs are merged metrics from all samples within the same `seq_type` and `genome_build`. 
 - Users are required to specify `CFG['switches']['capture_intervals']`, which refers to a text file containing the capture regions used in sequencing.
     - The files in `config["lcr-modules"]["picard_qc"]["switches"]["capture_intervals"]` has to correspond to `config["lcr-modules"]["utils"]["inputs"]["bed"] if intervals are provided in BED format`
     - For demo purposes run:
