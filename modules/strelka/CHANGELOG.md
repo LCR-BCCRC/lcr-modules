@@ -14,4 +14,4 @@ This release was authored by Helena Winata.
     - somatic workflow outputs `somatic.snvs.vcf.gz` and `somatic.indels.vcf.gz`
     - germline workflow outputs `variants.vcf.gz`
 - It is recommended to run Strelka with [candidatesSmallIndels.vcf] (https://github.com/Illumina/strelka/blob/v2.9.x/docs/userGuide/README.md#capabilities) from Manta variant caller.
-    - Specify the `candidateSmallIndels.vcf` file under `CFG["inputs"]["candidate_small_indel"]`
+    - Specify the `candidateSmallIndels.vcf` file under `CFG["inputs"]["candidate_small_indel"]` or use `null` to run without `candidateSmallIndels`
