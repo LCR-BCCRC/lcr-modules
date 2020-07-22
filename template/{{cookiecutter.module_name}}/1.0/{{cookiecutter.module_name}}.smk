@@ -53,7 +53,7 @@ rule _{{cookiecutter.module_name}}_step_1:
     input:
         tumour_{{cookiecutter.input_file_type}} = CFG["dirs"]["inputs"] + "{{cookiecutter.input_file_type}}/{seq_type}--{genome_build}/{tumour_id}.{{cookiecutter.input_file_type}}",
         normal_{{cookiecutter.input_file_type}} = CFG["dirs"]["inputs"] + "{{cookiecutter.input_file_type}}/{seq_type}--{genome_build}/{normal_id}.{{cookiecutter.input_file_type}}",
-        fasta = reference_files(CFG["reference"]["genome_fasta"])
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["{{cookiecutter.module_name}}"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.{{cookiecutter.output_file_type}}"
     log:
@@ -70,7 +70,7 @@ rule _{{cookiecutter.module_name}}_step_1:
     shell:
         op.as_one_line("""
         <TODO> {params.opts} --tumour {input.tumour_{{cookiecutter.input_file_type}}} --normal {input.normal_{{cookiecutter.input_file_type}}}
-        --ref-fasta {params.fasta} --output {output.{{cookiecutter.output_file_type}}} --threads {threads}
+        --ref-fasta {input.fasta} --output {output.{{cookiecutter.output_file_type}}} --threads {threads}
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -79,7 +79,7 @@ rule _{{cookiecutter.module_name}}_step_1:
 # TODO: Replace example rule below with actual rule
 rule _{{cookiecutter.module_name}}_step_2:
     input:
-        {{cookiecutter.output_file_type}} = rules._{{cookiecutter.module_name}}_step_1.output.{{cookiecutter.output_file_type}}
+        {{cookiecutter.output_file_type}} = str(rules._{{cookiecutter.module_name}}_step_1.output.{{cookiecutter.output_file_type}})
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["{{cookiecutter.module_name}}"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.{{cookiecutter.output_file_type}}"
     log:
@@ -94,7 +94,7 @@ rule _{{cookiecutter.module_name}}_step_2:
 # TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _{{cookiecutter.module_name}}_output_{{cookiecutter.output_file_type}}:
     input:
-        {{cookiecutter.output_file_type}} = rules._{{cookiecutter.module_name}}_step_2.output.{{cookiecutter.output_file_type}}
+        {{cookiecutter.output_file_type}} = str(rules._{{cookiecutter.module_name}}_step_2.output.{{cookiecutter.output_file_type}})
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["outputs"] + "{{cookiecutter.output_file_type}}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.{{cookiecutter.output_file_type}}"
     run:
@@ -106,7 +106,7 @@ rule _{{cookiecutter.module_name}}_all:
     input:
         expand(
             [
-                rules._{{cookiecutter.module_name}}_output_{{cookiecutter.output_file_type}}.output.{{cookiecutter.output_file_type}},
+                str(rules._{{cookiecutter.module_name}}_output_{{cookiecutter.output_file_type}}.output.{{cookiecutter.output_file_type}}),
                 # TODO: If applicable, add other output rules here
             ],
             zip,  # Run expand() with zip(), not product()
@@ -121,8 +121,8 @@ rule _{{cookiecutter.module_name}}_all:
 # TODO: Replace example rule below with actual rule
 rule _{{cookiecutter.module_name}}_step_1:
     input:
-        {{cookiecutter.input_file_type}} = rules._{{cookiecutter.module_name}}_input_{{cookiecutter.input_file_type}}.output.{{cookiecutter.input_file_type}},
-        fasta = reference_files(CFG["reference"]["genome_fasta"])
+        {{cookiecutter.input_file_type}} = str(rules._{{cookiecutter.module_name}}_input_{{cookiecutter.input_file_type}}.output.{{cookiecutter.input_file_type}}),
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["{{cookiecutter.module_name}}"] + "{seq_type}--{genome_build}/{sample_id}/output.{{cookiecutter.output_file_type}}"
     log:
@@ -138,7 +138,7 @@ rule _{{cookiecutter.module_name}}_step_1:
         mem_mb = CFG["mem_mb"]["step_1"]
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --input {input.{{cookiecutter.input_file_type}}} --ref-fasta {params.fasta}
+        <TODO> {params.opts} --input {input.{{cookiecutter.input_file_type}}} --ref-fasta {input.fasta}
         --output {output.{{cookiecutter.output_file_type}}} --threads {threads} > {log.stdout} 2> {log.stderr}
         """)
 
@@ -147,7 +147,7 @@ rule _{{cookiecutter.module_name}}_step_1:
 # TODO: Replace example rule below with actual rule
 rule _{{cookiecutter.module_name}}_step_2:
     input:
-        {{cookiecutter.output_file_type}} = rules._{{cookiecutter.module_name}}_step_1.output.{{cookiecutter.output_file_type}}
+        {{cookiecutter.output_file_type}} = str(rules._{{cookiecutter.module_name}}_step_1.output.{{cookiecutter.output_file_type}})
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["{{cookiecutter.module_name}}"] + "{seq_type}--{genome_build}/{sample_id}/output.filt.{{cookiecutter.output_file_type}}"
     log:
@@ -162,7 +162,7 @@ rule _{{cookiecutter.module_name}}_step_2:
 # TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _{{cookiecutter.module_name}}_output_{{cookiecutter.output_file_type}}:
     input:
-        {{cookiecutter.output_file_type}} = rules._{{cookiecutter.module_name}}_step_2.output.{{cookiecutter.output_file_type}}
+        {{cookiecutter.output_file_type}} = str(rules._{{cookiecutter.module_name}}_step_2.output.{{cookiecutter.output_file_type}})
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["outputs"] + "{{cookiecutter.output_file_type}}/{seq_type}--{genome_build}/{sample_id}.output.filt.{{cookiecutter.output_file_type}}"
     run:
@@ -174,7 +174,7 @@ rule _{{cookiecutter.module_name}}_all:
     input:
         expand(
             [
-                rules._{{cookiecutter.module_name}}_output_{{cookiecutter.output_file_type}}.output.{{cookiecutter.output_file_type}},
+                str(rules._{{cookiecutter.module_name}}_output_{{cookiecutter.output_file_type}}.output.{{cookiecutter.output_file_type}}),
                 # TODO: If applicable, add other output rules here
             ],
             zip,  # Run expand() with zip(), not product()
