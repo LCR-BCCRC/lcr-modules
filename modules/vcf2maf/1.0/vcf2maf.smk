@@ -38,6 +38,8 @@ rule _vcf2maf_decompress_vcf:
         vcf = "{out_dir}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf.gz"
     output: 
         vcf = temp("{out_dir}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf")
+    wildcard_constraints:
+        out_dir = ".*(maf).*"
     shell:
         "bgzip -d {input.vcf} -c {output.vcf}"
 
@@ -52,6 +54,8 @@ rule _vcf2maf_run:
     log:
         stdout = "{out_dir}" + LOG + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}_vcf2maf.stdout.log",
         stderr = "{out_dir}" + LOG + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}_vcf2maf.stderr.log",
+    wildcard_constraints:
+        out_dir = ".*(maf).*"
     params:
         opts = CONFIG["options"]["vcf2maf"],
         build = lambda w: f"{VERSION_UPPER[w.genome_build]}"

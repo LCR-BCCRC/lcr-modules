@@ -20,7 +20,7 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "varscan",
     version = "1.0",
-    subdirectories = ["inputs", "varscan", "maf", "outputs"]
+    subdirectories = ["inputs", "mpileup", "varscan", "maf", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -35,7 +35,7 @@ localrules:
     _varscan_dispatch,
     _varscan_all,
 
-
+ruleorder: _varscan_reheader_vcf > _varscan_combine_vcf
 
 ##### RULES #####
 
@@ -66,9 +66,9 @@ rule _varscan_bam2mpu:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        mpu = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{sample_id}.{chrom}.mpileup")
+        mpu = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.{chrom}.mpileup")
     log:
-        stderr = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{sample_id}.bam2mpu.{chrom}.stderr.log"
+        stderr = CFG["logs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.bam2mpu.{chrom}.stderr.log"
     params:
         opts = CFG["options"]["mpileup"]
     conda:
@@ -89,16 +89,16 @@ rule _varscan_bam2mpu:
 
 rule _varscan_somatic:
     input:
-        tumour_mpu = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}.{chrom}.mpileup",
-        normal_mpu = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{normal_id}.{chrom}.mpileup"
+        tumour_mpu = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.{chrom}.mpileup",
+        normal_mpu = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.{chrom}.mpileup"
     output:
         snp = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.snp.vcf"),
         indel = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.indel.vcf")
     wildcard_constraints:
         pair_status = "matched|unmatched"
     log:
-        stdout = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.varscan_somatic.stdout.log",
-        stderr = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.varscan_somatic.stderr.log"
+        stdout = CFG["logs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.varscan_somatic.stdout.log",
+        stderr = CFG["logs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.varscan_somatic.stderr.log"
     params:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["somatic"])
     conda:
@@ -119,13 +119,13 @@ rule _varscan_somatic:
 
 rule _varscan_unpaired:
     input:
-        tumour_mpu = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}.{chrom}.mpileup",
+        tumour_mpu = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.{chrom}.mpileup",
     output:
         vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf"
     wildcard_constraints:
         pair_status = "no_normal"
     log:
-        stderr = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.varscan_{vcf_name}.stderr.log"
+        stderr = CFG["logs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.varscan_{vcf_name}.stderr.log"
     params:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["unpaired"])
     conda:
@@ -213,8 +213,8 @@ rule _varscan_output_maf:
 
 def _varscan_get_output(wildcards):
     return expand([
-        srt(rules._varscan_output_vcf.output.vcf_gz),
-        srt(rules._varscan_output_maf.output.maf)
+        str(rules._varscan_output_vcf.output.vcf),
+        str(rules._varscan_output_maf.output.maf)
         ],
         vcf_name = ["snp", "indel"], **wildcards)
 
