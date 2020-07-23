@@ -43,11 +43,12 @@ ruleorder: _varscan_reheader_vcf > _varscan_combine_vcf
 rule _varscan_input_bam:
     input:
         bam = CFG["inputs"]["sample_bam"]
+        bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     run:
         op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bam + ".bai", output.bam + ".bai")
+        op.relative_symlink(input.bai, output.bam + ".bai")
 
 
 # Pulls in list of chromosomes for the genome builds
@@ -154,7 +155,7 @@ rule _varscan_reheader_vcf:
         CFG["conda_envs"]["bcftools"]
     shell:
         op.as_one_line("""
-        contigs=$( awk '{{printf("##contig=<ID=%s,length=%d>\\n",$1,$2);}}' {input.fai})
+        contig=$( awk '{{printf("##contig=<ID=%s,length=%d>\\n",$1,$2);}}' {input.fai})
             &&
         awk -v var="$contig" '/^#CHROM/ {{ printf(var); }} {{print;}}' {input.vcf} > {output.vcf}
         """)
