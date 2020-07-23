@@ -146,15 +146,20 @@ rule _varscan_unpaired:
 rule _varscan_reheader_vcf:
     input:
         vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf",
-        header = op.switch_on_wildcard("genome_build", CFG["vcf_header"])
+        #header = op.switch_on_wildcard("genome_build", CFG["vcf_header"])
+        fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai")
     output:
         vcf = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf.gz"),
     conda:
         CFG["conda_envs"]["bcftools"]
     shell:
         op.as_one_line("""
-        bcftools reheader -h {input.header} {input.vcf} | bcftools view -l 1 -o {output.vcf}
+        contigs=$( awk '{{printf("##contig=<ID=%s,length=%d>\\n",$1,$2);}}' {input.fai})
+            &&
+        awk -v var="$contig" '/^#CHROM/ {{ printf(var); }} {{print;}}' {input.vcf} > {output.vcf}
         """)
+
+        #bcftools reheader -h {input.header} {input.vcf} | bcftools view -l 1 -o {output.vcf}
 
 
 def _varscan_request_chrom_vcf(wildcards):
