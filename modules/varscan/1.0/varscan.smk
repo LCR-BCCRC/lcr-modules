@@ -161,7 +161,7 @@ def _varscan_request_chrom_vcf(wildcards):
     CFG = config["lcr-modules"]["varscan"]
     with open(checkpoints._varscan_input_chroms.get(**wildcards).output.txt) as f:
         mains_chroms = f.read().rstrip("\n").split("\n")
-    vcf_files = expand(rules._varscan_reheader_vcf.output.vcf,
+    vcf_files = expand(str(rules._varscan_reheader_vcf.output.vcf),
         chrom = mains_chroms, **wildcards
     )
     return vcf_files
@@ -185,7 +185,7 @@ rule _varscan_combine_vcf:
 # symlink vcf file to maf directory to run vcf2maf
 rule _varscan_symlink_maf:
     input:
-        vcf = rules._varscan_combine_vcf.output.vcf
+        vcf = str(rules._varscan_combine_vcf.output.vcf)
     output:
         vcf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
     run:
@@ -195,7 +195,7 @@ rule _varscan_symlink_maf:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _varscan_output_vcf:
     input:
-        vcf = rules._varscan_combine_vcf.output.vcf_gz
+        vcf = str(rules._varscan_combine_vcf.output.vcf_gz)
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.somatic.{vcf_name}.vcf.gz"
     run:
@@ -204,7 +204,6 @@ rule _varscan_output_vcf:
 
 rule _varscan_output_maf:
     input:
-        #vcf = rules._varscan_combine_vcf.output.vcf, # ensure vcf file is not removed before vcf2maf_run is executed
         maf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
     output:
         maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.somatic.{vcf_name}.maf"
@@ -214,8 +213,8 @@ rule _varscan_output_maf:
 
 def _varscan_get_output(wildcards):
     return expand([
-        rules._varscan_output_vcf.output.vcf,
-        rules._varscan_output_maf.output.maf
+        srt(rules._varscan_output_vcf.output.vcf_gz),
+        srt(rules._varscan_output_maf.output.maf)
         ],
         vcf_name = ["snp", "indel"], **wildcards)
 
@@ -232,7 +231,7 @@ rule _varscan_all:
     input:
         expand(
             [
-                rules._varscan_dispatch.output.dispatched,
+                str(rules._varscan_dispatch.output.dispatched),
             ],
             zip,
             seq_type=CFG["runs"]["tumour_seq_type"],
