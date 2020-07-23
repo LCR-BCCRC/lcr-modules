@@ -31,6 +31,7 @@ configfile: "../modules/manta/2.2/config/default.yaml"
 configfile: "../modules/vcf2maf/1.0/config/default.yaml"
 configfile: "../modules/sequenza/1.2/config/default.yaml"
 configfile: "../modules/varscan/1.0/config/default.yaml"
+configfile: "../modules/strelka/1.0/config/default.yaml"
 
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
@@ -54,6 +55,8 @@ include: "../modules/manta/2.2/manta.smk"
 include: "../modules/vcf2maf/1.0/vcf2maf.smk"
 include: "../modules/sequenza/1.2/sequenza.smk"
 include: "../modules/varscan/1.0/varscan.smk"
+include: "../modules/strelka/1.0/strelka.smk"
+
 
 
 ##### TARGETS ######
@@ -62,7 +65,7 @@ rule all:
     input:
         rules._star_all.input,
         rules._manta_all.input,
-        rules._star_all.input,
         rules._varscan_all.input,
-        rules._sequenza_all.input
+        rules._sequenza_all.input,
+        rules._strelka_all.input
 
