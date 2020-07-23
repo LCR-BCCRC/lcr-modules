@@ -174,8 +174,8 @@ rule download_blacklist:
     output: 
         bed = "downloads/encode_blacklist/blacklist.encode.{version}.bed"
     params:
-        version = lambda w: {"grch37": "ENCFF001TDO", "grch38": "ENCFF356LFX"}[w.version], 
-        provider = "ensembl"
+        version = lambda w: {"hg19": "ENCFF001TDO", "grch38": "ENCFF356LFX"}[w.version], 
+        provider = "ucsc"
     shell: 
         op.as_one_line("""
         wget -qO- https://www.encodeproject.org/files/{params.version}/@@download/{params.version}.bed.gz |

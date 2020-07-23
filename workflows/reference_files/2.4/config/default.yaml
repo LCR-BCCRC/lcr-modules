@@ -33,7 +33,7 @@ wildcard_values:
     dbsnp_build: ["151"]
     star_overhang: ["74", "99"]
     gc_window_size: ["50"]
-    blacklist_version: ["grch37", "grch38"]
+    blacklist_version: ["hg19", "grch38"]
 
 tools:
     coreutils: 
