@@ -1,23 +1,25 @@
 lcr-modules:
 
     liftover:
+        # Please specify parameters marked as __UPDATE__ using provided examples. 
+        # The "tool" option means the name of the tool used to produce initial .seg files. It will be preserved in the name of the final output file.
+        # The "sample_seg" option points to the initial .seg files to be converted. 
+        # The "min_mismatch" option is a minimum ratio of bases that must remap when transforming coordinates. 
+        # The "min_mismatch" must be a number with maximum of 1 (100% of bases must match when remapping).
+        tool: __UPDATE__ # Specify the name of the tool that produced the .seg files. For example, "battenberg" 
         inputs:
-            sample_seg: "data/{sample_id}_subclones.hg38.igv.seg"
+            sample_seg: __UPDATE__ # Specify the input seg files. For example, "data/{tumour_sample_id}_subclones.hg38.igv.seg"
         scratch_subdirectories: "scratch/"
         options:
+            chr_colNum: 2
+            start_colNum: 3
+            end_colNum: 4
+            min_mismatch: __UPDATE__ # Minimum ratio of bases that must remap when transforming coordinates. For example, 0.95
             seghg38tobedhg38: "{MODSDIR}/src/convert_for_liftover.py"
             bedhg38tobedhg19: "{MODSDIR}/src/chains/hg38ToHg19.over.chain"
             bedhg19toseghg19: "{MODSDIR}/src/convert_for_liftover.py"
         conda_envs:
             liftover-366: "{MODSDIR}/envs/liftover-366.yaml"
-        threads:
-            seghg38tobedhg38: 12
-            bedhg38tobedhg19: 12
-            bedhg19toseghg19: 12
-        mem_mb:
-            seghg38tobedhg38: 100000
-            bedhg38tobedhg19: 100000
-            bedhg19toseghg19: 100000
         pairing_config:
             genome:
                 run_paired_tumours: True

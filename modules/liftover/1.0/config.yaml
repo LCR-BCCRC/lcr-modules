@@ -1,6 +1,0 @@
-lcr-modules:
-   _shared:
-      repository: "../../../"
-      lcr-scripts: "../../../lcr-scripts"
-      root_output_dir: "results/"
-      scratch_directory: null
