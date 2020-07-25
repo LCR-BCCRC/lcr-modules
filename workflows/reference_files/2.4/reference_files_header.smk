@@ -76,6 +76,8 @@ wildcard_constraints:
     star_version = TOOL_VERSIONS["star"],
     gencode_release = "|".join(config["wildcard_values"]["gencode_release"]),
     dbsnp_build = "|".join(config["wildcard_values"]["dbsnp_build"]),
+    rm_version = "|".join(config["wildcard_values"]["rm_version"]), 
+    hhv_version = "|".join(config["wildcard_values"]["hhv_accession"])
 
 
 ##### CHROMOSOME MAPPINGS #####
@@ -180,6 +182,19 @@ rule download_blacklist:
         op.as_one_line("""
         wget -qO- https://www.encodeproject.org/files/{params.version}/@@download/{params.version}.bed.gz |
         gzip -dc > {output.bed}
+        """)
+
+rule download_repeatmasker: 
+    output: 
+        bed = "downloads/repeatmasker/repeatmasker.{version}.bed"
+    params: 
+        provider = "ucsc", 
+        version = lambda w: {"grch37": "hg19", "grch38": "hg38"}[w.version],
+    conda: CONDA_ENVS["bedops"]
+    shell: 
+        op.as_one_line("""
+        wget -qO- http://www.repeatmasker.org/genomes/{params.version}/RepeatMasker-rm405-db20140131/{params.version}.fa.out.gz | 
+        gzip -dc | rmsk2bed > {output.bed}
         """)
 
 

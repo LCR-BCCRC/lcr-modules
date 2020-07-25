@@ -48,7 +48,8 @@ rule all:
                 rules.get_dbsnp_download.output.vcf,
                 rules.create_star_index.output.index,
                 rules.calc_gc_content.output.wig,
-                rules.get_blacklist_download.output.bed
+                rules.get_blacklist_download.output.bed, 
+                rules.get_repeatmasker_download.output.bed
             ],
             genome_build=config["genome_builds"].keys(),
             bwa_version=config["tools"]["bwa"]["version"],
@@ -57,5 +58,6 @@ rule all:
             star_version=config["tools"]["star"]["version"],
             star_overhang=config["wildcard_values"]["star_overhang"],
             gc_window_size=config["wildcard_values"]["gc_window_size"], 
-            blacklist_version=config["wildcard_values"]["blacklist_version"]
+            blacklist_version=config["wildcard_values"]["blacklist_version"], 
+            rm_version=config["wildcard_values"]["rm_version"]
         )

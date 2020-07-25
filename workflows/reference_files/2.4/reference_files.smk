@@ -162,3 +162,15 @@ rule get_blacklist_download:
     conda: CONDA_ENVS["coreutils"]
     shell:
         "ln -srf {input.bed} {output.bed}"
+
+##### REPEATMASKER #####
+
+rule get_repeatmasker_download:
+    input: 
+        bed = get_download_file(rules.download_repeatmasker.output.bed)
+    output: 
+        bed = "genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed"
+    conda: CONDA_ENVS["coreutils"]
+    shell: 
+        "ln -srf {input.bed} {output.bed}"
+
