@@ -23,4 +23,4 @@ lcr-modules:
 
     liftover:
         inputs:
-            sample_seg: "data/{tumour_sample_id}_subclones.hg38.igv.seg"
+            sample_seg: "data/{tool}/hg38/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
