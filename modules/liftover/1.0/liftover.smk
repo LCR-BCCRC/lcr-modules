@@ -23,13 +23,14 @@ CFG = op.setup_module(
     version = "1.0",
     subdirectories = ["inputs", "seghg38tobedhg38", "bedhg38tobedhg19", "bedhg19toseghg19", "outputs"])
 
-
+print(CFG["runs"])
 ##### RULES #####
+
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _liftover_input_seg:
     input:
-        seg = expand(CFG["inputs"]["sample_seg"], tumour_sample_id=CFG["runs"]["tumour_sample_id"], normal_sample_id=CFG["runs"]["normal_sample_id"], tool=CFG["tool"])
+        seg = CFG["inputs"]["sample_seg"]
     output:
         seg = CFG["dirs"]["inputs"] + "seg/{tumour_sample_id}--{normal_sample_id}.{tool}.igv.seg"
     run:
@@ -131,7 +132,8 @@ rule _liftover_all:
             zip,  # Run expand() with zip(), not product()
             tumour_sample_id=CFG["runs"]["tumour_sample_id"],
             normal_sample_id=CFG["runs"]["normal_sample_id"],
-            tool=CFG["tool"]
+            #repeat the tool name N times in expand so each pair in run is used
+            tool=[CFG["tool"]] * len(CFG["runs"]["tumour_sample_id"])
             )
             
             

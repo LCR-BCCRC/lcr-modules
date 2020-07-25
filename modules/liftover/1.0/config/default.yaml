@@ -6,15 +6,20 @@ lcr-modules:
         # The "sample_seg" option points to the initial .seg files to be converted. 
         # The "min_mismatch" option is a minimum ratio of bases that must remap when transforming coordinates. 
         # The "min_mismatch" must be a number with maximum of 1 (100% of bases must match when remapping).
-        tool: __UPDATE__ # Specify the name of the tool that produced the .seg files. For example, "battenberg" 
+        #tool: "battenberg"
+        tool: __UPDATE__ # Specify the name of the tool that produced the .seg files. For example, "battenberg"
+        #you can include the version if it helps simplify the pattern matching, for example sequenza-1.0
         inputs:
-            sample_seg: __UPDATE__ # Specify the input seg files. For example, "data/{tumour_sample_id}_subclones.hg38.igv.seg"
+            __UPDATE__
+        # Specify how to find all the hg38 seg files you want to lift over. For example:
+        #sample_seg: "data/{tool}/hg38/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
         scratch_subdirectories: "scratch/"
         options:
             chr_colNum: 2
             start_colNum: 3
             end_colNum: 4
-            min_mismatch: __UPDATE__ # Minimum ratio of bases that must remap when transforming coordinates. For example, 0.95
+            min_mismatch: 0.95
+            #min_mismatch: __UPDATE__ # Minimum ratio of bases that must remap when transforming coordinates. For example, 0.95
             seghg38tobedhg38: "{MODSDIR}/src/convert_for_liftover.py"
             bedhg38tobedhg19: "{MODSDIR}/src/chains/hg38ToHg19.over.chain"
             bedhg19toseghg19: "{MODSDIR}/src/convert_for_liftover.py"
