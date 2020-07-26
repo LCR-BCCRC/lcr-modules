@@ -42,7 +42,7 @@ ruleorder: _varscan_reheader_vcf > _varscan_combine_vcf
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _varscan_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        bam = CFG["inputs"]["sample_bam"],
         bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
@@ -120,9 +120,9 @@ rule _varscan_somatic:
 
 rule _varscan_unpaired:
     input:
-        tumour_mpu = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.{chrom}.mpileup",
+        tumour_mpu = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.{chrom}.mpileup"
     output:
-        vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf"
+        vcf = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf")
     wildcard_constraints:
         pair_status = "no_normal"
     log:
@@ -147,17 +147,16 @@ rule _varscan_unpaired:
 rule _varscan_reheader_vcf:
     input:
         vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf",
-        #header = op.switch_on_wildcard("genome_build", CFG["vcf_header"])
         fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai")
     output:
-        vcf = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf.gz"),
+        vcf = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf.gz")
     conda:
         CFG["conda_envs"]["bcftools"]
     shell:
         op.as_one_line("""
         contig=$( awk '{{printf("##contig=<ID=%s,length=%d>\\n",$1,$2);}}' {input.fai})
             &&
-        awk -v var="$contig" '/^#CHROM/ {{ printf(var); }} {{print;}}' {input.vcf} > {output.vcf}
+        awk -v var="$contig" '/^#CHROM/ {{ print(var); }} {{print;}}' {input.vcf} > {output.vcf}
         """)
 
         #bcftools reheader -h {input.header} {input.vcf} | bcftools view -l 1 -o {output.vcf}
@@ -177,7 +176,7 @@ rule _varscan_combine_vcf:
     input:
         vcf = _varscan_request_chrom_vcf
     output:
-        vcf = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pass.somatic.{vcf_name}.vcf"),
+        vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pass.somatic.{vcf_name}.vcf",
         vcf_gz = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pass.somatic.{vcf_name}.vcf.gz"
     conda:
         CFG["conda_envs"]["bcftools"]
@@ -185,7 +184,7 @@ rule _varscan_combine_vcf:
         op.as_one_line(""" 
         bcftools concat -o {output.vcf} {input.vcf} 
             && 
-        bgzip -c {output.vcf} > {output.vcf_gz} 
+        bgzip -c {output.vcf} >> {output.vcf_gz} 
         """)
 
 # symlink vcf file to maf directory to run vcf2maf
@@ -210,6 +209,7 @@ rule _varscan_output_vcf:
 
 rule _varscan_output_maf:
     input:
+        vcf = str(rules._varscan_combine_vcf.output.vcf), # ensure vcf is not deleted before maf is created
         maf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf"
     output:
         maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.somatic.{vcf_name}.maf"

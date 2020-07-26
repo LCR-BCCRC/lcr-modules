@@ -15,7 +15,7 @@ lcr-modules:
             vcf2maf: "envs/vcf2maf-1.6.18.yaml"
 
         threads:
-            vcf2maf: 2
+            vcf2maf: 12
 
         mem_mb:
             vcf2maf: 4000
