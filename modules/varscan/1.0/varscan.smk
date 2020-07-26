@@ -93,8 +93,8 @@ rule _varscan_somatic:
         tumour_mpu = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.{chrom}.mpileup",
         normal_mpu = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.{chrom}.mpileup"
     output:
-        snp = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.snp.vcf"),
-        indel = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.indel.vcf")
+        snp = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}_snp.vcf"),
+        indel = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}_indel.vcf")
     wildcard_constraints:
         pair_status = "matched|unmatched"
     log:
@@ -122,7 +122,7 @@ rule _varscan_unpaired:
     input:
         tumour_mpu = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.{chrom}.mpileup"
     output:
-        vcf = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf")
+        vcf = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}_{vcf_name}.vcf")
     wildcard_constraints:
         pair_status = "no_normal"
     log:
@@ -146,10 +146,10 @@ rule _varscan_unpaired:
 
 rule _varscan_reheader_vcf:
     input:
-        vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf",
+        vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}_{vcf_name}.vcf",
         fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai")
     output:
-        vcf = temp(CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.{vcf_name}.vcf.gz")
+        vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}_{vcf_name}.vcf.gz"
     conda:
         CFG["conda_envs"]["bcftools"]
     shell:
@@ -186,6 +186,7 @@ rule _varscan_combine_vcf:
             && 
         bgzip -c {output.vcf} >> {output.vcf_gz} 
         """)
+
 
 # symlink vcf file to maf directory to run vcf2maf
 rule _varscan_symlink_maf:
