@@ -38,6 +38,8 @@ MANIFEST
 !/demo/data/samples.tsv
 chrom_mappings
 
+*tmp.*
+
 # Ignore example snakefiles
 /examples
 
