@@ -18,7 +18,7 @@ import oncopipe as op
 # Setup module and store module-specific configuration in `CFG`.
 CFG = op.setup_module(
     name = "manta", 
-    version = "2.2",
+    version = "2.3",
     subdirectories = ["inputs", "chrom_bed", "manta", "augment_vcf", "bedpe", "outputs"]
 )
 
