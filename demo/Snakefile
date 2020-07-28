@@ -30,6 +30,7 @@ configfile: "../modules/manta/2.2/config/default.yaml"
 configfile: "../modules/sequenza/1.2/config/default.yaml"
 configfile: "../modules/strelka/1.0/config/default.yaml"
 
+
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
 configfile: "config.yaml"
