@@ -76,8 +76,7 @@ wildcard_constraints:
     star_version = TOOL_VERSIONS["star"],
     gencode_release = "|".join(config["wildcard_values"]["gencode_release"]),
     dbsnp_build = "|".join(config["wildcard_values"]["dbsnp_build"]),
-    rm_version = "|".join(config["wildcard_values"]["rm_version"]), 
-    hhv_version = "|".join(config["wildcard_values"]["hhv_accession"])
+    rm_version = "|".join(config["wildcard_values"]["rm_version"])
 
 
 ##### CHROMOSOME MAPPINGS #####
