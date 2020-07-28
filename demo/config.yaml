@@ -5,9 +5,8 @@ lcr-modules:
         lcr-scripts: "../../lcr-scripts"
         root_output_dir: "results/"
         scratch_directory: "scratch/"
-        pairing_config:
-            capture:
-                unmatched_normal_id: "TCRBOA7-N-WEX"
+        unmatched_normal_ids:
+            capture--grch37: "TCRBOA7-N-WEX"
 
     star:
         inputs:
@@ -21,6 +20,19 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
+
+    sequenza:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+
+    strelka:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+            # if using manta output, use vcf file in the 99-outputs subdirectory and ensure manta version corresponds to the loaded module
+            candidate_small_indels: "results/manta-2.2/99-outputs/vcf/{seq_type}--{genome_build}/candidateSmallIndels/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf"
+
     bwa_mem:
         inputs:
             sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
