@@ -45,7 +45,7 @@ rule _bam2fastq_input_bam:
 
 # Conditional rules depending on whether or not fastq outputs will be temporary
 if CFG["temp_outputs"] == True:
-    rule _bam2fastq_temp_run:
+    rule _bam2fastq_run:
         input:
             bam = rules._bam2fastq_input_bam.output.bam
         output:
