@@ -20,85 +20,180 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "gridss",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "gridss", "outputs"],
+    subdirectories = ["inputs", "gridss", "viral_annotation", "somatic_filter", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _gridss_input_bam,
-    _gridss_step_2,
+    _gridss_somatic_filter,
     _gridss_output_vcf,
-    _gridss_all,
+    _gridss_all
+
+wildcard_constraints: 
+    genome_build = "|".join(CFG["switches"]["pon"].keys())
 
 
 ##### RULES #####
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
 rule _gridss_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        sample_bam = CFG["inputs"]["sample_bam"], 
+        sample_bai = CFG["inputs"]["sample_bai"] 
     output:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
+        sample_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam", 
+        sample_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai" 
     run:
-        op.relative_symlink(input.bam, output.bam)
+        op.relative_symlink(input.sample_bam, output.sample_bam)
+        op.relative_symlink(input.sample_bai, output.sample_bai)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _gridss_step_1:
+# Run GRIDSS paired or unpaired mode
+rule _gridss_paired:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"), 
+        blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.bed"), 
+        repeatmasker = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
     output:
-        vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf"
-    log:
-        stdout = CFG["logs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-        stderr = CFG["logs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
+        vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/gridss.vcf.gz",
+        assembly = temp(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/assembly.bam"), 
+        tmpdir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/{tumour_id}.bam.gridss.working"))
     params:
-        opts = CFG["options"]["step_1"]
+        opts = CFG["options"]["gridss"], 
+        steps = "preprocess,assemble,call" 
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["gridss"]
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["gridss"]
     resources:
-        mem_mb = CFG["mem_mb"]["step_1"]
+        mem_mb = CFG["mem_mb"]["gridss"], 
+        bam = 1
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --tumour {input.tumour_bam} --normal {input.normal_bam}
-        --ref-fasta {input.fasta} --output {output.vcf} --threads {threads}
-        > {log.stdout} 2> {log.stderr}
+        gridss
+        --reference {input.fasta}
+        --output {output.vcf}
+        --workingdir `dirname {output.vcf}`
+        --assembly {output.assembly}
+        --blacklist {input.blacklist}
+        --repeatmaskerbed {input.repeatmasker}
+        --threads {threads}
+        --jvmheap {resources.mem_mb}m
+        --labels "{wildcards.normal_id},{wildcards.tumour_id}"
+        {params.opts}
+        {input.normal_bam} 
+        {input.tumour_bam} 
+        """)
+
+rule _gridss_unpaired:
+    input:
+        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
+        fasta = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.fa")), 
+        blacklist = ancient(reference_files("genomes/{genome_build}/encode/encode-blacklist.bed")), 
+        repeatmasker = ancient(reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed"))
+    output:
+        vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/gridss.vcf.gz",
+        assembly = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/assembly.bam", 
+        tmpdir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/{tumour_id}.bam.gridss.working"))
+    log: CFG["logs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/gridss.log"
+    params:
+        opts = CFG["options"]["gridss"], 
+        steps = "preprocess,assemble,call"
+    conda:
+        CFG["conda_envs"]["gridss"]
+    threads:
+        CFG["threads"]["gridss"]
+    resources:
+        mem_mb = CFG["mem_mb"]["gridss"], 
+        bam = 1
+    shell:
+        op.as_one_line("""
+        gridss
+        --reference {input.fasta}
+        --output {output.vcf}
+        --workingdir `dirname {output.vcf}`
+        --assembly {output.assembly}
+        --blacklist {input.blacklist}
+        --repeatmaskerbed {input.repeatmasker}
+        --threads {threads}
+        --jvmheap {resources.mem_mb}m
+        --labels "{wildcards.tumour_id}"
+        {params.opts}
+        {input.tumour_bam} 
         """)
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _gridss_step_2:
-    input:
-        vcf = str(rules._gridss_step_1.output.vcf)
-    output:
-        vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.vcf"
-    log:
-        stderr = CFG["logs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
+# Perform viral annotation of the output VCFs
+rule _gridss_viral_annotation: 
+    input: 
+        vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss.vcf.gz", 
+        tmpdir = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam.gridss.working"
+    output: 
+        vcf = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.vcf.gz"
+    log: CFG["logs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.log"
+    params: 
+        viral_ref = CFG["references"]["viral_fa"],
+        gridss_jar = "$(readlink -e gridss).jar"
+    conda: 
+        CFG["conda_envs"]["gridss"]
+    threads: 
+        CFG["threads"]["viral_annotation"]
+    resources: 
+        mem_mb = CFG["mem_mb"]["viral_annotation"]
+    shell: 
+        op.as_one_line("""
+        java -Xmx{resources.mem_mb}m 
+                -cp {params.gridss_jar} gridss.AnnotateInsertedSequence 
+				REFERENCE_SEQUENCE={params.viral_ref} 
+				INPUT={input.vcf} 
+				OUTPUT={output.vcf} 
+				WORKER_THREADS={threads} 
+                2>&1 | tee -a {log}
+        """)
+    
+rule _gridss_somatic_filter: 
+    input: 
+        vcf = rules._gridss_viral_annotation.output.vcf
+    output: 
+        somatic_vcf = CFG["dirs"]["somatic_filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic.vcf.gz", 
+        full_vcf = CFG["dirs"]["somatic_filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_full.vcf.gz"
+    log: log = CFG["logs"]["somatic_filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filter.log"
     params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.vcf} > {output.vcf} 2> {log.stderr}"
-
+        pondir = op.switch_on_wildcard("genome_build", CFG["switches"]["pon"]),
+        bsgenome = lambda w: {
+            "grch37": "hg19", 
+            "hs37d5": "hg19", 
+            "hg38": "hg38"}[w.genome_build], 
+        scriptdir = "$(dirname $(readlink -e $(which gridss)))"
+    shell: 
+        op.as_one_line(""" 
+        gridss_somatic_filter 
+        -p {params.pondir} 
+        -i {input.vcf}
+        -o {output.somatic_vcf}
+        -f {output.full_vcf}
+        -r BSgenome.Hsapiens.UCSC.{params.bsgenome}
+        -s {params.scriptdir}
+        --gc 
+        2>&1 | tee -a {log}
+        """)
+    
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _gridss_output_vcf:
     input:
-        vcf = str(rules._gridss_step_2.output.vcf)
+        somatic = str(rules._gridss_somatic_filter.output.somatic_vcf), 
+        full = str(rules._gridss_somatic_filter.output.full_vcf)
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.vcf"
+        somatic = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gridss_somatic.vcf.gz", 
+        full = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gridss_somatic_full.vcf.gz"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.somatic, output.somatic)
+        op.relative_symlink(input.full, output.full)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -106,8 +201,7 @@ rule _gridss_all:
     input:
         expand(
             [
-                str(rules._gridss_output_vcf.output.vcf),
-                # TODO: If applicable, add other output rules here
+                str(rules._gridss_output_vcf.output.somatic),
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
