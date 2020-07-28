@@ -5,7 +5,7 @@ lcr-modules:
             sample_fastq_1: "__UPDATE__"
             sample_fastq_2: "__UPDATE__"
 
-        scratch_subdirectories: "__UPDATE__"
+        scratch_subdirectories: []
 
         options:
             suffix: ".sort.mdups"

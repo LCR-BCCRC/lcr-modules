@@ -24,10 +24,6 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "bwa_mem",  "sort_bam", "mark_dups", "outputs"],
 )
 
-# Include `utils` module
-#include: "../../utils/2.0/utils.smk"
-
-
 # Define rules to be run locally when using a compute cluster
 localrules:
     _bwa_mem_input_fastq,
@@ -53,11 +49,10 @@ rule _bwa_mem_input_fastq:
         op.relative_symlink(input.fastq_2, output.fastq_2)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
 rule _bwa_mem_run:
     input:
-        fastq_1 = rules._bwa_mem_input_fastq.output.fastq_1,
-        fastq_2 = rules._bwa_mem_input_fastq.output.fastq_2,
+        fastq_1 = str(rules._bwa_mem_input_fastq.output.fastq_1),
+        fastq_2 = str(rules._bwa_mem_input_fastq.output.fastq_2),
         fasta = reference_files("genomes/{genome_build}/bwa_index/bwa-0.7.17/genome.fa")
     output:
         sam = pipe(CFG["dirs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}_out.sam")
@@ -84,7 +79,7 @@ rule _bwa_mem_run:
 
 rule _bwa_mem_samtools:
     input:
-        sam = rules._bwa_mem_run.output.sam
+        sam = str(rules._bwa_mem_run.output.sam)
     output:
         bam = CFG["dirs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}_out.bam"
     log:
@@ -107,7 +102,7 @@ rule _bwa_mem_samtools:
 
 rule _bwa_mem_symlink_bam:
     input:
-        bam = rules._bwa_mem_samtools.output.bam
+        bam = str(rules._bwa_mem_samtools.output.bam)
     output:
         bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.bam"
     run:
@@ -117,7 +112,7 @@ rule _bwa_mem_symlink_bam:
 rule _bwa_mem_symlink_sorted_bam:
     input:
         bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam",
-        bwa_mem_bam = rules._bwa_mem_samtools.output.bam
+        bwa_mem_bam = str(rules._bwa_mem_samtools.output.bam)
     output:
         bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam"
     run:
@@ -131,7 +126,7 @@ rule _bwa_mem_output_bam:
     input:
         bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".bam",
         bai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".bam.bai",
-        sorted_bam = rules._bwa_mem_symlink_sorted_bam.input.bam
+        sorted_bam = str(rules._bwa_mem_symlink_sorted_bam.input.bam)
     output:
         bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     run:
@@ -144,7 +139,7 @@ rule _bwa_mem_output_bam:
 # Generates the target sentinels for each run, which generate the symlinks
 rule _bwa_mem_all:
     input:
-        expand(rules._bwa_mem_output_bam.output.bam,
+        expand(str(rules._bwa_mem_output_bam.output.bam),
             zip,
             seq_type=CFG["samples"]["seq_type"],
             genome_build=CFG["samples"]["genome_build"],

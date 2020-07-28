@@ -8,8 +8,6 @@ lcr-modules:
         ## See main README.md for how to set `samples` in the Snakefile
         #! samples: null
 
-        inputs:
-        ## List subdirectories that should be symlinked to the scratch directory
         scratch_subdirectories: []
 
         options:
@@ -30,5 +28,3 @@ lcr-modules:
             bam_sort: 12000
             bam_markdups: 8000
             bam_index: 4000
-            
-        pairing_config:
