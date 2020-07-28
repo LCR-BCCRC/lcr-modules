@@ -25,3 +25,15 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             target_intervals: "reference/exomes/grch37/bed/S07604624.bed"
+    sequenza:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+
+    strelka:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+            # if using manta output, use vcf file in the 99-outputs subdirectory and ensure manta version corresponds to the loaded module
+            candidate_small_indels: "results/manta-2.2/99-outputs/vcf/{seq_type}--{genome_build}/candidateSmallIndels/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf"
+

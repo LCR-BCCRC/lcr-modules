@@ -291,7 +291,43 @@ def list_files(directory, file_ext):
     return files_all
 
 
-# SNAKEMAKE INPUT/PARAM FUNCTIONS
+# SNAKEMAKE INPUT/PARAM/RESOURCE FUNCTIONS
+
+
+def retry(value, multiplier=1.5, max_value=100000):
+    """Creates callable that increases resource value on retries.
+
+    This function is intended for use with resources,
+    especially memory (mem_mb).
+
+    Parameters
+    ----------
+    value : int
+        The value that will be multiplied on retries.
+        This value will be used as is in the first try.
+    multiplier: float
+        The factor that the value will be multiplied by
+        on retries. This should usually be a number
+        between 1 and 3.
+    max_value : int
+        The maximum value that should be returned by
+        this function, even on retries. This is meant
+        to prevent excessively high requests that will
+        never be accommodated by the cluster.
+
+    Returns
+    -------
+    function, which returns integer values
+        The function that can be provided to the
+        resource directive in a snakemake rule.
+    """
+
+    def retry_custom(wildcards, attempt):
+        new_value = value * (multiplier ** attempt)
+        new_value = min(new_value, max_value)
+        return int(new_value)
+
+    return retry_custom
 
 
 def create_formatter(wildcards, input, output, threads, resources, strict):
@@ -410,7 +446,7 @@ def switch_on_column(
     """
 
     assert isinstance(options, dict), "`options` must be a `dict` object."
-    assert column in samples, "`column` must be a column name in `samples`."
+    assert column in samples, (f"`{column}` must be a column name in `samples`.")
 
     def _switch_on_column(
         wildcards, input=None, output=None, threads=None, resources=None
@@ -1539,7 +1575,7 @@ def setup_module(name, version, subdirectories):
     # Update paths to conda environments to be relative to the module directory
     for env_name, env_val in mconfig["conda_envs"].items():
         if env_val is not None:
-            mconfig["conda_envs"][env_name] = os.path.relpath(env_val, modsdir)
+            mconfig["conda_envs"][env_name] = os.path.realpath(env_val)
 
     # Setup output sub-directories
     scratch_subdirs = mconfig.get("scratch_subdirectories", [])
@@ -1570,6 +1606,7 @@ def setup_module(name, version, subdirectories):
     mconfig["unpaired_runs"] = runs[runs.pair_status == "no_normal"]
 
     # Return module-specific configuration
+    config["lcr-modules"][name] = mconfig
     return mconfig
 
 
