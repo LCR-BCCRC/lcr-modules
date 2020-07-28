@@ -1,6 +1,3 @@
-#!/usr/bin/env snakemake
-
-
 ##### MODULES #####
 
 
@@ -19,12 +16,14 @@ import oncopipe as op
 
 ##### CONFIG #####
 localrules: download_genome_fasta,
-            download_main_chromosomes, download_gencode_annotation,
-            hardlink_download, update_contig_names,
-            get_genome_fasta_download, index_genome_fasta,
-            get_main_chromosomes_download, create_bwa_index,
-            get_gencode_download, create_star_index,
-            create_seq_dict, create_rRNA_interval
+            download_main_chromosomes, 
+            download_gencode_annotation,
+            hardlink_download, 
+            update_contig_names,
+            get_genome_fasta_download, 
+            index_genome_fasta,
+            get_main_chromosomes_download, 
+            get_gencode_download
 
 
 # Check for genome builds
@@ -35,9 +34,7 @@ assert "genome_builds" in config and len(config["genome_builds"]) > 0, (
 # Switch between case for version names
 VERSION_UPPER = {
     "grch37": "GRCh37",
-    "GRCh37": "GRCh37",
     "grch38": "GRCh38",
-    "GRCh38": "GRCh38",
 }
 
 # Check genome build versions, providers, and genome_fasta
@@ -75,6 +72,7 @@ wildcard_constraints:
     bwa_version = TOOL_VERSIONS["bwa"],
     star_version = TOOL_VERSIONS["star"],
     gencode_release = "|".join(config["wildcard_values"]["gencode_release"]),
+    dbsnp_build = "|".join(config["wildcard_values"]["dbsnp_build"]),
 
 
 ##### CHROMOSOME MAPPINGS #####
@@ -123,11 +121,7 @@ rule download_genome_fasta:
     params: 
         url = lambda w: config["genome_builds"][w.genome_build]["genome_fasta_url"]
     shell:
-        op.as_one_line("""
-        curl -L {params.url} > {output.fasta} 2> {log}
-            &&
-        chmod a-w {output.fasta}
-        """)
+        "curl -L {params.url} > {output.fasta} 2> {log}"
 
 
 rule download_main_chromosomes:
@@ -139,12 +133,19 @@ rule download_main_chromosomes:
         provider = "ensembl"
     shell:
         op.as_one_line("""
-        egrep -w "^(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|X|Y|MT)" {input.mapping}
+        egrep -w "^(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|X)" {input.mapping}
             |
         cut -f1 > {output.txt}
-            &&
-        chmod a-w {output.txt}
         """)
+
+
+rule download_chromosome_x:
+    output:
+        txt = "downloads/main_chromosomes/chromosome_x.{version}.txt"
+    params:
+        provider = "ensembl"
+    shell:
+        "echo 'X' > {output.txt}"
 
 
 rule download_gencode_annotation:
@@ -158,15 +159,32 @@ rule download_gencode_annotation:
             f"release_{wildcards.gencode_release}"
         ]
         release_fmt = f"v{wildcards.gencode_release}"
-        version = VERSION_UPPER[wildcards.version]
-        if version == "GRCh37":
+        if wildcards.version == "grch37":
             url_parts.append("GRCh37_mapping")
             release_fmt += "lift37"
         url_parts.append(f"gencode.{release_fmt}.annotation.gtf.gz")
         url = "/".join(url_parts)
         urllib.request.urlretrieve(url, output.gtf + ".gz")
         shell("gunzip {output.gtf}.gz")
-        shell("chmod a-w {output.gtf}")
+
+
+rule download_dbsnp_vcf:
+    output:
+        vcf = "downloads/dbsnp-{dbsnp_build}/dbsnp.common_all.{version}.vcf"
+    log:
+        "downloads/dbsnp-{dbsnp_build}/dbsnp.common_all.{version}.vcf.log"
+    params: 
+        provider = "ensembl",
+        url = lambda w: {"grch37": "GRCh37p13", "grch38": "GRCh38p7"}[w.version]
+    conda: CONDA_ENVS["coreutils"]
+    shell:
+        op.as_one_line("""
+        curl -s https://ftp.ncbi.nih.gov/snp/organisms/human_9606_b{wildcards.dbsnp_build}_{params.url}/VCF/00-common_all.vcf.gz 2> {log}
+            | 
+        gzip -dc 2>> {log}
+            | 
+        awk 'BEGIN {{FS=OFS="\t"}} $0 !~ /^#/ {{$8="."}} $0 !~ /^##INFO/' > {output.vcf} 2>> {log}
+        """)
 
 
 ##### FUNCTIONS #####
@@ -214,6 +232,12 @@ def hardlink_same_provider(wildcards):
     for r in matching_rules:
         # The provider must be among the ones we can convert from
         if r.params.provider not in from_provider_options:
+            logger.warning(
+                f"The {r.rule} rule can generate the {output_file} file, but the chromosomes "
+                f"from the associated provider ({r.params.provider}) cannot be converted to "
+                f"the destination provider ({to_provider}). Make sure the providers in the "
+                "download rules are correct and that no chromosome mappings are missing."
+            )
             continue
         dependencies.append(r)
 
@@ -307,107 +331,6 @@ rule update_contig_names:
             cvbio UpdateContigNames --in {input.before} --out {output.after}
             --mapping {params.mapping} --comment-chars '{params.comment}'
             --columns {params.columns} --skip-missing {params.skip}
-            --delimiter '{params.delimiter}' > {log} 2>&1
-                &&
-            chmod a-w {output.after}; 
+            --delimiter '{params.delimiter}' > {log} 2>&1; 
         fi
-        """)
-
-
-##### GENOME BUILDS #####
-
-
-rule get_genome_fasta_download:
-    input: 
-        fasta = rules.download_genome_fasta.output.fasta
-    output: 
-        fasta = "genomes/{genome_build}/genome_fasta/genome.fa"
-    shell:
-        "ln -f {input.fasta} {output.fasta}"
-
-
-rule index_genome_fasta:
-    input: 
-        fasta = rules.get_genome_fasta_download.output.fasta
-    output: 
-        fai = "genomes/{genome_build}/genome_fasta/genome.fa.fai"
-    log: 
-        "genomes/{genome_build}/genome_fasta/genome.fa.fai.log"
-    conda: CONDA_ENVS["samtools"]
-    shell:
-        op.as_one_line("""
-        samtools faidx {input.fasta} > {log} 2>&1
-            &&
-        chmod a-w {output.fai}
-        """)
-
-
-
-rule get_main_chromosomes_download:
-    input: 
-        txt = get_download_file(rules.download_main_chromosomes.output.txt),
-        fai = rules.index_genome_fasta.output.fai
-    output: 
-        txt = "genomes/{genome_build}/genome_fasta/main_chromosomes.txt",
-        bed = "genomes/{genome_build}/genome_fasta/main_chromosomes.bed",
-        patterns = temp("genomes/{genome_build}/genome_fasta/main_chromosomes.patterns.txt")
-    shell: 
-        op.as_one_line("""
-        sed 's/^/^/' {input.txt} > {output.patterns}
-            &&
-        egrep -w -f {output.patterns} {input.fai}
-            |
-        cut -f1 > {output.txt}
-            &&
-        egrep -w -f {output.patterns} {input.fai}
-            |
-        awk 'BEGIN {{FS=OFS="\t"}} {{print $1,  0, $2}}' > {output.bed}
-            &&
-        chmod a-w {output.txt} {output.bed}
-        """)
-
-
-rule create_bwa_index:
-    input: 
-        fasta = rules.get_genome_fasta_download.output.fasta
-    output: 
-        prefix = touch("genomes/{genome_build}/bwa_index/bwa-{bwa_version}/genome.fa")
-    log: 
-        "genomes/{genome_build}/bwa_index/bwa-{bwa_version}/genome.fa.log"
-    conda: CONDA_ENVS["bwa"]
-    shell:
-        op.as_one_line("""
-        bwa index -p {output.prefix} {input.fasta} > {log} 2>&1
-            &&
-        find `dirname {output.prefix}` -type f -exec chmod a-w {{}} \;
-        """)
-
-
-rule get_gencode_download: 
-    input:
-        gtf = get_download_file(rules.download_gencode_annotation.output.gtf)
-    output:
-        gtf = "genomes/{genome_build}/annotations/gencode_annotation-{gencode_release}.gtf"
-    shell:
-        "ln -f {input.gtf} {output.gtf}"
-
-
-rule create_star_index:
-    input:
-        fasta = rules.get_genome_fasta_download.output.fasta,
-        gtf = get_download_file(rules.download_gencode_annotation.output.gtf)
-    output: 
-        index = directory("genomes/{genome_build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{star_overhang}")
-    log: 
-        "genomes/{genome_build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{star_overhang}/log"
-    conda: CONDA_ENVS["star"]
-    threads: 12
-    shell:
-        op.as_one_line("""
-        STAR --runThreadN {threads} --runMode genomeGenerate --genomeDir {output.index}
-        --genomeFastaFiles {input.fasta} --sjdbOverhang {wildcards.star_overhang}
-        --sjdbGTFfile {input.gtf} --outTmpDir {output.index}/_STARtmp > {log} 2>&1
-        --outFileNamePrefix {output.index}/
-            &&
-        find {output.index} -type f -exec chmod a-w {{}} \;
         """)
