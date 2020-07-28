@@ -25,3 +25,10 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
+
+    gridss: 
+        inputs: 
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+        references: 
+            viral_fa: "/projects/rmorin/projects/DLBCL_DHITsig_genomes/reference/gridss/refgenomes/human_virus/human_virus.fa"
