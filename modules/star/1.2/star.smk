@@ -26,9 +26,6 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "star", "sort_bam", "mark_dups", "outputs"],
 )
 
-# Include `utils` module
-include: "../../utils/1.0/utils.smk"
-
 # Define rules to be run locally when using a compute cluster
 localrules:
     _star_input_fastq,
