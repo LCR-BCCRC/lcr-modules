@@ -21,7 +21,7 @@ CFG = op.setup_module(
     name = "hmftools",
     version = "1.0",
     # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "hmftools", "outputs"],
+    subdirectories = ["inputs", "prepare_strelka", "amber", "cobalt", "purple", "linx", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -40,11 +40,14 @@ localrules:
 # TODO: If applicable, add an input rule for each input file used by the module
 rule _hmftools_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        bam = CFG["inputs"]["sample_bam"], 
+        bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai"
     run:
         op.relative_symlink(input.bam, output.bam)
+        op.relative_symlink(input.bai, output.bai)
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
