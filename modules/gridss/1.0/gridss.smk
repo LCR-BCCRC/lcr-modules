@@ -26,6 +26,7 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _gridss_input_bam,
+    _gridss_setup_references,
     _gridss_input_references,
     _gridss_somatic_filter,
     _gridss_output_vcf,
@@ -37,20 +38,45 @@ wildcard_constraints:
 
 ##### RULES #####
 
+# Symlink genome fasta with bwa and .fai indices to the same directory
 rule _gridss_input_references: 
     input: 
         genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        genome_bwa_prefix = reference_files("genomes/{genome_build}/bwa_index/bwa_index/bwa-0.7.17/genome.fa")
+        genome_bwa_prefix = reference_files("genomes/{genome_build}/bwa_index/bwa-0.7.17/genome.fa")
     output: 
         genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.fa"
     shell: 
         op.as_one_line("""
         ln -s {input.genome_fa} {output.genome_fa} &&
-        ln -s {input.genome_fa}.fai {input.genome_fa}.fai &&
-        ln -s {input.genome_bwa_prefix} `dirname {output.genome_fa}`
+        ln -s {input.genome_fa}.fai {output.genome_fa}.fai &&
+        ln -s {input.genome_bwa_prefix}.* `dirname {output.genome_fa}`
         """)
 
-# Symlinks the input files into the module results directory (under '00-inputs/')
+# Generage genome.fa.img file
+rule _gridss_setup_references: 
+    input: 
+        fasta = rules._gridss_input_references.output.genome_fa
+    output: 
+        genome_img = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.fa.img"
+    params: 
+        steps = "setupreference"
+    conda: 
+        CFG["conda_envs"]["gridss"]
+    resources: 
+        mem_mb = 3000
+    threads: 8
+    shell: 
+        op.as_one_line("""
+        gridss
+        --reference {input.fasta}
+        --threads {threads}
+        --jvmheap {resources.mem_mb}m
+        --steps {params.steps} 
+        --workingdir `dirname {ouput.genome_img}`
+        """)
+
+
+# Symlink the input files into the module results directory (under '00-inputs/')
 rule _gridss_input_bam:
     input:
         sample_bam = CFG["inputs"]["sample_bam"], 
@@ -68,7 +94,7 @@ rule _gridss_paired:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        fasta = rules._gridss_input_references.output.genome_fa, 
+        fasta = rules._gridss_setup_references.output.genome_img, 
         blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.bed"), 
         repeatmasker = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
     output:
@@ -107,7 +133,7 @@ rule _gridss_paired:
 rule _gridss_unpaired:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        fasta = rules._gridss_input_references.output.genome_fa, 
+        fasta = rules._gridss_setup_references.output.genome_img, 
         blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.bed"), 
         repeatmasker = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
     output:
@@ -147,7 +173,6 @@ rule _gridss_unpaired:
 rule _gridss_viral_annotation: 
     input: 
         vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss.vcf.gz", 
-        tmpdir = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam.gridss.working"
     output: 
         vcf = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.vcf.gz", 
     log: CFG["logs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.log"
@@ -170,7 +195,8 @@ rule _gridss_viral_annotation:
 				WORKER_THREADS={threads} 
                 2>&1 | tee -a {log}
         """)
-    
+
+# Perform somatic filtering against the panel of normals    
 rule _gridss_somatic_filter: 
     input: 
         vcf = rules._gridss_viral_annotation.output.vcf
@@ -199,7 +225,7 @@ rule _gridss_somatic_filter:
         """)
     
 
-# Symlinks the final output files into the module results directory (under '99-outputs/')
+# Symlink the final output files into the module results directory (under '99-outputs/')
 rule _gridss_output_vcf:
     input:
         somatic = str(rules._gridss_somatic_filter.output.somatic_vcf), 
