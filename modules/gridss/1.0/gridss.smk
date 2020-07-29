@@ -94,7 +94,8 @@ rule _gridss_paired:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        fasta = rules._gridss_setup_references.output.genome_img, 
+        fasta = rules._gridss_input_references.output.genome_fa,
+        fasta_img = rules._gridss_setup_references.output.genome_img, 
         blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.bed"), 
         repeatmasker = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
     output:
@@ -133,7 +134,8 @@ rule _gridss_paired:
 rule _gridss_unpaired:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        fasta = rules._gridss_setup_references.output.genome_img, 
+        fasta = rules._gridss_input_references.output.genome_fa,
+        fasta_img = rules._gridss_setup_references.output.genome_img, 
         blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.bed"), 
         repeatmasker = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
     output:
