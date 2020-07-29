@@ -11,4 +11,4 @@ This release was authored by Helena Winata.
 
 <!-- TODO: Explain each important module design decision below. -->
 
-- No module design decisions explained here yet.
+- Need link to download rna fasta file, `GRCh38_latest_rna.fna`, to generate salmon index
