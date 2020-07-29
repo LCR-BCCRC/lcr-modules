@@ -26,6 +26,7 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _gridss_input_bam,
+    _gridss_input_references,
     _gridss_somatic_filter,
     _gridss_output_vcf,
     _gridss_all
@@ -36,6 +37,18 @@ wildcard_constraints:
 
 ##### RULES #####
 
+rule _gridss_input_references: 
+    input: 
+        genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        genome_bwa_prefix = reference_files("genomes/{genome_build}/bwa_index/bwa_index/bwa-0.7.17/genome.fa")
+    output: 
+        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.fa"
+    shell: 
+        op.as_one_line("""
+        ln -s {input.genome_fa} {output.genome_fa} &&
+        ln -s {input.genome_fa}.fai {input.genome_fa}.fai &&
+        ln -s {input.genome_bwa_prefix} `dirname {output.genome_fa}`
+        """)
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _gridss_input_bam:
@@ -55,13 +68,12 @@ rule _gridss_paired:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"), 
+        fasta = rules._gridss_input_references.output.genome_fa, 
         blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.bed"), 
         repeatmasker = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
     output:
         vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/gridss.vcf.gz",
-        assembly = temp(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/assembly.bam"), 
-        tmpdir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/{tumour_id}.bam.gridss.working"))
+        assembly = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/assembly.bam"
     params:
         opts = CFG["options"]["gridss"], 
         steps = "preprocess,assemble,call" 
@@ -92,13 +104,12 @@ rule _gridss_paired:
 rule _gridss_unpaired:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        fasta = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.fa")), 
-        blacklist = ancient(reference_files("genomes/{genome_build}/encode/encode-blacklist.bed")), 
-        repeatmasker = ancient(reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed"))
+        fasta = rules._gridss_input_references.output.genome_fa, 
+        blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.bed"), 
+        repeatmasker = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
     output:
         vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/gridss.vcf.gz",
-        assembly = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/assembly.bam", 
-        tmpdir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/{tumour_id}.bam.gridss.working"))
+        assembly = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/assembly.bam"
     log: CFG["logs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/gridss.log"
     params:
         opts = CFG["options"]["gridss"], 
@@ -133,7 +144,7 @@ rule _gridss_viral_annotation:
         vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss.vcf.gz", 
         tmpdir = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam.gridss.working"
     output: 
-        vcf = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.vcf.gz"
+        vcf = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.vcf.gz", 
     log: CFG["logs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.log"
     params: 
         viral_ref = CFG["references"]["viral_fa"],
