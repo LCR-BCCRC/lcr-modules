@@ -74,6 +74,7 @@ rule _gridss_paired:
     output:
         vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/gridss.vcf.gz",
         assembly = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/assembly.bam"
+    log: CFG["logs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/gridss.log"
     params:
         opts = CFG["options"]["gridss"], 
         steps = "preprocess,assemble,call" 
@@ -96,9 +97,11 @@ rule _gridss_paired:
         --threads {threads}
         --jvmheap {resources.mem_mb}m
         --labels "{wildcards.normal_id},{wildcards.tumour_id}"
+        --steps {params.steps}
         {params.opts}
         {input.normal_bam} 
         {input.tumour_bam} 
+        2>&1 | tee -a {log}
         """)
 
 rule _gridss_unpaired:
@@ -133,8 +136,10 @@ rule _gridss_unpaired:
         --threads {threads}
         --jvmheap {resources.mem_mb}m
         --labels "{wildcards.tumour_id}"
+        --steps {params.steps}
         {params.opts}
         {input.tumour_bam} 
+        2>&1 | tee -a {log}
         """)
 
 
