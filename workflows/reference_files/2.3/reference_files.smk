@@ -37,6 +37,8 @@ rule create_bwa_index:
     log: 
         "genomes/{genome_build}/bwa_index/bwa-{bwa_version}/genome.fa.log"
     conda: CONDA_ENVS["bwa"]
+    resources:
+        mem_mb = 20000
     shell:
         "bwa index -p {output.prefix} {input.fasta} > {log} 2>&1"
 
@@ -51,14 +53,16 @@ rule create_star_index:
         "genomes/{genome_build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{star_overhang}.log"
     conda: CONDA_ENVS["star"]
     threads: 12
+    resources:
+        mem_mb = 42000
     shell:
         op.as_one_line("""
         mkdir -p {output.index}
             &&
         STAR --runThreadN {threads} --runMode genomeGenerate --genomeDir {output.index}
         --genomeFastaFiles {input.fasta} --sjdbOverhang {wildcards.star_overhang}
-        --sjdbGTFfile {input.gtf} --outTmpDir {output.index}/_STARtmp > {log} 2>&1
-        --outFileNamePrefix {output.index}/
+        --sjdbGTFfile {input.gtf} --outTmpDir {output.index}/_STARtmp
+        --outFileNamePrefix {output.index}/ > {log} 2>&1
         """)
 
 
