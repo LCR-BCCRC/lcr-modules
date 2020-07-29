@@ -26,7 +26,7 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _salmon_input_fastq,
-    _salmon_output_quant,
+    _salmon_output,
     _salmon_all,
 
 
@@ -70,7 +70,7 @@ rule _salmon_quant:
         {params.opts} 
         -i {input.index} 
         -o $(dirname {output.quant})
-        -1 {input.fq[0]} -2 {input.fq[1]} 
+        -1 {input.fastq_1} -2 {input.fastq_2} 
         > {log.stdout} 2> {log.stderr}
         """)
 

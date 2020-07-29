@@ -431,11 +431,11 @@ rule _download_salmon_script:
 rule create_salmon_index:
     input:
         fasta = rules.get_genome_fasta_download.output.fasta,
-        gtf = get_download_file(rules.download_gencode_annotation.output.gtf)
+        gtf = get_download_file("downloads/gencode-33/gencode.annotation.{version}.gtf")
     output: 
         index = directory("genomes/{genome_build}/salmon_index/salmon-{salmon_version}")
     log: 
-        "genomes/genome_build}/salmon_index/salmon-{salmon_version}/log"
+        "genomes/{genome_build}/salmon_index/salmon-{salmon_version}/log"
     conda: CONDA_ENVS["salmon"]
     threads: 8
     shell:
