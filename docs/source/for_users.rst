@@ -69,8 +69,7 @@ Getting Started
       import oncopipe as op
 
       SAMPLES = op.load_samples("<path/to/samples.tsv>")
-      config["lcr-modules"]["_shared"]["samples"] = SAMPLES
-
+      
       subworkflow reference_files:
          workdir:
             "</path/to/reference_directory/>"
@@ -108,8 +107,9 @@ Getting Started
       configfile: "<path/to/lcr-modules/modules/star/1.0/config/default.yaml>"
       # ...
 
-      # Load your project-specific configuration
+      # Load your project-specific configuration and set the default sample list
       configfile: "<config.yaml>"
+      config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 
       # Include the snakefile for each module
       include: "<path/to/lcr-modules/modules/manta/2.0/manta.smk>"
