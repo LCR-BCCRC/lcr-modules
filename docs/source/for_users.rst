@@ -57,7 +57,7 @@ Getting Started
       # Update `scratch_directory` if you have a space to store large intermediate files
       lcr-modules:
          _shared:
-            repository: "<path/to/lcr-modules>"
+            lcr-modules: "<path/to/lcr-modules>"
             lcr-scripts: "<path/to/lcr-scripts>"
             root_output_dir: "results/"
             scratch_directory: null
