@@ -19,7 +19,7 @@ import oncopipe as op
 # `CFG` is a shortcut to `config["lcr-modules"]["strelka"]`
 CFG = op.setup_module(
     name = "strelka",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "chrom_bed", "strelka", "filtered", "outputs"]
 )
 
