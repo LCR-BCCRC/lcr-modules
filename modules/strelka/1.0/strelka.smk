@@ -64,9 +64,6 @@ rule _strelka_input_vcf:
     output:
         vcf = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz",
         tbi = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz.tbi"
-    params:
-        vcf = CFG["inputs"].get("candidate_small_indels_vcf") or "",
-        tbi = CFG["inputs"].get("candidate_small_indels_tbi") or ""
     conda:
         CFG["conda_envs"]["tabix"]
     shell:
