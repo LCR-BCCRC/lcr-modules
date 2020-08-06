@@ -15,3 +15,8 @@ This release was authored by Helena Winata.
     - germline workflow outputs `variants.vcf.gz`
 - It is recommended to run Strelka with [candidatesSmallIndels.vcf] (https://github.com/Illumina/strelka/blob/v2.9.x/docs/userGuide/README.md#capabilities) from Manta variant caller.
     - Specify the `candidateSmallIndels.vcf` file under `CFG["inputs"]["candidate_small_indel"]` or use `null` to run without `candidateSmallIndels`
+
+## [1.1] - 2020-08-06
+
+Update by Ryan Morin
+ - added "bam" resource to allow users to limit concurrent jobs for the I/O heavy rule. Make use of this by running snakemake with --resources bam=50 for a reasonable job load
