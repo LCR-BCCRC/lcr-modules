@@ -1,10 +1,10 @@
 lcr-modules:
 
     _shared:
-        lcr-modules: "../"
-        lcr-scripts: "../../lcr-scripts"
+        lcr-modules: "/projects/rmorin/projects/tumour_contam/lcr-modules/"
+        lcr-scripts: "/projects/rmorin/projects/tumour_contam/lcr-scripts/"
         root_output_dir: "results/"
-        scratch_directory: "scratch/"
+        scratch_directory: "/projects/rmorin_scratch/jawong_tmp/"
         unmatched_normal_ids:
             capture--grch37: "TCRBOA7-N-WEX"
 
@@ -32,4 +32,12 @@ lcr-modules:
             sample_bai: "data/{sample_id}.bam.bai"
             # if using manta output, use vcf file in the 99-outputs subdirectory and ensure manta version corresponds to the loaded module
             candidate_small_indels: "results/manta-2.2/99-outputs/vcf/{seq_type}--{genome_build}/candidateSmallIndels/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf"
+
+    controlfreec:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+        logs:
+            controlfreec: "logs/"
+
 
