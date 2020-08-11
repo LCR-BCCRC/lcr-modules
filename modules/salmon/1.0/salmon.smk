@@ -50,7 +50,7 @@ rule _salmon_quant:
     input:
         fastq_1 = rules._salmon_input_fastq.output.fastq_1,
         fastq_2 = rules._salmon_input_fastq.output.fastq_2,
-        index = reference_files("genomes/{genome_build}/salmon_index/salmon-1.3.0")
+        index = reference_files("genomes/{genome_build}/salmon_index/salmon-1.3.0/index")
     output:
         quant = CFG["dirs"]["salmon"] + "{seq_type}--{genome_build}/{sample_id}/quant.sf"
     log:
