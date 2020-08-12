@@ -5,6 +5,33 @@ All notable changes to the `reference_files` subworkflow will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3] - 2020-07-17
+
+This release was authored by Bruno Grande.
+
+- Fixed bug with `download_dbsnp_vcf` where the output wasn't being redirected to the output file.
+
+## [2.2] - 2020-07-16
+
+This release was authored by Bruno Grande.
+
+- The output reference files are no longer write-protected. 
+
+## [2.1] - 2020-07-15
+
+This release was authored by Bruno Grande.
+
+- The log file for the STAR index creation rule was moved to outside of the STAR output directory, which gets deleted whenever the job fails.
+- The provider for the Gencode GTF file was erroneously changed from "ucsc" to "ensembl". This version reverts that error. 
+
+## [2.0] - 2020-06-29
+
+This release was authored by Bruno Grande.
+
+- This version added support for Sequenza reference files, namely the GC content wiggle (WIG) file and the dbSNP VCF file.
+- The header of the `reference_files` Snakefile was stored in a separate file to increase user friendliness.
+- Chromosomes Y and MT are excluded from the list of main chromosomes.
+
 ## [1.0] - 2020-05-02
 
 This release was authored by Bruno Grande.

@@ -8,7 +8,9 @@
 
 - [ ] I used the cookiecutter template and updated the placeholder rules.
 
-- [ ] The snakemake rules follow the [design guidelines](https://lcr-modules.readthedocs.io/en/latest/for_developers.html#module-rules).
+- [ ] The snakemake rules follow the [design guidelines](https://lcr-modules.readthedocs.io/en/latest/for_developers.html#module-rules). 
+
+  - [ ] All references to the `rules` object (_e.g._ for input files) are wrapped with `str()`.
 
 - [ ] Every rule in the module is either listed under `localrules` or has the `threads` and `resources` directives.
 
