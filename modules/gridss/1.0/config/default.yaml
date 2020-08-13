@@ -7,52 +7,43 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
 
-        scratch_subdirectories: ["gridss", "viral_annotation"]
-        # TODO: Confirm that this is the correct usage
-
         options:
             gridss: 
                 --picardoptions VALIDATION_STRINGENCY=SILENT
-            # Uses the default gridss.config.R packaged with the conda gridss install
-            # To change values, copy and modify config and update the path below
-            gridss_config: "$(readlink -e $(which gridss)).config.R"
+            gripss: 
+            # Hard filters remove variants from output VCF
+            # Soft filters add flags to output VCF
+                # -hard_max_normal_absolute_support 3
+                # -hard_max_normal_relative_support 0.06
+                # -soft_max_normal_relative_support 0.03
 
         references: 
             viral_fa: "__UPDATE__"
-            pon: 
-                # The grh37/hs37d5 pon is available from https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC?path=%2FHMFTools-Resources%2FGRIDSS
-                grch37: "/projects/rmorin_scratch/lcr-modules-references-DEV/genomes/grch37/gridss/pon3792v1"
-                hs37d5: "/projects/rmorin_scratch/lcr-modules-references-DEV/genomes/grch37/gridss/pon3792v1"
-                # This hg38 PON was generated locally with MCL Normal samples. 
-                hg38: "/projects/rmorin_scratch/lcr-modules-references-DEV/genomes/hg38/gridss/pon_hg38"       
-
-        switches:
-            # Run Manta in high-sensitivity mode for RNA-seq and capture data
-            pon:
-                # The grh37/hs37d5 pon is available from https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC?path=%2FHMFTools-Resources%2FGRIDSS
-                grch37: "/projects/rmorin_scratch/lcr-modules-references-DEV/genomes/grch37/gridss/pon3792v1"
-                hs37d5: "/projects/rmorin_scratch/lcr-modules-references-DEV/genomes/grch37/gridss/pon3792v1"
-                # This hg38 PON was generated locally with MCL Normal samples. 
-                hg38: "/projects/rmorin_scratch/lcr-modules-references-DEV/genomes/hg38/gridss/pon_hg38"       
-           
+            viral_bwa_prefix: "__UPDATE__" 
+            pon_dir: "/projects/rmorin/reference/hmftools-references/gridss" # These panels of normals are available from https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC?path=%2FHMFTools-Resources%2FGRIDSS
+       
         
         conda_envs:
             gridss: "{MODSDIR}/envs/gridss-dependencies-2.9.4.yaml"
+            gripss: "{MODSDIR}/envs/hmftools-gripss-1.2.0.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             
         threads:
             gridss: 8
             viral_annotation: 8
+            gripss: 1 # Not multi-threaded
 
         mem_mb:
-            gridss: 30000
+            gridss: 40000 # Minimum value to support hard-coded JVM heap size
             viral_annotation: 6000
+            gripss: 20000 # Minimum value to support hard-coded JVM heap size
 
         pairing_config:
             genome:
                 run_paired_tumours: True
-                run_unpaired_tumours_with: "no_normal"
+                run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: False
             capture:
                 run_paired_tumours: True
-                run_unpaired_tumours_with: "no_normal"
+                run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: False
