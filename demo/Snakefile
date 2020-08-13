@@ -60,8 +60,8 @@ include: "../modules/strelka/1.0/strelka.smk"
 
 rule all:
     input:
-        rules._gridss_all.input
-        rules._star_all.input,
+        # rules._gridss_all.input
+        # rules._star_all.input,
         rules._manta_all.input,
-        rules._sequenza_all.input,
+        # rules._sequenza_all.input,
         rules._strelka_all.input
