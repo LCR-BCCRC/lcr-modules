@@ -1,0 +1,36 @@
+name: bcftools
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1
+  - _openmp_mutex=4.5
+  - bcftools=1.10.2
+  - bzip2=1.0.8
+  - c-ares=1.11.0
+  - ca-certificates=2020.6.20
+  - gsl=2.6
+  - htslib=1.10.2
+  - krb5=1.17.1
+  - libblas=3.8.0
+  - libcblas=3.8.0
+  - libcurl=7.71.1
+  - libdeflate=1.6
+  - libedit=3.1.20191231
+  - libev=4.33
+  - libgcc-ng=9.3.0
+  - libgfortran-ng=7.5.0
+  - libgomp=9.3.0
+  - libnghttp2=1.41.0
+  - libopenblas=0.3.10
+  - libssh2=1.9.0
+  - libstdcxx-ng=9.3.0
+  - ncurses=6.2
+  - openssl=1.1.1g
+  - perl=5.26.2
+  - tk=8.6.10
+  - xz=5.2.5
+  - zlib=1.2.11
+prefix: /home/lhilton/miniconda3/envs/bcftools
+
