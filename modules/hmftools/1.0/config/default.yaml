@@ -6,24 +6,80 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            # Available wildcards: {seq_type} {genome_build} {tumour_id} 
+            # Note: Only outputs of running Strelka in paired/matched normal mode are accepted
+            strelka_vcf: "__UPDATE__"
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            # Note: These are output by the gripss somatic filtering step of the gridss module
+            gridss_somatic: "__UPDATE__"
+            gridss_somatic_filtered: "__UPDATE__"
 
         scratch_subdirectories: []
 
-        options:
-            step_1: ""
-            step_2: ""
+        references: 
+            linx_db: "/projects/rmorin/reference/hmftools-references/linx"
+        
+        switches: 
+            het_snps:
+                grch37: "/projects/rmorin/reference/hmftools-references/amber/GermlineHetPon.hg19.vcf.gz"
+                hs37d5: "/projects/rmorin/reference/hmftools-references/amber/GermlineHetPon.hg19.vcf.gz"
+                hg38: "/projects/rmorin/reference/hmftools-references/amber/GermlineHetPon.hg38.vcf.gz"
+            gc_profile: 
+                grch37: "/projects/rmorin/reference/hmftools-references/cobalt/GC_profile.hg19.1000bp.cnp.gz"
+                hs37d5: "/projects/rmorin/reference/hmftools-references/cobalt/GC_profile.hg19.1000bp.cnp.gz"
+                hg38: "/projects/rmorin/reference/hmftools-references/cobalt/GC_profile.hg38.1000bp.cnp.gz", 
+            ensembl_url: 
+                HG37: "mysql://ensembldb.ensembl.org:3337/homo_sapiens_core_89_37"
+                HG38: "mysql://ensembldb.ensembl.org:3306/homo_sapiens_core_98_38"
 
-        conda_envs:
+        
+        options:
+            amber: 
+                --validation_stringency SILENT
+            cobalt: 
+                --validation_stringency SILENT
+            purple: ""
+            linx: ""
+            linx_viz:
+                -fusion_legend_height_per_row 70
+                -segment_relative_size 0.5
+                -outer_radius 0.85
+                -min_line_size 4 
+                -max_line_size 18
+                -min_label_size 45 
+                -max_label_size 50
+                -glyph_size 25
+                -exon_rank_radius 0.04
+
+        envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            amber: "{MODSDIR}/envs/hmftools-amber-3.4.yaml"
+            cobalt: "{MODSDIR}/envs/hmftools-cobalt-1.8.yaml"
+            purple: "{MODSDIR}/envs/hmftools-purple-3.4.yaml"
+            linx: "{MODSDIR}/envs/hmftools-linx-1.10.yaml"
             
         threads:
-            step_1: 4
+            merge_strelka: 1
+            annotate_strelka: 4
+            amber: 16
+            cobalt: 16
+            purple: 2
+            linx: 2
+            linx_viz: 8
 
         mem_mb:
-            step_1: 2000
+            merge_strelka: 1000
+            annotate_strelka: 4000
+            amber: 32000
+            cobalt: 16000
+            purple: 8000
+            linx: 8000
+            linx_viz: 8000
 
         pairing_config:
             genome:
-                run_paired_tumours: False
-                run_unpaired_tumours_with: "no_normal"
-                run_paired_tumours_as_unpaired: True
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
