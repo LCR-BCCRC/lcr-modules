@@ -211,10 +211,13 @@ rule create_salmon_index:
         mem_mb = 12000
     shell:
         op.as_one_line("""
+        mkdir {output.index}
+            &&
+        chmod u+w {output.index}
+            &&
         salmon index
+        --threads {threads}
         -t {input.fasta}
         -i {output.index}
         > {log} 2>&1
-            &&
-        chmod a-w {output.index}
         """)

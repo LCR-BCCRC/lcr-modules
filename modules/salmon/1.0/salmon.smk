@@ -39,8 +39,8 @@ rule _salmon_input_fastq:
         fastq_1 = CFG["inputs"]["sample_fastq_1"],
         fastq_2 = CFG["inputs"]["sample_fastq_2"]
     output:
-        fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.fastq_1",
-        fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.fastq_2"
+        fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R1.fastq",
+        fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R2.fastq"
     run:
         op.relative_symlink(input.fastq_1, output.fastq_1)
         op.relative_symlink(input.fastq_2, output.fastq_2)

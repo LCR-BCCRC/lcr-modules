@@ -11,7 +11,7 @@ lcr-modules:
             quant: "-l A"
 
         conda_envs:
-            salmon: "{MODSDIR}/envs/salmon1.3.0.yaml"
+            salmon: "{MODSDIR}/envs/salmon-1.3.0.yaml"
             
         threads:
             quant: 4
