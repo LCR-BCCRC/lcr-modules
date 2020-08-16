@@ -21,14 +21,14 @@ CFG = op.setup_module(
     name = "mutect2",
     version = "1.0",
     # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "mutect2", "outputs"],
+    subdirectories = ["inputs", "mutect2", "filter", "decompress", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
 # TODO: Replace with actual rules once you change the rule names
 localrules:
     _mutect2_input_bam,
-    _mutect2_step_2,
+    _mutect2_run,
     _mutect2_output_vcf,
     _mutect2_all,
 
@@ -37,64 +37,77 @@ localrules:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
 rule _mutect2_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        bam = CFG["inputs"]["sample_bam"],
+        bai = CFG["inputs"]["sample_bai"]
     output:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
+        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
         op.relative_symlink(input.bam, output.bam)
+        op.relative_symlink(input.bai, output.bai)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _mutect2_step_1:
+# Launces Mutect2 in paired mode
+rule _mutect2_run:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        vcf = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf"
+        vcf = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz"
     log:
-        stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-        stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
+        stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_run.stdout.log",
+        stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_run.stderr.log"
     params:
-        opts = CFG["options"]["step_1"]
+        opts = CFG["options"]["mutect2_run"]
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["gatk"]
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["mutect2_run"]
     resources:
-        mem_mb = CFG["mem_mb"]["step_1"]
+        mem_mb = CFG["mem_mb"]["mutect2_run"]
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --tumour {input.tumour_bam} --normal {input.normal_bam}
-        --ref-fasta {input.fasta} --output {output.vcf} --threads {threads}
+        gatk Mutect2 {params.opts} -I {input.tumour_bam} -I {input.normal_bam}
+        -R {input.fasta} -normal {wildcards.normal_id} -O {output.vcf} --threads {threads}
         > {log.stdout} 2> {log.stderr}
         """)
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _mutect2_step_2:
+# Marks variants filtered or PASS annotations
+rule _mutect2_filter:
     input:
-        vcf = str(rules._mutect2_step_1.output.vcf)
+        vcf = str(rules._mutect2_run.output.vcf),
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        vcf = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.vcf"
+        vcf = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.vcf.gz"
     log:
-        stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
+        stderr = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_filter.stderr.log"
     params:
-        opts = CFG["options"]["step_2"]
+        opts = CFG["options"]["mutect2_filter"]
     shell:
-        "grep {params.opts} {input.vcf} > {output.vcf} 2> {log.stderr}"
+        op.as_one_line("""
+        gatk FilterMutectCalls {params.opts} -V {input.vcf} -R {input.fasta}
+        -O {output.vcf} > {log.stdout} 2> {log.stderr}
+        """)
 
+# Decompress Mutect2 for downstream analyses
+rule _mutect2_decompress:
+    input:
+        vcf = str(rules._mutect2_filter.output.vcf)
+    output:
+        vcf = CFG["dirs"]["decompress"] + "{seq_type}--{genome_build}/{tumour_id}--{normal}--{pair_status}/output.filt.vcf"
+    log:
+        stderr = CFG["logs"]["decompress"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_decompress.stderr.log"
+    shell:
+        "bgzip -d -c {input.vcf} > {output.vcf} 2> {log.stderr}"
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _mutect2_output_vcf:
     input:
-        vcf = str(rules._mutect2_step_2.output.vcf)
+        vcf = str(rules._mutect2_decompress.output.vcf)
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.vcf"
     run:
@@ -107,7 +120,6 @@ rule _mutect2_all:
         expand(
             [
                 str(rules._mutect2_output_vcf.output.vcf),
-                # TODO: If applicable, add other output rules here
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
