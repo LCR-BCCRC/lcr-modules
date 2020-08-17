@@ -76,14 +76,14 @@ rule _gridss_setup_references:
     conda: 
         CFG["conda_envs"]["gridss"]
     resources: 
-        mem_mb = 3000
+        mem_mb = 4000
     threads: 8
     shell: 
         op.as_one_line("""
         gridss
         --reference {input.fasta}
         --threads {threads}
-        --jvmheap {resources.mem_mb}m
+        --jvmheap 3G
         --steps {params.steps} 
         --workingdir `dirname {output.genome_img}`
         """)
@@ -113,14 +113,14 @@ rule _gridss_setup_viral_ref:
     conda: 
         CFG["conda_envs"]["gridss"]
     resources: 
-        mem_mb = 3000
+        mem_mb = 4000
     threads: 8
     shell: 
         op.as_one_line("""
         gridss
         --reference {input.fasta} 
         --threads {threads} 
-        --jvmheap {resources.mem_mb}m 
+        --jvmheap 3G 
         --steps {params.steps} 
         --workingdir `dirname {output.viral_img}` 
         """)
@@ -149,7 +149,8 @@ rule _gridss_preprocess:
     log: CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/preprocess.log"
     params:
         opts = CFG["options"]["gridss"], 
-        steps = "preprocess" 
+        steps = "preprocess", 
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8) 
     conda:
         CFG["conda_envs"]["gridss"]
     threads:
@@ -163,7 +164,7 @@ rule _gridss_preprocess:
         --reference {input.fasta}
         --workingdir $(dirname {output.workdir}) 
         --threads {threads}
-        --jvmheap 30G
+        --jvmheap {params.jvmheap}m
         --steps {params.steps}
         {params.opts}
         {input.bam} 
@@ -198,7 +199,8 @@ rule _gridss_paired:
     log: CFG["logs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss.log"
     params:
         opts = CFG["options"]["gridss"], 
-        steps = "assemble,call" 
+        steps = "assemble,call", 
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8) 
     conda:
         CFG["conda_envs"]["gridss"]
     threads:
@@ -216,7 +218,7 @@ rule _gridss_paired:
         --blacklist {input.blacklist}
         --repeatmaskerbed {input.repeatmasker}
         --threads {threads}
-        --jvmheap 30G
+        --jvmheap {params.jvmheap}m
         --labels "{wildcards.normal_id},{wildcards.tumour_id}"
         --steps {params.steps}
         {params.opts}
@@ -240,7 +242,8 @@ rule _gridss_unpaired:
     log: CFG["logs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/gridss.log"
     params:
         opts = CFG["options"]["gridss"], 
-        steps = "assemble,call"
+        steps = "assemble,call", 
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gridss"]
     threads:
@@ -258,7 +261,7 @@ rule _gridss_unpaired:
         --blacklist {input.blacklist}
         --repeatmaskerbed {input.repeatmasker}
         --threads {threads}
-        --jvmheap {resources.mem_mb}m
+        --jvmheap {params.jvmheap}m
         --labels "{wildcards.tumour_id}"
         --steps {params.steps}
         {params.opts}
@@ -276,17 +279,18 @@ rule _gridss_viral_annotation:
     output: 
         vcf = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.vcf.gz" 
     log: CFG["logs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.log"
+    resources: 
+        mem_mb = CFG["mem_mb"]["viral_annotation"]
     params: 
-        gridss_jar = "$(readlink -e $(which gridss)).jar"
+        gridss_jar = "$(readlink -e $(which gridss)).jar", 
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda: 
         CFG["conda_envs"]["gridss"]
     threads: 
         CFG["threads"]["viral_annotation"]
-    resources: 
-        mem_mb = CFG["mem_mb"]["viral_annotation"]
     shell: 
         op.as_one_line("""
-        java -Xmx{resources.mem_mb}m 
+        java -Xmx{params.jvmheap}m 
                 -cp {params.gridss_jar} gridss.AnnotateInsertedSequence 
 				REFERENCE_SEQUENCE={input.viral_ref} 
 				INPUT={input.vcf} 
@@ -303,18 +307,23 @@ rule _gridss_run_gripss:
     output: 
         vcf = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic.vcf.gz"
     log: log = CFG["logs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gripss.log"
+    resources: 
+        mem_mb = CFG["mem_mb"]["gripss"]
     params:
         pon_dir = CFG["references"]["pon_dir"],
         alt_build = lambda w: {
             "grch37": "hg19", 
             "hs37d5": "hg19", 
             "hg38": "hg38"}[w.genome_build], 
-        opts = CFG["options"]["gripss"]
+        opts = CFG["options"]["gripss"], 
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda: 
         CFG["conda_envs"]["gripss"]
+    threads: 
+        CFG["threads"]["gripss"]
     shell: 
         op.as_one_line(""" 
-        gripss -Xms4G -Xmx16G 
+        gripss -Xms4G -Xmx{params.jvmheap}m 
         -ref_genome {input.fasta} 
         -breakend_pon {params.pon_dir}/gridss_pon_single_breakend.{params.alt_build}.bed 
         -breakpoint_pon {params.pon_dir}/gridss_pon_breakpoint.{params.alt_build}.bedpe 
@@ -336,7 +345,9 @@ rule _gridss_filter_gripss:
         CFG["conda_envs"]["bcftools"]
     shell: 
         op.as_one_line("""
-        bcftools view -f PASS,PON -Oz -o {output.vcf} {input.vcf}
+        zcat {input.vcf} | 
+            awk '$7 == "PASS" || $7 == "PON" || $1 ~ /^#/ ' | 
+            bcftools view -Oz -o {output.vcf}
         """)
      
 
