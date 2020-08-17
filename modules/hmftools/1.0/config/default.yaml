@@ -12,8 +12,8 @@ lcr-modules:
             strelka_vcf: "__UPDATE__"
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             # Note: These are output by the gripss somatic filtering step of the gridss module
-            gridss_somatic: "__UPDATE__"
-            gridss_somatic_filtered: "__UPDATE__"
+            gridss_somatic: "__UPDATE__" # Output of GRIPSS
+            gridss_somatic_filtered: "__UPDATE__" # Filtered output of GRIPSS
 
         scratch_subdirectories: []
 
@@ -81,5 +81,5 @@ lcr-modules:
         pairing_config:
             genome:
                 run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
+                run_unpaired_tumours_with: null
                 run_paired_tumours_as_unpaired: False
