@@ -17,8 +17,12 @@ from os.path import join
 import oncopipe as op
 
 # Setup module and store module-specific configuration in `CONFIG`
-CONFIG = config["lcr-modules"]["vcf2maf"]
-LOG = "/logs/" + op._session.launched_fmt
+CFG = op.setup_module(
+    name = "vcf2maf",
+    version = "1.0",
+    subdirectories = ["inputs","decompressed","vcf2maf","outputs"]
+)
+
 
 wildcard_constraints:
     prefix = "[0-9]{2}-.*"
@@ -31,30 +35,43 @@ VERSION_UPPER = {
 }
 
 ##### RULES #####
-rule _vcf2naf_get_vep_cache:
-    : expand(rules.download_vep_cache.output.vep, species=config["vep"]["species"],
-            vep_genome_build=config["vep"]["genome_build"]
 
+
+# Symlinks the input files into the module results directory (under '00-inputs/')
+rule _vcf2maf_input_vcf:
+    params:
+        vcf_gz = CFG["inputs"]["sample_vcf_gz"]
+    output:
+        vcf_gz = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.vcf.gz",
+    run:
+        op.relative_symlink(params.vcf_gz, output.vcf_gz)
+
+rule _vcf2maf_decompress_vcf:
+    input:
+        vcf_gz = str(rules._vcf2maf_input_vcf.output.vcf_gz)
+    output:
+        vcf = CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.vcf"
+    shell:
+        "gzip -dc {input.vcf_gz} > {output.vcf}" #this should work on both gzip and bcftools compressed files 
 
 rule _vcf2maf_run:
     input:
-        vcf = "{out_dir}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf",
+        vcf = CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.vcf",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        vep_cache = expand("{vep_dir}{species}/{vep_genome_build}", vep_dir = CONFIG["inputs"]["vep_cache"], species = CONFIG["options"]["species"], vep_genome_build = CONFIG["options"]["vep_genome_build"])
+        vep_cache = CFG["inputs"]["vep_cache"]
     output:
-        maf = "{out_dir}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.maf",
+        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.maf"
     log:
-        stdout = "{out_dir}" + LOG + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}_vcf2maf.stdout.log",
-        stderr = "{out_dir}" + LOG + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}_vcf2maf.stderr.log",
+        stdout = CFG["logs"]["vcf2maf"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_vcf2maf.stdout.log",
+        stderr = CFG["logs"]["vcf2maf"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_vcf2maf.stderr.log",
     params:
-        opts = CONFIG["options"]["vcf2maf"],
-        build = lambda w: f"{VERSION_UPPER[w.genome_build]}"
+        opts = CFG["options"]["vcf2maf"]
     conda:
-        CONFIG["conda_envs"]["vcf2maf"]
+        CFG["conda_envs"]["vcf2maf"]
     threads:
-        CONFIG["threads"]["vcf2maf"]
+        CFG["threads"]["vcf2maf"]
     resources:
-        mem_mb = CONFIG["mem_mb"]["vcf2maf"]
+        mem_mb = CFG["mem_mb"]["vcf2maf"]
     shell:
         op.as_one_line("""
         vepPATH=$(dirname $(which vep))/../share/variant-effect-predictor*;
@@ -63,9 +80,26 @@ rule _vcf2maf_run:
         --output-maf {output.maf} 
         --tumor-id {wildcards.tumour_id} --normal-id {wildcards.normal_id}
         --ref-fasta {input.fasta}
-        --ncbi-build {params.build}
+        --ncbi-build {wildcards.genome_build}
         --vep-data $(dirname $(dirname {input.vep_cache}))
         --vep-path $vepPATH {params.opts}
         > {log.stdout} 2> {log.stderr}
         """)
 
+# Generates the target sentinels for each run, which generate the symlinks
+rule _vcf2maf_all:
+    input:
+        expand(str(rules._vcf2maf_run.output.maf), zip,
+            seq_type = CFG["runs"]["tumour_seq_type"],
+            genome_build = CFG["runs"]["tumour_genome_build"],
+            tumour_id = CFG["runs"]["tumour_sample_id"],
+            normal_id = CFG["runs"]["normal_sample_id"],
+            pair_status = CFG["runs"]["pair_status"],
+            base_name = CFG["vcf_base_name"])
+
+##### CLEANUP #####
+
+
+# Perform some clean-up tasks, including storing the module-specific
+# configuration on disk and deleting the `CFG` variable
+op.cleanup_module(CFG)

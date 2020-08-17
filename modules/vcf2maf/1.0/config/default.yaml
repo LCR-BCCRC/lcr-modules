@@ -1,17 +1,19 @@
 lcr-modules:
     
     vcf2maf:
+        dirs: 
+            _parent: "strelka-1.1_vcf2maf-1.0"
         inputs:
             # Available wildcards: {out_dir}, {seq_type}, {genome_build}, {tumour_id}, {normal_id}, {pair_status}, {vcf_name}
-            vep_cache: "reference/ve"p_caches/"
-
+            vep_cache: "ref/ensembl_vep_cache/"
+            sample_vcf_gz: "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.vcf"
+        vcf_base_name: "__UPDATE__"
         options:
-            vcf2maf: "--filter-vcf 0 --vcf-tumor-id TUMOR --vcf-normal-id NORMAL --cache-version 97"
+            vcf2maf: "--filter-vcf 0 --vcf-tumor-id TUMOR --vcf-normal-id NORMAL --cache-version 86"
             # --filter-vcf     A VCF for FILTER tag common_variant. Set to 0 to disable [~/.vep/ExAC_nonTCGA.r0.3.1.sites.vep.vcf.gz]
             #--species        Ensembl-friendly name of species (e.g. mus_musculus for mouse) [homo_sapiens]
             #--cache-version  Version of offline cache to use with VEP (e.g. 75, 84, 91) [Default: Installed version]
             species: "homo_sapiens"
-            vep_genome_build: "97_GRCh37"
 
         conda_envs:
             vcf2maf: "envs/vcf2maf-1.6.18.yaml"
@@ -21,3 +23,12 @@ lcr-modules:
 
         mem_mb:
             vcf2maf: 4000
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
