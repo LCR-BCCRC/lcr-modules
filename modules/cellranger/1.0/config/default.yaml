@@ -12,7 +12,9 @@ lcr-modules:
             count: "--expect-cells=5000"
             vdj: ""
 
-        conda_envs:
+        conda_envs: 
+            cellranger: None
+
         threads:
             mkfastq: 12
             count: 12
