@@ -79,7 +79,6 @@ rule _cellranger_mkfastq:
     input:
         run_dir = rules._cellranger_input.output.lib,
         ss = rules._cellranger_create_samplesheet.output.ss,
-        #_create_samplesheet(),
         check = _get_completion_files()
     output:
         stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}_mkfastq.stamp"
@@ -90,8 +89,6 @@ rule _cellranger_mkfastq:
         cr = CFG["software"],
         out_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}",
         opts = CFG["options"]["mkfastq"]
-    conda:
-        CFG["conda_envs"]["cellranger"]
     threads:
         CFG["threads"]["mkfastq"]
     resources: 
@@ -123,8 +120,6 @@ rule _cellranger_count:
         fastq_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}/",
         opts = CFG["options"]["count"],
         ref = CFG["reference"]["transcriptome"]
-    conda:
-        CFG["conda_envs"]["cellranger"]
     threads:
         CFG["threads"]["count"]
     resources: 
@@ -157,8 +152,6 @@ rule _cellranger_vdj:
         fastq_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}",
         opts = CFG["options"]["vdj"],
         ref = CFG["reference"]["vdj"]
-    conda:
-        CFG["conda_envs"]["cellranger"]
     threads:
         CFG["threads"]["vdj"]
     resources: 

@@ -1,6 +1,6 @@
 lcr-modules:
     cellranger:
-        software: "/projects/clc/usr/cellranger/cellranger-3.1.0/cellranger"
+        software: "/projects/clc/usr/cellranger/cellranger-4.0.0/cellranger"
 
         inputs:
             # The inputs can be configured here or in the Snakefile
@@ -13,8 +13,6 @@ lcr-modules:
             vdj: ""
 
         conda_envs:
-            cellranger: "{MODSDIR}/envs/cellranger-3.0.2.yaml"
-        
         threads:
             mkfastq: 12
             count: 12
