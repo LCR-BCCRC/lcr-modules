@@ -41,7 +41,7 @@ rule _vcf2maf_decompress_vcf:
     wildcard_constraints:
         out_dir = ".*(maf).*"
     shell:
-        "bgzip -d {input.vcf} -c {output.vcf}"
+        "bgzip -dc {input.vcf} > {output.vcf}"
 
 
 rule _vcf2maf_run:
