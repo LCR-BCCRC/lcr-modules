@@ -23,3 +23,13 @@ This release was authored by Helena Winata.
 
 Update by Ryan Morin
  - added "bam" resource to allow users to limit concurrent jobs for the I/O heavy rule. Make use of this by running snakemake with --resources bam=50 for a reasonable job load
+
+
+## [1.1] - 2020-08-17
+ - switched to leaving vcfs as bgzip-compressed at all times. 
+ - Use bcftools for filtering (instead of Awk).  
+ - A lot of tweaks to get bcftools to behave with these files (includes a sorting step)
+ - Tabix indexes are made for all outputs
+ - Step to combine indel and snv into one "combined" output file
+ - Only the filtered vcfs are merged and ultimately symlinked (along with their tbi files)
+ - Output files are all named based on sample instead of having the same name and being separated by subdirectories. Avoids future issues with files being relocated. 
