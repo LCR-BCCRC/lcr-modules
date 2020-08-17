@@ -70,7 +70,7 @@ rule _mutect2_run:
     shell:
         op.as_one_line("""
         gatk Mutect2 {params.opts} -I {input.tumour_bam} -I {input.normal_bam}
-        -R {input.fasta} -normal {wildcards.normal_id} -O {output.vcf} --threads {threads}
+        -R {input.fasta} -normal {wildcards.normal_id} -O {output.vcf}
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -83,6 +83,7 @@ rule _mutect2_filter:
     output:
         vcf = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.vcf.gz"
     log:
+        stdout = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_filter.stdout.log",
         stderr = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_filter.stderr.log"
     params:
         opts = CFG["options"]["mutect2_filter"]
@@ -103,7 +104,7 @@ rule _mutect2_decompress:
     input:
         vcf = str(rules._mutect2_filter.output.vcf)
     output:
-        vcf = CFG["dirs"]["decompress"] + "{seq_type}--{genome_build}/{tumour_id}--{normal}--{pair_status}/output.filt.vcf"
+        vcf = CFG["dirs"]["decompress"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.vcf"
     log:
         stderr = CFG["logs"]["decompress"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_decompress.stderr.log"
     shell:
