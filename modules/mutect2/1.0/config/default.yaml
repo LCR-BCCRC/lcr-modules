@@ -6,21 +6,25 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
 
         scratch_subdirectories: []
 
         options:
-            step_1: ""
-            step_2: ""
+            mutect2_run: ""
+            mutect2_filter: ""
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            gatk: "{MODSIR}/envs/gatk-4.1.8.1.yaml"
             
         threads:
-            step_1: 4
+            mutect2_run: 1
+            mutect2_filter: 1
 
         mem_mb:
-            step_1: 2000
+            mutect2_run: 10000
+            mutect2_filter: 512
 
         pairing_config:
             genome:

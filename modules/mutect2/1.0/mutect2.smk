@@ -28,7 +28,6 @@ CFG = op.setup_module(
 # TODO: Replace with actual rules once you change the rule names
 localrules:
     _mutect2_input_bam,
-    _mutect2_run,
     _mutect2_output_vcf,
     _mutect2_all,
 
@@ -87,6 +86,12 @@ rule _mutect2_filter:
         stderr = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_filter.stderr.log"
     params:
         opts = CFG["options"]["mutect2_filter"]
+    conda:
+        CFG["conda_envs"]["gatk"]
+    threads:
+        CFG["threads"]["mutect2_filter"]
+    resources:
+        mem_mb = CFG["mem_mb"]["mutect2_filter"]
     shell:
         op.as_one_line("""
         gatk FilterMutectCalls {params.opts} -V {input.vcf} -R {input.fasta}
