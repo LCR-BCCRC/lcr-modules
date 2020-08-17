@@ -32,7 +32,6 @@ localrules:
     _strelka_configure_paired,
     _strelka_configure_unpaired,
     _strelka_filter,
-    _strelka_output_unfiltered_vcf,
     _strelka_output_filtered_vcf,
     _strelka_all,
 
@@ -146,7 +145,7 @@ rule _strelka_configure_unpaired: # germline
     params:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["configure"])
     message:
-        "WARNING: {wildcards.seq_type} sample ({wildcards.sample}) is processed using Strelka Germline workflow. Ensure pairing config for capture is set to run_unpaired_tumours_with: 'unmatched_normal' to run Strelka Somatic workflow"
+        "WARNING: {wildcards.seq_type} sample ({wildcards.tumour_id}) is being processed using Strelka Germline workflow. Ensure pairing config for capture is set to run_unpaired_tumours_with: 'unmatched_normal' to run Strelka Somatic workflow"
     wildcard_constraints:
         pair_status = "no_normal"
     conda:
@@ -257,7 +256,7 @@ def _strelka_get_output(wildcards):
 
     if wildcards.pair_status == "no_normal":
         vcf_files = "variants"
-        vcf = expand(str(rules._strelka_filter.output.vcf_gz), var_type = vcf_files, **wildcards)
+        vcf = expand(str(rules._strelka_filter.output.vcf), var_type = vcf_files, **wildcards)
     else:
         vcf_files = ["somatic.snvs","somatic.indels"]
         vcf = expand(str(rules._combine_strelka.output.combined), **wildcards)
