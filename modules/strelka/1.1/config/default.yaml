@@ -24,10 +24,11 @@ lcr-modules:
             tabix: "{MODSDIR}/envs/tabix-0.2.6.yaml"
             
         threads:
-            strelka: 12
+            strelka: 12 #if you increase this the mem_mb should also be increased, probably proportionately
 
         mem_mb:
             strelka: 4000
+            bcftools_sort: 20000
 
         pairing_config:
             genome:
