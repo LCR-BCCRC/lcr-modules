@@ -250,33 +250,35 @@ rule _combine_strelka:
         bcftools concat -a {input.snv} {input.indel} | bcftools sort --max-mem {resources.mem_mb}M -Oz -o {output.combined} > {log.stdout} 2> {log.stderr} && tabix -p vcf {output.combined} >> {log.stdout} 2>> {log.stderr} 
         """)
 
-# Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _strelka_output_filtered_vcf:
-    input:
-        vcf = str(rules._combine_strelka.output.combined),
-        vcf_tbi = str(rules._combine_strelka.output.combined_tbi)
-    output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_combined.passed.vcf.gz",
-        vcf_tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_combined.passed.vcf.gz.tbi"
-    run:
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(input.vcf_tbi, output.vcf_tbi)
 
-
+# infers name of output files depending on how Strelka was run
 def _strelka_get_output(wildcards):
     CFG = config["lcr-modules"]["strelka"]
 
     if wildcards.pair_status == "no_normal":
         vcf_files = "variants"
+        vcf = expand(str(rules._strelka_filter.output.vcf_gz), var_type = vcf_files, **wildcards)
     else:
-        vcf_files = ["somatic.snvs", "somatic.indels"]
-    vcf = expand(str(rules._strelka_output_filtered_vcf.output.vcf), var_type = vcf_files, **wildcards)
+        vcf_files = ["somatic.snvs","somatic.indels"]
+        vcf = expand(str(rules._combine_strelka.output.combined), **wildcards)
     return vcf
+
+# Symlinks the final output files into the module results directory (under '99-outputs/'). Links will always use "combined" in the name (dropping odd naming convention used by Strelka in unpaired mode)
+rule _strelka_output_filtered_vcf:
+    input:
+        vcf = _strelka_get_output
+    output:
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_combined.passed.vcf.gz",
+        vcf_tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_combined.passed.vcf.gz.tbi"
+    run:
+        op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(str(input.vcf) + ".tbi", output.vcf_tbi)
+
 
 
 rule _strelka_dispatch:
     input: 
-        vcf = _strelka_get_output
+        vcf = str(rules._strelka_output_filtered_vcf.output.vcf)
     output:
         dispatched = touch(CFG["dirs"]["outputs"] + "dispatched/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.dispatched")
 
