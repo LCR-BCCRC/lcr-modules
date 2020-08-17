@@ -13,19 +13,22 @@ lcr-modules:
             gripss: 
             # Hard filters remove variants from output VCF
             # Soft filters add flags to output VCF
-                # -hard_max_normal_absolute_support 3
-                # -hard_max_normal_relative_support 0.06
-                # -soft_max_normal_relative_support 0.03
+            # These flags don't work with the current version of GRIPSS
+            # A fix is being prepared by the developers
+                -hard_max_normal_absolute_support 3
+                -hard_max_normal_relative_support 0.06
+                -soft_max_normal_relative_support 0.03
 
         references: 
+            # These reference files are available from https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC?path=%2FHMFTools-Resources%2FGRIDSS
             viral_fa: "__UPDATE__"
             viral_bwa_prefix: "__UPDATE__" 
-            pon_dir: "/projects/rmorin/reference/hmftools-references/gridss" # These panels of normals are available from https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC?path=%2FHMFTools-Resources%2FGRIDSS
+            pon_dir: "__UPDATE__" 
        
         
         conda_envs:
             gridss: "{MODSDIR}/envs/gridss-dependencies-2.9.4.yaml"
-            gripss: "{MODSDIR}/envs/hmftools-gripss-1.2.0.yaml"
+            gripss: "{MODSDIR}/envs/hmftools-gripss-1.4.0.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             
         threads:
@@ -34,9 +37,9 @@ lcr-modules:
             gripss: 1 # Not multi-threaded
 
         mem_mb:
-            gridss: 40000 # Minimum value to support hard-coded JVM heap size
-            viral_annotation: 6000
-            gripss: 20000 # Minimum value to support hard-coded JVM heap size
+            gridss: 37500 # Recommended per GRIDSS manual
+            viral_annotation: 8000
+            gripss: 20000 # May need to be increased for FFPE tumours
 
         pairing_config:
             genome:
