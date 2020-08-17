@@ -11,6 +11,7 @@ This release was authored by Bruno Grande.
 
 - The `_sequenza_merge_seqz` rule was concatenating all input files instead of just the SEQZ files. This bug was fixed.
 
+
 ## [1.2] - 2020-07-16
 
 This release was authored by Bruno Grande.
