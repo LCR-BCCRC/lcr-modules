@@ -6,7 +6,7 @@
 
 # Original Author:  Bruno Grande
 # Module Author:    Helena Winata
-# Contributors:     N/A
+# Contributors:     Ryan Morin
 
 
 ##### SETUP #####
@@ -23,9 +23,12 @@ CFG = op.setup_module(
     subdirectories = ["inputs","decompressed","vcf2maf","outputs"]
 )
 
-
-wildcard_constraints:
-    prefix = "[0-9]{2}-.*"
+# Define rules to be run locally when using a compute cluster
+localrules:
+    _vcf2maf_input_vcf,
+    _vcf2maf_decompress_vcf,
+    _vcf2maf_output_maf,
+    _vcf2maf_all
 
 VERSION_MAP = {
     "grch37": "GRCh37",
@@ -35,11 +38,11 @@ VERSION_MAP = {
 
 ##### RULES #####
 
-
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _vcf2maf_input_vcf:
     input:
         vcf_gz = CFG["inputs"]["sample_vcf_gz"]
+        #str(rules._touch_input_vcf.output.vcf_gz)
     output:
         vcf_gz = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.vcf.gz"
     run:
