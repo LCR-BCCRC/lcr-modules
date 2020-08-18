@@ -42,7 +42,6 @@ VERSION_MAP = {
 rule _vcf2maf_input_vcf:
     input:
         vcf_gz = CFG["inputs"]["sample_vcf_gz"]
-        #str(rules._touch_input_vcf.output.vcf_gz)
     output:
         vcf_gz = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.vcf.gz"
     run:
