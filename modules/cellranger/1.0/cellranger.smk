@@ -51,22 +51,9 @@ rule _cellranger_create_samplesheet:
         ss.to_csv(output.ss, sep = ",", index = False)
 
 
-def _create_samplesheet(mconfig = CFG):
-    samples = mconfig["samples"]
-    ss_dir = mconfig["dirs"]["samplesheet"]
-    def _custom_samplesheet(wildcards):
-        df = samples[samples["chip_id"] == wildcards.chip_id]
-        ss = df[["lane", "sample_id", "index"]]
-        ss.columns = ["lane", "sample", "index"]
-        ss_file = ( ss_dir + f"{wildcards.chip_id}_samplesheet.csv")
-        ss.to_csv(ss_file, sep = ",", index = False)
-        return ss_file
-    return _custom_samplesheet
-
 
 def _get_completion_files(raw_dir = CFG["inputs"]["sample_dir"], suffix = ["RTAComplete*", "RunInfo*", "RunParameters*"]):
     def _get_custom_files(wildcards):
-        #path = raw_dir + f"{wildcards.seq_type}--{wildcards.genome_build}/*{wildcards.chip_id}*"
         runs = glob.glob(raw_dir + f"/*{wildcards.chip_id}*")[0]
         file = []
         for f in suffix:
@@ -77,8 +64,8 @@ def _get_completion_files(raw_dir = CFG["inputs"]["sample_dir"], suffix = ["RTAC
 
 rule _cellranger_mkfastq:
     input:
-        run_dir = rules._cellranger_input.output.lib,
-        ss = rules._cellranger_create_samplesheet.output.ss,
+        run_dir = str(rules._cellranger_input.output.lib),
+        ss = str(rules._cellranger_create_samplesheet.output.ss),
         check = _get_completion_files()
     output:
         stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}_mkfastq.stamp"
@@ -109,7 +96,7 @@ rule _cellranger_mkfastq:
 
 rule _cellranger_count:
     input:
-        stamp = rules._cellranger_mkfastq.output.stamp
+        stamp = str(rules._cellranger_mkfastq.output.stamp)
     output:
         stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}--{sample_id}_count.stamp"
     log:
@@ -141,7 +128,7 @@ rule _cellranger_count:
 
 rule _cellranger_vdj:
     input:
-        stamp = rules._cellranger_mkfastq.output.stamp
+        stamp = str(rules._cellranger_mkfastq.output.stamp)
     output:
         stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}--{sample_id}_vdj.stamp"
     log:
