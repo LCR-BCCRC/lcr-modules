@@ -16,9 +16,9 @@ subworkflow reference_files:
     workdir:
         "reference/"
     snakefile:
-        "../workflows/reference_files/2.2/reference_files.smk"
+        "../workflows/reference_files/2.3/reference_files.smk"
     configfile:
-        "../workflows/reference_files/2.2/config/default.yaml"
+        "../workflows/reference_files/2.3/config/default.yaml"
 
 
 ##### CONFIGURATION FILES #####
@@ -32,6 +32,7 @@ configfile: "../modules/vcf2maf/1.0/config/default.yaml"
 configfile: "../modules/sequenza/1.2/config/default.yaml"
 configfile: "../modules/varscan/1.0/config/default.yaml"
 configfile: "../modules/strelka/1.0/config/default.yaml"
+
 
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
