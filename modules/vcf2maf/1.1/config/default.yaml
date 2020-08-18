@@ -22,7 +22,7 @@ lcr-modules:
             vcf2maf: 12
 
         mem_mb:
-            vcf2maf: 4000
+            vcf2maf: 8000
         pairing_config:
             genome:
                 run_paired_tumours: True
