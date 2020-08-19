@@ -52,7 +52,7 @@ def seg_to_bed(input_file, output_file, chromosome, start, end):
     bed_other = seg.drop(['chrom', 'start', 'end'], axis=1)
     bed = bed_required.join(bed_other)
     # shift start position by 1 to the left
-    bed['start'] = bed['start'].apply(lambda x: x-1)
+    bed['start'] = bed['start'].apply(lambda x: int(x-1))
     # check that chromosomes are prefixed and prefix if they are not
     chrom = list(bed['chrom'])
     for i in range(len(chrom)):
