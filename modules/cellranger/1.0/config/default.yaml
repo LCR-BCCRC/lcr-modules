@@ -13,7 +13,7 @@ lcr-modules:
             vdj: ""
 
         conda_envs:
-            cellranger: None
+            cellranger: null
 
         threads:
             mkfastq: 12
