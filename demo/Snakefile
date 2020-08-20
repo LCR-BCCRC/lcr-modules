@@ -25,7 +25,7 @@ subworkflow reference_files:
 
 
 # Load module-specific configuration
-configfile: "../modules/star/1.2/config/default.yaml"
+configfile: "../modules/star/1.3/config/default.yaml"
 configfile: "../modules/manta/2.2/config/default.yaml"
 configfile: "../modules/sequenza/1.2/config/default.yaml"
 configfile: "../modules/strelka/1.0/config/default.yaml"
@@ -48,7 +48,7 @@ config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 
 # Load module-specific snakefiles
 
-include: "../modules/star/1.2/star.smk"
+include: "../modules/star/1.3/star.smk"
 include: "../modules/manta/2.2/manta.smk"
 include: "../modules/sequenza/1.2/sequenza.smk"
 include: "../modules/strelka/1.0/strelka.smk"
