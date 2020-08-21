@@ -1,0 +1,7 @@
+name: bcl2fastq-2.19.0
+channels:
+  - dranew
+  - defaults
+dependencies:
+  - bcl2fastq=2.19.0
+prefix: /projects/clc/usr/anaconda/workflow_prototype/envs/

@@ -13,7 +13,7 @@ lcr-modules:
             vdj: ""
 
         conda_envs:
-            bcl2fastq: "{MODSDIR}/envs/bcl2fastq-2.19.0.yaml"
+            cellranger: null
 
         threads:
             mkfastq: 12

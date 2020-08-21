@@ -19,7 +19,7 @@ import oncopipe as op
 # `CFG` is a shortcut to `config["lcr-modules"]["cellranger"]`
 CFG = op.setup_module(
     name = "cellranger", 
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "samplesheet", "mkfastq", "count", "vdj", "outputs"],
 )
 
@@ -37,15 +37,16 @@ rule _cellranger_input:
         lib = directory(CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{chip_id}")
     run:
         f = glob.glob(input.lib + "*" + wildcards.chip_id + "*")
-        print(f)
         op.relative_symlink(f[0], output.lib)
 
 
 rule _cellranger_create_samplesheet:
     output:
         ss = CFG["dirs"]["samplesheet"] + "{chip_id}_samplesheet.csv"
+    params:
+        sample_df = CFG["samples"]
     run:
-        df = op.filter_samples(CFG["samples"], chip_id = wildcards.chip_id)
+        df = op.filter_samples(params.sample_df, chip_id = wildcards.chip_id)
         ss = df[["lane", "sample_id", "index"]]
         ss.columns = ["lane", "sample", "index"]
         ss.to_csv(output.ss, sep = ",", index = False)
@@ -68,27 +69,27 @@ rule _cellranger_mkfastq:
         ss = str(rules._cellranger_create_samplesheet.output.ss),
         check = _get_completion_files()
     output:
-        stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}_mkfastq.stamp"
+        stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}_mkfastq.stamp",
+        out_dir = directory(CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/{chip_id}")
     log:
         stdout = CFG["logs"]["mkfastq"] + "{seq_type}--{genome_build}/{chip_id}/mkfastq.stdout.log",
         stderr = CFG["logs"]["mkfastq"] + "{seq_type}--{genome_build}/{chip_id}/mkfastq.stderr.log"
     params:
         cr = CFG["software"],
-        out_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}",
         opts = CFG["options"]["mkfastq"]
-    conda:
-        CFG["conda_envs"]["bcl2fastq"]
+    singularity:
+        "docker://unlhcc/cellranger:4.0.0"
     threads:
         CFG["threads"]["mkfastq"]
     resources: 
         mem_mb = CFG["mem_mb"]["mkfastq"]
     shell:
         op.as_one_line("""
-        {params.cr} mkfastq
+        cellranger mkfastq
         {params.opts}
         --run={input.run_dir} 
         --samplesheet={input.ss}
-        --output-dir={params.out_dir}
+        --output-dir={output.out_dir}
         --localcores={threads}
         --localmem=$(({resources.mem_mb}/1000))
         > {log.stdout} 2> {log.stderr}
@@ -106,18 +107,18 @@ rule _cellranger_count:
         stderr = CFG["logs"]["count"] + "{seq_type}--{genome_build}/{chip_id}--{sample_id}_count.stderr.log"
     params:
         cr = CFG["software"],
-        fastq_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}/",
+        fastq_dir = directory(CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/{chip_id}"),
         opts = CFG["options"]["count"],
         ref = CFG["reference"]["transcriptome"]
-    conda:
-        CFG["conda_envs"]["bcl2fastq"]
+    singularity:
+        "docker://unlhcc/cellranger:4.0.0"
     threads:
         CFG["threads"]["count"]
     resources: 
         mem_mb = CFG["mem_mb"]["count"]
     shell:
         op.as_one_line("""
-        {params.cr} count
+        cellranger count
         {params.opts}
         --id={wildcards.sample_id}
         --sample={wildcards.sample_id}
@@ -140,18 +141,18 @@ rule _cellranger_vdj:
         stderr = CFG["logs"]["vdj"] + "{seq_type}--{genome_build}/{chip_id}--{sample_id}_vdj.stderr.log"
     params:
         cr = CFG["software"],
-        fastq_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}",
+        fastq_dir = directory(CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/{chip_id}"),
         opts = CFG["options"]["vdj"],
         ref = CFG["reference"]["vdj"]
-    conda:
-        CFG["conda_envs"]["bcl2fastq"]
+    singularity:
+        "docker://unlhcc/cellranger:4.0.0"
     threads:
         CFG["threads"]["vdj"]
     resources: 
         mem_gb = CFG["mem_mb"]["vdj"]
     shell:
         op.as_one_line("""
-        {params.cr} vdj
+        cellranger vdj
         {params.opts}
         --id={wildcards.sample_id}
         --sample={wildcards.sample_id}
