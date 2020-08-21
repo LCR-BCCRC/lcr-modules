@@ -10,5 +10,5 @@ lcr-modules:
         inputs:
             sample_dir: "sc_data/"
         reference:
-            transcriptome: "/projects/clc/references/cellranger/refdata-cellranger-GRCh38-3.0.0"
+            transcriptome: "/projects/clc/references/cellranger/refdata-gex-GRCh38-2020-A/"
             vdj: "/projects/clc/references/cellranger/refdata-cellranger-vdj-GRCh38-alts-ensembl-3.1.0"

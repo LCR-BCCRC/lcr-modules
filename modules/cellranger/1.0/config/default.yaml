@@ -6,6 +6,9 @@ lcr-modules:
             # The inputs can be configured here or in the Snakefile
             # Available wildcards: {seq_type} {genome_build} {chip_id}
             sample_dir: "__UPDATE__"
+        reference:
+            transcriptome: "__UPDATE__"
+            vdj: "__UPDATE__"
 
         options:
             mkfastq: "--qc"
