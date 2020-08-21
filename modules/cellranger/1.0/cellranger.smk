@@ -68,13 +68,14 @@ rule _cellranger_mkfastq:
         ss = str(rules._cellranger_create_samplesheet.output.ss),
         check = _get_completion_files()
     output:
-        stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}_mkfastq.stamp"
+        stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}_mkfastq.stamp",
+        out_dir = directory(CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/{chip_id}")
     log:
         stdout = CFG["logs"]["mkfastq"] + "{seq_type}--{genome_build}/{chip_id}/mkfastq.stdout.log",
         stderr = CFG["logs"]["mkfastq"] + "{seq_type}--{genome_build}/{chip_id}/mkfastq.stderr.log"
     params:
         cr = CFG["software"],
-        out_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}",
+        
         opts = CFG["options"]["mkfastq"]
     conda:
         CFG["conda_envs"]["bcl2fastq"]
@@ -88,7 +89,7 @@ rule _cellranger_mkfastq:
         {params.opts}
         --run={input.run_dir} 
         --samplesheet={input.ss}
-        --output-dir={params.out_dir}
+        --output-dir={output.out_dir}
         --localcores={threads}
         --localmem=$(({resources.mem_mb}/1000))
         > {log.stdout} 2> {log.stderr}
@@ -98,7 +99,8 @@ rule _cellranger_mkfastq:
 
 rule _cellranger_count:
     input:
-        stamp = str(rules._cellranger_mkfastq.output.stamp)
+        stamp = str(rules._cellranger_mkfastq.output.stamp),
+        fastq_dir = str(rules._cellranger_mkfastq.output.out_dir)
     output:
         stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}--{sample_id}_count.stamp"
     log:
@@ -106,7 +108,7 @@ rule _cellranger_count:
         stderr = CFG["logs"]["count"] + "{seq_type}--{genome_build}/{chip_id}--{sample_id}_count.stderr.log"
     params:
         cr = CFG["software"],
-        fastq_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}/",
+        #fastq_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/{chip_id}/",
         opts = CFG["options"]["count"],
         ref = CFG["reference"]["transcriptome"]
     conda:
@@ -121,7 +123,7 @@ rule _cellranger_count:
         {params.opts}
         --id={wildcards.sample_id}
         --sample={wildcards.sample_id}
-        --fastqs={params.fastq_dir} 
+        --fastqs={input.fastq_dir} 
         --transcriptome={params.ref}
         --localcores={threads}
         --localmem=$(({resources.mem_mb}/1000))
@@ -132,7 +134,8 @@ rule _cellranger_count:
 
 rule _cellranger_vdj:
     input:
-        stamp = str(rules._cellranger_mkfastq.output.stamp)
+        stamp = str(rules._cellranger_mkfastq.output.stamp),
+        fastq_dir = str(rules._cellranger_mkfastq.output.out_dir)
     output:
         stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}--{sample_id}_vdj.stamp"
     log:
@@ -140,7 +143,7 @@ rule _cellranger_vdj:
         stderr = CFG["logs"]["vdj"] + "{seq_type}--{genome_build}/{chip_id}--{sample_id}_vdj.stderr.log"
     params:
         cr = CFG["software"],
-        fastq_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/chip_{chip_id}",
+        #fastq_dir = CFG["dirs"]["mkfastq"] + "{seq_type}--{genome_build}/{chip_id}",
         opts = CFG["options"]["vdj"],
         ref = CFG["reference"]["vdj"]
     conda:
@@ -155,7 +158,7 @@ rule _cellranger_vdj:
         {params.opts}
         --id={wildcards.sample_id}
         --sample={wildcards.sample_id}
-        --fastqs={params.fastq_dir} 
+        --fastqs={input.fastq_dir} 
         --reference={params.ref}
         --localcores={threads}
         --localmem=$(({resources.mem_gb}/1000))
