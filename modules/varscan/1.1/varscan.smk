@@ -221,11 +221,11 @@ rule _varscan_combine_vcf:
     input:
         vcf = _varscan_request_vcf
     output:
-        vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined.vcf.gz",
-        tbi= CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined.vcf.gz.tbi"
+        vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged.vcf.gz",
+        tbi= CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged.vcf.gz.tbi"
     log:
-        stdout = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined_combine_vcf.stdout.log",
-        stderr = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined_combine_vcf.stderr.log"
+        stdout = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged_combine_vcf.stdout.log",
+        stderr = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged_combine_vcf.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
     resources:
@@ -239,12 +239,13 @@ rule _varscan_combine_vcf:
         tabix -p vcf {output.vcf} >> {log.stdout} 2>> {log.stderr}
         """)
 
+
 # symlink vcf file to maf directory to run vcf2maf
 rule _varscan_symlink_maf:
     input:
         vcf = str(rules._varscan_combine_vcf.output.vcf)
     output:
-        vcf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined.vcf.gz"
+        vcf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged.vcf.gz"
     run:
         op.relative_symlink(input.vcf, output.vcf)
 
@@ -255,8 +256,8 @@ rule _varscan_output_vcf:
         vcf = str(rules._varscan_combine_vcf.output.vcf),
         tbi = str(rules._varscan_combine_vcf.output.tbi)
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-combined.vcf.gz",
-        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-combined.vcf.gz.tbi"
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-merged.vcf.gz",
+        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-merged.vcf.gz.tbi"
     run:
         op.relative_symlink(input.vcf, output.vcf)
         op.relative_symlink(input.tbi, output.tbi)
@@ -265,9 +266,9 @@ rule _varscan_output_vcf:
 rule _varscan_output_maf:
     input:
         #vcf = str(rules._varscan_combine_vcf.output.vcf), # ensure vcf is not deleted before maf is created
-        maf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined.maf"
+        maf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged.maf"
     output:
-        maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-combined.maf"
+        maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-merged.maf"
     run:
         op.relative_symlink(input.maf, output.maf)
 
@@ -294,7 +295,7 @@ rule _varscan_all:
             [
                 #str(rules._varscan_dispatch.output.dispatched),
             str(rules._varscan_output_vcf.output.vcf),
-            str(rules._varscan_output_maf.output.maf)
+            #str(rules._varscan_output_maf.output.maf)
             ],
             zip,
             seq_type=CFG["runs"]["tumour_seq_type"],
