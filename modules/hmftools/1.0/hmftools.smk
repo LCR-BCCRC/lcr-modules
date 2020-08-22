@@ -57,7 +57,7 @@ rule _hmftools_input_strelka:
     input: 
         strelka_vcf = CFG["inputs"]["strelka_vcf"], 
     output: 
-        strelka_vcf = CFG["dirs"]["inputs"] + "strelka_vcf/genome--{genome_build}/{tumour_id}--{normal_id}--matched/somatic.combined.vcf" 
+        strelka_vcf = CFG["dirs"]["inputs"] + "strelka_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic.combined.vcf" 
     run: 
         op.relative_symlink(input.strelka_vcf, output.strelka_vcf)
 
@@ -93,10 +93,10 @@ rule _hmftools_annotate_strelka:
     input: 
         vcf = rules._hmftools_input_strelka.output.strelka_vcf
     output: 
-        vcf = CFG["dirs"]["prepare_strelka"] + "genome--{genome_build}/{tumour_id}--{normal_id}--matched/strelka.merged.annotated.vcf"
+        vcf = CFG["dirs"]["prepare_strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka.merged.annotated.vcf"
     params: 
         purple_jar = "$(dirname $(readlink -e $(which PURPLE)))/purple.jar"
-    log: CFG["logs"]["prepare_strelka"] + "genome--{genome_build}/{tumour_id}--{normal_id}--matched/annotate_strelka.log"
+    log: CFG["logs"]["prepare_strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/annotate_strelka.log"
     conda: CFG["envs"]["purple"]
     threads: 
         CFG["threads"]["annotate_strelka"]
@@ -116,11 +116,11 @@ rule _hmftools_amber_paired:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam", 
     output: 
-        vcf = CFG["dirs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/{tumour_id}.amber.baf.vcf.gz"
+        vcf = CFG["dirs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.amber.baf.vcf.gz"
     params:
         snps = op.switch_on_wildcard("genome_build", CFG["switches"]["het_snps"]), 
         options = CFG["options"]["amber"]
-    log: CFG["logs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/amber.log"
+    log: CFG["logs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/amber.log"
     conda: 
         CFG["envs"]["amber"]
     threads: 
@@ -133,7 +133,7 @@ rule _hmftools_amber_paired:
         -reference {wildcards.normal_id} -reference_bam {input.normal_bam}
         -tumor {wildcards.tumour_id} -tumor_bam {input.tumour_bam}
         -output_dir `dirname {output.vcf}`
-        -threads {params.threads}
+        -threads {threads}
         -loci {params.snps}
         {params.options}
         2>&1 | tee -a {log} 
@@ -147,7 +147,7 @@ rule _hmftools_amber_paired:
 #     params:
 #         snps = op.switch_on_wildcard("genome_build", CFG["switches"]["het_snps"]), 
 #         options = CFG["options"]["amber"]
-#     log: CFG["logs"]["amber"] + "genome--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/amber.log"
+#     log: CFG["logs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/amber.log"
 #     conda: 
 #         CFG["envs"]["amber"]
 #     threads: 
@@ -159,7 +159,7 @@ rule _hmftools_amber_paired:
 #         AMBER 
 #         -tumor {wildcards.tumour_id} -tumor_bam {input.tumour_bam}
 #         -output_dir {output.out_dir}
-#         -threads {params.threads}
+#         -threads {threads}
 #         -loci {params.snps}
 #         -tumor_only
 #         {params.options}
@@ -189,7 +189,7 @@ rule _hmftools_cobalt:
         -reference {wildcards.normal_id} -reference_bam {input.normal_bam} 
         -tumor {wildcards.tumour_id} -tumor_bam {input.tumour_bam} 
         -output_dir `dirname {output.ratio}` 
-        -threads {params.threads} 
+        -threads {threads} 
         -gc_profile {params.gc_profile} 
         {params.options} 
         2>&1 | tee -a {log} 
@@ -207,10 +207,10 @@ rule _hmftools_purple_paired:
         gridss_filtered_vcf = CFG["dirs"]["inputs"] + "gridss_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/gridss_somatic_filtered.vcf.gz",
         reference_fa = rules._hmftools_input_references.output.genome_fa
     output: 
-        files = expand(CFG["dirs"]["purple"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--matched/{{tumour_id}}.purple.{out_file}", 
-                        out_file = ["purity.tsv", "purity.range.tsv", "cnv.somatic.tsv", "cnv.gene.tsv", "catalog.tsv", "sv.vcf.gz", "somatic.vcf.gz"]), 
-        circos = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/plot/{tumour_id}.circos.png"
-    log: CFG["logs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/purple.log"
+        files = expand(CFG["dirs"]["purple"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/{{tumour_id}}.purple.{out_file}", 
+        out_file = ["purity.tsv", "purity.range.tsv", "cnv.somatic.tsv", "cnv.gene.tsv", "driver.catalog.tsv", "sv.vcf.gz"]) 
+        # circos = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/plot/{tumour_id}.circos.png"
+    log: CFG["logs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/purple.log"
     params: 
         gc_profile = op.switch_on_wildcard("genome_build", CFG["switches"]["gc_profile"]),
         options = CFG["options"]["purple"],
@@ -226,7 +226,7 @@ rule _hmftools_purple_paired:
         PURPLE \
             -reference {wildcards.normal_id} 
             -tumor {wildcards.tumour_id} 
-            -output_dir `dirname {output.sv_vcf}` 
+            -output_dir `dirname {output.files}` 
             -amber `dirname {input.amber}` 
             -cobalt `dirname {input.cobalt}` 
             -gc_profile {params.gc_profile} 
@@ -314,7 +314,7 @@ def _hmftools_get_ensembl_build(wildcards):
 # Run LINX to cluster and visualize CNV and SV data
 rule _hmftools_linx: 
     input: 
-        purple_vcf = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched/{tumour_id}.purple.sv.vcf.gz", 
+        purple_vcf = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.purple.sv.vcf.gz", 
         ensembl_cache = _hmftools_get_ensembl_build
     output: 
         linx_dir = directory(CFG["dirs"]["linx"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}")
@@ -390,92 +390,93 @@ checkpoint _hmftools_linx_viz:
 
 rule _hmftools_purple_output:
     input:
-        files = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.{purple_output}"
+        files = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.purple.{out_file}"
     output:
-        files = CFG["dirs"]["outputs"] + "purple_output/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{purple_output}"
+        files = CFG["dirs"]["outputs"] + "purple_output/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.purple.{out_file}"
     run:
         op.relative_symlink(input.files, output.files)
 
-def _hmftools_predict_purple_output(wildcards): 
+# def _hmftools_predict_purple_output(wildcards): 
 
-    CFG = config["lcr-modules"]["gridss"]
+#     CFG = config["lcr-modules"]["gridss"]
 
-    # Define standard purple output file extensions
-    purple_files = ["purple.purity.tsv", "purple.purity.range.tsv", "purple.cnv.somatic.tsv", "purple.cnv.gene.tsv", "driver.catalog.tsv", "purple.sv.vcf.gz"]
+#     # Define standard purple output file extensions
+#     purple_files = ["purple.purity.tsv", "purple.purity.range.tsv", "purple.cnv.somatic.tsv", "purple.cnv.gene.tsv", "driver.catalog.tsv", "purple.sv.vcf.gz"]
 
-    # Append the somatic vcf output if the tumour is paired
-    if wildcards.pair_status == "matched":
-        purple_files = purple_files.append("purple.somatic.vcf.gz") 
+#     # Append the somatic vcf output if the tumour is paired
+#     if wildcards.pair_status == "matched":
+#         purple_files = purple_files.append("purple.somatic.vcf.gz") 
 
-    # Expand the outputs
-    purple_outputs = expand(
-        CFG["dirs"]["outputs"] + "purple_output/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{purple_output}",
-        purple_output = purple_files,
-        **wildcards
-    )
+#     # Expand the outputs
+#     purple_outputs = expand(
+#         CFG["dirs"]["outputs"] + "purple_output/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{purple_output}",
+#         purple_output = purple_files,
+#         **wildcards
+#     )
 
-    return purple_outputs
+#     return purple_outputs
 
-rule _hmftools_purple_plots: 
-    input:
-        plots = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/plot/{tumour_id}.{plot_name}"
-    output: 
-        plots = CFG["dirs"]["outputs"] + "purple_plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{plot_name}"
-    run: 
-        op.relative_symlink(input.plots, output.plots)
+# rule _hmftools_purple_plots: 
+#     input:
+#         plots = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/plot/{tumour_id}.{plot_name}"
+#     output: 
+#         plots = CFG["dirs"]["outputs"] + "purple_plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{plot_name}"
+#     run: 
+#         op.relative_symlink(input.plots, output.plots)
 
-def _hmftools_predict_purple_plots(wildcards): 
+# def _hmftools_predict_purple_plots(wildcards): 
 
-    CFG = config["lcr-modules"]["gridss"]
+#     CFG = config["lcr-modules"]["gridss"]
 
-    # Define the extensions of all purple plots
-    purple_plot_names = [
-        "circos.png",
-        "copynumber.png",
-        "input.png",
-        "map.png",
-        "purity.range.png",
-        "segment.png",
-        "somatic.clonality.png",
-        "somatic.png",
-        "somatic.rainfall.png"
-    ]
+#     # Define the extensions of all purple plots
+#     purple_plot_names = [
+#         "circos.png",
+#         "copynumber.png",
+#         "input.png",
+#         "map.png",
+#         "purity.range.png",
+#         "segment.png",
+#         "somatic.clonality.png",
+#         "somatic.png",
+#         "somatic.rainfall.png"
+#     ]
     
-    # Expand the output files
-    purple_plots = expand(
-        CFG["dirs"]["outputs"] + "purple_plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{plot_name}", 
-        plot_name = purple_plot_names, 
-        **wildcards
-    )
+#     # Expand the output files
+#     purple_plots = expand(
+#         CFG["dirs"]["outputs"] + "purple_plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{plot_name}", 
+#         plot_name = purple_plot_names, 
+#         **wildcards
+#     )
 
-    return purple_plots
+#     return purple_plots
 
-rule _hmftools_linx_plots: 
-    input:
-        plots = CFG["dirs"]["linx"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/plot/{tumour_id}.{plot_name}"
-    output: 
-        plots = CFG["dirs"]["outputs"] + "linx_plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{plot_name}"
-    run: 
-        op.relative_symlink(input.plots, output.plots)
+# rule _hmftools_linx_plots: 
+#     input:
+#         plots = CFG["dirs"]["linx"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/plot/{tumour_id}.{plot_name}"
+#     output: 
+#         plots = CFG["dirs"]["outputs"] + "linx_plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{plot_name}"
+#     run: 
+#         op.relative_symlink(input.plots, output.plots)
 
-def _hmftools_predict_linx_plots(wildcards):
+# def _hmftools_predict_linx_plots(wildcards):
 
-    CFG = config["lcr-modules"]["gridss"]
+#     CFG = config["lcr-modules"]["gridss"]
 
-    checkpoint_output = checkpoints._hmftools_linx_viz.get(**wildcards).output.plots
-    linx_plots = expand(
-        CFG["dirs"]["outputs"] + "linx_plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{plot_name}", 
-        plot_name = glob_wildcards(os.path.join(checkpoint_output, "{plot_name}.png").plot_name), 
-        **wildcards
-    )
-    return linx_plots
+#     checkpoint_output = checkpoints._hmftools_linx_viz.get(**wildcards).output.plots
+#     linx_plots = expand(
+#         CFG["dirs"]["outputs"] + "linx_plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{plot_name}", 
+#         plot_name = glob_wildcards(os.path.join(checkpoint_output, "{plot_name}.png").plot_name), 
+#         **wildcards
+#     )
+#     return linx_plots
 
 
 rule _hmftools_dispatch: 
     input: 
-        _hmftools_predict_purple_output,
-        _hmftools_predict_purple_plots,  
-        _hmftools_predict_linx_plots
+        files = expand(CFG["dirs"]["outputs"] + "purple_output/{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}.purple.{out_file}", 
+        out_file = ["purity.tsv", "purity.range.tsv", "cnv.somatic.tsv", "cnv.gene.tsv", "driver.catalog.tsv", "sv.vcf.gz"])
+        # _hmftools_predict_purple_plots,  
+        # _hmftools_predict_linx_plots
     output: 
         dispatched = touch(CFG["dirs"]["outputs"] + "dispatched/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.dispatched")
 
