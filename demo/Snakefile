@@ -16,15 +16,16 @@ subworkflow reference_files:
     workdir:
         "reference/"
     snakefile:
-        "../workflows/reference_files/2.3/reference_files.smk"
+        "../workflows/reference_files/2.4/reference_files.smk"
     configfile:
-        "../workflows/reference_files/2.3/config/default.yaml"
+        "../workflows/reference_files/2.4/config/default.yaml"
 
 
 ##### CONFIGURATION FILES #####
 
 
 # Load module-specific configuration
+configfile: "../modules/salmon/1.0/config/default.yaml"
 configfile: "../modules/star/1.2/config/default.yaml"
 configfile: "../modules/manta/2.2/config/default.yaml"
 configfile: "../modules/sequenza/1.2/config/default.yaml"
@@ -47,7 +48,7 @@ config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 
 
 # Load module-specific snakefiles
-
+include: "../modules/salmon/1.0/salmon.smk"
 include: "../modules/star/1.2/star.smk"
 include: "../modules/manta/2.2/manta.smk"
 include: "../modules/sequenza/1.2/sequenza.smk"
@@ -59,6 +60,7 @@ include: "../modules/strelka/1.0/strelka.smk"
 
 rule all:
     input:
+        rules._salmon_all.input,
         rules._star_all.input,
         rules._manta_all.input,
         rules._sequenza_all.input,
