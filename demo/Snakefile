@@ -28,8 +28,10 @@ subworkflow reference_files:
 configfile: "../modules/bam2fastq/1.0/config/default.yaml"
 configfile: "../modules/star/1.2/config/default.yaml"
 configfile: "../modules/manta/2.2/config/default.yaml"
+configfile: "../modules/vcf2maf/1.0/config/default.yaml"
 configfile: "../modules/sequenza/1.2/config/default.yaml"
 configfile: "../modules/strelka/1.0/config/default.yaml"
+configfile: "../modules/liftover/1.0/config/default.yaml"
 
 
 # Load project-specific config, which includes the shared 
@@ -51,12 +53,14 @@ config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 include: "../modules/bam2fastq/1.0/bam2fastq.smk"
 include: "../modules/star/1.2/star.smk"
 include: "../modules/manta/2.2/manta.smk"
+include: "../modules/vcf2maf/1.0/vcf2maf.smk"
 include: "../modules/sequenza/1.2/sequenza.smk"
 include: "../modules/strelka/1.0/strelka.smk"
+include: "../modules/liftover/1.0/liftover.smk"
+
 
 
 ##### TARGETS ######
-
 
 rule all:
     input:
@@ -64,4 +68,6 @@ rule all:
         rules._star_all.input,
         rules._manta_all.input,
         rules._sequenza_all.input,
-        rules._strelka_all.input
+        rules._strelka_all.input,
+        rules._liftover_all.input
+

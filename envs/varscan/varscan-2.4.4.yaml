@@ -1,0 +1,13 @@
+name: varscan
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1
+  - libgcc-ng=9.1.0
+  - openjdk=8.0.152
+  - varscan=2.4.4
+  - zlib=1.2.11
+prefix: /projects/clc/usr/anaconda/workflow_prototype/envs
+#b108aa54
