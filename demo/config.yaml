@@ -20,7 +20,10 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
-
+    
+    vcf2maf:
+        inputs:
+            vep_cache: "reference/vep_caches/"
 
     sequenza:
         inputs:
