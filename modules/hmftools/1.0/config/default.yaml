@@ -19,7 +19,7 @@ lcr-modules:
 
         references: 
             linx_db: "/projects/rmorin/reference/hmftools-references/linx"
-        
+
         switches: 
             het_snps:
                 grch37: "/projects/rmorin/reference/hmftools-references/amber/GermlineHetPon.hg19.vcf.gz"
@@ -28,12 +28,11 @@ lcr-modules:
             gc_profile: 
                 grch37: "/projects/rmorin/reference/hmftools-references/cobalt/GC_profile.hg19.1000bp.cnp.gz"
                 hs37d5: "/projects/rmorin/reference/hmftools-references/cobalt/GC_profile.hg19.1000bp.cnp.gz"
-                hg38: "/projects/rmorin/reference/hmftools-references/cobalt/GC_profile.hg38.1000bp.cnp.gz", 
+                hg38: "/projects/rmorin/reference/hmftools-references/cobalt/GC_profile.hg38.1000bp.cnp.gz" 
             ensembl_url: 
                 HG37: "mysql://ensembldb.ensembl.org:3337/homo_sapiens_core_89_37"
                 HG38: "mysql://ensembldb.ensembl.org:3306/homo_sapiens_core_98_38"
 
-        
         options:
             amber: 
                 --validation_stringency SILENT
