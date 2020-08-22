@@ -8,6 +8,11 @@ lcr-modules:
         unmatched_normal_ids:
             capture--grch37: "TCRBOA7-N-WEX"
 
+    bam2fastq:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+        temp_outputs: True # fastq outputs will be temporary
+
     star:
         inputs:
             sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
