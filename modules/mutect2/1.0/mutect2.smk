@@ -74,6 +74,7 @@ rule _mutect2_run:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
         tumour_sm = rules._mutect2_get_sm.output.tumour_sm,
         normal_sm = rules._mutect2_get_sm.output.normal_sm
     output:
