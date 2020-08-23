@@ -48,12 +48,34 @@ rule _mutect2_input_bam:
         op.relative_symlink(input.bai, output.bai)
 
 
+# Retrieves from SM tag from BAM and writes to file
+rule _mutect2_get_sm:
+    input:
+        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
+        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam"
+    output:
+        tumour_sm = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/tumour_sm.txt"),
+        normal_sm = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_sm.txt")
+    log:
+        stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/get_sm.stderr.log"
+    conda:
+        CFG["conda_envs"]["samtools"]
+    shell:
+        "samtools view -H {input.tumour_bam} | grep '^@RG' | "
+        r"sed 's/.*SM:\([^\t]*\).*/\1/g'"" | uniq > {output.tumour_sm} 2> {log.stderr}"
+        " && "
+        "samtools view -H {input.normal_bam} | grep '^@RG' | "
+        r"sed 's/.*SM:\([^\t]*\).*/\1/g'"" | uniq > {output.normal_sm} 2> {log.stderr}"
+i
+
 # Launces Mutect2 in paired mode
 rule _mutect2_run:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        tumour_sm = rules._mutect2_get_sm.output.tumour_sm,
+        normal_sm = rules._mutect2_get_sm.output.normal_sm
     output:
         vcf = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz"
     log:
@@ -70,7 +92,7 @@ rule _mutect2_run:
     shell:
         op.as_one_line("""
         gatk Mutect2 {params.opts} -I {input.tumour_bam} -I {input.normal_bam}
-        -R {input.fasta} -normal {wildcards.normal_id} -O {output.vcf}
+        -R {input.fasta} -normal $(cat {input.normal_sm}) -O {output.vcf}
         > {log.stdout} 2> {log.stderr}
         """)
 
