@@ -74,7 +74,8 @@ rule _mutect2_run:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
+        dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict"),
+        gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
         tumour_sm = rules._mutect2_get_sm.output.tumour_sm,
         normal_sm = rules._mutect2_get_sm.output.normal_sm
     output:
@@ -94,7 +95,7 @@ rule _mutect2_run:
         op.as_one_line("""
         gatk Mutect2 {params.opts} -I {input.tumour_bam} -I {input.normal_bam}
         -R {input.fasta} -normal $(cat {input.normal_sm}) -O {output.vcf}
-        > {log.stdout} 2> {log.stderr}
+        --germline-resource {input.gnomad} > {log.stdout} 2> {log.stderr}
         """)
 
 
