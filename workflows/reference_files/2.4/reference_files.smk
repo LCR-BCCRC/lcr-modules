@@ -180,4 +180,8 @@ rule get_af_only_gnomad_vcf:
         vcf = "genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"
     conda: CONDA_ENVS["samtools"]
     shell:
-        "ln -srf {input.vcf} {output.vcf} && tabix -p vcf {output.vcf}"
+        op.as_one_line(""" 
+        bgzip -c {input.vcf} > {output.vcf}
+            &&
+        tabix {output.vcf}
+        """)

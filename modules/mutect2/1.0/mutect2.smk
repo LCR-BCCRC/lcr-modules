@@ -66,7 +66,7 @@ rule _mutect2_get_sm:
         " && "
         "samtools view -H {input.normal_bam} | grep '^@RG' | "
         r"sed 's/.*SM:\([^\t]*\).*/\1/g'"" | uniq > {output.normal_sm} 2> {log.stderr}"
-i
+
 
 # Launces Mutect2 in paired mode
 rule _mutect2_run:

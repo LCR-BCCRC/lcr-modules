@@ -189,18 +189,20 @@ rule download_dbsnp_vcf:
 
 rule download_af_only_gnomad_vcf:
     output:
-        vcf = "downloads/broad/gnomad/af-only-gnomad.{version}.vcf.gz"
+        vcf = "downloads/gnomad/af-only-gnomad.{version}.vcf"
     log:
-        "downloads/broad/gnomad/af-only-gnomad.{version}.vcf.gz.log"
+        "downloads/gnomad/af-only-gnomad.{version}.vcf.log"
     params:
-        provider = "broad",
-        url = lambda w: {"grch37": "b37", "hg38": "hg38"}[w.version],
-        file = lambda w: {"grch37": "raw.sites", "hg38": "hg38"}[w.version]
+        provider = "ucsc",
+        file = lambda w: {"grch37": "raw.sites.b37", "grch38": "hg38"}[w.version]
     conda: CONDA_ENVS["coreutils"]
     shell:
         op.as_one_line("""
-        curl -L https://console.cloud.google.com/storage/browser/_details/gatk-best-practices/somatic-{params.url}/af-only-gnomad.{params.file}.vcf.gz > {output.vcf} 2> {log} 
+        curl -s ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/Mutect2/af-only-gnomad.{params.file}.vcf.gz 2> {log}
+            |
+        gzip -dc > {output.vcf} 2>> {log}
         """)
+
 
 ##### FUNCTIONS #####
 
