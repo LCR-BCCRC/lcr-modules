@@ -48,6 +48,7 @@ rule all:
                 rules.get_dbsnp_download.output.vcf,
                 rules.create_star_index.output.index,
                 rules.calc_gc_content.output.wig,
+                rules.get_af_only_gnomad_vcf
             ],
             genome_build=config["genome_builds"].keys(),
             bwa_version=config["tools"]["bwa"]["version"],

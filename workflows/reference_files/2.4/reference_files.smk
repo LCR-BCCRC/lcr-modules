@@ -172,3 +172,12 @@ rule get_dbsnp_download:
             &&
         tabix {output.vcf}
         """)
+
+rule get_af_only_gnomad_vcf:
+    input:
+        vcf = get_download_file(rules.download_af_only_gnomad_vcf.output.vcf)
+    output:
+        vcf = "genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"
+    conda: CONDA_ENVS["samtools"]
+    shell:
+        "ln -srf {input.vcf} {output.vcf} && tabix -p vcf {output.vcf}"

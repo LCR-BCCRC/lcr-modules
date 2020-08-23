@@ -187,6 +187,21 @@ rule download_dbsnp_vcf:
         """)
 
 
+rule download_af_only_gnomad_vcf:
+    output:
+        vcf = "downloads/broad/gnomad/af-only-gnomad.{version}.vcf.gz"
+    log:
+        "downloads/broad/gnomad/af-only-gnomad.{version}.vcf.gz.log"
+    params:
+        provider = "broad",
+        url = lambda w: {"grch37": "b37", "hg38": "hg38"}[w.version],
+        file = lambda w: {"grch37": "raw.sites", "hg38": "hg38"}[w.version]
+    conda: CONDA_ENVS["coreutils"]
+    shell:
+        op.as_one_line("""
+        curl -L https://console.cloud.google.com/storage/browser/_details/gatk-best-practices/somatic-{params.url}/af-only-gnomad.{params.file}.vcf.gz > {output.vcf} 2> {log} 
+        """)
+
 ##### FUNCTIONS #####
 
 
