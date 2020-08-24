@@ -7,7 +7,7 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
 
-        scratch_subdirectories: ["mutect2"]
+        scratch_subdirectories: []
 
         options:
             mutect2_run: ""
