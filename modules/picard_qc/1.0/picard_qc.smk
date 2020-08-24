@@ -306,7 +306,7 @@ rule _picard_qc_merged_dispatch:
     input:
         _get_picard_qc_files
     output:
-        touch(CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/merged.dispatched")
+        touch(CFG["dirs"]["outputs"] + "merged_metrics/{seq_type}--{genome_build}/merged.dispatched")
 
 
 rule _picard_qc_all:
