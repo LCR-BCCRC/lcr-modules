@@ -23,7 +23,8 @@ localrules: download_genome_fasta,
             get_genome_fasta_download, 
             index_genome_fasta,
             get_main_chromosomes_download, 
-            get_gencode_download
+            get_gencode_download,
+            download_af_only_gnomad_vcf
 
 
 # Check for genome builds
