@@ -20,16 +20,15 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "mutect2",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "mutect2", "filter", "decompress", "outputs"],
+    subdirectories = ["inputs", "mutect2", "filter", "passed", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _mutect2_input_bam,
+    _mutect2_get_sm,
     _mutect2_output_vcf,
-    _mutect2_all,
+    _mutect2_all
 
 
 ##### RULES #####
@@ -76,10 +75,11 @@ rule _mutect2_run:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict"),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
-        tumour_sm = rules._mutect2_get_sm.output.tumour_sm,
-        normal_sm = rules._mutect2_get_sm.output.normal_sm
+        tumour_sm = str(rules._mutect2_get_sm.output.tumour_sm),
+        normal_sm = str(rules._mutect2_get_sm.output.normal_sm)
     output:
-        vcf = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz"
+        vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz"),
+        tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz.tbi")
     log:
         stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_run.stdout.log",
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_run.stderr.log"
@@ -103,6 +103,7 @@ rule _mutect2_run:
 rule _mutect2_filter:
     input:
         vcf = str(rules._mutect2_run.output.vcf),
+        tbi = str(rules._mutect2_run.output.tbi),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         vcf = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.vcf.gz"
@@ -123,25 +124,41 @@ rule _mutect2_filter:
         -O {output.vcf} > {log.stdout} 2> {log.stderr}
         """)
 
-# Decompress Mutect2 for downstream analyses
-rule _mutect2_decompress:
+
+# Filters for PASS variants
+rule _mutect2_filter_passed:
     input:
         vcf = str(rules._mutect2_filter.output.vcf)
     output:
-        vcf = CFG["dirs"]["decompress"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.vcf"
+        vcf = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.vcf.gz",
+        tbi = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.vcf.gz.tbi"
     log:
-        stderr = CFG["logs"]["decompress"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_decompress.stderr.log"
+        stderr = CFG["logs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_decompress.stderr.log"
+    conda:
+        CFG["conda_envs"]["bcftools"]
+    threads:
+        CFG["threads"]["mutect2_passed"]
+    resources:
+        mem_mb = CFG["mem_mb"]["mutect2_passed"]
     shell:
-        "bgzip -d -c {input.vcf} > {output.vcf} 2> {log.stderr}"
+        op.as_one_line(""" 
+        bcftools view -f '.,PASS' -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
+            &&
+        tabix -p vcf {output.vcf} 2>> {log.stderr}
+        """)
+
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _mutect2_output_vcf:
     input:
-        vcf = str(rules._mutect2_decompress.output.vcf)
+        vcf = str(rules._mutect2_filter_passed.output.vcf),
+        tbi = str(rules._mutect2_filter_passed.output.tbi)
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.vcf"
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.vcf.gz",
+        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.vcf.gz.tbi"
     run:
         op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.tbi, output.tbi)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -150,6 +167,7 @@ rule _mutect2_all:
         expand(
             [
                 str(rules._mutect2_output_vcf.output.vcf),
+                str(rules._mutect2_output_vcf.output.tbi)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],

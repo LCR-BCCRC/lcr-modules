@@ -193,7 +193,7 @@ rule download_af_only_gnomad_vcf:
     log:
         "downloads/gnomad/af-only-gnomad.{version}.vcf.log"
     params:
-        provider = "ucsc",
+        provider = "ensembl",
         file = lambda w: {"grch37": "raw.sites.b37", "grch38": "hg38"}[w.version]
     conda: CONDA_ENVS["coreutils"]
     shell:
