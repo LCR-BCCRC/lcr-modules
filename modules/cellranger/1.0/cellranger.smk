@@ -108,7 +108,7 @@ rule _cellranger_count:
         # fastq_dir = str(rules._cellranger_mkfastq.output.out_dir)
     output:
         stamp = CFG["dirs"]["outputs"] + "stamps/{seq_type}--{genome_build}/{chip_id}--{sample_id}_count.stamp",
-        out_dir = CFG["dirs"]["count"] + "{seq_type}--{genome_build}/{chip_id}/{sample_id}"
+        out_dir = directory(CFG["dirs"]["count"] + "{seq_type}--{genome_build}/{chip_id}/{sample_id}")
     log:
         stdout = CFG["logs"]["count"] + "{seq_type}--{genome_build}/{chip_id}--{sample_id}_count.stdout.log",
         stderr = CFG["logs"]["count"] + "{seq_type}--{genome_build}/{chip_id}--{sample_id}_count.stderr.log"
