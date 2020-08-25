@@ -9,6 +9,11 @@ lcr-modules:
             capture:
                 unmatched_normal_id: "TCRBOA7-N-WEX"
 
+    bam2fastq:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+        temp_outputs: True # fastq outputs will be temporary
+
     star:
         inputs:
             sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
@@ -21,6 +26,10 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
+    
+    vcf2maf:
+        inputs:
+            vep_cache: "reference/vep_caches/"
 
     sequenza:
         inputs:
@@ -49,3 +58,9 @@ lcr-modules:
                 # if 'capture_kit_id' is a column in samples.tsv and contain more than one kit_id, specify each kit using the values in the column. e.g. and add the corresponding bed file if needed
                 # S07604624: "reference/exomes/grch37/interval/S07604624_intervals.txt"
                 # <grch38_kit>: "reference/exomes/grch38/interval/<grch38_kit>_intervals.txt"
+    
+    liftover:
+        inputs:
+            sample_seg: "data/{tool}/hg38/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
+
+
