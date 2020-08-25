@@ -1,0 +1,36 @@
+name: liftover
+channels:
+  - bioconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1
+  - ca-certificates=2020.6.24
+  - certifi=2020.6.20
+  - libedit=3.1.20191231
+  - libffi=3.2.1
+  - libgcc=7.2.0
+  - libgcc-ng=9.1.0
+  - libpng=1.6.37
+  - libstdcxx-ng=9.1.0
+  - libuuid=1.0.3
+  - mysql-connector-c=6.1.6
+  - ncurses=6.2
+  - openssl=1.0.2u
+  - pip=20.1.1
+  - python=3.7.0
+  - readline=7.0
+  - setuptools=47.3.1
+  - simplejson=3.17.0
+  - sqlite=3.32.3
+  - tk=8.6.10
+  - ucsc-liftover=366
+  - wheel=0.34.2
+  - xz=5.2.5
+  - zlib=1.2.11
+  - pip:
+    - argparse==1.4.0
+    - numpy==1.19.0
+    - pandas==1.0.5
+    - python-dateutil==2.8.1
+    - pytz==2020.1
+    - six==1.15.0
