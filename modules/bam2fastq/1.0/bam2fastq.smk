@@ -108,7 +108,6 @@ rule _bam2fastq_output:
         op.relative_symlink(input.fastq_1, output.fastq_1)
         op.relative_symlink(input.fastq_2, output.fastq_2)
 
-
 rule _bam2fastq_all:
     input:
         expand(
@@ -121,24 +120,6 @@ rule _bam2fastq_all:
             genome_build=CFG["samples"]["genome_build"],
             sample_id=CFG["samples"]["sample_id"])
 
-'''
-rule _bam2fastq_delete_fastq:
-    input:
-        fastq = rules._bam2fastq_run.output.fastq,
-        check = CFG["outputs"]
-        #check if outputs exists
-    output: 
-        CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}--{sample_id}_fastq.removed"
-    shell:
-        "rm  -f {input.fastq} && touch {output}"
-
-rule _bam2fastq_delete_fastq_all:
-    input: 
-        expand(rules._bam2fastq_delete_fastq.output, zip, 
-            seq_type=CFG["samples"]["seq_type"],
-            genome_build=CFG["samples"]["genome_build"],
-            sample_id=CFG["samples"]["sample_id"])
-'''
 ##### CLEANUP #####
 
 

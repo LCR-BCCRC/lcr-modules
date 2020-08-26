@@ -19,7 +19,7 @@ import oncopipe as op
 # `CFG` is a shortcut to `config["lcr-modules"]["bam2fastq"]`
 CFG = op.setup_module(
     name = "bam2fastq",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "fastq", "outputs"],
 )
 
@@ -47,7 +47,7 @@ rule _bam2fastq_input_bam:
 if CFG["temp_outputs"] == True:
     rule _bam2fastq_run:
         input:
-            bam = rules._bam2fastq_input_bam.output.bam,
+            bam = str(rules._bam2fastq_input_bam.output.bam),
             genome = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
         output:
             fastq_1 = temp(CFG["dirs"]["fastq"] + "{seq_type}--{genome_build}/{sample_id}.read1.fastq.gz"),
@@ -74,7 +74,7 @@ if CFG["temp_outputs"] == True:
 elif CFG["temp_outputs"] == False:
     rule _bam2fastq_run:
         input:
-            bam = rules._bam2fastq_input_bam.output.bam,
+            bam = str(rules._bam2fastq_input_bam.output.bam),
             genome = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
         output:
             fastq_1 = CFG["dirs"]["fastq"] + "{seq_type}--{genome_build}/{sample_id}.read1.fastq.gz",
@@ -103,8 +103,8 @@ else:
 
 rule _bam2fastq_output:
     input:
-        fastq_1 = rules._bam2fastq_run.output.fastq_1,
-        fastq_2 = rules._bam2fastq_run.output.fastq_2
+        fastq_1 = str(rules._bam2fastq_run.output.fastq_1),
+        fastq_2 = str(rules._bam2fastq_run.output.fastq_2)
     output:
         fastq_1 = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.read1.fastq.gz",
         fastq_2 = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.read2.fastq.gz"
@@ -117,32 +117,14 @@ rule _bam2fastq_all:
     input:
         expand(
             [
-                rules._bam2fastq_output.output.fastq_1,
-                rules._bam2fastq_output.output.fastq_2,
+                str(rules._bam2fastq_output.output.fastq_1),
+                str(rules._bam2fastq_output.output.fastq_2),
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
             genome_build=CFG["samples"]["genome_build"],
             sample_id=CFG["samples"]["sample_id"])
 
-'''
-rule _bam2fastq_delete_fastq:
-    input:
-        fastq = rules._bam2fastq_run.output.fastq,
-        check = CFG["outputs"]
-        #check if outputs exists
-    output: 
-        CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}--{sample_id}_fastq.removed"
-    shell:
-        "rm  -f {input.fastq} && touch {output}"
-
-rule _bam2fastq_delete_fastq_all:
-    input: 
-        expand(rules._bam2fastq_delete_fastq.output, zip, 
-            seq_type=CFG["samples"]["seq_type"],
-            genome_build=CFG["samples"]["genome_build"],
-            sample_id=CFG["samples"]["sample_id"])
-'''
 ##### CLEANUP #####
 
 
