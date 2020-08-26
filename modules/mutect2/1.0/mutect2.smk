@@ -61,33 +61,28 @@ checkpoint _mutect2_input_chrs:
 # Retrieves from SM tag from BAM and writes to file
 rule _mutect2_get_sm:
     input:
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam"
+        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     output:
-        tumour_sm = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/tumour_sm.txt"),
-        normal_sm = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_sm.txt")
+        sm = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}_sm.txt"),
     log:
-        stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/get_sm.stderr.log"
+        stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}_mutect2_get_sm.stderr.log"
     conda:
         CFG["conda_envs"]["samtools"]
     shell:
-        "samtools view -H {input.tumour_bam} | grep '^@RG' | "
-        r"sed 's/.*SM:\([^\t]*\).*/\1/g'"" | uniq > {output.tumour_sm} 2> {log.stderr}"
-        " && "
-        "samtools view -H {input.normal_bam} | grep '^@RG' | "
-        r"sed 's/.*SM:\([^\t]*\).*/\1/g'"" | uniq > {output.normal_sm} 2> {log.stderr}"
+        "samtools view -H {input.bam} | grep '^@RG' | "
+        r"sed 's/.*SM:\([^\t]*\).*/\1/g'"" | uniq > {output.sm} 2> {log.stderr}"
 
 
-# Launces Mutect2 in paired mode
-rule _mutect2_run:
+# Launces Mutect2 in matched and unmatched mode
+rule _mutect2_run_matched_unmatched:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict"),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
-        tumour_sm = str(rules._mutect2_get_sm.output.tumour_sm),
-        normal_sm = str(rules._mutect2_get_sm.output.normal_sm)
+        tumour_sm = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sm.txt",
+        normal_sm = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}_sm.txt"
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.tbi"),
@@ -103,11 +98,45 @@ rule _mutect2_run:
         CFG["threads"]["mutect2_run"]
     resources:
         mem_mb = CFG["mem_mb"]["mutect2_run"]
+    wildcard_constraints: 
+        pair_status = "matched|unmatched"
     shell:
         op.as_one_line("""
         gatk Mutect2 {params.opts} -I {input.tumour_bam} -I {input.normal_bam}
         -R {input.fasta} -normal $(cat {input.normal_sm}) -O {output.vcf}
         --germline-resource {input.gnomad} -L {wildcards.chrom} 
+        > {log.stdout} 2> {log.stderr}
+        """)
+
+# Launces Mutect2 in no normal mode
+rule _mutect2_run_no_normal:
+    input:
+        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict"),
+        gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
+        tumour_sm = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sm.txt"
+    output:
+        vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz"),
+        tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.tbi"),
+        stat = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.stats")
+    log:
+        stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.mutect2_run.stdout.log",
+        stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.mutect2_run.stderr.log"
+    params:
+        opts = CFG["options"]["mutect2_run"]
+    conda:
+        CFG["conda_envs"]["gatk"]
+    threads:
+        CFG["threads"]["mutect2_run"]
+    resources:
+        mem_mb = CFG["mem_mb"]["mutect2_run"]
+    wildcard_constraints: 
+        pair_status = "no_normal"
+    shell:
+        op.as_one_line("""
+        gatk Mutect2 {params.opts} -I {input.tumour_bam} -R {input.fasta} 
+        -O {output.vcf} --germline-resource {input.gnomad} -L {wildcards.chrom}
         > {log.stdout} 2> {log.stderr}
         """)
 
