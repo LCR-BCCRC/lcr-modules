@@ -7,7 +7,7 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
 
-        scratch_subdirectories: []
+        scratch_subdirectories: ["mutect2"]
 
         options:
             mutect2_run: ""
@@ -22,11 +22,13 @@ lcr-modules:
             mutect2_run: 1
             mutect2_filter: 1
             mutect2_passed: 1
+            mutect2_merge_vcfs: 10
 
         mem_mb:
-            mutect2_run: 10000
+            mutect2_run: 8000
             mutect2_filter: 512
             mutect2_passed: 2000
+            mutect2_merge_vcfs: 10000
 
         pairing_config:
             genome:

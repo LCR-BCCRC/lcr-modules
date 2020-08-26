@@ -26,6 +26,7 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _mutect2_input_bam,
+    _mutect2_input_chrs,
     _mutect2_get_sm,
     _mutect2_output_vcf,
     _mutect2_all
@@ -45,6 +46,16 @@ rule _mutect2_input_bam:
     run:
         op.relative_symlink(input.bam, output.bam)
         op.relative_symlink(input.bai, output.bai)
+
+
+# Symlink chromosomes used for parallelization
+checkpoint _mutect2_input_chrs:
+    input:
+        chrs = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
+    output:
+        chrs = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
+    run:
+        op.relative_symlink(input.chrs, output.chrs)
 
 
 # Retrieves from SM tag from BAM and writes to file
@@ -78,11 +89,12 @@ rule _mutect2_run:
         tumour_sm = str(rules._mutect2_get_sm.output.tumour_sm),
         normal_sm = str(rules._mutect2_get_sm.output.normal_sm)
     output:
-        vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz"),
-        tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz.tbi")
+        vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz"),
+        tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.tbi"),
+        stat = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.stats")
     log:
-        stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_run.stdout.log",
-        stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_run.stderr.log"
+        stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.mutect2_run.stdout.log",
+        stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.mutect2_run.stderr.log"
     params:
         opts = CFG["options"]["mutect2_run"]
     conda:
@@ -95,18 +107,100 @@ rule _mutect2_run:
         op.as_one_line("""
         gatk Mutect2 {params.opts} -I {input.tumour_bam} -I {input.normal_bam}
         -R {input.fasta} -normal $(cat {input.normal_sm}) -O {output.vcf}
-        --germline-resource {input.gnomad} > {log.stdout} 2> {log.stderr}
+        --germline-resource {input.gnomad} -L {wildcards.chrom} 
+        > {log.stdout} 2> {log.stderr}
+        """)
+
+
+def _mutect2_get_chr_vcfs(wildcards):
+    CFG = config["lcr-modules"]["mutect2"]
+    chrs = checkpoints._mutect2_input_chrs.get(**wildcards).output.chrs
+    with open(chrs) as file:
+        chrs = file.read().rstrip("\n").split("\n")
+    vcfs = expand(
+        CFG["dirs"]["mutect2"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/chromosomes/{chrom}.output.vcf.gz",
+        chrom = chrs
+    )
+    return(vcfs)
+
+
+def _mutect2_get_chr_tbis(wildcards):
+    CFG = config["lcr-modules"]["mutect2"]
+    chrs = checkpoints._mutect2_input_chrs.get(**wildcards).output.chrs
+    with open(chrs) as file:
+        chrs = file.read().rstrip("\n").split("\n")
+    tbis = expand(
+        CFG["dirs"]["mutect2"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/chromosomes/{chrom}.output.vcf.gz.tbi",
+        chrom = chrs
+    )
+    return(tbis)
+
+
+# Merge chromosome mutect2 VCFs from the same sample
+rule _mutect2_merge_vcfs:
+    input:
+        vcf = _mutect2_get_chr_vcfs,
+        tbi = _mutect2_get_chr_tbis
+    output:
+        vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz"),
+        tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz.tbi")
+    log:
+        stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_merge_vcfs.stderr.log"
+    conda:
+        CFG["conda_envs"]["bcftools"]
+    threads:
+        CFG["threads"]["mutect2_merge_vcfs"]
+    resources:
+        mem_mb = CFG["mem_mb"]["mutect2_merge_vcfs"]
+    shell:
+        op.as_one_line("""
+        bcftools concat --threads {threads} -a -O z {input.vcf} 2> {log.stderr}
+            |
+        bcftools sort -O z -o {output.vcf} 2> {log.stderr} 
+            &&
+        bcftools index -t --threads {threads} {output.vcf} 2>> {log.stderr}
+        """)
+
+
+def _mutect2_get_chr_stats(wildcards):
+    CFG = config["lcr-modules"]["mutect2"]
+    chrs = checkpoints._mutect2_input_chrs.get(**wildcards).output.chrs
+    with open(chrs) as file:
+        chrs = file.read().rstrip("\n").split("\n")
+    stats = expand(
+        CFG["dirs"]["mutect2"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/chromosomes/{chrom}.output.vcf.gz.stats",
+        chrom = chrs
+    )
+    return(stats)
+
+
+# Merge chromosome mutect2 stats for FilterMutectCalls rule
+rule _mutect2_merge_stats:
+    input:
+        stat = _mutect2_get_chr_stats
+    output:
+        stat = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz.stats")
+    log:
+        stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_merge_stats.stdout.log",
+        stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_merge_stats.stderr.log"
+    conda:
+        CFG["conda_envs"]["gatk"]
+    shell:
+        op.as_one_line("""
+        gatk MergeMutectStats $(for i in {input.stat}; do echo -n "-stats $i "; done)
+        -O {output.stat} > {log.stdout} 2> {log.stderr}
         """)
 
 
 # Marks variants filtered or PASS annotations
 rule _mutect2_filter:
     input:
-        vcf = str(rules._mutect2_run.output.vcf),
-        tbi = str(rules._mutect2_run.output.tbi),
+        vcf = str(rules._mutect2_merge_vcfs.output.vcf),
+        tbi = str(rules._mutect2_merge_vcfs.output.tbi),
+        stat = str(rules._mutect2_merge_stats.output.stat),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        vcf = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.vcf.gz"
+        vcf = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.unfilt.vcf.gz"
     log:
         stdout = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_filter.stdout.log",
         stderr = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_filter.stderr.log"
@@ -130,10 +224,10 @@ rule _mutect2_filter_passed:
     input:
         vcf = str(rules._mutect2_filter.output.vcf)
     output:
-        vcf = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.vcf.gz",
-        tbi = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.vcf.gz.tbi"
+        vcf = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.passed.vcf.gz",
+        tbi = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.passed.vcf.gz.tbi"
     log:
-        stderr = CFG["logs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_decompress.stderr.log"
+        stderr = CFG["logs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_filter_passed.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
     threads:
@@ -154,8 +248,8 @@ rule _mutect2_output_vcf:
         vcf = str(rules._mutect2_filter_passed.output.vcf),
         tbi = str(rules._mutect2_filter_passed.output.tbi)
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.vcf.gz",
-        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.vcf.gz.tbi"
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.passed.vcf.gz",
+        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.passed.vcf.gz.tbi"
     run:
         op.relative_symlink(input.vcf, output.vcf)
         op.relative_symlink(input.tbi, output.tbi)
