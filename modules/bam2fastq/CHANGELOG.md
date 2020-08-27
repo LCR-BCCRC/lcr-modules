@@ -23,3 +23,5 @@ Tweaks by Ryan Morin
 - The new version now relies on the reference_files function because the genome fasta is needed for cram decompression
 - tested on some very old RNA-seq data (DLBCL cell lines)
 
+- The outputs are not separated by genome build so that it can be re-aligned using other genome references in later modules
+

@@ -106,20 +106,19 @@ rule _bam2fastq_output:
         fastq_1 = str(rules._bam2fastq_run.output.fastq_1),
         fastq_2 = str(rules._bam2fastq_run.output.fastq_2)
     output:
-        fastq_1 = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.read1.fastq.gz",
-        fastq_2 = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.read2.fastq.gz"
+        dispatch = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}--{sample_id}.dispatched"
+    params:
+        fastq_1 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read1.fastq.gz",
+        fastq_2 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read2.fastq.gz",
     run:
-        op.relative_symlink(input.fastq_1, output.fastq_1)
-        op.relative_symlink(input.fastq_2, output.fastq_2)
+        op.relative_symlink(input.fastq_1, params.fastq_1)
+        op.relative_symlink(input.fastq_2, params.fastq_2)
+        touch(output.stamp)
 
 
 rule _bam2fastq_all:
     input:
-        expand(
-            [
-                str(rules._bam2fastq_output.output.fastq_1),
-                str(rules._bam2fastq_output.output.fastq_2),
-            ],
+        expand(str(rules._bam2fastq_output.output.dispatch),
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
             genome_build=CFG["samples"]["genome_build"],
