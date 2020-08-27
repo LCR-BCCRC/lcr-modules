@@ -21,7 +21,7 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "controlfreec",
     version = "1.0",
-    subdirectories = ["inputs", "run", "calc_sig", "plot", "outputs"]
+    subdirectories = ["inputs", "run", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -51,25 +51,44 @@ rule _controlfreec_input_bam:
 
 rule _controlfreec_config:
     input:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     output:
-        CFG["dirs"]["run"] + "{sample_id}/{seq_type}--{genome_build}/config_WGS.txt"
+        CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/config_WGS.txt"
+    conda:
+        CFG["conda_envs"]["sambamba"]
     params:
-        config = "config/freec/config_WGS.txt",
-        outdir = CFG["dirs"]["run"] + "{sample_id}"
+        config = CFG["options"]["configFile"],
+        outdir = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/",
+        window = CFG["options"]["window"],
+        ploidy = CFG["options"]["ploidy"],
+        chrLen = CFG["options"]["chrLenFile"],
+        chrFiles = CFG["options"]["chrFiles"],
+        reference = CFG["options"]["gemMappabilityFile"]
     shell:
-        "sed \"s|BAMFILE|{input}|g\" {params.config} | "
-        "sed \"s|OUTDIR|{params.outdir}|g\" > {output}"
+        "samtoolspath=$(which samtools ) ; "
+        "samtoolsPathName=$(echo $samtoolspath) ; "
+        "sambambapath=$(which sambamba ) ; "
+        "sambambaPathName=$(echo $sambambapath) ; "
+        "bedtoolspath=$(which bedtools ) ; "
+        "bedtoolsPathName=$(echo $bedtoolspath) ; "
+        "sed \"s|BAMFILE|{input.bam}|g\" {params.config} | "
+        "sed \"s|OUTDIR|{params.outdir}|g\" | "
+        "sed \"s|windowSize|{params.window}|g\" | "
+        "sed \"s|ploidyInput|{params.ploidy}|g\" | "
+        "sed \"s|chrLenFileInput|{params.chrLen}|g\" | "
+        "sed \"s|chrFilesPath|{params.chrFiles}|g\" | "
+        "sed \"s|sambambaPath|$sambambaPathName|g\" | "
+        "sed \"s|bedtoolsPath|$bedtoolsPathName|g\" | "
+        "sed \"s|samtoolsPath|$samtoolsPathName|g\" | "
+        "sed \"s|referenceFile|{params.reference}|g\" > {output}"
 
 rule _controlfreec_run:
     input:
-        CFG["dirs"]["run"] + "{sample_id}/{seq_type}--{genome_build}/config_WGS.txt"
+        CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/config_WGS.txt"
     output:
-        CFG["dirs"]["run"] + "{sample_id}/{seq_type}--{genome_build}/{sample_id}.bam_info.txt",
-        CFG["dirs"]["run"] + "{sample_id}/{seq_type}--{genome_build}/{sample_id}.bam_ratio.txt",
-        CFG["dirs"]["run"] + "{sample_id}/{seq_type}--{genome_build}/{sample_id}.bam_CNVs"
-    # params:
-    # 	FREEC = config["software"]["FREEC"]
+        CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_info.txt",
+        CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_ratio.txt",
+        CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_CNVs"
     conda: CFG["conda_envs"]["controlfreec"]
     threads: CFG["threads"]["controlfreec_run"]
     resources: mem_mb = CFG["mem_mb"]["controlfreec_run"]
@@ -81,38 +100,38 @@ rule _controlfreec_run:
 
 rule _controlfreec_calc_sig:
     input:
-        CNVs = CFG["dirs"]["run"] + "{sample_id}/{seq_type}--{genome_build}/{sample_id}.bam_CNVs",
-        ratios = CFG["dirs"]["run"] + "{sample_id}/{seq_type}--{genome_build}/{sample_id}.bam_ratio.txt",
+        CNVs = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_CNVs",
+        ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_ratio.txt",
     output:
-        CFG["dirs"]["calc_sig"] + "{sample_id}/{seq_type}--{genome_build}/{sample_id}.bam_CNVs.p.value.txt"
+        CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_CNVs.p.value.txt"
     params:
-        calc_sig = CFG["software"]["FREEC_sig"],
-        R = "/projects/dscott_prj/CCSRI_1500/lowpassWGS/envs/ichorcna/bin/R"
+        calc_sig = CFG["software"]["FREEC_sig"]
     threads: CFG["threads"]["calc_sig"]
     resources: mem_mb = CFG["mem_mb"]["calc_sig"]
+    conda: CFG["conda_envs"]["controlfreec"]
     log:         
-        stdout = CFG["logs"]["calc_sig"] + "{seq_type}--{genome_build}/{sample_id}/calc_sig.stdout.log",
-        stderr = CFG["logs"]["calc_sig"] + "{seq_type}--{genome_build}/{sample_id}/calc_sig.stderr.log"
+        stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/calc_sig.stdout.log",
+        stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/calc_sig.stderr.log"
     shell:
-        "cat {params.calc_sig} | {params.R} --slave --args {input.CNVs} {input.ratios} > {log.stdout} 2> {log.stderr}"
+        "cat {params.calc_sig} | R --slave --args {input.CNVs} {input.ratios} > {log.stdout} 2> {log.stderr}"
 
 rule _controlfreec_plot:
     input:
-        ratios = CFG["dirs"]["run"] + "{sample_id}/{seq_type}--{genome_build}/{sample_id}.bam_ratio.txt",
-        # BAF = CFG["dirs"]["run"] + "{sample_id}/{seq_type}--{genome_build}/{sample_id}.bam_BAF.txt",
-        info = CFG["dirs"]["run"] + "{sample_id}/{seq_type}--{genome_build}/{sample_id}.bam_info.txt"
+        ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_ratio.txt",
+        # BAF = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_BAF.txt",
+        info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_info.txt"
     output:
-        plot = CFG["dirs"]["plot"] + "{sample_id}/{seq_type}--{genome_build}/{sample_id}.bam_ratio.txt.png"
+        plot = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_ratio.txt.png"
     params:
-        plot = CFG["software"]["FREEC_graph"],
-        R = "/projects/dscott_prj/CCSRI_1500/lowpassWGS/envs/ichorcna/bin/R"
+        plot = CFG["software"]["FREEC_graph"]
     threads: CFG["threads"]["plot"]
     resources: mem_mb = CFG["mem_mb"]["plot"]
+    conda: CFG["conda_envs"]["controlfreec"]
     log: 
-        stdout = CFG["logs"]["plot"] + "{seq_type}--{genome_build}/{sample_id}/plot.stdout.log",
-        stderr = CFG["logs"]["plot"] + "{seq_type}--{genome_build}/{sample_id}/plot.stderr.log"
+        stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/plot.stdout.log",
+        stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/plot.stderr.log"
     shell:
-        "cat {params.plot} | {params.R} --slave --args `grep \"Output_Ploidy\" {input.info} | cut -f 2` {input.ratios} > {log.stdout} 2> {log.stderr} "
+        "cat {params.plot} | R --slave --args `grep \"Output_Ploidy\" {input.info} | cut -f 2` {input.ratios} > {log.stdout} 2> {log.stderr} "
 
 
 # Generates the target sentinels for each run, which generate the symlinks

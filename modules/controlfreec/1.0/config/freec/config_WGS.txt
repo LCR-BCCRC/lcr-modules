@@ -4,18 +4,18 @@
 [general]
 
 maxThreads = 24
-sambamba = /gsc/software/linux-x86_64/sambamba-0.5.5/sambamba_v0.5.5
-bedtools = /gsc/software/linux-x86_64-centos5/bedtools/bedtools-2.25.0/bin/bedtools
-samtools = /projects/dscott_prj/CCSRI_1500/lowpassWGS/envs/freec/bin/samtools
-chrLenFile = /projects/rmorin_scratch/lcr-modules-references-DEV/genomes/hg19/freec/hg19.len
-ploidy = 2,3,4,5,6,7,8
+sambamba = sambambaPath
+bedtools = bedtoolsPath
+samtools = samtoolsPath
+chrLenFile = chrLenFileInput
+ploidy = ploidyInput
 breakPointThreshold = .8
 minimalSubclonePresence = 20
 contaminationAdjustment = TRUE
-window = 50000
-chrFiles = /projects/rmorin_scratch/lcr-modules-references-DEV/genomes/hg19/freec/chr
+window = windowSize
+chrFiles = chrFilesPath
 outputDir = OUTDIR
-gemMappabilityFile = /projects/rmorin_scratch/lcr-modules-references-DEV/genomes/hg19/freec/out100m2_hg19.gem
+gemMappabilityFile = referenceFile
 BedGraphOutput=FALSE
 
 [sample]

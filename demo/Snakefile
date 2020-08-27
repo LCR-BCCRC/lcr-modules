@@ -14,8 +14,8 @@ SAMPLES = op.load_samples("data/samples.tsv")
 subworkflow reference_files:
     workdir:
         # "/projects/bgrande/reference_files/"
-        # "/projects/rmorin_scratch/lcr-modules-references-DEV/genomes/hg19/freec/"
-        "/projects/dscott_prj/CCSRI_1500/shared/ref/lcr-modules-refs/"
+        "/projects/rmorin_scratch/lcr-modules-references-DEV/"
+        # "/projects/dscott_prj/CCSRI_1500/shared/ref/lcr-modules-refs/"
     snakefile:
         "../workflows/reference_files/2.3/reference_files.smk"
     configfile:
@@ -52,9 +52,9 @@ op.set_samples("_shared", SAMPLES)
 
 # Load module-specific snakefiles
 
-include: "../modules/star/1.2/star.smk"
+# include: "../modules/star/1.2/star.smk"
 # include: "../modules/manta/2.2/manta.smk"
-include: "../modules/sequenza/1.2/sequenza.smk"
+# include: "../modules/sequenza/1.2/sequenza.smk"
 # include: "../modules/strelka/1.0/strelka.smk"
 include: "../modules/controlfreec/1.0/controlfreec.smk"
 

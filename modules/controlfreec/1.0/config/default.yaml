@@ -14,9 +14,6 @@ lcr-modules:
         reference:
             "out100m2_hg19.gem"
 
-        # dirs:
-            # inputs: "{MODSDIR}/"
-            # outputs: "{MODSDIR}/"
 
         scratch_subdirectories: []
         
@@ -26,9 +23,10 @@ lcr-modules:
             sambamba: "{MODSDIR}/envs/sambamba.env.yaml"
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
 
+
         options:
+            configFile: "{MODSDIR}/config/freec/config_WGS.txt"
             BedGraphOutput: FALSE
-            # bedtools: /gsc/software/linux-x86_64-centos5/bedtools/bedtools-2.25.0/bin/bedtools
             breakPointThreshold: 0.8 #use 0.6 for more segments to get more CNVs
             breakPointType: 2
             chrFiles: /projects/rmorin_scratch/lcr-modules-references-DEV/genomes/hg19/freec/chr/
@@ -36,15 +34,15 @@ lcr-modules:
             coefficientOfVariation: 0.05
             contamination: 0
             contaminationAdjustment: FALSE
-            degree: 3&4
-            forceGCcontentNormalization: 0
+            degree: 3&4 #3&4 for WGS; 1 for WES
+            forceGCcontentNormalization: 0 #0 for WGS; 1 for WES
             gemMappabilityFile: /projects/rmorin_scratch/lcr-modules-references-DEV/genomes/hg19/freec/out100m2_hg19.gem
-            minCNAlength: 1
-            minimalSubclonePresence: 0.2
+            minCNAlength: 1 #1 for WGS; 3 for WES
+            minimalSubclonePresence: 20 #20 for WGS; 30 for WES
             maxThreads: 24
-            ploidy: 2,3
-            sambamba: /gsc/software/linux-x86_64/sambamba-0.5.5/sambamba_v0.5.5
-            samtools: "{MODSDIR}/bin/samtools"
+            ploidy: 2,3,4,5,6,7,8 #will select the ploidy that explains the most CNAs
+            # sambamba: "{MODSDIR}/bin/sambamba" # /gsc/software/linux-x86_64/sambamba-0.5.5/sambamba_v0.5.5
+            # samtools: "{MODSDIR}/bin/samtools"
             #sex: XX or XY
             step: 10000
             telocentromeric: 50000
@@ -55,12 +53,7 @@ lcr-modules:
             FREEC_sig: "{MODSDIR}/etc/scripts/assess_significance.R"
             FREEC_graph: "{MODSDIR}/etc/scripts/makeGraph.R"
             FREEC_graph_chr: "{MODSDIR}/etc/scripts/makeGraph_Chromosome.R"
-        
-        conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            controlfreec: "{MODSDIR}/envs/freec.env.yaml"
-            bedtools: "{MODSDIR}/envs/bedtools.env.yaml"
-            sambamba: "{MODSDIR}/envs/sambamba.env.yaml"
+
         
         threads:
             controlfreec_run: 24

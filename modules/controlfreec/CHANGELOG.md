@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Jasper.
 
-<!-- TODO: Explain each important module design decision below. -->
+Basic controlFREEC:
+-input: 
+    - WGS or WES bam
+-output: 
+    - text files indicating CNV positions, general characteristics of file (ex. ploidy, sample purity)
+    - graphs visualizing CNV positions per chromosome
 
 - No module design decisions explained here yet.
