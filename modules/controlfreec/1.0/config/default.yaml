@@ -4,10 +4,8 @@ lcr-modules:
 
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            # sample_bam: "__UPDATE__"
-            # sample_bai: "__UPDATE__"
-            sample_bam: "/projects/rmorin/projects/tumour_contam/lcr-modules/demo/data/{sample_id}.bam"
-            sample_bai: "/projects/rmorin/projects/tumour_contam/lcr-modules/demo/data/{sample_id}.bam.bai"
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
 
         genome_build:
             "grch38"
@@ -18,10 +16,7 @@ lcr-modules:
         scratch_subdirectories: []
         
         conda_envs:
-            controlfreec: "{MODSDIR}/envs/freec.env.yaml"
-            bedtools: "{MODSDIR}/envs/bedtools.env.yaml"
-            sambamba: "{MODSDIR}/envs/sambamba.env.yaml"
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            controlfreec: "{MODSDIR}/envs/controlfreec.env.yaml"
 
 
         options:
@@ -41,15 +36,12 @@ lcr-modules:
             minimalSubclonePresence: 20 #20 for WGS; 30 for WES
             maxThreads: 24
             ploidy: 2,3,4,5,6,7,8 #will select the ploidy that explains the most CNAs
-            # sambamba: "{MODSDIR}/bin/sambamba" # /gsc/software/linux-x86_64/sambamba-0.5.5/sambamba_v0.5.5
-            # samtools: "{MODSDIR}/bin/samtools"
             #sex: XX or XY
             step: 10000
             telocentromeric: 50000
             window: 50000
 
         software:
-            # FREEC: "/projects/dscott_prj/CCSRI_1500/lowpassWGS/envs/freec/bin/freec"
             FREEC_sig: "{MODSDIR}/etc/scripts/assess_significance.R"
             FREEC_graph: "{MODSDIR}/etc/scripts/makeGraph.R"
             FREEC_graph_chr: "{MODSDIR}/etc/scripts/makeGraph_Chromosome.R"

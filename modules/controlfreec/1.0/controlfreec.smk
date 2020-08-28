@@ -55,7 +55,7 @@ rule _controlfreec_config:
     output:
         CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/config_WGS.txt"
     conda:
-        CFG["conda_envs"]["sambamba"]
+        CFG["conda_envs"]["controlfreec"]
     params:
         config = CFG["options"]["configFile"],
         outdir = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/",
@@ -103,7 +103,7 @@ rule _controlfreec_calc_sig:
         CNVs = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_CNVs",
         ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_ratio.txt",
     output:
-        CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_CNVs.p.value.txt"
+        txt = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_CNVs.p.value.txt"
     params:
         calc_sig = CFG["software"]["FREEC_sig"]
     threads: CFG["threads"]["calc_sig"]
@@ -139,9 +139,8 @@ rule _controlfreec_all:
     input:
         expand(
             [
-                # str(rules._controlfreec_output_txt.output.txt),
+                str(rules._controlfreec_calc_sig.output.txt),
                 str(rules._controlfreec_plot.output.plot)
-                # TODO: If applicable, add other output rules here
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],

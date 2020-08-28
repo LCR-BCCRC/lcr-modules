@@ -16,4 +16,6 @@ Basic controlFREEC:
     - text files indicating CNV positions, general characteristics of file (ex. ploidy, sample purity)
     - graphs visualizing CNV positions per chromosome
 
-- No module design decisions explained here yet.
+- Implemented for use with WGS libraries.
+- Compiled one environment containing samtools, sambamba, bedtools in freec
+- Features the most basic default control-freec run (generates CNV plots, CNV tables, and sublone txt).

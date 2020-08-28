@@ -1,10 +1,10 @@
 lcr-modules:
 
     _shared:
-        lcr-modules: "/projects/rmorin/projects/tumour_contam/lcr-modules/"
-        lcr-scripts: "/projects/rmorin/projects/tumour_contam/lcr-scripts/"
+        lcr-modules: "../"
+        lcr-scripts: "../../lcr-scripts"
         root_output_dir: "results/"
-        scratch_directory: "/projects/rmorin_scratch/jawong_tmp/"
+        scratch_directory: "scratch/"
         unmatched_normal_ids:
             capture--grch37: "TCRBOA7-N-WEX"
 
@@ -37,7 +37,5 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
-        logs:
-            controlfreec: "logs/"
 
 
