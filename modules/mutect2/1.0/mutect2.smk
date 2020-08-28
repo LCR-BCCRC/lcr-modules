@@ -150,14 +150,26 @@ def _mutect2_get_chr_vcfs(wildcards):
         CFG["dirs"]["mutect2"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/chromosomes/{chrom}.output.vcf.gz",
         chrom = chrs
     )
-    tbis = [ v + ".tbi" for v in vcfs ]
-    return({"vcf": vcfs, "tbi": tbis})
+    return(vcfs)
+
+
+def _mutect2_get_chr_tbis(wildcards):
+    CFG = config["lcr-modules"]["mutect2"]
+    chrs = checkpoints._mutect2_input_chrs.get(**wildcards).output.chrs
+    with open(chrs) as file:
+        chrs = file.read().rstrip("\n").split("\n")
+    tbis = expand(
+        CFG["dirs"]["mutect2"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/chromosomes/{chrom}.output.vcf.gz.tbi",
+        chrom = chrs
+    )
+    return(tbis)
 
 
 # Merge chromosome mutect2 VCFs from the same sample
 rule _mutect2_merge_vcfs:
     input:
-        unpack(_mutect2_get_chr_vcfs)
+        vcf = _mutect2_get_chr_vcfs,
+        tbi = _mutect2_get_chr_tbis
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz.tbi")
