@@ -5,6 +5,15 @@ All notable changes to the `reference_files` subworkflow will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4] - 2020-08-28
+
+This released was authorized by Prasath Pararajalingam and Kostiantyn Dreval
+
+- Added dictionary generation for GATK to be used with mutect2 module
+- Added generation of transcriptome and salmon index
+- Added option to add snakemake flags when preparing reference files
+
+
 ## [2.3] - 2020-07-17
 
 This release was authored by Bruno Grande.
