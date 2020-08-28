@@ -23,7 +23,8 @@ localrules: download_genome_fasta,
             get_genome_fasta_download, 
             index_genome_fasta,
             get_main_chromosomes_download, 
-            get_gencode_download
+            get_gencode_download,
+            download_af_only_gnomad_vcf
 
 
 # Check for genome builds
@@ -189,18 +190,26 @@ rule download_dbsnp_vcf:
 
 rule download_af_only_gnomad_vcf:
     output:
-        vcf = "downloads/broad/gnomad/af-only-gnomad.{version}.vcf.gz"
+        vcf = "downloads/gnomad/af-only-gnomad.{version}.vcf"
     log:
-        "downloads/broad/gnomad/af-only-gnomad.{version}.vcf.gz.log"
+        "downloads/gnomad/af-only-gnomad.{version}.vcf.log"
     params:
-        provider = "broad",
-        url = lambda w: {"grch37": "b37", "hg38": "hg38"}[w.version],
-        file = lambda w: {"grch37": "raw.sites", "hg38": "hg38"}[w.version]
+        provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
+        file = lambda w: {"grch37": "raw.sites.b37", "grch38": "hg38"}[w.version]
     conda: CONDA_ENVS["coreutils"]
     shell:
         op.as_one_line("""
-        curl -L https://console.cloud.google.com/storage/browser/_details/gatk-best-practices/somatic-{params.url}/af-only-gnomad.{params.file}.vcf.gz > {output.vcf} 2> {log} 
+        curl -s ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/Mutect2/af-only-gnomad.{params.file}.vcf.gz 2> {log}
+            |
+        gzip -dc 
+            |
+        awk '{{FS=OFS="\t"}} {{ 
+            if ($0 ~ /^##INFO/ && !($0 ~ /ID=AC,/ || $0 ~ /ID=AF,/)) {{ next }} 
+            else {{ print }}
+         }}'
+            > {output.vcf} 2>> {log}
         """)
+
 
 ##### FUNCTIONS #####
 
@@ -246,10 +255,15 @@ def hardlink_same_provider(wildcards):
 
     for r in matching_rules:
         # The provider must be among the ones we can convert from
-        if r.params.provider not in from_provider_options:
+        from_provider = r.params.provider
+        # Handle provider as functions
+        if callable(from_provider):
+            wildcards.version = version
+            from_provider = from_provider(wildcards)
+        if from_provider not in from_provider_options:
             logger.warning(
                 f"The {r.rule} rule can generate the {output_file} file, but the chromosomes "
-                f"from the associated provider ({r.params.provider}) cannot be converted to "
+                f"from the associated provider ({from_provider}) cannot be converted to "
                 f"the destination provider ({to_provider}). Make sure the providers in the "
                 "download rules are correct and that no chromosome mappings are missing."
             )
@@ -280,6 +294,8 @@ def get_cvbio_params(field):
         dependency = matching_rules[0]
         version = VERSION_UPPER[wildcards.version]
         from_provider = dependency.params.provider
+        if callable(from_provider):
+            from_provider = from_provider(wildcards)
         to_provider = wildcards.to_provider
         file_ext = wildcards.ext
 

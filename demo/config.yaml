@@ -8,6 +8,11 @@ lcr-modules:
         unmatched_normal_ids:
             capture--grch37: "TCRBOA7-N-WEX"
 
+    bam2fastq:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+        temp_outputs: True # fastq outputs will be temporary
+
     star:
         inputs:
             sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
@@ -20,6 +25,10 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
+    
+    vcf2maf:
+        inputs:
+            vep_cache: "reference/vep_caches/"
 
     sequenza:
         inputs:
@@ -32,4 +41,9 @@ lcr-modules:
             sample_bai: "data/{sample_id}.bam.bai"
             # if using manta output, use vcf file in the 99-outputs subdirectory and ensure manta version corresponds to the loaded module
             candidate_small_indels: "results/manta-2.2/99-outputs/vcf/{seq_type}--{genome_build}/candidateSmallIndels/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf"
+
+    liftover:
+        inputs:
+            sample_seg: "data/{tool}/hg38/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
+
 
