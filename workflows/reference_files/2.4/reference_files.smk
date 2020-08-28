@@ -60,6 +60,23 @@ rule create_gatk_dict:
         """)
 
 
+rule generate_transcriptome:
+    input:
+        genome = "genomes/hg38/genome_fasta/genome.fa",
+        gtf = rules.download_gencode_annotation.output.gtf
+    output:
+        transcriptome = "transcriptomes/hg38/transcriptome_fasta/transcriptome_{gencode_release}_{version}.fa"
+    conda: CONDA_ENVS["cufflinks"]
+    wildcard_constraints:
+        version = 'grch38'
+    shell:
+        op.as_one_line("""
+        mkdir -p transcriptomes/hg38/transcriptome_fasta
+           &&
+        gffread -w {output.transcriptome} -g {input.genome} {input.gtf}
+        """)
+
+
 rule create_star_index:
     input:
         fasta = rules.get_genome_fasta_download.output.fasta,
@@ -80,6 +97,20 @@ rule create_star_index:
         --genomeFastaFiles {input.fasta} --sjdbOverhang {wildcards.star_overhang}
         --sjdbGTFfile {input.gtf} --outTmpDir {output.index}/_STARtmp
         --outFileNamePrefix {output.index}/ > {log} 2>&1
+        """)
+
+
+rule create_salmon_index:
+    input:
+        transcriptome = rules.generate_transcriptome.output.transcriptome
+    output:
+        salmon_index = directory("transcriptomes/hg38/salmon_index_{gencode_release}_{version}")
+    conda: CONDA_ENVS["salmon"]
+    shell:
+        op.as_one_line("""
+        mkdir -p {output.salmon_index}
+           &&
+        salmon index -t {input.transcriptome} -i {output.salmon_index}
         """)
 
 

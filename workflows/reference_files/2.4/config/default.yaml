@@ -56,6 +56,12 @@ tools:
     gatk:
         conda_env: "envs/gatk-4.1.8.1.yaml"
         version: "4.1.8.1"
+    cufflinks:
+        conda_env: "envs/cufflinks-2.2.1.yaml"
+        version: "2.2.1"
+    salmon:
+        conda_env: "envs/salmon-1.2.0.yaml"
+        version: "1.2.0"
 
 cvbio_config:
     gtf: 

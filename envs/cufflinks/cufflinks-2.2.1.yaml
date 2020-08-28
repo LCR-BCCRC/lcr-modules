@@ -1,0 +1,29 @@
+name: gffread
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1
+  - _openmp_mutex=4.5
+  - ca-certificates=2020.6.20
+  - certifi=2020.6.20
+  - cufflinks=2.2.1
+  - ld_impl_linux-64=2.34
+  - libffi=3.2.1
+  - libgcc-ng=9.3.0
+  - libgomp=9.3.0
+  - libstdcxx-ng=9.3.0
+  - ncurses=6.2
+  - openssl=1.1.1g
+  - pip=20.2.2
+  - python=3.6.11
+  - python_abi=3.6
+  - readline=8.0
+  - setuptools=49.6.0
+  - sqlite=3.33.0
+  - tk=8.6.10
+  - wheel=0.35.1
+  - xz=5.2.5
+  - zlib=1.2.11
+prefix: /home/dreval/miniconda3/envs/gffread
