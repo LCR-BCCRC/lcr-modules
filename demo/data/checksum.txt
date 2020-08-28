@@ -1,1 +1,8 @@
-/projects/bgrande/lcr-modules/test_data/checksum.txt
+7ec86a7dbcdd87d59e8d9dedf3569a18  TCRBOA7-N-WEX.bam.bai
+e34318b5b497a3f247e165d10a523488  TCRBOA7-N-WEX.bam
+8870f93e3dc700575050b82e2766d7ce  TCRBOA7-T-RNA.bam.bai
+52b54a5b94726d7951d44d4f74518fc2  TCRBOA7-T-RNA.bam
+b9f7237c3e93e41cb2f11cae57de7baa  TCRBOA7-T-RNA.read1.fastq.gz
+4d3e16477bf17d6ac8c2fa4b3e4911e5  TCRBOA7-T-RNA.read2.fastq.gz
+a3056ee8c1e9f36ffc51132032f65eb9  TCRBOA7-T-WEX.bam.bai
+a98509894778b3100dc31c92b0222122  TCRBOA7-T-WEX.bam
