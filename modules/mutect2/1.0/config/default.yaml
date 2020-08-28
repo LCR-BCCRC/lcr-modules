@@ -24,11 +24,15 @@ lcr-modules:
             mutect2_passed: 1
             mutect2_merge_vcfs: 10
 
-        mem_mb:
-            mutect2_run: 8000
-            mutect2_filter: 512
-            mutect2_passed: 2000
-            mutect2_merge_vcfs: 10000
+        resources:
+            mutect2_run:
+                mem_mb: 8000
+            mutect2_filter:
+                mem_mb: 512
+            mutect2_passed:
+                mem_mb: 2000
+            mutect2_merge_vcfs:
+                mem_mb: 10000
 
         pairing_config:
             genome:

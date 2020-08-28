@@ -97,7 +97,7 @@ rule _mutect2_run_matched_unmatched:
     threads:
         CFG["threads"]["mutect2_run"]
     resources:
-        mem_mb = CFG["mem_mb"]["mutect2_run"]
+        **CFG["resources"]["mutect2_run"]
     wildcard_constraints: 
         pair_status = "matched|unmatched"
     shell:
@@ -130,7 +130,7 @@ rule _mutect2_run_no_normal:
     threads:
         CFG["threads"]["mutect2_run"]
     resources:
-        mem_mb = CFG["mem_mb"]["mutect2_run"]
+        **CFG["resources"]["mutect2_run"]
     wildcard_constraints: 
         pair_status = "no_normal"
     shell:
@@ -168,7 +168,7 @@ rule _mutect2_merge_vcfs:
     threads:
         CFG["threads"]["mutect2_merge_vcfs"]
     resources:
-        mem_mb = CFG["mem_mb"]["mutect2_merge_vcfs"]
+        **CFG["resources"]["mutect2_merge_vcfs"]
     shell:
         op.as_one_line("""
         bcftools concat --threads {threads} -a -O z {input.vcf} 2> {log.stderr}
@@ -228,7 +228,7 @@ rule _mutect2_filter:
     threads:
         CFG["threads"]["mutect2_filter"]
     resources:
-        mem_mb = CFG["mem_mb"]["mutect2_filter"]
+        **CFG["resources"]["mutect2_filter"]
     shell:
         op.as_one_line("""
         gatk FilterMutectCalls {params.opts} -V {input.vcf} -R {input.fasta}
@@ -250,7 +250,7 @@ rule _mutect2_filter_passed:
     threads:
         CFG["threads"]["mutect2_passed"]
     resources:
-        mem_mb = CFG["mem_mb"]["mutect2_passed"]
+        **CFG["resources"]["mutect2_passed"]
     shell:
         op.as_one_line(""" 
         bcftools view -f '.,PASS' -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
