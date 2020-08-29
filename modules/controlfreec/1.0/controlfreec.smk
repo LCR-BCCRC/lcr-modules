@@ -61,9 +61,21 @@ rule _controlfreec_config:
         outdir = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/",
         window = CFG["options"]["window"],
         ploidy = CFG["options"]["ploidy"],
+        breakPointValue = CFG["options"]["breakPointThreshold"],
+        coefVar = CFG["options"]["coefficientOfVariation"],
+        numCon = CFG["options"]["contamination"],
+        booCon = CFG["options"]["contaminationAdjustment"],
+        degree = CFG["options"]["degree"],
+        forceGC = CFG["options"]["forceGCcontentNormalization"],
         chrLen = CFG["options"]["chrLenFile"],
         chrFiles = CFG["options"]["chrFiles"],
-        reference = CFG["options"]["gemMappabilityFile"]
+        minCNAlength = CFG["options"]["minCNAlength"],
+        minimumSubclonePresence = CFG["options"]["minimalSubclonePresence"],
+        noisyData = CFG["options"]["noisyData"],
+        reference = CFG["options"]["gemMappabilityFile"],
+        step = CFG["options"]["step"],
+        telocentromeric = CFG["options"]["telocentromeric"],
+        threads = CFG["options"]["maxThreads"]
     shell:
         "samtoolspath=$(which samtools ) ; "
         "samtoolsPathName=$(echo $samtoolspath) ; "
@@ -80,6 +92,18 @@ rule _controlfreec_config:
         "sed \"s|sambambaPath|$sambambaPathName|g\" | "
         "sed \"s|bedtoolsPath|$bedtoolsPathName|g\" | "
         "sed \"s|samtoolsPath|$samtoolsPathName|g\" | "
+        "sed \"s|breakPointValue|{params.breakPointValue}|g\" | "
+        "sed \"s|coefVar|{params.coefVar}|g\" | "
+        "sed \"s|numCon|{params.numCon}|g\" | "
+        "sed \"s|booCon|{params.booCon}|g\" | "
+        "sed \"s|forceGCvalue|{params.forceGC}|g\" | "
+        "sed \"s|numDegree|{params.degree}|g\" | "
+        "sed \"s|minCNAvalue|{params.minCNAlength}|g\" | "
+        "sed \"s|minimumSubclonePresenceValue|{params.minimumSubclonePresence}|g\" | "
+        "sed \"s|booNoise|{params.noisyData}|g\" | "
+        "sed \"s|stepValue|{params.step}|g\" | "
+        "sed \"s|teloValue|{params.telocentromeric}|g\" | "
+        "sed \"s|numThreads|{params.threads}|g\" | "
         "sed \"s|referenceFile|{params.reference}|g\" > {output}"
 
 rule _controlfreec_run:

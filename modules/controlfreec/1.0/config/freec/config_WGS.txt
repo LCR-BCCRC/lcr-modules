@@ -3,23 +3,32 @@
 
 [general]
 
-maxThreads = 24
+maxThreads = numThreads
 sambamba = sambambaPath
 bedtools = bedtoolsPath
 samtools = samtoolsPath
-chrLenFile = chrLenFileInput
-ploidy = ploidyInput
-breakPointThreshold = .8
-minimalSubclonePresence = 20
-contaminationAdjustment = TRUE
-window = windowSize
 chrFiles = chrFilesPath
-outputDir = OUTDIR
+chrLenFile = chrLenFileInput
 gemMappabilityFile = referenceFile
+outputDir = OUTDIR
 BedGraphOutput=FALSE
+breakPointThreshold = breakPointValue
+coefficientOfVariation = coefVar
+contamination = numCon
+contaminationAdjustment = booCon
+degree = numDegree
+forceGCcontentNormalization = forceGCvalue
+minCNAlength = minCNAvalue
+minimalSubclonePresence = minimumSubclonePresenceValue
+noisyData = booNoise
+ploidy = ploidyInput
+step = stepValue
+telocentromeric = teloValue
+window = windowSize
+
 
 [sample]
 
 mateFile = BAMFILE
 inputFormat = BAM
-mateOrientation = RF
+mateOrientation = FR
