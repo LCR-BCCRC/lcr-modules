@@ -43,6 +43,7 @@ lcr-modules:
             candidate_small_indels: "results/manta-2.2/99-outputs/vcf/{seq_type}--{genome_build}/candidateSmallIndels/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf"
 
     liftover:
+        tool: "battenberg"
         inputs:
             sample_seg: "data/{tool}/hg38/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
 
