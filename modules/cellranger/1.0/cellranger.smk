@@ -84,9 +84,9 @@ rule _cellranger_mkfastq:
         mem_mb = CFG["mem_mb"]["mkfastq"]
     shell:
         op.as_one_line("""
-        PRJ_DIR=$PWD &&
-        cd $(readlink -f $(dirname "{output.out_dir}")) &&
-        echo $PRJ_DIR
+        PRJ_DIR=$PWD 
+            &&
+        cd $(readlink -f $(dirname "{output.out_dir}")) 
             &&
         {params.cr} mkfastq
         {params.opts}
