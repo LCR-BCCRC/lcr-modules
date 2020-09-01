@@ -57,6 +57,5 @@ rule all:
             dbsnp_build=config["wildcard_values"]["dbsnp_build"],
             star_version=config["tools"]["star"]["version"],
             star_overhang=config["wildcard_values"]["star_overhang"],
-            gc_window_size=config["wildcard_values"]["gc_window_size"],
-            version = 'grch38'
+            gc_window_size=config["wildcard_values"]["gc_window_size"]
             )

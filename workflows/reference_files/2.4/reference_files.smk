@@ -62,16 +62,14 @@ rule create_gatk_dict:
 
 rule generate_transcriptome:
     input:
-        genome = "genomes/hg38/genome_fasta/genome.fa",
-        gtf = rules.download_gencode_annotation.output.gtf
+        genome = rules.get_genome_fasta_download.output.fasta,
+        gtf = get_download_file(rules.download_gencode_annotation.output.gtf)
     output:
-        transcriptome = "transcriptomes/hg38/transcriptome_fasta/transcriptome_{gencode_release}_{version}.fa"
+        transcriptome = "transcriptomes/{genome_build}/transcriptome_fasta/transcriptome_{gencode_release}.fa"
     conda: CONDA_ENVS["cufflinks"]
-    wildcard_constraints:
-        version = 'grch38'
     shell:
         op.as_one_line("""
-        mkdir -p transcriptomes/hg38/transcriptome_fasta
+        mkdir -p transcriptomes/{wildcards.genome_build}/transcriptome_fasta
            &&
         gffread -w {output.transcriptome} -g {input.genome} {input.gtf}
         """)
@@ -104,7 +102,7 @@ rule create_salmon_index:
     input:
         transcriptome = rules.generate_transcriptome.output.transcriptome
     output:
-        salmon_index = directory("transcriptomes/hg38/salmon_index_{gencode_release}_{version}")
+        salmon_index = directory("transcriptomes/{genome_build}/salmon_index_{gencode_release}")
     conda: CONDA_ENVS["salmon"]
     shell:
         op.as_one_line("""
