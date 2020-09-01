@@ -48,8 +48,8 @@ config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 include: "../modules/cellranger/1.0/cellranger.smk"
 
 
-##### TARGETS ######
 
+##### TARGETS ######
 
 rule all:
     input:

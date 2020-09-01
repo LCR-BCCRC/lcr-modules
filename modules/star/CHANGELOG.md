@@ -5,6 +5,12 @@ All notable changes to the `star` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3] - 2020-08-20
+
+This release was authored by Kostiantyn Dreval.
+
+- Rule `_star_run` was exiting with error on some systems when trying to remove temporary folder. `rmdir` from this rule was removed to prevent this error. 
+
 ## [1.2] - 2020-07-16
 
 This release was authored by Bruno Grande.

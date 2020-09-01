@@ -1,0 +1,34 @@
+lcr-modules:
+    
+    vcf2maf:
+        dirs: 
+            _parent: "__UPDATE__" #example for combining with Strelka module: "strelka-1.1_vcf2maf-1.0"
+        inputs:
+            # Available wildcards: {out_dir}, {seq_type}, {genome_build}, {tumour_id}, {normal_id}, {pair_status}, {vcf_name}, {base_name}
+            vep_cache: "__UPDATE__" #example "ref/ensembl_vep_cache/"
+            sample_vcf_gz: "__UPDATE__" #full path to your compressed vcfs from favourite variant caller (with wildcards. You must encapsulate everything unique to the variant caller naming scheme in {base_name})
+        vcf_base_name: "__UPDATE__" #put the consistent portion of the file name here. For Strelka, this is "combined.passed"
+        options:
+            vcf2maf: "--filter-vcf 0 --vcf-tumor-id TUMOR --vcf-normal-id NORMAL --cache-version 86"
+            # --filter-vcf     A VCF for FILTER tag common_variant. Set to 0 to disable [~/.vep/ExAC_nonTCGA.r0.3.1.sites.vep.vcf.gz]
+            #--species        Ensembl-friendly name of species (e.g. mus_musculus for mouse) [homo_sapiens]
+            #--cache-version  Version of offline cache to use with VEP (e.g. 75, 84, 91) [Default: Installed version]
+            species: "homo_sapiens"
+
+        conda_envs:
+            vcf2maf: "{MODSDIR}/envs/vcf2maf-1.6.18.yaml"
+            
+        threads:
+            vcf2maf: 12
+
+        mem_mb:
+            vcf2maf: 8000
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
