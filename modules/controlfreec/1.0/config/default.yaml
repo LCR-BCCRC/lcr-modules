@@ -28,7 +28,7 @@ lcr-modules:
             minimalSubclonePresence: 20 #20 for WGS; 30 for WES
             maxThreads: 24
             noisyData: FALSE #set TRUE for exomes to avoid false positives due to non-uniform capture
-            ploidy: 2,3,4,5,6,7,8 #will select the ploidy that explains the most CNAs
+            ploidy: 2,3,4 #will select the ploidy that explains the most CNAs
             #sex: XX or XY
             step: 10000 # only if window is specified; do not use for WES
             telocentromeric: 50000
