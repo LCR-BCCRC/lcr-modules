@@ -48,10 +48,68 @@ rule _controlfreec_input_bam:
     run:
         op.relative_symlink(input.bam, output.bam)
         op.relative_symlink(input.bai, output.bai)
+        
 
+# generate references
+rule _get_map_refs:
+    output:
+        tar = temp("references/{genome_build}/freec/out100m2_{genome_build}.tar.gz"),
+        gem = "references/{genome_build}/freec/out100m2_{genome_build}.gem"
+    params:
+        provider = "ensembl",
+        url = lambda w: {"grch37": "http://xfer.curie.fr/get/7hZIk1C63h0/hg19_len100bp.tar.gz",
+                        "grch38": "http://xfer.curie.fr/get/vyIi4w8EONl/out100m2_hg38.zip"}[w.genome_build],
+        command1 = lambda w: {"grch37": "tar -xvf ",
+                            "grch38": "unzip "}[w.genome_build],
+        command2 = lambda w: {"grch37": " --wildcards --no-anchored 'out100m2*gem' && mv out100m2_hg19.gem ",
+                            "grch38": " > "}[w.genome_build]
+    shell:
+        "wget -O {output.tar} {params.url} "
+        "&& {params.command1} {output.tar} {params.command2} {output.gem}"
+
+
+chromRegions = ("1", "2", "3", "4", "5", "6", "7", "8",
+        "9", "10", "11", "12", "13", "14", "15", "16",
+        "17", "18", "19", "20", "21", "22", "X", "Y")
+
+
+rule _generate_chrLen:
+    input:
+        fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai")
+    output:
+        chrLen = "references/{genome_build}/freec/{genome_build}.len"
+    shell:
+        op.as_one_line("""
+            grep '^[0-9,X,Y]' {input.fai} | awk '{{print $1"\t"$2}}' > {output.chrLen}
+        """)
+
+
+rule _generate_chrFasta:
+    input:
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+    output:
+        fasta = "references/{genome_build}/freec/chr/{chromosome}.fa"
+    conda:
+        CFG["conda_envs"]["controlfreec"]
+    shell:
+        "samtools faidx {input.fasta} {wildcards.chromosome} > {output.fasta} "
+
+
+rule _check_chrFiles:
+    input:
+        fasta = expand("references/{{genome_build}}/freec/chr/{chromosome}.fa",
+                    chromosome = chromRegions)
+    output:
+        touch("references/{genome_build}/freec/chr/.all_done")
+
+
+# set-up controlfreec
 rule _controlfreec_config:
     input:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
+        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        reference = "references/{genome_build}/freec/out100m2_{genome_build}.gem",
+        chrLen = "references/{genome_build}/freec/{genome_build}.len",
+        done = "references/{genome_build}/freec/chr/.all_done"
     output:
         CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/config_WGS.txt"
     conda:
@@ -67,12 +125,10 @@ rule _controlfreec_config:
         booCon = CFG["options"]["contaminationAdjustment"],
         degree = CFG["options"]["degree"],
         forceGC = CFG["options"]["forceGCcontentNormalization"],
-        chrLen = CFG["options"]["chrLenFile"],
-        chrFiles = CFG["options"]["chrFiles"],
+        chrFiles = "references/{genome_build}/freec/chr/",
         minCNAlength = CFG["options"]["minCNAlength"],
         minimumSubclonePresence = CFG["options"]["minimalSubclonePresence"],
         noisyData = CFG["options"]["noisyData"],
-        reference = CFG["options"]["gemMappabilityFile"],
         step = CFG["options"]["step"],
         telocentromeric = CFG["options"]["telocentromeric"],
         threads = CFG["options"]["maxThreads"]
@@ -87,7 +143,7 @@ rule _controlfreec_config:
         "sed \"s|OUTDIR|{params.outdir}|g\" | "
         "sed \"s|windowSize|{params.window}|g\" | "
         "sed \"s|ploidyInput|{params.ploidy}|g\" | "
-        "sed \"s|chrLenFileInput|{params.chrLen}|g\" | "
+        "sed \"s|chrLenFileInput|{input.chrLen}|g\" | "
         "sed \"s|chrFilesPath|{params.chrFiles}|g\" | "
         "sed \"s|sambambaPath|$sambambaPathName|g\" | "
         "sed \"s|bedtoolsPath|$bedtoolsPathName|g\" | "
@@ -104,7 +160,8 @@ rule _controlfreec_config:
         "sed \"s|stepValue|{params.step}|g\" | "
         "sed \"s|teloValue|{params.telocentromeric}|g\" | "
         "sed \"s|numThreads|{params.threads}|g\" | "
-        "sed \"s|referenceFile|{params.reference}|g\" > {output}"
+        "sed \"s|referenceFile|{input.reference}|g\" > {output}"
+
 
 rule _controlfreec_run:
     input:
@@ -122,6 +179,7 @@ rule _controlfreec_run:
     shell:
         "freec -conf {input} > {log.stdout} 2> {log.stderr} "
 
+
 rule _controlfreec_calc_sig:
     input:
         CNVs = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_CNVs",
@@ -138,6 +196,7 @@ rule _controlfreec_calc_sig:
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/calc_sig.stderr.log"
     shell:
         "cat {params.calc_sig} | R --slave --args {input.CNVs} {input.ratios} > {log.stdout} 2> {log.stderr}"
+
 
 rule _controlfreec_plot:
     input:
