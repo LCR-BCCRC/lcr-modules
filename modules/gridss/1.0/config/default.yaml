@@ -6,10 +6,13 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
+            blacklist: "__UPDATE__"
+            repeatmasker: "__UPDATE__"
 
         options:
             gridss: 
                 --picardoptions VALIDATION_STRINGENCY=SILENT
+            filter_unpaired: 
             gripss: 
             # Hard filters remove variants from output VCF
             # Soft filters add flags to output VCF
@@ -30,16 +33,22 @@ lcr-modules:
             gridss: "{MODSDIR}/envs/gridss-dependencies-2.9.4.yaml"
             gripss: "{MODSDIR}/envs/hmftools-gripss-1.4.0.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
             
         threads:
             gridss: 8
             viral_annotation: 8
+            filter_gridss: 1
             gripss: 1 # Not multi-threaded
 
-        mem_mb:
-            gridss: 37500 # Recommended per GRIDSS manual
-            viral_annotation: 8000
-            gripss: 20000 # May need to be increased for FFPE tumours
+        resources:
+            gridss: 
+                mem_mb: 37500 # Recommended per GRIDSS manual
+                bam: 1
+            viral_annotation: 
+                mem_mb: 8000
+            gripss: 
+                mem_mb: 20000 # May need to be increased for FFPE tumours
 
         pairing_config:
             genome:
