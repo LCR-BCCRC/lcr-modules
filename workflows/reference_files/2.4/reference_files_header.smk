@@ -23,12 +23,9 @@ localrules: download_genome_fasta,
             get_genome_fasta_download, 
             index_genome_fasta,
             get_main_chromosomes_download, 
-<<<<<<< HEAD
             get_gencode_download
-=======
             get_gencode_download,
             download_af_only_gnomad_vcf
->>>>>>> master
 
 
 # Check for genome builds
@@ -192,8 +189,6 @@ rule download_dbsnp_vcf:
         """)
 
 
-<<<<<<< HEAD
-=======
 rule download_af_only_gnomad_vcf:
     output:
         vcf = "downloads/gnomad/af-only-gnomad.{version}.vcf"
@@ -217,7 +212,6 @@ rule download_af_only_gnomad_vcf:
         """)
 
 
->>>>>>> master
 ##### FUNCTIONS #####
 
 
@@ -262,12 +256,6 @@ def hardlink_same_provider(wildcards):
 
     for r in matching_rules:
         # The provider must be among the ones we can convert from
-<<<<<<< HEAD
-        if r.params.provider not in from_provider_options:
-            logger.warning(
-                f"The {r.rule} rule can generate the {output_file} file, but the chromosomes "
-                f"from the associated provider ({r.params.provider}) cannot be converted to "
-=======
         from_provider = r.params.provider
         # Handle provider as functions
         if callable(from_provider):
@@ -277,7 +265,6 @@ def hardlink_same_provider(wildcards):
             logger.warning(
                 f"The {r.rule} rule can generate the {output_file} file, but the chromosomes "
                 f"from the associated provider ({from_provider}) cannot be converted to "
->>>>>>> master
                 f"the destination provider ({to_provider}). Make sure the providers in the "
                 "download rules are correct and that no chromosome mappings are missing."
             )
@@ -308,11 +295,8 @@ def get_cvbio_params(field):
         dependency = matching_rules[0]
         version = VERSION_UPPER[wildcards.version]
         from_provider = dependency.params.provider
-<<<<<<< HEAD
-=======
         if callable(from_provider):
             from_provider = from_provider(wildcards)
->>>>>>> master
         to_provider = wildcards.to_provider
         file_ext = wildcards.ext
 
