@@ -44,8 +44,10 @@ rule _cellranger_input:
 rule _cellranger_create_samplesheet:
     output:
         ss = CFG["dirs"]["samplesheet"] + "{chip_id}_samplesheet.csv"
+    params:
+        sample_df = CFG["samples"]
     run:
-        df = op.filter_samples(CFG["samples"], chip_id = wildcards.chip_id)
+        df = op.filter_samples(params.sample_df, chip_id = wildcards.chip_id)
         ss = df[["lane", "sample_id", "index"]]
         ss.columns = ["lane", "sample", "index"]
         ss.to_csv(output.ss, sep = ",", index = False)
