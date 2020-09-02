@@ -1,0 +1,45 @@
+lcr-modules:
+    
+    mutect2:
+
+        inputs:
+            # Available wildcards: {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        scratch_subdirectories: ["mutect2"]
+
+        options:
+            mutect2_run: ""
+            mutect2_filter: ""
+
+        conda_envs:
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            gatk: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            
+        threads:
+            mutect2_run: 1
+            mutect2_filter: 1
+            mutect2_passed: 1
+            mutect2_merge_vcfs: 10
+
+        resources:
+            mutect2_run:
+                mem_mb: 8000
+            mutect2_filter:
+                mem_mb: 512
+            mutect2_passed:
+                mem_mb: 2000
+            mutect2_merge_vcfs:
+                mem_mb: 10000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False

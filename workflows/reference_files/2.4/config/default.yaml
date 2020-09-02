@@ -59,6 +59,9 @@ tools:
     ucsc-gtftogenepred:
         conda_env: "envs/ucsc-gtftogenepred-377.yaml"
         version: "377"
+    gatk:
+        conda_env: "envs/gatk-4.1.8.1.yaml"
+        version: "4.1.8.1"
 
 cvbio_config:
     gtf: 
