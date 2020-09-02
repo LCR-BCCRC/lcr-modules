@@ -59,6 +59,11 @@ lcr-modules:
                 # S07604624: "reference/exomes/grch37/interval/S07604624_intervals.txt"
                 # <grch38_kit>: "reference/exomes/grch38/interval/<grch38_kit>_intervals.txt"
     
+    controlfreec:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+            
     liftover:
         inputs:
             sample_seg: "data/{tool}/hg38/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
