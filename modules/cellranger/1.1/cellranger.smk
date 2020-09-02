@@ -134,7 +134,7 @@ rule _cellranger_count:
         {params.opts}
         --id={wildcards.sample_id}
         --sample={wildcards.sample_id}
-        --fastqs="$PRJ_DIR/{{params.fastq_dir}""
+        --fastqs="$PRJ_DIR/{params.fastq_dir}"
         --transcriptome={params.ref}
         --localcores={threads}
         --localmem=$(({resources.mem_mb}/1000))
