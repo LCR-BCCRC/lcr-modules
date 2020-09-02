@@ -61,8 +61,8 @@ include: "../modules/liftover/1.0/liftover.smk"
 include: "../modules/controlfreec/1.0/controlfreec.smk"
 
 
-##### TARGETS ######
 
+##### TARGETS ######
 
 rule all:
     input:
