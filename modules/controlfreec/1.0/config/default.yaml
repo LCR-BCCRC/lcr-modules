@@ -1,0 +1,57 @@
+lcr-modules:
+    
+    controlfreec:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+
+        scratch_subdirectories: []
+        
+        conda_envs:
+            controlfreec: "{MODSDIR}/envs/controlfreec.env.yaml"
+
+
+        options:
+            configFile: "{MODSDIR}/config/freec/config_WGS.txt"
+            BedGraphOutput: FALSE
+            breakPointThreshold: 0.8 #use 0.6 for more segments to get more CNVs
+            breakPointType: 2
+            coefficientOfVariation: 0.05
+            contamination: 0 # a priori known value of tumor sample contamination by normals
+            contaminationAdjustment: FALSE
+            degree: 3&4 #3&4 for WGS; 1 for WES
+            forceGCcontentNormalization: 0 #0 for WGS; 1 for WES
+            minCNAlength: 1 #1 for WGS; 3 for WES
+            minimalSubclonePresence: 20 #20 for WGS; 30 for WES
+            maxThreads: 24
+            noisyData: FALSE #set TRUE for exomes to avoid false positives due to non-uniform capture
+            ploidy: 2,3,4 #will select the ploidy that explains the most CNAs
+            #sex: XX or XY
+            step: 10000 # only if window is specified; do not use for WES
+            telocentromeric: 50000
+            window: 50000
+
+        software:
+            FREEC_sig: "{MODSDIR}/etc/scripts/assess_significance.R"
+            FREEC_graph: "{MODSDIR}/etc/scripts/makeGraph.R"
+            FREEC_graph_chr: "{MODSDIR}/etc/scripts/makeGraph_Chromosome.R"
+
+        
+        threads:
+            controlfreec_run: 24
+            calc_sig: 1
+            plot: 1
+
+        mem_mb:
+            controlfreec_run: 8000
+            calc_sig: 1000
+            plot: 1000
+        
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
