@@ -59,6 +59,7 @@ lcr-modules:
             sample_bai: "data/{sample_id}.bam.bai"
             
     liftover:
+        tool: "battenberg"
         inputs:
             sample_seg: "data/{tool}/hg38/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
 
