@@ -25,7 +25,7 @@ localrules: download_genome_fasta,
             index_genome_fasta,
             get_main_chromosomes_download, 
             get_gencode_download, 
-            create_star_index
+            create_star_index, 
             get_gencode_download,
             download_af_only_gnomad_vcf
 
@@ -176,11 +176,13 @@ rule download_blacklist:
     output: 
         bed = "downloads/encode_blacklist/blacklist.encode.{version}.bed"
     params:
-        version = lambda w: {"hg19": "ENCFF001TDO", "grch38": "ENCFF356LFX"}[w.version], 
+        file = lambda w: {"grch37": "ENCFF001TDO", "grch38": "ENCFF356LFX"}[w.version], 
         provider = "ucsc"
+    wildcard_constraints: 
+        version = "grch37|grch38"
     shell: 
         op.as_one_line("""
-        wget -qO- https://www.encodeproject.org/files/{params.version}/@@download/{params.version}.bed.gz |
+        wget -qO- https://www.encodeproject.org/files/{params.file}/@@download/{params.file}.bed.gz |
         gzip -dc > {output.bed}
         """)
 

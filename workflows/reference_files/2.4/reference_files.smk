@@ -179,7 +179,7 @@ rule get_blacklist_download:
     input: 
         bed = get_download_file(rules.download_blacklist.output.bed)
     output: 
-        bed = "genomes/{genome_build}/encode/encode-blacklist.bed"
+        bed = "genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed"
     conda: CONDA_ENVS["coreutils"]
     shell:
         "ln -srf {input.bed} {output.bed}"
