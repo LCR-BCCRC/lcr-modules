@@ -1,4 +1,4 @@
-name: bcftools
+name: test-bcftools
 channels:
   - conda-forge
   - bioconda
@@ -32,5 +32,5 @@ dependencies:
   - tk=8.6.10
   - xz=5.2.5
   - zlib=1.2.11
-prefix: /home/lhilton/miniconda3/envs/bcftools
+prefix: /home/prasathp/miniconda3/envs/test-bcftools
 

@@ -34,11 +34,8 @@ MANIFEST
 /demo/results/
 /demo/reference
 /demo/scratch
-/demo/data/*
-!/demo/data/samples.tsv
-chrom_mappings
+/demo/data/*bam
 
-*tmp.*
 
 # Ignore example snakefiles
 /examples
