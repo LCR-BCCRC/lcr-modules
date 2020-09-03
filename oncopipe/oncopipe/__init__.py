@@ -291,7 +291,43 @@ def list_files(directory, file_ext):
     return files_all
 
 
-# SNAKEMAKE INPUT/PARAM FUNCTIONS
+# SNAKEMAKE INPUT/PARAM/RESOURCE FUNCTIONS
+
+
+def retry(value, multiplier=1.5, max_value=100000):
+    """Creates callable that increases resource value on retries.
+
+    This function is intended for use with resources,
+    especially memory (mem_mb).
+
+    Parameters
+    ----------
+    value : int
+        The value that will be multiplied on retries.
+        This value will be used as is in the first try.
+    multiplier: float
+        The factor that the value will be multiplied by
+        on retries. This should usually be a number
+        between 1 and 3.
+    max_value : int
+        The maximum value that should be returned by
+        this function, even on retries. This is meant
+        to prevent excessively high requests that will
+        never be accommodated by the cluster.
+
+    Returns
+    -------
+    function, which returns integer values
+        The function that can be provided to the
+        resource directive in a snakemake rule.
+    """
+
+    def retry_custom(wildcards, attempt):
+        new_value = value * (multiplier ** attempt)
+        new_value = min(new_value, max_value)
+        return int(new_value)
+
+    return retry_custom
 
 
 def create_formatter(wildcards, input, output, threads, resources, strict):
@@ -410,7 +446,7 @@ def switch_on_column(
     """
 
     assert isinstance(options, dict), "`options` must be a `dict` object."
-    assert column in samples, "`column` must be a column name in `samples`."
+    assert column in samples, (f"`{column}` must be a column name in `samples`.")
 
     def _switch_on_column(
         wildcards, input=None, output=None, threads=None, resources=None
@@ -420,6 +456,8 @@ def switch_on_column(
             sample_id = wildcards.tumour_id
         elif match_on == "normal":
             sample_id = wildcards.normal_id
+        elif match_on == "sample":
+            sample_id = wildcards.sample_id
         else:
             raise ValueError("Invalid value for `match_on`.")
         subset = samples.loc[samples["seq_type"] == wildcards.seq_type]
@@ -897,6 +935,8 @@ def generate_runs_for_patient(
         tumour = tumour._asdict()
         if normal is None and run_unpaired_tumours_with == "unmatched_normal":
             # Check that `unmatched_normal` or `unmatched_normals` is given
+            tumour_id = tumour["sample_id"]
+            patient_id = tumour["patient_id"]
             seq_type = tumour["seq_type"]
             genome_build = tumour["genome_build"]
             assert unmatched_normal is not None or unmatched_normals is not None, (
@@ -906,6 +946,13 @@ def generate_runs_for_patient(
                 "See README for format."
             )
             if unmatched_normals is not None:
+                assert f"{seq_type}--{genome_build}" in unmatched_normals, (
+                    f"There is no unmatched normal ID for the seq_type '{seq_type}' "
+                    f"and genome_build '{genome_build}' to pair with the unpaired "
+                    f"tumour sample '{tumour_id}' (patient '{patient_id}'). "
+                    f"Add an entry for '{seq_type}--{genome_build}' under "
+                    f"'unmatched_normal_ids' in the '_shared' configuration."
+                )
                 normal = unmatched_normals[f"{seq_type}--{genome_build}"]._asdict()
             else:
                 normal = unmatched_normal._asdict()
@@ -1537,7 +1584,7 @@ def setup_module(name, version, subdirectories):
     # Update paths to conda environments to be relative to the module directory
     for env_name, env_val in mconfig["conda_envs"].items():
         if env_val is not None:
-            mconfig["conda_envs"][env_name] = os.path.relpath(env_val, modsdir)
+            mconfig["conda_envs"][env_name] = os.path.realpath(env_val)
 
     # Setup output sub-directories
     scratch_subdirs = mconfig.get("scratch_subdirectories", [])
@@ -1568,6 +1615,7 @@ def setup_module(name, version, subdirectories):
     mconfig["unpaired_runs"] = runs[runs.pair_status == "no_normal"]
 
     # Return module-specific configuration
+    config["lcr-modules"][name] = mconfig
     return mconfig
 
 

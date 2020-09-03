@@ -29,13 +29,13 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Files creates when testing the demo project
+# Files creates when testing the demo project or workflows
 .snakemake/
 /demo/results/
 /demo/reference
 /demo/scratch
-/demo/data/*
-!/demo/data/samples.tsv
+/demo/data/*bam
+
 
 # Ignore example snakefiles
 /examples
