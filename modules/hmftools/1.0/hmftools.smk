@@ -485,12 +485,13 @@ rule _hmftools_linx_viz_annotate:
     
     shell:
         op.as_one_line("""
+        touch {log};
         tail -n +2 {input.clusters} | grep -v "ARTIFACT" | grep -v "INCOMPLETE" | cut -f 1 | while read cluster; do 
             genes=$(cat {input.svs} | 
                         awk -v c=$cluster 'BEGIN {{FS="\t"}} {{OFS=";"}} $2 == c {{print $10,$11,$12,$13}}' | 
                         tr ';' '\n' | sort | uniq | tr '\n' ','); 
             if [[ $genes =~ [A-Z] ]]; then
-                echo $cluster $genes > {log}; 
+                echo $cluster $genes >> {log}; 
 
                 java -Xmx{params.jvmheap}m -cp {params.linx_jar} com.hartwig.hmftools.linx.visualiser.SvVisualiser 
                     -sample {wildcards.tumour_id} 
