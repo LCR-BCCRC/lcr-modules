@@ -6,6 +6,3 @@ sample_id	seq_type	patient_id	tissue_status	genome_build
 TCRBOA7-N-WEX 	capture 	TCRBOA7 	normal 	grch37
 TCRBOA7-T-WEX 	capture 	TCRBOA7 	tumour 	grch37
 TCRBOA7-T-RNA 	mrna 	TCRBOA7 	tumour 	grch37
-FakeT	genome	Fake	tumour	hg38
-FakeT2	capture	Fake2	tumour	hg38
-FakeN2	capture	Fake2	normal	hg38

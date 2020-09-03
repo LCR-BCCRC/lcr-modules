@@ -10,9 +10,9 @@ lcr-modules:
         tool: __UPDATE__ # Specify the name of the tool that produced the .seg files. For example, "battenberg"
         #you can include the version if it helps simplify the pattern matching, for example sequenza-1.0
         inputs:
-            __UPDATE__
-        # Specify how to find all the hg38 seg files you want to lift over. For example:
-        #sample_seg: "data/{tool}/hg38/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
+            sample_seg: __UPDATE__
+            # Specify how to find all the hg38 seg files you want to lift over. For example:
+            #sample_seg: "data/{tool}/hg38/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
         scratch_subdirectories: "scratch/"
         options:
             chr_colNum: 2
