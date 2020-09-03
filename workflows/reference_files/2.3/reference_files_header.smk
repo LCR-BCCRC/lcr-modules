@@ -23,9 +23,7 @@ localrules: download_genome_fasta,
             get_genome_fasta_download, 
             index_genome_fasta,
             get_main_chromosomes_download, 
-            create_bwa_index,
-            get_gencode_download, 
-            create_star_index
+            get_gencode_download
 
 
 # Check for genome builds
