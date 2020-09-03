@@ -6,8 +6,6 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
-            blacklist: "__UPDATE__"
-            repeatmasker: "__UPDATE__"
 
         options:
             gridss: 

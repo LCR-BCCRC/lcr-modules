@@ -197,8 +197,8 @@ rule _gridss_paired:
         n_workdir = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{normal_id}.bam.gridss.working",
         fasta = rules._gridss_input_references.output.genome_fa,
         fasta_img = rules._gridss_setup_references.output.genome_img, 
-        blacklist = CFG["inputs"]["blacklist"], 
-        repeatmasker = CFG["inputs"]["repeatmasker"]
+        blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed"), 
+        repeatmasker = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
     output:
         vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_raw.vcf.gz",
         assembly = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/assembly.bam"
@@ -242,8 +242,8 @@ rule _gridss_unpaired:
         t_workdir = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{tumour_id}.bam.gridss.working", # Placeholder to prevent premature deletion of the temp workdir 
         fasta = rules._gridss_input_references.output.genome_fa,
         fasta_img = rules._gridss_setup_references.output.genome_img, 
-        blacklist = CFG["inputs"]["blacklist"], 
-        repeatmasker = CFG["inputs"]["repeatmasker"]
+        blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed"), 
+        repeatmasker = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
     output:
         vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/gridss_raw.vcf.gz",
         assembly = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/assembly.bam"
