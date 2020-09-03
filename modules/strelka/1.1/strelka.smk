@@ -35,6 +35,8 @@ localrules:
     _strelka_output_filtered_vcf,
     _strelka_all,
 
+wildcard_constraints: 
+    var_type = "somatic.snvs|somatic.indels|variants"
 
 ##### RULES #####
 
@@ -232,8 +234,9 @@ rule _strelka_filter:
 #merge indel and snv vcf into one combined file for paired jobs
 rule _combine_strelka:
     input:
-        snv = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic.snvs.passed.vcf.gz",
-        indel = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic.indels.passed.vcf.gz"
+        vcf = expand(CFG["dirs"]["filtered"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/{var_type}.passed.vcf.gz", 
+                    var_type = ["somatic.indels", "somatic.snvs"]),
+        # indel = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic.indels.passed.vcf.gz"
     output:
         combined = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined.passed.vcf.gz",
         combined_tbi = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined.passed.vcf.gz.tbi"
@@ -255,11 +258,11 @@ def _strelka_get_output(wildcards):
     CFG = config["lcr-modules"]["strelka"]
 
     if wildcards.pair_status == "no_normal":
-        vcf_files = "variants"
-        vcf = expand(str(rules._strelka_filter.output.vcf), var_type = vcf_files, **wildcards)
+        # vcf_files = "variants"
+        vcf = str(rules._strelka_filter.output.vcf)
     else:
-        vcf_files = ["somatic.snvs","somatic.indels"]
-        vcf = expand(str(rules._combine_strelka.output.combined), **wildcards)
+        # vcf_files = ["somatic.snvs","somatic.indels"]
+        vcf = str(rules._combine_strelka.output.combined)
     return vcf
 
 # Symlinks the final output files into the module results directory (under '99-outputs/'). Links will always use "combined" in the name (dropping odd naming convention used by Strelka in unpaired mode)
