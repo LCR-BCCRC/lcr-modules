@@ -47,12 +47,19 @@ lcr-modules:
             # if using manta output, use vcf file in the 99-outputs subdirectory and ensure manta version corresponds to the loaded module
             candidate_small_indels: "results/manta-2.2/99-outputs/vcf/{seq_type}--{genome_build}/candidateSmallIndels/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf"
 
+    bwa_mem:
+        inputs:
+            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
+        scratch_subdirectories: ["bwa_mem", "sort_bam", "mark_dups"]
+        
     controlfreec:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
             
     liftover:
+        tool: "battenberg"
         inputs:
             sample_seg: "data/{tool}/hg38/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
 

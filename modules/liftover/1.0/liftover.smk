@@ -23,7 +23,6 @@ CFG = op.setup_module(
     version = "1.0",
     subdirectories = ["inputs", "seghg38tobedhg38", "bedhg38tobedhg19", "bedhg19toseghg19", "outputs"])
 
-print(CFG["runs"])
 ##### RULES #####
 
 
