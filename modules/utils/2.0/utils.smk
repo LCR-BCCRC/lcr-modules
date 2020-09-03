@@ -97,7 +97,11 @@ rule _utils_bam_index:
         stdout = "{out_dir}" + LOG + "/{prefix}/{suffix}_index.stdout.log",
         stderr = "{out_dir}" + LOG + "/{prefix}/{suffix}_index.stderr.log"
     params:
+<<<<<<< HEAD
         opts = _UTILS["options"]["bam_index"],
+=======
+        opts = _UTILS["options"]["bam_index"]
+>>>>>>> 664903ee9d6f0c4c9e3ba2f20dc7edee662b572e
     conda:
         _UTILS["conda_envs"]["samtools"]
     threads:
@@ -113,6 +117,7 @@ rule _utils_bam_index:
         > {log.stdout}
         2> {log.stderr}
         """)
+<<<<<<< HEAD
 
 
 rule _utils_create_intervals: # create_interval_list from bed; default exomes
@@ -142,3 +147,5 @@ rule _utils_create_intervals: # create_interval_list from bed; default exomes
 
 
 
+=======
+>>>>>>> 664903ee9d6f0c4c9e3ba2f20dc7edee662b572e

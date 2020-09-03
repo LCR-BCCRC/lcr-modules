@@ -26,6 +26,11 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
+   
+    mixcr:
+        inputs:
+            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
     
     vcf2maf:
         inputs:
@@ -59,12 +64,19 @@ lcr-modules:
                 # S07604624: "reference/exomes/grch37/interval/S07604624_intervals.txt"
                 # <grch38_kit>: "reference/exomes/grch38/interval/<grch38_kit>_intervals.txt"
     
+    bwa_mem:
+        inputs:
+            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
+        scratch_subdirectories: ["bwa_mem", "sort_bam", "mark_dups"]
+        
     controlfreec:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
             
     liftover:
+        tool: "battenberg"
         inputs:
             sample_seg: "data/{tool}/hg38/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
 

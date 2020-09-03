@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 lcr-modules:
     utils:
         inputs:
@@ -8,6 +9,22 @@ lcr-modules:
         options:
             bam_sort: ""
             bam_markdups: "--overflow-list-size 600000"
+=======
+## Lines commented out with `#!` are required for the module to run
+## Lines commented out with `#?` can optionally be user-configured
+## Lines commented out with `##` act as regular comments
+
+lcr-modules:
+    utils:
+        paired_modules: ["bwa_mem", "star"]
+        ## See main README.md for how to set `samples` in the Snakefile
+        #! samples: null
+
+        scratch_subdirectories: []
+
+        options:
+            bam_sort: ""
+            bam_markdups: ""
             bam_index: "-b"
 
         conda_envs:
