@@ -173,6 +173,67 @@ rule get_dbsnp_download:
         tabix {output.vcf}
         """)
 
+
+
+##### PICARD METRICS
+rule create_seq_dict:
+    input:
+        fasta = rules.get_genome_fasta_download.output.fasta
+    output: 
+        seq_dict = "genomes/{genome_build}/genome_fasta/genome.dict"
+    log: 
+        "genomes/{genome_build}/genome_fasta/genome_dict.log"
+    conda: CONDA_ENVS["picard"]
+    shell:
+        op.as_one_line("""
+        picard CreateSequenceDictionary
+        R={input.fasta}
+        O={output.seq_dict}
+        2> {log}
+        &&
+        chmod a-w {output.seq_dict}
+        """)
+
+
+rule create_rRNA_interval:
+    input:
+        gtf = rules.get_gencode_download.output.gtf
+    output: 
+        rrna_int = "genomes/{genome_build}/rrna_intervals/rRNA_int_gencode-{gencode_release}.txt"
+    log: 
+        "genomes/{genome_build}/rrna_intervals/rRNA_int_gencode-{gencode_release}.log"
+    conda: CONDA_ENVS["picard"]
+    shell:
+        op.as_one_line("""
+        grep 'gene_type "rRNA"' {input.gtf} |
+        awk '$3 == "transcript"' |
+        cut -f1,4,5,7,9 |
+        perl -lane '
+            /transcript_id "([^"]+)"/ or die "no transcript_id on $.";
+            print join "\t", (@F[0,1,2,3], $1)
+        ' | 
+        sort -k1V -k2n -k3n >> {output.rrna_int}
+        &&
+        chmod a-w {output.rrna_int}
+        """)
+
+
+rule create_refFlat:
+    input:
+        gtf = rules.get_gencode_download.output.gtf
+    output:
+        txt = "genomes/{genome_build}/annotations/refFlat_gencode-{gencode_release}.txt"
+    log: "genomes/{genome_build}/annotations/gtfToGenePred-{gencode_release}.log"
+    conda: CONDA_ENVS["ucsc-gtftogenepred"]
+    threads: 4
+    resources:
+        mem_mb = 6000
+    shell:
+        op.as_one_line("""
+        gtfToGenePred -genePredExt -geneNameAsName2 
+        {input.gtf} {output.txt}.tmp 
+        2> {log} &&
+        paste <(cut -f 12 {output.txt}.tmp) <(cut -f 1-10 {output.txt}.tmp) > {output.txt}
 rule get_af_only_gnomad_vcf:
     input:
         vcf = get_download_file(rules.download_af_only_gnomad_vcf.output.vcf)

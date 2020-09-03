@@ -3,7 +3,6 @@
 
 ##### SETUP #####
 
-
 import oncopipe as op
 
 SAMPLES = op.load_samples("data/samples.tsv")
@@ -16,16 +15,17 @@ subworkflow reference_files:
     workdir:
         "reference/"
     snakefile:
-        "../workflows/reference_files/2.3/reference_files.smk"
+        "../workflows/reference_files/2.4/reference_files.smk"
     configfile:
-        "../workflows/reference_files/2.3/config/default.yaml"
+        "../workflows/reference_files/2.4/config/default.yaml"
 
 
 ##### CONFIGURATION FILES #####
 
 
 # Load module-specific configuration
-
+configfile: "../modules/utils/2.0/config/default.yaml"
+configfile: "../modules/picard_qc/1.0/config/default.yaml"
 configfile: "../modules/bam2fastq/1.0/config/default.yaml"
 configfile: "../modules/star/1.3/config/default.yaml"
 configfile: "../modules/manta/2.2/config/default.yaml"
@@ -33,6 +33,7 @@ configfile: "../modules/vcf2maf/1.0/config/default.yaml"
 configfile: "../modules/sequenza/1.2/config/default.yaml"
 configfile: "../modules/strelka/1.0/config/default.yaml"
 configfile: "../modules/liftover/1.0/config/default.yaml"
+configfile: "../modules/controlfreec/1.0/config/default.yaml"
 
 
 # Load project-specific config, which includes the shared 
@@ -46,11 +47,12 @@ configfile: "config.yaml"
 # Use all samples as a default sample list for each module
 config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 
-
 ##### MODULE SNAKEFILES #####
 
 
 # Load module-specific snakefiles
+include: "../modules/utils/2.0/utils.smk"
+include: "../modules/picard_qc/1.0/picard_qc.smk"
 include: "../modules/bam2fastq/1.0/bam2fastq.smk"
 include: "../modules/star/1.3/star.smk"
 include: "../modules/manta/2.2/manta.smk"
@@ -58,6 +60,7 @@ include: "../modules/vcf2maf/1.0/vcf2maf.smk"
 include: "../modules/sequenza/1.2/sequenza.smk"
 include: "../modules/strelka/1.0/strelka.smk"
 include: "../modules/liftover/1.0/liftover.smk"
+include: "../modules/controlfreec/1.0/controlfreec.smk"
 
 
 
@@ -65,10 +68,11 @@ include: "../modules/liftover/1.0/liftover.smk"
 
 rule all:
     input:
+        rules._picard_qc_all.input,
         rules._bam2fastq_all.input,
         rules._star_all.input,
         rules._manta_all.input,
         rules._sequenza_all.input,
         rules._strelka_all.input,
-        rules._liftover_all.input
-
+        rules._liftover_all.input,
+        rules._controlfreec_all.input
