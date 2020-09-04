@@ -8,6 +8,7 @@ lcr-modules:
             sample_fastq_2: "__UPDATE__"
 
         options:
+            # tells salmon to automatically determine library type (e.g. stranded vs. unstranded etc.)
             quant: "-l A"
 
         conda_envs:
