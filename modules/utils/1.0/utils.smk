@@ -39,7 +39,7 @@ rule:
         mem_mb = CFG["mem_mb"].get("utils_bam_sort", 12000)
     shell:
         op.as_one_line("""
-        samtools sort {params.opts} -@ {threads} -m $(({resources.mem_mb} / {threads}))M
+        samtools sort {params.opts} -@ {threads} -m $(({resources.mem_mb} / {threads} / 2))M
         -T {params.prefix} -o {output.bam} {input.bam} > {log.stdout} 2> {log.stderr}
         """)
 
