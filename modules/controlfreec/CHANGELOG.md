@@ -26,3 +26,11 @@ Basic controlFREEC:
     - [BAF] - for calculating BAF profiles and call genotypes (to detect LOH)
     - [target] - provide a .bed file with coordinates of probes, exons, amplicons for exome-sequencing or targeted-sequencing. Set "window=0" in [general] to use read count "per exon" instead of "per window"
 Additional features in config can be found here (http://boevalab.inf.ethz.ch/FREEC/tutorial.html#CONFIG)
+
+## [1.1] - 2020-09-04
+
+This release was authored by Jasper.
+
+Updated controlfreec.smk to allow for running on Numbers cluster.
+
+Fixed bugs related to genome builds and preparation of controlfreec-specific reference files.
