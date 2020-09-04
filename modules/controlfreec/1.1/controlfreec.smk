@@ -28,6 +28,7 @@ CFG = op.setup_module(
 localrules:
     _controlfreec_input_bam,
     _controlfreec_config,
+    _controlfreec_output,
     _controlfreec_all
 
 
@@ -214,7 +215,8 @@ rule _controlfreec_plot:
         # BAF = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_BAF.txt",
         info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_info.txt"
     output:
-        plot = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_ratio.txt.png"
+        plot = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_ratio.txt.png",
+        log2plot = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_ratio.txt.log2.png"
     params:
         plot = CFG["software"]["FREEC_graph"]
     threads: CFG["threads"]["plot"]
@@ -227,13 +229,30 @@ rule _controlfreec_plot:
         "cat {params.plot} | R --slave --args `grep \"Output_Ploidy\" {input.info} | cut -f 2` {input.ratios} > {log.stdout} 2> {log.stderr} "
 
 
+# Symlinks the final output files into the module results directory (under '99-outputs/')
+rule _controlfreec_output:
+    input:
+        plot = str(rules._controlfreec_plot.output.plot),
+        log2plot = str(rules._controlfreec_plot.output.log2plot),
+        CNV = str(rules._controlfreec_calc_sig.output.txt)
+    output:
+        plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/plots/{sample_id}.bam_ratio.txt.png",
+        log2plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/log2plots/{sample_id}.bam_ratio.txt.log2.png",
+        CNV = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/CNV/{sample_id}.bam_CNVs.p.value.txt"
+    run:
+        op.relative_symlink(input.plot, output.plot)
+        op.relative_symlink(input.log2plot, output.log2plot)
+        op.relative_symlink(input.CNV, output.CNV)
+
+
 # Generates the target sentinels for each run, which generate the symlinks
 rule _controlfreec_all:
     input:
         expand(
             [
-                str(rules._controlfreec_calc_sig.output.txt),
-                str(rules._controlfreec_plot.output.plot)
+                str(rules._controlfreec_output.output.plot),
+                str(rules._controlfreec_output.output.log2plot),
+                str(rules._controlfreec_output.output.CNV)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
