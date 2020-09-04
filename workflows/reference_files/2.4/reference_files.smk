@@ -43,6 +43,23 @@ rule create_bwa_index:
         "bwa index -p {output.prefix} {input.fasta} > {log} 2>&1"
 
 
+rule create_gatk_dict:
+    input:
+        fasta = rules.get_genome_fasta_download.output.fasta,
+        fai = rules.index_genome_fasta.output.fai
+    output:
+        dict = "genomes/{genome_build}/genome_fasta/genome.dict"
+    log:
+        "genomes/{genome_build}/gatk_fasta/genome.dict.log"
+    conda: CONDA_ENVS["gatk"]
+    resources:
+        mem_mb = 20000
+    shell:
+        op.as_one_line(""" 
+        gatk CreateSequenceDictionary -R {input.fasta} -O {output.dict} > {log} 2>&1
+        """)
+
+
 rule create_star_index:
     input:
         fasta = rules.get_genome_fasta_download.output.fasta,
@@ -220,4 +237,15 @@ rule create_salmon_index:
         -t {input.fasta}
         -i {output.index}
         > {log} 2>&1
+rule get_af_only_gnomad_vcf:
+    input:
+        vcf = get_download_file(rules.download_af_only_gnomad_vcf.output.vcf)
+    output:
+        vcf = "genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"
+    conda: CONDA_ENVS["samtools"]
+    shell:
+        op.as_one_line(""" 
+        bgzip -c {input.vcf} > {output.vcf}
+            &&
+        tabix {output.vcf}
         """)
