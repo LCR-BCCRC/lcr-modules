@@ -34,7 +34,7 @@ configfile: "../modules/strelka/1.0/config/default.yaml"
 configfile: "../modules/utils/2.0/config/default.yaml"
 configfile: "../modules/bwa_mem/1.0/config/default.yaml"
 configfile: "../modules/liftover/1.0/config/default.yaml"
-configfile: "../modules/controlfreec/1.0/config/default.yaml"
+configfile: "../modules/controlfreec/1.1/config/default.yaml"
 
 
 # Load project-specific config, which includes the shared 
@@ -62,7 +62,7 @@ include: "../modules/strelka/1.0/strelka.smk"
 include: "../modules/utils/2.0/utils.smk"
 include: "../modules/bwa_mem/1.0/bwa_mem.smk"
 include: "../modules/liftover/1.0/liftover.smk"
-include: "../modules/controlfreec/1.0/controlfreec.smk"
+include: "../modules/controlfreec/1.1/controlfreec.smk"
 
 
 
