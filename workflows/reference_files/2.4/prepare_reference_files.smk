@@ -44,6 +44,7 @@ rule all:
                 rules.store_genome_build_info.output.version,
                 rules.store_genome_build_info.output.provider,
                 rules.create_bwa_index.output.prefix,
+                rules.create_gatk_dict.output.dict, 
                 rules.get_gencode_download.output.gtf,
                 rules.get_dbsnp_download.output.vcf,
                 rules.create_star_index.output.index,
