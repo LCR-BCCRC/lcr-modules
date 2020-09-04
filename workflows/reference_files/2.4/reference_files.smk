@@ -237,6 +237,8 @@ rule create_salmon_index:
         -t {input.fasta}
         -i {output.index}
         > {log} 2>&1
+        """)
+
 rule get_af_only_gnomad_vcf:
     input:
         vcf = get_download_file(rules.download_af_only_gnomad_vcf.output.vcf)
