@@ -1,0 +1,34 @@
+###For more options see: http://boevalab.com/FREEC/tutorial.html#CONFIG ###
+
+
+[general]
+
+maxThreads = numThreads
+sambamba = sambambaPath
+bedtools = bedtoolsPath
+samtools = samtoolsPath
+chrFiles = chrFilesPath
+chrLenFile = chrLenFileInput
+gemMappabilityFile = referenceFile
+outputDir = OUTDIR
+BedGraphOutput=FALSE
+breakPointThreshold = breakPointValue
+coefficientOfVariation = coefVar
+contamination = numCon
+contaminationAdjustment = booCon
+degree = numDegree
+forceGCcontentNormalization = forceGCvalue
+minCNAlength = minCNAvalue
+minimalSubclonePresence = minimumSubclonePresenceValue
+noisyData = booNoise
+ploidy = ploidyInput
+step = stepValue
+telocentromeric = teloValue
+window = windowSize
+
+
+[sample]
+
+mateFile = BAMFILE
+inputFormat = BAM
+mateOrientation = FR
