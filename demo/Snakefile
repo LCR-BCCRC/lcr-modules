@@ -25,14 +25,16 @@ subworkflow reference_files:
 
 
 # Load module-specific configuration
-
 configfile: "../modules/bam2fastq/1.0/config/default.yaml"
 configfile: "../modules/star/1.3/config/default.yaml"
 configfile: "../modules/manta/2.3/config/default.yaml"
 configfile: "../modules/vcf2maf/1.0/config/default.yaml"
 configfile: "../modules/sequenza/1.4/config/default.yaml"
 configfile: "../modules/strelka/1.1/config/default.yaml"
+configfile: "../modules/utils/2.0/config/default.yaml"
+configfile: "../modules/bwa_mem/1.0/config/default.yaml"
 configfile: "../modules/liftover/1.0/config/default.yaml"
+configfile: "../modules/controlfreec/1.0/config/default.yaml"
 
 
 # Load project-specific config, which includes the shared 
@@ -57,7 +59,10 @@ include: "../modules/manta/2.3/manta.smk"
 include: "../modules/vcf2maf/1.0/vcf2maf.smk"
 include: "../modules/sequenza/1.4/sequenza.smk"
 include: "../modules/strelka/1.1/strelka.smk"
+include: "../modules/utils/2.0/utils.smk"
+include: "../modules/bwa_mem/1.0/bwa_mem.smk"
 include: "../modules/liftover/1.0/liftover.smk"
+include: "../modules/controlfreec/1.0/controlfreec.smk"
 
 
 
@@ -70,5 +75,6 @@ rule all:
         rules._manta_all.input,
         rules._sequenza_all.input,
         rules._strelka_all.input,
-        rules._liftover_all.input
-
+        rules._bwa_mem_all.input,
+        rules._liftover_all.input,
+        rules._controlfreec_all.input
