@@ -28,7 +28,7 @@ lcr-modules:
                 --chimOutType WithinBAM SoftClip
                 --chimSegmentMin 20 
             utils_bam_sort: ""
-            utils_bam_markdups: ""
+            utils_bam_markdups: " --show-progress "
             utils_bam_index: "-b"
 
         conda_envs:
@@ -39,13 +39,13 @@ lcr-modules:
         threads:
             star: 12
             utils_bam_sort: 12
-            utils_bam_markdups: 12
+            utils_bam_markdups: 24
             utils_bam_index: 6
 
         mem_mb:
             star: 40000
-            utils_bam_sort: 12000
-            utils_bam_markdups: 8000
+            utils_bam_sort: 24000
+            utils_bam_markdups: 16000
             utils_bam_index: 4000
 
         pairing_config:

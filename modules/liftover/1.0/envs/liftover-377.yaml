@@ -1,0 +1,44 @@
+name: liftover
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1
+  - _openmp_mutex=4.5
+  - ca-certificates=2020.6.20
+  - certifi=2020.6.20
+  - ld_impl_linux-64=2.34
+  - libblas=3.8.0
+  - libcblas=3.8.0
+  - libffi=3.2.1
+  - libgcc-ng=9.3.0
+  - libgfortran-ng=7.5.0
+  - libgomp=9.3.0
+  - liblapack=3.8.0
+  - libopenblas=0.3.10
+  - libpng=1.6.37
+  - libstdcxx-ng=9.3.0
+  - libuuid=2.32.1
+  - mysql-connector-c=6.1.11
+  - ncurses=6.2
+  - numpy=1.19.1
+  - openssl=1.1.1g
+  - pandas=1.1.1
+  - pip=20.2.2
+  - python=3.6.11
+  - python-dateutil=2.8.1
+  - python_abi=3.6
+  - pytz=2020.1
+  - readline=8.0
+  - setuptools=49.6.0
+  - simplejson=3.8.1
+  - six=1.15.0
+  - sqlite=3.33.0
+  - tk=8.6.10
+  - ucsc-liftover=377
+  - wheel=0.35.1
+  - xz=5.2.5
+  - zlib=1.2.11
+prefix: /home/rmorin/miniconda3/envs/liftover
+
