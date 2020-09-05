@@ -58,9 +58,9 @@ wildcard_constraints:
 rule _gridss_input_references: 
     input: 
         genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        genome_bwa_prefix = reference_files("genomes/{genome_build}/bwa_index/bwa-0.7.17/genome.fa")
+        genome_bwa_prefix = reference_files("genomes/{genome_build}/bwa_index/bwa-0.7.17/genome.fa"),
     output: 
-        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.fa"
+        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.fa", 
     shell: 
         op.as_one_line("""
         ln -sf {input.genome_fa} {output.genome_fa} &&
@@ -310,12 +310,15 @@ rule _gridss_viral_annotation:
 # Filter unpaired VCFs and output to bedpe. 
 rule _gridss_unpaired_filter: 
     input: 
-        vcf = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--None--No-normal/gridss_viral_annotation.vcf.gz"
+        vcf = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.vcf.gz"
     output: 
         vcf = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation_filtered.vcf.gz", 
         tbi = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation_filtered.vcf.gz.tbi"
     conda: 
         CFG["conda_envs"]["bcftools"]
+    wildcard_constraints: 
+        normal_id = "None", 
+        pair_status = "no_normal"
     shell: 
         op.as_one_line("""
         zcat {input.vcf} | 
@@ -333,7 +336,7 @@ rule _gridss_unpaired_to_bedpe:
         CFG["conda_envs"]["svtools"]
     shell: 
         op.as_one_line("""
-        svtools vcftobedpe -i {input.vcf} -o {output.vcf}
+        svtools vcftobedpe -i {input.vcf} -o {output.bedpe}
         """) 
 
 
