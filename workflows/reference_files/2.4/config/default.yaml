@@ -53,6 +53,12 @@ tools:
     sequenza-utils:
         conda_env: "envs/sequenza-utils-3.0.0.yaml"
         version: "3.0.0"
+    salmon: 
+        conda_env: "envs/salmon-1.3.0.yaml"
+        version: "1.3.0"
+    gffread:
+        conda_env: "envs/gffread-0.12.1.yaml"
+        version: "0.12.1"
     gatk:
         conda_env: "envs/gatk-4.1.8.1.yaml"
         version: "4.1.8.1"
