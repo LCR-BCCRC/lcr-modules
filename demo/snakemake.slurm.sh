@@ -1,16 +1,13 @@
 #!/bin/bash
 
-# Launches a gambl snakefile of your choice on numbers and sets the conda prefix
+# Launches a snakefile of your choice on a Slurm cluster and sets the conda prefix
 
-# Usage: ./snakemake.number.sh <snakefile.smk> <target_rule> <unix_group> <snakemake_flags>
+# Usage: ./snakemake.slurm.sh <snakefile.smk> <target_rule> <snakemake_flags>
 
-# Example: ./snakemake.numbers.sh src/snakemake/manta.smk all gambl --rerun-incomplete
+# Example: ./snakemake.slurm.sh src/snakemake/manta.smk all --rerun-incomplete
 
 # snakefile.smk The snakefile you want to run
 # target_rule: The name of one of the target rules specified in one of the included Snakefiles
-
-# Set the ulimit to work with many concurrent jobs and files
-
 
 snakefile=$1
 target_rule=${2:-all}
