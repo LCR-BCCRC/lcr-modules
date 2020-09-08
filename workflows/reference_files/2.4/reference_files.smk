@@ -195,6 +195,71 @@ rule get_repeatmasker_download:
     shell: 
         "ln -srf {input.bed} {output.bed}"
 
+# salmon index
+rule _download_salmon_script:
+    output: 
+        script = "downloads/scripts/salmon/generateDecoyTranscriptome.sh"
+    log: 
+        "downloads/scripts/salmon/log"
+    params: 
+        url = "https://github.com/COMBINE-lab/SalmonTools/blob/master/scripts/generateDecoyTranscriptome.sh"
+    shell:
+        op.as_one_line("""
+        curl -L {params.url} > {output.script} 2> {log}
+            &&
+        chmod a-w {output.script}
+        """)
+
+
+rule _create_transcriptome_fasta:
+    input:
+        fasta = rules.get_genome_fasta_download.output.fasta,
+        gtf = get_download_file("downloads/gencode-33/gencode.annotation.{version}.gtf")
+    output: 
+        fasta = "genomes/{genome_build}/salmon_index/salmon-{salmon_version}/transcriptome.fa"
+    log: 
+        "genomes/{genome_build}/salmon_index/salmon-{salmon_version}/transcriptome.log"
+    conda: CONDA_ENVS["gffread"]
+    threads: 4
+    resources:
+        mem_mb = 8000
+    shell:
+        op.as_one_line("""
+        gffread -F
+        -w {output.fasta}
+        -g {input.fasta}
+        {input.gtf}
+        > {log} 2>&1
+            &&
+        chmod a-w {output.fasta}
+        """)
+
+
+rule create_salmon_index:
+    input:
+        fasta = rules._create_transcriptome_fasta.output.fasta,
+        gtf = get_download_file("downloads/gencode-33/gencode.annotation.{version}.gtf")
+    output: 
+        index = directory("genomes/{genome_build}/salmon_index/salmon-{salmon_version}/index")
+    log: 
+        "genomes/{genome_build}/salmon_index/salmon-{salmon_version}/log"
+    conda: CONDA_ENVS["salmon"]
+    threads: 8
+    resources:
+        mem_mb = 12000
+    shell:
+        op.as_one_line("""
+        mkdir {output.index}
+            &&
+        chmod u+w {output.index}
+            &&
+        salmon index
+        --threads {threads}
+        -t {input.fasta}
+        -i {output.index}
+        > {log} 2>&1
+        """)
+
 rule get_af_only_gnomad_vcf:
     input:
         vcf = get_download_file(rules.download_af_only_gnomad_vcf.output.vcf)

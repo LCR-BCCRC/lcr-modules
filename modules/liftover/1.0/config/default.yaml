@@ -7,10 +7,10 @@ lcr-modules:
         # The "min_mismatch" option is a minimum ratio of bases that must remap when transforming coordinates. 
         # The "min_mismatch" must be a number with maximum of 1 (100% of bases must match when remapping).
         #tool: "battenberg"
-        tool: __UPDATE__ # Specify the name of the tool that produced the .seg files. For example, "battenberg"
+        tool: "__UPDATE__" # Specify the name of the tool that produced the .seg files. For example, "battenberg"
         #you can include the version if it helps simplify the pattern matching, for example sequenza-1.0
         inputs:
-            sample_seg: __UPDATE__
+            sample_seg: "__UPDATE__"
             # Specify how to find all the hg38 seg files you want to lift over. For example:
             #sample_seg: "data/{tool}/hg38/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
         scratch_subdirectories: "scratch/"
@@ -24,7 +24,7 @@ lcr-modules:
             bedhg38tobedhg19: "{MODSDIR}/src/chains/hg38ToHg19.over.chain"
             bedhg19toseghg19: "{MODSDIR}/src/convert_for_liftover.py"
         conda_envs:
-            liftover-366: "{MODSDIR}/envs/liftover-366.yaml"
+            liftover-366: "{MODSDIR}/envs/liftover-377.yaml"
         pairing_config:
             genome:
                 run_paired_tumours: True

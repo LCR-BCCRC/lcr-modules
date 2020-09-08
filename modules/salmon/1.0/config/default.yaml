@@ -1,0 +1,27 @@
+lcr-modules:
+    
+    salmon:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_fastq_1: "__UPDATE__"
+            sample_fastq_2: "__UPDATE__"
+
+        options:
+            # tells salmon to automatically determine library type (e.g. stranded vs. unstranded etc.)
+            quant: "-l A"
+
+        conda_envs:
+            salmon: "{MODSDIR}/envs/salmon-1.3.0.yaml"
+            
+        threads:
+            quant: 4
+
+        mem_mb:
+            quant: 2000
+
+        pairing_config:
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
