@@ -235,8 +235,7 @@ rule _strelka_filter:
 rule _combine_strelka:
     input:
         vcf = expand(CFG["dirs"]["filtered"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/{var_type}.passed.vcf.gz", 
-                    var_type = ["somatic.indels", "somatic.snvs"]),
-        # indel = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic.indels.passed.vcf.gz"
+                    var_type = ["somatic.indels", "somatic.snvs"])
     output:
         combined = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined.passed.vcf.gz",
         combined_tbi = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined.passed.vcf.gz.tbi"
@@ -249,7 +248,7 @@ rule _combine_strelka:
         stderr = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_combine.stderr.log"
     shell:
         op.as_one_line("""
-        bcftools concat -a {input.snv} {input.indel} | bcftools sort --max-mem {resources.mem_mb}M -Oz -o {output.combined} > {log.stdout} 2> {log.stderr} && tabix -p vcf {output.combined} >> {log.stdout} 2>> {log.stderr} 
+        bcftools concat -a {input.vcf} | bcftools sort --max-mem {resources.mem_mb}M -Oz -o {output.combined} > {log.stdout} 2> {log.stderr} && tabix -p vcf {output.combined} >> {log.stdout} 2>> {log.stderr} 
         """)
 
 
@@ -258,10 +257,10 @@ def _strelka_get_output(wildcards):
     CFG = config["lcr-modules"]["strelka"]
 
     if wildcards.pair_status == "no_normal":
-        # vcf_files = "variants"
-        vcf = str(rules._strelka_filter.output.vcf)
+        vcf = expand(CFG["dirs"]["filtered"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/{var_type}.passed.vcf.gz", 
+                    var_type = "variants"
+        )
     else:
-        # vcf_files = ["somatic.snvs","somatic.indels"]
         vcf = str(rules._combine_strelka.output.combined)
     return vcf
 
