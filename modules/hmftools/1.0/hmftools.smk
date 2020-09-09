@@ -527,26 +527,6 @@ rule _hmftools_purple_output:
     run:
         op.relative_symlink(input.files, output.files)
 
-# def _hmftools_predict_purple_output(wildcards): 
-
-#     CFG = config["lcr-modules"]["gridss"]
-
-#     # Define standard purple output file extensions
-#     purple_files = ["purple.purity.tsv", "purple.purity.range.tsv", "purple.cnv.somatic.tsv", "purple.cnv.gene.tsv", "driver.catalog.tsv", "purple.sv.vcf.gz"]
-
-#     # Append the somatic vcf output if the tumour is paired
-#     if wildcards.pair_status == "matched":
-#         purple_files = purple_files.append("purple.somatic.vcf.gz") 
-
-#     # Expand the outputs
-#     purple_outputs = expand(
-#         CFG["dirs"]["outputs"] + "purple_output/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{purple_output}",
-#         purple_output = purple_files,
-#         **wildcards
-#     )
-
-#     return purple_outputs
-
 rule _hmftools_purple_plots: 
     input:
         plots = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/plot/{tumour_id}.{plot_name}.png"
@@ -555,31 +535,6 @@ rule _hmftools_purple_plots:
     run: 
         op.relative_symlink(input.plots, output.plots)
 
-# def _hmftools_predict_purple_plots(wildcards): 
-
-#     CFG = config["lcr-modules"]["gridss"]
-
-#     # Define the extensions of all purple plots
-#     purple_plot_names = [
-#         "circos.png",
-#         "copynumber.png",
-#         "input.png",
-#         "map.png",
-#         "purity.range.png",
-#         "segment.png",
-#         "somatic.clonality.png",
-#         "somatic.png",
-#         "somatic.rainfall.png"
-#     ]
-    
-#     # Expand the output files
-#     purple_plots = expand(
-#         CFG["dirs"]["outputs"] + "purple_plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{plot_name}", 
-#         plot_name = purple_plot_names, 
-#         **wildcards
-#     )
-
-#     return purple_plots
 
 rule _hmftools_linx_plots: 
     input:
@@ -612,7 +567,6 @@ rule _hmftools_all:
     input:
         expand(
             [
-                # str(rules._hmftools_annotate_strelka.output.vcf)
                 str(rules._hmftools_dispatch.output.dispatched),
             ],
             zip,  # Run expand() with zip(), not product()
