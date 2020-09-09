@@ -71,7 +71,7 @@ rule _gridss_input_references:
 # Generage genome.fa.img file
 rule _gridss_setup_references: 
     input: 
-        fasta = rules._gridss_input_references.output.genome_fa, 
+        fasta = str(rules._gridss_input_references.output.genome_fa), 
     output: 
         genome_img = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.fa.img"
     params: 
@@ -108,7 +108,7 @@ rule _gridss_input_viral_ref:
 # Generage human_virus.fa.img file
 rule _gridss_setup_viral_ref: 
     input: 
-        fasta = rules._gridss_input_viral_ref.output
+        fasta = str(rules._gridss_input_viral_ref.output)
     output: 
         viral_img = CFG["dirs"]["inputs"] + "references/human_virus/human_virus.fa.img"
     params: 
@@ -145,8 +145,8 @@ rule _gridss_input_bam:
 rule _gridss_preprocess:
     input:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        fasta = rules._gridss_input_references.output.genome_fa,
-        fasta_img = rules._gridss_setup_references.output.genome_img
+        fasta = str(rules._gridss_input_references.output.genome_fa),
+        fasta_img = str(rules._gridss_setup_references.output.genome_img)
     output:
         workdir = temp(directory(CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}.bam.gridss.working"))
     log: CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/preprocess.log"
@@ -178,7 +178,7 @@ rule _gridss_preprocess:
 
 rule _gridss_symlink_preprocess: 
     input: 
-        workdir = rules._gridss_preprocess.output.workdir
+        workdir = str(rules._gridss_preprocess.output.workdir)
     output: 
         workdir = directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}.bam.gridss.working")
     group: "enormous_bam"
@@ -195,8 +195,8 @@ rule _gridss_paired:
         normal_preproc = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}.bam.gridss.working",
         t_workdir = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{tumour_id}.bam.gridss.working", # Placeholder to prevent premature deletion of the temp workdir 
         n_workdir = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{normal_id}.bam.gridss.working",
-        fasta = rules._gridss_input_references.output.genome_fa,
-        fasta_img = rules._gridss_setup_references.output.genome_img, 
+        fasta = str(rules._gridss_input_references.output.genome_fa),
+        fasta_img = str(rules._gridss_setup_references.output.genome_img), 
         blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed"), 
         repeatmasker = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
     output:
@@ -240,8 +240,8 @@ rule _gridss_unpaired:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         tumour_preproc = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/{tumour_id}.bam.gridss.working",
         t_workdir = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{tumour_id}.bam.gridss.working", # Placeholder to prevent premature deletion of the temp workdir 
-        fasta = rules._gridss_input_references.output.genome_fa,
-        fasta_img = rules._gridss_setup_references.output.genome_img, 
+        fasta = str(rules._gridss_input_references.output.genome_fa),
+        fasta_img = str(rules._gridss_setup_references.output.genome_img), 
         blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed"), 
         repeatmasker = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
     output:
@@ -282,8 +282,8 @@ rule _gridss_unpaired:
 rule _gridss_viral_annotation: 
     input: 
         vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_raw.vcf.gz", 
-        viral_ref = rules._gridss_input_viral_ref.output, 
-        viral_img = rules._gridss_setup_viral_ref.output
+        viral_ref = str(_gridss_input_viral_ref.output), 
+        viral_img = str(rules._gridss_setup_viral_ref.output)
     output: 
         vcf = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.vcf.gz" 
     log: CFG["logs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.log"
@@ -329,7 +329,7 @@ rule _gridss_unpaired_filter:
 
 rule _gridss_unpaired_to_bedpe: 
     input: 
-        vcf = rules._gridss_unpaired_filter.output.vcf
+        vcf = str(rules._gridss_unpaired_filter.output.vcf)
     output: 
         bedpe = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation_filtered.bedpe"
     conda:
@@ -344,8 +344,8 @@ rule _gridss_unpaired_to_bedpe:
 # Perform somatic filtering against the panel of normals    
 rule _gridss_run_gripss: 
     input: 
-        vcf = rules._gridss_viral_annotation.output.vcf, 
-        fasta = rules._gridss_input_references.output.genome_fa,
+        vcf = str(rules._gridss_viral_annotation.output.vcf), 
+        fasta = str(rules._gridss_input_references.output.genome_fa),
     output: 
         vcf = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic.vcf.gz", 
         tbi = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic.vcf.gz.tbi"
@@ -381,7 +381,7 @@ rule _gridss_run_gripss:
     
 rule _gridss_filter_gripss: 
     input: 
-        vcf = rules._gridss_run_gripss.output.vcf
+        vcf = str(rules._gridss_run_gripss.output.vcf)
     output: 
         vcf = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filtered.vcf.gz", 
         tbi = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filtered.vcf.gz.tbi"
@@ -397,7 +397,7 @@ rule _gridss_filter_gripss:
 
 rule _gridss_gripss_to_bedpe: 
     input: 
-        vcf = rules._gridss_filter_gripss.output.vcf
+        vcf = str(rules._gridss_filter_gripss.output.vcf)
     output: 
         bedpe = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filtered.bedpe"
     conda: 
