@@ -21,14 +21,19 @@ lcr-modules:
         scratch_subdirectories: []
 
         references: 
+            # Obtain from https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC?path=%2FHMFTools-Resources%2FLinx
+            # Should contain fragile_sites_hmf.csv, heli_rep_origins.bed, knownFusionPairs.csv, knownPromiscuousFive.csv, knownPromiscuousThree.csv, 
+            # line_elements.csv, and viral_host_ref.csv
             linx_db: "/projects/rmorin/reference/hmftools-references/linx"
 
         switches: 
             het_snps:
+                # Obtain from https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC?path=%2FHMFTools-Resources%2FAmber
                 grch37: "/projects/rmorin/reference/hmftools-references/amber/GermlineHetPon.hg19.vcf.gz"
                 hs37d5: "/projects/rmorin/reference/hmftools-references/amber/GermlineHetPon.hg19.vcf.gz"
                 hg38: "/projects/rmorin/reference/hmftools-references/amber/GermlineHetPon.hg38.vcf.gz"
             gc_profile: 
+                # Obtain from https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC?path=%2FHMFTools-Resources%2FCobalt
                 grch37: "/projects/rmorin/reference/hmftools-references/cobalt/GC_profile.hg19.1000bp.cnp"
                 hs37d5: "/projects/rmorin/reference/hmftools-references/cobalt/GC_profile.hg19.1000bp.cnp"
                 hg38: "/projects/rmorin/reference/hmftools-references/cobalt/GC_profile.hg38.1000bp.cnp" 
