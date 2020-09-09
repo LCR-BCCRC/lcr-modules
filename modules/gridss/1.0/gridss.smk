@@ -282,7 +282,7 @@ rule _gridss_unpaired:
 rule _gridss_viral_annotation: 
     input: 
         vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_raw.vcf.gz", 
-        viral_ref = str(_gridss_input_viral_ref.output), 
+        viral_ref = str(rules._gridss_input_viral_ref.output), 
         viral_img = str(rules._gridss_setup_viral_ref.output)
     output: 
         vcf = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.vcf.gz" 
