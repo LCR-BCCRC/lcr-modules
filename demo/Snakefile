@@ -74,7 +74,7 @@ include: "../modules/controlfreec/1.1/controlfreec.smk"
 
 rule all:
     input:
-        rules._gridss_all.input
+        rules._gridss_all.input,
         rules._salmon_all.input,
         rules._bam2fastq_all.input,
         rules._star_all.input,
