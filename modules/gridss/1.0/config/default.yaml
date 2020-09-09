@@ -7,6 +7,8 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
 
+        scratch_subdirectories: ["preprocess", "gridss"]
+
         options:
             gridss: 
                 --picardoptions VALIDATION_STRINGENCY=SILENT
