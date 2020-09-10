@@ -16,3 +16,4 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 snakemake --cores "${NUM_CORES}" --use-conda --directory "${SCRIPT_DIR}" \
     --snakefile "${SCRIPT_DIR}/prepare_reference_files.smk" \
     --config reference_directory="${REF_DIR}"
+    

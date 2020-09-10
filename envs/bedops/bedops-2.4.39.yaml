@@ -1,0 +1,28 @@
+name: bedops
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=0_gnu
+  - bedops=2.4.39=hc9558a2_0
+  - bzip2=1.0.8=h516909a_2
+  - ca-certificates=2020.6.20=hecda079_0
+  - curl=7.71.1=he644dc0_3
+  - krb5=1.17.1=hfafb76e_1
+  - libcurl=7.71.1=hcdd3856_3
+  - libedit=3.1.20191231=h46ee950_1
+  - libgcc=7.2.0=h69d50b8_2
+  - libgcc-ng=9.2.0=h24d8f2e_2
+  - libgomp=9.2.0=h24d8f2e_2
+  - libssh2=1.9.0=hab1572f_4
+  - libstdcxx-ng=9.2.0=hdf63c60_2
+  - ncurses=6.2=he1b5a44_1
+  - openssl=1.1.1g=h516909a_0
+  - samtools=1.7=1
+  - tk=8.6.10=hed695b0_0
+  - xz=5.2.5=h516909a_1
+  - zlib=1.2.11=h516909a_1006
+prefix: /home/lhilton/miniconda3/envs/bedops
+

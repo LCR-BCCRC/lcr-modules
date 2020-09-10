@@ -173,6 +173,27 @@ rule get_dbsnp_download:
         tabix {output.vcf}
         """)
 
+##### ENCODE #####
+
+rule get_blacklist_download: 
+    input: 
+        bed = get_download_file(rules.download_blacklist.output.bed)
+    output: 
+        bed = "genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed"
+    conda: CONDA_ENVS["coreutils"]
+    shell:
+        "ln -srf {input.bed} {output.bed}"
+
+##### REPEATMASKER #####
+
+rule get_repeatmasker_download:
+    input: 
+        bed = get_download_file(rules.download_repeatmasker.output.bed)
+    output: 
+        bed = "genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed"
+    conda: CONDA_ENVS["coreutils"]
+    shell: 
+        "ln -srf {input.bed} {output.bed}"
 
 # salmon index
 rule _download_salmon_script:
