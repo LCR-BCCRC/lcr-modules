@@ -324,7 +324,7 @@ rule _gridss_unpaired_filter:
         zcat {input.vcf} | 
             awk '($5 ~ /:/ && $7 == "PASS") || $1 ~ /^#/' | 
             bcftools view -Oz -o {output.vcf} && 
-            tabix {output.vcf}
+            tabix -p vcf {output.vcf}
         """)
 
 rule _gridss_unpaired_to_bedpe: 
@@ -392,7 +392,7 @@ rule _gridss_filter_gripss:
         zcat {input.vcf} | 
             awk '$7 == "PASS" || $1 ~ /^#/ ' | 
             bcftools view -Oz -o {output.vcf} && 
-        tabix {output.vcf}
+        tabix -p vcf {output.vcf}
         """)
 
 rule _gridss_gripss_to_bedpe: 
