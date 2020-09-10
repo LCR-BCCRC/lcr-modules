@@ -44,10 +44,13 @@ rule all:
                 rules.store_genome_build_info.output.version,
                 rules.store_genome_build_info.output.provider,
                 rules.create_bwa_index.output.prefix,
+                rules.create_gatk_dict.output.dict, 
                 rules.get_gencode_download.output.gtf,
                 rules.get_dbsnp_download.output.vcf,
                 rules.create_star_index.output.index,
                 rules.calc_gc_content.output.wig,
+                rules.get_blacklist_download.output.bed, 
+                rules.get_repeatmasker_download.output.bed
             ],
             genome_build=config["genome_builds"].keys(),
             bwa_version=config["tools"]["bwa"]["version"],

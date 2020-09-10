@@ -33,7 +33,7 @@ MANIFEST
 .snakemake/
 /demo/results/
 /demo/reference
-/demo/scratch
+/demo/scratch/
 /demo/data/*bam
 
 
