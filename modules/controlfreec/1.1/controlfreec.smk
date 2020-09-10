@@ -20,7 +20,7 @@ import oncopipe as op
 # `CFG` is a shortcut to `config["lcr-modules"]["controlfreec"]`
 CFG = op.setup_module(
     name = "controlfreec",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "run", "outputs"]
 )
 

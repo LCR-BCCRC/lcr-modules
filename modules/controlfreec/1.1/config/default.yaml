@@ -22,7 +22,7 @@ lcr-modules:
             coefficientOfVariation: 0.05
             contamination: 0 # a priori known value of tumor sample contamination by normals
             contaminationAdjustment: FALSE
-            degree: "3&4" #3&4 for WGS; 1 for WES
+            degree: '"3&4"' #3&4 for WGS; 1 for WES
             forceGCcontentNormalization: 0 #0 for WGS; 1 for WES
             minCNAlength: 1 #1 for WGS; 3 for WES
             minimalSubclonePresence: 20 #20 for WGS; 30 for WES
