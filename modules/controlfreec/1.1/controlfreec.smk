@@ -229,21 +229,41 @@ rule _controlfreec_plot:
         "cat {params.plot} | R --slave --args `grep \"Output_Ploidy\" {input.info} | cut -f 2` {input.ratios} > {log.stdout} 2> {log.stderr} "
 
 
+rule _controlfreec_freec2bed:
+    input:
+        ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_ratio.txt",
+        info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_info.txt"
+    output:
+        bed = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bed"
+    params:
+        freec2bed = CFG["software"]["freec2bed"]
+    threads: CFG["threads"]["freec2bed"]
+    resources: mem_mb = CFG["mem_mb"]["freec2bed"]
+    conda: CFG["conda_envs"]["controlfreec"]
+    log:
+        stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/freec2bed.stderr.log"
+    shell:
+        "ploidy=$(grep Output_Ploidy {input.info} | cut -f 2); "
+        "perl {params.freec2bed} -f {input.ratios} -p $ploidy > {output.bed} 2> {log.stderr}"
+
+
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _controlfreec_output:
     input:
         plot = str(rules._controlfreec_plot.output.plot),
         log2plot = str(rules._controlfreec_plot.output.log2plot),
-        CNV = str(rules._controlfreec_calc_sig.output.txt)
+        CNV = str(rules._controlfreec_calc_sig.output.txt),
+        bed = str(rules._controlfreec_freec2bed.output.bed)
     output:
         plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/plots/{sample_id}.bam_ratio.txt.png",
         log2plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/log2plots/{sample_id}.bam_ratio.txt.log2.png",
-        CNV = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/CNV/{sample_id}.bam_CNVs.p.value.txt"
+        CNV = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/CNV/{sample_id}.bam_CNVs.p.value.txt",
+        bed = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/bed/{sample_id}.bam_CNVs.bed"
     run:
         op.relative_symlink(input.plot, output.plot)
         op.relative_symlink(input.log2plot, output.log2plot)
         op.relative_symlink(input.CNV, output.CNV)
-
+        op.relative_symlink(input.bed, output.bed)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _controlfreec_all:
@@ -252,7 +272,8 @@ rule _controlfreec_all:
             [
                 str(rules._controlfreec_output.output.plot),
                 str(rules._controlfreec_output.output.log2plot),
-                str(rules._controlfreec_output.output.CNV)
+                str(rules._controlfreec_output.output.CNV),
+                str(rules._controlfreec_output.output.bed)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],

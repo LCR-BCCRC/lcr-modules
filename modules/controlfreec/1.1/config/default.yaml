@@ -22,7 +22,7 @@ lcr-modules:
             coefficientOfVariation: 0.05
             contamination: 0 # a priori known value of tumor sample contamination by normals
             contaminationAdjustment: FALSE
-            degree: '"3&4"' #3&4 for WGS; 1 for WES
+            degree: '3\&4' #3&4 for WGS; 1 for WES
             forceGCcontentNormalization: 0 #0 for WGS; 1 for WES
             minCNAlength: 1 #1 for WGS; 3 for WES
             minimalSubclonePresence: 20 #20 for WGS; 30 for WES
@@ -38,17 +38,20 @@ lcr-modules:
             FREEC_sig: "{MODSDIR}/etc/scripts/assess_significance.R"
             FREEC_graph: "{MODSDIR}/etc/scripts/makeGraph.R"
             FREEC_graph_chr: "{MODSDIR}/etc/scripts/makeGraph_Chromosome.R"
+            freec2bed: "{MODSDIR}/etc/scripts/freec2bed.pl"
 
         
         threads:
             controlfreec_run: 24
             calc_sig: 1
             plot: 1
+            freec2bed: 1
 
         mem_mb:
             controlfreec_run: 8000
             calc_sig: 1000
             plot: 1000
+            freec2bed: 1000
         
         pairing_config:
             genome:

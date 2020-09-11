@@ -39,3 +39,11 @@ This release was authored by Jasper.
 Updated controlfreec.smk to allow for running on Numbers cluster.
 
 Fixed bugs related to genome builds and preparation of controlfreec-specific reference files. Now will generate chr.len file for hg19, hg38 (w/ chr prefix), grch37, grch38 (no chr).
+
+## [1.2] - 2020-09-10
+
+This release was authored by Jasper.
+
+Fixed a config bug (snakemake replacing 3&4 with 3numdegree4 in config_WGS.txt) - added \ on top of &. Note: tested it, the output was the same (since 3&4 is default)
+Changed output dir to be controlfreec-1.1/ instead of controlfreec-1.0/
+Added a new feature in snakemake to allow for conversion of CNV calls to bed.
