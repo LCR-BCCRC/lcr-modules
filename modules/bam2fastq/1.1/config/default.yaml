@@ -17,7 +17,7 @@ lcr-modules:
             bam2fastq: 4
 
         mem_mb:
-            bam2fastq: 5000
+            bam2fastq: 100000
 
         pairing_config:
             genome:

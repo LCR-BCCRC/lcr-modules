@@ -11,6 +11,10 @@ lcr-modules:
             # tells salmon to automatically determine library type (e.g. stranded vs. unstranded etc.)
             quant: "-l A"
 
+        transcriptome:
+            # Specify the transcriptome build for quantification
+            quant_to: "__UPDATE__" # Example: "grch37", "hg38"
+
         conda_envs:
             salmon: "{MODSDIR}/envs/salmon-1.3.0.yaml"
             
@@ -18,7 +22,7 @@ lcr-modules:
             quant: 4
 
         mem_mb:
-            quant: 2000
+            quant: 10000
 
         pairing_config:
             mrna:
