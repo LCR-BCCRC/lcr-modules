@@ -3,9 +3,12 @@ lcr-modules:
     mutect2:
 
         inputs:
-            # Available wildcards: {sample_id}
+            # Available wildcards: {sample_id} {seq_type} {genome_build}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
+            # Available wildcards: {seq_type} {genome_build}
+            pon_vcf: "__UPDATE__"
+            pon_tbi: "__UPDATE__"
 
         scratch_subdirectories: ["mutect2"]
 
@@ -19,14 +22,14 @@ lcr-modules:
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             
         threads:
-            mutect2_run: 1
+            mutect2_run: 4
             mutect2_filter: 1
             mutect2_passed: 1
             mutect2_merge_vcfs: 10
 
         resources:
             mutect2_run:
-                mem_mb: 8000
+                mem_mb: 10000
             mutect2_filter:
                 mem_mb: 512
             mutect2_passed:

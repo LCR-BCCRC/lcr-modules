@@ -1,0 +1,47 @@
+lcr-modules:
+    
+    mutect2_pon:
+
+        inputs:
+            # Available wildcards: {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        scratch_subdirectories: ["mutect2"]
+
+        options:
+            mutect2_run: 
+                --max-mnp-distance 0
+
+        conda_envs:
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            gatk: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            coreutils: "{MODSDIR}/envs/coreutils-8.31.yaml"
+            
+        threads:
+            mutect2_run: 4
+            genomicsdb: 48
+            create_pon: 48
+            mutect2_merge_vcfs: 10
+
+        resources:
+            mutect2_run:
+                mem_mb: 10000
+            genomicsdb:
+                mem_mb: 48000
+            create_pon:
+                mem_mb: 48000
+            mutect2_merge_vcfs: 
+                mem_mb: 10000
+            
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
