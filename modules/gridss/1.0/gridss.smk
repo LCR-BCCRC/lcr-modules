@@ -171,7 +171,7 @@ rule _gridss_preprocess:
         --steps {params.steps}
         {params.opts}
         {input.bam} 
-        2>&1 | tee -a {log}
+        > {log}
         """)
 
 # Symlink preprocessed sv.bam directories
@@ -231,7 +231,7 @@ rule _gridss_paired:
         {params.opts}
         {input.normal_bam} 
         {input.tumour_bam} 
-        2>&1 | tee -a {log}
+        > {log}
         """)
    
 # Run GRIDSS in unpaired mode
@@ -275,14 +275,14 @@ rule _gridss_unpaired:
         --steps {params.steps}
         {params.opts}
         {input.tumour_bam} 
-        2>&1 | tee -a {log}
+        > {log}
         """)
 
 # Perform viral annotation of the output VCFs
 rule _gridss_viral_annotation: 
     input: 
         vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_raw.vcf.gz", 
-        viral_ref = str(_gridss_input_viral_ref.output), 
+        viral_ref = str(rules._gridss_input_viral_ref.output), 
         viral_img = str(rules._gridss_setup_viral_ref.output)
     output: 
         vcf = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.vcf.gz" 
@@ -304,7 +304,7 @@ rule _gridss_viral_annotation:
 				INPUT={input.vcf} 
 				OUTPUT={output.vcf} 
 				WORKER_THREADS={threads} 
-                2>&1 | tee -a {log}
+                > {log}
         """)
 
 # Filter unpaired VCFs and output to bedpe. 
@@ -324,7 +324,7 @@ rule _gridss_unpaired_filter:
         zcat {input.vcf} | 
             awk '($5 ~ /:/ && $7 == "PASS") || $1 ~ /^#/' | 
             bcftools view -Oz -o {output.vcf} && 
-            tabix {output.vcf}
+            tabix -p vcf {output.vcf}
         """)
 
 rule _gridss_unpaired_to_bedpe: 
@@ -376,7 +376,7 @@ rule _gridss_run_gripss:
         -tumor {wildcards.tumour_id} 
         -reference {wildcards.normal_id}  
         {params.opts} 
-        2>&1 | tee -a {log} 
+        > {log} 
         """)
     
 rule _gridss_filter_gripss: 
@@ -392,7 +392,7 @@ rule _gridss_filter_gripss:
         zcat {input.vcf} | 
             awk '$7 == "PASS" || $1 ~ /^#/ ' | 
             bcftools view -Oz -o {output.vcf} && 
-        tabix {output.vcf}
+        tabix -p vcf {output.vcf}
         """)
 
 rule _gridss_gripss_to_bedpe: 
