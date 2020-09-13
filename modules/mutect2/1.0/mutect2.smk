@@ -26,6 +26,7 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _mutect2_input_bam,
+    _mutect2_input_pon, 
     _mutect2_input_chrs,
     _mutect2_get_sm,
     _mutect2_output_vcf,
@@ -47,6 +48,18 @@ rule _mutect2_input_bam:
         op.relative_symlink(input.bam, output.bam)
         op.relative_symlink(input.bai, output.bai)
 
+
+# Symlinks panel of normals vcf
+rule _mutect2_input_pon: 
+    input: 
+        vcf = CFG["inputs"]["pon_vcf"], 
+        tbi = CFG["inputs"]["pon_tbi"]
+    output: 
+        vcf = CFG["dirs"]["inputs"] + "pon/{seq_type}--{genome_build}/pon.vcf.gz", 
+        tbi = CFG["dirs"]["inputs"] + "pon/{seq_type}--{genome_build}/pon.vcf.gz.tbi"
+    run: 
+        op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.tbi, output.tbi)
 
 # Symlink chromosomes used for parallelization
 checkpoint _mutect2_input_chrs:
@@ -82,29 +95,34 @@ rule _mutect2_run_matched_unmatched:
         dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict"),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
         tumour_sm = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sm.txt",
-        normal_sm = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}_sm.txt"
+        normal_sm = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}_sm.txt", 
+        pon = str(rules._mutect2_input_pon.output.vcf), 
+        pon_tbi = str(rules._mutect2_input_pon.output.tbi)
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.tbi"),
-        stat = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.stats")
+        stat = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.stats"), 
+        f1r2 = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.f1r2.vcf.gz")
     log:
         stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.mutect2_run.stdout.log",
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.mutect2_run.stderr.log"
+    resources:
+        **CFG["resources"]["mutect2_run"]
     params:
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
         opts = CFG["options"]["mutect2_run"]
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
         CFG["threads"]["mutect2_run"]
-    resources:
-        **CFG["resources"]["mutect2_run"]
     wildcard_constraints: 
         pair_status = "matched|unmatched"
     shell:
         op.as_one_line("""
-        gatk Mutect2 {params.opts} -I {input.tumour_bam} -I {input.normal_bam}
+        gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" {params.opts} -I {input.tumour_bam} -I {input.normal_bam}
         -R {input.fasta} -normal $(cat {input.normal_sm}) -O {output.vcf}
         --germline-resource {input.gnomad} -L {wildcards.chrom} 
+        -pon {input.pon} --f1r2-tar-gz {output.f1r2}
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -115,28 +133,33 @@ rule _mutect2_run_no_normal:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict"),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
-        tumour_sm = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sm.txt"
+        tumour_sm = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sm.txt", 
+        pon = str(rules._mutect2_input_pon.output.vcf), 
+        pon_tbi = str(rules._mutect2_input_pon.output.tbi)
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.tbi"),
-        stat = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.stats")
+        stat = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.stats"), 
+        f1r2 = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.f1r2.vcf.gz")
     log:
         stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.mutect2_run.stdout.log",
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.mutect2_run.stderr.log"
+    resources:
+        **CFG["resources"]["mutect2_run"]
     params:
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["mutect2_run"]
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
         CFG["threads"]["mutect2_run"]
-    resources:
-        **CFG["resources"]["mutect2_run"]
     wildcard_constraints: 
         pair_status = "no_normal"
     shell:
         op.as_one_line("""
-        gatk Mutect2 {params.opts} -I {input.tumour_bam} -R {input.fasta} 
+        gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" {params.opts} -I {input.tumour_bam} -R {input.fasta} 
         -O {output.vcf} --germline-resource {input.gnomad} -L {wildcards.chrom}
+        -pon {input.pon} --f1r2-tar-gz {output.f1r2}
         > {log.stdout} 2> {log.stderr}
         """)
 
