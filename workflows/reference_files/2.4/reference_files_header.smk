@@ -226,19 +226,49 @@ rule download_af_only_gnomad_vcf:
         "downloads/gnomad/af-only-gnomad.{version}.vcf.log"
     params:
         provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
-        file = lambda w: {"grch37": "raw.sites.b37", "grch38": "hg38"}[w.version]
-    conda: CONDA_ENVS["coreutils"]
+        file = lambda w: {
+            "grch37": "gs://gatk-best-practices/somatic-b37/af-only-gnomad.raw.sites.vcf", 
+            "hg38": "gs://gatk-best-practices/somatic-hg38/af-only-gnomad.hg38.vcf.gz"
+        }[w.version]
+    conda: CONDA_ENVS["gsutil"]
     shell:
         op.as_one_line("""
-        curl -s ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/Mutect2/af-only-gnomad.{params.file}.vcf.gz 2> {log}
-            |
-        gzip -dc 
-            |
-        awk '{{FS=OFS="\t"}} {{ 
-            if ($0 ~ /^##INFO/ && !($0 ~ /ID=AC,/ || $0 ~ /ID=AF,/)) {{ next }} 
-            else {{ print }}
-         }}'
-            > {output.vcf} 2>> {log}
+        if [[ {params.file} == *".gz" ]]; then 
+            gsutil cp {params.file} - 2> {log}
+                |
+            gzip -dc 
+                |
+            awk '{{FS=OFS="\t"}} {{ 
+                if ($0 ~ /^##INFO/ && !($0 ~ /ID=AC,/ || $0 ~ /ID=AF,/)) {{ next }} 
+                else {{ print }}
+            }}'
+                > {output.vcf} 2>> {log}; 
+        else
+            gsutil cp {params.file} - 2> {log}
+                |
+            awk '{{FS=OFS="\t"}} {{ 
+                if ($0 ~ /^##INFO/ && !($0 ~ /ID=AC,/ || $0 ~ /ID=AF,/)) {{ next }} 
+                else {{ print }}
+            }}'
+                > {output.vcf} 2>> {log}; 
+        fi
+        """)
+
+rule download_mutect2_pon:
+    output:
+        vcf = "downloads/mutect2/mutect2_pon.{version}.vcf"
+    log:
+        "downloads/mutect2/mutect2_pon.{version}.vcf.log"
+    params:
+        provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
+        file = lambda w: {
+            "grch37": "gs://gatk-best-practices/somatic-b37/Mutect2-WGS-panel-b37.vcf", 
+            "hg38": "gs://gatk-best-practices/somatic-hg38/1000g_pon.hg38.vcf.gz"
+        }[w.version]
+    conda: CONDA_ENVS["gsutil"]
+    shell:
+        op.as_one_line("""
+        gsutil cp {params.file} {output.vcf} 2> {log}
         """)
 
 
