@@ -14,7 +14,7 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
-
+import pandas as pd
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["salmon"]`
 CFG = op.setup_module(
@@ -86,13 +86,52 @@ rule _salmon_output:
         op.relative_symlink(input.quant, output.quant)
 
 
+rule export_sample_table:
+    output:
+        sample_table = CFG["dirs"]["outputs"] + "quant_to_" + CFG["transcriptome"]["quant_to"] + "_matrix/{seq_type}/sample_table.tsv"
+    run:
+        samples=pd.DataFrame(config["lcr-modules"]["salmon"]["samples"])
+        samples.to_csv(output.sample_table, sep='\t', header=True, index=False)
+
+def get_gtf(wildcards):
+    if config["lcr-modules"]["salmon"]["transcriptome"]["quant_to"] == "hg38":
+        return reference_files("downloads/gencode-33/gencode.annotation.grch38.gtf")
+    else:
+        return reference_files("downloads/gencode-33/gencode.annotation.grch37.gtf")
+
+rule build_counts_matrix:
+    input:
+        quant = expand(rules._salmon_output.output.quant,
+            zip,
+            seq_type=CFG["samples"]["seq_type"],
+            sample_id=CFG["samples"]["sample_id"]),
+        sample_table = str(rules.export_sample_table.output.sample_table),
+        path = CFG["dirs"]["outputs"]+"quant_to_" + CFG["transcriptome"]["quant_to"]+"/{seq_type}",
+        salmon2counts = CFG["inputs"]["salmon2counts"],
+        gtf = get_gtf
+    output:
+        counts_matrix = CFG["dirs"]["outputs"] + "quant_to_" + CFG["transcriptome"]["quant_to"] + "_matrix/{seq_type}/salmon.genes.counts.tsv"
+    params:
+        out_dir = directory(CFG["dirs"]["outputs"] + "quant_to_" + CFG["transcriptome"]["quant_to"] + "_matrix/{seq_type}/")
+    conda:
+        CFG["conda_envs"]["salmon2counts"]
+    shell:
+        op.as_one_line("""
+        Rscript {input.salmon2counts}
+        {input.path}
+        {input.gtf}
+        {params.out_dir}
+        {input.sample_table}
+        sample_id
+        """)
+
+
 # Generates the target sentinels for each run, which generate the symlinks
 rule _salmon_all:
     input:
-        expand(rules._salmon_output.output.quant,
+        expand(rules.build_counts_matrix.output.counts_matrix,
             zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["samples"]["seq_type"],
-            sample_id=CFG["samples"]["sample_id"])
+            seq_type=CFG["samples"]["seq_type"])
 
 
 ##### CLEANUP #####
