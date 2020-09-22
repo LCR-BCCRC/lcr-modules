@@ -32,109 +32,109 @@ logDir = "log/"
 CFG = op.setup_module(
     name = "ichorcna", 
     version = "1.0",
-    subdirectories = ["inputs", "outputs"]
+    subdirectories = ["inputs", "readDepth", "outputs"]
 )
+
+localrules:
+    _ichorcna_input_bam,
+    _ichorcna_output,
+    _ichorcna_all
 
 # ---------------------------------------------------------------------------- #
 ##### RULES #####
 # ---------------------------------------------------------------------------- #
 
 
+# Symlinks the input files into the module results directory (under '00-inputs/')
+rule _ichorcna_input_bam:
+    input:
+        bam = CFG["inputs"]["sample_bam"],
+        bai = CFG["inputs"]["sample_bai"]
+    output:
+        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai"
+    run:
+        op.relative_symlink(input.bam, output.bam)
+        op.relative_symlink(input.bai, output.bai)
+     
+
 rule targets_genomic_cov_ichorCNA:
-	input:
-		expand(resultsDir + "ichorCNA/{group}--{frac05}/{group}--{frac05}.cna.seg", zip,
-		group = config["group"], frac05= bamstats['frac0.05']),
-		expand(resultsDir + "readDepth/{group}--{frac05}.bin{binSize}.wig", zip,
-		group=config["group"], binSize=str(config["binSize"]), frac05=bamstats['frac0.05'])
-		
-rule genomicCov:
-	input: 
-		lambda wildcards: config["group"][wildcards.group]
-	output:
-		bam = SCRATCHdir + "{group}--{frac05}.bam"
-	params:
-		samtools="/projects/dscott_prj/CCSRI_1500/lowpassWGS/envs/freec/bin/samtools",
-		coverage= "{frac05}"
-	conda:
-		CFG["conda_envs"]["samtools"]
-	log:
-		logDir + "ichorCNA/{group}--{frac05}.log"
-	shell:
-		"{params.samtools} view -bs {params.coverage} {input} > {output} 2> {log} "
+    input:
+        expand(resultsDir + "ichorcna/{sample_id}/{sample_id}.cna.seg", zip,
+        sample_id = config["sample_id"]),
+        expand(resultsDir + "readDepth/{sample_id}.bin{binSize}.wig", zip,
+        sample_id=config["sample_id"], binSize=str(config["binSize"]))
+        
 
-rule genomicCov_index:
-	input:
-		bam = SCRATCHdir + "{group}--{frac05}.bam"
-	output:
-		bai = SCRATCHdir + "{group}--{frac05}.bam.bai"
-	params:
-		samtools="/projects/dscott_prj/CCSRI_1500/lowpassWGS/envs/freec/bin/samtools"
-	shell:
-		"{params.samtools} index {input.bam} "
 
-rule genomicCov_read_counter:
-	input:
-		bam = SCRATCHdir + "{group}--{frac05}.bam",
-		bai = SCRATCHdir + "{group}--{frac05}.bam.bai"
-	output:
-		resultsDir + "readDepth/{group}--{frac05}.bin{binSize}.wig"		
-	params:
-		readCounter=config["readCounterScript"],
-		binSize=config["binSize"],
-		qual="20",
-		chrs=config["chrs"]
-	resources:
-		mem=4
-	log:
-		logDir + "ichorCNA/readDepth/{group}--{frac05}.bin{binSize}.0.05.log"
-	shell:
-		"{params.readCounter} {input.bam} -c {params.chrs} -w {params.binSize} -q {params.qual} > {output} 2> {log}"
+rule ichorcna_read_counter:
+    input:
+        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai"
+    output:
+        CFG["dirs"]["readDepth"] + "readDepth/{sample_id}.bin{binSize}.wig"		
+    params:
+        readCounter = CFG["options"]["readcounter"]["readCounterScript"],
+        binSize = CFG["options"]["readcounter"]["binSize"],
+        qual = CFG["options"]["readcounter"]["qual"],
+        chrs = CFG["options"]["readcounter"]["chrs"]
+    conda: CFG["conda_envs"]["ichorcna"]
+    threads: CFG["threads"]["readcounter"]
+    resources:
+        mem = CFG["mem_mb"]["readcounter"]
+    log:
+        CFG["logs"]["readcounter"] + "{sample_id}.bin{binSize}.0.05.log"
+    shell:
+        "{params.readCounter} {input.bam} -c {params.chrs} -w {params.binSize} -q {params.qual} > {output} 2> {log}"
 
-rule genomicCov_ichorCNA:
-	input:
-		tum=resultsDir + "readDepth/{group}--{frac05}.bin" + str(config["binSize"]) + ".wig",
-		#norm=lambda wildcards: "results/readDepth/" + config["pairings"][wildcards.tumor] + ".bin" + str(config["binSize"]) + ".wig"
-	output:
-		#corrDepth="results/ichorCNA/{tumor}/{tumor}.correctedDepth.txt",
-		#param="results/ichorCNA/{tumor}/{tumor}.params.txt",
-		cna=resultsDir + "ichorCNA/{group}--{frac05}/{group}--{frac05}.cna.seg",
-		#segTxt="results/ichorCNA/{group}/{group}.seg.txt",
-		#seg="results/ichorCNA/{group}/{group}.seg",
-		#rdata="results/ichorCNA/{group}/{group}.RData"
-	params:
-		runRscript="/projects/dscott_prj/CCSRI_1500/lowpassWGS/envs/ichorcna/bin/Rscript",
-		outDir=resultsDir + "ichorCNA/{group}--{frac05}/",
-		rscript=config["ichorCNA_rscript"],
-		id="{group}--{frac05}",
-		ploidy=config["ichorCNA_ploidy"],
-		normal=config["ichorCNA_normal"],
-		gcwig=config["ichorCNA_gcWig"],
-		mapwig=config["ichorCNA_mapWig"],
-		normalpanel=config["ichorCNA_normalPanel"],
-		estimateNormal=config["ichorCNA_estimateNormal"],
-		estimatePloidy=config["ichorCNA_estimatePloidy"],
-		estimateClonality=config["ichorCNA_estimateClonality"],
-		scStates=config["ichorCNA_scStates"],
-		maxCN=config["ichorCNA_maxCN"],
-		includeHOMD=config["ichorCNA_includeHOMD"],
-		chrs=config["ichorCNA_chrs"],
-		chrTrain=config["ichorCNA_chrTrain"],
-		genomeBuild=config["ichorCNA_genomeBuild"],
-		genomeStyle=config["ichorCNA_genomeStyle"],
-		centromere=config["ichorCNA_centromere"],
-		fracReadsChrYMale=config["ichorCNA_fracReadsInChrYForMale"],
-		minMapScore=config["ichorCNA_minMapScore"],
-		maxFracGenomeSubclone=config["ichorCNA_maxFracGenomeSubclone"],
-		maxFracCNASubclone=config["ichorCNA_maxFracCNASubclone"],
-		exons=config["ichorCNA_exons"],
-		txnE=config["ichorCNA_txnE"],
-		txnStrength=config["ichorCNA_txnStrength"],
-		plotFileType=config["ichorCNA_plotFileType"],
-		plotYlim=config["ichorCNA_plotYlim"],
-		libdir=config["ichorCNA_libdir"]
-	resources:
-		mem=4
-	log:
-		logDir + "ichorCNA/{group}--{frac05}.log"	
-	shell:
-		"{params.runRscript} {params.rscript} --id {params.id} --libdir {params.libdir} --WIG {input.tum} --gcWig {params.gcwig} --mapWig {params.mapwig} --normalPanel {params.normalpanel} --ploidy \"{params.ploidy}\" --normal \"{params.normal}\" --maxCN {params.maxCN} --includeHOMD {params.includeHOMD} --chrs \"{params.chrs}\" --chrTrain \"{params.chrTrain}\" --genomeStyle {params.genomeStyle} --genomeBuild {params.genomeBuild} --estimateNormal {params.estimateNormal} --estimatePloidy {params.estimatePloidy} --estimateScPrevalence {params.estimateClonality} --scStates \"{params.scStates}\" --centromere {params.centromere} --exons.bed {params.exons} --txnE {params.txnE} --txnStrength {params.txnStrength} --minMapScore {params.minMapScore} --fracReadsInChrYForMale {params.fracReadsChrYMale} --maxFracGenomeSubclone {params.maxFracGenomeSubclone} --maxFracCNASubclone {params.maxFracCNASubclone} --plotFileType {params.plotFileType} --plotYLim \"{params.plotYlim}\" --outDir {params.outDir} > {log} 2> {log}"
+
+rule _run_ichorcna:
+    input:
+        tum=resultsDir + "readDepth/{sample_id}.bin" + str(config["binSize"]) + ".wig",
+        #norm=lambda wildcards: "results/readDepth/" + config["pairings"][wildcards.tumor] + ".bin" + str(config["binSize"]) + ".wig"
+    output:
+        #corrDepth="results/ichorCNA/{tumor}/{tumor}.correctedDepth.txt",
+        #param="results/ichorCNA/{tumor}/{tumor}.params.txt",
+        cna=resultsDir + "ichorCNA/{sample_id}/{sample_id}.cna.seg",
+        #segTxt="results/ichorCNA/{sample_id}/{sample_id}.seg.txt",
+        #seg="results/ichorCNA/{sample_id}/{sample_id}.seg",
+        #rdata="results/ichorCNA/{sample_id}/{sample_id}.RData"
+    params:
+        # runRscript="/projects/dscott_prj/CCSRI_1500/lowpassWGS/envs/ichorcna/bin/Rscript",
+        outDir=resultsDir + "ichorCNA/{sample_id}/",
+        rscript=CFG["options"]["run"]["ichorCNA_rscript"],
+        id="{sample_id}",
+        ploidy=CFG["options"]["run"]["ichorCNA_ploidy"],
+        normal=CFG["options"]["run"]["ichorCNA_normal"],
+        gcwig=CFG["options"]["run"]["ichorCNA_gcWig"],
+        mapwig=CFG["options"]["run"]["ichorCNA_mapWig"],
+        normalpanel=CFG["options"]["run"]["ichorCNA_normalPanel"],
+        estimateNormal=CFG["options"]["run"]["ichorCNA_estimateNormal"],
+        estimatePloidy=CFG["options"]["run"]["ichorCNA_estimatePloidy"],
+        estimateClonality=CFG["options"]["run"]["ichorCNA_estimateClonality"],
+        scStates=CFG["options"]["run"]["ichorCNA_scStates"],
+        maxCN=CFG["options"]["run"]["ichorCNA_maxCN"],
+        includeHOMD=CFG["options"]["run"]["ichorCNA_includeHOMD"],
+        chrs=CFG["options"]["run"]["ichorCNA_chrs"],
+        chrTrain=CFG["options"]["run"]["ichorCNA_chrTrain"],
+        genomeBuild=CFG["options"]["run"]["ichorCNA_genomeBuild"],
+        genomeStyle=CFG["options"]["run"]["ichorCNA_genomeStyle"],
+        centromere=CFG["options"]["run"]["ichorCNA_centromere"],
+        fracReadsChrYMale=CFG["options"]["run"]["ichorCNA_fracReadsInChrYForMale"],
+        minMapScore=CFG["options"]["run"]["ichorCNA_minMapScore"],
+        maxFracGenomeSubclone=CFG["options"]["run"]["ichorCNA_maxFracGenomeSubclone"],
+        maxFracCNASubclone=CFG["options"]["run"]["ichorCNA_maxFracCNASubclone"],
+        exons=CFG["options"]["run"]["ichorCNA_exons"],
+        txnE=CFG["options"]["run"]["ichorCNA_txnE"],
+        txnStrength=CFG["options"]["run"]["ichorCNA_txnStrength"],
+        plotFileType=CFG["options"]["run"]["ichorCNA_plotFileType"],
+        plotYlim=CFG["options"]["run"]["ichorCNA_plotYlim"],
+        libdir=CFG["options"]["run"]["ichorCNA_libdir"]
+    conda: CFG["conda_envs"]["ichorcna"]
+    threads: CFG["threads"]["run"]
+    resources:
+        mem = CFG["mem_mb"]["run"]
+    log:
+        logDir + "ichorCNA/{sample_id}.log"	
+    shell:
+        "Rscript {params.rscript} --id {params.id} --libdir {params.libdir} --WIG {input.tum} --gcWig {params.gcwig} --mapWig {params.mapwig} --normalPanel {params.normalpanel} --ploidy \"{params.ploidy}\" --normal \"{params.normal}\" --maxCN {params.maxCN} --includeHOMD {params.includeHOMD} --chrs \"{params.chrs}\" --chrTrain \"{params.chrTrain}\" --genomeStyle {params.genomeStyle} --genomeBuild {params.genomeBuild} --estimateNormal {params.estimateNormal} --estimatePloidy {params.estimatePloidy} --estimateScPrevalence {params.estimateClonality} --scStates \"{params.scStates}\" --centromere {params.centromere} --exons.bed {params.exons} --txnE {params.txnE} --txnStrength {params.txnStrength} --minMapScore {params.minMapScore} --fracReadsInChrYForMale {params.fracReadsChrYMale} --maxFracGenomeSubclone {params.maxFracGenomeSubclone} --maxFracCNASubclone {params.maxFracCNASubclone} --plotFileType {params.plotFileType} --plotYLim \"{params.plotYlim}\" --outDir {params.outDir} > {log} 2> {log}"
