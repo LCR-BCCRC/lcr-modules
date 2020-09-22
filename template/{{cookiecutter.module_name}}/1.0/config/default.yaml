@@ -34,7 +34,7 @@ lcr-modules:
                 run_paired_tumours: True
                 run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: False
-            {%- elif mode == "no_normal" %}
+            {%- elif mode == "no_normal" or mode == "unpaired" %}
                 run_paired_tumours: False
                 run_unpaired_tumours_with: "no_normal"
                 run_paired_tumours_as_unpaired: True
