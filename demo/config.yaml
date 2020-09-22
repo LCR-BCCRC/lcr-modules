@@ -45,6 +45,16 @@ lcr-modules:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
 
+    gridss: 
+        inputs: 
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+        references: 
+            # See the current gridss module config file for details about where to obtain this file. 
+            viral_fa: "/projects/rmorin/projects/DLBCL_DHITsig_genomes/reference/gridss/refgenomes/human_virus/human_virus.fa"
+            viral_bwa_prefix: "/projects/rmorin/projects/DLBCL_DHITsig_genomes/reference/gridss/refgenomes/human_virus/human_virus.fa"
+            pon_dir: "/projects/rmorin/reference/hmftools-references/gridss/pon"
+            
     strelka:
         inputs:
             sample_bam: "data/{sample_id}.bam"
