@@ -66,7 +66,8 @@ include: "../modules/sequenza/1.4/sequenza.smk"
 include: "../modules/strelka/1.1/strelka.smk"
 include: "../modules/utils/2.0/utils.smk"
 include: "../modules/bwa_mem/1.0/bwa_mem.smk"
-include: "../modules/liftover/1.0/liftover.smk"
+include: "../modules/gridss/1.0/gridss.smk"
+include: "../modules/bam2fastq/1.1/bam2fastq.smk"
 include: "../modules/controlfreec/1.1/controlfreec.smk"
 
 
@@ -83,5 +84,5 @@ rule all:
         rules._sequenza_all.input,
         rules._strelka_all.input,
         rules._bwa_mem_all.input,
-        rules._liftover_all.input,
+        rules._gridss_all.input,
         rules._controlfreec_all.input
