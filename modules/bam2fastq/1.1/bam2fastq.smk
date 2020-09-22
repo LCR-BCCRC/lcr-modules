@@ -33,14 +33,24 @@ localrules:
 ##### RULES #####
 
 
-# Symlinks the input files into the module results directory (under '00-inputs/')
+def get_genome_build(wildcards):
+    tbl = config["lcr-modules"]["bam2fastq"]["samples"]
+    genome_build = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["genome_build"]
+    return reference_files(expand("genomes/{genome_build}/genome_fasta/genome.fa", genome_build = genome_build))
+
+def get_bams(wildcards,build = False):
+    tbl = config["lcr-modules"]["bam2fastq"]["samples"]
+    return(expand("data/{{seq_type}}_bams/{{sample_id}}.{genome_build}.bam",genome_build = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["genome_build"]))
+
+
 rule _bam2fastq_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        #create a symlink here that does not require the {genome_build}
+        bam_path = get_bams
     output:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
+        bam = CFG["dirs"]["inputs"] + "{seq_type}/{sample_id}.bam"
     run:
-        op.relative_symlink(input.bam, output.bam)
+        op.relative_symlink(input, output.bam)
 
 
 # Conditional rules depending on whether or not fastq outputs will be temporary
@@ -48,13 +58,13 @@ if CFG["temp_outputs"] == True:
     rule _bam2fastq_run:
         input:
             bam = str(rules._bam2fastq_input_bam.output.bam),
-            genome = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+            genome = get_genome_build
         output:
-            fastq_1 = temp(CFG["dirs"]["fastq"] + "{seq_type}--{genome_build}/{sample_id}.read1.fastq.gz"),
-            fastq_2 = temp(CFG["dirs"]["fastq"] + "{seq_type}--{genome_build}/{sample_id}.read2.fastq.gz")
+            fastq_1 = temp(CFG["dirs"]["fastq"] + "{seq_type}/{sample_id}.read1.fastq.gz"),
+            fastq_2 = temp(CFG["dirs"]["fastq"] + "{seq_type}/{sample_id}.read2.fastq.gz")
         log:
-            stdout = CFG["logs"]["fastq"] + "{seq_type}--{genome_build}/{sample_id}/bam2fastq.stdout.log",
-            stderr = CFG["logs"]["fastq"] + "{seq_type}--{genome_build}/{sample_id}/bam2fastq.stderr.log"
+            stdout = CFG["logs"]["fastq"] + "{seq_type}/{sample_id}/bam2fastq.stdout.log",
+            stderr = CFG["logs"]["fastq"] + "{seq_type}/{sample_id}/bam2fastq.stderr.log"
         params:
             opts = CFG["options"]["bam2fastq"]
         conda:
@@ -62,6 +72,7 @@ if CFG["temp_outputs"] == True:
         threads:
             CFG["threads"]["bam2fastq"]
         resources:
+            bam = 1,
             mem_mb = CFG["mem_mb"]["bam2fastq"]
         shell:
             op.as_one_line("""
@@ -75,13 +86,13 @@ elif CFG["temp_outputs"] == False:
     rule _bam2fastq_run:
         input:
             bam = str(rules._bam2fastq_input_bam.output.bam),
-            genome = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+            genome = get_genome_build
         output:
-            fastq_1 = CFG["dirs"]["fastq"] + "{seq_type}--{genome_build}/{sample_id}.read1.fastq.gz",
-            fastq_2 = CFG["dirs"]["fastq"] + "{seq_type}--{genome_build}/{sample_id}.read2.fastq.gz"
+            fastq_1 = CFG["dirs"]["fastq"] + "{seq_type}/{sample_id}.read1.fastq.gz",
+            fastq_2 = CFG["dirs"]["fastq"] + "{seq_type}/{sample_id}.read2.fastq.gz"
         log:
-            stdout = CFG["logs"]["fastq"] + "{seq_type}--{genome_build}/{sample_id}/bam2fastq.stdout.log",
-            stderr = CFG["logs"]["fastq"] + "{seq_type}--{genome_build}/{sample_id}/bam2fastq.stderr.log"
+            stdout = CFG["logs"]["fastq"] + "{seq_type}/{sample_id}/bam2fastq.stdout.log",
+            stderr = CFG["logs"]["fastq"] + "{seq_type}/{sample_id}/bam2fastq.stderr.log"
         params:
             opts = CFG["options"]["bam2fastq"]
         conda:
@@ -89,6 +100,7 @@ elif CFG["temp_outputs"] == False:
         threads:
             CFG["threads"]["bam2fastq"]
         resources:
+            bam = 1,
             mem_mb = CFG["mem_mb"]["bam2fastq"]
         shell:
             op.as_one_line("""
@@ -106,22 +118,22 @@ rule _bam2fastq_output:
         fastq_1 = str(rules._bam2fastq_run.output.fastq_1),
         fastq_2 = str(rules._bam2fastq_run.output.fastq_2)
     output:
-        dispatch = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}--{sample_id}.dispatched"
-    params:
         fastq_1 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read1.fastq.gz",
-        fastq_2 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read2.fastq.gz",
+        fastq_2 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read2.fastq.gz"
     run:
-        op.relative_symlink(input.fastq_1, params.fastq_1)
-        op.relative_symlink(input.fastq_2, params.fastq_2)
-        touch(output.stamp)
+        op.relative_symlink(input.fastq_1, output.fastq_1)
+        op.relative_symlink(input.fastq_2, output.fastq_2)
 
 
 rule _bam2fastq_all:
     input:
-        expand(str(rules._bam2fastq_output.output.dispatch),
+        expand(
+            [
+                rules._bam2fastq_output.output.fastq_1,
+                rules._bam2fastq_output.output.fastq_2,
+            ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
-            genome_build=CFG["samples"]["genome_build"],
             sample_id=CFG["samples"]["sample_id"])
 
 ##### CLEANUP #####
