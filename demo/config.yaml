@@ -63,11 +63,3 @@ lcr-modules:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
             
-    liftover:
-        tool: "battenberg"
-        inputs:
-            sample_seg: "data/{tool}/{genome_build}/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
-        dirs:
-            _parent: "battenberg_1.0-liftover_1.1" #example for combining with Battenberg module: "battenberg-1.0_liftover-1.1"
-        
-
