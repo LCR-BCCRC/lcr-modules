@@ -39,6 +39,8 @@ lcr-modules:
         inputs:
             sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
             sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
+        transcriptome:
+            quant_to: "hg38"
 
     sequenza:
         inputs:
@@ -65,8 +67,11 @@ lcr-modules:
     utils:
         inputs:
             bed: 
-                grch37: "reference/exomes/grch37/bed/{id}.bed" # make sure this corresponds with config["lcr-modules"]["picard_qc"]["inputs"]["intervals"]
-            
+                grch37: "__UPDATE__" # make sure this corresponds with config["lcr-modules"]["picard_qc"]["inputs"]["intervals"]
+                # if testing on GSC, use this file: "/projects/dscott_prj/CCSRI_1500/exomes/ref/agilent/hg19/target_regions.nochr.bed"
+        mem_mb:
+            bam_sort: 48000
+
     picard_qc:
         inputs:
             sample_bam: "data/{sample_id}.bam"
