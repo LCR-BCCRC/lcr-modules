@@ -5,22 +5,28 @@ lcr-modules:
         # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bam: "__UPDATE__"
+            # sample_bam: "__UPDATE__"
+            sample_bam: "data/{sample_id}.{seq_type}.{genome_build}.bam"
+            sample_bai: "data/{sample_id}.{seq_type}.{genome_build}.bam.bai"
 
         scratch_subdirectories: []
 
         options:
-            step_1: ""
-            step_2: ""
+            minBaseQualityScore: 30
+            fdrcutoff: 0.05
+
+        software:
+            shimmer: "{MODSDIR}/etc/shimmer.pl"
+            printCompCounts: "{MODSDIR}/etc/printCompCounts"
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            shimmer: "{MODSDIR}/envs/shimmer.env.yaml"
             
         threads:
-            step_1: 4
+            shimmer: 8
 
         mem_mb:
-            step_1: 2000
+            shimmer: 16000
 
         pairing_config:
             genome:
