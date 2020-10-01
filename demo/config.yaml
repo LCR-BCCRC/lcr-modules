@@ -71,6 +71,8 @@ lcr-modules:
                 # if testing on GSC, use this file: "/projects/dscott_prj/CCSRI_1500/exomes/ref/agilent/hg19/target_regions.nochr.bed"
         mem_mb:
             bam_sort: 48000
+        threads:
+            bam_sort: 12
 
     picard_qc:
         inputs:

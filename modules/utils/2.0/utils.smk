@@ -38,7 +38,8 @@ rule _utils_bam_sort:
         prefix = ".*(sort).*"
     params:
         opts = _UTILS["options"]["bam_sort"],
-        prefix ="{out_dir}/{prefix}/{suffix}"
+        prefix ="{out_dir}/{prefix}/{suffix}",
+        memory= lambda wildcards, resources, threads: int(resources.mem_mb/threads/2)
     conda:
         _UTILS["conda_envs"]["samtools"]
     threads:
@@ -48,7 +49,7 @@ rule _utils_bam_sort:
     shell:
         op.as_one_line("""
         samtools sort 
-        -@ {threads} -m $(({resources.mem_mb} / {threads} / 2))M
+        -@ {threads} -m $(({params.memory}))M
         {params.opts}
         -T {params.prefix} -o {output.bam} 
         {input.bam} 
