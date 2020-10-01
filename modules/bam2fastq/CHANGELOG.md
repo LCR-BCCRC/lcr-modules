@@ -25,3 +25,6 @@ Tweaks by Ryan Morin
 
 - The outputs are not separated by genome build so that it can be re-aligned using other genome references in later modules
 
+On 2020-09-11, the new updates were introduced without version increase. Mainly, the genome build wildcard
+was removed from the module using a different approach developed by the team. In addition, the fastq files
+are now rule outputs, and therefore subsequent modules can recognize these files being produced.
