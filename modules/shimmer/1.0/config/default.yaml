@@ -5,9 +5,9 @@ lcr-modules:
         # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            # sample_bam: "__UPDATE__"
-            sample_bam: "data/{sample_id}.{seq_type}.{genome_build}.bam"
-            sample_bai: "data/{sample_id}.{seq_type}.{genome_build}.bam.bai"
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
 
         scratch_subdirectories: []
 
