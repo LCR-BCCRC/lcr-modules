@@ -173,23 +173,6 @@ rule get_dbsnp_download:
         """)
 
 ##### PICARD METRICS
-rule create_seq_dict:
-    input:
-        fasta = rules.get_genome_fasta_download.output.fasta
-    output: 
-        seq_dict = "genomes/{genome_build}/genome_fasta/genome.dict"
-    log: 
-        "genomes/{genome_build}/genome_fasta/genome_dict.log"
-    conda: CONDA_ENVS["picard"]
-    shell:
-        op.as_one_line("""
-        picard CreateSequenceDictionary
-        R={input.fasta}
-        O={output.seq_dict}
-        2> {log}
-        &&
-        chmod a-w {output.seq_dict}
-        """)
 
 rule create_rRNA_interval:
     input:
