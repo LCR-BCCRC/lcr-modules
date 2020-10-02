@@ -1,1 +1,9 @@
-../../../../envs/star/star-2.7.3a.yaml
+name: test-star
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - star=2.7.3a
+prefix: /home/bgrande/miniconda3/envs/test-star
+
