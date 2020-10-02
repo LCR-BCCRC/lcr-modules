@@ -1,0 +1,48 @@
+lcr-modules:
+    
+    sequenza:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            merge_seqz: "{MODSDIR}/src/bash/merge_seqz.sh"
+            filter_seqz: "{MODSDIR}/src/bash/filter_seqz.sh"
+            run_sequenza: "{MODSDIR}/src/R/run_sequenza.R"
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.0/cnv2igv.py"
+
+        scratch_subdirectories: ["seqz"]
+        
+        options:
+            bam2seqz: "--qlimit 30"
+            seqz_binning: "--window 300"
+            cnv2igv: "--mode sequenza"
+
+        conda_envs:
+            sequenza-utils: "{MODSDIR}/envs/sequenza-utils-3.0.0.yaml"
+            r-sequenza: "{MODSDIR}/envs/r-sequenza-3.0.0.yaml"
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.0/python-3.8.3.yaml"
+            
+        threads:
+            bam2seqz: 3
+            merge_seqz: 1
+            filter_seqz: 1
+            sequenza: 8 
+
+        mem_mb:
+            vcf_sort: 2000
+            bam2seqz: 10000
+            merge_seqz: 10000
+            filter_seqz: 20000
+            sequenza: 20000
+
+        # For now, only supporting matched tumour-normal pairs
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False

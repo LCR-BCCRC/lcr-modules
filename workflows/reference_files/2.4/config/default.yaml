@@ -1,0 +1,91 @@
+genome_builds:
+    grch37:
+        # GSC GRCh37
+        version: "grch37"
+        provider: "ensembl"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/grch37.fa"
+    hg38:
+        # GSC GRCh38
+        version: "grch38"
+        provider: "ucsc"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg38.fa"
+    grch38:
+        version: "grch38"
+        provider: "ensembl"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/grch38.fa"
+    hg19:
+        version: "grch37"
+        provider: "ucsc"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg19.fa"
+    grch38-legacy:
+        # Not GATK-compatible
+        version: "grch38"
+        provider: "ensembl"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/grch38-legacy.fa"
+    hs37d5:
+        # ICGC (with decoys)
+        version: "grch37"
+        provider: "ensembl"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hs37d5.fa"
+
+wildcard_values:
+    gencode_release: ["33"]
+    dbsnp_build: ["151"]
+    star_overhang: ["74", "99"]
+    gc_window_size: ["50"]
+    blacklist_version: ["hg19", "grch38"] 
+    rm_version: ["hg19", "hg38"]
+
+tools:
+    coreutils: 
+        conda_env: "envs/coreutils-8.31.yaml"
+        version: "8.31"
+    cvbio: 
+        conda_env: "envs/cvbio-3.0.0.yaml"
+        version: "3.0.0"
+    samtools: 
+        conda_env: "envs/samtools-1.9.yaml"
+        version: "1.9"
+    bwa: 
+        conda_env: "envs/bwa-0.7.17.yaml"
+        version: "0.7.17"
+    star: 
+        conda_env: "envs/star-2.7.3a.yaml"
+        version: "2.7.3a"
+    sequenza-utils:
+        conda_env: "envs/sequenza-utils-3.0.0.yaml"
+        version: "3.0.0"
+    bedops: 
+        conda_env: "envs/bedops-2.4.39.yaml"
+        version: "2.4.39"
+    salmon: 
+        conda_env: "envs/salmon-1.3.0.yaml"
+        version: "1.3.0"
+    gffread:
+        conda_env: "envs/gffread-0.12.1.yaml"
+        version: "0.12.1"
+    gatk:
+        conda_env: "envs/gatk-4.1.8.1.yaml"
+        version: "4.1.8.1"
+
+cvbio_config:
+    gtf: 
+        comment: "#"
+        columns: "0"
+        skip: "false"
+        delimiter: "\t"
+    txt: 
+        comment: "#"
+        columns: "0"
+        skip: "false"
+        delimiter: "\t"
+    vcf:
+        comment: "#"
+        columns: "0"
+        skip: "false"
+        delimiter: "\t"
+    bed: 
+        comment: "#"
+        columns: "0"
+        skip: "false"
+        delimiter: "\t"

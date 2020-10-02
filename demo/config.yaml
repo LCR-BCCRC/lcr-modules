@@ -8,6 +8,11 @@ lcr-modules:
         unmatched_normal_ids:
             capture--grch37: "TCRBOA7-N-WEX"
 
+    bam2fastq:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+        temp_outputs: True # fastq outputs will be temporary
+
     star:
         inputs:
             sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
@@ -20,6 +25,20 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
+   
+    mixcr:
+        inputs:
+            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
+    
+    vcf2maf:
+        inputs:
+            vep_cache: "reference/vep_caches/"
+
+    salmon:
+        inputs:
+            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
 
     sequenza:
         inputs:
@@ -36,3 +55,33 @@ lcr-modules:
             regions_bed:
                 _default: ""
                 capture: ""
+
+    gridss: 
+        inputs: 
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+        references: 
+            # See the current gridss module config file for details about where to obtain this file. 
+            viral_fa: "/projects/rmorin/projects/DLBCL_DHITsig_genomes/reference/gridss/refgenomes/human_virus/human_virus.fa"
+            viral_bwa_prefix: "/projects/rmorin/projects/DLBCL_DHITsig_genomes/reference/gridss/refgenomes/human_virus/human_virus.fa"
+            pon_dir: "/projects/rmorin/reference/hmftools-references/gridss/pon"
+            
+    strelka:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+            # if using manta output, use vcf file in the 99-outputs subdirectory and ensure manta version corresponds to the loaded module
+            candidate_small_indels: "results/manta-2.3/99-outputs/vcf/{seq_type}--{genome_build}/candidateSmallIndels/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf"
+
+    bwa_mem:
+        inputs:
+            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
+        scratch_subdirectories: ["bwa_mem", "sort_bam", "mark_dups"]
+        
+    controlfreec:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+
+

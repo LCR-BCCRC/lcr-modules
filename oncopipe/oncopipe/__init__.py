@@ -446,7 +446,7 @@ def switch_on_column(
     """
 
     assert isinstance(options, dict), "`options` must be a `dict` object."
-    assert column in samples, "`column` must be a column name in `samples`."
+    assert column in samples, (f"`{column}` must be a column name in `samples`.")
 
     def _switch_on_column(
         wildcards, input=None, output=None, threads=None, resources=None
@@ -456,6 +456,8 @@ def switch_on_column(
             sample_id = wildcards.tumour_id
         elif match_on == "normal":
             sample_id = wildcards.normal_id
+        elif match_on == "sample":
+            sample_id = wildcards.sample_id
         else:
             raise ValueError("Invalid value for `match_on`.")
         subset = samples.loc[samples["seq_type"] == wildcards.seq_type]
@@ -933,6 +935,8 @@ def generate_runs_for_patient(
         tumour = tumour._asdict()
         if normal is None and run_unpaired_tumours_with == "unmatched_normal":
             # Check that `unmatched_normal` or `unmatched_normals` is given
+            tumour_id = tumour["sample_id"]
+            patient_id = tumour["patient_id"]
             seq_type = tumour["seq_type"]
             genome_build = tumour["genome_build"]
             assert unmatched_normal is not None or unmatched_normals is not None, (
@@ -942,6 +946,13 @@ def generate_runs_for_patient(
                 "See README for format."
             )
             if unmatched_normals is not None:
+                assert f"{seq_type}--{genome_build}" in unmatched_normals, (
+                    f"There is no unmatched normal ID for the seq_type '{seq_type}' "
+                    f"and genome_build '{genome_build}' to pair with the unpaired "
+                    f"tumour sample '{tumour_id}' (patient '{patient_id}'). "
+                    f"Add an entry for '{seq_type}--{genome_build}' under "
+                    f"'unmatched_normal_ids' in the '_shared' configuration."
+                )
                 normal = unmatched_normals[f"{seq_type}--{genome_build}"]._asdict()
             else:
                 normal = unmatched_normal._asdict()
@@ -1573,7 +1584,7 @@ def setup_module(name, version, subdirectories):
     # Update paths to conda environments to be relative to the module directory
     for env_name, env_val in mconfig["conda_envs"].items():
         if env_val is not None:
-            mconfig["conda_envs"][env_name] = os.path.relpath(env_val, modsdir)
+            mconfig["conda_envs"][env_name] = os.path.realpath(env_val)
 
     # Setup output sub-directories
     scratch_subdirs = mconfig.get("scratch_subdirectories", [])
@@ -1604,6 +1615,7 @@ def setup_module(name, version, subdirectories):
     mconfig["unpaired_runs"] = runs[runs.pair_status == "no_normal"]
 
     # Return module-specific configuration
+    config["lcr-modules"][name] = mconfig
     return mconfig
 
 
@@ -1646,7 +1658,7 @@ def setup_subdirs(module_config, subdirectories, scratch_subdirs=()):
         )
 
     # If `scratch_directory` is None, then don't worry about `scratch_subdirs`
-    scratch_directory = module_config.get("scratch_directory", "")
+    scratch_directory = module_config.get("scratch_directory")
     if scratch_directory is None:
         scratch_subdirs = ()
 
@@ -1662,11 +1674,11 @@ def setup_subdirs(module_config, subdirectories, scratch_subdirs=()):
     name = module_config["name"]
     version = module_config["version"]
     parent_dir = module_config["dirs"]["_parent"]
-    scratch_parent_dir = os.path.join(scratch_directory, f"{name}-{version}")
     for num, subdir in zip(numbers, subdirectories):
         subdir_full = os.path.join(parent_dir, f"{num}-{subdir}/")
         module_config["dirs"][subdir] = subdir_full
         if subdir in scratch_subdirs:
+            scratch_parent_dir = os.path.join(scratch_directory, f"{name}-{version}")
             scratch_subdir_full = os.path.join(scratch_parent_dir, f"{num}-{subdir}/")
             os.makedirs(scratch_subdir_full, exist_ok=True)
             relative_symlink(scratch_subdir_full, subdir_full, overwrite=False)

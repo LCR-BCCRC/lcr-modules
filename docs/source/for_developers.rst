@@ -112,11 +112,11 @@ When you run the command listed in the :ref:`getting-started-dev` instructions, 
 
    Additional options will be added later, such as ``tumour_cohort`` and ``sample_cohort`` for level-3 modules (see :ref:`what-are-modules` for more details).
 
--  ``seq_type.genome``, ``seq_type.capture``, and ``seq_type.mrna``: Possible values are ``matched_only``, ``allow_unmatched``, ``no_normal``, and ``omit``. These fields determine which sequencing data types (``seq_type``) are intended as input for the module and whether each ``seq_type`` is intended to be run in paired or unpaired mode, and if in paired mode, whether to allow unmatched pairs. For more information on these modes, check out the documentation for the :py:func:`oncopipe.generate_pairs` function. Select ``omit`` if a ``seq_type`` is not applicable for the module. The fields correspond to whole genome, hybrid capture-based, and RNA sequencing, respectively.
+-  ``seq_type.genome``, ``seq_type.capture``, and ``seq_type.mrna``: Possible values are ``omit``,``unpaired``, ``matched_only``, ``allow_unmatched``, and ``no_normal``, . These fields determine which sequencing data types (``seq_type``) are intended as input for the module and whether each ``seq_type`` is intended to be run in paired or unpaired mode, and if in paired mode, whether to allow unmatched pairs. Select ``omit`` if a ``seq_type`` is not applicable for the module or ``unpaired`` if you are running the module once per sample. For more information on the last three modes, check out the documentation for the :py:func:`oncopipe.generate_pairs` function.  The fields correspond to whole genome, hybrid capture-based, and RNA sequencing, respectively.
 
    **Important**
 
-   - If you selected ``sample`` for ``module_run_per``, then you should use ``no_normal`` here. If this is a paired analysis, you should start over (cancel with Ctrl-C) and select ``tumour`` for ``module_run_per``. 
+   - If you selected ``sample`` for ``module_run_per``, then you should use ``unpaired`` (or ``omit``) here. If this is a paired analysis, you should start over (cancel with Ctrl-C) and select ``tumour`` for ``module_run_per``. 
    
    - If you selected ``tumour`` for ``module_run_per``, you can select ``matched_only``, ``allow_unmatched``, or ``no_normal`` depending on whether the module is meant to be run on only matched tumour-normal pairs, on potentially unmatched tumour-normal pairs, or on tumours only. 
 
@@ -255,7 +255,7 @@ Below is the input and output rules for the ``star`` module. Because STAR operat
       input:
          bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.mdups.bam",
          bai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.mdups.bam.bai",
-         sorted_bam = rules._star_symlink_sorted_bam.input.bam
+         sorted_bam = str(rules._star_symlink_sorted_bam.input.bam)
       output:
          bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
       run:
@@ -285,7 +285,7 @@ In the example below, since STAR is run on all RNA-seq BAM file, we are using th
    rule _star_all:
       input:
          expand(
-            rules._star_output_bam.output.bam,
+            str(rules._star_output_bam.output.bam),
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
             genome_build=CFG["samples"]["genome_build"],
@@ -312,7 +312,7 @@ It’s worth noting that the output rule being expanded is ``_manta_dispatch`` r
        input:
            expand(
                [
-                   rules._manta_dispatch.output.dispatched,
+                   str(rules._manta_dispatch.output.dispatched),
                ],
                zip,  # Run expand() with zip(), not product()
                seq_type=CFG["runs"]["tumour_seq_type"],
@@ -334,9 +334,11 @@ An example rule that follows most of these principles is included below (taken f
 
        This guideline ensures that rules are modular and can easily be rearranged by the user. It also enables tool-specific conda environments (*e.g.* ``samtools``, ``star``) to be used, which is not possible is more than one tool is used in a rule.
 
-2.  For ``input`` files, use ``rules`` references to previous output (or input) files wherever possible.
+2.  For ``input`` files, use ``rules`` references to previous output (or input) files wherever possible. You should wrap any references to ``rules`` with ``str()``. 
 
-       These ``rules`` references minimizes the risk that two files get out of sync, *e.g.* if you update an upstream output file and forget to update every downstream occurrence of that file.
+       These ``rules`` references minimizes the risk that two files get out of sync, *e.g.* if you update an upstream output file and forget to update every downstream occurrence of that file. 
+       
+       The ``str()`` function ensures that the ``rules`` reference isn't considered as an explicit dependency on whatever rule is specified. Otherwise, users won't be able to provide an alternative rule to generate the input in question. 
 
 3.  Reference data should be provided as input files and ideally have rules in the ``reference_files`` workflow so they can be generated automatically. If a reference file has parameters, these can be exposed to the user under the ``reference_params`` section in the module configuration.
 
@@ -378,8 +380,8 @@ An example rule that follows most of these principles is included below (taken f
 
    rule _star_run:
       input:
-         fastq_1 = rules._star_input_fastq.output.fastq_1,
-         fastq_2 = rules._star_input_fastq.output.fastq_2,
+         fastq_1 = str(rules._star_input_fastq.output.fastq_1),
+         fastq_2 = str(rules._star_input_fastq.output.fastq_2),
          index = reference_files("genomes/{{genome_build}}/star_index/star-2.7.3a/gencode-{}/overhang-{}".format(
             CFG["reference_params"]["gencode_release"], CFG["reference_params"]["star_overhang"]
          )),
