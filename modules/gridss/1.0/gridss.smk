@@ -48,7 +48,8 @@ localrules:
     _gridss_input_bam,
     _gridss_input_references,
     _gridss_setup_references,
-    _gridss_input_viral_ref,
+    _gridss_get_pon, 
+    _gridss_get_viral_ref,
     _gridss_setup_viral_ref,
     _gridss_symlink_preprocessed_normal, 
     _gridss_unpaired_filter,
@@ -132,7 +133,7 @@ rule _gridss_get_viral_ref:
 # Generage human_virus.fa.img file
 rule _gridss_setup_viral_ref: 
     input: 
-        fasta = str(rules._gridss_input_viral_ref.output.viral_fa)
+        fasta = str(rules._gridss_get_viral_ref.output.viral_fa)
     output: 
         viral_img = CFG["dirs"]["inputs"] + "references/human_virus/human_virus.fa.img"
     params: 
@@ -392,7 +393,7 @@ rule _gridss_unpaired:
 rule _gridss_viral_annotation: 
     input: 
         vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_raw.vcf.gz", 
-        viral_ref = str(rules._gridss_input_viral_ref.output.viral_fa), 
+        viral_ref = str(rules._gridss_get_viral_ref.output.viral_fa), 
         viral_img = str(rules._gridss_setup_viral_ref.output)
     output: 
         vcf = temp(CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.vcf.gz")
