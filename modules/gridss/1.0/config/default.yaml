@@ -7,7 +7,7 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
 
-        scratch_subdirectories: ["preprocess", "gridss"]
+        scratch_subdirectories: [] # Recommended: ["gridss", "preprocess"]
 
         options:
             gridss: 
