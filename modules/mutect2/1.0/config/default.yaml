@@ -6,15 +6,21 @@ lcr-modules:
             # Available wildcards: {sample_id} {seq_type} {genome_build}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
-            # Available wildcards: {seq_type} {genome_build}
-            pon_vcf: "__UPDATE__"
-            pon_tbi: "__UPDATE__"
 
-        scratch_subdirectories: ["mutect2"]
+        scratch_subdirectories: [] # Recommended: mutect2
 
         options:
-            mutect2_run: ""
+            mutect2_run_matched_unmatched: ""
+            mutect2_run_no_normal: ""
+            mutect2_pileupsummaries:
+                chrom: "17"
             mutect2_filter: ""
+            mutect2_filter_passed: 
+                "-f '.,PASS' "
+                # Can be modified to filter on additional criteria using bcftools view syntax
+                # For example, to remove all variants with -log10(POPAF) > 4.0: 
+                #"-f '.,PASS' -i 'INFO/POPAF > 4'"
+
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
@@ -23,6 +29,9 @@ lcr-modules:
             
         threads:
             mutect2_run: 4
+            mutect2_f1r2: 1
+            mutect2_pileupsummaries: 1
+            mutect2_contamination: 1
             mutect2_filter: 1
             mutect2_passed: 1
             mutect2_merge_vcfs: 10
@@ -30,8 +39,14 @@ lcr-modules:
         resources:
             mutect2_run:
                 mem_mb: 10000
+            mutect2_f1r2: 
+                mem_mb: 10000
+            mutect2_pileupsummaries: 
+                mem_mb: 25000
+            mutect2_contamination: 
+                mem_mb: 2500
             mutect2_filter:
-                mem_mb: 512
+                mem_mb: 10000
             mutect2_passed:
                 mem_mb: 2000
             mutect2_merge_vcfs:

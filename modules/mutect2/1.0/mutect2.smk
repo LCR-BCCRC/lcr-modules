@@ -26,7 +26,6 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _mutect2_input_bam,
-    _mutect2_input_pon, 
     _mutect2_input_chrs,
     _mutect2_get_sm,
     _mutect2_output_vcf,
@@ -48,19 +47,6 @@ rule _mutect2_input_bam:
         op.relative_symlink(input.bam, output.bam)
         op.relative_symlink(input.bai, output.bai)
 
-
-# Symlinks panel of normals vcf
-rule _mutect2_input_pon: 
-    input: 
-        vcf = CFG["inputs"]["pon_vcf"], 
-        tbi = CFG["inputs"]["pon_tbi"]
-    output: 
-        vcf = CFG["dirs"]["inputs"] + "pon/{seq_type}--{genome_build}/pon.vcf.gz", 
-        tbi = CFG["dirs"]["inputs"] + "pon/{seq_type}--{genome_build}/pon.vcf.gz.tbi"
-    run: 
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(input.tbi, output.tbi)
-
 # Symlink chromosomes used for parallelization
 checkpoint _mutect2_input_chrs:
     input:
@@ -76,7 +62,7 @@ rule _mutect2_get_sm:
     input:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     output:
-        sm = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}_sm.txt"),
+        sm = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}_sm.txt",
     log:
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}_mutect2_get_sm.stderr.log"
     conda:
@@ -94,20 +80,18 @@ rule _mutect2_run_matched_unmatched:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict"),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
-        tumour_sm = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sm.txt",
         normal_sm = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}_sm.txt", 
-        pon = str(rules._mutect2_input_pon.output.vcf), 
-        pon_tbi = str(rules._mutect2_input_pon.output.tbi)
+        pon = reference_files("genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz")
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.tbi"),
         stat = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.stats"), 
-        f1r2 = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.f1r2.vcf.gz")
+        f1r2 = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.f1r2.tar.gz")
     log:
         stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.mutect2_run.stdout.log",
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.mutect2_run.stderr.log"
     resources:
-        **CFG["resources"]["mutect2_run"]
+        **CFG["resources"]["mutect2_run_matched_unmatched"]
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
         opts = CFG["options"]["mutect2_run"]
@@ -119,9 +103,11 @@ rule _mutect2_run_matched_unmatched:
         pair_status = "matched|unmatched"
     shell:
         op.as_one_line("""
-        gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" {params.opts} -I {input.tumour_bam} -I {input.normal_bam}
-        -R {input.fasta} -normal $(cat {input.normal_sm}) -O {output.vcf}
-        --germline-resource {input.gnomad} -L {wildcards.chrom} 
+        gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" {params.opts} 
+        -I {input.tumour_bam} -I {input.normal_bam}
+        -R {input.fasta} -normal "$(cat {input.normal_sm})" -O {output.vcf}
+        --germline-resource {input.gnomad} 
+        -L {wildcards.chrom} 
         -pon {input.pon} --f1r2-tar-gz {output.f1r2}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -133,14 +119,12 @@ rule _mutect2_run_no_normal:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict"),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
-        tumour_sm = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_sm.txt", 
-        pon = str(rules._mutect2_input_pon.output.vcf), 
-        pon_tbi = str(rules._mutect2_input_pon.output.tbi)
+        pon = reference_files("genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz") 
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.tbi"),
         stat = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.stats"), 
-        f1r2 = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.f1r2.vcf.gz")
+        f1r2 = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.f1r2.tar.gz"
     log:
         stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.mutect2_run.stdout.log",
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.mutect2_run.stderr.log"
@@ -148,7 +132,7 @@ rule _mutect2_run_no_normal:
         **CFG["resources"]["mutect2_run"]
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
-        opts = CFG["options"]["mutect2_run"]
+        opts = CFG["options"]["mutect2_run_no_normal"]
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -157,8 +141,10 @@ rule _mutect2_run_no_normal:
         pair_status = "no_normal"
     shell:
         op.as_one_line("""
-        gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" {params.opts} -I {input.tumour_bam} -R {input.fasta} 
-        -O {output.vcf} --germline-resource {input.gnomad} -L {wildcards.chrom}
+        gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" 
+        {params.opts} -I {input.tumour_bam} -R {input.fasta} 
+        -O {output.vcf} --germline-resource {input.gnomad} 
+        -L {wildcards.chrom} 
         -pon {input.pon} --f1r2-tar-gz {output.f1r2}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -243,31 +229,136 @@ rule _mutect2_merge_stats:
         -O {output.stat} > {log.stdout} 2> {log.stderr}
         """)
 
+# Learn read orientation model
 
+def _mutect2_get_chr_f1r2(wildcards):
+    CFG = config["lcr-modules"]["mutect2"]
+    chrs = checkpoints._mutect2_input_chrs.get(**wildcards).output.chrs
+    with open(chrs) as file:
+        chrs = file.read().rstrip("\n").split("\n")
+    f1r2 = expand(
+        CFG["dirs"]["mutect2"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/chromosomes/{chrom}.f1r2.tar.gz",
+        chrom = chrs
+    )
+    return(f1r2)
+
+rule _mutect2_learn_orient_model: 
+    input: 
+        f1r2 = _mutect2_get_chr_f1r2
+    output:
+        model =  CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/read-orientation-model.tar.gz"
+    log: 
+        stdout = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/read-orientation-model.stdout.log", 
+        stderr = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/read-orientation-model.stderr.log"
+    resources: 
+        **CFG["resources"]["mutect2_f1r2"]
+    params: 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    conda:
+        CFG["conda_envs"]["gatk"]
+    threads: 
+        CFG["threads"]["mutect2_f1r2"]
+    shell: 
+        op.as_one_line("""
+        inputs=$(for input in {input.f1r2}; do printf -- "-I $input "; done);
+        gatk LearnReadOrientationModel 
+        --java-options "-Xmx{params.mem_mb}m" 
+        $inputs -O {output.model}
+        > {log.stdout} 2> {log.stderr}
+        """)
+
+# Get pileup summaries
+rule _mutect2_pileup_summaries: 
+    input: 
+        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam", 
+        snps = reference_files("genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz")
+    output: 
+        pileup = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pileupSummary.table"
+    log: 
+        stdout = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pileupSummary.stdout.log", 
+        stderr = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pileupSummary.stderr.log"
+    resources: 
+        **CFG["resources"]["mutect2_pileupsummaries"]
+    params: 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    conda:
+        CFG["conda_envs"]["gatk"]
+    threads: 
+        CFG["threads"]["mutect2_pileupsummaries"]
+    shell: 
+        op.as_one_line("""
+        gatk GetPileupSummaries 
+            --java-options "-Xmx{params.mem_mb}m"
+            -I {input.tumour_bam}
+            -V {input.snps}
+            -L {input.snps}
+            -O {output.pileup}
+            > {log.stdout} 2> {log.stderr}
+        """)
+
+# Calculate contamination  
+rule _mutect2_calc_contamination: 
+    input: 
+        pileup = str(rules._mutect2_pileup_summaries.output.pileup)
+    output: 
+        segments = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/segments.table", 
+        contamination = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/contamination.table"
+    log: 
+        stdout = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/contamination.stdout.log", 
+        stderr = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/contamination.stderr.log"
+    resources: 
+        **CFG["resources"]["mutect2_contamination"]
+    params: 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    conda:
+        CFG["conda_envs"]["gatk"]
+    threads: 
+        CFG["threads"]["mutect2_contamination"]
+    shell: 
+        op.as_one_line("""
+        gatk CalculateContamination 
+            --java-options "-Xmx{params.mem_mb}m"
+            -I {input.pileup}
+            -tumor-segmentation {output.segments}
+            -O {output.contamination}
+            > {log.stdout} 2> {log.stderr}
+        """)
+    
 # Marks variants filtered or PASS annotations
 rule _mutect2_filter:
     input:
         vcf = str(rules._mutect2_merge_vcfs.output.vcf),
         tbi = str(rules._mutect2_merge_vcfs.output.tbi),
         stat = str(rules._mutect2_merge_stats.output.stat),
+        segments = str(rules._mutect2_calc_contamination.output.segments), 
+        contamination = str(rules._mutect2_calc_contamination.output.contamination), 
+        model = str(rules._mutect2_learn_orient_model.output.model),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         vcf = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.unfilt.vcf.gz"
     log:
         stdout = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_filter.stdout.log",
         stderr = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_filter.stderr.log"
+    resources:
+        **CFG["resources"]["mutect2_filter"]
     params:
-        opts = CFG["options"]["mutect2_filter"]
+        opts = CFG["options"]["mutect2_filter"], 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
         CFG["threads"]["mutect2_filter"]
-    resources:
-        **CFG["resources"]["mutect2_filter"]
     shell:
         op.as_one_line("""
-        gatk FilterMutectCalls {params.opts} -V {input.vcf} -R {input.fasta}
-        -O {output.vcf} > {log.stdout} 2> {log.stderr}
+        gatk FilterMutectCalls --java-options "-Xmx{params.mem_mb}m" 
+            {params.opts} 
+            -V {input.vcf} 
+            -R {input.fasta}
+            --tumor-segmentation {input.segments}
+            --contamination-table {input.contamination}
+            --ob-priors {input.model}
+            -O {output.vcf} 
+            > {log.stdout} 2> {log.stderr}
         """)
 
 
@@ -278,6 +369,8 @@ rule _mutect2_filter_passed:
     output:
         vcf = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.passed.vcf.gz",
         tbi = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.passed.vcf.gz.tbi"
+    params:
+        opts = CFG["options"]["mutect2_filter_passed"]
     log:
         stderr = CFG["logs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_filter_passed.stderr.log"
     conda:
@@ -288,7 +381,7 @@ rule _mutect2_filter_passed:
         **CFG["resources"]["mutect2_passed"]
     shell:
         op.as_one_line(""" 
-        bcftools view -f '.,PASS' -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
+        bcftools view {params.opts} -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
             &&
         tabix -p vcf {output.vcf} 2>> {log.stderr}
         """)
