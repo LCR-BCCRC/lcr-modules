@@ -20,12 +20,10 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "hmftools",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "prepare_strelka", "amber", "cobalt", "purple", "linx", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _hmftools_input_bam,
     _hmftools_input_strelka,
