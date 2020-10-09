@@ -20,7 +20,7 @@ import oncopipe as op
 # `CFG` is a shortcut to `config["lcr-modules"]["gridss"]`
 CFG = op.setup_module(
     name = "gridss",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "preprocess", "gridss", "viral_annotation", "gripss", "outputs"],
 )
 
