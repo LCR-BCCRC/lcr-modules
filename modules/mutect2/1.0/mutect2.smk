@@ -19,7 +19,7 @@ import oncopipe as op
 # `CFG` is a shortcut to `config["lcr-modules"]["mutect2"]`
 CFG = op.setup_module(
     name = "mutect2",
-    version = "1.0",
+    version = "2.0",
     subdirectories = ["inputs", "mutect2", "filter", "passed", "outputs"]
 )
 
