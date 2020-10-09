@@ -228,7 +228,7 @@ rule download_af_only_gnomad_vcf:
         provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
         file = lambda w: {
             "grch37": "gs://gatk-best-practices/somatic-b37/af-only-gnomad.raw.sites.vcf", 
-            "hg38": "gs://gatk-best-practices/somatic-hg38/af-only-gnomad.hg38.vcf.gz"
+            "grch38": "gs://gatk-best-practices/somatic-hg38/af-only-gnomad.hg38.vcf.gz"
         }[w.version]
     conda: CONDA_ENVS["gsutil"]
     shell:
@@ -263,12 +263,41 @@ rule download_mutect2_pon:
         provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
         file = lambda w: {
             "grch37": "gs://gatk-best-practices/somatic-b37/Mutect2-WGS-panel-b37.vcf", 
-            "hg38": "gs://gatk-best-practices/somatic-hg38/1000g_pon.hg38.vcf.gz"
+            "grch38": "gs://gatk-best-practices/somatic-hg38/1000g_pon.hg38.vcf.gz"
         }[w.version]
     conda: CONDA_ENVS["gsutil"]
     shell:
         op.as_one_line("""
-        gsutil cp {params.file} {output.vcf} 2> {log}
+        if [[ {params.file} == *".gz" ]]; then 
+            gsutil cp {params.file} - 2> {log}
+            |
+            gzip -dc > {output.vcf}; 
+        else
+            gsutil cp {params.file} {output.vcf} 2> {log}; 
+        fi
+        """)
+
+rule download_mutect2_small_exac:
+    output:
+        vcf = "downloads/mutect2/mutect2_small_exac.{version}.vcf"
+    log:
+        "downloads/mutect2/mutect2_small_exac.{version}.vcf.log"
+    params:
+        provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
+        file = lambda w: {
+            "grch37": "gs://gatk-best-practices/somatic-b37/small_exac_common_3.vcf", 
+            "grch38": "gs://gatk-best-practices/somatic-hg38/small_exac_common_3.hg38.vcf.gz"
+        }[w.version]
+    conda: CONDA_ENVS["gsutil"]
+    shell:
+        op.as_one_line("""
+        if [[ {params.file} == *".gz" ]]; then 
+            gsutil cp {params.file} - 2> {log}
+            |
+            gzip -dc > {output.vcf}; 
+        else
+            gsutil cp {params.file} {output.vcf} 2> {log}; 
+        fi
         """)
 
 
