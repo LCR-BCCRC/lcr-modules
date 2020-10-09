@@ -24,7 +24,13 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "preprocess", "gridss", "viral_annotation", "gripss", "outputs"],
 )
 
-possible_genome_builds = ["grch37", "hs37d5", "hg38"]
+VERSION_MAP = {
+    "grch37": "hg19", 
+    "hs37d5": "hg19", 
+    "hg38": "hg38"
+}
+
+possible_genome_builds = VERSION_MAP.keys()
 for genome_build in CFG["runs"]["tumour_genome_build"]:
     assert genome_build in possible_genome_builds, (
         "Samples table includes genome builds not yet compatible with this module. "
@@ -34,6 +40,8 @@ for genome_build in CFG["runs"]["tumour_genome_build"]:
 sample_ids = list(CFG['samples']['sample_id'])
 unmatched_normal_ids = list(config["lcr-modules"]["_shared"]["unmatched_normal_ids"].values())
 all_other_ids = list(set(sample_ids) - set(unmatched_normal_ids))
+
+
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -73,6 +81,22 @@ rule _gridss_input_references:
         ln -sf {input.genome_bwa_prefix}.* `dirname {output.genome_fa}`
         """)
 
+rule _gridss_get_pon: 
+    output: 
+        pon_breakpoint = CFG["dirs"]["inputs"] + "references/{genome_build}/pon/gridss_pon_breakpoint.bedpe", 
+        pon_breakend = CFG["dirs"]["inputs"] + "references/{genome_build}/pon/gridss_pon_single_breakend.bed", 
+        known_pairs = CFG["dirs"]["inputs"] + "references/{genome_build}/pon/KnownFusionPairs.bedpe"
+    params: 
+        alt_build = lambda w: VERSION_MAP[w.genome_build], 
+        url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/gridss/pon"
+    shell: 
+        op.as_one_line("""
+        wget -O {output.pon_breakpoint} {params.url}/gridss_pon_breakpoint.{params.alt_build}.bedpe; 
+        wget -O {output.pon_breakend} {params.url}/gridss_pon_single_breakend.{params.alt_build}.bed; 
+        wget -O {output.known_pairs} {params.url}/KnownFusionPairs.{params.alt_build}.bedpe
+        """)
+
+
 # Generage genome.fa.img file
 rule _gridss_setup_references: 
     input: 
@@ -97,23 +121,18 @@ rule _gridss_setup_references:
         """)
 
 # Symlink genome fasta with bwa and .fai indices to the same directory
-rule _gridss_input_viral_ref: 
-    input: 
-        viral_fa = CFG["references"]["viral_fa"],
-        viral_bwa_prefix = CFG["references"]["viral_bwa_prefix"]
+rule _gridss_get_viral_ref: 
     output: 
         viral_fa = CFG["dirs"]["inputs"] + "references/human_virus/human_virus.fa"
+    params: 
+        url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/gridss/viral_ref"
     shell: 
-        op.as_one_line("""
-        ln -sf {input.viral_fa} {output.viral_fa} &&
-        ln -sf {input.viral_fa}.fai {output.viral_fa}.fai &&
-        ln -sf {input.viral_bwa_prefix}.* `dirname {output.viral_fa}`
-        """)
+        'wget -r -np -nd -A \'human_virus.*\' -P `dirname {output.viral_fa}` {params.url}'
 
 # Generage human_virus.fa.img file
 rule _gridss_setup_viral_ref: 
     input: 
-        fasta = str(rules._gridss_input_viral_ref.output)
+        fasta = str(rules._gridss_input_viral_ref.output.viral_fa)
     output: 
         viral_img = CFG["dirs"]["inputs"] + "references/human_virus/human_virus.fa.img"
     params: 
@@ -373,7 +392,7 @@ rule _gridss_unpaired:
 rule _gridss_viral_annotation: 
     input: 
         vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_raw.vcf.gz", 
-        viral_ref = str(rules._gridss_input_viral_ref.output), 
+        viral_ref = str(rules._gridss_input_viral_ref.output.viral_fa), 
         viral_img = str(rules._gridss_setup_viral_ref.output)
     output: 
         vcf = temp(CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.vcf.gz")
@@ -440,6 +459,9 @@ rule _gridss_run_gripss:
     input: 
         vcf = str(rules._gridss_viral_annotation.output.vcf), 
         fasta = str(rules._gridss_input_references.output.genome_fa),
+        pon_breakend = str(rules._gridss_get_pon.output.pon_breakend), 
+        pon_breakpoint = str(rules._gridss_get_pon.output.pon_breakpoint), 
+        known_pairs = str(rules._gridss_get_pon.output.known_pairs)
     output: 
         vcf = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic.vcf.gz", 
         tbi = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic.vcf.gz.tbi"
@@ -447,11 +469,6 @@ rule _gridss_run_gripss:
     resources: 
         **CFG["resources"]["gripss"]
     params:
-        pon_dir = CFG["references"]["pon_dir"],
-        alt_build = lambda w: {
-            "grch37": "hg19", 
-            "hs37d5": "hg19", 
-            "hg38": "hg38"}[w.genome_build], 
         opts = CFG["options"]["gripss"], 
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda: 
@@ -463,9 +480,9 @@ rule _gridss_run_gripss:
         op.as_one_line(""" 
         gripss -Xms4G -Xmx{params.mem_mb}m 
         -ref_genome {input.fasta} 
-        -breakend_pon {params.pon_dir}/gridss_pon_single_breakend.{params.alt_build}.bed 
-        -breakpoint_pon {params.pon_dir}/gridss_pon_breakpoint.{params.alt_build}.bedpe 
-        -breakpoint_hotspot {params.pon_dir}/KnownFusionPairs.{params.alt_build}.bedpe 
+        -breakend_pon {input.pon_breakend} 
+        -breakpoint_pon {input.pon_breakpoint} 
+        -breakpoint_hotspot {input.known_pairs}  
         -input_vcf {input.vcf} 
         -output_vcf {output.vcf} 
         -tumor {wildcards.tumour_id} 

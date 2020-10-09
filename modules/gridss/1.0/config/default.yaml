@@ -20,16 +20,7 @@ lcr-modules:
             # A fix is being prepared by the developers
                 -hard_max_normal_absolute_support 3
                 -hard_max_normal_relative_support 0.06
-                -soft_max_normal_relative_support 0.03
-
-        references: 
-            # These reference files are available packaged with https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC?path=%2FHMFTools-Resources%2FGRIDSS-Purple-Linx-Docker
-            viral_fa: "__UPDATE__"
-            viral_bwa_prefix: "__UPDATE__" 
-            # PON files available at https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC?path=%2FHMFTools-Resources%2FGRIDSS 
-            # Directory must contain gridss_pon_breakpoint, gridss_pon_single_breakend, and KnownFusionPairs for each genome build in your pipeline
-            pon_dir: "__UPDATE__" 
-       
+                -soft_max_normal_relative_support 0.03       
         
         conda_envs:
             gridss: "{MODSDIR}/envs/gridss-dependencies-2.9.4.yaml"
