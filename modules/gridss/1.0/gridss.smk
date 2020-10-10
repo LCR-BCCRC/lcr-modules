@@ -127,6 +127,8 @@ rule _gridss_get_viral_ref:
         viral_fa = CFG["dirs"]["inputs"] + "references/human_virus/human_virus.fa"
     params: 
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/gridss/viral_ref"
+    conda: 
+        CFG["conda_envs"]["wget"]
     shell: 
         'wget -r -np -nd -A \'human_virus.*\' -P `dirname {output.viral_fa}` {params.url}'
 
