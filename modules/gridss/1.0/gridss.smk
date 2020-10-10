@@ -191,17 +191,7 @@ rule _gridss_preprocess_unmatched_normal:
     wildcard_constraints:
         sample_id="|".join(unmatched_normal_ids)
     shell:
-        # 'touch {output.workdir} && sleep 15'
         op.as_one_line("""
-        function samtools() {{
-            if [[ "$1" == "sort" ]]; then
-                shift 1;
-                command samtools sort -m {params.mem_mb}M "$@";
-            else
-                command samtools "$@";
-            fi;
-        }} && 
-        export -f samtools &&
         gridss
         --reference {input.fasta}
         --workingdir $(dirname {output.workdir}) 
@@ -220,7 +210,6 @@ rule _gridss_symlink_preprocessed_normal:
         workdir = str(rules._gridss_preprocess_unmatched_normal.output.workdir)
     output: 
         workdir = temp(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}.bam.gridss.working")
-        # workdir = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}.bam.gridss.working"
     priority: 0
     wildcard_constraints: 
         sample_id = "|".join(unmatched_normal_ids)
@@ -250,17 +239,7 @@ rule _gridss_preprocess:
     wildcard_constraints: 
         sample_id = "|".join(all_other_ids)
     shell:
-        # 'touch {output.workdir} && sleep 15'
         op.as_one_line("""
-        function samtools() {{
-            if [[ "$1" == "sort" ]]; then
-                shift 1;
-                command samtools sort -m {params.mem_mb}M "$@";
-            else
-                command samtools "$@";
-            fi
-        }} &&
-        export -f samtools &&
         gridss
         --reference {input.fasta}
         --workingdir $(dirname {output.workdir}) 
@@ -306,17 +285,7 @@ rule _gridss_paired:
         pair_status = "matched|unmatched"
     group: "enormous_bam"
     shell:
-        # 'touch {output} && sleep 15'
         op.as_one_line("""
-        function samtools() {{
-            if [[ "$1" == "sort" ]]; then
-                shift 1;
-                command samtools sort -m {params.mem_mb}M "$@";
-            else
-                command samtools "$@";
-            fi
-        }} &&
-        export -f samtools &&
         gridss
         --reference {input.fasta}
         --output {output.vcf}
@@ -364,17 +333,7 @@ rule _gridss_unpaired:
         normal_id = "None",
         pair_status = "no_normal"
     shell:
-        # 'touch {output} && sleep 15'
         op.as_one_line("""
-        function samtools() {{
-            if [[ "$1" == "sort" ]]; then
-                shift 1;
-                command samtools sort -m {params.mem_mb}M "$@";
-            else
-                command samtools "$@";
-            fi
-        }} &&
-        export -f samtools && 
         gridss
         --reference {input.fasta}
         --output {output.vcf}
@@ -410,7 +369,6 @@ rule _gridss_viral_annotation:
     threads: 
         CFG["threads"]["viral_annotation"]
     shell: 
-        # 'touch {output.vcf} && sleep 15'
         op.as_one_line("""
         java -Xmx{params.mem_mb}m 
                 -cp {params.gridss_jar} gridss.AnnotateInsertedSequence 
@@ -434,7 +392,6 @@ rule _gridss_unpaired_filter:
         normal_id = "None", 
         pair_status = "no_normal"
     shell: 
-        # 'touch {output} && sleep 15'
         op.as_one_line("""
         zcat {input.vcf} | 
             awk '($5 ~ /:/ && $7 == "PASS") || $1 ~ /^#/' | 
@@ -450,7 +407,6 @@ rule _gridss_unpaired_to_bedpe:
     conda:
         CFG["conda_envs"]["svtools"]
     shell: 
-        # 'touch {output.bedpe} && sleep 15'
         op.as_one_line("""
         svtools vcftobedpe -i {input.vcf} -o {output.bedpe}
         """) 
@@ -479,7 +435,6 @@ rule _gridss_run_gripss:
     threads: 
         CFG["threads"]["gripss"]
     shell: 
-        # 'touch {output} && sleep 15'
         op.as_one_line(""" 
         gripss -Xms4G -Xmx{params.mem_mb}m 
         -ref_genome {input.fasta} 
@@ -503,7 +458,6 @@ rule _gridss_filter_gripss:
     conda: 
         CFG["conda_envs"]["bcftools"]
     shell: 
-        # 'touch {output} && sleep 15'
         op.as_one_line("""
         zcat {input.vcf} | 
             awk '$7 == "PASS" || $1 ~ /^#/ ' | 
@@ -519,7 +473,6 @@ rule _gridss_gripss_to_bedpe:
     conda: 
         CFG["conda_envs"]["svtools"]
     shell: 
-        # 'touch {output} && sleep 15'
         op.as_one_line("""
         zcat {input.vcf} | 
             awk '$1 ~ /^#/ || $5 ~ /:/' | 
