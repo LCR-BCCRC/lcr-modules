@@ -23,8 +23,9 @@ lcr-modules:
                 -soft_max_normal_relative_support 0.03       
         
         conda_envs:
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
             gridss: "{MODSDIR}/envs/gridss-dependencies-2.9.4.yaml"
-            gripss: "{MODSDIR}/envs/hmftools-gripss-1.4.0.yaml"
+            gripss: "{MODSDIR}/envs/hmftools-gripss-1.8.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
             
