@@ -113,7 +113,7 @@ rule _hmftools_input_references:
         op.as_one_line("""
         ln -s {input.genome_fa} {output.genome_fa} &&
         ln -s {input.genome_fai}.fai {output.genome_fai} &&
-        ln -s {output.genome_dict} {output.genome_dict}
+        ln -s {input.genome_dict} {output.genome_dict}
         """)
 
 rule _hmftools_get_cobalt_gc: 
