@@ -67,7 +67,8 @@ rule _lofreq_run:
     threads:
         CFG["threads"]["lofreq"]
     resources:
-        mem_mb = op.retry(CFG["mem_mb"]["lofreq"])
+        mem_mb = CFG["mem_mb"]["lofreq"],
+        bam =1
     shell:
         op.as_one_line("""
         lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}

@@ -81,7 +81,7 @@ rule all:
         rules._star_all.input,
         rules._manta_all.input,
         rules._sequenza_all.input,
-        rules._lofreq_all.input
+        rules._lofreq_all.input,
         rules._strelka_all.input,
         rules._bwa_mem_all.input,
         rules._controlfreec_all.input

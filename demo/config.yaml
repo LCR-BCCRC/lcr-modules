@@ -39,6 +39,8 @@ lcr-modules:
         inputs:
             sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
             sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
+        transcriptome:
+            quant_to: "hg38"
 
     sequenza:
         inputs:
