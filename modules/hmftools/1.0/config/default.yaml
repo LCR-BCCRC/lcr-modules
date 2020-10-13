@@ -8,7 +8,7 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
             # Available wildcards: {seq_type} {genome_build} {tumour_id} 
-            # Note: Only outputs of running Strelka in paired/matched normal mode are accepted
+            # Note: Only outputs of running Strelka in matched normal mode are accepted
             # Must be in bgzip with `.vcf.gz` extension. 
             strelka_vcf: "__UPDATE__" 
             # Available wildcards: {seq_type} {genome_build} {sample_id}
@@ -20,23 +20,7 @@ lcr-modules:
 
         scratch_subdirectories: []
 
-        references: 
-            # Obtain from https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC?path=%2FHMFTools-Resources%2FLinx
-            # Should contain fragile_sites_hmf.csv, heli_rep_origins.bed, knownFusionPairs.csv, knownPromiscuousFive.csv, knownPromiscuousThree.csv, 
-            # line_elements.csv, and viral_host_ref.csv
-            linx_db: "/projects/rmorin/reference/hmftools-references/linx"
-
         switches: 
-            het_snps:
-                # Obtain from https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC?path=%2FHMFTools-Resources%2FAmber
-                grch37: "/projects/rmorin/reference/hmftools-references/amber/GermlineHetPon.hg19.vcf.gz"
-                hs37d5: "/projects/rmorin/reference/hmftools-references/amber/GermlineHetPon.hg19.vcf.gz"
-                hg38: "/projects/rmorin/reference/hmftools-references/amber/GermlineHetPon.hg38.vcf.gz"
-            gc_profile: 
-                # Obtain from https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC?path=%2FHMFTools-Resources%2FCobalt
-                grch37: "/projects/rmorin/reference/hmftools-references/cobalt/GC_profile.hg19.1000bp.cnp"
-                hs37d5: "/projects/rmorin/reference/hmftools-references/cobalt/GC_profile.hg19.1000bp.cnp"
-                hg38: "/projects/rmorin/reference/hmftools-references/cobalt/GC_profile.hg38.1000bp.cnp" 
             ensembl_url: 
                 '37': "mysql://ensembldb.ensembl.org:3337/homo_sapiens_core_89_37"
                 '38': "mysql://ensembldb.ensembl.org:3306/homo_sapiens_core_98_38"
@@ -71,17 +55,20 @@ lcr-modules:
                 -exon_rank_radius 0.04
                 -max_gene_characters 15
 
-        envs:
+        conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             amber: "{MODSDIR}/envs/hmftools-amber-3.4.yaml"
-            cobalt: "{MODSDIR}/envs/hmftools-cobalt-1.8.yaml"
-            purple: "{MODSDIR}/envs/hmftools-purple-2.45.yaml"
-            linx: "{MODSDIR}/envs/hmftools-linx-1.10.yaml"
+            cobalt: "{MODSDIR}/envs/hmftools-cobalt-1.9.yaml"
+            purple: "{MODSDIR}/envs/hmftools-purple-2.48.yaml"
+            linx: "{MODSDIR}/envs/hmftools-linx-1.11.yaml"
+            snpeff: "{MODSDIR}/envs/snpeff-4.3.1t.yaml"
             
         threads:
             strelka_sample_names: 1
             annotate_strelka: 4
+            snpeff: 4
             amber: 16
             cobalt: 16
             purple: 8
@@ -92,7 +79,9 @@ lcr-modules:
             strelka_sample_names: 
                 mem_mb: 1000
             annotate_strelka:  
-                mem_mb: 4000
+                mem_mb: 5000
+            snpeff: 
+                mem_mb: 5000
             amber:  
                 mem_mb: 36000
             cobalt:  
