@@ -38,8 +38,8 @@ lcr-modules:
             svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
             
         threads:
-            gridss: 8
-            viral_annotation: 8
+            gridss: 24
+            viral_annotation: 24
             filter_gridss: 1
             gripss: 1 # Not multi-threaded
 
