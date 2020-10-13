@@ -85,15 +85,19 @@ rule _hmftools_input_gridss:
 rule _hmftools_input_references: 
     input: 
         genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        genome_fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
+        genome_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
     output: 
-        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.fa"
+        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.fa", 
+        genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.fa.fai", 
+        genome_dict = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.dict"
     conda: 
         CFG["envs"]["samtools"]
     shell: 
         op.as_one_line("""
         ln -s {input.genome_fa} {output.genome_fa} &&
-        ln -s {input.genome_fa}.fai {output.genome_fa}.fai &&
-        samtools dict {output.genome_fa} -o {output.genome_fa}.dict
+        ln -s {input.genome_fai}.fai {output.genome_fai} &&
+        samtools dict {output.genome_dict} -o {output.genome_dict}
         """)
 
 # Prepare Strelka VCF files for use with PURPLE
