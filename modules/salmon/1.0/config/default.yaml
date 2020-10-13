@@ -6,19 +6,27 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_fastq_1: "__UPDATE__"
             sample_fastq_2: "__UPDATE__"
+            # This script from lcr-scripts will generate counts matrix for all samples
+            salmon2counts: "{SCRIPTSDIR}/salmon2counts/1.0/salmon2counts.R"
 
         options:
             # tells salmon to automatically determine library type (e.g. stranded vs. unstranded etc.)
             quant: "-l A"
 
+        transcriptome:
+            # Specify the transcriptome build for quantification
+            quant_to: "__UPDATE__" # Example: "grch37", "hg38"
+
         conda_envs:
             salmon: "{MODSDIR}/envs/salmon-1.3.0.yaml"
+            salmon2counts: "{SCRIPTSDIR}/salmon2counts/1.0/salmon2counts.yaml"
             
         threads:
             quant: 4
 
         mem_mb:
-            quant: 2000
+            quant: 10000
+            matrix: 10000
 
         pairing_config:
             mrna:
