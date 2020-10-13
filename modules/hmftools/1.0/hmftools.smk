@@ -112,7 +112,7 @@ rule _hmftools_input_references:
     shell: 
         op.as_one_line("""
         ln -s {input.genome_fa} {output.genome_fa} &&
-        ln -s {input.genome_fai}.fai {output.genome_fai} &&
+        ln -s {input.genome_fai} {output.genome_fai} &&
         ln -s {input.genome_dict} {output.genome_dict}
         """)
 
