@@ -12,7 +12,6 @@ This release was authored by Laura Hilton. See the [GRIDSS man page](https://git
 
 
 ## [1.0] - 2020-07-22
-
 This release was authored by Laura Hilton. See the [GRIDSS man page](https://github.com/PapenfussLab/gridss) for extensive documentation. 
 - Separates GRIDSS preprocessing steps per sample rather than per tumour-normal pair to speed up this step and eliminate redundant normal preprocessing. 
 - Groups GRIDSS preprocessing with GRIDSS run steps to promote deletion of temp preprocessing files as quickly as possible. However, job grouping only works on clusters so it is highly recommended that this pipeline be run on a cluster. 
