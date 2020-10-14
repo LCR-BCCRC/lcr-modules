@@ -78,6 +78,7 @@ rule _vcf2maf_run:
     shell:
         op.as_one_line("""
         if [[ -e {output.maf} ]]; then rm -f {output.maf}; fi;
+        if [[ -e {output.vep} ]]; then rm -f {output.vep}; fi;
         vepPATH=$(dirname $(which vep))/../share/variant-effect-predictor*;
         vcf2maf.pl 
         --input-vcf {input.vcf} 
