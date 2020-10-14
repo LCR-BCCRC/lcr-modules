@@ -5,6 +5,13 @@ All notable changes to the `mutect2` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [2.0] - 2020-10-08
+
+This release was authored by Laura Hilton. 
+- Utilizes the latest GATK best practices method for filtering based on strand bias, using the `LearnReadOrientModel` function. 
+- Utilizes the public GATK panel of normals (PON) for alignment artifact filtering. 
+
 ## [1.0] - 2020-08-15
 
 This release was authored by Prasath Pararajalingam.

@@ -313,3 +313,29 @@ rule get_af_only_gnomad_vcf:
             &&
         tabix {output.vcf}
         """)
+
+rule get_mutect2_pon:
+    input:
+        vcf = get_download_file(rules.download_mutect2_pon.output.vcf)
+    output:
+        vcf = "genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz"
+    conda: CONDA_ENVS["samtools"]
+    shell:
+        op.as_one_line(""" 
+        bgzip -c {input.vcf} > {output.vcf}
+            &&
+        tabix {output.vcf}
+        """)
+
+rule get_mutect2_small_exac:
+    input:
+        vcf = get_download_file(rules.download_mutect2_small_exac.output.vcf)
+    output:
+        vcf = "genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz"
+    conda: CONDA_ENVS["samtools"]
+    shell:
+        op.as_one_line(""" 
+        bgzip -c {input.vcf} > {output.vcf}
+            &&
+        tabix {output.vcf}
+        """)

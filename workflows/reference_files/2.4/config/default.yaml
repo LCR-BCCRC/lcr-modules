@@ -73,6 +73,9 @@ tools:
     gatk:
         conda_env: "envs/gatk-4.1.8.1.yaml"
         version: "4.1.8.1"
+    gsutil: 
+        conda_env: "envs/gsutil-4.53.yaml"
+        version: "4.53"
 
 cvbio_config:
     gtf: 

@@ -50,7 +50,9 @@ rule all:
                 rules.create_star_index.output.index,
                 rules.calc_gc_content.output.wig,
                 rules.get_blacklist_download.output.bed, 
-                rules.get_repeatmasker_download.output.bed
+                rules.get_repeatmasker_download.output.bed, 
+                rules.get_mutect2_pon.output.vcf, 
+                rules.get_af_only_gnomad_vcf.output.vcf
             ],
             genome_build=config["genome_builds"].keys(),
             bwa_version=config["tools"]["bwa"]["version"],
