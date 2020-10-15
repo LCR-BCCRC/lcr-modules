@@ -218,7 +218,7 @@ rule _strelka_run_paired:
 # Combine and filter for PASS variants
 rule _strelka_filter_combine:
     input:
-        vcf = expand(CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/{var_type}.vcf.gz", 
+        vcf = expand(CFG["dirs"]["strelka"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/results/variants/{var_type}.vcf.gz", 
                     var_type = ["somatic.indels", "somatic.snvs"])
     output:
         vcf = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined.passed.vcf.gz",
@@ -251,7 +251,7 @@ def _strelka_get_output(wildcards):
                     var_type = "variants"
         )
     else:
-        vcf = str(rules._strelka_filter_combine.output.combined)
+        vcf = str(rules._strelka_filter_combine.output.vcf)
     return vcf
 
 # Symlinks the final output files into the module results directory (under '99-outputs/'). Links will always use "combined" in the name (dropping odd naming convention used by Strelka in unpaired mode)
