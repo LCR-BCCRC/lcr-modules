@@ -1,0 +1,34 @@
+lcr-modules:
+    cellranger:
+        software: "/projects/clc/usr/cellranger/cellranger-4.0.0/cellranger"
+
+        inputs:
+            # The inputs can be configured here or in the Snakefile
+            # Available wildcards: {seq_type} {genome_build} {chip_id}
+            sample_dir: "__UPDATE__"
+        reference:
+            transcriptome: "__UPDATE__"
+            vdj: "__UPDATE__"
+
+        options:
+            mkfastq: "--qc"
+            count: "--expect-cells=5000"
+            vdj: ""
+
+        conda_envs:
+            bcl2fastq: "{MODSDIR}/envs/bcl2fastq-2.19.0.yaml"
+
+        threads:
+            mkfastq: 12
+            count: 12
+            vdj: 12
+        mem_mb:
+            mkfastq: 50000
+            count: 50000
+            vdj: 50000
+
+        pairing_config:
+            sc_mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
