@@ -25,10 +25,10 @@ lcr-modules:
             lofreq: "{MODSDIR}/envs/lofreq-2.1.5.yml"
             
         threads:
-            lofreq: 12
+            lofreq: 48
 
         mem_mb:
-            lofreq: 20000
+            lofreq: 100000
 
         pairing_config:
             genome:
