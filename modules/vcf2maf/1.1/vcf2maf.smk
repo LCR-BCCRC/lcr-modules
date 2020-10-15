@@ -61,7 +61,8 @@ rule _vcf2maf_run:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         vep_cache = CFG["inputs"]["vep_cache"]
     output:
-        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.maf"
+        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.maf", 
+        vep = temp(CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.vep.vcf")
     log:
         stdout = CFG["logs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_vcf2maf.stdout.log",
         stderr = CFG["logs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_vcf2maf.stderr.log",
@@ -76,6 +77,8 @@ rule _vcf2maf_run:
         mem_mb = CFG["mem_mb"]["vcf2maf"]
     shell:
         op.as_one_line("""
+        if [[ -e {output.maf} ]]; then rm -f {output.maf}; fi;
+        if [[ -e {output.vep} ]]; then rm -f {output.vep}; fi;
         vepPATH=$(dirname $(which vep))/../share/variant-effect-predictor*;
         vcf2maf.pl 
         --input-vcf {input.vcf} 
