@@ -69,7 +69,8 @@ rule _star_run:
             CFG["reference_params"]["gencode_release"]
         ))
     output:
-        bam = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/Aligned.out.bam"
+        bam = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/Aligned.out.bam", 
+        complete = touch(CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/alignment_complete")
     log:
         stdout = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/star.stdout.log",
         stderr = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/star.stderr.log"
