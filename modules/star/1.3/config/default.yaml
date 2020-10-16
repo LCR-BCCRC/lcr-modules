@@ -9,9 +9,6 @@ lcr-modules:
             sample_fastq_2: "__UPDATE__"
 
         reference_params:
-            # Ideally, `star_overhang` = max(read_length) - 1
-            # STAR indices might be precomputed for "74" and "99"
-            star_overhang: "__UPDATE__"
             # The Gencode release to use for the transcript annotation
             gencode_release: "33"
 
