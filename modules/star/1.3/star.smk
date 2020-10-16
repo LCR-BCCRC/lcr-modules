@@ -37,6 +37,10 @@ localrules:
     _star_output_bam,
     _star_all,
 
+sample_ids = list(CFG['samples']['sample_id'])
+
+wildcard_constraints: 
+    sample_id = "|".join(sample_ids)
 
 ##### RULES #####
 
