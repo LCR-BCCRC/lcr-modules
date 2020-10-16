@@ -27,7 +27,7 @@ CFG = op.setup_module(
 )
 
 # Include `utils` module
-#include: "../../utils/1.0/utils.smk"
+include: "../../utils/2.0/utils.smk"
 
 # Define rules to be run locally when using a compute cluster
 localrules:
