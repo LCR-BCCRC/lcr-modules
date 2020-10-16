@@ -32,23 +32,26 @@ localrules:
 
 ##### RULES #####
 
-
+# Functions to obtain the genome_build per sample from the sample table
 def get_genome_build(wildcards):
     tbl = config["lcr-modules"]["bam2fastq"]["samples"]
     genome_build = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["genome_build"]
     return reference_files(expand("genomes/{genome_build}/genome_fasta/genome.fa", genome_build = genome_build))
 
 def get_bams(wildcards,build = False):
-    tbl = config["lcr-modules"]["bam2fastq"]["samples"]
-    return(expand("data/{{seq_type}}_bams/{{sample_id}}.{genome_build}.bam",genome_build = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["genome_build"]))
+    CFG = config["lcr-modules"]["bam2fastq"]
+    tbl = CFG["samples"]
+    return(expand(
+        CFG["dirs"]["inputs"] + "{{seq_type}}--{genome_build}/{{sample_id}}.bam", 
+        genome_build = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["genome_build"]
+    ))
 
 
 rule _bam2fastq_input_bam:
     input:
-        #create a symlink here that does not require the {genome_build}
-        bam_path = get_bams
+        bam_path = bam_path = CFG['inputs']['sample_bam']
     output:
-        bam = CFG["dirs"]["inputs"] + "{seq_type}/{sample_id}.bam"
+        bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bam"
     run:
         op.relative_symlink(input, output.bam)
 
@@ -57,7 +60,7 @@ rule _bam2fastq_input_bam:
 if CFG["temp_outputs"] == True:
     rule _bam2fastq_run:
         input:
-            bam = str(rules._bam2fastq_input_bam.output.bam),
+            bam = get_bams,
             genome = get_genome_build
         output:
             fastq_1 = temp(CFG["dirs"]["fastq"] + "{seq_type}/{sample_id}.read1.fastq.gz"),
@@ -85,7 +88,7 @@ if CFG["temp_outputs"] == True:
 elif CFG["temp_outputs"] == False:
     rule _bam2fastq_run:
         input:
-            bam = str(rules._bam2fastq_input_bam.output.bam),
+            bam = get_bams,
             genome = get_genome_build
         output:
             fastq_1 = CFG["dirs"]["fastq"] + "{seq_type}/{sample_id}.read1.fastq.gz",
