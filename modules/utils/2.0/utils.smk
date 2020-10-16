@@ -30,7 +30,8 @@ rule _utils_bam_sort:
     input:
         bam = "{out_dir}/{prefix}/{suffix}.bam"
     output:
-        bam = "{out_dir}/{prefix}/{suffix}.sort.bam"
+        bam = "{out_dir}/{prefix}/{suffix}.sort.bam", 
+        prefix = temp(directory("{out_dir}/{prefix}/{suffix}_tmp"))
     log:
         stdout = "{out_dir}" + LOG + "/{prefix}/{suffix}_sort.stdout.log",
         stderr = "{out_dir}" + LOG + "/{prefix}/{suffix}_sort.stderr.log"
@@ -38,7 +39,6 @@ rule _utils_bam_sort:
         prefix = ".*(sort).*"
     params:
         opts = _UTILS["options"]["bam_sort"],
-        prefix ="{out_dir}/{prefix}/{suffix}",
         memory= lambda wildcards, resources, threads: int(resources.mem_mb/threads/2)
     conda:
         _UTILS["conda_envs"]["samtools"]
@@ -48,10 +48,11 @@ rule _utils_bam_sort:
         mem_mb = _UTILS["mem_mb"]["bam_sort"]
     shell:
         op.as_one_line("""
+        mkdir -p {output.prefix} &&
         samtools sort 
         -@ {threads} -m $(({params.memory}))M
         {params.opts}
-        -T {params.prefix} -o {output.bam} 
+        -T {output.prefix} -o {output.bam} 
         {input.bam} 
         > {log.stdout}
         2> {log.stderr}
