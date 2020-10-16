@@ -63,9 +63,8 @@ rule _star_run:
     input:
         fastq_1 = str(rules._star_input_fastq.output.fastq_1),
         fastq_2 = str(rules._star_input_fastq.output.fastq_2),
-        index = reference_files("genomes/{{genome_build}}/star_index/star-2.7.3a/gencode-{}/overhang-{}".format(
-            CFG["reference_params"]["gencode_release"], CFG["reference_params"]["star_overhang"]
-        )),
+        fastq1_real = CFG["inputs"]["sample_fastq_1"], # Placeholders to prevent premature deletion of temp fastqs
+        fastq2_real = CFG["inputs"]["sample_fastq_2"],
         gtf = reference_files("genomes/{{genome_build}}/annotations/gencode_annotation-{}.gtf".format(
             CFG["reference_params"]["gencode_release"]
         ))
