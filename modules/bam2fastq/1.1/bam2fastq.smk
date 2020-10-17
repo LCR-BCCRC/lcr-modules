@@ -49,7 +49,7 @@ def get_bams(wildcards,build = False):
 
 rule _bam2fastq_input_bam:
     input:
-        bam_path = bam_path = CFG['inputs']['sample_bam']
+        bam_path = CFG['inputs']['sample_bam']
     output:
         bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bam"
     run:
