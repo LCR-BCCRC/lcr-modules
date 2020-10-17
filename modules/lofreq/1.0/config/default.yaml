@@ -23,12 +23,17 @@ lcr-modules:
 
         conda_envs:
             lofreq: "{MODSDIR}/envs/lofreq-2.1.5.yml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             
         threads:
             lofreq: 48
 
-        mem_mb:
-            lofreq: 100000
+        resources:
+            lofreq:
+                mem_mb: 100000
+                bam: 1
+            bcftools_sort:
+                mem_mb: 20000
 
         pairing_config:
             genome:
