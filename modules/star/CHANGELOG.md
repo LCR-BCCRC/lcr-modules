@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This release was authored by Laura Hilton. 
 
 - Read length is obtained from the samples table so that STAR can vary the index and `sjdboverhang` parameters per sample. The samples table MUST contain a `read_length` column. If all samples have the same read length, a default value can be set by following the instructions in the [LCR modules documentation](https://lcr-modules.readthedocs.io/en/latest/for_users.html#adding-and-transforming-columns).
+- Includes placeholder fastq inputs to prevent premature deletion of fastq files marked as temp in the `bam2fastq` module. 
+- Touches an output file on completion of `_star_run` so that killed jobs will re-run properly. 
 
 ## [1.3] - 2020-08-20
 
