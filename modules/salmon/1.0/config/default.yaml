@@ -26,6 +26,7 @@ lcr-modules:
 
         mem_mb:
             quant: 10000
+            matrix: 10000
 
         pairing_config:
             mrna:

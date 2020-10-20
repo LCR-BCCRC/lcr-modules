@@ -69,7 +69,7 @@ rule _salmon_quant:
         op.as_one_line("""
         salmon quant -p {threads} 
         {params.opts} 
-        -i ref/lcr-modules-references/genomes/{params.quant_to}/salmon_index/salmon-1.3.0/index/ 
+        -i {input.index}
         -o $(dirname {output.quant})
         -1 {input.fastq_1} -2 {input.fastq_2} 
         > {log.stdout} 2> {log.stderr}
@@ -106,19 +106,21 @@ rule build_counts_matrix:
             seq_type=CFG["samples"]["seq_type"],
             sample_id=CFG["samples"]["sample_id"]),
         sample_table = str(rules.export_sample_table.output.sample_table),
-        path = CFG["dirs"]["outputs"]+"quant_to_" + CFG["transcriptome"]["quant_to"]+"/{seq_type}",
         salmon2counts = CFG["inputs"]["salmon2counts"],
         gtf = get_gtf
     output:
         counts_matrix = CFG["dirs"]["outputs"] + "quant_to_" + CFG["transcriptome"]["quant_to"] + "_matrix/{seq_type}/salmon.genes.counts.tsv"
     params:
+        path = CFG["dirs"]["outputs"]+"quant_to_" + CFG["transcriptome"]["quant_to"]+"/{seq_type}",
         out_dir = directory(CFG["dirs"]["outputs"] + "quant_to_" + CFG["transcriptome"]["quant_to"] + "_matrix/{seq_type}/")
     conda:
         CFG["conda_envs"]["salmon2counts"]
+    resources:
+        mem_mb = CFG["mem_mb"]["matrix"]
     shell:
         op.as_one_line("""
         Rscript {input.salmon2counts}
-        {input.path}
+        {params.path}
         {input.gtf}
         {params.out_dir}
         {input.sample_table}

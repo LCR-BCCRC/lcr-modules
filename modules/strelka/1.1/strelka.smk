@@ -215,40 +215,30 @@ rule _strelka_run_paired:
         rm -rf "$(dirname {input.runwf})/workspace/"
         """)
 
-rule _strelka_filter:
+# Combine and filter for PASS variants
+rule _strelka_filter_combine:
     input:
-        vcf_gz = CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/{var_type}.vcf.gz"
-    output:
-        vcf = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{var_type}.passed.vcf.gz",
-        vcf_tbi = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{var_type}.passed.vcf.gz.tbi"
-    conda:
-        CFG["conda_envs"]["bcftools"]
-    log:
-        stdout = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_filter_{var_type}.stdout.log",
-        stderr = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_filter_{var_type}.stderr.log"
-    shell:
-        op.as_one_line("""
-        bcftools view -f ".,PASS" -Oz -o {output.vcf} {input.vcf_gz} > {log.stdout} 2> {log.stderr} && tabix -p vcf {output.vcf} >> {log.stdout} 2>> {log.stderr} 
-        """)
-
-#merge indel and snv vcf into one combined file for paired jobs
-rule _combine_strelka:
-    input:
-        vcf = expand(CFG["dirs"]["filtered"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/{var_type}.passed.vcf.gz", 
+        vcf = expand(CFG["dirs"]["strelka"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/results/variants/{var_type}.vcf.gz", 
                     var_type = ["somatic.indels", "somatic.snvs"])
     output:
-        combined = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined.passed.vcf.gz",
-        combined_tbi = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined.passed.vcf.gz.tbi"
-    conda:
-        CFG["conda_envs"]["bcftools"]
+        vcf = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined.passed.vcf.gz",
+        vcf_tbi = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined.passed.vcf.gz.tbi"
     resources: 
         mem_mb = CFG["mem_mb"]["bcftools_sort"]
+    params: 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    conda:
+        CFG["conda_envs"]["bcftools"]
     log:
-        stdout = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_combine.stdout.log",
-        stderr = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_combine.stderr.log"
+        stdout = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_filter_combine.stdout.log",
+        stderr = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_filter_combine.stderr.log"
     shell:
         op.as_one_line("""
-        bcftools concat -a {input.vcf} | bcftools sort --max-mem {resources.mem_mb}M -Oz -o {output.combined} > {log.stdout} 2> {log.stderr} && tabix -p vcf {output.combined} >> {log.stdout} 2>> {log.stderr} 
+        bcftools concat -a {input.vcf} | 
+        bcftools view -f ".,PASS" -Ov | 
+        bcftools sort --max-mem {params.mem_mb}M -Oz -o {output.vcf}
+        > {log.stdout} 2> {log.stderr} && 
+        tabix -p vcf {output.vcf} >> {log.stdout} 2>> {log.stderr} 
         """)
 
 
@@ -261,7 +251,7 @@ def _strelka_get_output(wildcards):
                     var_type = "variants"
         )
     else:
-        vcf = str(rules._combine_strelka.output.combined)
+        vcf = str(rules._strelka_filter_combine.output.vcf)
     return vcf
 
 # Symlinks the final output files into the module results directory (under '99-outputs/'). Links will always use "combined" in the name (dropping odd naming convention used by Strelka in unpaired mode)
