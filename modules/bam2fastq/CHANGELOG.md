@@ -33,4 +33,4 @@ are now rule outputs, and therefore subsequent modules can recognize these files
 
 This release was updated by Laura Hilton. 
 
-- In 1.1 the sample input filename format was inflexible and designed for the GAMBL project. The function that drops the genome build has been moved to the _bam2fastq_run rule so that the input sample filenames don't have to adhere to a specific format. 
+- In 1.1 the sample input filename format was inflexible and designed for the GAMBL project. The function that drops the genome build has been moved to the `_bam2fastq_run` rule so that the input sample filenames don't have to adhere to a specific format. 
