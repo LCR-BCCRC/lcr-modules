@@ -5,6 +5,12 @@ All notable changes to the `star` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4] - 2020-10-20
+
+This release was authored by Laura Hilton. 
+
+- Read length is obtained from the samples table so that STAR can vary the index and `sjdboverhang` parameters per sample. The samples table MUST contain a `read_length` column. If all samples have the same read length, a default value can be set by following the instructions in the [LCR modules documentation](https://lcr-modules.readthedocs.io/en/latest/for_users.html#adding-and-transforming-columns).
+
 ## [1.3] - 2020-08-20
 
 This release was authored by Kostiantyn Dreval.
