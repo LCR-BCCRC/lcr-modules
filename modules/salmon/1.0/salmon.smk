@@ -41,6 +41,8 @@ rule _salmon_input_fastq:
     output:
         fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.read1.fastq.gz",
         fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.read2.fastq.gz"
+    group: 
+        CFG["group"]["quant"]
     run:
         op.relative_symlink(input.fastq_1, output.fastq_1)
         op.relative_symlink(input.fastq_2, output.fastq_2)
@@ -50,6 +52,8 @@ rule _salmon_quant:
     input:
         fastq_1 = rules._salmon_input_fastq.output.fastq_1,
         fastq_2 = rules._salmon_input_fastq.output.fastq_2,
+        fastq1_real = CFG["inputs"]["sample_fastq_1"], # Placeholders to prevent premature deletion of temp fastqs
+        fastq2_real = CFG["inputs"]["sample_fastq_2"],
         index = reference_files(expand("genomes/{genome_build}/salmon_index/salmon-1.3.0/index", genome_build = CFG["transcriptome"]["quant_to"]))
     output:
         quant = expand(CFG["dirs"]["salmon"] + "quant_to_{quant_to}/{{seq_type}}/{{sample_id}}/quant.sf", quant_to=CFG["transcriptome"]["quant_to"])
@@ -64,7 +68,9 @@ rule _salmon_quant:
     threads:
         CFG["threads"]["quant"]
     resources:
-        mem_mb = CFG["mem_mb"]["quant"]
+        **CFG["resources"]["quant"]
+    group: 
+        CFG["group"]["quant"]
     shell:
         op.as_one_line("""
         salmon quant -p {threads} 
@@ -116,7 +122,7 @@ rule build_counts_matrix:
     conda:
         CFG["conda_envs"]["salmon2counts"]
     resources:
-        mem_mb = CFG["mem_mb"]["matrix"]
+        **CFG["resources"]["matrix"]
     shell:
         op.as_one_line("""
         Rscript {input.salmon2counts}

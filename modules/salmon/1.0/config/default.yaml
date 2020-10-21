@@ -24,9 +24,14 @@ lcr-modules:
         threads:
             quant: 4
 
-        mem_mb:
-            quant: 10000
-            matrix: 10000
+        resources:
+            quant: 
+                mem_mb: 10000
+            matrix: 
+                mem_mb: 10000
+
+        group: 
+            quant: "quant" # For efficient temp file deletion, change to match group parameter for bam2fastq.
 
         pairing_config:
             mrna:

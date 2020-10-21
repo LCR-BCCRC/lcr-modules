@@ -42,11 +42,17 @@ lcr-modules:
             utils_bam_markdups: 24
             utils_bam_index: 6
 
-        mem_mb:
-            star: 40000
+        resources:
+            star: 
+                mem_mb: 40000
+
+        mem_mb: # Required if using utils v1.0 module. 
             utils_bam_sort: 24000
             utils_bam_markdups: 16000
             utils_bam_index: 4000
+
+        group: 
+            star: "star" # For efficient temporary fastq deletion, change to match group parameter for bam2fastq.
 
         pairing_config:
             mrna:

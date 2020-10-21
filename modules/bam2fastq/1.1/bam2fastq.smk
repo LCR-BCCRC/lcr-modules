@@ -52,6 +52,8 @@ rule _bam2fastq_input_bam:
         bam_path = CFG['inputs']['sample_bam']
     output:
         bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bam"
+    group: 
+        CFG["group"]["bam2fastq"]
     run:
         op.relative_symlink(input, output.bam)
 
@@ -75,8 +77,9 @@ if CFG["temp_outputs"] == True:
         threads:
             CFG["threads"]["bam2fastq"]
         resources:
-            bam = 1,
-            mem_mb = CFG["mem_mb"]["bam2fastq"]
+            **CFG["resources"]["bam2fastq"]
+        group: 
+            CFG["group"]["bam2fastq"]
         shell:
             op.as_one_line("""
             picard -Xmx{resources.mem_mb}m SamToFastq {params.opts}
@@ -103,8 +106,7 @@ elif CFG["temp_outputs"] == False:
         threads:
             CFG["threads"]["bam2fastq"]
         resources:
-            bam = 1,
-            mem_mb = CFG["mem_mb"]["bam2fastq"]
+            **CFG["resources"]["bam2fastq"]
         shell:
             op.as_one_line("""
             picard -Xmx{resources.mem_mb}m SamToFastq {params.opts}
