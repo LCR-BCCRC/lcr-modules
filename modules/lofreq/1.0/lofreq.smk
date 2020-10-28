@@ -20,7 +20,7 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "lofreq",
     version = "1.0",
-    subdirectories = ["inputs", "lofreq", "combined", "outputs"],
+    subdirectories = ["inputs", "lofreq", "combined", "filtered", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -88,10 +88,8 @@ rule _lofreq_combine_vcf:
         vcf_all_filtered = expand(CFG["dirs"]["lofreq"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/somatic_final_minus-dbsnp.{var_type}.vcf.gz",
                     var_type = ["indels", "snvs"])
     output:
-        vcf_all = CFG["dirs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final.combined.vcf.gz",
-        vcf_all_tbi = CFG["dirs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final.combined.vcf.gz.tbi",
-        vcf_all_filtered = CFG["dirs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.combined.vcf.gz",
-        vcf_all_filtered_tbi = CFG["dirs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.combined.vcf.gz.tbi"
+        vcf_all = temp(CFG["dirs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final.combined.vcf.gz"),
+        vcf_all_filtered = temp(CFG["dirs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.combined.vcf.gz"),
     resources:
         **CFG["resources"]["bcftools_sort"]
     conda:
@@ -105,24 +103,45 @@ rule _lofreq_combine_vcf:
                 op.as_one_line("""
         bcftools concat -a {input.vcf_all} |
         bcftools sort --max-mem {resources.mem_mb}M -Oz -o {output.vcf_all}
-        > {log.stdout_all} 2> {log.stderr_all} &&
-        tabix -p vcf {output.vcf_all} >> {log.stdout_all} 2>> {log.stderr_all}
+        > {log.stdout_all} 2> {log.stderr_all}
             &&
         bcftools concat -a {input.vcf_all_filtered} |
         bcftools sort --max-mem {resources.mem_mb}M -Oz -o {output.vcf_all_filtered}
-        > {log.stdout_all_filtered} 2> {log.stderr_all_filtered} &&
-        tabix -p vcf {output.vcf_all_filtered} >> {log.stdout_all_filtered} 2>> {log.stderr_all_filtered}
+        > {log.stdout_all_filtered} 2> {log.stderr_all_filtered}
         """)
 
+
+rule _lofreq_filter_vcf:
+    input:
+        vcf_all = rules._lofreq_combine_vcf.output.vcf_all,
+        vcf_all_filtered = rules._lofreq_combine_vcf.output.vcf_all_filtered,
+        lofreq_filter = CFG["inputs"]["lofreq_filter"]
+    output:
+        vcf_all_clean = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final.combined.filtered.vcf.gz",
+        vcf_all_filtered_clean = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.combined.filtered.vcf.gz",
+        vcf_all_clean_tbi = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final.combined.filtered.vcf.gz.tbi",
+        vcf_all_filtered_clean_tbi = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.combined.filtered.vcf.gz.tbi"
+    resources:
+        **CFG["resources"]["bcftools_sort"]
+    conda:
+        CFG["conda_envs"]["bcftools"]
+    shell:
+        op.as_one_line("""
+        bash {input.lofreq_filter} {input.vcf_all} | bgzip > {output.vcf_all_clean}
+          && tabix -p vcf {output.vcf_all_clean}
+              &&
+        bash {input.lofreq_filter} {input.vcf_all_filtered} | bgzip > {output.vcf_all_filtered_clean}
+          && tabix -p vcf {output.vcf_all_filtered_clean}
+        """)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _lofreq_output_vcf:
     input:
-        vcf_all = rules._lofreq_combine_vcf.output.vcf_all,
-        vcf_all_filtered = rules._lofreq_combine_vcf.output.vcf_all_filtered
+        vcf_all = rules._lofreq_filter_vcf.output.vcf_all_clean,
+        vcf_all_filtered = rules._lofreq_filter_vcf.output.vcf_all_filtered_clean
     output:
-        vcf_all = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.combined.vcf.gz",
-        vcf_all_filtered = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_minus-dbsnp.combined.vcf.gz"
+        vcf_all = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}.snvs.vcf.gz",
+        vcf_all_filtered = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_minus-dbsnp.{tool}.snvs.vcf.gz"
     run:
         op.relative_symlink(input.vcf_all, output.vcf_all)
         op.relative_symlink(input.vcf_all + ".tbi", output.vcf_all + ".tbi")
@@ -143,7 +162,8 @@ rule _lofreq_all:
             genome_build=CFG["runs"]["tumour_genome_build"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            pair_status=CFG["runs"]["pair_status"],
+            tool="lofreq")
 
 
 ##### CLEANUP #####
