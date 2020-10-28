@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # This script will filter out the non-standard chromosomes and non-ACTG characters from
-# vcf files produced by lofreq. It accepts .qz-compressed files, and outputs .gz files as well.
+# vcf files produced by lofreq. It accepts .qz-compressed files.
 # Usage: 
 #   lofreq_filter.sh input.vcf.gz | gzip > output.vcf.gz
 
