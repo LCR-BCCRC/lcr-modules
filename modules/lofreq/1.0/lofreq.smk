@@ -140,8 +140,8 @@ rule _lofreq_output_vcf:
         vcf_all = rules._lofreq_filter_vcf.output.vcf_all_clean,
         vcf_all_filtered = rules._lofreq_filter_vcf.output.vcf_all_filtered_clean
     output:
-        vcf_all = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}.snvs.vcf.gz",
-        vcf_all_filtered = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_minus-dbsnp.{tool}.snvs.vcf.gz"
+        vcf_all = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz",
+        vcf_all_filtered = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_minus-dbsnp.lofreq.snvs.vcf.gz"
     run:
         op.relative_symlink(input.vcf_all, output.vcf_all)
         op.relative_symlink(input.vcf_all + ".tbi", output.vcf_all + ".tbi")
@@ -162,8 +162,7 @@ rule _lofreq_all:
             genome_build=CFG["runs"]["tumour_genome_build"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"],
-            tool=[CFG["tool"]]*len(CFG["runs"]))
+            pair_status=CFG["runs"]["pair_status"])
 
 
 ##### CLEANUP #####
