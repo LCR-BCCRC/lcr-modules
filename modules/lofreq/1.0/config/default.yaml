@@ -8,6 +8,8 @@ lcr-modules:
             sample_bai: "__UPDATE__"
             lofreq_filter: "{MODSDIR}/src/bash/lofreq_filter.sh"
 
+        tool: "lofreq" # included into the naming of output files, cand be updated to contain the module version
+
         scratch_subdirectories: []
 
         options:

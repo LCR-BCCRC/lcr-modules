@@ -163,7 +163,7 @@ rule _lofreq_all:
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
             pair_status=CFG["runs"]["pair_status"],
-            tool="lofreq")
+            tool=[CFG["tool"]]*len(CFG["runs"]))
 
 
 ##### CLEANUP #####
