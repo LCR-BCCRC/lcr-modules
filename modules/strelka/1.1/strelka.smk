@@ -31,7 +31,7 @@ localrules:
     _strelka_index_bed,
     _strelka_configure_paired,
     _strelka_configure_unpaired,
-    _strelka_filter,
+    _strelka_filter_combine,
     _strelka_output_filtered_vcf,
     _strelka_all,
 
@@ -259,8 +259,8 @@ rule _strelka_output_filtered_vcf:
     input:
         vcf = _strelka_get_output
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_combined.passed.vcf.gz",
-        vcf_tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_combined.passed.vcf.gz.tbi"
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz",
+        vcf_tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz.tbi"
     run:
         op.relative_symlink(input.vcf, output.vcf)
         op.relative_symlink(str(input.vcf) + ".tbi", output.vcf_tbi)
