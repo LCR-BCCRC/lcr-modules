@@ -22,3 +22,4 @@ This release was authored by Laura Hilton.
 
 - Included the `utils/2.0/utils.smk` module by default. 
 - Resource unpacking is included for flexibility in specifying resource requirements. 
+- Optional job grouping is included in the snakefile `bwa_mem_grouped.smk`. This enables rapid temp fastq deletion when used in conjunction with the `bam2fastq/1.2/bam2fastq_grouped.smk` module.
