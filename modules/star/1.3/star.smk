@@ -60,7 +60,6 @@ rule _star_input_fastq:
 # Function to retrieve read length from sample table
 def get_overhang(wildcards,build = False):
     tbl = config["lcr-modules"]["star"]["samples"]
-    # read_length = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["read_length"].values()[0]
     read_length = tbl.loc[(tbl.sample_id==wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type), 'read_length'].values[0]
     return(read_length - 1)
 
