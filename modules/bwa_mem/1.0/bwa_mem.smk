@@ -32,6 +32,12 @@ localrules:
     _bwa_mem_output_bam,
     _bwa_mem_all,
 
+include: "../../utils/2.0/utils.smk"
+
+sample_ids = list(CFG['samples']['sample_id'])
+
+wildcard_constraints: 
+    sample_id = "|".join(sample_ids)
 
 ##### RULES #####
 
@@ -53,6 +59,8 @@ rule _bwa_mem_run:
     input:
         fastq_1 = str(rules._bwa_mem_input_fastq.output.fastq_1),
         fastq_2 = str(rules._bwa_mem_input_fastq.output.fastq_2),
+        fastq1_real = CFG["inputs"]["sample_fastq_1"],
+        fastq2_real = CFG["inputs"]["sample_fastq_2"],
         fasta = reference_files("genomes/{genome_build}/bwa_index/bwa-0.7.17/genome.fa")
     output:
         sam = pipe(CFG["dirs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}_out.sam")
