@@ -89,7 +89,8 @@ rule _bwa_mem_samtools:
     input:
         sam = str(rules._bwa_mem_run.output.sam)
     output:
-        bam = CFG["dirs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}_out.bam"
+        bam = CFG["dirs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}_out.bam", 
+        complete = touch(CFG["dirs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}_out.bam.complete")
     log:
         stderr = CFG["logs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}/samtools.stderr.log"
     params:
