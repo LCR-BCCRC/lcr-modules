@@ -394,8 +394,8 @@ rule _mutect2_output_vcf:
         vcf = str(rules._mutect2_filter_passed.output.vcf),
         tbi = str(rules._mutect2_filter_passed.output.tbi)
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.passed.vcf.gz",
-        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.passed.vcf.gz.tbi"
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.mutect2.combined.vcf.gz",
+        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.mutect2.combined.vcf.gz.tbi"
     run:
         op.relative_symlink(input.vcf, output.vcf)
         op.relative_symlink(input.tbi, output.tbi)
