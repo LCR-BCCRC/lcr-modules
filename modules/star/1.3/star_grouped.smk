@@ -53,6 +53,8 @@ rule _star_input_fastq:
     output:
         fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R1.fastq.gz",
         fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R2.fastq.gz"
+    group: 
+        CFG["group"]["star"]
     run:
         op.relative_symlink(input.fastq_1, output.fastq_1)
         op.relative_symlink(input.fastq_2, output.fastq_2)
@@ -102,6 +104,8 @@ rule _star_run:
         CFG["threads"]["star"]
     resources:
         **CFG["resources"]["star"]
+    group: 
+        CFG["group"]["star"]
     shell:
         op.as_one_line("""
         STAR {params.opts} --readFilesIn {input.fastq_1} {input.fastq_2} --genomeDir {input.index} 

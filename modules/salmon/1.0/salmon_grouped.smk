@@ -41,6 +41,8 @@ rule _salmon_input_fastq:
     output:
         fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.read1.fastq.gz",
         fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.read2.fastq.gz"
+    group: 
+        CFG["group"]["quant"]
     run:
         op.relative_symlink(input.fastq_1, output.fastq_1)
         op.relative_symlink(input.fastq_2, output.fastq_2)
@@ -67,6 +69,8 @@ rule _salmon_quant:
         CFG["threads"]["quant"]
     resources:
         **CFG["resources"]["quant"]
+    group: 
+        CFG["group"]["quant"]
     shell:
         op.as_one_line("""
         salmon quant -p {threads} 
