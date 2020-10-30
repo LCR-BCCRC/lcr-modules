@@ -1,0 +1,11 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+
+description: Required fields for each sample row in the samples data frame
+
+properties:
+    read_length:
+        type: integer
+        description: RNAseq read length (usually 50, 75, 100, or 150 bp)
+
+required:
+    - read_length
