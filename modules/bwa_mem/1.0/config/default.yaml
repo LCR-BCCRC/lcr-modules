@@ -23,9 +23,11 @@ lcr-modules:
             bwa_mem: 4
             samtools: 1
 
-        mem_mb:
-            bwa_mem: 5000
-            samtools: 5000
+        resources:
+            bwa_mem: 
+                mem_mb: 5000
+            samtools: 
+                mem_mb: 5000
 
         pairing_config:
             genome:

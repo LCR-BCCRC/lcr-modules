@@ -73,7 +73,7 @@ rule _bwa_mem_run:
     threads:
         CFG["threads"]["bwa_mem"]
     resources:
-        mem_mb = CFG["mem_mb"]["bwa_mem"]
+        **CFG["resources"]["bwa_mem"]
     shell:
         op.as_one_line("""
         bwa mem -t {threads} 
@@ -99,7 +99,7 @@ rule _bwa_mem_samtools:
     threads:
         CFG["threads"]["samtools"]
     resources:
-        mem_mb = CFG["mem_mb"]["samtools"]
+        **CFG["resources"]["samtools"]
     shell:
         op.as_one_line("""
         samtools view {params.opts}
