@@ -22,13 +22,9 @@ properties:
     genome_build:
         type: string
         description: Reference genome build (e.g., grch37, hg38)
-    read_length: 
-        type: integer
-        description: RNAseq read length (e.g. 50, 75, 100, 150)
 
 required:
     - sample_id
     - patient_id
     - tissue_status
     - seq_type
-    - read_length
