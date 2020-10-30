@@ -2,36 +2,34 @@ lcr-modules:
     
     starfish:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_vcf: "__UPDATE__"
+            sample_vcf: ["__UPDATE__","__UPDATE__"]  
+            #The current implementation of this tool only works for intersecting the output of two two variant callers. 
+            #It should be generalized eventually using excellent suggestions from Bruno
+            sample_tool: ["lofreq","strelka"]
+            starfish_script: "src/python/starfish.py"
 
         scratch_subdirectories: []
 
-        options:
-            step_1: ""
-            step_2: ""
-
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            
+            starfish: "{MODSDIR}/envs/starfish.yaml"
+            bedops: "{MODSDIR}/envs/bedops-2.4.39.yaml"
+
         threads:
-            step_1: 4
+            starfish: 4
+            vcf_to_bed: 4
 
         mem_mb:
-            step_1: 2000
+            starfish: 10000
+            vcf_to_bed: 10000
 
         pairing_config:
             genome:
-                run_paired_tumours: False
-                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: True
             capture:
-                run_paired_tumours: False
-                run_unpaired_tumours_with: "no_normal"
-                run_paired_tumours_as_unpaired: True
-            mrna:
-                run_paired_tumours: False
-                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: True

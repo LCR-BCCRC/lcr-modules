@@ -1,14 +1,7 @@
 # Changelog
 
-All notable changes to the `starfish` module will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [1.0] - 2020-10-24
+## [1.0] - 2020-10-30
 
 This release was authored by Ryan Morin.
-
-<!-- TODO: Explain each important module design decision below. -->
-
-- No module design decisions explained here yet.
+I am using a modified Starfish Python script because the one in github was buggy. This tool is packaged with the modified version. Ideally we will shift to the up to date version eventually to avoid this. This version is rough but meets the needs of the developer. 
+The conversion of VCFs to bed and merging of indels is tailored to the goal of running the Mutect module on candidate indels from Strelka while only running on the SNVs commont to LoFreq and Strelka.
