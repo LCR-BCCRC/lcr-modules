@@ -9,6 +9,7 @@ lcr-modules:
             #It should be generalized eventually using excellent suggestions from Bruno
             sample_tool: ["lofreq","strelka"]
             starfish_script: "src/python/starfish.py"
+            reference: "__UPDATE__" # The RTG Tools SDF reference directory for the genome build used (created with the rtg format command)
 
         scratch_subdirectories: []
 

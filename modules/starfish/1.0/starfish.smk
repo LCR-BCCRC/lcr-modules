@@ -57,17 +57,11 @@ rule _starfish_input_vcf:
         op.relative_symlink(input.vcf1 + ".tbi" , output.vcf1 + ".tbi"),
         op.relative_symlink(input.vcf2 + ".tbi" , output.vcf2 + ".tbi")
 
-#example usage
-# ./src/python/starfish.py --sdf ./hg38_no_alt.sdf -O ./starfish_test8 --names Strelka Lofreq Mutect \
-# --sample ALT --squash-ploidy --vennout ./strelka_lofreq_mutect_unmatched.pdf  \
-# -V BLGSP-71-17-00232-01B-13E.STRELKA.vcf.gz BLGSP-71-17-00232-01B-13E.LOFREQ.FIX.vcf.gz \
-# BLGSP-71-17-00232-01B-13E.MUTECT.vcf.gz
-
 rule _run_starfish:
     input:
         vcf1 = str(rules._starfish_input_vcf.output.vcf1),
         vcf2 = str(rules._starfish_input_vcf.output.vcf2),
-        reference = "ref/lcr-modules-references/genomes/{genome_build}/starfish_sdf/",
+        reference = CFG["inputs"]["reference"],
         starfish_script = CFG["inputs"]["starfish_script"]
     output:
         venn = run_starfish_base + "venn.pdf",
