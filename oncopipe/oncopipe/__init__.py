@@ -164,7 +164,7 @@ def set_value(value, *keys):
 # UTILITIES
 
 
-def relative_symlink(src, dest, overwrite=True):
+def relative_symlink(src, dest, overwrite=True, force_relative=False):
     """Creates a relative symlink from any working directory.
 
     Parameters
@@ -177,6 +177,8 @@ def relative_symlink(src, dest, overwrite=True):
         to the source file name (unless directory).
     overwrite : boolean
         Whether to overwrite the destination file if it exists.
+    force_relative: boolean
+        Whether to force relative symlinks even if the source file path is absolute. 
     """
 
     # Coerce length-1 NamedList instances to strings
@@ -221,8 +223,7 @@ def relative_symlink(src, dest, overwrite=True):
     )
 
     # Make `src` relative to destination parent directory
-    if not os.path.isabs(src):
-        dest_dir = os.path.realpath(dest_dir)
+    if not os.path.isabs(src) or force_relative:
         src = os.path.relpath(src, dest_dir)
     os.symlink(src, dest)
 
