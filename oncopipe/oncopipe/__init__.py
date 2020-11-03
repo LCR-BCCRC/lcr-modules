@@ -178,7 +178,7 @@ def relative_symlink(src, dest, overwrite=True, force_relative=False):
     overwrite : boolean
         Whether to overwrite the destination file if it exists.
     force_relative : boolean
-        Whether to force relative symlinks. 
+        Whether to force relative symlinks if the source path is absolute. 
     """
 
     # Coerce length-1 NamedList instances to strings
