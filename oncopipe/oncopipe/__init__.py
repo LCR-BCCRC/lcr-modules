@@ -163,24 +163,7 @@ def set_value(value, *keys):
 
 # UTILITIES
 
-
-def relative_symlink(src, dest, overwrite=True, force_relative=False):
-    """Creates a relative symlink from any working directory.
-
-    Parameters
-    ----------
-    src : str
-        The source file or directory path.
-    dest : str
-        The destination file path. This can also be a destination
-        directory, and the destination symlink name will be identical
-        to the source file name (unless directory).
-    overwrite : boolean
-        Whether to overwrite the destination file if it exists.
-    force_relative: boolean
-        Whether to force relative symlinks even if the source file path is absolute. 
-    """
-
+def prepare_symlinks(src, dest):
     # Coerce length-1 NamedList instances to strings
     def coerce_namedlist_to_string(obj):
         if isinstance(obj, smk.io.Namedlist) and len(obj) == 1:
@@ -222,9 +205,52 @@ def relative_symlink(src, dest, overwrite=True, force_relative=False):
         f"    Attempted: {dest} -> {os.path.realpath(src)}"
     )
 
-    # Make `src` relative to destination parent directory
-    if not os.path.isabs(src) or force_relative:
-        src = os.path.relpath(src, dest_dir)
+    return [src, dest]
+
+def absolute_symlink(src, dest, overwrite=True): 
+    """Creates an absolute symlink from any working directory.
+
+    Parameters
+    ----------
+    src : str
+        The source file or directory path.
+    dest : str
+        The destination file path. This can also be a destination
+        directory, and the destination symlink name will be identical
+        to the source file name (unless directory).
+    overwrite : boolean
+        Whether to overwrite the destination file if it exists.
+    """
+    # Prepare source and destination file paths 
+    src, dest = prepare_symlinks(src, dest)
+    # Retrieve the absolute file path for the source file
+    src = os.path.abspath(src)
+    # Symlink the source file to the destination
+    os.symlink(src, dest)
+
+def relative_symlink(src, dest, overwrite=True):
+    """Creates a relative symlink from any working directory.
+
+    Parameters
+    ----------
+    src : str
+        The source file or directory path.
+    dest : str
+        The destination file path. This can also be a destination
+        directory, and the destination symlink name will be identical
+        to the source file name (unless directory).
+    overwrite : boolean
+        Whether to overwrite the destination file if it exists.
+    """
+    # Prepare source and destination file paths 
+    src, dest = prepare_symlinks(src, dest)
+    # Retrieve the relative file path for the source file
+    print(dest)
+    dest_dir = os.path.split(dest)[0]
+    print(dest_dir)
+    print(src)
+    src = os.path.relpath(src, dest_dir)
+    # Symlink the source file to the destination
     os.symlink(src, dest)
 
 
