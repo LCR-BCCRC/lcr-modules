@@ -73,6 +73,8 @@ rule _lofreq_run:
         **CFG["resources"]["lofreq"]
     shell:
         op.as_one_line("""
+        if [ ! -e {output.vcf_snvs_filtered} ] && [ -e {params.rm_files} ]; then rm $(dirname {output.vcf_snvs_all})/*; fi
+          &&
         lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
         -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} {params.regions} 
         > {log.stdout} 2> {log.stderr}

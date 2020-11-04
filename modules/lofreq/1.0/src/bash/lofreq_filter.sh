@@ -9,4 +9,5 @@ INPUT_FILE="$1"
 
 zcat "${INPUT_FILE}" \
 	| awk '($4=="A" || $4 == "C" || $4=="T" || $4=="G" || /\#/)' \
-	| perl -ne 'print if /^#|^(chr)*[\dX]+\s.+/'
+	| perl -ne 'print if /^#|^(chr)*[\dX]+\s.+/' \
+        | perl -ne 's/AF=/VAF=/g;s/ID=AF/ID=VAF/;print;'
