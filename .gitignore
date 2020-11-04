@@ -33,7 +33,7 @@ MANIFEST
 .snakemake/
 /demo/results/
 /demo/reference
-/demo/scratch
+/demo/scratch/
 /demo/data/*bam
 
 
@@ -43,3 +43,4 @@ MANIFEST
 # Ignore sphinx builds
 /docs/build
 /docs/source/_build
+demo/run_clc.sh

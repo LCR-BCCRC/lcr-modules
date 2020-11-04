@@ -1,0 +1,29 @@
+name: test-sambamba
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1
+  - _openmp_mutex=4.5
+  - bzip2=1.0.8
+  - ca-certificates=2020.4.5.1
+  - curl=7.69.1
+  - htslib=1.9
+  - krb5=1.17.1
+  - ldc=1.20.0
+  - libcurl=7.69.1
+  - libdeflate=1.5
+  - libedit=3.1.20170329
+  - libgcc-ng=9.2.0
+  - libgomp=9.2.0
+  - libssh2=1.8.2
+  - libstdcxx-ng=9.2.0
+  - ncurses=6.1
+  - openssl=1.1.1g
+  - sambamba=0.7.1
+  - tk=8.6.10
+  - xz=5.2.5
+  - zlib=1.2.11
+prefix: /home/bgrande/miniconda3/envs/test-sambamba
+

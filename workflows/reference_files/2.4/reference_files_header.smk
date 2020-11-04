@@ -18,11 +18,14 @@ import oncopipe as op
 localrules: download_genome_fasta,
             download_main_chromosomes, 
             download_gencode_annotation,
+            download_blacklist, 
             hardlink_download, 
             update_contig_names,
             get_genome_fasta_download, 
             index_genome_fasta,
             get_main_chromosomes_download, 
+            get_gencode_download, 
+            create_star_index, 
             get_gencode_download,
             download_af_only_gnomad_vcf
 
@@ -74,6 +77,7 @@ wildcard_constraints:
     star_version = TOOL_VERSIONS["star"],
     gencode_release = "|".join(config["wildcard_values"]["gencode_release"]),
     dbsnp_build = "|".join(config["wildcard_values"]["dbsnp_build"]),
+    rm_version = "|".join(config["wildcard_values"]["rm_version"])
 
 
 ##### CHROMOSOME MAPPINGS #####
@@ -168,6 +172,33 @@ rule download_gencode_annotation:
         urllib.request.urlretrieve(url, output.gtf + ".gz")
         shell("gunzip {output.gtf}.gz")
 
+rule download_blacklist:
+    output: 
+        bed = "downloads/encode_blacklist/blacklist.encode.{version}.bed"
+    params:
+        file = lambda w: {"grch37": "ENCFF001TDO", "grch38": "ENCFF356LFX"}[w.version], 
+        provider = "ucsc"
+    wildcard_constraints: 
+        version = "grch37|grch38"
+    shell: 
+        op.as_one_line("""
+        wget -qO- https://www.encodeproject.org/files/{params.file}/@@download/{params.file}.bed.gz |
+        gzip -dc > {output.bed}
+        """)
+
+rule download_repeatmasker: 
+    output: 
+        bed = "downloads/repeatmasker/repeatmasker.{version}.bed"
+    params: 
+        provider = "ucsc", 
+        version = lambda w: {"grch37": "hg19", "grch38": "hg38"}[w.version],
+    conda: CONDA_ENVS["bedops"]
+    shell: 
+        op.as_one_line("""
+        wget -qO- http://www.repeatmasker.org/genomes/{params.version}/RepeatMasker-rm405-db20140131/{params.version}.fa.out.gz | 
+        gzip -dc | rmsk2bed > {output.bed}
+        """)
+
 
 rule download_dbsnp_vcf:
     output:
@@ -195,19 +226,78 @@ rule download_af_only_gnomad_vcf:
         "downloads/gnomad/af-only-gnomad.{version}.vcf.log"
     params:
         provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
-        file = lambda w: {"grch37": "raw.sites.b37", "grch38": "hg38"}[w.version]
-    conda: CONDA_ENVS["coreutils"]
+        file = lambda w: {
+            "grch37": "gs://gatk-best-practices/somatic-b37/af-only-gnomad.raw.sites.vcf", 
+            "grch38": "gs://gatk-best-practices/somatic-hg38/af-only-gnomad.hg38.vcf.gz"
+        }[w.version]
+    conda: CONDA_ENVS["gsutil"]
     shell:
         op.as_one_line("""
-        curl -s ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/Mutect2/af-only-gnomad.{params.file}.vcf.gz 2> {log}
+        if [[ {params.file} == *".gz" ]]; then 
+            gsutil cp {params.file} - 2> {log}
+                |
+            gzip -dc 
+                |
+            awk '{{FS=OFS="\t"}} {{ 
+                if ($0 ~ /^##INFO/ && !($0 ~ /ID=AC,/ || $0 ~ /ID=AF,/)) {{ next }} 
+                else {{ print }}
+            }}'
+                > {output.vcf} 2>> {log}; 
+        else
+            gsutil cp {params.file} - 2> {log}
+                |
+            awk '{{FS=OFS="\t"}} {{ 
+                if ($0 ~ /^##INFO/ && !($0 ~ /ID=AC,/ || $0 ~ /ID=AF,/)) {{ next }} 
+                else {{ print }}
+            }}'
+                > {output.vcf} 2>> {log}; 
+        fi
+        """)
+
+rule download_mutect2_pon:
+    output:
+        vcf = "downloads/mutect2/mutect2_pon.{version}.vcf"
+    log:
+        "downloads/mutect2/mutect2_pon.{version}.vcf.log"
+    params:
+        provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
+        file = lambda w: {
+            "grch37": "gs://gatk-best-practices/somatic-b37/Mutect2-WGS-panel-b37.vcf", 
+            "grch38": "gs://gatk-best-practices/somatic-hg38/1000g_pon.hg38.vcf.gz"
+        }[w.version]
+    conda: CONDA_ENVS["gsutil"]
+    shell:
+        op.as_one_line("""
+        if [[ {params.file} == *".gz" ]]; then 
+            gsutil cp {params.file} - 2> {log}
             |
-        gzip -dc 
+            gzip -dc > {output.vcf}; 
+        else
+            gsutil cp {params.file} {output.vcf} 2> {log}; 
+        fi
+        """)
+
+rule download_mutect2_small_exac:
+    output:
+        vcf = "downloads/mutect2/mutect2_small_exac.{version}.vcf"
+    log:
+        "downloads/mutect2/mutect2_small_exac.{version}.vcf.log"
+    params:
+        provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
+        file = lambda w: {
+            "grch37": "gs://gatk-best-practices/somatic-b37/small_exac_common_3.vcf", 
+            "grch38": "gs://gatk-best-practices/somatic-hg38/small_exac_common_3.hg38.vcf.gz"
+        }[w.version]
+    conda: CONDA_ENVS["gsutil"]
+    shell:
+        op.as_one_line("""
+        if [[ {params.file} == *".gz" ]]; then 
+            gsutil cp {params.file} - 2> {log}
             |
-        awk '{{FS=OFS="\t"}} {{ 
-            if ($0 ~ /^##INFO/ && !($0 ~ /ID=AC,/ || $0 ~ /ID=AF,/)) {{ next }} 
-            else {{ print }}
-         }}'
-            > {output.vcf} 2>> {log}
+            gzip -dc > {output.vcf}; 
+        else
+            gsutil cp {params.file} {output.vcf} 2> {log}; 
+        fi
         """)
 
 

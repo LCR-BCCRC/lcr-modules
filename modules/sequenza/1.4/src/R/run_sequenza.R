@@ -9,7 +9,7 @@
   }
 # Install copynumber package supporting hg38 genome build
   if (is.null(packageDescription("copynumber")$GithubUsername)) {
-    remotes::install_github("ShixiangWang/copynumber", dependencies = FALSE)
+    remotes::install_github("ShixiangWang/copynumber", dependencies = TRUE)
   }
 
 library(sequenza)
