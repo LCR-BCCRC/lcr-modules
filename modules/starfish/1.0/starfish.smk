@@ -92,10 +92,10 @@ rule _starfish_run:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _starfish_output_vcf:
     input:
-        tool1_only = str(rules._run_starfish.output.tool1_only),
-        tool2_only = str(rules._run_starfish.output.tool2_only),
-        intersect = str(rules._run_starfish.output.intersect),
-        starfish_venn = str(rules._run_starfish.output.venn)
+        tool1_only = str(rules._starfish_run.output.tool1_only),
+        tool2_only = str(rules._starfish_run.output.tool2_only),
+        intersect = str(rules._starfish_run.output.intersect),
+        starfish_venn = str(rules._starfish_run.output.venn)
     output:
         t1 = output_base_vcf + tool1 + "-unique.vcf.gz",
         t2 = output_base_vcf + tool2 + "-unique.vcf.gz",
@@ -112,9 +112,9 @@ rule _starfish_output_vcf:
 #This rule keeps all indels from both tools (i.e not just Strelka)
 rule _starfish_vcf_to_bed:
     input:
-        tool1_only = str(rules._run_starfish.output.tool1_only),
-        tool2_only = str(rules._run_starfish.output.tool2_only),
-        intersect = str(rules._run_starfish.output.intersect)
+        tool1_only = str(rules._starfish_run.output.tool1_only),
+        tool2_only = str(rules._starfish_run.output.tool2_only),
+        intersect = str(rules._starfish_run.output.intersect)
     output:
         tool1_only = vcf_to_bed_base + "A.bed",
         tool2_only = vcf_to_bed_base + "B.bed",
@@ -144,12 +144,12 @@ rule _starfish_vcf_to_bed:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _starfish_output_bed:
     input:
-        tool1_only = str(rules._vcf_to_bed.output.tool1_only),
-        tool2_only = str(rules._vcf_to_bed.output.tool2_only),
-        intersect = str(rules._vcf_to_bed.output.intersect),
-        tool1_only_indel_bed = str(rules._vcf_to_bed.output.tool1_only_indel_bed),
-        tool2_only_indel_bed = str(rules._vcf_to_bed.output.tool2_only_indel_bed),
-        intersect_plus_indels = str(rules._vcf_to_bed.output.intersect_plus_indels)
+        tool1_only = str(rules._starfish_vcf_to_bed.output.tool1_only),
+        tool2_only = str(rules._starfish_vcf_to_bed.output.tool2_only),
+        intersect = str(rules._starfish_vcf_to_bed.output.intersect),
+        tool1_only_indel_bed = str(rules._starfish_vcf_to_bed.output.tool1_only_indel_bed),
+        tool2_only_indel_bed = str(rules._starfish_vcf_to_bed.output.tool2_only_indel_bed),
+        intersect_plus_indels = str(rules._starfish_vcf_to_bed.output.intersect_plus_indels)
     output:
         tool1_only = output_base_bed + tool1 + "-unique.bed",
         tool2_only = output_base_bed + tool2 + "-unique.bed",
