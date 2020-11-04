@@ -57,7 +57,7 @@ rule _starfish_input_vcf:
         op.relative_symlink(input.vcf1 + ".tbi" , output.vcf1 + ".tbi"),
         op.relative_symlink(input.vcf2 + ".tbi" , output.vcf2 + ".tbi")
 
-rule _run_starfish:
+rule _starfish_run:
     input:
         vcf1 = str(rules._starfish_input_vcf.output.vcf1),
         vcf2 = str(rules._starfish_input_vcf.output.vcf2),
@@ -109,7 +109,8 @@ rule _starfish_output_vcf:
         op.relative_symlink(input.intersect + ".tbi", output.isec + ".tbi")
 
 #should generalize for all VCFs to avoid redundancy. Note the need for the Strelka indels so there are additional outputs here.
-rule _vcf_to_bed:
+#This rule keeps all indels from both tools (i.e not just Strelka)
+rule _starfish_vcf_to_bed:
     input:
         tool1_only = str(rules._run_starfish.output.tool1_only),
         tool2_only = str(rules._run_starfish.output.tool2_only),
@@ -132,11 +133,11 @@ rule _vcf_to_bed:
         mem_mb = CFG["mem_mb"]["vcf_to_bed"]
     shell:
         op.as_one_line("""
-        bcftools view {input.tool1_only} | vcf2bed | cut -f 1-3 > {output.tool1_only} 2>> {log.stderr};
-        bcftools view {input.tool2_only} | vcf2bed | cut -f 1-3 > {output.tool2_only} 2>> {log.stderr};
-        bcftools view {input.intersect} | vcf2bed | cut -f 1-3 > {output.intersect} 2>> {log.stderr};
-        bcftools view {input.tool1_only} | awk 'length($4)>1 || length($5)>1' | vcf2bed | cut -f 1-3 > {output.tool1_only_indel_bed} 2>> {log.stderr};
-        bcftools view {input.tool2_only} | awk 'length($4)>1 || length($5)>1' | vcf2bed | cut -f 1-3 > {output.tool2_only_indel_bed} 2>> {log.stderr};
+        zcat {input.tool1_only} | vcf2bed | cut -f 1-3 > {output.tool1_only} 2>> {log.stderr};
+        zcat {input.tool2_only} | vcf2bed | cut -f 1-3 > {output.tool2_only} 2>> {log.stderr};
+        zcat {input.intersect} | vcf2bed | cut -f 1-3 > {output.intersect} 2>> {log.stderr};
+        zcat {input.tool1_only} | awk 'length($4)>1 || length($5)>1' | vcf2bed | cut -f 1-3 > {output.tool1_only_indel_bed} 2>> {log.stderr};
+        zcat {input.tool2_only} | awk 'length($4)>1 || length($5)>1' | vcf2bed | cut -f 1-3 > {output.tool2_only_indel_bed} 2>> {log.stderr};
         cat {output.tool1_only_indel_bed} {output.tool2_only_indel_bed} {output.intersect} | sort -S {resources.mem_mb} -k1,1 -k2,2n > {output.intersect_plus_indels} 2>> {log.stderr};
         """)
 
