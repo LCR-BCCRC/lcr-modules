@@ -13,22 +13,44 @@ gemMappabilityFile = referenceFile
 outputDir = OUTDIR
 BedGraphOutput=FALSE
 breakPointThreshold = breakPointValue
+breakPointType = breakPointTypeBe
 coefficientOfVariation = coefVar
-contamination = numCon
+#contamination = numCon
 contaminationAdjustment = booCon
 degree = numDegree
 forceGCcontentNormalization = forceGCvalue
+intercept = interPoly
 minCNAlength = minCNAvalue
+minMappabilityPerWindow = minMapPerWindow
 minimalSubclonePresence = minimumSubclonePresenceValue
 noisyData = booNoise
+printNA = FALSE
 ploidy = ploidyInput
-step = stepValue
+#step = stepValue
 telocentromeric = teloValue
-window = windowSize
+uniqueMatch = uniqBoo
+#window = windowSize
 
 
 [sample]
 
 mateFile = BAMFILE
-inputFormat = BAM
+inputFormat = pileup
 mateOrientation = FR
+
+
+[control]
+
+mateFile = CONTROLFILE
+inputFormat = pileup
+mateOrientation = FR
+
+
+[BAF]
+
+fastaFile = fastaPath
+shiftInQuality = phredQuality
+SNPfile = DBsnpFile
+minimalCoveragePerPosition = minCovPerPos
+minimumQualityPerPosition = minQualPerPos
+

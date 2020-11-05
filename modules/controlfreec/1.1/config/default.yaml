@@ -8,7 +8,7 @@ lcr-modules:
             sample_bai: "__UPDATE__"
 
 
-        scratch_subdirectories: []
+        scratch_subdirectories: ["mpileup"]
         
         conda_envs:
             controlfreec: "{MODSDIR}/envs/controlfreec.env.yaml"
@@ -17,22 +17,29 @@ lcr-modules:
         options:
             configFile: "{MODSDIR}/config/freec/config_WGS.txt"
             BedGraphOutput: FALSE
-            breakPointThreshold: 0.8 #use 0.6 for more segments to get more CNVs
+            breakPointThreshold: 0.6 #use 0.6 for more segments to get more CNVs
             breakPointType: 2
-            coefficientOfVariation: 0.05
+            coefficientOfVariation: 0.062
             contamination: 0 # a priori known value of tumor sample contamination by normals
-            contaminationAdjustment: FALSE
+            contaminationAdjustment: TRUE
             degree: '3\&4' #3&4 for WGS; 1 for WES
-            forceGCcontentNormalization: 0 #0 for WGS; 1 for WES
-            minCNAlength: 1 #1 for WGS; 3 for WES
+            forceGCcontentNormalization: 1 #0 for WGS; 1 for WES # 0 forces control-base normalization, 1 forces GC
+            intercept: 0 # 0 for control-based (paired) ; 1 for GC-content (unpaired)
+            minCNAlength: 8 #1 for WGS; 3 for WES
+            minimalCoveragePerPosition: 10 # default is 0
+            minMappabilityPerWindow: 0.9
+            minQualityPerPosition: 20
             minimalSubclonePresence: 20 #20 for WGS; 30 for WES
             maxThreads: 24
-            noisyData: FALSE #set TRUE for exomes to avoid false positives due to non-uniform capture
-            ploidy: 2,3,4 #will select the ploidy that explains the most CNAs
+            noisyData: TRUE #set TRUE for exomes to avoid false positives due to non-uniform capture
+            ploidy: 2 #will select the ploidy that explains the most CNAs
+            shiftInQuality: 0
             #sex: XX or XY
-            step: 10000 # only if window is specified; do not use for WES
+            step: 20000 # only if window is specified; do not use for WES
             telocentromeric: 50000
-            window: 50000
+            uniqueMatch: TRUE
+            window: 100000
+
 
         software:
             FREEC_sig: "{MODSDIR}/etc/scripts/assess_significance.R"
@@ -48,13 +55,15 @@ lcr-modules:
             freec2bed: 1
 
         mem_mb:
-            controlfreec_run: 8000
+            pileup: 48000
+            cat: 8000
+            controlfreec_run: 24000
             calc_sig: 1000
             plot: 1000
             freec2bed: 1000
         
         pairing_config:
             genome:
-                run_paired_tumours: False
-                run_unpaired_tumours_with: "no_normal"
-                run_paired_tumours_as_unpaired: True
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False

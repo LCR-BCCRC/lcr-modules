@@ -8,6 +8,7 @@ lcr-modules:
         unmatched_normal_ids:
             capture--grch37: "TCRBOA7-N-WEX"
 
+
     bam2fastq:
         inputs:
             sample_bam: "data/{sample_id}.bam"
@@ -107,3 +108,6 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
+        scratch_subdirectories: ["mpileup"]
+        unmatched_normal_ids:
+            genome--hg38: "BLGSP-71-23-00361-14A-01E"
