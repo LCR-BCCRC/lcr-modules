@@ -92,17 +92,23 @@ rule _vcf2maf_run:
         > {log.stdout} 2> {log.stderr}
         """)
 
+
+def get_chain(wildcards):
+    if "38" in str({wildcards.genome_build}):
+        return reference_files("genomes/{genome_build}/chains/hg38ToHg19.over.chain")
+    else:
+        return reference_files("genomes/{genome_build}/chains/hg19ToHg38.over.chain")
+
 rule _vcf2maf_crossmap:
     input:
         maf = rules._vcf2maf_run.output.maf,
-        convert_coord = CFG["inputs"]["convert_coord"]
+        convert_coord = CFG["inputs"]["convert_coord"],
+        chains = get_chain
     output:
         maf =  CFG["dirs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.converted.maf"
     log:
         stdout = CFG["logs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_crossmap.stdout.log",
         stderr = CFG["logs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_crossmap.stderr.log"
-    params:
-        chain = op.switch_on_wildcard("genome_build", CFG["switches"]["chains"])
     conda:
         CFG["conda_envs"]["crossmap"]
     threads:
@@ -113,7 +119,7 @@ rule _vcf2maf_crossmap:
         op.as_one_line("""
         {input.convert_coord}
         {input.maf}
-        {params.chain}
+        {input.chains}
         {output.maf}
         crossmap
         > {log.stdout} 2> {log.stderr}
