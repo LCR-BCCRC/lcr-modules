@@ -122,7 +122,7 @@ rule _vcf2maf_crossmap:
 
 rule _vcf2maf_output_maf:
     input:
-        maf = rules._vcf2maf_run.output.maf,
+        maf = str(rules._vcf2maf_run.output.maf),
         maf_converted = rules._vcf2maf_crossmap.output.maf
     output:
         maf = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_{base_name}.maf",
