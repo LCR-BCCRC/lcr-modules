@@ -5,6 +5,14 @@ All notable changes to the `lofreq` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0] - 2020-11-02
+
+This release is authorized by Kostia Dreval
+
+- It was found that if lofreq run is killed by any reasom midway through and restarted to continue on same samples, it is exiting with error refusing to overwrite the files of partially completed outputs. To prevent this from happening, this release features added conditional statement before launching the lofreq, that checks whether target outputs are present.
+- The filtering script was modified to replace the `AF` field in output vcf files with `VAF` to ensure consistency with GNOMAD.
+
+
 ## [1.0] - 2020-10-27
 
 This release is authorized by Kostia Dreval
