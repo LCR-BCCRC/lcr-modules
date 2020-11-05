@@ -191,7 +191,7 @@ def prepare_symlink(src, dest):
     # Or you are symlinking a directory to a specific location
     else:
         dest_dir, dest_file = os.path.split(dest)
-    os.makedirs(dest_dir, exist_ok=True)
+    os.makedirs(os.path.abspath(dest_dir), exist_ok=True)
     dest = os.path.join(dest_dir, dest_file)
     
     return src, dest
