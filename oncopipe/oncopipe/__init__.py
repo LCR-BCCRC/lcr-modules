@@ -194,7 +194,23 @@ def prepare_symlink(src, dest):
     os.makedirs(dest_dir, exist_ok=True)
     dest = os.path.join(dest_dir, dest_file)
     
-    return [src, dest]
+    return src, dest
+
+def compare_links(src, dest, overwrite):
+    # Check if the destination file exists and is a symlink
+    if os.path.lexists(dest) and os.path.islink(dest):
+        # If the destination link exists and has the same src, exit
+        if src == os.readlink(dest):
+            exit(0) 
+        elif overwrite:
+            os.remove(dest)
+    assert not os.path.exists(dest), (
+        "Symbolic link already exists but points elsewhere: \n"
+        f"    Current: {dest} -> {os.readlink(dest)} \n"
+        f"    Attempted: {dest} -> {src}"
+    )
+
+    
 
 def absolute_symlink(src, dest, overwrite=True): 
     """Creates an absolute symlink from any working directory.
@@ -212,24 +228,16 @@ def absolute_symlink(src, dest, overwrite=True):
     """
     # Prepare source and destination file paths 
     src, dest = prepare_symlink(src, dest)
-
-    # Handle destination file if it already exists
-    if os.path.lexists(dest) and os.path.islink(dest):
-        if os.path.realpath(src) == os.path.realpath(dest) and os.path.isabs(os.readlink(dest)):
-            return
-        elif overwrite:
-            os.remove(dest)
-    assert not os.path.exists(dest), (
-        "Symbolic link already exists but points elsewhere: \n"
-        f"    Current: {dest} -> {os.readlink(dest)} \n"
-        f"    Attempted: {dest} -> {src}"
-    )
-
     # Retrieve the absolute file path for the source file
     src = os.path.abspath(src)
 
+    # Check if destination file already exists and error if it does
+    compare_links(src, dest, overwrite)
+
     # Symlink the source file to the destination
     os.symlink(src, dest)
+
+    
 
 def relative_symlink(src, dest, overwrite=True):
     """Creates a relative symlink from any working directory.
@@ -253,19 +261,11 @@ def relative_symlink(src, dest, overwrite=True):
     src = os.path.relpath(src, dest_dir)
 
     # Handle destination file if it already exists
-    if os.path.lexists(dest) and os.path.islink(dest):
-        if os.path.realpath(src) == os.path.realpath(dest) and not os.path.isabs(os.readlink(dest)):
-            return
-        elif overwrite:
-            os.remove(dest)
-    assert not os.path.exists(dest), (
-        "Symbolic link already exists but points elsewhere: \n"
-        f"    Current: {dest} -> {os.readlink(dest)} \n"
-        f"    Attempted: {dest} -> {src}"
-    )
+    compare_links(src, dest, overwrite)
 
     # Symlink the source file to the destination
     os.symlink(src, dest)
+    
 
 
 def get_from_dict(dictionary, list_of_keys):
