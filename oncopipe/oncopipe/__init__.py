@@ -200,9 +200,7 @@ def compare_links(src, dest, overwrite):
     # Check if the destination file exists and is a symlink
     if os.path.lexists(dest) and os.path.islink(dest):
         # If the destination link exists and has the same src, exit
-        if src == os.readlink(dest):
-            exit(0) 
-        elif overwrite:
+        if src == os.readlink(dest) or overwrite:
             os.remove(dest)
     assert not os.path.exists(dest), (
         "Symbolic link already exists but points elsewhere: \n"
