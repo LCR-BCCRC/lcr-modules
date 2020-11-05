@@ -7,6 +7,7 @@ lcr-modules:
             # Available wildcards: {out_dir}, {seq_type}, {genome_build}, {tumour_id}, {normal_id}, {pair_status}, {vcf_name}, {base_name}
             vep_cache: "__UPDATE__" #example "ref/ensembl_vep_cache/"
             sample_vcf_gz: "__UPDATE__" #full path to your compressed vcfs from favourite variant caller (with wildcards. You must encapsulate everything unique to the variant caller naming scheme in {base_name})
+            convert_coord: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.sh"
         vcf_base_name: "__UPDATE__" #put the consistent portion of the file name here. For Strelka, this is "combined.passed"
         options:
             vcf2maf: "--filter-vcf 0 --vcf-tumor-id TUMOR --vcf-normal-id NORMAL --cache-version 86"
@@ -14,9 +15,16 @@ lcr-modules:
             #--species        Ensembl-friendly name of species (e.g. mus_musculus for mouse) [homo_sapiens]
             #--cache-version  Version of offline cache to use with VEP (e.g. 75, 84, 91) [Default: Installed version]
             species: "homo_sapiens"
+        switches:
+            chains:
+                # specify path to the chain files used for crossmap conversion
+                grch37: "__UPDATE__"
+                grch37d5: "__UPDATE__"
+                hg38: "__UPDATE__"
 
         conda_envs:
             vcf2maf: "{MODSDIR}/envs/vcf2maf-1.6.18.yaml"
+            crossmap: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.yaml"
             
         threads:
             vcf2maf: 12
