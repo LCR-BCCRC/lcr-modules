@@ -20,7 +20,7 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "vcf2maf",
     version = "1.1",
-    subdirectories = ["inputs","decompressed","vcf2maf","outputs"]
+    subdirectories = ["inputs","decompressed","vcf2maf","crossmap","outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -28,6 +28,7 @@ localrules:
     _vcf2maf_input_vcf,
     _vcf2maf_decompress_vcf,
     _vcf2maf_output_maf,
+    _vcf2maf_crossmap,
     _vcf2maf_all
 
 VERSION_MAP = {
@@ -91,18 +92,56 @@ rule _vcf2maf_run:
         > {log.stdout} 2> {log.stderr}
         """)
 
+
+def get_chain(wildcards):
+    if "38" in str({wildcards.genome_build}):
+        return reference_files("genomes/{genome_build}/chains/hg38ToHg19.over.chain")
+    else:
+        return reference_files("genomes/{genome_build}/chains/hg19ToHg38.over.chain")
+
+rule _vcf2maf_crossmap:
+    input:
+        maf = rules._vcf2maf_run.output.maf,
+        convert_coord = CFG["inputs"]["convert_coord"],
+        chains = get_chain
+    output:
+        maf =  CFG["dirs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.converted.maf"
+    log:
+        stdout = CFG["logs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_crossmap.stdout.log",
+        stderr = CFG["logs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_crossmap.stderr.log"
+    conda:
+        CFG["conda_envs"]["crossmap"]
+    threads:
+        CFG["threads"]["vcf2maf"]
+    resources:
+        mem_mb = CFG["mem_mb"]["vcf2maf"]
+    shell:
+        op.as_one_line("""
+        {input.convert_coord}
+        {input.maf}
+        {input.chains}
+        {output.maf}
+        crossmap
+        > {log.stdout} 2> {log.stderr}
+        """)
+
+
 rule _vcf2maf_output_maf:
     input:
-        maf = str(rules._vcf2maf_run.output.maf)
+        maf = str(rules._vcf2maf_run.output.maf),
+        maf_converted = rules._vcf2maf_crossmap.output.maf
     output:
-        maf = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_{base_name}.maf"
+        maf = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_{base_name}.maf",
+        maf_converted = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_{base_name}.converted.maf"
     run:
         op.relative_symlink(input.maf, output.maf)
+        op.relative_symlink(input.maf_converted, output.maf_converted)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _vcf2maf_all:
     input:
-        expand(str(rules._vcf2maf_output_maf.output.maf), zip,
+        expand([str(rules._vcf2maf_output_maf.output.maf),
+              str(rules._vcf2maf_output_maf.output.maf_converted)], zip,
             seq_type = CFG["runs"]["tumour_seq_type"],
             genome_build = CFG["runs"]["tumour_genome_build"],
             tumour_id = CFG["runs"]["tumour_sample_id"],
