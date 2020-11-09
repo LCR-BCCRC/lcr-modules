@@ -35,8 +35,8 @@ configfile: "../modules/gridss/1.0/config/default.yaml"
 configfile: "../modules/sequenza/1.4/config/default.yaml"
 configfile: "../modules/strelka/1.1/config/default.yaml"
 configfile: "../modules/bwa_mem/1.1/config/default.yaml"
-configfile: "../modules/liftover/1.0/config/default.yaml"
 configfile: "../modules/controlfreec/1.1/config/default.yaml"
+configfile: "../modules/lofreq/1.0/config/default.yaml"
 
 
 # Load project-specific config, which includes the shared 
@@ -67,6 +67,7 @@ include: "../modules/bwa_mem/1.1/bwa_mem.smk"
 include: "../modules/gridss/1.0/gridss.smk"
 include: "../modules/bam2fastq/1.2/bam2fastq.smk"
 include: "../modules/controlfreec/1.1/controlfreec.smk"
+include: "../modules/lofreq/1.0/lofreq.smk"
 
 
 
@@ -80,6 +81,7 @@ rule all:
         rules._star_all.input,
         rules._manta_all.input,
         rules._sequenza_all.input,
+        rules._lofreq_all.input,
         rules._strelka_all.input,
         rules._bwa_mem_all.input,
         rules._gridss_all.input,

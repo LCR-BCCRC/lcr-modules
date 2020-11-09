@@ -91,7 +91,7 @@ rule _mutect2_run_matched_unmatched:
         stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.mutect2_run.stdout.log",
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}.mutect2_run.stderr.log"
     resources:
-        **CFG["resources"]["mutect2_run_matched_unmatched"]
+        **CFG["resources"]["mutect2_run"]
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
         opts = CFG["options"]["mutect2_run"]
@@ -190,7 +190,8 @@ rule _mutect2_merge_vcfs:
         CFG["threads"]["mutect2_merge_vcfs"]
     resources:
         **CFG["resources"]["mutect2_merge_vcfs"]
-    params: lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    params: 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     shell:
         op.as_one_line("""
         bcftools concat --threads {threads} -a -O z {input.vcf} 2> {log.stderr}
@@ -394,8 +395,8 @@ rule _mutect2_output_vcf:
         vcf = str(rules._mutect2_filter_passed.output.vcf),
         tbi = str(rules._mutect2_filter_passed.output.tbi)
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.passed.vcf.gz",
-        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.passed.vcf.gz.tbi"
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.mutect2.combined.vcf.gz",
+        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.mutect2.combined.vcf.gz.tbi"
     run:
         op.relative_symlink(input.vcf, output.vcf)
         op.relative_symlink(input.tbi, output.tbi)

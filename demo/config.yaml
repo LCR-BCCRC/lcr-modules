@@ -30,7 +30,7 @@ lcr-modules:
         inputs:
             sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
             sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
-    
+
     vcf2maf:
         inputs:
             vep_cache: "reference/vep_caches/"
@@ -46,6 +46,18 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
+    
+    lofreq:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+            lofreq_filter: "{MODSDIR}/src/bash/lofreq_filter.sh"
+        switches:
+            # Intentionally running LoFreq without a BED file for simplicity
+            # And to avoid having to include a large BED file in the repo
+            regions_bed:
+                _default: ""
+                capture: ""
 
     gridss: 
         inputs: 
@@ -95,10 +107,3 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
-            
-    liftover:
-        tool: "battenberg"
-        inputs:
-            sample_seg: "data/{tool}/hg38/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
-
-

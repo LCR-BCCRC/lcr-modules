@@ -31,7 +31,7 @@ localrules:
     _strelka_index_bed,
     _strelka_configure_paired,
     _strelka_configure_unpaired,
-    _strelka_filter,
+    _strelka_filter_combine,
     _strelka_output_filtered_vcf,
     _strelka_all,
 
@@ -218,7 +218,7 @@ rule _strelka_run_paired:
 # Combine and filter for PASS variants
 rule _strelka_filter_combine:
     input:
-        vcf = expand(CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/{var_type}.vcf.gz", 
+        vcf = expand(CFG["dirs"]["strelka"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/results/variants/{var_type}.vcf.gz", 
                     var_type = ["somatic.indels", "somatic.snvs"])
     output:
         vcf = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined.passed.vcf.gz",
@@ -251,7 +251,7 @@ def _strelka_get_output(wildcards):
                     var_type = "variants"
         )
     else:
-        vcf = str(rules._strelka_filter_combine.output.combined)
+        vcf = str(rules._strelka_filter_combine.output.vcf)
     return vcf
 
 # Symlinks the final output files into the module results directory (under '99-outputs/'). Links will always use "combined" in the name (dropping odd naming convention used by Strelka in unpaired mode)
@@ -259,8 +259,8 @@ rule _strelka_output_filtered_vcf:
     input:
         vcf = _strelka_get_output
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_combined.passed.vcf.gz",
-        vcf_tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_combined.passed.vcf.gz.tbi"
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz",
+        vcf_tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz.tbi"
     run:
         op.relative_symlink(input.vcf, output.vcf)
         op.relative_symlink(str(input.vcf) + ".tbi", output.vcf_tbi)

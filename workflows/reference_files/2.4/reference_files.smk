@@ -83,6 +83,16 @@ rule create_star_index:
         """)
 
 
+rule get_liftover_chains:
+    input:
+        chains = rules.download_liftover_chains.output.chains
+    output:
+        chains = "genomes/{genome_build}/chains/{chain_version}.over.chain"
+    shell:
+        "ln -srf {input.chains} {output.chains}"
+
+
+
 ##### METADATA #####
 
 
