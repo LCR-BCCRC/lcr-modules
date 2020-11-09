@@ -16,8 +16,13 @@ lcr-modules:
         threads:
             bam2fastq: 4
 
-        mem_mb:
-            bam2fastq: 100000
+        resources:
+            bam2fastq: 
+                mem_mb: 100000
+                bam: 1
+
+        group: 
+            bam2fastq: "bam2fastq" # For efficient space management, change to match group parameter for downstream tools. 
 
         pairing_config:
             genome:

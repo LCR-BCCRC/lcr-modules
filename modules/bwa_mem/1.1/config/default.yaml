@@ -23,9 +23,14 @@ lcr-modules:
             bwa_mem: 4
             samtools: 1
 
-        mem_mb:
-            bwa_mem: 5000
-            samtools: 5000
+        resources:
+            bwa_mem: 
+                mem_mb: 5000
+            samtools: 
+                mem_mb: 5000
+        
+        group: 
+            bwa_mem: "bwa_mem" # Change to match bam2fastq group param for efficient temp fastq deletion. 
 
         pairing_config:
             genome:

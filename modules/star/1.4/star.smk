@@ -27,7 +27,7 @@ CFG = op.setup_module(
 )
 
 # Include `utils` module
-#include: "../../utils/1.0/utils.smk"
+include: "../../utils/2.0/utils.smk"
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -37,6 +37,10 @@ localrules:
     _star_output_bam,
     _star_all,
 
+sample_ids = list(CFG['samples']['sample_id'])
+
+wildcard_constraints: 
+    sample_id = "|".join(sample_ids)
 
 ##### RULES #####
 
@@ -48,10 +52,26 @@ rule _star_input_fastq:
         fastq_2 = CFG["inputs"]["sample_fastq_2"],
     output:
         fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R1.fastq.gz",
-        fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R2.fastq.gz",
+        fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R2.fastq.gz"
     run:
         op.relative_symlink(input.fastq_1, output.fastq_1)
         op.relative_symlink(input.fastq_2, output.fastq_2)
+
+# Function to retrieve read length from sample table
+def get_overhang(wildcards,build = False):
+    tbl = config["lcr-modules"]["star"]["samples"]
+    read_length = tbl.loc[(tbl.sample_id==wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type), 'read_length'].values[0]
+    return(read_length - 1)
+
+def get_index(wildcards, build=False): 
+    tbl = config["lcr-modules"]["star"]["samples"]
+    read_length = tbl.loc[(tbl.sample_id==wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type), 'read_length'].values[0]
+    overhang = (read_length - 1)
+    gencode_release = config["lcr-modules"]["star"]["reference_params"]["gencode_release"]
+    index = reference_files(expand("genomes/{{genome_build}}/star_index/star-2.7.3a/gencode-{release}/overhang-{overhang}",
+        release = gencode_release, overhang = overhang
+    ))
+    return(index)
 
 
 # Align reads using STAR (including soft-clipped chimeric reads)
@@ -59,27 +79,28 @@ rule _star_run:
     input:
         fastq_1 = str(rules._star_input_fastq.output.fastq_1),
         fastq_2 = str(rules._star_input_fastq.output.fastq_2),
-        index = reference_files("genomes/{{genome_build}}/star_index/star-2.7.3a/gencode-{}/overhang-{}".format(
-            CFG["reference_params"]["gencode_release"], CFG["reference_params"]["star_overhang"]
-        )),
+        fastq1_real = CFG["inputs"]["sample_fastq_1"], # Placeholders to prevent premature deletion of temp fastqs
+        fastq2_real = CFG["inputs"]["sample_fastq_2"],
+        index = get_index,
         gtf = reference_files("genomes/{{genome_build}}/annotations/gencode_annotation-{}.gtf".format(
             CFG["reference_params"]["gencode_release"]
         ))
     output:
-        bam = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/Aligned.out.bam"
+        bam = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/Aligned.out.bam", 
+        complete = touch(CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/alignment_complete")
     log:
         stdout = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/star.stdout.log",
         stderr = CFG["logs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/star.stderr.log"
     params:
         opts = CFG["options"]["star"],
         prefix = CFG["dirs"]["star"] + "{seq_type}--{genome_build}/{sample_id}/",
-        star_overhang = CFG["reference_params"]["star_overhang"]
+        star_overhang = get_overhang
     conda:
         CFG["conda_envs"]["star"]
     threads:
         CFG["threads"]["star"]
     resources:
-        mem_mb = CFG["mem_mb"]["star"]
+        **CFG["resources"]["star"]
     shell:
         op.as_one_line("""
         STAR {params.opts} --readFilesIn {input.fastq_1} {input.fastq_2} --genomeDir {input.index} 
