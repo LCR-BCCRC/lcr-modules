@@ -32,7 +32,7 @@ localrules:
     _bwa_mem_output_bam,
     _bwa_mem_all,
 
-include: "../../utils/2.0/utils.smk"
+# include: "../../utils/2.0/utils.smk"
 
 sample_ids = list(CFG['samples']['sample_id'])
 
