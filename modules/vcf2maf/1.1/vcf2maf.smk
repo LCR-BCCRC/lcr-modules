@@ -105,7 +105,7 @@ rule _vcf2maf_crossmap:
         convert_coord = CFG["inputs"]["convert_coord"],
         chains = get_chain
     output:
-        maf =  CFG["dirs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.converted"
+        dispatched =  CFG["dirs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.converted"
     log:
         stdout = CFG["logs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.crossmap.stdout.log",
         stderr = CFG["logs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.crossmap.stderr.log"
@@ -127,14 +127,14 @@ rule _vcf2maf_crossmap:
         {params.out_name}{params.chain}{params.file}
         crossmap
         > {log.stdout} 2> {log.stderr}
-        && touch {output.maf}
+        && touch {output.dispatched}
         """)
 
 
 rule _vcf2maf_output_maf:
     input:
         maf = str(rules._vcf2maf_run.output.maf),
-        maf_converted = str(rules._vcf2maf_crossmap.output.maf)
+        maf_converted = str(rules._vcf2maf_crossmap.output.dispatched)
     output:
         maf = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_{base_name}.maf"
     params:
