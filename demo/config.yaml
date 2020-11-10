@@ -77,7 +77,7 @@ lcr-modules:
     utils:
         inputs:
             bed: 
-                grch37: "/projects/dscott_prj/CCSRI_1500/exomes/ref/agilent/hg19/target_regions.nochr.bed" # make sure this corresponds with config["lcr-modules"]["picard_qc"]["inputs"]["intervals"]
+                grch37: "data/exome_bed/hg19/target_regions.nochr.bed" # make sure this corresponds with config["lcr-modules"]["picard_qc"]["inputs"]["intervals"]
                 # if testing on GSC, use this file: "/projects/dscott_prj/CCSRI_1500/exomes/ref/agilent/hg19/target_regions.nochr.bed"
         mem_mb:
             bam_sort: 48000
