@@ -303,10 +303,11 @@ rule download_mutect2_small_exac:
 
 rule download_liftover_chains:
     output:
-        chains = "downloads/chains/{genome_build}/{chain_version}.over.chain"
+        chains = "downloads/chains/{genome_build}/{chain_version}.{version}.over.chain"
     wildcard_constraints:
         chain_version = "hg19ToHg38|hg38ToHg19"
     params:
+        provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
         build = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19"
     shell:
         op.as_one_line("""

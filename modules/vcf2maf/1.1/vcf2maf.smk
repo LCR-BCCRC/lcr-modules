@@ -95,9 +95,9 @@ rule _vcf2maf_run:
 
 def get_chain(wildcards):
     if "38" in str({wildcards.genome_build}):
-        return reference_files("genomes/{genome_build}/chains/hg38ToHg19.over.chain")
+        return reference_files("genomes/{genome_build}/chains/grch38/hg38ToHg19.over.chain")
     else:
-        return reference_files("genomes/{genome_build}/chains/hg19ToHg38.over.chain")
+        return reference_files("genomes/{genome_build}/chains/grch37/hg19ToHg38.over.chain")
 
 rule _vcf2maf_crossmap:
     input:
@@ -105,43 +105,48 @@ rule _vcf2maf_crossmap:
         convert_coord = CFG["inputs"]["convert_coord"],
         chains = get_chain
     output:
-        maf =  CFG["dirs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.converted.maf"
+        dispatched =  CFG["dirs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.converted"
     log:
-        stdout = CFG["logs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_crossmap.stdout.log",
-        stderr = CFG["logs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_crossmap.stderr.log"
+        stdout = CFG["logs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.crossmap.stdout.log",
+        stderr = CFG["logs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.crossmap.stderr.log"
     conda:
         CFG["conda_envs"]["crossmap"]
     threads:
         CFG["threads"]["vcf2maf"]
     resources:
         mem_mb = CFG["mem_mb"]["vcf2maf"]
+    params:
+        out_name = CFG["dirs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.converted_",
+        chain = lambda w: "hg38ToHg19" if "38" in str({w.genome_build}) else "hg19ToHg38",
+        file = ".maf"
     shell:
         op.as_one_line("""
         {input.convert_coord}
         {input.maf}
         {input.chains}
-        {output.maf}
+        {params.out_name}{params.chain}{params.file}
         crossmap
         > {log.stdout} 2> {log.stderr}
+        && touch {output.dispatched}
         """)
 
 
 rule _vcf2maf_output_maf:
     input:
         maf = str(rules._vcf2maf_run.output.maf),
-        maf_converted = rules._vcf2maf_crossmap.output.maf
+        maf_converted = str(rules._vcf2maf_crossmap.output.dispatched)
     output:
-        maf = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_{base_name}.maf",
-        maf_converted = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_{base_name}.converted.maf"
+        maf = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_{base_name}.maf"
+    params:
+        chain = lambda w: "hg38ToHg19" if "38" in str({w.genome_build}) else "hg19ToHg38"
     run:
         op.relative_symlink(input.maf, output.maf)
-        op.relative_symlink(input.maf_converted, output.maf_converted)
+        op.relative_symlink((input.maf_converted+str("_")+str(params.chain)+str(".maf")), (output.maf[:-4]+str(".converted_")+str(params.chain)+str(".maf")))
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _vcf2maf_all:
     input:
-        expand([str(rules._vcf2maf_output_maf.output.maf),
-              str(rules._vcf2maf_output_maf.output.maf_converted)], zip,
+        expand(str(rules._vcf2maf_output_maf.output.maf), zip,
             seq_type = CFG["runs"]["tumour_seq_type"],
             genome_build = CFG["runs"]["tumour_genome_build"],
             tumour_id = CFG["runs"]["tumour_sample_id"],
