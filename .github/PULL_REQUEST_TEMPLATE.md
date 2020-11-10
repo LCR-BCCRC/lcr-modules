@@ -24,6 +24,8 @@
 
 - [ ] I updated the `default.yaml` configuration file to provide default values for each rule in the module snakefile.
 
+- [ ] I did not set any global wildcard constraints. Any/all wildcard constraints are set on a per-rule basis. 
+
 - [ ] I ensured that all symbolic links are relative and self-contained (_i.e._ do not point outside of the repository).
 
 - [ ] I replaced every value that should (or might need to) be updated in the default configuration file with `__UPDATE__`.

@@ -1,0 +1,61 @@
+lcr-modules:
+
+    star:
+
+        inputs:
+            # The inputs can be configured here or in the Snakefile
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            # If running the bam2fastq module with temp outputs, make sure 
+            # to point this module to the real outputs in 01-fastq, 
+            # not at the symlinks in 99-outputs. 
+            sample_fastq_1: "__UPDATE__"
+            sample_fastq_2: "__UPDATE__"
+
+        reference_params:
+            # The Gencode release to use for the transcript annotation
+            gencode_release: "33"
+
+        scratch_subdirectories: ["star", "sort_bam"]
+
+        options:
+            star:
+                --runMode alignReads
+                --twopassMode Basic 
+                --genomeLoad NoSharedMemory 
+                --readFilesCommand zcat 
+                --outSAMtype BAM Unsorted
+                --outSAMattrIHstart 0
+                --chimOutType WithinBAM SoftClip
+                --chimSegmentMin 20 
+            utils_bam_sort: ""
+            utils_bam_markdups: " --show-progress "
+            utils_bam_index: "-b"
+
+        conda_envs:
+            star: "{MODSDIR}/envs/star-2.7.3a.yaml"
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            sambamba: "{MODSDIR}/envs/sambamba-0.7.1.yaml"
+            
+        threads:
+            star: 12
+            utils_bam_sort: 12
+            utils_bam_markdups: 24
+            utils_bam_index: 6
+
+        resources:
+            star: 
+                mem_mb: 40000
+
+        mem_mb: # Required if using utils v1.0 module. 
+            utils_bam_sort: 24000
+            utils_bam_markdups: 16000
+            utils_bam_index: 4000
+
+        group: 
+            star: "star" # For efficient temporary fastq deletion, change to match group parameter for bam2fastq.
+
+        pairing_config:
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

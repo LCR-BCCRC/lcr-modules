@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Helena Winata.
 
-<!-- TODO: Explain each important module design decision below. -->
-
 - Need link to download rna fasta file, `GRCh38_latest_rna.fna`, to generate salmon index
+
+## [1.1] - 2020-10-30
+This release was authored by Laura Hilton
+
+- Optional job grouping is included in the snakefile `salmon_grouped.smk`. This enables rapid temp fastq deletion when used in conjunction with the `bam2fastq/1.2/bam2fastq_grouped.smk` module. 
+- Utilizes resource unpacking for flexibility in specifying resource requirements. 
