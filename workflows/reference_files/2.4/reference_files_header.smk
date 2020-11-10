@@ -17,13 +17,15 @@ import oncopipe as op
 ##### CONFIG #####
 localrules: download_genome_fasta,
             download_main_chromosomes, 
+            download_main_chromosomes_withY, 
             download_gencode_annotation,
             download_blacklist, 
             hardlink_download, 
             update_contig_names,
             get_genome_fasta_download, 
             index_genome_fasta,
-            get_main_chromosomes_download, 
+            get_main_chromosomes_download,
+            get_main_chromosomes_withY_download, 
             get_gencode_download, 
             create_star_index, 
             get_gencode_download,
@@ -143,6 +145,19 @@ rule download_main_chromosomes:
         cut -f1 > {output.txt}
         """)
 
+rule download_main_chromosomes_withY:
+    input:
+        mapping = lambda w: f"{CHROM_MAPPINGS_DIR}/{VERSION_UPPER[w.version]}_ensembl2ucsc.txt"
+    output:
+        txt = "downloads/main_chromosomes/main_chromosomes_withY.{version}.txt"
+    params:
+        provider = "ensembl"
+    shell:
+        op.as_one_line("""
+        egrep -w "^(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|X|Y)" {input.mapping}
+            |
+        cut -f1 > {output.txt}
+        """)
 
 rule download_chromosome_x:
     output:

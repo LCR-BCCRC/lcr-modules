@@ -41,6 +41,8 @@ rule all:
                 rules.get_main_chromosomes_download.output.txt,
                 rules.get_main_chromosomes_download.output.bed,
                 rules.get_main_chromosomes_download.output.chrx,
+                rules.get_main_chromosomes_withY_download.output.txt,
+                rules.get_main_chromosomes_withY_download.output.bed,
                 rules.store_genome_build_info.output.version,
                 rules.store_genome_build_info.output.provider,
                 rules.create_bwa_index.output.prefix,

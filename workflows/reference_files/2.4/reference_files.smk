@@ -128,6 +128,28 @@ rule get_main_chromosomes_download:
         """)
 
 
+rule get_main_chromosomes_withY_download:
+    input: 
+        txt = get_download_file(rules.download_main_chromosomes_withY.output.txt),
+        fai = rules.index_genome_fasta.output.fai
+    output: 
+        txt = "genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt",
+        bed = "genomes/{genome_build}/genome_fasta/main_chromosomes_withY.bed",
+        patterns = temp("genomes/{genome_build}/genome_fasta/main_chromosomes.patterns.txt")
+    conda: CONDA_ENVS["coreutils"]
+    shell: 
+        op.as_one_line("""
+        sed 's/^/^/' {input.txt} > {output.patterns}
+            &&
+        egrep -w -f {output.patterns} {input.fai}
+            |
+        cut -f1 > {output.txt}
+            &&
+        egrep -w -f {output.patterns} {input.fai}
+            |
+        awk 'BEGIN {{FS=OFS="\t"}} {{print $1,  0, $2}}' > {output.bed}
+        """)
+
 ##### ANNOTATIONS #####
 
 
