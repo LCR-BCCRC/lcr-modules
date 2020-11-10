@@ -19,7 +19,7 @@ import oncopipe as op
 # `CFG` is a shortcut to `config["lcr-modules"]["bam2fastq"]`
 CFG = op.setup_module(
     name = "bam2fastq",
-    version = "1.1",
+    version = "1.2",
     subdirectories = ["inputs", "fastq", "outputs"],
 )
 

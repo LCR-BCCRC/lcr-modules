@@ -19,7 +19,7 @@ import pandas as pd
 # `CFG` is a shortcut to `config["lcr-modules"]["salmon"]`
 CFG = op.setup_module(
     name = "salmon",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "salmon", "outputs"]
 )
 

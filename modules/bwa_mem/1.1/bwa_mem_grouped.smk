@@ -20,7 +20,7 @@ import oncopipe as op
 # `CFG` is a shortcut to `config["lcr-modules"]["bwa_mem"]`
 CFG = op.setup_module(
     name = "bwa_mem",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "bwa_mem",  "sort_bam", "mark_dups", "outputs"],
 )
 

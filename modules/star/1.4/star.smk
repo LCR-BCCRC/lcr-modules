@@ -22,7 +22,7 @@ import oncopipe as op
 # `CFG` is a shortcut to `config["lcr-modules"]["star"]`
 CFG = op.setup_module(
     name = "star",
-    version = "1.3",
+    version = "1.4",
     subdirectories = ["inputs", "star", "sort_bam", "mark_dups", "outputs"],
 )
 
