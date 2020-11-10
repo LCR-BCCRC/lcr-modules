@@ -34,10 +34,7 @@ localrules:
 
 # include: "../../utils/2.0/utils.smk"
 
-sample_ids = list(CFG['samples']['sample_id'])
-
-wildcard_constraints: 
-    sample_id = "|".join(sample_ids)
+sample_ids_bwa_mem = list(CFG['samples']['sample_id'])
 
 ##### RULES #####
 
@@ -74,6 +71,8 @@ rule _bwa_mem_run:
         CFG["threads"]["bwa_mem"]
     resources:
         **CFG["resources"]["bwa_mem"]
+    wildcard_constraints: 
+        sample_id = "|".join(sample_ids_bwa_mem)
     shell:
         op.as_one_line("""
         bwa mem -t {threads} 
@@ -101,6 +100,8 @@ rule _bwa_mem_samtools:
         CFG["threads"]["samtools"]
     resources:
         **CFG["resources"]["samtools"]
+    wildcard_constraints: 
+        sample_id = "|".join(sample_ids_bwa_mem)
     shell:
         op.as_one_line("""
         samtools view {params.opts}
@@ -114,6 +115,8 @@ rule _bwa_mem_symlink_bam:
         bam = str(rules._bwa_mem_samtools.output.bam)
     output:
         bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.bam"
+    wildcard_constraints: 
+        sample_id = "|".join(sample_ids_bwa_mem)
     run:
         op.relative_symlink(input.bam, output.bam)
 
@@ -124,6 +127,8 @@ rule _bwa_mem_symlink_sorted_bam:
         bwa_mem_bam = str(rules._bwa_mem_samtools.output.bam)
     output:
         bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam"
+    wildcard_constraints: 
+        sample_id = "|".join(sample_ids_bwa_mem)
     run:
         op.relative_symlink(input.bam, output.bam)
         os.remove(input.bwa_mem_bam)
@@ -138,6 +143,8 @@ rule _bwa_mem_output_bam:
         sorted_bam = str(rules._bwa_mem_symlink_sorted_bam.input.bam)
     output:
         bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
+    wildcard_constraints: 
+        sample_id = "|".join(sample_ids_bwa_mem)
     run:
         op.relative_symlink(input.bam, output.bam)
         op.relative_symlink(input.bai, output.bam + ".bai")

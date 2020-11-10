@@ -37,10 +37,8 @@ localrules:
     _star_output_bam,
     _star_all,
 
-sample_ids = list(CFG['samples']['sample_id'])
+sample_ids_star = list(CFG['samples']['sample_id'])
 
-wildcard_constraints: 
-    sample_id = "|".join(sample_ids)
 
 ##### RULES #####
 
@@ -101,6 +99,8 @@ rule _star_run:
         CFG["threads"]["star"]
     resources:
         **CFG["resources"]["star"]
+    wildcard_constraints: 
+        sample_id = "|".join(sample_ids_star)
     shell:
         op.as_one_line("""
         STAR {params.opts} --readFilesIn {input.fastq_1} {input.fastq_2} --genomeDir {input.index} 
@@ -115,6 +115,8 @@ rule _star_symlink_star_bam:
         bam = str(rules._star_run.output.bam)
     output:
         bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.bam"
+    wildcard_constraints: 
+        sample_id = "|".join(sample_ids_star)
     run:
         op.relative_symlink(input.bam, output.bam)
 
@@ -128,6 +130,8 @@ rule _star_symlink_sorted_bam:
         star_bam = str(rules._star_run.output.bam)
     output:
         bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam"
+    wildcard_constraints: 
+        sample_id = "|".join(sample_ids_star)
     run:
         op.relative_symlink(input.bam, output.bam)
         os.remove(input.star_bam)
@@ -144,6 +148,8 @@ rule _star_output_bam:
         sorted_bam = str(rules._star_symlink_sorted_bam.input.bam)
     output:
         bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
+    wildcard_constraints: 
+        sample_id = "|".join(sample_ids_star)
     run:
         op.relative_symlink(input.bam, output.bam)
         op.relative_symlink(input.bai, output.bam + ".bai")
