@@ -117,7 +117,7 @@ rule _vcf2maf_crossmap:
         mem_mb = CFG["mem_mb"]["vcf2maf"]
     params:
         out_name = CFG["dirs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.converted_",
-        chain = lambda w: "hg38ToHg19" if "38" in {w.genome_build} else "hg19ToHg38",
+        chain = lambda w: "hg38ToHg19" if "38" in str({w.genome_build}) else "hg19ToHg38",
         file = ".maf"
     shell:
         op.as_one_line("""
@@ -138,7 +138,7 @@ rule _vcf2maf_output_maf:
     output:
         maf = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_{base_name}.maf"
     params:
-        chain = lambda w: "hg38ToHg19" if "38" in {w.genome_build} else "hg19ToHg38"
+        chain = lambda w: "hg38ToHg19" if "38" in str({w.genome_build}) else "hg19ToHg38"
     run:
         op.relative_symlink(input.maf, output.maf)
         op.relative_symlink((input.maf_converted+str("_")+str(params.chain)+str(".maf")), (output.maf[:-4]+str(".converted_")+str(params.chain)+str(".maf")))
