@@ -83,10 +83,10 @@ def _controlfreec_get_chr_fastas(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
     chrs = checkpoints._controlfreec_input_chrs.get(**wildcards).output.chrs
     with open(chrs) as file:
-        chrs = file.read().rstrip("\n").split("\n")
+        chromosome = file.read().rstrip("\n").split("\n")
     fastas = expand(
         CFG["dirs"]["inputs"] +  "references/{{genome_build}}/freec/chr/{chromosome}.fa",
-        chromosome = chrs
+        chromosome = chromosome
     )
     return(fastas)
 
