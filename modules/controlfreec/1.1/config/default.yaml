@@ -37,6 +37,7 @@ lcr-modules:
             minimalSubclonePresence: 20 # detects subclones present in x% of cell population - 20 for WGS; 30 for WES (100 means "do not look for subclones")
             noisyData: TRUE #set TRUE for exomes/FFPE libs to avoid false positives due to non-uniform capture
             ploidy: 2 #will select the ploidy that explains the most CNAs (a range can be added and control-freec will assign ploidy based on best fit, ex. 2,3,4)
+            printNA: FALSE
             telocentromeric: 50000 # size of pre-telomeric and pre-centromeric regions to exclude
             uniqueMatch: TRUE # uses mappability profile to correct read counts
             

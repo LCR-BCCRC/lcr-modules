@@ -16,13 +16,17 @@
 import oncopipe as op
 
 # Setup module and store module-specific configuration in `CFG`
-
 # `CFG` is a shortcut to `config["lcr-modules"]["controlfreec"]`
 CFG = op.setup_module(
     name = "controlfreec",
     version = "1.1",
     subdirectories = ["inputs", "mpileup", "run", "outputs"]
 )
+
+normal_ids = CFG['samples'][CFG['samples']['tissue_status'].isin(['normal'])]
+normal_ids = list(normal_ids['sample_id'])
+unmatched_normal_ids = list(config["lcr-modules"]["controlfreec"]["unmatched_normal_ids"].values())
+all_other_ids = list(set(normal_ids) - set(unmatched_normal_ids))
 
 
 # Define rules to be run locally when using a compute cluster
@@ -31,6 +35,10 @@ localrules:
     _controlfreec_config,
     _controlfreec_output,
     _controlfreec_all
+
+
+wildcard_constraints:
+    pair_status = "matched|unmatched|no_normal"
 
 
 ##### RULES #####
@@ -142,7 +150,7 @@ def _controlfreec_get_chr_mpileups(wildcards):
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     mpileups = expand(
-        CFG["dirs"]["mpileup"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}/{{sample_id}}.{chrom}.minipileup.pileup.gz", 
+        CFG["dirs"]["mpileup"] + "{{seq_type}}--{{genome_build}}/{{sample_id}}.{chrom}.minipileup.pileup.gz", 
         chrom = chrs
     )
     return(mpileups)
@@ -154,14 +162,14 @@ rule _controlfreec_mpileup_per_chrom:
         fastaFile = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         bed = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/dbsnp.common_all-151.bed"
     output: # creates a temporary file for mpileup
-        pileup = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{sample_id}.{chrom}.minipileup.pileup.gz")
+        pileup = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.{chrom}.minipileup.pileup.gz")
     conda:
         CFG["conda_envs"]["controlfreec"]
     resources: 
         **CFG["resources"]["mpileup"]
     group: "controlfreec"
     log:
-        stderr = CFG["logs"]["inputs"] + "mpileup/{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{sample_id}.{chrom}.mpileup.stderr.log",
+        stderr = CFG["logs"]["inputs"] + "mpileup/{seq_type}--{genome_build}/{sample_id}.{chrom}.mpileup.stderr.log",
     shell:
         "samtools mpileup -l {input.bed} -r {wildcards.chrom} -Q 20 -f {input.fastaFile} {input.bam} | gzip -c > {output.pileup} 2> {log.stderr}"
 
@@ -170,12 +178,12 @@ rule _controlfreec_concatenate_pileups:
     input: 
         _controlfreec_get_chr_mpileups
     output: 
-        temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{sample_id}.bam_minipileup.pileup.gz")
+        mpileup = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.bam_minipileup.pileup.gz")
     resources: 
         **CFG["resources"]["cat"]
     group: "controlfreec"
     shell: 
-        "cat {input} > {output} "
+        "cat {input} > {output.mpileup} "
 
 
 #### Run control-FREEC ####
@@ -183,8 +191,8 @@ rule _controlfreec_concatenate_pileups:
 # set-up controlfreec
 rule _controlfreec_config:
     input:
-        tumour_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz",
-        normal_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}.bam_minipileup.pileup.gz",
+        tumour_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.bam_minipileup.pileup.gz",
+        normal_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.bam_minipileup.pileup.gz",
         fastaFile = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         reference = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/out100m2_{genome_build}.gem",
         chrLen = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/{genome_build}.len",
@@ -215,6 +223,7 @@ rule _controlfreec_config:
         minimalQualityPerPosition = CFG["options"]["minQualityPerPosition"],
         minMapPerWindow = CFG["options"]["minMappabilityPerWindow"],
         minimumSubclonePresence = CFG["options"]["minimalSubclonePresence"],
+        naBoo = CFG["options"]["printNA"],
         noisyData = CFG["options"]["noisyData"],
         step = CFG["options"]["step"],
         telocentromeric = CFG["options"]["telocentromeric"],
@@ -258,15 +267,16 @@ rule _controlfreec_config:
         "sed \"s|stepValue|{params.step}|g\" | "
         "sed \"s|teloValue|{params.telocentromeric}|g\" | "
         "sed \"s|uniqBoo|{params.uniqBoo}|g\" | "
+        "sed \"s|naBoo|{params.naBoo}|g\" | "
         "sed \"s|numThreads|{params.threads}|g\" | "
         "sed \"s|referenceFile|{input.reference}|g\" > {output}"
 
 
-rule _controlfreec_run:
+rule _controlfreec_run_unmatched:
     input:
         config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/config_WGS.txt",
-        tumour_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz",
-        normal_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}.bam_minipileup.pileup.gz",
+        tumour_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.bam_minipileup.pileup.gz",
+        normal_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.bam_minipileup.pileup.gz",
     output:
         info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
         ratio = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
@@ -275,6 +285,32 @@ rule _controlfreec_run:
     conda: CFG["conda_envs"]["controlfreec"]
     threads: CFG["threads"]["controlfreec_run"]
     resources: **CFG["resources"]["controlfreec_run"]
+    wildcard_constraints:
+        normal_id="|".join(unmatched_normal_ids)
+    priority: 0
+    log:
+        stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run.stdout.log",
+        stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run.stderr.log"
+    shell:
+        "freec -conf {input.config} > {log.stdout} 2> {log.stderr} "
+
+
+rule _controlfreec_run:
+    input:
+        config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/config_WGS.txt",
+        tumour_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.bam_minipileup.pileup.gz",
+        normal_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.bam_minipileup.pileup.gz",
+    output:
+        info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
+        ratio = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
+        CNV = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
+        BAF = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
+    conda: CFG["conda_envs"]["controlfreec"]
+    threads: CFG["threads"]["controlfreec_run"]
+    resources: **CFG["resources"]["controlfreec_run"]
+    wildcard_constraints: 
+        normal_id = "|".join(all_other_ids)
+    priority: 1
     log:
         stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run.stdout.log",
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run.stderr.log"
@@ -350,13 +386,13 @@ rule _controlfreec_output:
         BAFgraph = str(rules._controlfreec_plot.output.bafplot),
         ratio = str(rules._controlfreec_run.output.ratio)
     output:
-        plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/plots/{tumour_id}--{normal_id}--{pair_status}.bam_ratio.txt.png",
-        log2plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/log2plots/{tumour_id}--{normal_id}--{pair_status}.bam_ratio.txt.log2.png",
-        CNV = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/CNV/{tumour_id}--{normal_id}--{pair_status}.bam_CNVs.p.value.txt",
-        bed = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/bed/{tumour_id}--{normal_id}--{pair_status}.bam_CNVs.bed",
-        BAF = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/BAF/{tumour_id}--{normal_id}--{pair_status}.bam_BAF.txt",
-        BAFgraph = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/BAFplot/{tumour_id}--{normal_id}--{pair_status}.bam_BAF.txt.png",
-        ratio = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/ratio/{tumour_id}--{normal_id}--{pair_status}.bam_ratio.txt"
+        plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/plots/{tumour_id}--{normal_id}--{pair_status}.ratio.txt.png",
+        log2plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/log2plots/{tumour_id}--{normal_id}--{pair_status}.ratio.txt.log2.png",
+        CNV = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/CNV/{tumour_id}--{normal_id}--{pair_status}.CNVs.p.value.txt",
+        bed = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/bed/{tumour_id}--{normal_id}--{pair_status}.CNVs.bed",
+        BAF = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/BAF/{tumour_id}--{normal_id}--{pair_status}.BAF.txt",
+        BAFgraph = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/BAFplot/{tumour_id}--{normal_id}--{pair_status}.BAF.txt.png",
+        ratio = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/ratio/{tumour_id}--{normal_id}--{pair_status}.ratio.txt"
     run:
         op.relative_symlink(input.plot, output.plot)
         op.relative_symlink(input.log2plot, output.log2plot)
