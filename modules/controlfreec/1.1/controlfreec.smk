@@ -386,12 +386,12 @@ rule _controlfreec_output:
         BAFgraph = str(rules._controlfreec_plot.output.bafplot),
         ratio = str(rules._controlfreec_run.output.ratio)
     output:
-        plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/plots/{tumour_id}--{normal_id}--{pair_status}.ratio.txt.png",
-        log2plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/log2plots/{tumour_id}--{normal_id}--{pair_status}.ratio.txt.log2.png",
+        plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/plots/{tumour_id}--{normal_id}--{pair_status}.ratio.png",
+        log2plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/log2plots/{tumour_id}--{normal_id}--{pair_status}.ratio.log2.png",
         CNV = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/CNV/{tumour_id}--{normal_id}--{pair_status}.CNVs.p.value.txt",
         bed = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/bed/{tumour_id}--{normal_id}--{pair_status}.CNVs.bed",
         BAF = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/BAF/{tumour_id}--{normal_id}--{pair_status}.BAF.txt",
-        BAFgraph = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/BAFplot/{tumour_id}--{normal_id}--{pair_status}.BAF.txt.png",
+        BAFgraph = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/BAFplot/{tumour_id}--{normal_id}--{pair_status}.BAF.png",
         ratio = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/ratio/{tumour_id}--{normal_id}--{pair_status}.ratio.txt"
     run:
         op.relative_symlink(input.plot, output.plot)
