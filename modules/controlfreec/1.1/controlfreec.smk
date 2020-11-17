@@ -37,10 +37,6 @@ localrules:
     _controlfreec_all
 
 
-wildcard_constraints:
-    pair_status = "matched|unmatched|no_normal"
-
-
 ##### RULES #####
 
 #### generate references ####
