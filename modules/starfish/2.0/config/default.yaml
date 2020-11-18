@@ -11,9 +11,8 @@ lcr-modules:
             # Each key:value pair is the name of the variant caller and the path to its VCF file
             # Each key should be unique in this set. 
             vcf: 
-                strelka: "results/gambl/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz"
-                lofreq: "results/gambl/lofreq-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz"
-                mutect2: "results/gambl/mutect2-2.0/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.mutect2.combined.vcf.gz"
+                strelka: "__UPDATE__"
+                
 
             starfish_script: "{MODSDIR}/src/starfish.py"
 
