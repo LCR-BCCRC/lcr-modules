@@ -1,0 +1,52 @@
+lcr-modules:
+    
+    starfish:
+
+        dirs: 
+            
+            _parent: "__UPDATE__"
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
+            # Each key:value pair is the name of the variant caller and the path to its VCF file
+            # Each key should be unique in this set. 
+            vcf: 
+                strelka: "results/gambl/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz"
+                lofreq: "results/gambl/lofreq-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz"
+                mutect2: "results/gambl/mutect2-2.0/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.mutect2.combined.vcf.gz"
+
+            starfish_script: "{MODSDIR}/src/starfish.py"
+
+        scratch_subdirectories: []
+
+        options:
+            starfish_run: "--sample ALT --squash-ploidy --vennout-format pdf"
+            starfish_union: "-m both"
+
+        conda_envs:
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            starfish: "{MODSDIR}/envs/starfish.yaml"
+            
+        threads:
+            starfish_run: 4
+            starfish_union: 4
+
+        resources:
+            starfish_run: 
+                mem_mb: 15000
+            starfish_union: 
+                mem_mb: 10000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            mrna:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
