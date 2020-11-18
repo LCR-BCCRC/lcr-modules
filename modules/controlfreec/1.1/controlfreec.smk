@@ -268,29 +268,6 @@ rule _controlfreec_config:
         "sed \"s|referenceFile|{input.reference}|g\" > {output}"
 
 
-rule _controlfreec_run_unmatched:
-    input:
-        config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/config_WGS.txt",
-        tumour_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.bam_minipileup.pileup.gz",
-        normal_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.bam_minipileup.pileup.gz",
-    output:
-        info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
-        ratio = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
-        CNV = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
-        BAF = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
-    conda: CFG["conda_envs"]["controlfreec"]
-    threads: CFG["threads"]["controlfreec_run"]
-    resources: **CFG["resources"]["controlfreec_run"]
-    wildcard_constraints:
-        normal_id="|".join(unmatched_normal_ids)
-    priority: 0
-    log:
-        stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run.stdout.log",
-        stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run.stderr.log"
-    shell:
-        "freec -conf {input.config} > {log.stdout} 2> {log.stderr} "
-
-
 rule _controlfreec_run:
     input:
         config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/config_WGS.txt",
@@ -304,8 +281,6 @@ rule _controlfreec_run:
     conda: CFG["conda_envs"]["controlfreec"]
     threads: CFG["threads"]["controlfreec_run"]
     resources: **CFG["resources"]["controlfreec_run"]
-    wildcard_constraints: 
-        normal_id = "|".join(all_other_ids)
     priority: 1
     log:
         stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run.stdout.log",
