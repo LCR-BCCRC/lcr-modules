@@ -21,6 +21,12 @@ except ImportError:
     can_draw_venn = False
     print("Unable to draw venn - missing packages.")
 
+def assert_venn(can_draw_venn, venn): 
+    if venn and not can_draw_venn: 
+        return False
+    else: 
+        return True
+
 bcftools = 'bcftools'
 tabix = 'tabix'
 rtg = 'rtg'
@@ -260,6 +266,9 @@ def plot_ven(labels, names):
         raise Error("Unsupported Venn")
 
 def main(args):
+
+    assert assert_venn, ("Error: --venn option is selected but required packages are missing. ")
+
     if len(args.variants) < 2:
         print("There must be at least two VCFs to intersect")
         return
