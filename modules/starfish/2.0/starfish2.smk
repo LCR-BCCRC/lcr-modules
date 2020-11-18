@@ -15,7 +15,6 @@
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 import glob 
-import itertools as it
 import string
 import copy
 
@@ -46,7 +45,6 @@ callers = [caller.lower() for caller in callers]
 union_vcf = copy.deepcopy(callers)
 union_vcf.append("union")
 union_vcf = "_".join(union_vcf)
-not_union_vcf = "!" + union_vcf
 
 assert len(callers) < 6, (
     "Starfish can only handle a maximum of 6 input VCFs."
@@ -123,18 +121,15 @@ checkpoint _starfish_rename_output:
 
 
 def _starfish_get_output(wildcards): 
-    # Get the checkpoint output directory
     CFG = config["lcr-modules"]["starfish"]
+    # Get the path to the output directory from the checkpoint _starfish_rename_output
+    # **wildcards unpacks the wildcards object from the rule where this input function is called
     checkpoint_output = os.path.dirname(checkpoints._starfish_rename_output.get(**wildcards).output.renamed)
-    # Rename each VCF with the variant caller names
+    # Obtain the vcf_name wildcards using glob_wildcards and expand that into the vcfs object
     vcfs = expand(
         CFG['dirs']['starfish'] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf.gz",
-        seq_type = wildcards.seq_type,
-        genome_build = wildcards.genome_build, 
-        tumour_id = wildcards.tumour_id, 
-        normal_id = wildcards.normal_id, 
-        pair_status = wildcards.pair_status, 
-        vcf_name = glob_wildcards(os.path.join(checkpoint_output, "{vcf_name}.vcf.gz")).vcf_name
+        **wildcards,  
+        vcf_name = glob_wildcards(os.path.join(checkpoint_output, "{vcf_name, [a-z]\S+}.vcf.gz")).vcf_name # Constrain to omit 2, 2+, 2-, etc. VCF files. 
         )
     return vcfs
 
@@ -156,6 +151,8 @@ rule _starfish_union:
         CFG["threads"]["starfish_union"]
     resources:
         **CFG["resources"]["starfish_union"]
+    wildcard_constraints: 
+        union_vcf = union_vcf
     shell: 
         op.as_one_line("""
         bcftools merge {params.options} --force-samples 
@@ -199,17 +196,14 @@ rule _starfish_output_venn:
         op.relative_symlink(input.venn, output.venn)
 
 def _starfish_get_output_target(wildcards): 
-    # Get the checkpoint output directory
     CFG = config["lcr-modules"]["starfish"]
+    # Get the path to the output directory from the checkpoint _starfish_rename_output
+    # **wildcards unpacks the wildcards object from the rule where this input function is called
     checkpoint_output = os.path.dirname(checkpoints._starfish_rename_output.get(**wildcards).output.renamed)
-    # Rename each VCF with the variant caller names
+    # Obtain the vcf_name wildcards using the glob_wildcards function
     vcfs = expand(
         CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf.gz",
-        seq_type = wildcards.seq_type,
-        genome_build = wildcards.genome_build, 
-        tumour_id = wildcards.tumour_id, 
-        normal_id = wildcards.normal_id, 
-        pair_status = wildcards.pair_status, 
+        **wildcards,
         vcf_name = glob_wildcards(os.path.join(checkpoint_output, "{vcf_name}.vcf.gz")).vcf_name
         )
     return vcfs
