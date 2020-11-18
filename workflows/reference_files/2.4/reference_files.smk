@@ -91,6 +91,16 @@ rule get_liftover_chains:
     shell:
         "ln -srf {input.chains} {output.chains}"
 
+rule get_sdf_refs: 
+    input: 
+        sdf = rules.download_sdf.output.sdf
+    output: 
+        sdf = directory("genomes/{genome_build}/sdf")
+    wildcard_constraints: 
+        genome_build = "hg38|hg19|grch37"
+    shell: 
+        "ln -srf {input.sdf} {output.sdf}"
+
 
 
 ##### METADATA #####

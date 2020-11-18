@@ -315,6 +315,23 @@ rule download_liftover_chains:
         gzip -dc > {output.chains}
         """)
 
+rule download_sdf: 
+    output: 
+        sdf = directory("downloads/sdf/{genome_build}/{genome_build}_sdf")
+    params: 
+        provider = lambda w: {"grch37": "ensembl", "hg38": "ucsc", "hg19": "ucsc"}[w.genome_build],
+        build = lambda w: {
+            "grch37": "1000g_v37_phase2.sdf", 
+            "hg19": "hg19.sdf", 
+            "hg38": "GRCh38.sdf"
+        }[w.genome_build]
+    shell: 
+        op.as_one_line("""
+        wget -qO {output.sdf}.zip https://s3.amazonaws.com/rtg-datasets/references/{params.build}.zip && 
+        unzip -d $(dirname {output.sdf})/{params.build} {output.sdf}.zip &&
+        mv $(dirname {output.sdf})/{params.build}/* {output.sdf}
+        """)
+
 
 ##### FUNCTIONS #####
 
