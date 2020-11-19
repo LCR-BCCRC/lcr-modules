@@ -23,10 +23,6 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "mpileup", "run", "outputs"]
 )
 
-normal_ids = CFG['samples'][CFG['samples']['tissue_status'].isin(['normal'])]
-normal_ids = list(normal_ids['sample_id'])
-unmatched_normal_ids = list(config["lcr-modules"]["controlfreec"]["unmatched_normal_ids"].values())
-all_other_ids = list(set(normal_ids) - set(unmatched_normal_ids))
 
 
 # Define rules to be run locally when using a compute cluster
