@@ -41,6 +41,10 @@ DEFAULT_PAIRING_CONFIG = {
     },
 }
 
+DOCS = {
+    "update_config": "https://lcr-modules.readthedocs.io/en/latest/for_users.html#updating-configuration-values"
+}
+
 
 # SESSION
 
@@ -159,6 +163,86 @@ def set_value(value, *keys):
 
 # UTILITIES
 
+def prepare_symlink(src, dest):
+    # Coerce length-1 NamedList instances to strings
+    def coerce_namedlist_to_string(obj):
+        if isinstance(obj, smk.io.Namedlist) and len(obj) == 1:
+            obj = str(obj)
+        elif isinstance(obj, smk.io.Namedlist) and len(obj) != 1:
+            raise AssertionError(
+                f"Got the following Namedlist: {obj!r}. This function "
+                "only supports Namedlists of length 1."
+            )
+        return obj
+
+    src = coerce_namedlist_to_string(src)
+    dest = coerce_namedlist_to_string(dest)
+
+    # Check whether arguments are strings
+    assert isinstance(src, str), "Source file path must be a string."
+    assert isinstance(dest, str), "Destination file path must be a string."
+
+    # Here, you're symlinking a file into a directory (same name)
+    dest = dest.rstrip(os.path.sep)
+    if not os.path.isdir(src) and os.path.isdir(dest):
+        dest_dir = dest
+        dest_file = os.path.split(src)[1]
+    # Here, you can symlinking a file to a specific location
+    # Or you are symlinking a directory to a specific location
+    else:
+        dest_dir, dest_file = os.path.split(dest)
+    os.makedirs(os.path.abspath(dest_dir), exist_ok=True)
+    dest = os.path.join(dest_dir, dest_file)
+    
+    return src, dest
+
+def compare_links(src, dest, overwrite):
+    # Check if the destination file exists and is a symlink
+    if os.path.lexists(dest) and os.path.islink(dest):
+        # If the destination link exists and has the same src, exit
+        if src == os.readlink(dest) or overwrite:
+            os.remove(dest)
+    # Raise error if the file exists and isn't a symbolic link
+    assert not (os.path.exists(dest) and not os.path.islink(dest)), (
+        "Destination file already exists but isn't a symbolic link: \n"
+        f"    Current: {dest} \n"
+        f"    Attempted: {dest} -> {src}"
+    )
+    # Raise error if the file exists and is a symbolic link
+    assert not (os.path.exists(dest) and os.path.islink(dest)), (
+        "Symbolic link already exists but points elsewhere: \n"
+        f"    Current: {dest} -> {os.readlink(dest)} \n"
+        f"    Attempted: {dest} -> {src}"
+    )
+
+    
+
+def absolute_symlink(src, dest, overwrite=True): 
+    """Creates an absolute symlink from any working directory.
+
+    Parameters
+    ----------
+    src : str
+        The source file or directory path.
+    dest : str
+        The destination file path. This can also be a destination
+        directory, and the destination symlink name will be identical
+        to the source file name (unless directory).
+    overwrite : boolean
+        Whether to overwrite the destination file if it exists.
+    """
+    # Prepare source and destination file paths 
+    src, dest = prepare_symlink(src, dest)
+    # Retrieve the absolute file path for the source file
+    src = os.path.abspath(src)
+
+    # Check if destination file already exists and error if it does
+    compare_links(src, dest, overwrite)
+
+    # Symlink the source file to the destination
+    os.symlink(src, dest)
+
+    
 
 def relative_symlink(src, dest, overwrite=True):
     """Creates a relative symlink from any working directory.
@@ -174,35 +258,19 @@ def relative_symlink(src, dest, overwrite=True):
     overwrite : boolean
         Whether to overwrite the destination file if it exists.
     """
+    # Prepare source and destination file paths 
+    src, dest = prepare_symlink(src, dest)
 
-    # Here, you're symlinking a file into a directory (same name)
-    dest = dest.rstrip(os.path.sep)
-    if not os.path.isdir(src) and os.path.isdir(dest):
-        dest_dir = dest
-        dest_file = os.path.split(src)[1]
-    # Here, you can symlinking a file to a specific location
-    # Or you are symlinking a directory to a specific location
-    else:
-        dest_dir, dest_file = os.path.split(dest)
-    os.makedirs(dest_dir, exist_ok=True)
+    # Retrieve the relative file path for the source file
+    dest_dir = os.path.split(dest)[0]
+    src = os.path.relpath(src, dest_dir)
 
-    dest = os.path.join(dest_dir, dest_file)
-    if os.path.lexists(dest) and os.path.islink(dest):
-        if os.path.realpath(src) == os.path.realpath(dest):
-            return
-        elif overwrite:
-            os.remove(dest)
-    assert not os.path.exists(dest), (
-        "Symbolic link already exists but points elsewhere: \n"
-        f"    Current: {dest} -> {os.path.realpath(dest)} \n"
-        f"    Attempted: {dest} -> {os.path.realpath(src)}"
-    )
+    # Handle destination file if it already exists
+    compare_links(src, dest, overwrite)
 
-    # Make `src` relative to destination parent directory
-    if not os.path.isabs(src):
-        dest_dir = os.path.realpath(dest_dir)
-        src = os.path.relpath(src, dest_dir)
+    # Symlink the source file to the destination
     os.symlink(src, dest)
+    
 
 
 def get_from_dict(dictionary, list_of_keys):
@@ -269,7 +337,43 @@ def list_files(directory, file_ext):
     return files_all
 
 
-# SNAKEMAKE INPUT/PARAM FUNCTIONS
+# SNAKEMAKE INPUT/PARAM/RESOURCE FUNCTIONS
+
+
+def retry(value, multiplier=1.5, max_value=100000):
+    """Creates callable that increases resource value on retries.
+
+    This function is intended for use with resources,
+    especially memory (mem_mb).
+
+    Parameters
+    ----------
+    value : int
+        The value that will be multiplied on retries.
+        This value will be used as is in the first try.
+    multiplier: float
+        The factor that the value will be multiplied by
+        on retries. This should usually be a number
+        between 1 and 3.
+    max_value : int
+        The maximum value that should be returned by
+        this function, even on retries. This is meant
+        to prevent excessively high requests that will
+        never be accommodated by the cluster.
+
+    Returns
+    -------
+    function, which returns integer values
+        The function that can be provided to the
+        resource directive in a snakemake rule.
+    """
+
+    def retry_custom(wildcards, attempt):
+        new_value = value * (multiplier ** attempt)
+        new_value = min(new_value, max_value)
+        return int(new_value)
+
+    return retry_custom
 
 
 def create_formatter(wildcards, input, output, threads, resources, strict):
@@ -388,7 +492,7 @@ def switch_on_column(
     """
 
     assert isinstance(options, dict), "`options` must be a `dict` object."
-    assert column in samples, "`column` must be a column name in `samples`."
+    assert column in samples, (f"`{column}` must be a column name in `samples`.")
 
     def _switch_on_column(
         wildcards, input=None, output=None, threads=None, resources=None
@@ -398,6 +502,8 @@ def switch_on_column(
             sample_id = wildcards.tumour_id
         elif match_on == "normal":
             sample_id = wildcards.normal_id
+        elif match_on == "sample":
+            sample_id = wildcards.sample_id
         else:
             raise ValueError("Invalid value for `match_on`.")
         subset = samples.loc[samples["seq_type"] == wildcards.seq_type]
@@ -685,27 +791,46 @@ def load_samples(
     return samples
 
 
-def filter_samples(samples, **filters):
+def filter_samples(samples, invert=False, **filters):
     """Subsets for rows with certain values in the given columns.
 
     Parameters
     ----------
     samples : pandas.DataFrame
         The samples.
+    invert : boolean
+        Whether to keep or discard samples that match the filters.
     **filters : key-value pairs
         Columns (keys) and the values they need to contain (values).
-        Values can either be an str or a list of str.
+        Values can be any value or a list of values.
 
     Returns
     -------
     pandas.DataFrame
         A subset of rows from the input data frame.
     """
+    samples = samples.copy()
     for column, value in filters.items():
-        if not isinstance(value, collections.abc.Sequence):
+        if column not in samples:
+            logger.warning(f"Column '{column}' not in sample table. Skipping.")
+            continue
+        if not isinstance(value, (list, tuple)):
             value = [value]
-        samples = samples[samples[column].isin(value)]
-    return samples.copy()
+        if invert:
+            samples = samples[~samples[column].isin(value)]
+        else:
+            samples = samples[samples[column].isin(value)]
+    return samples
+
+
+def keep_samples(samples, **filters):
+    """Convenience wrapper around ``filter_samples``."""
+    return filter_samples(samples, invert=False, **filters)
+
+
+def discard_samples(samples, **filters):
+    """Convenience wrapper around ``filter_samples``."""
+    return filter_samples(samples, invert=True, **filters)
 
 
 def group_samples(samples, subgroups):
@@ -764,6 +889,7 @@ def generate_runs_for_patient(
     run_paired_tumours,
     run_unpaired_tumours_with,
     unmatched_normal=None,
+    unmatched_normals=None,
     run_paired_tumours_as_unpaired=False,
     **kwargs,
 ):
@@ -788,6 +914,13 @@ def generate_runs_for_patient(
     unmatched_normal : namedtuple, optional
         The normal sample to be used with unpaired tumours when
         `run_unpaired_tumours_with` is set to 'unmatched_normal'.
+    unmatched_normals : dict, optional
+        The normal samples to be used with unpaired tumours when
+        `run_unpaired_tumours_with` is set to 'unmatched_normal'.
+        Unlike `unmatched_normal`, this parameter expects a mapping
+        from "{seq_type}--{genome_build}" to Sample namedtuples.
+        If this option is provided, it will take precedence over
+        `unmatched_normal`.
     run_paired_tumours_as_unpaired : boolean, optional
         Whether paired tumours should also be run as unpaired
         (i.e., separate from their matched normal sample).
@@ -847,14 +980,28 @@ def generate_runs_for_patient(
         # Compile features
         tumour = tumour._asdict()
         if normal is None and run_unpaired_tumours_with == "unmatched_normal":
-            # Check that `unmatched_normal` is given
+            # Check that `unmatched_normal` or `unmatched_normals` is given
+            tumour_id = tumour["sample_id"]
+            patient_id = tumour["patient_id"]
             seq_type = tumour["seq_type"]
-            assert unmatched_normal is not None, (
+            genome_build = tumour["genome_build"]
+            assert unmatched_normal is not None or unmatched_normals is not None, (
                 "`run_unpaired_tumours_with` was set to 'unmatched_normal' "
-                f"whereas `unmatched_normal` was None. For {seq_type!r}, "
-                "provide an unmatched normal sample ID. See README for format."
+                f"whereas `unmatched_normal` and `unmatched_normals` were both "
+                "None. For {seq_type!r}, provide an unmatched normal sample ID. "
+                "See README for format."
             )
-            normal = unmatched_normal._asdict()
+            if unmatched_normals is not None:
+                assert f"{seq_type}--{genome_build}" in unmatched_normals, (
+                    f"There is no unmatched normal ID for the seq_type '{seq_type}' "
+                    f"and genome_build '{genome_build}' to pair with the unpaired "
+                    f"tumour sample '{tumour_id}' (patient '{patient_id}'). "
+                    f"Add an entry for '{seq_type}--{genome_build}' under "
+                    f"'unmatched_normal_ids' in the '_shared' configuration."
+                )
+                normal = unmatched_normals[f"{seq_type}--{genome_build}"]._asdict()
+            else:
+                normal = unmatched_normal._asdict()
             runs["pair_status"].append("unmatched")
         elif normal is None and run_unpaired_tumours_with == "no_normal":
             normal = {key: None for key in tumour.keys()}
@@ -870,12 +1017,12 @@ def generate_runs_for_patient(
 
 
 def generate_runs_for_patient_wrapper(patient_samples, pairing_config):
-    """Runs generate_runs_for_patient based on the current seq_type.
+    """Runs generate_runs_for_patient for the current seq_type/genome_build.
 
     This function is meant as a wrapper for `generate_runs_for_patient()`,
-    whose parameters depend on the sequencing data type (seq_type) of the
-    samples at hand. It assumes that all samples for the given patient
-    share the same seq_type.
+    whose parameters depend on the sequencing data type (seq_type) and
+    genome_build of the samples at hand. It assumes that all samples for
+    the given patient share the same seq_type and genome_build.
 
     Parameters
     ----------
@@ -1025,6 +1172,7 @@ def walk_through_dict(
 def generate_runs(
     samples,
     pairing_config=None,
+    unmatched_normal_ids=None,
     subgroups=("seq_type", "genome_build", "patient_id", "tissue_status"),
 ):
     """Produces a data frame of tumour runs from a data frame of samples.
@@ -1041,6 +1189,10 @@ def generate_runs(
         Same as `generate_runs_for_patient_wrapper()`. If left unset
         (or None is provided), this function will fallback on a
         default value (see `oncopipe.DEFAULT_PAIRING_CONFIG`).
+    unmatched_normal_ids : dict, optional
+        The mapping from seq_type and genome_build to the unmatched
+        normal sample IDs that should be used for unmatched analyses.
+        The keys must take the form of '{seq_type}--{genome_build}'.
     subgroups : list of str, optional
         Same as `group_samples()`.
 
@@ -1058,8 +1210,32 @@ def generate_runs(
 
     # Generate Sample instances for unmatched normal samples from sample IDs
     Sample = namedtuple("Sample", samples.columns.tolist())
+    sample_genome_builds = samples["genome_build"].unique()
     for seq_type, args_dict in pairing_config.items():
         if (
+            "run_unpaired_tumours_with" in args_dict
+            and args_dict["run_unpaired_tumours_with"] == "unmatched_normal"
+            and unmatched_normal_ids is not None
+        ):
+            unmatched_normals = dict()
+            for key, normal_id in unmatched_normal_ids.items():
+                _, genome_build = key.split("--", 1)
+                if (
+                    not key.startswith(f"{seq_type}--")
+                    or genome_build not in sample_genome_builds
+                ):
+                    continue
+                normal_row = samples[
+                    (samples.sample_id == normal_id) & (samples.seq_type == seq_type)
+                ]
+                num_matches = len(normal_row)
+                assert num_matches == 1, (
+                    f"There are {num_matches} {seq_type} samples matching "
+                    f"the normal ID {normal_id} (instead of just one)."
+                )
+                unmatched_normals[key] = Sample(*normal_row.squeeze())
+            args_dict["unmatched_normals"] = unmatched_normals
+        elif (
             "run_unpaired_tumours_with" in args_dict
             and args_dict["run_unpaired_tumours_with"] == "unmatched_normal"
             and "unmatched_normal_id" in args_dict
@@ -1106,7 +1282,7 @@ def generate_runs(
     return runs
 
 
-def generate_pairs(samples, **seq_types):
+def generate_pairs(samples, unmatched_normal_ids=None, **seq_types):
     """Generate tumour-normal pairs using sensible defaults.
 
     Each sequencing data type (``seq_type``) is provided as
@@ -1154,6 +1330,10 @@ def generate_pairs(samples, **seq_types):
         'tumour'/'tumor'). If ``genome_build`` is included,
         no tumour-normal pairs will be made between different
         genome builds.
+    unmatched_normal_ids : dict, optional
+        The mapping from seq_type and genome_build to the unmatched
+        normal sample IDs that should be used for unmatched analyses.
+        The keys must take the form of '{seq_type}--{genome_build}'.
     **seq_types : {'matched_only', 'allow_unmatched', 'no_normal'}
         A mapping between values of ``seq_type`` and
         pairing modes. See above for description of each
@@ -1228,14 +1408,19 @@ def generate_pairs(samples, **seq_types):
         )
 
         # Make sure that the `allow_unmatched` mode is provided
-        assert mode != "allow_unmatched" or unmatched_normal_id is not None, (
-            "The 'allow_unmatched' mode must be paired with a normal sample ID, such "
-            "as:\n    generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'))\n"
+        # with unmatched_normal_id or unmatched_normal_ids
+        assert mode != "allow_unmatched" or (
+            unmatched_normal_id is not None or unmatched_normal_ids is not None
+        ), (
+            "The 'allow_unmatched' mode must be provided with the "
+            "`unmatched_normal_ids` parameter or paired with a normal "
+            "sample ID, such as:\n    "
+            "generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'))\n"
         )
 
         pairing_config[seq_type] = pairing_modes[mode]
 
-        if mode == "allow_unmatched":
+        if mode == "allow_unmatched" and unmatched_normal_id is not None:
             pairing_config[seq_type]["unmatched_normal_id"] = unmatched_normal_id
 
     # Subgroup using `genome_build` if available
@@ -1252,7 +1437,8 @@ def generate_pairs(samples, **seq_types):
     )
 
     # Generate the runs using the generated pairing configuration
-    runs = generate_runs(samples, pairing_config, subgroups)
+    samples = filter_samples(samples, seq_type=list(seq_types.keys()))
+    runs = generate_runs(samples, pairing_config, unmatched_normal_ids, subgroups)
 
     return runs
 
@@ -1261,23 +1447,35 @@ def generate_pairs(samples, **seq_types):
 
 
 def check_for_none_strings(config, name):
-    """Warn the user if 'None' strings are found in config."""
+    """Warn the user if 'None'/'null' strings are found in config."""
 
     def check_for_none_strings_(obj):
         if isinstance(obj, str):
-            if obj == "None":
+            if obj in ["None", "null"]:
                 logger.warning(
-                    "Found the value `'None'` (string) in the configuration for "
-                    f"the {name} module. Are you sure you didn't want to use "
-                    "the value `None` instead? This might have happened by using "
-                    "`None` or `'None'` in a YAML file instead of `null`."
+                    f"Found the value `{obj!r}` (string) in the configuration for "
+                    f"the {name} module. You probably intended to use the value "
+                    "`null` (without quotes) in the YAML configuration files."
                 )
-            result = obj
-        else:
-            result = obj
-        return result
+        return obj
 
     walk_through_dict(config, check_for_none_strings_)
+
+
+def check_for_update_strings(config, name):
+    """Warn the user if '__UPDATE__' strings are found in config."""
+
+    def check_for_update_strings_(obj):
+        if isinstance(obj, str):
+            assert "__UPDATE__" not in obj, (
+                "Found the value '__UPDATE__' in the configuration for the "
+                f"{name} module. This usually means some values from the "
+                "module's default configuration file haven't been updated. "
+                f"For more info, check out {DOCS['update_config']}."
+            )
+        return obj
+
+    walk_through_dict(config, check_for_update_strings_)
 
 
 def setup_module(name, version, subdirectories):
@@ -1358,6 +1556,9 @@ def setup_module(name, version, subdirectories):
     # Check whether there are "None" strings
     check_for_none_strings(mconfig, name)
 
+    # Check whether there are "__UPDATE__" strings
+    check_for_update_strings(mconfig, name)
+
     # Drop samples whose seq_types do not appear in pairing_config
     assert "pairing_config" in mconfig, "`pairing_config` missing from module config."
     sample_seq_types = msamples["seq_type"].unique()
@@ -1429,7 +1630,7 @@ def setup_module(name, version, subdirectories):
     # Update paths to conda environments to be relative to the module directory
     for env_name, env_val in mconfig["conda_envs"].items():
         if env_val is not None:
-            mconfig["conda_envs"][env_name] = os.path.relpath(env_val, modsdir)
+            mconfig["conda_envs"][env_name] = os.path.realpath(env_val)
 
     # Setup output sub-directories
     scratch_subdirs = mconfig.get("scratch_subdirectories", [])
@@ -1450,7 +1651,9 @@ def setup_module(name, version, subdirectories):
 
     # Generate runs
     assert "pairing_config" in mconfig, "Module config must have 'pairing_config'."
-    runs = generate_runs(msamples, mconfig["pairing_config"])
+    runs = generate_runs(
+        msamples, mconfig["pairing_config"], mconfig.get("unmatched_normal_ids")
+    )
 
     # Split runs based on pair_status
     mconfig["runs"] = runs
@@ -1458,6 +1661,7 @@ def setup_module(name, version, subdirectories):
     mconfig["unpaired_runs"] = runs[runs.pair_status == "no_normal"]
 
     # Return module-specific configuration
+    config["lcr-modules"][name] = mconfig
     return mconfig
 
 
@@ -1500,7 +1704,7 @@ def setup_subdirs(module_config, subdirectories, scratch_subdirs=()):
         )
 
     # If `scratch_directory` is None, then don't worry about `scratch_subdirs`
-    scratch_directory = module_config.get("scratch_directory", "")
+    scratch_directory = module_config.get("scratch_directory")
     if scratch_directory is None:
         scratch_subdirs = ()
 
@@ -1516,11 +1720,11 @@ def setup_subdirs(module_config, subdirectories, scratch_subdirs=()):
     name = module_config["name"]
     version = module_config["version"]
     parent_dir = module_config["dirs"]["_parent"]
-    scratch_parent_dir = os.path.join(scratch_directory, f"{name}-{version}")
     for num, subdir in zip(numbers, subdirectories):
         subdir_full = os.path.join(parent_dir, f"{num}-{subdir}/")
         module_config["dirs"][subdir] = subdir_full
         if subdir in scratch_subdirs:
+            scratch_parent_dir = os.path.join(scratch_directory, f"{name}-{version}")
             scratch_subdir_full = os.path.join(scratch_parent_dir, f"{num}-{subdir}/")
             os.makedirs(scratch_subdir_full, exist_ok=True)
             relative_symlink(scratch_subdir_full, subdir_full, overwrite=False)

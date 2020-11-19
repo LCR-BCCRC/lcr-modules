@@ -3,6 +3,7 @@
 .envrc
 .vscode/
 .prettierrc
+.python-version
 
 # Byte-compiled files
 __pycache__/
@@ -28,13 +29,13 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Files creates when testing the demo project
+# Files creates when testing the demo project or workflows
 .snakemake/
 /demo/results/
 /demo/reference
-/demo/scratch
-/demo/data/*
-!/demo/data/samples.tsv
+/demo/scratch/
+/demo/data/*bam
+
 
 # Ignore example snakefiles
 /examples
@@ -42,3 +43,4 @@ MANIFEST
 # Ignore sphinx builds
 /docs/build
 /docs/source/_build
+demo/run_clc.sh

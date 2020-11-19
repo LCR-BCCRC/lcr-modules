@@ -1,0 +1,36 @@
+lcr-modules:
+    
+    starfish:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_vcf: ["__UPDATE__","__UPDATE__"]  
+            #The current implementation of this tool only works for intersecting the output of two two variant callers. 
+            #It should be generalized eventually using excellent suggestions from Bruno
+            sample_tool: ["lofreq","strelka"]
+            starfish_script: "{MODSDIR}/src/python/starfish.py"
+            reference: "__UPDATE__" # The RTG Tools SDF reference directory for the genome build used (created with the rtg format command)
+
+        scratch_subdirectories: []
+
+        conda_envs:
+            starfish: "{MODSDIR}/envs/starfish.yaml"
+            bedops: "{MODSDIR}/envs/bedops-2.4.39.yaml"
+
+        threads:
+            starfish: 4
+            vcf_to_bed: 4
+
+        mem_mb:
+            starfish: 10000
+            vcf_to_bed: 10000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: True
