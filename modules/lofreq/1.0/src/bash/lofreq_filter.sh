@@ -11,20 +11,17 @@ zcat "${INPUT_FILE}" \
   | awk '($4=="A" || $4 == "C" || $4=="T" || $4=="G" || /\#/)' \
   | perl -ne 'print if /^#|^(chr)*[\dX]+\s.+/' \
   | perl -ne 's/AF=/VAF=/g;s/ID=AF/ID=VAF/;print;' \
-  | perl -F'\t' -lane '{
-      $HEADER_DP = "##FORMAT=<ID=DP,Number=1,Type=Integer,Description=\"Raw Depth\">";
-      $HEADER_DP4 = "##FORMAT=<ID=DP4,Number=4,Type=Integer,Description=\"Counts for ref-forward bases, ref-reverse, alt-forward and alt-reverse bases\">";
-      $TO_HEADER = join "\t", "FORMAT", "TUMOR";
-      $FORMAT_HEADER = "DP:DP4";
-      ($DEPTH, $VAF, $SB, $DP4, $SOMATIC, $UQ) = split /;/, $F[7]; 
-      ($DP, $DEPTH) = split /=/, $DEPTH;
-      ($DP4_INFO, $DP4_FORMAT) = split /=/, $DP4;
-      $FORMAT = join ":", $DEPTH, $DP4_FORMAT;
-      if ($F[0] =~ /^#{2}/){
-        print join "\t", @F; print join "\n", $HEADER_DP, $HEADER_DP4 if /HRUN/
-      }elsif($F[0] =~ /^#{1}/){
-        print join "\t", @F, $TO_HEADER
-      }else{
-        print join "\t", @F, $FORMAT_HEADER, $FORMAT
-      }
-      }'
+  | perl -ne '
+              # Add 2 new rows to the description and 2 new columns in the header
+              if(/^#/){
+                if(/##INFO=<ID=DP,.+\n/){$DP=$&;}; $DP =~ s/INFO/FORMAT/; print $DP if /min_dp/;
+                if(/##INFO=<ID=DP4,.+\n/){$DP4=$&;}; $DP4 =~ s/INFO/FORMAT/; print $DP4 if /min_dp/;
+                if(/^#CHROM.+/){s/$&/$&\tFORMAT\tTUMOR/;};
+                print;
+                };
+              # For each feature, add FORMAT column with descriptors and populate TUMOUR column with depth, reads counts
+              if(/^(chr)*[\dX]+\s.+/){
+                my @data = map { chomp; [ split /=|;/ ] } $_;
+                $NEW_ROW = "$_\tDP:DP4\t$data[0][1]:$data[0][7]\n";
+                print $NEW_ROW;
+                }'
