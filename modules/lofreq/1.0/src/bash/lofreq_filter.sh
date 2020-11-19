@@ -14,14 +14,24 @@ zcat "${INPUT_FILE}" \
   | perl -ne '
               # Add 2 new rows to the description and 2 new columns in the header
               if(/^#/){
-                if(/##INFO=<ID=DP,.+\n/){$DP=$&;}; $DP =~ s/INFO/FORMAT/; print $DP if /min_dp/;
-                if(/##INFO=<ID=DP4,.+\n/){$DP4=$&;}; $DP4 =~ s/INFO/FORMAT/; print $DP4 if /min_dp/;
-                if(/^#CHROM.+/){s/$&/$&\tFORMAT\tTUMOR/;};
-                print;
+                if(/##INFO=<ID=DP,.+\n/){
+                  $DP=$&;
                 };
+                $DP =~ s/INFO/FORMAT/;
+                print $DP if /min_dp/;
+                if(/##INFO=<ID=DP4,.+\n/){
+                  $DP4=$&;
+                };
+                $DP4 =~ s/INFO/FORMAT/;
+                print $DP4 if /min_dp/;
+                if(/^#CHROM.+/){
+                  s/$&/$&\tFORMAT\tTUMOR/;
+                };
+                print;
+              };
               # For each feature, add FORMAT column with descriptors and populate TUMOUR column with depth, reads counts
               if(/^(chr)*[\dX]+\s.+/){
                 my @data = map { chomp; [ split /=|;/ ] } $_;
                 $NEW_ROW = "$_\tDP:DP4\t$data[0][1]:$data[0][7]\n";
                 print $NEW_ROW;
-                }'
+              }'
