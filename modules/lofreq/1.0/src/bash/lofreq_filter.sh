@@ -28,9 +28,9 @@ zcat "${INPUT_FILE}" \
                   s/$&/$&\tFORMAT\tTUMOR/;
                 };
                 print;
-              };
+              }
               # For each feature, add FORMAT column with descriptors and populate TUMOUR column with depth, reads counts
-              if(/^(chr)*[\dX]+\s.+/){
+              else{
                 my @data = map { chomp; [ split /=|;/ ] } $_;
                 $NEW_ROW = "$_\tDP:DP4\t$data[0][1]:$data[0][7]\n";
                 print $NEW_ROW;
