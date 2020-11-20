@@ -13,6 +13,7 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+import glob
 
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["battenberg"]`
@@ -32,6 +33,7 @@ localrules:
     _battenberg_input_bam,
     _battenberg_output_seg,
     _battenberg_to_igv_seg,
+    _battenberg_cleanup,
     _battenberg_all,
 
 
@@ -40,17 +42,17 @@ localrules:
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _battenberg_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"],
-        bai = CFG["inputs"]["sample_bai"]
+        bam = CFG["inputs"]["sample_bam"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
         op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
+        op.relative_symlink(input.bam + ".bai", output.bai)
 
 # Installs the Battenberg R dependencies and associated software (impute2, alleleCounter)
 # Currently I think this rule has to be run twice for it to work properly because the conda environment is created here. 
+# I am open to suggestions for how to get around this.
 rule _install_battenberg:
     output:
         complete = "config/envs/battenberg_dependencies_installed.success"
@@ -63,7 +65,9 @@ rule _install_battenberg:
         touch {output.complete}"""
 
 
-#This rule runs the entire Battenberg pipeline
+# This rule runs the entire Battenberg pipeline. Eventually we may want to set this rule up to allow re-starting
+# of partially completed jobs (e.g. if they run out of RAM and are killed by the cluster, they can automatically retry)
+# TODO: this rule needs to be modified to rely on reference_files and allow setup (downloading) of the Battenberg references
 rule _run_battenberg:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
@@ -74,13 +78,12 @@ rule _run_battenberg:
     output:
         refit=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_refit_suggestion.txt",
         sub=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.txt",
-        sub1=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones_1.txt",
-        ac=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_alleleCounts.tab",
-        mb=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantBAF.tab",
-        mlrg=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantLogR_gcCorrected.tab",
-        mlr=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantLogR.tab",
-        nlr=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_normalLogR.tab",
-        nb=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_normalBAF.tab"
+        ac=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_alleleCounts.tab"),
+        mb=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantBAF.tab"),
+        mlrg=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantLogR_gcCorrected.tab"),
+        mlr=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantLogR.tab"),
+        nlr=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_normalLogR.tab"),
+        nb=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_normalBAF.tab")
     log:
         stdout = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stdout.log",
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stderr.log"
@@ -95,61 +98,78 @@ rule _run_battenberg:
     conda:
         CFG["conda_envs"]["battenberg"]
     resources:
-        mem_mb = CFG["mem_mb"]["battenberg"]
+        **CFG["resources"]["battenberg"]
     threads:
         CFG["threads"]["battenberg"]
-    resources: mem_mb = 200000
     shell:
         """sex=$({params.calc_sex_status} {input.normal_bam} {params.x_chrom} {params.y_chrom} | tail -1 | awk '{{if( $3/$2 > 0.1) print "male"; else print "female"}}') ;"""
         "Rscript {params.script} -t {wildcards.tumour_id} "
         "-n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam}  "
         "-o {params.out_dir} --sex $sex --reference {params.reference_path} {params.chr_prefixed} --cpu {threads} > {log.stdout} 2> {log.stderr} "
 
-# Converts the subclones.txt (best fit) and subclones_1.txt (second best fit) to igv-friendly SEG files. 
+
+# Convert the subclones.txt (best fit) to igv-friendly SEG files. 
 rule _battenberg_to_igv_seg:
     input:
         sub = rules._run_battenberg.output.sub,
-        sub1 = rules._run_battenberg.output.sub1,
         cnv2igv = CFG["inputs"]["cnv2igv"]
     output:
-        seg = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.igv.seg",
-        seg1 = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones_1.igv.seg"
+        seg = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.igv.seg"
     log:
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_seg2igv.stderr.log"
     threads: 1
     shell:
         op.as_one_line("""
         python {input.cnv2igv} --mode battenberg --sample {wildcards.tumour_id} 
-        {input.sub} > {output.seg} 2> {log.stderr} &&
-        python {input.cnv2igv} --mode battenberg --sample {wildcards.tumour_id} 
-        {input.sub1} > {output.seg1} 2>> {log.stderr}
+        {input.sub} > {output.seg} 2> {log.stderr}
         """)
 
 
+#due to the large number of files (several per chromosome) that are not explicit outputs, do some glob-based cleaning in the output directory
+rule _battenberg_cleanup:
+    input:
+        rules._battenberg_to_igv_seg.output.seg
+    output:
+        complete = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_cleanup_complete.txt"
+    shell:
+        op.as_one_line("""
+        d=$(dirname {output});
+        rm $d/*impute_input* &&
+        rm $d/*alleleFrequencies* &&
+        rm $d/*aplotype* &&
+        rm $d/*BAFsegmented* && 
+        touch {output.complete}
+        """)
+
 # Symlinks the final output files into the module results directory (under '99-outputs/')
+# All plots generated by Battenberg are symlinked using a glob for convenience
+
 rule _battenberg_output_seg:
     input:
         seg = rules._battenberg_to_igv_seg.output.seg,
-        seg1 = rules._battenberg_to_igv_seg.output.seg1
+        sub = rules._run_battenberg.output.sub
     output:
         seg = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.igv.seg",
-        seg1 = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones_1.igv.seg"
+        sub = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt"
+    params: 
+        batt_dir = CFG["dirs"]["battenberg"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
+        png_dir = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}"
     run:
-        op.relative_symlink(input.seg, output.seg)  #note: I think there's a bug in the cookicutter. This line is op.relative_symlink(input, output) but presumably should include the names
-        op.relative_symlink(input.seg1, output.seg1)
-
+        plots = glob.glob(params.batt_dir + "/*.png")
+        for png in plots:
+            bn = os.path.basename(png)
+            op.relative_symlink(png, params.png_dir + "/" + bn)
+        op.relative_symlink(input.seg, output.seg)
+        op.relative_symlink(input.sub, output.sub)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _battenberg_all:
     input:
         expand(
             [
-                rules._run_battenberg.output.refit,
-                rules._install_battenberg.output.complete,
-                rules._battenberg_to_igv_seg.output.seg,
-                rules._battenberg_to_igv_seg.output.seg1,
+                rules._run_battenberg.output.sub,
                 rules._battenberg_output_seg.output.seg,
-                rules._battenberg_output_seg.output.seg1,
+                rules._battenberg_cleanup.output.complete
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
