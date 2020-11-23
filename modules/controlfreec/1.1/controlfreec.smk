@@ -277,7 +277,6 @@ rule _controlfreec_run:
     conda: CFG["conda_envs"]["controlfreec"]
     threads: CFG["threads"]["controlfreec_run"]
     resources: **CFG["resources"]["controlfreec_run"]
-    priority: 1
     log:
         stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run.stdout.log",
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run.stderr.log"
