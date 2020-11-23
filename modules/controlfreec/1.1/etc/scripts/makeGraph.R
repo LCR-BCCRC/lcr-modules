@@ -16,7 +16,7 @@ op <- par(mfrow = c(5,5))
 for (i in c(1:22,'X','Y')) {
 	tt <- which(ratio$Chromosome==i)
 	if (length(tt)>0) {
-	 plot(ratio$Start[tt],log2(ratio$Ratio[tt]), xlab = paste ("position, chr",i), ylim = c(-5, 5), ylab = "normalized copy number profile (log2)",pch = ".",col = colors()[88])
+	 plot(ratio$Start[tt],log2(ratio$Ratio[tt]),xlab = paste ("position, chr",i),ylab = "normalized copy number profile (log2)",pch = ".",col = colors()[88])
 	 tt <- which(ratio$Chromosome==i  & ratio$CopyNumber>ploidy )
 	 points(ratio$Start[tt],log2(ratio$Ratio[tt]),pch = ".",col = colors()[136])
 	

@@ -11,46 +11,24 @@ chrFiles = chrFilesPath
 chrLenFile = chrLenFileInput
 gemMappabilityFile = referenceFile
 outputDir = OUTDIR
-BedGraphOutput= bedgraphBoo
+BedGraphOutput=FALSE
 breakPointThreshold = breakPointValue
-breakPointType = breakPointTypeBe
 coefficientOfVariation = coefVar
-#contamination = numCon
+contamination = numCon
 contaminationAdjustment = booCon
 degree = numDegree
 forceGCcontentNormalization = forceGCvalue
-intercept = interPoly
 minCNAlength = minCNAvalue
-minMappabilityPerWindow = minMapPerWindow
 minimalSubclonePresence = minimumSubclonePresenceValue
 noisyData = booNoise
-printNA = naBoo
 ploidy = ploidyInput
-#step = stepValue
+step = stepValue
 telocentromeric = teloValue
-uniqueMatch = uniqBoo
-#window = windowSize
+window = windowSize
 
 
 [sample]
 
 mateFile = BAMFILE
-inputFormat = pileup
+inputFormat = BAM
 mateOrientation = FR
-
-
-[control]
-
-mateFile = CONTROLFILE
-inputFormat = pileup
-mateOrientation = FR
-
-
-[BAF]
-
-fastaFile = fastaPath
-shiftInQuality = phredQuality
-SNPfile = DBsnpFile
-minimalCoveragePerPosition = minCovPerPos
-minimumQualityPerPosition = minQualPerPos
-
