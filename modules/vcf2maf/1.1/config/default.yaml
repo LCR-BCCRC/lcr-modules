@@ -15,7 +15,7 @@ lcr-modules:
             #--species        Ensembl-friendly name of species (e.g. mus_musculus for mouse) [homo_sapiens]
             #--cache-version  Version of offline cache to use with VEP (e.g. 75, 84, 91) [Default: Installed version]
             species: "homo_sapiens"
-        # here you can specify list of custom ENST IDs that override canonical selection
+        # here you can specify path to txt file with a list of custom ENST IDs that override canonical selection
         # it will be parsed to --custom-enst flag of vcf2maf
         # if no non-canonical transcript IDs to be included, leave switches empty
         switches:
@@ -34,7 +34,9 @@ lcr-modules:
         resources:
             vcf2maf: 
                 mem_mb: 8000
-                bam: 1
+                vcf: 1
+            crossmap:
+                mem_mb: 8000
 
         pairing_config:
             genome:
