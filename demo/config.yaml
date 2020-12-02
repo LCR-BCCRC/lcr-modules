@@ -47,10 +47,11 @@ lcr-modules:
         # here you can specify path to txt file with a list of custom ENST IDs that override canonical selection
         # it will be parsed to --custom-enst flag of vcf2maf
         # if no non-canonical transcript IDs to be included, leave switches empty
+        # In this example, the ENST ID for the gene CROCC (first in the output) will be overwritten with non-canonical ID
         switches:
             custom_enst:
               hg38: ""
-              grch37: ""
+              grch37: "data/custom_enst.txt"
               hs37d5: ""
         resources:
             vcf2maf:
