@@ -33,10 +33,10 @@ lcr-modules:
         
         resources:
             vcf2maf: 
-                mem_mb: 8000
+                mem_mb: 12000
                 vcf: 1
             crossmap:
-                mem_mb: 8000
+                mem_mb: 12000
 
         pairing_config:
             genome:
