@@ -52,7 +52,7 @@ rule _vcf2maf_decompress_vcf:
     input:
         vcf_gz = str(rules._vcf2maf_input_vcf.output.vcf_gz)
     output:
-        vcf = CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.vcf"
+        vcf = temp(CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.vcf")
     shell:
         "gzip -dc {input.vcf_gz} > {output.vcf}" #this should work on both gzip and bcftools compressed files 
 
@@ -69,13 +69,14 @@ rule _vcf2maf_run:
         stderr = CFG["logs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_vcf2maf.stderr.log",
     params:
         opts = CFG["options"]["vcf2maf"],
-        build = lambda w: VERSION_MAP[w.genome_build]
+        build = lambda w: VERSION_MAP[w.genome_build],
+        custom_enst = op.switch_on_wildcard("genome_build", CFG["switches"]["custom_enst"])
     conda:
         CFG["conda_envs"]["vcf2maf"]
     threads:
         CFG["threads"]["vcf2maf"]
     resources:
-        mem_mb = CFG["mem_mb"]["vcf2maf"]
+        **CFG["resources"]["vcf2maf"]
     shell:
         op.as_one_line("""
         if [[ -e {output.maf} ]]; then rm -f {output.maf}; fi;
@@ -89,6 +90,7 @@ rule _vcf2maf_run:
         --ncbi-build {params.build}
         --vep-data {input.vep_cache}
         --vep-path $vepPATH {params.opts}
+        --custom-enst {params.custom_enst}
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -114,7 +116,7 @@ rule _vcf2maf_crossmap:
     threads:
         CFG["threads"]["vcf2maf"]
     resources:
-        mem_mb = CFG["mem_mb"]["vcf2maf"]
+        **CFG["resources"]["crossmap"]
     params:
         out_name = CFG["dirs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.converted_",
         chain = lambda w: "hg38ToHg19" if "38" in str({w.genome_build}) else "hg19ToHg38",
