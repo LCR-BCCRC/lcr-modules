@@ -22,7 +22,7 @@ lcr-modules:
             
         threads:
             vcf2maf: 12
-        
+
         mem_mb:
             vcf2maf: 8000
         pairing_config:

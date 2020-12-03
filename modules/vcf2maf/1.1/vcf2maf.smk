@@ -89,7 +89,6 @@ rule _vcf2maf_run:
         --ncbi-build {params.build}
         --vep-data {input.vep_cache}
         --vep-path $vepPATH {params.opts}
-        --custom-enst {params.custom_enst}
         > {log.stdout} 2> {log.stderr}
         """)
 
