@@ -1,0 +1,92 @@
+lcr-modules:
+    
+    controlfreec:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+
+        scratch_subdirectories: [] 
+        # rules _controlfreec_mpileup_per_chrom and _controlfreec_concatenate_pileups would require scratch space
+        
+        conda_envs:
+            controlfreec: "{MODSDIR}/envs/controlfreec.env.yaml"
+
+
+        options:
+            configFile: "{MODSDIR}/config/freec/config_WGS.txt"
+            BedGraphOutput: FALSE # option to generate BedGraphs for UCSC genome browser
+            breakPointThreshold: 0.6 # threshold for segmentaiton of normalized profiles - 
+                # use 0.6 for more segments to get more CNVs
+            breakPointType: 2
+                # breakpoint types: desired behaviour for ambiguous regions (polyN or low map):
+                # 0: unknown region attached to known region on right
+                # 1: make a separate fragment of the unknown region and attach to left/right, choose the longer one
+                # 2: make a separate fragment of the unknown region and attach to left/right, ploidy has priority
+                # 3: make a separate fragment of the unknown region and attach to left/right, choosing the longer one, BUT known region should make at least half size of the unknown region
+                # 4: make a separate fragment of the unknown region and do not assign any copy number to this region at all
+            coefficientOfVariation: 0.062 # coefficient used to evaluate window size - the lower, the more windows
+            contaminationAdjustment: TRUE # if "contamination" value is not provided, it will automaticaly evaluate
+            degree: '3\&4' # degree of polynomial - 3&4 for WGS (GC-based normalization); 1 for WES (control-read-count-based normalization)
+            forceGCcontentNormalization: 1 #0 for WGS; 1 for WES # 0 forces control-base normalization, 1 forces GC
+            intercept: 1 # 0 for control-based (paired) ; 1 for GC-content (unpaired)
+            minCNAlength: 8 # minimum number of consecutive windows to call a CNA #default 1 for WGS; 3 for WES
+            minMappabilityPerWindow: 0.9 # minimum fraction of mappable positions for a window to be considered
+            minimalSubclonePresence: 20 # detects subclones present in x% of cell population - 20 for WGS; 30 for WES (100 means "do not look for subclones")
+            noisyData: TRUE #set TRUE for exomes/FFPE libs to avoid false positives due to non-uniform capture
+            ploidy: 2 #will select the ploidy that explains the most CNAs (a range can be added and control-freec will assign ploidy based on best fit, ex. 2,3,4)
+            printNA: FALSE
+            telocentromeric: 50000 # size of pre-telomeric and pre-centromeric regions to exclude
+            uniqueMatch: TRUE # uses mappability profile to correct read counts
+            
+            #optional options: (uncomment these options in config_WGS.txt to implement them)
+            #if implemented, contamination will overrule contaminationAdjustment
+            #step and window will overrule coefficientOfVariation
+            contamination: 0 # a priori known value of tumor sample contamination by normals
+            sex: XX or XY # sex=XX will exclude chrY and sex=XY will not annotate one copy of X and Y as a loss
+            step: 20000 # only if window is specified; do not use for WES
+            window: 100000 # window size
+            
+            #BAF options:
+            minimalCoveragePerPosition: 10 # for BAF: minimum position coverage default is 0
+            minQualityPerPosition: 20 # for BAF: minimum base quality
+            shiftInQuality: 0 # basis for Phred quality
+
+
+        software:
+            FREEC_sig: "{MODSDIR}/etc/scripts/assess_significance.R"
+            FREEC_graph: "{MODSDIR}/etc/scripts/makeGraph.R"
+            FREEC_graph_chr: "{MODSDIR}/etc/scripts/makeGraph_Chromosome.R"
+            freec2bed: "{MODSDIR}/etc/scripts/freec2bed.pl"
+
+        
+        threads:
+            controlfreec_run: 24
+            calc_sig: 1
+            plot: 1
+            freec2bed: 1
+
+        resources:
+            mpileup:
+                mem_mb: 8000
+            cat:
+                mem_mb: 8000
+                pileup: 1
+            controlfreec_run:
+                mem_mb: 48000
+                pileup: 1
+            calc_sig:
+                mem_mb: 1000
+            plot:
+                mem_mb: 1000
+            freec2bed:
+                mem_mb: 1000
+
+        
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False

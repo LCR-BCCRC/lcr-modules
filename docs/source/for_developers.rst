@@ -112,11 +112,11 @@ When you run the command listed in the :ref:`getting-started-dev` instructions, 
 
    Additional options will be added later, such as ``tumour_cohort`` and ``sample_cohort`` for level-3 modules (see :ref:`what-are-modules` for more details).
 
--  ``seq_type.genome``, ``seq_type.capture``, and ``seq_type.mrna``: Possible values are ``matched_only``, ``allow_unmatched``, ``no_normal``, and ``omit``. These fields determine which sequencing data types (``seq_type``) are intended as input for the module and whether each ``seq_type`` is intended to be run in paired or unpaired mode, and if in paired mode, whether to allow unmatched pairs. For more information on these modes, check out the documentation for the :py:func:`oncopipe.generate_pairs` function. Select ``omit`` if a ``seq_type`` is not applicable for the module. The fields correspond to whole genome, hybrid capture-based, and RNA sequencing, respectively.
+-  ``seq_type.genome``, ``seq_type.capture``, and ``seq_type.mrna``: Possible values are ``omit``,``unpaired``, ``matched_only``, ``allow_unmatched``, and ``no_normal``, . These fields determine which sequencing data types (``seq_type``) are intended as input for the module and whether each ``seq_type`` is intended to be run in paired or unpaired mode, and if in paired mode, whether to allow unmatched pairs. Select ``omit`` if a ``seq_type`` is not applicable for the module or ``unpaired`` if you are running the module once per sample. For more information on the last three modes, check out the documentation for the :py:func:`oncopipe.generate_pairs` function.  The fields correspond to whole genome, hybrid capture-based, and RNA sequencing, respectively.
 
    **Important**
 
-   - If you selected ``sample`` for ``module_run_per``, then you should use ``no_normal`` here. If this is a paired analysis, you should start over (cancel with Ctrl-C) and select ``tumour`` for ``module_run_per``. 
+   - If you selected ``sample`` for ``module_run_per``, then you should use ``unpaired`` (or ``omit``) here. If this is a paired analysis, you should start over (cancel with Ctrl-C) and select ``tumour`` for ``module_run_per``. 
    
    - If you selected ``tumour`` for ``module_run_per``, you can select ``matched_only``, ``allow_unmatched``, or ``no_normal`` depending on whether the module is meant to be run on only matched tumour-normal pairs, on potentially unmatched tumour-normal pairs, or on tumours only. 
 

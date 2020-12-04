@@ -1,0 +1,39 @@
+lcr-modules:
+    
+    bam2fastq:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+        temp_outputs: "__UPDATE__" # Boolean: True of False
+
+        options:
+            bam2fastq: "VALIDATION_STRINGENCY=LENIENT"
+
+        conda_envs:
+            picard: "{MODSDIR}/envs/picard-2.22.3.yaml"
+            
+        threads:
+            bam2fastq: 4
+
+        resources:
+            bam2fastq: 
+                mem_mb: 100000
+                bam: 1
+
+        group: 
+            bam2fastq: "bam2fastq" # For efficient space management, change to match group parameter for downstream tools. 
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

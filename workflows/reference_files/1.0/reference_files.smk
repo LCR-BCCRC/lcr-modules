@@ -23,7 +23,8 @@ localrules: download_genome_fasta,
             hardlink_download, update_contig_names,
             get_genome_fasta_download, index_genome_fasta,
             get_main_chromosomes_download, create_bwa_index,
-            get_gencode_download, create_star_index
+            get_gencode_download, create_star_index,
+            create_seq_dict, create_rRNA_interval
 
 
 # Check for genome builds

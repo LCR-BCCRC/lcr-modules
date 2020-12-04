@@ -41,4 +41,5 @@ if module_run_per == "sample":
         assert mode not in ["matched_only", "allow_unmatched"], (
             f"`module_run_per` set to 'sample', but `seq_type.{seq_type}` set to "
             f"'{mode}'. For paired analyses, select 'tumour' for `module_run_per`."
+            f"For unpaired analyses, select 'unpaired' for `seq_type.{seq_type}`."
         )

@@ -1,8 +1,4 @@
-sample_id	seq_type	patient_id	tissue_status	genome_build
-99-20595T	capture	99-20595	tumour	hg38
-99-20595N	capture	99-20595	normal	hg38
-08-20595T	capture	08-20595	tumour	hg38
-08-20595N	capture	08-20595	normal	hg38
-TCRBOA7-N-WEX 	capture 	TCRBOA7 	normal 	grch37
-TCRBOA7-T-WEX 	capture 	TCRBOA7 	tumour 	grch37
-TCRBOA7-T-RNA 	mrna 	TCRBOA7 	tumour 	grch37
+sample_id	seq_type	patient_id	tissue_status	genome_build	strand	read_length
+TCRBOA7-N-WEX	capture	TCRBOA7	normal	grch37	positive	100
+TCRBOA7-T-WEX	capture	TCRBOA7	tumour	grch37	positive	100
+TCRBOA7-T-RNA	mrna	TCRBOA7	tumour	grch37	positive	100

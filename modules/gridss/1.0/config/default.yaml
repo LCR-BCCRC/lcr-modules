@@ -1,0 +1,63 @@
+lcr-modules:
+    
+    gridss:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        scratch_subdirectories: ["preprocess", "gridss"]
+
+        options:
+            gridss: 
+                --picardoptions VALIDATION_STRINGENCY=SILENT
+            filter_unpaired: 
+            gripss: 
+            # Hard filters remove variants from output VCF
+            # Soft filters add flags to output VCF
+            # These flags don't work with the current version of GRIPSS
+            # A fix is being prepared by the developers
+                -hard_max_normal_absolute_support 3
+                -hard_max_normal_relative_support 0.06
+                -soft_max_normal_relative_support 0.03
+
+        references: 
+            # These reference files are available packaged with https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC?path=%2FHMFTools-Resources%2FGRIDSS-Purple-Linx-Docker
+            viral_fa: "__UPDATE__"
+            viral_bwa_prefix: "__UPDATE__" 
+            # PON files available at https://nextcloud.hartwigmedicalfoundation.nl/s/LTiKTd8XxBqwaiC?path=%2FHMFTools-Resources%2FGRIDSS 
+            # Directory must contain gridss_pon_breakpoint, gridss_pon_single_breakend, and KnownFusionPairs for each genome build in your pipeline
+            pon_dir: "__UPDATE__" 
+       
+        
+        conda_envs:
+            gridss: "{MODSDIR}/envs/gridss-dependencies-2.9.4.yaml"
+            gripss: "{MODSDIR}/envs/hmftools-gripss-1.4.0.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
+            
+        threads:
+            gridss: 24
+            viral_annotation: 24
+            filter_gridss: 1
+            gripss: 1 # Not multi-threaded
+
+        resources:
+            gridss: 
+                mem_mb: 37500 # Recommended per GRIDSS manual
+                bam: 1
+            viral_annotation: 
+                mem_mb: 8000
+            gripss: 
+                mem_mb: 20000 # May need to be increased for FFPE tumours
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
