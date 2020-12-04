@@ -138,8 +138,6 @@ rule _utils_create_intervals: # create_interval_list from bed; default exomes
         O={output.intervals}
         SD={input.seq_dict}
         2> {log}
-        &&
-        chmod a-w {output.intervals}
         """)
 
 
