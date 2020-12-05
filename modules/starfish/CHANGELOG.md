@@ -11,4 +11,5 @@ The conversion of VCFs to bed and merging of indels is tailored to the goal of r
 This release was authored by Laura Hilton. 
 
  - This version is compatible with up to 6 input VCF files, and generates a union VCF file from the output. 
+ - The included src/starfish.py script is modified from the developer verson to throw an error if the user expects a venn diagrm output but the requirements aren't satisfied. 
  **WARNING:** Despite the use of a target sentinel file, Starfish still occasionally outputs empty VCF files without throwing any errors. Check your results carefully. 
