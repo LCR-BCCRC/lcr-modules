@@ -332,7 +332,7 @@ rule download_liftover_chains:
 
 rule download_sdf: 
     output: 
-        sdf = directory("downloads/sdf/{genome_build}/{genome_build}_sdf")
+        sdf = directory("downloads/sdf/{genome_build}/sdf")
     params: 
         provider = lambda w: {"grch37": "ensembl", "hg38": "ucsc", "hg19": "ucsc"}[w.genome_build],
         build = lambda w: {
@@ -352,7 +352,7 @@ rule download_sdf:
 
 
 def get_matching_download_rules(file):
-    ignored_rules = ["download_genome_fasta"]
+    ignored_rules = ["download_genome_fasta", "download_sdf"]
     rule_names = [ r for r in dir(rules) if r.startswith("download_")]
     rule_names = [ r for r in rule_names if r not in ignored_rules ]
     rule_list = [ getattr(rules, name) for name in rule_names ]
