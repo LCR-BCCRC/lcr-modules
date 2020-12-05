@@ -18,7 +18,7 @@ lcr-modules:
         inputs:
             sample_fastq_1: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read1.fastq.gz"
             sample_fastq_2: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read2.fastq.gz"
-        scratch_subdirectories: ["star", "sort_bam", "mark_dups"]
+        scratch_subdirectories: []
 
     manta:
         inputs:
@@ -45,6 +45,7 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
+        scratch_subdirectories: []
     
     lofreq:
         inputs:
@@ -100,10 +101,18 @@ lcr-modules:
         inputs:
             sample_fastq_1: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read1.fastq.gz"
             sample_fastq_2: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read2.fastq.gz"
-        scratch_subdirectories: ["bwa_mem", "sort_bam", "mark_dups"]
+        scratch_subdirectories: []
         
     controlfreec:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
         scratch_subdirectories: [] # mpileup should be in scratch space
+
+    starfish: 
+        dirs: 
+            _parent: "results/starfish-2.0_strelka-1.1_lofreq-1.0"
+        inputs: 
+            vcf: 
+                strelka: "results/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz"
+                lofreq: "results/lofreq-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz"
