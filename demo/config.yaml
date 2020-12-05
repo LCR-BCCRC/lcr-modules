@@ -31,8 +31,35 @@ lcr-modules:
             sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
 
     vcf2maf:
+        dirs:
+            _parent: "__UPDATE__"
         inputs:
             vep_cache: "reference/vep_caches/"
+            sample_vcf_gz: "__UPDATE__"
+            convert_coord: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.sh"
+        vcf_base_name: "__UPDATE__"
+        options:
+            vcf2maf: "--filter-vcf 0 --vcf-tumor-id TUMOR --vcf-normal-id NORMAL --cache-version 86"
+            species: "homo_sapiens"
+        conda_envs:
+            vcf2maf: "{MODSDIR}/envs/vcf2maf-1.6.18.yaml"
+            crossmap: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.yaml"
+        # here you can specify path to txt file with a list of custom ENST IDs that override canonical selection
+        # it will be parsed to --custom-enst flag of vcf2maf
+        # if no non-canonical transcript IDs to be included, leave switches empty
+        # This is just an example of how to include the list of custom IDs
+        switches:
+            custom_enst:
+              hg38: ""
+              grch37: "data/custom_enst.txt"
+              hs37d5: ""
+        resources:
+            vcf2maf:
+                mem_mb: 12000
+                vcf: 1
+            crossmap:
+                mem_mb: 12000
+
 
     salmon:
         inputs:
