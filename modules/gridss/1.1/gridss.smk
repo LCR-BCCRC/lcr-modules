@@ -61,9 +61,6 @@ localrules:
     _gridss_dispatch,
     _gridss_all
 
-wildcard_constraints: 
-    genome_build = "|".join(possible_genome_builds),
-    pair_status = "matched|unmatched|no_normal"
 
 
 ##### RULES #####
