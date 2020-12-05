@@ -1,6 +1,5 @@
 #!/usr/bin/env snakemake
 
-
 ##### ATTRIBUTION #####
 
 
@@ -22,6 +21,14 @@ CFG = op.setup_module(
     version = "1.0",
     subdirectories = ["inputs", "lofreq", "combined", "filtered", "outputs"],
 )
+#print(CFG["inputs"]["lofreq_path"])
+
+FULL_PATH = CFG["inputs"]["lofreq_path"]
+print("setting shell prefix:")
+print(f"PATH={FULL_PATH} ")
+shell.prefix(f"PATH={FULL_PATH} ")
+
+#better to only put the custom path in the config? Currently it's the combined path
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -73,6 +80,7 @@ rule _lofreq_run:
         **CFG["resources"]["lofreq"]
     shell:
         op.as_one_line("""
+        echo $PATH; 
         if [ ! -e {output.vcf_snvs_filtered} ] && [ -e {params.rm_files} ]; then rm $(dirname {output.vcf_snvs_all})/*; fi
           &&
         lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
