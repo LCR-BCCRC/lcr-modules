@@ -334,9 +334,9 @@ rule download_sdf:
     output: 
         sdf = directory("downloads/sdf/{genome_build}/sdf")
     params: 
-        provider = lambda w: {"grch37": "ensembl", "hg38": "ucsc", "hg19": "ucsc"}[w.genome_build],
         build = lambda w: {
             "grch37": "1000g_v37_phase2.sdf", 
+            "hs37d5": "1000g_v37_phase2.sdf",
             "hg19": "hg19.sdf", 
             "hg38": "GRCh38.sdf"
         }[w.genome_build]

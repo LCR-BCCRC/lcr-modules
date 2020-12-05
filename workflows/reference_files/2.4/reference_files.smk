@@ -97,7 +97,7 @@ rule get_sdf_refs:
     output: 
         sdf = directory("genomes/{genome_build}/sdf")
     wildcard_constraints: 
-        genome_build = "hg38|hg19|grch37"
+        genome_build = "hg38|hg19|grch37|hs37d5"
     shell: 
         "ln -srf {input.sdf} {output.sdf}"
 
