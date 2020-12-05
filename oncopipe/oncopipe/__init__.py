@@ -274,13 +274,11 @@ def relative_symlink(src, dest, in_module=False, overwrite=True):
     if not in_module: 
         dest_dir = os.path.realpath(dest_dir)
     src = os.path.relpath(src, dest_dir)
-    print(src, dest_dir)
 
     # Handle destination file if it already exists
     compare_links(src, dest, overwrite)
 
     # Symlink the source file to the destination
-    print(src, dest)
     os.symlink(src, dest)
     
 
