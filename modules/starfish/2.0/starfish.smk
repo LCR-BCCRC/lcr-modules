@@ -93,6 +93,10 @@ rule _starfish_run:
         **CFG["resources"]["starfish_run"]
     shell:
         op.as_one_line("""
+        if [[ -e $(dirname {output.complete})/temp ]]; then 
+            rm -rf $(dirname {output.complete})/temp; 
+        fi
+        &&
         {input.starfish_script} --sdf {input.reference} -O $(dirname {output.complete})
         --names {callers} --threads {threads}
         {params.opts} --venn --verbose
