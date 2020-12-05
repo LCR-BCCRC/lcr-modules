@@ -244,7 +244,7 @@ def absolute_symlink(src, dest, overwrite=True):
 
     
 
-def relative_symlink(src, dest, overwrite=True):
+def relative_symlink(src, dest, in_module=False, overwrite=True):
     """Creates a relative symlink from any working directory.
 
     Parameters
@@ -255,6 +255,14 @@ def relative_symlink(src, dest, overwrite=True):
         The destination file path. This can also be a destination
         directory, and the destination symlink name will be identical
         to the source file name (unless directory).
+    in_module: boolean
+        If both the src and dest file are within a module results directory, 
+        setting this option to True will keep symlinks contained to the 
+        module directory. Always set to False for links that point outside
+        module results directory. Example: 
+        dest = results/module/99-outputs/sample.vcf
+        src = results/module/03-stomestep/sample.vcf
+        results/module/99-outputs/sample.vcf -> ../03-somestep.sample.vcf
     overwrite : boolean
         Whether to overwrite the destination file if it exists.
     """
@@ -263,6 +271,8 @@ def relative_symlink(src, dest, overwrite=True):
 
     # Retrieve the relative file path for the source file
     dest_dir = os.path.split(dest)[0]
+    if not in_module: 
+        dest_dir = os.path.realpath(dest_dir)
     src = os.path.relpath(src, dest_dir)
 
     # Handle destination file if it already exists
