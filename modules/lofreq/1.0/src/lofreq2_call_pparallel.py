@@ -374,7 +374,7 @@ def main():
     if verbose:
         LOG.setLevel(logging.INFO)
 
-    debug = False
+    debug = True #leave this on for now
     try:
         idx = orig_argv.index('--pp-debug')
         orig_argv = orig_argv[0:idx] +  orig_argv[idx+1:]

@@ -5,7 +5,7 @@
 
 # Original Author:  Bruno Grande
 # Module Author:    Bruno Grande
-# Contributors:     N/A
+# Contributors:     Kostia Dreval, Ryan Morin
 
 
 ##### SETUP #####
@@ -21,14 +21,9 @@ CFG = op.setup_module(
     version = "1.0",
     subdirectories = ["inputs", "lofreq", "combined", "filtered", "outputs"],
 )
-#print(CFG["inputs"]["lofreq_path"])
-
-FULL_PATH = CFG["inputs"]["lofreq_path"]
-print("setting shell prefix:")
-print(f"PATH={FULL_PATH} ")
-shell.prefix(f"PATH={FULL_PATH} ")
-
-#better to only put the custom path in the config? Currently it's the combined path
+#set variable for prepending to PATH based on config
+SCRIPT_PATH = CFG['inputs']['src_dir']
+#this is used in place of the shell.prefix() because that was not working consistently. This is not ideal. 
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -71,7 +66,8 @@ rule _lofreq_run:
     params:
         opts = CFG["options"]["lofreq"],
         regions = op.switch_on_wildcard("seq_type", CFG["switches"]["regions_bed"]),
-        rm_files = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_relaxed.vcf.gz"
+        rm_files = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_relaxed.vcf.gz",
+        script_path = SCRIPT_PATH
     conda:
         CFG["conda_envs"]["lofreq"]
     threads:
@@ -80,7 +76,9 @@ rule _lofreq_run:
         **CFG["resources"]["lofreq"]
     shell:
         op.as_one_line("""
-        echo $PATH; 
+        PATH={SCRIPT_PATH}:$PATH;
+        SCRIPT=$(which lofreq2_call_pparallel.py);
+        echo $SCRIPT;
         if [ ! -e {output.vcf_snvs_filtered} ] && [ -e {params.rm_files} ]; then rm $(dirname {output.vcf_snvs_all})/*; fi
           &&
         lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
@@ -124,8 +122,7 @@ rule _lofreq_combine_vcf:
 rule _lofreq_filter_vcf:
     input:
         vcf_all = rules._lofreq_combine_vcf.output.vcf_all,
-        vcf_all_filtered = rules._lofreq_combine_vcf.output.vcf_all_filtered,
-        lofreq_filter = CFG["inputs"]["lofreq_filter"]
+        vcf_all_filtered = rules._lofreq_combine_vcf.output.vcf_all_filtered
     output:
         vcf_all_clean = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final.combined.filtered.vcf.gz",
         vcf_all_filtered_clean = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.combined.filtered.vcf.gz",
@@ -137,10 +134,13 @@ rule _lofreq_filter_vcf:
         CFG["conda_envs"]["bcftools"]
     shell:
         op.as_one_line("""
-        bash {input.lofreq_filter} {input.vcf_all} | bgzip > {output.vcf_all_clean}
+        PATH={SCRIPT_PATH}:$PATH;
+        SCRIPT=$(which lofreq_filter.sh); 
+        echo $SCRIPT;
+        lofreq_filter.sh {input.vcf_all} | bgzip > {output.vcf_all_clean}
           && tabix -p vcf {output.vcf_all_clean}
               &&
-        bash {input.lofreq_filter} {input.vcf_all_filtered} | bgzip > {output.vcf_all_filtered_clean}
+        lofreq_filter.sh {input.vcf_all_filtered} | bgzip > {output.vcf_all_filtered_clean}
           && tabix -p vcf {output.vcf_all_filtered_clean}
         """)
 

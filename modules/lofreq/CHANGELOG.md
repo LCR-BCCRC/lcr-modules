@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0] - 2020-12-04
 
-This fixes a bug that was causing lofreq to die consistently on some cases
+This release was authored by Ryan Morin 
+
+This fixes a bug that was causing lofreq to die consistently on some cases. In the process of setting up the snakefile to use the bundled version of the patched script, I changed the structure of the src directory. This simplifies how the pipeline calls other bundled scripts as well. I'm considering this approach as a model for how to do this in other modules that use bundled helper scripts. 
 
 ## [1.0] - 2020-11-02
 

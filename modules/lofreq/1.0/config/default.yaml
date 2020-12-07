@@ -6,8 +6,7 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
-            lofreq_filter: "{MODSDIR}/src/bash/lofreq_filter.sh"
-            lofreq_path: "{MODSDIR}/src/python:$PATH"
+            src_dir: "{MODSDIR}/src"
 
         scratch_subdirectories: []
 
