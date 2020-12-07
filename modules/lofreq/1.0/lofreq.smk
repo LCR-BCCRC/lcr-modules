@@ -77,7 +77,7 @@ rule _lofreq_run:
         op.as_one_line("""
         PATH={SCRIPT_PATH}:$PATH;
         SCRIPT=$(which lofreq2_call_pparallel.py);
-        echo using bundled patched script $SCRIPT;
+        echo "using bundled patched script $SCRIPT";
         if [ ! -e {output.vcf_snvs_filtered} ] && [ -e {params.rm_files} ]; then rm $(dirname {output.vcf_snvs_all})/*; fi
           &&
         lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
@@ -135,7 +135,7 @@ rule _lofreq_filter_vcf:
         op.as_one_line("""
         PATH={SCRIPT_PATH}:$PATH;
         SCRIPT=$(which lofreq_filter.sh); 
-        echo using bundled custom filtering script $SCRIPT;
+        echo "using bundled custom filtering script $SCRIPT";
         lofreq_filter.sh {input.vcf_all} | bgzip > {output.vcf_all_clean}
           && tabix -p vcf {output.vcf_all_clean}
               &&
