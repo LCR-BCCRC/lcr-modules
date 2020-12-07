@@ -77,7 +77,7 @@ rule _lofreq_run:
         op.as_one_line("""
         PATH={SCRIPT_PATH}:$PATH;
         SCRIPT=$(which lofreq2_call_pparallel.py);
-        echo echo using bundled patched script $SCRIPT;
+        echo using bundled patched script $SCRIPT;
         if [ ! -e {output.vcf_snvs_filtered} ] && [ -e {params.rm_files} ]; then rm $(dirname {output.vcf_snvs_all})/*; fi
           &&
         lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
