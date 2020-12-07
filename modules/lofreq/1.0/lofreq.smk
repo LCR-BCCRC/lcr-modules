@@ -75,16 +75,19 @@ rule _lofreq_run:
         **CFG["resources"]["lofreq"]
     shell:
         op.as_one_line("""
-        PATH={SCRIPT_PATH}:$PATH;
-        SCRIPT=$(which lofreq2_call_pparallel.py);
-        echo "using bundled patched script $SCRIPT";
-        if [ ! -e {output.vcf_snvs_filtered} ] && [ -e {params.rm_files} ]; then rm $(dirname {output.vcf_snvs_all})/*; fi
-          &&
-        lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
-        -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} {params.regions} 
-        > {log.stdout} 2> {log.stderr}
+        SCRIPT_PATH={SCRIPT_PATH};
+        PATH=$SCRIPT_PATH:$PATH;
+        SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
+        if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
+            echo "using bundled patched script $SCRIPT";
+            if [ ! -e {output.vcf_snvs_filtered} ] && [ -e {params.rm_files} ]; then rm $(dirname {output.vcf_snvs_all})/*; fi
             &&
-        rm {params.rm_files}
+            lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
+            -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} {params.regions} 
+            > {log.stdout} 2> {log.stderr}
+            &&
+            rm {params.rm_files};
+        else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
         """)
 
 
