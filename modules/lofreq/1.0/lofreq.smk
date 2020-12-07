@@ -66,8 +66,7 @@ rule _lofreq_run:
     params:
         opts = CFG["options"]["lofreq"],
         regions = op.switch_on_wildcard("seq_type", CFG["switches"]["regions_bed"]),
-        rm_files = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_relaxed.vcf.gz",
-        script_path = SCRIPT_PATH
+        rm_files = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_relaxed.vcf.gz"
     conda:
         CFG["conda_envs"]["lofreq"]
     threads:
