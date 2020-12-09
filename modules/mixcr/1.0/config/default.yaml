@@ -6,7 +6,8 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_fastq_1: "__UPDATE__" 
             sample_fastq_2: "__UPDATE__"
-            mixcr_exec: "{MODSDIR}/envs/mixcr"
+            # Path to the directory where MIXCR should be installed
+            mixcr_exec: "__UPDATE__"
 
         scratch_subdirectories: []
 
