@@ -86,7 +86,7 @@ rule _mixcr_run:
     threads:
         CFG["threads"]["mixcr_run"]
     resources:
-        mem_mb = CFG["mem_mb"]["mixcr_run"]
+        **CFG["resources"]["mixcr_run"],
     message:
         "{params.mixcr}"    
     shell:
