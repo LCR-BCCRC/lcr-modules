@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script will filter out the non-standard chromosomes and non-ACTG characters from
 # vcf files produced by lofreq. It accepts .qz-compressed files.
