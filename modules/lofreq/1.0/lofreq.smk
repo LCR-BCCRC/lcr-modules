@@ -54,7 +54,8 @@ rule _lofreq_run:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")
+        dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
+        bed = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed")
     output:
         vcf_snvs_filtered = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.snvs.vcf.gz",
         vcf_indels_filtered = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.indels.vcf.gz",
@@ -83,14 +84,14 @@ rule _lofreq_run:
             if [ ! -e {output.vcf_snvs_filtered} ] && [ -e {params.rm_files} ]; then rm $(dirname {output.vcf_snvs_all})/*; fi
             &&
             lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
-            -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} {params.regions} 
+            -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} {params.regions} --bed {input.bed}
             > {log.stdout} 2> {log.stderr}
             &&
             rm {params.rm_files};
         else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
         """)
 
-
+# indels are not yet called but this rule merges the empty indels file with the snvs file to produce the consistently named "combined" vcf. 
 rule _lofreq_combine_vcf:
     input:
         vcf_all = expand(CFG["dirs"]["lofreq"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/somatic_final.{var_type}.vcf.gz",
@@ -103,7 +104,7 @@ rule _lofreq_combine_vcf:
     resources:
         **CFG["resources"]["bcftools_sort"]
     conda:
-        CFG["conda_envs"]["bcftools"]
+        CFG["conda_envs"]["lofreq"]
     log:
         stdout_all = CFG["logs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq_final.combined.stdout.log",
         stderr_all = CFG["logs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq_final.combined.stderr.log",
@@ -133,7 +134,7 @@ rule _lofreq_filter_vcf:
     resources:
         **CFG["resources"]["bcftools_sort"]
     conda:
-        CFG["conda_envs"]["bcftools"]
+        CFG["conda_envs"]["lofreq"]
     shell:
         op.as_one_line("""
         PATH={SCRIPT_PATH}:$PATH;
