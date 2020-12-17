@@ -89,6 +89,11 @@ rule _salmon_output:
 
 
 rule export_sample_table:
+    input: 
+        quant = expand(rules._salmon_output.output.quant,
+            zip,
+            seq_type=CFG["samples"]["seq_type"],
+            sample_id=CFG["samples"]["sample_id"])
     output:
         sample_table = CFG["dirs"]["outputs"] + "quant_to_" + CFG["transcriptome"]["quant_to"] + "_matrix/{seq_type}/sample_table.tsv"
     run:
