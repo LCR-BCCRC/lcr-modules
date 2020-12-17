@@ -133,9 +133,10 @@ rule build_counts_matrix:
 # Generates the target sentinels for each run, which generate the symlinks
 rule _salmon_all:
     input:
-        expand(rules.build_counts_matrix.output.counts_matrix,
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["samples"]["seq_type"])
+        expand(
+            rules.build_counts_matrix.output.counts_matrix,
+            seq_type=CFG["samples"]["seq_type"].unique().tolist()
+        )
 
 
 ##### CLEANUP #####
