@@ -61,11 +61,6 @@ localrules:
     _gridss_dispatch,
     _gridss_all
 
-wildcard_constraints: 
-    genome_build = "|".join(possible_genome_builds),
-    pair_status = "matched|unmatched|no_normal"
-
-
 ##### RULES #####
 
 # Symlink genome fasta with bwa and .fai indices to the same directory
@@ -313,11 +308,11 @@ rule _gridss_unpaired:
         blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed"), 
         repeatmasker = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
     output:
-        vcf = temp(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/gridss_raw.vcf.gz"),
-        assembly = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/assembly.bam", 
-        assembly_dir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/assembly.bam.gridss.working")), 
-        vcf_dir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/gridss_raw.vcf.gz.gridss.working"))
-    log: CFG["logs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--None--no_normal/gridss.log"
+        vcf = temp(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_raw.vcf.gz"),
+        assembly = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/assembly.bam", 
+        assembly_dir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/assembly.bam.gridss.working")), 
+        vcf_dir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_raw.vcf.gz.gridss.working"))
+    log: CFG["logs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss.log"
     params:
         opts = CFG["options"]["gridss"], 
         steps = "assemble,call", 
