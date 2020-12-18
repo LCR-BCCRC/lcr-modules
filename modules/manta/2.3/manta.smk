@@ -44,10 +44,12 @@ rule _manta_input_bam:
         sample_bai = CFG["inputs"]["sample_bai"]
     output:
         sample_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        sample_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
+        sample_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
+        sample_crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
         op.relative_symlink(input.sample_bam, output.sample_bam)
         op.relative_symlink(input.sample_bai, output.sample_bai)
+        op.relative_symlink(input.sample_bai, output.sample_crai)
 
 
 # bgzip-compress and tabix-index the BED file to meet Manta requirement
