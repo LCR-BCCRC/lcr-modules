@@ -36,6 +36,7 @@ lcr-modules:
             minMappabilityPerWindow: 0.9 # minimum fraction of mappable positions for a window to be considered
             minimalSubclonePresence: 20 # detects subclones present in x% of cell population - 20 for WGS; 30 for WES (100 means "do not look for subclones")
             noisyData: TRUE #set TRUE for exomes/FFPE libs to avoid false positives due to non-uniform capture
+            readCountThreshold: 10 # threshold on the minimal number of reads per window (used for exome-seq or targeted sequencing) (recommended 50 for WES)
             ploidy: 2 #will select the ploidy that explains the most CNAs (a range can be added and control-freec will assign ploidy based on best fit, ex. 2,3,4)
             printNA: FALSE
             telocentromeric: 50000 # size of pre-telomeric and pre-centromeric regions to exclude
@@ -54,6 +55,13 @@ lcr-modules:
             minQualityPerPosition: 20 # for BAF: minimum base quality
             shiftInQuality: 0 # basis for Phred quality
 
+            #GEM options: (for generating hard-masked mappability files)
+            kmer: 100
+            mismatch: 2
+            maxBigIndel: 5
+            maxEditDistance: 0
+            strata: 0
+
 
         software:
             FREEC_sig: "{MODSDIR}/etc/scripts/assess_significance.R"
@@ -63,6 +71,7 @@ lcr-modules:
 
         
         threads:
+            gem: 24
             controlfreec_run: 24
             calc_sig: 1
             plot: 1

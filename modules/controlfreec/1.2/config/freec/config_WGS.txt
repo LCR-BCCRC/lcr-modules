@@ -26,6 +26,7 @@ minimalSubclonePresence = minimumSubclonePresenceValue
 noisyData = booNoise
 printNA = naBoo
 ploidy = ploidyInput
+readCountThreshold = rcCountThresold
 #step = stepValue
 telocentromeric = teloValue
 uniqueMatch = uniqBoo

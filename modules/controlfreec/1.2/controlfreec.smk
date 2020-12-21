@@ -36,6 +36,7 @@ localrules:
 ##### RULES #####
 
 #### generate references ####
+# mappability tracks for hg19 and hg38 are available from the source
 rule _controlfreec_get_map_refs:
     output:
         tar = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/freec/out100m2_{genome_build}.tar.gz"),
@@ -54,10 +55,69 @@ rule _controlfreec_get_map_refs:
                             "hg19": " --wildcards --no-anchored 'out100m2*gem' && mv out100m2_hg19.gem ",
                             "grch38": " -d ",
                             "hg38": " -d "}[w.genome_build],
+        command3 = lambda w: {"grch37": "out100m2_grch37.gem ",
+                            "hg19": "out100m2_hg19.gem ",
+                            "grch38": " ",
+                            "hg38": " "}[w.genome_build],
         outdir = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/"
+    wildcard_constraints:
+        genome_build = ".+(?<!masked)"
     shell:
         "wget -O {output.tar} {params.url} "
-        "&& {params.command1} {output.tar} {params.command2} {params.outdir}"
+        "&& {params.command1} {output.tar} {params.command2} {params.outdir}{params.command3}"
+
+# mappability tracks for hard-masked genomes need to be generated using GEM
+rule _download_GEM:
+    output:
+        touch(CFG["dirs"]["inputs"] + "references/GEM/.done")
+    params:
+        dirOut = CFG["dirs"]["inputs"] + "references/GEM/"
+    shell:
+        "wget https://sourceforge.net/projects/gemlibrary/files/gem-library/Binary%20pre-release%203/GEM-binaries-Linux-x86_64-core_i3-20130406-045632.tbz2/download -O {params.dirOut}/GEM-lib.tbz2 && bzip2 -dc {params.dirOut}/GEM-lib.tbz2 | tar -xvf - -C {params.dirOut}/"
+
+rule _generate_gem_index:
+    input:
+        software = CFG["dirs"]["inputs"] + "references/GEM/.done",
+        reference = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+    output:
+        index = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/{genome_build}.hardmask.all_index.gem"
+    params:
+        idxpref = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/{genome_build}.hardmask.all_index"
+    wildcard_constraints:
+        genome_build = ".+_masked"
+    threads: CFG["threads"]["gem"]
+    shell:
+        " gem/gem-indexer -T {threads} -c dna -i {input.reference} -o {params.idxpref} "
+
+rule _generate_mappability:
+    input:
+        software = CFG["dirs"]["inputs"] + "references/GEM/.done",
+        index = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/{genome_build}.hardmask.all_index.gem"
+    output:
+        mappability = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/{genome_build}.hardmask.all.gem.mappability"
+    params:
+        gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin",
+        pref =  CFG["dirs"]["inputs"] + "references/{genome_build}/freec/{genome_build}.hardmask.all.gem",
+        kmer = CFG["options"]["kmer"],
+        mismatch = CFG["options"]["mismatch"],
+        maxEditDistance = CFG["options"]["maxEditDistance"],
+        maxBigIndel = CFG["options"]["maxBigIndel"],
+        strata = CFG["options"]["strata"]
+    wildcard_constraints:
+        genome_build = ".+_masked"
+    threads: CFG["threads"]["gem"]
+    shell:
+        " {params.gemDir}/gem-mappability -T {threads} -I {input.index} -l {params.kmer} -m {params.mismatch} -t disable --mismatch-alphabet ACGNT -e {params.maxEditDistance} --max-big-indel-length {params.maxBigIndel} -s {params.strata} -o {params.pref} "
+
+rule _symlink_map:
+    input:
+        mappability = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/{genome_build}.hardmask.all.gem.mappability"
+    output:
+        mappability = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/out100m2_{genome_build}.gem"
+    wildcard_constraints:
+        genome_build = ".+_masked"
+    shell:
+        "ln -srf {input.mappability} {output.mappability} "
 
 # no chr for grch37 and grch38
 # chr for hg19 and hg38
@@ -217,6 +277,7 @@ rule _controlfreec_config:
         minimumSubclonePresence = CFG["options"]["minimalSubclonePresence"],
         naBoo = CFG["options"]["printNA"],
         noisyData = CFG["options"]["noisyData"],
+        readCountThreshold = CFG["options"]["readCountThreshold"],
         step = CFG["options"]["step"],
         telocentromeric = CFG["options"]["telocentromeric"],
         threads = CFG["threads"]["controlfreec_run"],
@@ -257,6 +318,7 @@ rule _controlfreec_config:
         "sed \"s|minQualPerPos|{params.minimalQualityPerPosition}|g\" | "
         "sed \"s|booNoise|{params.noisyData}|g\" | "
         "sed \"s|stepValue|{params.step}|g\" | "
+        "sed \"s|rcCountThresold|{params.readCountThreshold}|g\" | "
         "sed \"s|teloValue|{params.telocentromeric}|g\" | "
         "sed \"s|uniqBoo|{params.uniqBoo}|g\" | "
         "sed \"s|naBoo|{params.naBoo}|g\" | "

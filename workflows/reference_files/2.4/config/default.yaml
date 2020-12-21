@@ -27,6 +27,26 @@ genome_builds:
         version: "grch37"
         provider: "ensembl"
         genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hs37d5.fa"
+    grch37_masked:
+        # hard-masked repeats
+        version: "grch37"
+        provider: "ensembl"
+        genome_fasta_url: "http://ftp.ensembl.org/pub/grch37/current/fasta/homo_sapiens/dna/Homo_sapiens.GRCh37.dna_rm.toplevel.fa.gz"
+    grch38_masked:
+        # hard-masked repeats # release 102
+        version: "grch38"
+        provider: "ensembl"
+        genome_fasta_url: "http://ftp.ensembl.org/pub/release-102/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna_rm.toplevel.fa.gz"
+    hg19_masked:
+        # hard-masked repeats
+        version: "grch37"
+        provider: "ucsc"
+        genome_fasta_url: "https://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/hg19.fa.masked.gz"
+    hg38_masked:
+        # hard-masked repeats
+        version: "grch38"
+        provider: "ucsc"
+        genome_fasta_url: "https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.fa.masked.gz"
 
 wildcard_values:
     gencode_release: ["33"]

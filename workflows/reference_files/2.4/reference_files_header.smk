@@ -126,11 +126,25 @@ rule download_genome_fasta:
         fasta = "downloads/genome_fasta/{genome_build}.fa"
     log: 
         "downloads/genome_fasta/{genome_build}.fa.log"
+    wildcard_constraints:
+        genome_build = ".+(?<!masked)"
     params: 
         url = lambda w: config["genome_builds"][w.genome_build]["genome_fasta_url"]
     shell:
         "curl -L {params.url} > {output.fasta} 2> {log}"
 
+rule download_masked_genome_fasta:
+    output:
+        fasta = "downloads/genome_fasta/{genome_build}.fa"
+    wildcard_constraints:
+        genome_build = ".+_masked"
+    params:
+        dirOut = "downloads/genome_fasta/",
+        url = lambda w: config["genome_builds"][w.genome_build]["genome_fasta_url"]
+    conda: CONDA_ENVS["bedops"]
+    shell:
+        "wget -qO- {params.url} | "
+        "gzip -d > {output.fasta} "
 
 rule download_main_chromosomes:
     input:
@@ -335,7 +349,7 @@ rule download_liftover_chains:
 
 
 def get_matching_download_rules(file):
-    ignored_rules = ["download_genome_fasta"]
+    ignored_rules = ["download_genome_fasta", "download_masked_genome_fasta"]
     rule_names = [ r for r in dir(rules) if r.startswith("download_")]
     rule_names = [ r for r in rule_names if r not in ignored_rules ]
     rule_list = [ getattr(rules, name) for name in rule_names ]
