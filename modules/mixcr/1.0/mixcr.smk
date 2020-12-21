@@ -83,6 +83,7 @@ rule _mixcr_run:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["mixcr_run"]),
         prefix = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr.{sample_id}", 
         mixcr = CFG["inputs"]["mixcr_exec"] + "/mixcr"
+    conda: CFG["conda_envs"]["java"]
     threads:
         CFG["threads"]["mixcr_run"]
     resources:

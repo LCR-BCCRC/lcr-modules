@@ -17,6 +17,9 @@ lcr-modules:
                     --starting-material rna
                 genome:
                     --starting-material dna
+
+        conda_envs: 
+            java: "{MODSDIR}/envs/java-jdk-8.0.yaml"
             
         threads:
             mixcr_run: 4
