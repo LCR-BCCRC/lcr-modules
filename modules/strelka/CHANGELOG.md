@@ -33,3 +33,7 @@ Update by Ryan Morin
  - Step to combine indel and snv into one "combined" output file
  - Only the filtered vcfs are merged and ultimately symlinked (along with their tbi files)
  - Output files are all named based on sample instead of having the same name and being separated by subdirectories. Avoids future issues with files being relocated. 
+
+## [1.11] - 2020-12-17
+
+- slight modification to allow cram files to be used as input (same functionality as Manta)

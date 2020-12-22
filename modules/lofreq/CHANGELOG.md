@@ -5,6 +5,21 @@ All notable changes to the `lofreq` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0] - 2020-12-21
+
+- add .crai index for cram support
+
+## [1.0] - 2020-12-19
+
+- Previous bug fix didn't handle some of the situations in which the non-ACTG reference bases causing garbled VCFs. This bundled lofreq binary avoids this situation entirely.
+- This will probably cause issues with compatability on other platforms but this is better than our current version that fails consistently on some samples. 
+
+## [1.0] - 2020-12-04
+
+This release was authored by Ryan Morin 
+
+This fixes a bug that was causing lofreq to die consistently on some cases. In the process of setting up the snakefile to use the bundled version of the patched script, I changed the structure of the src directory. This simplifies how the pipeline calls other bundled scripts as well. I'm considering this approach as a model for how to do this in other modules that use bundled helper scripts. 
+
 ## [1.0] - 2020-11-02
 
 This release is authorized by Kostia Dreval

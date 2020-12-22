@@ -1,0 +1,55 @@
+lcr-modules:
+    
+    starfish:
+
+        dirs: 
+            
+            _parent: "__UPDATE__" # The path to the directory where you want module results saved
+            # Example: "results/gambl/starfish_strelka_lofreq_mutect"
+
+        inputs:
+            
+            vcf: 
+                # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
+                # Each key:value pair is the name of the variant caller and the path to its VCF file
+                # Each key should be unique in this set. 
+                # Note: If you aren't using strelka as one of the inputs to this, you will have to either delete the
+                # following line or copy the entire config to your project and omit this line from your project config. 
+                strelka: "__UPDATE__"
+                
+
+            starfish_script: "{MODSDIR}/src/starfish.py"
+
+        scratch_subdirectories: []
+
+        options:
+            starfish_run: "--sample ALT --squash-ploidy --vennout-format pdf"
+            starfish_union: "-m both"
+
+        conda_envs:
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            starfish: "{MODSDIR}/envs/starfish.yaml"
+            
+        threads:
+            starfish_run: 4
+            starfish_union: 4
+
+        resources:
+            starfish_run: 
+                mem_mb: 15000
+            starfish_union: 
+                mem_mb: 10000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
