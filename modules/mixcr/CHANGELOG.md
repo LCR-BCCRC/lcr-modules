@@ -5,9 +5,17 @@ All notable changes to the `mixcr` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0] - 2020-12-08
+## [1.1] - 2020-12-21
 
-This release was authored by Anita dos Santos with contributions from Laura Hilton.
+This release was updated by Laura Hilton. 
+
+- The user now specifies where `mixcr` should be installed to prevent unwanted installation into the `lcr-modules` repository. 
+- Utilizes resource unpacking. 
+- Added a conda env to ensure Java > 8 is used. 
+
+## [1.0] - 2020-06-11
+
+This release was authored by Anita dos Santos.
 
 - The `mixcr` module can process RNA-seq or non-targeted genomic raw data
 - Default options are used for all optional arguments.
