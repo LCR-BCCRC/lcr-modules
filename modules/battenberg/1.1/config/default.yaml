@@ -7,7 +7,6 @@ lcr-modules:
             battenberg_script: "{MODSDIR}/src/battenberg_wgs_hg38.R"
             cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.3/cnv2igv.py"
             src_dir: "{MODSDIR}/src/"
-            #TODO: this should be tested with v1.2 of cnv2igv.py
 
         scratch_subdirectories: []
 
