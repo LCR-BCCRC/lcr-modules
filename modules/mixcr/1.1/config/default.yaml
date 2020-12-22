@@ -26,7 +26,7 @@ lcr-modules:
 
         resources:
             mixcr_run: 
-                mem_mb: 6000
+                mem_mb: 10000
                 fastq: 1
 
         pairing_config:
