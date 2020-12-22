@@ -6,21 +6,32 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
+            
 
         scratch_subdirectories: []
 
+        # include here any additional flags to modify default parameters
         options:
-            step_1: ""
-            step_2: ""
+            sage_run: ""
+
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            sage: "{MODSDIR}/envs/sage-2.2.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             
+        resources:
+            sage_run:
+                mem_mb: 48000
+                disk_mb: 200000
+                bam: 1
+            filter:
+                mem_mb: 8000
+                disk_mb: 200000
+        
         threads:
-            step_1: 4
+            sage_run: 24
+            filter: 1
 
-        mem_mb:
-            step_1: 2000
 
         pairing_config:
             genome:
