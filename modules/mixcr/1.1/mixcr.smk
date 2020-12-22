@@ -19,7 +19,7 @@ import oncopipe as op
 # `CFG` is a shortcut to `config["lcr-modules"]["mixcr"]`
 CFG = op.setup_module(
     name = "mixcr",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "mixcr", "outputs"],
 )
 
@@ -79,20 +79,24 @@ rule _mixcr_run:
     log:
         stdout = CFG["logs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr_run.stdout.log",
         stderr = CFG["logs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr_run.stderr.log"
+    resources:
+        **CFG["resources"]["mixcr_run"]
     params:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["mixcr_run"]),
         prefix = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr.{sample_id}", 
-        mixcr = CFG["inputs"]["mixcr_exec"] + "/mixcr"
+        mixcr = CFG["inputs"]["mixcr_exec"] + "/mixcr", 
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8) 
     conda: CFG["conda_envs"]["java"]
     threads:
         CFG["threads"]["mixcr_run"]
-    resources:
-        **CFG["resources"]["mixcr_run"],
     message:
         "{params.mixcr}"    
     shell:
         op.as_one_line("""
-        {params.mixcr} analyze shotgun -s hsa -t {threads} {params.opts} {input.fastq_1} {input.fastq_2} {params.prefix} > {log.stdout} 2> {log.stderr};
+        {params.mixcr} analyze shotgun -Xmx{params.jvmheap}m
+        -s hsa -t {threads} {params.opts} 
+        {input.fastq_1} {input.fastq_2} 
+        {params.prefix} > {log.stdout} 2> {log.stderr};
         touch "{output.txt}";
         """)
         
@@ -106,8 +110,8 @@ rule _mixcr_output_txt:
         txt = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/mixcr.{sample_id}.clonotypes.ALL.txt",
         report = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/mixcr.{sample_id}.report"
     run:
-        op.relative_symlink(input.txt, output.txt)
-        op.relative_symlink(input.report, output.report)
+        op.relative_symlink(input.txt, output.txt, in_module = True)
+        op.relative_symlink(input.report, output.report, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
