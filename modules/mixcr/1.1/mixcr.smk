@@ -110,8 +110,8 @@ rule _mixcr_output_txt:
         txt = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/mixcr.{sample_id}.clonotypes.ALL.txt",
         report = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/mixcr.{sample_id}.report"
     run:
-        op.relative_symlink(input.txt, output.txt, in_module = True)
-        op.relative_symlink(input.report, output.report, in_module = True)
+        op.relative_symlink(input.txt, output.txt)
+        op.relative_symlink(input.report, output.report)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
