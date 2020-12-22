@@ -6,7 +6,8 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_fastq_1: "__UPDATE__" 
             sample_fastq_2: "__UPDATE__"
-            mixcr_exec: "{MODSDIR}/envs/mixcr"
+            # Path to the directory where MIXCR should be installed
+            mixcr_exec: "__UPDATE__"
 
         scratch_subdirectories: []
 
@@ -16,12 +17,17 @@ lcr-modules:
                     --starting-material rna
                 genome:
                     --starting-material dna
+
+        conda_envs: 
+            java: "{MODSDIR}/envs/java-jdk-8.0.yaml"
             
         threads:
             mixcr_run: 4
 
-        mem_mb:
-            mixcr_run: 6000
+        resources:
+            mixcr_run: 
+                mem_mb: 6000
+                fastq: 1
 
         pairing_config:
             genome:

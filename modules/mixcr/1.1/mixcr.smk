@@ -70,6 +70,8 @@ rule _mixcr_run:
     input:
         fastq_1 = rules._mixcr_input_fastq.output.fastq_1,
         fastq_2 = rules._mixcr_input_fastq.output.fastq_2,
+        fastq_1_real = CFG["inputs"]["sample_fastq_1"], # Prevent premature deletion of fastqs marked as temp
+        fastq_2_real = CFG["inputs"]["sample_fastq_2"],
         installed = rules._install_mixcr.output.complete
     output:
          txt = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr.{sample_id}.clonotypes.ALL.txt",
@@ -81,10 +83,11 @@ rule _mixcr_run:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["mixcr_run"]),
         prefix = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr.{sample_id}", 
         mixcr = CFG["inputs"]["mixcr_exec"] + "/mixcr"
+    conda: CFG["conda_envs"]["java"]
     threads:
         CFG["threads"]["mixcr_run"]
     resources:
-        mem_mb = CFG["mem_mb"]["mixcr_run"]
+        **CFG["resources"]["mixcr_run"],
     message:
         "{params.mixcr}"    
     shell:
