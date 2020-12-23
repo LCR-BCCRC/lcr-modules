@@ -16,7 +16,7 @@ lcr-modules:
 
 
         conda_envs:
-            sage: "{MODSDIR}/envs/sage-2.2.yaml"
+            sage: "{MODSDIR}/envs/hmftools-sage-2.2.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             
         resources:

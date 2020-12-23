@@ -27,9 +27,9 @@ CFG = op.setup_module(
 # TODO: Replace with actual rules once you change the rule names
 localrules:
     _sage_input_bam,
-    _run_sage,
+    _input_references,
+    _download_sage_references,
     _sage_filter_vcf,
-    _sage_split_vcf,
     _sage_output_vcf,
     _sage_all
 
@@ -105,7 +105,8 @@ rule _run_sage:
     params:
         opts = CFG["options"]["sage_run"],
         assembly = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19",
-        sage= "$(dirname $(readlink -e $(which SAGE)))/sage.jar"
+        sage= "$(dirname $(readlink -e $(which SAGE)))/sage.jar",
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8) 
     conda:
         CFG["conda_envs"]["sage"]
     threads:
@@ -116,7 +117,7 @@ rule _run_sage:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname)" > {log.stdout}
         &&
-        java -Xms4G -Xmx{resources.mem_mb}
+        java -Xms1G -Xmx{params.jvmheap}m
         -cp {params.sage} com.hartwig.hmftools.sage.SageApplication
         -threads {threads}
         {params.opts}
@@ -131,7 +132,7 @@ rule _run_sage:
         -high_confidence_bed {input.high_conf_bed}
         -out {output.vcf}
         >>  {log.stdout} 2> {log.stderr}
-        && bgzip {output.vcf}
+        && bgzip -c {output.vcf} > {output.vcf_gz}
         """)
 
 
