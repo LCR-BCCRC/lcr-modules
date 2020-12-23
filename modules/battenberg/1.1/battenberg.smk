@@ -53,9 +53,9 @@ rule _battenberg_input_bam:
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     group: "setup_run"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bam + ".bai", output.bai)
-        op.relative_symlink(input.bam + ".bai", output.crai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bam + ".bai", output.bai)
+        op.absolute_symlink(input.bam + ".bai", output.crai)
 
 # Installs the Battenberg R dependencies and associated software (impute2, alleleCounter)
 # Currently I think this rule has to be run twice for it to work properly because the conda environment is created here. 

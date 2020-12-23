@@ -46,6 +46,7 @@ rule _battenberg_input_bam:
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
+    group: "setup_run"
     run:
         op.relative_symlink(input.bam, output.bam)
         op.relative_symlink(input.bam + ".bai", output.bai)
@@ -101,11 +102,13 @@ rule _run_battenberg:
         **CFG["resources"]["battenberg"]
     threads:
         CFG["threads"]["battenberg"]
+    group: "setup_run"
     shell:
-        """sex=$({params.calc_sex_status} {input.normal_bam} {params.x_chrom} {params.y_chrom} | tail -1 | awk '{{if( $3/$2 > 0.1) print "male"; else print "female"}}') ;"""
+        """echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname)" > {log.stdout} && 
+        sex=$({params.calc_sex_status} {input.normal_bam} {params.x_chrom} {params.y_chrom} | tail -1 | awk '{{if( $3/$2 > 0.1) print "male"; else print "female"}}') ;"""
         "Rscript {params.script} -t {wildcards.tumour_id} "
         "-n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam}  "
-        "-o {params.out_dir} --sex $sex --reference {params.reference_path} {params.chr_prefixed} --cpu {threads} > {log.stdout} 2> {log.stderr} "
+        "-o {params.out_dir} --sex $sex --reference {params.reference_path} {params.chr_prefixed} --cpu {threads} >> {log.stdout} 2>> {log.stderr} "
 
 
 # Convert the subclones.txt (best fit) to igv-friendly SEG files. 
@@ -118,6 +121,7 @@ rule _battenberg_to_igv_seg:
     log:
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_seg2igv.stderr.log"
     threads: 1
+    group: "post_process"
     shell:
         op.as_one_line("""
         python {input.cnv2igv} --mode battenberg --sample {wildcards.tumour_id} 
@@ -131,6 +135,7 @@ rule _battenberg_cleanup:
         rules._battenberg_to_igv_seg.output.seg
     output:
         complete = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_cleanup_complete.txt"
+    group: "post_process"
     shell:
         op.as_one_line("""
         d=$(dirname {output});
@@ -154,13 +159,14 @@ rule _battenberg_output_seg:
     params: 
         batt_dir = CFG["dirs"]["battenberg"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
         png_dir = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}"
+    group: "post_process"
     run:
         plots = glob.glob(params.batt_dir + "/*.png")
         for png in plots:
             bn = os.path.basename(png)
-            op.relative_symlink(png, params.png_dir + "/" + bn)
-        op.relative_symlink(input.seg, output.seg)
-        op.relative_symlink(input.sub, output.sub)
+            op.relative_symlink(png, params.png_dir + "/" + bn,in_module=True)
+        op.relative_symlink(input.seg, output.seg,in_module=True)
+        op.relative_symlink(input.sub, output.sub,in_module=True)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _battenberg_all:
