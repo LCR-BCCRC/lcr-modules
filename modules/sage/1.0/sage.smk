@@ -30,6 +30,7 @@ localrules:
     _input_references,
     _download_sage_references,
     _sage_filter_vcf,
+    _sage_split_vcf,
     _sage_output_vcf,
     _sage_all
 
@@ -49,7 +50,8 @@ rule _sage_input_bam:
         op.relative_symlink(input.bam+ ".bai", output.bai)
 
 
-# Setup shared reference files
+# Setup shared reference files. Symlinking these files to 00-inputs to ensure index and dictionary are present
+# before pipeline starts, otherwise on a fresh directory dictionary is not created and worflow exits.
 rule _input_references: 
     input: 
         genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
@@ -87,7 +89,7 @@ rule _download_sage_references:
         """)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
+# Variant calling rule
 rule _run_sage:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
@@ -135,13 +137,13 @@ rule _run_sage:
         && bgzip -c {output.vcf} > {output.vcf_gz}
         """)
 
-
+# Filter resulting VCF file on PASS variants
 rule _sage_filter_vcf:
     input:
         vcf = str(rules._run_sage.output.vcf_gz)
     output:
-        vcf_passed = CFG["dirs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/passed_output.vcf.gz",
-        vcf_passed_tbi = CFG["dirs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/passed_output.vcf.gz.tbi"
+        vcf_passed = CFG["dirs"]["vcf"] + "combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/passed_combined.vcf.gz",
+        vcf_passed_tbi = CFG["dirs"]["vcf"] + "combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/passed_combined.vcf.gz.tbi"
     log:
         stdout = CFG["logs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/filter_passed.stdout.log",
         stderr = CFG["logs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/filter_passed.stderr.log"
@@ -161,33 +163,73 @@ rule _sage_filter_vcf:
         tabix -p vcf {output.vcf_passed} >> {log.stdout} 2>> {log.stderr}
         """)
 
+# Split filtered VCF file into snvs and indels
+rule _sage_split_vcf:
+    input:
+        vcf_passed = str(rules._sage_filter_vcf.output.vcf_passed)
+    output:
+        indels = CFG["dirs"]["vcf"] + "indels/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/indels.vcf.gz",
+        indels_tbi = CFG["dirs"]["vcf"] + "indels/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/indels.vcf.gz.tbi",
+        snvs = CFG["dirs"]["vcf"] + "snvs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/snvs.vcf.gz",
+        snvs_tbi = CFG["dirs"]["vcf"] + "snvs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/snvs.vcf.gz.tbi",        
+    log:
+        stdout = CFG["logs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/split_passed.stdout.log",
+        stderr = CFG["logs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/split_passed.stderr.log"
+    conda:
+        CFG["conda_envs"]["bcftools"]
+    threads:
+        CFG["threads"]["filter"]
+    resources:
+        **CFG["resources"]["filter"]
+    shell:
+        op.as_one_line("""
+        bcftools view -v indels {input.vcf_passed} -Oz -o {output.indels} > {log.stdout} 2> {log.stderr}
+          &&
+        tabix -p vcf {output.indels} >> {log.stdout} 2>> {log.stderr}
+          &&
+        bcftools view -v snps {input.vcf_passed} -Oz -o {output.snvs} >> {log.stdout} 2>> {log.stderr}
+          &&
+        tabix -p vcf {output.snvs} >> {log.stdout} 2>> {log.stderr}
+        """)
+
+
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _sage_output_vcf:
     input:
-        vcf = str(rules._sage_filter_vcf.output.vcf_passed)
+        combined = str(rules._sage_filter_vcf.output.vcf_passed),
+        indels = str(rules._sage_split_vcf.output.indels),
+        snvs = str(rules._sage_split_vcf.output.snvs),
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.combined.vcf.gz",
-        vcf_tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.combined.vcf.gz.tbi"
+        combined = CFG["dirs"]["outputs"] + "combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.combined.vcf.gz",
+        combined_tbi = CFG["dirs"]["outputs"] + "combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.combined.vcf.gz.tbi",
+        indels = CFG["dirs"]["outputs"] + "indels/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.indels.vcf.gz",
+        indels_tbi = CFG["dirs"]["outputs"] + "indels/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.indels.vcf.gz.tbi",
+        snvs = CFG["dirs"]["outputs"] + "snvs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.snvs.vcf.gz",
+        snvs_tbi = CFG["dirs"]["outputs"] + "snvs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.snvs.vcf.gz.tbi"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(input.vcf+".tbi", output.vcf+".tbi")
+        op.relative_symlink(input.combined, output.combined)
+        op.relative_symlink(input.combined+".tbi", output.combined+".tbi")
+        op.relative_symlink(input.indels, output.indels)
+        op.relative_symlink(input.indels+".tbi", output.indels+".tbi")
+        op.relative_symlink(input.snvs, output.snvs)
+        op.relative_symlink(input.snvs+".tbi", output.snvs+".tbi")
 
 
-# Generates the target sentinels for each run, which generate the symlinks
+# Generates the targets each run
 rule _sage_all:
     input:
         expand(
-            [
-                str(rules._sage_output_vcf.output.vcf),
-                str(rules._sage_output_vcf.output.vcf_tbi)
-            ],
+          expand(
+            str(CFG["dirs"]["outputs"] + "{{vcf_type}}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.{{vcf_type}}.{{file_type}}"),
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            pair_status=CFG["runs"]["pair_status"]),
+            vcf_type=["combined", "indels", "snvs"]*len(CFG["runs"]["tumour_sample_id"]),
+            file_type=["vcf.gz", "vcf.gz.tbi"]*len(CFG["runs"]["tumour_sample_id"]))
 
 
 ##### CLEANUP #####
