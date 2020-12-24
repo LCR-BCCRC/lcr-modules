@@ -6,10 +6,11 @@
 set -euf -o pipefail
 
 BAM="$1"
-SAMPLE="${2:-UNKNOWN}"
-X_CHROM="${3:-MISSING}"
-Y_CHROM="${4:-MISSING}"
-DEBUG="${5:-MISSING}"
+REF="$2"
+SAMPLE="${3:-UNKNOWN}"
+X_CHROM="${4:-MISSING}"
+Y_CHROM="${5:-MISSING}"
+DEBUG="${6:-MISSING}"
 
 if [[ $X_CHROM == "MISSING" ]]
 then
@@ -27,22 +28,15 @@ then
 fi
 
 
-samtools idxstats $(readlink -e ${BAM}) \
-    | awk -v sample="$SAMPLE" ' \
-        BEGIN { \
-            FS=OFS="\t" \
-        } \
-        $1 == "'${X_CHROM}'" { \
-            chrX = $3 \
-        } \
-        $1 == "'${Y_CHROM}'" { \
-            chrY = $3 \
-        } \
-        END { \
-            ratio = chrY/chrX ; \
-            if( ratio > 0.1) sex = "male"; \
-            else sex = "female"; \
-            print "sample", "chrX_count", "chrY_count", "sex"; \
-            print sample, chrX, chrY, sex; \
-        } \
-    '
+X_READS=$(samtools view -@ 8 -T $REF $BAM $X_CHROM | wc -l)
+Y_READS=$(samtools view -@ 8 -T $REF $BAM $Y_CHROM | wc -l)
+
+
+ratio=$((100 * $Y_READS/$X_READS))
+sex="female"
+if [[ $ratio -gt 10 ]]
+then
+    sex="male"
+fi
+printf "sample\tchrX_count\tchrY_count\tsex\n"
+printf "$SAMPLE\t$X_READS\t$Y_READS\t$sex\n"

@@ -31,14 +31,8 @@ SCRIPT_PATH = CFG['inputs']['src_dir']
 _battenberg_CFG = CFG
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
-    _install_battenberg,
-    _battenberg_input_bam,
-    _battenberg_output_seg,
-    _battenberg_to_igv_seg,
-    _battenberg_cleanup,
-    _battenberg_all,
+    _battenberg_all
 
 
 ##### RULES #####
@@ -74,19 +68,22 @@ rule _install_battenberg:
 # this process is very fast on bam files and painfully slow on cram files. 
 # The result of calc_sex_status.sh is stored in a file to avoid having to rerun it unnecessarily
 rule _infer_patient_sex:
-    input: normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam"
+    input: 
+        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output: sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex"
     resources:
         **CFG["resources"]["infer_sex"]
     log:
         stderr = CFG["logs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}_infer_sex_stderr.log"
     group: "setup_run"
+    threads: 8
     shell:
         op.as_one_line("""
         PATH={SCRIPT_PATH}:$PATH; 
         echo "running {rule} for {wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr} ;
-        calc_sex_status.sh {input.normal_bam} {wildcards.normal_id} > {output.sex_result} 2>> {log.stderr}; 
-        sleep 20
+        calc_sex_status.sh {input.normal_bam} {input.fasta} {wildcards.normal_id} > {output.sex_result} 2>> {log.stderr} &&
+        echo "DONE running {rule} for {wildcards.normal_id} on $(hostname) at $(date)" >> {log.stderr} 
         """)
 
 
@@ -96,9 +93,7 @@ rule _infer_patient_sex:
 rule _run_battenberg:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        tumour_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam.bai",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        normal_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam.bai",
         installed = "config/envs/battenberg_dependencies_installed.success",
         sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
@@ -110,7 +105,8 @@ rule _run_battenberg:
         mlrg=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantLogR_gcCorrected.tab"),
         mlr=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantLogR.tab"),
         nlr=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_normalLogR.tab"),
-        nb=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_normalBAF.tab")
+        nb=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_normalBAF.tab"),
+        cp=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_cellularity_ploidy.txt"
     log:
         stdout = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stdout.log",
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stderr.log"
@@ -125,15 +121,15 @@ rule _run_battenberg:
         **CFG["resources"]["battenberg"]
     threads:
         CFG["threads"]["battenberg"]
-    group: "setup_run"
     shell:
-        op.as_one_line("""
+       op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stdout};
         sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
         echo "setting sex as $sex";
         Rscript {params.script} -t {wildcards.tumour_id} 
         -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta}
-        -o {params.out_dir} --sex $sex --reference {params.reference_path} {params.chr_prefixed} --cpu {threads} >> {log.stdout} 2>> {log.stderr} 
+        -o {params.out_dir} --sex $sex --reference {params.reference_path} {params.chr_prefixed} --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
+        echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" >> {log.stdout}; 
         """)
 
 
@@ -179,10 +175,12 @@ rule _battenberg_cleanup:
 rule _battenberg_output_seg:
     input:
         seg = rules._battenberg_to_igv_seg.output.seg,
-        sub = rules._run_battenberg.output.sub
+        sub = rules._run_battenberg.output.sub,
+        cp = rules._run_battenberg.output.cp
     output:
         seg = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.igv.seg",
-        sub = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt"
+        sub = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt",
+        cp = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
     params: 
         batt_dir = CFG["dirs"]["battenberg"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
         png_dir = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}"
@@ -194,6 +192,7 @@ rule _battenberg_output_seg:
             op.relative_symlink(png, params.png_dir + "/" + bn,in_module=True)
         op.relative_symlink(input.seg, output.seg,in_module=True)
         op.relative_symlink(input.sub, output.sub,in_module=True)
+        op.relative_symlink(input.cp, output.cp,in_module=True)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _battenberg_all:
