@@ -58,9 +58,9 @@ rule _input_references:
         genome_fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
         genome_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
     output: 
-        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.fa", 
-        genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.fa.fai", 
-        genome_dict = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.dict"
+        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa", 
+        genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa.fai", 
+        genome_dict = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.dict"
     shell: 
         op.as_one_line("""
         ln -s {input.genome_fa} {output.genome_fa} &&
@@ -88,17 +88,19 @@ rule _download_sage_references:
         wget -O {output.high_conf_bed} {params.url}/HighConfidence.{params.build}.bed.gz
         """)
 
-
+# Non-standard chromosomes in rare cases cause SAGE error. This function will read the main chromosomes
+# file for each genome build using file produced by reference_files workflow, and supply it as
+# a comma-deliminated list of chromosomes for SAGE run.
 def get_chromosomes(wildcards):
-    path = 'genomes/'+str(wildcards.genome_build)+'/genome_fasta/main_chromosomes_withY.txt'
-    input = str(reference_files(path))
-    with open(input, 'r') as f:
-        lines = f.readlines()
+    path = reference_files("genomes/"+str(wildcards.genome_build)+"/genome_fasta/main_chromosomes.txt")
+    input = str(path)
+    with open(input, 'r') as chromosome_file:
+        lines = chromosome_file.readlines()
         chromosomes=[]
         for x in lines:
-            chromosomes.append(x.rstrip("\n").rstrip("\r"))
+            chromosomes.append(x.rstrip("\n"))
         chromosomes= ",".join(chromosomes)
-        return chromosomes
+    return chromosomes
 
 # Variant calling rule
 rule _run_sage:
