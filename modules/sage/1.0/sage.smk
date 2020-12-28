@@ -89,6 +89,17 @@ rule _download_sage_references:
         """)
 
 
+def get_chromosomes(wildcards):
+    path = 'genomes/'+str(wildcards.genome_build)+'/genome_fasta/main_chromosomes_withY.txt'
+    input = str(reference_files(path))
+    with open(input, 'r') as f:
+        lines = f.readlines()
+        chromosomes=[]
+        for x in lines:
+            chromosomes.append(x.rstrip("\n").rstrip("\r"))
+        chromosomes= ",".join(chromosomes)
+        return chromosomes
+
 # Variant calling rule
 rule _run_sage:
     input:
@@ -106,9 +117,10 @@ rule _run_sage:
         stderr = CFG["logs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run_sage.stderr.log"
     params:
         opts = CFG["options"]["sage_run"],
+        chromosomes = get_chromosomes,
         assembly = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19",
         sage= "$(dirname $(readlink -e $(which SAGE)))/sage.jar",
-        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8) 
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["sage"]
     threads:
@@ -123,6 +135,7 @@ rule _run_sage:
         -cp {params.sage} com.hartwig.hmftools.sage.SageApplication
         -threads {threads}
         {params.opts}
+        -chr {params.chromosomes}
         -reference {wildcards.normal_id}
         -reference_bam {input.normal_bam}
         -tumor {wildcards.tumour_id} 
@@ -220,16 +233,17 @@ rule _sage_output_vcf:
 rule _sage_all:
     input:
         expand(
-          expand(
-            str(CFG["dirs"]["outputs"] + "{{vcf_type}}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.{{vcf_type}}.{{file_type}}"),
+            [
+            str(rules._sage_output_vcf.output.combined),
+            str(rules._sage_output_vcf.output.indels),
+            str(rules._sage_output_vcf.output.snvs),
+            ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"]),
-            vcf_type=["combined", "indels", "snvs"]*len(CFG["runs"]["tumour_sample_id"]),
-            file_type=["vcf.gz", "vcf.gz.tbi"]*len(CFG["runs"]["tumour_sample_id"]))
+            pair_status=CFG["runs"]["pair_status"])
 
 
 ##### CLEANUP #####

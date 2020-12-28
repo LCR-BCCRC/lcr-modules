@@ -21,7 +21,7 @@ lcr-modules:
             
         resources:
             sage_run:
-                mem_mb: 48000
+                mem_mb: 60000
                 disk_mb: 200000
                 bam: 1
             filter:
