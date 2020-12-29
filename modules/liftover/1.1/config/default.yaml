@@ -22,11 +22,11 @@ lcr-modules:
             end_colNum: 4
             min_mismatch: 0.95
             #min_mismatch: __UPDATE__ # Minimum ratio of bases that must remap when transforming coordinates. For example, 0.95
-            seghg38tobedhg38: "{MODSDIR}/src/convert_for_liftover.py"
-            bedhg38tobedhg19: "{MODSDIR}/src/chains/hg38ToHg19.over.chain"
-            bedhg19toseghg19: "{MODSDIR}/src/convert_for_liftover.py"
+            seg2bed2seg: "{MODSDIR}/src/convert_for_liftover.py"
+            liftover: "{MODSDIR}/src/chains/hg38ToHg19.over.chain"
         conda_envs:
             liftover-366: "{MODSDIR}/envs/liftover-366.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.yaml"
         pairing_config:
             genome:
                 run_paired_tumours: True
