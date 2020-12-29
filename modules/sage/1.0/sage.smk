@@ -24,7 +24,6 @@ CFG = op.setup_module(
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _sage_input_bam,
     _input_references,
