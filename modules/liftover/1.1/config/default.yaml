@@ -23,10 +23,16 @@ lcr-modules:
             min_mismatch: 0.95
             #min_mismatch: __UPDATE__ # Minimum ratio of bases that must remap when transforming coordinates. For example, 0.95
             seg2bed2seg: "{MODSDIR}/src/convert_for_liftover.py"
-            liftover: "{MODSDIR}/src/chains/hg38ToHg19.over.chain"
+            fill_segments: "{SCRIPTSDIR}/fill_segments/1.0/fill_segments.py"
         conda_envs:
             liftover-366: "{MODSDIR}/envs/liftover-366.yaml"
             bedtools: "{MODSDIR}/envs/bedtools-2.29.yaml"
+            fill_segments: "{SCRIPTSDIR}/fill_segments/1.0/fill_segments.yaml"
+        # tsv with chromosome coordinates for each genome build
+        chromArm:
+            hg38: "{SCRIPTSDIR}/fill_segments/1.0/src/chromArm.hg38.tsv"
+            grch37: "{SCRIPTSDIR}/fill_segments/1.0/src/chromArm.hg19.tsv"
+            hs37d5: "{SCRIPTSDIR}/fill_segments/1.0/src/chromArm.hg19.tsv"
         pairing_config:
             genome:
                 run_paired_tumours: True

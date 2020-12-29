@@ -31,6 +31,7 @@ localrules:
     _run_liftover,
     _liftover_sort,
     _liftover_bed_2_seg,
+    _liftover_fill_segments,
     _liftover_output_seg,
     _liftover_all
 
@@ -72,7 +73,6 @@ rule _liftover_seg_2_bed:
         --chromColnum {params.chr_colNum} 
         --startColnum {params.start_colNum} 
         --endColnum {params.end_colNum}
-        {params.opts} 
         2> {log.stderr}
         """)
 
@@ -95,7 +95,6 @@ rule _run_liftover:
     log:
         stderr = CFG["logs"]["liftover"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.stderr.log"
     params:
-        opts = CFG["options"]["liftover"],
         mismatch = CFG["options"]["min_mismatch"]
     conda:
         CFG["conda_envs"]["liftover-366"]
@@ -117,7 +116,6 @@ rule _liftover_sort:
     log:
         stderr = CFG["logs"]["liftover"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.sorted.stderr.log"
     params:
-        opts = CFG["options"]["liftover"],
         mismatch = CFG["options"]["min_mismatch"]       
     conda:
         CFG["conda_envs"]["bedtools"]
@@ -134,11 +132,11 @@ rule _liftover_bed_2_seg:
         lifted_sorted = rules._liftover_sort.output.lifted_sorted,
         headers = rules._liftover_seg_2_bed.output.header
     output:
-        seg_lifted = CFG["dirs"]["bed2seg"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.seg"
+        seg_lifted = CFG["dirs"]["bed2seg"] + "from--{genome_build}/raw_segments/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.seg"
     log:
-        stderr = CFG["logs"]["bed2seg"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.stderr.log"
+        stderr = CFG["logs"]["bed2seg"] + "from--{genome_build}/raw_segments/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.stderr.log"
     params:
-        opts = CFG["options"]["seg2bed2seg"]      
+        opts = CFG["options"]["seg2bed2seg"]
     conda:
         CFG["conda_envs"]["liftover-366"]
     shell:
@@ -147,7 +145,31 @@ rule _liftover_bed_2_seg:
         --input {input.lifted_sorted}
         --column-header {input.headers}
         --output {output.seg_lifted} 
-        {params.opts} 
+        2> {log.stderr}
+        """)
+
+
+# Fill in empty segments after lifting them over
+rule _liftover_fill_segments:
+    input:
+        seg_lifted = rules._liftover_bed_2_seg.output.seg_lifted
+    output:
+        seg_filled = CFG["dirs"]["bed2seg"] + "from--{genome_build}/filled_segments/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.filled.seg"
+    log:
+        stdout = CFG["logs"]["bed2seg"] + "from--{genome_build}/filled_segments/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.filled.stdout.log",
+        stderr = CFG["logs"]["bed2seg"] + "from--{genome_build}/filled_segments/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.filled.stderr.log"
+    params:
+        script = CFG["options"]["fill_segments"],
+        chromArm = op.switch_on_wildcard("genome_build", CFG["chromArm"])
+    conda:
+        CFG["conda_envs"]["liftover-366"]
+    shell:
+        op.as_one_line("""
+        python3 {params.script}
+        --input {input.seg_lifted}
+        --output {output.seg_filled}
+        --chromArm {params.chromArm}
+        > {log.stdout}
         2> {log.stderr}
         """)
 
@@ -155,7 +177,7 @@ rule _liftover_bed_2_seg:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _liftover_output_seg:
     input:
-        seg = rules._liftover_bed_2_seg.output.seg_lifted
+        seg = rules._liftover_fill_segments.output.seg_filled
     output:
         seg = CFG["dirs"]["outputs"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.seg"
     run:
