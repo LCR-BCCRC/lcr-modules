@@ -30,9 +30,8 @@ lcr-modules:
             fill_segments: "{SCRIPTSDIR}/fill_segments/1.0/fill_segments.yaml"
         # tsv with chromosome coordinates for each genome build
         chromArm:
-            hg38: "{SCRIPTSDIR}/fill_segments/1.0/src/chromArm.hg38.tsv"
-            grch37: "{SCRIPTSDIR}/fill_segments/1.0/src/chromArm.hg19.tsv"
-            hs37d5: "{SCRIPTSDIR}/fill_segments/1.0/src/chromArm.hg19.tsv"
+            hg19ToHg38: "{SCRIPTSDIR}/fill_segments/1.0/src/chromArm.hg38.tsv"
+            hg38ToHg19: "{SCRIPTSDIR}/fill_segments/1.0/src/chromArm.hg19.tsv"
         pairing_config:
             genome:
                 run_paired_tumours: True

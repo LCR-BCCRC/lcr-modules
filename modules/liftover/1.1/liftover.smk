@@ -27,7 +27,6 @@ CFG = op.setup_module(
 localrules:
     _liftover_input_seg,
     _liftover_seg_2_bed,
-    _lofreq_all,
     _run_liftover,
     _liftover_sort,
     _liftover_bed_2_seg,
@@ -90,7 +89,7 @@ rule _run_liftover:
         native = rules._liftover_seg_2_bed.output.bed,
         chains = get_chain
     output:
-        lifted = temp(CFG["dirs"]["liftover"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.bed"),
+        lifted = CFG["dirs"]["liftover"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.bed",
         unmapped = CFG["dirs"]["liftover"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.unmapped.bed"
     log:
         stderr = CFG["logs"]["liftover"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.stderr.log"
@@ -98,6 +97,8 @@ rule _run_liftover:
         mismatch = CFG["options"]["min_mismatch"]
     conda:
         CFG["conda_envs"]["liftover-366"]
+    wildcard_constraints:
+        chain = "hg38ToHg19|hg19ToHg38"
     shell:
         op.as_one_line("""
         liftOver -minMatch={params.mismatch}
@@ -109,19 +110,16 @@ rule _run_liftover:
 # Sort liftover output
 rule _liftover_sort:
     input:
-        lifted = expand(CFG["dirs"]["liftover"] + "from--{{genome_build}}/{{tumour_sample_id}}--{{normal_sample_id}}.{{tool}}.lifted_{chain}.bed",
-                  chain="hg38ToHg19" if "38" in str({genome_build}) else "hg19ToHg38")
+        lifted = rules._run_liftover.output.lifted
     output:
         lifted_sorted = CFG["dirs"]["liftover"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.sorted.bed"
     log:
         stderr = CFG["logs"]["liftover"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.sorted.stderr.log"
-    params:
-        mismatch = CFG["options"]["min_mismatch"]       
-    conda:
-        CFG["conda_envs"]["bedtools"]
     shell:
         op.as_one_line("""
-        bedtools sort -i {input.lifted} > {output.lifted_sorted}
+        sort -k1,1 -k2,2n -V {input.lifted} |
+        perl -ne 'print if /^(chr)*[\dX]+\s.+/'
+        > {output.lifted_sorted}
         2> {log.stderr}
         """)
 
@@ -129,8 +127,8 @@ rule _liftover_sort:
 # Convert the bed file in hg19 coordinates into seg format
 rule _liftover_bed_2_seg:
     input:
-        lifted_sorted = rules._liftover_sort.output.lifted_sorted,
-        headers = rules._liftover_seg_2_bed.output.header
+        lifted_sorted = str(rules._liftover_sort.output.lifted_sorted),
+        headers = str(rules._liftover_seg_2_bed.output.header)
     output:
         seg_lifted = CFG["dirs"]["bed2seg"] + "from--{genome_build}/raw_segments/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.seg"
     log:
@@ -152,7 +150,7 @@ rule _liftover_bed_2_seg:
 # Fill in empty segments after lifting them over
 rule _liftover_fill_segments:
     input:
-        seg_lifted = rules._liftover_bed_2_seg.output.seg_lifted
+        seg_lifted = str(rules._liftover_bed_2_seg.output.seg_lifted)
     output:
         seg_filled = CFG["dirs"]["bed2seg"] + "from--{genome_build}/filled_segments/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.filled.seg"
     log:
@@ -160,7 +158,7 @@ rule _liftover_fill_segments:
         stderr = CFG["logs"]["bed2seg"] + "from--{genome_build}/filled_segments/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.filled.stderr.log"
     params:
         script = CFG["options"]["fill_segments"],
-        chromArm = op.switch_on_wildcard("genome_build", CFG["chromArm"])
+        chromArm = op.switch_on_wildcard("chain", CFG["chromArm"])
     conda:
         CFG["conda_envs"]["liftover-366"]
     shell:
@@ -177,7 +175,7 @@ rule _liftover_fill_segments:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _liftover_output_seg:
     input:
-        seg = rules._liftover_fill_segments.output.seg_filled
+        seg = str(rules._liftover_fill_segments.output.seg_filled)
     output:
         seg = CFG["dirs"]["outputs"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.seg"
     run:
@@ -189,7 +187,7 @@ rule _liftover_all:
     input:
         expand(
             [
-                rules._liftover_output_seg.output.seg
+                str(rules._liftover_output_seg.output.seg)
             ],
             zip,  # Run expand() with zip(), not product()
             tumour_sample_id=CFG["runs"]["tumour_sample_id"],
@@ -197,7 +195,8 @@ rule _liftover_all:
             genome_build = CFG["runs"]["tumour_genome_build"],
             #repeat the tool name N times in expand so each pair in run is used
             tool=[CFG["tool"]] * len(CFG["runs"]["tumour_sample_id"]),
-            chain="hg38ToHg19" if "38" in str({genome_build}) else "hg19ToHg38"
+            chain=["hg38ToHg19" if "38" in str(x) else "hg19ToHg38" for x in CFG["runs"]["tumour_genome_build"]]
+            #chain=["hg38ToHg19" if "38" in str(CFG["runs"]["tumour_genome_build"]) else "hg19ToHg38"] * len(CFG["runs"]["tumour_sample_id"])
             )
             
             
