@@ -196,7 +196,6 @@ rule _liftover_all:
             #repeat the tool name N times in expand so each pair in run is used
             tool=[CFG["tool"]] * len(CFG["runs"]["tumour_sample_id"]),
             chain=["hg38ToHg19" if "38" in str(x) else "hg19ToHg38" for x in CFG["runs"]["tumour_genome_build"]]
-            #chain=["hg38ToHg19" if "38" in str(CFG["runs"]["tumour_genome_build"]) else "hg19ToHg38"] * len(CFG["runs"]["tumour_sample_id"])
             )
             
             
