@@ -162,10 +162,10 @@ rule _battenberg_cleanup:
     shell:
         op.as_one_line("""
         d=$(dirname {output});
-        rm $d/*impute_input* &&
-        rm $d/*alleleFrequencies* &&
-        rm $d/*aplotype* &&
-        rm $d/*BAFsegmented* && 
+        rm -f $d/*impute_input* &&
+        rm -f $d/*alleleFrequencies* &&
+        rm -f $d/*aplotype* &&
+        rm -f $d/*BAFsegmented* && 
         touch {output.complete}
         """)
 
