@@ -1,0 +1,40 @@
+lcr-modules:
+    
+    mixcr:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_fastq_1: "__UPDATE__" 
+            sample_fastq_2: "__UPDATE__"
+            # Path to the directory where MIXCR should be installed
+            mixcr_exec: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            mixcr_run: 
+                mrna:
+                    --starting-material rna
+                genome:
+                    --starting-material dna
+
+        conda_envs: 
+            java: "{MODSDIR}/envs/java-jdk-8.0.yaml"
+            
+        threads:
+            mixcr_run: 4
+
+        resources:
+            mixcr_run: 
+                mem_mb: 10000
+                fastq: 1
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
