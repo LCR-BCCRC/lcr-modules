@@ -29,6 +29,10 @@ localrules:
     _bam2fastq_output,
     _bam2fastq_all,
 
+assert type(CFG["temp_outputs"])==bool, (
+    "The config value for temp_outputs must be set to a boolean value. "
+    "Note that TRUE, FALSE, \"True\", and \"False\" are not Python booleans. "
+)
 
 ##### RULES #####
 
@@ -57,7 +61,7 @@ rule _bam2fastq_input_bam:
 
 
 # Conditional rules depending on whether or not fastq outputs will be temporary
-if CFG["temp_outputs"] == True:
+if CFG["temp_outputs"]:
     rule _bam2fastq_run:
         input:
             bam = get_bams,
@@ -84,7 +88,7 @@ if CFG["temp_outputs"] == True:
             > {log.stdout} &> {log.stderr}
             """)
 
-elif CFG["temp_outputs"] == False:
+elif not CFG["temp_outputs"]:
     rule _bam2fastq_run:
         input:
             bam = get_bams,
