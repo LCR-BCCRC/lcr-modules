@@ -25,7 +25,7 @@ lcr-modules:
                 bam: 1
             filter:
                 mem_mb: 8000
-                disk_mb: 200000 # Arbitrary number to ensure at least this much space is left
+                disk_mb: 20000 # Arbitrary number to ensure at least this much space is left
         
         threads:
             sage_run: 24

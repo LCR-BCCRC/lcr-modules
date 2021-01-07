@@ -15,6 +15,25 @@
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+import pkg_resources
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_resources.get_distribution("oncopipe").version
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
+    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
+
+
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["sage"]`
 CFG = op.setup_module(
@@ -147,7 +166,7 @@ rule _run_sage:
         -panel_bed {input.panel_bed}
         -high_confidence_bed {input.high_conf_bed}
         -out {output.vcf}
-        >>  {log.stdout} 2> {log.stderr}
+        >>  {log.stdout} 2>> {log.stderr}
         && bgzip -c {output.vcf} > {output.vcf_gz}
         """)
 
@@ -172,7 +191,7 @@ rule _sage_filter_vcf:
         bcftools view -f ".,PASS" {input.vcf} -Ov
           | 
         bcftools sort --max-mem {resources.mem_mb}M -Oz -o {output.vcf_passed}
-        > {log.stdout} 2> {log.stderr}
+        >> {log.stdout} 2>> {log.stderr}
           &&
         tabix -p vcf {output.vcf_passed} >> {log.stdout} 2>> {log.stderr}
         """)
@@ -197,7 +216,7 @@ rule _sage_split_vcf:
         **CFG["resources"]["filter"]
     shell:
         op.as_one_line("""
-        bcftools view -v indels {input.vcf_passed} -Oz -o {output.indels} > {log.stdout} 2> {log.stderr}
+        bcftools view -v indels {input.vcf_passed} -Oz -o {output.indels} >> {log.stdout} 2>> {log.stderr}
           &&
         tabix -p vcf {output.indels} >> {log.stdout} 2>> {log.stderr}
           &&
@@ -222,12 +241,12 @@ rule _sage_output_vcf:
         snvs = CFG["dirs"]["outputs"] + "snvs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.snvs.vcf.gz",
         snvs_tbi = CFG["dirs"]["outputs"] + "snvs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.snvs.vcf.gz.tbi"
     run:
-        op.relative_symlink(input.combined, output.combined)
-        op.relative_symlink(input.combined+".tbi", output.combined+".tbi")
-        op.relative_symlink(input.indels, output.indels)
-        op.relative_symlink(input.indels+".tbi", output.indels+".tbi")
-        op.relative_symlink(input.snvs, output.snvs)
-        op.relative_symlink(input.snvs+".tbi", output.snvs+".tbi")
+        op.relative_symlink(input.combined, output.combined,in_module=True)
+        op.relative_symlink(input.combined+".tbi", output.combined+".tbi",in_module=True)
+        op.relative_symlink(input.indels, output.indels,in_module=True)
+        op.relative_symlink(input.indels+".tbi", output.indels+".tbi",in_module=True)
+        op.relative_symlink(input.snvs, output.snvs,in_module=True)
+        op.relative_symlink(input.snvs+".tbi", output.snvs+".tbi",in_module=True)
 
 
 # Generates the targets each run
