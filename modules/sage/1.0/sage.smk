@@ -180,6 +180,8 @@ rule _sage_filter_vcf:
     log:
         stdout = CFG["logs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/filter_passed.stdout.log",
         stderr = CFG["logs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/filter_passed.stderr.log"
+    params:
+        heap_mem = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["bcftools"]
     threads:
@@ -190,7 +192,7 @@ rule _sage_filter_vcf:
         op.as_one_line("""
         bcftools view -f ".,PASS" {input.vcf} -Ov
           | 
-        bcftools sort --max-mem {resources.mem_mb}M -Oz -o {output.vcf_passed}
+        bcftools sort --max-mem {params.heap_mem}M -Oz -o {output.vcf_passed}
         >> {log.stdout} 2>> {log.stderr}
           &&
         tabix -p vcf {output.vcf_passed} >> {log.stdout} 2>> {log.stderr}
