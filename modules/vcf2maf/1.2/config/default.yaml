@@ -17,12 +17,12 @@ lcr-modules:
             species: "homo_sapiens"
         # here you can specify path to txt file with a list of custom ENST IDs that override canonical selection
         # it will be parsed to --custom-enst flag of vcf2maf
-        # if no non-canonical transcript IDs to be included, leave switches empty
+        # if no non-canonical transcript IDs to be included, leave default switches value which points to an emty file >0b in size (Important!)
         switches:
             custom_enst:
-              hg38: ""
-              grch37: ""
-              hs37d5: ""
+              hg38: "{MODSDIR}/src/custom_enst.txt"
+              grch37: "{MODSDIR}/src/custom_enst.txt"
+              hs37d5: "{MODSDIR}/src/custom_enst.txt"
 
         conda_envs:
             vcf2maf: "{MODSDIR}/envs/vcf2maf-1.6.18.yaml"
