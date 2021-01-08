@@ -74,7 +74,8 @@ rule _input_references:
     input: 
         genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         genome_fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
-        genome_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
+        genome_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict"),
+        main_chromosomes = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
     output: 
         genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa", 
         genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa.fai", 

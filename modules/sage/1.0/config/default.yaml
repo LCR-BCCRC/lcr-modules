@@ -21,11 +21,11 @@ lcr-modules:
         resources:
             sage_run:
                 mem_mb: 60000
-                disk_mb: 20000 # Will ensure at least this much space is left
+                disk_mb: 10000 # Will ensure at least this much space is left
                 bam: 1
             filter:
                 mem_mb: 8000
-                disk_mb: 20000 # Will ensure at least this much space is left
+                disk_mb: 10000 # Will ensure at least this much space is left
         
         threads:
             sage_run: 24

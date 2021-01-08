@@ -39,6 +39,7 @@ configfile: "../modules/bwa_mem/1.1/config/default.yaml"
 configfile: "../modules/controlfreec/1.1/config/default.yaml"
 configfile: "../modules/lofreq/1.0/config/default.yaml"
 configfile: "../modules/starfish/2.0/config/default.yaml"
+configfile: "../modules/sage/1.0/config/default.yaml"
 
 
 # Load project-specific config, which includes the shared 
@@ -72,7 +73,7 @@ include: "../modules/bam2fastq/1.2/bam2fastq.smk"
 include: "../modules/controlfreec/1.1/controlfreec.smk"
 include: "../modules/lofreq/1.0/lofreq.smk"
 include: "../modules/starfish/2.0/starfish.smk"
-
+include: "../modules/sage/1.0/sage.smk"
 
 
 ##### TARGETS ######
@@ -90,5 +91,6 @@ rule all:
         rules._bwa_mem_all.input,
         rules._gridss_all.input,
         rules._controlfreec_all.input,
-        rules._starfish_all.input
-        rules._vcf2maf_all.input
+        rules._starfish_all.input,
+        rules._vcf2maf_all.input,
+        rules._sage_all.input
