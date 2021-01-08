@@ -14,12 +14,6 @@ lcr-modules:
             sample_bam: "../data/{sample_id}.bam"
         temp_outputs: False # fastq outputs will be temporary
 
-    star:
-        inputs:
-            sample_fastq_1: "../results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "../results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read2.fastq.gz"
-        scratch_subdirectories: []
-
     manta:
         inputs:
             sample_bam: "../data/{sample_id}.bam"
@@ -59,14 +53,6 @@ lcr-modules:
                 vcf: 1
             crossmap:
                 mem_mb: 12000
-
-
-    salmon:
-        inputs:
-            sample_fastq_1: "../data/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "../data/{sample_id}.read2.fastq.gz"
-        transcriptome:
-            quant_to: "hg38"
 
     sequenza:
         inputs:
@@ -130,12 +116,6 @@ lcr-modules:
             sample_fastq_2: "../results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read2.fastq.gz"
         scratch_subdirectories: []
         
-    controlfreec:
-        inputs:
-            sample_bam: "../data/{sample_id}.bam"
-            sample_bai: "../data/{sample_id}.bam.bai"
-        scratch_subdirectories: [] # mpileup should be in scratch space
-
     starfish: 
         dirs: 
             _parent: "../results/starfish-2.0_strelka-1.1_lofreq-1.0"
