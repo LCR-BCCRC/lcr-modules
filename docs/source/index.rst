@@ -13,13 +13,7 @@ Getting Started With lcr-modules
 Installing oncopipe
 -------------------
 
-You can install the latest version of ``oncopipe`` released on the `Python Package Index`_ using ``pip``. 
-
-.. code:: bash
-
-   pip install oncopipe
-
-Alternatively, you can install the development version of ``oncopipe`` from the `lcr-modules repository`_. This way, your installation will automatically update when you pull from GitHub.
+Due to active development of oncopipe, you should always install the development version of ``oncopipe`` from the `lcr-modules repository`_. This way, your installation will automatically update when you pull from GitHub.
 
 .. code:: bash
 
