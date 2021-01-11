@@ -114,6 +114,7 @@ checkpoint _starfish_rename_output:
         # Generate a dictionary of letter names and variant callers
         name_dict = {names[i]: callers[i] for i in range(len(callers))}
         outdir = os.path.dirname(input.complete)
+        # Replace each alphabetically-named VCF with the name(s) of the variant caller(s)
         for src in glob.glob(outdir + "/[A-Z]*.vcf.gz*"): 
             bname = os.path.basename(src)
             lhs, rhs = bname.split(".", 1)
@@ -175,8 +176,8 @@ rule _starfish_output_vcf:
     wildcard_constraints: 
         vcf_name = "\S+(?<!union)"
     run:
-        op.relative_symlink(input.vcf, output.vcf), 
-        op.relative_symlink(input.vcf + ".tbi", output.tbi)
+        op.relative_symlink(input.vcf, output.vcf, in_module=True), 
+        op.relative_symlink(input.vcf + ".tbi", output.tbi, in_module=True)
 
 rule _starfish_output_union:
     input:
@@ -188,8 +189,8 @@ rule _starfish_output_union:
     wildcard_constraints: 
         union_vcf = union_vcf
     run:
-        op.relative_symlink(input.vcf, output.vcf), 
-        op.relative_symlink(input.tbi, output.tbi)
+        op.relative_symlink(input.vcf, output.vcf, in_module=True), 
+        op.relative_symlink(input.tbi, output.tbi, in_module=True)
 
 rule _starfish_output_venn: 
     input: 
@@ -197,7 +198,7 @@ rule _starfish_output_venn:
     output: 
         venn = CFG["dirs"]["outputs"] + "venn/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.venn.pdf"
     run: 
-        op.relative_symlink(input.venn, output.venn)
+        op.relative_symlink(input.venn, output.venn, in_module=True)
 
 def _starfish_get_output_target(wildcards): 
     CFG = config["lcr-modules"]["starfish"]
