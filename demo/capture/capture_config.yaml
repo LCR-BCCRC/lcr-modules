@@ -101,11 +101,11 @@ lcr-modules:
 
     picard_qc:
         inputs:
-            sample_bam: "../data/{sample_id}.bam"
-            sample_bai: "../data/{sample_id}.bam.bai"
+            sample_bam: "../data11/{sample_id}.bam"
+            sample_bai: "../data11/{sample_id}.bam.bai"
         switches:
             capture_intervals: 
-                _default: "reference/exomes/grch37/interval/target_regions.nochr_intervals.txt"
+                _default: "../reference/exomes/grch37/interval/target_regions.nochr_intervals.txt"
                 # if 'capture_kit_id' is a column in samples.tsv and contain more than one kit_id, specify each kit using the values in the column. e.g. and add the corresponding bed file if needed
                 # S07604624: "reference/exomes/grch37/interval/S07604624_intervals.txt"
                 # <grch38_kit>: "reference/exomes/grch38/interval/<grch38_kit>_intervals.txt"
