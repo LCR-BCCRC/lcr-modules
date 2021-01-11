@@ -6,12 +6,17 @@ lcr-modules:
             # Available wildcards: {sample_id} {seq_type} {genome_build}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
+            # candiate_positions may be a VCF, BED, or GATK interval list file. 
+            # If you don't want to provide candidate positions, leave this field as-is. 
+            # Set additional interval parameters under options: mutect2_interval_rules. 
+            # See https://gatk.broadinstitute.org/hc/en-us/articles/360035531852-Intervals-and-interval-lists for how-to. 
+            candidate_positions: "" 
 
         scratch_subdirectories: [] # Recommended: mutect2
 
         options:
-            mutect2_run_matched_unmatched: ""
-            mutect2_run_no_normal: ""
+            mutect2_run: ""
+            mutect2_interval_rules: "" # E.g. --ip 50 -isr INTERSECTION int
             mutect2_pileupsummaries:
                 chrom: "17"
             mutect2_filter: ""

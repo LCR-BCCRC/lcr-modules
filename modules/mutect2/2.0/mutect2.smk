@@ -81,7 +81,8 @@ rule _mutect2_run_matched_unmatched:
         dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict"),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
         normal_sm = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}_sm.txt", 
-        pon = reference_files("genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz")
+        pon = reference_files("genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz"), 
+        candidate_positions = CFG["inputs"]["candidate_positions"]
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.tbi"),
@@ -94,7 +95,8 @@ rule _mutect2_run_matched_unmatched:
         **CFG["resources"]["mutect2_run"]
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
-        opts = CFG["options"]["mutect2_run"]
+        opts = CFG["options"]["mutect2_run"], 
+        interval_rules=CF["options"]["mutect2_interval_rules"]
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -103,11 +105,17 @@ rule _mutect2_run_matched_unmatched:
         pair_status = "matched|unmatched"
     shell:
         op.as_one_line("""
+        if [[ {input.candidate_positions} != "" ]]; then 
+            interval_params="-L {input.candidate_positions} {params.interval_rules}" 
+        else
+            interval_params=""
+        fi
+        &&
         gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" {params.opts} 
         -I {input.tumour_bam} -I {input.normal_bam}
         -R {input.fasta} -normal "$(cat {input.normal_sm})" -O {output.vcf}
         --germline-resource {input.gnomad} 
-        -L {wildcards.chrom} 
+        -L {wildcards.chrom} $interval_params 
         -pon {input.pon} --f1r2-tar-gz {output.f1r2}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -119,7 +127,8 @@ rule _mutect2_run_no_normal:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict"),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
-        pon = reference_files("genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz") 
+        pon = reference_files("genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz"), 
+        candidate_positions = CFG["inputs"]["candidate_positions"] 
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.tbi"),
@@ -132,7 +141,8 @@ rule _mutect2_run_no_normal:
         **CFG["resources"]["mutect2_run"]
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
-        opts = CFG["options"]["mutect2_run_no_normal"]
+        opts = CFG["options"]["mutect2_run"], 
+        interval_rules=CF["options"]["mutect2_interval_rules"]
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -141,10 +151,16 @@ rule _mutect2_run_no_normal:
         pair_status = "no_normal"
     shell:
         op.as_one_line("""
+        if [[ {input.candidate_positions} != "" ]]; then 
+            interval_params="-L {input.candidate_positions} {params.interval_rules}" 
+        else
+            interval_params=""
+        fi
+        &&
         gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" 
         {params.opts} -I {input.tumour_bam} -R {input.fasta} 
         -O {output.vcf} --germline-resource {input.gnomad} 
-        -L {wildcards.chrom} 
+        -L {wildcards.chrom} $interval_params
         -pon {input.pon} --f1r2-tar-gz {output.f1r2}
         > {log.stdout} 2> {log.stderr}
         """)
