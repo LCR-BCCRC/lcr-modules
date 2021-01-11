@@ -10,10 +10,10 @@ lcr-modules:
         tool: "__UPDATE__" # Specify the name of the tool that produced the .seg files. For example, "battenberg"
         #you can include the version if it helps simplify the pattern matching, for example sequenza-1.0
         dirs: 
-            _parent: "__UPDATE__" #example for combining with Battenberg module: "battenberg-1.0_liftover-1.1"
+            _parent: "__UPDATE__" #example for combining with Battenberg module: "results/battenberg-1.0_liftover-1.1"
         inputs:
             sample_seg: "__UPDATE__"
-            # Path to seg files for lifting. The {genome_build} will be handled to include hg38 samples only. For example:
+            # Path to seg files for lifting. For example:
             # sample_seg: "data/{tool}/{genome_build}/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
         scratch_subdirectories: "scratch/"
         options:
