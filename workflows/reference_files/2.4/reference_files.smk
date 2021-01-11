@@ -93,7 +93,7 @@ rule get_liftover_chains:
 
 rule get_sdf_refs: 
     input: 
-        sdf = rules.download_sdf.output.sdf
+        sdf = ancient(ules.download_sdf.output.sdf)
     output: 
         sdf = directory("genomes/{genome_build}/sdf")
     wildcard_constraints: 

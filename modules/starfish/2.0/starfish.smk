@@ -75,7 +75,7 @@ rule _starfish_run:
             CFG["dirs"]["inputs"] + "vcf/{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}.{caller}.vcf.gz.tbi", 
             caller = callers
             ),
-        reference = reference_files("genomes/{genome_build}/sdf"),
+        reference = ancient(reference_files("genomes/{genome_build}/sdf")),
         starfish_script = CFG["inputs"]["starfish_script"]
     output:
         complete = touch(CFG["dirs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/starfish.complete"), 
