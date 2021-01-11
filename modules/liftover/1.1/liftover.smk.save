@@ -18,36 +18,46 @@ import oncopipe as op
 
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["liftover"]`
+
 CFG = op.setup_module(
     name = "liftover",
     version = "1.1",
     subdirectories = ["inputs", "seghg38tobedhg38", "bedhg38tobedhg19", "bedhg19toseghg19", "outputs"])
-# Filter sample pairs to include only hg38 genomes for lifting
-CFG["runs"] = op.filter_samples(CFG["runs"], tumour_genome_build = "hg38")
-
+CFG["samples"] = op.filter_samples(CFG["samples"], genome_build = 'hg38')
+print (CFG["runs"]["tumour_genome_build"])
 
 ##### RULES #####
 
+#def test(wildcards, input, output):
+#    CFG = config["lcr-modules"]["liftover"]
+#    sample = CFG["inputs"]["sample_seg"]
+#    if wildcards.genome_build == "hg38":
+#        op.relative_symlink(input,output)
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _liftover_input_seg:
     input:
+#        seg = test
         seg = CFG["inputs"]["sample_seg"]
     output:
-        seg = CFG["dirs"]["inputs"] + "{genome_build}/seg/{tumour_sample_id}--{normal_sample_id}.{tool}.igv.seg"
+        seg = CFG["dirs"]["inputs"] + "seg/{tumour_sample_id}--{normal_sample_id}.{tool}.{genome_build}.igv.seg"
+#    wildcard_constraints:
+#        genome_build = "hg38"
     run:
+#        test(wildcards, {{input.seg}}, {{output.seg}})
         op.relative_symlink(input.seg, output.seg)
 
 
 # Convert initial seg file into bed format
 rule _hg38seg_2_hg38bed:
     input:
-        seg_hg38 = CFG["dirs"]["inputs"] + "hg38/seg/{tumour_sample_id}--{normal_sample_id}.{tool}.igv.seg"
+        seg_hg38 = CFG["dirs"]["inputs"] + "seg/{tumour_sample_id}--{normal_sample_id}.{tool}.hg38.igv.seg"
+#        seg_hg38 = rules._liftover_input_seg.output
     output:
         bed_hg38 = CFG["dirs"]["seghg38tobedhg38"] + "bed/{tumour_sample_id}--{normal_sample_id}.{tool}.igv.bed",
         header = CFG["dirs"]["seghg38tobedhg38"] + "bed/{tumour_sample_id}--{normal_sample_id}.{tool}.igv.bed.header"
     log:
-        stderr = CFG["logs"]["seghg38tobedhg38"] + "bed/{tumour_sample_id}--{normal_sample_id}.{tool}.stderr.log"
+        stderr = CFG["logs"]["seghg38tobedhg38"] + "{tumour_sample_id}--{normal_sample_id}.{tool}.stderr.log"
     params:
         opts = CFG["options"]["seghg38tobedhg38"],
         chr_colNum = CFG["options"]["chr_colNum"],
@@ -76,7 +86,7 @@ rule _hg38bed_2_hg19bed:
         bed_hg19 = CFG["dirs"]["bedhg38tobedhg19"] + "bed/{tumour_sample_id}--{normal_sample_id}.{tool}.hg19.igv.bed",
         unmapped = CFG["dirs"]["bedhg38tobedhg19"] + "unmapped/{tumour_sample_id}--{normal_sample_id}.{tool}.unmapped.hg19.igv.bed"
     log:
-        stderr = CFG["logs"]["bedhg38tobedhg19"] + "bed/{tumour_sample_id}--{normal_sample_id}.{tool}.stderr.log"
+        stderr = CFG["logs"]["bedhg38tobedhg19"] + "{tumour_sample_id}--{normal_sample_id}.{tool}.stderr.log"
     params:
         opts = CFG["options"]["bedhg38tobedhg19"],
         mismatch = CFG["options"]["min_mismatch"]       
@@ -98,7 +108,7 @@ rule _hg19bed_2_hg19seg:
     output:
         seg_hg19 = CFG["dirs"]["bedhg19toseghg19"] + "seg/{tumour_sample_id}--{normal_sample_id}.{tool}.hg19.igv.seg"
     log:
-        stderr = CFG["logs"]["bedhg19toseghg19"] + "seg/{tumour_sample_id}--{normal_sample_id}.{tool}.stderr.log"
+        stderr = CFG["logs"]["bedhg19toseghg19"] + "{tumour_sample_id}--{normal_sample_id}.{tool}.stderr.log"
     params:
         opts = CFG["options"]["bedhg19toseghg19"]      
     conda:
@@ -134,6 +144,7 @@ rule _liftover_all:
             zip,  # Run expand() with zip(), not product()
             tumour_sample_id=CFG["runs"]["tumour_sample_id"],
             normal_sample_id=CFG["runs"]["normal_sample_id"],
+            tumour_genome_build=CFG
             #repeat the tool name N times in expand so each pair in run is used
             tool=[CFG["tool"]] * len(CFG["runs"]["tumour_sample_id"])
             )
