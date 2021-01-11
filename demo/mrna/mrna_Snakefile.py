@@ -1,11 +1,13 @@
 #!/usr/bin/env snakemake
 
-
+'''
+It will only run through the workflow(eg. capture) sub directory.
+'''
 ##### SETUP #####
 
 import oncopipe as op
 
-SAMPLES = op.load_samples("data/samples.tsv")
+SAMPLES = op.load_samples("~/lcr-modules/demo/data11/samples.tsv")
 CAPTURE = op.filter_samples(SAMPLES, seq_type = "mrna")
 
 
