@@ -133,7 +133,7 @@ def _starfish_get_output(wildcards):
     vcfs = expand(
         CFG['dirs']['starfish'] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf.gz",
         **wildcards,  
-        vcf_name = glob_wildcards(os.path.join(checkpoint_output, "{vcf_name, [a-z]\S+}.vcf.gz")).vcf_name # Constrain to omit 2, 2+, 2-, etc. VCF files. 
+        vcf_name = glob_wildcards(os.path.join(checkpoint_output, "{vcf_name, [a-z]\S+(?<!union)}.vcf.gz")).vcf_name # Constrain to omit 2, 2+, 2-, etc. VCF files. 
         )
     return vcfs
 
