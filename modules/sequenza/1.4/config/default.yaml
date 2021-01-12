@@ -14,6 +14,7 @@ lcr-modules:
         scratch_subdirectories: ["seqz"]
         
         options:
+            # in bam2seqz pass any additional flags for the sequenza-utils. For example, this can include --normal2 to use for depth.ratio calculation.
             bam2seqz: "--qlimit 30"
             seqz_binning: "--window 300"
             cnv2igv: "--mode sequenza"
@@ -25,17 +26,19 @@ lcr-modules:
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
             
         resources:
-            vecf_sort:
+            vcf_sort:
                 mem_mb: 2000
             bam2seqz:
                 mem_mb: 10000
                 bam: 1
-            merge_seqz: 
+                disk_mb: 10000
+            merge_seqz:
                 mem_mb: 10000
             filter_seqz:
                 mem_mb: 20000
             sequenza:
-                mem_mb: 20000     
+                mem_mb: 20000
+                disk_mb: 10000
         
         threads:
             bam2seqz: 3
