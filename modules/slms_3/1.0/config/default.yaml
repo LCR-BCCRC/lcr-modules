@@ -1,0 +1,170 @@
+lcr-modules:
+    
+    slms_3:
+
+        # TODO: Update the list of available wildcards, if applicable
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        in_module: True # Whether final output symlinks can be made truly relative. 
+        # Change to false if the starfish _parent directory is far from the final slms_3 output directory. 
+
+        module_versions:
+            manta: "2.3" # Minimum: 2.0
+            strelka: "1.1" # Minimum: 1.1
+            lofreq: "1.0" # Minimum: 1.0
+            sage: "1.0" # Minimum: 1.0
+            mutect2: "2.0" # Minimum: 2.0
+            starfish: "2.0" # Minimum: 2.0
+
+        scratch_subdirectories: []
+
+        conda_envs:
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            
+        threads:
+            strelka_gnomad: 4
+            lofreq_gnomad: 4
+            strelka_lofreq_union: 4
+            mutect2_depth_filt: 4
+
+        resources:
+            strelka_gnomad: 
+                mem_mb: 2000
+            lofreq_gnomad: 
+                mem_mb: 2000
+            strelka_lofreq_union: 
+                mem_mb: 2000
+            mutect2_depth_filt: 
+                mem_mb: 2000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+
+        # Configuration for slms_3 sub-modules
+        # These are stored as items under the `slms_3` keyword so that they can be use to 
+        # update each module config without getting overwritten during configfile loading. 
+        # It is strongly recommended that users copy this complete config file to their project space and update important values. 
+        # Additional values from each default submodule config can be added, e.g. to update mem_mb per rule. 
+
+        manta: 
+
+            inputs: 
+                # Leave these blank, they will be updated by the Snakefile. 
+                sample_bam: ""
+                sample_bai: ""
+
+            threads: 
+                manta: 24
+
+        strelka: 
+
+            inputs: 
+                # Leave these blank, they will be updated by the Snakefile. 
+                sample_bam: ""
+                sample_bai: ""
+                candidate_small_indels: ""
+
+            scratch_subdirectories: []
+
+            threads: 
+                strelka: 24
+
+            mem_mb:
+                strelka: 10000
+                bcftools_sort: 20000 
+
+        sage: 
+
+            inputs: 
+                # Leave these blank, they will be updated by the Snakefile. 
+                sample_bam: ""
+
+            scratch_subdirectories: []
+
+            options:
+                sage_run: ""
+
+            resources:
+                sage_run:
+                    mem_mb: 60000
+                    disk_mb: 10000 # Will ensure at least this much space is left
+                    sage: 1
+                filter:
+                    mem_mb: 8000
+                    disk_mb: 10000 # Will ensure at least this much space is left
+            
+            threads:
+                sage_run: 24
+                filter: 1
+
+        lofreq: 
+
+            inputs: 
+                # Leave these blank, they will be updated by the Snakefile. 
+                sample_bam: ""
+                sample_bai: ""
+
+            options:
+                lofreq: ""
+
+            switches: 
+                regions_bed: 
+                    capture: ""
+
+            resources: 
+                lofreq: 
+                    lofreq: 1
+                    mem_mb: 100000
+
+            threads: 
+                lofreq: 24
+        
+
+        mutect2: 
+
+            inputs: 
+                # Leave these blank, they will be updated by the Snakefile. 
+                sample_bam: ""
+                sample_bai: ""
+
+            scratch_subdirectories: []
+            
+            options: 
+
+                mutect2_interval_rules: 
+                    "-ip 50 -isr INTERSECTION" # These should remain unchanged. 
+                mutect2_filter_passed: 
+                    "-f '.,PASS' -i 'INFO/POPAF > 4'"
+
+            resources: 
+
+                mutect2_run: 
+                    mem_mb: 10000
+                    mutect_chrom: 1
+
+        starfish: 
+
+            dirs: 
+                # Leave this blank, it will be updated within the Snakefile. 
+                _parent: "" 
+
+            inputs: 
+
+                vcf: 
+                    # Leave these values blank, they will be updated within the Snakefile. 
+                    mutect2: ""
+                    sage: ""
+                    lofreq: ""
+                    strelka: ""
+
+    
