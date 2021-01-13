@@ -8,9 +8,6 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
 
-        in_module: True # Whether final output symlinks can be made truly relative. 
-        # Change to false if the starfish _parent directory is far from the final slms_3 output directory. 
-
         module_versions:
             manta: "2.3" # Minimum: 2.0
             strelka: "1.1" # Minimum: 1.1

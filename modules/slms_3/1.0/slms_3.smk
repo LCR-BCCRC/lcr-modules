@@ -456,15 +456,13 @@ def _slms_3_get_starfish_output(wildcards):
 
 rule _slms_3_output_vcf:
     input:
-        vcf = _slms_3_get_starfish_output, 
+        _slms_3_get_starfish_output, 
     output:
         vcf = CFG_SLMS3["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.vcf.gz", 
         tbi = CFG_SLMS3["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.vcf.gz.tbi"
-    params: 
-        in_module = CFG_SLMS3["in_module"]
     run:
-        op.relative_symlink(input.vcf, output.vcf, in_module = params.in_module)
-        op.relative_symlink(input.vcf + ".tbi", output.tbi, in_module = params.in_module)
+        op.relative_symlink(input, output.vcf, in_module = True)
+        op.relative_symlink(input + ".tbi", output.tbi, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
