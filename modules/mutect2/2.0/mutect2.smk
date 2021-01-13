@@ -77,10 +77,13 @@ rule _mutect2_get_sm:
         "samtools view -H {input.bam} | grep '^@RG' | "
         r"sed 's/.*SM:\([^\t]*\).*/\1/g'"" | uniq > {output.sm} 2> {log.stderr}"
 
-def _mutect2_get_interval_cli_arg(vcf_in = config["lcr-modules"]["mutect2"]["inputs"]["candidate_positions"]):
+def _mutect2_get_interval_cli_arg(
+    vcf_in = config["lcr-modules"]["mutect2"]["inputs"]["candidate_positions"], 
+    interval_arg_in = config["lcr-modules"]["mutect2"]["options"]["mutect2_interval_rules"]
+):
     def _mutect2_get_interval_cli_custom(wildcards, input):
         if vcf_in:
-            param = f"-L {input.candidate_positions}"
+            param = f"-L {input.candidate_positions} {interval_arg_in}"
         else: 
             param = ""
         return param
@@ -111,8 +114,7 @@ rule _mutect2_run_matched_unmatched:
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
         opts = CFG["options"]["mutect2_run"], 
-        interval_arg = _mutect2_get_interval_cli_arg(),
-        interval_rules=CFG["options"]["mutect2_interval_rules"]
+        interval_arg = _mutect2_get_interval_cli_arg()
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -153,8 +155,7 @@ rule _mutect2_run_no_normal:
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["mutect2_run"], 
-        interval_arg = _mutect2_get_interval_cli_arg, 
-        interval_rules=CFG["options"]["mutect2_interval_rules"]
+        interval_arg = _mutect2_get_interval_cli_arg 
     conda:
         CFG["conda_envs"]["gatk"]
     threads:

@@ -7,6 +7,7 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
             # candiate_positions may be a VCF, BED, or GATK interval list file. 
+            # For capture data, this can be used to specify the capture space. 
             # If you don't want to provide candidate positions, leave this field as-is. 
             # Set additional interval parameters under options: mutect2_interval_rules. 
             # See https://gatk.broadinstitute.org/hc/en-us/articles/360035531852-Intervals-and-interval-lists for how-to. 
@@ -16,7 +17,7 @@ lcr-modules:
 
         options:
             mutect2_run: ""
-            mutect2_interval_rules: "" # E.g. --ip 50 -isr INTERSECTION int
+            mutect2_interval_rules: "" # E.g. -ip 50 -isr INTERSECTION int pads each position by 50 bp and creates an intersect of the candidate positions with each chromosome region
             mutect2_pileupsummaries:
                 chrom: "17"
             mutect2_filter: ""
