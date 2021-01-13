@@ -151,6 +151,8 @@ lcr-modules:
                 mutect2_run: 
                     mem_mb: 10000
                     mutect_chrom: 1
+                mutect2_pileupsummaries: 
+                    mutect_pup: 1
 
         starfish: 
 

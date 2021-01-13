@@ -19,9 +19,9 @@ This release was authored by Laura Hilton.
     manta-2.3: bam=1
     sage: sage=1
     lofreq: lofreq=1
-    mutect2: mutect_chrom=1
+    mutect2: mutect_chrom=1, mutect_pup=1
     ````
 
-    Therefore you might consider launching Snakemake with `--resources bam=40 sage=20 lofreq=20 mutect_chrom=100` which will ensure a max of 40 Strelka/Manta jobs running simultaneously, max 20 SAGE jobs, etc. If there are a large number of unmatched normal samples in your pipeline, you may need to restrict this further to prevent I/O bottlenecks. 
+    Therefore you might consider launching Snakemake with `--resources bam=40 sage=20 lofreq=20 mutect_chrom=100 mutect_pup=20` which will ensure a max of 40 Strelka/Manta jobs running simultaneously, max 20 SAGE jobs, etc. If there is a large number of unmatched normal samples in your pipeline, you may need to restrict this further to prevent I/O bottlenecks. 
 
     
