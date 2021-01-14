@@ -461,21 +461,34 @@ rule _slms_3_output_vcf:
         vcf = CFG_SLMS3["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.vcf.gz", 
         tbi = CFG_SLMS3["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.vcf.gz.tbi"
     run:
-        op.relative_symlink(input, output.vcf, in_module = True)
-        op.relative_symlink(input + ".tbi", output.tbi, in_module = True)
+        op.relative_symlink(input[0], output.vcf, in_module = True)
+        op.relative_symlink(input[0] + ".tbi", output.tbi, in_module = True)
+
+rule _slms_3_cleanup: 
+    input: 
+        target_vcf = str(rules._slms_3_output_vcf.output.vcf)
+    output: 
+        cleaned_up = touch(CFG_SLMS3["dirs"]["outputs"] + "cleanup/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.cleaned_up")
+    params:
+        rm_files = [
+            str(rules._slms_3_annotate_strelka_gnomad.output.vcf), 
+            str(rules._slms_3_annotate_strelka_gnomad.output.vcf), 
+            str(rules._slms_3_strelka_lofreq_union.output.vcf), 
+            str(rules._slms_3_mutect2_depth_filt.output.vcf)
+        ] 
+    shell: 
+        "rm -f {params.rm_files}"
+
 
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _slms_3_all:
     input:
-        # rules._strelka_all.input, 
-        # rules._lofreq_all.input, 
-        # rules._mutect2_all.input, 
-        # rules._sage_all.input, 
-        # rules._starfish_all.input, 
+        rules._starfish_all.input, 
         expand(
             [
                 str(rules._slms_3_output_vcf.output.vcf),
+                str(rules._slms_3_cleanup.output.cleaned_up)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG_SLMS3["runs"]["tumour_seq_type"],

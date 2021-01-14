@@ -2,7 +2,6 @@ lcr-modules:
     
     slms_3:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
@@ -47,8 +46,8 @@ lcr-modules:
                 run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: False
 
-        # Configuration for slms_3 sub-modules
-        # These are stored as items under the `slms_3` keyword so that they can be use to 
+    ##### SLMS-3 SUBMODULE CONFIGURATION #####
+        # These are stored as items under the `slms_3` keyword so that they can be used to 
         # update each module config without getting overwritten during configfile loading. 
         # It is strongly recommended that users copy this complete config file to their project space and update important values. 
         # Additional values from each default submodule config can be added, e.g. to update mem_mb per rule. 
