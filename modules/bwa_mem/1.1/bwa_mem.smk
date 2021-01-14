@@ -146,8 +146,8 @@ rule _bwa_mem_output_bam:
     wildcard_constraints: 
         sample_id = "|".join(sample_ids_bwa_mem)
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bam + ".bai")
+        op.relative_symlink(input.bam, output.bam, in_module=True)
+        op.relative_symlink(input.bai, output.bam + ".bai", in_module=True)
         os.remove(input.sorted_bam)
         shell("touch {input.sorted_bam}.deleted")
 

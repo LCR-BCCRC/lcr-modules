@@ -64,7 +64,6 @@ lcr-modules:
         inputs:
             sample_bam: "../data11/{sample_id}.bam"
             sample_bai: "../data11/{sample_id}.bam.bai"
-            lofreq_filter: "{MODSDIR}/src/bash/lofreq_filter.sh"
         switches:
             # Intentionally running LoFreq without a BED file for simplicity
             # And to avoid having to include a large BED file in the repo

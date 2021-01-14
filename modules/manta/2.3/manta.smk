@@ -202,7 +202,7 @@ rule _manta_output_vcf:
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.vcf, output.vcf, in_module=True)
 
 
 # Symlinks the final BEDPE files
@@ -212,7 +212,7 @@ rule _manta_output_bedpe:
     output:
         bedpe = CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.bedpe"
     run:
-        op.relative_symlink(input.bedpe, output.bedpe)
+        op.relative_symlink(input.bedpe, output.bedpe, in_module=True)
 
 
 def _manta_predict_output(wildcards):

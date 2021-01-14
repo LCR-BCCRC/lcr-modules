@@ -264,8 +264,8 @@ rule _strelka_output_filtered_vcf:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz",
         vcf_tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz.tbi"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(str(input.vcf) + ".tbi", output.vcf_tbi)
+        op.relative_symlink(input.vcf, output.vcf, in_module=True)
+        op.relative_symlink(str(input.vcf) + ".tbi", output.vcf_tbi, in_module=True)
 
 
 

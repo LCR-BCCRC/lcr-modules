@@ -31,12 +31,17 @@ MANIFEST
 
 # Files creates when testing the demo project or workflows
 .snakemake/
-demo/results
+demo/capture/results
+demo/mrna/results
 demo/reference
 demo/scratch
 demo/data/*bam
 demo/results_archive
 demo/scratch_archive
+
+# Files creates when dealing with lofreq issue
+modules/lofreq/1.0/src/bin
+
 
 
 # Ignore example snakefiles
@@ -46,3 +51,4 @@ demo/scratch_archive
 /docs/build
 /docs/source/_build
 demo/run_clc.sh
+

@@ -360,13 +360,13 @@ rule _controlfreec_output:
         BAFgraph = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/BAFplot/{tumour_id}--{normal_id}--{pair_status}.BAF.png",
         ratio = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/ratio/{tumour_id}--{normal_id}--{pair_status}.ratio.txt"
     run:
-        op.relative_symlink(input.plot, output.plot)
-        op.relative_symlink(input.log2plot, output.log2plot)
-        op.relative_symlink(input.CNV, output.CNV)
-        op.relative_symlink(input.bed, output.bed)
-        op.relative_symlink(input.BAF, output.BAF)
-        op.relative_symlink(input.BAFgraph, output.BAFgraph)
-        op.relative_symlink(input.ratio, output.ratio)
+        op.relative_symlink(input.plot, output.plot, in_module=True)
+        op.relative_symlink(input.log2plot, output.log2plot, in_module=True)
+        op.relative_symlink(input.CNV, output.CNV, in_module=True)
+        op.relative_symlink(input.bed, output.bed, in_module=True)
+        op.relative_symlink(input.BAF, output.BAF, in_module=True)
+        op.relative_symlink(input.BAFgraph, output.BAFgraph, in_module=True)
+        op.relative_symlink(input.ratio, output.ratio, in_module=True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks

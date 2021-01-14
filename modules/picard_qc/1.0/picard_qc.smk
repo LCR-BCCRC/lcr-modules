@@ -271,7 +271,7 @@ rule _picard_qc_merged_output:
     output:
         metrics = CFG["dirs"]["outputs"] + "merged_metrics/{seq_type}--{genome_build}/all.{metrics}.txt"
     run:
-        op.relative_symlink(input.metrics, output.metrics)
+        op.relative_symlink(input.metrics, output.metrics, in_module=True)
 
 
 rule _picard_qc_flagstats_output:
@@ -280,7 +280,7 @@ rule _picard_qc_flagstats_output:
     output:
         flagstats = CFG["dirs"]["outputs"] + "flagstats/{seq_type}--{genome_build}/{sample_id}.flagstats"
     run:
-        op.relative_symlink(input.flagstats, output.flagstats)
+        op.relative_symlink(input.flagstats, output.flagstats, in_module=True)
 
 
 def _get_picard_qc_files(wildcards):

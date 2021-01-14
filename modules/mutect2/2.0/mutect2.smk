@@ -398,8 +398,8 @@ rule _mutect2_output_vcf:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.mutect2.combined.vcf.gz",
         tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.mutect2.combined.vcf.gz.tbi"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(input.tbi, output.tbi)
+        op.relative_symlink(input.vcf, output.vcf, in_module=True)
+        op.relative_symlink(input.tbi, output.tbi, in_module=True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks

@@ -142,8 +142,8 @@ rule _vcf2maf_output_maf:
     params:
         chain = lambda w: "hg38ToHg19" if "38" in str({w.genome_build}) else "hg19ToHg38"
     run:
-        op.relative_symlink(input.maf, output.maf)
-        op.relative_symlink((input.maf_converted+str("_")+str(params.chain)+str(".maf")), (output.maf[:-4]+str(".converted_")+str(params.chain)+str(".maf")))
+        op.relative_symlink(input.maf, output.maf, in_module=True)
+        op.relative_symlink((input.maf_converted+str("_")+str(params.chain)+str(".maf")), (output.maf[:-4]+str(".converted_")+str(params.chain)+str(".maf")), in_module=True)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _vcf2maf_all:

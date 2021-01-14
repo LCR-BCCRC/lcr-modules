@@ -121,7 +121,7 @@ rule _liftover_output_seg:
     output:
         seg = CFG["dirs"]["outputs"] + "seg/{tumour_sample_id}--{normal_sample_id}.{tool}.hg19.igv.seg"
     run:
-        op.relative_symlink(input.seg, output.seg)
+        op.relative_symlink(input.seg, output.seg, in_module=True )
 
 
 # Generates the target sentinels for each run, which generate the symlinks

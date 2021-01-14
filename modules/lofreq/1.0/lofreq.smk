@@ -158,10 +158,10 @@ rule _lofreq_output_vcf:
         vcf_all = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz",
         vcf_all_filtered = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_minus-dbsnp.lofreq.snvs.vcf.gz"
     run:
-        op.relative_symlink(input.vcf_all, output.vcf_all)
-        op.relative_symlink(input.vcf_all + ".tbi", output.vcf_all + ".tbi")
-        op.relative_symlink(input.vcf_all_filtered, output.vcf_all_filtered)
-        op.relative_symlink(input.vcf_all_filtered + ".tbi", output.vcf_all_filtered + ".tbi")
+        op.relative_symlink(input.vcf_all, output.vcf_all, in_module=True)
+        op.relative_symlink(input.vcf_all + ".tbi", output.vcf_all + ".tbi", in_module=True)
+        op.relative_symlink(input.vcf_all_filtered, output.vcf_all_filtered, in_module=True)
+        op.relative_symlink(input.vcf_all_filtered + ".tbi", output.vcf_all_filtered + ".tbi", in_module=True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks

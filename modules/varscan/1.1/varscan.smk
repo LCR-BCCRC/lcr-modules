@@ -259,8 +259,8 @@ rule _varscan_output_vcf:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-merged.vcf.gz",
         tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-merged.vcf.gz.tbi"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(input.tbi, output.tbi)
+        op.relative_symlink(input.vcf, output.vcf, in_module=True)
+        op.relative_symlink(input.tbi, output.tbi, in_module=True)
 
 
 rule _varscan_output_maf:
@@ -270,7 +270,7 @@ rule _varscan_output_maf:
     output:
         maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-merged.maf"
     run:
-        op.relative_symlink(input.maf, output.maf)
+        op.relative_symlink(input.maf, output.maf, in_module=True)
 
 """
 def _varscan_get_output(wildcards):

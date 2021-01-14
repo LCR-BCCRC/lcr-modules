@@ -211,7 +211,7 @@ rule _sequenza_output_seg:
     output:
         seg = CFG["dirs"]["outputs"] + "{filter_status}_seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.igv.seg"
     run:
-        op.relative_symlink(input.seg, output.seg)
+        op.relative_symlink(input.seg, output.seg, in_module=True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks

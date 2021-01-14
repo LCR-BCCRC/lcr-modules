@@ -206,7 +206,7 @@ rule _gridss_symlink_preprocessed_normal:
     input: 
         workdir = str(rules._gridss_preprocess_unmatched_normal.output.workdir)
     output: 
-        workdir = temp(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}.bam.gridss.working")
+        workdir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}.bam.gridss.working"))
     priority: 0
     wildcard_constraints: 
         sample_id = "|".join(unmatched_normal_ids)
@@ -488,9 +488,9 @@ rule _gridss_output_viral_vcf:
         tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gridss_viral_annotation_filtered.vcf.gz.tbi", 
         bedpe = CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gridss_viral_annotation_filtered.bedpe"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(input.tbi, output.tbi)
-        op.relative_symlink(input.bedpe, output.bedpe)
+        op.relative_symlink(input.vcf, output.vcf, in_module=True)
+        op.relative_symlink(input.tbi, output.tbi, in_module=True)
+        op.relative_symlink(input.bedpe, output.bedpe, in_module=True)
 
 rule _gridss_output_somatic_vcf:
     input:
@@ -506,11 +506,11 @@ rule _gridss_output_somatic_vcf:
         filtered_tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gridss_somatic_filtered.vcf.gz.tbi", 
         bedpe = CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gridss_somatic_filtered.bedpe"
     run:
-        op.relative_symlink(input.somatic, output.somatic)
-        op.relative_symlink(input.somatic_tbi, output.somatic_tbi)
-        op.relative_symlink(input.filtered, output.filtered)
-        op.relative_symlink(input.filtered_tbi, output.filtered_tbi)
-        op.relative_symlink(input.bedpe, output.bedpe)
+        op.relative_symlink(input.somatic, output.somatic, in_module=True)
+        op.relative_symlink(input.somatic_tbi, output.somatic_tbi, in_module=True)
+        op.relative_symlink(input.filtered, output.filtered, in_module=True)
+        op.relative_symlink(input.filtered_tbi, output.filtered_tbi, in_module=True)
+        op.relative_symlink(input.bedpe, output.bedpe, in_module=True)
 
 def _gridss_predict_output(wildcards): 
     """Request symlinks for all VCF files.

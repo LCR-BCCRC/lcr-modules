@@ -158,9 +158,9 @@ rule _battenberg_output_seg:
         plots = glob.glob(params.batt_dir + "/*.png")
         for png in plots:
             bn = os.path.basename(png)
-            op.relative_symlink(png, params.png_dir + "/" + bn)
-        op.relative_symlink(input.seg, output.seg)
-        op.relative_symlink(input.sub, output.sub)
+            op.relative_symlink(png, params.png_dir + "/" + bn, in_module = True)
+        op.relative_symlink(input.seg, output.seg, in_module = True)
+        op.relative_symlink(input.sub, output.sub, in_module = True)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _battenberg_all:

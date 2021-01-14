@@ -628,7 +628,7 @@ rule _hmftools_purple_output:
     output:
         files = CFG["dirs"]["outputs"] + "purple_output/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.purple.{out_file}" 
     run:
-        op.relative_symlink(input.files, output.files)
+        op.relative_symlink(input.files, output.files, in_module=True)
 
 rule _hmftools_purple_plots: 
     input:
@@ -636,7 +636,7 @@ rule _hmftools_purple_plots:
     output: 
         plots = CFG["dirs"]["outputs"] + "purple_plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{plot_name}.png"
     run: 
-        op.relative_symlink(input.plots, output.plots)
+        op.relative_symlink(input.plots, output.plots, in_module=True)
 
 
 rule _hmftools_linx_plots: 

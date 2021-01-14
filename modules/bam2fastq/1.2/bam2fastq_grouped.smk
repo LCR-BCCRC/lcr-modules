@@ -126,8 +126,8 @@ rule _bam2fastq_output:
         fastq_1 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read1.fastq.gz",
         fastq_2 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read2.fastq.gz"
     run:
-        op.relative_symlink(input.fastq_1, output.fastq_1)
-        op.relative_symlink(input.fastq_2, output.fastq_2)
+        op.relative_symlink(input.fastq_1, output.fastq_1, in_module=True)
+        op.relative_symlink(input.fastq_2, output.fastq_2, in_module=True)
 
 
 rule _bam2fastq_all:

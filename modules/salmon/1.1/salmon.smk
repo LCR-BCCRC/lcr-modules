@@ -85,7 +85,7 @@ rule _salmon_output:
     output:
         quant = CFG["dirs"]["outputs"] + "quant_to_" + CFG["transcriptome"]["quant_to"] + "/{seq_type}/{sample_id}.quant.sf"
     run:
-        op.relative_symlink(input.quant, output.quant)
+        op.relative_symlink(input.quant, output.quant, in_module=True)
 
 
 rule export_sample_table:
