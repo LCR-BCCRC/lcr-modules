@@ -456,13 +456,17 @@ def _slms_3_get_starfish_output(wildcards):
 
 rule _slms_3_output_vcf:
     input:
-        _slms_3_get_starfish_output, 
+        # vcf = expand(rules._starfish_output_vcf.output.vcf, vcf_name = "3+", allow_missing = True), 
+        # tbi = expand(rules._starfish_output_vcf.output.tbi, vcf_name = "3+", allow_missing = True),  
+        dispatched = str(rules._starfish_dispatch.output)
     output:
         vcf = CFG_SLMS3["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.vcf.gz", 
         tbi = CFG_SLMS3["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.vcf.gz.tbi"
+    params: 
+        vcf_in = config["lcr-modules"]["starfish"]["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.3+.vcf.gz"
     run:
-        op.relative_symlink(input[0], output.vcf, in_module = True)
-        op.relative_symlink(input[0] + ".tbi", output.tbi, in_module = True)
+        op.relative_symlink(params.vcf_in, output.vcf, in_module = True)
+        op.relative_symlink(params.vcf_in + ".tbi", output.tbi, in_module = True)
 
 rule _slms_3_cleanup: 
     input: 
