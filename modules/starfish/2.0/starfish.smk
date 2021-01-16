@@ -31,20 +31,16 @@ localrules:
     _starfish_input_vcf,
     _starfish_rename_output, 
     _starfish_output_vcf,
-    _starfish_output_union,
     _starfish_output_venn,
     _starfish_all,
 
 ##### GLOBAL VARIABLES #####
 
 # All variant callers from config
+
+CFG["inputs"]["vcf"] = dict(zip(CFG["inputs"]["names"], CFG["inputs"]["paths"]))
 callers = list(CFG["inputs"]["vcf"].keys())
 callers = [caller.lower() for caller in callers]
-
-# The name of the union VCF file
-union_vcf = copy.deepcopy(callers)
-union_vcf.append("union")
-union_vcf = "_".join(union_vcf)
 
 assert len(callers) < 6, (
     "Starfish can only handle a maximum of 6 input VCFs."
@@ -134,37 +130,9 @@ def _starfish_get_output(wildcards):
     vcfs = expand(
         CFG['dirs']['starfish'] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf.gz",
         **wildcards,  
-        vcf_name = glob_wildcards(os.path.join(checkpoint_output, "{vcf_name, [a-z]\S+(?<!union)}.vcf.gz")).vcf_name # Constrain to omit 2, 2+, 2-, etc. VCF files. 
+        vcf_name = glob_wildcards(os.path.join(checkpoint_output, "{vcf_name, [a-z]\S+}.vcf.gz")).vcf_name # Constrain to omit 2, 2+, 2-, etc. VCF files. 
         )
     return vcfs
-
-# Create a union VCF
-rule _starfish_union: 
-    input: 
-        _starfish_get_output
-    output: 
-        union = CFG["dirs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{union_vcf}.vcf.gz", 
-        union_tbi = CFG["dirs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{union_vcf}.vcf.gz.tbi"
-    log:
-        stdout = CFG["logs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{union_vcf}.stdout.log",
-        stderr = CFG["logs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{union_vcf}.stderr.log"
-    params: 
-        options = CFG["options"]["starfish_union"]
-    conda: 
-        CFG["conda_envs"]["bcftools"]
-    threads:
-        CFG["threads"]["starfish_union"]
-    resources:
-        **CFG["resources"]["starfish_union"]
-    wildcard_constraints: 
-        union_vcf = union_vcf
-    shell: 
-        op.as_one_line("""
-        bcftools merge {params.options} --force-samples 
-        -Oz -o {output.union} 
-        {input} && 
-        tabix -p vcf {output.union}
-        """)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _starfish_output_vcf:
@@ -173,24 +141,10 @@ rule _starfish_output_vcf:
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf.gz", 
         tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf.gz.tbi"
-    wildcard_constraints: 
-        vcf_name = "\S+(?<!union)"
     run:
         op.relative_symlink(input.vcf, output.vcf, in_module=True), 
         op.relative_symlink(input.vcf + ".tbi", output.tbi, in_module=True)
 
-rule _starfish_output_union:
-    input:
-        vcf = CFG['dirs']['starfish'] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{union_vcf}.vcf.gz", 
-        tbi = CFG['dirs']['starfish'] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{union_vcf}.vcf.gz.tbi",
-    output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{union_vcf}.vcf.gz", 
-        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{union_vcf}.vcf.gz.tbi"
-    wildcard_constraints: 
-        union_vcf = union_vcf
-    run:
-        op.relative_symlink(input.vcf, output.vcf, in_module=True), 
-        op.relative_symlink(input.tbi, output.tbi, in_module=True)
 
 rule _starfish_output_venn: 
     input: 
@@ -216,7 +170,6 @@ def _starfish_get_output_target(wildcards):
 
 rule _starfish_dispatch: 
     input: 
-        expand(CFG["dirs"]["outputs"] + "vcf/{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}.{union_vcf}.vcf.gz", union_vcf = union_vcf),
         _starfish_get_output_target        
     output: 
         touch(CFG["dirs"]["outputs"] + "dispatched/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.dispatched")

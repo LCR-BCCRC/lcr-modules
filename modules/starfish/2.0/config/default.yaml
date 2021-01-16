@@ -10,12 +10,22 @@ lcr-modules:
         inputs:
             
             vcf: 
-                # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
-                # Each key:value pair is the name of the variant caller and the path to its VCF file
-                # Each key should be unique in this set. 
-                # Note: If you aren't using strelka as one of the inputs to this, you will have to either delete the
-                # following line or copy the entire config to your project and omit this line from your project config. 
-                strelka: "__UPDATE__"
+
+                names: 
+                    ["__UPDATE__"] # Comma-separated list of names of each input variant caller you would like used in output file names. 
+                    # These must appear in the same order as the paths listed under `paths` below. 
+                    # Example: 
+                    # ["strelka", "lofreq"]
+
+                paths: 
+                    ["__UPDATE__"] # Comma-separated list of paths to each VCF file to use as input to Starfish. 
+                    # Available wildcards: {tumour_id}, {normal_id}, {sample_id}, {pair_status}, {genome_build}, {seq_type}. 
+                    # Example: 
+                    # [
+                    #     "results/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz", 
+                    #     "results/lofreq-1.0/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz"
+                    # ]
+                
                 
 
             starfish_script: "{MODSDIR}/src/starfish.py"
