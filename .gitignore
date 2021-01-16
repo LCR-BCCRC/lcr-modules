@@ -33,6 +33,7 @@ MANIFEST
 .snakemake/
 demo/capture/results
 demo/mrna/results
+demo/genome/results
 demo/reference
 demo/scratch
 demo/data/*bam
@@ -51,4 +52,3 @@ modules/lofreq/1.0/src/bin
 /docs/build
 /docs/source/_build
 demo/run_clc.sh
-
