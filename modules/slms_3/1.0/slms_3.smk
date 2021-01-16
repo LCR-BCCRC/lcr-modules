@@ -181,7 +181,7 @@ def setup_module(name, version, subdirectories):
 CFG_SLMS3 = setup_module(
     name = "slms_3",
     version = "1.0",
-    subdirectories = ["inputs", "strelka_gnomad", "lofreq_gnomad", "strelka_lofreq_union", "mutect2_depth_filt", "outputs"],
+    subdirectories = ["inputs", "strelka_gnomad", "lofreq_gnomad", "strelka_lofreq_union", "sage_gnomad", "mutect2_depth_filt", "union", "outputs"],
 )
 
 # Ensure each of the submodule versions meets requirements. 
@@ -366,6 +366,35 @@ rule _slms_3_strelka_lofreq_union:
         tabix -p vcf {output.vcf} 2>> {log.stderr}
         """)
 
+# Modify the SAGE VCF file to use `NORMAL` and `TUMOR` as sample IDs
+rule _slms_3_annotate_sage_gnomad: 
+    input: 
+        vcf = str(rules._slms_3_input_sage_vcf.output.vcf), 
+        gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")
+    output: 
+        vcf = CFG_SLMS3["dirs"]["sage_gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sage.renamed.vcf.gz", 
+        tbi = CFG_SLMS3["dirs"]["sage_gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sage.renamed.vcf.gz.tbi"
+    log:
+        stderr = CFG_SLMS3["logs"]["sage_gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_lofreq_union_gnomad.stderr.log"
+    conda: 
+        CFG_SLMS3["conda_envs"]["bcftools"]
+    resources: 
+        **CFG_SLMS3["resources"]["sage_gnomad"]
+    threads: 
+        CFG_SLMS3["threads"]["sage_gnomad"]
+    shell: 
+        op.as_one_line("""
+        bcftools annotate --threads {threads} 
+        -a {input.gnomad} -c INFO/AF {input.vcf} | 
+        awk 'BEGIN {{FS=OFS="\\t"}} {{ if ($1 !~ /^#/ && $8 !~ ";AF=") $8=$8";AF=0"; print $0; }}' | 
+        sed 's/{wildcards.tumour_id}/TUMOR/g' | 
+        sed 's/{wildcards.normal_id}/NORMAL/g' | 
+        bcftools view -s "NORMAL,TUMOR" -i 'INFO/AF < 0.0001' -Oz -o {output.vcf} 2> {log.stderr} 
+        &&
+        tabix -p vcf {output.vcf} 2>> {log.stderr}
+        """)
+
+
 ##### SECOND PASS VARIANT CALLING MODULE SNAKEFILES #####
 
 # Upate the Mutect2 config with the _strelka_lofreq_vcf
@@ -381,8 +410,8 @@ rule _slms_3_input_mutect_vcf:
         vcf = str(rules._mutect2_output_vcf.output.vcf), 
         tbi = str(rules._mutect2_output_vcf.output.tbi)
     output:
-        vcf = CFG_SLMS3["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.mutect2.combined.vcf", 
-        tbi = CFG_SLMS3["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.mutect2.combined.vcf.tbi"
+        vcf = CFG_SLMS3["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.mutect2.combined.vcf.gz", 
+        tbi = CFG_SLMS3["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.mutect2.combined.vcf.gz.tbi"
     run:
         op.relative_symlink(input.vcf, output.vcf)
         op.relative_symlink(input.tbi, output.tbi)
@@ -416,7 +445,7 @@ rule _slms_3_mutect2_depth_filt:
         nsamp=$(zgrep "##normal_sample=" {input.vcf} | sed 's|##normal_sample=||g');
         bcftools view {input.vcf} | 
         sed "s|$tsamp|TUMOR|g" | sed "s|$nsamp|NORMAL|g" | 
-        bcftools view -i 'FMT/DP[@{input.table}] >= 10 && FMT/AD[@{input.table}:1] >= 4 && FMT/AF[@{input.table}:0] >= 0.1' 
+        bcftools view  -s "NORMAL,TUMOR" -i 'FMT/DP[@{input.table}] >= 10 && FMT/AD[@{input.table}:1] >= 4 && FMT/AF[@{input.table}:0] >= 0.1' 
         -Oz -o {output.vcf} 2> {log.stderr} && 
         tabix -p vcf {output.vcf} 2>> {log.stderr}
         """)
@@ -428,71 +457,122 @@ snakemake.utils.update_config(config["lcr-modules"]["starfish"], {
         "_parent": CFG_SLMS3["dirs"]["_parent"] + "starfish-" + CFG_SLMS3["module_versions"]["starfish"]
     },
     "inputs": {
-        "vcf": {
-            "mutect2": str(rules._slms_3_mutect2_depth_filt.output.vcf),
-            "sage": str(rules._slms_3_input_sage_vcf.output.vcf), 
-            "lofreq": str(rules._slms_3_annotate_lofreq_gnomad.output.vcf), 
-            "strelka": str(rules._slms_3_annotate_strelka_gnomad.output.vcf)
-        }
+        "names": 
+            ["mutect", "sage", "strelka", "lofreq"], 
+        "paths": 
+            [
+                str(rules._slms_3_mutect2_depth_filt.output.vcf),
+                str(rules._slms_3_annotate_sage_gnomad.output.vcf),
+                str(rules._slms_3_annotate_strelka_gnomad.output.vcf), 
+                str(rules._slms_3_annotate_lofreq_gnomad.output.vcf)
+            ]
     }
 })
 
 include: lcr_modules + "/starfish/" + CFG_SLMS3["module_versions"]["starfish"] + "/starfish.smk"
 
+# Create a final union VCF file summarizing which variants were called by which variant callers
+# First rename the sample columns in each VCF as TUMOR_{caller} or NORMAL_{caller}
+
+rule _slms_3_rename_samples_all: 
+    input: 
+        vcf = lambda w: config["lcr-modules"]["starfish"]["inputs"]["vcf"][w.caller]
+    output: 
+        vcf = temp(CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.tmp.vcf.gz"),
+        tbi = temp(CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.tmp.vcf.gz.tbi")
+    log:
+        stderr = CFG_SLMS3["logs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/rename_samples_{caller}.stderr.log"
+    conda: 
+        CFG_SLMS3["conda_envs"]["bcftools"]
+    resources: 
+        **CFG_SLMS3["resources"]["rename_all"]
+    threads: 
+        CFG_SLMS3["threads"]["rename_all"]
+    shell: 
+        op.as_one_line("""
+        bcftools view {input.vcf} | 
+        sed 's/TUMOR/TUMOR_{wildcards.caller}/g' | 
+        sed 's/NORMAL/NORMAL_{wildcards.caller}/g' | 
+        bcftools view -Oz -o {output.vcf} 2> {log.stderr}
+        && 
+        tabix -p vcf {output.vcf} 2>> {log.stderr}
+        """)
+
+rule _slms_3_union_vcf: 
+    input: 
+        vcf = expand(
+            rules._slms_3_rename_samples_all.output.vcf, 
+            caller = config["lcr-modules"]["starfish"]["inputs"]["names"], 
+            allow_missing = True
+        ), 
+        tbi = expand(
+            rules._slms_3_rename_samples_all.output.tbi, 
+            caller = config["lcr-modules"]["starfish"]["inputs"]["names"], 
+            allow_missing = True
+        )
+    output: 
+        vcf = CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/union.vcf.gz", 
+        tbi = CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/union.vcf.gz.tbi"
+    log:
+        stderr = CFG_SLMS3["logs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/union.stderr.log"
+    conda: 
+        CFG_SLMS3["conda_envs"]["bcftools"]
+    resources: 
+        **CFG_SLMS3["resources"]["union_vcf"]
+    threads: 
+        CFG_SLMS3["threads"]["union_vcf"]
+    shell: 
+        op.as_one_line("""
+        bcftools merge --threads {threads} -m both -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
+        && 
+        tabix -p vcf {output.vcf} 2>> {log.stderr}
+        """)
+    
+
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 
-def _slms_3_get_starfish_output(wildcards): 
-    CFG = config["lcr-modules"]["starfish"]
-    # Get the path to the output directory from the checkpoint _starfish_rename_output
-    # **wildcards unpacks the wildcards object from the rule where this input function is called
-    checkpoint_output = os.path.dirname(checkpoints._starfish_rename_output.get(**wildcards).output.renamed)
-    # Obtain the vcf_name wildcards using the glob_wildcards function
-    vcf = expand(
-        CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf.gz",
-        **wildcards,
-        vcf_name = glob_wildcards(os.path.join(checkpoint_output, "{vcf_name, '3+'}.vcf.gz")).vcf_name
-        )
-    return vcf
 
 rule _slms_3_output_vcf:
     input:
-        # vcf = expand(rules._starfish_output_vcf.output.vcf, vcf_name = "3+", allow_missing = True), 
-        # tbi = expand(rules._starfish_output_vcf.output.tbi, vcf_name = "3+", allow_missing = True),  
+        union_vcf = str(rules._slms_3_union_vcf.output.vcf), 
+        union_tbi = str(rules._slms_3_union_vcf.output.tbi),
         dispatched = str(rules._starfish_dispatch.output)
     output:
-        vcf = CFG_SLMS3["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.vcf.gz", 
-        tbi = CFG_SLMS3["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.vcf.gz.tbi"
+        isec_vcf = CFG_SLMS3["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.vcf.gz", 
+        isec_tbi = CFG_SLMS3["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.vcf.gz.tbi", 
+        union_vcf = CFG_SLMS3["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.union.vcf.gz",
+        union_tbi = CFG_SLMS3["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.union.vcf.gz.tbi"
     params: 
-        vcf_in = config["lcr-modules"]["starfish"]["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.3+.vcf.gz"
-    run:
-        op.relative_symlink(params.vcf_in, output.vcf, in_module = True)
-        op.relative_symlink(params.vcf_in + ".tbi", output.tbi, in_module = True)
-
-rule _slms_3_cleanup: 
-    input: 
-        target_vcf = str(rules._slms_3_output_vcf.output.vcf)
-    output: 
-        cleaned_up = touch(CFG_SLMS3["dirs"]["outputs"] + "cleanup/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.cleaned_up")
-    params:
-        rm_files = [
+        vcf_in = config["lcr-modules"]["starfish"]["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.3+.vcf.gz", 
+        rm_files = CFG_SLMS3["options"]["cleanup_vcfs"], 
+        files_to_rm = [
             str(rules._slms_3_annotate_strelka_gnomad.output.vcf), 
-            str(rules._slms_3_annotate_strelka_gnomad.output.vcf), 
+            str(rules._slms_3_annotate_lofreq_gnomad.output.vcf), 
             str(rules._slms_3_strelka_lofreq_union.output.vcf), 
-            str(rules._slms_3_mutect2_depth_filt.output.vcf)
+            str(rules._slms_3_mutect2_depth_filt.output.vcf), 
+            str(rules._slms_3_annotate_sage_gnomad.output.vcf)
         ] 
-    shell: 
-        "rm -f {params.rm_files}"
+    run:
+        op.relative_symlink(params.vcf_in, output.isec_vcf, in_module = True)
+        op.relative_symlink(params.vcf_in + ".tbi", output.isec_tbi, in_module = True)
+        op.relative_symlink(input.union_vcf, output.union_vcf, in_module = True)
+        op.relative_symlink(input.union_tbi, output.union_tbi, in_module = True)
+        if params.rm_files: 
+            for file in params.files_to_rm: 
+                if os.path.exists(file): 
+                    os.remove(file)
+
 
 
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _slms_3_all:
     input:
-        rules._starfish_all.input, 
+        # rules._starfish_all.input, 
         expand(
             [
-                str(rules._slms_3_output_vcf.output.vcf),
-                str(rules._slms_3_cleanup.output.cleaned_up)
+                str(rules._slms_3_output_vcf.output.isec_vcf),
+                str(rules._slms_3_output_vcf.output.union_vcf)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG_SLMS3["runs"]["tumour_seq_type"],

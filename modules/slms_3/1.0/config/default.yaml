@@ -19,12 +19,18 @@ lcr-modules:
 
         conda_envs:
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+
+        options: 
+            cleanup_vcfs: False # Boolean True or False. Indicate whether temp VCF files generated as part of SLMS-3 should be removed upon completion. 
             
         threads:
             strelka_gnomad: 4
             lofreq_gnomad: 4
             strelka_lofreq_union: 4
+            sage_gnomad: 4
             mutect2_depth_filt: 4
+            rename_all: 4
+            union_vcf: 4
 
         resources:
             strelka_gnomad: 
@@ -33,8 +39,14 @@ lcr-modules:
                 mem_mb: 2000
             strelka_lofreq_union: 
                 mem_mb: 2000
+            sage_gnomad: 
+                mem_mb: 2000
             mutect2_depth_filt: 
                 mem_mb: 2000
+            rename_all:
+                mem_mb: 2000
+            union_vcf: 
+                mem_mb: 5000
 
         pairing_config:
             genome:
