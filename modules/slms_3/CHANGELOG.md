@@ -12,7 +12,6 @@ This release was authored by Laura Hilton.
 - SLMS-3: SNVs and indels called by three or more of Strelka2, LoFreq, Mutect2, and SAGE. 
 - This module incorporates all the variant calling steps for the SLMS-3 pipeline, which can be used for FFPE and FF tumours run with a matched or unmatched normal. 
 - The versions of each submodule can be specified in the config. 
-- Users should copy the complete SLMS-3 default.yaml config file to their own project directory and update values there. Additional values from the submodule config that you wish to customize (e.g. resource requirements) can be added as necessary. 
 - If running this pipeline on a large number of samples, resource throttling is available. Currently each high resource use job is assigned the following resource values: 
     ``` 
     strelka-1.1: bam=1
