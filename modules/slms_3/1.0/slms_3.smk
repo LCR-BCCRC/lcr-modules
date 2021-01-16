@@ -430,7 +430,8 @@ rule _slms_3_mutect2_depth_filt:
         table = str(rules._slms_3_mutect2_samples_table.output.table)
     output: 
         vcf = CFG_SLMS3["dirs"]["mutect2_depth_filt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.depthfilt.mutect2.combined.vcf.gz", 
-        tbi = CFG_SLMS3["dirs"]["mutect2_depth_filt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.depthfilt.mutect2.combined.vcf.gz.tbi"
+        tbi = CFG_SLMS3["dirs"]["mutect2_depth_filt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.depthfilt.mutect2.combined.vcf.gz.tbi",
+        samples = temp(CFG_SLMS3["dirs"]["mutect2_depth_filt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.samples.txt")
     log:
         stderr = CFG_SLMS3["logs"]["mutect2_depth_filt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_depth_filt.stderr.log"
     conda: 
@@ -443,10 +444,10 @@ rule _slms_3_mutect2_depth_filt:
         op.as_one_line("""
         tsamp=$(zgrep "##tumor_sample=" {input.vcf} | sed 's|##tumor_sample=||g');
         nsamp=$(zgrep "##normal_sample=" {input.vcf} | sed 's|##normal_sample=||g');
-        bcftools view {input.vcf} | 
-        sed "s|$tsamp|TUMOR|g" | sed "s|$nsamp|NORMAL|g" | 
+        printf "$tsamp TUMOR\\n$nsamp NORMAL\\n" > {output.samples} &&
+        bcftools reheader -s {output.samples} {input.vcf} 2> {log.stderr} | 
         bcftools view  -s "NORMAL,TUMOR" -i 'FMT/DP[@{input.table}] >= 10 && FMT/AD[@{input.table}:1] >= 4 && FMT/AF[@{input.table}:0] >= 0.1' 
-        -Oz -o {output.vcf} 2> {log.stderr} && 
+        -Oz -o {output.vcf} 2>> {log.stderr} && 
         tabix -p vcf {output.vcf} 2>> {log.stderr}
         """)
 
@@ -479,7 +480,8 @@ rule _slms_3_rename_samples_all:
         vcf = lambda w: config["lcr-modules"]["starfish"]["inputs"]["vcf"][w.caller]
     output: 
         vcf = temp(CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.tmp.vcf.gz"),
-        tbi = temp(CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.tmp.vcf.gz.tbi")
+        tbi = temp(CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.tmp.vcf.gz.tbi"), 
+        samples = temp(CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.samples.txt")
     log:
         stderr = CFG_SLMS3["logs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/rename_samples_{caller}.stderr.log"
     conda: 
@@ -490,10 +492,9 @@ rule _slms_3_rename_samples_all:
         CFG_SLMS3["threads"]["rename_all"]
     shell: 
         op.as_one_line("""
-        bcftools view {input.vcf} | 
-        sed 's/TUMOR/TUMOR_{wildcards.caller}/g' | 
-        sed 's/NORMAL/NORMAL_{wildcards.caller}/g' | 
-        bcftools view -Oz -o {output.vcf} 2> {log.stderr}
+        printf "TUMOR TUMOR_{wildcards.caller}\\nNORMAL NORMAL_{wildcards.caller}\\n" > {output.samples} 
+        && 
+        bcftools reheader -s {output.samples} -o {output.vcf} {input.vcf} 2> {log.stderr}
         && 
         tabix -p vcf {output.vcf} 2>> {log.stderr}
         """)
