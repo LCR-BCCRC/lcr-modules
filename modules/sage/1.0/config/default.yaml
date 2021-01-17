@@ -10,12 +10,13 @@ lcr-modules:
         scratch_subdirectories: []
 
         # include here any additional flags to modify default parameters
+        # for example, use here "-validation_stringency LENIENT" if you encounter problems with bam files
         options:
             sage_run: ""
 
 
         conda_envs:
-            sage: "{MODSDIR}/envs/hmftools-sage-2.2.yaml"
+            sage: "{MODSDIR}/envs/hmftools-sage-2.6.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             
         resources:
