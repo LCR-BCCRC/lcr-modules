@@ -42,13 +42,10 @@ lcr-modules:
             
         threads:
             starfish_run: 4
-            starfish_union: 4
 
         resources:
             starfish_run: 
                 mem_mb: 15000
-            starfish_union: 
-                mem_mb: 10000
 
         pairing_config:
             genome:
