@@ -10,6 +10,7 @@ lcr-modules:
         scratch_subdirectories: []
 
         # include here any additional flags to modify default parameters
+        # for example, use here "-validation_stringency LENIENT" if you encounter problems with bam files
         options:
             sage_run: ""
 

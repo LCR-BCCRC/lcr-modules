@@ -64,8 +64,8 @@ rule _sage_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bam+ ".bai", output.bai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bam+ ".bai", output.bai)
 
 
 # Setup shared reference files. Symlinking these files to 00-inputs to ensure index and dictionary are present
@@ -74,8 +74,7 @@ rule _input_references:
     input: 
         genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         genome_fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
-        genome_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict"),
-        main_chromosomes = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
+        genome_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
     output: 
         genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa", 
         genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa.fai", 
