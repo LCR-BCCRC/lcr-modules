@@ -119,8 +119,8 @@ rule _slms_3_input_strelka_vcf:
         vcf = CFG_SLMS3["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz", 
         tbi = CFG_SLMS3["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz.tbi"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(input.tbi, output.tbi)
+        op.relative_symlink(input.vcf, output.vcf, in_module = True)
+        op.relative_symlink(input.tbi, output.tbi, in_module = True)
 
 rule _slms_3_input_sage_vcf: 
     input:
@@ -130,8 +130,8 @@ rule _slms_3_input_sage_vcf:
         vcf = CFG_SLMS3["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.combined.vcf.gz", 
         tbi = CFG_SLMS3["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.combined.vcf.gz.tbi"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(input.tbi, output.tbi)
+        op.relative_symlink(input.vcf, output.vcf, in_module = True)
+        op.relative_symlink(input.tbi, output.tbi, in_module = True)
 
 rule _slms_3_input_lofreq_vcf: 
     input:
@@ -140,8 +140,8 @@ rule _slms_3_input_lofreq_vcf:
         vcf = CFG_SLMS3["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz", 
         tbi = CFG_SLMS3["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz.tbi"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(input.vcf + ".tbi", output.tbi)
+        op.relative_symlink(input.vcf, output.vcf, in_module = True)
+        op.relative_symlink(input.vcf + ".tbi", output.tbi, in_module = True)
 
 # Annotate Strelka VCF and remove common GnomAD variants
 
@@ -273,8 +273,8 @@ rule _slms_3_input_mutect_vcf:
         vcf = CFG_SLMS3["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.mutect2.combined.vcf.gz", 
         tbi = CFG_SLMS3["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.mutect2.combined.vcf.gz.tbi"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(input.tbi, output.tbi)
+        op.relative_symlink(input.vcf, output.vcf, in_module = True)
+        op.relative_symlink(input.tbi, output.tbi, in_module = True)
 
 
 # Depth/VAF filter the Mutect2 output. This must be completed here and not in the mutect2 module so that the TUMOR column can be properly indexed. 
