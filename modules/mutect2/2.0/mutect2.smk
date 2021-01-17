@@ -319,7 +319,8 @@ rule _mutect2_learn_orient_model:
 rule _mutect2_pileup_summaries: 
     input: 
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam", 
-        snps = reference_files("genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz")
+        snps = reference_files("genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz"), 
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output: 
         pileup = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pileupSummary.table"
     log: 
@@ -338,6 +339,7 @@ rule _mutect2_pileup_summaries:
         gatk GetPileupSummaries 
             --java-options "-Xmx{params.mem_mb}m"
             -I {input.tumour_bam}
+            -R {input.fasta} 
             -V {input.snps}
             -L {input.snps}
             -O {output.pileup}
