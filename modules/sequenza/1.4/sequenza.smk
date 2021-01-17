@@ -66,9 +66,9 @@ rule _sequenza_input_bam:
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai",
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.crai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
-        op.relative_symlink(input.bai, output.crai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 
 # Pulls in list of chromosomes for the genome builds
