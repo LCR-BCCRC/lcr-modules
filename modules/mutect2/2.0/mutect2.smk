@@ -14,6 +14,25 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+import inspect
+
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+import pkg_resources
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_resources.get_distribution("oncopipe").version
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
+    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
 
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["mutect2"]`
@@ -77,6 +96,10 @@ rule _mutect2_get_sm:
         "samtools view -H {input.bam} | grep '^@RG' | "
         r"sed 's/.*SM:\([^\t]*\).*/\1/g'"" | uniq > {output.sm} 2> {log.stderr}"
 
+# This generates a command-line argument for the Mutect2 functions by combining the 
+# input intervals file with the intervals arguments specified in the config. 
+# The first function loads the wildcard-containing file path and additional args from the config. 
+# The second replaces wildcards with those used in the rule. 
 def _mutect2_get_interval_cli_arg(
     vcf_in = config["lcr-modules"]["mutect2"]["inputs"]["candidate_positions"], 
     interval_arg_in = config["lcr-modules"]["mutect2"]["options"]["mutect2_interval_rules"]
