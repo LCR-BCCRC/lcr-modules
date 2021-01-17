@@ -168,13 +168,13 @@ lcr-modules:
                 # Leave this blank, it will be updated within the Snakefile. 
                 _parent: "" 
 
-            inputs: 
+            threads:
+                starfish_run: 4
 
-                vcf: 
-                    # Leave these values blank, they will be updated within the Snakefile. 
-                    mutect2: ""
-                    sage: ""
-                    lofreq: ""
-                    strelka: ""
+            resources:
+                starfish_run: 
+                    mem_mb: 15000
+
+
 
     
