@@ -11,7 +11,7 @@ lcr-modules:
             run_sequenza: "{MODSDIR}/src/R/run_sequenza.R"
             cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.3/cnv2igv.py"
 
-        scratch_subdirectories: ["seqz"]
+        scratch_subdirectories: []
         
         options:
             # in bam2seqz pass any additional flags for the sequenza-utils. For example, this can include --normal2 to use for depth.ratio calculation.
