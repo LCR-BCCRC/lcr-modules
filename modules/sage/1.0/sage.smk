@@ -111,14 +111,13 @@ rule _download_sage_references:
 # file for each genome build using file produced by reference_files workflow, and supply it as
 # a comma-deliminated list of chromosomes for SAGE run.
 def get_chromosomes(wildcards):
-    path = reference_files("genomes/"+str(wildcards.genome_build)+"/genome_fasta/main_chromosomes.txt")
-    input = str(path)
-    with open(input, 'r') as chromosome_file:
-        lines = chromosome_file.readlines()
-        chromosomes=[]
-        for x in lines:
-            chromosomes.append(x.rstrip("\n"))
-        chromosomes= ",".join(chromosomes)
+    chromosomes=[]
+    for i in range(1,23):
+        chromosomes.append(str(i))
+    chromosomes.append("X")
+    if "38" in str(wildcards.genome_build):
+        chromosomes = ["chr" + x for x in chromosomes]
+    chromosomes= ",".join(chromosomes)    
     return chromosomes
 
 # Variant calling rule

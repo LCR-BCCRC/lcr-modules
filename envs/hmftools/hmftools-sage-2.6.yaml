@@ -30,7 +30,7 @@ dependencies:
   - gxx_impl_linux-64=7.3.0
   - gxx_linux-64=7.3.0
   - harfbuzz=2.4.0
-  - hmftools-sage=2.2
+  - hmftools-sage=2.6
   - icu=58.2
   - jpeg=9d
   - kernel-headers_linux-64=2.6.32
