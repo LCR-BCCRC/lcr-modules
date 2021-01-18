@@ -140,9 +140,12 @@ lcr-modules:
         dirs: 
             _parent: "results/starfish-2.0_strelka-1.1_lofreq-1.0"
         inputs: 
-            vcf: 
-                strelka: "results/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz"
-                lofreq: "results/lofreq-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz"
+            names: ["strelka", "lofreq"]
+            paths: 
+                [
+                    "results/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz", 
+                    "results/lofreq-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz"
+                ]
 
     sage:
         inputs:
