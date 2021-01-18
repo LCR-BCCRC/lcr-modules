@@ -150,15 +150,15 @@ rule _manta_run:
 # and fixes the sample IDs in the VCF header to match sample IDs used in Snakemake
 rule _manta_augment_vcf:
     input:
-        variants_dir = rules._manta_run.output.variants_dir,
-        aug_vcf = CFG["inputs"]["augment_manta_vcf"]
+        variants_dir = rules._manta_run.output.variants_dir        
     output:
         vcf = CFG["dirs"]["augment_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.augmented.vcf"
     log:
         stdout = CFG["logs"]["augment_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_augment_vcf.{vcf_name}.stdout.log",
         stderr = CFG["logs"]["augment_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_augment_vcf.{vcf_name}.stderr.log"
     params:
-        opts = CFG["options"]["augment_vcf"]
+        opts = CFG["options"]["augment_vcf"], 
+        aug_vcf = CFG["scripts"]["augment_manta_vcf"]
     conda:
         CFG["conda_envs"]["augment_manta_vcf"]
     threads:
@@ -167,7 +167,7 @@ rule _manta_augment_vcf:
         mem_mb = CFG["mem_mb"]["augment_vcf"]
     shell:
         op.as_one_line("""
-        {input.aug_vcf} {params.opts} --tumour_id {wildcards.tumour_id} --normal_id {wildcards.normal_id} 
+        {params.aug_vcf} {params.opts} --tumour_id {wildcards.tumour_id} --normal_id {wildcards.normal_id} 
         --vcf_type {wildcards.vcf_name} {input.variants_dir}/{wildcards.vcf_name}.vcf.gz {output.vcf}
         > {log.stdout} 2> {log.stderr}
         """)
