@@ -11,18 +11,18 @@ lcr-modules:
 
     bam2fastq:
         inputs:
-            sample_bam: "../data11/{sample_id}.bam"
+            sample_bam: "../data/{sample_id}.bam"
         temp_outputs: False # fastq outputs will be temporary
 
     manta:
         inputs:
-            sample_bam: "../data11/{sample_id}.bam"
-            sample_bai: "../data11/{sample_id}.bam.bai"
+            sample_bam: "../data/{sample_id}.bam"
+            sample_bai: "../data/{sample_id}.bam.bai"
    
     mixcr:
         inputs:
-            sample_fastq_1: "../data11/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "../data11/{sample_id}.read2.fastq.gz"
+            sample_fastq_1: "../data/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "../data/{sample_id}.read2.fastq.gz"
 
     vcf2maf:
         dirs:
@@ -45,7 +45,7 @@ lcr-modules:
         switches:
             custom_enst:
               hg38: ""
-              grch37: "../data11/custom_enst.txt"
+              grch37: "../data/custom_enst.txt"
               hs37d5: ""
         resources:
             vcf2maf:
@@ -56,14 +56,14 @@ lcr-modules:
 
     sequenza:
         inputs:
-            sample_bam: "../data11/{sample_id}.bam"
-            sample_bai: "../data11/{sample_id}.bam.bai"
+            sample_bam: "../data/{sample_id}.bam"
+            sample_bai: "../data/{sample_id}.bam.bai"
         scratch_subdirectories: []
     
     lofreq:
         inputs:
-            sample_bam: "../data11/{sample_id}.bam"
-            sample_bai: "../data11/{sample_id}.bam.bai"
+            sample_bam: "../data/{sample_id}.bam"
+            sample_bai: "../data/{sample_id}.bam.bai"
         switches:
             # Intentionally running LoFreq without a BED file for simplicity
             # And to avoid having to include a large BED file in the repo
@@ -73,8 +73,8 @@ lcr-modules:
 
     gridss: 
         inputs: 
-            sample_bam: "../data11/{sample_id}.bam"
-            sample_bai: "../data11/{sample_id}.bam.bai"
+            sample_bam: "../data/{sample_id}.bam"
+            sample_bai: "../data/{sample_id}.bam.bai"
         references: 
             # See the current gridss module config file for details about where to obtain this file. 
             viral_fa: "/projects/rmorin/projects/DLBCL_DHITsig_genomes/reference/gridss/refgenomes/human_virus/human_virus.fa"
@@ -83,15 +83,15 @@ lcr-modules:
             
     strelka:
         inputs:
-            sample_bam: "../data11/{sample_id}.bam"
-            sample_bai: "../data11/{sample_id}.bam.bai"
+            sample_bam: "../data/{sample_id}.bam"
+            sample_bai: "../data/{sample_id}.bam.bai"
             # if using manta output, use vcf file in the 99-outputs subdirectory and ensure manta version corresponds to the loaded module
             candidate_small_indels: "results/manta-2.3/99-outputs/vcf/{seq_type}--{genome_build}/candidateSmallIndels/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf"
 
     utils:
         inputs:
             bed: 
-                grch37: "../data11/exome_bed/hg19/target_regions.nochr.bed" # make sure this corresponds with config["lcr-modules"]["picard_qc"]["inputs"]["intervals"]
+                grch37: "../data/exome_bed/hg19/target_regions.nochr.bed" # make sure this corresponds with config["lcr-modules"]["picard_qc"]["inputs"]["intervals"]
                 # if testing on GSC, use this file: "/projects/dscott_prj/CCSRI_1500/exomes/ref/agilent/hg19/target_regions.nochr.bed"
         mem_mb:
             bam_sort: 48000
@@ -100,8 +100,8 @@ lcr-modules:
 
     picard_qc:
         inputs:
-            sample_bam: "../data11/{sample_id}.bam"
-            sample_bai: "../data11/{sample_id}.bam.bai"
+            sample_bam: "../data/{sample_id}.bam"
+            sample_bai: "../data/{sample_id}.bam.bai"
         switches:
             capture_intervals: 
                 _default: "../reference/exomes/grch37/interval/target_regions.nochr_intervals.txt"
