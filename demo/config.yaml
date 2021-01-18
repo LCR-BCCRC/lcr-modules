@@ -35,7 +35,7 @@ lcr-modules:
             _parent: "results/sage-1.0_vcf2maf-1.2"
         inputs:
             vep_cache: "reference/vep_caches/"
-            sample_vcf_gz: "results/sage-1.0/99-outputs/combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{vcf_base_name}.vcf.gz"
+            sample_vcf_gz: "results/sage-1.0/99-outputs/combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{base_name}.vcf.gz"
             convert_coord: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.sh"
         vcf_base_name: "sage.combined"
         options:
