@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1] - 2021-01-11
 
 -This release was authored by Lakshay Sethi.
+-Changed: A single workflow divided into 3 seperate worklows, for an easier time for the user.
 
 
 
