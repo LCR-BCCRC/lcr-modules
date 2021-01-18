@@ -1,0 +1,190 @@
+lcr-modules:
+    
+    slms_3:
+        
+        # To set up this config, copy only the sections that need uptdating to a new file and load it 
+        # after you load this config. 
+
+        # For most users, the `inputs` section should be the only part needed in a project-specific config. 
+        # If you've run a different version of one of the variant callers than those listed under `module_versions`, 
+        # you may need to update one one or more of those values. 
+
+        # If any of the jobs have resource or thread specifications that exceed what your system can reasonably handle, 
+        # you can copy those sections to your project config and update them there. 
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        module_versions:
+            manta: "2.3" # Minimum: 2.0
+            strelka: "1.1" # Minimum: 1.1
+            lofreq: "1.0" # Minimum: 1.0
+            sage: "1.0" # Minimum: 1.0
+            mutect2: "2.0" # Minimum: 2.0
+            starfish: "2.0" # Minimum: 2.0
+
+        scratch_subdirectories: []
+
+        conda_envs:
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+
+        options: 
+            cleanup_vcfs: False # Boolean True or False. Indicate whether temp VCF files generated as part of SLMS-3 should be removed upon completion. 
+            
+        threads:
+            strelka_gnomad: 4
+            lofreq_gnomad: 4
+            strelka_lofreq_union: 4
+            sage_gnomad: 4
+            mutect2_depth_filt: 4
+            rename_all: 4
+            union_vcf: 4
+
+        resources:
+            strelka_gnomad: 
+                mem_mb: 2000
+            lofreq_gnomad: 
+                mem_mb: 2000
+            strelka_lofreq_union: 
+                mem_mb: 2000
+            sage_gnomad: 
+                mem_mb: 2000
+            mutect2_depth_filt: 
+                mem_mb: 2000
+            rename_all:
+                mem_mb: 2000
+            union_vcf: 
+                mem_mb: 5000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+
+    ##### SLMS-3 SUBMODULE CONFIGURATION #####
+        # These are stored as items under the `slms_3` keyword so that they can be used to 
+        # update each module config without getting overwritten during configfile loading. 
+        # It is strongly recommended that users copy this complete config file to their project space and update important values. 
+        # Additional values from each default submodule config can be added, e.g. to update mem_mb per rule. 
+
+        manta: 
+
+            inputs: 
+                # Leave these blank, they will be updated by the Snakefile. 
+                sample_bam: ""
+                sample_bai: ""
+
+            threads: 
+                manta: 24
+
+        strelka: 
+
+            inputs: 
+                # Leave these blank, they will be updated by the Snakefile. 
+                sample_bam: ""
+                sample_bai: ""
+                candidate_small_indels: ""
+
+            scratch_subdirectories: []
+
+            threads: 
+                strelka: 24
+
+            mem_mb:
+                strelka: 10000
+                bcftools_sort: 20000 
+
+        sage: 
+
+            inputs: 
+                # Leave these blank, they will be updated by the Snakefile. 
+                sample_bam: ""
+
+            scratch_subdirectories: []
+
+            options:
+                sage_run: ""
+
+            resources:
+                sage_run:
+                    mem_mb: 60000
+                    disk_mb: 10000 # Will ensure at least this much space is left
+                    sage: 1
+                filter:
+                    mem_mb: 8000
+                    disk_mb: 10000 # Will ensure at least this much space is left
+            
+            threads:
+                sage_run: 24
+                filter: 1
+
+        lofreq: 
+
+            inputs: 
+                # Leave these blank, they will be updated by the Snakefile. 
+                sample_bam: ""
+                sample_bai: ""
+
+            options:
+                lofreq: ""
+
+            switches: 
+                regions_bed: 
+                    capture: ""
+
+            resources: 
+                lofreq: 
+                    lofreq: 1
+                    mem_mb: 100000
+
+            threads: 
+                lofreq: 24
+        
+
+        mutect2: 
+
+            inputs: 
+                # Leave these blank, they will be updated by the Snakefile. 
+                sample_bam: ""
+                sample_bai: ""
+
+            scratch_subdirectories: []
+            
+            options: 
+
+                mutect2_interval_rules: 
+                    "-ip 50 -isr INTERSECTION" # These should remain unchanged. 
+                mutect2_filter_passed: 
+                    "-f '.,PASS' -i 'INFO/POPAF > 4'"
+
+            resources: 
+
+                mutect2_run: 
+                    mem_mb: 10000
+                    mutect_chrom: 1
+                mutect2_pileupsummaries: 
+                    mutect_pup: 1
+
+        starfish: 
+
+            dirs: 
+                # Leave this blank, it will be updated within the Snakefile. 
+                _parent: "" 
+
+            threads:
+                starfish_run: 4
+
+            resources:
+                starfish_run: 
+                    mem_mb: 15000
+
+
+
+    

@@ -1,0 +1,44 @@
+lcr-modules:
+    
+    sage:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            
+
+        scratch_subdirectories: []
+
+        # include here any additional flags to modify default parameters
+        # for example, use here "-validation_stringency LENIENT" if you encounter problems with bam files
+        options:
+            sage_run: ""
+
+
+        conda_envs:
+            sage: "{MODSDIR}/envs/hmftools-sage-2.6.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            
+        resources:
+            sage_run:
+                mem_mb: 60000
+                disk_mb: 10000 # Will ensure at least this much space is left
+                bam: 1
+            filter:
+                mem_mb: 8000
+                disk_mb: 10000 # Will ensure at least this much space is left
+        
+        threads:
+            sage_run: 24
+            filter: 1
+
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False

@@ -14,6 +14,25 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+import inspect
+
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+import pkg_resources
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_resources.get_distribution("oncopipe").version
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
+    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -65,6 +84,12 @@ rule _mutect2_input_bam:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
 
+rule _mutect2_dummy_positions:
+    # creates a dummy vcf if users do not specify candidateSmallIndels file
+    output:
+        touch(CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.dummy.vcf")
+
+
 # Symlink chromosomes used for parallelization
 checkpoint _mutect2_input_chrs:
     input:
@@ -89,6 +114,22 @@ rule _mutect2_get_sm:
         "samtools view -H {input.bam} | grep '^@RG' | "
         r"sed 's/.*SM:\([^\t]*\).*/\1/g'"" | uniq > {output.sm} 2> {log.stderr}"
 
+# This generates a command-line argument for the Mutect2 functions by combining the 
+# input intervals file with the intervals arguments specified in the config. 
+# The first function loads the wildcard-containing file path and additional args from the config. 
+# The second replaces wildcards with those used in the rule. 
+def _mutect2_get_interval_cli_arg(
+    vcf_in = config["lcr-modules"]["mutect2"]["inputs"]["candidate_positions"], 
+    interval_arg_in = config["lcr-modules"]["mutect2"]["options"]["mutect2_interval_rules"]
+):
+    def _mutect2_get_interval_cli_custom(wildcards, input):
+        if vcf_in:
+            param = f"-L {input.candidate_positions} {interval_arg_in}"
+        else: 
+            param = ""
+        return param
+    return _mutect2_get_interval_cli_custom
+
 
 # Launces Mutect2 in matched and unmatched mode
 rule _mutect2_run_matched_unmatched:
@@ -99,7 +140,8 @@ rule _mutect2_run_matched_unmatched:
         dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict"),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
         normal_sm = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}_sm.txt", 
-        pon = reference_files("genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz")
+        pon = reference_files("genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz"), 
+        candidate_positions = CFG["inputs"]["candidate_positions"] if CFG["inputs"]["candidate_positions"] else str(rules._mutect2_dummy_positions.output)
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.tbi"),
@@ -112,7 +154,8 @@ rule _mutect2_run_matched_unmatched:
         **CFG["resources"]["mutect2_run"]
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
-        opts = CFG["options"]["mutect2_run"]
+        opts = CFG["options"]["mutect2_run"], 
+        interval_arg = _mutect2_get_interval_cli_arg()
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -125,19 +168,21 @@ rule _mutect2_run_matched_unmatched:
         -I {input.tumour_bam} -I {input.normal_bam}
         -R {input.fasta} -normal "$(cat {input.normal_sm})" -O {output.vcf}
         --germline-resource {input.gnomad} 
-        -L {wildcards.chrom} 
+        -L {wildcards.chrom} {params.interval_arg} 
         -pon {input.pon} --f1r2-tar-gz {output.f1r2}
         > {log.stdout} 2> {log.stderr}
         """)
 
-# Launces Mutect2 in no normal mode
+
+# Launches Mutect2 in no normal mode
 rule _mutect2_run_no_normal:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict"),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
-        pon = reference_files("genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz") 
+        pon = reference_files("genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz"), 
+        candidate_positions = CFG["inputs"]["candidate_positions"] if CFG["inputs"]["candidate_positions"] else str(rules._mutect2_dummy_positions.output)
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.tbi"),
@@ -150,7 +195,8 @@ rule _mutect2_run_no_normal:
         **CFG["resources"]["mutect2_run"]
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
-        opts = CFG["options"]["mutect2_run_no_normal"]
+        opts = CFG["options"]["mutect2_run"], 
+        interval_arg = _mutect2_get_interval_cli_arg 
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -162,7 +208,7 @@ rule _mutect2_run_no_normal:
         gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" 
         {params.opts} -I {input.tumour_bam} -R {input.fasta} 
         -O {output.vcf} --germline-resource {input.gnomad} 
-        -L {wildcards.chrom} 
+        -L {wildcards.chrom} {params.interval_arg}
         -pon {input.pon} --f1r2-tar-gz {output.f1r2}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -291,7 +337,8 @@ rule _mutect2_learn_orient_model:
 rule _mutect2_pileup_summaries: 
     input: 
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam", 
-        snps = reference_files("genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz")
+        snps = reference_files("genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz"), 
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output: 
         pileup = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pileupSummary.table"
     log: 
@@ -310,6 +357,7 @@ rule _mutect2_pileup_summaries:
         gatk GetPileupSummaries 
             --java-options "-Xmx{params.mem_mb}m"
             -I {input.tumour_bam}
+            -R {input.fasta} 
             -V {input.snps}
             -L {input.snps}
             -O {output.pileup}

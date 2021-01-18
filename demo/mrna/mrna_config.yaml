@@ -8,6 +8,11 @@ lcr-modules:
         unmatched_normal_ids:
             capture--grch37: "TCRBOA7-N-WEX"
 
+    slms_3: 
+        inputs: 
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+
 
     bam2fastq:
         inputs:
@@ -32,14 +37,14 @@ lcr-modules:
 
     vcf2maf:
         dirs:
-            _parent: "__UPDATE__"
+            _parent: "results/sage-1.0_vcf2maf-1.2"
         inputs:
             vep_cache: "reference/vep_caches/"
-            sample_vcf_gz: "__UPDATE__"
+            sample_vcf_gz: "results/sage-1.0/99-outputs/combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{base_name}.vcf.gz"
             convert_coord: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.sh"
-        vcf_base_name: "__UPDATE__"
+        vcf_base_name: "sage.combined"
         options:
-            vcf2maf: "--filter-vcf 0 --vcf-tumor-id TUMOR --vcf-normal-id NORMAL --cache-version 86"
+            vcf2maf: "--filter-vcf 0 --vcf-tumor-id {tumour_id} --vcf-normal-id {normal_id}"
             species: "homo_sapiens"
         conda_envs:
             vcf2maf: "{MODSDIR}/envs/vcf2maf-1.6.18.yaml"
@@ -140,6 +145,18 @@ lcr-modules:
         dirs: 
             _parent: "results/starfish-2.0_strelka-1.1_lofreq-1.0"
         inputs: 
-            vcf: 
-                strelka: "results/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz"
-                lofreq: "results/lofreq-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz"
+            names: ["strelka", "lofreq"]
+            paths: 
+                [
+                    "results/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz", 
+                    "results/lofreq-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz"
+                ]
+
+    sage:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "data/{sample_id}.bam"
+
+        # include here any additional flags to modify default parameters
+        options:
+            sage_run: ""

@@ -17,6 +17,25 @@ import oncopipe as op
 import glob 
 import string
 import copy
+import inspect
+
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+import pkg_resources
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_resources.get_distribution("oncopipe").version
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
+    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -49,20 +68,16 @@ localrules:
     _starfish_input_vcf,
     _starfish_rename_output, 
     _starfish_output_vcf,
-    _starfish_output_union,
     _starfish_output_venn,
     _starfish_all,
 
 ##### GLOBAL VARIABLES #####
 
 # All variant callers from config
+
+CFG["inputs"]["vcf"] = dict(zip(CFG["inputs"]["names"], CFG["inputs"]["paths"]))
 callers = list(CFG["inputs"]["vcf"].keys())
 callers = [caller.lower() for caller in callers]
-
-# The name of the union VCF file
-union_vcf = copy.deepcopy(callers)
-union_vcf.append("union")
-union_vcf = "_".join(union_vcf)
 
 assert len(callers) < 6, (
     "Starfish can only handle a maximum of 6 input VCFs."
@@ -93,7 +108,7 @@ rule _starfish_run:
             CFG["dirs"]["inputs"] + "vcf/{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}.{caller}.vcf.gz.tbi", 
             caller = callers
             ),
-        reference = reference_files("genomes/{genome_build}/sdf"),
+        reference = ancient(reference_files("genomes/{genome_build}/sdf")),
         starfish_script = CFG["inputs"]["starfish_script"]
     output:
         complete = touch(CFG["dirs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/starfish.complete"), 
@@ -132,6 +147,7 @@ checkpoint _starfish_rename_output:
         # Generate a dictionary of letter names and variant callers
         name_dict = {names[i]: callers[i] for i in range(len(callers))}
         outdir = os.path.dirname(input.complete)
+        # Replace each alphabetically-named VCF with the name(s) of the variant caller(s)
         for src in glob.glob(outdir + "/[A-Z]*.vcf.gz*"): 
             bname = os.path.basename(src)
             lhs, rhs = bname.split(".", 1)
@@ -155,34 +171,6 @@ def _starfish_get_output(wildcards):
         )
     return vcfs
 
-# Create a union VCF
-rule _starfish_union: 
-    input: 
-        _starfish_get_output
-    output: 
-        union = CFG["dirs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{union_vcf}.vcf.gz", 
-        union_tbi = CFG["dirs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{union_vcf}.vcf.gz.tbi"
-    log:
-        stdout = CFG["logs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{union_vcf}.stdout.log",
-        stderr = CFG["logs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{union_vcf}.stderr.log"
-    params: 
-        options = CFG["options"]["starfish_union"]
-    conda: 
-        CFG["conda_envs"]["bcftools"]
-    threads:
-        CFG["threads"]["starfish_union"]
-    resources:
-        **CFG["resources"]["starfish_union"]
-    wildcard_constraints: 
-        union_vcf = union_vcf
-    shell: 
-        op.as_one_line("""
-        bcftools merge {params.options} --force-samples 
-        -Oz -o {output.union} 
-        {input} && 
-        tabix -p vcf {output.union}
-        """)
-
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _starfish_output_vcf:
     input:
@@ -190,24 +178,10 @@ rule _starfish_output_vcf:
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf.gz", 
         tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf.gz.tbi"
-    wildcard_constraints: 
-        vcf_name = "\S+(?<!union)"
     run:
         op.relative_symlink(input.vcf, output.vcf, in_module=True), 
         op.relative_symlink(input.vcf + ".tbi", output.tbi, in_module=True)
 
-rule _starfish_output_union:
-    input:
-        vcf = CFG['dirs']['starfish'] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{union_vcf}.vcf.gz", 
-        tbi = CFG['dirs']['starfish'] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{union_vcf}.vcf.gz.tbi",
-    output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{union_vcf}.vcf.gz", 
-        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{union_vcf}.vcf.gz.tbi"
-    wildcard_constraints: 
-        union_vcf = union_vcf
-    run:
-        op.relative_symlink(input.vcf, output.vcf, in_module=True), 
-        op.relative_symlink(input.tbi, output.tbi, in_module=True)
 
 rule _starfish_output_venn: 
     input: 
@@ -233,7 +207,7 @@ def _starfish_get_output_target(wildcards):
 
 rule _starfish_dispatch: 
     input: 
-        expand(CFG["dirs"]["outputs"] + "vcf/{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}.{union_vcf}.vcf.gz", union_vcf = union_vcf),
+        str(rules._starfish_output_venn.output.venn), 
         _starfish_get_output_target        
     output: 
         touch(CFG["dirs"]["outputs"] + "dispatched/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.dispatched")
@@ -243,10 +217,7 @@ rule _starfish_dispatch:
 rule _starfish_all:
     input:
         expand(
-            [
-                str(rules._starfish_output_venn.output.venn), 
-                str(rules._starfish_dispatch.output)
-            ],
+            str(rules._starfish_dispatch.output),
             zip,  
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
