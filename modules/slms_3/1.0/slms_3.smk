@@ -288,8 +288,7 @@ rule _slms_3_mutect2_depth_filt:
         table = str(rules._slms_3_mutect2_samples_table.output.table)
     output: 
         vcf = CFG_SLMS3["dirs"]["mutect2_depth_filt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.depthfilt.mutect2.combined.vcf.gz", 
-        tbi = CFG_SLMS3["dirs"]["mutect2_depth_filt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.depthfilt.mutect2.combined.vcf.gz.tbi",
-        samples = temp(CFG_SLMS3["dirs"]["mutect2_depth_filt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.samples.txt")
+        tbi = CFG_SLMS3["dirs"]["mutect2_depth_filt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.depthfilt.mutect2.combined.vcf.gz.tbi"
     log:
         stderr = CFG_SLMS3["logs"]["mutect2_depth_filt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_depth_filt.stderr.log"
     conda: 
@@ -302,10 +301,10 @@ rule _slms_3_mutect2_depth_filt:
         op.as_one_line("""
         tsamp=$(zgrep "##tumor_sample=" {input.vcf} | sed 's|##tumor_sample=||g');
         nsamp=$(zgrep "##normal_sample=" {input.vcf} | sed 's|##normal_sample=||g');
-        printf "$tsamp TUMOR\\n$nsamp NORMAL\\n" > {output.samples} &&
-        bcftools reheader -s {output.samples} {input.vcf} 2> {log.stderr} | 
+        bcftools view {input.vcf} | 
+        sed "s|$tsamp|TUMOR|g" | sed "s|$nsamp|NORMAL|g" |  
         bcftools view  -s "NORMAL,TUMOR" -i 'FMT/DP[@{input.table}] >= 10 && FMT/AD[@{input.table}:1] >= 4 && FMT/AF[@{input.table}:0] >= 0.1' 
-        -Oz -o {output.vcf} 2>> {log.stderr} && 
+        -Oz -o {output.vcf} 2> {log.stderr} && 
         tabix -p vcf {output.vcf} 2>> {log.stderr}
         """)
 
