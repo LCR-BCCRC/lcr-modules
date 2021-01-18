@@ -2,11 +2,16 @@ lcr-modules:
 
     _shared:
         lcr-modules: "../"
-        lcr-scripts: "../../lcr-scripts"
+        lcr-scripts: "../../lcr-scripts/"
         root_output_dir: "results/"
         scratch_directory: "scratch/"
         unmatched_normal_ids:
             capture--grch37: "TCRBOA7-N-WEX"
+
+    slms_3: 
+        inputs: 
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
 
 
     bam2fastq:
