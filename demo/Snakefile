@@ -40,6 +40,7 @@ configfile: "../modules/controlfreec/1.1/config/default.yaml"
 configfile: "../modules/lofreq/1.0/config/default.yaml"
 configfile: "../modules/starfish/2.0/config/default.yaml"
 configfile: "../modules/sage/1.0/config/default.yaml"
+configfile: "../modules/slms_3/1.0/config/default.yaml"
 
 
 # Load project-specific config, which includes the shared 
@@ -59,6 +60,7 @@ config["lcr-modules"]["starfish"]["samples"] = CAPTURE
 
 # Load module-specific snakefiles
 
+include: "../modules/slms_3/1.0/slms_3.smk"
 include: "../modules/utils/2.1/utils.smk"
 include: "../modules/picard_qc/1.0/picard_qc.smk"
 include: "../modules/salmon/1.1/salmon.smk"
@@ -93,4 +95,5 @@ rule all:
         rules._controlfreec_all.input,
         rules._starfish_all.input,
         rules._vcf2maf_all.input,
-        rules._sage_all.input
+        rules._sage_all.input, 
+        rules._slms_3_all.input
