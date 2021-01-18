@@ -189,6 +189,7 @@ def _starfish_get_output_target(wildcards):
 
 rule _starfish_dispatch: 
     input: 
+        str(rules._starfish_output_venn.output.venn), 
         _starfish_get_output_target        
     output: 
         touch(CFG["dirs"]["outputs"] + "dispatched/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.dispatched")
@@ -198,10 +199,7 @@ rule _starfish_dispatch:
 rule _starfish_all:
     input:
         expand(
-            [
-                str(rules._starfish_output_venn.output.venn), 
-                str(rules._starfish_dispatch.output)
-            ],
+            str(rules._starfish_dispatch.output),
             zip,  
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
