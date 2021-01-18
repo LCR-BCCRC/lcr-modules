@@ -93,18 +93,16 @@ for tool in CFG_SLMS3["module_versions"].keys():
 
 ##### FIRST PASS VARIANT CALLING MODULE SNAKEFILES #####
 
-lcr_modules = config["lcr-modules"]["_shared"]["lcr-modules"] + "modules/"
-
 # Load Manta first
-include: lcr_modules + "/manta/" + CFG_SLMS3["module_versions"]["manta"] + "/manta.smk"
+include: "../../manta/" + CFG_SLMS3["module_versions"]["manta"] + "/manta.smk"
 
 # Update Strelka config to use Manta Candidate Small Indels    
 config["lcr-modules"]["strelka"]["inputs"]["candidate_small_indels"] = expand(str(rules._manta_output_vcf.output.vcf), vcf_name = "candidateSmallIndels", allow_missing=True)
 
 # Load Strelka, SAGE, and Lofreq
-include: lcr_modules + "/strelka/" + CFG_SLMS3["module_versions"]["strelka"] + "/strelka.smk"
-include: lcr_modules + "/sage/" + CFG_SLMS3["module_versions"]["sage"] + "/sage.smk"
-include: lcr_modules + "/lofreq/" + CFG_SLMS3["module_versions"]["lofreq"] + "/lofreq.smk"
+include: "../../strelka/" + CFG_SLMS3["module_versions"]["strelka"] + "/strelka.smk"
+include: "../../sage/" + CFG_SLMS3["module_versions"]["sage"] + "/sage.smk"
+include: "../../lofreq/" + CFG_SLMS3["module_versions"]["lofreq"] + "/lofreq.smk"
  
 ##### FIRST PASS VARIANT CALLING RULES #####
 
@@ -261,7 +259,7 @@ rule _slms_3_annotate_sage_gnomad:
 
 config["lcr-modules"]["mutect2"]["inputs"]["candidate_positions"] = str(rules._slms_3_strelka_lofreq_union.output.vcf)
 
-include: lcr_modules + "/mutect2/" + CFG_SLMS3["module_versions"]["mutect2"] + "/mutect2.smk"
+include: "../../mutect2/" + CFG_SLMS3["module_versions"]["mutect2"] + "/mutect2.smk"
 
 ##### SECOND PASS VARIANT CALLING RULES #####
 
@@ -330,7 +328,7 @@ snakemake.utils.update_config(config["lcr-modules"]["starfish"], {
     }
 })
 
-include: lcr_modules + "/starfish/" + CFG_SLMS3["module_versions"]["starfish"] + "/starfish.smk"
+include: "../../starfish/" + CFG_SLMS3["module_versions"]["starfish"] + "/starfish.smk"
 
 # Create a final union VCF file summarizing which variants were called by which variant callers
 # First rename the sample columns in each VCF as TUMOR_{caller} or NORMAL_{caller}
