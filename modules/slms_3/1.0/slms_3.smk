@@ -426,7 +426,12 @@ rule _slms_3_output_vcf:
 # Generates the target sentinels for each run, which generate the symlinks
 rule _slms_3_all:
     input:
-        # rules._starfish_all.input, 
+        rules._manta_all.input,
+        rules._strelka_all.input, 
+        rules._lofreq_all.input, 
+        rules._sage_all.input,
+        rules._mutect2_all.input,
+        rules._starfish_all.input, 
         expand(
             [
                 str(rules._slms_3_output_vcf.output.isec_vcf),
