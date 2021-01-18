@@ -39,6 +39,7 @@ demo/scratch
 demo/data/*bam
 demo/results_archive
 demo/scratch_archive
+demo/results
 
 # Files creates when dealing with lofreq issue
 modules/lofreq/1.0/src/bin
