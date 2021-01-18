@@ -199,7 +199,11 @@ rule _starfish_dispatch:
 rule _starfish_all:
     input:
         expand(
+<<<<<<< HEAD
             str(rules._starfish_dispatch.output),
+=======
+            str(rules._starfish_dispatch.output)
+>>>>>>> 73a68f53c4b6c575c76a95ef4087770b414d5967
             zip,  
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
