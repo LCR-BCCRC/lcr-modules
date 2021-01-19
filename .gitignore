@@ -40,6 +40,10 @@ demo/data/*bam
 demo/results_archive
 demo/scratch_archive
 demo/results
+demo/testing data/results_capture
+demo/testing data/results_genome
+demo/testing data/results_mrna
+
 
 # Files creates when dealing with lofreq issue
 modules/lofreq/1.0/src/bin
