@@ -2,18 +2,13 @@ lcr-modules:
 
     _shared:
         lcr-modules: "../"
-        lcr-scripts: "../../lcr-scripts/"
+        lcr-scripts: "../../lcr-scripts"
         root_output_dir: "results/"
         scratch_directory: "scratch/"
         unmatched_normal_ids:
-            capture--grch37: "TCRBOA7-N-WEX"
+            capture--grch37: "TCRBOA7-N-WGS"
 
-    slms_3: 
-        inputs: 
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
-
-
+    
     bam2fastq:
         inputs:
             sample_bam: "data/{sample_id}.bam"
@@ -83,7 +78,6 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
-            lofreq_filter: "{MODSDIR}/src/bash/lofreq_filter.sh"
         switches:
             # Intentionally running LoFreq without a BED file for simplicity
             # And to avoid having to include a large BED file in the repo
@@ -151,12 +145,3 @@ lcr-modules:
                     "results/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz", 
                     "results/lofreq-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz"
                 ]
-
-    sage:
-        inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bam: "data/{sample_id}.bam"
-
-        # include here any additional flags to modify default parameters
-        options:
-            sage_run: ""

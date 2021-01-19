@@ -45,7 +45,7 @@ configfile: "../modules/starfish/2.0/config/default.yaml"
 
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
-configfile: "config.yaml"
+configfile: "capture_config.yaml"
 
 
 ##### CONFIGURATION UPDATES #####

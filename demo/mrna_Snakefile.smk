@@ -37,7 +37,7 @@ configfile: "../modules/bam2fastq/1.2/config/default.yaml"
 
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
-configfile: "config.yaml"
+configfile: "mrna_config.yaml"
 
 
 ##### CONFIGURATION UPDATES #####
