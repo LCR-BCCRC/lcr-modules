@@ -7,7 +7,7 @@ It will only run through the workflow(eg. capture) sub directory.
 
 import oncopipe as op
 
-SAMPLES = op.load_samples("~/lcr-modules/demo/data/samples.tsv")
+SAMPLES = op.load_samples("data/samples.tsv")
 CAPTURE = op.filter_samples(SAMPLES, seq_type = "capture")
 
 
@@ -45,7 +45,7 @@ configfile: "../modules/starfish/2.0/config/default.yaml"
 
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
-configfile: "capture_config.yaml"
+configfile: "config.yaml"
 
 
 ##### CONFIGURATION UPDATES #####

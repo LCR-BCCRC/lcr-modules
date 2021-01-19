@@ -7,7 +7,7 @@ It will only run through the workflow(eg. capture) sub directory.
 
 import oncopipe as op
 
-SAMPLES = op.load_samples("~/lcr-modules/demo/data/samples.tsv")
+SAMPLES = op.load_samples("data/samples.tsv")
 MRNA = op.filter_samples(SAMPLES, seq_type = "mrna")
 
 
