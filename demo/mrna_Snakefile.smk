@@ -1,7 +1,7 @@
 #!/usr/bin/env snakemake
 
 '''
-It will only run through the workflow(eg. capture) sub directory.
+It will only run through the workflow(eg. mrna) sub directory.
 '''
 ##### SETUP #####
 
@@ -27,13 +27,14 @@ subworkflow reference_files:
 
 
 # Load module-specific configuration
+
 configfile: "../modules/salmon/1.1/config/default.yaml"
 configfile: "../modules/star/1.4/config/default.yaml"
 configfile: "../modules/utils/2.1/config/default.yaml"
 configfile: "../modules/picard_qc/1.0/config/default.yaml"
 configfile: "../modules/bam2fastq/1.2/config/default.yaml"
 #configfile: "../modules/vcf2maf/1.2/config/default.yaml"
-
+configfile: "../modules/manta/2.3/config/default.yaml"
 
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
@@ -56,15 +57,18 @@ include: "../modules/star/1.4/star.smk"
 include: "../modules/utils/2.1/utils.smk"
 include: "../modules/picard_qc/1.0/picard_qc.smk"
 include: "../modules/bam2fastq/1.2/bam2fastq.smk"
+include: "../modules/manta/2.3/manta.smk"
 
 
 ##### TARGETS ######
 
 rule all:
     input:
+        rules._picard_qc_all.input,
         rules._salmon_all.input,
         rules._star_all.input,
-        rules._picard_qc_all.input,
         rules._bam2fastq_all.input,
+        rules._manta_all.input,
         #rules._vcf2maf_all.input
-
+        
+        

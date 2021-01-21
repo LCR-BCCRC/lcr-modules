@@ -1,7 +1,7 @@
 #!/usr/bin/env snakemake
 
 '''
-It will only run through the workflow(eg. capture) sub directory.
+It will only run through the workflow(eg. genome) sub directory.
 '''
 ##### SETUP #####
 
@@ -28,6 +28,14 @@ subworkflow reference_files:
 
 
 # Load module-specific configuration
+
+configfile: "../modules/slms_3/1.0/config/default.yaml"
+configfile: "../modules/sage/1.0/config/default.yaml"
+configfile: "../modules/manta/2.3/config/default.yaml"
+configfile: "../modules/gridss/1.1/config/default.yaml"
+configfile: "../modules/strelka/1.1/config/default.yaml"
+configfile: "../modules/lofreq/1.0/config/default.yaml"
+configfile: "../modules/starfish/2.0/config/default.yaml"
 configfile: "../modules/controlfreec/1.1/config/default.yaml"
 configfile: "../modules/utils/2.1/config/default.yaml"
 configfile: "../modules/picard_qc/1.0/config/default.yaml"
@@ -52,7 +60,13 @@ config["lcr-modules"]["_shared"]["samples"] = GENOME
 
 
 # Load module-specific snakefiles
-
+include: "../modules/slms_3/1.0/slms_3.smk"
+include: "../modules/sage/1.0/sage.smk"
+include: "../modules/manta/2.3/manta.smk"
+include: "../modules/strelka/1.1/strelka.smk"
+include: "../modules/gridss/1.1/gridss.smk"
+include: "../modules/lofreq/1.0/lofreq.smk"
+include: "../modules/starfish/2.0/starfish.smk"
 include: "../modules/controlfreec/1.1/controlfreec.smk"
 include: "../modules/utils/2.1/utils.smk"
 include: "../modules/picard_qc/1.0/picard_qc.smk"
@@ -67,10 +81,19 @@ include: "../modules/bam2fastq/1.2/bam2fastq.smk"
 
 rule all:
     input:
+        rules._sage_all.input,
         rules._picard_qc_all.input,
         rules._bam2fastq_all.input,
         rules._sequenza_all.input,
         rules._bwa_mem_all.input,
         rules._controlfreec_all.input,
         #rules._vcf2maf_all.input
+        rules._slms_3_all.input,
+        rules._manta_all.input,  
+        rules._lofreq_all.input,
+        rules._strelka_all.input,
+        rules._gridss_all.input,
+        rules._starfish_all.input,
+
+        
 

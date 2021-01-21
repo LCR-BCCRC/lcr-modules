@@ -35,6 +35,7 @@ demo/capture/results
 demo/mrna/results
 demo/genome/results
 demo/reference
+demo/references
 demo/scratch
 demo/data/*bam
 demo/results_archive
@@ -57,3 +58,4 @@ modules/lofreq/1.0/src/bin
 /docs/build
 /docs/source/_build
 demo/run_clc.sh
+

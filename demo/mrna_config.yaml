@@ -6,9 +6,13 @@ lcr-modules:
         root_output_dir: "results/"
         scratch_directory: "scratch/"
         unmatched_normal_ids:
-            capture--grch37: "TCRBOA7-N-WEX"
+            mrna--grch37: "TCRBOA7-N-WEX"
 
-    
+    bam2fastq:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+        temp_outputs: False # fastq outputs will be temporary
+
 
     bam2fastq:
         inputs:
@@ -79,7 +83,7 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
-            lofreq_filter: "{MODSDIR}/src/bash/lofreq_filter.sh"
+           
         switches:
             # Intentionally running LoFreq without a BED file for simplicity
             # And to avoid having to include a large BED file in the repo
@@ -147,5 +151,4 @@ lcr-modules:
                     "results/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz", 
                     "results/lofreq-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz"
                 ]
-
 
