@@ -37,7 +37,7 @@ demo/genome/results
 demo/reference
 demo/references
 demo/scratch
-demo/data/*bam
+#demo/data/*bam
 demo/results_archive
 demo/scratch_archive
 demo/results
