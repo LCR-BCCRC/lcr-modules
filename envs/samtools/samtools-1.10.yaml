@@ -24,4 +24,3 @@ dependencies:
   - xz=5.2.5
   - zlib=1.2.11
 prefix: /home/bgrande/miniconda3/envs/test-samtools-1.10
-

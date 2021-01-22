@@ -71,4 +71,6 @@ rule all:
         rules._manta_all.input,
         #rules._vcf2maf_all.input
   
-        
+
+      
+      
