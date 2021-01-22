@@ -70,7 +70,3 @@ rule all:
         rules._bam2fastq_all.input,
         rules._manta_all.input,
         #rules._vcf2maf_all.input
-  
-
-      
-      
