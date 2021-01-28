@@ -44,8 +44,9 @@ demo/results
 demo/testing data/results_capture
 demo/testing data/results_genome
 demo/testing data/results_mrna
-
-
+#delete the two
+demo/results_capture    
+data1                   
 # Files creates when dealing with lofreq issue
 modules/lofreq/1.0/src/bin
 

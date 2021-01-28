@@ -43,7 +43,7 @@ configfile: "../modules/bam2fastq/1.2/config/default.yaml"
 #configfile: "../modules/vcf2maf/1.2/config/default.yaml"
 configfile: "../modules/sequenza/1.4/config/default.yaml"
 configfile: "../modules/bwa_mem/1.1/config/default.yaml"
-
+configfile: "../modules/mixcr/1.1/config/default.yaml"
 
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
@@ -75,6 +75,8 @@ include: "../modules/sequenza/1.4/sequenza.smk"
 include: "../modules/bwa_mem/1.1/bwa_mem.smk"
 include: "../modules/bam2fastq/1.2/bam2fastq.smk"
 
+include: "../modules/sage/1.0/sage.smk"
+include: "../modules/mixcr/1.1/mixcr.smk"
 
 
 ##### TARGETS ######
@@ -94,6 +96,7 @@ rule all:
         rules._strelka_all.input,
         rules._gridss_all.input,
         rules._starfish_all.input,
+        rules._mixcr_all.input
 
-        
+        #vascar,mutect2,liftover,hmftools,battenberg
 

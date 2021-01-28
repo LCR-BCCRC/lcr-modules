@@ -40,8 +40,10 @@ configfile: "../modules/strelka/1.1/config/default.yaml"
 configfile: "../modules/bwa_mem/1.1/config/default.yaml"
 configfile: "../modules/lofreq/1.0/config/default.yaml"
 configfile: "../modules/starfish/2.0/config/default.yaml"
-
-
+#configfile: "../modules/battenberg/1.1/config/default.yaml"
+configfile: "../modules/mutect2/2.0/config/default.yaml"
+configfile: "../modules/varscan/1.1/config/default.yaml"
+configfile: "../modules/liftover/1.2/config/default.yaml"
 
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
@@ -71,7 +73,12 @@ include: "../modules/gridss/1.1/gridss.smk"
 include: "../modules/bam2fastq/1.2/bam2fastq.smk"
 include: "../modules/lofreq/1.0/lofreq.smk"
 include: "../modules/starfish/2.0/starfish.smk"
+#include: "../modules/battenberg/1.1/battenberg.smk"
 
+include: "../modules/mutect2/2.0/mutect2.smk"
+include: "../modules/varscan/1.1/varscan.smk"
+
+include: "../modules/liftover/1.2/liftover.smk"
 
 
 
@@ -79,15 +86,22 @@ include: "../modules/starfish/2.0/starfish.smk"
 
 rule all:
     input:
-        rules._slms_3_all.input,
-        rules._picard_qc_all.input,
-        rules._bam2fastq_all.input,
-        rules._manta_all.input,
-        rules._sequenza_all.input,
         rules._lofreq_all.input,
+        rules._slms_3_all.input,
+        rules._picard_qc_all.input, 
+        rules._bam2fastq_all.input, 
+        rules._manta_all.input,
+        rules._sequenza_all.input, 
         rules._strelka_all.input,
-        rules._bwa_mem_all.input,
-        rules._gridss_all.input,
+        rules._bwa_mem_all.input, 
+        rules._gridss_all.input, 
         rules._starfish_all.input,
+        rules._sage_all.input,
+        rules._mutect2_all.input,
+        rules._varscan_all.input,
+
+
         #rules._vcf2maf_all.input
-        rules._sage_all.input
+        #rules._liftover_all.input,
+        #rules._battenberg_all.input
+        #battenberg,liftover
