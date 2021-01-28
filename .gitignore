@@ -37,8 +37,9 @@ demo/scratch
 demo/data/*bam
 demo/results_archive
 demo/scratch_archive
-
-
+demo/results_capture
+demo/testing data
+data1
 # Ignore example snakefiles
 /examples
 
