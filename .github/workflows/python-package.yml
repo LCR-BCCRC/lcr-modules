@@ -18,7 +18,7 @@ jobs:
         - 'ubuntu:devel'
         - 'centos:6'
         - 'centos:latest'
-        python-version: '3.x'
+        python-version: '2.x'
     runs-on: ubuntu-latest
     container: ${{ matrix.container }}
     steps:
