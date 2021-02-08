@@ -3,15 +3,7 @@
 name: CI
 
 # Controls when the action will run. 
-on:
-  # Triggers the workflow on push or pull request events but only for the master branch
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
-
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+on: [push, pull_request] 
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -28,7 +20,17 @@ jobs:
       # Runs a single command using the runners shell
       - name: Run a one-line script
         run: echo Hello, world!
-
+        
+      - name: First interaction
+        uses: actions/first-interaction@v1.1.0
+        with:
+          # Token for the repository. Can be passed in using {{ secrets.GITHUB_TOKEN }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          # Comment to post on an individual's first issue
+          issue-message: welcome to the community  # To be changed
+          # Comment to post on an individual's first pull request
+          pr-message: Plesae refer .github/PULL_REQUEST_TEMPLATE.md # To be changed
+      
       # Runs a set of commands using the runners shell
       - name: Run a multi-line script
         run: |
