@@ -73,6 +73,6 @@ jobs:
         uses: snakemake/snakemake-github-action@v1.6.0
         with:
           directory: '.github/.test'
-          snakefile: '.github/.test/capture_Snakefile.smk'
+          snakefile: 'workflow/capture_Snakefile.smk'
           args: '--lint'
           
