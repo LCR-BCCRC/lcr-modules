@@ -3,15 +3,18 @@
 name: CI
 
 # Controls when the action will run. 
-on: [push, pull_request] 
+on: 
+  push:
+ 
+  pull_request: 
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
-  build:
+  job1:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-
+    
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -27,7 +30,7 @@ jobs:
           # Token for the repository. Can be passed in using {{ secrets.GITHUB_TOKEN }}
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           # Comment to post on an individual's first issue
-          issue-message: welcome to the community  # To be changed
+          issue-message: echo welcome to the community  # To be changed
           # Comment to post on an individual's first pull request
           pr-message: Plesae refer .github/PULL_REQUEST_TEMPLATE.md # To be changed
       
@@ -36,3 +39,21 @@ jobs:
         run: |
           echo Add other actions to build,
           echo test, and deploy your project.
+      
+  job2:
+    if: endsWith(demo/,'_Snakefile.smk') != true
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+        
+      - name: Linting
+        uses: snakemake/snakemake-github-action@v1.6.0
+        with:
+          directory: '.test'
+          snakefile: 'demo/capture_Snakefile.smk | demo/mrna_Snakefile.smk'
+          args: '--lint'
+          
