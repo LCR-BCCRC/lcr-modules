@@ -41,7 +41,7 @@ jobs:
           echo test, and deploy your project.
       
   job2:
-    if: endsWith('demo/','_Snakefile.smk') != true
+    if: endsWith('lcr-modules/demo/','_Snakefile.smk') != true
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
     
@@ -60,7 +60,7 @@ jobs:
       - name: Linting
         uses: snakemake/snakemake-github-action@v1.6.0
         with:
-          directory: 'demo'
-          snakefile: 'demo/capture_Snakefile.smk | demo/mrna_Snakefile.smk'
+          directory: 'lcr-modules/demo'
+          snakefile: 'lcr-modules/demo/capture_Snakefile.smk'
           args: '--lint'
           
