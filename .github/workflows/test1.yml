@@ -41,7 +41,7 @@ jobs:
           echo test, and deploy your project.
       
   job2:
-    if: endsWith('./demo','_Snakefile.smk') == true
+    if: endsWith('./demo','_Snakefile.smk') != true
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
     
