@@ -56,7 +56,8 @@ jobs:
         with:
           python-version: '3.x'
        
-      - uses: actions/cache@v2
+      - name: Caching
+        uses: actions/cache@v2
         id: python-cache
         with:
           path: ~/.cache/pip
@@ -66,7 +67,7 @@ jobs:
       
       - name: Install dependencies
         if: steps.python-cache.outputs.cache-hit != 'true'
-        run: pip install -r requirements.txt
+        run: pip install -r .github/requirements.txt
           
       - name: Linting
         uses: snakemake/snakemake-github-action@v1.6.0
