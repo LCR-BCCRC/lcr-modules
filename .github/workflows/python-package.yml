@@ -9,11 +9,11 @@ jobs:
     strategy:
       matrix:
         container:
-        - 'debian:7'
+        - 'debian:9'
         - 'debian:testing'
-        - 'ubuntu:20.04'
+        - 'ubuntu:18.04'
         - 'ubuntu:devel'
-        - 'centos:6'
+        - 'centos:7'
         - 'centos:latest'   
         python-version: [3.6 , 3.7, 3.8, 3.9]  
     runs-on: ubuntu-latest
