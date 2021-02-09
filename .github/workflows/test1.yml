@@ -49,9 +49,14 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
       - name: Install dependencies
         run: |
-            pip install oncopipe
+          pip install oncopipe
+          
       - name: Linting
         uses: snakemake/snakemake-github-action@v1.6.0
         with:
