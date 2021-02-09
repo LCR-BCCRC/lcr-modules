@@ -12,6 +12,7 @@ on:
 jobs:
   # This workflow contains a single job called "build"
   job1:
+    if: endsWith('./demo','_Snakefile.smk') == true  # TO BE DELETED
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
     
@@ -61,6 +62,6 @@ jobs:
         uses: snakemake/snakemake-github-action@v1.6.0
         with:
           directory: './demo'
-          snakefile: 'lcr-modules/demo/capture_Snakefile.smk'
+          snakefile: './demo/capture_Snakefile.smk'
           args: '--lint'
           
