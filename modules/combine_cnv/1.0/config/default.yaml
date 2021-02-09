@@ -1,0 +1,37 @@
+lcr-modules:
+    
+    combine_cnv:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_seg: "__UPDATE__"
+            sample_seg: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        conda_envs:
+            CNVfilteR: "{MODSDIR}/envs/cnvfilter/CNVfilteR.yaml"
+            fill_segments: "{SCRIPTSDIR}/fill_segments/1.0/fill_segments.yaml"
+
+        options:
+            concatenate_segs: "{MODSDIR}/src/bash/concatenate.sh"
+            chromArm: "{SCRIPTSDIR}/fill_segments/1.0/src/chromArm.hg38.tsv"
+
+        threads:
+            combine_cnv: 4
+
+        resources:
+            combine_cnv:
+                mem_mb: 12000
+                disk_mb: 1000 # Will ensure at least this much space is left
+
+
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
