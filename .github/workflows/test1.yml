@@ -72,7 +72,7 @@ jobs:
       - name: Linting
         uses: snakemake/snakemake-github-action@v1.6.0
         with:
-          directory: '.github/.test'
-          snakefile: 'capture_Snakefile.smk'
+          directory: '.test'
+          snakefile: 'workflow/Snakefile'
           args: '--lint'
           
