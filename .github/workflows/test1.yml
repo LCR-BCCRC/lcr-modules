@@ -70,9 +70,9 @@ jobs:
           
       - name: Linting
         uses: snakemake/snakemake-github-action@v1.6.0
-        with:
-          run : pip install -r .github/requirements.txt
-          directory: '.test'
+        with: 
+          directory: '.'
           snakefile: 'demo/capture_Snakefile.smk'
           args: '--lint'
+          stagein: 'pip install -r .github/requirements.txt'
           
