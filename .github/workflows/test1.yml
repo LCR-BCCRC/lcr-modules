@@ -68,11 +68,11 @@ jobs:
  
         
           
-      - name: Linting
+      - name: Testing
         uses: snakemake/snakemake-github-action@v1.6.0
         with: 
           directory: 'demo'
           snakefile: 'demo/capture_Snakefile.smk'
-          args: '--lint'
+          args: '--dryrun --cores 1 --use-conda --conda-cleanup-pkgs cache'
           stagein: 'pip install -r .github/requirements.txt'
           
