@@ -72,7 +72,7 @@ jobs:
         uses: snakemake/snakemake-github-action@v1.6.0
         with: 
           directory: './data'
-          snakefile: 'capture_Snakefile.smk'
+          snakefile: 'data/capture_Snakefile.smk'
           args: '--lint'
           stagein: 'pip install -r .github/requirements.txt'
           
