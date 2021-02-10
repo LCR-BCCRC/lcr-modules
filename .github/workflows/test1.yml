@@ -65,8 +65,7 @@ jobs:
           restore-keys: |
               ${{ runner.os }}-pip-
       
-      - name: Install dependencies
-        if: steps.python-cache.outputs.cache-hit != 'true'
+ 
         
           
       - name: Linting
