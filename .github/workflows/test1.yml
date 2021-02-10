@@ -67,10 +67,11 @@ jobs:
       
       - name: Install dependencies
         if: steps.python-cache.outputs.cache-hit != 'true'
-        run: pip install -r .github/requirements.txt
+        
           
       - name: Linting
         uses: snakemake/snakemake-github-action@v1.6.0
+        run: pip install -r .github/requirements.txt
         with:
           directory: '.test'
           snakefile: 'demo/capture_Snakefile.smk'
