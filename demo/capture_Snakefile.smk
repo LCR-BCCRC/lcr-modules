@@ -5,7 +5,7 @@ It will only run through the workflow(eg. capture) sub directory.
 '''
 ##### SETUP #####
 
-import oncopipe as op
+#import oncopipe as op
 
 SAMPLES = op.load_samples("data/samples.tsv")
 CAPTURE = op.filter_samples(SAMPLES, seq_type = "capture")
