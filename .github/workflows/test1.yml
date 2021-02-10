@@ -71,8 +71,8 @@ jobs:
       - name: Linting
         uses: snakemake/snakemake-github-action@v1.6.0
         with: 
-          directory: '.'
-          snakefile: 'demo/capture_Snakefile.smk'
+          directory: './data'
+          snakefile: 'capture_Snakefile.smk'
           args: '--lint'
           stagein: 'pip install -r .github/requirements.txt'
           
