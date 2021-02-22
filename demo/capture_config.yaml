@@ -15,7 +15,7 @@ lcr-modules:
         
         reference_path:
             hg38: " --chr_prefixed_genome "                           # Copied from vcf2maf
-            grch37: " "     # Copied from vcf2maf
+            grch37: " reference/genomes/grch37/downloads/hg19-grch37 "     # Copied from vcf2maf
 
     mutect2:
         inputs:
@@ -28,11 +28,11 @@ lcr-modules:
             sample_bai: "data1/{sample_id}.bam.bai"
 
     liftover:
-        tool: "battenberg" 
+        tool: "sequenza-1.4" 
         dirs: 
-            _parent: "results/battenberg_liftover-1.2"
+            _parent: "results/sequenza-1.4_liftover-1.2"
         inputs:
-            sample_seg: "data/battenberg/hg38/TCRBOA7-T-WEX--TCRBOA7-N-WEX_subclones.igv.seg"
+            sample_seg: "results/sequenza-1.4/03-igv_seg/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched/filtered/sequenza_segments.igv.seg"
 
     slms_3: 
         inputs: 
@@ -42,7 +42,7 @@ lcr-modules:
     bam2fastq:
         inputs:
             sample_bam: "data1/{sample_id}.bam"
-        temp_outputs: False # fastq outputs will be temporary
+        temp_outputs: True # fastq outputs will be temporary
 
     manta:
         inputs:

@@ -22,6 +22,7 @@ lcr-modules:
 
         conda_envs:
             battenberg: "{MODSDIR}/envs/battenberg-1.1.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
             
         resources:
             battenberg:
