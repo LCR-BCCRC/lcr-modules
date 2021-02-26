@@ -49,7 +49,6 @@ mateOrientation = FR
 
 [BAF]
 
-fastaFile = fastaPath
 shiftInQuality = phredQuality
 SNPfile = DBsnpFile
 minimalCoveragePerPosition = minCovPerPos

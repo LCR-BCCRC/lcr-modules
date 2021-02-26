@@ -139,11 +139,9 @@ rule download_masked_genome_fasta:
     wildcard_constraints:
         genome_build = ".+_masked"
     params:
-        dirOut = "downloads/genome_fasta/",
         url = lambda w: config["genome_builds"][w.genome_build]["genome_fasta_url"]
-    conda: CONDA_ENVS["bedops"]
     shell:
-        "wget -qO- {params.url} | "
+        "curl -L {params.url} | "
         "gzip -d > {output.fasta} "
 
 rule download_main_chromosomes:
