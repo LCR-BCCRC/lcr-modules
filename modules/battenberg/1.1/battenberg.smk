@@ -50,10 +50,47 @@ _battenberg_CFG = CFG
 
 # Define rules to be run locally when using a compute cluster
 localrules:
+    _battenberg_get_refrence
     _battenberg_all
-
+    unzip
 
 ##### RULES #####
+
+rule _battenberg_get_refrence:
+    output:
+        battenberg_impute =  CFG["dirs"]["inputs"] + "reference/grch37/battenberg_impute",
+        battenberg_gc_correction = CFG["dirs"]["inputs"] + "reference/grch37/battenberg_gc_correction_1000g",  
+        genomesloci = CFG["dirs"]["inputs"] + "reference/grch37/battenberg_1000genomesloci",
+        impute_info = CFG["dirs"]["inputs"] + "reference/grch37/impute_info.txt",
+        battenberg_wgs_replic_correction = CFG["dirs"]["inputs"] + "reference/grch37/battenberg_wgs_replic_correction",
+        probloci =  CFG["dirs"]["inputs"] + "reference/grch37/probloci_270415.txt.gz"
+    params:
+        url = "https://www.bcgsc.ca/downloads/morinlab/reference",
+        folder = CFG["dirs"]["inputs"] + "reference/grch37"
+    shell:
+        op.as_one_line("""
+        wget -qO-  {params.url}/battenberg_impute_grch37.tar.gz  |
+        tar -xvz > {output.battenberg_impute} -C {params.folder}
+        &&
+        wget -qO- {params.url}/battenberg_grch37_gc_correction_1000g_v3.tar.gz  |
+        tar -xvz > {output.battenberg_gc_correction} -C {params.folder}
+        &&
+        wget -qO- 'https://ora.ox.ac.uk/objects/uuid:2c1fec09-a504-49ab-9ce9-3f17bac531bc/download_file?file_format=gzip&safe_filename=battenberg_1000genomesloci2012_v3.tar.gz&type_of_work=Dataset' | 
+        tar -xvz > {output.genomesloci} -C {params.folder}
+        &&
+        wget -O {output.impute_info} 'https://ora.ox.ac.uk/objects/uuid:2c1fec09-a504-49ab-9ce9-3f17bac531bc/download_file?file_format=plain&safe_filename=impute_info.txt&type_of_work=Dataset'
+        &&
+        python scripts/refrence_correction.py
+        &&
+        wget -qO- 'https://ora.ox.ac.uk/objects/uuid:2c1fec09-a504-49ab-9ce9-3f17bac531bc/download_file?file_format=gzip&safe_filename=battenberg_wgs_replic_correction_1000g_v3.tar.gz&type_of_work=Dataset' |
+        tar -xvz > {output.battenberg_wgs_replic_correction} -C {params.folder}
+        &&
+        wget -O {output.probloci} 'https://ora.ox.ac.uk/objects/uuid:2c1fec09-a504-49ab-9ce9-3f17bac531bc/download_file?file_format=gzip&safe_filename=probloci_270415.txt.gz&type_of_work=Dataset'
+        
+        
+
+        """)
+
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _battenberg_input_bam:
@@ -114,7 +151,8 @@ rule _run_battenberg:
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         installed = "config/envs/battenberg_dependencies_installed.success",
         sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        impute = str(rules._battenberg_get_refrence.output.battenberg_impute)
     output:
         refit=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_refit_suggestion.txt",
         sub=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.txt",
@@ -212,14 +250,19 @@ rule _battenberg_output_seg:
         op.relative_symlink(input.sub, output.sub,in_module=True)
         op.relative_symlink(input.cp, output.cp,in_module=True)
 
+
+
 # Generates the target sentinels for each run, which generate the symlinks
 rule _battenberg_all:
     input:
         expand(
             [
+                
                 rules._run_battenberg.output.sub,
                 rules._battenberg_output_seg.output.seg,
                 rules._battenberg_cleanup.output.complete
+                
+
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
@@ -227,6 +270,9 @@ rule _battenberg_all:
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
             pair_status=CFG["runs"]["pair_status"])
+
+# Downloading the refrence files from https://www.bcgsc.ca/downloads/morinlab/reference/
+
 
 
 ##### CLEANUP #####

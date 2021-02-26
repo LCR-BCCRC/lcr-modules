@@ -15,7 +15,7 @@ lcr-modules:
         
         reference_path:
             hg38: " --chr_prefixed_genome "                           # Copied from vcf2maf
-            grch37: " reference/genomes/grch37/downloads/hg19-grch37 "     # Copied from vcf2maf
+            grch37: "/home/lakshay/lcr-modules/demo/results/battenberg-1.1/00-inputs/reference/grch37"     # Copied from vcf2maf
     
     hmftools:
         inputs:
@@ -32,6 +32,7 @@ lcr-modules:
             gridss_somatic_tbi: "results/gridss-1.1/99-outputs/vcf/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched.gridss_somatic.vcf.gz.tbi"
             gridss_somatic_filtered: "results/gridss-1.1/99-outputs/vcf/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched.gridss_somatic_filtered.vcf.gz" # Filtered output of GRIPSS
             gridss_somatic_filtered_tbi: "results/gridss-1.1/99-outputs/vcf/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched.gridss_somatic_filtered.vcf.gz.tbi"
+    
     mutect2:
         inputs:
             sample_bam: "data1/{sample_id}.bam"
