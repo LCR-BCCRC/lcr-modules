@@ -8,9 +8,9 @@ INPUT_DIR="$1"
 SEG_PATH="$2"
 counter=0
 
-echo "Finding filtered seg files in..."
+echo "Finding filtered seg files in ${INPUT_DIR}..."
 
-for i in $(find ${INPUT_DIR} -type f -name "*.filtered.seg");
+for i in $(find -L ${INPUT_DIR} -type f -name "*.seg" | grep -v "merged" | sort);
 do
 counter=$(($counter +1))
 if [ $counter = 1 ]
@@ -18,7 +18,7 @@ then
 cat $i | head -1 > $SEG_PATH
 fi
 
-cat $i | grep -v "sample" >> $SEG_PATH
+cat $i | grep -v "start" >> $SEG_PATH
 
 
 done

@@ -61,23 +61,59 @@ def main():
 
         # insert empty segment from the beginning of chromosome of the first segment in file to complete the telomeric region of first chromosome
         if i==1: 
-
-            columns_new = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['p']['start']), str(int(columns_first[2])-1), empty_loh, empty_logr]
-            seg_filled.append(columns_new)
-            
-            # deal with fencepost problem
-            if (int(columns_first[3]) > arm_chrom[columns_first[1]]['p']['end'] and int(columns_first[3]) < arm_chrom[columns_first[1]]['q']['start']):            
-                columns_first[3] = str(arm_chrom[columns_first[1]]['p']['end'])
-            seg_filled.append(columns_first)
+            if ("1" not in str(columns_first[1])):
+                  missing_chrom = chrom_order[0]
+                  missing_p = [columns_first[0], missing_chrom, str(arm_chrom[missing_chrom]['p']['start']), str(arm_chrom[missing_chrom]['p']['end']), empty_loh, empty_logr]
+                  missing_q = [columns_first[0], missing_chrom, str(arm_chrom[missing_chrom]['q']['start']), str(arm_chrom[missing_chrom]['q']['end']), empty_loh, empty_logr]
+                  seg_filled.append(missing_p)
+                  seg_filled.append(missing_q)
 
             if (chrom_order[chrom_order.index(columns_second[1])] == chrom_order[chrom_order.index(columns_first[1])+1]):
-              missing_arm = chrom_order[chrom_order.index(columns_first[1])]
-              columns_edges = [columns_first[0], columns_first[1], str(arm_chrom[missing_arm]['q']['start']), str(arm_chrom[missing_arm]['q']['end']), empty_loh, empty_logr]
-              columns_new = [columns_first[0], columns_first[1], int(columns_first[3])+1, str(arm_chrom[missing_arm]['p']['end']), empty_loh, empty_logr]
-              seg_filled.append(columns_new)
-              seg_filled.append(columns_edges)
-              seg_filled.append(columns_second)
-              continue
+              if (int(columns_first[2]) < arm_chrom[columns_first[1]]['p']['end'] and int(columns_first[3]) < arm_chrom[columns_first[1]]['p']['end']):
+                  columns_edges = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['p']['start']), int(columns_first[2])-1, empty_loh, empty_logr]
+                  columns_new = [columns_first[0], columns_first[1], int(columns_first[3])+1, str(arm_chrom[columns_first[1]]['p']['end']), empty_loh, empty_logr]
+                  missing_chrom = chrom_order[chrom_order.index(columns_first[1])]
+                  missing_q = [columns_first[0], missing_chrom, str(arm_chrom[missing_chrom]['q']['start']), str(arm_chrom[missing_chrom]['q']['end']), empty_loh, empty_logr]
+                  columns_edges_second = [columns_second[0], columns_second[1], str(arm_chrom[columns_second[1]]['p']['start']), int(columns_second[2])-1, empty_loh, empty_logr]
+                  seg_filled.append(columns_edges)
+                  seg_filled.append(columns_first)
+                  seg_filled.append(columns_new)
+                  seg_filled.append(missing_q)
+                  seg_filled.append(columns_edges_second)
+                  seg_filled.append(columns_second)
+              elif (int(columns_first[2]) > arm_chrom[columns_first[1]]['q']['start'] and int(columns_first[3]) > arm_chrom[columns_first[1]]['q']['start']):
+                  missing_chrom = chrom_order[chrom_order.index(columns_first[1])]
+                  missing_p = [columns_first[0], missing_chrom, str(arm_chrom[missing_chrom]['p']['start']), str(arm_chrom[missing_chrom]['p']['end']), empty_loh, empty_logr]
+                  columns_new = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['q']['start']), int(columns_first[2])-1, empty_loh, empty_logr]
+                  columns_edges = [columns_first[0], columns_first[1], int(columns_first[3])+1, str(arm_chrom[columns_first[1]]['q']['end']), empty_loh, empty_logr]
+                  columns_edges_second = [columns_second[0], columns_second[1], str(arm_chrom[columns_second[1]]['p']['start']), int(columns_second[2])-1, empty_loh, empty_logr]
+                  seg_filled.append(missing_p)
+                  seg_filled.append(columns_new)
+                  seg_filled.append(columns_first)
+                  seg_filled.append(columns_edges)
+                  seg_filled.append(columns_edges_second)
+                  seg_filled.append(columns_second)
+              elif (int(columns_first[2]) < arm_chrom[columns_first[1]]['p']['end'] and int(columns_first[3]) > arm_chrom[columns_first[1]]['q']['start']):
+                  columns_new = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['p']['start']), int(columns_first[2])-1, empty_loh, empty_logr]
+                  p_part = [columns_first[0], columns_first[1], int(columns_first[2]), str(arm_chrom[columns_first[1]]['p']['end']), columns_first[4], columns_first[5]]
+                  q_part = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['q']['start']), int(columns_first[3]),  columns_first[4], columns_first[5]]
+                  columns_edges = [columns_first[0], columns_first[1], int(columns_first[3])+1, str(arm_chrom[columns_first[1]]['q']['end']),  empty_loh, empty_logr]
+                  columns_edges_second = [columns_second[0], columns_second[1], str(arm_chrom[columns_second[1]]['p']['start']), int(columns_second[2])-1, empty_loh, empty_logr]
+                  seg_filled.append(columns_new)
+                  seg_filled.append(p_part)
+                  seg_filled.append(q_part)
+                  seg_filled.append(columns_edges)
+                  seg_filled.append(columns_edges_second)
+                  seg_filled.append(columns_second)    
+            else:
+                  columns_edges = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['p']['start']), int(columns_first[2])-1,   empty_loh, empty_logr]
+                  columns_new = [columns_first[0], columns_first[1], int(columns_first[3])+1, int(columns_second[2])-1,   empty_loh, empty_logr]
+                  seg_filled.append(columns_edges)
+                  seg_filled.append(columns_first)
+                  seg_filled.append(columns_new)
+                  seg_filled.append(columns_second)
+
+            continue
 
         # easiest scenario: when it is same sample and same chromosome
         if (columns_first[0]==columns_second[0] and columns_first[1]==columns_second[1]):

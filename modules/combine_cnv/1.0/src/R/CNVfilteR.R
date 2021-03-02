@@ -10,7 +10,7 @@ suppressWarnings(suppressPackageStartupMessages({
   message("Loading packages...")
   
   required_packages <- c(
-    "BiocManager", "dplyr", "data.table", "gtools", "readr", "tidyr", "tidyverse"
+    "BiocManager", "dplyr", "data.table", "gtools", "readr", "tidyr", "tidyverse", "devtools"
   )
   
   installed_packages <- rownames(installed.packages())
@@ -24,7 +24,7 @@ suppressWarnings(suppressPackageStartupMessages({
   }
   
   BiocManager_packages <- c(
-    "CNVfilteR", "rtracklayer", "BSgenome.Hsapiens.UCSC.hg38.masked", "InteractionSet"
+    "CNVfilteR", "rtracklayer", "BSgenome.Hsapiens.UCSC.hg38.masked", "BSgenome.Hsapiens.UCSC.hg19.masked", "InteractionSet"
   )
   for (pkg in BiocManager_packages){
     if (!pkg %in% installed.packages()) {
@@ -40,30 +40,44 @@ suppressWarnings(suppressPackageStartupMessages({
 message("Loading data for pre-processing...")
 
 filled.SEG <- fread(snakemake@input[[1]])
+colnames(filled.SEG) <- c("sample", "chrom", "start", "end", "LOH_flag", "log.ratio")
 
-SAMPLE.ID <- snakemake@wildcards[["tumour_sample_id"]]
+SAMPLE.ID <- snakemake@wildcards[["tumour_id"]]
 
 SAMPLE.SEG <- filled.SEG %>% dplyr::filter(sample==SAMPLE.ID) %>%
-                              dplyr::filter(!between(log.ratio,-0.4,0.4)) %>%
+                              dplyr::filter(!between(log.ratio,-0.2,0.2)) %>%
                               dplyr::mutate(sample="TUMOR") %>%
-                              dplyr::mutate(CNV.type=ifelse(log.ratio<0, "deletion", "duplication"))
-colnames(SAMPLE.SEG) <- c("sample", "chrom", "start", "end", "N.BAF", "log.ratio", "CNV.type")
+                              dplyr::mutate(CNV.type=ifelse(log.ratio<0, "deletion", "duplication")) %>%
+                              dplyr::mutate(chrom=ifelse(grepl("chr", chrom), chrom, paste0("chr",chrom)))
+
+if(nrow(SAMPLE.SEG)<2) {
+  ROW <- data.frame("sample" = "TUMOR",              
+                  "chrom" = "chrX",
+                  "start" = 1,
+                  "end" = 300,
+                  "LOH_flag" = 0,
+                  "log.ratio" = 0.58,
+                  CNV.type="duplication")
+  SAMPLE.SEG <- rbind(SAMPLE.SEG, ROW)           
+}
+
+
 # Output data for CNVfilteR ----------------------------------------------
-message("Writing final table to file")
+message("Writing final table to file ", snakemake@output[[1]])
 write_tsv(SAMPLE.SEG, snakemake@output[[1]])
 Sys.sleep(5)
 
 # Use CNVfilteR to filter CNVs --------------------------------------------
-message("Loading data for CNV filtering...")
+message("Loading ", snakemake@output[[1]], " for CNV filtering...")
 
 cnvs.file <- as.character(snakemake@output[[1]])
-
-cnvs.gr <- loadCNVcalls(cnvs.file = cnvs.file, chr.column = "chrom", start.column = "start", end.column = "end", cnv.column = "CNV.type", sample.column = "sample", genome = "hg38")
+genome.build <- as.character(snakemake@params[["genome_build"]])
+cnvs.gr <- loadCNVcalls(cnvs.file = cnvs.file, chr.column = "chrom", start.column = "start", end.column = "end", cnv.column = "CNV.type", sample.column = "sample", genome = genome.build)
 cnvs.gr <- trim(cnvs.gr)
 blacklist <-  import(snakemake@input[[3]])
 
-vcf <- snakemake@output[[2]]
-vcfs <- loadVCFs(vcf, cnvs.gr = cnvs.gr, vcf.source = "SLMS-3", list.support.field = "AD", genome = "hg38", regions.to.exclude = blacklist, min.total.depth = 4)
+vcf <- snakemake@input[[2]]
+vcfs <- loadVCFs(vcf, cnvs.gr = cnvs.gr, vcf.source = "SLMS-3", list.support.field = "AD", genome = genome.build, regions.to.exclude = blacklist, min.total.depth = 4)
 
 message("Filtering CNVs...")
 results <- filterCNVs(cnvs.gr, vcfs, dup.threshold.score = 0.2, ht.deletions.threshold = 1, margin.pct = 25)
@@ -71,16 +85,16 @@ filtered <- results$cnvs[results$cnvs$filter != TRUE]
 filtered <- cbind(as.data.frame(c(data.frame(filtered@seqnames),data.frame(filtered@ranges))),as.data.frame(filtered$cnv))
 
 message("Preparing output...")
-before <- SAMPLE.SEG %>% dplyr::select(sample, chrom, start, end, N.BAF, log.ratio)
-before$sample <- snakemake@wildcards[["tumour_sample_id"]]
+before <- SAMPLE.SEG %>% dplyr::select(sample, chrom, start, end, LOH_flag, log.ratio)
+before$sample <- snakemake@wildcards[["tumour_id"]]
 
-output <- merge(filtered, before, by="end") %>% dplyr::select(sample, chrom, start.y, end, N.BAF, log.ratio)
-colnames(output) <- c("sample", "chr", "start", "end", "N.BAF", "log.ratio")
+output <- merge(filtered, before, by="end") %>% dplyr::select(sample, chrom, start.y, end, LOH_flag, log.ratio)
+colnames(output) <- c("sample", "chr", "start", "end", "LOH_flag", "log.ratio")
 colnames(before) <- colnames(output)
 
 # Keep large CNVs even if they are not supported by SNVs ------------
 filtered.CNV <- dplyr::setdiff(before, output)
-MIN.WIDTH <- 5000000
+MIN.WIDTH <- 4000000
 if(nrow(filtered.CNV)>0) {
   for (row in 1:nrow(filtered.CNV)) {
     width <- as.numeric(filtered.CNV[row, "end"]) - as.numeric(filtered.CNV[row, "start"]) + 1
@@ -103,8 +117,9 @@ output <- complete(output, tidyr::expand(output, crossing(sample), chr = chromos
 
 output <- output %>% mutate(start=ifelse(is.na(start), paste0("100",rownames(.)), start)) %>%
   mutate(end=ifelse(is.na(end), paste0("100000",rownames(.)), end)) %>%
-  mutate(N.BAF=ifelse(is.na(N.BAF), toString(2), N.BAF)) %>%
-  mutate(log.ratio=ifelse(is.na(log.ratio), 0.0, log.ratio))
+  mutate(LOH_flag=ifelse(is.na(LOH_flag), toString(2), LOH_flag)) %>%
+  mutate(log.ratio=ifelse(is.na(log.ratio), 0.0, log.ratio)) %>%
+  mutate(chr=ifelse(grepl("chr",chr), chr, paste0("chr",chr)))
 
 # define function to use for mixed ordering based on multiple columns
 multi.mixedorder <- function(..., na.last = TRUE, decreasing = FALSE){
@@ -119,6 +134,15 @@ multi.mixedorder <- function(..., na.last = TRUE, decreasing = FALSE){
     list(na.last = na.last, decreasing = decreasing)
   ))
 }
+
+# add new segment att at the end to allow for segment filling
+new <- data.frame("sample" = SAMPLE.ID,              
+                  "chr" = "chrX",
+                  "start" = 156040965,
+                  "end" = 156040975,
+                  "LOH_flag" = 2,
+                  "log.ratio" = 0.0)
+output <- rbind(output, new)
 
 # sort output based on chromosome and segment start position
 output <- output[multi.mixedorder(output$chr, output$start),]

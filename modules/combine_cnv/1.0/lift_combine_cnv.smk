@@ -46,6 +46,7 @@ CFG = op.setup_module(
 localrules:
     _combine_cnv_input,
     _combine_cnv_filteR,
+    _combine_cnv_seg2bed,
     _combine_cnv_fill_segments,
     _combine_cnv_output_seg,
     _combine_cnv_all,
@@ -77,12 +78,12 @@ rule _combine_cnv_filteR:
     input:
         seg_file = str(rules._combine_cnv_input.output.seg),
         vcf_file = str(rules._combine_cnv_input.output.vcf),
-        blacklist = reference_files("genomes/hg38/encode/encode-blacklist.hg38.bed")
+        blacklist = reference_files("genomes/grch37/encode/encode-blacklist.grch37.bed")
     output:
         cnv = temp(CFG["dirs"]["filter_cnv"] + "{caller}/{seq_type}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.CNV.tsv"),
         seg = temp(CFG["dirs"]["filter_cnv"] + "{caller}/{seq_type}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.filtered.seg")
     params:
-        genome_build="hg38"
+        genome_build="hg19"
     conda:
         CFG["conda_envs"]["CNVfilteR"]
     threads:
@@ -93,11 +94,104 @@ rule _combine_cnv_filteR:
         "src/R/CNVfilteR.R"
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-rule _combine_cnv_fill_segments:
+rule _combine_cnv_seg2bed:
     input:
         seg = str(rules._combine_cnv_filteR.output.seg),
         cnv = str(rules._combine_cnv_filteR.output.cnv)
+    output:
+        bed = temp(CFG["dirs"]["filter_cnv"] + "from--grch37/{seq_type}/{tumour_id}--{normal_id}--{pair_status}.{caller}.bed"),
+        header = temp(CFG["dirs"]["filter_cnv"] + "from--grch37/{seq_type}/{tumour_id}--{normal_id}--{pair_status}.{caller}.bed.header")
+    params:
+        opts = CFG["options"]["seg2bed2seg"],
+        chr_colNum = 2,
+        start_colNum = 3,
+        end_colNum = 4,
+    conda:
+        CFG["conda_envs"]["liftover-366"]
+    shell:
+        op.as_one_line("""
+        python {params.opts} 
+        --input {input.seg} 
+        --output {output.bed} 
+        --chromColnum {params.chr_colNum} 
+        --startColnum {params.start_colNum} 
+        --endColnum {params.end_colNum}
+        """)
+
+
+# Convert the bed file in hg19 coordinates into hg38 coordinates
+rule _run_liftover:
+    input:
+        native = rules._combine_cnv_seg2bed.output.bed,
+        chains = reference_files("genomes/grch37/chains/grch37/hg19ToHg38.over.chain")
+    output:
+        lifted = temp(CFG["dirs"]["filter_cnv"] + "from--grch37/{seq_type}/{tumour_id}--{normal_id}--{pair_status}.{caller}.lifted_hg19ToHg38.bed"),
+        unmapped = temp(CFG["dirs"]["filter_cnv"] + "from--grch37/{seq_type}/{tumour_id}--{normal_id}--{pair_status}.{caller}.lifted_hg19ToHg38.unmapped.bed")
+    params:
+        mismatch = CFG["options"]["min_mismatch"]
+    conda:
+        CFG["conda_envs"]["liftover-366"]
+    shell:
+        op.as_one_line("""
+        liftOver -minMatch={params.mismatch}
+        {input.native} {input.chains} 
+        {output.lifted} {output.unmapped}
+        """)
+
+# Sort liftover output
+# Here, the perl line will filter out non-standard chromosomes from the output
+rule _liftover_sort:
+    input:
+        lifted = rules._run_liftover.output.lifted
+    output:
+        lifted_sorted = temp(CFG["dirs"]["filter_cnv"] + "from--grch37/{seq_type}/{tumour_id}--{normal_id}--{pair_status}.{caller}.lifted_hg19ToHg38.sorted.bed")
+    shell:
+        op.as_one_line("""
+        sort -k1,1 -k2,2n -V {input.lifted} |
+        perl -ne 'print if /^(chr)*[\dX]+\s.+/'
+        > {output.lifted_sorted}
+        """)
+
+
+# Convert the bed file in hg19 coordinates into seg format
+rule _liftover_bed2seg:
+    input:
+        lifted_sorted = str(rules._liftover_sort.output.lifted_sorted),
+        headers = str(rules._combine_cnv_seg2bed.output.header)
+    output:
+        seg_lifted = temp(CFG["dirs"]["filter_cnv"] + "from--grch37/{seq_type}/{tumour_id}--{normal_id}--{pair_status}.{caller}.lifted_hg19ToHg38.seg")
+    params:
+        opts = CFG["options"]["seg2bed2seg"]
+    conda:
+        CFG["conda_envs"]["liftover-366"]
+    shell:
+        op.as_one_line("""
+        python {params.opts} 
+        --input {input.lifted_sorted}
+        --column-header {input.headers}
+        --output {output.seg_lifted} 
+        """)
+
+rule _combine_cnv_cleanup:
+    input:
+        seg = str(rules._liftover_bed2seg.output.seg_lifted)
+    output:
+        seg_complete = CFG["dirs"]["filter_cnv"] + "from--grch37/{seq_type}/{tumour_id}--{normal_id}--{pair_status}.{caller}.complete.lifted_hg19ToHg38.seg"
+    conda:
+        CFG["conda_envs"]["CNVfilteR"]
+    threads:
+        CFG["threads"]["combine_cnv"]
+    resources:
+        **CFG["resources"]["combine_cnv"]
+    script:
+        "src/R/cleanup.R"
+
+
+
+# Example variant filtering rule (single-threaded; can be run on cluster head node)
+rule _combine_cnv_fill_segments:
+    input:
+        seg = str(rules._combine_cnv_cleanup.output.seg_complete)
     output:
         seg = CFG["dirs"]["combine_cnv"] + "{caller}/{seq_type}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.filtered.filled.{caller}.seg"
     params:
@@ -119,15 +213,7 @@ rule _combine_cnv_merge_segs:
                 tumour_id=CFG["runs"]["tumour_sample_id"],
                 normal_id=CFG["runs"]["normal_sample_id"],
                 pair_status=CFG["runs"]["pair_status"])
-        
-        # seg_file = expand(
-        #     [str(rules._combine_cnv_fill_segments.output.seg)],
-        #     zip, 
-        #     seq_type=CFG["runs"]["tumour_seq_type"],
-        #     tumour_id=CFG["runs"]["tumour_sample_id"],
-        #     normal_id=CFG["runs"]["normal_sample_id"],
-        #     pair_status=CFG["runs"]["pair_status"],
-        #     caller = callers*len(CFG["runs"]["tumour_seq_type"]))
+
     output:
         seg = CFG["dirs"]["combine_cnv"] + "{caller}/{seq_type}/{caller}--merged.filtered.filled.seg"
     params:
