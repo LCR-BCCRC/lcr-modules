@@ -40,7 +40,7 @@ configfile: "../modules/strelka/1.1/config/default.yaml"
 configfile: "../modules/bwa_mem/1.1/config/default.yaml"
 configfile: "../modules/lofreq/1.0/config/default.yaml"
 configfile: "../modules/starfish/2.0/config/default.yaml"
-configfile: "../modules/battenberg/1.1/config/default.yaml"
+#configfile: "../modules/battenberg/1.1/config/default.yaml"
 configfile: "../modules/mutect2/2.0/config/default.yaml"
 configfile: "../modules/varscan/1.1/config/default.yaml"
 configfile: "../modules/liftover/1.2/config/default.yaml"
@@ -73,9 +73,11 @@ include: "../modules/gridss/1.1/gridss.smk"
 include: "../modules/bam2fastq/1.2/bam2fastq.smk"
 include: "../modules/lofreq/1.0/lofreq.smk"
 include: "../modules/starfish/2.0/starfish.smk"
-include: "../modules/battenberg/1.1/battenberg.smk"
+#include: "../modules/battenberg/1.1/battenberg.smk"
+
 include: "../modules/mutect2/2.0/mutect2.smk"
 include: "../modules/varscan/1.1/varscan.smk"
+
 include: "../modules/liftover/1.2/liftover.smk"
 
 
@@ -97,7 +99,9 @@ rule all:
         rules._sage_all.input,
         rules._mutect2_all.input,
         rules._varscan_all.input,
-        rules._liftover_all.input,
-        #rules._vcf2maf_all.input
-        rules._battenberg_all.input
 
+
+        #rules._vcf2maf_all.input
+        #rules._liftover_all.input,
+        #rules._battenberg_all.input
+        #battenberg,liftover
