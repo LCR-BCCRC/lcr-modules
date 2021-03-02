@@ -41,9 +41,7 @@ demo/scratch
 demo/results_archive
 demo/scratch_archive
 demo/results
-demo/testing data/results_capture
-demo/testing data/results_genome
-demo/testing data/results_mrna
+demo/results1
 #delete the two
 demo/results_capture    
 data1                   
@@ -59,4 +57,3 @@ modules/lofreq/1.0/src/bin
 /docs/build
 /docs/source/_build
 demo/run_clc.sh
-
