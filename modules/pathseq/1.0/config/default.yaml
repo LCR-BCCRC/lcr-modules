@@ -10,17 +10,28 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
-            step_1: ""
-            step_2: ""
+            min_read_length: "__UPDATE__" # The reads shorter than this length will be filtered out by Pathseq tool
+            ebv_cutoff: "__UPDATE__" # provide a list of cutoff values for calling sample EBV-negative, intermediate, or positive
+                                      # It should be as proportion of readsto total reads, for example: [0.00004, 0.00008]
 
         conda_envs:
+            gatk: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            R: "{SCRIPTSDIR}/salmon2counts/1.0/salmon2counts.yaml"
             
         threads:
-            step_1: 4
+            reference: 8
+            pathseq: 24
+            calculate_ebv: 1
 
-        mem_mb:
-            step_1: 2000
+        resources:
+            reference:
+                mem_mb: 10000
+            pathseq:
+                bam: 1
+                mem_mb: 250000 # The tool is very resource-consuming om the RAM side.
+            calculate_ebv:
+                mem_mb: 4000
 
         pairing_config:
             genome:
