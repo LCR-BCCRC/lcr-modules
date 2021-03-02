@@ -81,7 +81,7 @@ rule _battenberg_get_refrence:
         &&
         wget -O {output.impute_info} 'https://ora.ox.ac.uk/objects/uuid:2c1fec09-a504-49ab-9ce9-3f17bac531bc/download_file?file_format=plain&safe_filename=impute_info.txt&type_of_work=Dataset'
         &&
-        python scripts/refrence_correction.py
+        python scripts/refrence_correction.py {params.build}
         &&
         wget -qO-  {params.url}/battenberg_{params.build}_replic_correction.tar.gz |
         tar -xvz > {output.battenberg_wgs_replic_correction} -C {params.folder}
