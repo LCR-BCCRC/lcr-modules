@@ -20,13 +20,13 @@ option_list = list(
   make_option(c("-f","--reference_fasta"), type="character", default=NULL, help="Path to indexed genome fasta file (needed for CRAM compatability)", metavar="character"),
   make_option(c("--chr_prefixed_genome"), type="logical", default=FALSE, action="store_true", help="Flag to specify if the genome has chr prefixes in chromosome names", metavar="character"),
   make_option(c("--impute_log"), type="character", default="./", help="Full path for where to store impute logs. If blank, these will be written to the main output directory and cleared."),
-  make_option(c("--bwrc"), type="character", default=NULL, help="Path to reference file", metavar="character"),
+  make_option(c("--bwrc"), type="character", default=NULL, help="Path to battenberg_replic_correction file", metavar="character"),
 
-  make_option(c("--brc"), type="character", default=NULL, help="Path to reference file", metavar="character"),
-  make_option(c("--gl"), type="character", default=NULL, help="Path to reference file", metavar="character"),
+  make_option(c("--brc"), type="character", default=NULL, help="Path to battenberg_gc_correction file", metavar="character"),
+  make_option(c("--gl"), type="character", default=NULL, help="Path to genomesloci file", metavar="character"),
 
-  make_option(c("--i"), type="character", default=NULL, help="Path to reference file", metavar="character"),
-  make_option(c("--prob"), type="character", default=NULL, help="Path to reference file", metavar="character")
+  make_option(c("--i"), type="character", default=NULL, help="Path to impute_info file", metavar="character"),
+  make_option(c("--prob"), type="character", default=NULL, help="Path to probloci file", metavar="character")
 )
 
 opt_parser = OptionParser(option_list=option_list)
