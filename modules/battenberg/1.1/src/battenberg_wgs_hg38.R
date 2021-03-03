@@ -20,13 +20,7 @@ option_list = list(
   make_option(c("-f","--reference_fasta"), type="character", default=NULL, help="Path to indexed genome fasta file (needed for CRAM compatability)", metavar="character"),
   make_option(c("--chr_prefixed_genome"), type="logical", default=FALSE, action="store_true", help="Flag to specify if the genome has chr prefixes in chromosome names", metavar="character"),
   make_option(c("--impute_log"), type="character", default="./", help="Full path for where to store impute logs. If blank, these will be written to the main output directory and cleared."),
-  make_option(c("--bwrc"), type="character", default=NULL, help="Path to battenberg_replic_correction file", metavar="character"),
-
-  make_option(c("--brc"), type="character", default=NULL, help="Path to battenberg_gc_correction file", metavar="character"),
-  make_option(c("--gl"), type="character", default=NULL, help="Path to genomesloci file", metavar="character"),
-
-  make_option(c("--i"), type="character", default=NULL, help="Path to impute_info file", metavar="character"),
-  make_option(c("--prob"), type="character", default=NULL, help="Path to probloci file", metavar="character")
+  make_option(c("--ref"), type="character", default=NULL, help="Path to reference file", metavar="character")
 )
 
 opt_parser = OptionParser(option_list=option_list)
@@ -80,18 +74,20 @@ original_dir = getwd()
 setwd(RUN_DIR)
 NORMALBAM = paste0(normalizePath(original_dir,"\\"), "/",opt$nb)
 TUMOURBAM = paste0(normalizePath(original_dir,"\\"), "/",opt$tb)
-IMPUTEINFOFILE = paste0(normalizePath(original_dir,"\\"), "/",opt$i)
+
+REFERENCE_BASE = paste0(normalizePath(original_dir,"\\"), "/",opt$ref)
+IMPUTEINFOFILE = paste0(REFERENCE_BASE,"/impute_info.txt")
 print(IMPUTEINFOFILE)
 
-REPLICCORRECTPREFIX = paste0(normalizePath(original_dir,"\\"), "/",opt$bwrc, "/1000_genomes_replication_timing_chr_")
-G1000PREFIX = paste0(normalizePath(original_dir,"\\"), "/",opt$gl, "/1000genomesAlleles2012_chr")
-G1000PREFIX_AC = paste0(normalizePath(original_dir,"\\"), "/",opt$gl, "/1000genomesloci2012_chr")
-GCCORRECTPREFIX = paste0(normalizePath(original_dir,"\\"), "/",opt$brc, "/1000_genomes_GC_corr_chr_")
+REPLICCORRECTPREFIX = paste0(REFERENCE_BASE, "/battenberg_wgs_replic_correction_1000g_v3/1000_genomes_replication_timing_chr_")
+G1000PREFIX = paste0(REFERENCE_BASE, "/battenberg_1000genomesloci2012_v3/1000genomesAlleles2012_chr")
+G1000PREFIX_AC = paste0(REFERENCE_BASE, "/battenberg_1000genomesloci2012_v3/1000genomesloci2012_chr")
+GCCORRECTPREFIX = paste0(REFERENCE_BASE, "/battenberg_wgs_gc_correction_1000g_v3/1000_genomes_GC_corr_chr_")
 IMPUTE_EXE = "impute2"  #install using conda
 
 # WGS specific static
 ALLELECOUNTER = "alleleCounter" #conda package that should have this: cancerit-allelecount
-PROBLEMLOCI = paste0(normalizePath(original_dir,"\\"), "/",opt$prob)
+PROBLEMLOCI = paste0(REFERENCE_BASE, "/probloci.txt.gz")
 
 print(PROBLEMLOCI);
 
