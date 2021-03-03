@@ -150,11 +150,7 @@ rule _run_battenberg:
         installed = "config/envs/battenberg_dependencies_installed.success",
         sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        impute_info = CFG["dirs"]["inputs"] + "reference/{genome_build}/impute_info.txt",
-        probloci =  CFG["dirs"]["inputs"] + "reference/{genome_build}/probloci.txt.gz",
-        battenberg_wgs_replic_correction = (CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_wgs_replic_correction_1000g_v3"),
-        battenberg_gc_correction = (CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_wgs_gc_correction_1000g_v3"),  
-        genomesloci = (CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_1000genomesloci2012_v3")  
+        ref = CFG["dirs"]["inputs"] + "reference/{genome_build}"
     output:
         refit=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_refit_suggestion.txt",
         sub=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.txt",
@@ -185,8 +181,7 @@ rule _run_battenberg:
         sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
         echo "setting sex as $sex";
         Rscript {params.script} -t {wildcards.tumour_id} 
-        -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta} --i {input.impute_info} --prob {input.probloci}
-        --bwrc {input.battenberg_wgs_replic_correction} --brc {input.battenberg_gc_correction} --gl {input.genomesloci}
+        -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta} --ref {input.ref}
         -o {params.out_dir} --sex $sex --reference {params.reference_path} {params.chr_prefixed} --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" >> {log.stdout}; 
         """)
