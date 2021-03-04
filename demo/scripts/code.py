@@ -5,7 +5,7 @@ import pkg_resources
 def checker():
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
     min_oncopipe_version="1.0.11"
-    
+    print("ss")
     try:
         from packaging import version
     except ModuleNotFoundError:
@@ -20,4 +20,5 @@ def checker():
         sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
 # End of dependency checking section 
-print("hs")
+
+checker()
