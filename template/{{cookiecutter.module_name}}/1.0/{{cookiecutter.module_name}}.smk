@@ -43,6 +43,8 @@ rule _{{cookiecutter.module_name}}_input_{{cookiecutter.input_file_type}}:
         {{cookiecutter.input_file_type}} = CFG["inputs"]["sample_{{cookiecutter.input_file_type}}"]
     output:
         {{cookiecutter.input_file_type}} = CFG["dirs"]["inputs"] + "{{cookiecutter.input_file_type}}/{seq_type}--{genome_build}/{sample_id}.{{cookiecutter.input_file_type}}"
+    group: 
+        "input_and_step_1"
     run:
         op.absolute_symlink(input.{{cookiecutter.input_file_type}}, output.{{cookiecutter.input_file_type}})
 
@@ -66,7 +68,9 @@ rule _{{cookiecutter.module_name}}_step_1:
     threads:
         CFG["threads"]["step_1"]
     resources:
-        mem_mb = CFG["mem_mb"]["step_1"]
+        **CFG["resources"]["step_1"]
+    group: 
+        "input_and_step_1"
     shell:
         op.as_one_line("""
         <TODO> {params.opts} --tumour {input.tumour_{{cookiecutter.input_file_type}}} --normal {input.normal_{{cookiecutter.input_file_type}}}
@@ -135,7 +139,7 @@ rule _{{cookiecutter.module_name}}_step_1:
     threads:
         CFG["threads"]["step_1"]
     resources:
-        mem_mb = CFG["mem_mb"]["step_1"]
+        **CFG["resources"]["step_1"]
     shell:
         op.as_one_line("""
         <TODO> {params.opts} --input {input.{{cookiecutter.input_file_type}}} --ref-fasta {input.fasta}
