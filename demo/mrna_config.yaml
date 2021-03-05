@@ -31,37 +31,6 @@ lcr-modules:
         # Path to the directory where MIXCR should be installed
             mixcr_exec: "data/"
             
-    vcf2maf:
-        dirs:
-            _parent: "results/sage-1.0_vcf2maf-1.2"
-        inputs:
-            vep_cache: "reference/vep_caches/"
-            sample_vcf_gz: "results/sage-1.0/99-outputs/combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{base_name}.vcf.gz"
-            convert_coord: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.sh"
-        vcf_base_name: "sage.combined"
-        options:
-            vcf2maf: "--filter-vcf 0 --vcf-tumor-id {tumour_id} --vcf-normal-id {normal_id}"
-            species: "homo_sapiens"
-        conda_envs:
-            vcf2maf: "{MODSDIR}/envs/vcf2maf-1.6.18.yaml"
-            crossmap: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.yaml"
-        # here you can specify path to txt file with a list of custom ENST IDs that override canonical selection
-        # it will be parsed to --custom-enst flag of vcf2maf
-        # if no non-canonical transcript IDs to be included, leave switches empty
-        # This is just an example of how to include the list of custom IDs
-        switches:
-            custom_enst:
-              hg38: ""
-              grch37: "data/custom_enst.txt"
-              hs37d5: ""
-        resources:
-            vcf2maf:
-                mem_mb: 12000
-                vcf: 1
-            crossmap:
-                mem_mb: 12000
-
-
     salmon:
         inputs:
             sample_fastq_1: "data/{sample_id}.read1.fastq.gz"

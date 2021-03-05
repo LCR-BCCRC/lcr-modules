@@ -5,7 +5,7 @@ import pkg_resources
 def checker():
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
     min_oncopipe_version="1.0.11"
-    print("ss")
+    
     try:
         from packaging import version
     except ModuleNotFoundError:

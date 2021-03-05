@@ -34,7 +34,6 @@ configfile: "../modules/picard_qc/1.0/config/default.yaml"
 configfile: "../modules/bam2fastq/1.2/config/default.yaml"
 configfile: "../modules/manta/2.3/config/default.yaml"
 configfile: "../modules/gridss/1.1/config/default.yaml"
-#configfile: "../modules/vcf2maf/1.2/config/default.yaml"
 configfile: "../modules/sequenza/1.4/config/default.yaml"
 configfile: "../modules/strelka/1.1/config/default.yaml"
 configfile: "../modules/bwa_mem/1.1/config/default.yaml"
@@ -65,7 +64,6 @@ include: "../modules/sage/1.0/sage.smk"
 include: "../modules/utils/2.1/utils.smk"
 include: "../modules/picard_qc/1.0/picard_qc.smk"
 include: "../modules/manta/2.3/manta.smk"
-#include: "../modules/vcf2maf/1.2/vcf2maf.smk"
 include: "../modules/sequenza/1.4/sequenza.smk"
 include: "../modules/strelka/1.1/strelka.smk"
 include: "../modules/bwa_mem/1.1/bwa_mem.smk"
@@ -98,6 +96,5 @@ rule all:
         rules._mutect2_all.input,
         rules._varscan_all.input,
         rules._liftover_all.input,
-        #rules._vcf2maf_all.input
         rules._battenberg_all.input
 

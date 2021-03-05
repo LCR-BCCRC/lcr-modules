@@ -19,7 +19,7 @@ import oncopipe as op
 
 
 import os 
-os.system('python scripts/code.py')
+os.system('python ../modules/scripts/code.py')
 # End of dependency checking section 
 
 # Setup module and store module-specific configuration in `CFG`.

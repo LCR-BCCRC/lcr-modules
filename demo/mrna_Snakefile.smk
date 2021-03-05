@@ -33,7 +33,6 @@ configfile: "../modules/star/1.4/config/default.yaml"
 configfile: "../modules/utils/2.1/config/default.yaml"
 configfile: "../modules/picard_qc/1.0/config/default.yaml"
 configfile: "../modules/bam2fastq/1.2/config/default.yaml"
-#configfile: "../modules/vcf2maf/1.2/config/default.yaml"
 configfile: "../modules/manta/2.3/config/default.yaml"
 configfile: "../modules/mixcr/1.1/config/default.yaml"
 
@@ -72,4 +71,3 @@ rule all:
         rules._manta_all.input,
         rules._mixcr_all.input
        
-        #rules._vcf2maf_all.input

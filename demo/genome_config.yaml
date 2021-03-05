@@ -11,36 +11,21 @@ lcr-modules:
     battenberg:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bam: "data1/{sample_id}.bam"
+            sample_bam: "data/{sample_id}.bam"
         
         reference_path:
             hg38: " --chr_prefixed_genome "                           # Copied from vcf2maf
             grch37: " reference/genomes/grch37/downloads/hg19-grch37 "     # Copied from vcf2maf
     
-    hmftools:
-        inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bam: "data1/{sample_id}.bam"
-            sample_bai: "data1/{sample_id}.bam.bai"
-            # Available wildcards: {seq_type} {genome_build} {tumour_id} 
-            # Note: Only outputs of running Strelka in matched normal mode are accepted
-            # Must be in bgzip with `.vcf.gz` extension. 
-            strelka_vcf: "results/strelka-1.1/99-outputs/vcf/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched.strelka.combined.vcf.gz" 
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
-            # Note: These are output by the gripss somatic filtering step of the gridss module
-            gridss_somatic: "results/gridss-1.1/99-outputs/vcf/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched.gridss_somatic.vcf.gz" # Output of GRIPSS
-            gridss_somatic_tbi: "results/gridss-1.1/99-outputs/vcf/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched.gridss_somatic.vcf.gz.tbi"
-            gridss_somatic_filtered: "results/gridss-1.1/99-outputs/vcf/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched.gridss_somatic_filtered.vcf.gz" # Filtered output of GRIPSS
-            gridss_somatic_filtered_tbi: "results/gridss-1.1/99-outputs/vcf/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched.gridss_somatic_filtered.vcf.gz.tbi"
     mutect2:
         inputs:
-            sample_bam: "data1/{sample_id}.bam"
-            sample_bai: "data1/{sample_id}.bam.bai"
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
     
     varscan:
         inputs:
-            sample_bam: "data1/{sample_id}.bam"
-            sample_bai: "data1/{sample_id}.bam.bai"
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
 
     liftover:
         tool: "sequenza-1.4" 
@@ -51,13 +36,13 @@ lcr-modules:
 
     slms_3: 
         inputs: 
-            sample_bam: "data1/{sample_id}.bam"
-            sample_bai: "data1/{sample_id}.bam.bai"
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
     
     sage:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bam: "data1/{sample_id}.bam"
+            sample_bam: "data/{sample_id}.bam"
 
         # include here any additional flags to modify default parameters
         options:
@@ -65,7 +50,7 @@ lcr-modules:
             
     bam2fastq:
         inputs:
-            sample_bam: "data1/{sample_id}.bam"
+            sample_bam: "data/{sample_id}.bam"
         temp_outputs: True # fastq outputs will be temporary
 
     star:
@@ -76,65 +61,33 @@ lcr-modules:
 
     manta:
         inputs:
-            sample_bam: "data1/{sample_id}.bam"
-            sample_bai: "data1/{sample_id}.bam.bai"
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
    
-
-
-    vcf2maf:
-        dirs:
-            _parent: "results/sage-1.0_vcf2maf-1.2"
-        inputs:
-            vep_cache: "reference/vep_caches/"
-            sample_vcf_gz: "results/sage-1.0/99-outputs/combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{base_name}.vcf.gz"
-            convert_coord: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.sh"
-        vcf_base_name: "sage.combined"
-        options:
-            vcf2maf: "--filter-vcf 0 --vcf-tumor-id {tumour_id} --vcf-normal-id {normal_id}"
-            species: "homo_sapiens"
-        conda_envs:
-            vcf2maf: "{MODSDIR}/envs/vcf2maf-1.6.18.yaml"
-            crossmap: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.yaml"
-        # here you can specify path to txt file with a list of custom ENST IDs that override canonical selection
-        # it will be parsed to --custom-enst flag of vcf2maf
-        # if no non-canonical transcript IDs to be included, leave switches empty
-        # This is just an example of how to include the list of custom IDs
-        switches:
-            custom_enst:
-              hg38: ""
-              grch37: "data1/custom_enst.txt"
-              hs37d5: ""
-        resources:
-            vcf2maf:
-                mem_mb: 12000
-                vcf: 1
-            crossmap:
-                mem_mb: 12000
-
     mixcr:
         inputs:
             sample_fastq_1: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read1.fastq.gz"
             sample_fastq_2: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read2.fastq.gz"
         # Path to the directory where MIXCR should be installed
-            mixcr_exec: "data1/"
+            mixcr_exec: "data/"
 
     salmon:
         inputs:
-            sample_fastq_1: "data1/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "data1/{sample_id}.read2.fastq.gz"
+            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
         transcriptome:
             quant_to: "hg38"
 
     sequenza:
         inputs:
-            sample_bam: "data1/{sample_id}.bam"
-            sample_bai: "data1/{sample_id}.bam.bai"
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
         scratch_subdirectories: []
     
     lofreq:
         inputs:
-            sample_bam: "data1/{sample_id}.bam"
-            sample_bai: "data1/{sample_id}.bam.bai"
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
         switches:
             # Intentionally running LoFreq without a BED file for simplicity
             # And to avoid having to include a large BED file in the repo
@@ -144,8 +97,8 @@ lcr-modules:
 
     gridss: 
         inputs: 
-            sample_bam: "data1/{sample_id}.bam"
-            sample_bai: "data1/{sample_id}.bam.bai"
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
         references: 
             # See the current gridss module config file for details about where to obtain this file. 
             viral_fa: "/projects/rmorin/projects/DLBCL_DHITsig_genomes/reference/gridss/refgenomes/human_virus/human_virus.fa"
@@ -154,15 +107,15 @@ lcr-modules:
             
     strelka:
         inputs:
-            sample_bam: "data1/{sample_id}.bam"
-            sample_bai: "data1/{sample_id}.bam.bai"
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
             # if using manta output, use vcf file in the 99-outputs subdirectory and ensure manta version corresponds to the loaded module
             candidate_small_indels: "results/manta-2.3/99-outputs/vcf/{seq_type}--{genome_build}/candidateSmallIndels/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf"
 
     utils:
         inputs:
             bed: 
-                grch37: "data1/exome_bed/hg19/target_regions.nochr.bed" # make sure this corresponds with config["lcr-modules"]["picard_qc"]["inputs"]["intervals"]
+                grch37: "data/exome_bed/hg19/target_regions.nochr.bed" # make sure this corresponds with config["lcr-modules"]["picard_qc"]["inputs"]["intervals"]
                 # if testing on GSC, use this file: "/projects/dscott_prj/CCSRI_1500/exomes/ref/agilent/hg19/target_regions.nochr.bed"
         mem_mb:
             bam_sort: 48000
@@ -171,8 +124,8 @@ lcr-modules:
 
     picard_qc:
         inputs:
-            sample_bam: "data1/{sample_id}.bam"
-            sample_bai: "data1/{sample_id}.bam.bai"
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
         switches:
             capture_intervals: 
                 _default: "reference/exomes/grch37/interval/target_regions.nochr_intervals.txt"
@@ -188,8 +141,8 @@ lcr-modules:
         
     controlfreec:
         inputs:
-            sample_bam: "data1/{sample_id}.bam"
-            sample_bai: "data1/{sample_id}.bam.bai"
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
         scratch_subdirectories: [] # mpileup should be in scratch space
 
     starfish: 
