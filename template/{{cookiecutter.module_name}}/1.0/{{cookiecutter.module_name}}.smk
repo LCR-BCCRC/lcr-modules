@@ -44,7 +44,7 @@ rule _{{cookiecutter.module_name}}_input_{{cookiecutter.input_file_type}}:
     output:
         {{cookiecutter.input_file_type}} = CFG["dirs"]["inputs"] + "{{cookiecutter.input_file_type}}/{seq_type}--{genome_build}/{sample_id}.{{cookiecutter.input_file_type}}"
     run:
-        op.relative_symlink(input.{{cookiecutter.input_file_type}}, output.{{cookiecutter.input_file_type}})
+        op.absolute_symlink(input.{{cookiecutter.input_file_type}}, output.{{cookiecutter.input_file_type}})
 
 {% if cookiecutter.module_run_per == "tumour" %}
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
@@ -98,7 +98,7 @@ rule _{{cookiecutter.module_name}}_output_{{cookiecutter.output_file_type}}:
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["outputs"] + "{{cookiecutter.output_file_type}}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.{{cookiecutter.output_file_type}}"
     run:
-        op.relative_symlink(input.{{cookiecutter.output_file_type}}, output.{{cookiecutter.output_file_type}})
+        op.relative_symlink(input.{{cookiecutter.output_file_type}}, output.{{cookiecutter.output_file_type}}, in_module= True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
