@@ -31,7 +31,8 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
     print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
-# End of dependency checking section 
+# End of dependency checking section
+
 
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["sequenza"]`
@@ -61,10 +62,12 @@ rule _sequenza_input_bam:
         bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai"
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai",
+        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.crai"
     run:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 
 # Pulls in list of chromosomes for the genome builds
@@ -86,7 +89,7 @@ rule _sequenza_input_dbsnp_pos:
     log:
         stderr = CFG["logs"]["inputs"] + "{genome_build}/sequenza_input_dbsnp_pos.stderr.log"
     resources:
-        mem_mb = CFG["mem_mb"]["vcf_sort"]
+        **CFG["resources"]["vcf_sort"]
     shell:
         op.as_one_line("""
         gzip -dc {input.vcf}
@@ -115,8 +118,7 @@ rule _sequenza_bam2seqz:
     threads:
         CFG["threads"]["bam2seqz"]
     resources:
-        mem_mb = CFG["mem_mb"]["bam2seqz"],
-	bam = 1
+        **CFG["resources"]["bam2seqz"]    
     shell:
         op.as_one_line("""
         sequenza-utils bam2seqz {params.bam2seqz_opts} -gc {input.gc_wiggle} --fasta {input.genome} 
@@ -148,9 +150,10 @@ rule _sequenza_merge_seqz:
         seqz = CFG["dirs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged.binned.unfiltered.seqz.gz"
     log:
         stderr = CFG["logs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_merge_seqz.stderr.log"
-    threads: CFG["threads"]["merge_seqz"]
+    threads:
+        CFG["threads"]["merge_seqz"]
     resources: 
-        mem_mb = CFG["mem_mb"]["merge_seqz"]
+        **CFG["resources"]["merge_seqz"]  
     shell:
         op.as_one_line("""
         bash {input.merge_seqz} {input.seqz} 2>> {log.stderr}
@@ -163,16 +166,21 @@ rule _sequenza_filter_seqz:
     input:
         seqz = str(rules._sequenza_merge_seqz.output.seqz),
         filter_seqz = CFG["inputs"]["filter_seqz"],
-        dbsnp_pos = str(rules._sequenza_input_dbsnp_pos.output.pos)
+        dbsnp_pos = str(rules._sequenza_input_dbsnp_pos.output.pos),
+        blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed")
     output:
         seqz = CFG["dirs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged.binned.filtered.seqz.gz"
     log:
         stderr = CFG["logs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_filter_seqz.stderr.log"
-    threads: CFG["threads"]["filter_seqz"]
+    conda:
+        CFG["conda_envs"]["bedtools"]
+    threads: 
+        CFG["threads"]["filter_seqz"]
     resources: 
-        mem_mb = CFG["mem_mb"]["filter_seqz"]
+        **CFG["resources"]["filter_seqz"] 
     shell:
         op.as_one_line("""
+        SEQZ_BLACKLIST_BED_FILES='{input.blacklist}'
         {input.filter_seqz} {input.seqz} {input.dbsnp_pos} 2>> {log.stderr}
             |
         gzip > {output.seqz} 2>> {log.stderr}
@@ -193,9 +201,10 @@ rule _sequenza_run:
         stderr = CFG["logs"]["sequenza"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_run.{filter_status}.stderr.log"
     conda:
         CFG["conda_envs"]["r-sequenza"]
-    threads: CFG["threads"]["sequenza"]
+    threads:
+        CFG["threads"]["sequenza"]
     resources: 
-        mem_mb = CFG["mem_mb"]["sequenza"]
+        **CFG["resources"]["sequenza"] 
     shell:
         op.as_one_line("""
         Rscript {input.run_sequenza} {input.seqz} {input.assembly} {input.chroms} {input.x_chrom} 
