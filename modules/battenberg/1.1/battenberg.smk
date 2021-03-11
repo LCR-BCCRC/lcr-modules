@@ -67,7 +67,8 @@ rule _battenberg_get_refrence:
     params:
         url = "https://www.bcgsc.ca/downloads/morinlab/reference",
         folder = CFG["dirs"]["inputs"] + "reference/{genome_build}",
-        build = lambda w: "hg38" if "38" in str({w.genome_build}) else "grch37"
+        build = lambda w: "hg38" if "38" in str({w.genome_build}) else "grch37",
+        PATH = CFG['inputs']['src_dir']
     shell:
         op.as_one_line("""
         wget -qO-  {params.url}/battenberg_impute_{params.build}.tar.gz  |
@@ -81,7 +82,7 @@ rule _battenberg_get_refrence:
         &&
         wget -O {output.impute_info} 'https://ora.ox.ac.uk/objects/uuid:2c1fec09-a504-49ab-9ce9-3f17bac531bc/download_file?file_format=plain&safe_filename=impute_info.txt&type_of_work=Dataset'
         &&
-        python scripts/refrence_correction.py {params.build}
+        python {params.PATH}/refrence_correction.py {params.build}
         &&
         wget -qO-  {params.url}/battenberg_{params.build}_replic_correction.tar.gz |
         tar -xvz > {output.battenberg_wgs_replic_correction} -C {params.folder}
@@ -150,7 +151,8 @@ rule _run_battenberg:
         installed = "config/envs/battenberg_dependencies_installed.success",
         sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        ref = CFG["dirs"]["inputs"] + "reference/{genome_build}"
+        impute_info = CFG["dirs"]["inputs"] + "reference/{genome_build}/impute_info.txt"
+
     output:
         refit=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_refit_suggestion.txt",
         sub=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.txt",
@@ -168,7 +170,8 @@ rule _run_battenberg:
         reference_path = lambda w: _battenberg_CFG["reference_path"][w.genome_build],
         script = CFG["inputs"]["battenberg_script"],
         chr_prefixed = lambda w: _battenberg_CFG["options"]["chr_prefixed_reference"][w.genome_build],
-        out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}"
+        out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
+        ref = CFG["dirs"]["inputs"] + "reference/{genome_build}"
     conda:
         CFG["conda_envs"]["battenberg"]
     resources:
@@ -181,7 +184,7 @@ rule _run_battenberg:
         sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
         echo "setting sex as $sex";
         Rscript {params.script} -t {wildcards.tumour_id} 
-        -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta} --ref {input.ref}
+        -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta} --ref {params.ref}
         -o {params.out_dir} --sex $sex --reference {params.reference_path} {params.chr_prefixed} --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" >> {log.stdout}; 
         """)
