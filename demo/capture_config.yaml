@@ -13,6 +13,10 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "data/{sample_id}.bam"
         
+        reference_path:
+            hg38: " --chr_prefixed_genome "                           
+            grch37: " reference/genomes/grch37/downloads/hg19-grch37 "  
+        
     mutect2:
         inputs:
             sample_bam: "data/{sample_id}.bam"

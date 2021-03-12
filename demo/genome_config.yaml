@@ -14,8 +14,8 @@ lcr-modules:
             sample_bam: "data/{sample_id}.bam"
         
         reference_path:
-            hg38: " --chr_prefixed_genome "                           # Copied from vcf2maf
-            grch37: " reference/genomes/grch37/downloads/hg19-grch37 "     # Copied from vcf2maf
+            hg38: " --chr_prefixed_genome "                           
+            grch37: " reference/genomes/grch37/downloads/hg19-grch37 "     
     
     mutect2:
         inputs:
