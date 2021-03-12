@@ -10,10 +10,6 @@ lcr-modules:
 
         scratch_subdirectories: []
 
-        reference_path:
-            hg38: "__UPDATE__"
-            grch37: "__UPDATE__"
-
         options:
             #update and add/remove these lines as needed for the reference genomes being used. 
             chr_prefixed_reference:
