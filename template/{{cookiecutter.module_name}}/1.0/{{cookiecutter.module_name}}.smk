@@ -157,7 +157,7 @@ rule _{{cookiecutter.module_name}}_step_1:
     threads:
         CFG["threads"]["step_1"]
     resources:
-        **CFG["resources"]["step_1"]
+        **CFG["resources"]["step_1"]    # All resources necessary can be included and referenced from the config files.
     shell:
         op.as_one_line("""
         <TODO> {params.opts} --input {input.{{cookiecutter.input_file_type}}} --ref-fasta {input.fasta}
