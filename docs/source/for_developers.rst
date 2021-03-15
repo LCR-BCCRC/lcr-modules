@@ -21,7 +21,7 @@ Getting Started
       # conda create -n lcr-modules "python>=3.6"
       # conda activate lcr-modules
       
-      conda install cookiecutter git
+      conda install -c conda-forge cookiecutter
 
 4. Clone the `lcr-modules repository`_ and the `lcr-scripts repository`_.
 
