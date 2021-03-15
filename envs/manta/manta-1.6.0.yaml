@@ -25,5 +25,5 @@ dependencies:
   - tk=8.6.10
   - wheel=0.34.2
   - zlib=1.2.11
-prefix: /home/bgrande/miniconda3/envs/test-manta
+ 
 

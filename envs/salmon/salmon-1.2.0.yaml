@@ -14,5 +14,5 @@ dependencies:
   - salmon=1.2.0
   - tbb=2020.1
   - zlib=1.2.11
-prefix: /home/bgrande/miniconda3/envs/test-salmon
+ 
 

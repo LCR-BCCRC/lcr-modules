@@ -24,5 +24,5 @@ dependencies:
   - tk=8.6.10=hed695b0_0
   - xz=5.2.5=h516909a_1
   - zlib=1.2.11=h516909a_1006
-prefix: /home/lhilton/miniconda3/envs/bedops
+ 
 
