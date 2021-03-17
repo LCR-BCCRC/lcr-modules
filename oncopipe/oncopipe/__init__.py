@@ -1452,6 +1452,170 @@ def generate_pairs(samples, unmatched_normal_ids=None, **seq_types):
 
     return runs
 
+###### UNDER DEVELOPMENT ######
+
+def generate_sets(samples, unmatched_normal_ids=None, **seq_types):
+    """Generate tumour-normal pairs using sensible defaults.
+
+    Each sequencing data type (``seq_type``) is provided as
+    separate arguments with a specified "pairing mode". This
+    mode determines how the samples for that ``seq_type``
+    are paired. Only the listed ``seq_type`` values will be
+    included in the output. The available pairing modes are:
+
+    1. ``matched_only``: Only tumour samples with matched
+       normal samples will be returned. In other words,
+       unpaired tumour or normal samples will be omitted.
+
+       .. code:: python
+
+          generate_pairs(SAMPLES, genome='matched_only')
+
+    2. ``allow_unmatched``: All tumour samples will be returned
+       whether they are paired with a matched normal sample
+       or not. If they are not paired, they will be returned
+       with an unmatched normal sample specified by the user.
+       This mode must be specified alongside the ID for the
+       sample to be paired with unpaired tumours as a tuple.
+       This sample must be present in the ``samples`` table.
+
+       .. code:: python
+
+          generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'))
+
+    3. ``no_normal``: All tumour samples will be returned
+       without a paired normal sample. This is simply a
+       shortcut for filtering for tumour samples, but this
+       ensures that the column names will be consistent
+       with other calls to ``generate_pairs()``.
+
+       .. code:: python
+
+          generate_pairs(SAMPLES, mrna='no_normal')
+
+    Parameters
+    ----------
+    samples : pandas.DataFrame
+        The sample table. This data frame must include the
+        following columns: ``sample_id``, ``patient_id``,
+        ``seq_type``, and ``tissue_status`` ('normal' or
+        'tumour'/'tumor'). If ``genome_build`` is included,
+        no tumour-normal pairs will be made between different
+        genome builds.
+    unmatched_normal_ids : dict, optional
+        The mapping from seq_type and genome_build to the unmatched
+        normal sample IDs that should be used for unmatched analyses.
+        The keys must take the form of '{seq_type}--{genome_build}'.
+    **seq_types : {'matched_only', 'allow_unmatched', 'no_normal'}
+        A mapping between values of ``seq_type`` and
+        pairing modes. See above for description of each
+        pairing mode.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The tumour-normal pairs (one pair per row), but
+        the normal sample is omitted if the ``no_normal``
+        pairing mode is used. Every column in the input
+        ``samples`` data frame will appear twice in the
+        output, once for the tumour sample and once for
+        the normal sample, prefixed by ``tumour_`` and
+        ``normal_``, respectively. An additional column
+        called ``pair_status`` will indicate whether the
+        tumour-normal samples in the row are matched or
+        unmatched. If the normal sample is omitted due
+        to the ``no_normal`` mode, this column will be
+        set to ``no_normal``.
+
+    Examples
+    --------
+    Among the samples in the ``SAMPLES`` data frame, the
+    ``genome`` tumour samples will be paired with a matched
+    normal samples if one exists or with the given unmatched
+    normal sample (``PT003-N``) if no matched normal samples
+    are present; the ``capture`` tumour samples will only be
+    paired with matched normal samples; and the ``mrna``
+    tumour samples will be returned without matched or
+    unmatched normal samples.
+
+    >>> PAIRS = generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'),
+    >>>                        capture='matched_only', mrna='no_normal')
+    """
+
+    # Define pairing modes
+    pairing_modes = {
+        "matched_only": {
+            "run_paired_tumours": True,
+            "run_unpaired_tumours_with": None,
+            "run_paired_tumours_as_unpaired": False,
+        },
+        "allow_unmatched": {
+            "run_paired_tumours": True,
+            "run_unpaired_tumours_with": "unmatched_normal",
+            "run_paired_tumours_as_unpaired": False,
+            # unmatched_normal_id must be added
+        },
+        "no_normal": {
+            "run_paired_tumours": False,
+            "run_unpaired_tumours_with": "no_normal",
+            "run_paired_tumours_as_unpaired": True,
+        },
+    }
+
+    # Iterate over seq_types
+    pairing_config = dict()
+    available_pairing_modes = list(pairing_modes.keys())
+    for seq_type, mode in seq_types.items():
+
+        # Check if mode was provided as a two-element iterable (list or tuple)
+        unmatched_normal_id = None
+        if len(mode) == 2 and mode[0] == "allow_unmatched":
+            unmatched_normal_id = mode[1]
+            mode = "allow_unmatched"
+
+        # Make sure mode is a string and among the available options
+        assert isinstance(mode, str) and mode in available_pairing_modes, (
+            f"The pairing mode specified for {seq_type!r} isn't valid. "
+            f"The available modes are: {available_pairing_modes}."
+        )
+
+        # Make sure that the `allow_unmatched` mode is provided
+        # with unmatched_normal_id or unmatched_normal_ids
+        assert mode != "allow_unmatched" or (
+            unmatched_normal_id is not None or unmatched_normal_ids is not None
+        ), (
+            "The 'allow_unmatched' mode must be provided with the "
+            "`unmatched_normal_ids` parameter or paired with a normal "
+            "sample ID, such as:\n    "
+            "generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'))\n"
+        )
+
+        pairing_config[seq_type] = pairing_modes[mode]
+
+        if mode == "allow_unmatched" and unmatched_normal_id is not None:
+            pairing_config[seq_type]["unmatched_normal_id"] = unmatched_normal_id
+
+    # Subgroup using `genome_build` if available
+    if "genome_build" in samples:
+        subgroups = ("seq_type", "genome_build", "patient_id", "tissue_status")
+    else:
+        subgroups = ("seq_type", "patient_id", "tissue_status")
+
+    # Make sure all of the required columns are present
+    required_columns = list(subgroups) + ["sample_id"]
+    assert all(column in samples for column in required_columns), (
+        "The sample table doesn't include all of the "
+        f"expected columns, namely {required_columns}."
+    )
+
+    # Generate the runs using the generated pairing configuration
+    samples = filter_samples(samples, seq_type=list(seq_types.keys()))
+    runs = generate_runs(samples, pairing_config, unmatched_normal_ids, subgroups)
+
+    return runs
+
+
+############
 
 # MODULE SETUP/CLEANUP
 
