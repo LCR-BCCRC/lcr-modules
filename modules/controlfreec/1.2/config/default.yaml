@@ -57,11 +57,11 @@ lcr-modules:
 
             #GEM options: (for generating hard-masked mappability files)
             hard_masked: True # set True if using a hard-masked mappability file
-            kmer: 100
-            mismatch: 2
-            maxBigIndel: 5
-            maxEditDistance: 0
-            strata: 0
+            kmer: 100 # kmer size
+            mismatch: 2 # maximum number of mismatches allowed
+            maxBigIndel: 5 # The GEM mapper implements a special algorithm that, in addition to ordinary matches, is sometimes able to find a single long indel - this is the max size
+            maxEditDistance: 0 # maximum number of edit operations allowed while verifying candidate matches by dynamic programming (can be a float 0-1, which represents differences of size n% of length, or a non-negative integer, which is a fixed number of edits)
+            strata: 0 # a stratum is a set of matches all having the same string distance from the query, GEM mapper will try to find n amount of matches to explore
 
 
         software:
