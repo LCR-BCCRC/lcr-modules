@@ -50,13 +50,13 @@ _battenberg_CFG = CFG
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _battenberg_get_refrence
+    _battenberg_get_reference
     _battenberg_all
 
 ##### RULES #####
 
-# Downloads the refrence files into the module results directory (under '00-inputs/') from https://www.bcgsc.ca/downloads/morinlab/reference/ . 
-rule _battenberg_get_refrence:
+# Downloads the reference files into the module results directory (under '00-inputs/') from https://www.bcgsc.ca/downloads/morinlab/reference/ . 
+rule _battenberg_get_reference:
     output:
         battenberg_impute =  directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_impute_v3"),
         impute_info = CFG["dirs"]["inputs"] + "reference/{genome_build}/impute_info.txt",
@@ -82,7 +82,7 @@ rule _battenberg_get_refrence:
         &&
         wget -O {output.impute_info} 'https://ora.ox.ac.uk/objects/uuid:2c1fec09-a504-49ab-9ce9-3f17bac531bc/download_file?file_format=plain&safe_filename=impute_info.txt&type_of_work=Dataset'
         &&
-        python {params.PATH}/refrence_correction.py {params.build}
+        python {params.PATH}/reference_correction.py {params.build}
         &&
         wget -qO-  {params.url}/battenberg_{params.build}_replic_correction.tar.gz |
         tar -xvz > {output.battenberg_wgs_replic_correction} -C {params.folder}
