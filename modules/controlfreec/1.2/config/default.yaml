@@ -28,19 +28,19 @@ lcr-modules:
                 # 3: make a separate fragment of the unknown region and attach to left/right, choosing the longer one, BUT known region should make at least half size of the unknown region
                 # 4: make a separate fragment of the unknown region and do not assign any copy number to this region at all
             coefficientOfVariation: 0.062 # coefficient used to evaluate window size - the lower, the more windows
-            contaminationAdjustment: TRUE # if "contamination" value is not provided, it will automaticaly evaluate
-            degree: '3\&4' # degree of polynomial - 3&4 for WGS (GC-based normalization); 1 for WES (control-read-count-based normalization)
+            contaminationAdjustment: TRUE # if "contamination" value is not provided, it will automaticaly evaluate. For bugs where contamination detection is stalled, just set contaminationAdjustment to FALSE.
+            degree: '3\&4' # degree of polynomial - 3&4 for WGS (GC-based normalization); 1 for WES (control-read-count-based normalization). You can comment out degree to let control-freec choose.
             forceGCcontentNormalization: 1 #0 for WGS; 1 for WES # 0 forces control-base normalization, 1 forces GC
             intercept: 1 # 0 for control-based (paired) ; 1 for GC-content (unpaired)
             minCNAlength: 8 # minimum number of consecutive windows to call a CNA #default 1 for WGS; 3 for WES
-            minMappabilityPerWindow: 0.9 # minimum fraction of mappable positions for a window to be considered
+            minMappabilityPerWindow: 0.9 # minimum fraction of mappable positions for a window to be considered # set this lower if you want to also use a hard-masked mappability file
             minimalSubclonePresence: 20 # detects subclones present in x% of cell population - 20 for WGS; 30 for WES (100 means "do not look for subclones")
             noisyData: TRUE #set TRUE for exomes/FFPE libs to avoid false positives due to non-uniform capture
             readCountThreshold: 10 # threshold on the minimal number of reads per window (used for exome-seq or targeted sequencing) (recommended 50 for WES)
             ploidy: 2 #will select the ploidy that explains the most CNAs (a range can be added and control-freec will assign ploidy based on best fit, ex. 2,3,4)
             printNA: FALSE
             telocentromeric: 50000 # size of pre-telomeric and pre-centromeric regions to exclude
-            uniqueMatch: TRUE # uses mappability profile to correct read counts
+            uniqueMatch: FALSE # uses mappability profile to correct read counts
             
             #optional options: (uncomment these options in config_WGS.txt to implement them)
             #if implemented, contamination will overrule contaminationAdjustment
