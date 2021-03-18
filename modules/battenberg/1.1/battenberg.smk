@@ -69,6 +69,8 @@ rule _battenberg_get_reference:
         folder = CFG["dirs"]["inputs"] + "reference/{genome_build}",
         build = lambda w: "hg38" if "38" in str({w.genome_build}) else "grch37",
         PATH = CFG['inputs']['src_dir']
+    conda:
+        CFG["conda_envs"]["battenberg"]
     shell:
         op.as_one_line("""
         wget -qO-  {params.url}/battenberg_impute_{params.build}.tar.gz  |
