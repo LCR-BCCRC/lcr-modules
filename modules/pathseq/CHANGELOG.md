@@ -18,3 +18,5 @@ This release was authored by Kostiantyn Dreval.
 - The cut-off for assigning EBV status can be provided through config and will be used to determine EBV-positivity. It should be provided as a fraction of EBV reads relative to the total number of mapped reads.
 
 - Currently it is designed to run on all samples, including bam/cram, rnaseq/genome, and tumour/normal. This can be modified in later versions as needed.
+
+- Temp files are generated in the output directory before writing finaal bam and are located in the folder with `parts` name. Pathseq hangs on indefinitely and does not exit with error if cancelled midway through and generated temp files. Therefore, rule `_pathseq_run` will clear temp files first if they exist.
