@@ -38,7 +38,6 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "pathseq",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "flagstat", "pathseq", "outputs"],
 )
 
