@@ -1449,13 +1449,13 @@ def generate_pairs(samples, unmatched_normal_ids=None, **seq_types):
     # Generate the runs using the generated pairing configuration
     samples = filter_samples(samples, seq_type=list(seq_types.keys()))
     runs = generate_runs(samples, pairing_config, unmatched_normal_ids, subgroups)
-
+	
     return runs
 
 ###### UNDER DEVELOPMENT ######
 
 def generate_sets(samples, unmatched_normal_ids=None, **seq_types):
-    """Generate tumour-normal pairs using sensible defaults.
+    """Generate tumour-normal sets using sensible defaults.
 
     Each sequencing data type (``seq_type``) is provided as
     separate arguments with a specified "pairing mode". This
@@ -1469,7 +1469,7 @@ def generate_sets(samples, unmatched_normal_ids=None, **seq_types):
 
        .. code:: python
 
-          generate_pairs(SAMPLES, genome='matched_only')
+          generate_sets(SAMPLES, genome='matched_only')
 
     2. ``allow_unmatched``: All tumour samples will be returned
        whether they are paired with a matched normal sample
@@ -1481,17 +1481,17 @@ def generate_sets(samples, unmatched_normal_ids=None, **seq_types):
 
        .. code:: python
 
-          generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'))
+          generate_sets(SAMPLES, genome=('allow_unmatched', 'PT003-N'))
 
     3. ``no_normal``: All tumour samples will be returned
        without a paired normal sample. This is simply a
        shortcut for filtering for tumour samples, but this
        ensures that the column names will be consistent
-       with other calls to ``generate_pairs()``.
+       with other calls to ``generate_sets()``.
 
        .. code:: python
 
-          generate_pairs(SAMPLES, mrna='no_normal')
+          generate_sets(SAMPLES, mrna='no_normal')
 
     Parameters
     ----------
@@ -1538,7 +1538,7 @@ def generate_sets(samples, unmatched_normal_ids=None, **seq_types):
     tumour samples will be returned without matched or
     unmatched normal samples.
 
-    >>> PAIRS = generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'),
+    >>> SETS = generate_sets(SAMPLES, genome=('allow_unmatched', 'PT003-N'),
     >>>                        capture='matched_only', mrna='no_normal')
     """
 
@@ -1587,7 +1587,7 @@ def generate_sets(samples, unmatched_normal_ids=None, **seq_types):
             "The 'allow_unmatched' mode must be provided with the "
             "`unmatched_normal_ids` parameter or paired with a normal "
             "sample ID, such as:\n    "
-            "generate_pairs(SAMPLES, genome=('allow_unmatched', 'PT003-N'))\n"
+            "generate_sets(SAMPLES, genome=('allow_unmatched', 'PT003-N'))\n"
         )
 
         pairing_config[seq_type] = pairing_modes[mode]
