@@ -42,20 +42,14 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "flagstat", "pathseq", "outputs"],
 )
 
-# Filter samples to include only tumours and discard normal samples
-config["lcr-modules"]["pathseq"]["samples"] = op.discard_samples(SAMPLES, tissue_status="normal")
-
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _pathseq_input_bam,
-    _pathseq_input_references,
-    _pathseq_reference_img,
-    _pathseq_reference_bfi,
+    _pathseq_input_fasta,
+    _pathseq_fasta_dictionary,
     _pathseq_download_microbe_references,
     _pathseq_download_taxonomy,
-    _pathseq_collect_flagstats,
     _pathseq_calculate_ebv,
     _pathseq_output,
     _pathseq_all
@@ -77,32 +71,66 @@ rule _pathseq_input_bam:
         op.absolute_symlink(input.bam+ ".bai", output.crai)
 
 
-# Setup shared reference files. Symlinking these files to 00-inputs to ensure index and dictionary are present
-# before pipeline starts, otherwise on a fresh directory dictionary is not created and worflow exits.
-rule _pathseq_input_references: 
+# Setup shared reference files. We need fasta file without EBV chromosome to be used in Pathseq module, so will process
+# fasta file here and create index for the new fasta
+rule _pathseq_input_fasta: 
     input: 
-        genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        genome_fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
-        genome_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
+        genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output: 
-        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa", 
-        genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa.fai", 
-        genome_dict = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.dict"
+        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.noEBV.fa", 
+        genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.noEBV.fa.fai"
+    conda:
+        CFG["conda_envs"]["samtools"]
+    threads:
+        CFG["threads"]["reference"]
+    resources:
+        **CFG["resources"]["reference"]
     shell: 
         op.as_one_line("""
-        ln -s {input.genome_fa} {output.genome_fa} &&
-        ln -s {input.genome_fai} {output.genome_fai} &&
-        ln -s {input.genome_dict} {output.genome_dict}
+        cat {input.genome_fa} | perl -ne 'print if not /^\>(chr)EBV/../^[X]+\s.+/' > {output.genome_fa} &&
+        samtools faidx {output.genome_fa} -o {output.genome_fai}
         """)
 
+# create dictionary for the fasta without EBV
+rule _pathseq_fasta_dictionary:
+    input: 
+        genome_fa = str(rules._pathseq_input_fasta.output.genome_fa),
+        genome_fai = str(rules._pathseq_input_fasta.output.genome_fai)
+    output:
+        genome_dict = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.noEBV.fa.dict"
+    log:
+        stdout = CFG["logs"]["inputs"] + "references/{genome_build}/genome_{genome_build}.CreateSequenceDictionary.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "references/{genome_build}/genome_{genome_build}.CreateSequenceDictionary.stderr.log"
+    params:
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    conda:
+        CFG["conda_envs"]["picard"]
+    threads:
+        CFG["threads"]["reference"]
+    resources:
+        **CFG["resources"]["reference"]
+    shell:
+        op.as_one_line("""
+          picard CreateSequenceDictionary
+          R={input.genome_fa}
+          O={output.genome_dict}
+          > {log.stdout}
+          2> {log.stderr}
+        """)    
 
-# Create the k-mer file following GATK recommendations
+# Create k-mer file following GATK recommendations
 rule _pathseq_reference_img:
     input: 
-        genome_fa = str(rules._pathseq_input_references.output.genome_fa),
-        genome_fai = str(rules._pathseq_input_references.output.genome_fai)
+        genome_fa = str(rules._pathseq_input_fasta.output.genome_fa),
+        genome_fai = str(rules._pathseq_input_fasta.output.genome_fai),
+        genome_dict= str(rules._pathseq_fasta_dictionary.output.genome_dict)
     output:
-        genome_img = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_{genome_build}.fa.img"
+        genome_img = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_{genome_build}.hss"
+    log:
+        stdout = CFG["logs"]["inputs"] + "references/{genome_build}/genome_{genome_build}.PathSeqBuildKmers.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "references/{genome_build}/genome_{genome_build}.PathSeqBuildKmers.stderr.log"
+    params:
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -111,22 +139,26 @@ rule _pathseq_reference_img:
         **CFG["resources"]["reference"]
     shell:
         op.as_one_line("""
-          gatk-launch PathSeqBuildKmers
-          --referencePath {input.genome_fa}
-          --bloomFalsePositiveProbability 0.001
-          --kSize 31
-          --kmerMask 15
-          -O {output.genome_img}
+          gatk PathSeqBuildKmers
+          --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
+          --reference {input.genome_fa}
+          --output {output.genome_img}
+          > {log.stdout}
+          2> {log.stderr}
         """)    
 
 
 # Create BWA-MEM index image of the reference
 rule _pathseq_reference_bfi:
     input: 
-        genome_fa = str(rules._pathseq_input_references.output.genome_fa),
-        genome_fai = str(rules._pathseq_input_references.output.genome_fai)
+        genome_fa = str(rules._pathseq_input_fasta.output.genome_fa),
+        genome_fai = str(rules._pathseq_input_fasta.output.genome_fai),
+        genome_dict= str(rules._pathseq_fasta_dictionary.output.genome_dict)
     output:
-        genome_bfi = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_{genome_build}.bfi"
+        genome_bfi = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_{genome_build}.img"
+    log:
+        stdout = CFG["logs"]["inputs"] + "references/{genome_build}/genome_{genome_build}.BwaMemIndexImageCreator.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "references/{genome_build}/genome_{genome_build}.BwaMemIndexImageCreator.stderr.log"
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -138,42 +170,32 @@ rule _pathseq_reference_bfi:
           gatk BwaMemIndexImageCreator
           -I {input.genome_fa}
           -O {output.genome_bfi}
+          > {log.stdout}
+          2> {log.stderr}
         """)
 
 
 # Download specific reference files
 rule _pathseq_download_microbe_references: 
-    input: 
-        genome_fa = str(rules._pathseq_input_references.output.genome_fa)
     output: 
-        microbe_fasta = CFG["dirs"]["inputs"] + "references/microbe_reference/pathseq_microbe.{genome_build}.fa",
-        microbe_fai = CFG["dirs"]["inputs"] + "references/microbe_reference/pathseq_microbe.{genome_build}.fa.fai",
-        microbe_dict = CFG["dirs"]["inputs"] + "references/microbe_reference/pathseq_microbe.{genome_build}.dict",
-        microbe_image = CFG["dirs"]["inputs"] + "references/microbe_reference/pathseq_microbe.{genome_build}.fa.img"
+        microbe_fasta = CFG["dirs"]["inputs"] + "references/microbe_reference/pathseq_microbe.fa",
+        microbe_fai = CFG["dirs"]["inputs"] + "references/microbe_reference/pathseq_microbe.fa.fai",
+        microbe_dict = CFG["dirs"]["inputs"] + "references/microbe_reference/pathseq_microbe.dict",
+        microbe_image = CFG["dirs"]["inputs"] + "references/microbe_reference/pathseq_microbe.fa.img"
     params:
         url = 'ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/pathseq/pathseq_microbe.tar.gz',
         folder = CFG["dirs"]["inputs"] + "references/microbe_reference"
     shell: 
         op.as_one_line("""
         wget -qO- {params.url} |
-        tar xzf - -C {params.folder}
-          &&
-        ln -s {params.folder}/pathseq_microbe.fa {output.microbe_fasta}
-          &&
-        ln -s {params.folder}/pathseq_microbe.fa.fai {output.microbe_fai}
-          &&
-        ln -s {params.folder}/pathseq_microbe.dict {output.microbe_dict}
-          &&
-        ln -s {params.folder}/pathseq_microbe.fa.img {output.microbe_image}       
+        tar xzf - -C {params.folder}  
         """)
 
 
 # Download pathogene taxonomy
 rule _pathseq_download_taxonomy: 
-    input: 
-        genome_fa = str(rules._pathseq_input_references.output.genome_fa)
     output:
-        taxonomy = CFG["dirs"]["inputs"] + "references/microbe_reference/pathseq_taxonomy.{genome_build}.db"
+        taxonomy = CFG["dirs"]["inputs"] + "references/microbe_reference/pathseq_taxonomy.db"
     params:
         url = 'ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/pathseq/pathseq_taxonomy.tar.gz',
         folder = CFG["dirs"]["inputs"] + "references/microbe_reference"
@@ -181,8 +203,6 @@ rule _pathseq_download_taxonomy:
         op.as_one_line("""
         wget -qO- {params.url} |
         tar xzf - -C {params.folder}
-          &&
-        ln -s {params.folder}/pathseq_taxonomy.db {output.taxonomy}
         """)
 
 
@@ -204,12 +224,12 @@ rule _pathseq_collect_flagstats:
         """)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
+# Run Pathseq analysis
 rule _pathseq_run:
     input:
         bam = str(rules._pathseq_input_bam.output.bam),
-        genome_img = str(rules._pathseq_reference_img.output.genome_img),
-        k_mers = str(rules._pathseq_reference_bfi.output.genome_bfi),
+        k_mers = str(rules._pathseq_reference_img.output.genome_img),
+        genome_img = str(rules._pathseq_reference_bfi.output.genome_bfi),
         taxonomy = str(rules._pathseq_download_taxonomy.output.taxonomy),
         microbe_dict = str(rules._pathseq_download_microbe_references.output.microbe_dict),
         microbe_image = str(rules._pathseq_download_microbe_references.output.microbe_image)
@@ -230,6 +250,8 @@ rule _pathseq_run:
         **CFG["resources"]["pathseq"]
     shell:
         op.as_one_line("""
+          if [ -e {output.bam}.parts ]; then rm -R {output.bam}.parts; fi
+              &&
           gatk PathSeqPipelineSpark --spark-master local[{threads}]
           --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
           --input {input.bam}
@@ -252,7 +274,7 @@ rule _pathseq_calculate_ebv:
         scores = str(rules._pathseq_run.output.scores),
         flagstats = str(rules._pathseq_collect_flagstats.output.flagstat)
     output:
-        ebv_status = CFG["dirs"]["pathseq"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.{genome_build}.pathseq_ebv_results.bam"
+        ebv_status = CFG["dirs"]["pathseq"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.{genome_build}.pathseq_ebv_results.tsv"
     params:
         opts = CFG["options"]["ebv_cutoff"]
     conda:
@@ -272,8 +294,8 @@ rule _pathseq_output:
         scores = str(rules._pathseq_run.output.scores),
         ebv_status = str(rules._pathseq_calculate_ebv.output.ebv_status)
     output:
-        scores = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{sample_id}.pathseq_scores.txt",
-        ebv_status = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{sample_id}.ebv_status.txt"
+        scores = CFG["dirs"]["outputs"] + "scores/{seq_type}--{genome_build}/{sample_id}.pathseq_scores.txt",
+        ebv_status = CFG["dirs"]["outputs"] + "ebv_status/{seq_type}--{genome_build}/{sample_id}.ebv_status.tsv"
     run:
         op.relative_symlink(input.scores, output.scores, in_module=True)
         op.relative_symlink(input.ebv_status, output.ebv_status, in_module=True)

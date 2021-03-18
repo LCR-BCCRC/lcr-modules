@@ -27,9 +27,12 @@ suppressWarnings(suppressPackageStartupMessages({
 
 
 # this is used to assign EBV-status down below
-CUTOFF <- c(-Inf, snakemake@params[[1]], Inf)
+CUTOFF <-(str_split_fixed(sub("\\ +,*", "",snakemake@params[[1]]), ",", 2))
+CUTOFF <- c(-Inf, as.numeric(CUTOFF[1]), as.numeric(CUTOFF[2]),  Inf)
 # I am also saving the cutoff values separated by pipe character to provide this information in the output file
-cutoff <- paste0(format(cutoff[1], scientific = FALSE), "|", format(cutoff[2], scientific = FALSE))
+cutoff <- paste0(format(CUTOFF[2], scientific = FALSE), "|", format(CUTOFF[3], scientific = FALSE))
+print(CUTOFF)
+print(snakemake@wildcards)
 
 # read flagstat file and get the number of mapped reads
 FLAGSTAT <- readLines(snakemake@input[[2]])
@@ -57,8 +60,10 @@ if (all(is.na(COORDINATES))){
   PATHSEQ.RESULTS <- rbind(PATHSEQ.RESULTS, DATA[COORDINATES[1,1],])
 }
 
+print(PATHSEQ.RESULTS)
 # Assemble the output table
-PATHSEQ.RESULTS <- cbind(PATHSEQ.RESULTS, snakemake@wildcards[["sample_id"]], mapped_reads) %>%
+PATHSEQ.RESULTS <- cbind(PATHSEQ.RESULTS, snakemake@wildcards$sample_id, mapped_reads) %>%
+  `colnames<-`(c(colnames(PATHSEQ.RESULTS), "sample_id", "mapped_reads")) %>%
   # rename column with reads and calsulate fraction of ebv reads
   mutate(ebv_reads=unambiguous,
          ebv_reads_fraction=ebv_reads/mapped_reads) %>%
@@ -68,7 +73,7 @@ PATHSEQ.RESULTS <- cbind(PATHSEQ.RESULTS, snakemake@wildcards[["sample_id"]], ma
   cbind(.,cutoff)
 
 # assign EBV status
-PATHSEQ.RESULTS$ebv_status <- cut(PATHSEQ.RESULTS$ebv_reads_fraction, breaks=c(-Inf, 0.0004, 0.0008, Inf), label=c("EBV-Negative", "EBV-Intermediate", "EBV-Positive"))
+PATHSEQ.RESULTS$ebv_status <- cut(PATHSEQ.RESULTS$ebv_reads_fraction, breaks=CUTOFF, label=c("EBV-Negative", "EBV-Intermediate", "EBV-Positive"))
 
 # write final file
 write_tsv(PATHSEQ.RESULTS, snakemake@output[[1]])
