@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 #
 
-# This script will use number of mapped reads from flagstat and Pathseq output to calsulate the EBV status of the sample
+# This script will use number of mapped reads from flagstat and Pathseq output to calculate the EBV status of the sample
 # based on the cut-off values that are provided by user in config file. It assumes 3 types of possible EBV status, being
 # EBV-positive, EBV-intermediate, and EBV-negative.
 
@@ -26,13 +26,12 @@ suppressWarnings(suppressPackageStartupMessages({
 }))
 
 
-# this is used to assign EBV-status down below
+# this is used to assign EBV-status below
 CUTOFF <-(str_split_fixed(sub("\\ +,*", "",snakemake@params[[1]]), ",", 2))
 CUTOFF <- c(-Inf, as.numeric(CUTOFF[1]), as.numeric(CUTOFF[2]),  Inf)
 # I am also saving the cutoff values separated by pipe character to provide this information in the output file
 cutoff <- paste0(format(CUTOFF[2], scientific = FALSE), "|", format(CUTOFF[3], scientific = FALSE))
-print(CUTOFF)
-print(snakemake@wildcards)
+
 
 # read flagstat file and get the number of mapped reads
 FLAGSTAT <- readLines(snakemake@input[[2]])
@@ -50,7 +49,7 @@ DATA <- read.delim(file=snakemake@input[[1]], sep = '\t', header = TRUE)
 PATHSEQ.RESULTS <- data.frame(matrix(ncol=10,nrow=0))
 colnames(PATHSEQ.RESULTS) <- colnames(DATA)
 
-# Seqrch the coordinates of the cell with EBV report
+# Search the coordinates of the cell with EBV report
 COORDINATES <- which (DATA=="Human_gammaherpesvirus_4", arr.ind = TRUE)
 # If no EBV in report file, add empty row to the DF with Pathseq results and replace the NA value with 0
 if (all(is.na(COORDINATES))){
@@ -60,7 +59,6 @@ if (all(is.na(COORDINATES))){
   PATHSEQ.RESULTS <- rbind(PATHSEQ.RESULTS, DATA[COORDINATES[1,1],])
 }
 
-print(PATHSEQ.RESULTS)
 # Assemble the output table
 PATHSEQ.RESULTS <- cbind(PATHSEQ.RESULTS, snakemake@wildcards$sample_id, mapped_reads) %>%
   `colnames<-`(c(colnames(PATHSEQ.RESULTS), "sample_id", "mapped_reads")) %>%
