@@ -11,7 +11,7 @@ lcr-modules:
         options:
             min_read_length: "__UPDATE__" # The reads shorter than this length will be filtered out by Pathseq. Enter number of bp in read, for example: 70
             ebv_cutoff: "__UPDATE__" # provide a list of cutoff values for calling sample EBV-negative, intermediate, or positive
-                                      # It should be as proportion of readsto total reads, for example: [0.00004, 0.00008]
+                                      # It should be as proportion of reads to total reads, for example: [0.00004, 0.00008]
 
         conda_envs:
             picard: "{MODSDIR}/envs/picard-2.22.3.yaml"
