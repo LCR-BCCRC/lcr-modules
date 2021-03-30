@@ -115,8 +115,8 @@ rule _pathseq_fasta_dictionary:
           picard CreateSequenceDictionary
           R={input.genome_fa}
           O={output.genome_dict}
-          > {log.stdout}
-          2> {log.stderr}
+          >> {log.stdout}
+          2>> {log.stderr}
         """)    
 
 # Create k-mer file following GATK recommendations
@@ -144,8 +144,8 @@ rule _pathseq_reference_img:
           --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
           --reference {input.genome_fa}
           --output {output.genome_img}
-          > {log.stdout}
-          2> {log.stderr}
+          >> {log.stdout}
+          2>> {log.stderr}
         """)    
 
 
@@ -171,8 +171,8 @@ rule _pathseq_reference_bfi:
           gatk BwaMemIndexImageCreator
           -I {input.genome_fa}
           -O {output.genome_bfi}
-          > {log.stdout}
-          2> {log.stderr}
+          >> {log.stdout}
+          2>> {log.stderr}
         """)
 
 
@@ -253,6 +253,7 @@ rule _pathseq_run:
         op.as_one_line("""
           if [ -e {output.bam}.parts ]; then rm -R {output.bam}.parts; fi
               &&
+          echo "running {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
           gatk PathSeqPipelineSpark --spark-master local[{threads}]
           --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
           --input {input.bam}
@@ -264,8 +265,9 @@ rule _pathseq_run:
           --taxonomy-file {input.taxonomy}
           --output {output.bam}
           --scores-output {output.scores}
-          > {log.stdout}
-          2> {log.stderr}
+          >> {log.stdout}
+          2>> {log.stderr} &&  
+          echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
         """)
 
 
