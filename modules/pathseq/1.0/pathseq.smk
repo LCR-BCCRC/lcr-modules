@@ -243,7 +243,7 @@ rule _pathseq_run:
     params:
         min_read_length = CFG["options"]["min_read_length"],
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8),
-        flags = CFG["options"]["min_read_length"]
+        flags = CFG["options"]["flags"]
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
