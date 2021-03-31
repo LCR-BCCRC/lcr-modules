@@ -54,9 +54,9 @@ localrules:
     _battenberg_all
 
 VERSION_MAP = {
-    "hg19": "hg19",
-    "grch37": "hg19",
-    "hs37d5": "hg19",
+    "hg19": "grch37",
+    "grch37": "grch37",
+    "hs37d5": "grch37",
     "hg38": "hg38",
     "grch38": "hg38",
     "grch38-legacy": "hg38"
@@ -86,26 +86,27 @@ rule _battenberg_get_refrence:
         genomesloci = directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_1000genomesloci2012_v3")
     params:
         url = "https://www.bcgsc.ca/downloads/morinlab/reference",
-        folder = CFG["dirs"]["inputs"] + "reference/{genome_build}",
-        build = lambda w: "hg38" if "38" in str({w.genome_build}) else "grch37",
+        alt_build = lambda w: VERSION_MAP[w.genome_build],
+        folder = CFG["dirs"]["inputs"] + "reference",
+        build = lambda w: "grch37" if "37" in str({w.genome_build}) else "hg38",
         PATH = CFG['inputs']['src_dir']
     shell:
         op.as_one_line("""
         wget -qO-  {params.url}/battenberg_impute_{params.build}.tar.gz  |
-        tar -xvz > {output.battenberg_impute} -C {params.folder}
+        tar -xvz > {output.battenberg_impute} -C {params.folder}/{params.build}
         &&
         wget -qO- {params.url}/battenberg_{params.build}_gc_correction.tar.gz  |
-        tar -xvz > {output.battenberg_gc_correction} -C {params.folder}
+        tar -xvz > {output.battenberg_gc_correction} -C {params.folder}/{params.build}
         &&
         wget -qO- {params.url}/battenberg_1000genomesloci_{params.build}.tar.gz | 
-        tar -xvz > {output.genomesloci} -C {params.folder}
+        tar -xvz > {output.genomesloci} -C {params.folder}/{params.build}
         &&
         wget -O {output.impute_info} 'https://ora.ox.ac.uk/objects/uuid:2c1fec09-a504-49ab-9ce9-3f17bac531bc/download_file?file_format=plain&safe_filename=impute_info.txt&type_of_work=Dataset'
         &&
-        python {params.PATH}/refrence_correction.py {params.build}
+        python {params.PATH}/refrence_correction.py {params.build}/{params.build}
         &&
         wget -qO-  {params.url}/battenberg_{params.build}_replic_correction.tar.gz |
-        tar -xvz > {output.battenberg_wgs_replic_correction} -C {params.folder}
+        tar -xvz > {output.battenberg_wgs_replic_correction} -C {params.folder}/{params.build}
         &&
         wget -O {output.probloci} {params.url}/probloci_{params.build}.txt.gz
         
@@ -151,6 +152,8 @@ rule _infer_patient_sex:
         **CFG["resources"]["infer_sex"]
     log:
         stderr = CFG["logs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}_infer_sex_stderr.log"
+    conda:
+        CFG["conda_envs"]["samtools"]
     group: "setup_run"
     threads: 8
     shell:
