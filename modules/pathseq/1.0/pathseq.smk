@@ -242,7 +242,8 @@ rule _pathseq_run:
         stderr = CFG["logs"]["pathseq"] + "{seq_type}--{genome_build}/{sample_id}/run_pathseq.stderr.log"
     params:
         min_read_length = CFG["options"]["min_read_length"],
-        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        flags = CFG["options"]["min_read_length"]
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -256,6 +257,7 @@ rule _pathseq_run:
           echo "running {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
           gatk PathSeqPipelineSpark --spark-master local[{threads}]
           --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
+          {params.flags}
           --input {input.bam}
           --filter-bwa-image {input.genome_img}
           --kmer-file {input.k_mers}
