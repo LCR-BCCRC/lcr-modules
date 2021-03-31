@@ -36,6 +36,7 @@ configfile: "../modules/picard_qc/1.0/config/default.yaml"
 configfile: "../modules/bam2fastq/1.2/config/default.yaml"
 configfile: "../modules/manta/2.3/config/default.yaml"
 configfile: "../modules/mixcr/1.1/config/default.yaml"
+configfile: "../modules/pathseq/1.0/config/default.yaml"
 
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
@@ -60,6 +61,7 @@ include: "../modules/picard_qc/1.0/picard_qc.smk"
 include: "../modules/bam2fastq/1.2/bam2fastq.smk"
 include: "../modules/manta/2.3/manta.smk"
 include: "../modules/mixcr/1.1/mixcr.smk"
+include: "../modules/pathseq/1.0/pathseq.smk"
 
 ##### TARGETS ######
 
@@ -70,5 +72,7 @@ rule all:
         rules._star_all.input,
         rules._bam2fastq_all.input, 
         rules._manta_all.input,
-        rules._mixcr_all.input
+        rules._mixcr_all.input,
+        rules._pathseq_all.input
+
        

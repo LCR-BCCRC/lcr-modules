@@ -44,6 +44,7 @@ configfile: "../modules/battenberg/1.1/config/default.yaml"
 configfile: "../modules/mutect2/2.0/config/default.yaml"
 configfile: "../modules/varscan/1.1/config/default.yaml"
 configfile: "../modules/liftover/1.2/config/default.yaml"
+configfile: "../modules/pathseq/1.0/config/default.yaml"
 
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
@@ -76,7 +77,7 @@ include: "../modules/battenberg/1.1/battenberg.smk"
 include: "../modules/mutect2/2.0/mutect2.smk"
 include: "../modules/varscan/1.1/varscan.smk"
 include: "../modules/liftover/1.2/liftover.smk"
-
+include: "../modules/pathseq/1.0/pathseq.smk"
 
 
 ##### TARGETS ######
@@ -97,5 +98,5 @@ rule all:
         rules._mutect2_all.input,
         rules._varscan_all.input,
         rules._liftover_all.input,
-        rules._battenberg_all.input
-
+        rules._battenberg_all.input,
+        rules._pathseq_all.input
