@@ -61,15 +61,16 @@ localrules:
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _pathseq_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        bam = CFG["inputs"]["sample_bam"],
+        bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
         op.absolute_symlink(input.bam, output.bam)
-        op.absolute_symlink(input.bam+ ".bai", output.bai)
-        op.absolute_symlink(input.bam+ ".bai", output.crai)
+        op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 
 # Setup shared reference files. We need fasta file without EBV chromosome to be used in Pathseq module, so will process
