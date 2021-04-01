@@ -125,7 +125,8 @@ if (!is.null(libdir) && libdir != "None"){
 }
 
 ## load seqinfo 
-seqinfo <- getSeqInfo(genomeBuild, genomeStyle)
+# seqinfo <- getSeqInfo(genomeBuild, genomeStyle)
+seqinfo <- NULL
 
 if (substr(tumour_file,nchar(tumour_file)-2,nchar(tumour_file)) == "wig") {
   wigFiles <- data.frame(cbind(patientID, tumour_file))

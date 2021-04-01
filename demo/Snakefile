@@ -37,6 +37,7 @@ configfile: "../modules/utils/2.0/config/default.yaml"
 configfile: "../modules/bwa_mem/1.0/config/default.yaml"
 configfile: "../modules/liftover/1.0/config/default.yaml"
 configfile: "../modules/controlfreec/1.1/config/default.yaml"
+configfile: "../modules/ichorcna/1.0/config/default.yaml"
 
 
 # Load project-specific config, which includes the shared 
@@ -67,7 +68,7 @@ include: "../modules/utils/2.0/utils.smk"
 include: "../modules/bwa_mem/1.0/bwa_mem.smk"
 include: "../modules/liftover/1.0/liftover.smk"
 include: "../modules/controlfreec/1.1/controlfreec.smk"
-
+include: "../modules/ichorcna/1.0/ichorcna.smk"
 
 
 ##### TARGETS ######
@@ -83,4 +84,5 @@ rule all:
         rules._strelka_all.input,
         rules._bwa_mem_all.input,
         rules._liftover_all.input,
-        rules._controlfreec_all.input
+        rules._controlfreec_all.input,
+        rules._ichorcna_all.input

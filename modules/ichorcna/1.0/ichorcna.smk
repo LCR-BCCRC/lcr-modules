@@ -44,6 +44,7 @@ localrules:
 ##### RULES #####
 # ---------------------------------------------------------------------------- #
 
+CFG["runs"]["binSize"] = str(CFG["options"]["readcounter"]["binSize"])
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _ichorcna_input_bam:
@@ -52,10 +53,12 @@ rule _ichorcna_input_bam:
         bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai" # specific to readCounter
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai", # specific to readCounter
+        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai" 
     run:
         op.relative_symlink(input.bam, output.bam)
         op.relative_symlink(input.bai, output.bai)
+        op.relative_symlink(input.bai, output.crai)
      
 
 rule _ichorcna_read_counter:
@@ -173,7 +176,7 @@ rule _ichorcna_all:
             pair_status=CFG["runs"]["pair_status"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
-            binSize=str(CFG["options"]["readcounter"]["binSize"]))
+            binSize=CFG["runs"]["binSize"])
 
 
 
