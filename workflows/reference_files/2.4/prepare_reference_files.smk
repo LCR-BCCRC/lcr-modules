@@ -54,7 +54,8 @@ rule all:
                 rules.get_blacklist_download.output.bed, 
                 rules.get_repeatmasker_download.output.bed, 
                 rules.get_mutect2_pon.output.vcf, 
-                rules.get_af_only_gnomad_vcf.output.vcf
+                rules.get_af_only_gnomad_vcf.output.vcf,
+                rules.get_jabba_gc_rds.output.rds
             ],
             genome_build=config["genome_builds"].keys(),
             bwa_version=config["tools"]["bwa"]["version"],
