@@ -212,6 +212,20 @@ rule get_jabba_gc_rds:
             -e 'gr$score <- as.numeric(gr$score); saveRDS(gr, "{output.rds}")'
         """)
 
+rule get_jabba_map_rds:
+    input:
+        bed = get_download_file(rules.download_ucsc_map.output.bed)
+    output:
+        rds = "genomes/{genome_build}/annotations/jabba/map1000.rds"
+    conda: CONDA_ENVS["rtracklayer"]
+    shell:
+        op.as_one_line("""
+        Rscript
+            -e 'library(rtracklayer); gr <- import("{input.bed}")'
+            -e 'names(mcols(gr))[1] <- "score"; gr[gr$score == "nan",]$score <- 0'
+            -e 'gr$score <- as.numeric(gr$score); saveRDS(gr, "{output.rds}")'
+        """)
+
 
 ##### VARIATION #####
 

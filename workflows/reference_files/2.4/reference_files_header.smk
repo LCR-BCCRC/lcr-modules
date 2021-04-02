@@ -404,6 +404,25 @@ rule download_ucsc_gc:
         wiggletools apply_paste {output.bed} meanI {input.bed} downloads/gc1000_beds/{wildcards.version}.gc5Base.bw
         """)
 
+rule download_ucsc_map:
+    input:
+        bed = rules.make_1kb_genome_bed.output.bed
+    output:
+        bed = 'downloads/map1000_beds/map1000.{version}.bed'
+    params:
+        provider = 'ucsc',
+        url = lambda w: {
+            'grch37': 'http://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeMapability/wgEncodeCrgMapabilityAlign100mer.bigWig',
+            'grch38': 'http://hgdownload.soe.ucsc.edu/gbdb/hg38/hoffmanMappability/k100.Umap.MultiTrackMappability.bw'
+        }[w.version]
+    conda: CONDA_ENVS['wiggletools']
+    shell:
+        op.as_one_line("""
+        wget -qO downloads/map1000_beds/{wildcards.version}.map.bw {params.url}
+            &&
+        wiggletools apply_paste {output.bed} meanI {input.bed} downloads/map1000_beds/{wildcards.version}.map.bw
+        """)
+
 
 ##### FUNCTIONS #####
 
