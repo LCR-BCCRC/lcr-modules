@@ -76,6 +76,15 @@ tools:
     gsutil: 
         conda_env: "envs/gsutil-4.53.yaml"
         version: "4.53"
+    bedtools:
+        conda_env: "envs/bedtools-2.29.2.yaml"
+        version: "2.29.2"
+    wiggletools:
+        conda_env: "envs/wiggletools-1.2.10.yaml"
+        version: "1.2.10"
+    rtracklayer:
+        conda_env: "envs/rtracklayer-1.50.0.yaml"
+        version: "1.50.0"
 
 cvbio_config:
     gtf: 
