@@ -27,8 +27,10 @@ except ModuleNotFoundError:
 
 current_version = pkg_resources.get_distribution("oncopipe").version
 if version.parse(current_version) < version.parse(min_oncopipe_version):
-    print(f"ERROR: oncopipe version installed: {current_version}")
-    print(f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment")
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
 # End of dependency checking section    
@@ -50,13 +52,33 @@ _battenberg_CFG = CFG
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _battenberg_get_reference
+    _battenberg_get_refrence
     _battenberg_all
+
+VERSION_MAP = {
+    "hg19": "grch37",
+    "grch37": "grch37",
+    "hs37d5": "grch37",
+    "hg38": "hg38",
+    "grch38": "hg38",
+    "grch38-legacy": "hg38"
+
+}
+
+possible_genome_builds = VERSION_MAP.keys()
+for genome_build in CFG["runs"]["tumour_genome_build"]:
+    assert genome_build in possible_genome_builds, (
+        "Samples table includes genome builds not yet compatible with this module. "
+        "This module is currently only compatible with {possible_genome_builds}. "
+    )
+
+wildcard_constraints: 
+    genome_build = "|".join(VERSION_MAP.keys())
 
 ##### RULES #####
 
-# Downloads the reference files into the module results directory (under '00-inputs/') from https://www.bcgsc.ca/downloads/morinlab/reference/ . 
-rule _battenberg_get_reference:
+# Downloads the refrence files into the module results directory (under '00-inputs/') from https://www.bcgsc.ca/downloads/morinlab/reference/ . 
+rule _battenberg_get_refrence:
     output:
         battenberg_impute =  directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_impute_v3"),
         impute_info = CFG["dirs"]["inputs"] + "reference/{genome_build}/impute_info.txt",
@@ -66,30 +88,30 @@ rule _battenberg_get_reference:
         genomesloci = directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_1000genomesloci2012_v3")
     params:
         url = "https://www.bcgsc.ca/downloads/morinlab/reference",
+        alt_build = lambda w: VERSION_MAP[w.genome_build],
         folder = CFG["dirs"]["inputs"] + "reference/{genome_build}",
-        build = lambda w: "hg38" if "38" in str({w.genome_build}) else "grch37",
+        build = lambda w: "grch37" if "37" in str({w.genome_build}) else "hg38",
         PATH = CFG['inputs']['src_dir']
-    conda:
-        CFG["conda_envs"]["battenberg"]
+        
     shell:
         op.as_one_line("""
-        wget -qO-  {params.url}/battenberg_impute_{params.build}.tar.gz  |
+        wget -qO-  {params.url}/battenberg_impute_{params.alt_build}.tar.gz  |
         tar -xvz > {output.battenberg_impute} -C {params.folder}
         &&
-        wget -qO- {params.url}/battenberg_{params.build}_gc_correction.tar.gz  |
+        wget -qO- {params.url}/battenberg_{params.alt_build}_gc_correction.tar.gz  |
         tar -xvz > {output.battenberg_gc_correction} -C {params.folder}
         &&
-        wget -qO- {params.url}/battenberg_1000genomesloci_{params.build}.tar.gz | 
+        wget -qO- {params.url}/battenberg_1000genomesloci_{params.alt_build}.tar.gz | 
         tar -xvz > {output.genomesloci} -C {params.folder}
         &&
         wget -O {output.impute_info} 'https://ora.ox.ac.uk/objects/uuid:2c1fec09-a504-49ab-9ce9-3f17bac531bc/download_file?file_format=plain&safe_filename=impute_info.txt&type_of_work=Dataset'
         &&
-        python {params.PATH}/reference_correction.py {params.build}
+        python {params.PATH}/reference_correction.py {genome_build}
         &&
-        wget -qO-  {params.url}/battenberg_{params.build}_replic_correction.tar.gz |
+        wget -qO-  {params.url}/battenberg_{params.alt_build}_replic_correction.tar.gz |
         tar -xvz > {output.battenberg_wgs_replic_correction} -C {params.folder}
         &&
-        wget -O {output.probloci} {params.url}/probloci_{params.build}.txt.gz
+        wget -O {output.probloci} {params.url}/probloci_{params.alt_build}.txt.gz
         
         """)
 
@@ -133,6 +155,8 @@ rule _infer_patient_sex:
         **CFG["resources"]["infer_sex"]
     log:
         stderr = CFG["logs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}_infer_sex_stderr.log"
+    conda:
+        CFG["conda_envs"]["samtools"]
     group: "setup_run"
     threads: 8
     shell:
@@ -169,8 +193,8 @@ rule _run_battenberg:
         stdout = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stdout.log",
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stderr.log"
     params:
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         script = CFG["inputs"]["battenberg_script"],
-        chr_prefixed = lambda w: _battenberg_CFG["options"]["chr_prefixed_reference"][w.genome_build],
         out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
         ref = CFG["dirs"]["inputs"] + "reference/{genome_build}"
     conda:
@@ -181,12 +205,13 @@ rule _run_battenberg:
         CFG["threads"]["battenberg"]
     shell:
        op.as_one_line("""
+        if [[ $(head -c 4 {params.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed=' '; fi;
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stdout};
         sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
         echo "setting sex as $sex";
         Rscript {params.script} -t {wildcards.tumour_id} 
         -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta} --ref {params.ref}
-        -o {params.out_dir} -chr {params.chr_prefixed} --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
+        -o {params.out_dir} --chr $chr_prefixed --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" >> {log.stdout}; 
         """)
 
