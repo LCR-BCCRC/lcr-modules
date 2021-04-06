@@ -34,7 +34,7 @@ REFERENCE_FASTA = opt$reference_fasta
 print(paste("using fasta:",REFERENCE_FASTA))
 IS.MALE = opt$sex=="male" | opt$sex=="Male"
 RUN_DIR = opt$o
-CHR_PREFIXED = opt$chr_prefixed_genome
+CHR_PREFIXED = opt$chr
 print(paste("chr prefix present?",CHR_PREFIXED))
 SKIP_ALLELECOUNTING = opt$skip_allelecount
 SKIP_PREPROCESSING = opt$skip_preprocessing
