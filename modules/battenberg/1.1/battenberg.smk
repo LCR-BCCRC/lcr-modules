@@ -92,6 +92,7 @@ rule _battenberg_get_refrence:
         folder = CFG["dirs"]["inputs"] + "reference/{genome_build}",
         build = lambda w: "grch37" if "37" in str({w.genome_build}) else "hg38",
         PATH = CFG['inputs']['src_dir']
+        
     shell:
         op.as_one_line("""
         wget -qO-  {params.url}/battenberg_impute_{params.alt_build}.tar.gz  |
@@ -105,7 +106,7 @@ rule _battenberg_get_refrence:
         &&
         wget -O {output.impute_info} 'https://ora.ox.ac.uk/objects/uuid:2c1fec09-a504-49ab-9ce9-3f17bac531bc/download_file?file_format=plain&safe_filename=impute_info.txt&type_of_work=Dataset'
         &&
-        python {params.PATH}/refrence_correction.py {genome_build}
+        python {params.PATH}/reference_correction.py {genome_build}
         &&
         wget -qO-  {params.url}/battenberg_{params.alt_build}_replic_correction.tar.gz |
         tar -xvz > {output.battenberg_wgs_replic_correction} -C {params.folder}
@@ -204,13 +205,12 @@ rule _run_battenberg:
         CFG["threads"]["battenberg"]
     shell:
        op.as_one_line("""
-        python print({params.chr_prefixed}) 
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stdout};
         sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
         echo "setting sex as $sex";
         Rscript {params.script} -t {wildcards.tumour_id} 
         -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta} --ref {params.ref}
-        -o {params.out_dir} -chr {params.chr_prefixed} --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
+        -o {params.out_dir} --chr {params.chr_prefixed} --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" >> {log.stdout}; 
         """)
 
