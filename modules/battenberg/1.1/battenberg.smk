@@ -27,8 +27,10 @@ except ModuleNotFoundError:
 
 current_version = pkg_resources.get_distribution("oncopipe").version
 if version.parse(current_version) < version.parse(min_oncopipe_version):
-    print(f"ERROR: oncopipe version installed: {current_version}")
-    print(f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment")
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
 # End of dependency checking section    
@@ -87,28 +89,28 @@ rule _battenberg_get_refrence:
     params:
         url = "https://www.bcgsc.ca/downloads/morinlab/reference",
         alt_build = lambda w: VERSION_MAP[w.genome_build],
-        folder = CFG["dirs"]["inputs"] + "reference",
+        folder = CFG["dirs"]["inputs"] + "reference/{genome_build}",
         build = lambda w: "grch37" if "37" in str({w.genome_build}) else "hg38",
         PATH = CFG['inputs']['src_dir']
     shell:
         op.as_one_line("""
-        wget -qO-  {params.url}/battenberg_impute_{params.build}.tar.gz  |
-        tar -xvz > {output.battenberg_impute} -C {params.folder}/{params.build}
+        wget -qO-  {params.url}/battenberg_impute_{params.alt_build}.tar.gz  |
+        tar -xvz > {output.battenberg_impute} -C {params.folder}
         &&
-        wget -qO- {params.url}/battenberg_{params.build}_gc_correction.tar.gz  |
-        tar -xvz > {output.battenberg_gc_correction} -C {params.folder}/{params.build}
+        wget -qO- {params.url}/battenberg_{params.alt_build}_gc_correction.tar.gz  |
+        tar -xvz > {output.battenberg_gc_correction} -C {params.folder}
         &&
-        wget -qO- {params.url}/battenberg_1000genomesloci_{params.build}.tar.gz | 
-        tar -xvz > {output.genomesloci} -C {params.folder}/{params.build}
+        wget -qO- {params.url}/battenberg_1000genomesloci_{params.alt_build}.tar.gz | 
+        tar -xvz > {output.genomesloci} -C {params.folder}
         &&
         wget -O {output.impute_info} 'https://ora.ox.ac.uk/objects/uuid:2c1fec09-a504-49ab-9ce9-3f17bac531bc/download_file?file_format=plain&safe_filename=impute_info.txt&type_of_work=Dataset'
         &&
-        python {params.PATH}/refrence_correction.py {params.build}/{params.build}
+        python {params.PATH}/refrence_correction.py {genome_build}
         &&
-        wget -qO-  {params.url}/battenberg_{params.build}_replic_correction.tar.gz |
-        tar -xvz > {output.battenberg_wgs_replic_correction} -C {params.folder}/{params.build}
+        wget -qO-  {params.url}/battenberg_{params.alt_build}_replic_correction.tar.gz |
+        tar -xvz > {output.battenberg_wgs_replic_correction} -C {params.folder}
         &&
-        wget -O {output.probloci} {params.url}/probloci_{params.build}.txt.gz
+        wget -O {output.probloci} {params.url}/probloci_{params.alt_build}.txt.gz
         
         """)
 
@@ -202,6 +204,7 @@ rule _run_battenberg:
         CFG["threads"]["battenberg"]
     shell:
        op.as_one_line("""
+        python print({params.chr_prefixed}) 
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stdout};
         sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
         echo "setting sex as $sex";

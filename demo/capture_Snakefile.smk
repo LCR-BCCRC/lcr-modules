@@ -33,7 +33,7 @@ configfile: "../modules/utils/2.1/config/default.yaml"
 configfile: "../modules/picard_qc/1.0/config/default.yaml"
 configfile: "../modules/bam2fastq/1.2/config/default.yaml"
 configfile: "../modules/manta/2.3/config/default.yaml"
-configfile: "../modules/gridss/1.1/config/default.yaml"
+#configfile: "../modules/gridss/1.1/config/default.yaml"
 #configfile: "../modules/vcf2maf/1.2/config/default.yaml"
 configfile: "../modules/sequenza/1.4/config/default.yaml"
 configfile: "../modules/strelka/1.1/config/default.yaml"
@@ -69,7 +69,7 @@ include: "../modules/manta/2.3/manta.smk"
 include: "../modules/sequenza/1.4/sequenza.smk"
 include: "../modules/strelka/1.1/strelka.smk"
 include: "../modules/bwa_mem/1.1/bwa_mem.smk"
-include: "../modules/gridss/1.1/gridss.smk"
+#include: "../modules/gridss/1.1/gridss.smk"
 include: "../modules/bam2fastq/1.2/bam2fastq.smk"
 include: "../modules/lofreq/1.0/lofreq.smk"
 include: "../modules/starfish/2.0/starfish.smk"
@@ -92,7 +92,7 @@ rule all:
         rules._sequenza_all.input, 
         rules._strelka_all.input,
         rules._bwa_mem_all.input, 
-        rules._gridss_all.input, 
+        #rules._gridss_all.input, 
         rules._starfish_all.input,
         rules._sage_all.input,
         rules._mutect2_all.input,
