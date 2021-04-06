@@ -193,8 +193,8 @@ rule _run_battenberg:
         stdout = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stdout.log",
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stderr.log"
     params:
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         script = CFG["inputs"]["battenberg_script"],
-        chr_prefixed = lambda w: _battenberg_CFG["options"]["chr_prefixed_reference"][w.genome_build],
         out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
         ref = CFG["dirs"]["inputs"] + "reference/{genome_build}"
     conda:
@@ -205,12 +205,13 @@ rule _run_battenberg:
         CFG["threads"]["battenberg"]
     shell:
        op.as_one_line("""
+        if [[ $(head -c 4 {params.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed=' '; fi;
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stdout};
         sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
         echo "setting sex as $sex";
         Rscript {params.script} -t {wildcards.tumour_id} 
         -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta} --ref {params.ref}
-        -o {params.out_dir} --chr {params.chr_prefixed} --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
+        -o {params.out_dir} --chr $chr_prefixed --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" >> {log.stdout}; 
         """)
 
