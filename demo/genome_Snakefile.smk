@@ -44,7 +44,7 @@ configfile: "../modules/bam2fastq/1.2/config/default.yaml"
 configfile: "../modules/sequenza/1.4/config/default.yaml"
 configfile: "../modules/bwa_mem/1.1/config/default.yaml"
 configfile: "../modules/mixcr/1.1/config/default.yaml"
-#configfile: "../modules/battenberg/1.1/config/default.yaml"
+configfile: "../modules/battenberg/1.1/config/default.yaml"
 configfile: "../modules/mutect2/2.0/config/default.yaml"
 configfile: "../modules/varscan/1.1/config/default.yaml"
 configfile: "../modules/liftover/1.2/config/default.yaml"
@@ -84,7 +84,7 @@ include: "../modules/bwa_mem/1.1/bwa_mem.smk"
 include: "../modules/bam2fastq/1.2/bam2fastq.smk"
 include: "../modules/sage/1.0/sage.smk"
 include: "../modules/mixcr/1.1/mixcr.smk"
-#include: "../modules/battenberg/1.1/battenberg.smk"
+include: "../modules/battenberg/1.1/battenberg.smk"
 include: "../modules/mutect2/2.0/mutect2.smk"
 include: "../modules/varscan/1.1/varscan.smk"
 include: "../modules/liftover/1.2/liftover.smk"
@@ -114,7 +114,7 @@ rule all:
         rules._mutect2_all.input,
         rules._varscan_all.input,
         rules._liftover_all.input,
-        #rules._battenberg_all.input,
+        rules._battenberg_all.input,
         rules._pathseq_all.input,
         rules._hmftools_all.input
 

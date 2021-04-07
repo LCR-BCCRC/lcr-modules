@@ -52,7 +52,7 @@ _battenberg_CFG = CFG
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _battenberg_get_refrence
+    _battenberg_get_reference
     _battenberg_all
 
 VERSION_MAP = {
@@ -77,8 +77,8 @@ wildcard_constraints:
 
 ##### RULES #####
 
-# Downloads the refrence files into the module results directory (under '00-inputs/') from https://www.bcgsc.ca/downloads/morinlab/reference/ . 
-rule _battenberg_get_refrence:
+# Downloads the reference files into the module results directory (under '00-inputs/') from https://www.bcgsc.ca/downloads/morinlab/reference/ . 
+rule _battenberg_get_reference:
     output:
         battenberg_impute =  directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_impute_v3"),
         impute_info = CFG["dirs"]["inputs"] + "reference/{genome_build}/impute_info.txt",
@@ -90,7 +90,6 @@ rule _battenberg_get_refrence:
         url = "https://www.bcgsc.ca/downloads/morinlab/reference",
         alt_build = lambda w: VERSION_MAP[w.genome_build],
         folder = CFG["dirs"]["inputs"] + "reference/{genome_build}",
-        build = lambda w: "grch37" if "37" in str({w.genome_build}) else "hg38",
         PATH = CFG['inputs']['src_dir']
         
     shell:
@@ -205,13 +204,13 @@ rule _run_battenberg:
         CFG["threads"]["battenberg"]
     shell:
        op.as_one_line("""
-        if [[ $(head -c 4 {params.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed=' '; fi;
+        if [[ $(head -c 4 {params.fasta}) == ">chr" ]]; then chr_prefixed='--chr_prefixed_genome'; else chr_prefixed=' '; fi;
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stdout};
         sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
         echo "setting sex as $sex";
         Rscript {params.script} -t {wildcards.tumour_id} 
         -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta} --ref {params.ref}
-        -o {params.out_dir} --chr $chr_prefixed --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
+        -o {params.out_dir} --chr_prefixed_genome $chr_prefixed --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" >> {log.stdout}; 
         """)
 
