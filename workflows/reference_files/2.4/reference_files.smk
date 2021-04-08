@@ -226,6 +226,19 @@ rule get_jabba_map_rds:
             -e 'gr$score <- as.numeric(gr$score); saveRDS(gr, "{output.rds}")'
         """)
 
+rule get_par_rds:
+    input:
+        bed = get_download_file(rules.download_par_bed.output.bed)
+    output:
+        rds = "genomes/{genome_build}/annotations/jabba/PAR_{genome_build}.rds"
+    conda: CONDA_ENVS["rtracklayer"]
+    shell:
+        op.as_one_line(""" 
+        Rscript 
+            -e 'library(rtracklayer); par <- import("{input.bed}")'
+            -e 'saveRDS(par, "{output.rds}")'
+        """)
+
 
 ##### VARIATION #####
 
