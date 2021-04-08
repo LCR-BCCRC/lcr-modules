@@ -2,10 +2,12 @@ lcr-modules:
     
     jabba:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            make_pon: "{MODSDIR}/src/R/make_pon.R"
+            make_germline: "{MODSDIR}/src/R/make_germline_filter.R"
 
         scratch_subdirectories: []
 
@@ -14,13 +16,19 @@ lcr-modules:
             step_2: ""
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            
+            jabba: "{MODSDIR}/envs/jabba.yaml"
+
         threads:
-            step_1: 4
+            fragcounter: 1
+            make_pon: 10
+            dryclean: 12
+            make_germline: 1
 
         mem_mb:
-            step_1: 2000
+            fragcounter: 4096
+            make_pon: 2048
+            dryclean: 4096
+            make_germline: 1024
 
         pairing_config:
             genome:
