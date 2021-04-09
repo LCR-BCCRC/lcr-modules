@@ -69,7 +69,7 @@ def main():
                   seg_filled.append(missing_q)
 
             if (chrom_order[chrom_order.index(columns_second[1])] == chrom_order[chrom_order.index(columns_first[1])+1]):
-              if (int(columns_first[2]) < arm_chrom[columns_first[1]]['p']['end'] and int(columns_first[3]) < arm_chrom[columns_first[1]]['p']['end']):
+              if (int(columns_first[2]) <= arm_chrom[columns_first[1]]['p']['end'] and int(columns_first[3]) <= arm_chrom[columns_first[1]]['p']['end']):
                   columns_edges = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['p']['start']), int(columns_first[2])-1, empty_loh, empty_logr]
                   columns_new = [columns_first[0], columns_first[1], int(columns_first[3])+1, str(arm_chrom[columns_first[1]]['p']['end']), empty_loh, empty_logr]
                   missing_chrom = chrom_order[chrom_order.index(columns_first[1])]
@@ -81,7 +81,7 @@ def main():
                   seg_filled.append(missing_q)
                   seg_filled.append(columns_edges_second)
                   seg_filled.append(columns_second)
-              elif (int(columns_first[2]) > arm_chrom[columns_first[1]]['q']['start'] and int(columns_first[3]) > arm_chrom[columns_first[1]]['q']['start']):
+              elif (int(columns_first[2]) >= arm_chrom[columns_first[1]]['q']['start'] and int(columns_first[3]) >= arm_chrom[columns_first[1]]['q']['start']):
                   missing_chrom = chrom_order[chrom_order.index(columns_first[1])]
                   missing_p = [columns_first[0], missing_chrom, str(arm_chrom[missing_chrom]['p']['start']), str(arm_chrom[missing_chrom]['p']['end']), empty_loh, empty_logr]
                   columns_new = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['q']['start']), int(columns_first[2])-1, empty_loh, empty_logr]
@@ -93,7 +93,7 @@ def main():
                   seg_filled.append(columns_edges)
                   seg_filled.append(columns_edges_second)
                   seg_filled.append(columns_second)
-              elif (int(columns_first[2]) < arm_chrom[columns_first[1]]['p']['end'] and int(columns_first[3]) > arm_chrom[columns_first[1]]['q']['start']):
+              elif (int(columns_first[2]) <= arm_chrom[columns_first[1]]['p']['end'] and int(columns_first[3]) >= arm_chrom[columns_first[1]]['q']['start']):
                   columns_new = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['p']['start']), int(columns_first[2])-1, empty_loh, empty_logr]
                   p_part = [columns_first[0], columns_first[1], int(columns_first[2]), str(arm_chrom[columns_first[1]]['p']['end']), columns_first[4], columns_first[5]]
                   q_part = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['q']['start']), int(columns_first[3]),  columns_first[4], columns_first[5]]
@@ -118,27 +118,27 @@ def main():
         # easiest scenario: when it is same sample and same chromosome
         if (columns_first[0]==columns_second[0] and columns_first[1]==columns_second[1]):
              # handle very rare overlapping segments
-            if (int(columns_first[3]) > int(columns_second[2])):
+            if (int(columns_first[3]) >= int(columns_second[2])):
                 columns_first[3] = int(columns_second[2])-1
                 seg_filled.append(columns_first)
                 pass
 
             # for segments in p arm
-            if (int(columns_second[2]) < arm_chrom[columns_second[1]]['p']['end']):
+            if (int(columns_second[2]) <= arm_chrom[columns_second[1]]['p']['end']):
                 # create empty segment
                 columns_new = [columns_first[0], columns_first[1], str(int(columns_first[3])+1), str(int(columns_second[2])-1), empty_loh, empty_logr]
                 seg_filled.append(columns_new)
                 next_segment = (lines[i+2].rstrip("\n").rstrip("\r")).split("\t")
-                if (int(columns_second[3]) < arm_chrom[columns_second[1]]['p']['end'] and int(columns_second[3]) < int(next_segment[2])):
+                if (int(columns_second[3]) <= arm_chrom[columns_second[1]]['p']['end'] and int(columns_second[3]) <= int(next_segment[2])):
                     seg_filled.append(columns_second)
                 seg_filled.append(columns_second)    
 
             # deal with centromeres
             # I already know that this is same sample, and same chromosome
-            elif (int(columns_first[2]) < arm_chrom[columns_first[1]]['p']['end'] and int(columns_second[2]) > arm_chrom[columns_second[1]]['p']['end']):
+            elif (int(columns_first[2]) <= arm_chrom[columns_first[1]]['p']['end'] and int(columns_second[2]) >= arm_chrom[columns_second[1]]['p']['end']):
 
                 # first lets deal with end of p arm: segment 1 might end before centromere, or within centromere
-                if int(columns_first[3]) < arm_chrom[columns_first[1]]['p']['end']:
+                if int(columns_first[3]) <= arm_chrom[columns_first[1]]['p']['end']:
                     columns_new = [columns_first[0], columns_first[1], str(int(columns_first[3])+1), str(arm_chrom[columns_first[1]]['p']['end']), empty_loh, empty_logr]
                     seg_filled.append(columns_new)
                 # if it extends into centromere, cut segment 1 at the end of p arm
@@ -147,11 +147,11 @@ def main():
                     seg_filled.append(columns_first)
 
                 # now lets deal with start of q arm: it might start within or after centromere
-                if int(columns_second[2]) < arm_chrom[columns_second[1]]['q']['start']:
+                if int(columns_second[2]) <= arm_chrom[columns_second[1]]['q']['start']:
                     columns_second[2] = str(arm_chrom[columns_second[1]]['q']['start'])
                     seg_filled.append(columns_second)
                     next_segment = (lines[i+1].rstrip("\n").rstrip("\r")).split("\t")
-                    if (int(next_segment[2]) < arm_chrom[next_segment[1]]['q']['start'] and int(next_segment[3]) > arm_chrom[next_segment[1]]['q']['start']):
+                    if (int(next_segment[2]) <= arm_chrom[next_segment[1]]['q']['start'] and int(next_segment[3]) >= arm_chrom[next_segment[1]]['q']['start']):
                         next_segment[2] = str(arm_chrom[next_segment[1]]['q']['start'])
                         seg_filled.append(next_segment)
 
@@ -159,7 +159,7 @@ def main():
                 else:
                     columns_new = [columns_second[0], columns_second[1], str(arm_chrom[columns_second[1]]['q']['start']), str(int(columns_second[2])-1), empty_loh, empty_logr]
                     previous_segment = (lines[i].rstrip("\n").rstrip("\r")).split("\t")
-                    if (previous_segment[0]==columns_second[0] and int(previous_segment[3])>arm_chrom[columns_second[1]]['q']['start']):
+                    if (previous_segment[0]==columns_second[0] and int(previous_segment[3])>=arm_chrom[columns_second[1]]['q']['start']):
                         columns_edges = [columns_second[0], columns_second[1], str(arm_chrom[columns_second[1]]['q']['start']), str(int(previous_segment[3])), columns_first[4], columns_first[5]]
                         seg_filled.append(columns_edges)
                         columns_new = [columns_edges[0], columns_edges[1], str(int(columns_edges[3])+1), str(int(columns_second[2])-1), empty_loh, empty_logr]
@@ -168,32 +168,32 @@ def main():
 
 
             # for segments in q arm
-            elif (int(columns_first[2]) > arm_chrom[columns_second[1]]['q']['start']):
+            elif (int(columns_first[2]) >= arm_chrom[columns_second[1]]['q']['start']):
                 # create empty segment
                 columns_new = [columns_first[0], columns_first[1], str(int(columns_first[3])+1), str(int(columns_second[2])-1), empty_loh, empty_logr]
                 seg_filled.append(columns_new)
                 seg_filled.append(columns_second)
 
             # some segments are completely within centromere. drop them
-            elif (int(columns_first[2]) > arm_chrom[columns_first[1]]['p']['end'] and int(columns_first[2]) < arm_chrom[columns_first[1]]['q']['start']):
-                if (int(columns_first[3]) > arm_chrom[columns_first[1]]['q']['start']):
+            elif (int(columns_first[2]) >= arm_chrom[columns_first[1]]['p']['end'] and int(columns_first[2]) <= arm_chrom[columns_first[1]]['q']['start']):
+                if (int(columns_first[3]) >= arm_chrom[columns_first[1]]['q']['start']):
                   columns_new = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['q']['start']), str(int(columns_first[3])), columns_first[4], columns_first[5]]
                   columns_edges = [columns_first[0], columns_first[1], str(int(columns_first[3])+1), str(int(columns_second[2])-1), empty_loh, empty_logr]
                   seg_filled.append(columns_new)
 
                 else:
                   columns_edges = [columns_second[0], columns_second[1], str(arm_chrom[columns_second[1]]['q']['start']), str(int(columns_second[2])-1), empty_loh, empty_logr]
-                  if (int(columns_second[2]) > arm_chrom[columns_second[1]]['p']['end'] and int(columns_second[2]) < arm_chrom[columns_second[1]]['q']['start']):
+                  if (int(columns_second[2]) >= arm_chrom[columns_second[1]]['p']['end'] and int(columns_second[2]) <= arm_chrom[columns_second[1]]['q']['start']):
                     columns_second[2] = str(arm_chrom[columns_second[1]]['q']['start'])
                     seg_filled.append(columns_second)
                 seg_filled.append(columns_edges)
               
-                if (int(columns_second[2]) > arm_chrom[columns_second[1]]['p']['end'] and int(columns_second[3]) < arm_chrom[columns_second[1]]['q']['start']):
+                if (int(columns_second[2]) >= arm_chrom[columns_second[1]]['p']['end'] and int(columns_second[3]) <= arm_chrom[columns_second[1]]['q']['start']):
                   pass
                 else:
-                  if (int(columns_second[2])>arm_chrom[columns_second[1]]['q']['start']):
+                  if (int(columns_second[2])>=arm_chrom[columns_second[1]]['q']['start']):
                     seg_filled.append(columns_second)
-            elif (int(columns_second[2]) > arm_chrom[columns_second[1]]['p']['end'] and int(columns_second[2]) < arm_chrom[columns_second[1]]['q']['start']):
+            elif (int(columns_second[2]) >= arm_chrom[columns_second[1]]['p']['end'] and int(columns_second[2]) <= arm_chrom[columns_second[1]]['q']['start']):
                 pass
             
             elif (int(columns_first[2]) == arm_chrom[columns_first[1]]['q']['start']):
@@ -214,9 +214,9 @@ def main():
               seg_filled.append(missing_q)
 
             # first, are there any segments in the p arm? that means second segments starts all the way in centromere or q arm
-            if (int(columns_first[3]) > arm_chrom[columns_first[1]]['q']['start']):
+            if (int(columns_first[3]) >= arm_chrom[columns_first[1]]['q']['start']):
 
-              if (int(columns_first[2]) > arm_chrom[columns_first[1]]['p']['end'] and int(columns_first[2]) < arm_chrom[columns_first[1]]['q']['start']):
+              if (int(columns_first[2]) >= arm_chrom[columns_first[1]]['p']['end'] and int(columns_first[2]) <= arm_chrom[columns_first[1]]['q']['start']):
                   previous_segment = (lines[i-1].rstrip("\n").rstrip("\r")).split("\t")
                   if (chrom_order[chrom_order.index(previous_segment[1])] != chrom_order[chrom_order.index(columns_first[1])]):
                     columns_edges = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['p']['start']), str(arm_chrom[columns_first[1]]['p']['end']), empty_loh, empty_logr]
@@ -225,7 +225,7 @@ def main():
                     columns_edges = [columns_first[0], columns_first[1], str(int(columns_first[3])+1), str(arm_chrom[columns_first[1]]['q']['end']), empty_loh, empty_logr]
                     seg_filled.append(columns_edges)
                   pass
-              elif (int(columns_first[2]) < arm_chrom[columns_first[1]]['p']['end'] and int(columns_first[3]) > arm_chrom[columns_first[1]]['q']['start']):
+              elif (int(columns_first[2]) <= arm_chrom[columns_first[1]]['p']['end'] and int(columns_first[3]) >= arm_chrom[columns_first[1]]['q']['start']):
                   previous_segment = (lines[i-1].rstrip("\n").rstrip("\r")).split("\t")
                   if (chrom_order[chrom_order.index(previous_segment[1])] != chrom_order[chrom_order.index(columns_first[1])-1]):
                       columns_edges = [columns_first[0], columns_first[1], columns_first[2], str(arm_chrom[columns_first[1]]['p']['end']), columns_first[4], columns_first[5]]
@@ -244,24 +244,24 @@ def main():
                 seg_filled.append(columns_edges)
                 next_segment = (lines[i+1].rstrip("\n").rstrip("\r")).split("\t")
                 columns_new = [next_segment[0], next_segment[1], str(arm_chrom[columns_first[1]]['p']['start']), str(int(next_segment[2])-1), empty_loh, empty_logr]
-                if (not int(columns_first[2]) > arm_chrom[columns_first[1]]['p']['end'] and not int(columns_first[2]) < arm_chrom[columns_first[1]]['q']['start']):
+                if (not int(columns_first[2]) >= arm_chrom[columns_first[1]]['p']['end'] and not int(columns_first[2]) <= arm_chrom[columns_first[1]]['q']['start']):
                   seg_filled.append(columns_new)
 
-            if (int(columns_second[2]) > arm_chrom[columns_second[1]]['p']['end']):
+            if (int(columns_second[2]) >= arm_chrom[columns_second[1]]['p']['end']):
               if (chrom_order[chrom_order.index(columns_second[1])] != chrom_order[chrom_order.index(columns_first[1])+1]):
                 seg_filled.append(missing_p)
                 seg_filled.append(missing_q)
 
-              if (int(columns_first[2]) < arm_chrom[columns_first[1]]['q']['start'] and chrom_order[chrom_order.index(columns_second[1])] == chrom_order[chrom_order.index(columns_first[1])+1]):
+              if (int(columns_first[2]) <= arm_chrom[columns_first[1]]['q']['start'] and chrom_order[chrom_order.index(columns_second[1])] == chrom_order[chrom_order.index(columns_first[1])+1]):
                   columns_edges = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['q']['start']), str(arm_chrom[columns_first[1]]['q']['end']), empty_loh, empty_logr]  
                   columns_new = [columns_first[0], columns_first[1], str(int(columns_first[3])+1), str(arm_chrom[columns_first[1]]['p']['end']),  empty_loh, empty_logr]
                   seg_filled.append(columns_new)
                   seg_filled.append(columns_edges)
-                  if (chrom_order[chrom_order.index(columns_second[1])] == chrom_order[chrom_order.index(columns_first[1])+1] and int(columns_first[3]) > arm_chrom[columns_first[1]]['q']['start']):
+                  if (chrom_order[chrom_order.index(columns_second[1])] == chrom_order[chrom_order.index(columns_first[1])+1] and int(columns_first[3]) >= arm_chrom[columns_first[1]]['q']['start']):
                       columns_edges = [columns_first[0], columns_first[1], str(int(columns_first[3])+1), str(arm_chrom[columns_first[1]]['q']['end']), empty_loh, empty_logr]
                       seg_filled.append(columns_edges)
 
-              if (int(columns_first[2]) < arm_chrom[columns_first[1]]['q']['start'] and int(columns_first[2]) > arm_chrom[columns_first[1]]['p']['end']):
+              if (int(columns_first[2]) <= arm_chrom[columns_first[1]]['q']['start'] and int(columns_first[2]) >= arm_chrom[columns_first[1]]['p']['end']):
                 columns_first[2] = arm_chrom[columns_first[1]]['q']['start']
                 if (chrom_order[chrom_order.index(columns_second[1])] == chrom_order[chrom_order.index(columns_first[1])+1]):
                     pass
@@ -271,7 +271,7 @@ def main():
               columns_new = [columns_second[0], columns_second[1], str(arm_chrom[columns_second[1]]['p']['start']), str(arm_chrom[columns_second[1]]['p']['end']), empty_loh, empty_logr]
               seg_filled.append(columns_new)
 
-              if (int(columns_second[2]) > arm_chrom[columns_second[1]]['q']['start']):
+              if (int(columns_second[2]) >= arm_chrom[columns_second[1]]['q']['start']):
                 columns_edges = [columns_second[0], columns_second[1], str(arm_chrom[columns_second[1]]['q']['start']), str(int(columns_second[2])-1), empty_loh, empty_logr]
                 seg_filled.append(columns_edges)
               else:
@@ -280,10 +280,10 @@ def main():
 
 
             # are there any segments in the q arm? that means first segment ends before start of q arm
-            elif (int(columns_first[3]) < arm_chrom[columns_first[1]]['q']['start']):
+            elif (int(columns_first[3]) <= arm_chrom[columns_first[1]]['q']['start']):
               columns_new = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['q']['start']), str(arm_chrom[columns_first[1]]['q']['end']), empty_loh, empty_logr]
               seg_filled.append(columns_first)
-              if (int(columns_first[3]) < arm_chrom[columns_first[1]]['p']['end']):
+              if (int(columns_first[3]) <= arm_chrom[columns_first[1]]['p']['end']):
                   columns_edges = [columns_first[0], columns_first[1], str(int(columns_first[3])+1), str(arm_chrom[columns_first[1]]['p']['end']), empty_loh, empty_logr]
                   seg_filled.append(columns_edges)
               columns_edges = [columns_second[0], columns_second[1], str(arm_chrom[columns_second[1]]['p']['start']), str(int(columns_second[2])-1),  empty_loh, empty_logr]
@@ -293,7 +293,7 @@ def main():
 
 
             # are there any segments that starts in p arm and span centromere? if so, maintain loh flag and logr, but drop out centromere
-            elif (int(columns_second[2]) < arm_chrom[columns_second[1]]['p']['end'] and int(columns_second[3]) > arm_chrom[columns_second[1]]['q']['start']):
+            elif (int(columns_second[2]) <= arm_chrom[columns_second[1]]['p']['end'] and int(columns_second[3]) >= arm_chrom[columns_second[1]]['q']['start']):
               previous_segment = (lines[i].rstrip("\n").rstrip("\r")).split("\t")
               next_segment = (lines[i+2].rstrip("\n").rstrip("\r")).split("\t")
               columns_new = [columns_second[0], columns_second[1], str(int(columns_second[2])+1), str(arm_chrom[columns_second[1]]['p']['end']), columns_second[4], columns_second[5]]
@@ -308,9 +308,9 @@ def main():
             # in other cases, there are segments both in p and q arms
             else:
               columns_edges = [columns_second[0], columns_second[1], str(arm_chrom[columns_first[1]]['p']['start']), str(int(columns_second[2])-1), empty_loh, empty_logr]
-              if (int(columns_first[2]) > arm_chrom[columns_second[1]]['p']['end']):
+              if (int(columns_first[2]) >= arm_chrom[columns_second[1]]['p']['end']):
 
-                if (int(columns_first[2]) > arm_chrom[columns_first[1]]['p']['end'] and int(columns_first[2]) < arm_chrom[columns_first[1]]['q']['start']):
+                if (int(columns_first[2]) >= arm_chrom[columns_first[1]]['p']['end'] and int(columns_first[2]) <= arm_chrom[columns_first[1]]['q']['start']):
                   columns_first[2] = arm_chrom[columns_first[1]]['q']['start']
                   seg_filled.append(columns_first)
                 columns_new = [columns_first[0], columns_first[1], str(int(columns_first[3])+1), str(arm_chrom[columns_first[1]]['q']['end']),  empty_loh, empty_logr]
@@ -320,7 +320,7 @@ def main():
                 seg_filled.append(missing_p)
                 seg_filled.append(missing_q)
               seg_filled.append(columns_edges)
-              if (int(columns_second[3]) < arm_chrom[columns_second[1]]['p']['end']):
+              if (int(columns_second[3]) <= arm_chrom[columns_second[1]]['p']['end']):
                 seg_filled.append(columns_second)
 
             
@@ -345,7 +345,7 @@ def main():
     
     print("Checking and removing inverted segments...")
     # remove any inverted segments, if there are
-    seg_filled_df = seg_filled_df[(seg_filled_df["end"]>seg_filled_df["start"])]
+    seg_filled_df = seg_filled_df[(seg_filled_df["end"]>=seg_filled_df["start"])]
 
     print("Checking and removing duplicated segments...")
     # remove any duplicated segments, if there are
