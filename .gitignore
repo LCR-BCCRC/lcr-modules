@@ -31,13 +31,9 @@ MANIFEST
 
 # Files creates when testing the demo project or workflows
 .snakemake/
-demo/capture/results
-demo/mrna/results
-demo/genome/results
 demo/reference
-demo/references
 demo/scratch
-#demo/data/*bam
+demo/data/*bam
 demo/results_archive
 demo/scratch_archive
 demo/results
