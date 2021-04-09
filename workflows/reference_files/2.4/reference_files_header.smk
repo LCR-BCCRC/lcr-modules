@@ -347,7 +347,7 @@ rule download_sdf:
         mv $(dirname {output.sdf})/{params.build}/* {output.sdf}
         """)
 
-rule _download_ucsc_chrom_sizes:
+rule download_ucsc_chrom_sizes:
     output:
         txt = 'downloads/chrom_sizes/sizes.{version}.txt'
     params:

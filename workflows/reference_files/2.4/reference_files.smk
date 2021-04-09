@@ -200,7 +200,8 @@ rule calc_gc_content:
 
 rule get_jabba_gc_rds:
     input:
-        bed = get_download_file(rules.download_ucsc_gc.output.bed)
+        bed = get_download_file(rules.download_ucsc_gc.output.bed),
+        txt = get_download_file(rules.download_ucsc_chrom_sizes.output.txt)
     output:
         rds = "genomes/{genome_build}/annotations/jabba/gc1000.rds"
     conda: CONDA_ENVS["rtracklayer"]
@@ -209,12 +210,17 @@ rule get_jabba_gc_rds:
         Rscript
             -e 'library(rtracklayer); gr <- import("{input.bed}")'
             -e 'names(mcols(gr))[1] <- "score"; gr[gr$score == "nan",]$score <- 0'
-            -e 'gr$score <- as.numeric(gr$score); saveRDS(gr, "{output.rds}")'
+            -e 'gr$score <- as.numeric(gr$score)'
+            -e 'sizes <- read.delim("{input.txt}", stringsAsFactors = FALSE, col.names = c("chrom", "length"), header = FALSE, stringsAsFactors = FALSE)'
+            -e 'sizes <- unlist(split(as.numeric(sizes$length), sizes$chrom))[levels(seqnames(gr))]'
+            -e 'seqlengths(gr) <- sizes'
+            -e 'saveRDS(gr, "{output.rds}")'
         """)
 
 rule get_jabba_map_rds:
     input:
-        bed = get_download_file(rules.download_ucsc_map.output.bed)
+        bed = get_download_file(rules.download_ucsc_map.output.bed),
+        txt = get_download_file(rules.download_ucsc_chrom_sizes.output.txt)
     output:
         rds = "genomes/{genome_build}/annotations/jabba/map1000.rds"
     conda: CONDA_ENVS["rtracklayer"]
@@ -223,20 +229,28 @@ rule get_jabba_map_rds:
         Rscript
             -e 'library(rtracklayer); gr <- import("{input.bed}")'
             -e 'names(mcols(gr))[1] <- "score"; gr[gr$score == "nan",]$score <- 0'
-            -e 'gr$score <- as.numeric(gr$score); saveRDS(gr, "{output.rds}")'
+            -e 'gr$score <- as.numeric(gr$score)'
+            -e 'sizes <- read.delim("{input.txt}", stringsAsFactors = FALSE, col.names = c("chrom", "length"), header = FALSE, stringsAsFactors = FALSE)'
+            -e 'sizes <- unlist(split(as.numeric(sizes$length), sizes$chrom))[levels(seqnames(gr))]'
+            -e 'seqlengths(gr) <- sizes'
+            -e 'saveRDS(gr, "{output.rds}")'
         """)
 
 rule get_par_rds:
     input:
-        bed = get_download_file(rules.download_par_bed.output.bed)
+        bed = get_download_file(rules.download_par_bed.output.bed),
+        txt = get_download_file(rules.download_ucsc_chrom_sizes.output.txt)
     output:
         rds = "genomes/{genome_build}/annotations/jabba/PAR_{genome_build}.rds"
     conda: CONDA_ENVS["rtracklayer"]
     shell:
         op.as_one_line(""" 
         Rscript 
-            -e 'library(rtracklayer); par <- import("{input.bed}")'
-            -e 'saveRDS(par, "{output.rds}")'
+            -e 'library(rtracklayer); gr <- import("{input.bed}")'
+            -e 'sizes <- read.delim("{input.txt}", stringsAsFactors = FALSE, col.names = c("chrom", "length"), header = FALSE, stringsAsFactors = FALSE)'
+            -e 'sizes <- unlist(split(as.numeric(sizes$length), sizes$chrom))[levels(seqnames(gr))]'
+            -e 'seqlengths(gr) <- sizes'
+            -e 'saveRDS(gr, "{output.rds}")'
         """)
 
 
