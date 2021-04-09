@@ -34,7 +34,7 @@ REFERENCE_FASTA = opt$reference_fasta
 print(paste("using fasta:",REFERENCE_FASTA))
 IS.MALE = opt$sex=="male" | opt$sex=="Male"
 RUN_DIR = opt$o
-CHR_PREFIXED = opt$chr
+CHR_PREFIXED = opt$chr_prefixed_genome
 print(paste("chr prefix present?",CHR_PREFIXED))
 SKIP_ALLELECOUNTING = opt$skip_allelecount
 SKIP_PREPROCESSING = opt$skip_preprocessing
@@ -52,10 +52,10 @@ verbose = TRUE
 # General static
 IMPUTEINFOFILE = paste0(REFERENCE_BASE,"/impute_info.txt")
 print(IMPUTEINFOFILE)
-G1000PREFIX = paste0(REFERENCE_BASE, "/battenberg_1000genomesloci2012_v3/1000genomesAlleles2012_chr")
-G1000PREFIX_AC = paste0(REFERENCE_BASE, "/battenberg_1000genomesloci2012_v3/1000genomesloci2012_chr")
-GCCORRECTPREFIX = paste0(REFERENCE_BASE, "/battenberg_wgs_gc_correction_1000g_v3/1000_genomes_GC_corr_chr_")
-REPLICCORRECTPREFIX = paste0(REFERENCE_BASE, "/battenberg_wgs_replic_correction_1000g_v3/1000_genomes_replication_timing_chr_")
+G1000PREFIX = paste0(REFERENCE_BASE,"/battenberg_1000genomesloci2012_v3/1000genomesAlleles2012_chr")
+G1000PREFIX_AC = paste0(REFERENCE_BASE,"/battenberg_1000genomesloci2012_v3/1000genomesloci2012_chr")
+GCCORRECTPREFIX = paste0(REFERENCE_BASE,"/battenberg_wgs_gc_correction_1000g_v3/1000_genomes_GC_corr_chr_")
+REPLICCORRECTPREFIX = paste0(REFERENCE_BASE,"/battenberg_wgs_replic_correction_1000g_v3/1000_genomes_replication_timing_chr_")
 IMPUTE_EXE = "impute2"  #install using conda
 
 PLATFORM_GAMMA = 1
