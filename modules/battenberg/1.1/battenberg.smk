@@ -65,16 +65,6 @@ VERSION_MAP = {
 
 }
 
-possible_genome_builds = VERSION_MAP.keys()
-for genome_build in CFG["runs"]["tumour_genome_build"]:
-    assert genome_build in possible_genome_builds, (
-        "Samples table includes genome builds not yet compatible with this module. "
-        "This module is currently only compatible with {possible_genome_builds}. "
-    )
-
-wildcard_constraints: 
-    genome_build = "|".join(VERSION_MAP.keys())
-
 ##### RULES #####
 
 # Downloads the reference files into the module results directory (under '00-inputs/') from https://www.bcgsc.ca/downloads/morinlab/reference/ . 
