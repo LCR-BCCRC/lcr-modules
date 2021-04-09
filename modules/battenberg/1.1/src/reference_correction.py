@@ -1,3 +1,12 @@
+##### ATTRIBUTION #####
+
+
+# Original Author:  Lakshay Sethi
+
+'''Comments
+    getcwd function of os package was used to retrieve the working directory.
+    argv function of sys package was used to uilize the parameters passed with the file.
+'''
 import os
 import sys
 cwd = os.getcwd()
