@@ -257,7 +257,7 @@ def main():
                   columns_new = [columns_first[0], columns_first[1], str(int(columns_first[3])+1), str(arm_chrom[columns_first[1]]['p']['end']),  empty_loh, empty_logr]
                   seg_filled.append(columns_new)
                   seg_filled.append(columns_edges)
-                  if (chrom_order[chrom_order.index(columns_second[1])] == chrom_order[chrom_order.index(columns_first[1])+1]):
+                  if (chrom_order[chrom_order.index(columns_second[1])] == chrom_order[chrom_order.index(columns_first[1])+1] and int(columns_first[3]) > arm_chrom[columns_first[1]]['q']['start']):
                       columns_edges = [columns_first[0], columns_first[1], str(int(columns_first[3])+1), str(arm_chrom[columns_first[1]]['q']['end']), empty_loh, empty_logr]
                       seg_filled.append(columns_edges)
 
@@ -403,29 +403,6 @@ def load_chrom_arm(chrom_file):
                 arm_chrom[cols[0]][cols[3]]['end'] = int(cols[2])
     return arm_chrom
 
-
-# def check_arguments(args, input_format):
-#     if input_format == 'seg' and not all([args.input, args.output, args.chromArm]):
-#         raise ValueError ('Must specify input .seg file, output file, and file listing coordinates of chromosome arms.')
-#     elif input_format != 'seg':
-#         raise ValueError ('Input file must be in .seg format')
-#     else:
-#       pass
-
-
-# def parse_args():
-#     parser = argparse.ArgumentParser()
-
-#     parser.add_argument("--input",
-#                         help="Imput file in .seg format to fill segments", required=True)
-#     parser.add_argument("--output",
-#                         help="Resulting file after filling missing segments", required=True)
-#     parser.add_argument("--chromArm",
-#                         help="File with coordinates of chromosme arms for a given genome build", required=True)
-
-#     args, unknown = parser.parse_known_args()
-
-#     return args
 
 
 if __name__ == '__main__':
