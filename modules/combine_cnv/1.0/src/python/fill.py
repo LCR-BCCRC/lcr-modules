@@ -107,10 +107,12 @@ def main():
                   seg_filled.append(columns_second)    
             else:
                   columns_edges = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['p']['start']), int(columns_first[2])-1,   empty_loh, empty_logr]
-                  columns_new = [columns_first[0], columns_first[1], int(columns_first[3])+1, int(columns_second[2])-1,   empty_loh, empty_logr]
+                  columns_new1 = [columns_first[0], columns_first[1], int(columns_first[3])+1, str(arm_chrom[columns_first[1]]['p']['end']),   empty_loh, empty_logr]
+                  columns_new2 = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['q']['start']), int(columns_second[2])-1,   empty_loh, empty_logr]
                   seg_filled.append(columns_edges)
                   seg_filled.append(columns_first)
-                  seg_filled.append(columns_new)
+                  seg_filled.append(columns_new1)
+                  seg_filled.append(columns_new2)
                   seg_filled.append(columns_second)
 
             continue
