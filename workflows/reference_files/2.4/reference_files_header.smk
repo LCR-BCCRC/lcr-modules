@@ -361,7 +361,7 @@ rule download_ucsc_chrom_sizes:
 
 rule make_1kb_genome_bed:
     input:
-        txt = rules._download_ucsc_chrom_sizes.output.txt
+        txt = rules.download_ucsc_chrom_sizes.output.txt
     output:
         bed = 'downloads/genome_beds_1kb/1kb.{version}.bed'
     params:
@@ -384,7 +384,7 @@ rule make_1kb_genome_bed:
 
 rule download_ucsc_gc:
     input:
-        sizes = rules._download_ucsc_chrom_sizes.output.txt,
+        sizes = rules.download_ucsc_chrom_sizes.output.txt,
         bed = rules.make_1kb_genome_bed.output.bed
     output:
         bed = 'downloads/gc1000_beds/gc1000.{version}.bed'
@@ -432,7 +432,7 @@ rule download_par_bed:
     output:
         bed = 'downloads/par_region/PAR.{version}.bed'
     params:
-        provider = 'ucsc',
+        provider = 'ucsc'
     run:
         file = open(output.bed, 'w')
         par_region = []
