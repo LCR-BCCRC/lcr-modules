@@ -7,81 +7,6 @@ lcr-modules:
         unmatched_normal_ids:
             mrna--grch37: "TCRBOA7-N-WEX"
 
-    bam2fastq:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-        temp_outputs: True # fastq outputs will be temporary
-
-    star:
-        inputs:
-            sample_fastq_1: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read2.fastq.gz"
-        scratch_subdirectories: []
-
-    manta:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
-
-    mixcr:
-        inputs:
-            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
-            # Path to the directory where MIXCR should be installed
-            mixcr_exec: "data/"
-
-    salmon:
-        inputs:
-            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
-        transcriptome:
-            quant_to: "hg38"
-
-    sequenza:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
-        scratch_subdirectories: []
-
-    lofreq:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
-
-        switches:
-            # Intentionally running LoFreq without a BED file for simplicity
-            # And to avoid having to include a large BED file in the repo
-            regions_bed:
-                _default: ""
-                capture: ""
-
-    gridss:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
-        references:
-            # See the current gridss module config file for details about where to obtain this file.
-            viral_fa: "/projects/rmorin/projects/DLBCL_DHITsig_genomes/reference/gridss/refgenomes/human_virus/human_virus.fa"
-            viral_bwa_prefix: "/projects/rmorin/projects/DLBCL_DHITsig_genomes/reference/gridss/refgenomes/human_virus/human_virus.fa"
-            pon_dir: "/projects/rmorin/reference/hmftools-references/gridss/pon"
-
-    strelka:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
-            # if using manta output, use vcf file in the 99-outputs subdirectory and ensure manta version corresponds to the loaded module
-            candidate_small_indels: "results/manta-2.3/99-outputs/vcf/{seq_type}--{genome_build}/candidateSmallIndels/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf"
-
-    utils:
-        inputs:
-            bed:
-                grch37: "data/exome_bed/hg19/target_regions.nochr.bed" # make sure this corresponds with config["lcr-modules"]["picard_qc"]["inputs"]["intervals"]
-                # if testing on GSC, use this file: "/projects/dscott_prj/CCSRI_1500/exomes/ref/agilent/hg19/target_regions.nochr.bed"
-        mem_mb:
-            bam_sort: 48000
-        threads:
-            bam_sort: 12
-
     picard_qc:
         inputs:
             sample_bam: "data/{sample_id}.bam"
@@ -93,17 +18,35 @@ lcr-modules:
                 # S07604624: "reference/exomes/grch37/interval/S07604624_intervals.txt"
                 # <grch38_kit>: "reference/exomes/grch38/interval/<grch38_kit>_intervals.txt"
 
-    bwa_mem:
+    salmon:
+        inputs:
+            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
+        transcriptome:
+            quant_to: "hg38"
+
+    star:
         inputs:
             sample_fastq_1: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read1.fastq.gz"
             sample_fastq_2: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read2.fastq.gz"
         scratch_subdirectories: []
 
-    controlfreec:
+    bam2fastq:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+        temp_outputs: True # fastq outputs will be temporary
+
+    manta:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
-        scratch_subdirectories: [] # mpileup should be in scratch space
+
+    mixcr:
+        inputs:
+            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
+            # Path to the directory where MIXCR should be installed
+            mixcr_exec: "data"
 
     pathseq:
         inputs:
@@ -113,13 +56,12 @@ lcr-modules:
             min_read_length: 49
             ebv_cutoff: [0.00004, 0.00008]
 
-    starfish:
-        dirs:
-            _parent: "results/starfish-2.0_strelka-1.1_lofreq-1.0"
+    utils:
         inputs:
-            names: ["strelka", "lofreq"]
-            paths:
-                [
-                    "results/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz",
-                    "results/lofreq-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz",
-                ]
+            bed:
+                grch37: "data/exome_bed/hg19/target_regions.nochr.bed" # make sure this corresponds with config["lcr-modules"]["picard_qc"]["inputs"]["intervals"]
+                # if testing on GSC, use this file: "/projects/dscott_prj/CCSRI_1500/exomes/ref/agilent/hg19/target_regions.nochr.bed"
+        mem_mb:
+            bam_sort: 48000
+        threads:
+            bam_sort: 12
