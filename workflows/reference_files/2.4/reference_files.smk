@@ -211,7 +211,7 @@ rule get_jabba_gc_rds:
             -e 'library(rtracklayer); gr <- import("{input.bed}")'
             -e 'names(mcols(gr))[1] <- "score"; gr[gr$score == "nan",]$score <- 0'
             -e 'gr$score <- as.numeric(gr$score)'
-            -e 'sizes <- read.delim("{input.txt}", stringsAsFactors = FALSE, col.names = c("chrom", "length"), header = FALSE, stringsAsFactors = FALSE)'
+            -e 'sizes <- read.delim("{input.txt}", stringsAsFactors = FALSE, col.names = c("chrom", "length"), header = FALSE)'
             -e 'sizes <- unlist(split(as.numeric(sizes$length), sizes$chrom))[levels(seqnames(gr))]'
             -e 'seqlengths(gr) <- sizes'
             -e 'saveRDS(gr, "{output.rds}")'
@@ -230,7 +230,7 @@ rule get_jabba_map_rds:
             -e 'library(rtracklayer); gr <- import("{input.bed}")'
             -e 'names(mcols(gr))[1] <- "score"; gr[gr$score == "nan",]$score <- 0'
             -e 'gr$score <- as.numeric(gr$score)'
-            -e 'sizes <- read.delim("{input.txt}", stringsAsFactors = FALSE, col.names = c("chrom", "length"), header = FALSE, stringsAsFactors = FALSE)'
+            -e 'sizes <- read.delim("{input.txt}", stringsAsFactors = FALSE, col.names = c("chrom", "length"), header = FALSE)'
             -e 'sizes <- unlist(split(as.numeric(sizes$length), sizes$chrom))[levels(seqnames(gr))]'
             -e 'seqlengths(gr) <- sizes'
             -e 'saveRDS(gr, "{output.rds}")'
@@ -247,7 +247,7 @@ rule get_par_rds:
         op.as_one_line(""" 
         Rscript 
             -e 'library(rtracklayer); gr <- import("{input.bed}")'
-            -e 'sizes <- read.delim("{input.txt}", stringsAsFactors = FALSE, col.names = c("chrom", "length"), header = FALSE, stringsAsFactors = FALSE)'
+            -e 'sizes <- read.delim("{input.txt}", stringsAsFactors = FALSE, col.names = c("chrom", "length"), header = FALSE)'
             -e 'sizes <- unlist(split(as.numeric(sizes$length), sizes$chrom))[levels(seqnames(gr))]'
             -e 'seqlengths(gr) <- sizes'
             -e 'saveRDS(gr, "{output.rds}")'
