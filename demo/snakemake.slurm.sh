@@ -19,7 +19,7 @@ conda_prefix=${4:-$CONDA_PREFIX}
 
 echo snakemake --use-conda --conda-prefix $conda_prefix --jobs 5000 \
   --latency-wait 120 $snakemake_flags --keep-going --default-resources mem_mb=2000 \
-  --cluster-sync "srun -n 1 -N 1 -J {rule} --mem {resources.mem_mb} --cpus-per-task {threads} --time 08:00:00" \
+  --cluster-sync "srun -n 1 -N 1 -J {rule} --mem {resources.mem_mb} --cpus-per-task {threads} --time 24:00:00" \
   -s $snakefile  $target_rule
 
 sleep 5

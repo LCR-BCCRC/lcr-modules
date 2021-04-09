@@ -7,7 +7,7 @@ It will only run through the workflow(eg. genome) sub directory.
 
 import oncopipe as op
 
-SAMPLES = op.load_samples("data/samples.tsv")
+SAMPLES = op.load_samples("data/samples_hg19.tsv")
 GENOME = op.filter_samples(SAMPLES, seq_type = "genome")
 
 
@@ -32,7 +32,7 @@ subworkflow reference_files:
 configfile: "../modules/slms_3/1.0/config/default.yaml"
 configfile: "../modules/sage/1.0/config/default.yaml"
 configfile: "../modules/manta/2.3/config/default.yaml"
-configfile: "../modules/gridss/1.1/config/default.yaml"
+#configfile: "../modules/gridss/1.1/config/default.yaml"
 configfile: "../modules/strelka/1.1/config/default.yaml"
 configfile: "../modules/lofreq/1.0/config/default.yaml"
 configfile: "../modules/starfish/2.0/config/default.yaml"
@@ -48,8 +48,8 @@ configfile: "../modules/battenberg/1.1/config/default.yaml"
 configfile: "../modules/mutect2/2.0/config/default.yaml"
 configfile: "../modules/varscan/1.1/config/default.yaml"
 configfile: "../modules/liftover/1.2/config/default.yaml"
-configfile: "../modules/pathseq/1.0/config/default.yaml"
-configfile: "../modules/hmftools/1.0/config/default.yaml"
+#configfile: "../modules/pathseq/1.0/config/default.yaml"
+#configfile: "../modules/hmftools/1.0/config/default.yaml"
 
 configfile: "../modules/hmftools/1.0/config/default.yaml"
 
@@ -72,7 +72,7 @@ include: "../modules/slms_3/1.0/slms_3.smk"
 include: "../modules/sage/1.0/sage.smk"
 include: "../modules/manta/2.3/manta.smk"
 include: "../modules/strelka/1.1/strelka.smk"
-include: "../modules/gridss/1.1/gridss.smk"
+#include: "../modules/gridss/1.1/gridss.smk"
 include: "../modules/lofreq/1.0/lofreq.smk"
 include: "../modules/starfish/2.0/starfish.smk"
 include: "../modules/controlfreec/1.1/controlfreec.smk"
@@ -88,8 +88,8 @@ include: "../modules/battenberg/1.1/battenberg.smk"
 include: "../modules/mutect2/2.0/mutect2.smk"
 include: "../modules/varscan/1.1/varscan.smk"
 include: "../modules/liftover/1.2/liftover.smk"
-include: "../modules/pathseq/1.0/pathseq.smk"
-include: "../modules/hmftools/1.0/hmftools.smk"
+#include: "../modules/pathseq/1.0/pathseq.smk"
+#include: "../modules/hmftools/1.0/hmftools.smk"
 
 
 
@@ -108,13 +108,13 @@ rule all:
         rules._manta_all.input,  
         rules._lofreq_all.input,
         rules._strelka_all.input,
-        rules._gridss_all.input,
+        #rules._gridss_all.input,
         rules._starfish_all.input,
         rules._mixcr_all.input,
         rules._mutect2_all.input,
         rules._varscan_all.input,
         rules._liftover_all.input,
         rules._battenberg_all.input,
-        rules._pathseq_all.input,
-        rules._hmftools_all.input
+        #rules._pathseq_all.input,
+        #rules._hmftools_all.input
 
