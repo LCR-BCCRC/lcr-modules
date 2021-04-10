@@ -8,6 +8,7 @@ lcr-modules:
             sample_bai: "__UPDATE__"
             make_pon: "{MODSDIR}/src/R/make_pon.R"
             make_germline: "{MODSDIR}/src/R/make_germline_filter.R"
+            run_custom_fc: "{MODSDIR}/src/R/run_custom_fragcounter.R"
 
         scratch_subdirectories: []
 
@@ -26,9 +27,9 @@ lcr-modules:
 
         mem_mb:
             fragcounter: 4096
-            make_pon: 2048
+            make_pon: 12000
             dryclean: 4096
-            make_germline: 1024
+            make_germline: 4096
 
         pairing_config:
             genome:
