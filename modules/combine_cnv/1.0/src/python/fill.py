@@ -79,7 +79,7 @@ def main():
                   seg_filled.append(columns_first)
                   seg_filled.append(columns_new)
                   seg_filled.append(missing_q)
-                  if (int(columns_second[2]) >= arm_chrom[columns_second[1]]['q']['start'] and int(columns_second[3]) >= arm_chrom[columns_second[1]]['q']['start']):
+                  if (int(columns_second[2]) >= arm_chrom[columns_second[1]]['q']['start'] and chrom_order[chrom_order.index(columns_second[1])] == chrom_order[chrom_order.index(columns_first[1])+1]):
                       columns_edges = [columns_second[0], columns_second[1], str(arm_chrom[columns_second[1]]['p']['start']), str(arm_chrom[columns_second[1]]['p']['end']), empty_loh, empty_logr]
                       columns_edges2 = [columns_second[0], columns_second[1], str(arm_chrom[columns_second[1]]['q']['start']), int(columns_second[2])-1, empty_loh, empty_logr]
                       seg_filled.append(columns_edges)
@@ -97,7 +97,7 @@ def main():
                   seg_filled.append(columns_new)
                   seg_filled.append(columns_first)
                   seg_filled.append(columns_edges)
-                  if (int(columns_second[2]) >= arm_chrom[columns_second[1]]['q']['start'] and int(columns_second[3]) >= arm_chrom[columns_second[1]]['q']['start']):
+                  if (int(columns_second[2]) >= arm_chrom[columns_second[1]]['q']['start'] and chrom_order[chrom_order.index(columns_second[1])] == chrom_order[chrom_order.index(columns_first[1])+1]):
                       p_part = [columns_second[0], columns_second[1], str(arm_chrom[columns_second[1]]['p']['start']), str(arm_chrom[columns_second[1]]['p']['end']), empty_loh, empty_logr]
                       q_part = [columns_second[0], columns_second[1], str(arm_chrom[columns_second[1]]['q']['start']), int(columns_second[2])-1,  empty_loh, empty_logr]
                       seg_filled.append(p_part)
@@ -116,7 +116,7 @@ def main():
                   seg_filled.append(q_part)
                   seg_filled.append(columns_edges)
                   seg_filled.append(columns_edges_second)
-                  if (int(columns_second[2]) <= arm_chrom[columns_second[1]]['p']['end'] and int(columns_second[3]) >= arm_chrom[columns_second[1]]['q']['start']):
+                  if (int(columns_second[2]) >= arm_chrom[columns_second[1]]['p']['end'] and chrom_order[chrom_order.index(columns_second[1])] == chrom_order[chrom_order.index(columns_first[1])+1]):
                       p_part = [columns_second[0], columns_second[1], int(columns_second[2]), str(arm_chrom[columns_second[1]]['p']['end']), columns_second[4], columns_second[5]]
                       q_part = [columns_second[0], columns_second[1], str(arm_chrom[columns_second[1]]['q']['start']), int(columns_second[3]),  columns_second[4], columns_second[5]]
                       seg_filled.append(p_part)
@@ -132,7 +132,8 @@ def main():
                   seg_filled.append(columns_first)
                   seg_filled.append(columns_edges_second)
                   seg_filled.append(columns_second)
-            else:
+            elif (chrom_order[chrom_order.index(columns_second[1])] == chrom_order[chrom_order.index(columns_first[1])+1]):
+                  print(columns_first, columns_second)
                   columns_edges = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['p']['start']), int(columns_first[2])-1,   empty_loh, empty_logr]
                   columns_new1 = [columns_first[0], columns_first[1], int(columns_first[3])+1, str(arm_chrom[columns_first[1]]['p']['end']),   empty_loh, empty_logr]
                   columns_new2 = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['q']['start']), int(columns_second[2])-1,   empty_loh, empty_logr]
@@ -140,6 +141,13 @@ def main():
                   seg_filled.append(columns_first)
                   seg_filled.append(columns_new1)
                   seg_filled.append(columns_new2)
+                  seg_filled.append(columns_second)
+            else:
+                  columns_edges = [columns_first[0], columns_first[1], str(arm_chrom[columns_first[1]]['p']['start']), int(columns_first[2])-1,   empty_loh, empty_logr]
+                  columns_new = [columns_first[0], columns_first[1], int(columns_first[3])+1, int(columns_second[2])-1, empty_loh, empty_logr]
+                  seg_filled.append(columns_edges)
+                  seg_filled.append(columns_first)
+                  seg_filled.append(columns_new)
                   seg_filled.append(columns_second)
 
             continue
