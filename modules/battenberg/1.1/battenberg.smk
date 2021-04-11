@@ -81,7 +81,6 @@ rule _battenberg_get_reference:
         alt_build = lambda w: VERSION_MAP[w.genome_build],
         folder = CFG["dirs"]["inputs"] + "reference/{genome_build}",
         PATH = CFG['inputs']['src_dir']
-        
     shell:
         op.as_one_line("""
         wget -qO-  {params.url}/battenberg_impute_{params.alt_build}.tar.gz  |
@@ -199,7 +198,7 @@ rule _run_battenberg:
         sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
         echo "setting sex as $sex";
         Rscript {params.script} -t {wildcards.tumour_id} 
-        -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta} --ref {params.ref}
+        -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta} --reference {params.ref}
         -o {params.out_dir} --chr_prefixed_genome $chr_prefixed --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" >> {log.stdout}; 
         """)

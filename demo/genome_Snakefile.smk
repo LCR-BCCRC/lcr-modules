@@ -7,7 +7,7 @@ It will only run through the workflow(eg. genome) sub directory.
 
 import oncopipe as op
 
-SAMPLES = op.load_samples("data/samples_hg19.tsv")
+SAMPLES = op.load_samples("data/samples.tsv")
 GENOME = op.filter_samples(SAMPLES, seq_type = "genome")
 
 
