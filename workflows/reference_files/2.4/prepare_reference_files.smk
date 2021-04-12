@@ -56,7 +56,8 @@ rule all:
                 rules.get_mutect2_pon.output.vcf, 
                 rules.get_af_only_gnomad_vcf.output.vcf,
                 rules.get_jabba_gc_rds.output.rds,
-                rules.get_jabba_map_rds.output.rds
+                rules.get_jabba_map_rds.output.rds,
+                rules.get_par_rds.output.rds
             ],
             genome_build=config["genome_builds"].keys(),
             bwa_version=config["tools"]["bwa"]["version"],
