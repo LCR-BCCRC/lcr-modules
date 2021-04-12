@@ -16,7 +16,7 @@ lcr-modules:
             # For battenberg only:
             # sample_seg: "data/{tool}/{genome_build}/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
             # For Sequenza
-            # results/{tool}/99-outputs/{genome_build}/{tumour_sample_id}--{normal_sample_id}_--matched/filtered/{tool}_segments.igv.seg
+            # results/{tool}/03-igv_seg/{genome_build}/{tumour_sample_id}--{normal_sample_id}_--matched/filtered/{tool}_segments.igv.seg
         scratch_subdirectories: "scratch/"
         options:
             chr_colNum: 2

@@ -37,10 +37,7 @@ demo/data/*bam
 demo/results_archive
 demo/scratch_archive
 demo/results
-
-#delete the two
-demo/results1   
-data1                   
+                   
 # Files creates when dealing with lofreq issue
 modules/lofreq/1.0/src/bin
 
