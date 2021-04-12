@@ -102,7 +102,8 @@ rule _jabba_run_fragcounter:
         installed = str(rules._jabba_install_fragcounter.output.complete),
         bam = str(rules._jabba_input_bam.output.bam),
         gc = reference_files("genomes/{genome_build}/annotations/jabba/gc1000.rds"),
-        map = reference_files("genomes/{genome_build}/annotations/jabba/map1000.rds")
+        map = reference_files("genomes/{genome_build}/annotations/jabba/map1000.rds"),
+        run_custom_fc = CFG["inputs"]["run_custom_fc"]
     output:
         rds = CFG["dirs"]["fragcounter"] + "run/{seq_type}--{genome_build}/{sample_id}/cov.rds"
     log:
@@ -114,9 +115,8 @@ rule _jabba_run_fragcounter:
         mem_mb = CFG["mem_mb"]["fragcounter"]
     shell:
         op.as_one_line(""" 
-        export PATH=$(Rscript -e 'cat(paste0(installed.packages()["fragCounter", "LibPath"], "/fragCounter/extdata/"))'):$PATH
-            &&
-        frag -b {input.bam} -d `dirname {input.gc}` -w 1000 -o `dirname {output.rds}` > {log.stdout} 2> {log.stderr}
+        Rscript {input.run_custom_fc} {input.bam} 1000 `dirname {input.gc}` `dirname {output.rds}`
+            > {log.stdout} 2> {log.stderr}
         """)
 
 
@@ -137,7 +137,12 @@ rule _jabba_make_pon:
     input:
         installed = str(rules._jabba_install_dryclean.output.complete),
         par = reference_files("genomes/{genome_build}/annotations/jabba/PAR_{genome_build}.rds"),
-        rds = expand(CFG["dirs"]["fragcounter"] + "cov/{{seq_type}}--{{genome_build}}/normal/{normal_id}.cov.rds", normal_id = CFG["runs"]["normal_sample_id"]),
+        rds = expand(
+            CFG["dirs"]["fragcounter"] + "cov/{seq_type}--{genome_build}/normal/{normal_id}.cov.rds", 
+            zip, 
+            normal_id = CFG["runs"]["normal_sample_id"], 
+            seq_type = CFG["runs"]["normal_seq_type"], 
+            genome_build = CFG["runs"]["normal_genome_build"]),
         make_pon = CFG["inputs"]["make_pon"]
     output:
         tbl = CFG["dirs"]["dryclean"] + "pon/{seq_type}--{genome_build}/normal_table.rds",
@@ -145,13 +150,15 @@ rule _jabba_make_pon:
     log:
         stdout = CFG["logs"]["dryclean"] + "pon/{seq_type}--{genome_build}/make_pon.stdout.log",
         stderr = CFG["logs"]["dryclean"] + "pon/{seq_type}--{genome_build}/make_pon.stderr.log"
+    params:
+        choose_samples = 'cluster'
     conda: CFG["conda_envs"]["jabba"]
     threads: CFG["threads"]["make_pon"]
     resources:
         mem_mb = CFG["mem_mb"]["make_pon"]
     shell:
         op.as_one_line("""
-        Rscript {input.make_pon} {threads} `dirname {input.rds[0]}` {output.tbl} {output.pon} {input.par} {wildcards.genome_build} > {log.stdout} 2> {log.stderr}
+        Rscript {input.make_pon} {threads} `dirname {input.rds[0]}` {output.tbl} {output.pon} {input.par} {wildcards.genome_build} {params.choose_samples} > {log.stdout} 2> {log.stderr}
         """)
 
 # Run dryclean decomposition on normals; used to identify germline events and artifacts
@@ -175,7 +182,7 @@ rule _jabba_run_dryclean_normal:
         op.as_one_line("""
         Rscript -e 'library(dryclean); library(parallel)'
                 -e 'samp <- readRDS("{input.rds}")'
-                -e 'decomp <- start_wash_cycle(cov = samp, detergent.pon.path = "{input.pon}", whole_genome = TRUE, is.human = FALSE, mc.cores = {threads})'
+                -e 'decomp <- start_wash_cycle(cov = samp, detergent.pon.path = "{input.pon}", whole_genome = TRUE, mc.cores = {threads})'
                 -e 'saveRDS(decomp, "{output.rds}")' > {log.stdout} 2> {log.stderr}
         """)
 
@@ -193,7 +200,12 @@ rule _jabba_make_germline_filter:
     input:
         installed = str(rules._jabba_install_dryclean.output.complete),
         tbl = str(rules._jabba_make_pon.output.tbl),
-        rds = expand(CFG["dirs"]["dryclean"] + "cov/{{seq_type}}--{{genome_build}}/normal/{normal_id}.drycleaned.cov.rds", normal_id = CFG["runs"]["normal_sample_id"]),
+        rds = expand(
+            CFG["dirs"]["dryclean"] + "cov/{seq_type}--{genome_build}/normal/{normal_id}.drycleaned.cov.rds",
+            zip, 
+            normal_id = CFG["runs"]["normal_sample_id"], 
+            seq_type = CFG["runs"]["normal_seq_type"], 
+            genome_build = CFG["runs"]["normal_genome_build"]),
         make_germline = CFG["inputs"]["make_germline"]
     output:
         germline = CFG["dirs"]["dryclean"] + "germline_filter/{seq_type}--{genome_build}/germline.markers.rds"
@@ -234,7 +246,7 @@ rule _jabba_run_dryclean_tumour:
         op.as_one_line("""
         Rscript -e 'library(dryclean); library(parallel)'
                 -e 'samp <- readRDS("{input.rds}")'
-                -e 'decomp <- start_wash_cycle(cov = samp, detergent.pon.path = "{input.pon}", whole_genome = TRUE, is.human = FALSE, mc.cores = {threads}, germline.file = "{input.germline}")'
+                -e 'decomp <- start_wash_cycle(cov = samp, detergent.pon.path = "{input.pon}", whole_genome = TRUE, mc.cores = {threads}, germline.file = "{input.germline}")'
                 -e 'saveRDS(decomp, "{output.rds}")' > {log.stdout} 2> {log.stderr}
         """)
 
