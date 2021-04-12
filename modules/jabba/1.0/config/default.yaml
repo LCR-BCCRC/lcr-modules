@@ -12,9 +12,13 @@ lcr-modules:
 
         scratch_subdirectories: []
 
+        # CPLEX_DIR is path to local CPLEX installation. See
+        # https://github.com/mskilab/JaBbA#installation for
+        # instructions.
+        CPLEX_DIR: "__UPDATE__"
+
         options:
             step_1: ""
-            step_2: ""
 
         conda_envs:
             jabba: "{MODSDIR}/envs/jabba.yaml"

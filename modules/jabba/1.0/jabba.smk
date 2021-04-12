@@ -38,7 +38,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "jabba",
     version = "1.0",
-    subdirectories = ["inputs", "fragcounter", "dryclean", "outputs"],
+    subdirectories = ["inputs", "fragcounter", "dryclean", "jabba",  "outputs"],
 )
 
 
@@ -47,6 +47,7 @@ CFG = op.setup_module(
 localrules:
     _jabba_install_fragcounter,
     _jabba_install_dryclean,
+    _jabba_install_jabba,
     _jabba_input_bam,
     _jabba_link_normal_rds,
     _jabba_link_dryclean_normal_rds,
@@ -78,6 +79,21 @@ rule _jabba_install_dryclean:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)' 
                 -e 'remotes::install_github("mskilab/dryclean")'
+            &&
+        touch {output.complete}
+        """)
+
+rule _jabba_install_jabba:
+    output:
+        complete = CFG["dirs"]["jabba"] + "jabba.installed"
+    conda: CFG["conda_envs"]["jabba"]
+    params:
+        cplex_dir = CFG["CPLEX_DIR"]
+    shell:
+        op.as_one_line(""" 
+        Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
+                -e 'Sys.setenv(CPLEX_DIR = "{params.cplex_dir}")'
+                -e 'remotes::install_github("mskilab/JaBba")'
             &&
         touch {output.complete}
         """)
@@ -248,6 +264,17 @@ rule _jabba_run_dryclean_tumour:
                 -e 'samp <- readRDS("{input.rds}")'
                 -e 'decomp <- start_wash_cycle(cov = samp, detergent.pon.path = "{input.pon}", whole_genome = TRUE, mc.cores = {threads}, germline.file = "{input.germline}")'
                 -e 'saveRDS(decomp, "{output.rds}")' > {log.stdout} 2> {log.stderr}
+        """)
+
+
+rule _jabba_run_jabba:
+    input:
+        pass
+    output:
+        pass
+    shell:
+        op.as_one_line(""" 
+        
         """)
 
 rule _jabba_link_dryclean_tumour_rds:
