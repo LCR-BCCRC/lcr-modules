@@ -28,8 +28,8 @@ lcr-modules:
         mem_mb:
             fragcounter: 4096
             make_pon: 12000
-            dryclean: 4096
-            make_germline: 4096
+            dryclean: 12000
+            make_germline: 12000
 
         pairing_config:
             genome:
