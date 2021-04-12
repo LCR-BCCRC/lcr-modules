@@ -1,5 +1,7 @@
 #!/usr/bin/env Rscript
 
+script_path <- normalizePath(dirname(unlist(strsplit(commandArgs()[grepl('--file', commandArgs())], split = '='))[2]))
+
 args <- commandArgs(trailingOnly = TRUE)
 
 nrml.tbl.path <- args[1]
@@ -25,9 +27,11 @@ nrml.tbl <- nrml.tbl[drcln.tbl,,on = 'sample']
 
 saveRDS(nrml.tbl, file.path(dirname(outdir), 'normal_table.rds'))
 
+source(file.path(script_path, 'custom_identify_germline.R'))
+
 grm = identify_germline(
     normal.table.path = file.path(dirname(outdir), 'normal_table.rds'),
-    path.to.save = dirname(tbl.out),
+    path.to.save = dirname(outdir),
     signal.thresh = signal.thresh,
     pct.thresh = pct.thresh,
     save.grm = TRUE
