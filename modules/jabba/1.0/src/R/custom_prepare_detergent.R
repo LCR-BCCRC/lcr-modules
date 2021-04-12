@@ -204,7 +204,7 @@ If this is not the correct build, please provide a GRange object delineating for
     
     mat.n = pbmclapply(samp.final[, sample], function(nm){
         this.cov = tryCatch(readRDS(samp.final[nm, normal_cov]), error = function(e) NULL)
-        chr.prefixed = any('chr' %in% seqnames(this.cov))
+        chr.prefixed = any(grepl('^chr', levels(seqnames(this.cov))))
         if (!is.null(this.cov)){
             # Handle chromosome prefixed
             all.chr = c(as.character(1:22), "X")
@@ -215,7 +215,7 @@ If this is not the correct build, please provide a GRange object delineating for
             ##all.chr = names(which(seqlengths(this.cov) > 5e6))
             this.cov = this.cov %Q% (seqnames %in% all.chr)
             this.cov = this.cov[, field] %>% gr2dt() %>% setnames(., field, "signal.org")
-            this.cov = this.cov[!is.na(signal.org),]
+            #this.cov = this.cov[!is.na(signal.org),]
             this.cov[, median.idx := .GRP, by = seqnames]
             ##if (is.human){
                 ##this.cov[, median.idx := ifelse(seqnames == "X" & start < par, 24, median.idx)]
