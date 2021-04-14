@@ -14,6 +14,7 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+import os
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -41,6 +42,8 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "fragcounter", "dryclean", "jabba",  "outputs"],
 )
 
+os.environ["CPLEX_DIR"] = str(CFG["CPLEX_DIR"])
+
 
 # Define rules to be run locally when using a compute cluster
 # TODO: Replace with actual rules once you change the rule names
@@ -49,9 +52,10 @@ localrules:
     _jabba_install_dryclean,
     _jabba_install_jabba,
     _jabba_input_bam,
+    _jabba_input_junc,
     _jabba_link_normal_rds,
     _jabba_link_dryclean_normal_rds,
-    _jabba_link_dryclean_tumour_rds,
+    _jabba_link_graph_rds,
     _jabba_all
 
 
@@ -66,7 +70,8 @@ rule _jabba_install_fragcounter:
     conda: CFG["conda_envs"]["jabba"]
     shell:
         op.as_one_line("""
-        Rscript -e 'remotes::install_github("mskilab/fragCounter")' 
+        Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
+                -e 'remotes::install_github("mskilab/fragCounter", upgrade = FALSE)' 
             &&
         touch {output.complete}
         """)
@@ -78,7 +83,7 @@ rule _jabba_install_dryclean:
     shell:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)' 
-                -e 'remotes::install_github("mskilab/dryclean")'
+                -e 'remotes::install_github("mskilab/dryclean", upgrade = FALSE)'
             &&
         touch {output.complete}
         """)
@@ -93,7 +98,7 @@ rule _jabba_install_jabba:
         op.as_one_line(""" 
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
                 -e 'Sys.setenv(CPLEX_DIR = "{params.cplex_dir}")'
-                -e 'remotes::install_github("mskilab/JaBba")'
+                -e 'remotes::install_github("mskilab/JaBba", upgrade = FALSE)'
             &&
         touch {output.complete}
         """)
@@ -111,6 +116,16 @@ rule _jabba_input_bam:
         op.relative_symlink(input.bam, output.bam)
         op.relative_symlink(input.bai, output.bai)
         op.relative_symlink(input.bai, output.crai)
+
+rule _jabba_input_junc:
+    input:
+        junc = CFG["inputs"]["sample_junc"]
+    output:
+        junc = CFG["dirs"]["inputs"] + "junc/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.passed.bedpe"
+    shell:
+        op.as_one_line(""" 
+        awk 'BEGIN {{OFS=FS="\t"}} $1 ~ "\#" {{print}} $12 == "PASS"' {input.junc} > {output.junc}
+        """)
 
 # Runs fragcounter on individual samples
 rule _jabba_run_fragcounter:
@@ -244,20 +259,20 @@ rule _jabba_make_germline_filter:
 rule _jabba_run_dryclean_tumour:
     input:
         installed = str(rules._jabba_install_dryclean.output.complete),
-        rds = str(rules._jabba_run_fragcounter.output.rds),
+        rds = CFG["dirs"]["fragcounter"] + "run/{seq_type}--{genome_build}/{tumour_id}/cov.rds",
         pon = str(rules._jabba_make_pon.output.pon),
         germline = str(rules._jabba_make_germline_filter.output.germline)
     output:
-        rds = CFG["dirs"]["dryclean"] + "run/{seq_type}--{genome_build}/{sample_id}/drycleaned.cov.rds"
+        rds = CFG["dirs"]["dryclean"] + "run/{seq_type}--{genome_build}/{tumour_id}/drycleaned.cov.rds"
     log:
-        stdout = CFG["logs"]["dryclean"] + "run/{seq_type}--{genome_build}/{sample_id}.stdout.log",
-        stderr = CFG["logs"]["dryclean"] + "run/{seq_type}--{genome_build}/{sample_id}.stderr.log"
+        stdout = CFG["logs"]["dryclean"] + "run/{seq_type}--{genome_build}/{tumour_id}.stdout.log",
+        stderr = CFG["logs"]["dryclean"] + "run/{seq_type}--{genome_build}/{tumour_id}.stderr.log"
     conda: CFG["conda_envs"]["jabba"]
     threads: CFG["threads"]["dryclean"]
     resources:
         mem_mb = CFG["mem_mb"]["dryclean"]
     wildcard_constraints:
-        sample_id = "|".join(CFG["runs"]["tumour_sample_id"])
+        tumour_id = "|".join(CFG["runs"]["tumour_sample_id"])
     shell:
         op.as_one_line("""
         Rscript -e 'library(dryclean); library(parallel)'
@@ -269,28 +284,42 @@ rule _jabba_run_dryclean_tumour:
 
 rule _jabba_run_jabba:
     input:
-        pass
+        installed = str(rules._jabba_install_jabba.output.complete),
+        rds = str(rules._jabba_run_dryclean_tumour.output.rds),
+        junc = str(rules._jabba_input_junc.output.junc),
+        script = CFG["inputs"]["run_jabba_main"]
     output:
-        pass
+        rds = CFG["dirs"]["jabba"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/jabba.simple.gg.rds"
+    log:
+        stdout = CFG["logs"]["jabba"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.stdout.log",
+        stderr = CFG["logs"]["jabba"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.stderr.log"
+    params:
+        CPLEX = CFG["CPLEX_DIR"]
+    conda: CFG["conda_envs"]["jabba"]
+    threads: CFG["threads"]["jabba"]
+    resources:
+        mem_mb = CFG["mem_mb"]["jabba"]
     shell:
         op.as_one_line(""" 
-        
+        Rscript {input.script} {input.rds} {input.junc} `dirname {output.rds}` {params.CPLEX} {threads} > {log.stdout} 2> {log.stderr}
         """)
 
-rule _jabba_link_dryclean_tumour_rds:
+
+rule _jabba_link_graph_rds:
     input:
-        rds = CFG["dirs"]["dryclean"] + "run/{seq_type}--{genome_build}/{tumour_id}/drycleaned.cov.rds"
+        rds = CFG["dirs"]["jabba"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/jabba.simple.gg.rds"
     output:
-        rds = CFG["dirs"]["outputs"] + "rds/{seq_type}--{genome_build}/{tumour_id}.drycleaned.cov.rds"
+        rds = CFG["dirs"]["outputs"] + "rds/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.jabba.simple.gg.rds"
     run:
         op.relative_symlink(input.rds, output.rds)
+
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _jabba_all:
     input:
         expand(
             [
-                str(rules._jabba_link_dryclean_tumour_rds.output.rds),
+                str(rules._jabba_link_graph_rds.output.rds),
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
