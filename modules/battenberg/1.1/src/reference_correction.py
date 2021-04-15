@@ -3,10 +3,25 @@
 
 # Original Author:  Lakshay Sethi
 
-'''Comments
-    getcwd function of os package was used to retrieve the working directory.
-    argv function of sys package was used to uilize the parameters passed with the file.
-'''
+### Battenberg refrence file corrector ### 
+# Replaces the placeholder value in the impute_info.txt with the correct path 
+# where the reference files downloaded are stored. 
+
+#!/usr/bin/env Python script
+#
+# Usage: 
+#   python <path/to/src_dir>/reference_correction.py <genome_wildcard>
+#
+# Notes: 
+#   This script is intended for use with the Battenberg-1.1 module in LCR-modules. 
+#   It expects to find the genome build at the input path, following 
+#   the pattern reference_correction.py {genome_build}. These files should be in the 
+#   00-inputs subdirectory of the battenberg-1.1 directory present in the results directory. 
+#
+#   The file is made to be present in the src sub directory of the module.
+#
+#   The sample table should adhere to LCR-modules guidelines. 
+
 import os
 import sys
 cwd = os.getcwd()
