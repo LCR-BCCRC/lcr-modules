@@ -46,7 +46,6 @@ os.environ["CPLEX_DIR"] = str(CFG["CPLEX_DIR"])
 
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _jabba_install_fragcounter,
     _jabba_install_dryclean,
