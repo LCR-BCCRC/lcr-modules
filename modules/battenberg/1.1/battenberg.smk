@@ -80,6 +80,7 @@ rule _battenberg_get_reference:
         url = "https://www.bcgsc.ca/downloads/morinlab/reference",
         alt_build = lambda w: VERSION_MAP[w.genome_build],
         folder = CFG["dirs"]["inputs"] + "reference/{genome_build}",
+        build = "{genome_build}",
         PATH = CFG['inputs']['src_dir']
     shell:
         op.as_one_line("""
@@ -92,9 +93,9 @@ rule _battenberg_get_reference:
         wget -qO- {params.url}/battenberg_1000genomesloci_{params.alt_build}.tar.gz | 
         tar -xvz > {output.genomesloci} -C {params.folder}
         &&
-        wget -O {output.impute_info} 'https://ora.ox.ac.uk/objects/uuid:2c1fec09-a504-49ab-9ce9-3f17bac531bc/download_file?file_format=plain&safe_filename=impute_info.txt&type_of_work=Dataset'
+        wget -O {output.impute_info} {params.url}/impute_info_{params.alt_build}.txt
         &&
-        python {params.PATH}/reference_correction.py {genome_build}
+        python {params.PATH}/reference_correction.py {params.build}
         &&
         wget -qO-  {params.url}/battenberg_{params.alt_build}_replic_correction.tar.gz |
         tar -xvz > {output.battenberg_wgs_replic_correction} -C {params.folder}
@@ -193,7 +194,8 @@ rule _run_battenberg:
         CFG["threads"]["battenberg"]
     shell:
        op.as_one_line("""
-        if [[ $(head -c 4 {params.fasta}) == ">chr" ]]; then chr_prefixed='--chr_prefixed_genome'; else chr_prefixed=' '; fi;
+        if [[ $(head -c 4 {params.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed='false'; fi;
+        echo "$chr_prefixed"
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stdout};
         sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
         echo "setting sex as $sex";
