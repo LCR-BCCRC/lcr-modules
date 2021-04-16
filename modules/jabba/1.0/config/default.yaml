@@ -9,6 +9,7 @@ lcr-modules:
 
             # SV caller BEDPE or VCF v4.2 file. Available wildcards:
             # {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
+            # file extensions must be either .bedpe or .vcf
             sample_junc: "__UPDATE__"
 
             make_pon: "{MODSDIR}/src/R/make_pon.R"
