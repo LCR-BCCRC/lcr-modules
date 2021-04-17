@@ -51,7 +51,8 @@ localrules:
     _jabba_install_dryclean,
     _jabba_install_jabba,
     _jabba_input_bam,
-    _jabba_input_junc,
+    _jabba_input_junc_bedpe,
+    _jabba_input_junc_vcf,
     _jabba_link_normal_rds,
     _jabba_link_dryclean_normal_rds,
     _jabba_link_graph_rds,
@@ -123,7 +124,7 @@ rule _jabba_input_junc_bedpe:
         junc = CFG["dirs"]["inputs"] + "junc/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.passed.bedpe"
     shell:
         op.as_one_line(""" 
-        awk 'BEGIN {{OFS=FS="\t"}} $1 ~ "\#" {{print}} $12 == "PASS"' {input.junc} > {output.junc}
+        grep -e '^#' -e 'PASS' {input.junc} > {output.junc}
         """)
 
 rule _jabba_input_junc_vcf:
@@ -133,7 +134,7 @@ rule _jabba_input_junc_vcf:
         junc = CFG["dirs"]["inputs"] + "junc/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.passed.vcf"
     shell:
         op.as_one_line(""" 
-        awk 'BEGIN {{OFS=FS="\t"}} $1 ~ "\#" {{print}} $6 ~ "PASS" || $7 ~ "PASS"'{{print}} {input.junc} > {output.junc}
+        grep -e '^#' -e 'PASS' {input.junc} > {output.junc}
         """)
 
 # Runs fragcounter on individual samples
@@ -294,7 +295,7 @@ rule _jabba_run_dryclean_tumour:
 def _get_junc_file(wildcards):
     CFG = config["lcr-modules"]["jabba"]
     filename, ext = os.path.splitext(CFG["inputs"]["sample_junc"])
-    out = CFG["dirs"]["inputs"] + "junc/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.passed." + ext
+    out = CFG["dirs"]["inputs"] + "junc/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.passed" + ext
     return(out)
 
 rule _jabba_run_jabba:
