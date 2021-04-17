@@ -121,21 +121,17 @@ rule _jabba_input_junc_bedpe:
     input:
         junc = CFG["inputs"]["sample_junc"]
     output:
-        junc = CFG["dirs"]["inputs"] + "junc/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.passed.bedpe"
-    shell:
-        op.as_one_line(""" 
-        grep -e '^#' -e 'PASS' {input.junc} > {output.junc}
-        """)
+        junc = CFG["dirs"]["inputs"] + "junc/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.bedpe"
+    run:
+        op.relative_symlink(input.junc, output.junc)
 
 rule _jabba_input_junc_vcf:
     input:
         junc = CFG["inputs"]["sample_junc"]
     output:
-        junc = CFG["dirs"]["inputs"] + "junc/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.passed.vcf"
-    shell:
-        op.as_one_line(""" 
-        grep -e '^#' -e 'PASS' {input.junc} > {output.junc}
-        """)
+        junc = CFG["dirs"]["inputs"] + "junc/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.vcf"
+    run:
+        op.relative_symlink(input.junc, output.junc)
 
 # Runs fragcounter on individual samples
 rule _jabba_run_fragcounter:
@@ -295,7 +291,7 @@ rule _jabba_run_dryclean_tumour:
 def _get_junc_file(wildcards):
     CFG = config["lcr-modules"]["jabba"]
     filename, ext = os.path.splitext(CFG["inputs"]["sample_junc"])
-    out = CFG["dirs"]["inputs"] + "junc/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.passed" + ext
+    out = CFG["dirs"]["inputs"] + "junc/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}" + ext
     return(out)
 
 rule _jabba_run_jabba:
