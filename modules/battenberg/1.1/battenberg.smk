@@ -52,7 +52,6 @@ _battenberg_CFG = CFG
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _battenberg_get_reference
     _battenberg_all
 
 VERSION_MAP = {
@@ -82,6 +81,10 @@ rule _battenberg_get_reference:
         folder = CFG["dirs"]["inputs"] + "reference/{genome_build}",
         build = "{genome_build}",
         PATH = CFG['inputs']['src_dir']
+    resources:
+        **CFG["resources"]["battenberg"]
+    threads:
+        CFG["threads"]["battenberg"]
     shell:
         op.as_one_line("""
         wget -qO-  {params.url}/battenberg_impute_{params.alt_build}.tar.gz  |
@@ -127,10 +130,12 @@ rule _install_battenberg:
         complete = "config/envs/battenberg_dependencies_installed.success"
     conda:
         CFG["conda_envs"]["battenberg"]
+    log:
+        input = CFG["logs"]["inputs"] + "input.log"
     shell:
         """
-        R -q -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' && ##move some of this to config?
-        R -q -e 'devtools::install_github("morinlab/battenberg")' &&              ##move some of this to config?
+        R -q -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' >> {log.input} && ##move some of this to config?
+        R -q -e 'devtools::install_github("morinlab/battenberg")' >> {log.input} &&              ##move some of this to config?
         touch {output.complete}"""
 
 # this process is very fast on bam files and painfully slow on cram files. 
