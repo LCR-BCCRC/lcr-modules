@@ -131,7 +131,7 @@ rule _install_battenberg:
     conda:
         CFG["conda_envs"]["battenberg"]
     log:
-        input = CFG["logs"]["dirs"] + "input.log"
+        input = CFG["logs"]["inputs"] + "input.log"
     shell:
         """
         R -q -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' >> {log.input} && ##move some of this to config?
