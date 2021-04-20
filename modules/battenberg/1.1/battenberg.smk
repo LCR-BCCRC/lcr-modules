@@ -130,10 +130,12 @@ rule _install_battenberg:
         complete = "config/envs/battenberg_dependencies_installed.success"
     conda:
         CFG["conda_envs"]["battenberg"]
+    log:
+        input = CFG["logs"]["dirs"] + "input.log"
     shell:
         """
-        R -q -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' && ##move some of this to config?
-        R -q -e 'devtools::install_github("morinlab/battenberg")' &&              ##move some of this to config?
+        R -q -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' >> {log.input} && ##move some of this to config?
+        R -q -e 'devtools::install_github("morinlab/battenberg")' >> {log.input} &&              ##move some of this to config?
         touch {output.complete}"""
 
 # this process is very fast on bam files and painfully slow on cram files. 
