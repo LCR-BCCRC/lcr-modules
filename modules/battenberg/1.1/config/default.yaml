@@ -21,9 +21,13 @@ lcr-modules:
             infer_sex:
                 mem_mb: 20000
                 bam: 1
+            reference:
+                mem_mb: 8000
+                bam: 1
 
         threads:
             battenberg: 24
+            reference: 5
             #ideal for processing all chromosomes at once
 
         pairing_config:

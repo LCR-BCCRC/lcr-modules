@@ -82,9 +82,9 @@ rule _battenberg_get_reference:
         build = "{genome_build}",
         PATH = CFG['inputs']['src_dir']
     resources:
-        **CFG["resources"]["battenberg"]
+        **CFG["resources"]["reference"]
     threads:
-        CFG["threads"]["battenberg"]
+        CFG["threads"]["reference"]
     shell:
         op.as_one_line("""
         wget -qO-  {params.url}/battenberg_impute_{params.alt_build}.tar.gz  |
