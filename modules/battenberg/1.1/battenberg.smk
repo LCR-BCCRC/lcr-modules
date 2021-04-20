@@ -52,7 +52,6 @@ _battenberg_CFG = CFG
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _battenberg_get_reference
     _battenberg_all
 
 VERSION_MAP = {
@@ -82,6 +81,10 @@ rule _battenberg_get_reference:
         folder = CFG["dirs"]["inputs"] + "reference/{genome_build}",
         build = "{genome_build}",
         PATH = CFG['inputs']['src_dir']
+    resources:
+        **CFG["resources"]["battenberg"]
+    threads:
+        CFG["threads"]["battenberg"]
     shell:
         op.as_one_line("""
         wget -qO-  {params.url}/battenberg_impute_{params.alt_build}.tar.gz  |
