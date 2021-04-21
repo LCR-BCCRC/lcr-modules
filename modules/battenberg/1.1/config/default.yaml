@@ -23,11 +23,10 @@ lcr-modules:
                 bam: 1
             reference:
                 mem_mb: 8000
-                bam: 1
 
         threads:
             battenberg: 24
-            reference: 5
+            reference: 2
             #ideal for processing all chromosomes at once
 
         pairing_config:
