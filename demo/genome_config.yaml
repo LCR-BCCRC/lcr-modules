@@ -40,8 +40,8 @@ lcr-modules:
 
     bwa_mem:
         inputs:
-            sample_fastq_1: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read2.fastq.gz"
+            sample_fastq_1: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read2.fastq.gz"
         scratch_subdirectories: []
 
     controlfreec:
@@ -101,8 +101,8 @@ lcr-modules:
 
     mixcr:
         inputs:
-            sample_fastq_1: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read2.fastq.gz"
+            sample_fastq_1: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read2.fastq.gz"
             # Path to the directory where MIXCR should be installed
             mixcr_exec: "data"
 

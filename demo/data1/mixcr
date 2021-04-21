@@ -1,0 +1,198 @@
+#!/usr/bin/env bash
+
+app="mixcr"
+defaultXmx=12000
+
+java="java"
+
+sedString1="s/\s*\([^.]*\)\..*/\1/"
+sedString2="s/.*1\.\(.*\)\..*/\1/"
+jVersion=$($java -version 2>&1 | grep version | awk '{ print $3 }' | sed 's:"::g')
+jVersion1=$(echo "$jVersion" | sed $sedString1)
+
+if [[ jVersion1 -eq 1 ]]; then
+  jVersion2=$(echo "$jVersion" | sed $sedString2)
+  if [[ $jVersion2 -lt 7 ]]; then
+    echo "Wrong version of java. Please use Java 7 or higher."
+    exit 1
+  fi
+
+  if [[ $jVersion2 -lt 8 ]]; then
+    echo "WARNING: Several issues have been detected while using Java 7. Please consider updateing to Java 8 or higher."
+  fi
+
+  jVersion="$jVersion2"
+
+elif [[ jVersion1 -lt 9 ]]; then
+  echo "Wrong version of java. Please use Java 7 or higher."
+  exit 1
+else
+  jVersion="$jVersion1"
+fi
+
+# Linux readlink -f alternative for Mac OS X
+function readlinkUniversal() {
+  targetFile=$1
+
+  cd $(dirname "$targetFile")
+  targetFile=$(basename $targetFile)
+
+  # iterate down a (possible) chain of symlinks
+  while [ -L "$targetFile" ]; do
+    targetFile=$(readlink $targetFile)
+    cd $(dirname "$targetFile")
+    targetFile=$(basename $targetFile)
+  done
+
+  # compute the canonicalized name by finding the physical path
+  # for the directory we're in and appending the target file.
+  phys_dir=$(pwd -P)
+  result=$phys_dir/$targetFile
+  echo "$result"
+}
+
+os=$(uname)
+delta=100
+
+dir=""
+
+maxMb="???"
+
+function calculateMaxMb() {
+  case $os in
+  Darwin)
+    freeBlocks=$(vm_stat | grep free | awk '{ print $3 }' | sed 's/\.//')
+    inactiveBlocks=$(vm_stat | grep inactive | awk '{ print $3 }' | sed 's/\.//')
+    speculativeBlocks=$(vm_stat | grep speculative | awk '{ print $3 }' | sed 's/\.//')
+    freeMb=$(((freeBlocks + speculativeBlocks) * 4096 / 1048576))
+    inactiveMb=$((inactiveBlocks * 4096 / 1048576))
+    maxMb=$(((freeMb + inactiveMb - delta)))
+    ;;
+  Linux)
+    rFreeMb=$(free -m | grep Mem | awk '{ print $4 }')
+    maxMb=$((rFreeMb - delta))
+    ;;
+  FreeBSD)
+    freeBlocks=$(vmstat -s | grep -E 'free$' | awk '{ print $1 }')
+    inactiveBlocks=$(vmstat -s | grep inactive | awk '{ print $1 }')
+    freeMb=$(((freeBlocks + inactiveBlocks) * 4096 / 1048576))
+    maxMb=$((freeMb - delta))
+    ;;
+  *)
+    echo "Unknown OS."
+    exit 1
+    ;;
+  esac
+  if [[ -n ${MAX_MEMORY_OVERRIDE+x} ]]; then
+    maxMb="${MAX_MEMORY_OVERRIDE}"
+  fi
+}
+
+case $os in
+Darwin)
+  dir=$(dirname "$(readlinkUniversal "$0")")
+  ;;
+Linux)
+  dir="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+  ;;
+FreeBSD)
+  dir=$(dirname "$(readlinkUniversal "$0")")
+  ;;
+*)
+  echo "Unknown OS."
+  exit 1
+  ;;
+esac
+
+appArgs=()
+javaArgs=()
+
+needXmxXms=true
+altJar=""
+
+inDocker=false
+
+if [[ -f /proc/1/cgroup ]] && grep docker /proc/1/cgroup -qa; then
+  inDocker=true
+fi
+
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  shift
+  case $key in
+  -D* | -X* | -ea | -agentlib*)
+    javaArgs+=("${key}")
+
+    case $key in
+    -Xmx* | -Xms*)
+      needXmxXms=false
+      ;;
+    esac
+
+    ;;
+  -jar | -V)
+    altJar="$1"
+    shift
+    ;;
+  *)
+    appArgs+=("${key}")
+    ;;
+  esac
+done
+
+scr=${dir}/scr
+
+if [[ -n ${altJar} ]]; then
+  scr="${scr} -V ${altJar}"
+fi
+
+if [[ ${needXmxXms} == true ]]; then
+  if [[ ${inDocker} == true ]] && [[ jVersion -ge 11 ]]; then
+    javaArgs+=("-XX:MaxRAMPercentage=85.0")
+  else
+    targetXmx=$defaultXmx
+
+    calculateMaxMb
+
+    if [[ $targetXmx -gt $maxMb ]]; then
+      targetXmx=$maxMb
+    fi
+
+    javaArgs+=("-Xmx${targetXmx}m")
+
+    targetXms=$((targetXmx * 2 / 3))
+
+    if [[ $targetXms -lt 2000 ]]; then
+      targetXms=$targetXmx
+    fi
+
+    javaArgs+=("-Xms${targetXms}m")
+  fi
+fi
+
+jar=""
+
+if [[ -z "$altJar" ]]; then
+  for j in "$dir/../jar/${app}.jar" "$dir/${app}.jar" $(ls -d -1 "$dir"/target/* 2>/dev/null | grep "${app}" | grep distribution.jar); do
+    if [[ -e "$j" ]]; then
+      jar=$j
+      break
+    fi
+  done
+else
+  for j in $(ls -1 "${dir}"/* | grep "${app}" | grep ".jar" | grep "${altJar}"); do
+    if [[ -e "$j" ]]; then
+      jar=$j
+      break
+    fi
+  done
+fi
+
+if [[ "$jar" == "" ]]; then
+  echo "No jar."
+  exit 1
+fi
+
+$java -D${app}.path="$dir" -D${app}.command=${app} "${javaArgs[@]}" -jar "$jar" "${appArgs[@]}"
+
+exit $?

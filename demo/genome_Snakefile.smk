@@ -94,13 +94,13 @@ include: "../modules/utils/2.1/utils.smk"
 
 rule all:
     input:
+        rules._slms_3_all.input,
         rules._sage_all.input,
         rules._picard_qc_all.input,
         rules._bam2fastq_all.input,
         rules._sequenza_all.input,
         rules._bwa_mem_all.input,
         rules._controlfreec_all.input,
-        rules._slms_3_all.input,
         rules._manta_all.input,  
         rules._lofreq_all.input,
         rules._strelka_all.input,
