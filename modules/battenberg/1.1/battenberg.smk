@@ -27,10 +27,8 @@ except ModuleNotFoundError:
 
 current_version = pkg_resources.get_distribution("oncopipe").version
 if version.parse(current_version) < version.parse(min_oncopipe_version):
-    logger.warning(
-                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
-                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
-                )
+    print(f"ERROR: oncopipe version installed: {current_version}")
+    print(f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment")
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
 # End of dependency checking section    
@@ -54,59 +52,8 @@ _battenberg_CFG = CFG
 localrules:
     _battenberg_all
 
-VERSION_MAP = {
-    "hg19": "grch37",
-    "grch37": "grch37",
-    "hs37d5": "grch37",
-    "hg38": "hg38",
-    "grch38": "hg38",
-    "grch38-legacy": "hg38"
-
-}
 
 ##### RULES #####
-
-# Downloads the reference files into the module results directory (under '00-inputs/') from https://www.bcgsc.ca/downloads/morinlab/reference/ . 
-rule _battenberg_get_reference:
-    output:
-        battenberg_impute =  directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_impute_v3"),
-        impute_info = CFG["dirs"]["inputs"] + "reference/{genome_build}/impute_info.txt",
-        probloci =  CFG["dirs"]["inputs"] + "reference/{genome_build}/probloci.txt.gz",
-        battenberg_wgs_replic_correction = directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_wgs_replic_correction_1000g_v3"),
-        battenberg_gc_correction = directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_wgs_gc_correction_1000g_v3"),  
-        genomesloci = directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_1000genomesloci2012_v3")
-    params:
-        url = "https://www.bcgsc.ca/downloads/morinlab/reference",
-        alt_build = lambda w: VERSION_MAP[w.genome_build],
-        folder = CFG["dirs"]["inputs"] + "reference/{genome_build}",
-        build = "{genome_build}",
-        PATH = CFG['inputs']['src_dir']
-    resources:
-        **CFG["resources"]["reference"]
-    threads:
-        CFG["threads"]["reference"]
-    shell:
-        op.as_one_line("""
-        wget -qO-  {params.url}/battenberg_impute_{params.alt_build}.tar.gz  |
-        tar -xvz > {output.battenberg_impute} -C {params.folder}
-        &&
-        wget -qO- {params.url}/battenberg_{params.alt_build}_gc_correction.tar.gz  |
-        tar -xvz > {output.battenberg_gc_correction} -C {params.folder}
-        &&
-        wget -qO- {params.url}/battenberg_1000genomesloci_{params.alt_build}.tar.gz | 
-        tar -xvz > {output.genomesloci} -C {params.folder}
-        &&
-        wget -O {output.impute_info} {params.url}/impute_info_{params.alt_build}.txt
-        &&
-        python {params.PATH}/reference_correction.py {params.build}
-        &&
-        wget -qO-  {params.url}/battenberg_{params.alt_build}_replic_correction.tar.gz |
-        tar -xvz > {output.battenberg_wgs_replic_correction} -C {params.folder}
-        &&
-        wget -O {output.probloci} {params.url}/probloci_{params.alt_build}.txt.gz
-        
-        """)
-
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _battenberg_input_bam:
@@ -130,12 +77,10 @@ rule _install_battenberg:
         complete = "config/envs/battenberg_dependencies_installed.success"
     conda:
         CFG["conda_envs"]["battenberg"]
-    log:
-        input = CFG["logs"]["inputs"] + "input.log"
     shell:
         """
-        R -q -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' >> {log.input} && ##move some of this to config?
-        R -q -e 'devtools::install_github("morinlab/battenberg")' >> {log.input} &&              ##move some of this to config?
+        R -q -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' && ##move some of this to config?
+        R -q -e 'devtools::install_github("morinlab/battenberg")' &&              ##move some of this to config?
         touch {output.complete}"""
 
 # this process is very fast on bam files and painfully slow on cram files. 
@@ -149,8 +94,6 @@ rule _infer_patient_sex:
         **CFG["resources"]["infer_sex"]
     log:
         stderr = CFG["logs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}_infer_sex_stderr.log"
-    conda:
-        CFG["conda_envs"]["samtools"]
     group: "setup_run"
     threads: 8
     shell:
@@ -164,15 +107,14 @@ rule _infer_patient_sex:
 
 # This rule runs the entire Battenberg pipeline. Eventually we may want to set this rule up to allow re-starting
 # of partially completed jobs (e.g. if they run out of RAM and are killed by the cluster, they can automatically retry)
+# TODO: this rule needs to be modified to rely on reference_files and allow setup (downloading) of the Battenberg references
 rule _run_battenberg:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         installed = "config/envs/battenberg_dependencies_installed.success",
         sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        impute_info = CFG["dirs"]["inputs"] + "reference/{genome_build}/impute_info.txt"
-
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         refit=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_refit_suggestion.txt",
         sub=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.txt",
@@ -187,10 +129,10 @@ rule _run_battenberg:
         stdout = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stdout.log",
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stderr.log"
     params:
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        reference_path = lambda w: _battenberg_CFG["reference_path"][w.genome_build],
         script = CFG["inputs"]["battenberg_script"],
-        out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
-        ref = CFG["dirs"]["inputs"] + "reference/{genome_build}"
+        chr_prefixed = lambda w: _battenberg_CFG["options"]["chr_prefixed_reference"][w.genome_build],
+        out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}"
     conda:
         CFG["conda_envs"]["battenberg"]
     resources:
@@ -199,14 +141,12 @@ rule _run_battenberg:
         CFG["threads"]["battenberg"]
     shell:
        op.as_one_line("""
-        if [[ $(head -c 4 {params.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed='false'; fi;
-        echo "$chr_prefixed"
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stdout};
         sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
         echo "setting sex as $sex";
         Rscript {params.script} -t {wildcards.tumour_id} 
-        -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta} --reference {params.ref}
-        -o {params.out_dir} --chr_prefixed_genome $chr_prefixed --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
+        -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta}
+        -o {params.out_dir} --sex $sex --reference {params.reference_path} {params.chr_prefixed} --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" >> {log.stdout}; 
         """)
 
@@ -272,19 +212,14 @@ rule _battenberg_output_seg:
         op.relative_symlink(input.sub, output.sub,in_module=True)
         op.relative_symlink(input.cp, output.cp,in_module=True)
 
-
-
 # Generates the target sentinels for each run, which generate the symlinks
 rule _battenberg_all:
     input:
         expand(
             [
-                
                 rules._run_battenberg.output.sub,
                 rules._battenberg_output_seg.output.seg,
                 rules._battenberg_cleanup.output.complete
-                
-
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
@@ -292,9 +227,6 @@ rule _battenberg_all:
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
             pair_status=CFG["runs"]["pair_status"])
-
-
-
 
 
 ##### CLEANUP #####
