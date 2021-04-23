@@ -15,6 +15,11 @@ import pandas as pd
 import snakemake as smk
 from snakemake.logging import logger
 
+##################3
+import re
+
+#####################
+
 
 # CONSTANTS
 
@@ -163,6 +168,7 @@ def set_value(value, *keys):
 
 # UTILITIES
 
+
 def prepare_symlink(src, dest):
     # Coerce length-1 NamedList instances to strings
     def coerce_namedlist_to_string(obj):
@@ -193,8 +199,9 @@ def prepare_symlink(src, dest):
         dest_dir, dest_file = os.path.split(dest)
     os.makedirs(os.path.abspath(dest_dir), exist_ok=True)
     dest = os.path.join(dest_dir, dest_file)
-    
+
     return src, dest
+
 
 def compare_links(src, dest, overwrite):
     # Check if the destination file exists and is a symlink
@@ -215,9 +222,8 @@ def compare_links(src, dest, overwrite):
         f"    Attempted: {dest} -> {src}"
     )
 
-    
 
-def absolute_symlink(src, dest, overwrite=True): 
+def absolute_symlink(src, dest, overwrite=True):
     """Creates an absolute symlink from any working directory.
 
     Parameters
@@ -231,7 +237,7 @@ def absolute_symlink(src, dest, overwrite=True):
     overwrite : boolean
         Whether to overwrite the destination file if it exists.
     """
-    # Prepare source and destination file paths 
+    # Prepare source and destination file paths
     src, dest = prepare_symlink(src, dest)
     # Retrieve the absolute file path for the source file
     src = os.path.abspath(src)
@@ -242,7 +248,6 @@ def absolute_symlink(src, dest, overwrite=True):
     # Symlink the source file to the destination
     os.symlink(src, dest)
 
-    
 
 def relative_symlink(src, dest, in_module=False, overwrite=True):
     """Creates a relative symlink from any working directory.
@@ -266,12 +271,12 @@ def relative_symlink(src, dest, in_module=False, overwrite=True):
     overwrite : boolean
         Whether to overwrite the destination file if it exists.
     """
-    # Prepare source and destination file paths 
+    # Prepare source and destination file paths
     src, dest = prepare_symlink(src, dest)
 
     # Retrieve the relative file path for the source file
     dest_dir = os.path.split(dest)[0]
-    if not in_module: 
+    if not in_module:
         dest_dir = os.path.realpath(dest_dir)
     src = os.path.relpath(src, dest_dir)
 
@@ -280,7 +285,6 @@ def relative_symlink(src, dest, in_module=False, overwrite=True):
 
     # Symlink the source file to the destination
     os.symlink(src, dest)
-    
 
 
 def get_from_dict(dictionary, list_of_keys):
@@ -502,7 +506,7 @@ def switch_on_column(
     """
 
     assert isinstance(options, dict), "`options` must be a `dict` object."
-    assert column in samples, (f"`{column}` must be a column name in `samples`.")
+    assert column in samples, f"`{column}` must be a column name in `samples`."
 
     def _switch_on_column(
         wildcards, input=None, output=None, threads=None, resources=None
@@ -1781,3 +1785,53 @@ def cleanup_module(module_config):
     # Add back the TSV fields
     for field in tsv_fields.keys():
         module_config[field] = tsv_fields[field]
+
+
+def output_checker(source, type1):
+    """Checks the completness of a file and takes action according to it.
+
+    Parameters
+    ----------
+    source : str
+        The source file or directory path.
+    type : str
+        Kind of file or directory. Eg. folder or file
+    """
+    source = os.path.abspath(source)
+    print(type1)
+    print(source)
+
+    def get_reference_custom(wildcards):
+        src = source
+        for i in re.finditer(r"\{(?P<param>.*?)\}", source):
+            src = src.replace(i[0], wildcards[i[0].replace("{", "").replace("}", "")])
+        print(src)
+        if type1 == "folder":
+            print("ddddwdwdw")
+            # Check if source folder is empty and deletes it if it does
+            if os.path.exists(src) and os.path.isdir(src):
+                if not os.listdir(src):
+                    os.rmdir(src)
+                    print("empty")
+                else:
+                    print("not empty")
+            # Check if source file already exists
+            else:
+                print("Given Directory don't exists")
+                print("hi")
+        elif type1 == "file":
+            print("dd")
+            # Check if source folder is empty and deletes it if it does
+            if os.path.isfile(src):
+                if os.path.getsize(src) == 0:
+                    os.remove(src)
+                    print("empty")
+                else:
+                    os.remove(src)
+                    print("not empty")
+            # Check if source file already exists
+            else:
+                print("Given file don't exists")
+
+    return get_reference_custom
+
