@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["battenberg"]`
 CFG = op.setup_module(
     name = "battenberg",
-    version = "1.1",
+    version = "1.2",
     subdirectories = ["inputs", "infer_sex","battenberg", "outputs"],
 )
 
