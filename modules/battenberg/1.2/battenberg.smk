@@ -155,8 +155,10 @@ rule _infer_patient_sex:
     threads: 8
     shell:
         op.as_one_line(""" 
-        echo "{params.checker}";
-        
+        PATH={SCRIPT_PATH}:$PATH; 
+        echo "running {rule} for {wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr} ;
+        calc_sex_status.sh {input.normal_bam} {input.fasta} {wildcards.normal_id} > {output.sex_result} 2>> {log.stderr} &&
+        echo "DONE running {rule} for {wildcards.normal_id} on $(hostname) at $(date)" >> {log.stderr} 
         """)
 
 
@@ -270,19 +272,14 @@ rule _battenberg_output_seg:
         op.relative_symlink(input.sub, output.sub,in_module=True)
         op.relative_symlink(input.cp, output.cp,in_module=True)
 
-
-
 # Generates the target sentinels for each run, which generate the symlinks
 rule _battenberg_all:
     input:
         expand(
-            [
-                
+            [ 
                 rules._run_battenberg.output.sub,
                 rules._battenberg_output_seg.output.seg,
                 rules._battenberg_cleanup.output.complete
-                
-
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
@@ -290,9 +287,6 @@ rule _battenberg_all:
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
             pair_status=CFG["runs"]["pair_status"])
-
-
-
 
 
 ##### CLEANUP #####
