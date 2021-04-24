@@ -21,7 +21,7 @@ lcr-modules:
                 grch37: " "
 
         conda_envs:
-            battenberg: "{MODSDIR}/envs/battenberg-1.1.yaml"
+            battenberg: "{MODSDIR}/envs/battenberg-1.0.yaml"
             
         resources:
             battenberg:
