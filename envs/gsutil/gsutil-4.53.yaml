@@ -53,3 +53,4 @@ dependencies:
   - xz=5.2.5
   - zipp=3.1.0
   - zlib=1.2.11
+prefix: /home/lhilton/miniconda3/envs/gsutil

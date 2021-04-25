@@ -16,3 +16,5 @@ dependencies:
   - openssl=1.1.1g
   - ucsc-gtftogenepred=377
   - zlib=1.2.11
+prefix: /home/bgrande/miniconda3/envs/test-ucsc-gtftogenepred
+

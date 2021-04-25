@@ -11,3 +11,5 @@ dependencies:
   - libgomp=9.2.0
   - perl=5.26.2
   - zlib=1.2.11
+prefix: /home/bgrande/miniconda3/envs/test-bwa
+
