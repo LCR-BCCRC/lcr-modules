@@ -23,13 +23,13 @@ all_chr.append('Y')
 
 #parameter
 
-opts,args = getopt.getopt(sys.argv[1:], "i:o:",["AF=","input=", "output="])
+opts,args = getopt.getopt(sys.argv[1:], "i:o:",["AF=", "drivers=", "input=", "output="])
 def get_driver_gene_path():
     '''
     return the driver gene path
     '''
-    current_path = os.path.dirname(os.path.realpath(__file__))
-    return current_path
+    driver_gene_path = os.path.dirname(os.path.realpath(__file__))+os.path.sep+'299_driverMutationList_Cell_2018.txt'
+    return driver_gene_path
 
 
 AF=''
@@ -38,6 +38,8 @@ file_path_out=''
 for para,value in opts:
 	if para in ('--AF'):
 		AF=value
+	if para in ('--drivers'): 
+		drivers=value
 	if para in ('-i','--input'):
 		file_path=value
 	if para in ('-o','--output'):
@@ -45,6 +47,11 @@ for para,value in opts:
 print('AF: '+str(AF))
 if file_path[-len(os.path.sep):]==os.path.sep:
 	file_path=file_path[:-len(os.path.sep)]
+if drivers: 
+	print('drivers: '+drivers)
+else: 
+	drivers = get_driver_gene_path()
+	print('drivers: '+drivers)
 print('file_path: '+str(file_path))
 if file_path_out[-len(os.path.sep):]==os.path.sep:
 	file_path_out=file_path_out[:-len(os.path.sep)]
@@ -294,10 +301,11 @@ def split_tree(tree_label_split):
 	return(new_tree_label)	
 	
 #...........................................299 driver gene........................
-driver_gene_path=get_driver_gene_path()
+driver_gene_path=drivers
+
 print('driver_gene_path: '+driver_gene_path)
 if driver_gene_path!='.':
-	file=open(driver_gene_path+os.path.sep+'299_driverMutationList_Cell_2018.txt','r')
+	file=open(driver_gene_path,'r')
 	global driver_gene
 	driver_gene={}
 	lines=file.readlines()
