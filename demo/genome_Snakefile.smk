@@ -68,20 +68,14 @@ config["lcr-modules"]["_shared"]["samples"] = GENOME
 
 # Load module-specific snakefiles
 
-include: "../modules/sage/1.0/sage.smk"
 include: "../modules/picard_qc/1.0/picard_qc.smk"
 include: "../modules/bam2fastq/1.2/bam2fastq.smk"
 include: "../modules/sequenza/1.4/sequenza.smk"
 include: "../modules/bwa_mem/1.1/bwa_mem.smk"
 include: "../modules/controlfreec/1.1/controlfreec.smk"
 include: "../modules/slms_3/1.0/slms_3.smk"
-include: "../modules/manta/2.3/manta.smk"
-include: "../modules/lofreq/1.0/lofreq.smk"
-include: "../modules/strelka/1.1/strelka.smk"
 include: "../modules/gridss/1.1/gridss.smk"
-include: "../modules/starfish/2.0/starfish.smk"
 include: "../modules/mixcr/1.1/mixcr.smk"
-include: "../modules/mutect2/2.0/mutect2.smk"
 include: "../modules/varscan/1.1/varscan.smk"
 include: "../modules/liftover/1.2/liftover.smk"
 include: "../modules/battenberg/1.1/battenberg.smk"
