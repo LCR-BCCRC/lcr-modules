@@ -108,7 +108,7 @@ lcr-modules:
         dirs:
             _parent: "results/sequenza-1.4_liftover-1.2"
         inputs:
-            sample_seg: "results/sequenza-1.4/03-igv_seg/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched/filtered/sequenza_segments.igv.seg"
+            sample_seg: "results/sequenza-1.4/03-igv_seg/capture--grch37/TCRBOA7-T-WEX--TCRBOA7-N-WEX--matched/filtered/sequenza_segments.igv.seg"
 
     utils:
         inputs:
@@ -127,7 +127,7 @@ lcr-modules:
 
         reference_path:
             hg38: " --chr_prefixed_genome "
-            grch37: " reference/genomes/grch37/downloads/hg19-grch37 "
+            grch37: "Path to the reference files"
 
     pathseq:
         inputs:

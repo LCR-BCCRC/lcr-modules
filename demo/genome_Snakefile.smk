@@ -46,7 +46,7 @@ configfile: "../modules/mixcr/1.1/config/default.yaml"
 configfile: "../modules/mutect2/2.0/config/default.yaml"
 configfile: "../modules/varscan/1.1/config/default.yaml"
 configfile: "../modules/liftover/1.2/config/default.yaml"
-#configfile: "../modules/battenberg/1.1/config/default.yaml"
+configfile: "../modules/battenberg/1.1/config/default.yaml"
 configfile: "../modules/pathseq/1.0/config/default.yaml"
 #configfile: "../modules/hmftools/1.0/config/default.yaml"
 configfile: "../modules/utils/2.1/config/default.yaml"
@@ -84,7 +84,7 @@ include: "../modules/mixcr/1.1/mixcr.smk"
 include: "../modules/mutect2/2.0/mutect2.smk"
 include: "../modules/varscan/1.1/varscan.smk"
 include: "../modules/liftover/1.2/liftover.smk"
-#include: "../modules/battenberg/1.1/battenberg.smk"
+include: "../modules/battenberg/1.1/battenberg.smk"
 include: "../modules/pathseq/1.0/pathseq.smk"
 #include: "../modules/hmftools/1.0/hmftools.smk"
 include: "../modules/utils/2.1/utils.smk"
@@ -110,7 +110,7 @@ rule all:
         rules._mutect2_all.input,
         rules._varscan_all.input,
         rules._liftover_all.input,
-        #rules._battenberg_all.input,
+        rules._battenberg_all.input,
         rules._pathseq_all.input,
         #rules._hmftools_all.input
 

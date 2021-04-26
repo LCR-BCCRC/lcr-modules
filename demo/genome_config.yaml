@@ -130,7 +130,7 @@ lcr-modules:
 
         reference_path:
             hg38: " --chr_prefixed_genome "
-            grch37: " reference/genomes/grch37/downloads/hg19-grch37 "
+            grch37: "Path to the reference files"
 
     pathseq:
         inputs:
