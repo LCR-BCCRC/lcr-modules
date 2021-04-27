@@ -56,11 +56,11 @@ lcr-modules:
             sample_bai: "data/{sample_id}.bam.bai"
 
     liftover:
-        tool: "sequenza-1.4"
+        tool: "sequenza"
         dirs:
             _parent: "results/sequenza-1.4_liftover-1.2"
         inputs:
-            sample_seg: "results/sequenza-1.4/99-outputs/filtered_seg/{genome_build}/{tumour_sample_id}--{normal_sample_id}--matched.igv.seg"
+            sample_seg: "results/sequenza-1.4/99-outputs/filtered_seg/capture--{genome_build}/{tumour_sample_id}--{normal_sample_id}--matched.igv.seg"
 
     utils:
         inputs:
@@ -80,6 +80,7 @@ lcr-modules:
     pathseq:
         inputs:
             sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
 
         options:
             min_read_length: 49
