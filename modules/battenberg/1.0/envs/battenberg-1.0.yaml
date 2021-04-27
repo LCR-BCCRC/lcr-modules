@@ -220,5 +220,5 @@ dependencies:
   - xz=5.2.5
   - zlib=1.2.11
   - zstd=1.4.4
- 
+prefix: /home/rmorin/rrDLBCL_trios/.snakemake/conda/2f3a0b06
 

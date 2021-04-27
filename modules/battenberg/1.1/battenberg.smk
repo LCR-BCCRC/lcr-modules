@@ -27,10 +27,8 @@ except ModuleNotFoundError:
 
 current_version = pkg_resources.get_distribution("oncopipe").version
 if version.parse(current_version) < version.parse(min_oncopipe_version):
-    logger.warning(
-                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
-                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
-                )
+    print(f"ERROR: oncopipe version installed: {current_version}")
+    print(f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment")
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
 # End of dependency checking section    
@@ -96,8 +94,6 @@ rule _infer_patient_sex:
         **CFG["resources"]["infer_sex"]
     log:
         stderr = CFG["logs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}_infer_sex_stderr.log"
-    conda:
-        CFG["conda_envs"]["samtools"]
     group: "setup_run"
     threads: 8
     shell:
