@@ -37,7 +37,7 @@ configfile: "../modules/gridss/1.1/config/default.yaml"
 configfile: "../modules/utils/2.1/config/default.yaml"
 configfile: "../modules/varscan/1.1/config/default.yaml"
 configfile: "../modules/liftover/1.2/config/default.yaml"
-configfile: "../modules/battenberg/1.1/config/default.yaml"
+configfile: "../modules/battenberg/1.2/config/default.yaml"
 configfile: "../modules/pathseq/1.0/config/default.yaml"
 
 # Load project-specific config, which includes the shared 
@@ -64,7 +64,7 @@ include: "../modules/gridss/1.1/gridss.smk"
 include: "../modules/utils/2.1/utils.smk"
 include: "../modules/varscan/1.1/varscan.smk"
 include: "../modules/liftover/1.2/liftover.smk"
-include: "../modules/battenberg/1.1/battenberg.smk"
+include: "../modules/battenberg/1.2/battenberg.smk"
 include: "../modules/pathseq/1.0/pathseq.smk"
 
 

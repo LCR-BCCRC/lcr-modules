@@ -73,7 +73,7 @@ lcr-modules:
         dirs:
             _parent: "results/sequenza-1.4_liftover-1.2"
         inputs:
-            sample_seg: "results/sequenza-1.4/99-outputs/filtered_seg/capture--grch37/TCRBOA7-T-WEX--TCRBOA7-N-WEX--matched.igv.seg"
+            sample_seg: "results/sequenza-1.4/99-outputs/filtered_seg/{genome_build}/{tumour_sample_id}--{normal_sample_id}--matched.igv.seg"
 
     battenberg:
         inputs:
