@@ -75,8 +75,8 @@ rule _bam2fastq_input_bam:
         bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bam"
     group: 
         CFG["group"]["bam2fastq"]
-    run: 
-        op.absolute_symlink(input, output.bam)
+    run:
+        op.relative_symlink(input, output.bam)
 
 
 # Conditional rules depending on whether or not fastq outputs will be temporary
@@ -147,8 +147,8 @@ rule _bam2fastq_output:
         fastq_1 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read1.fastq.gz",
         fastq_2 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read2.fastq.gz"
     run:
-        op.relative_symlink(input.fastq_1, output.fastq_1, in_module=True)
-        op.relative_symlink(input.fastq_2, output.fastq_2, in_module=True)
+        op.relative_symlink(input.fastq_1, output.fastq_1)
+        op.relative_symlink(input.fastq_2, output.fastq_2)
 
 
 rule _bam2fastq_all:
