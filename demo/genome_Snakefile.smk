@@ -30,20 +30,14 @@ subworkflow reference_files:
 
 # Load module-specific configuration
 
-configfile: "../modules/sage/1.0/config/default.yaml"
 configfile: "../modules/picard_qc/1.0/config/default.yaml"
 configfile: "../modules/bam2fastq/1.2/config/default.yaml"
 configfile: "../modules/sequenza/1.4/config/default.yaml"
 configfile: "../modules/bwa_mem/1.1/config/default.yaml"
 configfile: "../modules/controlfreec/1.1/config/default.yaml"
 configfile: "../modules/slms_3/1.0/config/default.yaml"
-configfile: "../modules/manta/2.3/config/default.yaml"
-configfile: "../modules/lofreq/1.0/config/default.yaml"
-configfile: "../modules/strelka/1.1/config/default.yaml"
 configfile: "../modules/gridss/1.1/config/default.yaml"
-configfile: "../modules/starfish/2.0/config/default.yaml"
 configfile: "../modules/mixcr/1.1/config/default.yaml"
-configfile: "../modules/mutect2/2.0/config/default.yaml"
 configfile: "../modules/varscan/1.1/config/default.yaml"
 configfile: "../modules/liftover/1.2/config/default.yaml"
 configfile: "../modules/battenberg/1.1/config/default.yaml"
@@ -89,19 +83,13 @@ include: "../modules/utils/2.1/utils.smk"
 rule all:
     input:
         rules._slms_3_all.input,
-        rules._sage_all.input,
         rules._picard_qc_all.input,
         rules._bam2fastq_all.input,
         rules._sequenza_all.input,
         rules._bwa_mem_all.input,
         rules._controlfreec_all.input,
-        rules._manta_all.input,  
-        rules._lofreq_all.input,
-        rules._strelka_all.input,
         rules._gridss_all.input,
-        rules._starfish_all.input,
         rules._mixcr_all.input,
-        rules._mutect2_all.input,
         rules._varscan_all.input,
         rules._liftover_all.input,
         rules._battenberg_all.input,
