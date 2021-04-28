@@ -127,7 +127,7 @@ rule _battenberg_input_bam:
 # I am open to suggestions for how to get around this.
 rule _install_battenberg:
     output:
-        complete = CFG["dirs"]["input"] + "/battenberg_dependencies_installed.success"
+        complete = CFG["dirs"]["inputs"] + "battenberg_dependencies_installed.success"
     conda:
         CFG["conda_envs"]["battenberg"]
     log:
@@ -168,7 +168,7 @@ rule _run_battenberg:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        installed = "config/envs/battenberg_dependencies_installed.success",
+        installed = CFG["dirs"]["inputs"] + "battenberg_dependencies_installed.success",
         sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         impute_info = CFG["dirs"]["inputs"] + "reference/{genome_build}/impute_info.txt"
