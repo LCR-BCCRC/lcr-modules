@@ -127,7 +127,7 @@ rule _battenberg_input_bam:
 # I am open to suggestions for how to get around this.
 rule _install_battenberg:
     output:
-        complete = "config/envs/battenberg_dependencies_installed.success"
+        complete = CFG["dirs"]["input"] + "/battenberg_dependencies_installed.success"
     conda:
         CFG["conda_envs"]["battenberg"]
     log:
