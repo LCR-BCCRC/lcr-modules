@@ -2,25 +2,47 @@ lcr-modules:
     
     gatk_rnaseq:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
 
         scratch_subdirectories: []
 
         options:
-            step_1: ""
-            step_2: ""
+            gatk_splitntrim:
+            gatk_base_recalibration:
+            gatk_applybqsr:
+            gatk_variant_calling:
+                min_conf_thres: 20.0
+            gatk_variant_filtration:
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            gatk_rnaseq: "{MODSDIR}/envs/gatk_rnaseq.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             
         threads:
-            step_1: 4
+            gatk_splitntrim: 12
+            gatk_base_recalibration: 12
+            gatk_applybqsr: 12
+            gatk_variant_calling: 24
+            gatk_variant_filtration: 24
+            merge_vcfs: 10
 
-        mem_mb:
-            step_1: 2000
+        resources:
+            gatk_splitntrim: 
+                mem_mb: 48000
+            gatk_base_recalibration:
+                mem_mb: 12000
+            gatk_applybqsr:
+                mem_mb: 12000
+            gatk_variant_calling:
+                mem_mb: 48000
+                bam: 1
+            gatk_variant_filtration:
+                mem_mb: 12000
+            merge_vcfs:
+                mem_mb: 10000
 
         pairing_config:
             mrna:
