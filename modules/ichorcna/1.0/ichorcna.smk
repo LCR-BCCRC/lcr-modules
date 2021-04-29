@@ -182,6 +182,17 @@ rule _ichorcna_input_bam:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
      
+# This function will return a comma-separated list of chromosomes to include in readCounter
+def get_chromosomes(wildcards):
+    chromosomes=[]
+    for i in range(1,23):
+        chromosomes.append(str(i))
+    chromosomes.append("X")
+    chromosomes.append("Y")
+    if "38" in str(wildcards.genome_build):
+        chromosomes = ["chr" + x for x in chromosomes]
+    chromosomes= ",".join(chromosomes)    
+    return chromosomes
 
 rule _ichorcna_read_counter:
     input:
@@ -194,7 +205,7 @@ rule _ichorcna_read_counter:
     params:
         binSize = CFG["options"]["readcounter"]["binSize"],
         qual = CFG["options"]["readcounter"]["qual"],
-        chrs = op.switch_on_wildcard("genome_build", CFG["options"]["readcounter"]["chrs"])
+        chrs = get_chromosomes
     conda: CFG["conda_envs"]["ichorcna"]
     threads: CFG["threads"]["readcounter"]
     resources:
