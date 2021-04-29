@@ -86,3 +86,4 @@ rule all:
         rules._liftover_all.input,
         rules._controlfreec_all.input,
         rules._ichorcna_all.input
+        

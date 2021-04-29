@@ -12,43 +12,42 @@ lcr-modules:
 
         options:
             readcounter:
-                readCounterScript: "{MODSDIR}/src/readCounter"
                 chrs:
                     hg19: "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,X,Y"
                     grch37: "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,X,Y"
                     hs37d5: "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,X,Y"
                     hg38: "chr1,chr2,chr3,chr4,chr5,chr6,chr7,chr8,chr9,chr10,chr11,chr12,chr13,chr14,chr15,chr16,chr17,chr18,chr19,chr20,chr21,chr22,chrX,chrY"
                     grch38: "chr1,chr2,chr3,chr4,chr5,chr6,chr7,chr8,chr9,chr10,chr11,chr12,chr13,chr14,chr15,chr16,chr17,chr18,chr19,chr20,chr21,chr22,chrX,chrY"
-                qual: 20
+                qual: 20 # only includes reads with mapping quality greater than 20
                 binSize:  1000000 # set window size to compute coverage 
                 # available binSizes are: 1000000, 500000, 50000, 10000
             run:
-                ichorCNA_libdir: "{MODSDIR}/src/"
+                ichorCNA_libdir: ""
                 ichorCNA_rscript:  "{MODSDIR}/src/runIchorCNA.R"
                 # use panel matching same bin size (optional)
                 ichorCNA_normalPanel: 
-                    "1000000": "{MODSDIR}/src/inst/extdata/HD_ULP_PoN_{genome_build}_1Mb_median_normAutosome_median.rds"
-                    "500000": "{MODSDIR}/src/inst/extdata/HD_ULP_PoN_{genome_build}_500kb_median_normAutosome_median.rds"
+                    "1000000": "inst/extdata/HD_ULP_PoN_{genome_build}_1Mb_median_normAutosome_median.rds"
+                    "500000": "inst/extdata/HD_ULP_PoN_{genome_build}_500kb_median_normAutosome_median.rds"
                 # must use gc wig file corresponding to same binSize (required)
                 ichorCNA_gcWig:
-                    "1000000": "{MODSDIR}/src/inst/extdata/gc_{genome_build}_1000kb.wig"
-                    "500000": "{MODSDIR}/src/inst/extdata/gc_{genome_build}_500kb.wig"
-                    "50000": "{MODSDIR}/src/inst/extdata/gc_{genome_build}_50kb.wig"
-                    "10000": "{MODSDIR}/src/inst/extdata/gc_{genome_build}_10kb.wig"
+                    "1000000": "inst/extdata/gc_{genome_build}_1000kb.wig"
+                    "500000": "inst/extdata/gc_{genome_build}_500kb.wig"
+                    "50000": "inst/extdata/gc_{genome_build}_50kb.wig"
+                    "10000": "inst/extdata/gc_{genome_build}_10kb.wig"
                 # must use map wig file corresponding to same binSize (required)
                 ichorCNA_mapWig:  
-                    "1000000": "{MODSDIR}/src/inst/extdata/map_{genome_build}_1000kb.wig"
-                    "500000": "{MODSDIR}/src/inst/extdata/map_{genome_build}_500kb.wig"
-                    "50000": "{MODSDIR}/src/inst/extdata/map_{genome_build}_50kb.wig"
-                    "10000": "{MODSDIR}/src/inst/extdata/map_{genome_build}_10kb.wig"
+                    "1000000": "inst/extdata/map_{genome_build}_1000kb.wig"
+                    "500000": "inst/extdata/map_{genome_build}_500kb.wig"
+                    "50000": "inst/extdata/map_{genome_build}_50kb.wig"
+                    "10000": "inst/extdata/map_{genome_build}_10kb.wig"
                 # use bed file if sample has targeted regions, eg. exome data (optional)
                 ichorCNA_exons:  NULL
                 ichorCNA_centromere:  
-                    grch37: "{MODSDIR}/src/inst/extdata/GRCh37.p13_centromere_UCSC-gapTable.txt"
-                    hg19: "{MODSDIR}/src/inst/extdata/GRCh37.p13_centromere_UCSC-gapTable.txt"
-                    hs37d5: "{MODSDIR}/src/inst/extdata/GRCh37.p13_centromere_UCSC-gapTable.txt"
-                    grch38: "{MODSDIR}/src/inst/extdata/GRCh38.GCA_000001405.2_centromere_acen.txt"
-                    hg38: "{MODSDIR}/src/inst/extdata/GRCh38.GCA_000001405.2_centromere_acen.txt"
+                    grch37: "inst/extdata/GRCh37.p13_centromere_UCSC-gapTable.txt"
+                    hg19: "inst/extdata/GRCh37.p13_centromere_UCSC-gapTable.txt"
+                    hs37d5: "inst/extdata/GRCh37.p13_centromere_UCSC-gapTable.txt"
+                    grch38: "inst/extdata/GRCh38.GCA_000001405.2_centromere_acen.txt"
+                    hg38: "inst/extdata/GRCh38.GCA_000001405.2_centromere_acen.txt"
                 ichorCNA_minMapScore: 0.75
                 ichorCNA_chrs:  
                     grch37: "c('1', '2', '3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','X')"
@@ -56,7 +55,7 @@ lcr-modules:
                     hs37d5: "c('1', '2', '3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22','X')"
                     grch38: "c('chr1', 'chr2', 'chr3','chr4','chr5','chr6','chr7','chr8','chr9','chr10','chr11','chr12','chr13','chr14','chr15','chr16','chr17','chr18','chr19','chr20','chr21','chr22','chrX')"
                     hg38: "c('chr1', 'chr2', 'chr3','chr4','chr5','chr6','chr7','chr8','chr9','chr10','chr11','chr12','chr13','chr14','chr15','chr16','chr17','chr18','chr19','chr20','chr21','chr22','chrX')"
-                ichorCNA_fracReadsInChrYForMale: 0.002
+                ichorCNA_fracReadsInChrYForMale: 0.002 # Threshold for fraction of reads in chrY to assign as male
                 ichorCNA_genomeStyle:  # can set this to UCSC or NCBI
                     grch37: "NCBI"
                     hg19: "NCBI"
@@ -73,7 +72,7 @@ lcr-modules:
                 # non-tumor fraction parameter restart values; higher values should be included for cfDNA
                 ichorCNA_normal:  "c(0.5,0.6,0.7,0.8,0.9,0.95)"
                 # ploidy parameter restart values
-                ichorCNA_ploidy:  "c(2,3)"
+                ichorCNA_ploidy:  "c(2,3,4)"
                 ichorCNA_estimateNormal:  TRUE
                 ichorCNA_estimatePloidy:  TRUE
                 ichorCNA_estimateClonality: TRUE
@@ -89,7 +88,7 @@ lcr-modules:
                 ichorCNA_maxFracCNASubclone: 0.7
                 # control segmentation - higher (e.g. 0.9999999) leads to higher specificity and fewer segments
                 # lower (e.g. 0.99) leads to higher sensitivity and more segments
-                ichorCNA_txnE:  0.9999
+                ichorCNA_txnE:  0.9399999
                 # control segmentation - higher (e.g. 10000000) leads to higher specificity and fewer segments
                 # lower (e.g. 100) leads to higher sensitivity and more segments
                 ichorCNA_txnStrength:  10000
@@ -99,7 +98,7 @@ lcr-modules:
 
         conda_envs:
             ichorcna: "{MODSDIR}/envs/ichorcna.env.yaml"
-            
+            hmmcopy_utils: "{MODSDIR}/envs/hmmcopy_utils.env.yaml"
 
         threads:
             readcounter: 4
