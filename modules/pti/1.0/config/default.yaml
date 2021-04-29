@@ -12,16 +12,21 @@ lcr-modules:
         options:
             generate_input: 
                 header_row: 1 # 0-based index of the row containing the MAF file header. If your MAF file has a "# version" header row, set this to 1. If the top row starts with hugo_symbol, set to 0. 
-            step_2: ""
+            run_pti: 
+                script: "{MODSDIR}/src/PTI.py"
+                AF: 0.1
+                drivers: "__UPDATE__"
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            pti: "{MODSDIR}/envs/pti_1.0.yaml"
             
         threads:
-            step_1: 4
+            generate_input: 1
+            pti_run: 1
 
         mem_mb:
-            step_1: 2000
+            generate_input: 2000
+            pti_run: 2000
 
         pairing_config:
             genome:

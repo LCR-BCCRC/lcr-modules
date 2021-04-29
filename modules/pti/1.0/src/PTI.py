@@ -409,7 +409,7 @@ for patient in all_patient_ID:
 		if not dic.get(key):
 			del dic[key]
 			all_data.remove(key)
-	if len(all_data)>=3:
+	if len(all_data)>=2:
 		all_driver_mutation={}
 		for item in dic.keys():
 			if len(search_gene(dic[item],'FALSE'))>1:

@@ -20,18 +20,35 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "pti",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "pti", "outputs"],
+    subdirectories = ["inputs", "generate_tsv", "pti", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _pti_input_maf,
-    _pti_step_2,
+    _pti_generate_input,
     _pti_output_txt,
     _pti_all,
 
+# Ensure multiple tumour samples per patient
+
+RUNS = CFG['runs']
+PATIENTS = pd.DataFrame(RUNS['tumour_patient_id'].value_counts())
+
+DROPPED_PATIENTS = PATIENTS.loc[PATIENTS.tumour_patient_id == 1].index.tolist()
+if len(DROPPED_PATIENTS) >= 1: 
+    print("The following patients were dropped because they have only a single time point: \n")
+    print(DROPPED_PATIENTS)
+
+PATIENTS = PATIENTS.loc[PATIENTS.tumour_patient_id > 1].index.tolist()
+assert len(PATIENTS) > 0, (
+    "There are 0 patients with more than one time point. \n"
+    "PTI can only be run with multiple time points per patient. \n"
+)
+
+# Subset runs table to only multi-timepoint samples
+RUNS = op.filter_samples(RUNS, tumour_patient_id = PATIENTS)
+CFG['runs'] = RUNS
 
 ##### RULES #####
 
@@ -45,26 +62,36 @@ rule _pti_input_maf:
     run:
         op.relative_symlink(input.maf, output.maf)
 
+def get_maf_per_timepoint(wildcards): 
+    PATIENT = op.filter_samples(config["lcr-modules"]["pti"]["runs"], tumour_time_point = wildcards.time_point, tumour_patient_id = wildcards.patient_id)
+    maf = expand(
+        str(rules._pti_input_maf.output.maf), 
+        zip, 
+        tumour_id = PATIENT['tumour_sample_id'], 
+        normal_id = PATIENT['normal_sample_id'], 
+        pair_status = PATIENT['pair_status'], 
+        allow_missing = True
+    )
+    return(maf)
+
 
 # Create the required input file
 rule _pti_generate_input:
     input:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf"
+        get_maf_per_timepoint
     output:
-        tsv = CFG["dirs"]["pti"] + "{seq_type}--{genome_build}/{patient_id}/{tumour_id}--{normal_id}--{pair_status}.pti_input.tsv"
+        tsv = CFG["dirs"]["generate_tsv"] + "{seq_type}--{genome_build}/{patient_id}/{patient_id}_{time_point}.pti_input.tsv"
     log:
-        stderr = CFG["logs"]["pti"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/_pti_generate_input.stderr.log"
+        stderr = CFG["logs"]["generate_tsv"] + "{seq_type}--{genome_build}/{patient_id}/{patient_id}.{time_point}._pti_generate_input.stderr.log"
     params:
         **CFG["options"]["generate_input"]
-    conda:
-        CFG["conda_envs"]["pti"]
     threads:
         CFG["threads"]["generate_input"]
     resources:
         mem_mb = CFG["mem_mb"]["generate_input"]
     run:
         # Load the MAF file as a pandas data frame
-        MAF = pd.read_csv(input.maf, sep = "\t", header = {params.header_row}, low_memory=False)
+        MAF = pd.read_csv(input[0], sep = "\t", header = int(params.header_row), low_memory=False)
         # Filter the MAF file to include only coding/UTR/splicing variants in known genes
         MAF = op.discard_samples(MAF, Hugo_Symbol = "Unknown")
         MAF = op.filter_samples(MAF, Variant_Classification = ["3'UTR", "5'UTR", "Frame_Shift_Del", "Frame_Shift_Ins", "Intron", "Missense_Mutation", "Nonsense_Mutation", "Silent", "Splice_Region", "Splice_Site"])
@@ -77,47 +104,50 @@ rule _pti_generate_input:
         # Assemble table
         TABLE = pd.DataFrame.from_dict(table_data)
         # Write to file
-        TABLE.to_csv(output.tsv, sep = "\t", header = True, index = False)
+        TABLE.to_csv(str(output.tsv), sep = "\t", header = True, index = False)
 
 
-# Retrieve all time point maf files per patient
-def get_maf_per_patient(wildcards): 
-    PATIENT = op.filter_samples(CFG['runs'], tumour_patient_id = wildcards.patient_id)
-    mafs = expand(
-        str(rules._pti_input_maf.output.maf), 
+# Retrieve all time point tsv files per patient
+def get_tsv_per_patient(wildcards): 
+    PATIENT = op.filter_samples(config["lcr-modules"]["pti"]["runs"], tumour_patient_id = wildcards.patient_id)
+    tsvs = expand(
+        str(rules._pti_generate_input.output.tsv), 
         zip, 
-        tumour_id = PATIENT['tumour_sample_id'], 
-        normal_id = PATIENT['normal_sample_id'], 
-        pair_status = PATIENT['pair_status'], 
-        allow_missing = TRUE
+        time_point = PATIENT['tumour_time_point'], 
+        allow_missing = True
     )
-    return(mafs)
+    return(tsvs)
 
       
 # Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
 rule _pti_run:
     input:
-        txt = str(rules._pti_step_1.output.txt)
+        get_tsv_per_patient
     output:
-        txt = CFG["dirs"]["pti"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.txt"
+        complete = touch(CFG["dirs"]["pti"] + "{seq_type}--{genome_build}/{patient_id}/pti.complete")
     log:
-        stderr = CFG["logs"]["pti"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
+        stderr = CFG["logs"]["pti"] + "{seq_type}--{genome_build}/{patient_id}/pti_run.stderr.log"
+    conda: 
+        CFG["conda_envs"]["pti"]
     params:
-        opts = CFG["options"]["step_2"]
+        **CFG["options"]["run_pti"]
     shell:
-        "grep {params.opts} {input.txt} > {output.txt} 2> {log.stderr}"
+        op.as_one_line("""
+        python {params.script} --AF {params.AF} --drivers {params.drivers} -i $(dirname {input[0]}) -o $(dirname {output.complete})
+        """)
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 # TODO: If applicable, add an output rule for each file meant to be exposed to the user
-rule _pti_output_txt:
-    input:
-        txt = str(rules._pti_step_2.output.txt)
-    output:
-        txt = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.txt"
-    run:
-        op.relative_symlink(input.txt, output.txt)
+# rule _pti_output_txt:
+#     input:
+#         txt = str(rules._pti_step_2.output.txt)
+#     output:
+#         txt = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.txt"
+#     run:
+#         op.relative_symlink(input.txt, output.txt)
+
+PATIENT_TABLE = CFG["runs"].drop_duplicates(subset = "tumour_patient_id", ignore_index = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -125,15 +155,13 @@ rule _pti_all:
     input:
         expand(
             [
-                str(rules._pti_output_txt.output.txt),
+                str(rules._pti_run.output.complete),
                 # TODO: If applicable, add other output rules here
             ],
             zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            genome_build=CFG["runs"]["tumour_genome_build"],
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            seq_type=PATIENT_TABLE["tumour_seq_type"],
+            genome_build=PATIENT_TABLE["tumour_genome_build"],
+            patient_id=PATIENT_TABLE["tumour_patient_id"])
 
 
 ##### CLEANUP #####
