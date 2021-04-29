@@ -153,8 +153,6 @@ rule _gatk_variant_calling:
         gatk --java-options "-Xmx{params.mem_mb}G" HaplotypeCaller 
         -R {input.fasta} -I {input.bam} -dont-use-soft-clipped-bases -stand-call-conf {params.min_conf_thres} -L {wildcards.chrom}
         -dbsnp {params.vcf} -O {output.vcf} > {log.stdout} 2> {log.stderr}
-        &&
-        tabix -p vcf {output.vcf} 2>> {log.stderr}
         """)
         
         
