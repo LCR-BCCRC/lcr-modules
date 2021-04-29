@@ -78,6 +78,7 @@ lcr-modules:
     pathseq:
         inputs:
             sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
 
         options:
             min_read_length: 49
