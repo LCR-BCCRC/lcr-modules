@@ -116,7 +116,7 @@ rule _lofreq_preprocess_normal_unmatched:
             touch {output.preprocessing_start}
             && 
             lofreq somatic --normal_only {params.opts} --threads {threads} -t {input.normal_bam} -n {input.normal_bam}
-            -f {input.fasta} -o {output.out_dir}/ -d {input.dbsnp} --bed /home/rmorin/lcr-modules/demo/fake.bed
+            -f {input.fasta} -o {output.out_dir}/ -d {input.dbsnp} --bed {input.bed}
             > {log.stdout} 2> {log.stderr} && 
             touch {output.preprocessing_complete};
         else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
@@ -171,7 +171,7 @@ rule _lofreq_run_tumour_unmatched:
         if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
             echo "using bundled patched script $SCRIPT";
             lofreq somatic --continue {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
-            -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} --bed /home/rmorin/lcr-modules/demo/fake.bed
+            -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} --bed {input.bed}
             > {log.stdout} 2> {log.stderr} && rm -f {input.vcf_relaxed} && rm -f {output.out_dir}/normal_relaxed.vcf.gz ;
         else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
         """)
