@@ -37,11 +37,20 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "lofreq",
     version = "1.0",
-    subdirectories = ["inputs", "lofreq", "combined", "filtered", "outputs"],
+    subdirectories = ["inputs", "lofreq_normal","lofreq_somatic", "combined", "filtered", "outputs"],
 )
 #set variable for prepending to PATH based on config
 SCRIPT_PATH = CFG['inputs']['src_dir']
 #this is used in place of the shell.prefix() because that was not working consistently. This is not ideal. 
+
+
+sample_ids = list(CFG['samples']['sample_id'])
+unmatched_normal_ids = list(config["lcr-modules"]["_shared"]["unmatched_normal_ids"].values())
+
+all_other_ids = list(set(sample_ids) - set(unmatched_normal_ids))
+
+
+
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -68,26 +77,29 @@ rule _lofreq_input_bam:
         op.relative_symlink(input.bai, output.crai)
 
 
-# Run LoFreq in somatic variant calling mode
-rule _lofreq_run:
+# Run LoFreq in somatic variant calling mode on a single unmatched pair to produce normal_relaxed.vcf.gz and normal_stringent vcfs
+# generate an empty file named preprocessing_complete to indicate that the run actually completed and it's safe to symlink to the outputs
+# This rule falsely provides the normal bam as both the tumour and normal to get around the requirement of two bams for input to lofreq somatic
+rule _lofreq_preprocess_normal_unmatched:
     input:
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
         bed = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed")
     output:
-        vcf_snvs_filtered = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.snvs.vcf.gz",
-        vcf_indels_filtered = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.indels.vcf.gz",
-        vcf_snvs_all = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final.snvs.vcf.gz",
-        vcf_indels_all = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final.indels.vcf.gz"
+        out_dir = directory(CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/"),
+        preprocessing_start = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/preprocessing.started",
+        vcf_relaxed = temp(CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/normal_relaxed.vcf.gz"),
+        vcf_indels_stringent = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/normal_stringent.indels.vcf.gz",
+        vcf_snvs_stringent = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/normal_stringent.snvs.vcf.gz",
+        normal_relaxed_log = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/normal_relaxed.log",
+        preprocessing_complete = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/preprocessing.complete",
     log:
-        stdout = CFG["logs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq.stdout.log",
-        stderr = CFG["logs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq.stderr.log"
+        stdout = CFG["logs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/lofreq_pre.stdout.log",
+        stderr = CFG["logs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/lofreq_pre.stderr.log"
     params:
         opts = CFG["options"]["lofreq"],
         regions = op.switch_on_wildcard("seq_type", CFG["switches"]["regions_bed"]),
-        rm_files = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_relaxed.vcf.gz"
     conda:
         CFG["conda_envs"]["lofreq"]
     threads:
@@ -101,22 +113,76 @@ rule _lofreq_run:
         SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
         if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
             echo "using bundled patched script $SCRIPT";
-            if [ ! -e {output.vcf_snvs_filtered} ] && [ -e {params.rm_files} ]; then rm $(dirname {output.vcf_snvs_all})/*; fi
-            &&
-            lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
-            -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} {params.regions} --bed {input.bed}
-            > {log.stdout} 2> {log.stderr}
-            &&
-            rm {params.rm_files};
+            touch {output.preprocessing_start}
+            && 
+            lofreq somatic --normal_only {params.opts} --threads {threads} -t {input.normal_bam} -n {input.normal_bam}
+            -f {input.fasta} -o {output.out_dir}/ -d {input.dbsnp} --bed /home/rmorin/lcr-modules/demo/fake.bed
+            > {log.stdout} 2> {log.stderr} && 
+            touch {output.preprocessing_complete};
         else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
         """)
+
+# Run LoFreq in somatic variant calling mode for unpaired tumours using precomputed SNV positions from unmatched normal
+# For unmatched tumours we need to symlink all the files from the preprocessing to the pair's output directory
+# Matched and unmatched tumours are handled identically here. The normal is only run once and all unmatched tumours that rely on it
+# won't be run until that processing is done. 
+# The creation of symbolic links in this rule could probably be separated out into a rule that uses Oncopipe's relative_symlink
+rule _lofreq_run_tumour_unmatched:
+    input:
+        vcf_relaxed = rules._lofreq_preprocess_normal_unmatched.output.vcf_relaxed,
+        vcf_indels_stringent = rules._lofreq_preprocess_normal_unmatched.output.vcf_indels_stringent,
+        vcf_snvs_stringent = rules._lofreq_preprocess_normal_unmatched.output.vcf_snvs_stringent,
+        normal_relaxed_log = rules._lofreq_preprocess_normal_unmatched.output.normal_relaxed_log,
+        preprocessing_complete = rules._lofreq_preprocess_normal_unmatched.output.preprocessing_complete,
+        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
+        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
+        bed = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed")
+    output:
+        out_dir = directory(CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/"),
+        vcf_snvs_filtered = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.snvs.vcf.gz",
+        vcf_indels_filtered = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.indels.vcf.gz",
+        vcf_snvs_all = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final.snvs.vcf.gz",
+        vcf_indels_all = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final.indels.vcf.gz"
+    log:
+        stdout = CFG["logs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq.stdout.log",
+        stderr = CFG["logs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq.stderr.log"
+    params:
+        opts = CFG["options"]["lofreq"]
+    conda:
+        CFG["conda_envs"]["lofreq"]
+    threads:
+        CFG["threads"]["lofreq"]
+    resources:
+        **CFG["resources"]["lofreq"]
+    shell:
+        op.as_one_line("""
+        ln -f {input.vcf_relaxed} {output.out_dir};
+        ln -f {input.vcf_relaxed}.tbi {output.out_dir};
+        ln -f {input.vcf_indels_stringent} {output.out_dir};
+        ln -f {input.vcf_indels_stringent}.tbi {output.out_dir};
+        ln -f {input.vcf_snvs_stringent} {output.out_dir};
+        ln -f {input.vcf_snvs_stringent}.tbi {output.out_dir};
+        ln -f {input.normal_relaxed_log} {output.out_dir};
+        SCRIPT_PATH={SCRIPT_PATH};
+        PATH=$SCRIPT_PATH:$PATH;
+        SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
+        if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
+            echo "using bundled patched script $SCRIPT";
+            lofreq somatic --continue {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
+            -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} --bed /home/rmorin/lcr-modules/demo/fake.bed
+            > {log.stdout} 2> {log.stderr} && rm -f {input.vcf_relaxed} && rm -f {output.out_dir}/normal_relaxed.vcf.gz ;
+        else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
+        """)
+
 
 # indels are not yet called but this rule merges the empty indels file with the snvs file to produce the consistently named "combined" vcf. 
 rule _lofreq_combine_vcf:
     input:
-        vcf_all = expand(CFG["dirs"]["lofreq"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/somatic_final.{var_type}.vcf.gz",
+        vcf_all = expand(CFG["dirs"]["lofreq_somatic"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/somatic_final.{var_type}.vcf.gz",
                     var_type = ["indels", "snvs"]),
-        vcf_all_filtered = expand(CFG["dirs"]["lofreq"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/somatic_final_minus-dbsnp.{var_type}.vcf.gz",
+        vcf_all_filtered = expand(CFG["dirs"]["lofreq_somatic"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/somatic_final_minus-dbsnp.{var_type}.vcf.gz",
                     var_type = ["indels", "snvs"])
     output:
         vcf_all = temp(CFG["dirs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final.combined.vcf.gz"),
