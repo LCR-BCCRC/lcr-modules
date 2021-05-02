@@ -1,3 +1,6 @@
+#!/usr/bin/python
+
+
 ##### ATTRIBUTION #####
 
 
@@ -7,7 +10,6 @@
 # Replaces the placeholder value in the impute_info.txt with the correct path
 # where the reference files downloaded are stored.
 
-#!/usr/bin/env Python script
 #
 # Usage:
 #   python <path/to/src_dir>/reference_correction.py <genome_wildcard>
