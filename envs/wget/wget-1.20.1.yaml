@@ -17,4 +17,4 @@ dependencies:
   - openssl=1.1.1h
   - wget=1.20.1
   - zlib=1.2.11
-
+prefix: /home/lhilton/miniconda3/envs/wget-test
