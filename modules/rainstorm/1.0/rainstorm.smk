@@ -37,88 +37,140 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "rainstorm",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "rainstorm", "outputs"],
+    subdirectories = ["inputs", "rainstorm", "doppler", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
+    _rainstorm_install,
     _rainstorm_input_maf,
-    _rainstorm_step_2,
+    _rainstorm_subset_index,
     _rainstorm_output_tsv,
-    _rainstorm_all,
+    _rainstorm_all
 
 
 ##### RULES #####
 
+# download rainstorm files from git repo without cloning the repo itself
+# decompress files into the 00-inputs
+rule _rainstorm_install:
+    output:
+        rainstorm = CFG["dirs"]["inputs"] + "mutation_rainstorm-0.3/rainstorm.py", # one of the files in the repo
+        peaks = CFG["dirs"]["inputs"] + "mutation_rainstorm-0.3/rainstorm_peaks.R" # another script from the repo
+    params:
+        url = "https://github.com/rdmorin/mutation_rainstorm/archive/refs/tags/v0.3.tar.gz",
+        folder = CFG["dirs"]["inputs"]
+    shell:
+        op.as_one_line("""
+        wget -qO- {params.url} |
+        tar xzf - -C {params.folder}
+        """)
+
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
 rule _rainstorm_input_maf:
     input:
         maf = CFG["inputs"]["sample_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{sample_id}.maf"
-    group: 
-        "input_and_step_1"
+        maf = CFG["dirs"]["inputs"] + "maf/{cohort_name}.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _rainstorm_step_1:
+# subset index to only standard chromosomes, so rainstorm will not look for mutations in the small non-standard contigs
+# currently, this excludes chromosome Y
+rule _rainstorm_subset_index:
     input:
-        tumour_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}.maf",
-        normal_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{normal_id}.maf",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        index = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai")
     output:
-        tsv = CFG["dirs"]["rainstorm"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.tsv"
+        index_subset = CFG["dirs"]["inputs"] + "index_files/index_subset.{genome_build}.fa.fai"
+    wildcard_constraints:
+        genome_build = CFG["options"]["genome_build"]
+    shell:
+        op.as_one_line("""
+        cat {input.index} | perl -ne 'print if /^#|^(chr)*[\dX]+\s.+/' >
+        {output.index_subset}
+        """)
+
+# main rule to run rainstorm analysis
+rule _rainstorm_run:
+    input:
+        rainstorm = str(rules._rainstorm_install.output.rainstorm),    
+        maf = str(rules._rainstorm_input_maf.output.maf),
+        index_subset = str(rules._rainstorm_subset_index.output.index_subset)
+    output:
+        complete = CFG["dirs"]["rainstorm"] + "{genome_build}/{cohort_name}_out_background_100k_binned_density.tsv"
+#        complete = CFG["dirs"]["rainstorm"] + "{genome_build}/{cohort_name}_out_rainstorm_k_4_mean_{chromosome}.tsv"
     log:
-        stdout = CFG["logs"]["rainstorm"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-        stderr = CFG["logs"]["rainstorm"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
+        stdout = CFG["logs"]["rainstorm"] + "{genome_build}/{cohort_name}_rainstorm.stdout.log",
+        stderr = CFG["logs"]["rainstorm"] + "{genome_build}/{cohort_name}_rainstorm.stderr.log"
     params:
-        opts = CFG["options"]["step_1"]
+        out_name = CFG["dirs"]["rainstorm"] + "{genome_build}/{cohort_name}_out",
+        max_mut = CFG["options"]["max_mut"]
     conda:
         CFG["conda_envs"]["samtools"]
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["rainstorm"]
     resources:
-        **CFG["resources"]["step_1"]
-    group: 
-        "input_and_step_1"
+        **CFG["resources"]["rainstorm"]
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --tumour {input.tumour_maf} --normal {input.normal_maf}
-        --ref-fasta {input.fasta} --output {output.tsv} --threads {threads}
-        > {log.stdout} 2> {log.stderr}
+        echo "running {rule} for {wildcards.cohort_name} on $(hostname) at $(date)" >> {log.stdout};
+        python3 {input.rainstorm} maf {input.maf}
+        --output_base_name {params.out_name}
+        --cpu_num {threads}
+        --genome_fai {input.index_subset}
+        --max_mut {params.max_mut}
+        >> {log.stdout}
+        2>> {log.stderr} &&
+        touch {output.complete}
+        echo "DONE {rule} for {wildcards.cohort_name} on $(hostname) at $(date)" >> {log.stdout};
+        """)
+
+chroms = list(map(str, range(1, 22))) + ["X"] 
+chroms = ["chr" + chrom for chrom in chroms]
+
+
+# Run doppler for the population-based analysis
+rule _rainstorm_run_doppler:
+    input:
+        peaks = str(rules._rainstorm_install.output.peaks),
+        tsv = str(rules._rainstorm_run.output.complete),
+        maf = str(rules._rainstorm_input_maf.output.maf),
+    output:
+        tsv = CFG["dirs"]["doppler"] + "{genome_build}/{cohort_name}_mean_waveletSummary_withMaf.tsv"
+    log:
+        stdout = CFG["logs"]["doppler"] + "{genome_build}/{cohort_name}_rainstorm.stdout.log",
+        stderr = CFG["logs"]["doppler"] + "{genome_build}/{cohort_name}_rainstorm.stderr.log"
+    params:
+        tsv = expand(str(CFG["dirs"]["rainstorm"] + "{{genome_build}}/{{cohort_name}}_out_rainstorm_k_4_mean_{chromosome}.tsv"), zip, chromosome=chroms),
+        str_split = CFG["dirs"]["rainstorm"] + "{genome_build}/{cohort_name}_out_rainstorm_k_4_mean_",
+        out_name = CFG["dirs"]["doppler"] + CFG["options"]["cohort_name"] + "_mean_"
+    conda:
+        CFG["conda_envs"]["samtools"]
+    threads:
+        CFG["threads"]["rainstorm"]
+    resources:
+        **CFG["resources"]["rainstorm"]
+    shell:
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.cohort_name} on $(hostname) at $(date)" >> {log.stdout};
+        Rscript {input.peaks} {params.tsv}
+        --stringSplit {params.str_split}
+        --input_maf {input.maf}
+        --output_base_file {params.out_name}
+        >> {log.stdout}
+        2>> {log.stderr} &&
+        echo "DONE {rule} for {wildcards.cohort_name} on $(hostname) at $(date)" >> {log.stdout};
         """)
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _rainstorm_step_2:
-    input:
-        tsv = str(rules._rainstorm_step_1.output.tsv)
-    output:
-        tsv = CFG["dirs"]["rainstorm"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.tsv"
-    log:
-        stderr = CFG["logs"]["rainstorm"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.tsv} > {output.tsv} 2> {log.stderr}"
-
-
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _rainstorm_output_tsv:
     input:
-        tsv = str(rules._rainstorm_step_2.output.tsv)
+        tsv = str(rules._rainstorm_run_doppler.output.tsv)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.tsv"
+        tsv = CFG["dirs"]["outputs"] + "tsv/{genome_build}/{cohort_name}.tsv"
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module= True)
 
@@ -129,14 +181,10 @@ rule _rainstorm_all:
         expand(
             [
                 str(rules._rainstorm_output_tsv.output.tsv),
-                # TODO: If applicable, add other output rules here
             ],
             zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            genome_build=CFG["runs"]["tumour_genome_build"],
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            genome_build=CFG["options"]["genome_build"],
+            cohort_name=CFG["options"]["cohort_name"])
 
 
 ##### CLEANUP #####
