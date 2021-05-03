@@ -10,18 +10,20 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
-            step_1: ""
-            step_2: ""
+            cohort_name: "__UPDATE__"
+            genome_build: "__UPDATE__"
+            max_mut: "__UPDATE__"
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             
         threads:
-            step_1: 4
+            rainstorm: 24
+            doppler: 8
 
         resources:
-            step_1: 
-                mem_mb: 2000
+            rainstorm: 
+                mem_mb: 80000
             
         pairing_config:
             genome:
