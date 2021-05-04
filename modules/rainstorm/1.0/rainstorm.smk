@@ -127,6 +127,7 @@ rule _rainstorm_run:
         """)
 
 
+# generate the list of chromosomes to expand for doppler run
 chroms = list(map(str, range(1, 22))) + ["X"] 
 chroms = ["chr" + chrom for chrom in chroms]
 
