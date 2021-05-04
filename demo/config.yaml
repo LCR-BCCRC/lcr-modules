@@ -2,12 +2,17 @@ lcr-modules:
 
     _shared:
         lcr-modules: "../"
-        lcr-scripts: "../../lcr-scripts"
+        lcr-scripts: "../../lcr-scripts/"
         root_output_dir: "results/"
         scratch_directory: "scratch/"
         unmatched_normal_ids:
             capture--grch37: "TCRBOA7-N-WEX"
             genome--hg38: "BLGSP-71-23-00361-14A-01E"
+
+    slms_3: 
+        inputs: 
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
 
 
     bam2fastq:
@@ -19,7 +24,7 @@ lcr-modules:
         inputs:
             sample_fastq_1: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read1.fastq.gz"
             sample_fastq_2: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read2.fastq.gz"
-        scratch_subdirectories: ["star", "sort_bam", "mark_dups"]
+        scratch_subdirectories: []
 
     manta:
         inputs:
@@ -32,8 +37,35 @@ lcr-modules:
             sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
 
     vcf2maf:
+        dirs:
+            _parent: "results/sage-1.0_vcf2maf-1.2"
         inputs:
             vep_cache: "reference/vep_caches/"
+            sample_vcf_gz: "results/sage-1.0/99-outputs/combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{base_name}.vcf.gz"
+            convert_coord: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.sh"
+        vcf_base_name: "sage.combined"
+        options:
+            vcf2maf: "--filter-vcf 0 --vcf-tumor-id {tumour_id} --vcf-normal-id {normal_id}"
+            species: "homo_sapiens"
+        conda_envs:
+            vcf2maf: "{MODSDIR}/envs/vcf2maf-1.6.18.yaml"
+            crossmap: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.yaml"
+        # here you can specify path to txt file with a list of custom ENST IDs that override canonical selection
+        # it will be parsed to --custom-enst flag of vcf2maf
+        # if no non-canonical transcript IDs to be included, leave switches empty
+        # This is just an example of how to include the list of custom IDs
+        switches:
+            custom_enst:
+              hg38: ""
+              grch37: "data/custom_enst.txt"
+              hs37d5: ""
+        resources:
+            vcf2maf:
+                mem_mb: 12000
+                vcf: 1
+            crossmap:
+                mem_mb: 12000
+
 
     salmon:
         inputs:
@@ -46,6 +78,7 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
+        scratch_subdirectories: []
     
     lofreq:
         inputs:
@@ -101,10 +134,30 @@ lcr-modules:
         inputs:
             sample_fastq_1: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read1.fastq.gz"
             sample_fastq_2: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read2.fastq.gz"
-        scratch_subdirectories: ["bwa_mem", "sort_bam", "mark_dups"]
+        scratch_subdirectories: []
         
     controlfreec:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
         scratch_subdirectories: [] # mpileup should be in scratch space
+
+    starfish: 
+        dirs: 
+            _parent: "results/starfish-2.0_strelka-1.1_lofreq-1.0"
+        inputs: 
+            names: ["strelka", "lofreq"]
+            paths: 
+                [
+                    "results/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz", 
+                    "results/lofreq-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz"
+                ]
+
+    sage:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "data/{sample_id}.bam"
+
+        # include here any additional flags to modify default parameters
+        options:
+            sage_run: ""

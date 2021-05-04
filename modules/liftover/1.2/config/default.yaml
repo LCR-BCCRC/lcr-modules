@@ -1,0 +1,42 @@
+lcr-modules:
+
+    liftover:
+        # Please specify parameters marked as __UPDATE__ using provided examples. 
+        # The "tool" option means the name of the tool used to produce initial .seg files. It will be preserved in the name of the final output file.
+        # The "sample_seg" option points to the initial .seg files to be converted. 
+        # The "min_mismatch" option is a minimum ratio of bases that must remap when transforming coordinates. 
+        # The "min_mismatch" must be a number with maximum of 1 (100% of bases must match when remapping).
+        #tool: "battenberg"
+        tool: "__UPDATE__" # Specify the name of the tool that produced the .seg files. For example, "battenberg"
+        #you can include the version if it helps simplify the pattern matching, for example sequenza-1.0
+        dirs: 
+            _parent: "__UPDATE__" #example for combining with Battenberg module: "results/battenberg-1.0_liftover-1.1"
+        inputs:
+            sample_seg: "__UPDATE__"
+            # Path to seg files for lifting. For example:
+            # sample_seg: "data/{tool}/{genome_build}/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
+        scratch_subdirectories: "scratch/"
+        options:
+            chr_colNum: 2
+            start_colNum: 3
+            end_colNum: 4
+            min_mismatch: 0.95
+            #min_mismatch: __UPDATE__ # Minimum ratio of bases that must remap when transforming coordinates. For example, 0.95
+            seg2bed2seg: "{MODSDIR}/src/convert_for_liftover.py"
+            fill_segments: "{SCRIPTSDIR}/fill_segments/1.0/fill_segments.py"
+        conda_envs:
+            liftover-366: "{MODSDIR}/envs/liftover-366.yaml"
+            fill_segments: "{SCRIPTSDIR}/fill_segments/1.0/fill_segments.yaml"
+        # tsv with chromosome coordinates for each genome build
+        chromArm:
+            hg19ToHg38: "{SCRIPTSDIR}/fill_segments/1.0/src/chromArm.hg38.tsv"
+            hg38ToHg19: "{SCRIPTSDIR}/fill_segments/1.0/src/chromArm.hg19.tsv"
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False

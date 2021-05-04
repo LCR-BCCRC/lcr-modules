@@ -1,12 +1,11 @@
 #!/usr/bin/env snakemake
 
-
 ##### ATTRIBUTION #####
 
 
 # Original Author:  Bruno Grande
 # Module Author:    Bruno Grande
-# Contributors:     N/A
+# Contributors:     Kostia Dreval, Ryan Morin
 
 
 ##### SETUP #####
@@ -15,6 +14,24 @@
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+import pkg_resources
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_resources.get_distribution("oncopipe").version
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
+    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
+
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["lofreq"]`
 CFG = op.setup_module(
@@ -22,6 +39,9 @@ CFG = op.setup_module(
     version = "1.0",
     subdirectories = ["inputs", "lofreq", "combined", "filtered", "outputs"],
 )
+#set variable for prepending to PATH based on config
+SCRIPT_PATH = CFG['inputs']['src_dir']
+#this is used in place of the shell.prefix() because that was not working consistently. This is not ideal. 
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -40,10 +60,12 @@ rule _lofreq_input_bam:
         bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
+        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
         op.relative_symlink(input.bam, output.bam)
         op.relative_symlink(input.bai, output.bai)
+        op.relative_symlink(input.bai, output.crai)
 
 
 # Run LoFreq in somatic variant calling mode
@@ -52,7 +74,8 @@ rule _lofreq_run:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")
+        dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
+        bed = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed")
     output:
         vcf_snvs_filtered = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.snvs.vcf.gz",
         vcf_indels_filtered = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.indels.vcf.gz",
@@ -73,16 +96,22 @@ rule _lofreq_run:
         **CFG["resources"]["lofreq"]
     shell:
         op.as_one_line("""
-        if [ ! -e {output.vcf_snvs_filtered} ] && [ -e {params.rm_files} ]; then rm $(dirname {output.vcf_snvs_all})/*; fi
-          &&
-        lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
-        -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} {params.regions} 
-        > {log.stdout} 2> {log.stderr}
+        SCRIPT_PATH={SCRIPT_PATH};
+        PATH=$SCRIPT_PATH:$PATH;
+        SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
+        if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
+            echo "using bundled patched script $SCRIPT";
+            if [ ! -e {output.vcf_snvs_filtered} ] && [ -e {params.rm_files} ]; then rm $(dirname {output.vcf_snvs_all})/*; fi
             &&
-        rm {params.rm_files}
+            lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
+            -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} {params.regions} --bed {input.bed}
+            > {log.stdout} 2> {log.stderr}
+            &&
+            rm {params.rm_files};
+        else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
         """)
 
-
+# indels are not yet called but this rule merges the empty indels file with the snvs file to produce the consistently named "combined" vcf. 
 rule _lofreq_combine_vcf:
     input:
         vcf_all = expand(CFG["dirs"]["lofreq"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/somatic_final.{var_type}.vcf.gz",
@@ -95,7 +124,7 @@ rule _lofreq_combine_vcf:
     resources:
         **CFG["resources"]["bcftools_sort"]
     conda:
-        CFG["conda_envs"]["bcftools"]
+        CFG["conda_envs"]["lofreq"]
     log:
         stdout_all = CFG["logs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq_final.combined.stdout.log",
         stderr_all = CFG["logs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq_final.combined.stderr.log",
@@ -116,8 +145,7 @@ rule _lofreq_combine_vcf:
 rule _lofreq_filter_vcf:
     input:
         vcf_all = rules._lofreq_combine_vcf.output.vcf_all,
-        vcf_all_filtered = rules._lofreq_combine_vcf.output.vcf_all_filtered,
-        lofreq_filter = CFG["inputs"]["lofreq_filter"]
+        vcf_all_filtered = rules._lofreq_combine_vcf.output.vcf_all_filtered
     output:
         vcf_all_clean = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final.combined.filtered.vcf.gz",
         vcf_all_filtered_clean = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.combined.filtered.vcf.gz",
@@ -126,13 +154,16 @@ rule _lofreq_filter_vcf:
     resources:
         **CFG["resources"]["bcftools_sort"]
     conda:
-        CFG["conda_envs"]["bcftools"]
+        CFG["conda_envs"]["lofreq"]
     shell:
         op.as_one_line("""
-        bash {input.lofreq_filter} {input.vcf_all} | bgzip > {output.vcf_all_clean}
+        PATH={SCRIPT_PATH}:$PATH;
+        SCRIPT=$(which lofreq_filter.sh); 
+        echo "using bundled custom filtering script $SCRIPT";
+        lofreq_filter.sh {input.vcf_all} | bgzip > {output.vcf_all_clean}
           && tabix -p vcf {output.vcf_all_clean}
               &&
-        bash {input.lofreq_filter} {input.vcf_all_filtered} | bgzip > {output.vcf_all_filtered_clean}
+        lofreq_filter.sh {input.vcf_all_filtered} | bgzip > {output.vcf_all_filtered_clean}
           && tabix -p vcf {output.vcf_all_filtered_clean}
         """)
 
@@ -145,10 +176,10 @@ rule _lofreq_output_vcf:
         vcf_all = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz",
         vcf_all_filtered = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_minus-dbsnp.lofreq.snvs.vcf.gz"
     run:
-        op.relative_symlink(input.vcf_all, output.vcf_all)
-        op.relative_symlink(input.vcf_all + ".tbi", output.vcf_all + ".tbi")
-        op.relative_symlink(input.vcf_all_filtered, output.vcf_all_filtered)
-        op.relative_symlink(input.vcf_all_filtered + ".tbi", output.vcf_all_filtered + ".tbi")
+        op.relative_symlink(input.vcf_all, output.vcf_all, in_module=True)
+        op.relative_symlink(input.vcf_all + ".tbi", output.vcf_all + ".tbi", in_module=True)
+        op.relative_symlink(input.vcf_all_filtered, output.vcf_all_filtered, in_module=True)
+        op.relative_symlink(input.vcf_all_filtered + ".tbi", output.vcf_all_filtered + ".tbi", in_module=True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks

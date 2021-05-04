@@ -9,11 +9,12 @@ lcr-modules:
             merge_seqz: "{MODSDIR}/src/bash/merge_seqz.sh"
             filter_seqz: "{MODSDIR}/src/bash/filter_seqz.sh"
             run_sequenza: "{MODSDIR}/src/R/run_sequenza.R"
-            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.0/cnv2igv.py"
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.3/cnv2igv.py"
 
-        scratch_subdirectories: ["seqz"]
+        scratch_subdirectories: []
         
         options:
+            # in bam2seqz pass any additional flags for the sequenza-utils. For example, this can include --normal2 to use for depth.ratio calculation.
             bam2seqz: "--qlimit 30"
             seqz_binning: "--window 300"
             cnv2igv: "--mode sequenza"
@@ -21,20 +22,30 @@ lcr-modules:
         conda_envs:
             sequenza-utils: "{MODSDIR}/envs/sequenza-utils-3.0.0.yaml"
             r-sequenza: "{MODSDIR}/envs/r-sequenza-3.0.0.yaml"
-            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.0/python-3.8.3.yaml"
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.3/python-3.8.3.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
             
+        resources:
+            vcf_sort:
+                mem_mb: 2000
+            bam2seqz:
+                mem_mb: 10000
+                bam: 1
+                disk_mb: 10000
+            merge_seqz:
+                mem_mb: 10000
+            filter_seqz:
+                mem_mb: 20000
+            sequenza:
+                mem_mb: 20000
+                disk_mb: 10000
+        
         threads:
             bam2seqz: 3
             merge_seqz: 1
             filter_seqz: 1
             sequenza: 8 
 
-        mem_mb:
-            vcf_sort: 2000
-            bam2seqz: 10000
-            merge_seqz: 10000
-            filter_seqz: 20000
-            sequenza: 20000
 
         # For now, only supporting matched tumour-normal pairs
         pairing_config:

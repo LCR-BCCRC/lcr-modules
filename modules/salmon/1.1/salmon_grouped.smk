@@ -93,6 +93,11 @@ rule _salmon_output:
 
 
 rule export_sample_table:
+    input:
+        quant = expand(rules._salmon_output.output.quant,
+            zip,
+            seq_type=CFG["samples"]["seq_type"],
+            sample_id=CFG["samples"]["sample_id"])
     output:
         sample_table = CFG["dirs"]["outputs"] + "quant_to_" + CFG["transcriptome"]["quant_to"] + "_matrix/{seq_type}/sample_table.tsv"
     run:
@@ -137,9 +142,10 @@ rule build_counts_matrix:
 # Generates the target sentinels for each run, which generate the symlinks
 rule _salmon_all:
     input:
-        expand(rules.build_counts_matrix.output.counts_matrix,
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["samples"]["seq_type"])
+        expand(
+            rules.build_counts_matrix.output.counts_matrix,
+            seq_type=CFG["samples"]["seq_type"].unique().tolist()
+        )
 
 
 ##### CLEANUP #####
