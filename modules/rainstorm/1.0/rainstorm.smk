@@ -100,7 +100,6 @@ rule _rainstorm_run:
         index_subset = str(rules._rainstorm_subset_index.output.index_subset)
     output:
         complete = CFG["dirs"]["rainstorm"] + "{genome_build}/{cohort_name}_out_background_100k_binned_density.tsv"
-#        complete = CFG["dirs"]["rainstorm"] + "{genome_build}/{cohort_name}_out_rainstorm_k_4_mean_{chromosome}.tsv"
     log:
         stdout = CFG["logs"]["rainstorm"] + "{genome_build}/{cohort_name}_rainstorm.stdout.log",
         stderr = CFG["logs"]["rainstorm"] + "{genome_build}/{cohort_name}_rainstorm.stderr.log"
@@ -137,7 +136,7 @@ rule _rainstorm_run_doppler:
     input:
         peaks = str(rules._rainstorm_install.output.peaks),
         tsv = str(rules._rainstorm_run.output.complete),
-        maf = str(rules._rainstorm_input_maf.output.maf),
+        maf = str(rules._rainstorm_input_maf.output.maf)
     output:
         tsv = CFG["dirs"]["doppler"] + "{genome_build}/{cohort_name}_mean_waveletSummary_withMaf.tsv"
     log:
