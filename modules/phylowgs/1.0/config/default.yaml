@@ -1,0 +1,53 @@
+lcr-modules:
+    
+    phylowgs:
+
+        inputs:
+            # Available wildcards: {tumour_id} {normal_id} {pair_status} {genome_build} {sample_id}
+            # IMPORTANT: PhyloWGS assumes the second sample in the VCF is the tumour. 
+            # If this assumption is wrong, fix your VCF file. 
+            vcf: "__UPDATE__" # Must be strelka- or mutect-formatted VCF file
+            tbi: "__UPDATE__"
+            cellularity: "__UPDATE__" # battenberg/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt
+            subclones: "__UPDATE__" # battenberg/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt
+
+        scratch_subdirectories: []
+
+        options:
+            create_inputs: 
+                opts: 
+                    "-s 5000 --verbose"
+                vcf_type: "__UPDATE__" # Usually either strelka or mutect_smchet
+            multievolve: ""
+            write_results: "--include-ssm-names"
+
+        switches: 
+            # NOTE: You must include a "sex" column in the input samples table. 
+            # If patient sex is unknown, you can leave it empty and phyloWGS will run in "auto" mode. 
+            sex: 
+                M: "male"
+                F: "female"
+
+        conda_envs:
+            phylowgs: "{MODSDIR}/envs/phylowgs.yaml"
+            
+        threads:
+            create_inputs: 1
+            multievolve: 24
+            write_results: 1
+
+        resources:
+            create_inputs: 
+                mem_mb: 2000
+            multievolve: 
+                mem_mb: 40000
+                evolve: 1
+            write_results: 
+                mem_mb: 2000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: None
+                run_paired_tumours_as_unpaired: False
+            
