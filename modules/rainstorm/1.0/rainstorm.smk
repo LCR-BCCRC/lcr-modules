@@ -108,7 +108,7 @@ rule _rainstorm_run:
         out_name = CFG["dirs"]["rainstorm"] + "{genome_build}/{cohort_name}_out",
         max_mut = CFG["options"]["max_mut"]
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["rainstorm"]
     threads:
         CFG["threads"]["rainstorm"]
     resources:
@@ -126,6 +126,7 @@ rule _rainstorm_run:
         touch {output.complete}
         echo "DONE {rule} for {wildcards.cohort_name} on $(hostname) at $(date)" >> {log.stdout};
         """)
+
 
 chroms = list(map(str, range(1, 22))) + ["X"] 
 chroms = ["chr" + chrom for chrom in chroms]
@@ -147,7 +148,7 @@ rule _rainstorm_run_doppler:
         str_split = CFG["dirs"]["rainstorm"] + "{genome_build}/{cohort_name}_out_rainstorm_k_4_mean_",
         out_name = CFG["dirs"]["doppler"] + CFG["options"]["cohort_name"] + "_mean_"
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["rainstorm"]
     threads:
         CFG["threads"]["rainstorm"]
     resources:

@@ -15,7 +15,7 @@ lcr-modules:
             max_mut: "__UPDATE__"
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            rainstorm: "{MODSDIR}/envs/rainstorm-0.3.yaml"
             
         threads:
             rainstorm: 24
