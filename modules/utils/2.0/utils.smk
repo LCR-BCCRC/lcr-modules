@@ -38,7 +38,8 @@ rule _utils_bam_sort:
         prefix = ".*(sort).*"
     params:
         opts = _UTILS["options"]["bam_sort"],
-        prefix ="{out_dir}/{prefix}/{suffix}"
+        prefix ="{out_dir}/{prefix}/{suffix}",
+        memory= lambda wildcards, resources, threads: int(resources.mem_mb/threads/2)
     conda:
         _UTILS["conda_envs"]["samtools"]
     threads:
@@ -48,7 +49,7 @@ rule _utils_bam_sort:
     shell:
         op.as_one_line("""
         samtools sort 
-        -@ {threads} -m $(({resources.mem_mb} / {threads}))M
+        -@ {threads} -m $(({params.memory}))M
         {params.opts}
         -T {params.prefix} -o {output.bam} 
         {input.bam} 
@@ -113,3 +114,32 @@ rule _utils_bam_index:
         > {log.stdout}
         2> {log.stderr}
         """)
+
+
+rule _utils_create_intervals: # create_interval_list from bed; default exomes
+    input:
+        bed = lambda w: _UTILS["inputs"]["bed"][w.genome_build],
+        seq_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
+    output: 
+        intervals = "reference/exomes/{genome_build}/interval/{id}_intervals.txt"
+    log: 
+        "reference/exomes/{genome_build}/interval/{id}_intervals.log"
+    conda: 
+        _UTILS["conda_envs"]["picard"]
+    threads:
+        _UTILS["threads"]["interval"]
+    resources: 
+        mem_mb = _UTILS["mem_mb"]["interval"]
+    shell:
+        op.as_one_line("""
+        picard BedToIntervalList
+        I={input.bed}
+        O={output.intervals}
+        SD={input.seq_dict}
+        2> {log}
+        &&
+        chmod a-w {output.intervals}
+        """)
+
+
+

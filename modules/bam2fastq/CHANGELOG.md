@@ -25,3 +25,12 @@ Tweaks by Ryan Morin
 
 - The outputs are not separated by genome build so that it can be re-aligned using other genome references in later modules
 
+On 2020-09-11, the new updates were introduced without version increase. Mainly, the genome build wildcard
+was removed from the module using a different approach developed by the team. In addition, the fastq files
+are now rule outputs, and therefore subsequent modules can recognize these files being produced.
+
+## [1.2] - 2020-10-20
+
+This release was updated by Laura Hilton. 
+
+- In 1.1 the sample input filename format was inflexible and designed for the GAMBL project. The function that drops the genome build has been moved to the `_bam2fastq_run` rule so that the input sample filenames don't have to adhere to a specific format. 

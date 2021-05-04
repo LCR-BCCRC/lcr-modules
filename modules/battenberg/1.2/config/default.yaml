@@ -1,0 +1,40 @@
+lcr-modules:
+    battenberg:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            battenberg_script: "{MODSDIR}/src/battenberg_wgs_hg38.R"
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.4/cnv2igv.py"
+            src_dir: "{MODSDIR}/src/"
+
+        scratch_subdirectories: []
+
+        conda_envs:
+            battenberg: "{MODSDIR}/envs/battenberg-1.1.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+
+        resources:
+            battenberg:
+                mem_mb: 200000
+                bam: 1
+            infer_sex:
+                mem_mb: 20000
+                bam: 1
+            reference:
+                mem_mb: 8000
+
+        threads:
+            battenberg: 24
+            reference: 2
+            #ideal for processing all chromosomes at once
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False

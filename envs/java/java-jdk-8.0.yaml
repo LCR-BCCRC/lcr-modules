@@ -1,0 +1,9 @@
+name: mixcr-dependencies
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - java-jdk=8.0.112
+  - openjdk=8.0.112
+prefix: /home/lhilton/miniconda3/envs/mixcr-dependencies
