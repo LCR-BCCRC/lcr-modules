@@ -33,7 +33,7 @@ lcr-modules:
             forceGCcontentNormalization: 1 #0 for WGS; 1 for WES # 0 forces control-base normalization, 1 forces GC
             intercept: 1 # 0 for control-based (paired) ; 1 for GC-content (unpaired)
             minCNAlength: 8 # minimum number of consecutive windows to call a CNA #default 1 for WGS; 3 for WES
-            minMappabilityPerWindow: 0.9 # minimum fraction of mappable positions for a window to be considered # set this lower if you want to also use a hard-masked mappability file
+            minMappabilityPerWindow: 0.3 # minimum fraction of mappable positions for a window to be considered # set this lower if you want to also use a hard-masked mappability file
             minimalSubclonePresence: 20 # detects subclones present in x% of cell population - 20 for WGS; 30 for WES (100 means "do not look for subclones")
             noisyData: TRUE #set TRUE for exomes/FFPE libs to avoid false positives due to non-uniform capture
             readCountThreshold: 10 # threshold on the minimal number of reads per window (used for exome-seq or targeted sequencing) (recommended 50 for WES)

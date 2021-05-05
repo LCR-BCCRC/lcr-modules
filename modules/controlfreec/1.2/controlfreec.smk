@@ -227,10 +227,12 @@ rule _controlfreec_input_bam:
         bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bai"
+        bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bai",
+        crai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.crai"
     run:
         op.relative_symlink(input.bam, output.bam)
         op.relative_symlink(input.bai, output.bai)
+        op.relative_symlink(input.bai, output.crai)
 
 
 #### set-up mpileups for BAF calling ####
