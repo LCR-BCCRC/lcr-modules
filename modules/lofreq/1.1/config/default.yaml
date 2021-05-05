@@ -1,0 +1,47 @@
+lcr-modules:
+    
+    lofreq:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            src_dir: "{MODSDIR}/src"
+
+        scratch_subdirectories: []
+
+        options:
+            lofreq: ""
+
+        switches:
+            # Capture sequencing panel in BED format
+            # Available wildcards: {seq_type} {genome_build} {tumour_id} 
+            #                      {normal_id} {pair_status}
+            regions_bed:
+                _default: ""
+                # Set to "" if you have no capture data
+                capture: "-l __UPDATE__"
+
+        conda_envs:
+            lofreq: "{MODSDIR}/envs/lofreq-2.1.5.yml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            
+        threads:
+            lofreq: 48
+
+        resources:
+            lofreq:
+                mem_mb: 100000
+                bam: 1
+            bcftools_sort:
+                mem_mb: 20000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
