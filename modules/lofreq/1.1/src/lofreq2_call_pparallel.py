@@ -459,7 +459,7 @@ def main():
     if idx != -1:
         final_vcf_out = lofreq_call_args[idx+1]
         if os.path.exists(final_vcf_out):
-            LOG.fatal("Cowardly refusing to overwrite already existing"
+            LOG.fatal("On line 462 Cowardly refusing to overwrite already existing"
                       " VCF output file %s" % final_vcf_out)
             sys.exit(1)
         lofreq_call_args = lofreq_call_args[0:idx] +  lofreq_call_args[idx+2:]
@@ -720,7 +720,7 @@ def main():
         assert final_vcf_out != "-"
         # check again if final output doesn't exist, just to be sure
         if os.path.exists(final_vcf_out):
-            LOG.fatal("Cowardly refusing to overwrite %s with %s" % (
+            LOG.fatal("on line 723 Cowardly refusing to overwrite %s with %s" % (
                 final_vcf_out, vcf_concat))
             sys.exit(1)
 
