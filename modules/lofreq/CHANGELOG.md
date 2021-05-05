@@ -5,6 +5,11 @@ All notable changes to the `lofreq` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1] - 2021-05-04
+- all previous versions ran the pre-processing of the normal and tumour bams in one rule. I've modified two of the lofreq scripts to allow each step to be run separately. 
+- Now, preprocessing of the normal is done once for each normal (i.e. unmatched normal is not processed per pair). This should enhance the efficiency when running many samples in unmatched-normal mode.
+- Functionality for matched T/N pairs should be unaffected. 
+
 ## [1.0] - 2020-12-21
 
 - add .crai index for cram support
