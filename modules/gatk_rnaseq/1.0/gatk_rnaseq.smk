@@ -139,7 +139,6 @@ rule _gatk_variant_calling:
         stdout = CFG["logs"]["gatk_variant_calling"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.{chrom}.gatk_base_recal.stdout.log",
         stderr = CFG["logs"]["gatk_variant_calling"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.{chrom}.gatk_base_recal.stderr.log"
     params:
-        # java_opts = "-Xmx{0}G".format(int(CFG["resources"]["gatk_variant_calling"]["mem_mb"]) // 1000),
         mem_mb = lambda wildcards, resources: int(resources.mem_mb / 1000),
         vcf = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"),
         min_conf_thres = CFG["options"]["gatk_variant_calling"]["min_conf_thres"]

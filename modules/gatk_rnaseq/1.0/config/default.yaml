@@ -10,12 +10,9 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
-            gatk_splitntrim:
-            gatk_base_recalibration:
-            gatk_applybqsr:
             gatk_variant_calling:
                 min_conf_thres: 20.0
-            gatk_variant_filtration:
+
 
         conda_envs:
             gatk_rnaseq: "{MODSDIR}/envs/gatk_rnaseq.yaml"
@@ -49,3 +46,4 @@ lcr-modules:
                 run_paired_tumours: False
                 run_unpaired_tumours_with: "no_normal"
                 run_paired_tumours_as_unpaired: True
+
