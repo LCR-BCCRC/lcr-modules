@@ -219,7 +219,10 @@ rule _gatk_variant_filtration:
         stdout = CFG["logs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.gatk_base_recal.stdout.log",
         stderr = CFG["logs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.gatk_base_recal.stderr.log"
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb / 1000)
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb / 1000),
+        window = CFG["options"]["gatk_variant_filtration"]["window"],
+        cluster_size = CFG["options"]["gatk_variant_filtration"]["cluster_size"],
+        filter_expression = CFG["options"]["gatk_variant_filtration"]["filter_expression"]
     conda:
         CFG["conda_envs"]["gatk_rnaseq"]
     threads: CFG["threads"]["gatk_variant_filtration"]
@@ -229,10 +232,8 @@ rule _gatk_variant_filtration:
         # FS - phred score with strand bias > 30; QD - Variant conf/qual by depth > 5; DP - read depth > 5
         op.as_one_line("""
         gatk --java-options "-Xmx{params.mem_mb}G" VariantFiltration -R {input.fasta} -V {input.vcf} 
-        -window 35 -cluster-size 3  
-        -filter-expression "FS > 30.0" -filter-name FS
-        -filter-expression "QD > 5.0" -filter-name QD 
-        -filter-expression "DP > 5.0" -filter-name DP 
+        -window {params.window} -cluster-size {params.cluster_size}  
+        {params.filter_expression}  
         -O {output.vcf} > {log.stdout} 2> {log.stderr}
         """)
 
