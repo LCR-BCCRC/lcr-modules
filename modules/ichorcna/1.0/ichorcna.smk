@@ -70,7 +70,7 @@ rule _install_ichorcna:
         CFG["conda_envs"]["ichorcna"]
     shell:
         op.as_one_line("""
-        git clone git@github.com:broadinstitute/ichorCNA.git {params.outdir} &&            
+        git clone git://github.com/broadinstitute/ichorCNA.git {params.outdir} &&            
         touch {output.complete}""")
 
 # This defines the script/extdata directory used by ichorCNA in the subsequent rules:
