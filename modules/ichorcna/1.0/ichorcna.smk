@@ -216,14 +216,13 @@ rule _ichorcna_read_counter:
         "readCounter {input.bam} -c {params.chrs} -w {params.binSize} -q {params.qual} > {output} 2> {log}"
 
 
-# This function will return a comma-separated list of chromosomes to include in readCounter
+# This function will return a comma-separated list of chromosomes to include in runIchorCNA
 def get_chromosomes_R(wildcards):
     chromosomesR=[]
     stringStart="c('"
     for i in range(1,23):
         chromosomesR.append(str(i))
     chromosomesR.append("X")
-    chromosomesR.append("Y")
     if "38" in str(wildcards.genome_build):
         chromosomesR = ["chr" + x for x in chromosomesR]
     chromosomesR= "','".join(chromosomesR)
