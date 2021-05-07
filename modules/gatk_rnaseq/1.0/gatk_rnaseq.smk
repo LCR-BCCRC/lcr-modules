@@ -15,6 +15,26 @@
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+import pkg_resources
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_resources.get_distribution("oncopipe").version
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
+
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["gatk_rnaseq"]`
 CFG = op.setup_module(
@@ -42,8 +62,8 @@ rule _gatk_rnaseq_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
 
 rule _gatk_splitntrim:
     input:
@@ -272,8 +292,8 @@ rule _gatk_rnaseq_output_vcf:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}--{pair_status}/{sample_id}.output.filt.vcf.gz",
         tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}--{pair_status}/{sample_id}.output.filt.vcf.gz.tbi"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(input.tbi, output.tbi)
+        op.relative_symlink(input.vcf, output.vcf, in_module = True)
+        op.relative_symlink(input.tbi, output.tbi, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
