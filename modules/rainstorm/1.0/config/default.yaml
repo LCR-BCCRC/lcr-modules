@@ -12,7 +12,7 @@ lcr-modules:
             cohort_name: "__UPDATE__" # this will be used as prefix to the output files
             rainstorm_version: 0.3 # here the version tag for the rainstorm version can be specified. The default version used in the module is 0.3
             genome_build: "__UPDATE__" # specify genome build of variants in maf file
-            max_mut: "__UPDATE__" # maximum number of mutations per sample, samples above this cut-off will be excluded from the analysis
+            flags: "--max_mut 10000" # provide additional flags for rainstorm run. For example, the maximum number of mutations per sample here is set to 10000 as module default
 
         conda_envs:
             rainstorm: "{MODSDIR}/envs/rainstorm-0.3.yaml"

@@ -58,7 +58,7 @@ rule _rainstorm_install:
         rainstorm = CFG["dirs"]["inputs"] + "mutation_rainstorm-0.3/rainstorm.py", # one of the files in the repo
         peaks = CFG["dirs"]["inputs"] + "mutation_rainstorm-0.3/rainstorm_peaks.R" # another script from the repo
     params:
-        url = "https://github.com/rdmorin/mutation_rainstorm/archive/refs/tags/v" + CFG["options"]["rainstorm_version"] + ".tar.gz",
+        url = "https://github.com/rdmorin/mutation_rainstorm/archive/refs/tags/v" + str(CFG["options"]["rainstorm_version"]) + ".tar.gz",
         folder = CFG["dirs"]["inputs"]
     shell:
         op.as_one_line("""
@@ -105,7 +105,7 @@ rule _rainstorm_run:
         stderr = CFG["logs"]["rainstorm"] + "{genome_build}/{cohort_name}_rainstorm.stderr.log"
     params:
         out_name = CFG["dirs"]["rainstorm"] + "{genome_build}/{cohort_name}_out",
-        max_mut = CFG["options"]["max_mut"]
+        rainstorm_flags = CFG["options"]["flags"]
     conda:
         CFG["conda_envs"]["rainstorm"]
     threads:
@@ -119,7 +119,7 @@ rule _rainstorm_run:
         --output_base_name {params.out_name}
         --cpu_num {threads}
         --genome_fai {input.index_subset}
-        --max_mut {params.max_mut}
+        {params.rainstorm_flags}
         >> {log.stdout}
         2>> {log.stderr} &&
         touch {output.complete}
