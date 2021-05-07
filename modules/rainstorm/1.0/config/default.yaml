@@ -2,17 +2,16 @@ lcr-modules:
     
     rainstorm:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_maf: "__UPDATE__"
+            # Available wildcards: {cohort_name}
+            sample_maf: "__UPDATE__" # path to the maf file containing all patients across cohort of interest
 
         scratch_subdirectories: []
 
         options:
-            cohort_name: "__UPDATE__"
-            genome_build: "__UPDATE__"
-            max_mut: "__UPDATE__"
+            cohort_name: "__UPDATE__" # this will be used as prefix to the output files
+            genome_build: "__UPDATE__" # specify genome build of variants in maf file
+            max_mut: "__UPDATE__" # maximum number of mutations per sample, samples above this cut-off will be excluded from the analysis
 
         conda_envs:
             rainstorm: "{MODSDIR}/envs/rainstorm-0.3.yaml"
