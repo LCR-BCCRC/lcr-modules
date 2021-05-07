@@ -12,4 +12,3 @@ This release was authored by Kostiantyn Dreval.
 - At the first implementation, the module runs both rainstorm and doppler analyses on a cohort-wide maf file.
 - Installation of github repo is achieved through download of tar file with specific version tag, rather than 
 repo cloning to ensure tool version consistency.
-- For now, will only work on chr-prefixed versions of genome builds.
