@@ -20,7 +20,7 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "gatk_rnaseq",
     version = "1.0",
-    subdirectories = ["inputs", "gatk_splitntrim", "base_recal_report", "gatk_applybqsr", "gatk_variant_calling", "merge_vcfs", "gatk_variant_filtration", "outputs"],
+    subdirectories = ["inputs", "gatk_splitntrim", "base_recal_report", "gatk_applybqsr", "gatk_variant_calling", "merge_vcfs", "gatk_variant_filtration", "passed", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -229,7 +229,7 @@ rule _gatk_variant_filtration:
     resources:
         **CFG["resources"]["gatk_variant_filtration"]
     shell:
-        # FS - phred score with strand bias > 30; QD - Variant conf/qual by depth > 5; DP - read depth > 5
+        # flag to remove: FS - phred score with strand bias > 30; QD - Variant conf/qual by depth < 2; DP - read depth < 5
         op.as_one_line("""
         gatk --java-options "-Xmx{params.mem_mb}G" VariantFiltration -R {input.fasta} -V {input.vcf} 
         -window {params.window} -cluster-size {params.cluster_size}  
@@ -238,11 +238,36 @@ rule _gatk_variant_filtration:
         """)
 
 
+# Filters for PASS variants
+rule _gatk_rnaseq_filter_passed:
+    input:
+        vcf = str(rules._gatk_variant_filtration.output.vcf)
+    output:
+        vcf = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.output.passed.vcf.gz",
+        tbi = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.output.passed.vcf.gz.tbi"
+    params:
+        opts = CFG["options"]["gatk_rnaseq_filter_passed"]["params"]
+    log:
+        stderr = CFG["logs"]["passed"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.mutect2_filter_passed.stderr.log"
+    conda:
+        CFG["conda_envs"]["bcftools"]
+    threads:
+        CFG["threads"]["gatk_rnaseq_passed"]
+    resources:
+        **CFG["resources"]["gatk_rnaseq_passed"]
+    shell:
+        op.as_one_line(""" 
+        bcftools view {params.opts} -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
+            &&
+        tabix -p vcf {output.vcf} 2>> {log.stderr}
+        """)
+
+
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _gatk_rnaseq_output_vcf:
     input:
-        vcf = str(rules._gatk_variant_filtration.output.vcf),
-        tbi = str(rules._gatk_variant_filtration.output.tbi)
+        vcf = str(rules._gatk_rnaseq_filter_passed.output.vcf),
+        tbi = str(rules._gatk_rnaseq_filter_passed.output.tbi)
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}--{pair_status}/{sample_id}.output.filt.vcf.gz",
         tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}--{pair_status}/{sample_id}.output.filt.vcf.gz.tbi"

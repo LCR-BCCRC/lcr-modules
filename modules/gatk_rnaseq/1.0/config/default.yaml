@@ -15,10 +15,17 @@ lcr-modules:
             gatk_variant_filtration:
                 window: 35 # window size between SNPs in cluster
                 cluster_size: 3 # at least 3 SNPs in cluster
-                # hard filtering based on metrics: 
+                # hard filtering (filters OUT) based on metrics: 
+                    # FS (FisherStrand): Phred-scale probability that there is a strand bias from a Fisher's test. (default FS > 30.0)
                     # QD (QualByDepth): variant confidence/unfiltered depth (normalizes variant quality to avoid inflation from deep coverage) (default QD < 2.0)
-                    # FS (FisherStrand): Phred-scale probability that there is a strand bias from a Fisher's test. 
-                filter_expression: "-filter-expression "FS > 30.0" -filter-name FS -filter-expression "QD < 2.0" -filter-name QD -filter-expression "DP > 5.0" -filter-name DP" 
+                    # DP (depth): minimum depth (default DP < 5.0)
+                filter_expression: "-filter-expression \"FS > 30.0\" -filter-name FS -filter-expression \"QD < 2.0\" -filter-name QD -filter-expression \"DP < 5.0\" -filter-name DP"
+            gatk_rnaseq_filter_passed: 
+                params: "-f '.,PASS' "
+                # Can be modified to filter on additional criteria using bcftools view syntax
+                # For example, to remove all variants with -log10(POPAF) > 4.0: 
+                #"-f '.,PASS' -i 'INFO/POPAF > 4'"
+
 
         conda_envs:
             gatk_rnaseq: "{MODSDIR}/envs/gatk_rnaseq.yaml"
@@ -31,6 +38,7 @@ lcr-modules:
             gatk_variant_calling: 24
             gatk_variant_filtration: 24
             merge_vcfs: 10
+            gatk_rnaseq_passed: 10
 
         resources:
             gatk_splitntrim: 
@@ -46,10 +54,13 @@ lcr-modules:
                 mem_mb: 12000
             merge_vcfs:
                 mem_mb: 10000
+            gatk_rnaseq_passed:
+                mem_mb: 10000
 
         pairing_config:
             mrna:
                 run_paired_tumours: False
                 run_unpaired_tumours_with: "no_normal"
                 run_paired_tumours_as_unpaired: True
+
 
