@@ -146,7 +146,7 @@ rule _rainstorm_run_doppler:
     params:
         tsv = expand(str(CFG["dirs"]["rainstorm"] + "{{genome_build}}/{{cohort_name}}_out_rainstorm_k_4_mean_{chromosome}.tsv"), zip, chromosome=chroms),
         str_split = CFG["dirs"]["rainstorm"] + "{genome_build}/{cohort_name}_out_rainstorm_k_4_mean_",
-        out_name = CFG["dirs"]["doppler"] + CFG["options"]["cohort_name"] + "_mean_"
+        out_name = CFG["dirs"]["doppler"] + "{genome_build}/" + CFG["options"]["cohort_name"] + "_mean_"
     conda:
         CFG["conda_envs"]["rainstorm"]
     threads:
