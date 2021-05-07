@@ -10,6 +10,7 @@ lcr-modules:
 
         options:
             cohort_name: "__UPDATE__" # this will be used as prefix to the output files
+            rainstorm_version: 0.3 # here the version tag for the rainstorm version can be specified. The default version used in the module is 0.3
             genome_build: "__UPDATE__" # specify genome build of variants in maf file
             max_mut: "__UPDATE__" # maximum number of mutations per sample, samples above this cut-off will be excluded from the analysis
 

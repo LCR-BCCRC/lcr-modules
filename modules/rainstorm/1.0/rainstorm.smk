@@ -58,7 +58,7 @@ rule _rainstorm_install:
         rainstorm = CFG["dirs"]["inputs"] + "mutation_rainstorm-0.3/rainstorm.py", # one of the files in the repo
         peaks = CFG["dirs"]["inputs"] + "mutation_rainstorm-0.3/rainstorm_peaks.R" # another script from the repo
     params:
-        url = "https://github.com/rdmorin/mutation_rainstorm/archive/refs/tags/v0.3.tar.gz",
+        url = "https://github.com/rdmorin/mutation_rainstorm/archive/refs/tags/v" + CFG["options"]["rainstorm_version"] + ".tar.gz",
         folder = CFG["dirs"]["inputs"]
     shell:
         op.as_one_line("""
