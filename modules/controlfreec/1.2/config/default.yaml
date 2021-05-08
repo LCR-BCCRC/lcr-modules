@@ -70,6 +70,7 @@ lcr-modules:
             FREEC_graph_chr: "{MODSDIR}/src/makeGraph_Chromosome.R"
             freec2bed: "{MODSDIR}/src/freec2bed.pl"
             freec2circos: "{MODSDIR}/src/freec2circos.pl"
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.4/cnv2igv.py"
 
         
         threads:
@@ -79,6 +80,7 @@ lcr-modules:
             plot: 1
             freec2bed: 1
             freec2circos: 1
+            cnv2igv: 1
 
         resources:
             gem:
@@ -98,6 +100,8 @@ lcr-modules:
             freec2bed:
                 mem_mb: 1000
             freec2circos:
+                mem_mb: 1000
+            cnv2igv:
                 mem_mb: 1000
 
         

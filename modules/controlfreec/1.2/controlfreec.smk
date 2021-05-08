@@ -15,6 +15,26 @@
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+import pkg_resources
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_resources.get_distribution("oncopipe").version
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
+
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["controlfreec"]`
 CFG = op.setup_module(
@@ -230,9 +250,9 @@ rule _controlfreec_input_bam:
         bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bai",
         crai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.crai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
-        op.relative_symlink(input.bai, output.crai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 
 #### set-up mpileups for BAF calling ####
@@ -457,6 +477,23 @@ rule _controlfreec_freec2circos:
         "ploidy=$(grep Output_Ploidy {input.info} | cut -f 2); "
         "perl {params.freec2circos} -f {input.ratios} -p $ploidy > {output.circos} 2> {log.stderr}"
         
+        
+rule _controlfreec_cnv2igv:
+    input:
+        cnv = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs.p.value.txt"
+    output:
+        seg = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.CNVs.seg"
+    params:
+        tumour_id = "{tumour_id}",
+        cnv2igv = CFG["software"]["cnv2igv"]
+    threads: CFG["threads"]["cnv2igv"]
+    resources: **CFG["resources"]["cnv2igv"]
+    conda: CFG["conda_envs"]["controlfreec"]
+    log:
+        stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/cnv2igv.stderr.log"
+    shell:
+        "python3 {params.cnv2igv} --mode controlfreec --sample {params.tumour_id} {input.cnv} > {output.seg} 2> {log.stderr} "
+
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _controlfreec_output:
@@ -468,7 +505,8 @@ rule _controlfreec_output:
         BAF = str(rules._controlfreec_run.output.BAF),
         BAFgraph = str(rules._controlfreec_plot.output.bafplot),
         ratio = str(rules._controlfreec_run.output.ratio),
-        circos = str(rules._controlfreec_freec2circos.output.circos)
+        circos = str(rules._controlfreec_freec2circos.output.circos),
+        igv = str(rules._controlfreec_cnv2igv.output.seg)
     output:
         plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/plots/{tumour_id}--{normal_id}--{pair_status}.ratio.png",
         log2plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/log2plots/{tumour_id}--{normal_id}--{pair_status}.ratio.log2.png",
@@ -477,16 +515,18 @@ rule _controlfreec_output:
         BAF = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/BAF/{tumour_id}--{normal_id}--{pair_status}.BAF.txt",
         BAFgraph = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/BAFplot/{tumour_id}--{normal_id}--{pair_status}.BAF.png",
         ratio = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/ratio/{tumour_id}--{normal_id}--{pair_status}.ratio.txt",
-        circos = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/circos/{tumour_id}--{normal_id}--{pair_status}.circos.bed"
+        circos = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/circos/{tumour_id}--{normal_id}--{pair_status}.circos.bed",
+        igv = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/igv/{tumour_id}--{normal_id}--{pair_status}.igv.seg"
     run:
-        op.relative_symlink(input.plot, output.plot)
-        op.relative_symlink(input.log2plot, output.log2plot)
-        op.relative_symlink(input.CNV, output.CNV)
-        op.relative_symlink(input.bed, output.bed)
-        op.relative_symlink(input.BAF, output.BAF)
-        op.relative_symlink(input.BAFgraph, output.BAFgraph)
-        op.relative_symlink(input.ratio, output.ratio)
-        op.relative_symlink(input.circos, output.circos)
+        op.relative_symlink(input.plot, output.plot, in_module = True)
+        op.relative_symlink(input.log2plot, output.log2plot, in_module = True)
+        op.relative_symlink(input.CNV, output.CNV, in_module = True)
+        op.relative_symlink(input.bed, output.bed, in_module = True)
+        op.relative_symlink(input.BAF, output.BAF, in_module = True)
+        op.relative_symlink(input.BAFgraph, output.BAFgraph, in_module = True)
+        op.relative_symlink(input.ratio, output.ratio, in_module = True)
+        op.relative_symlink(input.circos, output.circos, in_module = True)
+        op.relative_symlink(input.igv, output.igv, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -501,7 +541,8 @@ rule _controlfreec_all:
                 str(rules._controlfreec_output.output.BAF),
                 str(rules._controlfreec_output.output.BAFgraph),
                 str(rules._controlfreec_output.output.ratio),
-                str(rules._controlfreec_output.output.circos)
+                str(rules._controlfreec_output.output.circos),
+                str(rules._controlfreec_output.output.igv)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
