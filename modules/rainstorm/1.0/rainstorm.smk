@@ -45,7 +45,8 @@ localrules:
     _rainstorm_install,
     _rainstorm_input_maf,
     _rainstorm_subset_index,
-    _rainstorm_output_tsv,
+    _rainstorm2bed,
+    _rainstorm_output,
     _rainstorm_all
 
 
@@ -56,7 +57,8 @@ localrules:
 rule _rainstorm_install:
     output:
         rainstorm = CFG["dirs"]["inputs"] + "mutation_rainstorm-0.3/rainstorm.py", # one of the files in the repo
-        peaks = CFG["dirs"]["inputs"] + "mutation_rainstorm-0.3/rainstorm_peaks.R" # another script from the repo
+        peaks = CFG["dirs"]["inputs"] + "mutation_rainstorm-0.3/rainstorm_peaks.R", # another script from the repo
+        doppler2bed = CFG["dirs"]["inputs"] + "mutation_rainstorm-0.3/doppler_to_bed.py" # convert output to bed format
     params:
         url = "https://github.com/rdmorin/mutation_rainstorm/archive/refs/tags/v" + str(CFG["options"]["rainstorm_version"]) + ".tar.gz",
         folder = CFG["dirs"]["inputs"]
@@ -166,14 +168,33 @@ rule _rainstorm_run_doppler:
         """)
 
 
-# Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _rainstorm_output_tsv:
+# Convert doppler output to bed file
+rule _rainstorm2bed:
     input:
-        tsv = str(rules._rainstorm_run_doppler.output.tsv)
+        converter = str(rules._rainstorm_install.output.doppler2bed),
+        doppler = str(rules._rainstorm_run_doppler.output.tsv)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{genome_build}/{cohort_name}.tsv"
+        bed = CFG["dirs"]["doppler"] + "{genome_build}/{cohort_name}_mean_waveletSummary_withMaf.bed"
+    conda:
+        CFG["conda_envs"]["rainstorm"]
+    shell:
+        op.as_one_line("""
+        python3 {input.converter}
+        {input.doppler}
+        -o {output.bed}
+        """)        
+
+# Symlinks the final output files into the module results directory (under '99-outputs/')
+rule _rainstorm_output:
+    input:
+        tsv = str(rules._rainstorm_run_doppler.output.tsv),
+        bed = str(rules._rainstorm2bed.output.bed)
+    output:
+        tsv = CFG["dirs"]["outputs"] + "tsv/{genome_build}/{cohort_name}.tsv",
+        bed = CFG["dirs"]["outputs"] + "bed/{genome_build}/{cohort_name}.bed"
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module= True)
+        op.relative_symlink(input.bed, output.bed, in_module= True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -181,7 +202,8 @@ rule _rainstorm_all:
     input:
         expand(
             [
-                str(rules._rainstorm_output_tsv.output.tsv),
+                str(rules._rainstorm_output.output.tsv),
+                str(rules._rainstorm_output.output.bed)
             ],
             zip,  # Run expand() with zip(), not product()
             genome_build=CFG["options"]["genome_build"],
