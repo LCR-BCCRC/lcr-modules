@@ -10,6 +10,7 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
+            java_opts: "-XX:ConcGCThreads=1"
             gatk_variant_calling:
                 min_conf_thres: 20.0
             gatk_variant_filtration:
@@ -28,7 +29,7 @@ lcr-modules:
 
 
         conda_envs:
-            gatk_rnaseq: "{MODSDIR}/envs/gatk_rnaseq.yaml"
+            gatk_rnaseq: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             
         threads:

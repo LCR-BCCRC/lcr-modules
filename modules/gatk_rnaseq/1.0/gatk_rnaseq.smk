@@ -65,17 +65,19 @@ rule _gatk_rnaseq_input_bam:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
 
+
 rule _gatk_splitntrim:
     input:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        bam = temp(CFG["dirs"]["gatk_splitntrim"] +  "bam/{seq_type}--{genome_build}--{pair_status}/{sample_id}.split_reassign_mq.bam")
+        bam = temp(CFG["dirs"]["gatk_splitntrim"] +  "bam/{seq_type}--{genome_build}/{sample_id}.split_reassign_mq.bam")
     log:
-        stdout = CFG["logs"]["gatk_splitntrim"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.gatk_splitntrim.stdout.log",
-        stderr = CFG["logs"]["gatk_splitntrim"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.gatk_splitntrim.stderr.log"
+        stdout = CFG["logs"]["gatk_splitntrim"] + "{seq_type}--{genome_build}/{sample_id}.gatk_splitntrim.stdout.log",
+        stderr = CFG["logs"]["gatk_splitntrim"] + "{seq_type}--{genome_build}/{sample_id}.gatk_splitntrim.stderr.log"
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb / 1000)
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        opts = CFG["options"]["java_opts"]
     conda:
         CFG["conda_envs"]["gatk_rnaseq"]
     threads:
@@ -84,24 +86,25 @@ rule _gatk_splitntrim:
         **CFG["resources"]["gatk_splitntrim"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}G" SplitNCigarReads -fixNDN TRUE -RF GoodCigarReadFilter
+        gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" SplitNCigarReads -fixNDN TRUE -RF GoodCigarReadFilter
         -R {input.fasta} -I {input.bam} -O {output.bam}
         > {log.stdout} 2> {log.stderr}
         """)
 
 rule _gatk_base_recalibration:
     input:
-        bam = rules._gatk_splitntrim.output,
+        bam = str(rules._gatk_splitntrim.output),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        table = CFG["dirs"]["base_recal_report"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.recalibration_report.grp"
+        table = CFG["dirs"]["base_recal_report"] + "{seq_type}--{genome_build}/{sample_id}.recalibration_report.grp"
     log:
-        stdout = CFG["logs"]["base_recal_report"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.gatk_base_recal.stdout.log",
-        stderr = CFG["logs"]["base_recal_report"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.gatk_base_recal.stderr.log"
+        stdout = CFG["logs"]["base_recal_report"] + "{seq_type}--{genome_build}/{sample_id}.gatk_base_recal.stdout.log",
+        stderr = CFG["logs"]["base_recal_report"] + "{seq_type}--{genome_build}/{sample_id}.gatk_base_recal.stderr.log"
     params:
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb / 1000)
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        opts = CFG["options"]["java_opts"]
     conda:
         CFG["conda_envs"]["gatk_rnaseq"]
     threads: CFG["threads"]["gatk_base_recalibration"]
@@ -109,23 +112,24 @@ rule _gatk_base_recalibration:
         **CFG["resources"]["gatk_base_recalibration"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}G" BaseRecalibrator 
+        gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" BaseRecalibrator 
         -R {input.fasta} -I {input.bam} -known-sites {params.dbsnp} -known-sites {params.gnomad} -O {output.table} > {log.stdout} 2> {log.stderr}
         """)
         
 rule _gatk_applybqsr:
     input:
-        bam = rules._gatk_splitntrim.output.bam,
-        table = rules._gatk_base_recalibration.output.table,
+        bam = str(rules._gatk_splitntrim.output.bam),
+        table = str(rules._gatk_base_recalibration.output.table),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        bam = temp(CFG["dirs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.recalibrated.bam"),
-        bai = temp(CFG["dirs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.recalibrated.bai")
+        bam = temp(CFG["dirs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}/{sample_id}.recalibrated.bam"),
+        bai = temp(CFG["dirs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}/{sample_id}.recalibrated.bai")
     log:
-        stdout = CFG["logs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.gatk_base_recal.stdout.log",
-        stderr = CFG["logs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.gatk_base_recal.stderr.log"
+        stdout = CFG["logs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}/{sample_id}.gatk_base_recal.stdout.log",
+        stderr = CFG["logs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}/{sample_id}.gatk_base_recal.stderr.log"
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb / 1000)
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        opts = CFG["options"]["java_opts"]
     conda:
         CFG["conda_envs"]["gatk_rnaseq"]
     threads: CFG["threads"]["gatk_applybqsr"]
@@ -133,7 +137,7 @@ rule _gatk_applybqsr:
         **CFG["resources"]["gatk_applybqsr"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}G" ApplyBQSR 
+        gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" ApplyBQSR 
         -R {input.fasta} -I {input.bam} -bqsr-recal-file {input.table} -O {output.bam} > {log.stdout} 2> {log.stderr}
         """)
         
@@ -149,17 +153,18 @@ checkpoint _gatk_rnaseq_input_chrs:
         
 rule _gatk_variant_calling:
     input:
-        bam = rules._gatk_applybqsr.output.bam,
-        bai = rules._gatk_applybqsr.output.bai,
+        bam = str(rules._gatk_applybqsr.output.bam),
+        bai = str(rules._gatk_applybqsr.output.bai),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        vcf = temp(CFG["dirs"]["gatk_variant_calling"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.{chrom}.vcf.gz"),
-        tbi = temp(CFG["dirs"]["gatk_variant_calling"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.{chrom}.vcf.gz.tbi")
+        vcf = temp(CFG["dirs"]["gatk_variant_calling"] + "{seq_type}--{genome_build}/{sample_id}.{chrom}.vcf.gz"),
+        tbi = temp(CFG["dirs"]["gatk_variant_calling"] + "{seq_type}--{genome_build}/{sample_id}.{chrom}.vcf.gz.tbi")
     log:
-        stdout = CFG["logs"]["gatk_variant_calling"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.{chrom}.gatk_base_recal.stdout.log",
-        stderr = CFG["logs"]["gatk_variant_calling"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.{chrom}.gatk_base_recal.stderr.log"
+        stdout = CFG["logs"]["gatk_variant_calling"] + "{seq_type}--{genome_build}/{sample_id}.{chrom}.gatk_base_recal.stdout.log",
+        stderr = CFG["logs"]["gatk_variant_calling"] + "{seq_type}--{genome_build}/{sample_id}.{chrom}.gatk_base_recal.stderr.log"
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb / 1000),
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        opts = CFG["options"]["java_opts"],
         vcf = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"),
         min_conf_thres = CFG["options"]["gatk_variant_calling"]["min_conf_thres"]
     conda:
@@ -169,7 +174,7 @@ rule _gatk_variant_calling:
         **CFG["resources"]["gatk_variant_calling"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}G" HaplotypeCaller 
+        gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" HaplotypeCaller 
         -R {input.fasta} -I {input.bam} -dont-use-soft-clipped-bases -stand-call-conf {params.min_conf_thres} -L {wildcards.chrom}
         -dbsnp {params.vcf} -O {output.vcf} > {log.stdout} 2> {log.stderr}
         """)
@@ -181,7 +186,7 @@ def _gatk_rnaseq_get_chr_vcfs(wildcards):
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     vcfs = expand(
-        CFG["dirs"]["gatk_variant_calling"] + "{{seq_type}}--{{genome_build}}--{{pair_status}}/{{sample_id}}.{chrom}.vcf.gz",
+        CFG["dirs"]["gatk_variant_calling"] + "{{seq_type}}--{{genome_build}}/{{sample_id}}.{chrom}.vcf.gz",
         chrom = chrs
     )
     return(vcfs)
@@ -193,7 +198,7 @@ def _gatk_rnaseq_get_chr_tbis(wildcards):
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     tbis = expand(
-        CFG["dirs"]["gatk_variant_calling"] + "{{seq_type}}--{{genome_build}}--{{pair_status}}/{{sample_id}}.{chrom}.vcf.gz.tbi",
+        CFG["dirs"]["gatk_variant_calling"] + "{{seq_type}}--{{genome_build}}/{{sample_id}}.{chrom}.vcf.gz.tbi",
         chrom = chrs
     )
     return(tbis)
@@ -205,10 +210,10 @@ rule _gatk_rnaseq_merge_vcfs:
         vcf = _gatk_rnaseq_get_chr_vcfs,
         tbi = _gatk_rnaseq_get_chr_tbis
     output:
-        vcf = temp(CFG["dirs"]["merge_vcfs"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.output.vcf.gz"),
-        tbi = temp(CFG["dirs"]["merge_vcfs"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.output.vcf.gz.tbi")
+        vcf = temp(CFG["dirs"]["merge_vcfs"] + "{seq_type}--{genome_build}/{sample_id}.output.vcf.gz"),
+        tbi = temp(CFG["dirs"]["merge_vcfs"] + "{seq_type}--{genome_build}/{sample_id}.output.vcf.gz.tbi")
     log:
-        stderr = CFG["logs"]["merge_vcfs"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.merge_vcfs_merge_vcfs.stderr.log"
+        stderr = CFG["logs"]["merge_vcfs"] + "{seq_type}--{genome_build}/{sample_id}.merge_vcfs_merge_vcfs.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
     threads:
@@ -229,17 +234,18 @@ rule _gatk_rnaseq_merge_vcfs:
         
 rule _gatk_variant_filtration:
     input:
-        vcf = rules._gatk_rnaseq_merge_vcfs.output.vcf,
-        tbi = rules._gatk_rnaseq_merge_vcfs.output.tbi,
+        vcf = str(rules._gatk_rnaseq_merge_vcfs.output.vcf),
+        tbi = str(rules._gatk_rnaseq_merge_vcfs.output.tbi),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        vcf = CFG["dirs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.filtered.vcf.gz",
-        tbi = CFG["dirs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.filtered.vcf.gz.tbi"
+        vcf = CFG["dirs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.filtered.vcf.gz",
+        tbi = CFG["dirs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.filtered.vcf.gz.tbi"
     log:
-        stdout = CFG["logs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.gatk_base_recal.stdout.log",
-        stderr = CFG["logs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.gatk_base_recal.stderr.log"
+        stdout = CFG["logs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.gatk_base_recal.stdout.log",
+        stderr = CFG["logs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.gatk_base_recal.stderr.log"
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb / 1000),
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        opts = CFG["options"]["java_opts"],
         window = CFG["options"]["gatk_variant_filtration"]["window"],
         cluster_size = CFG["options"]["gatk_variant_filtration"]["cluster_size"],
         filter_expression = CFG["options"]["gatk_variant_filtration"]["filter_expression"]
@@ -251,7 +257,7 @@ rule _gatk_variant_filtration:
     shell:
         # flag to remove: FS - phred score with strand bias > 30; QD - Variant conf/qual by depth < 2; DP - read depth < 5
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}G" VariantFiltration -R {input.fasta} -V {input.vcf} 
+        gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" VariantFiltration -R {input.fasta} -V {input.vcf} 
         -window {params.window} -cluster-size {params.cluster_size}  
         {params.filter_expression}  
         -O {output.vcf} > {log.stdout} 2> {log.stderr}
@@ -263,12 +269,12 @@ rule _gatk_rnaseq_filter_passed:
     input:
         vcf = str(rules._gatk_variant_filtration.output.vcf)
     output:
-        vcf = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.output.passed.vcf.gz",
-        tbi = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.output.passed.vcf.gz.tbi"
+        vcf = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/{sample_id}.output.passed.vcf.gz",
+        tbi = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/{sample_id}.output.passed.vcf.gz.tbi"
     params:
         opts = CFG["options"]["gatk_rnaseq_filter_passed"]["params"]
     log:
-        stderr = CFG["logs"]["passed"] + "{seq_type}--{genome_build}--{pair_status}/{sample_id}.mutect2_filter_passed.stderr.log"
+        stderr = CFG["logs"]["passed"] + "{seq_type}--{genome_build}/{sample_id}.mutect2_filter_passed.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
     threads:
@@ -289,8 +295,8 @@ rule _gatk_rnaseq_output_vcf:
         vcf = str(rules._gatk_rnaseq_filter_passed.output.vcf),
         tbi = str(rules._gatk_rnaseq_filter_passed.output.tbi)
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}--{pair_status}/{sample_id}.output.filt.vcf.gz",
-        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}--{pair_status}/{sample_id}.output.filt.vcf.gz.tbi"
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.output.filt.vcf.gz",
+        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.output.filt.vcf.gz.tbi"
     run:
         op.relative_symlink(input.vcf, output.vcf, in_module = True)
         op.relative_symlink(input.tbi, output.tbi, in_module = True)
@@ -307,8 +313,7 @@ rule _gatk_rnaseq_all:
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
-            sample_id=CFG["runs"]["tumour_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            sample_id=CFG["runs"]["tumour_sample_id"])
 
 
 ##### CLEANUP #####
