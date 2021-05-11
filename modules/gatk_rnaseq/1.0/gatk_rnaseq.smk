@@ -40,7 +40,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "gatk_rnaseq",
     version = "1.0",
-    subdirectories = ["inputs", "gatk_splitntrim", "base_recal_report", "gatk_applybqsr", "gatk_variant_calling", "merge_vcfs", "gatk_variant_filtration", "passed", "outputs"],
+    subdirectories = ["inputs", "gatk_splitntrim", "base_recal_report", "gatk_applybqsr", "gatk_variant_calling", "merge_vcfs", "gatk_variant_filtration", "passed", "gnomad_filter", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -210,8 +210,8 @@ rule _gatk_rnaseq_merge_vcfs:
         vcf = _gatk_rnaseq_get_chr_vcfs,
         tbi = _gatk_rnaseq_get_chr_tbis
     output:
-        vcf = temp(CFG["dirs"]["merge_vcfs"] + "{seq_type}--{genome_build}/{sample_id}.output.vcf.gz"),
-        tbi = temp(CFG["dirs"]["merge_vcfs"] + "{seq_type}--{genome_build}/{sample_id}.output.vcf.gz.tbi")
+        vcf = CFG["dirs"]["merge_vcfs"] + "{seq_type}--{genome_build}/{sample_id}.output.vcf.gz",
+        tbi = CFG["dirs"]["merge_vcfs"] + "{seq_type}--{genome_build}/{sample_id}.output.vcf.gz.tbi"
     log:
         stderr = CFG["logs"]["merge_vcfs"] + "{seq_type}--{genome_build}/{sample_id}.merge_vcfs_merge_vcfs.stderr.log"
     conda:
@@ -289,11 +289,39 @@ rule _gatk_rnaseq_filter_passed:
         """)
 
 
+# Annotate and filter out common gnomad variants
+rule _gatk_rnaseq_annotate_gnomad:
+    input:
+        vcf = str(rules._gatk_rnaseq_filter_passed.output.vcf),
+        tbi = str(rules._gatk_rnaseq_filter_passed.output.tbi),
+        gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")
+    output:
+        vcf = CFG["dirs"]["gnomad_filter"] + "{seq_type}--{genome_build}/{sample_id}.combined.gnomad.vcf.gz", 
+        tbi = CFG["dirs"]["gnomad_filter"] + "{seq_type}--{genome_build}/{sample_id}.combined.gnomad.vcf.gz.tbi"
+    log:
+        stderr = CFG["logs"]["gnomad_filter"] + "{seq_type}--{genome_build}/{sample_id}.gnomad_filter.stderr.log"
+    conda:
+        CFG["conda_envs"]["bcftools"]
+    threads:
+        CFG["threads"]["gnomad_filter"]
+    resources:
+        **CFG["resources"]["gnomad_filter"]
+    shell:
+        op.as_one_line("""
+        bcftools annotate --threads {threads} 
+        -a {input.gnomad} -c INFO/AF {input.vcf} | 
+        awk 'BEGIN {{FS=OFS="\\t"}} {{ if ($1 !~ /^#/ && $8 !~ ";AF=") $8=$8";AF=0"; print $0; }}' | 
+        bcftools view -i 'INFO/AF < 0.0001' -Oz -o {output.vcf} 2> {log.stderr}
+        && 
+        tabix -p vcf {output.vcf} 2>> {log.stderr}
+        """)
+        
+        
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _gatk_rnaseq_output_vcf:
     input:
-        vcf = str(rules._gatk_rnaseq_filter_passed.output.vcf),
-        tbi = str(rules._gatk_rnaseq_filter_passed.output.tbi)
+        vcf = str(rules._gatk_rnaseq_annotate_gnomad.output.vcf),
+        tbi = str(rules._gatk_rnaseq_annotate_gnomad.output.tbi)
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.output.filt.vcf.gz",
         tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.output.filt.vcf.gz.tbi"

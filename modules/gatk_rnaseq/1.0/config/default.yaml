@@ -40,6 +40,7 @@ lcr-modules:
             gatk_variant_filtration: 24
             merge_vcfs: 10
             gatk_rnaseq_passed: 10
+            gnomad_filter: 4
 
         resources:
             gatk_splitntrim: 
@@ -57,6 +58,8 @@ lcr-modules:
                 mem_mb: 10000
             gatk_rnaseq_passed:
                 mem_mb: 10000
+            gnomad_filter:
+                mem_mb: 2000
 
         pairing_config:
             mrna:
