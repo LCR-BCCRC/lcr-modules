@@ -56,9 +56,9 @@ localrules:
 # decompress files into the 00-inputs
 rule _rainstorm_install:
     output:
-        rainstorm = CFG["dirs"]["inputs"] + "mutation_rainstorm-0.3/rainstorm.py", # one of the files in the repo
-        peaks = CFG["dirs"]["inputs"] + "mutation_rainstorm-0.3/rainstorm_peaks.R", # another script from the repo
-        doppler2bed = CFG["dirs"]["inputs"] + "mutation_rainstorm-0.3/doppler_to_bed.py" # convert output to bed format
+        rainstorm = CFG["dirs"]["inputs"] + "mutation_rainstorm-" + str(CFG["options"]["rainstorm_version"]) + "/rainstorm.py", # one of the files in the repo
+        peaks = CFG["dirs"]["inputs"] + "mutation_rainstorm-" + str(CFG["options"]["rainstorm_version"]) + "/rainstorm_peaks.R", # another script from the repo
+        doppler2bed = CFG["dirs"]["inputs"] + "mutation_rainstorm-" + str(CFG["options"]["rainstorm_version"]) + "/doppler_to_bed.py" # convert output to bed format
     params:
         url = "https://github.com/rdmorin/mutation_rainstorm/archive/refs/tags/v" + str(CFG["options"]["rainstorm_version"]) + ".tar.gz",
         folder = CFG["dirs"]["inputs"]
