@@ -43,6 +43,10 @@ CFG = op.setup_module(
 SCRIPT_PATH = CFG['inputs']['src_dir']
 #this is used in place of the shell.prefix() because that was not working consistently. This is not ideal. 
 
+#obtain default bed and update config
+bed = str(reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed"))
+CFG['switches']['regions_bed']['_default'] = bed
+print(CFG['switches']['regions_bed']['_default'])
 
 sample_ids = list(CFG['samples']['sample_id'])
 unmatched_normal_ids = list(config["lcr-modules"]["_shared"]["unmatched_normal_ids"].values())
@@ -86,7 +90,7 @@ rule _lofreq_preprocess_normal:
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
-        bed = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed")
+        bed = op.switch_on_wildcard("seq_type", CFG["switches"]["regions_bed"])
     output:
         out_dir = directory(CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/"),
         preprocessing_start = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/preprocessing.started",
@@ -166,7 +170,7 @@ rule _lofreq_run_tumour:
         vcf_relaxed = rules._lofreq_link_to_preprocessed.output.vcf_relaxed,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
-        bed = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed")
+        bed = op.switch_on_wildcard("seq_type", CFG["switches"]["regions_bed"])
     output:
         vcf_snvs_filtered = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.snvs.vcf.gz",
         vcf_indels_filtered = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.indels.vcf.gz",
