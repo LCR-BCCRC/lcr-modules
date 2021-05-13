@@ -46,13 +46,6 @@ SCRIPT_PATH = CFG['inputs']['src_dir']
 #obtain default bed and update config
 bed = str(reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed"))
 CFG['switches']['regions_bed']['_default'] = bed
-print(CFG['switches']['regions_bed']['_default'])
-
-sample_ids = list(CFG['samples']['sample_id'])
-unmatched_normal_ids = list(config["lcr-modules"]["_shared"]["unmatched_normal_ids"].values())
-
-all_other_ids = list(set(sample_ids) - set(unmatched_normal_ids))
-
 
 
 
