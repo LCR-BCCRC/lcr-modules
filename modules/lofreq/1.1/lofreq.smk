@@ -104,8 +104,7 @@ rule _lofreq_preprocess_normal:
         stdout = CFG["logs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/lofreq_pre.stdout.log",
         stderr = CFG["logs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/lofreq_pre.stderr.log"
     params:
-        opts = CFG["options"]["lofreq"],
-        regions = op.switch_on_wildcard("seq_type", CFG["switches"]["regions_bed"]),
+        opts = CFG["options"]["lofreq"]
     conda:
         CFG["conda_envs"]["lofreq"]
     threads:
