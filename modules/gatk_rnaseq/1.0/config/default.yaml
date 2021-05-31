@@ -12,8 +12,12 @@ lcr-modules:
 
         options:
             java_opts: "-XX:ConcGCThreads=1"
+            gatk_splitntrim: " -fixNDN TRUE -RF GoodCigarReadFilter "
+            gatk_baserecalibrator: ""
+            gatk_applybqsr: ""
             gatk_variant_calling:
                 min_conf_thres: 20.0
+                gatk_opts: ""
             gatk_variant_filtration:
                 window: 35 # window size between SNPs in cluster
                 cluster_size: 3 # at least 3 SNPs in cluster

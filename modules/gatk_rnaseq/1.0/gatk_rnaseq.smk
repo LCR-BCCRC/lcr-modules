@@ -77,7 +77,8 @@ rule _gatk_splitntrim:
         stderr = CFG["logs"]["gatk_splitntrim"] + "{seq_type}--{genome_build}/{sample_id}.gatk_splitntrim.stderr.log"
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
-        opts = CFG["options"]["java_opts"]
+        opts = CFG["options"]["java_opts"],
+        gatk_opts = CFG["options"]["gatk_splitntrim"]
     conda:
         CFG["conda_envs"]["gatk_rnaseq"]
     threads:
@@ -86,7 +87,7 @@ rule _gatk_splitntrim:
         **CFG["resources"]["gatk_splitntrim"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" SplitNCigarReads -fixNDN TRUE -RF GoodCigarReadFilter
+        gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" SplitNCigarReads {params.gatk_opts} 
         -R {input.fasta} -I {input.bam} -O {output.bam}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -104,7 +105,8 @@ rule _gatk_base_recalibration:
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
-        opts = CFG["options"]["java_opts"]
+        opts = CFG["options"]["java_opts"],
+        gatk_opts = CFG["options"]["gatk_baserecalibrator"]
     conda:
         CFG["conda_envs"]["gatk_rnaseq"]
     threads: CFG["threads"]["gatk_base_recalibration"]
@@ -112,7 +114,7 @@ rule _gatk_base_recalibration:
         **CFG["resources"]["gatk_base_recalibration"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" BaseRecalibrator 
+        gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" BaseRecalibrator {params.gatk_opts} 
         -R {input.fasta} -I {input.bam} -known-sites {params.dbsnp} -known-sites {params.gnomad} -O {output.table} > {log.stdout} 2> {log.stderr}
         """)
         
@@ -129,7 +131,8 @@ rule _gatk_applybqsr:
         stderr = CFG["logs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}/{sample_id}.gatk_base_recal.stderr.log"
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
-        opts = CFG["options"]["java_opts"]
+        opts = CFG["options"]["java_opts"],
+        gatk_opts = CFG["options"]["gatk_applybqsr"]
     conda:
         CFG["conda_envs"]["gatk_rnaseq"]
     threads: CFG["threads"]["gatk_applybqsr"]
@@ -137,7 +140,7 @@ rule _gatk_applybqsr:
         **CFG["resources"]["gatk_applybqsr"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" ApplyBQSR 
+        gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" ApplyBQSR {params.gatk_opts} 
         -R {input.fasta} -I {input.bam} -bqsr-recal-file {input.table} -O {output.bam} > {log.stdout} 2> {log.stderr}
         """)
         
@@ -166,7 +169,8 @@ rule _gatk_variant_calling:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["java_opts"],
         vcf = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"),
-        min_conf_thres = CFG["options"]["gatk_variant_calling"]["min_conf_thres"]
+        min_conf_thres = CFG["options"]["gatk_variant_calling"]["min_conf_thres"],
+        gatk_opts = CFG["options"]["gatk_variant_calling"]["gatk_opts"]
     conda:
         CFG["conda_envs"]["gatk_rnaseq"]
     threads: CFG["threads"]["gatk_variant_calling"]
@@ -174,7 +178,7 @@ rule _gatk_variant_calling:
         **CFG["resources"]["gatk_variant_calling"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" HaplotypeCaller 
+        gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" HaplotypeCaller {params.gatk_opts} 
         -R {input.fasta} -I {input.bam} -dont-use-soft-clipped-bases -stand-call-conf {params.min_conf_thres} -L {wildcards.chrom}
         -dbsnp {params.vcf} -O {output.vcf} > {log.stdout} 2> {log.stderr}
         """)
@@ -269,8 +273,8 @@ rule _gatk_rnaseq_filter_passed:
     input:
         vcf = str(rules._gatk_variant_filtration.output.vcf)
     output:
-        vcf = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/{sample_id}.output.passed.vcf.gz",
-        tbi = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/{sample_id}.output.passed.vcf.gz.tbi"
+        vcf = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/temp/{sample_id}.output.passed.vcf.gz",
+        tbi = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/temp/{sample_id}.output.passed.vcf.gz.tbi"
     params:
         opts = CFG["options"]["gatk_rnaseq_filter_passed"]["params"]
     log:
@@ -289,11 +293,36 @@ rule _gatk_rnaseq_filter_passed:
         """)
 
 
-# Annotate and filter out common gnomad variants
-rule _gatk_rnaseq_annotate_gnomad:
+# Remove AF tag in vcfs:
+rule _gatk_rnaseq_removeAF:
     input:
         vcf = str(rules._gatk_rnaseq_filter_passed.output.vcf),
         tbi = str(rules._gatk_rnaseq_filter_passed.output.tbi),
+        gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")
+    output:
+        vcf = temp(CFG["dirs"]["gnomad_filter"] + "{seq_type}--{genome_build}/{sample_id}.combined.removeAF.vcf.gz"), 
+        tbi = temp(CFG["dirs"]["gnomad_filter"] + "{seq_type}--{genome_build}/{sample_id}.combined.removeAF.vcf.gz.tbi")
+    log:
+        stderr = CFG["logs"]["gnomad_filter"] + "{seq_type}--{genome_build}/{sample_id}.removeAF.stderr.log"
+    conda:
+        CFG["conda_envs"]["bcftools"]
+    threads:
+        CFG["threads"]["gnomad_filter"]
+    resources:
+        **CFG["resources"]["gnomad_filter"]
+    shell:
+        op.as_one_line("""
+        bcftools annotate --threads {threads} -x INFO/AF {input.vcf} -Oz -o {output.vcf} 2> {log.stderr}
+        && 
+        tabix -p vcf {output.vcf} 2>> {log.stderr}
+        """)
+
+
+# Annotate and filter out common gnomad variants
+rule _gatk_rnaseq_annotate_gnomad:
+    input:
+        vcf = str(rules._gatk_rnaseq_removeAF.output.vcf),
+        tbi = str(rules._gatk_rnaseq_removeAF.output.tbi),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")
     output:
         vcf = CFG["dirs"]["gnomad_filter"] + "{seq_type}--{genome_build}/{sample_id}.combined.gnomad.vcf.gz", 
@@ -308,8 +337,7 @@ rule _gatk_rnaseq_annotate_gnomad:
         **CFG["resources"]["gnomad_filter"]
     shell:
         op.as_one_line("""
-        bcftools annotate --threads {threads} 
-        -a {input.gnomad} -c INFO/AF {input.vcf} | 
+        bcftools annotate --threads {threads} -a {input.gnomad} -c INFO/AF {input.vcf} | 
         awk 'BEGIN {{FS=OFS="\\t"}} {{ if ($1 !~ /^#/ && $8 !~ ";AF=") $8=$8";AF=0"; print $0; }}' | 
         bcftools view -i 'INFO/AF < 0.0001' -Oz -o {output.vcf} 2> {log.stderr}
         && 
