@@ -55,9 +55,7 @@ localrules:
 # decompress files into the 00-inputs
 rule _cluster_sv_install:
     output:
-        cluster_sv = CFG["dirs"]["inputs"] + "ClusterSV-" + str(CFG["options"]["cluster_sv_version"]) + "/R/run_cluster_sv.R", # one of the files in the repo
-        chr_sizes = CFG["dirs"]["inputs"] + "ClusterSV-" + str(CFG["options"]["cluster_sv_version"]) + "/references/{genome_build}.chrom_sizes", # another script from the repo
-        coords = CFG["dirs"]["inputs"] + "ClusterSV-" + str(CFG["options"]["cluster_sv_version"]) + "/references/{genome_build}_centromere_and_telomere_coords.txt" # convert output to bed format
+        cluster_sv = CFG["dirs"]["inputs"] + "ClusterSV-" + str(CFG["options"]["cluster_sv_version"]) + "/R/run_cluster_sv.R" # main R script from the repo
     params:
         url = "https://github.com/whelena/ClusterSV/archive/refs/tags/v" + str(CFG["options"]["cluster_sv_version"]) + ".tar.gz",
         folder = CFG["dirs"]["inputs"]
@@ -87,7 +85,7 @@ rule _cluster_sv_reformat_bedpe:
         op.as_one_line("""
         sed '/^#/d' {input.bedpe} | 
         sed -e 's/chr//g' |
-        awk -F '\t' 'BEGIN {OFS="\t"}; {print $1, $2, $3, $4, $5, $6, $7, $8, $9, $10}' 
+        awk -F '\t' 'BEGIN {{OFS="\t"}}; {{print $1, $2, $3, $4, $5, $6, $7, $8, $9, $10}}' 
         > {output.bedpe}
         """)
 
@@ -109,9 +107,7 @@ def _cluster_sv_get_references(wildcards):
 rule _cluster_sv_run:
     input:
         bedpe = str(rules._cluster_sv_reformat_bedpe.output.bedpe),
-        cluster_sv = str(rules._cluster_sv_install.output.cluster_sv),
-        chr_sizes = str(rules._cluster_sv_install.output.chr_sizes),
-        coords = str(rules._cluster_sv_install.output.coords)
+        cluster_sv = str(rules._cluster_sv_install.output.cluster_sv)
     output:
         outdir = directory(CFG["dirs"]["cluster_sv"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}"),
         clusters = CFG["dirs"]["cluster_sv"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sv_clusters_and_footprints.tsv",
@@ -119,10 +115,9 @@ rule _cluster_sv_run:
     log:
         stdout = CFG["logs"]["cluster_sv"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/cluster_sv.stdout.log",
         stderr = CFG["logs"]["cluster_sv"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/cluster_sv.stderr.log"
-    # params:
-    #     cluster_sv_script = CFG["scripts"]["cluster_sv"],
-    #     chr_sizes = CFG["options"]["chr_sizes"],
-    #     coords = CFG["options"]["cen_telo_coords"]
+    params:
+        chr_sizes = CFG["dirs"]["inputs"] + "ClusterSV-" + str(CFG["options"]["cluster_sv_version"]) + "/references/{genome_build}.chrom_sizes", # another script from the repo
+        coords = CFG["dirs"]["inputs"] + "ClusterSV-" + str(CFG["options"]["cluster_sv_version"]) + "/references/{genome_build}_centromere_and_telomere_coords.txt" # convert output to bed format
     conda:
         CFG["conda_envs"]["cluster_sv"]
     threads:
@@ -133,8 +128,8 @@ rule _cluster_sv_run:
         op.as_one_line("""
         Rscript {input.cluster_sv} 
         -bedpe {input.bedpe} 
-        -chr {input.chr_sizes} 
-        -cen_telo {input.coords} 
+        -chr {params.chr_sizes} 
+        -cen_telo {params.coords} 
         -out {output.outdir} 
         -n {threads}
         > {log.stdout} 2> {log.stderr} &&
@@ -147,8 +142,8 @@ rule _cluster_sv_output_tsv:
         clusters = str(rules._cluster_sv_run.output.pval),
         pval = str(rules._cluster_sv_run.output.pval)
     output:
-        clusters = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sv_clusters_and_footprints.tsv",
-        pval = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sv_distance_pvals.tsv"
+        clusters = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sv_clusters_and_footprints.tsv",
+        pval = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sv_distance_pvals.tsv"
     run:
         op.relative_symlink(input.clusters, output.clusters)
         op.relative_symlink(input.pval, output.pval)
@@ -168,7 +163,6 @@ rule _cluster_sv_all:
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
             pair_status=CFG["runs"]["pair_status"])
-
 
 ##### CLEANUP #####
 

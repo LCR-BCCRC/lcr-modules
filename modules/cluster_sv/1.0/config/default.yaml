@@ -9,8 +9,8 @@ lcr-modules:
             cluster_sv_version: 1.0
             # by default cluster sv references is included in the CLusterSV github repo
             # user can change this to use personalized references
-            chr_sizes: None
-            cen_telo_coords: None
+            chr_sizes: null
+            cen_telo_coords: null
 
         conda_envs:
             cluster_sv: "{MODSDIR}/envs/r-cluster_sv.yaml"
