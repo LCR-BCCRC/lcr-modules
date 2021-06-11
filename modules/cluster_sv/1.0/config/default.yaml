@@ -1,0 +1,29 @@
+lcr-modules:
+    
+    cluster_sv:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id}
+            sample_bedpe: "__UPDATE__"
+        
+        options:
+            chr_sizes: "__UPDATE__"
+            cen_telo: "__UPDATE__"
+
+        scripts:
+            cluster_sv: "__UPDATE__"
+            # "{SCRIPTSDIR}/cluster_sv/1.0/run_cluster_sv.R"
+
+        conda_envs:
+            cluster_sv: "{MODSDIR}/envs/r-cluster_sv.yaml"
+            
+        threads:
+            cluster_sv: 4
+
+        mem_mb:
+            cluster_sv: 2000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
