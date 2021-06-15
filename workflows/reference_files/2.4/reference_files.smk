@@ -253,6 +253,30 @@ rule get_par_rds:
             -e 'saveRDS(gr, "{output.rds}")'
         """)
 
+rule install_fragcounter:
+    output:
+        complete = "downloads/jabba_prereqs/fragcounter.installed"
+    conda: CONDA_ENVS["jabba"]
+    shell:
+        op.as_one_line("""
+        Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
+                -e 'remotes::install_github("mskilab/fragCounter", upgrade = FALSE)'
+            &&
+        touch {output.complete}
+        """)
+
+rule install_dryclean:
+    output:
+        complete = "downloads/jabba_prereqs/dryclean.installed"
+    conda: CONDA_ENVS["jabba"]
+    shell:
+        op.as_one_line("""
+        Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
+                -e 'remotes::install_github("mskilab/dryclean", upgrade = FALSE)'
+            &&
+        touch {output.complete}
+        """)
+
 
 ##### VARIATION #####
 
