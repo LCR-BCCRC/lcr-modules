@@ -85,6 +85,12 @@ tools:
     rtracklayer:
         conda_env: "envs/rtracklayer-1.50.0.yaml"
         version: "1.50.0"
+    jabba:
+        conda_env: "envs/jabba.yaml"
+        version: "1.0.0"
+
+pon:
+   hg38: "etc/hg38.normals.tbl"
 
 cvbio_config:
     gtf: 
