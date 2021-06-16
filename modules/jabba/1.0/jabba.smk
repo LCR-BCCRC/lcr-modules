@@ -269,8 +269,8 @@ rule _jabba_run_dryclean_tumour:
     input:
         installed = str(rules._jabba_install_dryclean.output.complete),
         rds = CFG["dirs"]["fragcounter"] + "run/{seq_type}--{genome_build}/{tumour_id}/cov.rds",
-        pon = str(rules._jabba_make_pon.output.pon),
-        germline = str(rules._jabba_make_germline_filter.output.germline)
+        pon = reference_files("genomes/{genome_build}/jabba/pon/detergent.rds"),
+        germline = reference_files("genomes/{genome_build}/jabba/pon/germline.marker.rds")
     output:
         rds = CFG["dirs"]["dryclean"] + "run/{seq_type}--{genome_build}/{tumour_id}/drycleaned.cov.rds"
     log:
@@ -296,6 +296,7 @@ def _get_junc_file(wildcards):
     filename, ext = os.path.splitext(CFG["inputs"]["sample_junc"])
     out = CFG["dirs"]["inputs"] + "junc/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}" + ext
     return(out)
+
 
 rule _jabba_run_jabba:
     input:
