@@ -91,6 +91,7 @@ tools:
 
 pon:
     hg38: "etc/hg38.normals.tbl"
+    grch37: "etc/grch37.normals.tbl"
 
 jabba:
     fragcounter: "src/jabba/run_custom_fragcounter.R"
