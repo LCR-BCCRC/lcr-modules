@@ -24,6 +24,13 @@ original_dir = os.getcwd()
 reference_dir = config["reference_directory"]
 os.chdir(reference_dir)
 
+# Add path to src, etc directories for JaBbA PON generation
+for k,v in config['pon'].items():
+    config['pon'][k] = os.path.join(original_dir, v)
+
+for k,v in config['jabba'].items():
+    config['jabba'][k] = os.path.join(original_dir, v)
+
 # Include the `reference_files` module
 include: os.path.join(original_dir, "reference_files.smk")
 
@@ -57,7 +64,9 @@ rule all:
                 rules.get_af_only_gnomad_vcf.output.vcf,
                 rules.get_jabba_gc_rds.output.rds,
                 rules.get_jabba_map_rds.output.rds,
-                rules.get_par_rds.output.rds
+                rules.get_par_rds.output.rds,
+                rules.jabba_pon_make_germline_filter.output.germline,
+                rules.jabba_pon_make_pon.output.pon
             ],
             genome_build=config["genome_builds"].keys(),
             bwa_version=config["tools"]["bwa"]["version"],

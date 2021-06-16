@@ -265,6 +265,7 @@ rule install_fragcounter:
         touch {output.complete}
         """)
 
+
 rule install_dryclean:
     output:
         complete = "downloads/jabba_prereqs/dryclean.installed"
@@ -275,6 +276,117 @@ rule install_dryclean:
                 -e 'remotes::install_github("mskilab/dryclean", upgrade = FALSE)'
             &&
         touch {output.complete}
+        """)
+
+NORMALS = {k : op.load_samples(v) for k,v in config['pon'].items()}
+NORMALS = {k : dict(zip(v.sample_id, v.data_path)) for k,v in NORMALS.items()}
+
+
+rule jabba_pon_symlink_normal_bams:
+    output: 
+        bam = "genomes/{genome_build}/jabba/pon/00-normal_bams/{sample_id}.bam",
+        bai = "genomes/{genome_build}/jabba/pon/00-normal_bams/{sample_id}.bam.bai"
+    params:
+        bam = lambda wc: NORMALS[wc.genome_build][wc.sample_id]
+    shell: 
+        "ln -sf {params.bam} {output.bam}; "
+        "ln -sf {params.bam}.bai {output.bai}"
+
+
+rule jabba_pon_run_fragcounter:
+    input:
+        installed = str(rules.install_fragcounter.output.complete),
+        bam = str(rules.jabba_pon_symlink_normal_bams.output.bam),
+        gc = str(rules.get_jabba_gc_rds.output.rds),
+        map = str(rules.get_jabba_map_rds.output.rds),
+        run_custom_fc = config['jabba']['fragcounter']
+    output:
+        rds = "genomes/{genome_build}/jabba/pon/01-fragcounter/run/{sample_id}/cov.rds"
+    conda: CONDA_ENVS["jabba"]
+    threads: 1
+    resources:
+        mem_mb = 4096
+    shell:
+        op.as_one_line("""
+        Rscript {input.run_custom_fc} {input.bam} 1000 `dirname {input.gc}` `dirname {output.rds}`
+        """)
+
+
+rule jabba_pon_symlink_fragcounter:
+    input:
+        rds = str(rules.jabba_pon_run_fragcounter.output.rds)
+    output:
+        rds = "genomes/{genome_build}/jabba/pon/01-fragcounter/cov/{sample_id}.cov.rds"
+    run:
+        op.relative_symlink(input.rds, output.rds)
+
+
+rule jabba_pon_make_pon:
+    input:
+        installed = str(rules.install_dryclean.output.complete),
+        par = str(rules.get_par_rds.output.rds),
+        rds = lambda wc: expand("genomes/{{genome_build}}/jabba/pon/01-fragcounter/cov/{sample_id}.cov.rds",
+              sample_id = NORMALS[wc.genome_build].keys()),
+        make_pon = config['jabba']['make_pon']
+    output:
+        tbl = "genomes/{genome_build}/jabba/pon/normal_table.rds",
+        pon = "genomes/{genome_build}/jabba/pon/detergent.rds"
+    params:
+        choose_samples = 'cluster'
+    conda: CONDA_ENVS["jabba"]
+    threads: 10
+    resources:
+        mem_mb = 30000
+    shell:
+        op.as_one_line("""
+        Rscript {input.make_pon} {threads} `dirname {input.rds[0]}` {output.tbl} {output.pon} {input.par} {wildcards.genome_build} {params.choose_samples}
+        """)
+
+
+rule jabba_pon_run_dryclean_normal:
+    input:
+        installed = str(rules.install_dryclean.output.complete),
+        rds = str(rules.jabba_pon_run_fragcounter.output.rds),
+        pon = str(rules.jabba_pon_make_pon.output.pon)
+    output:
+        rds = "genomes/{genome_build}/jabba/pon/02-dryclean/run/{sample_id}/drycleaned.cov.rds"
+    conda: CONDA_ENVS["jabba"]
+    threads: 12
+    resources:
+       mem_mb = 12000
+    shell:
+        op.as_one_line("""
+        Rscript -e 'library(dryclean); library(parallel)'
+                -e 'samp <- readRDS("{input.rds}")'
+                -e 'decomp <- start_wash_cycle(cov = samp, detergent.pon.path = "{input.pon}", whole_genome = TRUE, mc.cores = {threads})'
+                -e 'saveRDS(decomp, "{output.rds}")'
+        """)
+
+
+rule jabba_pon_link_dryclean_normal_rds:
+    input:
+        rds = "genomes/{genome_build}/jabba/pon/02-dryclean/run/{sample_id}/drycleaned.cov.rds"
+    output:
+        rds = "genomes/{genome_build}/jabba/pon/02-dryclean/cov/{sample_id}.drycleaned.cov.rds"
+    run:
+        op.relative_symlink(input.rds, output.rds)
+
+
+rule jabba_pon_make_germline_filter:
+    input:
+        installed = str(rules.install_dryclean.output.complete),
+        tbl = str(rules.jabba_pon_make_pon.output.tbl),
+        rds = lambda wc: expand("genomes/{{genome_build}}/jabba/pon/02-dryclean/cov/{sample_id}.drycleaned.cov.rds", sample_id = NORMALS[wc.genome_build].keys()),
+        make_germline = config["jabba"]["make_germline"]
+    output:
+        germline = "genomes/{genome_build}/jabba/pon/germline.marker.rds"
+    conda: CONDA_ENVS["jabba"]
+    threads: 1
+    resources:
+        mem_mb = 30000
+    shell:
+        op.as_one_line("""
+        Rscript {input.make_germline} {input.tbl} `dirname {input.rds[0]}` {output.germline} 0.5 0.98
         """)
 
 
