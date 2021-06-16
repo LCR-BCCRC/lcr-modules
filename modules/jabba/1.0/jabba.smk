@@ -72,7 +72,7 @@ rule _jabba_install_fragcounter:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
                 -e 'if (!"fragCounter" %in% rownames(installed.packages())) {remotes::install_github("mskilab/fragCounter", upgrade = FALSE)}'
-                -e 'require(fragCounter)'
+                -e 'library(fragCounter)'
             &&
         touch {output.complete}
         """)
@@ -85,7 +85,7 @@ rule _jabba_install_dryclean:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)' 
                 -e 'if (!"dryclean" %in% rownames(installed.packages())) {remotes::install_github("mskilab/dryclean", upgrade = FALSE)}'
-                -e 'require(dryclean)'
+                -e 'library(dryclean)'
             &&
         touch {output.complete}
         """)
@@ -101,7 +101,7 @@ rule _jabba_install_jabba:
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
                 -e 'Sys.setenv(CPLEX_DIR = "{params.cplex_dir}")'
                 -e 'if (!"JaBbA" %in% rownames(installed.packages())) {remotes::install_github("mskilab/JaBbA", upgrade = FALSE)}'
-                -e 'require(JaBbA)'
+                -e 'library(JaBbA)'
             &&
         touch {output.complete}
         """)

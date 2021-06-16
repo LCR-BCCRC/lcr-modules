@@ -263,7 +263,7 @@ rule install_fragcounter:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
                 -e 'if (!"fragCounter" %in% rownames(installed.packages())) {remotes::install_github("mskilab/fragCounter", upgrade = FALSE)}'
-                -e 'require(fragCounter)'
+                -e 'library(fragCounter)'
             &&
         touch {output.complete}
         """)
@@ -277,7 +277,7 @@ rule install_dryclean:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
                 -e 'if (!"dryclean" %in% rownames(installed.packages())) {remotes::install_github("mskilab/dryclean", upgrade = FALSE)}'
-                -e 'require(dryclean)'
+                -e 'library(dryclean)'
             &&
         touch {output.complete}
         """)
