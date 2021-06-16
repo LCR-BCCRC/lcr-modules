@@ -176,7 +176,7 @@ if CFG["options"]["hard_masked"] == True:
 # no chr for grch37 and grch38
 # chr for hg19 and hg38
 # Symlink chromosomes used (i.e. chr1-22,X,Y)
-checkpoint _controlfreec_input_chrs:
+rule _controlfreec_input_chrs:
     input:
         chrs = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt")
     output:
@@ -188,7 +188,7 @@ checkpoint _controlfreec_input_chrs:
 
 def _controlfreec_get_chr_fastas(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
-    chrs = checkpoints._controlfreec_input_chrs.get(**wildcards).output.chrs
+    chrs = CFG["dirs"]["inputs"] + "references/" + wildcards.genome_build + "/main_chromosomes_withY.txt"
     with open(chrs) as file:
         chromosome = file.read().rstrip("\n").split("\n")
     fastas = expand(
@@ -258,7 +258,7 @@ rule _controlfreec_input_bam:
 #### set-up mpileups for BAF calling ####
 def _controlfreec_get_chr_mpileups(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
-    chrs = checkpoints._controlfreec_input_chrs.get(**wildcards).output.chrs
+    chrs = CFG["dirs"]["inputs"] + "references/" + wildcards.genome_build + "/main_chromosomes_withY.txt"
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     mpileups = expand(
