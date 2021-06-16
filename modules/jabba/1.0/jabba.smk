@@ -71,7 +71,8 @@ rule _jabba_install_fragcounter:
     shell:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
-                -e 'remotes::install_github("mskilab/fragCounter", upgrade = FALSE)' 
+                -e 'if (!"fragCounter" %in% rownames(installed.packages())) {remotes::install_github("mskilab/fragCounter", upgrade = FALSE)}'
+                -e 'require(fragCounter)'
             &&
         touch {output.complete}
         """)
@@ -83,7 +84,8 @@ rule _jabba_install_dryclean:
     shell:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)' 
-                -e 'remotes::install_github("mskilab/dryclean", upgrade = FALSE)'
+                -e 'if (!"dryclean" %in% rownames(installed.packages())) {remotes::install_github("mskilab/dryclean", upgrade = FALSE)}'
+                -e 'require(dryclean)'
             &&
         touch {output.complete}
         """)
@@ -98,7 +100,8 @@ rule _jabba_install_jabba:
         op.as_one_line(""" 
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
                 -e 'Sys.setenv(CPLEX_DIR = "{params.cplex_dir}")'
-                -e 'remotes::install_github("mskilab/JaBba", upgrade = FALSE)'
+                -e 'if (!"JaBbA" %in% rownames(installed.packages())) {remotes::install_github("mskilab/JaBbA", upgrade = FALSE)}'
+                -e 'require(JaBbA)'
             &&
         touch {output.complete}
         """)
@@ -161,103 +164,103 @@ rule _jabba_run_fragcounter:
 
 
 # Symlink fragcounter outputs of normals; required for PON and germline.filter file generation
-rule _jabba_link_normal_rds:
-    input:
-        rds = CFG["dirs"]["fragcounter"] + "run/{seq_type}--{genome_build}/{normal_id}/cov.rds"
-    output:
-        rds = CFG["dirs"]["fragcounter"] + "cov/{seq_type}--{genome_build}/normal/{normal_id}.cov.rds"
-    run:
-        op.relative_symlink(input.rds, output.rds)
+#rule _jabba_link_normal_rds:
+#    input:
+#        rds = CFG["dirs"]["fragcounter"] + "run/{seq_type}--{genome_build}/{normal_id}/cov.rds"
+#    output:
+#        rds = CFG["dirs"]["fragcounter"] + "cov/{seq_type}--{genome_build}/normal/{normal_id}.cov.rds"
+#    run:
+#        op.relative_symlink(input.rds, output.rds)
 
 # Generate Panel-of-normals from fragcounter normal outputs
-rule _jabba_make_pon:
-    input:
-        installed = str(rules._jabba_install_dryclean.output.complete),
-        par = reference_files("genomes/{genome_build}/annotations/jabba/PAR_{genome_build}.rds"),
-        rds = expand(
-            CFG["dirs"]["fragcounter"] + "cov/{seq_type}--{genome_build}/normal/{normal_id}.cov.rds", 
-            zip, 
-            normal_id = CFG["runs"]["normal_sample_id"], 
-            seq_type = CFG["runs"]["normal_seq_type"], 
-            genome_build = CFG["runs"]["normal_genome_build"]),
-        make_pon = CFG["inputs"]["make_pon"]
-    output:
-        tbl = CFG["dirs"]["dryclean"] + "pon/{seq_type}--{genome_build}/normal_table.rds",
-        pon = CFG["dirs"]["dryclean"] + "pon/{seq_type}--{genome_build}/detergent.rds"
-    log:
-        stdout = CFG["logs"]["dryclean"] + "pon/{seq_type}--{genome_build}/make_pon.stdout.log",
-        stderr = CFG["logs"]["dryclean"] + "pon/{seq_type}--{genome_build}/make_pon.stderr.log"
-    params:
-        choose_samples = 'cluster'
-    conda: CFG["conda_envs"]["jabba"]
-    threads: CFG["threads"]["make_pon"]
-    resources:
-        mem_mb = CFG["mem_mb"]["make_pon"]
-    shell:
-        op.as_one_line("""
-        Rscript {input.make_pon} {threads} `dirname {input.rds[0]}` {output.tbl} {output.pon} {input.par} {wildcards.genome_build} {params.choose_samples} > {log.stdout} 2> {log.stderr}
-        """)
+#rule _jabba_make_pon:
+#    input:
+#        installed = str(rules._jabba_install_dryclean.output.complete),
+#        par = reference_files("genomes/{genome_build}/annotations/jabba/PAR_{genome_build}.rds"),
+#        rds = expand(
+#            CFG["dirs"]["fragcounter"] + "cov/{seq_type}--{genome_build}/normal/{normal_id}.cov.rds", 
+#            zip, 
+#            normal_id = CFG["runs"]["normal_sample_id"], 
+#            seq_type = CFG["runs"]["normal_seq_type"], 
+#            genome_build = CFG["runs"]["normal_genome_build"]),
+#        make_pon = CFG["inputs"]["make_pon"]
+#    output:
+#        tbl = CFG["dirs"]["dryclean"] + "pon/{seq_type}--{genome_build}/normal_table.rds",
+#        pon = CFG["dirs"]["dryclean"] + "pon/{seq_type}--{genome_build}/detergent.rds"
+#    log:
+#        stdout = CFG["logs"]["dryclean"] + "pon/{seq_type}--{genome_build}/make_pon.stdout.log",
+#        stderr = CFG["logs"]["dryclean"] + "pon/{seq_type}--{genome_build}/make_pon.stderr.log"
+#    params:
+#        choose_samples = 'cluster'
+#    conda: CFG["conda_envs"]["jabba"]
+#    threads: CFG["threads"]["make_pon"]
+#    resources:
+#        mem_mb = CFG["mem_mb"]["make_pon"]
+#    shell:
+#        op.as_one_line("""
+#        Rscript {input.make_pon} {threads} `dirname {input.rds[0]}` {output.tbl} {output.pon} {input.par} {wildcards.genome_build} {params.choose_samples} > {log.stdout} 2> {log.stderr}
+#        """)
 
 # Run dryclean decomposition on normals; used to identify germline events and artifacts
-rule _jabba_run_dryclean_normal:
-    input:
-        installed = str(rules._jabba_install_dryclean.output.complete),
-        rds = str(rules._jabba_run_fragcounter.output.rds),
-        pon = str(rules._jabba_make_pon.output.pon)
-    output:
-        rds = CFG["dirs"]["dryclean"] + "run/{seq_type}--{genome_build}/{sample_id}/drycleaned.cov.rds"
-    log:
-        stdout = CFG["logs"]["dryclean"] + "run/{seq_type}--{genome_build}/{sample_id}.stdout.log",
-        stderr = CFG["logs"]["dryclean"] + "run/{seq_type}--{genome_build}/{sample_id}.stderr.log"
-    conda: CFG["conda_envs"]["jabba"]
-    threads: CFG["threads"]["dryclean"]
-    resources:
-       mem_mb = CFG["mem_mb"]["dryclean"]
-    wildcard_constraints:
-        sample_id = "|".join(CFG["runs"]["normal_sample_id"])
-    shell:
-        op.as_one_line("""
-        Rscript -e 'library(dryclean); library(parallel)'
-                -e 'samp <- readRDS("{input.rds}")'
-                -e 'decomp <- start_wash_cycle(cov = samp, detergent.pon.path = "{input.pon}", whole_genome = TRUE, mc.cores = {threads})'
-                -e 'saveRDS(decomp, "{output.rds}")' > {log.stdout} 2> {log.stderr}
-        """)
+#rule _jabba_run_dryclean_normal:
+#    input:
+#        installed = str(rules._jabba_install_dryclean.output.complete),
+#        rds = str(rules._jabba_run_fragcounter.output.rds),
+#        pon = str(rules._jabba_make_pon.output.pon)
+#    output:
+#        rds = CFG["dirs"]["dryclean"] + "run/{seq_type}--{genome_build}/{sample_id}/drycleaned.cov.rds"
+#    log:
+#        stdout = CFG["logs"]["dryclean"] + "run/{seq_type}--{genome_build}/{sample_id}.stdout.log",
+#        stderr = CFG["logs"]["dryclean"] + "run/{seq_type}--{genome_build}/{sample_id}.stderr.log"
+#    conda: CFG["conda_envs"]["jabba"]
+#    threads: CFG["threads"]["dryclean"]
+#    resources:
+#       mem_mb = CFG["mem_mb"]["dryclean"]
+#    wildcard_constraints:
+#        sample_id = "|".join(CFG["runs"]["normal_sample_id"])
+#    shell:
+#        op.as_one_line("""
+#        Rscript -e 'library(dryclean); library(parallel)'
+#                -e 'samp <- readRDS("{input.rds}")'
+#                -e 'decomp <- start_wash_cycle(cov = samp, detergent.pon.path = "{input.pon}", whole_genome = TRUE, mc.cores = {threads})'
+#                -e 'saveRDS(decomp, "{output.rds}")' > {log.stdout} 2> {log.stderr}
+#        """)
 
 # Symlink dryclean normal outputs; needed for generating germline.filter file
-rule _jabba_link_dryclean_normal_rds:
-    input:
-        rds = CFG["dirs"]["dryclean"] + "run/{seq_type}--{genome_build}/{normal_id}/drycleaned.cov.rds"
-    output:
-        rds = CFG["dirs"]["dryclean"] + "cov/{seq_type}--{genome_build}/normal/{normal_id}.drycleaned.cov.rds"
-    run:
-        op.relative_symlink(input.rds, output.rds)
+#rule _jabba_link_dryclean_normal_rds:
+#    input:
+#        rds = CFG["dirs"]["dryclean"] + "run/{seq_type}--{genome_build}/{normal_id}/drycleaned.cov.rds"
+#    output:
+#        rds = CFG["dirs"]["dryclean"] + "cov/{seq_type}--{genome_build}/normal/{normal_id}.drycleaned.cov.rds"
+#    run:
+#        op.relative_symlink(input.rds, output.rds)
 
 # Make germline filter file from drycleaned normal outputs
-rule _jabba_make_germline_filter:
-    input:
-        installed = str(rules._jabba_install_dryclean.output.complete),
-        tbl = str(rules._jabba_make_pon.output.tbl),
-        rds = expand(
-            CFG["dirs"]["dryclean"] + "cov/{seq_type}--{genome_build}/normal/{normal_id}.drycleaned.cov.rds",
-            zip, 
-            normal_id = CFG["runs"]["normal_sample_id"], 
-            seq_type = CFG["runs"]["normal_seq_type"], 
-            genome_build = CFG["runs"]["normal_genome_build"]),
-        make_germline = CFG["inputs"]["make_germline"]
-    output:
-        germline = CFG["dirs"]["dryclean"] + "germline_filter/{seq_type}--{genome_build}/germline.markers.rds"
-    log:
-        stdout = CFG["logs"]["dryclean"] + "germline_filter/{seq_type}--{genome_build}/germline_filter.stdout.log",
-        stderr = CFG["logs"]["dryclean"] + "germline_filter/{seq_type}--{genome_build}/germline_filter.stderr.log"
-    conda: CFG["conda_envs"]["jabba"]
-    threads: CFG["threads"]["make_germline"]
-    resources:
-        mem_mb = CFG["mem_mb"]["make_germline"]
-    shell:
-        op.as_one_line(""" 
-        Rscript {input.make_germline} {input.tbl} `dirname {input.rds[0]}` {output.germline} 0.5 0.98 > {log.stdout} 2> {log.stderr}
-        """)
-
+#rule _jabba_make_germline_filter:
+#    input:
+#        installed = str(rules._jabba_install_dryclean.output.complete),
+#        tbl = str(rules._jabba_make_pon.output.tbl),
+#        rds = expand(
+#            CFG["dirs"]["dryclean"] + "cov/{seq_type}--{genome_build}/normal/{normal_id}.drycleaned.cov.rds",
+#            zip, 
+#            normal_id = CFG["runs"]["normal_sample_id"], 
+#            seq_type = CFG["runs"]["normal_seq_type"], 
+#            genome_build = CFG["runs"]["normal_genome_build"]),
+#        make_germline = CFG["inputs"]["make_germline"]
+#    output:
+#        germline = CFG["dirs"]["dryclean"] + "germline_filter/{seq_type}--{genome_build}/germline.markers.rds"
+#    log:
+#        stdout = CFG["logs"]["dryclean"] + "germline_filter/{seq_type}--{genome_build}/germline_filter.stdout.log",
+#        stderr = CFG["logs"]["dryclean"] + "germline_filter/{seq_type}--{genome_build}/germline_filter.stderr.log"
+#    conda: CFG["conda_envs"]["jabba"]
+#    threads: CFG["threads"]["make_germline"]
+#    resources:
+#        mem_mb = CFG["mem_mb"]["make_germline"]
+#    shell:
+#        op.as_one_line(""" 
+#        Rscript {input.make_germline} {input.tbl} `dirname {input.rds[0]}` {output.germline} 0.5 0.98 > {log.stdout} 2> {log.stderr}
+#        """)
+#
 
 ### Run dryclean on tumours to remove background and germline variation ###
 
