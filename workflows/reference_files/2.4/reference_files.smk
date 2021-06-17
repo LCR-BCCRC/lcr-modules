@@ -4,6 +4,16 @@
 include: "reference_files_header.smk"
 
 
+##### SRC/ETC DIRECTORY #####
+
+
+for k,v in config['pon'].items():
+    config['pon'][k] = os.path.join(workflow.basedir, v)
+
+for k,v in config['jabba'].items():
+    config['jabba'][k] = os.path.join(workflow.basedir, v)
+
+
 ##### SEQUENCE AND INDICES #####
 
 
@@ -253,7 +263,9 @@ rule get_par_rds:
             -e 'saveRDS(gr, "{output.rds}")'
         """)
 
-# JaBbA PON generation
+
+##### JaBbA PON generation ######
+
 
 rule install_fragcounter:
     output:
@@ -262,7 +274,7 @@ rule install_fragcounter:
     shell:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
-                -e 'if (!"fragCounter" %in% rownames(installed.packages())) {remotes::install_github("mskilab/fragCounter", upgrade = FALSE)}'
+                -e 'if (!"fragCounter" %in% rownames(installed.packages())) {{remotes::install_github("mskilab/fragCounter", upgrade = FALSE)}}'
                 -e 'library(fragCounter)'
             &&
         touch {output.complete}
@@ -276,11 +288,12 @@ rule install_dryclean:
     shell:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
-                -e 'if (!"dryclean" %in% rownames(installed.packages())) {remotes::install_github("mskilab/dryclean", upgrade = FALSE)}'
+                -e 'if (!"dryclean" %in% rownames(installed.packages())) {{remotes::install_github("mskilab/dryclean", upgrade = FALSE)}}'
                 -e 'library(dryclean)'
             &&
         touch {output.complete}
         """)
+
 
 NORMALS = {k : op.load_samples(v) for k,v in config['pon'].items()}
 NORMALS = {k : dict(zip(v.sample_id, v.data_path)) for k,v in NORMALS.items()}

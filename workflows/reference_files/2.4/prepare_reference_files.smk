@@ -24,12 +24,6 @@ original_dir = os.getcwd()
 reference_dir = config["reference_directory"]
 os.chdir(reference_dir)
 
-# Add path to src, etc directories for JaBbA PON generation
-for k,v in config['pon'].items():
-    config['pon'][k] = os.path.join(original_dir, v)
-
-for k,v in config['jabba'].items():
-    config['jabba'][k] = os.path.join(original_dir, v)
 
 # Include the `reference_files` module
 include: os.path.join(original_dir, "reference_files.smk")
