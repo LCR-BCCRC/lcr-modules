@@ -12,6 +12,9 @@ lcr-modules:
             chr_sizes: null
             cen_telo_coords: null
 
+            # If using cluster_sv_combine.smk
+            # cohort: "__UPDATE__"
+
         conda_envs:
             cluster_sv: "{MODSDIR}/envs/r-cluster_sv.yaml"
             
