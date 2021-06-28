@@ -19,8 +19,8 @@ lcr-modules:
             #                      {normal_id} {pair_status}
             regions_bed:
                 _default: ""
-                # Set to "" if you have no capture data
-                capture: "-l __UPDATE__"
+                # Leave both "" if you have no capture data. 
+                capture: ""
 
         conda_envs:
             lofreq: "{MODSDIR}/envs/lofreq-2.1.5.yml"

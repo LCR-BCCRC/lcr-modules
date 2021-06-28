@@ -574,7 +574,9 @@ def main():
         # argument
         bam_sqs = set([b[0] for b in bam_bins])
         bed_sqs = set([b[0] for b in bed_bins])
-        if len(bed_bins) > 100*len(bam_bins) and len(bed_sqs) > len(bam_sqs)/10.0:
+        #edited to handle edge case in which a bam file header has tons of contigs.
+        #This can lead to "argument list too long" in a latter step
+        if len(bed_bins) > 50*len(bam_bins) or len(bed_bins > 200000):
             bed_sqs = set([b[0] for b in bed_bins])
             bins = [b for b in bam_bins if b[0] in bed_sqs]
             lofreq_call_args.extend(['-l', bed_file])
