@@ -179,16 +179,7 @@ if CFG["options"]["hard_masked"] == True:
 #### Rule for setting chromosome names (chr-prefix or not)
 # no chr for grch37 and grch38
 # chr for hg19 and hg38
-# Symlink chromosomes used (i.e. chr1-22,X,Y)
-rule _controlfreec_input_chrs:
-    input:
-        chrs = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt")
-    output:
-        chrs = CFG["dirs"]["inputs"] + "references/{genome_build}/main_chromosomes_withY.txt"
-    resources: **CFG["resources"]["gem"]
-    run:
-        op.relative_symlink(input.chrs, output.chrs)
-
+# chromosomes used (i.e. chr1-22,X,Y)
 
 def _controlfreec_get_chr_fastas(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
