@@ -53,8 +53,6 @@ localrules:
     _jabba_input_bam,
     _jabba_input_junc_bedpe,
     _jabba_input_junc_vcf,
-    _jabba_link_normal_rds,
-    _jabba_link_dryclean_normal_rds,
     _jabba_link_graph_rds,
     _jabba_all
 
