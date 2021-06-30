@@ -7,10 +7,10 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
 
-            # SV caller BEDPE or VCF v4.2 file. Available wildcards:
+            # SV caller VCF v4.2 file. Available wildcards:
             # {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
-            # file extensions must be either .bedpe or .vcf
-            sample_junc: "__UPDATE__"
+            manta_junc: "__UPDATE__"
+            gridss_junc: "__UPDATE__"
 
             make_pon: "{MODSDIR}/src/R/make_pon.R"
             make_germline: "{MODSDIR}/src/R/make_germline_filter.R"
