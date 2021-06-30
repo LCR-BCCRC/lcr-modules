@@ -396,7 +396,7 @@ rule jabba_pon_make_germline_filter:
         rds = lambda wc: expand("genomes/{{genome_build}}/jabba/pon/02-dryclean/cov/{sample_id}.drycleaned.cov.rds", sample_id = NORMALS[wc.genome_build].keys()),
         make_germline = config["jabba"]["make_germline"]
     output:
-        germline = "genomes/{genome_build}/jabba/pon/germline.marker.rds"
+        germline = "genomes/{genome_build}/jabba/pon/germline.markers.rds"
     conda: CONDA_ENVS["jabba"]
     threads: 1
     resources:

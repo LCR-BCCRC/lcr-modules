@@ -268,7 +268,7 @@ rule _jabba_run_dryclean_tumour:
         installed = str(rules._jabba_install_dryclean.output.complete),
         rds = CFG["dirs"]["fragcounter"] + "run/{seq_type}--{genome_build}/{tumour_id}/cov.rds",
         pon = reference_files("genomes/{genome_build}/jabba/pon/detergent.rds"),
-        germline = reference_files("genomes/{genome_build}/jabba/pon/germline.marker.rds")
+        germline = reference_files("genomes/{genome_build}/jabba/pon/germline.markers.rds")
     output:
         rds = CFG["dirs"]["dryclean"] + "run/{seq_type}--{genome_build}/{tumour_id}/drycleaned.cov.rds"
     log:
