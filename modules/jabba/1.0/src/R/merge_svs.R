@@ -5,8 +5,6 @@ suppressPackageStartupMessages({
   library(tidyr)
   library(magrittr)
   library(purrr)
-  library(forcats)
-  library(glue)
   library(gGnome)
   library(StructuralVariantAnnotation)
 })
