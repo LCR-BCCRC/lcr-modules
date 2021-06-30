@@ -57,7 +57,7 @@ localrules:
 
 ### Adjust coverage for GC and mappability ###
 
- Install JaBba suite from github
+# Install JaBba suite from github
 rule _jabba_install_fragcounter:
     output:
         complete = CFG["dirs"]["fragcounter"] + "fragcounter.installed"
@@ -65,7 +65,7 @@ rule _jabba_install_fragcounter:
     shell:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
-                -e 'if (!"fragCounter" %in% rownames(installed.packages())) {remotes::install_github("mskilab/fragCounter", upgrade = TRUE)}'
+                -e 'if (!"fragCounter" %in% rownames(installed.packages())) {{remotes::install_github("mskilab/fragCounter", upgrade = TRUE)}}'
                 -e 'library(fragCounter)'
             &&
         touch {output.complete}
@@ -78,7 +78,7 @@ rule _jabba_install_dryclean:
     shell:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)' 
-                -e 'if (!"dryclean" %in% rownames(installed.packages())) {remotes::install_github("mskilab/dryclean", upgrade = TRUE)}'
+                -e 'if (!"dryclean" %in% rownames(installed.packages())) {{remotes::install_github("mskilab/dryclean", upgrade = TRUE)}}'
                 -e 'library(dryclean)'
             &&
         touch {output.complete}
@@ -94,8 +94,8 @@ rule _jabba_install_jabba:
         op.as_one_line(""" 
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
                 -e 'Sys.setenv(CPLEX_DIR = "{params.cplex_dir}")'
-                -e 'if ("copynumber" %in% installed.packages()==FALSE){ BiocManager::install("copynumber")}'
-                -e if (is.null(packageDescription("copynumber")$GithubUsername)) {remotes::install_github("ShixiangWang/copynumber", dependencies = TRUE)}
+                -e 'if ("copynumber" %in% installed.packages()==FALSE) {{BiocManager::install("copynumber")}}'
+                -e 'if (is.null(packageDescription("copynumber")$GithubUsername)) {{remotes::install_github("ShixiangWang/copynumber", dependencies = TRUE)}}'
                 -e 'if (!"JaBbA" %in% rownames(installed.packages())) {{remotes::install_github("mskilab/JaBbA", upgrade = TRUE)}}'
                 -e 'library(JaBbA)'
             &&
@@ -184,7 +184,7 @@ rule _jabba_run_fragcounter:
 
 rule _jabba_run_dryclean_tumour:
     input:
-        installed = str(rules._jabba_install_dryclean.output.complete)
+        installed = str(rules._jabba_install_dryclean.output.complete),
         rds = CFG["dirs"]["fragcounter"] + "run/{seq_type}--{genome_build}/{tumour_id}/cov.rds",
         pon = reference_files("genomes/{genome_build}/jabba/pon/detergent.rds"),
         germline = reference_files("genomes/{genome_build}/jabba/pon/germline.markers.rds")
