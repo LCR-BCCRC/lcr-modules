@@ -62,31 +62,31 @@ localrules:
 ### Adjust coverage for GC and mappability ###
 
 # Install JaBba suite from github
-rule _jabba_install_fragcounter:
-    output:
-        complete = CFG["dirs"]["fragcounter"] + "fragcounter.installed"
-    conda: CFG["conda_envs"]["jabba"]
-    shell:
-        op.as_one_line("""
-        Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
-                -e 'if (!"fragCounter" %in% rownames(installed.packages())) {remotes::install_github("mskilab/fragCounter", upgrade = FALSE)}'
-                -e 'library(fragCounter)'
-            &&
-        touch {output.complete}
-        """)
-
-rule _jabba_install_dryclean:
-    output:
-        complete = CFG["dirs"]["dryclean"] + "dryclean.installed"
-    conda: CFG["conda_envs"]["jabba"]
-    shell:
-        op.as_one_line("""
-        Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)' 
-                -e 'if (!"dryclean" %in% rownames(installed.packages())) {remotes::install_github("mskilab/dryclean", upgrade = FALSE)}'
-                -e 'library(dryclean)'
-            &&
-        touch {output.complete}
-        """)
+#rule _jabba_install_fragcounter:
+#    output:
+#        complete = CFG["dirs"]["fragcounter"] + "fragcounter.installed"
+#    conda: CFG["conda_envs"]["jabba"]
+#    shell:
+#        op.as_one_line("""
+#        Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
+#                -e 'if (!"fragCounter" %in% rownames(installed.packages())) {remotes::install_github("mskilab/fragCounter", upgrade = FALSE)}'
+#                -e 'library(fragCounter)'
+#            &&
+#        touch {output.complete}
+#        """)
+#
+#rule _jabba_install_dryclean:
+#    output:
+#        complete = CFG["dirs"]["dryclean"] + "dryclean.installed"
+#    conda: CFG["conda_envs"]["jabba"]
+#    shell:
+#        op.as_one_line("""
+#        Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)' 
+#                -e 'if (!"dryclean" %in% rownames(installed.packages())) {remotes::install_github("mskilab/dryclean", upgrade = FALSE)}'
+#                -e 'library(dryclean)'
+#            &&
+#        touch {output.complete}
+#        """)
 
 rule _jabba_install_jabba:
     output:
@@ -126,7 +126,7 @@ rule _jabba_input_junc_bedpe:
     run:
         op.relative_symlink(input.junc, output.junc)
 
-rule _jabba_input_junc_vcf:
+rule _jabba_input_manta_vcf:
     input:
         junc = CFG["inputs"]["sample_junc"]
     output:
@@ -137,7 +137,7 @@ rule _jabba_input_junc_vcf:
 # Runs fragcounter on individual samples
 rule _jabba_run_fragcounter:
     input:
-        installed = str(rules._jabba_install_fragcounter.output.complete),
+        installed = reference_files("downloads/jabba_prereqs/fragcounter.installed"),
         bam = str(rules._jabba_input_bam.output.bam),
         gc = reference_files("genomes/{genome_build}/annotations/jabba/gc1000.rds"),
         map = reference_files("genomes/{genome_build}/annotations/jabba/map1000.rds"),
@@ -265,7 +265,7 @@ rule _jabba_run_fragcounter:
 
 rule _jabba_run_dryclean_tumour:
     input:
-        installed = str(rules._jabba_install_dryclean.output.complete),
+        installed = reference_files("downloads/jabba_prereqs/dryclean.installed"),
         rds = CFG["dirs"]["fragcounter"] + "run/{seq_type}--{genome_build}/{tumour_id}/cov.rds",
         pon = reference_files("genomes/{genome_build}/jabba/pon/detergent.rds"),
         germline = reference_files("genomes/{genome_build}/jabba/pon/germline.markers.rds")
