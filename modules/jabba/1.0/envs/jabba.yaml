@@ -9,6 +9,7 @@ dependencies:
   - _r-mutex=1.0.1=anacondar_1
   - arrow=1.0.3=py39hf3d152e_0
   - bedops=2.4.39=hc9558a2_0
+  - bedtools=2.30.0=h7d7f7ad_1
   - binaryornot=0.4.4=py_1
   - binutils_impl_linux-64=2.35.1=h193b22a_2
   - binutils_linux-64=2.35=h67ddf6f_30
@@ -16,7 +17,7 @@ dependencies:
   - bwidget=1.9.14=ha770c72_0
   - bzip2=1.0.8=h7f98852_4
   - c-ares=1.17.1=h7f98852_1
-  - ca-certificates=2020.12.5=ha878542_0
+  - ca-certificates=2021.5.30=ha878542_0
   - cairo=1.16.0=h7979940_1007
   - cffi=1.14.5=py39he32792d_0
   - chardet=4.0.0=py39hf3d152e_1
@@ -77,7 +78,7 @@ dependencies:
   - make=4.3=hd18ef5c_1
   - markupsafe=1.1.1=py39h3811e60_3
   - ncurses=6.2=h58526e2_4
-  - openssl=1.1.1j=h7f98852_0
+  - openssl=1.1.1k=h7f98852_0
   - pango=1.42.4=h69149e4_5
   - pcre=8.44=he1b5a44_0
   - pcre2=10.36=h032f7d1_1
@@ -93,6 +94,7 @@ dependencies:
   - python-slugify=4.0.1=pyh9f0ad1d_0
   - python_abi=3.9=1_cp39
   - r=3.6.0=r36_0
+  - r-argparse=2.0.3=r36hc72bb7e_1
   - r-askpass=1.1=r36hcdcec82_2
   - r-assertthat=0.2.1=r36h6115d3f_2
   - r-backports=1.2.1=r36hcfec24a_0
@@ -124,9 +126,11 @@ dependencies:
   - r-evaluate=0.14=r36h6115d3f_2
   - r-fansi=0.4.2=r36hcfec24a_0
   - r-fastmap=1.1.0=r36h03ef668_0
+  - r-findpython=1.0.7=r36hc72bb7e_0
   - r-foreign=0.8_76=r36hcdcec82_1
   - r-fs=1.5.0=r36h0357c0b_0
   - r-gert=1.2.0=r36hbd84cd2_1
+  - r-getopt=1.20.3=r36_2
   - r-gh=1.2.0=r36hc72bb7e_0
   - r-git2r=0.28.0=r36hf628c3e_0
   - r-gitcreds=0.1.1=r36hc72bb7e_0
