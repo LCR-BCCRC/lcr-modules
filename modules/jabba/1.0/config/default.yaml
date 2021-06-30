@@ -12,6 +12,7 @@ lcr-modules:
             manta_junc: "__UPDATE__"
             gridss_junc: "__UPDATE__"
 
+            merge_svs: "{MODSDIR}/src/R/merge_svs.R"
             make_pon: "{MODSDIR}/src/R/make_pon.R"
             make_germline: "{MODSDIR}/src/R/make_germline_filter.R"
             run_custom_fc: "{MODSDIR}/src/R/run_custom_fragcounter.R"
@@ -31,6 +32,7 @@ lcr-modules:
             jabba: "{MODSDIR}/envs/jabba.yaml"
 
         threads:
+            merge_svs: 1
             fragcounter: 1
             make_pon: 10
             dryclean: 12
@@ -38,6 +40,7 @@ lcr-modules:
             jabba: 10
 
         mem_mb:
+            merge_svs: 1024
             fragcounter: 4096
             make_pon: 30000
             dryclean: 12000
