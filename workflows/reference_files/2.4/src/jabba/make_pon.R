@@ -62,7 +62,7 @@ if (choose.samples == 'all') {
         build = build,
         PAR.file = par.path,
         save.pon = TRUE,
-        number.of.samples = min(50,length(nrml.smp)),
+        number.of.samples = min(100,length(nrml.smp)),
         use.all = FALSE,
         choose.by.clustering = TRUE
     )
