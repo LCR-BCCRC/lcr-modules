@@ -14,4 +14,5 @@ library(JaBbA)
 #setwd(outdir)
 JaBbA(junc, cov, 
       field = "foreground", mc.cores = as.integer(threads),
+      tfield = 'tier',
       outdir = outdir)

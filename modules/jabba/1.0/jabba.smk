@@ -72,19 +72,24 @@ rule _jabba_install_fragcounter:
         """)
 
 rule _jabba_install_dryclean:
+    input:
+        installed1 = str(rules._jabba_install_fragcounter.output.complete)
     output:
         complete = CFG["dirs"]["dryclean"] + "dryclean.installed"
     conda: CFG["conda_envs"]["jabba"]
     shell:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)' 
-                -e 'if (!"dryclean" %in% rownames(installed.packages())) {{remotes::install_github("mskilab/dryclean", upgrade = TRUE)}}'
+                -e 'if (!"dryclean" %in% rownames(installed.packages())) {{remotes::install_github("mskilab/dryclean", upgrade = FALSE)}}'
                 -e 'library(dryclean)'
             &&
         touch {output.complete}
         """)
 
 rule _jabba_install_jabba:
+    input:
+        installed1 = str(rules._jabba_install_dryclean.output.complete),
+        installed2 = str(rules._jabba_install_fragcounter.output.complete)
     output:
         complete = CFG["dirs"]["jabba"] + "jabba.installed"
     conda: CFG["conda_envs"]["jabba"]
@@ -96,7 +101,7 @@ rule _jabba_install_jabba:
                 -e 'Sys.setenv(CPLEX_DIR = "{params.cplex_dir}")'
                 -e 'if ("copynumber" %in% installed.packages()==FALSE) {{BiocManager::install("copynumber")}}'
                 -e 'if (is.null(packageDescription("copynumber")$GithubUsername)) {{remotes::install_github("ShixiangWang/copynumber", dependencies = TRUE)}}'
-                -e 'if (!"JaBbA" %in% rownames(installed.packages())) {{remotes::install_github("mskilab/JaBbA", upgrade = TRUE)}}'
+                -e 'if (!"JaBbA" %in% rownames(installed.packages())) {{remotes::install_github("mskilab/JaBbA", upgrade = FALSE)}}'
                 -e 'library(JaBbA)'
             &&
         touch {output.complete}
@@ -149,7 +154,7 @@ rule _jabba_merge_svs:
         mem_mb = CFG["mem_mb"]["merge_svs"]
     shell:
         op.as_one_line("""
-        Rscript {input.merge_svs} --manta {input.manta} --gridss {input.gridss} | 
+        Rscript {input.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} | 
             sort -k1,1V -k2,2n -k3,3V -k4,4n > {output.junc}
         """)
 

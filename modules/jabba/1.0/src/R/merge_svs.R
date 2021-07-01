@@ -7,15 +7,25 @@ suppressPackageStartupMessages({
   library(purrr)
   library(gGnome)
   library(StructuralVariantAnnotation)
+  library(GenomeInfoDb)
 })
 
 #####   PARSER  #####
 
 parser <- ArgumentParser()
-parser$add_argument('--manta', type = , help = 'Path to Manta VCF.')
+parser$add_argument('--manta', help = 'Path to Manta VCF.')
 parser$add_argument('--gridss', help = 'Path to GRIDSS VCF.')
+parser$add_argument('--genome', help = 'Genome build.')
 parser$add_argument('--pad', default = 100, help = 'Padding for SV merging. [Default %(default)s].')
 args <- parser$parse_args()
+
+##### TESTING #####
+
+args <- list()
+args$manta <- '/projects/nhl_meta_analysis_scratch/gambl/results_local/gambl/manta-2.3/03-augment_vcf/genome--hg38/01-15563T--01-15563N--matched/somaticSV.augmented.vcf'
+args$gridss <- '/projects/nhl_meta_analysis_scratch/gambl/results_local/gambl/gridss-1.0/04-gripss/genome--hg38/01-15563T--01-15563N--matched/gridss_somatic_filtered.vcf.gz'
+args$genome <- 'hg38'
+args$pad <- 50
 
 ##### FUNCTIONS #####
 
@@ -37,16 +47,19 @@ removeNonCanonicalChrs <- function(sv.vcf, chr_prefixed = TRUE, include_y = FALS
   return(sv.vcf.filt)
 }
 
-gr2grl <- function(gr) {
+gr2grl <- function(gr, genome) {
   nm  <- names(gr)
   out <- list()
+  si <- Seqinfo(genome = genome)
   
   while (length(nm)) {
     s <- nm[1]
     p <- gr[s]$partner
     nm <- nm[!nm %in% c(s,p)]
+    #out[[length(out)+1]] <- sort(c(gr.start(gr[s]), gr.start(gr[p])))
     out[[length(out)+1]] <- sort(c(gr[s], gr[p]))
   }
+  
   return(GRangesList(out))
 }
 
@@ -68,13 +81,13 @@ dt2bedpe <- function(dt) {
 ##### MERGING #####
 
 br <- list()
-br$manta  <- breakpointRanges(readVcf(args$manta, genome = 'hg38'))
-br$gridss <- breakpointRanges(readVcf(args$gridss, genome = 'hg38'))
+br$manta  <- breakpointRanges(readVcf(args$manta, genome = args$genome))
+br$gridss <- breakpointRanges(readVcf(args$gridss, genome = args$genome))
 
 br <- map(br, function(x) x[x$FILTER == 'PASS',])
 br <- map(br, ~ removeNonCanonicalChrs(.x))
 
-br.grl <- map(br, gr2grl)
+br.grl <- map(br, ~ gr2grl(.x, args$genome))
 br.merged <- grl.unlist(ra.merge(manta = br.grl$manta, gridss = br.grl$gridss, pad = args$pad))
 
 ##### TIER #####
