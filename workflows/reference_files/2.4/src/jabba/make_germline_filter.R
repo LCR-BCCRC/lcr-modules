@@ -9,6 +9,7 @@ drcln.dir     <- args[2]
 outdir        <- args[3]
 signal.thresh <- args[4]
 pct.thresh    <- args[5]
+cores         <- args[6]
 
 library(dryclean)
 library(parallel)
@@ -34,6 +35,7 @@ grm = identify_germline(
     path.to.save = dirname(outdir),
     signal.thresh = signal.thresh,
     pct.thresh = pct.thresh,
-    save.grm = TRUE
+    save.grm = TRUE,
+    num.cores = cores
 )
 

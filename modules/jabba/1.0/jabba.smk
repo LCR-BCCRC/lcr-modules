@@ -147,17 +147,17 @@ rule _jabba_merge_svs:
         gridss = str(rules._jabba_input_gridss_vcf.output.junc),
         merge_svs = CFG["inputs"]["merge_svs"]
     output:
-        junc = CFG["dirs"]["inputs"] + "junc/merged/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.bedpe"
+        junc = CFG["dirs"]["inputs"] + "junc/merged/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.rds"
     conda: CFG["conda_envs"]["jabba"]
     threads: CFG["threads"]["merge_svs"]
     resources:
         mem_mb = CFG["mem_mb"]["merge_svs"]
     shell:
         op.as_one_line("""
-        Rscript {input.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} | 
-            sort -k1,1V -k2,2n -k3,3V -k4,4n > {output.junc}
+        Rscript {input.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} --rds {output}
         """)
-
+#Rscript {input.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} --rds {output}
+# Rscript {input.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} | sort -k1,1V -k2,2n -k4,4V -k5,5n > {output}
 
 # Runs fragcounter on individual samples
 rule _jabba_run_fragcounter:
@@ -181,7 +181,6 @@ rule _jabba_run_fragcounter:
         Rscript {input.run_custom_fc} {input.bam} 1000 `dirname {input.gc}` `dirname {output.rds}`
             > {log.stdout} 2> {log.stderr}
         """)
-
 
 
 ### Run dryclean on tumours to remove background and germline variation ###
@@ -208,7 +207,7 @@ rule _jabba_run_dryclean_tumour:
         op.as_one_line("""
         Rscript -e 'library(dryclean); library(parallel)'
                 -e 'samp <- readRDS("{input.rds}")'
-                -e 'decomp <- start_wash_cycle(cov = samp, detergent.pon.path = "{input.pon}", whole_genome = TRUE, mc.cores = {threads}, germline.file = "{input.germline}")'
+                -e 'decomp <- start_wash_cycle(cov = samp, detergent.pon.path = "{input.pon}", whole_genome = TRUE, mc.cores = {threads}, germline.file = "{input.germline}", germline.filter = TRUE)'
                 -e 'saveRDS(decomp, "{output.rds}")' > {log.stdout} 2> {log.stderr}
         """)
 
@@ -239,7 +238,7 @@ rule _jabba_run_jabba:
         mem_mb = CFG["mem_mb"]["jabba"]
     shell:
         op.as_one_line(""" 
-        Rscript {input.script} {input.rds} {input.junc} `dirname {output.rds}` {params.CPLEX} {threads} > {log.stdout} 2> {log.stderr}
+        JABBA_PATH=$(Rscript -e 'cat(paste0(installed.packages()["JaBbA", "LibPath"], "/JaBbA/extdata/"))'); $JABBA_PATH/jba `readlink -e {input.junc}` `readlink -e {input.rds}` --field foreground --cfield tier --outdir `dirname {output.rds}` --cores {threads} --slack 100 > {log.stdout} 2> {log.stderr}
         """)
 
 

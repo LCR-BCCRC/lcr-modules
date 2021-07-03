@@ -40,10 +40,10 @@ lcr-modules:
             jabba: 10
 
         mem_mb:
-            merge_svs: 1024
+            merge_svs: 4096
             fragcounter: 4096
             make_pon: 30000
-            dryclean: 12000
+            dryclean: 30000
             make_germline: 30000
             jabba: 30000
 

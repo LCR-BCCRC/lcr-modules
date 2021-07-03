@@ -373,12 +373,12 @@ rule jabba_pon_run_dryclean_normal:
     conda: CONDA_ENVS["jabba"]
     threads: 12
     resources:
-       mem_mb = 12000
+       mem_mb = 30000
     shell:
         op.as_one_line("""
         Rscript -e 'library(dryclean); library(parallel)'
                 -e 'samp <- readRDS("{input.rds}")'
-                -e 'decomp <- start_wash_cycle(cov = samp, detergent.pon.path = "{input.pon}", whole_genome = TRUE, mc.cores = {threads})'
+                -e 'decomp <- start_wash_cycle(cov = samp, detergent.pon.path = "{input.pon}", whole_genome = TRUE, mc.cores = {threads}, germline.filter = FALSE)'
                 -e 'saveRDS(decomp, "{output.rds}")'
         """)
 
@@ -401,12 +401,12 @@ rule jabba_pon_make_germline_filter:
     output:
         germline = "genomes/{genome_build}/jabba/pon/germline.markers.rds"
     conda: CONDA_ENVS["jabba"]
-    threads: 1
+    threads: 25
     resources:
         mem_mb = 30000
     shell:
         op.as_one_line("""
-        Rscript {input.make_germline} {input.tbl} `dirname {input.rds[0]}` {output.germline} 0.5 0.98
+        Rscript {input.make_germline} {input.tbl} `dirname {input.rds[0]}` {output.germline} 0.5 0.1 {threads}
         """)
 
 
