@@ -4,8 +4,6 @@ lcr-modules:
         lcr-scripts: "../../lcr-scripts/"
         root_output_dir: "results/"
         scratch_directory: "scratch/"
-        unmatched_normal_ids:
-            mrna--grch37: "TCRBOA7-N-WEX"
 
     picard_qc:
         inputs:
