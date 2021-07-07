@@ -70,8 +70,8 @@ rule all:
     input:
         rules._picard_qc_all.input, 
         rules._salmon_all.input,
-        rules._star_all.input,
         rules._bam2fastq_all.input, 
+        rules._star_all.input,
         rules._manta_all.input,
         rules._mixcr_all.input,
         rules._pathseq_all.input

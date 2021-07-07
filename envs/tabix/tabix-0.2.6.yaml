@@ -10,3 +10,5 @@ dependencies:
   - libgomp=9.2.0
   - tabix=0.2.6
   - zlib=1.2.11
+prefix: /home/bgrande/miniconda3/envs/test-tabix
+

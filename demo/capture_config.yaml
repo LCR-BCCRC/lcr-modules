@@ -7,17 +7,6 @@ lcr-modules:
         unmatched_normal_ids:
             capture--grch37: "TCRBOA7-N-WEX"
 
-    lofreq:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
-        switches:
-            # Intentionally running LoFreq without a BED file for simplicity
-            # And to avoid having to include a large BED file in the repo
-            regions_bed:
-                _default: ""
-                capture: ""
-
     slms_3:
         inputs:
             sample_bam: "data/{sample_id}.bam"
@@ -39,73 +28,19 @@ lcr-modules:
             sample_bam: "data/{sample_id}.bam"
         temp_outputs: True # fastq outputs will be temporary
 
-    manta:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
-
     sequenza:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
         scratch_subdirectories: []
 
-    strelka:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
-            # if using manta output, use vcf file in the 99-outputs subdirectory and ensure manta version corresponds to the loaded module
-            candidate_small_indels: "results/manta-2.3/99-outputs/vcf/{seq_type}--{genome_build}/candidateSmallIndels/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf"
-
     bwa_mem:
         inputs:
-            sample_fastq_1: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "results/bam2fastq-1.2/99-outputs/{seq_type}/{sample_id}.read2.fastq.gz"
+            sample_fastq_1: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read2.fastq.gz"
         scratch_subdirectories: []
 
     gridss:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
-        references:
-            # See the current gridss module config file for details about where to obtain this file.
-            viral_fa: "/projects/rmorin/projects/DLBCL_DHITsig_genomes/reference/gridss/refgenomes/human_virus/human_virus.fa"
-            viral_bwa_prefix: "/projects/rmorin/projects/DLBCL_DHITsig_genomes/reference/gridss/refgenomes/human_virus/human_virus.fa"
-            pon_dir: "/projects/rmorin/reference/hmftools-references/gridss/pon"
-            
-    liftover:
-        tool: "battenberg"
-        inputs:
-            sample_seg: "data/{tool}/hg38/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
-    
-    ichorcna:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
-            
-        scratch_subdirectories: [] # mpileup should be in scratch space
-
-    starfish:
-        dirs:
-            _parent: "results/starfish-2.0_strelka-1.1_lofreq-1.0"
-        inputs:
-            names: ["strelka", "lofreq"]
-            paths:
-                [
-                    "results/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz",
-                    "results/lofreq-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz",
-                ]
-
-    sage:
-        inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bam: "data/{sample_id}.bam"
-
-        # include here any additional flags to modify default parameters
-        options:
-            sage_run: ""
-
-    mutect2:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
@@ -116,11 +51,11 @@ lcr-modules:
             sample_bai: "data/{sample_id}.bam.bai"
 
     liftover:
-        tool: "sequenza-1.4"
+        tool: "sequenza"
         dirs:
             _parent: "results/sequenza-1.4_liftover-1.2"
         inputs:
-            sample_seg: "results/sequenza-1.4/03-igv_seg/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched/filtered/sequenza_segments.igv.seg"
+            sample_seg: "results/sequenza-1.4/99-outputs/filtered_seg/{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--matched.igv.seg"
 
     utils:
         inputs:
@@ -137,13 +72,10 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "data/{sample_id}.bam"
 
-        reference_path:
-            hg38: " --chr_prefixed_genome "
-            grch37: " reference/genomes/grch37/downloads/hg19-grch37 "
-
     pathseq:
         inputs:
             sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
 
         options:
             min_read_length: 49

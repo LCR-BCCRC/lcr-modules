@@ -9,5 +9,5 @@ dependencies:
   - coreutils=8.31
   - libgcc-ng=9.2.0
   - libgomp=9.2.0
- 
+prefix: /home/bgrande/miniconda3/envs/test-coreutils
 

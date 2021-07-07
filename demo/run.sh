@@ -28,6 +28,6 @@ if (( $CORES_AVAILABLE <= 0 )); then
     echo "Check out top/htop to see what other jobs are currently running."
     exit 1
 fi
-nice -n 10 snakemake --cores "${CORES_AVAILABLE}" $snakemake_flags -s $snakefile --keep-going --latency-wait 120 --use-conda "$TARGETS"
+nice -n 10 snakemake --cores "${CORES_AVAILABLE}" $snakemake_flags -s $snakefile --keep-going --latency-wait 120 --use-conda $TARGETS
 
 
