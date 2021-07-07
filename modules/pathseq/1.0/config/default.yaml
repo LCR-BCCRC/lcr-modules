@@ -5,6 +5,7 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
 
         scratch_subdirectories: []
 
@@ -12,7 +13,8 @@ lcr-modules:
             min_read_length: "__UPDATE__" # The reads shorter than this length will be filtered out by Pathseq. Enter number of bp in read, for example: 70
             ebv_cutoff: "__UPDATE__" # provide a list of cutoff values for calling sample EBV-negative, intermediate, or positive
                                       # It should be as proportion of reads to total reads, for example: [0.00004, 0.00008]
-
+            flags: "" # here any additional flags to Pathseq can be provided
+ 
         conda_envs:
             picard: "{MODSDIR}/envs/picard-2.22.3.yaml"
             gatk: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"

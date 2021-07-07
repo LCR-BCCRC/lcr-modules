@@ -72,6 +72,18 @@ lcr-modules:
             viral_fa: "/projects/rmorin/projects/DLBCL_DHITsig_genomes/reference/gridss/refgenomes/human_virus/human_virus.fa"
             viral_bwa_prefix: "/projects/rmorin/projects/DLBCL_DHITsig_genomes/reference/gridss/refgenomes/human_virus/human_virus.fa"
             pon_dir: "/projects/rmorin/reference/hmftools-references/gridss/pon"
+            
+    liftover:
+        tool: "battenberg"
+        inputs:
+            sample_seg: "data/{tool}/hg38/{tumour_sample_id}--{normal_sample_id}_subclones.igv.seg"
+    
+    ichorcna:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+            
+        scratch_subdirectories: [] # mpileup should be in scratch space
 
     starfish:
         dirs:

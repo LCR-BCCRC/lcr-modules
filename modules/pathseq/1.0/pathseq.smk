@@ -61,15 +61,16 @@ localrules:
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _pathseq_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        bam = CFG["inputs"]["sample_bam"],
+        bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
         op.absolute_symlink(input.bam, output.bam)
-        op.absolute_symlink(input.bam+ ".bai", output.bai)
-        op.absolute_symlink(input.bam+ ".bai", output.crai)
+        op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 
 # Setup shared reference files. We need fasta file without EBV chromosome to be used in Pathseq module, so will process
@@ -115,8 +116,8 @@ rule _pathseq_fasta_dictionary:
           picard CreateSequenceDictionary
           R={input.genome_fa}
           O={output.genome_dict}
-          > {log.stdout}
-          2> {log.stderr}
+          >> {log.stdout}
+          2>> {log.stderr}
         """)    
 
 # Create k-mer file following GATK recommendations
@@ -144,8 +145,8 @@ rule _pathseq_reference_img:
           --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
           --reference {input.genome_fa}
           --output {output.genome_img}
-          > {log.stdout}
-          2> {log.stderr}
+          >> {log.stdout}
+          2>> {log.stderr}
         """)    
 
 
@@ -171,8 +172,8 @@ rule _pathseq_reference_bfi:
           gatk BwaMemIndexImageCreator
           -I {input.genome_fa}
           -O {output.genome_bfi}
-          > {log.stdout}
-          2> {log.stderr}
+          >> {log.stdout}
+          2>> {log.stderr}
         """)
 
 
@@ -242,7 +243,8 @@ rule _pathseq_run:
         stderr = CFG["logs"]["pathseq"] + "{seq_type}--{genome_build}/{sample_id}/run_pathseq.stderr.log"
     params:
         min_read_length = CFG["options"]["min_read_length"],
-        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        flags = CFG["options"]["flags"]
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -253,8 +255,10 @@ rule _pathseq_run:
         op.as_one_line("""
           if [ -e {output.bam}.parts ]; then rm -R {output.bam}.parts; fi
               &&
+          echo "running {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
           gatk PathSeqPipelineSpark --spark-master local[{threads}]
           --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
+          {params.flags}
           --input {input.bam}
           --filter-bwa-image {input.genome_img}
           --kmer-file {input.k_mers}
@@ -264,8 +268,9 @@ rule _pathseq_run:
           --taxonomy-file {input.taxonomy}
           --output {output.bam}
           --scores-output {output.scores}
-          > {log.stdout}
-          2> {log.stderr}
+          >> {log.stdout}
+          2>> {log.stderr} &&  
+          echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
         """)
 
 
