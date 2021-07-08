@@ -17,6 +17,9 @@ lcr-modules:
 
         conda_envs:
             cluster_sv: "{MODSDIR}/envs/r-cluster_sv.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            gridss: "{MODSDIR}/envs/gridss-dependencies-2.9.4.yaml"
+            svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
             
         threads:
             cluster_sv: 4
