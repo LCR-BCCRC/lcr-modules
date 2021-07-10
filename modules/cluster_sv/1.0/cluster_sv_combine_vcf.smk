@@ -38,7 +38,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "cluster_sv",
     version = "1.0",
-    subdirectories = ["inputs", "annotate_vcf", "bedpe", "reformat_bedpe", "outputs"],
+    subdirectories = ["inputs", "annotate", "combine", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -46,9 +46,8 @@ localrules:
     _cluster_sv_input_vcf,
     _cluster_sv_decompress_vcf,
     _cluster_sv_filter_vcf,
-    _cluster_sv_annotate_vcf,
-    _cluster_sv_vcf2bedpe,
-    _cluster_sv_reformat_bedpe,
+    _cluster_sv_annotate,
+     _cluster_sv_get_map,
     _cluster_sv_combine_bedpe,
     _cluster_sv_all
 
@@ -72,7 +71,7 @@ rule _cluster_sv_decompress_vcf:
     input:
         vcf_gz = str(rules._cluster_sv_input_vcf.output.vcf_gz)
     output:
-        vcf = temp(CFG["dirs"]["annotate_vcf"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.vcf")
+        vcf = temp(CFG["dirs"]["annotate"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.vcf")
     shell:
         "gzip -dc {input.vcf_gz} > {output.vcf}" #this should work on both gzip and bcftools compressed files 
 
@@ -82,14 +81,18 @@ rule _cluster_sv_filter_vcf:
     input:
         vcf = str(rules._cluster_sv_decompress_vcf.output.vcf)
     output:
-        vcf = temp(CFG["dirs"]["annotate_vcf"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.filtered.vcf"),
+        vcf = temp(CFG["dirs"]["annotate"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.filtered.vcf"),
     params:
         filter_vcf= CFG["options"]["filter_vcf"]
     conda: 
         CFG["conda_envs"]["bedtools"]
     shell:
         op.as_one_line("""
-        bedtools intersect -v -a {input.vcf} -b {params.filter_vcf} > {output.vcf}
+        sed -e 's/chr//g' {input.vcf} |
+        bedtools intersect -v -header
+        -a stdin
+        -b {params.filter_vcf}
+        > {output.vcf}
         """)
 
 def _cluster_sv_get_vcf(wildcards):
@@ -97,36 +100,32 @@ def _cluster_sv_get_vcf(wildcards):
     RUNS = config["lcr-modules"]["cluster_sv"]["runs"]
 
     if CFG["options"]["filter_vcf"] is None:
+        print('No filter is applied to VCF file')
         vcf_file = expand(
             [
                 str(rules._cluster_sv_input_vcf.output.vcf),
             ],
             zip,
-            seq_type=RUNS["tumour_seq_type"],
-            genome_build=RUNS["tumour_genome_build"],
-            tumour_id=RUNS["tumour_sample_id"],
-            normal_id=RUNS["normal_sample_id"],
-            pair_status=RUNS["pair_status"])
+            **wildcards)
     else:
         vcf_file = expand(
             [
                 str(rules._cluster_sv_filter_vcf.output.vcf),
             ],
             zip,
-            seq_type=RUNS["tumour_seq_type"],
-            genome_build=RUNS["tumour_genome_build"],
-            tumour_id=RUNS["tumour_sample_id"],
-            normal_id=RUNS["normal_sample_id"],
-            pair_status=RUNS["pair_status"])
+            **wildcards)
     
     return { 'vcf': vcf_file }
 
 
-rule _cluster_sv_annotate_vcf:
+rule _cluster_sv_annotate:
     input:
         unpack(_cluster_sv_get_vcf)
     output:
-        vcf = CFG["dirs"]["annotate_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.annotated.vcf",
+        vcf = CFG["dirs"]["annotate"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.annotated.vcf",
+        bedpe = CFG["dirs"]["annotate"] + "bedpe/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.annotated.bedpe"
+    log: 
+        CFG["logs"]["annotate"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_R_annotateSV.log"
     params:
         r_script = CFG["options"]["vcf_annotation_script"]
     conda: 
@@ -136,15 +135,19 @@ rule _cluster_sv_annotate_vcf:
         Rscript {params.r_script} 
         -vcf {input.vcf}
         -ref {wildcards.genome_build}
-        -out {output.vcf} 
+        -out_vcf {output.vcf} 
+        -out_bedpe {output.bedpe} 
+        &> {log}
         """)
 
-
+'''
 rule _cluster_sv_vcf2bedpe:
     input:
-        vcf = str(rules._cluster_sv_annotate_vcf.output.vcf)
+        vcf = str(rules._cluster_sv_annotate.output.vcf)
     output:
         bedpe = CFG["dirs"]["bedpe"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.annotated.bedpe",
+    log: 
+        CFG["logs"]["bedpe"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.log"
     conda: 
         CFG["conda_envs"]["svtools"]
     shell:
@@ -152,20 +155,37 @@ rule _cluster_sv_vcf2bedpe:
         svtools vcftobedpe -i {input.vcf} -o {output.bedpe}
         """)
 
+
+
 rule _cluster_sv_reformat_bedpe:
     input:
-        bedpe = str(rules._cluster_sv_vcf2bedpe.output.bedpe)
+        bedpe = str(rules._cluster_sv_annotate.output.bedpe)
     output:
         bedpe = temp(CFG["dirs"]["reformat_bedpe"] + "bedpe/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.bedpe"),
         mapping = temp(CFG["dirs"]["reformat_bedpe"] + "mapping/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_map.tsv")
     shell:
         op.as_one_line("""
         sed '/^#/d' {input.bedpe} |
-        sed -e 's/chr//g' |
-        awk -F '\t' 'BEGIN {{OFS="\t"}}; {{print $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11 > "{output.bedpe}"; \
-        print "{wildcards.tumour_id}", "{wildcards.normal_id}", $7 > "{output.mapping}" }}' 
+        sed -e 's/chr//g' > "{output.bedpe}"
+        &&
+        awk -F '\t' 'BEGIN {{OFS="\t"}};
+        {{ print "{wildcards.tumour_id}", "{wildcards.normal_id}", $7 }}'
+        > {output.mapping}
         """)
+'''
 
+rule _cluster_sv_get_map:
+    input:
+        bedpe = str(rules._cluster_sv_annotate.output.bedpe)
+    output:
+        #bedpe = temp(CFG["dirs"]["reformat_bedpe"] + "bedpe/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.bedpe"),
+        mapping = temp(CFG["dirs"]["annotate"] + "mapping/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_map.tsv")
+    shell:
+        op.as_one_line("""
+        awk -F '\t' 'BEGIN {{OFS="\t"}};
+        {{ print "{wildcards.tumour_id}", "{wildcards.normal_id}", $7 }}'
+        {input.bedpe} > {output.mapping}
+        """)
 
 def _cluster_sv_get_bedpe(wildcards):
     CFG = config["lcr-modules"]["cluster_sv"]
@@ -179,7 +199,7 @@ def _cluster_sv_get_bedpe(wildcards):
 
     bedpe_files = expand(
         [
-            str(rules._cluster_sv_reformat_bedpe.output.bedpe),
+            str(rules._cluster_sv_annotate.output.bedpe),
         ],
         zip,
         seq_type=RUNS["tumour_seq_type"],
@@ -190,7 +210,7 @@ def _cluster_sv_get_bedpe(wildcards):
 
     map_files = expand(
         [
-            str(rules._cluster_sv_reformat_bedpe.output.mapping),
+            str(rules._cluster_sv_get_map.output.mapping),
         ],
         zip, 
         seq_type=RUNS["tumour_seq_type"],
@@ -206,8 +226,8 @@ rule _cluster_sv_combine_bedpe:
     input:
         unpack(_cluster_sv_get_bedpe)
     output:
-        bedpe = CFG["dirs"]["reformat_bedpe"] + "combined/{seq_type}--{genome_build}/{cohort}_combined.bedpe",
-        mapping = CFG["dirs"]["reformat_bedpe"] + "combined/{seq_type}--{genome_build}/{cohort}_map.tsv"
+        bedpe = CFG["dirs"]["combine"] + "combined/{seq_type}--{genome_build}/{cohort}_combined.bedpe",
+        mapping = CFG["dirs"]["combine"] + "combined/{seq_type}--{genome_build}/{cohort}_map.tsv"
     shell:
         op.as_one_line("""
         cat {input.bedpe} > {output.bedpe} &&
