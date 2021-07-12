@@ -65,7 +65,7 @@ rule _jabba_install_fragcounter:
     shell:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
-                -e 'if (!"fragCounter" %in% rownames(installed.packages())) {{remotes::install_github("mskilab/fragCounter", upgrade = TRUE)}}'
+                -e 'if (!"fragCounter" %in% rownames(installed.packages())) {{remotes::install_github("morinlab/fragCounter", upgrade = TRUE, force = TRUE)}}'
                 -e 'library(fragCounter)'
             &&
         touch {output.complete}
@@ -148,13 +148,16 @@ rule _jabba_merge_svs:
         merge_svs = CFG["inputs"]["merge_svs"]
     output:
         junc = CFG["dirs"]["inputs"] + "junc/merged/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.rds"
+    log:
+        stdout = CFG["logs"]["inputs"] + "run/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merge_svs.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "run/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merge_svs.stderr.log"
     conda: CFG["conda_envs"]["jabba"]
     threads: CFG["threads"]["merge_svs"]
     resources:
         mem_mb = CFG["mem_mb"]["merge_svs"]
     shell:
         op.as_one_line("""
-        Rscript {input.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} --rds {output}
+        Rscript {input.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} --rds {output} > {log.stdout} 2> {log.stderr}
         """)
 #Rscript {input.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} --rds {output}
 # Rscript {input.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} | sort -k1,1V -k2,2n -k4,4V -k5,5n > {output}
@@ -166,7 +169,7 @@ rule _jabba_run_fragcounter:
         bam = str(rules._jabba_input_bam.output.bam),
         gc = reference_files("genomes/{genome_build}/annotations/jabba/gc1000.rds"),
         map = reference_files("genomes/{genome_build}/annotations/jabba/map1000.rds"),
-        run_custom_fc = CFG["inputs"]["run_custom_fc"]
+        ref = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         rds = CFG["dirs"]["fragcounter"] + "run/{seq_type}--{genome_build}/{sample_id}/cov.rds"
     log:
@@ -178,8 +181,7 @@ rule _jabba_run_fragcounter:
         mem_mb = CFG["mem_mb"]["fragcounter"]
     shell:
         op.as_one_line(""" 
-        Rscript {input.run_custom_fc} {input.bam} 1000 `dirname {input.gc}` `dirname {output.rds}`
-            > {log.stdout} 2> {log.stderr}
+        FRAG=$(Rscript -e 'cat(paste0(installed.packages()["fragCounter", "LibPath"], "/fragCounter/extdata/"))'); $FRAG/frag -b {input.bam} -r {input.ref} -w 1000 -d `dirname {input.gc}` -o `dirname {output.rds}` > {log.stdout} 2> {log.stderr}
         """)
 
 
