@@ -274,7 +274,7 @@ rule install_fragcounter:
     shell:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
-                -e 'if (!"fragCounter" %in% rownames(installed.packages())) {{remotes::install_github("mskilab/fragCounter", upgrade = TRUE)}}'
+                -e 'if (!"fragCounter" %in% rownames(installed.packages())) {{remotes::install_github("morinlab/fragCounter", upgrade = TRUE, force = TRUE)}}'
                 -e 'library(fragCounter)'
             &&
         touch {output.complete}
@@ -319,7 +319,7 @@ rule jabba_pon_run_fragcounter:
         bam = str(rules.jabba_pon_symlink_normal_bams.output.bam),
         gc = str(rules.get_jabba_gc_rds.output.rds),
         map = str(rules.get_jabba_map_rds.output.rds),
-        run_custom_fc = config['jabba']['fragcounter']
+        ref = str(rules.download_genome_fasta.output.fasta) 
     output:
         rds = "genomes/{genome_build}/jabba/pon/01-fragcounter/run/{sample_id}/cov.rds"
     conda: CONDA_ENVS["jabba"]
@@ -328,7 +328,7 @@ rule jabba_pon_run_fragcounter:
         mem_mb = 4096
     shell:
         op.as_one_line("""
-        Rscript {input.run_custom_fc} {input.bam} 1000 `dirname {input.gc}` `dirname {output.rds}`
+        FRAG=$(Rscript -e 'cat(paste0(installed.packages()["fragCounter", "LibPath"], "/fragCounter/extdata/"))'); $FRAG/frag -b {input.bam} -r {input.ref} -w 1000 -d `dirname {input.gc}` -o `dirname {output.rds}`
         """)
 
 
