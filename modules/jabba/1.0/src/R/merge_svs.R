@@ -80,10 +80,20 @@ br$manta <- jJ(args$manta)[FILTER == 'PASS']
 br$gridss <- jJ(args$gridss)[FILTER == 'PASS']
 
 br <- map(br, ~ removeNonCanonicalChrs(.x))
-br.merged <- merge(manta = br$manta, gridss = br$gridss, pad = args$pad)
 
+if (any(lengths(br) == 0)) {
+    empty.junc <- names(br)[which(lengths(br) == 0)]
+}
+
+br.merged <- merge(manta = br$manta, gridss = br$gridss, pad = args$pad)
 br.merged.grl <- br.merged$grl
-br.merged.val <- values(br.merged.grl)
+br.merged.val <- as.data.table(values(br.merged.grl))
+
+for (i in empty.junc) {
+    br.merged.val[[i]] <- as.integer(rep(NA, nrow(br.merged.val)))
+    br.merged.val[[paste0('seen.by.',i)]] <- rep(FALSE, nrow(br.merged.val))
+}
+
 br.merged.val$tier <- br.merged.val$seen.by.manta * br.merged.val$seen.by.gridss
 br.merged.val$tier <- ifelse(br.merged.val$tier == 0, 2, 1)
 values(br.merged.grl) <- br.merged.val
@@ -91,10 +101,4 @@ values(br.merged.grl) <- br.merged.val
 ##### OUTPUT #####
 
 saveRDS(br.merged.grl, file = args$rds)
-
-
-
-
-
-
 
