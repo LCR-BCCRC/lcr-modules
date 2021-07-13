@@ -81,10 +81,7 @@ br$gridss <- jJ(args$gridss)[FILTER == 'PASS']
 
 br <- map(br, ~ removeNonCanonicalChrs(.x))
 
-if (any(lengths(br) == 0)) {
-    empty.junc <- names(br)[which(lengths(br) == 0)]
-}
-
+empty.junc <- names(br)[which(lengths(br) == 0)]
 br.merged <- merge(manta = br$manta, gridss = br$gridss, pad = args$pad)
 br.merged.grl <- br.merged$grl
 br.merged.val <- as.data.table(values(br.merged.grl))
