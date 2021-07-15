@@ -76,8 +76,8 @@ dt2bedpe <- function(dt) {
 ##### MERGING #####
 
 br <- list()
-br$manta <- jJ(args$manta)[FILTER == 'PASS']
-br$gridss <- jJ(args$gridss)[FILTER == 'PASS']
+br$manta <- jJ(args$manta)
+br$gridss <- jJ(args$gridss)
 
 if (length(br$manta) != 0) {
     br$manta <- br$manta[FILTER == 'PASS']

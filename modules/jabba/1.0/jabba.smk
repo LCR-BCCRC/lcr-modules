@@ -144,8 +144,7 @@ rule _jabba_merge_svs:
     input:
         installed = str(rules._jabba_install_jabba.output.complete),
         manta = str(rules._jabba_input_manta_vcf.output.junc),
-        gridss = str(rules._jabba_input_gridss_vcf.output.junc),
-        merge_svs = CFG["inputs"]["merge_svs"]
+        gridss = str(rules._jabba_input_gridss_vcf.output.junc)
     output:
         junc = CFG["dirs"]["inputs"] + "junc/merged/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.rds"
     log:
@@ -153,11 +152,13 @@ rule _jabba_merge_svs:
         stderr = CFG["logs"]["inputs"] + "run/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merge_svs.stderr.log"
     conda: CFG["conda_envs"]["jabba"]
     threads: CFG["threads"]["merge_svs"]
+    params:
+        merge_svs = CFG["inputs"]["merge_svs"]
     resources:
         mem_mb = CFG["mem_mb"]["merge_svs"]
     shell:
         op.as_one_line("""
-        Rscript {input.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} --rds {output} > {log.stdout} 2> {log.stderr}
+        Rscript {params.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} --rds {output} > {log.stdout} 2> {log.stderr}
         """)
 #Rscript {input.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} --rds {output}
 # Rscript {input.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} | sort -k1,1V -k2,2n -k4,4V -k5,5n > {output}
