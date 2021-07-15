@@ -79,7 +79,18 @@ br <- list()
 br$manta <- jJ(args$manta)[FILTER == 'PASS']
 br$gridss <- jJ(args$gridss)[FILTER == 'PASS']
 
-br <- map(br, ~ removeNonCanonicalChrs(.x))
+if (length(br$manta) != 0) {
+    br$manta <- br$manta[FILTER == 'PASS']
+}
+if (length(br$gridss) != 0) {
+    br$gridss <- br$gridss[FILTER == 'PASS']
+}
+
+if (any(args$genome %in% c("grch38", "grch37" ))) {
+    br <- map(br, ~ removeNonCanonicalChrs(.x, chr_prefixed = FALSE))
+} else {
+    br <- map(br, ~ removeNonCanonicalChrs(.x))
+}
 
 empty.junc <- names(br)[which(lengths(br) == 0)]
 br.merged <- merge(manta = br$manta, gridss = br$gridss, pad = args$pad)
