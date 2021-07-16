@@ -19,8 +19,8 @@ import oncopipe as op
 # `CFG` is a shortcut to `config["lcr-modules"]["hmftools"]`
 CFG = op.setup_module(
     name = "hmftools",
-    version = "1.0",
-    subdirectories = ["inputs", "prepare_strelka", "amber", "cobalt", "purple", "linx", "outputs"],
+    version = "1.1",
+    subdirectories = ["inputs", "prepare_slms3", "amber", "cobalt", "purple", "linx", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
