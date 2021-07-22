@@ -92,9 +92,33 @@ rule _gatk_splitntrim:
         > {log.stdout} 2> {log.stderr}
         """)
 
+rule _gatk_addRG:
+    input:
+        bam = str(rules._gatk_splitntrim.output)
+    output:
+        bam = temp(CFG["dirs"]["gatk_splitntrim"] + "bam_withRG/{seq_type}--{genome_build}/{sample_id}.withRG.bam")
+    params:
+        sampleName = "{sample_id}",
+        platform = CFG["options"]["gatk_addRG"]["platform"],
+        unit = CFG["options"]["gatk_addRG"]["unit"],
+        stringency = CFG["options"]["gatk_addRG"]["stringency"]
+    conda:
+        CFG["conda_envs"]["picard"]
+    log:
+        stdout = CFG["logs"]["gatk_splitntrim"] + "bam_withRG/{seq_type}--{genome_build}/{sample_id}.addRG.stdout.log"
+    threads:
+        CFG["threads"]["gatk_addRG"]
+    resources:
+        **CFG["resources"]["gatk_addRG"]
+    shell:
+        op.as_one_line("""
+        picard AddOrReplaceReadGroups VALIDATION_STRINGENCY={params.stringency} I={input.bam} O={output.bam} RGLB={params.sampleName} RGPL={params.platform} RGPU={params.unit} RGSM={params.sampleName} > {log.stdout} 2>&1 && 
+        samtools index {output.bam} 
+        """)
+
 rule _gatk_base_recalibration:
     input:
-        bam = str(rules._gatk_splitntrim.output),
+        bam = str(rules._gatk_addRG.output),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         table = CFG["dirs"]["base_recal_report"] + "{seq_type}--{genome_build}/{sample_id}.recalibration_report.grp"
@@ -120,7 +144,7 @@ rule _gatk_base_recalibration:
         
 rule _gatk_applybqsr:
     input:
-        bam = str(rules._gatk_splitntrim.output.bam),
+        bam = str(rules._gatk_addRG.output.bam),
         table = str(rules._gatk_base_recalibration.output.table),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
@@ -143,15 +167,6 @@ rule _gatk_applybqsr:
         gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" ApplyBQSR {params.gatk_opts} 
         -R {input.fasta} -I {input.bam} -bqsr-recal-file {input.table} -O {output.bam} > {log.stdout} 2> {log.stderr}
         """)
-        
-# Symlink chromosomes used for parallelization
-checkpoint _gatk_rnaseq_input_chrs:
-    input:
-        chrs = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
-    output:
-        chrs = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
-    run:
-        op.relative_symlink(input.chrs, output.chrs)
         
         
 rule _gatk_variant_calling:
@@ -186,7 +201,7 @@ rule _gatk_variant_calling:
         
 def _gatk_rnaseq_get_chr_vcfs(wildcards):
     CFG = config["lcr-modules"]["gatk_rnaseq"]
-    chrs = checkpoints._gatk_rnaseq_input_chrs.get(**wildcards).output.chrs
+    chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes.txt")
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     vcfs = expand(
@@ -198,7 +213,7 @@ def _gatk_rnaseq_get_chr_vcfs(wildcards):
 
 def _gatk_rnaseq_get_chr_tbis(wildcards):
     CFG = config["lcr-modules"]["gatk_rnaseq"]
-    chrs = checkpoints._gatk_rnaseq_input_chrs.get(**wildcards).output.chrs
+    chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes.txt")
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     tbis = expand(

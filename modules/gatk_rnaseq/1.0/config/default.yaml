@@ -13,6 +13,10 @@ lcr-modules:
         options:
             java_opts: "-XX:ConcGCThreads=1"
             gatk_splitntrim: " -fixNDN TRUE -RF GoodCigarReadFilter "
+            gatk_addRG:
+                platform: "illumina"
+                unit: "unit1"
+                stringency: "LENIENT"
             gatk_baserecalibrator: ""
             gatk_applybqsr: ""
             gatk_variant_calling:
@@ -34,11 +38,13 @@ lcr-modules:
 
 
         conda_envs:
+            picard: "{MODSDIR}/envs/picard-2.22.3.yaml"
             gatk_rnaseq: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             
         threads:
             gatk_splitntrim: 12
+            gatk_addRG: 12
             gatk_base_recalibration: 12
             gatk_applybqsr: 12
             gatk_variant_calling: 24
@@ -50,15 +56,22 @@ lcr-modules:
         resources:
             gatk_splitntrim: 
                 mem_mb: 48000
+                bam: 1
+            gatk_addRG:
+                mem_mb: 12000
+                bam: 1
             gatk_base_recalibration:
                 mem_mb: 12000
+                bam: 1
             gatk_applybqsr:
                 mem_mb: 12000
+                bam: 1
             gatk_variant_calling:
                 mem_mb: 48000
                 bam: 1
             gatk_variant_filtration:
                 mem_mb: 12000
+                bam: 1
             merge_vcfs:
                 mem_mb: 10000
             gatk_rnaseq_passed:
