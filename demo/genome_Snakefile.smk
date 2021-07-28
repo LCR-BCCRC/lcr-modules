@@ -37,12 +37,9 @@ configfile: "../modules/bwa_mem/1.1/config/default.yaml"
 configfile: "../modules/controlfreec/1.1/config/default.yaml"
 configfile: "../modules/slms_3/1.0/config/default.yaml"
 configfile: "../modules/gridss/1.1/config/default.yaml"
-configfile: "../modules/mixcr/1.1/config/default.yaml"
-configfile: "../modules/varscan/1.1/config/default.yaml"
 configfile: "../modules/liftover/1.2/config/default.yaml"
 configfile: "../modules/battenberg/1.2/config/default.yaml"
 configfile: "../modules/pathseq/1.0/config/default.yaml"
-#configfile: "../modules/hmftools/1.0/config/default.yaml"
 configfile: "../modules/utils/2.1/config/default.yaml"
 
 
@@ -69,12 +66,9 @@ include: "../modules/bwa_mem/1.1/bwa_mem.smk"
 include: "../modules/controlfreec/1.1/controlfreec.smk"
 include: "../modules/slms_3/1.0/slms_3.smk"
 include: "../modules/gridss/1.1/gridss.smk"
-include: "../modules/mixcr/1.1/mixcr.smk"
-include: "../modules/varscan/1.1/varscan.smk"
 include: "../modules/liftover/1.2/liftover.smk"
 include: "../modules/battenberg/1.2/battenberg.smk"
 include: "../modules/pathseq/1.0/pathseq.smk"
-#include: "../modules/hmftools/1.0/hmftools.smk"
 include: "../modules/utils/2.1/utils.smk"
 
 
@@ -82,17 +76,13 @@ include: "../modules/utils/2.1/utils.smk"
 
 rule all:
     input:
-        rules._slms_3_all.input,
         rules._picard_qc_all.input,
         rules._bam2fastq_all.input,
         rules._sequenza_all.input,
         rules._bwa_mem_all.input,
         rules._controlfreec_all.input,
+        rules._slms_3_all.input,
         rules._gridss_all.input,
-        rules._mixcr_all.input,
-        rules._varscan_all.input,
         rules._liftover_all.input,
         rules._battenberg_all.input,
-        rules._pathseq_all.input,
-        #rules._hmftools_all.input
-
+        rules._pathseq_all.input

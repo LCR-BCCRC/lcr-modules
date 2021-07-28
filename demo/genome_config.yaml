@@ -2,7 +2,7 @@ lcr-modules:
     _shared:
         lcr-modules: "../"
         lcr-scripts: "../../lcr-scripts/"
-        root_output_dir: "results/"
+        root_output_dir: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/"
         scratch_directory: "scratch/"
         unmatched_normal_ids:
             genome--grch37: "TCRBOA7-N-WGS"
@@ -31,8 +31,8 @@ lcr-modules:
 
     bwa_mem:
         inputs:
-            sample_fastq_1: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read2.fastq.gz"
+            sample_fastq_1: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read2.fastq.gz"
         scratch_subdirectories: []
 
     controlfreec:
@@ -53,22 +53,17 @@ lcr-modules:
 
     mixcr:
         inputs:
-            sample_fastq_1: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read2.fastq.gz"
+            sample_fastq_1: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read2.fastq.gz"
             # Path to the directory where MIXCR should be installed
             mixcr_exec: "data"
-
-    varscan:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
 
     liftover:
         tool: "sequenza"
         dirs:
-            _parent: "results/sequenza-1.4_liftover-1.2"
+            _parent: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/sequenza-1.4_liftover-1.2"
         inputs:
-            sample_seg: "results/sequenza-1.4/99-outputs/filtered_seg/{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--matched.igv.seg"
+            sample_seg: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/sequenza-1.4/99-outputs/filtered_seg/{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--matched.igv.seg"
 
     battenberg:
         inputs:
@@ -93,19 +88,3 @@ lcr-modules:
             bam_sort: 48000
         threads:
             bam_sort: 12
-
-    hmftools:
-        inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
-            # Available wildcards: {seq_type} {genome_build} {tumour_id}
-            # Note: Only outputs of running Strelka in matched normal mode are accepted
-            # Must be in bgzip with `.vcf.gz` extension.
-            strelka_vcf: "results/strelka-1.1/99-outputs/vcf/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched.strelka.combined.vcf.gz"
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
-            # Note: These are output by the gripss somatic filtering step of the gridss module
-            gridss_somatic: "results/gridss-1.1/99-outputs/vcf/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched.gridss_somatic.vcf.gz" # Output of GRIPSS
-            gridss_somatic_tbi: "results/gridss-1.1/99-outputs/vcf/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched.gridss_somatic.vcf.gz.tbi"
-            gridss_somatic_filtered: "results/gridss-1.1/99-outputs/vcf/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched.gridss_somatic_filtered.vcf.gz" # Filtered output of GRIPSS
-            gridss_somatic_filtered_tbi: "results/gridss-1.1/99-outputs/vcf/genome--grch37/TCRBOA7-T-WGS--TCRBOA7-N-WGS--matched.gridss_somatic_filtered.vcf.gz.tbi"

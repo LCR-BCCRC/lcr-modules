@@ -8,6 +8,7 @@ Compatibility of a workflow can be checked by referring to the pairing_config pa
 
 import oncopipe as op
 
+# filter sample table to use only capture seq_type
 SAMPLES = op.load_samples("data/samples.tsv")
 CAPTURE = op.filter_samples(SAMPLES, seq_type = "capture")
 
@@ -33,9 +34,7 @@ configfile: "../modules/picard_qc/1.0/config/default.yaml"
 configfile: "../modules/bam2fastq/1.2/config/default.yaml"
 configfile: "../modules/sequenza/1.4/config/default.yaml"
 configfile: "../modules/bwa_mem/1.1/config/default.yaml"
-configfile: "../modules/gridss/1.1/config/default.yaml"
 configfile: "../modules/utils/2.1/config/default.yaml"
-configfile: "../modules/varscan/1.1/config/default.yaml"
 configfile: "../modules/liftover/1.2/config/default.yaml"
 configfile: "../modules/battenberg/1.2/config/default.yaml"
 configfile: "../modules/pathseq/1.0/config/default.yaml"
@@ -60,9 +59,7 @@ include: "../modules/picard_qc/1.0/picard_qc.smk"
 include: "../modules/bam2fastq/1.2/bam2fastq.smk"
 include: "../modules/sequenza/1.4/sequenza.smk"
 include: "../modules/bwa_mem/1.1/bwa_mem.smk"
-include: "../modules/gridss/1.1/gridss.smk"
 include: "../modules/utils/2.1/utils.smk"
-include: "../modules/varscan/1.1/varscan.smk"
 include: "../modules/liftover/1.2/liftover.smk"
 include: "../modules/battenberg/1.2/battenberg.smk"
 include: "../modules/pathseq/1.0/pathseq.smk"
@@ -73,12 +70,10 @@ include: "../modules/pathseq/1.0/pathseq.smk"
 rule all:
     input:
         rules._slms_3_all.input,
-        rules._picard_qc_all.input, 
-        rules._bam2fastq_all.input, 
-        rules._sequenza_all.input, 
-        rules._bwa_mem_all.input, 
-        rules._gridss_all.input, 
-        rules._varscan_all.input,
+        rules._picard_qc_all.input,
+        rules._bam2fastq_all.input,
+        rules._sequenza_all.input,
+        rules._bwa_mem_all.input,
         rules._liftover_all.input,
         rules._battenberg_all.input,
         rules._pathseq_all.input
