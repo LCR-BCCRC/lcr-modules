@@ -2,7 +2,7 @@ lcr-modules:
     _shared:
         lcr-modules: "../"
         lcr-scripts: "../../lcr-scripts/"
-        root_output_dir: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/"
+        root_output_dir: "results/"
         scratch_directory: "scratch/"
         unmatched_normal_ids:
             genome--grch37: "TCRBOA7-N-WGS"
@@ -31,8 +31,8 @@ lcr-modules:
 
     bwa_mem:
         inputs:
-            sample_fastq_1: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read2.fastq.gz"
+            sample_fastq_1: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read2.fastq.gz"
         scratch_subdirectories: []
 
     controlfreec:
@@ -53,17 +53,17 @@ lcr-modules:
 
     mixcr:
         inputs:
-            sample_fastq_1: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read1.fastq.gz"
-            sample_fastq_2: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read2.fastq.gz"
+            sample_fastq_1: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read2.fastq.gz"
             # Path to the directory where MIXCR should be installed
             mixcr_exec: "data"
 
     liftover:
         tool: "sequenza"
         dirs:
-            _parent: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/sequenza-1.4_liftover-1.2"
+            _parent: "results/sequenza-1.4_liftover-1.2"
         inputs:
-            sample_seg: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/sequenza-1.4/99-outputs/filtered_seg/{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--matched.igv.seg"
+            sample_seg: "results/sequenza-1.4/99-outputs/filtered_seg/{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--matched.igv.seg"
 
     battenberg:
         inputs:
