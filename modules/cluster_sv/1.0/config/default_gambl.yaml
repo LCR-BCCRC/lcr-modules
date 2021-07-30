@@ -1,0 +1,48 @@
+lcr-modules:
+    
+    cluster_sv:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id}
+            sample_vcf: "__UPDATE__"
+        
+        scripts:
+            vcf_annotation_script: "{MODSDIR}/etc/scripts/annotateSV.R"
+            ffpe_filter_script: "{MODSDIR}/etc/scripts/ffpe_filter_bedpe.R"
+
+
+        options:
+            cluster_sv_version: 1.1.0
+            # by default cluster sv references is included in the CLusterSV github repo
+            # user can change this to use personalized references
+
+            vaf_threshold: 0
+
+            filter:
+                # list of bed files separated by a space
+                bed_list: "{MODSDIR}/etc/filter_files/hg38.germline.filter.bed {MODSDIR}/etc/filter_files/nstd166.GRCh38.variant_region.bed {MODSDIR}/etc/bilter_files/nstd175.GRCh38.variant_region.bed"
+                # blacklist regions in BEDPE format
+                blacklist: "{MODSDIR}/etc/filter_files/BL_blacklist.bedpe"
+
+            blacklist_filter: "-slop 500 -is"
+            ffpe_filter: "-svtype INV -size_thres 750"
+
+
+            # If using cluster_sv_combine.smk
+            # cohort: "__UPDATE__"
+
+        conda_envs:
+            cluster_sv: "{MODSDIR}/envs/r-cluster_sv.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            gridss: "{MODSDIR}/envs/gridss-dependencies-2.9.4.yaml"
+            
+        threads:
+            cluster_sv: 12
+
+        mem_mb:
+            cluster_sv: 8000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False

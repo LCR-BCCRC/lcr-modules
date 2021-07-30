@@ -3,14 +3,27 @@ lcr-modules:
     cluster_sv:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id}
-            sample_bedpe: "__UPDATE__"
+            sample_vcf: "__UPDATE__"
         
+        scripts:
+            vcf_annotation_script: "__UPDATE__"
+            ffpe_filter_script: "__UPDATE__"
+
+
         options:
             cluster_sv_version: 1.1.0
             # by default cluster sv references is included in the CLusterSV github repo
             # user can change this to use personalized references
-            chr_sizes: null
-            cen_telo_coords: null
+
+            vaf_threshold: 0
+
+            filter:
+                bed_list: ""
+                blacklist: ""
+
+            blacklist_filter: "-slop 500 -is"
+            ffpe_filter: "-svtype INV -size_thres 750"
+
 
             # If using cluster_sv_combine.smk
             # cohort: "__UPDATE__"
@@ -19,13 +32,12 @@ lcr-modules:
             cluster_sv: "{MODSDIR}/envs/r-cluster_sv.yaml"
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
             gridss: "{MODSDIR}/envs/gridss-dependencies-2.9.4.yaml"
-            svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
             
         threads:
-            cluster_sv: 4
+            cluster_sv: 12
 
         mem_mb:
-            cluster_sv: 2000
+            cluster_sv: 8000
 
         pairing_config:
             genome:
