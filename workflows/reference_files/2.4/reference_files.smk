@@ -381,3 +381,35 @@ rule get_mutect2_small_exac:
             &&
         tabix {output.vcf}
         """)
+
+
+##### SigProfiler #####
+
+rule install_sigprofiler_matrix_generator:
+    output:
+        complete = "downloads/sigprofiler_prereqs/matrix_generator.installed"
+    conda: CONDA_ENVS["sigprofiler"]
+    shell:
+        "pip install SigProfilerMatrixGenerator && touch {output.complete}"
+
+rule install_sigprofiler_genome:
+    input:
+        str(rules.install_sigprofiler_matrix_generator.output.complete)
+    output:
+        complete = "downloads/sigprofiler_prereqs/{genome_build}.installed"
+    conda: CONDA_ENVS["sigprofiler"]
+    shell:
+        op.as_one_line(""" 
+        python -c 'from SigProfilerMatrixGenerator import install as genInstall
+        genInstall.install("{wildcards.genome_build}", rsync = False, bash = True)
+        ' 
+            && 
+        touch {output.complete}
+        """)
+
+rule install_sigprofiler_extractor:
+    output:
+        complete = "downloads/sigprofiler_prereqs/extractor.installed"
+    conda: CONDA_ENVS["sigprofiler"]
+    shell:
+        "pip install SigProfilerExtractor && touch {output.complete}"
