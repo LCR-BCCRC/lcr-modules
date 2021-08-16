@@ -2,25 +2,29 @@ lcr-modules:
     
     sigprofiler:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_maf: "__UPDATE__"
+            # DOES NOT INTERPOLATE WILDCARDS
+            # Provide concantenated MAF file (e.g., path/to/filename.{seq_type}.{genome_build}.maf)
+            # Replace {genome_build} with actual build (i.e., hg38, grch37, etc) and 
+            # {seq_type} with either genome or capture
+            maf: "__UPDATE__"
+
+            generator: "{MODSDIR}/src/python/run_generator.py"
+            extractor: "{MODSDIR}/src/python/run_extractor.py"
 
         scratch_subdirectories: []
 
-        options:
-            step_1: ""
-            step_2: ""
-
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            sigprofiler: "{MODSDIR}/envs/sigprofiler-1.1.yaml"
             
         threads:
-            step_1: 4
-
+            generator: 1
+            estimate: 25
+            extract: 25
         mem_mb:
-            step_1: 2000
+            generator: 20000
+            estimate: 4000
+            extract: 4000
 
         pairing_config:
             genome:
