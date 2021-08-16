@@ -397,12 +397,14 @@ rule install_sigprofiler_genome:
         str(rules.install_sigprofiler_matrix_generator.output.complete)
     output:
         complete = "downloads/sigprofiler_prereqs/{genome_build}.installed"
+    params:
+        ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
+                         "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build]
     conda: CONDA_ENVS["sigprofiler"]
     shell:
         op.as_one_line(""" 
         python -c 'from SigProfilerMatrixGenerator import install as genInstall
-        genInstall.install("{wildcards.genome_build}", rsync = False, bash = True)
-        ' 
+        genInstall.install("{params.ref}", rsync = False, bash = True)' 
             && 
         touch {output.complete}
         """)
