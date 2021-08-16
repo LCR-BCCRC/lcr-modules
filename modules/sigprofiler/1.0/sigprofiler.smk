@@ -14,107 +14,169 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+import os.path
+
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+import pkg_resources
+try:
+     from packaging import version
+     except ModuleNotFoundError:
+             sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_resources.get_distribution("oncopipe").version
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
+    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section
 
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["sigprofiler"]`
 CFG = op.setup_module(
     name = "sigprofiler",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "sigprofiler", "outputs"],
+    subdirectories = ["inputs", "matrices", "estimate", "extract", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _sigprofiler_input_maf,
-    _sigprofiler_step_2,
     _sigprofiler_output_tsv,
     _sigprofiler_all,
 
+
+##### FUNCTIONS #####
+
+def get_dir(wildcards):
+    if wildcards.type == 'ID83':
+        topdir = 'ID'
+    elif wildcards.type == 'SBS96':
+        topdir = 'SBS'
+    elif wildcards.type == 'DBS78':
+        topdir = 'DBS'
+
+    cc = config["lcr-modules"]["sigprofiler"]
+    mat = cc["dirs"]["matrices"]+f"{wildcards.seq_type}--{wildcards.genome_build}/{wildcards.file}/output/{topdir}/{wildcards.file}.{wildcards.type}.all"
+    ret = {'script' : cc["inputs"]["extractor"], 'mat' : mat}
+    return(ret)
+
+def extract_wildcards():
+    maf = config["lcr-modules"]["sigprofiler"]["inputs"]["maf"]
+    maf_filename = os.path.basename(maf)
+
+    file, seq_type, build, ext = maf_filename.split('.')
+    sp_config = {"file" : file, "seq_type" : seq_type, "build" : build}
+    return(sp_config)
+
+CFG["wc"] = extract_wildcards()
 
 ##### RULES #####
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
 rule _sigprofiler_input_maf:
     input:
-        maf = CFG["inputs"]["sample_maf"]
+        maf = CFG["inputs"]["maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{sample_id}.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{file}.maf"
     run:
         op.relative_symlink(input.maf, output.maf)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _sigprofiler_step_1:
+rule _sigprofiler_run_generator:
     input:
-        tumour_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}.maf",
-        normal_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{normal_id}.maf",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        mg = reference_files("downloads/sigprofiler_preqreqs/{genome_build}.installed"),
+        script = CFG["inputs"]["generator"],
+        maf = str(rules._sigprofiler_input_maf.output.maf)
     output:
-        tsv = CFG["dirs"]["sigprofiler"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.tsv"
-    log:
-        stdout = CFG["logs"]["sigprofiler"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-        stderr = CFG["logs"]["sigprofiler"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
+        sbs96=CFG["dirs"]["matrices"]+"{seq_type}--{genome_build}/{file}/output/SBS/{file}.SBS96.all",
+        dbs78=CFG["dirs"]["matrices"]+"{seq_type}--{genome_build}/{file}/output/DBS/{file}.DBS78.all",
+        id83=CFG["dirs"]["matrices"]+"{seq_type}--{genome_build}/{file}/output/ID/{file}.ID78.all"
     params:
-        opts = CFG["options"]["step_1"]
-    conda:
-        CFG["conda_envs"]["samtools"]
-    threads:
-        CFG["threads"]["step_1"]
-    resources:
-        mem_mb = CFG["mem_mb"]["step_1"]
+        ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
+                         "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build]
+    conda: CONDA_ENVS["sigprofiler"]
+    threads: CFG["threads"]["generator"]
+    shell:
+        "python {input.script} {wildcards.file} {params.ref} {input.maf}"
+
+rule _sigprofiler_run_estimate:
+    input:
+        unpack(get_dir),
+        ex = reference_files("downloads/sigprofiler_prereqs/extractor.installed")
+    output:
+        stat = "02-estimate/{seq_type}--{genome_build}/{file}/{type}/All_solutions_stat.csv"
+    params:
+        ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
+                         "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build],
+        context_type = '96,DINUC,ID',
+        exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
+        min_sig = 1,
+        max_sig = lambda w: {'SBS96': 20, 'DBS78': 15, 'ID83': 10}[wc.type],
+        nmf_repl = 30,
+        norm = 'gmm',
+        nmf_init = 'nndsvd_min'
+    conda: CONDA_ENVS["sigprofiler"]
+    threads: CFG["threads"]["estimate"]
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --tumour {input.tumour_maf} --normal {input.normal_maf}
-        --ref-fasta {input.fasta} --output {output.tsv} --threads {threads}
-        > {log.stdout} 2> {log.stderr}
+        python {input.script} {input.mat} 
+        CFG["dirs"]["estimate"]+{wildcards.seq_type}--{wildcards.genome_build}/{wildcards.file} 
+        {params.ref} {params.context_type} {params.exome} {params.min_sig {params.max_sig} 
+        {params.nmf_repl} {params.norm} {params.nmf_init} {threads}
         """)
 
-
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _sigprofiler_step_2:
+rule _sigprofiler_run_extract:
     input:
-        tsv = str(rules._sigprofiler_step_1.output.tsv)
+        unpack(get_dir),
+        stat = str(rules._sigprofiler_run_estimate.output.stat)
     output:
-        tsv = CFG["dirs"]["sigprofiler"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.tsv"
-    log:
-        stderr = CFG["logs"]["sigprofiler"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
+        decomp = "03-extract/{seq_type}--{genome_build}/{file}/{type}/Suggested_Solution/COSMIC_{type}_Decomposed_Solution/De_Novo_map_to_COSMIC_{type}.csv"
     params:
-        opts = CFG["options"]["step_2"]
+        ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37", 
+                         "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build],
+        context_type = '96,DINUC,ID',
+        exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
+        nmf_repl = 200,
+        norm = 'gmm',
+        nmf_init = 'nndsvd_min'
+    conda: CONDA_ENVS["sigprofiler"]
+    threads: CFG["threads"]["extract"]
     shell:
-        "grep {params.opts} {input.tsv} > {output.tsv} 2> {log.stderr}"
-
+        op.as_one_line("""
+        python {input.script} {input.mat} 
+        CFG["dirs"]["extract"]+{wildcards.seq_type}--{wildcards.genome_build}/{wildcards.file}
+        {params.ref} {params.context_type} {params.exome}
+        $(awk 'BEGIN {{OFS=FS=","}} $1 ~ "*" {{S=substr($1,1,length($1)-1); if (S-2<1) {{print 1}} else {{print S-2}}}}' {input.stat})
+        $(awk 'BEGIN {{OFS=FS=","}} $1 ~ "*" {{S=substr($1,1,length($1)-1); print S+2}}' {input.stat})
+        {params.nmf_repl} {params.norm} {params.nmf_init} {threads}
+        """)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _sigprofiler_output_tsv:
     input:
-        tsv = str(rules._sigprofiler_step_2.output.tsv)
+        decomp = str(rules._sigprofiler_run_extract.output.decomp)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.tsv"
+        decomp = CFG["dirs"]["outputs"] + "cosmic_sigs/{seq_type}--{genome_build}/{file}/{type}/Suggested_Solution/COSMIC_{type}_Decomposed_Solution/De_Novo_map_to_COSMIC_{type}.csv"
     run:
-        op.relative_symlink(input.tsv, output.tsv)
-
+        op.relative_symlink(input.decomp, output.decomp)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _sigprofiler_all:
     input:
         expand(
             [
-                str(rules._sigprofiler_output_tsv.output.tsv),
-                # TODO: If applicable, add other output rules here
+                str(rules._sigprofiler_output_tsv.output.decomp),
             ],
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            genome_build=CFG["runs"]["tumour_genome_build"],
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            product,
+            seq_type = CFG["wc"]["seq_type"],
+            genome_build = CFG["wc"]["build"],
+            file = CFG["wc"]["file"],
+            type = ["SBS96"])
 
 
 ##### CLEANUP #####
