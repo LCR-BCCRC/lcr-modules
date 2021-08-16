@@ -1,0 +1,33 @@
+lcr-modules:
+    
+    sigprofiler:
+
+        # TODO: Update the list of available wildcards, if applicable
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_maf: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            step_1: ""
+            step_2: ""
+
+        conda_envs:
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            
+        threads:
+            step_1: 4
+
+        mem_mb:
+            step_1: 2000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
