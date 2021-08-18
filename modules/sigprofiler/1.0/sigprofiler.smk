@@ -20,9 +20,9 @@ import os.path
 min_oncopipe_version="1.0.11"
 import pkg_resources
 try:
-     from packaging import version
-     except ModuleNotFoundError:
-             sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
@@ -76,6 +76,36 @@ CFG["wc"] = extract_wildcards()
 
 ##### RULES #####
 
+rule _install_sigprofiler_matrix_generator:
+    output:
+        complete = CFG["dirs"]["inputs"] + "sigprofiler_prereqs/matrix_generator.installed"
+    conda: CFG["conda_envs"]["sigprofiler"]
+    shell:
+        "pip install SigProfilerMatrixGenerator && touch {output.complete}"
+
+rule _install_sigprofiler_genome:
+    input:
+        str(rules._install_sigprofiler_matrix_generator.output.complete)
+    output:
+        complete = CFG["dirs"]["inputs"] + "sigprofiler_prereqs/{genome_build}.installed"
+    params:
+        ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
+                         "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build]
+    conda: CFG["conda_envs"]["sigprofiler"]
+    shell:
+        op.as_one_line("""
+        python -c 'from SigProfilerMatrixGenerator import install as genInstall
+        genInstall.install("{params.ref}", rsync = False, bash = True)'
+            &&
+        touch {output.complete}
+        """)
+
+rule _install_sigprofiler_extractor:
+    output:
+        complete = CFG["dirs"]["inputs"] + "sigprofiler_prereqs/extractor.installed"
+    conda: CFG["conda_envs"]["sigprofiler"]
+    shell:
+        "pip install SigProfilerExtractor && touch {output.complete}"
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _sigprofiler_input_maf:
@@ -89,7 +119,7 @@ rule _sigprofiler_input_maf:
 
 rule _sigprofiler_run_generator:
     input:
-        mg = reference_files("downloads/sigprofiler_preqreqs/{genome_build}.installed"),
+        mg = str(rules._install_sigprofiler_genome.output.complete),
         script = CFG["inputs"]["generator"],
         maf = str(rules._sigprofiler_input_maf.output.maf)
     output:
@@ -99,7 +129,7 @@ rule _sigprofiler_run_generator:
     params:
         ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
                          "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build]
-    conda: CONDA_ENVS["sigprofiler"]
+    conda: CFG["conda_envs"]["sigprofiler"]
     threads: CFG["threads"]["generator"]
     shell:
         "python {input.script} {wildcards.file} {params.ref} {input.maf}"
@@ -107,7 +137,7 @@ rule _sigprofiler_run_generator:
 rule _sigprofiler_run_estimate:
     input:
         unpack(get_dir),
-        ex = reference_files("downloads/sigprofiler_prereqs/extractor.installed")
+        ex = str(rules._install_sigprofiler_extractor.output.complete)
     output:
         stat = "02-estimate/{seq_type}--{genome_build}/{file}/{type}/All_solutions_stat.csv"
     params:
@@ -116,17 +146,17 @@ rule _sigprofiler_run_estimate:
         context_type = '96,DINUC,ID',
         exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
         min_sig = 1,
-        max_sig = lambda w: {'SBS96': 20, 'DBS78': 15, 'ID83': 10}[wc.type],
+        max_sig = lambda w: {'SBS96': 20, 'DBS78': 15, 'ID83': 10}[w.type],
         nmf_repl = 30,
         norm = 'gmm',
         nmf_init = 'nndsvd_min'
-    conda: CONDA_ENVS["sigprofiler"]
+    conda: CFG["conda_envs"]["sigprofiler"]
     threads: CFG["threads"]["estimate"]
     shell:
         op.as_one_line("""
         python {input.script} {input.mat} 
-        CFG["dirs"]["estimate"]+{wildcards.seq_type}--{wildcards.genome_build}/{wildcards.file} 
-        {params.ref} {params.context_type} {params.exome} {params.min_sig {params.max_sig} 
+        CFG['dirs']['estimate']+{wildcards.seq_type}--{wildcards.genome_build}/{wildcards.file} 
+        {params.ref} {params.context_type} {params.exome} {params.min_sig} {params.max_sig} 
         {params.nmf_repl} {params.norm} {params.nmf_init} {threads}
         """)
 
@@ -144,7 +174,7 @@ rule _sigprofiler_run_extract:
         nmf_repl = 200,
         norm = 'gmm',
         nmf_init = 'nndsvd_min'
-    conda: CONDA_ENVS["sigprofiler"]
+    conda: CFG["conda_envs"]["sigprofiler"]
     threads: CFG["threads"]["extract"]
     shell:
         op.as_one_line("""
@@ -172,7 +202,7 @@ rule _sigprofiler_all:
             [
                 str(rules._sigprofiler_output_tsv.output.decomp),
             ],
-            product,
+            #product,
             seq_type = CFG["wc"]["seq_type"],
             genome_build = CFG["wc"]["build"],
             file = CFG["wc"]["file"],
