@@ -94,7 +94,7 @@ rule _install_sigprofiler_genome:
     conda: CFG["conda_envs"]["sigprofiler"]
     shell:
         op.as_one_line("""
-        python -c 'from SigProfilerMatrixGenerator import install as genInstall
+        python -c 'from SigProfilerMatrixGenerator import install as genInstall;
         genInstall.install("{params.ref}", rsync = False, bash = True)'
             &&
         touch {output.complete}
@@ -139,7 +139,7 @@ rule _sigprofiler_run_estimate:
         unpack(get_dir),
         ex = str(rules._install_sigprofiler_extractor.output.complete)
     output:
-        stat = "02-estimate/{seq_type}--{genome_build}/{file}/{type}/All_solutions_stat.csv"
+        stat = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{file}/{type}/All_solutions_stat.csv"
     params:
         ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
                          "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build],
@@ -165,7 +165,7 @@ rule _sigprofiler_run_extract:
         unpack(get_dir),
         stat = str(rules._sigprofiler_run_estimate.output.stat)
     output:
-        decomp = "03-extract/{seq_type}--{genome_build}/{file}/{type}/Suggested_Solution/COSMIC_{type}_Decomposed_Solution/De_Novo_map_to_COSMIC_{type}.csv"
+        decomp = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{file}/{type}/Suggested_Solution/COSMIC_{type}_Decomposed_Solution/De_Novo_map_to_COSMIC_{type}.csv"
     params:
         ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37", 
                          "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build],
