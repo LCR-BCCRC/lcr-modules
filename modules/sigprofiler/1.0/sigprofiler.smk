@@ -149,7 +149,7 @@ rule _sigprofiler_run_estimate:
         max_sig = lambda w: {'SBS96': 20, 'DBS78': 15, 'ID83': 10}[w.type],
         nmf_repl = 30,
         norm = 'gmm',
-        nmf_init = 'nndsvd_min'
+        nmf_init = 'nndsvd_min',
         outpath = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{file}"
     conda: CFG["conda_envs"]["sigprofiler"]
     threads: CFG["threads"]["estimate"]
