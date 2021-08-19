@@ -3,10 +3,7 @@ lcr-modules:
     sigprofiler:
 
         inputs:
-            # DOES NOT INTERPOLATE WILDCARDS
-            # Provide concantenated MAF file (e.g., path/to/filename.{seq_type}.{genome_build}.maf)
-            # Replace {genome_build} with actual build (i.e., hg38, grch37, etc) and 
-            # {seq_type} with either genome or capture
+            # Available wildcards: {file}, {seq_type}, {genome_build}
             maf: "__UPDATE__"
 
             generator: "{MODSDIR}/src/python/run_generator.py"
@@ -23,8 +20,8 @@ lcr-modules:
             extract: 25
         mem_mb:
             generator: 20000
-            estimate: 4000
-            extract: 4000
+            estimate: 1000
+            extract: 1000
 
         pairing_config:
             genome:
