@@ -60,19 +60,10 @@ def get_dir(wildcards):
         topdir = 'DBS'
 
     cc = config["lcr-modules"]["sigprofiler"]
-    mat = cc["dirs"]["inputs"]+f"maf/{wildcards.seq_type}--{wildcards.genome_build}/output/{topdir}/{wildcards.file}.{wildcards.type}.all"
+    mat = cc["dirs"]["inputs"]+f"matrices/{wildcards.seq_type}--{wildcards.genome_build}/{wildcards.file}/output/{topdir}/{wildcards.file}.{wildcards.type}.all"
     ret = {'script' : cc["inputs"]["extractor"], 'mat' : mat}
     return(ret)
 
-#def extract_wildcards():
-#    maf = config["lcr-modules"]["sigprofiler"]["inputs"]["maf"]
-#    maf_filename = os.path.basename(maf)
-#
-#    file, seq_type, build, ext = maf_filename.split('.')
-#    sp_config = {"file" : file, "seq_type" : seq_type, "build" : build}
-#    return(sp_config)
-
-# CFG["wc"] = extract_wildcards()
 
 ##### RULES #####
 
@@ -112,7 +103,7 @@ rule _sigprofiler_input_maf:
     input:
         maf = CFG["inputs"]["maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{file}.maf"
+        maf = CFG["dirs"]["inputs"] + "matrices/{seq_type}--{genome_build}/{file}/{file}.maf"
     run:
         op.relative_symlink(input.maf, output.maf)
 
@@ -123,9 +114,9 @@ rule _sigprofiler_run_generator:
         script = CFG["inputs"]["generator"],
         maf = str(rules._sigprofiler_input_maf.output.maf)
     output:
-        sbs96=CFG["dirs"]["inputs"]+"maf/{seq_type}--{genome_build}/output/SBS/{file}.SBS96.all",
-        dbs78=CFG["dirs"]["inputs"]+"maf/{seq_type}--{genome_build}/output/DBS/{file}.DBS78.all",
-        id83=CFG["dirs"]["inputs"]+"maf/{seq_type}--{genome_build}/output/ID/{file}.ID78.all"
+        sbs96=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{file}/output/SBS/{file}.SBS96.all"
+        dbs78=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{file}/output/DBS/{file}.DBS78.all",
+        id83=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{file}/output/ID/{file}.ID78.all"
     params:
         ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
                          "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build]
@@ -191,7 +182,7 @@ rule _sigprofiler_output_tsv:
     input:
         decomp = str(rules._sigprofiler_run_extract.output.decomp)
     output:
-        decomp = CFG["dirs"]["outputs"] + "cosmic_sigs/{seq_type}--{genome_build}/{file}/{type}/Suggested_Solution/COSMIC_{type}_Decomposed_Solution/De_Novo_map_to_COSMIC_{type}.csv"
+        decomp = CFG["dirs"]["outputs"] + "cosmic_sigs/{seq_type}--{genome_build}/{file}.COSMIC_{type}.De_Novo_map_to_COSMIC_{type}.csv"
     run:
         op.relative_symlink(input.decomp, output.decomp)
 
