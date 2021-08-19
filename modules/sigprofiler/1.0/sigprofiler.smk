@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "sigprofiler",
     version = "1.0",
-    subdirectories = ["inputs", "matrices", "estimate", "extract", "outputs"],
+    subdirectories = ["inputs", "estimate", "extract", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -60,19 +60,19 @@ def get_dir(wildcards):
         topdir = 'DBS'
 
     cc = config["lcr-modules"]["sigprofiler"]
-    mat = cc["dirs"]["matrices"]+f"{wildcards.seq_type}--{wildcards.genome_build}/{wildcards.file}/output/{topdir}/{wildcards.file}.{wildcards.type}.all"
+    mat = cc["dirs"]["inputs"]+f"maf/{wildcards.seq_type}--{wildcards.genome_build}/output/{topdir}/{wildcards.file}.{wildcards.type}.all"
     ret = {'script' : cc["inputs"]["extractor"], 'mat' : mat}
     return(ret)
 
-def extract_wildcards():
-    maf = config["lcr-modules"]["sigprofiler"]["inputs"]["maf"]
-    maf_filename = os.path.basename(maf)
+#def extract_wildcards():
+#    maf = config["lcr-modules"]["sigprofiler"]["inputs"]["maf"]
+#    maf_filename = os.path.basename(maf)
+#
+#    file, seq_type, build, ext = maf_filename.split('.')
+#    sp_config = {"file" : file, "seq_type" : seq_type, "build" : build}
+#    return(sp_config)
 
-    file, seq_type, build, ext = maf_filename.split('.')
-    sp_config = {"file" : file, "seq_type" : seq_type, "build" : build}
-    return(sp_config)
-
-CFG["wc"] = extract_wildcards()
+# CFG["wc"] = extract_wildcards()
 
 ##### RULES #####
 
@@ -123,9 +123,9 @@ rule _sigprofiler_run_generator:
         script = CFG["inputs"]["generator"],
         maf = str(rules._sigprofiler_input_maf.output.maf)
     output:
-        sbs96=CFG["dirs"]["matrices"]+"{seq_type}--{genome_build}/{file}/output/SBS/{file}.SBS96.all",
-        dbs78=CFG["dirs"]["matrices"]+"{seq_type}--{genome_build}/{file}/output/DBS/{file}.DBS78.all",
-        id83=CFG["dirs"]["matrices"]+"{seq_type}--{genome_build}/{file}/output/ID/{file}.ID78.all"
+        sbs96=CFG["dirs"]["inputs"]+"maf/{seq_type}--{genome_build}/output/SBS/{file}.SBS96.all",
+        dbs78=CFG["dirs"]["inputs"]+"maf/{seq_type}--{genome_build}/output/DBS/{file}.DBS78.all",
+        id83=CFG["dirs"]["inputs"]+"maf/{seq_type}--{genome_build}/output/ID/{file}.ID78.all"
     params:
         ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
                          "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build]
@@ -150,12 +150,12 @@ rule _sigprofiler_run_estimate:
         nmf_repl = 30,
         norm = 'gmm',
         nmf_init = 'nndsvd_min'
+        outpath = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{file}"
     conda: CFG["conda_envs"]["sigprofiler"]
     threads: CFG["threads"]["estimate"]
     shell:
         op.as_one_line("""
-        python {input.script} {input.mat} 
-        CFG['dirs']['estimate']+{wildcards.seq_type}--{wildcards.genome_build}/{wildcards.file} 
+        python {input.script} {input.mat} {params.outpath} 
         {params.ref} {params.context_type} {params.exome} {params.min_sig} {params.max_sig} 
         {params.nmf_repl} {params.norm} {params.nmf_init} {threads}
         """)
@@ -173,13 +173,13 @@ rule _sigprofiler_run_extract:
         exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
         nmf_repl = 200,
         norm = 'gmm',
-        nmf_init = 'nndsvd_min'
+        nmf_init = 'nndsvd_min',
+        outpath = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{file}"
     conda: CFG["conda_envs"]["sigprofiler"]
     threads: CFG["threads"]["extract"]
     shell:
         op.as_one_line("""
-        python {input.script} {input.mat} 
-        CFG["dirs"]["extract"]+{wildcards.seq_type}--{wildcards.genome_build}/{wildcards.file}
+        python {input.script} {input.mat} {params.outpath} 
         {params.ref} {params.context_type} {params.exome}
         $(awk 'BEGIN {{OFS=FS=","}} $1 ~ "*" {{S=substr($1,1,length($1)-1); if (S-2<1) {{print 1}} else {{print S-2}}}}' {input.stat})
         $(awk 'BEGIN {{OFS=FS=","}} $1 ~ "*" {{S=substr($1,1,length($1)-1); print S+2}}' {input.stat})
@@ -202,11 +202,11 @@ rule _sigprofiler_all:
             [
                 str(rules._sigprofiler_output_tsv.output.decomp),
             ],
-            #product,
-            seq_type = CFG["wc"]["seq_type"],
-            genome_build = CFG["wc"]["build"],
-            file = CFG["wc"]["file"],
-            type = ["SBS96"])
+            zip,
+            seq_type = CFG["mafs"]["seq_type"],
+            genome_build = CFG["mafs"]["genome_build"],
+            file = CFG["mafs"]["filename"],
+            type = CFG["mafs"]["type"])
 
 
 ##### CLEANUP #####
