@@ -114,9 +114,9 @@ rule _sigprofiler_run_generator:
         script = CFG["inputs"]["generator"],
         maf = str(rules._sigprofiler_input_maf.output.maf)
     output:
-        sbs96=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{file}/output/SBS/{file}.SBS96.all"
+        sbs96=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{file}/output/SBS/{file}.SBS96.all",
         dbs78=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{file}/output/DBS/{file}.DBS78.all",
-        id83=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{file}/output/ID/{file}.ID78.all"
+        id83=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{file}/output/ID/{file}.ID83.all"
     params:
         ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
                          "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build]
@@ -190,14 +190,13 @@ rule _sigprofiler_output_tsv:
 rule _sigprofiler_all:
     input:
         expand(
-            [
-                str(rules._sigprofiler_output_tsv.output.decomp),
-            ],
+            expand(
+                CFG["dirs"]["outputs"] + "cosmic_sigs/{seq_type}--{genome_build}/{file}.COSMIC_{{type}}.De_Novo_map_to_COSMIC_{{type}}.csv",
             zip,
             seq_type = CFG["mafs"]["seq_type"],
-            genome_build = CFG["mafs"]["genome_build"],
-            file = CFG["mafs"]["filename"],
-            type = CFG["mafs"]["type"])
+            genome_build = CFG["mafs"]["projected_build"],
+            file = CFG["mafs"]["filename"]),
+         type = ['SBS96', 'ID83', 'DBS78'])
 
 
 ##### CLEANUP #####
