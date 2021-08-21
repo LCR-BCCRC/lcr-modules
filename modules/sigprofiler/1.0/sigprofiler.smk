@@ -70,16 +70,7 @@ def get_dir(wildcards):
 
 ##### RULES #####
 
-rule _install_sigprofiler_matrix_generator:
-    output:
-        complete = CFG["dirs"]["inputs"] + "sigprofiler_prereqs/matrix_generator.installed"
-    conda: CFG["conda_envs"]["sigprofiler"]
-    shell:
-        "pip install SigProfilerMatrixGenerator && touch {output.complete}"
-
 rule _install_sigprofiler_genome:
-    input:
-        str(rules._install_sigprofiler_matrix_generator.output.complete)
     output:
         complete = CFG["dirs"]["inputs"] + "sigprofiler_prereqs/{genome_build}.installed"
     params:
@@ -94,12 +85,6 @@ rule _install_sigprofiler_genome:
         touch {output.complete}
         """)
 
-rule _install_sigprofiler_extractor:
-    output:
-        complete = CFG["dirs"]["inputs"] + "sigprofiler_prereqs/extractor.installed"
-    conda: CFG["conda_envs"]["sigprofiler"]
-    shell:
-        "pip install SigProfilerExtractor && touch {output.complete}"
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _sigprofiler_input_maf:
