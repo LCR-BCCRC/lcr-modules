@@ -44,6 +44,9 @@ CFG = op.setup_module(
 
 # Define rules to be run locally when using a compute cluster
 localrules:
+    _install_sigprofiler_matrix_generator,
+    _install_sigprofiler_genome,
+    _install_sigprofiler_extractor,
     _sigprofiler_input_maf,
     _sigprofiler_output_tsv,
     _sigprofiler_all,
@@ -60,7 +63,7 @@ def get_dir(wildcards):
         topdir = 'DBS'
 
     cc = config["lcr-modules"]["sigprofiler"]
-    mat = cc["dirs"]["inputs"]+f"matrices/{wildcards.seq_type}--{wildcards.genome_build}/{wildcards.file}/output/{topdir}/{wildcards.file}.{wildcards.type}.all"
+    mat = cc["dirs"]["inputs"]+f"matrices/{wildcards.seq_type}--{wildcards.genome_build}/{wildcards.sample_set}/output/{topdir}/{wildcards.sample_set}.{wildcards.type}.all"
     ret = {'script' : cc["inputs"]["extractor"], 'mat' : mat}
     return(ret)
 
@@ -103,7 +106,7 @@ rule _sigprofiler_input_maf:
     input:
         maf = CFG["inputs"]["maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "matrices/{seq_type}--{genome_build}/{file}/{file}.maf"
+        maf = CFG["dirs"]["inputs"] + "matrices/{seq_type}--{genome_build}/{sample_set}/{sample_set}.maf"
     run:
         op.relative_symlink(input.maf, output.maf)
 
@@ -114,23 +117,23 @@ rule _sigprofiler_run_generator:
         script = CFG["inputs"]["generator"],
         maf = str(rules._sigprofiler_input_maf.output.maf)
     output:
-        sbs96=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{file}/output/SBS/{file}.SBS96.all",
-        dbs78=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{file}/output/DBS/{file}.DBS78.all",
-        id83=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{file}/output/ID/{file}.ID83.all"
+        sbs96=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{sample_set}/output/SBS/{sample_set}.SBS96.all",
+        dbs78=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{sample_set}/output/DBS/{sample_set}.DBS78.all",
+        id83=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{sample_set}/output/ID/{sample_set}.ID83.all"
     params:
         ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
                          "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build]
     conda: CFG["conda_envs"]["sigprofiler"]
     threads: CFG["threads"]["generator"]
     shell:
-        "python {input.script} {wildcards.file} {params.ref} {input.maf}"
+        "python {input.script} {wildcards.sample_set} {params.ref} {input.maf}"
 
 rule _sigprofiler_run_estimate:
     input:
         unpack(get_dir),
         ex = str(rules._install_sigprofiler_extractor.output.complete)
     output:
-        stat = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{file}/{type}/All_solutions_stat.csv"
+        stat = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{sample_set}/{type}/All_solutions_stat.csv"
     params:
         ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
                          "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build],
@@ -141,7 +144,7 @@ rule _sigprofiler_run_estimate:
         nmf_repl = 30,
         norm = 'gmm',
         nmf_init = 'nndsvd_min',
-        outpath = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{file}"
+        outpath = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{sample_set}"
     conda: CFG["conda_envs"]["sigprofiler"]
     threads: CFG["threads"]["estimate"]
     shell:
@@ -156,7 +159,7 @@ rule _sigprofiler_run_extract:
         unpack(get_dir),
         stat = str(rules._sigprofiler_run_estimate.output.stat)
     output:
-        decomp = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{file}/{type}/Suggested_Solution/COSMIC_{type}_Decomposed_Solution/De_Novo_map_to_COSMIC_{type}.csv"
+        decomp = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{sample_set}/{type}/Suggested_Solution/COSMIC_{type}_Decomposed_Solution/De_Novo_map_to_COSMIC_{type}.csv"
     params:
         ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37", 
                          "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build],
@@ -165,7 +168,7 @@ rule _sigprofiler_run_extract:
         nmf_repl = 200,
         norm = 'gmm',
         nmf_init = 'nndsvd_min',
-        outpath = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{file}"
+        outpath = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{sample_set}"
     conda: CFG["conda_envs"]["sigprofiler"]
     threads: CFG["threads"]["extract"]
     shell:
@@ -182,7 +185,7 @@ rule _sigprofiler_output_tsv:
     input:
         decomp = str(rules._sigprofiler_run_extract.output.decomp)
     output:
-        decomp = CFG["dirs"]["outputs"] + "cosmic_sigs/{seq_type}--{genome_build}/{file}.COSMIC_{type}.De_Novo_map_to_COSMIC_{type}.csv"
+        decomp = CFG["dirs"]["outputs"] + "cosmic_sigs/{seq_type}--{genome_build}/{sample_set}.COSMIC_{type}.De_Novo_map_to_COSMIC_{type}.csv"
     run:
         op.relative_symlink(input.decomp, output.decomp)
 
@@ -191,12 +194,12 @@ rule _sigprofiler_all:
     input:
         expand(
             expand(
-                CFG["dirs"]["outputs"] + "cosmic_sigs/{seq_type}--{genome_build}/{file}.COSMIC_{{type}}.De_Novo_map_to_COSMIC_{{type}}.csv",
-            zip,
-            seq_type = CFG["mafs"]["seq_type"],
-            genome_build = CFG["mafs"]["projected_build"],
-            file = CFG["mafs"]["filename"]),
-         type = ['SBS96', 'ID83', 'DBS78'])
+                CFG["dirs"]["outputs"] + "cosmic_sigs/{seq_type}--{genome_build}/{sample_set}.COSMIC_{{type}}.De_Novo_map_to_COSMIC_{{type}}.csv",
+                zip,
+                seq_type = CFG["mafs"]["seq_type"],
+                genome_build = CFG["mafs"]["projected_build"],
+                sample_set = CFG["mafs"]["sample_set"]),
+            type = ['SBS96', 'ID83', 'DBS78'])
 
 
 ##### CLEANUP #####
