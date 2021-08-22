@@ -9,6 +9,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Prasath Pararajalingam.
 
-<!-- TODO: Explain each important module design decision below. -->
+- NMF occurs in two stages (estimate and extract). Estimate runs NMF on a range of ranks with low numer of replications to find the optimal rank. Extract uses the optimal rank to run NMF on optimal rank +/- 2 using a high number of replications. This should provide a speed-up for matrices containing many tumour samples.
 
-- No module design decisions explained here yet.
