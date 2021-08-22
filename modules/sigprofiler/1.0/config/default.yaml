@@ -5,6 +5,11 @@ lcr-modules:
         inputs:
             # Available wildcards: {file}, {seq_type}, {genome_build}
             maf: "__UPDATE__"
+            # Choose any combination of:  
+            # SBS6, SBS18, SBS24, SBS96, SBS288, SBS384, SBS4608, SBS1536, SBS6144,
+            # ID28, ID83, ID96, ID332, ID415, ID8628,
+            # DBS78, DBS150, DBS186, DBS1248, DBS2400, DBS2976
+            type: ['SBS96']
 
             generator: "{MODSDIR}/src/python/run_generator.py"
             extractor: "{MODSDIR}/src/python/run_extractor.py"

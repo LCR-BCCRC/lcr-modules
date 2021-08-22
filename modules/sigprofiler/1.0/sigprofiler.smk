@@ -44,9 +44,7 @@ CFG = op.setup_module(
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _install_sigprofiler_matrix_generator,
     _install_sigprofiler_genome,
-    _install_sigprofiler_extractor,
     _sigprofiler_input_maf,
     _sigprofiler_output_tsv,
     _sigprofiler_all,
@@ -55,11 +53,11 @@ localrules:
 ##### FUNCTIONS #####
 
 def get_dir(wildcards):
-    if wildcards.type == 'ID83':
+    if "ID" in wildcards.type:
         topdir = 'ID'
-    elif wildcards.type == 'SBS96':
+    elif "SBS" in wildcards.type:
         topdir = 'SBS'
-    elif wildcards.type == 'DBS78':
+    elif "DBS" in wildcards.type:
         topdir = 'DBS'
 
     cc = config["lcr-modules"]["sigprofiler"]
@@ -67,6 +65,29 @@ def get_dir(wildcards):
     ret = {'script' : cc["inputs"]["extractor"], 'mat' : mat}
     return(ret)
 
+max_sigs = {
+    "SBS6"    : 10,
+    "SBS18"   : 10,
+    "SBS24"   : 20,
+    "SBS96"   : 20,
+    "SBS288"  : 25,
+    "SBS384"  : 25,
+    "SBS4608" : 30,
+    "SBS1536" : 30,
+    "SBS6144" : 35,
+    "ID28"    : 5,
+    "ID83"    : 5,
+    "ID96"    : 10,
+    "ID332"   : 10,
+    "ID415"   : 15,
+    "ID8628"  : 20,
+    "DBS78"   : 15,
+    "DBS150"  : 15,
+    "DBS186"  : 15,
+    "DBS1248" : 20,
+    "DBS2400" : 20,
+    "DBS2976" : 20
+}
 
 ##### RULES #####
 
@@ -102,9 +123,9 @@ rule _sigprofiler_run_generator:
         script = CFG["inputs"]["generator"],
         maf = str(rules._sigprofiler_input_maf.output.maf)
     output:
-        sbs96=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{sample_set}/output/SBS/{sample_set}.SBS96.all",
-        dbs78=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{sample_set}/output/DBS/{sample_set}.DBS78.all",
-        id83=CFG["dirs"]["inputs"]+"matrices/{seq_type}--{genome_build}/{sample_set}/output/ID/{sample_set}.ID83.all"
+        expand(CFG["dirs"]["inputs"] + "matrices/{{seq_type}}--{{genome_build}}/{{sample_set}}/output/SBS/{{sample_set}}.{type}.all", type = ['SBS6','SBS18','SBS24','SBS96','SBS288','SBS384','SBS4608','SBS1536','SBS6144']),
+        expand(CFG["dirs"]["inputs"] + "matrices/{{seq_type}}--{{genome_build}}/{{sample_set}}/output/ID/{{sample_set}}.{type}.all", type = ['ID28','ID83','ID96','ID332','ID415','ID8628']),
+        expand(CFG["dirs"]["inputs"] + "matrices/{{seq_type}}--{{genome_build}}/{{sample_set}}/output/DBS/{{sample_set}}.{type}.all", type = ['DBS78','DBS150','DBS186','DBS1248','DBS2400','DBS2976'])
     params:
         ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
                          "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build]
@@ -115,8 +136,7 @@ rule _sigprofiler_run_generator:
 
 rule _sigprofiler_run_estimate:
     input:
-        unpack(get_dir),
-        ex = str(rules._install_sigprofiler_extractor.output.complete)
+        unpack(get_dir)
     output:
         stat = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{sample_set}/{type}/All_solutions_stat.csv"
     params:
@@ -125,7 +145,7 @@ rule _sigprofiler_run_estimate:
         context_type = '96,DINUC,ID',
         exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
         min_sig = 1,
-        max_sig = lambda w: {'SBS96': 20, 'DBS78': 15, 'ID83': 10}[w.type],
+        max_sig = lambda w: max_sigs[w.type],
         nmf_repl = 30,
         norm = 'gmm',
         nmf_init = 'nndsvd_min',
@@ -184,7 +204,7 @@ rule _sigprofiler_all:
                 seq_type = CFG["mafs"]["seq_type"],
                 genome_build = CFG["mafs"]["projected_build"],
                 sample_set = CFG["mafs"]["sample_set"]),
-            type = ['SBS96', 'ID83', 'DBS78'])
+            type = CFG["inputs"]["type"])
 
 
 ##### CLEANUP #####
