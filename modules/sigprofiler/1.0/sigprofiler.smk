@@ -116,7 +116,7 @@ rule _sigprofiler_input_maf:
     run:
         op.relative_symlink(input.maf, output.maf)
 
-
+# Generates sample by k-mer context matrices from MAF
 rule _sigprofiler_run_generator:
     input:
         mg = str(rules._install_sigprofiler_genome.output.complete),
@@ -134,6 +134,7 @@ rule _sigprofiler_run_generator:
     shell:
         "python {input.script} {wildcards.sample_set} {params.ref} {input.maf}"
 
+# Performs NMF on a wide range of ranks to obtain the optimal signature rank
 rule _sigprofiler_run_estimate:
     input:
         unpack(get_dir)
@@ -159,6 +160,8 @@ rule _sigprofiler_run_estimate:
         {params.nmf_repl} {params.norm} {params.nmf_init} {threads}
         """)
 
+# Runs NMF around the optimal rank from _sigprofiler_run_estimate
+# using higher NMF replications to get final signatures
 rule _sigprofiler_run_extract:
     input:
         unpack(get_dir),
