@@ -385,23 +385,31 @@ rule get_mutect2_small_exac:
 
 ##### SigProfiler #####
 
-rule install_sigprofiler_genome:
+rule download_sigprofiler_genome:
     output:
-        complete = "genomes/{genome_build}/sigprofiler_genomes/{genome_build}.installed"
-    params:
-        ref = lambda w: {"grch37": "GRCh37", 
-                         "hg19"  : "GRCh37",
-                         "hs37d5": "GRCh37",
-                         "grch38": "GRCh38", 
-                         "grch38-legacy": "GRCh38",
-                         "hg38"  : "GRCh38",
-                         "hg38-panea": "GRCh38"}[w.genome_build]
+        complete = "downloads/sigprofiler_prereqs/{sigprofiler_build}.installed"
     conda: CONDA_ENVS["sigprofiler"]
     shell:
-        op.as_one_line(""" 
+        op.as_one_line("""
         python -c 'from SigProfilerMatrixGenerator import install as genInstall;
-        genInstall.install("{params.ref}", rsync = False, bash = True)' 
-            && 
+        genInstall.install("{wildcards.sigprofiler_build}", rsync = False, bash = True)'
+            &&
         touch {output.complete}
         """)
+
+def get_sigprofiler_genome(wildcards):
+    sigprofiler_build = ''
+    if wildcards.genome_build in ['grch37','hg19','hs37d5']:
+        sigprofiler_build = "GRCh37"
+    elif wildcards.genome_build in ['grch38','grch38-legacy','hg38','hg38-panea']:
+        sigprofiler_build = "GRCh38"
+    return("downloads/sigprofiler_prereqs/" + sigprofiler_build + ".installed")
+
+rule install_sigprofiler_genome:
+    input:
+        get_sigprofiler_genome
+    output:
+        complete = "genomes/{genome_build}/sigprofiler_genomes/{genome_build}.installed"
+    run:
+        op.relative_symlink(input, output.complete)
 

@@ -44,7 +44,6 @@ CFG = op.setup_module(
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _install_sigprofiler_genome,
     _sigprofiler_input_maf,
     _sigprofiler_output_tsv,
     _sigprofiler_all,
