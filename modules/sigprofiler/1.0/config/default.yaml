@@ -18,7 +18,47 @@ lcr-modules:
 
         conda_envs:
             sigprofiler: "{MODSDIR}/envs/sigprofiler-1.1.yaml"
-            
+
+        options:
+            estimate:
+                --nmf_replicates 30
+                --matrix_normalization gmm
+                --nmf_init nndsvd_min
+                --resample True
+                --precision single
+                --min_nmf_iterations 10000
+                --max_nmf_iterations 1000000
+                --nmf_test_conv 10000
+                --nmf_tolerance 1e-15
+                --stability 0.8
+                --min_stability 0.2
+                --combined_stability 1.0
+                --cosmic_version 3.1
+                --de_novo_fit_penalty 0.02
+                --nnls_add_penalty 0.05
+                --nnls_remove_penalty 0.01
+                --initial_remove_penalty 0.05
+                --refit_denovo_signatures True
+            extract:
+                --nmf_replicates 200
+                --matrix_normalization gmm
+                --nmf_init nndsvd_min
+                --resample True
+                --precision single
+                --min_nmf_iterations 10000
+                --max_nmf_iterations 1000000
+                --nmf_test_conv 10000
+                --nmf_tolerance 1e-15
+                --stability 0.8
+                --min_stability 0.2
+                --combined_stability 1.0
+                --cosmic_version 3.1
+                --de_novo_fit_penalty 0.02
+                --nnls_add_penalty 0.05
+                --nnls_remove_penalty 0.01
+                --initial_remove_penalty 0.05
+                --refit_denovo_signatures True
+
         threads:
             generator: 1
             estimate: 25
@@ -30,10 +70,10 @@ lcr-modules:
 
         pairing_config:
             genome:
-                run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
                 run_paired_tumours_as_unpaired: False
             capture:
-                run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
                 run_paired_tumours_as_unpaired: False

@@ -122,8 +122,12 @@ rule _sigprofiler_run_generator:
         expand(CFG["dirs"]["inputs"] + "matrices/{{seq_type}}--{{genome_build}}/{{sample_set}}/output/DBS/{{sample_set}}.{type}.all", type = ['DBS78','DBS150','DBS186','DBS1248','DBS2400','DBS2976'])
     params:
         ref = lambda w: references[w.genome_build]
-    conda: CFG["conda_envs"]["sigprofiler"]
-    threads: CFG["threads"]["generator"]
+    conda: 
+        CFG["conda_envs"]["sigprofiler"]
+    threads: 
+        CFG["threads"]["generator"]
+    resources:
+        mem_mb = CFG["mem_mb"]["generator"]
     shell:
         "python {input.script} {wildcards.sample_set} {params.ref} {input.maf}"
 
@@ -134,22 +138,22 @@ rule _sigprofiler_run_estimate:
     output:
         stat = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{sample_set}/{type}/All_solutions_stat.csv"
     params:
+        opts = CFG["options"]["estimate"],
         ref = lambda w: references[w.genome_build],
         context_type = '96,DINUC,ID',
         exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
         min_sig = 1,
         max_sig = lambda w: max_sigs[w.type],
-        nmf_repl = 30,
-        norm = 'gmm',
-        nmf_init = 'nndsvd_min',
         outpath = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{sample_set}"
     conda: CFG["conda_envs"]["sigprofiler"]
     threads: CFG["threads"]["estimate"]
+    resources:
+        mem_mb = CFG["mem_mb"]["estimate"]
     shell:
         op.as_one_line("""
-        python {input.script} {input.mat} {params.outpath} 
-        {params.ref} {params.context_type} {params.exome} {params.min_sig} {params.max_sig} 
-        {params.nmf_repl} {params.norm} {params.nmf_init} {threads}
+        python {input.script} {params.opts} {input.mat} {params.outpath} 
+        {params.ref} {params.context_type} {params.exome} 
+        {params.min_sig} {params.max_sig} {threads}
         """)
 
 # Runs NMF around the optimal rank from _sigprofiler_run_estimate
@@ -161,22 +165,22 @@ rule _sigprofiler_run_extract:
     output:
         decomp = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{sample_set}/{type}/Suggested_Solution/COSMIC_{type}_Decomposed_Solution/De_Novo_map_to_COSMIC_{type}.csv"
     params:
+        opts = CFG["options"]["extract"],
         ref = lambda w: references[w.genome_build],
         context_type = '96,DINUC,ID',
         exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
-        nmf_repl = 200,
-        norm = 'gmm',
-        nmf_init = 'nndsvd_min',
         outpath = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{sample_set}"
     conda: CFG["conda_envs"]["sigprofiler"]
     threads: CFG["threads"]["extract"]
+    resources:
+        mem_mb = CFG["mem_mb"]["extract"]
     shell:
         op.as_one_line("""
-        python {input.script} {input.mat} {params.outpath} 
+        python {input.script} {params.opts} {input.mat} {params.outpath} 
         {params.ref} {params.context_type} {params.exome}
         $(awk 'BEGIN {{OFS=FS=","}} $1 ~ "*" {{S=substr($1,1,length($1)-1); if (S-2<1) {{print 1}} else {{print S-2}}}}' {input.stat})
         $(awk 'BEGIN {{OFS=FS=","}} $1 ~ "*" {{S=substr($1,1,length($1)-1); print S+2}}' {input.stat})
-        {params.nmf_repl} {params.norm} {params.nmf_init} {threads}
+        {threads}
         """)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
