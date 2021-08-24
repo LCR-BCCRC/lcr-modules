@@ -29,7 +29,7 @@ def parse_arguments():
     parser.add_argument('output', help = 'Path to output directory.')
     parser.add_argument('ref', help = 'Reference build of matrix.')
     parser.add_argument('context_type', default = '96,DINUC,ID', help = 'A string of mutaion context name/names separated by comma (","). The items in the list defines the mutational contexts to be considered to extract the signatures. The default value is "96,DINUC,ID", where "96" is the SBS96 context, "DINUC" is the DINUCLEOTIDE context and ID is INDEL context.')
-    parser.add_argument('exome', default = False, type = bool, = 'Defines if the exomes will be extracted. The default value is "False".')
+    parser.add_argument('exome', default = False, type = bool, help = 'Defines if the exomes will be extracted. The default value is "False".')
     parser.add_argument('minimum_signatures', default = 1, type = int, help = "The minimum number of signatures to be extracted. The default value is 1.")
     parser.add_argument('maximum_signatures', default = 25, type = int, help = "The maximum number of signatures to be extracted. The default value is 25.")
     parser.add_argument('nmf_replicates', default = 100 , type = int, help = "The number of iteration to be performed to extract each number signature. The default value is 100.")
