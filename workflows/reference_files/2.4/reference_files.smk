@@ -385,33 +385,23 @@ rule get_mutect2_small_exac:
 
 ##### SigProfiler #####
 
-rule install_sigprofiler_matrix_generator:
-    output:
-        complete = "downloads/sigprofiler_prereqs/matrix_generator.installed"
-    conda: CONDA_ENVS["sigprofiler"]
-    shell:
-        "pip install SigProfilerMatrixGenerator && touch {output.complete}"
-
 rule install_sigprofiler_genome:
-    input:
-        str(rules.install_sigprofiler_matrix_generator.output.complete)
     output:
-        complete = "downloads/sigprofiler_prereqs/{genome_build}.installed"
+        complete = "genomes/{genome_build}/sigprofiler_genomes/{genome_build}.installed"
     params:
-        ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
-                         "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build]
+        ref = lambda w: {"grch37": "GRCh37", 
+                         "hg19"  : "GRCh37",
+                         "hs37d5": "GRCh37",
+                         "grch38": "GRCh38", 
+                         "grch38-legacy": "GRCh38",
+                         "hg38"  : "GRCh38",
+                         "hg38-panea": "GRCh38"}[w.genome_build]
     conda: CONDA_ENVS["sigprofiler"]
     shell:
         op.as_one_line(""" 
-        python -c 'from SigProfilerMatrixGenerator import install as genInstall
+        python -c 'from SigProfilerMatrixGenerator import install as genInstall;
         genInstall.install("{params.ref}", rsync = False, bash = True)' 
             && 
         touch {output.complete}
         """)
 
-rule install_sigprofiler_extractor:
-    output:
-        complete = "downloads/sigprofiler_prereqs/extractor.installed"
-    conda: CONDA_ENVS["sigprofiler"]
-    shell:
-        "pip install SigProfilerExtractor && touch {output.complete}"

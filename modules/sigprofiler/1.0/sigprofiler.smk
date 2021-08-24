@@ -89,22 +89,17 @@ max_sigs = {
     "DBS2976" : 20
 }
 
-##### RULES #####
+references = {
+    "grch37":"GRCh37", 
+    "hg19":"GRCh37",
+    "hs37d5": "GRCh37",
+    "grch38": "GRCh38",
+    "grch38-legacy": "GRCh38",
+    "hg38": "GRCh38",
+    "hg38-panea": "GRCh38"
+}
 
-rule _install_sigprofiler_genome:
-    output:
-        complete = CFG["dirs"]["inputs"] + "sigprofiler_prereqs/{genome_build}.installed"
-    params:
-        ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
-                         "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build]
-    conda: CFG["conda_envs"]["sigprofiler"]
-    shell:
-        op.as_one_line("""
-        python -c 'from SigProfilerMatrixGenerator import install as genInstall;
-        genInstall.install("{params.ref}", rsync = False, bash = True)'
-            &&
-        touch {output.complete}
-        """)
+##### RULES #####
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
@@ -119,7 +114,7 @@ rule _sigprofiler_input_maf:
 # Generates sample by k-mer context matrices from MAF
 rule _sigprofiler_run_generator:
     input:
-        mg = str(rules._install_sigprofiler_genome.output.complete),
+        mg = reference_files("genomes/{genome_build}/sigprofiler_genomes/{genome_build}.installed"),
         script = CFG["inputs"]["generator"],
         maf = str(rules._sigprofiler_input_maf.output.maf)
     output:
@@ -127,8 +122,7 @@ rule _sigprofiler_run_generator:
         expand(CFG["dirs"]["inputs"] + "matrices/{{seq_type}}--{{genome_build}}/{{sample_set}}/output/ID/{{sample_set}}.{type}.all", type = ['ID28','ID83','ID96','ID332','ID415','ID8628']),
         expand(CFG["dirs"]["inputs"] + "matrices/{{seq_type}}--{{genome_build}}/{{sample_set}}/output/DBS/{{sample_set}}.{type}.all", type = ['DBS78','DBS150','DBS186','DBS1248','DBS2400','DBS2976'])
     params:
-        ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
-                         "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build]
+        ref = lambda w: references[w.genome_build]
     conda: CFG["conda_envs"]["sigprofiler"]
     threads: CFG["threads"]["generator"]
     shell:
@@ -141,8 +135,7 @@ rule _sigprofiler_run_estimate:
     output:
         stat = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{sample_set}/{type}/All_solutions_stat.csv"
     params:
-        ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37",
-                         "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build],
+        ref = lambda w: references[w.genome_build],
         context_type = '96,DINUC,ID',
         exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
         min_sig = 1,
@@ -169,8 +162,7 @@ rule _sigprofiler_run_extract:
     output:
         decomp = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{sample_set}/{type}/Suggested_Solution/COSMIC_{type}_Decomposed_Solution/De_Novo_map_to_COSMIC_{type}.csv"
     params:
-        ref = lambda w: {"grch37":"GRCh37", "hg19":"GRCh37", 
-                         "grch38": "GRCh38", "hg38": "GRCh38"}[w.genome_build],
+        ref = lambda w: references[w.genome_build],
         context_type = '96,DINUC,ID',
         exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
         nmf_repl = 200,
