@@ -183,27 +183,27 @@ rule _sigprofiler_make_contents:
         import pandas as pd
 
         # Import
-        meta = pd.read_table(CFG["inputs"]["samples_metadata"])
-        tbl = pd.read_table(CFG["inputs"]["sample_set_table"])
+        meta = pd.read_table(config['lcr-modules']['sigprofiler']["inputs"]["samples_metadata"])
+        tbl = pd.read_table(config['lcr-modules']['sigprofiler']["inputs"]["sample_set_table"])
         samples = tbl.loc[tbl[wildcards.sample_set]==1, "sample_id"].tolist()
         sample_subset = meta[meta["sample_id"].isin(samples)]
 
         # Subset
-        output = sample_subset[["sample_id", "seq_type", "genome_build"]]
-        output = output[output["seq_type"] == wildcards.seq_type]
+        contents = sample_subset[["sample_id", "seq_type", "genome_build"]]
+        contents = contents[contents["seq_type"] == wildcards.seq_type]
 
         # Mutate
-        output = output.assign(normal_id = '.', pair_status = '.')
-        output = output.assign(current_genome_build = wildcards.genome_build)
-        output = output.assign(filename = '.')
-        output = output.assign(is_lifted = ['native' if x == wildcards.genome_build else 'lifted' for x in output['genome_build']])
+        contents = contents.assign(normal_id = '.', pair_status = '.')
+        contents = contents.assign(current_genome_build = wildcards.genome_build)
+        contents = contents.assign(filename = '.')
+        contents = contents.assign(is_lifted = ['native' if x == wildcards.genome_build else 'lifted' for x in contents['genome_build']])
 
         # Rename, reorder
-        output = output.rename({'sample_id':'tumour_id'}, axis=1)
-        output = output[["tumour_id","normal_id","pair_status","is_lifted","seq_type","genome_build","current_genome_build","filename"]]
+        contents = contents.rename({'sample_id':'tumour_id'}, axis=1)
+        contents = contents[["tumour_id","normal_id","pair_status","is_lifted","seq_type","genome_build","current_genome_build","filename"]]
 
         # Write contents file
-        output.to_csv(output.contents, sep = '\t', index = False)
+        contents.to_csv(output.contents, sep = '\t', index = False)
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
