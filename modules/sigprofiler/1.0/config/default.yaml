@@ -18,6 +18,15 @@ lcr-modules:
             generator: "{MODSDIR}/src/python/run_generator.py"
             extractor: "{MODSDIR}/src/python/run_extractor.py"
 
+        sigpro_genomes:
+            grch37: "GRCh37"
+            grch38: "GRCh38"
+            hg19: "GRCh37"
+            hg38: "GRCh38"
+            hs37d5: "GRCh37"
+            grch38-legacy: "GRCh38"
+            hg38-panea: "GRCh38"
+
         scratch_subdirectories: []
 
         conda_envs:

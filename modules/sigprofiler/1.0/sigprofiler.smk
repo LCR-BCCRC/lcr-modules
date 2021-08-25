@@ -88,16 +88,6 @@ max_sigs = {
     "DBS2976" : 20
 }
 
-references = {
-    "grch37":"GRCh37", 
-    "hg19":"GRCh37",
-    "hs37d5": "GRCh37",
-    "grch38": "GRCh38",
-    "grch38-legacy": "GRCh38",
-    "hg38": "GRCh38",
-    "hg38-panea": "GRCh38"
-}
-
 ##### RULES #####
 
 
@@ -121,7 +111,7 @@ rule _sigprofiler_run_generator:
         expand(CFG["dirs"]["inputs"] + "matrices/{{seq_type}}--{{genome_build}}/{{sample_set}}/output/ID/{{sample_set}}.{type}.all", type = ['ID28','ID83','ID96','ID332','ID415','ID8628']),
         expand(CFG["dirs"]["inputs"] + "matrices/{{seq_type}}--{{genome_build}}/{{sample_set}}/output/DBS/{{sample_set}}.{type}.all", type = ['DBS78','DBS150','DBS186','DBS1248','DBS2400','DBS2976'])
     params:
-        ref = lambda w: references[w.genome_build]
+        ref = lambda w: CFG["sigpro_genomes"][w.genome_build]
     conda: 
         CFG["conda_envs"]["sigprofiler"]
     threads: 
@@ -139,7 +129,7 @@ rule _sigprofiler_run_estimate:
         stat = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{sample_set}/{type}/All_solutions_stat.csv"
     params:
         opts = CFG["options"]["estimate"],
-        ref = lambda w: references[w.genome_build],
+        ref = lambda w: CFG["sigpro_genomes"][w.genome_build],
         context_type = '96,DINUC,ID',
         exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
         min_sig = 1,
@@ -166,7 +156,7 @@ rule _sigprofiler_run_extract:
         decomp = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{sample_set}/{type}/Suggested_Solution/COSMIC_{type}_Decomposed_Solution/De_Novo_map_to_COSMIC_{type}.csv"
     params:
         opts = CFG["options"]["extract"],
-        ref = lambda w: references[w.genome_build],
+        ref = lambda w: CFG["sigpro_genomes"][w.genome_build],
         context_type = '96,DINUC,ID',
         exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
         outpath = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{sample_set}"
