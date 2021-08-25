@@ -5,6 +5,10 @@ lcr-modules:
         inputs:
             # Available wildcards: {file}, {seq_type}, {genome_build}
             maf: "__UPDATE__"
+
+            sample_set_table: "__UPDATE__"
+            samples_metadata: "__UPDATE__"
+
             # Choose any combination of:  
             # SBS6, SBS18, SBS24, SBS96, SBS288, SBS384, SBS4608, SBS1536, SBS6144,
             # ID28, ID83, ID96, ID332, ID415, ID8628,

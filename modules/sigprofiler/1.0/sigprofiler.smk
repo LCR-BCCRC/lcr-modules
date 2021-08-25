@@ -183,12 +183,45 @@ rule _sigprofiler_run_extract:
         {threads}
         """)
 
-# Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _sigprofiler_output_tsv:
+# Generate contents file
+rule _sigprofiler_make_contents:
     input:
         decomp = str(rules._sigprofiler_run_extract.output.decomp)
     output:
-        decomp = CFG["dirs"]["outputs"] + "cosmic_sigs/{seq_type}--{genome_build}/{sample_set}.COSMIC_{type}.De_Novo_map_to_COSMIC_{type}.csv"
+        contents = CFG["dirs"]["outputs"] + "contents/{seq_type}--{genome_build}/{sample_set}.{genome_build}.{type}.contents"
+    run:
+        import pandas as pd
+
+        # Import
+        meta = pd.read_table(CFG["inputs"]["samples_metadata"])
+        tbl = pd.read_table(CFG["inputs"]["sample_set_table"])
+        samples = tbl.loc[tbl[wildcards.sample_set]==1, "sample_id"].tolist()
+        sample_subset = meta[meta["sample_id"].isin(samples)]
+
+        # Subset
+        output = sample_subset[["sample_id", "seq_type", "genome_build"]]
+        output = output[output["seq_type"] == wildcards.seq_type]
+
+        # Mutate
+        output = output.assign(normal_id = '.', pair_status = '.')
+        output = output.assign(current_genome_build = wildcards.genome_build)
+        output = output.assign(filename = '.')
+        output = output.assign(is_lifted = ['native' if x == wildcards.genome_build else 'lifted' for x in output['genome_build']])
+
+        # Rename, reorder
+        output = output.rename({'sample_id':'tumour_id'}, axis=1)
+        output = output[["tumour_id","normal_id","pair_status","is_lifted","seq_type","genome_build","current_genome_build","filename"]]
+
+        # Write contents file
+        output.to_csv(output.contents, sep = '\t', index = False)
+
+
+# Symlinks the final output files into the module results directory (under '99-outputs/')
+rule _sigprofiler_output_tsv:
+    input:
+        decomp = str(rules._sigprofiler_run_extract.output.decomp),
+    output:
+        decomp = CFG["dirs"]["outputs"] + "cosmic_sigs/{seq_type}--{genome_build}/{sample_set}.COSMIC_{type}.De_Novo_map_to_COSMIC_{type}.csv" 
     run:
         op.relative_symlink(input.decomp, output.decomp)
 
@@ -197,7 +230,10 @@ rule _sigprofiler_all:
     input:
         expand(
             expand(
-                CFG["dirs"]["outputs"] + "cosmic_sigs/{seq_type}--{genome_build}/{sample_set}.COSMIC_{{type}}.De_Novo_map_to_COSMIC_{{type}}.csv",
+                [
+                    CFG["dirs"]["outputs"] + "cosmic_sigs/{seq_type}--{genome_build}/{sample_set}.COSMIC_{{type}}.De_Novo_map_to_COSMIC_{{type}}.csv",
+                    CFG["dirs"]["outputs"] + "contents/{seq_type}--{genome_build}/{sample_set}.{genome_build}.{{type}}.contents"
+                ],
                 zip,
                 seq_type = CFG["mafs"]["seq_type"],
                 genome_build = CFG["mafs"]["projected_build"],
