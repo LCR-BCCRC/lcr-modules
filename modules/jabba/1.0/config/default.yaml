@@ -25,9 +25,6 @@ lcr-modules:
         # instructions.
         CPLEX_DIR: "__UPDATE__"
 
-        options:
-            step_1: ""
-
         conda_envs:
             jabba: "{MODSDIR}/envs/jabba.yaml"
 
