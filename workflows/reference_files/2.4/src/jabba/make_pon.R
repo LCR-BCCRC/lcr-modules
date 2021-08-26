@@ -1,7 +1,5 @@
 #! /usr/bin/env Rscript
 
-script_path <- normalizePath(dirname(unlist(strsplit(commandArgs()[grepl('--file', commandArgs())], split = '='))[2]))
-
 args <- commandArgs(trailingOnly = TRUE)
 
 threads  <- args[1]
@@ -30,8 +28,6 @@ nrml.tbl <- data.table(
 )
 
 saveRDS(nrml.tbl, tbl.out)
-
-source(file.path(script_path, 'custom_prepare_detergent.R'))
 
 if (choose.samples == 'all') {
     detergent = prepare_detergent(
