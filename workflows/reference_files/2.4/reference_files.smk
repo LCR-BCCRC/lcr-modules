@@ -291,7 +291,7 @@ rule install_dryclean:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
                 -e 'if (!"gUtils" %in% rownames(installed.packages())) {{remotes::install_github("mskilab/gUtils", upgrade = FALSE)}}'
-                -e 'if (!"dryclean" %in% rownames(installed.packages())) {{remotes::install_github("mskilab/dryclean", upgrade = FALSE)}}'
+                -e 'if (!"dryclean" %in% rownames(installed.packages())) {{remotes::install_github("morinlab/dryclean", upgrade = FALSE)}}'
                 -e 'library(dryclean)'
             &&
         touch {output.complete}
