@@ -110,8 +110,11 @@ rule _sigprofiler_run_generator:
         expand(CFG["dirs"]["inputs"] + "matrices/{{seq_type}}--{{genome_build}}/{{sample_set}}/output/SBS/{{sample_set}}.{type}.all", type = ['SBS6','SBS18','SBS24','SBS96','SBS288','SBS384','SBS4608','SBS1536','SBS6144']),
         expand(CFG["dirs"]["inputs"] + "matrices/{{seq_type}}--{{genome_build}}/{{sample_set}}/output/ID/{{sample_set}}.{type}.all", type = ['ID28','ID83','ID96','ID332','ID415','ID8628']),
         expand(CFG["dirs"]["inputs"] + "matrices/{{seq_type}}--{{genome_build}}/{{sample_set}}/output/DBS/{{sample_set}}.{type}.all", type = ['DBS78','DBS150','DBS186','DBS1248','DBS2400','DBS2976'])
+    log:
+        stdout = CFG["logs"]["inputs"] + "{seq_type}--{genome_build}/{sample_set}/generator.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "{seq_type}--{genome_build}/{sample_set}/generator.stderr.log"
     params:
-        ref = lambda w: CFG["sigpro_genomes"][w.genome_build]
+        ref = lambda w: config['lcr-modules']['sigprofiler']["sigpro_genomes"][w.genome_build]
     conda: 
         CFG["conda_envs"]["sigprofiler"]
     threads: 
@@ -119,7 +122,7 @@ rule _sigprofiler_run_generator:
     resources:
         mem_mb = CFG["mem_mb"]["generator"]
     shell:
-        "python {input.script} {wildcards.sample_set} {params.ref} {input.maf}"
+        "python {input.script} {wildcards.sample_set} {params.ref} {input.maf} > {log.stdout} 2> {log.stderr}"
 
 # Performs NMF on a wide range of ranks to obtain the optimal signature rank
 rule _sigprofiler_run_estimate:
@@ -127,9 +130,12 @@ rule _sigprofiler_run_estimate:
         unpack(get_dir)
     output:
         stat = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{sample_set}/{type}/All_solutions_stat.csv"
+    log:
+        stdout = CFG["logs"]["estimate"] + "{seq_type}--{genome_build}/{sample_set}/estimate.{type}.stdout.log",
+        stderr = CFG["logs"]["estimate"] + "{seq_type}--{genome_build}/{sample_set}/estimate.{type}.stderr.log"
     params:
         opts = CFG["options"]["estimate"],
-        ref = lambda w: CFG["sigpro_genomes"][w.genome_build],
+        ref = lambda w: config['lcr-modules']['sigprofiler']["sigpro_genomes"][w.genome_build],
         context_type = '96,DINUC,ID',
         exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
         min_sig = 1,
@@ -143,7 +149,7 @@ rule _sigprofiler_run_estimate:
         op.as_one_line("""
         python {input.script} {params.opts} {input.mat} {params.outpath} 
         {params.ref} {params.context_type} {params.exome} 
-        {params.min_sig} {params.max_sig} {threads}
+        {params.min_sig} {params.max_sig} {threads} > {log.stdout} 2> {log.stderr}
         """)
 
 # Runs NMF around the optimal rank from _sigprofiler_run_estimate
@@ -154,9 +160,12 @@ rule _sigprofiler_run_extract:
         stat = str(rules._sigprofiler_run_estimate.output.stat)
     output:
         decomp = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{sample_set}/{type}/Suggested_Solution/COSMIC_{type}_Decomposed_Solution/De_Novo_map_to_COSMIC_{type}.csv"
+    log:
+        stdout = CFG["logs"]["extract"] + "{seq_type}--{genome_build}/{sample_set}/extract.{type}.stdout.log",
+        stderr = CFG["logs"]["extract"] + "{seq_type}--{genome_build}/{sample_set}/extract.{type}.stderr.log"
     params:
         opts = CFG["options"]["extract"],
-        ref = lambda w: CFG["sigpro_genomes"][w.genome_build],
+        ref = lambda w: config['lcr-modules']['sigprofiler']["sigpro_genomes"][w.genome_build],
         context_type = '96,DINUC,ID',
         exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
         outpath = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{sample_set}"
@@ -170,7 +179,7 @@ rule _sigprofiler_run_extract:
         {params.ref} {params.context_type} {params.exome}
         $(awk 'BEGIN {{OFS=FS=","}} $1 ~ "*" {{S=substr($1,1,length($1)-1); if (S-2<1) {{print 1}} else {{print S-2}}}}' {input.stat})
         $(awk 'BEGIN {{OFS=FS=","}} $1 ~ "*" {{S=substr($1,1,length($1)-1); print S+2}}' {input.stat})
-        {threads}
+        {threads} > {log.stdout} 2> {log.stderr}
         """)
 
 # Generate contents file
