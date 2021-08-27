@@ -297,7 +297,7 @@ rule install_dryclean:
         touch {output.complete}
         """)
 
-
+# Use normal samples specified in config['pon'] table
 NORMALS = {k : op.load_samples(v) for k,v in config['pon'].items()}
 NORMALS = {k : dict(zip(v.sample_id, v.data_path)) for k,v in NORMALS.items()}
 
@@ -312,7 +312,7 @@ rule jabba_pon_symlink_normal_bams:
         "ln -sf {params.bam} {output.bam}; "
         "ln -sf {params.bam}.bai {output.bai}"
 
-
+# Run fragcounter on normals to get GC/mappability corrected coverage values
 rule jabba_pon_run_fragcounter:
     input:
         installed = str(rules.install_fragcounter.output.complete),
@@ -340,7 +340,7 @@ rule jabba_pon_symlink_fragcounter:
     run:
         op.relative_symlink(input.rds, output.rds)
 
-
+# Use dryclean to create panel-of-normal (PON) from fragcounter coverages
 rule jabba_pon_make_pon:
     input:
         installed = str(rules.install_dryclean.output.complete),
@@ -362,7 +362,8 @@ rule jabba_pon_make_pon:
         Rscript {input.make_pon} {threads} `dirname {input.rds[0]}` {output.tbl} {output.pon} {input.par} {wildcards.genome_build} {params.choose_samples}
         """)
 
-
+# Improve coverage signal fidelity by running each normal against PON
+# Serves to identify and separate background variations (noise) from foreground variation (signal)
 rule jabba_pon_run_dryclean_normal:
     input:
         installed = str(rules.install_dryclean.output.complete),
@@ -391,7 +392,8 @@ rule jabba_pon_link_dryclean_normal_rds:
     run:
         op.relative_symlink(input.rds, output.rds)
 
-
+# Use dryclean normals to identify germline regions which will be used
+# on tumour data to find germline regions.
 rule jabba_pon_make_germline_filter:
     input:
         installed = str(rules.install_dryclean.output.complete),
