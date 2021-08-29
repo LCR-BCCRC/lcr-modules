@@ -47,7 +47,7 @@ dependencies:
   - bwidget=1.9.14
   - bzip2=1.0.8
   - c-ares=1.17.1
-  - ca-certificates=2021.5.30
+  - ca-certificates=2021.7.5
   - cairo=1.16.0
   - certifi=2021.5.30
   - cffi=1.14.5
@@ -99,11 +99,11 @@ dependencies:
   - libev=4.33
   - libffi=3.3
   - libgcc-devel_linux-64=9.3.0
-  - libgcc-ng=9.3.0
+  - libgcc-ng=11.1.0
   - libgfortran-ng=9.3.0
   - libgfortran5=9.3.0
   - libglib=2.68.3
-  - libgomp=9.3.0
+  - libgomp=11.1.0
   - libiconv=1.16
   - liblapack=3.9.0
   - libnghttp2=1.43.0
@@ -112,7 +112,7 @@ dependencies:
   - libsodium=1.0.18
   - libssh2=1.9.0
   - libstdcxx-devel_linux-64=9.3.0
-  - libstdcxx-ng=9.3.0
+  - libstdcxx-ng=11.1.0
   - libtiff=4.3.0
   - libuuid=2.32.1
   - libwebp-base=1.2.0
@@ -152,6 +152,7 @@ dependencies:
   - python-dateutil=2.8.1
   - python_abi=3.9
   - pyzmq=22.1.0
+  - r-argparse=2.0.4
   - r-askpass=1.1
   - r-assertthat=0.2.1
   - r-backports=1.2.1
@@ -196,6 +197,7 @@ dependencies:
   - r-farver=2.1.0
   - r-fastmap=1.1.0
   - r-filelock=1.0.2
+  - r-findpython=1.0.7
   - r-forcats=0.5.1
   - r-foreach=1.5.1
   - r-foreign=0.8_81
@@ -205,6 +207,7 @@ dependencies:
   - r-futile.options=1.0.1
   - r-gargle=1.1.0
   - r-generics=0.1.0
+  - r-getopt=1.20.3
   - r-ggplot2=3.3.5
   - r-gistr=0.9.0
   - r-glmnet=4.1_2
@@ -257,6 +260,7 @@ dependencies:
   - r-nnet=7.3_16
   - r-numderiv=2016.8_1.1
   - r-openssl=1.4.4
+  - r-optparse=1.6.6
   - r-pbapply=1.4_3
   - r-pbdzmq=0.3_5
   - r-pillar=1.6.1
@@ -327,11 +331,13 @@ dependencies:
   - r-tinytex=0.32
   - r-triebeard=0.3.0
   - r-ttr=0.24.2
+  - r-tzdb=0.1.2
   - r-urltools=1.7.3
   - r-utf8=1.2.1
   - r-uuid=0.1_4
   - r-vctrs=0.3.8
   - r-viridislite=0.4.0
+  - r-vroom=1.5.4
   - r-waldo=0.2.5
   - r-withr=2.4.2
   - r-xfun=0.24
