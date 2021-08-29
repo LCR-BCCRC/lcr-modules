@@ -65,11 +65,13 @@ rule _jabba_install_fragcounter:
     shell:
         op.as_one_line("""
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
-                -e 'if (!"fragCounter" %in% rownames(installed.packages())) {{remotes::install_github("morinlab/fragCounter", upgrade = TRUE, force = TRUE)}}'
+                -e 'Sys.unsetenv("GITHUB_PAT")'
+                -e 'if ("fragCounter" %in% installed.packages()==FALSE) {{remotes::install_github("morinlab/fragCounter", upgrade = TRUE, force = TRUE)}}'
                 -e 'library(fragCounter)'
             &&
         touch {output.complete}
         """)
+
 
 rule _jabba_install_dryclean:
     input:
@@ -79,12 +81,14 @@ rule _jabba_install_dryclean:
     conda: CFG["conda_envs"]["jabba"]
     shell:
         op.as_one_line("""
-        Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)' 
-                -e 'if (!"dryclean" %in% rownames(installed.packages())) {{remotes::install_github("morinlab/dryclean", upgrade = FALSE)}}'
+        Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
+                -e 'Sys.unsetenv("GITHUB_PAT")'
+                -e 'if ("dryclean" %in% installed.packages()==FALSE) {{remotes::install_github("morinlab/dryclean", upgrade = TRUE, force = TRUE)}}'
                 -e 'library(dryclean)'
             &&
         touch {output.complete}
         """)
+
 
 rule _jabba_install_jabba:
     input:
@@ -99,13 +103,15 @@ rule _jabba_install_jabba:
         op.as_one_line(""" 
         Rscript -e 'Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS = TRUE)'
                 -e 'Sys.setenv(CPLEX_DIR = "{params.cplex_dir}")'
+                -e 'Sys.unsetenv("GITHUB_PAT")'
                 -e 'if ("copynumber" %in% installed.packages()==FALSE) {{BiocManager::install("copynumber")}}'
                 -e 'if (is.null(packageDescription("copynumber")$GithubUsername)) {{remotes::install_github("ShixiangWang/copynumber", dependencies = TRUE)}}'
-                -e 'if (!"JaBbA" %in% rownames(installed.packages())) {{remotes::install_github("mskilab/JaBbA", upgrade = FALSE)}}'
+                -e 'if ("JaBbA" %in% installed.packages()==FALSE) {{remotes::install_github("mskilab/JaBbA", upgrade = TRUE, force = TRUE)}}'
                 -e 'library(JaBbA)'
             &&
         touch {output.complete}
         """)
+
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _jabba_input_bam:
@@ -160,8 +166,7 @@ rule _jabba_merge_svs:
         op.as_one_line("""
         Rscript {params.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} --rds {output} > {log.stdout} 2> {log.stderr}
         """)
-#Rscript {input.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} --rds {output}
-# Rscript {input.merge_svs} --manta {input.manta} --gridss {input.gridss} --genome {wildcards.genome_build} | sort -k1,1V -k2,2n -k4,4V -k5,5n > {output}
+
 
 # Runs fragcounter on individual samples
 rule _jabba_run_fragcounter:
@@ -213,13 +218,6 @@ rule _jabba_run_dryclean_tumour:
                 -e 'decomp <- start_wash_cycle(cov = samp, detergent.pon.path = "{input.pon}", whole_genome = TRUE, mc.cores = {threads}, germline.file = "{input.germline}", germline.filter = TRUE)'
                 -e 'saveRDS(decomp, "{output.rds}")' > {log.stdout} 2> {log.stderr}
         """)
-
-
-#def _get_junc_file(wildcards):
-#    CFG = config["lcr-modules"]["jabba"]
-#    filename, ext = os.path.splitext(CFG["inputs"]["sample_junc"])
-#    out = CFG["dirs"]["inputs"] + "junc/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}" + ext
-#    return(out)
 
 
 rule _jabba_run_jabba:
