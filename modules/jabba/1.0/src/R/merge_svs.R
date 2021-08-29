@@ -21,26 +21,10 @@ args <- parser$parse_args()
 ##### TESTING #####
 
 # args <- list()
-# args$manta <- '/projects/nhl_meta_analysis_scratch/gambl/results_local/gambl/manta-2.3/03-augment_vcf/genome--grch37/16-20912T--16-20912N--matched/somaticSV.augmented.vcf'
-# args$gridss <- '/projects/nhl_meta_analysis_scratch/gambl/results_local/gambl/gridss-1.0/04-gripss/genome--grch37/16-20912T--16-20912N--matched/gridss_somatic_filtered.vcf.gz'
-# args$genome <- 'grch37'
+# args$manta <- 'results/gambl/jabba-1.0/00-inputs/junc/manta/genome--hg38/05-18796T--05-18796N--matched.vcf'
+# args$gridss <- 'results/gambl/jabba-1.0/00-inputs/junc/gridss/genome--hg38/05-18796T--05-18796N--matched.vcf'
+# args$genome <- 'hg38'
 # args$pad <- 50
-
-##### FUNCTIONS #####
-
-removeNonCanonicalChrs <- function(junc, chr_prefixed = TRUE, include_y = FALSE) {
-  chrs <- c(1:22, 'X')
-  if (include_y) {
-    chrs <- c(chrs, 'Y')
-  }
-  if (chr_prefixed) {
-    chrs <- paste0('chr', chrs)
-  }
-  
-  junc <- junc[CHROM %in% chrs & MATECHROM %in% chrs]
-
-  return(junc)
-}
 
 ##### MERGING #####
 
@@ -53,38 +37,40 @@ if (args$genome == 'grch37') {
     sl <- hg_seqlengths('BSgenome.Hsapiens.UCSC.hg38::Hsapiens', chr = TRUE)
 }
 
-br$manta <- jJ(args$manta, seqlengths = sl)
+# FIX: jJ fails when no breakpoints are present
+# i.e., only del, dup, ins are present
+# Should only be a problem with Manta
+br$manta <- 
+  tryCatch({
+    jJ(args$manta, seqlengths = sl)
+  }, error = function(e){
+    GRanges()
+  })
 br$gridss <- jJ(args$gridss, seqlengths = sl)
 
-#if (length(br$manta) != 0) {
-#    br$manta <- br$manta[FILTER == 'PASS']
-#}
-#if (length(br$gridss) != 0) {
-#    br$gridss <- br$gridss[FILTER == 'PASS']
-#}
+any.empty <- any(map_int(br, length)==0)
 
-#if (any(args$genome %in% c("grch38", "grch37"))) {
-#    br <- map(br, ~ removeNonCanonicalChrs(.x, chr_prefixed = FALSE))
-#} else {
-#    br <- map(br, ~ removeNonCanonicalChrs(.x))
-#}
+# Handle empty SV inputs
+if (length(br$manta) == 0) {
+  br.merged <- merge(gridss = br$gridss, pad = args$pad)
+} else if (length(br$gridss) == 0) {
+  br.merged <- merge(manta = br$manta, pad = args$pad)
+} else if (length(br$gridss) == 0 && length(br$manta) == 0) {
+  warning("GRIDSS and Manta VCFs are both empty.\n")
+} else {
+  br.merged <- merge(manta = br$manta, gridss = br$gridss, pad = args$pad)
+}
 
-#empty.junc <- names(br)[which(lengths(br) == 0)]
-br.merged <- merge(manta = br$manta, gridss = br$gridss, pad = args$pad)
 br.merged.val <- as.data.table(values(br.merged$grl))
 br.merged.grl <- GRangesList(br.merged$grl)
-#br.merged.grl <- GRangesList(mapply(trim, br.merged$grl))
-#br.merged.grl <- GRangesList(mapply(function(x) {ranges(x[start(x)<0] <- IRanges(1))}, br.merged$grl))
 
-#for (i in empty.junc) {
-#    br.merged.val[[i]] <- as.integer(rep(NA, nrow(br.merged.val)))
-#    br.merged.val[[paste0('seen.by.',i)]] <- rep(FALSE, nrow(br.merged.val))
-#}
+# Categorize variants into tiers if SVs are available from both tools
+if (!any.empty) {
+  br.merged.val$tier <- br.merged.val$seen.by.manta * br.merged.val$seen.by.gridss
+  br.merged.val[, tier := ifelse(tier == 0, 2, 1)]
+  br.merged.val[FILTER.manta != "PASS" | FILTER.gridss != "PASS", tier := 3]
+}
 
-# Categorize junctions into tiers
-br.merged.val$tier <- br.merged.val$seen.by.manta * br.merged.val$seen.by.gridss
-br.merged.val[, tier := ifelse(tier == 0, 2, 1)]
-br.merged.val[FILTER.manta != "PASS" | FILTER.gridss != "PASS", tier := 3]
 values(br.merged.grl) <- br.merged.val
 
 ##### OUTPUT #####
