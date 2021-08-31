@@ -3,7 +3,7 @@ lcr-modules:
     sigprofiler:
 
         inputs:
-            # Available wildcards: {file}, {seq_type}, {genome_build}
+            # Available wildcards: {sample_set}, {seq_type}, {genome_build}
             maf: "__UPDATE__"
 
             sample_set_table: "__UPDATE__"
@@ -80,13 +80,3 @@ lcr-modules:
             generator: 20000
             estimate: 1000
             extract: 1000
-
-        pairing_config:
-            genome:
-                run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
-                run_paired_tumours_as_unpaired: False
-            capture:
-                run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
-                run_paired_tumours_as_unpaired: False
