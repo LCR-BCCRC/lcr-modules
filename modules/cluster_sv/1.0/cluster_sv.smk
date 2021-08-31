@@ -323,14 +323,61 @@ rule _cluster_sv_run:
         {output.clusters}
         """)
 
+rule _cluster_sv_add_id:
+    input:
+        tsv = str(rules._cluster_sv_run.output.clusters)
+    output:
+        tsv = CFG["dirs"]["cluster_sv"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sv_clusters_and_footprints_with_id.tsv"
+    shell:
+        op.as_one_line("""
+        sed '/^#/d' {input.tsv} |
+        sed "s/$/\t{wildcards.tumour_id}\t{wildcards.normal_id}\t{wildcards.pair_status}/" | \
+        sed '1i #CHROM_A\tSTART_A\tEND_A\tCHROM_B\tSTART_B\tEND_B\tID\tQUAL\tSTRAND_A\tSTRAND_B\tCLUSTER_ID\tNUM_SV\tFP_ID_LOW\tFP_ID_HIGH\tFP_COORDS_LOW\tFP_COORDS_HIGH\tP_VAL\tTUMOUR_ID\tNORMAL_ID\tPAIR_STATUS' \
+        > {output.tsv}
+        """)
+
+def _cluster_sv_get_clusters(wildcards):
+    CFG = config["lcr-modules"]["cluster_sv"]
+    SAMPLES = config["lcr-modules"]["cluster_sv"]["samples"]
+    RUNS = config["lcr-modules"]["cluster_sv"]["runs"]
+
+    if wildcards.cohort in SAMPLES.cohort:
+        TUMOURS = SAMPLES.loc[SAMPLES.cohort == wildcards.cohort].sample_id
+        RUNS = RUNS.loc[RUNS.tumour_sample_id.isin(TUMOURS)]
+
+    tsv_files = expand(
+        [
+            str(rules._cluster_sv_add_id.output.tsv)
+        ],
+        zip,
+        seq_type=RUNS["tumour_seq_type"],
+        genome_build=RUNS["tumour_genome_build"],
+        tumour_id=RUNS["tumour_sample_id"],
+        normal_id=RUNS["normal_sample_id"],
+        pair_status=RUNS["pair_status"])
+
+    return { 'tsv': tsv_files }
+
+
+rule _cluster_sv_combine_cluster_tsv:
+    input:
+        unpack(_cluster_sv_get_clusters)
+    output:
+        tsv = CFG["dirs"]["combine"] + "{seq_type}--{genome_build}/{cohort}.sv_clusters_and_footprints_with_id.tsv"
+    shell:
+        op.as_one_line("""
+        awk '(NR == 1) || (FNR > 1)' {input.tsv}
+        > {output.tsv}
+        """)
+
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _cluster_sv_output_tsv:
     input:
-        clusters = str(rules._cluster_sv_run.output.clusters), # str(rules._cluster_sv_add_header_tsv.output.clusters),
+        clusters = str(rules._cluster_sv_add_id.output.tsv), # str(rules._cluster_sv_add_header_tsv.output.clusters),
         pval = str(rules._cluster_sv_run.output.pval)
     output:
-        clusters = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sv_clusters_and_footprints.tsv",
+        clusters = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sv_clusters_and_footprints_id.tsv",
         pval = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sv_distance_pvals.tsv"
     run:
         op.relative_symlink(input.clusters, output.clusters)
@@ -343,14 +390,16 @@ rule _cluster_sv_all:
         expand(
             [
                 str(rules._cluster_sv_output_tsv.output.clusters),
-                str(rules._cluster_sv_output_tsv.output.pval)
+                str(rules._cluster_sv_output_tsv.output.pval),
+                str(rules._cluster_sv_combine_cluster_tsv.output.tsv)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            pair_status=CFG["runs"]["pair_status"],
+            cohort=CFG["options"]["cohort"])
 
 
 ##### CLEANUP #####
