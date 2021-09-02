@@ -47,8 +47,6 @@ SCRIPT_PATH = CFG['inputs']['src_dir']
 bed = str(reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed"))
 CFG['switches']['regions_bed']['_default'] = bed
 
-
-
 # Define rules to be run locally when using a compute cluster
 localrules:
     _lofreq_input_bam,
@@ -56,6 +54,17 @@ localrules:
     _lofreq_all,
     _lofreq_link_to_preprocessed
 
+def _lofreq_get_capspace(sample_id, wildcards):
+
+    # If this is a genome sample, return a BED file listing all chromosomes
+    if wildcards.seq_type != "capture":
+        return CFG["switches"]["regions_bed"]
+    try:
+        # Get the appropriate capture space for this sample
+        return get_capture_space(sample_id, wildcards.genome_build, wildcards.seq_type, "bed")
+    except NameError:
+        # If we are using an older version of the reference workflow, use the same region file as the genome sample 
+        return CFG["switches"]["regions_bed"]
 
 ##### RULES #####
 
@@ -83,7 +92,6 @@ rule _lofreq_preprocess_normal:
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
-        bed = op.switch_on_wildcard("seq_type", CFG["switches"]["regions_bed"])
     output:
         out_dir = directory(CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/"),
         preprocessing_start = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/preprocessing.started",
@@ -97,7 +105,8 @@ rule _lofreq_preprocess_normal:
         stdout = CFG["logs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/lofreq_pre.stdout.log",
         stderr = CFG["logs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/lofreq_pre.stderr.log"
     params:
-        opts = CFG["options"]["lofreq"]
+        opts = CFG["options"]["lofreq"],
+        bed = lambda w: _lofreq_get_capspace(w.normal_id, w)
     conda:
         CFG["conda_envs"]["lofreq"]
     threads:
@@ -114,7 +123,7 @@ rule _lofreq_preprocess_normal:
             touch {output.preprocessing_start}
             && 
             lofreq somatic --normal_only {params.opts} --threads {threads} -t {input.normal_bam} -n {input.normal_bam}
-            -f {input.fasta} -o {output.out_dir}/ -d {input.dbsnp} --bed {input.bed}
+            -f {input.fasta} -o {output.out_dir}/ -d {input.dbsnp} --bed {params.bed}
             > {log.stdout} 2> {log.stderr} && 
             touch {output.preprocessing_complete};
         else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
@@ -162,7 +171,6 @@ rule _lofreq_run_tumour:
         vcf_relaxed = rules._lofreq_link_to_preprocessed.output.vcf_relaxed,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
-        bed = op.switch_on_wildcard("seq_type", CFG["switches"]["regions_bed"])
     output:
         vcf_snvs_filtered = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.snvs.vcf.gz",
         vcf_indels_filtered = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.indels.vcf.gz",
@@ -172,7 +180,8 @@ rule _lofreq_run_tumour:
         stdout = CFG["logs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq.stdout.log",
         stderr = CFG["logs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq.stderr.log"
     params:
-        opts = CFG["options"]["lofreq"]
+        opts = CFG["options"]["lofreq"],
+        bed = lambda w: _lofreq_get_capspace(w.tumour_id, w)
     conda:
         CFG["conda_envs"]["lofreq"]
     threads:
@@ -187,7 +196,7 @@ rule _lofreq_run_tumour:
         if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
             echo "using bundled patched script $SCRIPT";
             lofreq somatic --continue {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
-            -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} --bed {input.bed}
+            -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} --bed {params.bed}
             > {log.stdout} 2> {log.stderr};
         else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
         """)

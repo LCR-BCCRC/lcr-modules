@@ -119,14 +119,25 @@ def get_chromosomes(wildcards):
     chromosomes= ",".join(chromosomes)    
     return chromosomes
 
+def _sage_get_capspace(wildcards):
+
+    # If this is a genome sample, return a BED file listing all chromosomes
+    if wildcards.seq_type != "capture":
+        return rules._download_sage_references.output.panel_bed
+    try:
+        # Get the appropriate capture space for this sample
+        return get_capture_space(wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed.gz")
+    except NameError:
+        # If we are using an older version of the reference workflow, use the same region file as the genome sample
+        return rules._download_sage_references.output.panel_bed
+
 # Variant calling rule
 rule _run_sage:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = str(rules._input_references.output.genome_fa),
-        hotspots = str(rules._download_sage_references.output.hotspots),
-        panel_bed = str(rules._download_sage_references.output.panel_bed),
+        hotspots = rules._download_sage_references.output.hotspots,
         high_conf_bed = str(rules._download_sage_references.output.high_conf_bed)
     output:
         vcf = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf"),
@@ -139,7 +150,8 @@ rule _run_sage:
         chromosomes = get_chromosomes,
         assembly = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19",
         sage= "$(dirname $(readlink -e $(which SAGE)))/sage.jar",
-        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        panel_bed = lambda w: _sage_get_capspace(w)
     conda:
         CFG["conda_envs"]["sage"]
     threads:
@@ -162,7 +174,7 @@ rule _run_sage:
         -assembly {params.assembly}
         -ref_genome {input.fasta}
         -hotspots {input.hotspots}
-        -panel_bed {input.panel_bed}
+        -panel_bed {params.panel_bed}
         -high_confidence_bed {input.high_conf_bed}
         -out {output.vcf}
         >>  {log.stdout} 2>> {log.stderr}

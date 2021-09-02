@@ -118,6 +118,7 @@ rule _strelka_configure_paired: # Somatic
     params:
         indel_arg = _strelka_get_indel_cli_arg(),
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["configure"]),
+        bedz = lambda w: _strelka_get_capspace(w)
     wildcard_constraints:
         pair_status = "matched|unmatched"
     conda:
@@ -147,7 +148,8 @@ rule _strelka_configure_unpaired: # germline
         stdout = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_configure.stdout.log",
         stderr = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_configure.stderr.log"
     params:
-        opts = op.switch_on_wildcard("seq_type", CFG["options"]["configure"])
+        opts = op.switch_on_wildcard("seq_type", CFG["options"]["configure"]),
+        bedz = lambda w: _strelka_get_capspace(w)
     message:
         "WARNING: {wildcards.seq_type} sample ({wildcards.tumour_id}) is being processed using Strelka Germline workflow. Ensure pairing config for capture is set to run_unpaired_tumours_with: 'unmatched_normal' to run Strelka Somatic workflow"
     wildcard_constraints:
@@ -255,6 +257,18 @@ def _strelka_get_output(wildcards):
     else:
         vcf = str(rules._strelka_filter_combine.output.vcf)
     return vcf
+
+def _strelka_get_capspace(wildcards):
+
+    # If this is a genome sample, return a BED file listing all chromosomes
+    if wildcards.seq_type != "capture":
+        return reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes.bed.gz")
+    try:
+        # Get the appropriate capture space for this sample
+        return get_capture_space(wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed.gz")
+    except NameError:
+        # If we are using an older version of the reference workflow, use the same region file as the genome sample
+        return reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes.bed.gz")
 
 # Symlinks the final output files into the module results directory (under '99-outputs/'). Links will always use "combined" in the name (dropping odd naming convention used by Strelka in unpaired mode)
 rule _strelka_output_filtered_vcf:

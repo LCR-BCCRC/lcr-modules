@@ -137,7 +137,7 @@ rule _mutect2_run_matched_unmatched:
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
         opts = CFG["options"]["mutect2_run"], 
-        interval_arg = _mutect2_get_interval_cli_arg()
+        interval_arg = lambda w: _mutect_get_capspace(w)
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -178,7 +178,7 @@ rule _mutect2_run_no_normal:
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["mutect2_run"], 
-        interval_arg = _mutect2_get_interval_cli_arg 
+        interval_arg = lambda w: _mutect_get_capspace(w) 
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -207,6 +207,17 @@ def _mutect2_get_chr_vcfs(wildcards):
     )
     return(vcfs)
 
+def _mutect_get_capspace(wildcards):
+
+    # If this is a genome sample, return a BED file listing all chromosomes
+    if wildcards.seq_type != "capture":
+        return _mutect2_get_interval_cli_args()
+    try:
+        # Get the appropriate capture space for this sample
+        return " -L " + get_capture_space(wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "interval_list")
+    except NameError:
+        # If we are using an older version of the reference workflow, use the same region file as the genome sample
+        return _mutect2_get_interval_cli_args()
 
 def _mutect2_get_chr_tbis(wildcards):
     CFG = config["lcr-modules"]["mutect2"]

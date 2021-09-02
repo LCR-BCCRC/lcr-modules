@@ -97,7 +97,7 @@ rule get_sdf_refs:
     output: 
         sdf = directory("genomes/{genome_build}/sdf")
     wildcard_constraints: 
-        genome_build = "hg38|hg19|grch37|hs37d5"
+        genome_build = "hg38|hg19|grch37|hs37d5|hg19-reddy"
     shell: 
         "ln -srfT {input.sdf} {output.sdf}"
 
@@ -381,3 +381,159 @@ rule get_mutect2_small_exac:
             &&
         tabix {output.vcf}
         """)
+
+
+### FOR HANDLING CAPTURE SPACE/TARGETED SEQUENCING DATA ###
+# Added by Chris
+# What this *should* do (if I have written these rules correctly) is obtain a capture space BED file
+# check the contig names against the reference (and replace them as necessary), pad, sort,merge, and generate a bgzip/tabix
+# indexed version of the BED as well as an interval list.
+
+def _check_capspace_provider(w):
+    # Checks to determine if both the capture space BED and associated reference genome
+    # are chr prefixed or not
+
+    # If this is specified as the "default", make sure we obtain the relevent capture space
+    default_key = "default-" + w.genome_build
+    if default_key not in config["capture_space"] and w.capture_space == default_key:
+        # aka if the user hasn't explicitly specified a default using a default name
+        capture_space = _get_default_capspace(w)
+    else:
+        capture_space = w.capture_space
+
+    genome_provider = config["genome_builds"][w.genome_build]["provider"]
+    bed_provider = config["capture_space"][capture_space]["provider"]
+    
+    # If the providers match (i.e. they share the same prefix), just use the downloaded version
+    if genome_provider == bed_provider:
+        return {'bed': expand(rules.download_capspace_bed.output.capture_bed, capture_space=capture_space, genome_build=w.genome_build)}
+    else:
+        # Prompt the prefix to be converted
+        chr_status = "chr" if genome_provider == "ucsc" else "no_chr"
+        return {'bed': expand(rules.add_remove_chr_prefix_bed.output.converted_bed, capture_space = capture_space, genome_build = w.genome_build, chr_status= chr_status)}
+
+
+def get_capture_space(sample_id, genome_build, seq_type, return_ext):
+    """
+    Obtain the corresponding capture space file (gz, interval list etc) for the specified sample
+    """
+
+    # Get the corresponding capture space for a given sample
+    sample_table = CFG["samples"]
+    sample = sample_table.loc[(sample_table['sample_id'] == sample_id) &
+            (sample_table['genome_build'] == genome_build) &
+            (sample_table['seq_type'] == seq_type)]
+    if len(sample) != 1:
+        raise AssertionError("Found %s matches when examining the sample table for pair \'%s\' \'%s\' \'%s\'" % (len(sample), sample_id, genome_build, seq_type))
+    panel = sample.iloc[0]['capture_space']
+
+    # If this panel is "none" (aka not specified) use the default for this reference genome
+    if panel == "none":
+        # Get the provider for this version of the reference genome
+        genome_version = None
+        for version, builds in GENOME_VERSION_GROUPS.items():
+            if genome_build in builds:
+                assert genome_version is None  # Failsafe, but this should never happen, as the reference workflow will not tolerate duplicates (I think)
+                genome_version = version
+        if genome_version is None:
+            raise AttributeError("Unable to find the corresponding genome version (ex. GRCh37) for build \'%s\'" % genome_build)
+        
+        try:
+            panel = DEFAULT_CAPSPACE[genome_version]
+        except KeyError as e:
+            raise AttributeError("No default capture space was specified for genome version \'%s\'. You can specify a default by setting \'default=\'true\'\' in a \'%s\'-based capture space in the reference config" % (genome_version, genome_version)) from e
+
+    # Now that we have found the corresponding capture region for this sample, obtain the requested file
+    return reference_files("genomes/" + genome_build + "/capture_space/" + panel + ".padded." + return_ext)
+
+
+rule get_capspace_bed_download:
+    input:
+        unpack(_check_capspace_provider)
+    output:
+        capture_bed = "genomes/{genome_build}/capture_space/{capture_space}.bed"
+    conda: CONDA_ENVS["coreutils"]
+    shell:
+        "ln -srf {input.bed} {output.capture_bed}"
+
+
+rule sort_and_pad_capspace:
+    input:
+       capture_bed = rules.get_capspace_bed_download.output.capture_bed,
+       fai = rules.index_genome_fasta.output.fai
+    output:
+        padded_bed = "genomes/{genome_build}/capture_space/{capture_space}.padded.bed"
+    params:
+        padding_size = config['capture_params']['padding_size']  # Default to 200. I would be warry of changing
+    log:
+        "genomes/{genome_build}/capture_space/{capture_space}.padded.bed.log"
+    conda: CONDA_ENVS["bedtools"]
+    shell:
+        "bedtools slop -b {params.padding_size} -i {input.capture_bed} -g {input.fai} | bedtools sort | bedtools merge > {output.padded_bed} 2> {log}"
+
+
+rule check_capspace_contigs:
+    input:
+        bed = rules.get_capspace_bed_download.output.capture_bed,
+        fai = rules.index_genome_fasta.output.fai
+    output:
+        contig_log = "genomes/{genome_build}/capture_space/{capture_space}.check_contigs.log"
+    run:
+        # Parse BED contigs
+        bed_contigs = set()
+        with open(input.bed) as f:
+            for line in f:
+                line = line.rstrip()
+                contig = line.split("\t")[0]
+                if contig not in bed_contigs:
+                    bed_contigs.add(contig)
+
+        # Parse fai contigs
+        fai_contigs = set()
+        with open(input.fai) as f:
+            for line in f:
+                line = line.rstrip()
+                contig = line.split('\t')[0]
+                if contig not in fai_contigs:
+                    fai_contigs.add(contig)
+
+        # Check the BED file for contigs that are not in the reference genome
+        missing_contigs = list(x for x in bed_contigs if x not in fai_contigs)
+        with open(output.contig_log, "w") as o:
+            if len(missing_contigs) == 0:
+                o.write("No contigs missing from reference")
+            else:
+                o.write("The following contigs were missing from the reference\n")
+                o.write("\n".join(missing_contigs))
+            o.write("\n")
+
+
+rule compress_index_capspace_bed:
+    input:
+        capture_bed = rules.sort_and_pad_capspace.output.padded_bed
+    output:
+        bgzip_bed = "genomes/{genome_build}/capture_space/{capture_space}.padded.bed.gz",
+        tabix = "genomes/{genome_build}/capture_space/{capture_space}.padded.bed.gz.tbi"
+    log:
+        "genomes/{genome_build}/capture_space/{capture_space}.padded.bed.gz.log"
+    conda: CONDA_ENVS["tabix"]
+    shell:
+        op.as_one_line("""
+        bgzip -c {input.capture_bed} > {output.bgzip_bed}
+            &&
+        tabix -p bed {output.bgzip_bed}
+        """)
+
+
+rule create_interval_list:
+    input:
+        bed = rules.sort_and_pad_capspace.output.padded_bed,
+        sd = rules.create_gatk_dict.output.dict
+    output:
+        interval_list = "genomes/{genome_build}/capture_space/{capture_space}.padded.interval_list"
+    log:
+        "genomes/{genome_build}/capture_space/{capture_space}.padded.interval_list.log"
+    conda: CONDA_ENVS["gatk"]
+    shell:
+        "gatk BedToIntervalList --INPUT {input.bed} -SD {input.sd} -O {output.interval_list} > {log} 2>&1"
+

@@ -83,7 +83,8 @@ rule _manta_configure_paired:
         stderr = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stderr.log"
     params:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["configure"]),
-        tumour_bam_arg_name = op.switch_on_wildcard("seq_type", CFG["switches"]["tumour_bam_arg_name"])
+        tumour_bam_arg_name = op.switch_on_wildcard("seq_type", CFG["switches"]["tumour_bam_arg_name"]),
+        bedz = lambda w:_manta_get_capspace(w)
     wildcard_constraints:
         pair_status = "matched|unmatched"
     conda:
@@ -110,7 +111,8 @@ rule _manta_configure_unpaired:
         stderr = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_configure.stderr.log"
     params:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["configure"]),
-        tumour_bam_arg_name = op.switch_on_wildcard("seq_type", CFG["switches"]["tumour_bam_arg_name"])
+        tumour_bam_arg_name = op.switch_on_wildcard("seq_type", CFG["switches"]["tumour_bam_arg_name"]),
+        bedz = lambda w: _manta_get_capspace(w)
     wildcard_constraints:
         pair_status = "no_normal"
     conda:
@@ -272,6 +274,17 @@ def _manta_predict_output(wildcards):
 
     return outputs_with_bedpe + outputs_without_bedpe
 
+def _manta_get_capspace(wildcards):
+
+    # If this is a genome sample, return a BED file listing all chromosomes
+    if wildcards.seq_type != "capture":
+        return reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes.bed.gz")
+    try:
+        # Get the appropriate capture space for this sample
+        return get_capture_space(wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed.gz")
+    except NameError:
+        # If we are using an older version of the reference workflow, use the same region file as the genome sample
+        return reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes.bed.gz")
 
 # Generates the target symlinks for each run depending on the Manta output VCF files
 rule _manta_dispatch:
