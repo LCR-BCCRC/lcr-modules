@@ -385,7 +385,7 @@ rule download_sdf:
 
 
 def get_matching_download_rules(file):
-    ignored_rules = ["download_genome_fasta", "download_sdf"]
+    ignored_rules = ["download_genome_fasta", "download_sdf", "download_sigprofiler_genome"]
     rule_names = [ r for r in dir(rules) if r.startswith("download_")]
     rule_names = [ r for r in rule_names if r not in ignored_rules ]
     rule_list = [ getattr(rules, name) for name in rule_names ]
