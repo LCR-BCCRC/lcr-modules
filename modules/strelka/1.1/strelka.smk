@@ -108,7 +108,6 @@ rule _strelka_configure_paired: # Somatic
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        bedz = str(rules._strelka_index_bed.output.bedz),
         indels = str(rules._strelka_input_vcf.output.vcf) if CFG["inputs"]["candidate_small_indels"] else str(rules._strelka_dummy_vcf.output)
     output:
         runwf = CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
@@ -129,7 +128,7 @@ rule _strelka_configure_paired: # Somatic
         --normalBam={input.normal_bam}
         --tumorBam={input.tumour_bam}
         --referenceFasta={input.fasta}
-       --callRegions={input.bedz}
+       --callRegions={params.bedz}
         --runDir=$(dirname {output.runwf})
         {params.indel_arg}
         {params.opts} 
@@ -141,7 +140,6 @@ rule _strelka_configure_unpaired: # germline
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        bedz = str(rules._strelka_index_bed.output.bedz)
     output:
         runwf = CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
@@ -161,7 +159,7 @@ rule _strelka_configure_unpaired: # germline
         configureStrelkaGermlineWorkflow.py 
         --bam={input.tumour_bam}
         --referenceFasta={input.fasta}
-        --callRegions={input.bedz}
+        --callRegions={params.bedz}
         --runDir=$(dirname {output.runwf})
         {params.opts} 
         > {log.stdout} 2> {log.stderr}

@@ -102,12 +102,12 @@ rule _mutect2_get_sm:
 # The second replaces wildcards with those used in the rule. 
 def _mutect2_get_interval_cli_arg(
     vcf_in = config["lcr-modules"]["mutect2"]["inputs"]["candidate_positions"], 
-    interval_arg_in = config["lcr-modules"]["mutect2"]["options"]["mutect2_interval_rules"]
+    #interval_arg_in = config["lcr-modules"]["mutect2"]["options"]["mutect2_interval_rules"]
 ):
     def _mutect2_get_interval_cli_custom(wildcards, input):
         if vcf_in:
-            param = f"-L {input.candidate_positions} {interval_arg_in}"
-        else: 
+            param = f"-L {input.candidate_positions}"
+        else:
             param = ""
         return param
     return _mutect2_get_interval_cli_custom
@@ -137,7 +137,8 @@ rule _mutect2_run_matched_unmatched:
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
         opts = CFG["options"]["mutect2_run"], 
-        interval_arg = lambda w: _mutect_get_capspace(w)
+        interval_arg = _mutect2_get_interval_cli_arg(),
+        capture_arg = lambda w: _mutect_get_capspace(w)
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -150,7 +151,7 @@ rule _mutect2_run_matched_unmatched:
         -I {input.tumour_bam} -I {input.normal_bam}
         -R {input.fasta} -normal "$(cat {input.normal_sm})" -O {output.vcf}
         --germline-resource {input.gnomad} 
-        -L {wildcards.chrom} {params.interval_arg} 
+        -L {wildcards.chrom} {params.interval_arg} {params.capture_arg}
         -pon {input.pon} --f1r2-tar-gz {output.f1r2}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -178,7 +179,8 @@ rule _mutect2_run_no_normal:
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["mutect2_run"], 
-        interval_arg = lambda w: _mutect_get_capspace(w) 
+        interval_arg = _mutect2_get_interval_cli_arg(),
+        capture_arg = lambda w: _mutect_get_capspace(w)
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -190,7 +192,7 @@ rule _mutect2_run_no_normal:
         gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" 
         {params.opts} -I {input.tumour_bam} -R {input.fasta} 
         -O {output.vcf} --germline-resource {input.gnomad} 
-        -L {wildcards.chrom} {params.interval_arg}
+        -L {wildcards.chrom} {params.interval_arg} {param.capture_arg}
         -pon {input.pon} --f1r2-tar-gz {output.f1r2}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -209,15 +211,16 @@ def _mutect2_get_chr_vcfs(wildcards):
 
 def _mutect_get_capspace(wildcards):
 
-    # If this is a genome sample, return a BED file listing all chromosomes
+    # If this isn't a capture sample, we don't have a capture space, so return nothing
     if wildcards.seq_type != "capture":
-        return _mutect2_get_interval_cli_args()
+        return ""
     try:
         # Get the appropriate capture space for this sample
-        return " -L " + get_capture_space(wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "interval_list")
+        cap_space = get_capture_space(wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "interval_list")
+        return " -L " + cap_space
     except NameError:
-        # If we are using an older version of the reference workflow, use the same region file as the genome sample
-        return _mutect2_get_interval_cli_args()
+        # If we are using an older version of the reference workflow, we don't need to do anything
+        return ""
 
 def _mutect2_get_chr_tbis(wildcards):
     CFG = config["lcr-modules"]["mutect2"]

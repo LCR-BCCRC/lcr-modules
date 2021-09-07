@@ -45,6 +45,7 @@ VERSION_UPPER = {
 }
 
 GENOME_VERSION_GROUPS = {}
+GENOME_VERSION_MAP = {}
 for genome_build in VERSION_UPPER.keys():
     GENOME_VERSION_GROUPS[genome_build] = []
 
@@ -57,6 +58,9 @@ for build_name, build_info in config["genome_builds"].items():
     assert "version" in build_info and build_info["version"] in possible_versions, (
         f"`version` not set for `{build_name}` or `version` not among {possible_versions}."
     )
+    GENOME_VERSION_GROUPS[build_info["version"]].append(build_name)
+    upper_genome_name = VERSION_UPPER[build_info["version"]]
+    GENOME_VERSION_MAP[build_name] = upper_genome_name
     assert "provider" in build_info and build_info["provider"] in possible_providers, (
         f"`provider` not set for `{build_name}` or `provider` not among {possible_providers}."
     )
@@ -394,10 +398,11 @@ def get_matching_download_rules(file):
         # At least one output file should produce
         num_matches = []
         for output_file in r.output:
-            assert "{version}" in output_file, (
-                f"The `{rule_name}` download rule doesn't have a `{{version}}` "
-                f"wildcard in the output file ('{output_file}')."
-            )
+            if rule_name != "download_capspace_bed":  # Workaround since we don't really care about the provider for the capture space
+                assert "{version}" in output_file, (
+                    f"The `{rule_name}` download rule doesn't have a `{{version}}` "
+                    f"wildcard in the output file ('{output_file}')."
+                )
             matches = smk.io.glob_wildcards(output_file, [file])
             num_matches.append(len(matches[0]))
         if any(num > 0 for num in num_matches):

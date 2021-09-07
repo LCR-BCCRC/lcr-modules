@@ -75,7 +75,6 @@ rule _manta_configure_paired:
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         config = op.switch_on_wildcard("seq_type", CFG["switches"]["manta_config"]),
-        bedz = str(rules._manta_index_bed.output.bedz)
     output:
         runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
@@ -91,7 +90,7 @@ rule _manta_configure_paired:
         CFG["conda_envs"]["manta"]
     shell:
         op.as_one_line("""
-        configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {input.bedz}
+        configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {params.bedz}
         --runDir "$(dirname {output.runwf})" {params.tumour_bam_arg_name} {input.tumour_bam}
         --normalBam {input.normal_bam} --config {input.config} > {log.stdout} 2> {log.stderr}
         """)
@@ -103,7 +102,6 @@ rule _manta_configure_unpaired:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         config = op.switch_on_wildcard("seq_type", CFG["switches"]["manta_config"]),
-        bedz = str(rules._manta_index_bed.output.bedz)
     output:
         runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
@@ -119,7 +117,7 @@ rule _manta_configure_unpaired:
         CFG["conda_envs"]["manta"]
     shell:
         op.as_one_line("""
-        configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {input.bedz}
+        configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {params.bedz}
         --runDir "$(dirname {output.runwf})" {params.tumour_bam_arg_name} {input.tumour_bam}
         --config {input.config} > {log.stdout} 2> {log.stderr}
         """)

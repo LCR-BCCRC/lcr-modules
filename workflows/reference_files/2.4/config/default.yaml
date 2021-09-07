@@ -62,6 +62,9 @@ wildcard_values:
     rm_version: ["hg19", "hg38"]
 
 tools:
+    bedtools:
+        conda_env: "envs/bedtools-2.29.2.yaml"
+        version: "2.29.2"
     coreutils: 
         conda_env: "envs/coreutils-8.31.yaml"
         version: "8.31"
@@ -71,6 +74,9 @@ tools:
     samtools: 
         conda_env: "envs/samtools-1.9.yaml"
         version: "1.9"
+    tabix:
+        conda_env: "envs/tabix-0.2.6.yaml"
+        version: "0.2.6"
     bwa: 
         conda_env: "envs/bwa-0.7.17.yaml"
         version: "0.7.17"
