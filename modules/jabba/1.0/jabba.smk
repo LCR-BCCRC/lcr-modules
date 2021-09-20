@@ -232,6 +232,7 @@ rule _jabba_run_jabba:
         stdout = CFG["logs"]["jabba"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.stdout.log",
         stderr = CFG["logs"]["jabba"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.stderr.log"
     params:
+        opts = CFG["options"]["jabba"],
         CPLEX = CFG["CPLEX_DIR"]
     conda: CFG["conda_envs"]["jabba"]
     threads: CFG["threads"]["jabba"]
@@ -239,7 +240,7 @@ rule _jabba_run_jabba:
         mem_mb = CFG["mem_mb"]["jabba"]
     shell:
         op.as_one_line(""" 
-        JABBA_PATH=$(Rscript -e 'cat(paste0(installed.packages()["JaBbA", "LibPath"], "/JaBbA/extdata/"))'); $JABBA_PATH/jba `readlink -e {input.junc}` `readlink -e {input.rds}` --field foreground --cfield tier --outdir `dirname {output.rds}` --cores {threads} --slack 100 > {log.stdout} 2> {log.stderr}
+        JABBA_PATH=$(Rscript -e 'cat(paste0(installed.packages()["JaBbA", "LibPath"], "/JaBbA/extdata/"))'); $JABBA_PATH/jba `readlink -e {input.junc}` `readlink -e {input.rds}` --field foreground --cfield tier --outdir `dirname {output.rds}` --cores {threads} {params.opts} > {log.stdout} 2> {log.stderr}
         """)
 
 

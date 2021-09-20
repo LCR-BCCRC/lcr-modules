@@ -28,6 +28,11 @@ lcr-modules:
         conda_envs:
             jabba: "{MODSDIR}/envs/jabba.yaml"
 
+        options:
+            jabba:
+                --ppmethod sequenza
+                --slack 20
+
         threads:
             merge_svs: 1
             fragcounter: 1
