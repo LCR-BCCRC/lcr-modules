@@ -44,13 +44,13 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "preprocess", "gridss", "viral_annotation", "gripss", "outputs"],
 )
 
-VERSION_MAP = {
+GRIDSS_VERSION_MAP = {
     "grch37": "hg19", 
     "hs37d5": "hg19", 
     "hg38": "hg38"
 }
 
-possible_genome_builds = VERSION_MAP.keys()
+possible_genome_builds = GRIDSS_VERSION_MAP.keys()
 for genome_build in CFG["runs"]["tumour_genome_build"]:
     assert genome_build in possible_genome_builds, (
         "Samples table includes genome builds not yet compatible with this module. "
@@ -105,7 +105,7 @@ rule _gridss_get_pon:
         pon_breakend = CFG["dirs"]["inputs"] + "references/{genome_build}/pon/gridss_pon_single_breakend.bed", 
         known_pairs = CFG["dirs"]["inputs"] + "references/{genome_build}/pon/KnownFusionPairs.bedpe"
     params: 
-        alt_build = lambda w: VERSION_MAP[w.genome_build], 
+        alt_build = lambda w: GRIDSS_VERSION_MAP[w.genome_build],
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/gridss/pon"
     shell: 
         op.as_one_line("""
