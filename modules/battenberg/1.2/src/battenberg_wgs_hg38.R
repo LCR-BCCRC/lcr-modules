@@ -26,7 +26,8 @@ opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
 original_dir = getwd()
 
-REFERENCE_BASE = paste0(normalizePath(original_dir,"\\"), "/",opt$reference)
+#REFERENCE_BASE = paste0(normalizePath(original_dir,"\\"), "/",opt$reference)
+REFERENCE_BASE = opt$reference
 TUMOURNAME = opt$tumourname
 NORMALNAME = opt$normalname
 
@@ -83,8 +84,11 @@ print(PROBLEMLOCI);
 
 # Change to work directory and load the chromosome information
 setwd(RUN_DIR)
-NORMALBAM = paste0(normalizePath(original_dir,"\\"), "/",opt$nb)
-TUMOURBAM = paste0(normalizePath(original_dir,"\\"), "/",opt$tb)
+#NORMALBAM = paste0(normalizePath(original_dir,"\\"), "/",opt$nb)
+#TUMOURBAM = paste0(normalizePath(original_dir,"\\"), "/",opt$tb)
+NORMALBAM = opt$nb
+TUMOURBAM = opt$tb
+
 
 #this should be the full path to the files after changing directories
 
