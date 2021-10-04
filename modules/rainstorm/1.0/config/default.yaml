@@ -1,0 +1,36 @@
+lcr-modules:
+    
+    rainstorm:
+
+        inputs:
+            # Available wildcards: {cohort_name}
+            sample_maf: "__UPDATE__" # path to the maf file containing all patients across cohort of interest
+
+        scratch_subdirectories: []
+
+        options:
+            cohort_name: "__UPDATE__" # this will be used as prefix to the output files
+            rainstorm_version: 0.3 # here the version tag for the rainstorm version can be specified. The default version used in the module is 0.3
+            genome_build: "__UPDATE__" # specify genome build of variants in maf file
+            flags: "--max_mut 10000" # provide additional flags for rainstorm run. For example, the maximum number of mutations per sample here is set to 10000 as module default
+
+        conda_envs:
+            rainstorm: "{MODSDIR}/envs/rainstorm-0.3.yaml"
+            
+        threads:
+            rainstorm: 24
+            doppler: 8
+
+        resources:
+            rainstorm: 
+                mem_mb: 80000
+            
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
