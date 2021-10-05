@@ -219,13 +219,22 @@ rule _jabba_run_dryclean_tumour:
                 -e 'saveRDS(decomp, "{output.rds}")' > {log.stdout} 2> {log.stderr}
         """)
 
+def get_pp(wildcards):
+    pp = config['lcr-modules']['jabba']['pp']
+
+    purity = pp[wildcards.genome_build][wildcards.tumour_id]['purity']
+    purity_range = [round(purity - 0.1, 2), round(purity + 0.1, 2)]
+    purity_range = [str(1) if x > 1 else str(0) if x < 0 else str(x) for x in purity_range]
+
+    ploidy = pp[wildcards.genome_build][wildcards.tumour_id]['ploidy']
+
+    return({'purity': ','.join(purity_range), 'ploidy': ploidy})
 
 rule _jabba_run_jabba:
     input:
         installed = str(rules._jabba_install_jabba.output.complete),
         rds = str(rules._jabba_run_dryclean_tumour.output.rds),
-        junc = str(rules._jabba_merge_svs.output.junc),
-        script = CFG["inputs"]["run_jabba_main"]
+        junc = str(rules._jabba_merge_svs.output.junc)
     output:
         rds = CFG["dirs"]["jabba"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/jabba.simple.gg.rds"
     log:
@@ -233,6 +242,8 @@ rule _jabba_run_jabba:
         stderr = CFG["logs"]["jabba"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.stderr.log"
     params:
         opts = CFG["options"]["jabba"],
+        purity = lambda w: get_pp(w)['purity'],
+        ploidy = lambda w: get_pp(w)['ploidy'],
         CPLEX = CFG["CPLEX_DIR"]
     conda: CFG["conda_envs"]["jabba"]
     threads: CFG["threads"]["jabba"]
@@ -240,7 +251,7 @@ rule _jabba_run_jabba:
         mem_mb = CFG["mem_mb"]["jabba"]
     shell:
         op.as_one_line(""" 
-        JABBA_PATH=$(Rscript -e 'cat(paste0(installed.packages()["JaBbA", "LibPath"], "/JaBbA/extdata/"))'); $JABBA_PATH/jba `readlink -e {input.junc}` `readlink -e {input.rds}` --field foreground --cfield tier --outdir `dirname {output.rds}` --cores {threads} {params.opts} > {log.stdout} 2> {log.stderr}
+        JABBA_PATH=$(Rscript -e 'cat(paste0(installed.packages()["JaBbA", "LibPath"], "/JaBbA/extdata/"))'); $JABBA_PATH/jba `readlink -e {input.junc}` `readlink -e {input.rds}` --field foreground --cfield tier --outdir `dirname {output.rds}` --purity {params.purity} --cores {threads} {params.opts}  > {log.stdout} 2> {log.stderr}
         """)
 
 
