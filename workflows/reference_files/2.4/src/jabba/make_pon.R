@@ -13,6 +13,8 @@ choose.samples <- args[7]
 library(data.table)
 library(dryclean)
 library(parallel)
+library(IRanges)
+library(GenomicRanges)
 
 if (!choose.samples %in% c('rand', 'all', 'cluster')){
    stop('Argument 7 must be one of "rand", "all", or "cluster"')
