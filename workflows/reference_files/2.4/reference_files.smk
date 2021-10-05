@@ -308,9 +308,12 @@ rule jabba_pon_symlink_normal_bams:
         bai = "genomes/{genome_build}/jabba/pon/00-normal_bams/{sample_id}.bam.bai"
     params:
         bam = lambda wc: NORMALS[wc.genome_build][wc.sample_id]
-    shell: 
-        "ln -sf {params.bam} {output.bam}; "
-        "ln -sf {params.bam}.bai {output.bai}"
+    run:
+        shell("ln -sf {params.bam} {output.bam}")
+        if params.bam.endswith('.cram'):
+            shell("ln -sf {params.bam}.crai {output.bai}")
+        else:
+            shell("ln -sf {params.bam}.bai {output.bai}")
 
 # Run fragcounter on normals to get GC/mappability corrected coverage values
 rule jabba_pon_run_fragcounter:
@@ -319,7 +322,7 @@ rule jabba_pon_run_fragcounter:
         bam = str(rules.jabba_pon_symlink_normal_bams.output.bam),
         gc = str(rules.get_jabba_gc_rds.output.rds),
         map = str(rules.get_jabba_map_rds.output.rds),
-        ref = str(rules.download_genome_fasta.output.fasta) 
+        ref = str(rules.get_genome_fasta_download.output.fasta) 
     output:
         rds = "genomes/{genome_build}/jabba/pon/01-fragcounter/run/{sample_id}/cov.rds"
     conda: CONDA_ENVS["jabba"]
@@ -354,7 +357,7 @@ rule jabba_pon_make_pon:
     params:
         choose_samples = 'cluster'
     conda: CONDA_ENVS["jabba"]
-    threads: 10
+    threads: 100
     resources:
         mem_mb = 30000
     shell:
