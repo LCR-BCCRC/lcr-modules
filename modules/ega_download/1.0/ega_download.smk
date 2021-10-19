@@ -98,6 +98,10 @@ rule _ega_download_get_bam:
         #bam = str("ega/{study_id}/{file_id}.bam")
     output:
         bam = CFG["dirs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}/{sample_id}.bam"
+    threads:
+        CFG["threads"]["bam_index"]
+    resources:
+        mem_mb = CFG["mem_mb"]["bam_index"]
     shell:
         "cp {input.bam} {output.bam}"
 
@@ -110,6 +114,10 @@ rule _ega_download_index_bam:
         bai = CFG["dirs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}/{sample_id}.bam.bai"
     conda:
         CFG["conda_envs"]["samtools"]
+    threads:
+        CFG["threads"]["bam_index"]
+    resources:
+        mem_mb = CFG["mem_mb"]["bam_index"]
     shell:
         "samtools index {input.bam} {output.bai}"
 
