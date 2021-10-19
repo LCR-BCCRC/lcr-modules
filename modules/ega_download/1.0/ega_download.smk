@@ -111,19 +111,21 @@ rule _ega_download_index_bam:
     shell:
         "samtools index {input.bam} {output.bai}"
 
-
+# function to get bam files that drops EGA ID from the name of the final bam
 def get_file_bam (wildcards):
     CFG = config["lcr-modules"]["ega_download"]
     file_id = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["file_id"]
     return (expand(str(CFG["dirs"]["ega_download"] + "bam/{{seq_type}}--{{genome_build}}/{{study_id}}/{file_id}/{{sample_id}}.bam"),
                     file_id = file_id))
 
+# function to get bam files that drops EGA ID from the name of the index file
 def get_file_bai (wildcards):
     CFG = config["lcr-modules"]["ega_download"]
     file_id = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["file_id"]
     return (expand(str(CFG["dirs"]["ega_download"] + "bam/{{seq_type}}--{{genome_build}}/{{study_id}}/{file_id}/{{sample_id}}.bam.bai"),
                     file_id = file_id))
 
+# Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _ega_download_output_files:
     input:
         bam = get_file_bam,
@@ -136,7 +138,7 @@ rule _ega_download_output_files:
         op.relative_symlink(input.bai, output.bai, in_module=True)
 
 
-# Symlinks the final output files into the module results directory (under '99-outputs/')
+# Write associated sample table as one of the module's outputs
 rule _ega_download_export_sample_table:
     input:
         expand(
@@ -157,7 +159,7 @@ rule _ega_download_export_sample_table:
         samples_metadata.to_csv(output.sample_table, sep='\t', header=True, index=False)
 
 
-# Generates the target sentinels for each run, which generate the symlinks
+# Generates the target files for each run, which generate the symlinks
 rule _ega_download_all:
     input:
         expand(
