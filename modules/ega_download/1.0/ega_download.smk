@@ -64,12 +64,14 @@ CFG = op.setup_module(
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _ega_download_input_csv,
-    _ega_download_step_2,
-    _ega_download_output_bam,
-    _ega_download_all,
+    _ega_download_get_bam,
+    _ega_download_index_bam,
+    _ega_download_output_files,
+    _ega_download_export_sample_table,
+    _ega_download_all
+
 
 
 ##### RULES #####
