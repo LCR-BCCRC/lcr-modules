@@ -109,7 +109,7 @@ rule _ega_download_index_bam:
     output:
         bai = CFG["dirs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}/{sample_id}.bam.bai"
     conda:
-        "some_env.yaml"
+        CFG["conda_envs"]["samtools"]
     shell:
         "samtools index {input.bam} {output.bai}"
 
