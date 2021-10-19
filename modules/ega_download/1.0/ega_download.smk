@@ -113,12 +113,15 @@ rule _ega_download_get_bam:
         #bam = str("ega/{study_id}/{file_id}.bam")
     output:
         bam = CFG["dirs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}/{sample_id}.bam"
+    log:
+        stdout = CFG["logs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}/{sample_id}_download.stdout.log",
+        stderr = CFG["logs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}/{sample_id}_download.stderr.log"
     threads:
         CFG["threads"]["bam_index"]
     resources:
         **CFG["resources"]["bam_download"]
     shell:
-        "cp {input.bam} {output.bam}"
+        "cp {input.bam} {output.bam} > {log.stdout} 2> {log.stderr}"
 
 
 # Example variant filtering rule (single-threaded; can be run on cluster head node)
@@ -127,6 +130,9 @@ rule _ega_download_index_bam:
         bam = str(rules._ega_download_get_bam.output.bam)
     output:
         bai = CFG["dirs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}/{sample_id}.bam.bai"
+    log:
+        stdout = CFG["logs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}/{sample_id}_index.stdout.log",
+        stderr = CFG["logs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}/{sample_id}_index.stderr.log"
     params:
         opts = CFG["options"]["bam_index"]
     conda:
@@ -141,6 +147,8 @@ rule _ega_download_index_bam:
         {params.opts}
         -@ {threads}
         {input.bam}
+        > {log.stdout}
+        2> {log.stderr}
         """)
 
 
