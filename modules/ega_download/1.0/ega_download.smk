@@ -112,6 +112,8 @@ rule _ega_download_index_bam:
         bam = str(rules._ega_download_get_bam.output.bam)
     output:
         bai = CFG["dirs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}/{sample_id}.bam.bai"
+    params:
+        opts = CFG["options"]["bam_index"]
     conda:
         CFG["conda_envs"]["samtools"]
     threads:
@@ -119,7 +121,12 @@ rule _ega_download_index_bam:
     resources:
         **CFG["resources"]["bam_index"]
     shell:
-        "samtools index {input.bam} {output.bai}"
+        op.as_one_line("""
+        samtools index
+        {params.opts}
+        -@ {threads}
+        {input.bam}
+        """)
 
 # function to get bam files that drops EGA ID from the name of the final bam
 def get_file_bam (wildcards):

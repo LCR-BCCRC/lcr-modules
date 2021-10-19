@@ -16,7 +16,10 @@ lcr-modules:
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            
+
+        options:
+            bam_index: "-b" # options for bam file indexing
+
         threads:
             bam_download: 8
             bam_index: 6
@@ -27,7 +30,6 @@ lcr-modules:
                 bam: 1
             bam_index:
                 mem_mb: 4000
-                bam: 1
 
         pairing_config:
             genome:
