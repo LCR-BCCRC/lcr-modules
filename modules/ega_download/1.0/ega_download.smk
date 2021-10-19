@@ -14,6 +14,45 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+import pandas as pd
+import json
+import snakemake.remote.EGA as EGA
+import os
+import stat
+
+# Check if EGA credentials file is only accessible by user. If someone else can read/write this file, stop module from the execution
+permissions = (oct(stat.S_IMODE(os.lstat(CFG["credentials_file"]).st_mode)))[-2:]
+if (int(permissions) != 00):
+    sys.exit("The EGA credentials file is readable/writebale not only by the owner. Please ensure that EGA credentials file can only be accessed by the owner.")
+
+# Opening JSON file
+EGA_CREDENTIALS_FILE = open(CFG["credentials_file"],)
+
+# returns JSON object as a dictionary
+EGA_CREDENTIALS = json.load(EGA_CREDENTIALS_FILE )
+
+# set env variables to connect to EGA
+os.environ["EGA_USERNAME"] = EGA_CREDENTIALS['username']
+os.environ["EGA_PASSWORD"] = EGA_CREDENTIALS['password']
+os.environ["EGA_CLIENT_SECRET"] = "AMenuDLjVdVo4BSwi0QD54LL6NeVDEZRzEQUJ7hJOM3g4imDZBHHX0hNfKHPeQIGkskhtCmqAJtt_jm7EKq-rWw"
+os.environ["EGA_CLIENT_ID"] = "f20cd2d3-682a-4568-a53e-4262ef54c8f4"
+
+# Closing file
+EGA_CREDENTIALS_FILE.close()
+
+
+# Defining global variables and doing global setup to connect to EGA
+ega = EGA.RemoteProvider()
+
+# The file listing samples
+EGA_TARGET_SAMPLES = pd.read_csv (str(CFG["inputs"]["sample_csv"]).replace("{study_id}", CFG["study_id"]))
+# The file with metadata
+EGA_TARGET_SAMPLES_METADATA = pd.read_csv (str(CFG["inputs"]["sample_metadata"]).replace("{study_id}", CFG["study_id"]))
+# Merge them together, making sure the sample table is sorted
+EGA_MASTER_SAMPLE_TABLE = EGA_TARGET_SAMPLES.merge(EGA_TARGET_SAMPLES_METADATA, on="file_id", how="right")
+EGA_MASTER_SAMPLE_TABLE = EGA_MASTER_SAMPLE_TABLE.sort_values(by=['file_id'], ascending=True)
+tbl = EGA_MASTER_SAMPLE_TABLE
+
 
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["ega_download"]`
@@ -37,66 +76,85 @@ localrules:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
 rule _ega_download_input_csv:
     input:
-        csv = CFG["inputs"]["sample_csv"]
+        csv = CFG["inputs"]["sample_csv"],
+        metadata = CFG["inputs"]["sample_metadata"]
     output:
-        csv = CFG["dirs"]["inputs"] + "csv/{seq_type}--{genome_build}/{sample_id}.csv"
+        csv = CFG["dirs"]["inputs"] + "csv/{seq_type}--{genome_build}/{study_id}.csv",
+        metadata = CFG["dirs"]["inputs"] + "metadata/{seq_type}--{genome_build}/{study_id}.metadata.csv",
     run:
-        op.relative_symlink(input.csv, output.csv)
+        op.absolute_symlink(input.csv, output.csv)
+        op.absolute_symlink(input.metadata, output.metadata)
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _ega_download_step_1:
+rule _ega_download_get_bam:
     input:
-        csv = str(rules._ega_download_input_csv.output.csv),
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        sample_table = str(rules._ega_download_input_csv.output.csv),
+        bam = ega.remote(str("ega/{study_id}/{sample_id}.bam"))
+        #bam = str("ega/{study_id}/{file_id}.bam")
     output:
-        bam = CFG["dirs"]["ega_download"] + "{seq_type}--{genome_build}/{sample_id}/output.bam"
-    log:
-        stdout = CFG["logs"]["ega_download"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stdout.log",
-        stderr = CFG["logs"]["ega_download"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stderr.log"
-    params:
-        opts = CFG["options"]["step_1"]
-    conda:
-        CFG["conda_envs"]["samtools"]
-    threads:
-        CFG["threads"]["step_1"]
-    resources:
-        mem_mb = CFG["mem_mb"]["step_1"]
+        bam = CFG["dirs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}/{sample_id}.bam"
     shell:
-        op.as_one_line("""
-        <TODO> {params.opts} --input {input.csv} --ref-fasta {input.fasta}
-        --output {output.bam} --threads {threads} > {log.stdout} 2> {log.stderr}
-        """)
+        "cp {input.bam} {output.bam}"
 
 
 # Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _ega_download_step_2:
+rule _ega_download_index_bam:
     input:
-        bam = str(rules._ega_download_step_1.output.bam)
+        bam = str(rules._ega_download_get_bam.output.bam)
     output:
-        bam = CFG["dirs"]["ega_download"] + "{seq_type}--{genome_build}/{sample_id}/output.filt.bam"
-    log:
-        stderr = CFG["logs"]["ega_download"] + "{seq_type}--{genome_build}/{sample_id}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
+        bai = CFG["dirs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}/{sample_id}.bam.bai"
+    conda:
+        "some_env.yaml"
     shell:
-        "grep {params.opts} {input.bam} > {output.bam} 2> {log.stderr}"
+        "samtools index {input.bam} {output.bai}"
+
+
+def get_file_bam (wildcards):
+    CFG = config["lcr-modules"]["ega_download"]
+    file_id = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["file_id"]
+    return (expand(str(CFG["dirs"]["ega_download"] + "bam/{{seq_type}}--{{genome_build}}/{{study_id}}/{file_id}/{{sample_id}}.bam"),
+                    file_id = file_id))
+
+def get_file_bai (wildcards):
+    CFG = config["lcr-modules"]["ega_download"]
+    file_id = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["file_id"]
+    return (expand(str(CFG["dirs"]["ega_download"] + "bam/{{seq_type}}--{{genome_build}}/{{study_id}}/{file_id}/{{sample_id}}.bam.bai"),
+                    file_id = file_id))
+
+rule _ega_download_output_files:
+    input:
+        bam = get_file_bam,
+        bai = get_file_bai
+    output:
+        bam = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{study_id}/{sample_id}.bam",
+        bai = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{study_id}/{sample_id}.bam.bai"
+    run:
+        op.relative_symlink(input.bam, output.bam, in_module=True)
+        op.relative_symlink(input.bai, output.bai, in_module=True)
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
-rule _ega_download_output_bam:
+rule _ega_download_export_sample_table:
     input:
-        bam = str(rules._ega_download_step_2.output.bam)
+        expand(
+            [
+                str(rules._ega_download_output_files.output.bam),
+                str(rules._ega_download_output_files.output.bai)
+            ],
+            zip,  # Run expand() with zip(), not product()
+            seq_type=EGA_MASTER_SAMPLE_TABLE["seq_type"],
+            genome_build=EGA_MASTER_SAMPLE_TABLE["genome_build"],
+            study_id=[CFG["study_id"]]*len(EGA_TARGET_SAMPLES["file_id"]),
+            sample_id=EGA_MASTER_SAMPLE_TABLE["sample_id"])
     output:
-        bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.output.filt.bam"
+        sample_table = CFG["dirs"]["outputs"] + "metadata/{study_id}/metadata.tsv",
     run:
-        op.relative_symlink(input.bam, output.bam)
+        samples_metadata = EGA_MASTER_SAMPLE_TABLE.rename(columns={'file_format': 'compression'})
+        samples_metadata = samples_metadata.insert(0, 'bam_available', 'TRUE')
+        samples_metadata.to_csv(output.sample_table, sep='\t', header=True, index=False)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -104,13 +162,15 @@ rule _ega_download_all:
     input:
         expand(
             [
-                str(rules._ega_download_output_bam.output.bam),
-                # TODO: If applicable, add other output rules here
+                str(rules._ega_download_output_files.output.bam),
+                str(rules._ega_download_output_files.output.bai),
+                str(rules._ega_download_export_sample_table.output.sample_table)
             ],
             zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["samples"]["seq_type"],
-            genome_build=CFG["samples"]["genome_build"],
-            sample_id=CFG["samples"]["sample_id"])
+            seq_type=EGA_MASTER_SAMPLE_TABLE["seq_type"],
+            genome_build=EGA_MASTER_SAMPLE_TABLE["genome_build"],
+            study_id=[CFG["study_id"]]*len(EGA_TARGET_SAMPLES["file_id"]),
+            sample_id=EGA_MASTER_SAMPLE_TABLE["sample_id"])
 
 
 ##### CLEANUP #####
