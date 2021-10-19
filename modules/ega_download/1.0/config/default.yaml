@@ -8,9 +8,9 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_csv: "__UPDATE__" # csv sample table downloaded from EGA
-            sample_metadata: "__UPDATE__" # basic metadata file. At the minimum, should contain EGA ID to sample_id mapping, seq type of the sample, and aligned genome build.
+            sample_metadata: "__UPDATE__" # basic metadata file. At the minimum, should contain EGA ID to sample_id mapping, seq_type of the sample, and genome_build.
         study_id: "__UPDATE__" # EGA study ID
-        credentials_file: "__UPDATE__" # path to .json file with EGA credentials. Must be accessible only by file owner.
+        credentials_file: "__UPDATE__" # path to .json file with EGA credentials. Must be accessible only by file owner. Required keys are 'username' and 'password'
 
         scratch_subdirectories: []
 

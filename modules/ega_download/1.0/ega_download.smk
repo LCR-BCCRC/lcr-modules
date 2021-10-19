@@ -46,25 +46,21 @@ permissions = (oct(stat.S_IMODE(os.lstat(CFG["credentials_file"]).st_mode)))[-2:
 if (int(permissions) != 00):
     sys.exit("The EGA credentials file is readable/writebale not only by the owner. Please ensure that EGA credentials file can only be accessed by the owner.")
 
-# Opening JSON file
+# Opening JSON file with credentials
 EGA_CREDENTIALS_FILE = open(CFG["credentials_file"],)
-
-# returns JSON object as a dictionary
+# Returns credentials as a dictionary
 EGA_CREDENTIALS = json.load(EGA_CREDENTIALS_FILE )
-
 # set env variables to connect to EGA
 os.environ["EGA_USERNAME"] = EGA_CREDENTIALS['username']
 os.environ["EGA_PASSWORD"] = EGA_CREDENTIALS['password']
 os.environ["EGA_CLIENT_SECRET"] = "AMenuDLjVdVo4BSwi0QD54LL6NeVDEZRzEQUJ7hJOM3g4imDZBHHX0hNfKHPeQIGkskhtCmqAJtt_jm7EKq-rWw"
 os.environ["EGA_CLIENT_ID"] = "f20cd2d3-682a-4568-a53e-4262ef54c8f4"
-
 # Closing file
 EGA_CREDENTIALS_FILE.close()
 
 
 # Defining global variables and doing global setup to connect to EGA
 ega = EGA.RemoteProvider()
-
 # The file listing samples
 EGA_TARGET_SAMPLES = pd.read_csv (str(CFG["inputs"]["sample_csv"]).replace("{study_id}", CFG["study_id"]))
 # The file with metadata
@@ -73,7 +69,6 @@ EGA_TARGET_SAMPLES_METADATA = pd.read_csv (str(CFG["inputs"]["sample_metadata"])
 EGA_MASTER_SAMPLE_TABLE = EGA_TARGET_SAMPLES.merge(EGA_TARGET_SAMPLES_METADATA, on="file_id", how="right")
 EGA_MASTER_SAMPLE_TABLE = EGA_MASTER_SAMPLE_TABLE.sort_values(by=['file_id'], ascending=True)
 tbl = EGA_MASTER_SAMPLE_TABLE
-
 
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["ega_download"]`
@@ -92,7 +87,6 @@ localrules:
     _ega_download_output_files,
     _ega_download_export_sample_table,
     _ega_download_all
-
 
 
 ##### RULES #####
@@ -148,6 +142,7 @@ rule _ega_download_index_bam:
         -@ {threads}
         {input.bam}
         """)
+
 
 # function to get bam files that drops EGA ID from the name of the final bam
 def get_file_bam (wildcards):
