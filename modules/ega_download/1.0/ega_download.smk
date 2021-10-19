@@ -101,7 +101,7 @@ rule _ega_download_get_bam:
     threads:
         CFG["threads"]["bam_index"]
     resources:
-        mem_mb = CFG["mem_mb"]["bam_index"]
+        **CFG["resources"]["bam_download"]
     shell:
         "cp {input.bam} {output.bam}"
 
@@ -117,7 +117,7 @@ rule _ega_download_index_bam:
     threads:
         CFG["threads"]["bam_index"]
     resources:
-        mem_mb = CFG["mem_mb"]["bam_index"]
+        **CFG["resources"]["bam_index"]
     shell:
         "samtools index {input.bam} {output.bai}"
 
