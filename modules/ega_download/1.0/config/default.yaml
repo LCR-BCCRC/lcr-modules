@@ -2,16 +2,17 @@ lcr-modules:
     
     ega_download:
 
+    ega_download:
+
         # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_csv: "__UPDATE__"
+            sample_metadata: "__UPDATE__"
+        study_id: "__UPDATE__"
+        credentials_file: "__UPDATE__"
 
         scratch_subdirectories: []
-
-        options:
-            step_1: ""
-            step_2: ""
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
