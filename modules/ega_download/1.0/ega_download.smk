@@ -41,9 +41,9 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # End of dependency checking section
 
 
-# Check if EGA credentials file is only accessible by user. If someone else can read/write this file, stop module from the execution
-permissions = (oct(stat.S_IMODE(os.lstat(CFG["credentials_file"]).st_mode)))[-2:]
-if (int(permissions) != 00):
+# Check if EGA credentials file is only accessible by user or user group. If someone outside user group can read/write this file, stop module from the execution
+permissions = (oct(stat.S_IMODE(os.lstat(CFG["credentials_file"]).st_mode)))[-1:]
+if (int(permissions) != 0):
     sys.exit("The EGA credentials file is readable/writebale not only by the owner. Please ensure that EGA credentials file can only be accessed by the owner.")
 
 # Opening JSON file with credentials
