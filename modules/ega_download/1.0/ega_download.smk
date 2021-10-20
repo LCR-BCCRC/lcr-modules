@@ -40,6 +40,14 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 
 # End of dependency checking section
 
+# Setup module and store module-specific configuration in `CFG`
+# `CFG` is a shortcut to `config["lcr-modules"]["ega_download"]`
+CFG = op.setup_module(
+    name = "ega_download",
+    version = "1.0",
+    # TODO: If applicable, add more granular output subdirectories
+    subdirectories = ["inputs", "ega_download", "outputs"],
+)
 
 # Check if EGA credentials file is only accessible by user or user group. If someone outside user group can read/write this file, stop module from the execution
 permissions = (oct(stat.S_IMODE(os.lstat(CFG["credentials_file"]).st_mode)))[-1:]
@@ -69,15 +77,6 @@ EGA_TARGET_SAMPLES_METADATA = pd.read_csv (str(CFG["inputs"]["sample_metadata"])
 EGA_MASTER_SAMPLE_TABLE = EGA_TARGET_SAMPLES.merge(EGA_TARGET_SAMPLES_METADATA, on="file_id", how="right")
 EGA_MASTER_SAMPLE_TABLE = EGA_MASTER_SAMPLE_TABLE.sort_values(by=['file_id'], ascending=True)
 tbl = EGA_MASTER_SAMPLE_TABLE
-
-# Setup module and store module-specific configuration in `CFG`
-# `CFG` is a shortcut to `config["lcr-modules"]["ega_download"]`
-CFG = op.setup_module(
-    name = "ega_download",
-    version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "ega_download", "outputs"],
-)
 
 # Define rules to be run locally when using a compute cluster
 localrules:
