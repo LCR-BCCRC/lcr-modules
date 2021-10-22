@@ -81,8 +81,8 @@ tbl = EGA_MASTER_SAMPLE_TABLE
 # Define rules to be run locally when using a compute cluster
 localrules:
     _ega_download_input_csv,
-    _ega_download_get_bam,
-    _ega_download_index_bam,
+    _ega_download_get_ega_file,
+    _ega_download_index_ega_file,
     _ega_download_output_files,
     _ega_download_export_sample_table,
     _ega_download_all
@@ -105,60 +105,60 @@ rule _ega_download_input_csv:
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-rule _ega_download_get_bam:
+rule _ega_download_get_ega_file:
     input:
         sample_table = str(rules._ega_download_input_csv.output.csv),
-        #bam = ega.remote(str("ega/{study_id}/{file_id}.{file_format}"))
-        bam = str("{study_id}/{file_id}.{file_format}")
+        #ega_file = ega.remote(str("ega/{study_id}/{file_id}.{file_format}"))
+        ega_file = str("{study_id}/{file_id}.{file_format}")
     output:
-        bam = CFG["dirs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}.{file_format}"
+        ega_file = CFG["dirs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}.{file_format}"
     log:
         stdout = CFG["logs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}_download.stdout.log",
         stderr = CFG["logs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}_download.stderr.log"
     threads:
-        CFG["threads"]["bam_index"]
+        CFG["threads"]["ega_file_index"]
     resources:
-        **CFG["resources"]["bam_download"]
+        **CFG["resources"]["ega_file_download"]
     shell:
-        "cp {input.bam} {output.bam} > {log.stdout} 2> {log.stderr}"
+        "cp {input.ega_file} {output.ega_file} > {log.stdout} 2> {log.stderr}"
 
 
 # Example variant filtering rule (single-threaded; can be run on cluster head node)
-rule _ega_download_index_bam:
+rule _ega_download_index_ega_file:
     input:
-        bam = str(rules._ega_download_get_bam.output.bam)
+        ega_file = str(rules._ega_download_get_ega_file.output.ega_file)
     output:
         bai = CFG["dirs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}.{file_format}.bai"
     log:
         stdout = CFG["logs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}_index.stdout.log",
         stderr = CFG["logs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}_index.stderr.log"
     params:
-        opts = CFG["options"]["bam_index"]
+        opts = CFG["options"]["ega_file_index"]
     conda:
         CFG["conda_envs"]["samtools"]
     threads:
-        CFG["threads"]["bam_index"]
+        CFG["threads"]["ega_file_index"]
     resources:
-        **CFG["resources"]["bam_index"]
+        **CFG["resources"]["ega_file_index"]
     shell:
         op.as_one_line("""
         samtools index
         {params.opts}
         -@ {threads}
-        {input.bam}
+        {input.ega_file}
         > {log.stdout}
         2> {log.stderr}
         """)
 
 
-# function to get bam files that drops EGA ID from the name of the final bam
-def get_file_bam (wildcards):
+# function to get ega_file files that drops EGA ID from the name of the final ega_file
+def get_ega_file (wildcards):
     CFG = config["lcr-modules"]["ega_download"]
     file_id = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["file_id"]
     return (expand(str(CFG["dirs"]["ega_download"] + "{{file_format}}/{{seq_type}}--{{genome_build}}/{{study_id}}/{file_id}.{{file_format}}"),
                     file_id = file_id))
 
-# function to get bam files that drops EGA ID from the name of the index file
+# function to get ega_file files that drops EGA ID from the name of the index file
 def get_file_bai (wildcards):
     CFG = config["lcr-modules"]["ega_download"]
     file_id = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["file_id"]
@@ -168,13 +168,13 @@ def get_file_bai (wildcards):
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _ega_download_output_files:
     input:
-        bam = get_file_bam,
+        ega_file = get_ega_file,
         bai = get_file_bai
     output:
-        bam = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{study_id}/{sample_id}.{file_format}",
+        ega_file = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{study_id}/{sample_id}.{file_format}",
         bai = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{study_id}/{sample_id}.{file_format}.bai"
     run:
-        op.relative_symlink(input.bam, output.bam, in_module=True)
+        op.relative_symlink(input.ega_file, output.ega_file, in_module=True)
         op.relative_symlink(input.bai, output.bai, in_module=True)
 
 
@@ -183,7 +183,7 @@ rule _ega_download_export_sample_table:
     input:
         expand(
             [
-                str(rules._ega_download_output_files.output.bam),
+                str(rules._ega_download_output_files.output.ega_file),
                 str(rules._ega_download_output_files.output.bai)
             ],
             zip,  # Run expand() with zip(), not product()
@@ -205,7 +205,7 @@ rule _ega_download_all:
     input:
         expand(
             [
-                str(rules._ega_download_output_files.output.bam),
+                str(rules._ega_download_output_files.output.ega_file),
                 str(rules._ega_download_output_files.output.bai),
                 str(rules._ega_download_export_sample_table.output.sample_table)
             ],

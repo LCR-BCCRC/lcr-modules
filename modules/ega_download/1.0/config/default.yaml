@@ -16,17 +16,17 @@ lcr-modules:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
 
         options:
-            bam_index: "-b" # options for bam file indexing
+            ega_file_index: "-b" # options for bam file indexing
 
         threads:
-            bam_download: 8
-            bam_index: 6
+            ega_file_download: 8
+            ega_file_index: 6
 
         resources:
-            bam_download:
+            ega_file_download:
                 mem_mb: 8000
                 bam: 1
-            bam_index:
+            ega_file_index:
                 mem_mb: 4000
 
         pairing_config:
