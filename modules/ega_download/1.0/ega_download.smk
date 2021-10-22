@@ -52,7 +52,7 @@ CFG = op.setup_module(
 # Check if EGA credentials file is only accessible by user or user group. If someone outside user group can read/write this file, stop module from the execution
 permissions = (oct(stat.S_IMODE(os.lstat(CFG["credentials_file"]).st_mode)))[-1:]
 if (int(permissions) != 0):
-    sys.exit("The EGA credentials file is readable/writebale not only by the owner. Please ensure that EGA credentials file can only be accessed by the owner.")
+    sys.exit("The EGA credentials file is readable/writebale not only by the owner or user group. Please ensure that EGA credentials file can only be accessed by the owner or its user group.")
 
 # Opening JSON file with credentials
 EGA_CREDENTIALS_FILE = open(CFG["credentials_file"],)
@@ -94,8 +94,8 @@ localrules:
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _ega_download_input_csv:
     input:
-        csv = CFG["inputs"]["sample_csv"],
-        metadata = CFG["inputs"]["sample_metadata"]
+        csv = ancient(CFG["inputs"]["sample_csv"]),
+        metadata = ancient(CFG["inputs"]["sample_metadata"])
     output:
         csv = CFG["dirs"]["inputs"] + "csv/{seq_type}--{genome_build}/{study_id}.csv",
         metadata = CFG["dirs"]["inputs"] + "metadata/{seq_type}--{genome_build}/{study_id}.metadata.csv",
@@ -108,8 +108,8 @@ rule _ega_download_input_csv:
 rule _ega_download_get_bam:
     input:
         sample_table = str(rules._ega_download_input_csv.output.csv),
-        bam = ega.remote(str("ega/{study_id}/{sample_id}.bam"))
-        #bam = str("ega/{study_id}/{file_id}.bam")
+        #bam = ega.remote(str("ega/{study_id}/{sample_id}.bam"))
+        bam = str("{study_id}/{file_id}.bam")
     output:
         bam = CFG["dirs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}/{sample_id}.bam"
     log:
