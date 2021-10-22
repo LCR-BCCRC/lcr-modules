@@ -108,13 +108,13 @@ rule _ega_download_input_csv:
 rule _ega_download_get_bam:
     input:
         sample_table = str(rules._ega_download_input_csv.output.csv),
-        bam = ega.remote(str("ega/{study_id}/{file_id}.bam"))
-        #bam = str("{study_id}/{file_id}.bam")
+        #bam = ega.remote(str("ega/{study_id}/{file_id}.{file_format}"))
+        bam = str("{study_id}/{file_id}.{file_format}")
     output:
-        bam = CFG["dirs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}.bam"
+        bam = CFG["dirs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}.{file_format}"
     log:
-        stdout = CFG["logs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}_download.stdout.log",
-        stderr = CFG["logs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}_download.stderr.log"
+        stdout = CFG["logs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}_download.stdout.log",
+        stderr = CFG["logs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}_download.stderr.log"
     threads:
         CFG["threads"]["bam_index"]
     resources:
@@ -128,10 +128,10 @@ rule _ega_download_index_bam:
     input:
         bam = str(rules._ega_download_get_bam.output.bam)
     output:
-        bai = CFG["dirs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}.bam.bai"
+        bai = CFG["dirs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}.{file_format}.bai"
     log:
-        stdout = CFG["logs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}_index.stdout.log",
-        stderr = CFG["logs"]["ega_download"] + "bam/{seq_type}--{genome_build}/{study_id}/{file_id}_index.stderr.log"
+        stdout = CFG["logs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}_index.stdout.log",
+        stderr = CFG["logs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}_index.stderr.log"
     params:
         opts = CFG["options"]["bam_index"]
     conda:
@@ -155,14 +155,14 @@ rule _ega_download_index_bam:
 def get_file_bam (wildcards):
     CFG = config["lcr-modules"]["ega_download"]
     file_id = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["file_id"]
-    return (expand(str(CFG["dirs"]["ega_download"] + "bam/{{seq_type}}--{{genome_build}}/{{study_id}}/{file_id}.bam"),
+    return (expand(str(CFG["dirs"]["ega_download"] + "{{file_format}}/{{seq_type}}--{{genome_build}}/{{study_id}}/{file_id}.{{file_format}}"),
                     file_id = file_id))
 
 # function to get bam files that drops EGA ID from the name of the index file
 def get_file_bai (wildcards):
     CFG = config["lcr-modules"]["ega_download"]
     file_id = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["file_id"]
-    return (expand(str(CFG["dirs"]["ega_download"] + "bam/{{seq_type}}--{{genome_build}}/{{study_id}}/{file_id}.bam.bai"),
+    return (expand(str(CFG["dirs"]["ega_download"] + "{{file_format}}/{{seq_type}}--{{genome_build}}/{{study_id}}/{file_id}.{{file_format}}.bai"),
                     file_id = file_id))
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
@@ -171,8 +171,8 @@ rule _ega_download_output_files:
         bam = get_file_bam,
         bai = get_file_bai
     output:
-        bam = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{study_id}/{sample_id}.bam",
-        bai = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{study_id}/{sample_id}.bam.bai"
+        bam = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{study_id}/{sample_id}.{file_format}",
+        bai = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{study_id}/{sample_id}.{file_format}.bai"
     run:
         op.relative_symlink(input.bam, output.bam, in_module=True)
         op.relative_symlink(input.bai, output.bai, in_module=True)
@@ -190,7 +190,8 @@ rule _ega_download_export_sample_table:
             seq_type=EGA_MASTER_SAMPLE_TABLE["seq_type"],
             genome_build=EGA_MASTER_SAMPLE_TABLE["genome_build"],
             study_id=[CFG["study_id"]]*len(EGA_TARGET_SAMPLES["file_id"]),
-            sample_id=EGA_MASTER_SAMPLE_TABLE["sample_id"])
+            sample_id=EGA_MASTER_SAMPLE_TABLE["sample_id"],
+            file_format=EGA_MASTER_SAMPLE_TABLE["file_format"])
     output:
         sample_table = CFG["dirs"]["outputs"] + "metadata/{study_id}/metadata.tsv",
     run:
@@ -212,7 +213,8 @@ rule _ega_download_all:
             seq_type=EGA_MASTER_SAMPLE_TABLE["seq_type"],
             genome_build=EGA_MASTER_SAMPLE_TABLE["genome_build"],
             study_id=[CFG["study_id"]]*len(EGA_TARGET_SAMPLES["file_id"]),
-            sample_id=EGA_MASTER_SAMPLE_TABLE["sample_id"])
+            sample_id=EGA_MASTER_SAMPLE_TABLE["sample_id"],
+            file_format=EGA_MASTER_SAMPLE_TABLE["file_format"])
 
 
 ##### CLEANUP #####
