@@ -195,8 +195,8 @@ rule _ega_download_export_sample_table:
         sample_table = CFG["dirs"]["outputs"] + "metadata/{study_id}/metadata.tsv",
     run:
         samples_metadata = EGA_MASTER_SAMPLE_TABLE.rename(columns={'file_format': 'compression'})
-        samples_metadata = samples_metadata.insert(0, 'bam_available', 'TRUE')
-        samples_metadata.to_csv(output.sample_table, sep='\t', header=True, index=False)
+        samples_metadata.insert(0, 'bam_available', 'TRUE')
+        samples_metadata.to_csv(output.sample_table, sep='\t', header=True, index=False, na_rep="NA")
 
 
 # Generates the target files for each run, which generate the symlinks
