@@ -181,6 +181,7 @@ if CFG["options"]["hard_masked"] == True:
 # chr for hg19 and hg38
 # chromosomes used (i.e. chr1-22,X,Y)
 
+
 def _controlfreec_get_chr_fastas(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
     chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
@@ -196,7 +197,8 @@ def _controlfreec_get_chr_fastas(wildcards):
 #generates file with chromomsome lengths from genome.fa.fai
 rule _controlfreec_generate_chrLen:
     input:
-        fai = reference_files("genomes/{genome_build}{masked}/genome_fasta/genome.fa.fai")
+        fai = reference_files("genomes/{genome_build}{masked}/genome_fasta/genome.fa.fai"),
+        main = reference_files("genomes/{genome_build}{masked}/genome_fasta/main_chromosomes_withY.txt")
     output:
         chrLen = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/{genome_build}.len"
     resources: **CFG["resources"]["gem"]
@@ -282,14 +284,14 @@ rule _controlfreec_mpileup_per_chrom:
 
 rule _controlfreec_concatenate_pileups:
     input: 
-        _controlfreec_get_chr_mpileups
+        mpileup = _controlfreec_get_chr_mpileups
     output: 
         mpileup = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.bam_minipileup.pileup.gz")
     resources: 
         **CFG["resources"]["cat"]
     group: "controlfreec"
     shell: 
-        "cat {input} > {output.mpileup} "
+        "cat {input.mpileup} > {output.mpileup} "
 
 
 #### Run control-FREEC ####
