@@ -7,7 +7,6 @@ lcr-modules:
         scratch_directory: "scratch/"
         unmatched_normal_ids:
             capture--grch37: "TCRBOA7-N-WEX"
-            genome--hg38: "BLGSP-71-23-00361-14A-01E"
 
     slms_3: 
         inputs: 
