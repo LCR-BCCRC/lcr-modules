@@ -123,31 +123,31 @@ rule _lofreq_preprocess_normal:
 
 rule _lofreq_link_to_preprocessed:
     input:
-        vcf_relaxed = rules._lofreq_preprocess_normal.output.vcf_relaxed,
-        vcf_relaxed_tbi = rules._lofreq_preprocess_normal.output.vcf_relaxed_tbi,
-        vcf_indels_stringent = rules._lofreq_preprocess_normal.output.vcf_indels_stringent,
-        vcf_snvs_stringent = rules._lofreq_preprocess_normal.output.vcf_snvs_stringent,
-        normal_relaxed_log = rules._lofreq_preprocess_normal.output.normal_relaxed_log,
-        preprocessing_complete = rules._lofreq_preprocess_normal.output.preprocessing_complete
+        vcf_relaxed = str(rules._lofreq_preprocess_normal.output.vcf_relaxed),
+        vcf_relaxed_tbi = str(rules._lofreq_preprocess_normal.output.vcf_relaxed_tbi),
+        vcf_indels_stringent = str(rules._lofreq_preprocess_normal.output.vcf_indels_stringent),
+        vcf_snvs_stringent = str(rules._lofreq_preprocess_normal.output.vcf_snvs_stringent),
+        normal_relaxed_log = str(rules._lofreq_preprocess_normal.output.normal_relaxed_log),
+        preprocessing_complete = str(rules._lofreq_preprocess_normal.output.preprocessing_complete)
     output:
-        vcf_relaxed = temp(CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_relaxed.vcf.gz"),
+        vcf_relaxed = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_relaxed.vcf.gz",
+        vcf_relaxed_tbi = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_relaxed.vcf.gz.tbi",
         vcf_indels_stringent = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_stringent.indels.vcf.gz",
         vcf_snvs_stringent = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_stringent.snvs.vcf.gz",
         normal_relaxed_log = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_relaxed.log",
         preprocessing_complete = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/preprocessing.complete"
-    shell:
-        op.as_one_line("""
-        out_dir=$(dirname {output.vcf_relaxed});
-        mkdir -p $out_dir;
-        ln -f {input.vcf_relaxed} $out_dir;
-        ln -f {input.vcf_relaxed}.tbi $out_dir;
-        ln -f {input.vcf_indels_stringent} $out_dir;
-        ln -f {input.vcf_indels_stringent}.tbi $out_dir;
-        ln -f {input.vcf_snvs_stringent} $out_dir;
-        ln -f {input.vcf_snvs_stringent}.tbi $out_dir;
-        ln -f {input.normal_relaxed_log} $out_dir;
-        ln -f {input.preprocessing_complete} $out_dir;
-        """)
+    wildcard_constraints: 
+        pair_status = "unmatched"
+    run:
+        op.relative_symlink(input.vcf_relaxed, output.vcf_relaxed)
+        op.relative_symlink(input.vcf_relaxed_tbi, output.vcf_relaxed_tbi, in_module=True)
+        op.relative_symlink(input.vcf_indels_stringent, output.vcf_indels_stringent)
+        op.relative_symlink(input.vcf_indels_stringent + ".tbi", output.vcf_indels_stringent + ".tbi", in_module=True)
+        op.relative_symlink(input.vcf_snvs_stringent, output.vcf_snvs_stringent)
+        op.relative_symlink(input.vcf_snvs_stringent + ".tbi", output.vcf_indels_stringent + ".tbi", in_module=True)
+        op.relative_symlink(input.normal_relaxed_log, output.normal_relaxed_log)
+        op.relative_symlink(input.preprocessing_complete, output.preprocessing_complete)
+
 
 # Run LoFreq in somatic variant calling mode for unpaired tumours using precomputed SNV positions from unmatched normal
 # For unmatched tumours we need to symlink all the files from the preprocessing to the pair's output directory
