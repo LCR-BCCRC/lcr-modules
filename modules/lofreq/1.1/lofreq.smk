@@ -47,7 +47,9 @@ SCRIPT_PATH = CFG['inputs']['src_dir']
 bed = str(reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed"))
 CFG['switches']['regions_bed']['_default'] = bed
 
-
+sample_ids = list(config['lcr-modules']['_shared']['samples']['sample_id'])
+unmatched_normal_ids = list(config["lcr-modules"]["_shared"]["unmatched_normal_ids"].values())
+all_other_ids = list(set(sample_ids) - set(unmatched_normal_ids))
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -74,7 +76,6 @@ rule _lofreq_input_bam:
         op.relative_symlink(input.bai, output.bai)
         op.relative_symlink(input.bai, output.crai)
 
-
 # Run LoFreq in somatic variant calling mode on a single unmatched pair to produce normal_relaxed.vcf.gz and normal_stringent vcfs
 # generate an empty file named preprocessing_complete to indicate that the run actually completed and it's safe to symlink to the outputs
 # This rule falsely provides the normal bam as both the tumour and normal to get around the requirement of two bams for input to lofreq somatic
@@ -85,10 +86,9 @@ rule _lofreq_preprocess_normal:
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
         bed = op.switch_on_wildcard("seq_type", CFG["switches"]["regions_bed"])
     output:
-        out_dir = directory(CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/"),
         preprocessing_start = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/preprocessing.started",
-        vcf_relaxed = temp(CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/normal_relaxed.vcf.gz"),
-        vcf_relaxed_tbi = temp(CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/normal_relaxed.vcf.gz.tbi"),
+        vcf_relaxed = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/normal_relaxed.vcf.gz",
+        vcf_relaxed_tbi = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/normal_relaxed.vcf.gz.tbi",
         vcf_indels_stringent = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/normal_stringent.indels.vcf.gz",
         vcf_snvs_stringent = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/normal_stringent.snvs.vcf.gz",
         normal_relaxed_log = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/normal_relaxed.log",
@@ -104,6 +104,8 @@ rule _lofreq_preprocess_normal:
         CFG["threads"]["lofreq"]
     resources:
         **CFG["resources"]["lofreq"]
+    wildcard_constraints:
+        normal_id="|".join(unmatched_normal_ids)
     shell:
         op.as_one_line("""
         SCRIPT_PATH={SCRIPT_PATH};
@@ -114,7 +116,7 @@ rule _lofreq_preprocess_normal:
             touch {output.preprocessing_start}
             && 
             lofreq somatic --normal_only {params.opts} --threads {threads} -t {input.normal_bam} -n {input.normal_bam}
-            -f {input.fasta} -o {output.out_dir}/ -d {input.dbsnp} --bed {input.bed}
+            -f {input.fasta} -o $(dirname {output.vcf_relaxed})/ -d {input.dbsnp} --bed {input.bed}
             > {log.stdout} 2> {log.stderr} && 
             touch {output.preprocessing_complete};
         else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
