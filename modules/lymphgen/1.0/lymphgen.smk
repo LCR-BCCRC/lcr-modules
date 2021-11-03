@@ -33,8 +33,10 @@ localrules:
     _install_lgenic,
     _lymphgen_input_cnv,
     _lymphgen_input_no_cnv,
+    _lymphgen_add_sv,
+    _lymphgen_add_sv_blank,
     _lymphgen_run_cnv,
-    _lymphgen_input_no_cnv,
+    _lymphgen_run_no_cnv,
     _lymphgen_reformat_seg,
     _lymphgen_output_txt,
     _lymphgen_all,
@@ -92,7 +94,7 @@ rule _lymphgen_input_seg:
 # Make sure the SEG columns are consistent
 rule _lymphgen_reformat_seg:
     input:
-        seg = rules._lymphgen_input_seg.output.seg
+        seg = str(rules._lymphgen_input_seg.output.seg)
     output:
         seg = CFG["dirs"]["reformat_seg"] + outprefix + "reformat.seg"
     params:
@@ -128,7 +130,6 @@ rule _lymphgen_reformat_seg:
 
 # STEP 3: REFORMAT INPUT TO RUN LYMPHGEN
 # Reformats MAF/SEG SNV/CNV calls for LymphGen using my LGenIC script
-#ruleorder: _lymphgen_input_cnv > _lymphgen_input_no_cnv
 
 # With CNVs
 rule _lymphgen_input_cnv:
@@ -195,7 +196,7 @@ rule _lymphgen_input_no_cnv:
 
 # STEP 4: Add SV information (if availible)
 
-rule _add_sv_annotation:
+rule _lymphgen_add_sv:
     input:
         sample_annotation = str(rules._lymphgen_input_cnv.output.sample_annotation),
         bcl2_bcl6_sv = CFG["inputs"]["sv_info_tsv"]
@@ -271,7 +272,7 @@ rule _add_sv_annotation:
 
 
 # Since we don't have any SV info, just symlink sample annotation file
-rule _add_sv_annotation_blank:
+rule _lymphgen_add_sv_blank:
     input:
         sample_annotation = str(rules._lymphgen_input_cnv.output.sample_annotation)
     output:
@@ -287,9 +288,9 @@ rule _add_sv_annotation_blank:
 
 def _get_sample_annotation(wildcards):
     if wildcards.sv_wc == "has_sv":
-        return str(rules._add_sv_annotation.output.sample_annotation)
+        return str(rules._lymphgen_add_sv.output.sample_annotation)
     else:
-        return str(rules._add_sv_annotation_blank.output.sample_annotation)
+        return str(rules._lymphgen_add_sv_blank.output.sample_annotation)
 
 # With CNVs
 rule _lymphgen_run_cnv:
@@ -359,10 +360,8 @@ else:
 
 if "sv_info_tsv" in CFG["inputs"] and CFG["inputs"]["sv_info_tsv"] != "" and CFG["inputs"]["sample_seg"] != "None":
     sv_wc = ["with_sv", "no_sv"]
-    has_svs = True
 else:
     sv_wc = ["no_sv"]
-    has_svs = False
 
 rule _lymphgen_all:
     input:
