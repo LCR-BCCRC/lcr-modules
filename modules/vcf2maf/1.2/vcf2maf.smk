@@ -37,6 +37,9 @@ VERSION_MAP = {
     "hs37d5": "GRCh37"
 }
 
+#set variable for prepending to PATH based on config
+VCF2MAF_SCRIPT_PATH = CFG['inputs']['src_dir']
+
 ##### RULES #####
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
@@ -60,7 +63,8 @@ rule _vcf2maf_run:
     input:
         vcf = CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.vcf",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        vep_cache = CFG["inputs"]["vep_cache"]
+        vep_cache = CFG["inputs"]["vep_cache"],
+        normalized_gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.normalized.{genome_build}.vcf.gz")
     output:
         maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.maf", 
         vep = temp(CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.vep.vcf")
@@ -82,15 +86,19 @@ rule _vcf2maf_run:
         if [[ -e {output.maf} ]]; then rm -f {output.maf}; fi;
         if [[ -e {output.vep} ]]; then rm -f {output.vep}; fi;
         vepPATH=$(dirname $(which vep))/../share/variant-effect-predictor*;
-        vcf2maf.pl 
+        /home/kdreval/lcr-modules/modules/vcf2maf/1.2/src/vcf2maf.pl
         --input-vcf {input.vcf} 
         --output-maf {output.maf} 
-        --tumor-id {wildcards.tumour_id} --normal-id {wildcards.normal_id}
+        --tumor-id {wildcards.tumour_id}
+        --normal-id {wildcards.normal_id}
         --ref-fasta {input.fasta}
         --ncbi-build {params.build}
         --vep-data {input.vep_cache}
-        --vep-path $vepPATH {params.opts}
+        --vep-path $vepPATH
+        {params.opts}
         --custom-enst {params.custom_enst}
+        --retain-info gnomADg_AF
+        --vep-custom  {input.normalized_gnomad},gnomADg,vcf,exact,0,AF
         > {log.stdout} 2> {log.stderr}
         """)
 
