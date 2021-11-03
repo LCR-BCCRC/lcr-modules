@@ -2,26 +2,42 @@ lcr-modules:
     
     lymphgen:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            # Available wildcards: None (specify your merged input MAF/SEG manually)
+            # Sorry, but this was the most robust way
             sample_maf: "__UPDATE__"
-
-        scratch_subdirectories: []
+            sample_seg: "__UPDATE__"
+            # Path to the directory where LGenIC should be installed
+            lgenic_exec: "__UPDATE__"
 
         options:
-            step_1: ""
-            step_2: ""
+            outprefix: "my_cohort"
+            reformat_seg:  #  Default columns for Battenberg output
+                Tumor_Sample_Barcode: "ID"
+                chromosome: "chrom"
+                start: "start"
+                end: "end"
+                CN: "log.ratio"
+            add_svs:  # Use "" if N/A
+                samplecol: "__UPDATE__"
+                bcl2col: "__UPDATE__"
+                # Note any field value not matching in either true/false is considered NA
+                bcl2truevalues: "__UPDATE__" # Can use a list here
+                bcl2falsevalues: "__UPDATE__"
+                bcl6col: "__UPDATE__"
+                # Note any field value not matching in either true/false is considered NA
+                bcl6truevalues: "__UPDATE__"  # Can use a list
+                bcl6falsevalues: "__UPDATE__"
+            lymphgen_input:
+                seq_type: "genome"
+                use_log_ratio: "__UPDATE__"
+            lymphgen_run:
+                lymphgen_path: "/home/crushton/Software/LymphGen/Run_Lymphgen.R"
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            
-        threads:
-            step_1: 4
 
-        mem_mb:
-            step_1: 2000
-
+        # Is this needed???
         pairing_config:
             genome:
                 run_paired_tumours: True
