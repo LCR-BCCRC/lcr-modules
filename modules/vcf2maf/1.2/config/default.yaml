@@ -8,6 +8,7 @@ lcr-modules:
             vep_cache: "__UPDATE__" #example "ref/ensembl_vep_cache/"
             sample_vcf_gz: "__UPDATE__" #full path to your compressed vcfs from favourite variant caller (with wildcards. You must encapsulate everything unique to the variant caller naming scheme in {base_name})
             convert_coord: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.sh"
+            src_dir: "{MODSDIR}/src"
         vcf_base_name: "__UPDATE__" #put the consistent portion of the file name here. For Strelka, this is "combined.passed"
         options:
             vcf2maf: "--filter-vcf 0 --vcf-tumor-id TUMOR --vcf-normal-id NORMAL --cache-version 86"
