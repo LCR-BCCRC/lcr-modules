@@ -395,7 +395,7 @@ rule normalize_af_only_gnomad_vcf:
     conda: CONDA_ENVS["bcftools"]
     shell:
         op.as_one_line("""
-        bcftools view {input.vcf} | bcftools norm -m -any -f {input.fasta} | bgzip -c > {output.vcf}
+        bcftools view {input.vcf} | grep -v "_alt" | bcftools norm -m -any -f {input.fasta} | bgzip -c > {output.vcf}
             &&
         bcftools index -t {output.vcf}
             &&
