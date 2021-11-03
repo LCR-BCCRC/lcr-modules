@@ -99,6 +99,9 @@ tools:
     sigprofiler:
         conda_env: "envs/sigprofiler-1.1.yaml"
         version: "1.1"
+    bcftools:
+        conda_env: "envs/bcftools-1.10.2.yaml"
+        version: "1.10.2"
 
 cvbio_config:
     gtf: 

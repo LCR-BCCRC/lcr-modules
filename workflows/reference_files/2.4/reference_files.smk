@@ -385,6 +385,20 @@ rule get_af_only_gnomad_vcf:
         tabix {output.vcf}
         """)
 
+rule normalize_af_only_gnomad_vcf:
+    input:
+        fasta = rules.get_genome_fasta_download.output.fasta,
+        vcf = str(rules.get_af_only_gnomad_vcf.output.vcf)
+    output:
+        vcf = "genomes/{genome_build}/variation/af-only-gnomad.normalized.{genome_build}.vcf.gz"
+    conda: CONDA_ENVS["bcftools"]
+    shell:
+        op.as_one_line("""
+        bcftools view {input.vcf} | bcftools norm -m -any -f {input.fasta} | bgzip -c > {output.vcf}
+            &&
+        bcftools index -t {output.vcf}
+        """)
+
 rule get_mutect2_pon:
     input:
         vcf = get_download_file(rules.download_mutect2_pon.output.vcf)
