@@ -390,13 +390,16 @@ rule normalize_af_only_gnomad_vcf:
         fasta = rules.get_genome_fasta_download.output.fasta,
         vcf = str(rules.get_af_only_gnomad_vcf.output.vcf)
     output:
-        vcf = "genomes/{genome_build}/variation/af-only-gnomad.normalized.{genome_build}.vcf.gz"
+        vcf = "genomes/{genome_build}/variation/af-only-gnomad.normalized.{genome_build}.vcf.gz",
+        vcf_index = "genomes/{genome_build}/variation/af-only-gnomad.normalized.{genome_build}.vcf.gz.tbi"
     conda: CONDA_ENVS["bcftools"]
     shell:
         op.as_one_line("""
         bcftools view {input.vcf} | bcftools norm -m -any -f {input.fasta} | bgzip -c > {output.vcf}
             &&
         bcftools index -t {output.vcf}
+            &&
+        touch {output.vcf_index}
         """)
 
 rule get_mutect2_pon:
