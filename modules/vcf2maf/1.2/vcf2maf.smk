@@ -86,24 +86,27 @@ rule _vcf2maf_run:
         VCF2MAF_SCRIPT_PATH={VCF2MAF_SCRIPT_PATH};
         PATH=$VCF2MAF_SCRIPT_PATH:$PATH;
         VCF2MAF_SCRIPT="$VCF2MAF_SCRIPT_PATH/vcf2maf.pl";
-        echo "Using $VCF2MAF_SCRIPT to run {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
         if [[ -e {output.maf} ]]; then rm -f {output.maf}; fi;
         if [[ -e {output.vep} ]]; then rm -f {output.vep}; fi;
         vepPATH=$(dirname $(which vep))/../share/variant-effect-predictor*;
-        vcf2maf.pl
-        --input-vcf {input.vcf} 
-        --output-maf {output.maf} 
-        --tumor-id {wildcards.tumour_id}
-        --normal-id {wildcards.normal_id}
-        --ref-fasta {input.fasta}
-        --ncbi-build {params.build}
-        --vep-data {input.vep_cache}
-        --vep-path $vepPATH
-        {params.opts}
-        --custom-enst {params.custom_enst}
-        --retain-info gnomADg_AF
-        --vep-custom  {input.normalized_gnomad},gnomADg,vcf,exact,0,AF
-        >> {log.stdout} 2>> {log.stderr}
+        if [[ $(which vcf2maf.pl) =~ $VCF2MAF_SCRIPT ]]; then
+            echo "using bundled patched script $VCF2MAF_SCRIPT";
+            echo "Using $VCF2MAF_SCRIPT to run {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
+            vcf2maf.pl
+            --input-vcf {input.vcf}
+            --output-maf {output.maf}
+            --tumor-id {wildcards.tumour_id}
+            --normal-id {wildcards.normal_id}
+            --ref-fasta {input.fasta}
+            --ncbi-build {params.build}
+            --vep-data {input.vep_cache}
+            --vep-path $vepPATH
+            {params.opts}
+            --custom-enst {params.custom_enst}
+            --retain-info gnomADg_AF
+            --vep-custom  {input.normalized_gnomad},gnomADg,vcf,exact,0,AF
+            >> {log.stdout} 2>> {log.stderr};
+        else echo "WARNING: PATH is not set properly, using $(which vcf2maf.pl) will result in error during execution. Please ensure $VCF2MAF_SCRIPT exists." > {log.stderr};fi
         """)
 
 
