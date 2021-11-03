@@ -141,14 +141,14 @@ rule _lofreq_link_to_preprocessed:
     wildcard_constraints: 
         pair_status = "unmatched"
     run:
-        op.relative_symlink(input.vcf_relaxed, output.vcf_relaxed)
+        op.relative_symlink(input.vcf_relaxed, output.vcf_relaxed, in_module=True)
         op.relative_symlink(input.vcf_relaxed_tbi, output.vcf_relaxed_tbi, in_module=True)
-        op.relative_symlink(input.vcf_indels_stringent, output.vcf_indels_stringent)
+        op.relative_symlink(input.vcf_indels_stringent, output.vcf_indels_stringent, in_module=True)
         op.relative_symlink(input.vcf_indels_stringent + ".tbi", output.vcf_indels_stringent + ".tbi", in_module=True)
-        op.relative_symlink(input.vcf_snvs_stringent, output.vcf_snvs_stringent)
+        op.relative_symlink(input.vcf_snvs_stringent, output.vcf_snvs_stringent, in_module=True)
         op.relative_symlink(input.vcf_snvs_stringent + ".tbi", output.vcf_indels_stringent + ".tbi", in_module=True)
-        op.relative_symlink(input.normal_relaxed_log, output.normal_relaxed_log)
-        op.relative_symlink(input.preprocessing_complete, output.preprocessing_complete)
+        op.relative_symlink(input.normal_relaxed_log, output.normal_relaxed_log, in_module=True)
+        op.relative_symlink(input.preprocessing_complete, output.preprocessing_complete, in_module=True)
 
 
 # Run LoFreq in somatic variant calling mode for unpaired tumours using precomputed SNV positions from unmatched normal
