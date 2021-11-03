@@ -178,7 +178,7 @@ rule _mutect2_run_no_normal:
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["mutect2_run"], 
-        interval_arg = _mutect2_get_interval_cli_arg 
+        interval_arg = _mutect2_get_interval_cli_arg() 
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
