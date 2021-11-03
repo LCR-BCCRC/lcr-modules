@@ -66,7 +66,7 @@ rule _vcf2maf_run:
         vep_cache = CFG["inputs"]["vep_cache"],
         normalized_gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.normalized.{genome_build}.vcf.gz")
     output:
-        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.maf", 
+        maf = temp(CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.maf"),
         vep = temp(CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.vep.vcf")
     log:
         stdout = CFG["logs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_vcf2maf.stdout.log",
@@ -109,6 +109,15 @@ rule _vcf2maf_run:
         else echo "WARNING: PATH is not set properly, using $(which vcf2maf.pl) will result in error during execution. Please ensure $VCF2MAF_SCRIPT exists." > {log.stderr};fi
         """)
 
+rule _vcf2maf_gnomad_filter_maf:
+    input:
+        maf = str(rules._vcf2maf_run.output.maf)
+    output:
+        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.maf"
+    params:
+        opts = CFG["options"]["gnomAD_cutoff"],
+    shell:
+        "cat {input.maf} | perl -lane 'my @cols = split /\t/; print if $cols[114] < {params.opts} && /^(?!#)/;' > {output.maf}"
 
 def get_chain(wildcards):
     if "38" in str({wildcards.genome_build}):
@@ -118,7 +127,7 @@ def get_chain(wildcards):
 
 rule _vcf2maf_crossmap:
     input:
-        maf = rules._vcf2maf_run.output.maf,
+        maf = rules._vcf2maf_gnomad_filter_maf.output.maf,
         convert_coord = CFG["inputs"]["convert_coord"],
         chains = get_chain
     output:
@@ -150,7 +159,7 @@ rule _vcf2maf_crossmap:
 
 rule _vcf2maf_output_maf:
     input:
-        maf = str(rules._vcf2maf_run.output.maf),
+        maf = str(rules._vcf2maf_gnomad_filter_maf.output.maf),
         maf_converted = str(rules._vcf2maf_crossmap.output.dispatched)
     output:
         maf = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_{base_name}.maf"

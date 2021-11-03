@@ -16,6 +16,7 @@ lcr-modules:
             #--species        Ensembl-friendly name of species (e.g. mus_musculus for mouse) [homo_sapiens]
             #--cache-version  Version of offline cache to use with VEP (e.g. 75, 84, 91) [Default: Installed version]
             species: "homo_sapiens"
+            gnomAD_cutoff: 0.001 # cut-off to be used for AF frequency of germline variants in gnomAD
         # here you can specify path to txt file with a list of custom ENST IDs that override canonical selection
         # it will be parsed to --custom-enst flag of vcf2maf
         # if no non-canonical transcript IDs to be included, leave switches empty
