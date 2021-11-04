@@ -119,12 +119,11 @@ rule _vcf2maf_gnomad_filter_maf:
     input:
         maf = str(rules._vcf2maf_run.output.maf)
     output:
-        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.maf",
-        dropped_maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.dropped.maf"
+        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.maf"
     params:
         opts = CFG["options"]["gnomAD_cutoff"],
     shell:
-        "cat {input.maf} | perl -lane 'next if /^(!?#)/; my @cols = split /\t/; @AF_all =split/,/, $cols[114]; $skip=0; for(@AF_all){{$skip++ if $_ > {params.opts}}} if ($skip) {{print STDERR;}} else {{print;}};' > {output.maf} 2>{output.dropped_maf}"
+        "cat {input.maf} | perl -lane 'my @cols = split /\t/; print if $cols[114] < {params.opts} && /^(?!#)/;' > {output.maf}"
 
 def get_chain(wildcards):
     if "38" in str({wildcards.genome_build}):
