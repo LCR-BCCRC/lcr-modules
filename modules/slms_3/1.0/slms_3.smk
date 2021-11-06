@@ -299,10 +299,9 @@ rule _slms_3_mutect2_depth_filt:
         CFG_SLMS3["threads"]["mutect2_depth_filt"]
     shell: 
         op.as_one_line("""
-        tsamp=$(zgrep "##tumor_sample=" {input.vcf} | sed 's|##tumor_sample=||g');
-        nsamp=$(zgrep "##normal_sample=" {input.vcf} | sed 's|##normal_sample=||g');
         bcftools view {input.vcf} | 
-        sed "s|$tsamp|TUMOR|g" | sed "s|$nsamp|NORMAL|g" |  
+        perl -ne 'if(/normal_sample=(\S+)/){{$norm=$1;}}if(/tumor_sample=(\S+)/){{$tum = $1;}}s/(\s)$tum(\s)/$1TUMOR$2/;s/(\s)$norm(\s)/$1NORMAL$2/;print;' |
+        sed 's/##INFO=<ID=AS_FilterStatus,Number=A/##INFO=<ID=AS_FilterStatus,Number=1/' |   
         bcftools view  -s "NORMAL,TUMOR" -i 'FMT/DP[@{input.table}] >= 10 && FMT/AD[@{input.table}:1] >= 4 && FMT/AF[@{input.table}:0] >= 0.1' 
         -Oz -o {output.vcf} 2> {log.stderr} && 
         tabix -p vcf {output.vcf} 2>> {log.stderr}
