@@ -8,6 +8,7 @@ lcr-modules:
             vep_cache: "__UPDATE__" #example "ref/ensembl_vep_cache/"
             sample_vcf_gz: "__UPDATE__" #full path to your compressed vcfs from favourite variant caller (with wildcards. You must encapsulate everything unique to the variant caller naming scheme in {base_name})
             convert_coord: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.sh"
+            src_dir: "{MODSDIR}/src"
         vcf_base_name: "__UPDATE__" #put the consistent portion of the file name here. For Strelka, this is "combined.passed"
         options:
             vcf2maf: "--filter-vcf 0 --vcf-tumor-id TUMOR --vcf-normal-id NORMAL --cache-version 86"
@@ -15,6 +16,7 @@ lcr-modules:
             #--species        Ensembl-friendly name of species (e.g. mus_musculus for mouse) [homo_sapiens]
             #--cache-version  Version of offline cache to use with VEP (e.g. 75, 84, 91) [Default: Installed version]
             species: "homo_sapiens"
+            gnomAD_cutoff: 0.001 # cut-off to be used for AF frequency of germline variants in gnomAD
         # here you can specify path to txt file with a list of custom ENST IDs that override canonical selection
         # it will be parsed to --custom-enst flag of vcf2maf
         # if no non-canonical transcript IDs to be included, leave switches empty
@@ -27,6 +29,7 @@ lcr-modules:
         conda_envs:
             vcf2maf: "{MODSDIR}/envs/vcf2maf-1.6.18.yaml"
             crossmap: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             
         threads:
             vcf2maf: 12
