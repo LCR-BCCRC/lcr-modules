@@ -300,7 +300,7 @@ rule _slms_3_mutect2_depth_filt:
     shell: 
         op.as_one_line("""
         bcftools view {input.vcf} | 
-        perl -ne 'if(/normal_sample=(\S+)/){{$norm=$1;}}if(/tumor_sample=(\S+)/){{$tum = $1;}}s/(\s)$tum(\s)/$1TUMOR$2/;s/(\s)$norm(\s)/$1NORMAL$2/;print;' |
+        perl -ne 'if(/^\#\#normal_sample=(.+)$/){{$norm=$1;}}if(/tumor_sample=(.+)$/){{$tum = $1;}}s/(\s)$tum(\s)/$1TUMOR$2/;s/(\s)$norm(\s)/$1NORMAL$2/;print;'|
         sed 's/##INFO=<ID=AS_FilterStatus,Number=A/##INFO=<ID=AS_FilterStatus,Number=1/' |   
         bcftools view  -s "NORMAL,TUMOR" -i 'FMT/DP[@{input.table}] >= 10 && FMT/AD[@{input.table}:1] >= 4 && FMT/AF[@{input.table}:0] >= 0.1' 
         -Oz -o {output.vcf} 2> {log.stderr} && 
