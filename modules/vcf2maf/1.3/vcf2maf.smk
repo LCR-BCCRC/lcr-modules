@@ -26,7 +26,6 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _vcf2maf_input_vcf,
-    _vcf2maf_annotate_gnomad,
     _vcf2maf_gnomad_filter_maf,
     _vcf2maf_output_maf,
     _vcf2maf_crossmap,
@@ -62,9 +61,13 @@ rule _vcf2maf_annotate_gnomad:
         vcf = temp(CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.annotated.vcf")
     conda:
         CFG["conda_envs"]["bcftools"]
+    resources: 
+        **CFG["resources"]["annotate"]
+    threads: 
+        CFG["threads"]["annotate"]
     shell:
         op.as_one_line("""
-        bcftools annotate -a {input.normalized_gnomad} {input.vcf} -c "INFO/gnomADg_AF:=INFO/AF" -o {output.vcf}
+        bcftools annotate --threads {threads} -a {input.normalized_gnomad} {input.vcf} -c "INFO/gnomADg_AF:=INFO/AF" -o {output.vcf}
         """)
 
 rule _vcf2maf_run:

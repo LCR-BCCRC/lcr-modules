@@ -33,11 +33,14 @@ lcr-modules:
             
         threads:
             vcf2maf: 12
+            annotate: 4
         
         resources:
             vcf2maf: 
                 mem_mb: 12000
                 vcf: 1
+            annotate: 
+                mem_mb: 12000
             crossmap:
                 mem_mb: 12000
 
