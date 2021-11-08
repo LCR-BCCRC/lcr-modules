@@ -136,6 +136,15 @@ rule _jabba_input_gridss_vcf:
     run:
         op.relative_symlink(input.junc, output.junc)
 
+rule _jabba_process_gridss_vcf:
+    input:
+        junc = str(rules._jabba_input_gridss_vcf.output.junc)
+    output:
+        junc = CFG["dirs"]["inputs"] + "junc/gridss/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.bnd.vcf"
+    shell:
+        op.as_one_line("""
+        zcat {input.junc} || cat {input.junc} | awk 'BEGIN {{OFS=FS=\"\t\"}} $0 ~ /^#/ || $3 !~ /b$/' > {output.junc}
+        """)
 
 rule _jabba_input_manta_vcf:
     input:
@@ -150,7 +159,7 @@ rule _jabba_merge_svs:
     input:
         installed = str(rules._jabba_install_jabba.output.complete),
         manta = str(rules._jabba_input_manta_vcf.output.junc),
-        gridss = str(rules._jabba_input_gridss_vcf.output.junc)
+        gridss = str(rules._jabba_process_gridss_vcf.output.junc)
     output:
         junc = CFG["dirs"]["inputs"] + "junc/merged/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.rds"
     log:
@@ -236,7 +245,9 @@ rule _jabba_run_jabba:
         rds = str(rules._jabba_run_dryclean_tumour.output.rds),
         junc = str(rules._jabba_merge_svs.output.junc)
     output:
-        rds = CFG["dirs"]["jabba"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/jabba.simple.gg.rds"
+        rds = CFG["dirs"]["jabba"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/jabba.simple.gg.rds",
+        karyograph = CFG["dirs"]["jabba"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/karyograph.rds",
+        simple = CFG["dirs"]["jabba"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/jabba.simple.rds"
     log:
         stdout = CFG["logs"]["jabba"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.stdout.log",
         stderr = CFG["logs"]["jabba"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.stderr.log"
