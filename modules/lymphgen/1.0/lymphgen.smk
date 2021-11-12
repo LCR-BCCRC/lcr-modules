@@ -29,6 +29,7 @@ CFG = op.setup_module(
 )
 
 # Define rules to be run locally when using a compute cluster
+# I put everything under this, since these rules don't take very long
 localrules:
     _install_lgenic,
     _lymphgen_input_cnv,
@@ -42,26 +43,25 @@ localrules:
     _lymphgen_all,
 
 
+# Sanitize input
+lgenic_path = CFG["inputs"]["lgenic_exec"]
+if not lgenic_path.endswith(os.sep) and lgenic_path != "":
+    CFG["inputs"]["lgenic_exec"] = CFG["inputs"]["lgenic_exec"] + os.sep
+
 ##### RULES #####
 
 outprefix = CFG["options"]["outprefix"]
-
-# Are we running LymphGen with CNV data?
-if "sample_seg" in CFG["inputs"] and CFG["inputs"]["sample_seg"] != "" and CFG["inputs"]["sample_seg"] != "None":
-    cnvs_included = True
-else:
-    cnvs_included = False
 
 # DOWNLOAD CHRIS'S VERY AWESOME LYMPHGEN CONVERSION SCRIPT. ALL CAPS
 rule _install_lgenic:
     params:
         lgenic_dir = CFG["inputs"]["lgenic_exec"]
     output:
-        lgenic_script = CFG["inputs"]["lgenic_exec"] + os.sep + "generate_input.py",
-        lymphgen_genes = CFG["inputs"]["lgenic_exec"] + os.sep + "resources" + os.sep + "lymphgen_genes.txt",
-        hugo2entrez = CFG["inputs"]["lgenic_exec"] + os.sep + "resources" + os.sep + "hugo2entrez.tsv",
-        gene_coords = CFG["inputs"]["lgenic_exec"] + os.sep + "resources" + os.sep + "gene_coordinates.GRCh37.bed6",
-        arm_coords = CFG["inputs"]["lgenic_exec"] + os.sep + "resources" + os.sep + "chrom_arm.hg19.tsv"
+        lgenic_script = CFG["inputs"]["lgenic_exec"] + "generate_input.py",
+        lymphgen_genes = CFG["inputs"]["lgenic_exec"] + "resources" + os.sep + "lymphgen_genes.txt",
+        hugo2entrez = CFG["inputs"]["lgenic_exec"] + "resources" + os.sep + "hugo2entrez.tsv",
+        gene_coords = CFG["inputs"]["lgenic_exec"] + "resources" + os.sep + "gene_coordinates.GRCh37.bed6",
+        arm_coords = CFG["inputs"]["lgenic_exec"] + "resources" + os.sep + "chrom_arm.hg19.tsv"
     shell:
         '''
         download_url=$(curl --silent "https://api.github.com/repos/ckrushton/LGenIC/releases/latest" | grep 'tarball_url' | sed 's/.*:[ ]//' | sed 's/,$//' | sed 's/"//g');
@@ -156,7 +156,7 @@ rule _lymphgen_input_cnv:
         outprefix = "{outprefix}.{cnvs_wc}",
         logratio = "--log2" if CFG["options"]["lymphgen_input"]["use_log_ratio"].lower() == "true" else ""
     conda:
-        "envs/sortedcontainers-2.4.0.yaml"
+        CFG['conda_envs']['sorted_containers']
     wildcard_constraints:
         cnvs_wc = "with_cnvs"
     shell:
@@ -185,7 +185,7 @@ rule _lymphgen_input_no_cnv:
         seq_type = CFG["options"]["lymphgen_input"]["seq_type"],
         outprefix = "{outprefix}.{cnvs_wc}"
     conda:
-        "envs/sortedcontainers-2.4.0.yaml"
+        CFG['conda_envs']['sorted_containers']
     wildcard_constraints:
         cnvs_wc = "no_cnvs"
     shell:
@@ -284,7 +284,6 @@ rule _lymphgen_add_sv_blank:
 
 
 # STEP 5: RUN LYMPHGEN
-#ruleorder: _lymphgen_run_cnv > _lymphgen_run_no_cnv
 
 def _get_sample_annotation(wildcards):
     if wildcards.sv_wc == "has_sv":
@@ -308,7 +307,7 @@ rule _lymphgen_run_cnv:
     params:
         lymphgen_path = CFG["options"]["lymphgen_run"]["lymphgen_path"]
     conda:
-        "envs/r-optparse-1.6.yaml"
+        CFG['conda_envs']['optparse']
     wildcard_constraints:
         cnvs_wc = "with_cnvs"
     shell:
@@ -330,7 +329,7 @@ rule _lymphgen_run_no_cnv:
     params:
         lymphgen_path = CFG["options"]["lymphgen_run"]["lymphgen_path"]
     conda:
-        "envs/r-optparse-1.6.yaml"
+        CFG['conda_envs']['optparse']
     wildcard_constraints:
          cnvs_wc = "no_cnvs"
     shell:
@@ -352,7 +351,7 @@ rule _lymphgen_output_txt:
 # Generates the target sentinels for each run, which generate the symlinks
 
 # Set the applicable wildcards, based on the provided input files
-# Are we running LymphGen with CNV data?
+# Are we running LymphGen with CNV/SV data?
 if "sample_seg" in CFG["inputs"] and CFG["inputs"]["sample_seg"] != "" and CFG["inputs"]["sample_seg"] != "None":
     cnvs_wc = ["with_cnvs", "no_cnvs"]
 else:

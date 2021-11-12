@@ -4,7 +4,6 @@ lcr-modules:
 
         inputs:
             # Available wildcards: None (specify your merged input MAF/SEG manually)
-            # Sorry, but this was the most robust way
             sample_maf: "__UPDATE__"
             sample_seg: "__UPDATE__"
             # Path to the directory where LGenIC should be installed
@@ -18,7 +17,7 @@ lcr-modules:
                 start: "start"
                 end: "end"
                 CN: "log.ratio"
-            add_svs:  # Use "" if N/A
+            add_svs:  # Use "" if N/A (you are not providing SVs:)
                 samplecol: "__UPDATE__"
                 bcl2col: "__UPDATE__"
                 # Note any field value not matching in either true/false is considered NA
@@ -29,13 +28,14 @@ lcr-modules:
                 bcl6truevalues: "__UPDATE__"  # Can use a list
                 bcl6falsevalues: "__UPDATE__"
             lymphgen_input:
-                seq_type: "genome"
+                seq_type: "genome"  # Availible options: exome/genome (they do the same thing) and targeted (for panels)
                 use_log_ratio: "__UPDATE__"
             lymphgen_run:
-                lymphgen_path: "/home/crushton/Software/LymphGen/Run_Lymphgen.R"
+                lymphgen_path: "/projects/rmorin/software/lcr-scripts/LymphGen/Run_Lymphgen.R"
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            optparse: "{MODSDIR}/envs/r-optparse-1.6.yaml"
+            sorted_containers: "{MODSDIR}/envs/sortedcontainers-2.4.0.yaml"
 
         # Is this needed???
         pairing_config:
