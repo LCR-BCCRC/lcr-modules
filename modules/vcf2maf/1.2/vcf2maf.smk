@@ -91,7 +91,8 @@ rule _vcf2maf_run:
         --vep-data {input.vep_cache}
         --vep-path $vepPATH {params.opts}
         --custom-enst {params.custom_enst}
-        > {log.stdout} 2> {log.stderr}
+        > {log.stdout} 2> {log.stderr} &&
+        touch {output.vep}
         """)
 
 
