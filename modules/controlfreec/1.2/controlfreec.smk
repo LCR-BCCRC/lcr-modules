@@ -248,12 +248,8 @@ rule _controlfreec_input_bam:
         crai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.crai"
     run:
         op.absolute_symlink(input.bam, output.bam)
-<<<<<<< HEAD
-        op.relative_symlink(input.bai, output.bai)
-=======
         op.absolute_symlink(input.bai, output.bai)
         op.absolute_symlink(input.bai, output.crai)
->>>>>>> master
 
 
 #### set-up mpileups for BAF calling ####
@@ -519,15 +515,6 @@ rule _controlfreec_output:
         circos = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/circos/{tumour_id}--{normal_id}--{pair_status}.circos.bed",
         igv = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/igv/{tumour_id}--{normal_id}--{pair_status}.igv.seg"
     run:
-<<<<<<< HEAD
-        op.relative_symlink(input.plot, output.plot, in_module=True)
-        op.relative_symlink(input.log2plot, output.log2plot, in_module=True)
-        op.relative_symlink(input.CNV, output.CNV, in_module=True)
-        op.relative_symlink(input.bed, output.bed, in_module=True)
-        op.relative_symlink(input.BAF, output.BAF, in_module=True)
-        op.relative_symlink(input.BAFgraph, output.BAFgraph, in_module=True)
-        op.relative_symlink(input.ratio, output.ratio, in_module=True)
-=======
         op.relative_symlink(input.plot, output.plot, in_module = True)
         op.relative_symlink(input.log2plot, output.log2plot, in_module = True)
         op.relative_symlink(input.CNV, output.CNV, in_module = True)
@@ -537,7 +524,6 @@ rule _controlfreec_output:
         op.relative_symlink(input.ratio, output.ratio, in_module = True)
         op.relative_symlink(input.circos, output.circos, in_module = True)
         op.relative_symlink(input.igv, output.igv, in_module = True)
->>>>>>> master
 
 
 # Generates the target sentinels for each run, which generate the symlinks
