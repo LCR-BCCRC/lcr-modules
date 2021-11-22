@@ -132,7 +132,7 @@ rule _run_sage:
         high_conf_bed = str(rules._download_sage_references.output.high_conf_bed)
     output:
         vcf = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf"),
-        vcf_gz = CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf.gz"
+        vcf_gz = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf.gz")
     log:
         stdout = CFG["logs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run_sage.stdout.log",
         stderr = CFG["logs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run_sage.stderr.log"

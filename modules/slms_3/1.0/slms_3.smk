@@ -452,4 +452,5 @@ rule _slms_3_all:
 
 # Perform some clean-up tasks, including storing the module-specific
 # configuration on disk and deleting the `CFG` variable
-# op.cleanup_module(CFG_SLMS3)
+CFG=CFG_SLMS3
+op.cleanup_module(CFG)
