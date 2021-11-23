@@ -36,14 +36,3 @@ lcr-modules:
         conda_envs:
             optparse: "{MODSDIR}/envs/r-optparse-1.6.yaml"
             sorted_containers: "{MODSDIR}/envs/sortedcontainers-2.4.0.yaml"
-
-        # Is this needed???
-        pairing_config:
-            genome:
-                run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
-                run_paired_tumours_as_unpaired: False
-            capture:
-                run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
-                run_paired_tumours_as_unpaired: False
