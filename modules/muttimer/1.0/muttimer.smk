@@ -21,84 +21,135 @@ CFG = op.setup_module(
     name = "muttimer",
     version = "1.0",
     # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "muttimer", "outputs"],
+    subdirectories = ["inputs", "processed_inputs", "muttimer", "outputs"],
 )
+
 
 # Define rules to be run locally when using a compute cluster
 # TODO: Replace with actual rules once you change the rule names
 localrules:
     _muttimer_input_maf,
-    _muttimer_step_2,
-    _muttimer_output_txt,
     _muttimer_all,
 
 
 ##### RULES #####
 
-
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
 rule _muttimer_input_maf:
-    input:
-        maf = CFG["inputs"]["sample_maf"]
+    input:       
+        maf = CFG["inputs"]["maf"] 
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{sample_id}.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--matched_final_augmented.maf"  
     run:
-        op.relative_symlink(input.maf, output.maf)
+        op.absolute_symlink(input.maf, output.maf)  
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _muttimer_step_1:
-    input:
-        tumour_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}.maf",
-        normal_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{normal_id}.maf",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+rule _muttimer_input_battenberg:
+    input:      
+        cellularity = CFG["inputs"]["cellularity"],
+        subclones = CFG["inputs"]["subclones"]
     output:
-        txt = CFG["dirs"]["muttimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.txt"
+        cellularity = CFG["dirs"]["inputs"] + "battenberg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}.cellularity_ploidy.txt",
+        subclones = CFG["dirs"]["inputs"] + "battenberg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}.subclones.txt"
+    run:
+        op.absolute_symlink(input.subclones, output.subclones)
+        op.absolute_symlink(input.cellularity, output.cellularity)
+
+
+#dpclust_extension2 =  str(CFG["options"]["dpclust_run"]["iters"]) + "iters_" + str(CFG["options"]["dpclust_run"]["burnin"]) + "burnin"
+rule _muttimer_input_dpclust:
+    input: 
+        clust = CFG["inputs"]["clust"]
+    output:
+        clust= CFG["dirs"]["inputs"] + "dpclust/{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_DPoutput_2000iters_1000burnin_seed123/{tumour_id}_2000iters_1000burnin_bestClusterInfo.txt" 
+    run:
+        op.absolute_symlink(input.clust, output.clust)
+        
+
+rule _muttimer_formatted_inputs: 
+    input:
+        maf = str(rules._muttimer_input_maf.output.maf), 
+        cnv = str(rules._muttimer_input_battenberg.output.subclones),
+        cellularity = str(rules._muttimer_input_battenberg.output.cellularity),   
+        clust = str(rules._muttimer_input_dpclust.output.clust),
+    output: 
+        processed_vcf = CFG["dirs"]["processed_inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_maf_convertedTo.vcf",
+        processed_cnv = CFG["dirs"]["processed_inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_cnv_mtr.txt",
+        processed_clust = CFG["dirs"]["processed_inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_cluster_mtr.txt"
     log:
-        stdout = CFG["logs"]["muttimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-        stderr = CFG["logs"]["muttimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
-    params:
-        opts = CFG["options"]["step_1"]
+        stderr = CFG["logs"]["processed_inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}.create_processed_mutationtimer_inputs.stderr.log",
+        stdout = CFG["logs"]["processed_inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}.create_processed_mutationtimer_inputs.stdout.log"
+    params:      
+        out_dir = CFG["dirs"]["processed_inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
+        script = CFG["scripts"]["mtr_make_inputs"]
     conda:
-        CFG["conda_envs"]["samtools"]
-    threads:
-        CFG["threads"]["step_1"]
-    resources:
-        mem_mb = CFG["mem_mb"]["step_1"]
+        CFG["conda_envs"]["muttimer"]    
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --tumour {input.tumour_maf} --normal {input.normal_maf}
-        --ref-fasta {input.fasta} --output {output.txt} --threads {threads}
-        > {log.stdout} 2> {log.stderr}
+        Rscript {params.script} -s {wildcards.tumour_id} -m {input.maf} -p {input.cellularity} -c {input.cnv} -l {input.clust} -o {params.out_dir}
+        2> {log.stderr} > {log.stdout} 
         """)
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _muttimer_step_2:
-    input:
-        txt = str(rules._muttimer_step_1.output.txt)
+rule _install_muttimer:
     output:
-        txt = CFG["dirs"]["muttimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.txt"
+        complete = CFG["dirs"]["inputs"] + "mutationtimer_dependencies_installed.success"
+    conda:
+        CFG["conda_envs"]["muttimer"]
     log:
-        stderr = CFG["logs"]["muttimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
+        input = CFG["logs"]["inputs"] + "input.log"
     shell:
-        "grep {params.opts} {input.txt} > {output.txt} 2> {log.stderr}"
+        """
+        R -q -e 'BiocManager::install("rtracklayer",force = TRUE)' &&
+        R -q -e 'BiocManager::install(c("optparse","GenomicFeatures","VariantAnnotation","GenomicRanges","IRanges"))' &&
+        R -q -e 'devtools::install_github("mg14/mg14")' >> {log.input} && 
+        R -q -e 'devtools::install_github("gerstung-lab/MutationTimeR")' >> {log.input} &&
+        touch {output.complete}"""
 
 
-# Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
-rule _muttimer_output_txt:
+rule _muttimer_run: 
     input:
-        txt = str(rules._muttimer_step_2.output.txt)
+        vcf = str(rules._muttimer_formatted_inputs.output.processed_vcf), 
+        cnv = str(rules._muttimer_formatted_inputs.output.processed_cnv),
+        clust = str(rules._muttimer_formatted_inputs.output.processed_clust),
+        installed = CFG["dirs"]["inputs"] + "mutationtimer_dependencies_installed.success"
+    output: 
+        clust_summary_mtr = CFG["dirs"]["muttimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_copy_number_segments_molecular_time.table",
+        variant_annotated_mtr = CFG["dirs"]["muttimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_variants_annotatted.table",
+        varianttype_count_mtr = CFG["dirs"]["muttimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_variant_type_counts.table",
+        molecular_time_mtr = CFG["dirs"]["muttimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_copy_number_segments_molecular_time.png"
+    log:
+        stderr = CFG["logs"]["muttimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}.run_mutationtimer_inputs.stderr.log",
+        stdout = CFG["logs"]["muttimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}.run_mutationtimer_inputs.stdout.log" 
+    params:      
+        script = CFG["scripts"]["mtr_main"],
+        main_out_dir = CFG["dirs"]["muttimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}"
+    conda:
+        CFG["conda_envs"]["muttimer"]    
+    shell:
+        op.as_one_line("""
+        Rscript {params.script} -s {wildcards.tumour_id} -v {input.vcf} -c {input.cnv} -l {input.clust} -o {params.main_out_dir}
+        2> {log.stderr} > {log.stdout}
+        """)
+        
+# Symlinks the final output files into the module results directory (und er '99-outputs/')
+# All plots generated by Battenberg are symlinked using a glob for convenience
+rule _muttimer_output:
+    input:
+        clust_summary = rules._muttimer_run.output.clust_summary_mtr,
+        variant_annotated = rules._muttimer_run.output.variant_annotated_mtr,
+        varianttype_count = rules._muttimer_run.output.varianttype_count_mtr,
+        molecular_time = rules._muttimer_run.output.molecular_time_mtr
     output:
-        txt = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.txt"
+        clust_summary = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}_copy_number_segments_molecular_time.table",
+        variant_annotated = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}_variants_annotatted.table", 
+        varianttype_count = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}_variant_type_counts.table",
+        molecular_time = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}_copy_number_segments_molecular_time.png",
     run:
-        op.relative_symlink(input.txt, output.txt)
+        op.relative_symlink(input.clust_summary, output.clust_summary,in_module=True)
+        op.relative_symlink(input.variant_annotated, output.variant_annotated,in_module=True)
+        op.relative_symlink(input.varianttype_count, output.varianttype_count,in_module=True)
+        op.relative_symlink(input.molecular_time, output.molecular_time,in_module=True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -106,8 +157,10 @@ rule _muttimer_all:
     input:
         expand(
             [
-                str(rules._muttimer_output_txt.output.txt),
-                # TODO: If applicable, add other output rules here
+                rules._muttimer_output.output.clust_summary,
+                rules._muttimer_output.output.variant_annotated,
+                rules._muttimer_output.output.varianttype_count,
+                rules._muttimer_output.output.molecular_time
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
@@ -119,7 +172,5 @@ rule _muttimer_all:
 
 ##### CLEANUP #####
 
-
 # Perform some clean-up tasks, including storing the module-specific
 # configuration on disk and deleting the `CFG` variable
-op.cleanup_module(CFG)
