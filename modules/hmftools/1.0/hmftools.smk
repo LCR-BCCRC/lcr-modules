@@ -60,13 +60,13 @@ localrules:
     _hmftools_all
 
 
-VERSION_MAP = {
+HMFTOOLS_VERSION_MAP = {
     "grch37": "hg19",
     "hs37d5": "hg19",
     "hg38": "hg38"
 }
 
-possible_genome_builds = VERSION_MAP.keys()
+possible_genome_builds = HMFTOOLS_VERSION_MAP.keys()
 for genome_build in CFG["runs"]["tumour_genome_build"]:
     assert genome_build in possible_genome_builds, (
         "Samples table includes genome builds not yet compatible with this module. "
@@ -74,7 +74,7 @@ for genome_build in CFG["runs"]["tumour_genome_build"]:
     )
 
 wildcard_constraints: 
-    genome_build = "|".join(VERSION_MAP.keys()), 
+    genome_build = "|".join(HMFTOOLS_VERSION_MAP.keys()),
     pair_status = "matched|unmatched"
 
 
@@ -141,7 +141,7 @@ rule _hmftools_get_cobalt_gc:
         gc = CFG["dirs"]["inputs"] + "references/{genome_build}/cobalt/GC_profile.1000bp.cnp"
     params: 
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/cobalt",
-        alt_build = lambda w: VERSION_MAP[w.genome_build]
+        alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
     shell: 
@@ -153,7 +153,7 @@ rule _hmftools_get_amber_snps:
         snpcheck = CFG["dirs"]["inputs"] + "references/{genome_build}/amber/GermlineHetPon.snpcheck.vcf.gz"
     params: 
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/amber",
-        alt_build = lambda w: VERSION_MAP[w.genome_build]
+        alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
     shell: 
@@ -166,7 +166,7 @@ rule _hmftools_get_purple_drivers:
         gene_panel = CFG["dirs"]["inputs"] + "references/{genome_build}/purple/DriverGenePanel.tsv"
     params: 
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/purple",
-        alt_build = lambda w: VERSION_MAP[w.genome_build]
+        alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
     shell: 
@@ -513,7 +513,7 @@ rule _hmftools_linx:
     resources: 
         **CFG["resources"]["linx"]
     params: 
-      alt_build = lambda w: VERSION_MAP[w.genome_build], 
+      alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build],
       ensembl_build = lambda w: {
           "grch37": "HG37",
           "hs37d5": "HG37", 
