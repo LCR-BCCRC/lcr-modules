@@ -27,12 +27,10 @@
 import os
 import sys
 
-cwd = os.getcwd()
+cwd = sys.argv[2]
 
 fileIN = open(
     cwd
-    + "/results/battenberg-1.2/00-inputs/reference/"
-    + sys.argv[1]
     + "/impute_info.txt",
     "r",
 )
@@ -42,15 +40,11 @@ fileIN.close()
 newdata = filedata.replace(
     "<path_to_impute_reference_files>",
     cwd
-    + "/results/battenberg-1.2/00-inputs/reference/"
-    + sys.argv[1]
     + "/battenberg_impute_v3",
 )
 
 fileOut = open(
     cwd
-    + "/results/battenberg-1.2/00-inputs/reference/"
-    + sys.argv[1]
     + "/impute_info.txt",
     "w",
 )
