@@ -12,6 +12,8 @@ rule get_genome_fasta_download:
         fasta = rules.download_genome_fasta.output.fasta
     output: 
         fasta = "genomes/{genome_build}/genome_fasta/genome.fa"
+    wildcard_constraints:
+        genome_build = ".+(?<!masked)"
     conda: CONDA_ENVS["coreutils"]
     shell:
         "ln -srf {input.fasta} {output.fasta}"
@@ -24,6 +26,8 @@ rule index_genome_fasta:
         fai = "genomes/{genome_build}/genome_fasta/genome.fa.fai"
     log: 
         "genomes/{genome_build}/genome_fasta/genome.fa.fai.log"
+    wildcard_constraints:
+        genome_build = ".+(?<!masked)"
     conda: CONDA_ENVS["samtools"]
     shell:
         "samtools faidx {input.fasta} > {log} 2>&1"
@@ -101,6 +105,31 @@ rule get_sdf_refs:
     shell: 
         "ln -srfT {input.sdf} {output.sdf}"
 
+
+rule get_masked_genome_fasta_download:
+    input: 
+        fasta = rules.download_masked_genome_fasta.output.fasta
+    output: 
+        fasta = "genomes/{genome_build}/genome_fasta/genome.fa"
+    wildcard_constraints:
+        genome_build = ".+_masked"
+    conda: CONDA_ENVS["coreutils"]
+    shell:
+        "ln -srf {input.fasta} {output.fasta}"
+
+
+rule index_masked_genome_fasta:
+    input: 
+        fasta = rules.get_masked_genome_fasta_download.output.fasta
+    output: 
+        fai = "genomes/{genome_build}/genome_fasta/genome.fa.fai"
+    log: 
+        "genomes/{genome_build}/genome_fasta/genome.fa.fai.log"
+    wildcard_constraints:
+        genome_build = ".+_masked"
+    conda: CONDA_ENVS["samtools"]
+    shell:
+        "samtools faidx {input.fasta} > {log} 2>&1"
 
 
 ##### METADATA #####

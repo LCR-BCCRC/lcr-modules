@@ -11,9 +11,28 @@
 
 ##### SETUP #####
 
-
-# Import package with useful functions for developing analysis modules.
+# Import package with useful functions for developing analysis modules
 import oncopipe as op
+
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+import pkg_resources
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_resources.get_distribution("oncopipe").version
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section
 
 # Setup module and store module-specific configuration in `CFG`.
 CFG = op.setup_module(
@@ -47,9 +66,9 @@ rule _manta_input_bam:
         sample_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
         sample_crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
-        op.relative_symlink(input.sample_bam, output.sample_bam)
-        op.relative_symlink(input.sample_bai, output.sample_bai)
-        op.relative_symlink(input.sample_bai, output.sample_crai)
+        op.absolute_symlink(input.sample_bam, output.sample_bam)
+        op.absolute_symlink(input.sample_bai, output.sample_bai)
+        op.absolute_symlink(input.sample_bai, output.sample_crai)
 
 
 # bgzip-compress and tabix-index the BED file to meet Manta requirement
@@ -66,7 +85,6 @@ rule _manta_index_bed:
             &&
         tabix {output.bedz}
         """)
-
 
 # Configures the manta workflow with the input BAM files and reference FASTA file.
 rule _manta_configure_paired:
@@ -128,12 +146,13 @@ rule _manta_run:
     input:
         runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     output:
-        variants_dir = directory(CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/"),
+        variants_dir = directory(CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/")
     log:
         stdout = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stdout.log",
         stderr = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stderr.log"
     params:
-        opts = CFG["options"]["manta"]
+        opts = CFG["options"]["manta"],
+        workspace_dir = directory(CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/workspace/")
     conda:
         CFG["conda_envs"]["manta"]
     threads:
@@ -142,13 +161,12 @@ rule _manta_run:
         mem_mb = CFG["mem_mb"]["manta"],
         bam = 1
     shell:
-        op.as_one_line("""
-        {input.runwf} {params.opts} --jobs {threads} > {log.stdout} 2> {log.stderr}
+        op.as_one_line(""" 
+            rm -fr {params.workspace_dir}/* ;
+            {input.runwf} {params.opts} --jobs {threads} > {log.stdout} 2> {log.stderr}
             &&
-        rm -rf "$(dirname {input.runwf})/workspace/"
+            rm -rf "$(dirname {input.runwf})/workspace/"
         """)
-
-
 # Calculates the tumour and/or normal variant allele fractions (VAF) from the allele counts
 # and fixes the sample IDs in the VCF header to match sample IDs used in Snakemake
 rule _manta_augment_vcf:
@@ -202,7 +220,7 @@ rule _manta_output_vcf:
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.vcf, output.vcf, in_module=True)
 
 
 # Symlinks the final BEDPE files
@@ -212,7 +230,7 @@ rule _manta_output_bedpe:
     output:
         bedpe = CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.bedpe"
     run:
-        op.relative_symlink(input.bedpe, output.bedpe)
+        op.relative_symlink(input.bedpe, output.bedpe, in_module=True)
 
 
 def _manta_predict_output(wildcards):
