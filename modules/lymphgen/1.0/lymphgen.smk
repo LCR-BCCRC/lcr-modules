@@ -199,7 +199,7 @@ rule _lymphgen_input_no_cnv:
 rule _lymphgen_add_sv:
     input:
         sample_annotation = str(rules._lymphgen_input_cnv.output.sample_annotation),
-        bcl2_bcl6_sv = CFG["inputs"]["sv_info_tsv"]
+        bcl2_bcl6_sv = CFG["inputs"]["sample_sv_info"]
     output:
         sample_annotation = CFG["dirs"]["add_svs"] + "{outprefix}_sample_annotation.{cnvs_wc}.{sv_wc}.tsv"
     params:
@@ -357,7 +357,7 @@ if "sample_seg" in CFG["inputs"] and CFG["inputs"]["sample_seg"] != "" and CFG["
 else:
     cnvs_wc = ["no_cnvs"]
 
-if "sv_info_tsv" in CFG["inputs"] and CFG["inputs"]["sv_info_tsv"] != "" and CFG["inputs"]["sample_seg"] != "None":
+if "sample_sv_info" in CFG["inputs"] and CFG["inputs"]["sample_sv_info"] != "" and CFG["inputs"]["sample_sv_info"] != "None":
     sv_wc = ["with_sv", "no_sv"]
 else:
     sv_wc = ["no_sv"]

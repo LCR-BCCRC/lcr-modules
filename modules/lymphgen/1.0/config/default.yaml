@@ -6,6 +6,7 @@ lcr-modules:
             # Available wildcards: None (specify your merged input MAF/SEG manually)
             sample_maf: "__UPDATE__"
             sample_seg: "__UPDATE__"
+            sample_sv_info: "__UPDATE__"
             # Path to the directory where LGenIC should be installed
             lgenic_exec: "__UPDATE__"
 
@@ -17,14 +18,14 @@ lcr-modules:
                 start: "start"
                 end: "end"
                 CN: "log.ratio"
-            add_svs:  # Use "" if N/A (you are not providing SVs:)
+            add_svs:  # Use "" if N/A (you are not providing SVs)
                 samplecol: "__UPDATE__"
                 bcl2col: "__UPDATE__"
-                # Note any field value not matching in either true/false is considered NA
+                # Note any field value not present in either true/false is considered NA
                 bcl2truevalues: "__UPDATE__" # Can use a list here
                 bcl2falsevalues: "__UPDATE__"
                 bcl6col: "__UPDATE__"
-                # Note any field value not matching in either true/false is considered NA
+                # Note any field value not present in either true/false is considered NA
                 bcl6truevalues: "__UPDATE__"  # Can use a list
                 bcl6falsevalues: "__UPDATE__"
             lymphgen_input:
