@@ -48,6 +48,7 @@ lgenic_path = CFG["inputs"]["lgenic_exec"]
 if not lgenic_path.endswith(os.sep) and lgenic_path != "":
     CFG["inputs"]["lgenic_exec"] = CFG["inputs"]["lgenic_exec"] + os.sep
 
+
 ##### RULES #####
 
 outprefix = CFG["options"]["outprefix"]
@@ -199,20 +200,29 @@ rule _lymphgen_input_no_cnv:
 rule _lymphgen_add_sv:
     input:
         sample_annotation = str(rules._lymphgen_input_cnv.output.sample_annotation),
-        bcl2_bcl6_sv = CFG["inputs"]["sv_info_tsv"]
+        bcl2_bcl6_sv = CFG["inputs"]["sample_sv_info"]
     output:
         sample_annotation = CFG["dirs"]["add_svs"] + "{outprefix}_sample_annotation.{cnvs_wc}.{sv_wc}.tsv"
     params:
         sampleIDcolname = CFG["options"]["add_svs"]["samplecol"],
         bcl2colname = CFG["options"]["add_svs"]["bcl2col"],
-        bcl2true = set(CFG["options"]["add_svs"]["bcl2truevalues"]),
-        bcl2false = set(CFG["options"]["add_svs"]["bcl2falsevalues"]),
+        bcl2true = CFG["options"]["add_svs"]["bcl2truevalues"],
+        bcl2false = CFG["options"]["add_svs"]["bcl2falsevalues"],
         bcl6colname = CFG["options"]["add_svs"]["bcl6col"],
-        bcl6true = set(CFG["options"]["add_svs"]["bcl6truevalues"]),
-        bcl6false = set(CFG["options"]["add_svs"]["bcl6falsevalues"])
+        bcl6true = CFG["options"]["add_svs"]["bcl6truevalues"],
+        bcl6false = CFG["options"]["add_svs"]["bcl6falsevalues"]
     wildcard_constraints:
         sv_wc = "with_sv"
     run:
+
+        # Sanitize input fields
+        # Since the input could be either a string or an iterable, and because python will split a string into individual letters,
+        # lets make sure all input options are a set
+        params.bcl2true = set([params.bcl2true] if isinstance(params.bcl2true, str) else params.bcl2true)
+        params.bcl2false = set([params.bcl2false] if isinstance(params.bcl2false, str) else params.bcl2false)
+        params.bcl6true = set([params.bcl6true] if isinstance(params.bcl6true, str) else params.bcl6true)
+        params.bcl6false = set([params.bcl6false] if isinstance(params.bcl6false, str) else params.bcl6false)
+
         # Open the SV info file, and load the required columns
         loaded_sv = pandas.read_csv(input.bcl2_bcl6_sv, sep="\t")  # Pandas claims to auto-detect the file seperator, but in my experience it doesn't work
         # Check that the required columns exist
@@ -357,7 +367,7 @@ if "sample_seg" in CFG["inputs"] and CFG["inputs"]["sample_seg"] != "" and CFG["
 else:
     cnvs_wc = ["no_cnvs"]
 
-if "sv_info_tsv" in CFG["inputs"] and CFG["inputs"]["sv_info_tsv"] != "" and CFG["inputs"]["sample_seg"] != "None":
+if "sample_sv_info" in CFG["inputs"] and CFG["inputs"]["sample_sv_info"] != "" and CFG["inputs"]["sample_sv_info"] != "None":
     sv_wc = ["with_sv", "no_sv"]
 else:
     sv_wc = ["no_sv"]
