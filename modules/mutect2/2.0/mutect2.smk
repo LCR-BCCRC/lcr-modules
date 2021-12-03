@@ -28,8 +28,30 @@ except ModuleNotFoundError:
 
 current_version = pkg_resources.get_distribution("oncopipe").version
 if version.parse(current_version) < version.parse(min_oncopipe_version):
-    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
-    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
+
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+import pkg_resources
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_resources.get_distribution("oncopipe").version
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
 # End of dependency checking section 
@@ -63,8 +85,8 @@ rule _mutect2_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
 
 rule _mutect2_dummy_positions:
     # creates a dummy vcf if users do not specify candidateSmallIndels file
@@ -79,7 +101,7 @@ checkpoint _mutect2_input_chrs:
     output:
         chrs = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
     run:
-        op.relative_symlink(input.chrs, output.chrs)
+        op.absolute_symlink(input.chrs, output.chrs)
 
 
 # Retrieves from SM tag from BAM and writes to file
@@ -113,6 +135,20 @@ def _mutect2_get_interval_cli_arg(
     return _mutect2_get_interval_cli_custom
 
 
+def _mutect_get_capspace(wildcards):
+
+    # If this isn't a capture sample, we don't have a capture space, so return nothing
+    if wildcards.seq_type != "capture":
+        return []
+    try:
+        # Get the appropriate capture space for this sample
+        cap_space = get_capture_space(wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "interval_list")
+        return " -L " + cap_space
+    except NameError:
+        # If we are using an older version of the reference workflow, we don't need to do anything
+        return []
+
+
 # Launces Mutect2 in matched and unmatched mode
 rule _mutect2_run_matched_unmatched:
     input:
@@ -123,7 +159,8 @@ rule _mutect2_run_matched_unmatched:
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
         normal_sm = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}_sm.txt", 
         pon = reference_files("genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz"), 
-        candidate_positions = CFG["inputs"]["candidate_positions"] if CFG["inputs"]["candidate_positions"] else str(rules._mutect2_dummy_positions.output)
+        candidate_positions = CFG["inputs"]["candidate_positions"] if CFG["inputs"]["candidate_positions"] else str(rules._mutect2_dummy_positions.output),
+        capture_arg = _mutect_get_capspace
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.tbi"),
@@ -137,8 +174,7 @@ rule _mutect2_run_matched_unmatched:
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
         opts = CFG["options"]["mutect2_run"], 
-        interval_arg = _mutect2_get_interval_cli_arg(),
-        capture_arg = lambda w: _mutect_get_capspace(w)
+        interval_arg = _mutect2_get_interval_cli_arg()
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -151,7 +187,7 @@ rule _mutect2_run_matched_unmatched:
         -I {input.tumour_bam} -I {input.normal_bam}
         -R {input.fasta} -normal "$(cat {input.normal_sm})" -O {output.vcf}
         --germline-resource {input.gnomad} 
-        -L {wildcards.chrom} {params.interval_arg} {params.capture_arg}
+        -L {wildcards.chrom} {params.interval_arg} {input.capture_arg}
         -pon {input.pon} --f1r2-tar-gz {output.f1r2}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -165,7 +201,8 @@ rule _mutect2_run_no_normal:
         dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict"),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
         pon = reference_files("genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz"), 
-        candidate_positions = CFG["inputs"]["candidate_positions"] if CFG["inputs"]["candidate_positions"] else str(rules._mutect2_dummy_positions.output)
+        candidate_positions = CFG["inputs"]["candidate_positions"] if CFG["inputs"]["candidate_positions"] else str(rules._mutect2_dummy_positions.output),
+        capture_arg = _mutect_get_capspace
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/chromosomes/{chrom}.output.vcf.gz.tbi"),
@@ -179,8 +216,7 @@ rule _mutect2_run_no_normal:
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["mutect2_run"], 
-        interval_arg = _mutect2_get_interval_cli_arg(),
-        capture_arg = lambda w: _mutect_get_capspace(w)
+        interval_arg = _mutect2_get_interval_cli_arg()
     conda:
         CFG["conda_envs"]["gatk"]
     threads:
@@ -192,7 +228,7 @@ rule _mutect2_run_no_normal:
         gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" 
         {params.opts} -I {input.tumour_bam} -R {input.fasta} 
         -O {output.vcf} --germline-resource {input.gnomad} 
-        -L {wildcards.chrom} {params.interval_arg} {param.capture_arg}
+        -L {wildcards.chrom} {params.interval_arg} {input.capture_arg}
         -pon {input.pon} --f1r2-tar-gz {output.f1r2}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -209,18 +245,6 @@ def _mutect2_get_chr_vcfs(wildcards):
     )
     return(vcfs)
 
-def _mutect_get_capspace(wildcards):
-
-    # If this isn't a capture sample, we don't have a capture space, so return nothing
-    if wildcards.seq_type != "capture":
-        return ""
-    try:
-        # Get the appropriate capture space for this sample
-        cap_space = get_capture_space(wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "interval_list")
-        return " -L " + cap_space
-    except NameError:
-        # If we are using an older version of the reference workflow, we don't need to do anything
-        return ""
 
 def _mutect2_get_chr_tbis(wildcards):
     CFG = config["lcr-modules"]["mutect2"]

@@ -15,6 +15,26 @@
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+import pkg_resources
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_resources.get_distribution("oncopipe").version
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
+
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["strelka"]`
 CFG = op.setup_module(
@@ -50,9 +70,9 @@ rule _strelka_input_bam:
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
-        op.relative_symlink(input.bai, output.crai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 
 rule _strelka_dummy_vcf:
@@ -102,13 +122,26 @@ def _strelka_get_indel_cli_arg(vcf_in = config["lcr-modules"]["strelka"]["inputs
         return param
     return _strelka_get_indel_cli_custom
 
+def _strelka_get_capspace(wildcards):
+
+    # If this is a genome sample, return a BED file listing all chromosomes
+    if wildcards.seq_type != "capture":
+        return str(config["lcr-modules"]["strelka"]["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz")
+    try:
+        # Get the appropriate capture space for this sample
+        return get_capture_space(wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed.gz")
+    except NameError:
+        # If we are using an older version of the reference workflow, use the same region file as the genome sample
+        return str(config["lcr-modules"]["strelka"]["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz")
+
 
 rule _strelka_configure_paired: # Somatic
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        indels = str(rules._strelka_input_vcf.output.vcf) if CFG["inputs"]["candidate_small_indels"] else str(rules._strelka_dummy_vcf.output)
+        indels = str(rules._strelka_input_vcf.output.vcf) if CFG["inputs"]["candidate_small_indels"] else str(rules._strelka_dummy_vcf.output),
+        bedz = _strelka_get_capspace
     output:
         runwf = CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
@@ -116,8 +149,7 @@ rule _strelka_configure_paired: # Somatic
         stderr = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_configure.stderr.log"
     params:
         indel_arg = _strelka_get_indel_cli_arg(),
-        opts = op.switch_on_wildcard("seq_type", CFG["options"]["configure"]),
-        bedz = lambda w: _strelka_get_capspace(w)
+        opts = op.switch_on_wildcard("seq_type", CFG["options"]["configure"])
     wildcard_constraints:
         pair_status = "matched|unmatched"
     conda:
@@ -128,7 +160,7 @@ rule _strelka_configure_paired: # Somatic
         --normalBam={input.normal_bam}
         --tumorBam={input.tumour_bam}
         --referenceFasta={input.fasta}
-       --callRegions={params.bedz}
+       --callRegions={input.bedz}
         --runDir=$(dirname {output.runwf})
         {params.indel_arg}
         {params.opts} 
@@ -140,14 +172,14 @@ rule _strelka_configure_unpaired: # germline
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        bedz = _strelka_get_capspace
     output:
         runwf = CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
         stdout = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_configure.stdout.log",
         stderr = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_configure.stderr.log"
     params:
-        opts = op.switch_on_wildcard("seq_type", CFG["options"]["configure"]),
-        bedz = lambda w: _strelka_get_capspace(w)
+        opts = op.switch_on_wildcard("seq_type", CFG["options"]["configure"])
     message:
         "WARNING: {wildcards.seq_type} sample ({wildcards.tumour_id}) is being processed using Strelka Germline workflow. Ensure pairing config for capture is set to run_unpaired_tumours_with: 'unmatched_normal' to run Strelka Somatic workflow"
     wildcard_constraints:
@@ -159,7 +191,7 @@ rule _strelka_configure_unpaired: # germline
         configureStrelkaGermlineWorkflow.py 
         --bam={input.tumour_bam}
         --referenceFasta={input.fasta}
-        --callRegions={params.bedz}
+        --callRegions={input.bedz}
         --runDir=$(dirname {output.runwf})
         {params.opts} 
         > {log.stdout} 2> {log.stderr}
@@ -195,8 +227,8 @@ rule _strelka_run_paired:
     input:
         runwf = CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     output:
-        vcf_snvs = CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somatic.snvs.vcf.gz",
-        vcf_indels = CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somatic.indels.vcf.gz"
+        vcf_snvs = temp(CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somatic.snvs.vcf.gz"),
+        vcf_indels = temp(CFG["dirs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/somatic.indels.vcf.gz")
     log:
         stdout = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_run.stdout.log",
         stderr = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_run.stderr.log"
@@ -256,17 +288,6 @@ def _strelka_get_output(wildcards):
         vcf = str(rules._strelka_filter_combine.output.vcf)
     return vcf
 
-def _strelka_get_capspace(wildcards):
-
-    # If this is a genome sample, return a BED file listing all chromosomes
-    if wildcards.seq_type != "capture":
-        return reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes.bed.gz")
-    try:
-        # Get the appropriate capture space for this sample
-        return get_capture_space(wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed.gz")
-    except NameError:
-        # If we are using an older version of the reference workflow, use the same region file as the genome sample
-        return reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes.bed.gz")
 
 # Symlinks the final output files into the module results directory (under '99-outputs/'). Links will always use "combined" in the name (dropping odd naming convention used by Strelka in unpaired mode)
 rule _strelka_output_filtered_vcf:
@@ -276,8 +297,8 @@ rule _strelka_output_filtered_vcf:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz",
         vcf_tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz.tbi"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(str(input.vcf) + ".tbi", output.vcf_tbi)
+        op.relative_symlink(input.vcf, output.vcf, in_module=True)
+        op.relative_symlink(str(input.vcf) + ".tbi", output.vcf_tbi, in_module=True)
 
 
 

@@ -15,6 +15,26 @@
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+import pkg_resources
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_resources.get_distribution("oncopipe").version
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
+
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["hmftools"]`
 CFG = op.setup_module(
@@ -40,22 +60,18 @@ localrules:
     _hmftools_all
 
 
-VERSION_MAP = {
+HMFTOOLS_VERSION_MAP = {
     "grch37": "hg19",
     "hs37d5": "hg19",
     "hg38": "hg38"
 }
 
-possible_genome_builds = VERSION_MAP.keys()
+possible_genome_builds = HMFTOOLS_VERSION_MAP.keys()
 for genome_build in CFG["runs"]["tumour_genome_build"]:
     assert genome_build in possible_genome_builds, (
         "Samples table includes genome builds not yet compatible with this module. "
         "This module is currently only compatible with {possible_genome_builds}. "
     )
-
-wildcard_constraints: 
-    genome_build = "|".join(VERSION_MAP.keys()), 
-    pair_status = "matched|unmatched"
 
 
 ##### RULES #####
@@ -69,9 +85,12 @@ rule _hmftools_input_bam:
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam", 
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai", 
+    wildcard_constraints:
+        genome_build = "|".join(HMFTOOLS_VERSION_MAP.keys()),
+        pair_status = "matched|unmatched"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
 
 rule _hmftools_input_strelka: 
     input: 
@@ -79,7 +98,7 @@ rule _hmftools_input_strelka:
     output: 
         strelka_vcf = CFG["dirs"]["inputs"] + "strelka_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic.combined.vcf.gz" 
     run: 
-        op.relative_symlink(input.strelka_vcf, output.strelka_vcf)
+        op.absolute_symlink(input.strelka_vcf, output.strelka_vcf)
 
 rule _hmftools_input_gridss: 
     input: 
@@ -93,10 +112,10 @@ rule _hmftools_input_gridss:
         gridss_filtered_vcf = CFG["dirs"]["inputs"] + "gridss_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filtered.vcf.gz", 
         gridss_filtered_tbi = CFG["dirs"]["inputs"] + "gridss_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filtered.vcf.gz.tbi"
     run: 
-        op.relative_symlink(input.gridss_somatic_vcf, output.gridss_somatic_vcf)
-        op.relative_symlink(input.gridss_somatic_tbi, output.gridss_somatic_tbi)
-        op.relative_symlink(input.gridss_filtered_vcf, output.gridss_filtered_vcf)
-        op.relative_symlink(input.gridss_filtered_tbi, output.gridss_filtered_tbi)
+        op.absolute_symlink(input.gridss_somatic_vcf, output.gridss_somatic_vcf)
+        op.absolute_symlink(input.gridss_somatic_tbi, output.gridss_somatic_tbi)
+        op.absolute_symlink(input.gridss_filtered_vcf, output.gridss_filtered_vcf)
+        op.absolute_symlink(input.gridss_filtered_tbi, output.gridss_filtered_tbi)
 
 # Rules to download and setup reference files
 
@@ -121,7 +140,7 @@ rule _hmftools_get_cobalt_gc:
         gc = CFG["dirs"]["inputs"] + "references/{genome_build}/cobalt/GC_profile.1000bp.cnp"
     params: 
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/cobalt",
-        alt_build = lambda w: VERSION_MAP[w.genome_build]
+        alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
     shell: 
@@ -133,7 +152,7 @@ rule _hmftools_get_amber_snps:
         snpcheck = CFG["dirs"]["inputs"] + "references/{genome_build}/amber/GermlineHetPon.snpcheck.vcf.gz"
     params: 
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/amber",
-        alt_build = lambda w: VERSION_MAP[w.genome_build]
+        alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
     shell: 
@@ -146,7 +165,7 @@ rule _hmftools_get_purple_drivers:
         gene_panel = CFG["dirs"]["inputs"] + "references/{genome_build}/purple/DriverGenePanel.tsv"
     params: 
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/purple",
-        alt_build = lambda w: VERSION_MAP[w.genome_build]
+        alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
     shell: 
@@ -493,7 +512,7 @@ rule _hmftools_linx:
     resources: 
         **CFG["resources"]["linx"]
     params: 
-      alt_build = lambda w: VERSION_MAP[w.genome_build], 
+      alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build],
       ensembl_build = lambda w: {
           "grch37": "HG37",
           "hs37d5": "HG37", 
@@ -628,7 +647,7 @@ rule _hmftools_purple_output:
     output:
         files = CFG["dirs"]["outputs"] + "purple_output/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.purple.{out_file}" 
     run:
-        op.relative_symlink(input.files, output.files)
+        op.relative_symlink(input.files, output.files, in_module=True)
 
 rule _hmftools_purple_plots: 
     input:
@@ -636,7 +655,7 @@ rule _hmftools_purple_plots:
     output: 
         plots = CFG["dirs"]["outputs"] + "purple_plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{plot_name}.png"
     run: 
-        op.relative_symlink(input.plots, output.plots)
+        op.relative_symlink(input.plots, output.plots, in_module=True)
 
 
 rule _hmftools_linx_plots: 

@@ -59,3 +59,8 @@ Notably, in paired mode, with BAF mode on, FREEC normalizes with GC-content, and
 This implementation has been tested on unmatched samples too using a high coverage, normal FFPE sample, and it has shown to display clean profiles in these cases too.
 
 Note: this version is not meant for capture/exome data.
+
+## [1.2] patch 2021-02-25
+Added GEM mappability features - can now use/generate a hard-masked mappability file (useful for FFPE genomes) with the setting "hard_masked" = True. If this is set, GEM will be installed and ran on your reference genome of choice.
+
+Also added freec2circos function.
