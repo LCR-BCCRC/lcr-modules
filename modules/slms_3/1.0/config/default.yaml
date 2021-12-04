@@ -110,7 +110,7 @@ lcr-modules:
             scratch_subdirectories: []
 
             options:
-                sage_run: "-validation_stringency LENIENT"
+                sage_run: ""
 
             resources:
                 sage_run:
