@@ -60,15 +60,16 @@ localrules:
 
 def _lofreq_get_capspace(wildcards):
 
+    custom_bed = config["lcr-modules"]["lofreq"]['switches']['regions_bed'][wildcards.seq_type]
     # If this is a genome sample, return a BED file listing all chromosomes
     if wildcards.seq_type != "capture":
-        return str(config["lcr-modules"]["lofreq"]["switches"]["regions_bed"]['_default'])
+        return str(custom_bed) if custom_bed else str(bed)
     try:
         # Get the appropriate capture space for this sample
         return get_capture_space(wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed")
     except NameError:
         # If we are using an older version of the reference workflow, use the same region file as the genome sample 
-        return str(config["lcr-modules"]["lofreq"]["switches"]["regions_bed"]['_default'])
+        return str(custom_bed) if custom_bed else str(bed)
 
 ##### RULES #####
 
