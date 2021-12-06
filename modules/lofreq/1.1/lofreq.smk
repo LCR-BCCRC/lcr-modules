@@ -60,7 +60,10 @@ localrules:
 
 def _lofreq_get_capspace(wildcards):
 
-    custom_bed = config["lcr-modules"]["lofreq"]['switches']['regions_bed'][wildcards.seq_type]
+    if str(wildcards.seq_type) in config["lcr-modules"]["lofreq"]['switches']['regions_bed'].keys():
+        custom_bed = config["lcr-modules"]["lofreq"]['switches']['regions_bed'][wildcards.seq_type]
+    else:
+        custom_bed = bed
     # If this is a genome sample, return a BED file listing all chromosomes
     if wildcards.seq_type != "capture":
         return str(custom_bed) if custom_bed else str(bed)
