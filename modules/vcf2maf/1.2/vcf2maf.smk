@@ -51,7 +51,7 @@ localrules:
     _vcf2maf_crossmap,
     _vcf2maf_all
 
-VERSION_MAP = {
+VCF2MAF_GENOME_VERSION_MAP = {
     "grch37": "GRCh37",
     "hg38": "GRCh38",
     "hs37d5": "GRCh37"
@@ -89,7 +89,7 @@ rule _vcf2maf_run:
         stderr = CFG["logs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_vcf2maf.stderr.log",
     params:
         opts = CFG["options"]["vcf2maf"],
-        build = lambda w: GENOME_VERSION_MAP[w.genome_build],
+        build = lambda w: VCF2MAF_GENOME_VERSION_MAP[w.genome_build],
         custom_enst = op.switch_on_wildcard("genome_build", CFG["switches"]["custom_enst"])
     conda:
         CFG["conda_envs"]["vcf2maf"]
