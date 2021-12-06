@@ -53,10 +53,7 @@ localrules:
     _strelka_configure_unpaired,
     _strelka_filter_combine,
     _strelka_output_filtered_vcf,
-    _strelka_all,
-
-wildcard_constraints: 
-    var_type = "somatic.snvs|somatic.indels|variants"
+    _strelka_all
 
 ##### RULES #####
 
@@ -266,6 +263,8 @@ rule _strelka_filter_combine:
     log:
         stdout = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_filter_combine.stdout.log",
         stderr = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_filter_combine.stderr.log"
+    wildcard_constraints:
+        var_type = "somatic.snvs|somatic.indels|variants"
     shell:
         op.as_one_line("""
         bcftools concat -a {input.vcf} | 
