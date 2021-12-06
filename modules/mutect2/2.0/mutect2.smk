@@ -123,8 +123,7 @@ rule _mutect2_get_sm:
 # The first function loads the wildcard-containing file path and additional args from the config. 
 # The second replaces wildcards with those used in the rule. 
 def _mutect2_get_interval_cli_arg(
-    vcf_in = config["lcr-modules"]["mutect2"]["inputs"]["candidate_positions"], 
-    #interval_arg_in = config["lcr-modules"]["mutect2"]["options"]["mutect2_interval_rules"]
+    vcf_in = config["lcr-modules"]["mutect2"]["inputs"]["candidate_positions"]
 ):
     def _mutect2_get_interval_cli_custom(wildcards, input):
         if vcf_in:
