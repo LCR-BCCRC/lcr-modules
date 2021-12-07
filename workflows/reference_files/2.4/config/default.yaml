@@ -57,6 +57,11 @@ genome_builds:
         version: "grch38"
         provider: "ucsc"
         genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/grch38-nci.fa"
+    hg38-panea:
+        # Version of hg38 used by Panea et al.
+        version: "grch38"
+        provider: "ucsc"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg38-panea.fa"
 
 capture_space:
     exome-utr-grch38:
