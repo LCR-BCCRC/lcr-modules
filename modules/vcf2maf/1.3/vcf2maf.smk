@@ -115,7 +115,8 @@ rule _vcf2maf_run:
             --custom-enst {params.custom_enst}
             --retain-info gnomADg_AF
             >> {log.stdout} 2>> {log.stderr};
-        else echo "WARNING: PATH is not set properly, using $(which vcf2maf.pl) will result in error during execution. Please ensure $VCF2MAF_SCRIPT exists." > {log.stderr};fi
+        else echo "WARNING: PATH is not set properly, using $(which vcf2maf.pl) will result in error during execution. Please ensure $VCF2MAF_SCRIPT exists." > {log.stderr};fi  &&
+        touch {output.vep}
         """)
 
 rule _vcf2maf_gnomad_filter_maf:
