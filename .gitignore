@@ -31,10 +31,12 @@ MANIFEST
 
 # Files creates when testing the demo project or workflows
 .snakemake/
-/demo/results/
-/demo/reference
-/demo/scratch/
-/demo/data/*bam
+demo/results
+demo/reference
+demo/scratch
+demo/data/*bam
+demo/results_archive
+demo/scratch_archive
 
 
 # Ignore example snakefiles

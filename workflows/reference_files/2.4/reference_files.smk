@@ -83,6 +83,26 @@ rule create_star_index:
         """)
 
 
+rule get_liftover_chains:
+    input:
+        chains = rules.download_liftover_chains.output.chains
+    output:
+        chains = "genomes/{genome_build}/chains/{version}/{chain_version}.over.chain"
+    shell:
+        "ln -srf {input.chains} {output.chains}"
+
+rule get_sdf_refs: 
+    input: 
+        sdf = ancient(rules.download_sdf.output.sdf)
+    output: 
+        sdf = directory("genomes/{genome_build}/sdf")
+    wildcard_constraints: 
+        genome_build = "hg38|hg19|grch37|hs37d5"
+    shell: 
+        "ln -srfT {input.sdf} {output.sdf}"
+
+
+
 ##### METADATA #####
 
 
@@ -127,6 +147,28 @@ rule get_main_chromosomes_download:
         ln -srf {input.chrx} {output.chrx}
         """)
 
+
+rule get_main_chromosomes_withY_download:
+    input: 
+        txt = get_download_file(rules.download_main_chromosomes_withY.output.txt),
+        fai = rules.index_genome_fasta.output.fai
+    output: 
+        txt = "genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt",
+        bed = "genomes/{genome_build}/genome_fasta/main_chromosomes_withY.bed",
+        patterns = temp("genomes/{genome_build}/genome_fasta/main_chromosomes.patterns.txt")
+    conda: CONDA_ENVS["coreutils"]
+    shell: 
+        op.as_one_line("""
+        sed 's/^/^/' {input.txt} > {output.patterns}
+            &&
+        egrep -w -f {output.patterns} {input.fai}
+            |
+        cut -f1 > {output.txt}
+            &&
+        egrep -w -f {output.patterns} {input.fai}
+            |
+        awk 'BEGIN {{FS=OFS="\t"}} {{print $1,  0, $2}}' > {output.bed}
+        """)
 
 ##### ANNOTATIONS #####
 
@@ -306,6 +348,32 @@ rule get_af_only_gnomad_vcf:
         vcf = get_download_file(rules.download_af_only_gnomad_vcf.output.vcf)
     output:
         vcf = "genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"
+    conda: CONDA_ENVS["samtools"]
+    shell:
+        op.as_one_line(""" 
+        bgzip -c {input.vcf} > {output.vcf}
+            &&
+        tabix {output.vcf}
+        """)
+
+rule get_mutect2_pon:
+    input:
+        vcf = get_download_file(rules.download_mutect2_pon.output.vcf)
+    output:
+        vcf = "genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz"
+    conda: CONDA_ENVS["samtools"]
+    shell:
+        op.as_one_line(""" 
+        bgzip -c {input.vcf} > {output.vcf}
+            &&
+        tabix {output.vcf}
+        """)
+
+rule get_mutect2_small_exac:
+    input:
+        vcf = get_download_file(rules.download_mutect2_small_exac.output.vcf)
+    output:
+        vcf = "genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz"
     conda: CONDA_ENVS["samtools"]
     shell:
         op.as_one_line(""" 

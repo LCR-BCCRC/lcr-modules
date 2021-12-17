@@ -17,17 +17,20 @@ import oncopipe as op
 ##### CONFIG #####
 localrules: download_genome_fasta,
             download_main_chromosomes, 
+            download_main_chromosomes_withY, 
             download_gencode_annotation,
             download_blacklist, 
             hardlink_download, 
             update_contig_names,
             get_genome_fasta_download, 
             index_genome_fasta,
-            get_main_chromosomes_download, 
+            get_main_chromosomes_download,
+            get_main_chromosomes_withY_download, 
             get_gencode_download, 
             create_star_index, 
             get_gencode_download,
-            download_af_only_gnomad_vcf
+            download_af_only_gnomad_vcf,
+            download_liftover_chains
 
 
 # Check for genome builds
@@ -143,6 +146,19 @@ rule download_main_chromosomes:
         cut -f1 > {output.txt}
         """)
 
+rule download_main_chromosomes_withY:
+    input:
+        mapping = lambda w: f"{CHROM_MAPPINGS_DIR}/{VERSION_UPPER[w.version]}_ensembl2ucsc.txt"
+    output:
+        txt = "downloads/main_chromosomes/main_chromosomes_withY.{version}.txt"
+    params:
+        provider = "ensembl"
+    shell:
+        op.as_one_line("""
+        egrep -w "^(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|X|Y)" {input.mapping}
+            |
+        cut -f1 > {output.txt}
+        """)
 
 rule download_chromosome_x:
     output:
@@ -226,19 +242,109 @@ rule download_af_only_gnomad_vcf:
         "downloads/gnomad/af-only-gnomad.{version}.vcf.log"
     params:
         provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
-        file = lambda w: {"grch37": "raw.sites.b37", "grch38": "hg38"}[w.version]
-    conda: CONDA_ENVS["coreutils"]
+        file = lambda w: {
+            "grch37": "gs://gatk-best-practices/somatic-b37/af-only-gnomad.raw.sites.vcf", 
+            "grch38": "gs://gatk-best-practices/somatic-hg38/af-only-gnomad.hg38.vcf.gz"
+        }[w.version]
+    conda: CONDA_ENVS["gsutil"]
     shell:
         op.as_one_line("""
-        curl -s ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/Mutect2/af-only-gnomad.{params.file}.vcf.gz 2> {log}
+        if [[ {params.file} == *".gz" ]]; then 
+            gsutil cp {params.file} - 2> {log}
+                |
+            gzip -dc 
+                |
+            awk '{{FS=OFS="\t"}} {{ 
+                if ($0 ~ /^##INFO/ && !($0 ~ /ID=AC,/ || $0 ~ /ID=AF,/)) {{ next }} 
+                else {{ print }}
+            }}'
+                > {output.vcf} 2>> {log}; 
+        else
+            gsutil cp {params.file} - 2> {log}
+                |
+            awk '{{FS=OFS="\t"}} {{ 
+                if ($0 ~ /^##INFO/ && !($0 ~ /ID=AC,/ || $0 ~ /ID=AF,/)) {{ next }} 
+                else {{ print }}
+            }}'
+                > {output.vcf} 2>> {log}; 
+        fi
+        """)
+
+rule download_mutect2_pon:
+    output:
+        vcf = "downloads/mutect2/mutect2_pon.{version}.vcf"
+    log:
+        "downloads/mutect2/mutect2_pon.{version}.vcf.log"
+    params:
+        provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
+        file = lambda w: {
+            "grch37": "gs://gatk-best-practices/somatic-b37/Mutect2-WGS-panel-b37.vcf", 
+            "grch38": "gs://gatk-best-practices/somatic-hg38/1000g_pon.hg38.vcf.gz"
+        }[w.version]
+    conda: CONDA_ENVS["gsutil"]
+    shell:
+        op.as_one_line("""
+        if [[ {params.file} == *".gz" ]]; then 
+            gsutil cp {params.file} - 2> {log}
             |
-        gzip -dc 
+            gzip -dc > {output.vcf}; 
+        else
+            gsutil cp {params.file} {output.vcf} 2> {log}; 
+        fi
+        """)
+
+rule download_mutect2_small_exac:
+    output:
+        vcf = "downloads/mutect2/mutect2_small_exac.{version}.vcf"
+    log:
+        "downloads/mutect2/mutect2_small_exac.{version}.vcf.log"
+    params:
+        provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
+        file = lambda w: {
+            "grch37": "gs://gatk-best-practices/somatic-b37/small_exac_common_3.vcf", 
+            "grch38": "gs://gatk-best-practices/somatic-hg38/small_exac_common_3.hg38.vcf.gz"
+        }[w.version]
+    conda: CONDA_ENVS["gsutil"]
+    shell:
+        op.as_one_line("""
+        if [[ {params.file} == *".gz" ]]; then 
+            gsutil cp {params.file} - 2> {log}
             |
-        awk '{{FS=OFS="\t"}} {{ 
-            if ($0 ~ /^##INFO/ && !($0 ~ /ID=AC,/ || $0 ~ /ID=AF,/)) {{ next }} 
-            else {{ print }}
-         }}'
-            > {output.vcf} 2>> {log}
+            gzip -dc > {output.vcf}; 
+        else
+            gsutil cp {params.file} {output.vcf} 2> {log}; 
+        fi
+        """)
+
+rule download_liftover_chains:
+    output:
+        chains = "downloads/chains/{genome_build}/{chain_version}.{version}.over.chain"
+    wildcard_constraints:
+        chain_version = "hg19ToHg38|hg38ToHg19"
+    params:
+        provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
+        build = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19"
+    shell:
+        op.as_one_line("""
+        wget -qO- http://hgdownload.cse.ucsc.edu/goldenpath/{params.build}/liftOver/{wildcards.chain_version}.over.chain.gz |
+        gzip -dc > {output.chains}
+        """)
+
+rule download_sdf: 
+    output: 
+        sdf = directory("downloads/sdf/{genome_build}/sdf")
+    params: 
+        build = lambda w: {
+            "grch37": "1000g_v37_phase2.sdf", 
+            "hs37d5": "1000g_v37_phase2.sdf",
+            "hg19": "hg19.sdf", 
+            "hg38": "GRCh38.sdf"
+        }[w.genome_build]
+    shell: 
+        op.as_one_line("""
+        wget -qO {output.sdf}.zip https://s3.amazonaws.com/rtg-datasets/references/{params.build}.zip && 
+        unzip -d $(dirname {output.sdf})/{params.build} {output.sdf}.zip &&
+        mv $(dirname {output.sdf})/{params.build}/* {output.sdf}
         """)
 
 
@@ -246,7 +352,7 @@ rule download_af_only_gnomad_vcf:
 
 
 def get_matching_download_rules(file):
-    ignored_rules = ["download_genome_fasta"]
+    ignored_rules = ["download_genome_fasta", "download_sdf"]
     rule_names = [ r for r in dir(rules) if r.startswith("download_")]
     rule_names = [ r for r in rule_names if r not in ignored_rules ]
     rule_list = [ getattr(rules, name) for name in rule_names ]

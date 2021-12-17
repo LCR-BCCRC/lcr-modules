@@ -163,22 +163,7 @@ def set_value(value, *keys):
 
 # UTILITIES
 
-
-def relative_symlink(src, dest, overwrite=True):
-    """Creates a relative symlink from any working directory.
-
-    Parameters
-    ----------
-    src : str
-        The source file or directory path.
-    dest : str
-        The destination file path. This can also be a destination
-        directory, and the destination symlink name will be identical
-        to the source file name (unless directory).
-    overwrite : boolean
-        Whether to overwrite the destination file if it exists.
-    """
-
+def prepare_symlink(src, dest):
     # Coerce length-1 NamedList instances to strings
     def coerce_namedlist_to_string(obj):
         if isinstance(obj, smk.io.Namedlist) and len(obj) == 1:
@@ -206,25 +191,96 @@ def relative_symlink(src, dest, overwrite=True):
     # Or you are symlinking a directory to a specific location
     else:
         dest_dir, dest_file = os.path.split(dest)
-    os.makedirs(dest_dir, exist_ok=True)
-
+    os.makedirs(os.path.abspath(dest_dir), exist_ok=True)
     dest = os.path.join(dest_dir, dest_file)
+    
+    return src, dest
+
+def compare_links(src, dest, overwrite):
+    # Check if the destination file exists and is a symlink
     if os.path.lexists(dest) and os.path.islink(dest):
-        if os.path.realpath(src) == os.path.realpath(dest):
-            return
-        elif overwrite:
+        # If the destination link exists and has the same src, exit
+        if src == os.readlink(dest) or overwrite:
             os.remove(dest)
-    assert not os.path.exists(dest), (
+    # Raise error if the file exists and isn't a symbolic link
+    assert not (os.path.exists(dest) and not os.path.islink(dest)), (
+        "Destination file already exists but isn't a symbolic link: \n"
+        f"    Current: {dest} \n"
+        f"    Attempted: {dest} -> {src}"
+    )
+    # Raise error if the file exists and is a symbolic link
+    assert not (os.path.exists(dest) and os.path.islink(dest)), (
         "Symbolic link already exists but points elsewhere: \n"
-        f"    Current: {dest} -> {os.path.realpath(dest)} \n"
-        f"    Attempted: {dest} -> {os.path.realpath(src)}"
+        f"    Current: {dest} -> {os.readlink(dest)} \n"
+        f"    Attempted: {dest} -> {src}"
     )
 
-    # Make `src` relative to destination parent directory
-    if not os.path.isabs(src):
-        dest_dir = os.path.realpath(dest_dir)
-        src = os.path.relpath(src, dest_dir)
+    
+
+def absolute_symlink(src, dest, overwrite=True): 
+    """Creates an absolute symlink from any working directory.
+
+    Parameters
+    ----------
+    src : str
+        The source file or directory path.
+    dest : str
+        The destination file path. This can also be a destination
+        directory, and the destination symlink name will be identical
+        to the source file name (unless directory).
+    overwrite : boolean
+        Whether to overwrite the destination file if it exists.
+    """
+    # Prepare source and destination file paths 
+    src, dest = prepare_symlink(src, dest)
+    # Retrieve the absolute file path for the source file
+    src = os.path.abspath(src)
+
+    # Check if destination file already exists and error if it does
+    compare_links(src, dest, overwrite)
+
+    # Symlink the source file to the destination
     os.symlink(src, dest)
+
+    
+
+def relative_symlink(src, dest, in_module=False, overwrite=True):
+    """Creates a relative symlink from any working directory.
+
+    Parameters
+    ----------
+    src : str
+        The source file or directory path.
+    dest : str
+        The destination file path. This can also be a destination
+        directory, and the destination symlink name will be identical
+        to the source file name (unless directory).
+    in_module: boolean
+        If both the src and dest file are within a module results directory, 
+        setting this option to True will keep symlinks contained to the 
+        module directory. Always set to False for links that point outside
+        module results directory. Example: 
+        dest = results/module/99-outputs/sample.vcf
+        src = results/module/03-stomestep/sample.vcf
+        results/module/99-outputs/sample.vcf -> ../03-somestep.sample.vcf
+    overwrite : boolean
+        Whether to overwrite the destination file if it exists.
+    """
+    # Prepare source and destination file paths 
+    src, dest = prepare_symlink(src, dest)
+
+    # Retrieve the relative file path for the source file
+    dest_dir = os.path.split(dest)[0]
+    if not in_module: 
+        dest_dir = os.path.realpath(dest_dir)
+    src = os.path.relpath(src, dest_dir)
+
+    # Handle destination file if it already exists
+    compare_links(src, dest, overwrite)
+
+    # Symlink the source file to the destination
+    os.symlink(src, dest)
+    
 
 
 def get_from_dict(dictionary, list_of_keys):

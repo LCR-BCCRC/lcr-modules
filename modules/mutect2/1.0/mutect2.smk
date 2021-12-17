@@ -185,7 +185,7 @@ rule _mutect2_merge_vcfs:
         op.as_one_line("""
         bcftools concat --threads {threads} -a -O z {input.vcf} 2> {log.stderr}
             |
-        bcftools sort -O z -o {output.vcf} 2> {log.stderr} 
+        bcftools sort -O z -o {output.vcf} 2>> {log.stderr} 
             &&
         bcftools index -t --threads {threads} {output.vcf} 2>> {log.stderr}
         """)

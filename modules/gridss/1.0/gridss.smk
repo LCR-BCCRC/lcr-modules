@@ -52,10 +52,6 @@ localrules:
     _gridss_dispatch,
     _gridss_all
 
-wildcard_constraints: 
-    genome_build = "|".join(possible_genome_builds),
-    pair_status = "matched|unmatched|no_normal"
-
 
 ##### RULES #####
 
@@ -187,7 +183,7 @@ rule _gridss_symlink_preprocessed_normal:
     input: 
         workdir = str(rules._gridss_preprocess_unmatched_normal.output.workdir)
     output: 
-        workdir = temp(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}.bam.gridss.working")
+        workdir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}.bam.gridss.working"))
     priority: 0
     wildcard_constraints: 
         sample_id = "|".join(unmatched_normal_ids)

@@ -18,10 +18,18 @@ set -euf -o pipefail
 zcat "${SEQZ_FILE}" \
 	| egrep -v "^chromosome" \
 	| awk 'BEGIN {FS="\t"} $9 == "het" {print $1 ":" $2}' \
-	| sort -S "${BUFFER_SIZE}" --parallel 10 \
+	| sort -S "${BUFFER_SIZE}" --parallel 8 \
 	| comm - "${DBSNP_POS_FILE}" -2 -3 \
 	| tr ":" "\t" \
 	> "${RARE_VARIANTS}"
+
+if [[ $SEQZ_BLACKLIST_BED_FILES != "" ]]; then
+	zcat "${SEQZ_FILE}" \
+		| awk 'BEGIN {FS=OFS="\t"} NR > 1 && $9 == "het" {print $1, $2-1, $2}' \
+		| bedtools intersect -wa -a stdin -b $SEQZ_BLACKLIST_BED_FILES \
+		| awk 'BEGIN {FS=OFS="\t"} {print $1, $3}' \
+		>> "${RARE_VARIANTS}"
+fi
 
 zgrep -v -F -f "${RARE_VARIANTS}" "${SEQZ_FILE}"
 

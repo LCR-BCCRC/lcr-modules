@@ -44,10 +44,12 @@ rule _manta_input_bam:
         sample_bai = CFG["inputs"]["sample_bai"]
     output:
         sample_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        sample_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
+        sample_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
+        sample_crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
         op.relative_symlink(input.sample_bam, output.sample_bam)
         op.relative_symlink(input.sample_bai, output.sample_bai)
+        op.relative_symlink(input.sample_bai, output.sample_crai)
 
 
 # bgzip-compress and tabix-index the BED file to meet Manta requirement
@@ -151,15 +153,15 @@ rule _manta_run:
 # and fixes the sample IDs in the VCF header to match sample IDs used in Snakemake
 rule _manta_augment_vcf:
     input:
-        variants_dir = str(rules._manta_run.output.variants_dir),
-        aug_vcf = CFG["inputs"]["augment_manta_vcf"]
+        variants_dir = str(rules._manta_run.output.variants_dir)        
     output:
         vcf = CFG["dirs"]["augment_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.augmented.vcf"
     log:
         stdout = CFG["logs"]["augment_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_augment_vcf.{vcf_name}.stdout.log",
         stderr = CFG["logs"]["augment_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_augment_vcf.{vcf_name}.stderr.log"
     params:
-        opts = CFG["options"]["augment_vcf"]
+        opts = CFG["options"]["augment_vcf"], 
+        aug_vcf = CFG["scripts"]["augment_manta_vcf"]
     conda:
         CFG["conda_envs"]["augment_manta_vcf"]
     threads:
@@ -168,7 +170,7 @@ rule _manta_augment_vcf:
         mem_mb = CFG["mem_mb"]["augment_vcf"]
     shell:
         op.as_one_line("""
-        {input.aug_vcf} {params.opts} --tumour_id {wildcards.tumour_id} --normal_id {wildcards.normal_id} 
+        {params.aug_vcf} {params.opts} --tumour_id {wildcards.tumour_id} --normal_id {wildcards.normal_id} 
         --vcf_type {wildcards.vcf_name} {input.variants_dir}/{wildcards.vcf_name}.vcf.gz {output.vcf}
         > {log.stdout} 2> {log.stderr}
         """)
