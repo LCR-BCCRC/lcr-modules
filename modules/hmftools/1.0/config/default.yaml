@@ -28,6 +28,7 @@ lcr-modules:
                 '38': "mysql://ensembldb.ensembl.org:3306/homo_sapiens_core_98_38"
 
         options:
+            use_masked_ref: False
             amber: 
                 -validation_stringency SILENT
             cobalt: 
