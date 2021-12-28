@@ -58,6 +58,10 @@ wildcard_constraints:
     genome_build = "|".join(VERSION_MAP_HMFTOOLS.keys()), 
     pair_status = "matched|unmatched"
 
+masked_string = "" 
+if CFG["options"]["use_masked_ref"]:
+    masked_string = "_masked"
+
 
 ##### RULES #####
 
@@ -103,13 +107,13 @@ rule _hmftools_input_gridss:
 
 rule _hmftools_input_references: 
     input: 
-        genome_fa = reference_files("genomes/{genome_build}_masked/genome_fasta/genome.fa"),
-        genome_fai = reference_files("genomes/{genome_build}_masked/genome_fasta/genome.fa.fai"),
-        genome_dict = reference_files("genomes/{genome_build}_masked/genome_fasta/genome.dict")
+        genome_fa = reference_files("genomes/{genome_build}" + masked_string + "/genome_fasta/genome.fa"),
+        genome_fai = reference_files("genomes/{genome_build}" + masked_string + "/genome_fasta/genome.fa.fai"),
+        genome_dict = reference_files("genomes/{genome_build}" + masked_string + "/genome_fasta/genome.dict")
     output: 
-        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/genome_fa/genome.fa", 
-        genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/genome_fa/genome.fa.fai", 
-        genome_dict = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/genome_fa/genome.dict"
+        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}" + masked_string + "/genome_fa/genome.fa", 
+        genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}" + masked_string + "/genome_fa/genome.fa.fai", 
+        genome_dict = CFG["dirs"]["inputs"] + "references/{genome_build}" + masked_string + "/genome_fa/genome.dict"
     shell: 
         op.as_one_line("""
         ln -s {input.genome_fa} {output.genome_fa} &&
@@ -323,7 +327,9 @@ rule _hmftools_cobalt:
         fasta = str(rules._hmftools_input_references.output.genome_fa)
     output: 
         tumour_ratio = CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.cobalt.ratio.pcf", 
-        normal_ratio = CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}.cobalt.ratio.pcf"
+        normal_ratio = CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}.cobalt.ratio.pcf", 
+        tumour_tsv = temp(CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.cobalt.ratio.tsv"), 
+        normal_tsv = temp(CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}.cobalt.ratio.tsv")
     log: ratio = CFG["logs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/cobalt.log"
     resources: 
         **CFG["resources"]["cobalt"]
@@ -370,8 +376,10 @@ purple_plots = [
 rule _hmftools_purple_matched:
     input: 
         amber = CFG["dirs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.amber.baf.vcf.gz",
-        cobalt_tumour = str(rules._hmftools_cobalt_matched.output.tumour_ratio),
-        cobalt_normal = str(rules._hmftools_cobalt_matched.output.normal_ratio),
+        cobalt_tumour = str(rules._hmftools_cobalt.output.tumour_ratio),
+        cobalt_normal = str(rules._hmftools_cobalt.output.normal_ratio),
+        cobalt_tumour_tsv = str(rules._hmftools_cobalt.output.tumour_tsv), 
+        cobalt_normal_tsv = str(rules._hmftools_cobalt.output.normal_tsv), 
         slms3_vcf = str(rules._hmftools_snpeff_vcf.output.vcf), 
         gridss_somatic_vcf = str(rules._hmftools_input_gridss.output.gridss_somatic_vcf),
         gridss_filtered_vcf = str(rules._hmftools_input_gridss.output.gridss_filtered_vcf),
@@ -391,7 +399,7 @@ rule _hmftools_purple_matched:
         outdir = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}", 
         options = CFG["options"]["purple"],
         circos = "`which circos`", 
-        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.9)
     wildcard_constraints: 
         pair_status = "matched|unmatched"
     conda: 
