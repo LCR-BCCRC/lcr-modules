@@ -432,7 +432,7 @@ rule _gridss_gripss_to_bedpe:
         op.as_one_line("""
         zcat {input.vcf} | 
             awk '$1 ~ /^#/ || $5 ~ /:/' | 
-            svtools vcftobedpe -o {output.bedpe}
+            svtools vcftobedpe | grep -v "##" > {output.bedpe}
         """)
      
 
