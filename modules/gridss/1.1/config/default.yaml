@@ -6,7 +6,6 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
-            virusbreakend_url: "https://virusbreakend.s3.us-east-2.amazonaws.com/virusbreakenddb_20210401.tar.gz" # Can be updated if newer versions are created. 
 
         scratch_subdirectories: [] # Recommended: ["gridss", "preprocess"]
 
