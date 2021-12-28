@@ -286,8 +286,8 @@ rule _gridss_run:
     output:
         vcf = temp(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/gridss_raw.vcf.gz"),
         assembly = temp(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/assembly.bam"), 
-        assembly_dir = directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/assembly.bam.gridss.working"), 
-        vcf_dir = directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/gridss_raw.vcf.gz.gridss.working")
+        assembly_dir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/assembly.bam.gridss.working")), 
+        vcf_dir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/gridss_raw.vcf.gz.gridss.working"))
     log: CFG["logs"]["gridss"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/gridss.log"
     params:
         ids = lambda wildcards: get_input_sample_ids(wildcards),
