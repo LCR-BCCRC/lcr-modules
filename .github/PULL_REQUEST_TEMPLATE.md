@@ -48,4 +48,11 @@
 
 ## Checklist for Updated Module
 
-To be completed.
+Important! If you are updating the module version, ensure the previous version of the module is restored from master.
+If you want to restore a deleted file or directory from the remote master, you can use `git checkout origin/master path/to/file`,
+then a `git commit` will ensure that file is tracked on your branch again.
+Example:
+```
+mv modules/strelka/1.1 modules/strelka/1.2
+git checkout origin/master modules/strelka/1.1
+```

@@ -28,8 +28,10 @@ except ModuleNotFoundError:
 
 current_version = pkg_resources.get_distribution("oncopipe").version
 if version.parse(current_version) < version.parse(min_oncopipe_version):
-    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
-    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
 # End of dependency checking section 
@@ -66,8 +68,14 @@ rule _liftover_input_file:
         tsv = CFG["inputs"]["sample_file"]
     output:
         tsv = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}." + CFG["input_type"]
+        another_tsv = CFG["dirs"]["outputs"] + "from--{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}." + CFG["input_type"]
     run:
         op.relative_symlink(input.tsv, output.tsv)
+    wildcard_constraints:
+        tool = CFG["tool"]
+    run:
+        op.relative_symlink(input.tsv, output.tsv)
+        op.relative_symlink(input.tsv, output.another_tsv)
 
 
 # Convert initial seg file into bed format
@@ -247,13 +255,14 @@ rule _liftover_all:
         expand(
             [
                 str(rules._liftover_output.output)
+                str(rules._liftover_input_seg.output.another_tsv)
             ],
             zip,  # Run expand() with zip(), not product()
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
             genome_build = CFG["runs"]["tumour_genome_build"],
-            seq_type = CFG["runs"]["tumour_seq_type"], 
-            pair_status = CFG["runs"]["pair_status"], 
+            seq_type=CFG["runs"]["tumour_seq_type"],
+            pair_status=CFG["runs"]["pair_status"],
             #repeat the tool name N times in expand so each pair in run is used
             tool=[CFG["tool"]] * len(CFG["runs"]["tumour_sample_id"]),
             chain=["hg38ToHg19" if "38" in str(x) else "hg19ToHg38" for x in CFG["runs"]["tumour_genome_build"]]
