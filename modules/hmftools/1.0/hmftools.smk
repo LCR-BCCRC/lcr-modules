@@ -95,7 +95,7 @@ rule _hmftools_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam", 
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai", 
     wildcard_constraints:
-        genome_build = "|".join(HMFTOOLS_VERSION_MAP.keys()),
+        genome_build = "|".join(VERSION_MAP_HMFTOOLS.keys()),
         pair_status = "matched|unmatched"
     run:
         op.absolute_symlink(input.bam, output.bam)
