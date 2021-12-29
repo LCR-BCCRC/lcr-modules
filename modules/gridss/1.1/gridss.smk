@@ -462,7 +462,7 @@ rule _gridss_output_somatic_vcf:
         filtered = str(rules._gridss_filter_gripss.output.vcf), 
         filtered_tbi = str(rules._gridss_filter_gripss.output.tbi), 
         somatic = str(rules._gridss_run_gripss.output.vcf), 
-        somatic_tbi = str(rules._gridss_run_gripss.output.vcf),
+        somatic_tbi = str(rules._gridss_run_gripss.output.tbi),
         bedpe = str(rules._gridss_gripss_to_bedpe.output.bedpe)
     output:
         somatic = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gridss_somatic.vcf.gz", 
@@ -477,39 +477,7 @@ rule _gridss_output_somatic_vcf:
         op.relative_symlink(input.filtered_tbi, output.filtered_tbi, in_module=True)
         op.relative_symlink(input.bedpe, output.bedpe, in_module=True)
 
-# def _gridss_predict_output(wildcards): 
-#     """Request symlinks for all VCF files.
-    
-#     This function requests symlinks depending on whether samples have 
-#     been run in paired mode with gripss somatic filtering or in 
-#     unpaired mode without gripss somatic filtering. 
-#     """
-    
-#     CFG = config["lcr-modules"]["gridss"]
 
-#     if wildcards.pair_status == "matched" or wildcards.pair_status == "unmatched": 
-#         vcf_names = ["gridss_somatic", "gridss_somatic_filtered"]
-#         output_vcf = expand(str(CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--None--no_normal.{vcf_name}.vcf.gz"), 
-#             vcf_name = vcf_names, 
-#             **wildcards)
-
-#     else: 
-#         vcf_names = ["gridss_viral_annotation_filtered"]
-#         output_vcf = expand(str(CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--None--no_normal.{vcf_name}.vcf.gz"), 
-#             vcf_name = vcf_names, 
-#             **wildcards)
-
-#     return output_vcf 
-
-# # Dispatch rule to return all symlinked files
-
-# rule _gridss_dispatch: 
-#     input: 
-#         _gridss_predict_output
-#     output: 
-#         dispatched = touch(CFG["dirs"]["outputs"] + "dispatched/{seq_type}--{genome_build}/{tumour_id}--None--no_normal.dispatched")
-#     shell: 
-        # "touch {output.dispatched}"
 
 
 # Generates the target sentinels for each run, which generate the symlinks
