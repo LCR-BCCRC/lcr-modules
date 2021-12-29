@@ -100,7 +100,7 @@ def tsv_to_bed(input_file, output_file, chromosome, start, end, inType):
     # check that chromosomes are prefixed and prefix if they are not
     chrom = list(bed['chrom'])
     for i in range(len(chrom)):
-        if 'chr' not in chrom[i]:
+        if 'chr' not in str(chrom[i]):
             chrom[i]='chr'+str(chrom[i])
     bed.loc[:, 'chrom']=chrom
 
