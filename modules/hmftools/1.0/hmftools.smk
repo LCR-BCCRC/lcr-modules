@@ -74,9 +74,6 @@ for genome_build in CFG["runs"]["tumour_genome_build"]:
         "This module is currently only compatible with {possible_genome_builds}. "
     )
 
-wildcard_constraints: 
-    genome_build = "|".join(VERSION_MAP_HMFTOOLS.keys()), 
-    pair_status = "matched|unmatched"
 
 masked_string = "" 
 if CFG["options"]["use_masked_ref"]:
