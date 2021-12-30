@@ -112,7 +112,7 @@ rule _starfish_run:
             CFG["dirs"]["inputs"] + "vcf/{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}.{caller}.vcf.gz.tbi", 
             caller = callers
             ),
-        reference = ancient(reference_files("genomes/{genome_build}/sdf")),
+        reference = lambda w: ancient(reference_files("genomes/{genome_build}/sdf")) if not w.genome_build=="hg38-panea" else ancient(reference_files("genomes/hg38/sdf")),
         starfish_script = CFG["inputs"]["starfish_script"]
     output:
         complete = touch(CFG["dirs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/starfish.complete"), 
