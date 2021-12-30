@@ -349,7 +349,6 @@ rule _hmftools_cobalt:
         tumour_ratio = CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.cobalt.ratio.pcf", 
         normal_ratio = CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}.cobalt.ratio.pcf", 
         tumour_tsv = temp(CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.cobalt.ratio.tsv"), 
-        # normal_tsv = temp(CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}.cobalt.ratio.tsv")
     log: ratio = CFG["logs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/cobalt.log"
     resources: 
         **CFG["resources"]["cobalt"]
@@ -399,7 +398,6 @@ rule _hmftools_purple_matched:
         cobalt_tumour = str(rules._hmftools_cobalt.output.tumour_ratio),
         cobalt_normal = str(rules._hmftools_cobalt.output.normal_ratio),
         cobalt_tumour_tsv = str(rules._hmftools_cobalt.output.tumour_tsv), 
-        # cobalt_normal_tsv = str(rules._hmftools_cobalt.output.normal_tsv), 
         slms3_vcf = str(rules._hmftools_snpeff_vcf.output.vcf), 
         gridss_somatic_vcf = str(rules._hmftools_input_gridss.output.gridss_somatic_vcf),
         gridss_filtered_vcf = str(rules._hmftools_input_gridss.output.gridss_filtered_vcf),
