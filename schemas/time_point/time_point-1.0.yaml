@@ -1,0 +1,11 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+
+description: Required fields for each sample row in the samples data frame
+
+properties:
+    time_point:
+        type: "string"
+        description: Tumour time_point that uniquely identifies each biopsy from a patient
+
+required:
+    - time_point
