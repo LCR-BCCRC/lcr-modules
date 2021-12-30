@@ -6,7 +6,7 @@
 
 # Original Author:  Kostiantyn Dreval
 # Module Author:    Kostiantyn Dreval
-# Contributors:     N/A
+# Contributors:     Laura Hilton
 
 
 ##### SETUP #####
