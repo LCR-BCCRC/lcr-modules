@@ -39,39 +39,45 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["hmftools"]`
 CFG = op.setup_module(
     name = "hmftools",
-    version = "1.0",
-    subdirectories = ["inputs", "prepare_strelka", "amber", "cobalt", "purple", "linx", "outputs"],
+    version = "1.1",
+    subdirectories = ["inputs", "prepare_slms3", "amber", "cobalt", "purple", "linx", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
 localrules:
     _hmftools_input_bam,
-    _hmftools_input_strelka,
-    _hmftools_strelka_sample_names, 
+    _hmftools_input_slms3,
+    _hmftools_slms3_sample_names, 
     _hmftools_input_gridss, 
     _hmftools_input_references,
     _hmftools_get_cobalt_gc,
+    _hmftools_get_cobalt_bed, 
     _hmftools_get_amber_snps, 
     _hmftools_get_purple_drivers, 
     _hmftools_get_linx_db,
-    _hmftools_linx_prepare_ensembl,
+    _hmftools_get_ensembl_cache, 
     _hmftools_purple_output,
     _hmftools_purple_plots,  
     _hmftools_all
 
 
-HMFTOOLS_VERSION_MAP = {
-    "grch37": "hg19",
-    "hs37d5": "hg19",
-    "hg38": "hg38"
+VERSION_MAP_HMFTOOLS = {
+    "grch37": "37",
+    "hs37d5": "37",
+    "hg38": "38"
 }
 
-possible_genome_builds = HMFTOOLS_VERSION_MAP.keys()
+possible_genome_builds = VERSION_MAP_HMFTOOLS.keys()
 for genome_build in CFG["runs"]["tumour_genome_build"]:
     assert genome_build in possible_genome_builds, (
         "Samples table includes genome builds not yet compatible with this module. "
         "This module is currently only compatible with {possible_genome_builds}. "
     )
+
+
+masked_string = "" 
+if CFG["options"]["use_masked_ref"]:
+    masked_string = "_masked"
 
 
 ##### RULES #####
@@ -86,19 +92,19 @@ rule _hmftools_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam", 
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai", 
     wildcard_constraints:
-        genome_build = "|".join(HMFTOOLS_VERSION_MAP.keys()),
+        genome_build = "|".join(VERSION_MAP_HMFTOOLS.keys()),
         pair_status = "matched|unmatched"
     run:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
 
-rule _hmftools_input_strelka: 
+rule _hmftools_input_slms3: 
     input: 
-        strelka_vcf = CFG["inputs"]["strelka_vcf"], 
+        vcf = CFG["inputs"]["slms3_vcf"], 
     output: 
-        strelka_vcf = CFG["dirs"]["inputs"] + "strelka_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic.combined.vcf.gz" 
+        vcf = CFG["dirs"]["inputs"] + "slms3_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/slms3.vcf.gz" 
     run: 
-        op.absolute_symlink(input.strelka_vcf, output.strelka_vcf)
+        op.relative_symlink(input.vcf, output.vcf)
 
 rule _hmftools_input_gridss: 
     input: 
@@ -121,13 +127,13 @@ rule _hmftools_input_gridss:
 
 rule _hmftools_input_references: 
     input: 
-        genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        genome_fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
-        genome_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
+        genome_fa = reference_files("genomes/{genome_build}" + masked_string + "/genome_fasta/genome.fa"),
+        genome_fai = reference_files("genomes/{genome_build}" + masked_string + "/genome_fasta/genome.fa.fai"),
+        genome_dict = reference_files("genomes/{genome_build}" + masked_string + "/genome_fasta/genome.dict")
     output: 
-        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.fa", 
-        genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.fa.fai", 
-        genome_dict = CFG["dirs"]["inputs"] + "references/{genome_build}/genome_fa/genome.dict"
+        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}" + masked_string + "/genome_fa/genome.fa", 
+        genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}" + masked_string + "/genome_fa/genome.fa.fai", 
+        genome_dict = CFG["dirs"]["inputs"] + "references/{genome_build}" + masked_string + "/genome_fa/genome.dict"
     shell: 
         op.as_one_line("""
         ln -s {input.genome_fa} {output.genome_fa} &&
@@ -140,24 +146,35 @@ rule _hmftools_get_cobalt_gc:
         gc = CFG["dirs"]["inputs"] + "references/{genome_build}/cobalt/GC_profile.1000bp.cnp"
     params: 
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/cobalt",
-        alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build]
+        alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
     shell: 
-        'wget -O {output.gc} {params.url}/GC_profile.{params.alt_build}.1000bp.cnp'
+        'wget -O {output.gc} {params.url}/GC_profile.1000bp.{params.alt_build}.cnp'
+
+rule _hmftools_get_cobalt_bed: 
+    output: 
+        bed = CFG["dirs"]["inputs"] + "references/{genome_build}/cobalt/DiploidRegions.bed"
+    params: 
+        url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/cobalt",
+        alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
+    conda: 
+        CFG["conda_envs"]["wget"]
+    shell: 
+        'wget -O {output.bed} {params.url}/DiploidRegions.{params.alt_build}.bed'
 
 rule _hmftools_get_amber_snps: 
     output: 
         vcf = CFG["dirs"]["inputs"] + "references/{genome_build}/amber/GermlineHetPon.vcf.gz", 
-        snpcheck = CFG["dirs"]["inputs"] + "references/{genome_build}/amber/GermlineHetPon.snpcheck.vcf.gz"
+        snpcheck = CFG["dirs"]["inputs"] + "references/{genome_build}/amber/Amber.snpcheck.vcf.gz"
     params: 
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/amber",
-        alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build]
+        alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
     shell: 
         'wget -O {output.vcf} {params.url}/GermlineHetPon.{params.alt_build}.vcf.gz; '
-        'wget -O {output.snpcheck} {params.url}/GermlineHetPon.{params.alt_build}.snpcheck.vcf.gz'
+        'wget -O {output.snpcheck} {params.url}/Amber.snpcheck.{params.alt_build}.vcf'
 
 rule _hmftools_get_purple_drivers: 
     output: 
@@ -165,37 +182,53 @@ rule _hmftools_get_purple_drivers:
         gene_panel = CFG["dirs"]["inputs"] + "references/{genome_build}/purple/DriverGenePanel.tsv"
     params: 
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/purple",
-        alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build]
+        alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
     shell: 
-        'wget -O {output.hotspots} {params.url}/KnownHotspots.{params.alt_build}.vcf.gz && '
+        'wget -O {output.hotspots} {params.url}/KnownHotspots.somatic.{params.alt_build}.vcf.gz && '
+        'wget -O {output.hotspots}.tbi {params.url}/KnownHotspots.somatic.{params.alt_build}.vcf.gz.tbi && '
         'wget -O {output.gene_panel} {params.url}/DriverGenePanel.{params.alt_build}.tsv'
 
 rule _hmftools_get_linx_db: 
     output: 
-        directory(CFG["dirs"]["inputs"] + "references/linx_db/")
+        directory(CFG["dirs"]["inputs"] + "references/{genome_build}/linx_db")
     params: 
-        url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/linx/"
+        url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/linx/Linx", 
+        alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
     shell: 
-        'wget -r -np -nd -P {output} -A .bed,.csv {params.url} '
+        'wget -r -np -nd -P {output} -A .bed,.csv {params.url}/{params.alt_build}  && '
+        'wget -O {output}/viral_host_ref.csv {params.url}/viral_host_ref.csv'
 
-# Prepare Strelka VCF files for use with PURPLE
+rule _hmftools_get_ensembl_cache: 
+    output: 
+        cache = directory(CFG["dirs"]["inputs"] + "references/{genome_build}/ensembl_cache/"), 
+        complete = touch(CFG["dirs"]["inputs"] + "references/{genome_build}/ensembl_cache/cache.complete")
+    params: 
+        url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/ensembl_data_cache",
+        alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build] 
+    conda: 
+        CFG["conda_envs"]["wget"]
+    shell: 
+        'wget -O {output.cache}/{params.alt_build}.zip {params.url}/{params.alt_build}.zip && '
+        'unzip -d {output.cache} {output.cache}/{params.alt_build}.zip'
+
+# Prepare SLMS-3 VCF files for use with PURPLE
 # SnpEff annotation enables driver discovery logic
 
-rule _hmftools_strelka_sample_names: 
+rule _hmftools_slms3_sample_names: 
     input: 
-        vcf = rules._hmftools_input_strelka.output.strelka_vcf
+        vcf = rules._hmftools_input_slms3.output.vcf
     output: 
-        vcf = temp(CFG["dirs"]["prepare_strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/tmp.strelka.vcf")
-    log: CFG["dirs"]["prepare_strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_sample_names.log"
+        vcf = temp(CFG["dirs"]["prepare_slms3"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/tmp.slms3.vcf")
+    log: CFG["dirs"]["prepare_slms3"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/vcf_sample_names.log"
     conda: 
         CFG["conda_envs"]["bcftools"]
-    threads: CFG["threads"]["strelka_sample_names"]
+    threads: CFG["threads"]["vcf_sample_names"]
     resources: 
-        **CFG["resources"]["strelka_sample_names"]
+        **CFG["resources"]["vcf_sample_names"]
     shell: 
         op.as_one_line("""
         bcftools view -Ov {input.vcf} | 
@@ -204,12 +237,12 @@ rule _hmftools_strelka_sample_names:
         > {output.vcf}
         """)
 
-rule _hmftools_snpeff_strelka: 
+rule _hmftools_snpeff_vcf: 
     input: 
-        vcf = str(rules._hmftools_strelka_sample_names.output.vcf)
+        vcf = str(rules._hmftools_slms3_sample_names.output.vcf)
     output: 
-        sample_key = temp(CFG["dirs"]["prepare_strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sample_key.txt"),
-        vcf = temp(CFG["dirs"]["prepare_strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka.snpeff.vcf.gz")
+        sample_key = temp(CFG["dirs"]["prepare_slms3"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sample_key.txt"),
+        vcf = temp(CFG["dirs"]["prepare_slms3"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/slms3.snpeff.vcf.gz")
     resources: 
         **CFG["resources"]["snpeff"]
     params: 
@@ -221,7 +254,7 @@ rule _hmftools_snpeff_strelka:
         config = "$(readlink -e $(which snpEff)).config",
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     log: 
-        CFG["logs"]["prepare_strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/snpeff_strelka.log"
+        CFG["logs"]["prepare_slms3"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/snpeff_slms3.log"
     conda: 
         CFG["conda_envs"]["snpeff"]
     threads: 
@@ -238,41 +271,23 @@ rule _hmftools_snpeff_strelka:
         """)
 
 
-rule _hmftools_annotate_strelka: 
-    input: 
-        vcf = str(rules._hmftools_snpeff_strelka.output.vcf)
-    output: 
-        vcf = temp(CFG["dirs"]["prepare_strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka.snpeff.annotated.vcf.gz")
-    params: 
-        purple_jar = "$(dirname $(readlink -e $(which PURPLE)))/purple.jar"
-    log: CFG["logs"]["prepare_strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/annotate_strelka.log"
-    conda: CFG["conda_envs"]["purple"]
-    threads: 
-        CFG["threads"]["annotate_strelka"]
-    resources: 
-        **CFG["resources"]["annotate_strelka"]
-    shell: 
-        op.as_one_line("""
-        java -Xmx{resources.mem_mb}m 
-            -cp {params.purple_jar} com.hartwig.hmftools.purple.tools.AnnotateStrelkaWithAllelicDepth
-            -in {input.vcf} -out {output.vcf}
-            2>&1 | tee -a {log}
-        """)
-
 # Run AMBER to calculate BAFs
 rule _hmftools_amber_matched: 
     input: 
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam", 
-        snps = str(rules._hmftools_get_amber_snps.output.vcf)
+        snps = str(rules._hmftools_get_amber_snps.output.vcf), 
+        fasta = str(rules._hmftools_input_references.output.genome_fa)
     output: 
-        vcf = CFG["dirs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status, matched}/{tumour_id}.amber.baf.vcf.gz"
+        vcf = CFG["dirs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.amber.baf.vcf.gz"
     resources: 
         **CFG["resources"]["amber"]
     params:
         options = CFG["options"]["amber"], 
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8) 
     log: CFG["logs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/amber.log"
+    wildcard_constraints: 
+        pair_status = "matched"
     conda: 
         CFG["conda_envs"]["amber"]
     threads: 
@@ -285,6 +300,7 @@ rule _hmftools_amber_matched:
         -output_dir `dirname {output.vcf}`
         -threads {threads}
         -loci {input.snps}
+        -ref_genome {input.fasta} 
         {params.options}
         2>&1 | tee -a {log} 
         """)
@@ -293,15 +309,18 @@ rule _hmftools_amber_unmatched:
     input: 
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam", 
-        snps = str(rules._hmftools_get_amber_snps.output.vcf)
+        snps = str(rules._hmftools_get_amber_snps.output.vcf), 
+        fasta = str(rules._hmftools_input_references.output.genome_fa)
     output: 
-        vcf = CFG["dirs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status, unmatched}/{tumour_id}.amber.baf.vcf.gz"
+        vcf = CFG["dirs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.amber.baf.vcf.gz"
     resources: 
         **CFG["resources"]["amber"]
     params:
         options = CFG["options"]["amber"], 
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     log: CFG["logs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/amber.log"
+    wildcard_constraints: 
+        pair_status = "unmatched"
     conda: 
         CFG["conda_envs"]["amber"]
     threads: 
@@ -314,6 +333,7 @@ rule _hmftools_amber_unmatched:
         -output_dir `dirname {output.vcf}`
         -threads {threads}
         -loci {input.snps}
+        -ref_genome {input.fasta}
         {params.options}
         2>&1 | tee -a {log} 
         """)
@@ -323,15 +343,21 @@ rule _hmftools_cobalt:
     input: 
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam", 
-        gc_profile = str(rules._hmftools_get_cobalt_gc.output.gc)
+        gc_profile = str(rules._hmftools_get_cobalt_gc.output.gc), 
+        fasta = str(rules._hmftools_input_references.output.genome_fa)
     output: 
-        ratio = CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.cobalt.ratio.tsv"
+        tumour_ratio = CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.cobalt.ratio.pcf", 
+        normal_ratio = CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}.cobalt.ratio.pcf", 
+        tumour_tsv = temp(CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.cobalt.ratio.tsv"), 
+        # normal_tsv = temp(CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}.cobalt.ratio.tsv")
     log: ratio = CFG["logs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/cobalt.log"
     resources: 
         **CFG["resources"]["cobalt"]
     params:
         options = CFG["options"]["cobalt"], 
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    wildcard_constraints: 
+        pair_status = "matched|unmatched"
     conda: 
         CFG["conda_envs"]["cobalt"]
     threads: 
@@ -341,12 +367,14 @@ rule _hmftools_cobalt:
         COBALT -Xmx{params.jvmheap}m
         -reference {wildcards.normal_id} -reference_bam {input.normal_bam} 
         -tumor {wildcards.tumour_id} -tumor_bam {input.tumour_bam} 
-        -output_dir `dirname {output.ratio}` 
+        -ref_genome {input.fasta} 
+        -output_dir `dirname {output.tumour_ratio}` 
         -threads {threads} 
         -gc_profile {input.gc_profile} 
         {params.options} 
         2>&1 | tee -a {log} 
         """)
+
 
 # Run PURPLE for final CNV calling 
 
@@ -368,12 +396,13 @@ purple_plots = [
 rule _hmftools_purple_matched:
     input: 
         amber = CFG["dirs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.amber.baf.vcf.gz",
-        cobalt = CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.cobalt.ratio.tsv",
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam", 
-        strelka_vcf = rules._hmftools_annotate_strelka.output.vcf, 
-        gridss_somatic_vcf = CFG["dirs"]["inputs"] + "gridss_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic.vcf.gz",
-        gridss_filtered_vcf = CFG["dirs"]["inputs"] + "gridss_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filtered.vcf.gz",
+        cobalt_tumour = str(rules._hmftools_cobalt.output.tumour_ratio),
+        cobalt_normal = str(rules._hmftools_cobalt.output.normal_ratio),
+        cobalt_tumour_tsv = str(rules._hmftools_cobalt.output.tumour_tsv), 
+        # cobalt_normal_tsv = str(rules._hmftools_cobalt.output.normal_tsv), 
+        slms3_vcf = str(rules._hmftools_snpeff_vcf.output.vcf), 
+        gridss_somatic_vcf = str(rules._hmftools_input_gridss.output.gridss_somatic_vcf),
+        gridss_filtered_vcf = str(rules._hmftools_input_gridss.output.gridss_filtered_vcf),
         reference_fa = str(rules._hmftools_input_references.output.genome_fa), 
         gene_panel = str(rules._hmftools_get_purple_drivers.output.gene_panel), 
         hotspots = str(rules._hmftools_get_purple_drivers.output.hotspots), 
@@ -390,9 +419,9 @@ rule _hmftools_purple_matched:
         outdir = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}", 
         options = CFG["options"]["purple"],
         circos = "`which circos`", 
-        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.9)
     wildcard_constraints: 
-        pair_status = "matched"
+        pair_status = "matched|unmatched"
     conda: 
         CFG["conda_envs"]["purple"]
     threads: 
@@ -404,98 +433,20 @@ rule _hmftools_purple_matched:
             -tumor {wildcards.tumour_id} 
             -output_dir {params.outdir} 
             -amber `dirname {input.amber}` 
-            -cobalt `dirname {input.cobalt}` 
+            -cobalt `dirname {input.cobalt_tumour}` 
             -gc_profile {input.gc_profile} 
             -ref_genome {input.reference_fa}
-            -hotspots {input.hotspots} 
+            -somatic_hotspots {input.hotspots} 
             -driver_gene_panel {input.gene_panel}  
-            -somatic_vcf {input.strelka_vcf} 
+            -somatic_vcf {input.slms3_vcf} 
             -structural_vcf {input.gridss_filtered_vcf} 
             -sv_recovery_vcf {input.gridss_somatic_vcf} 
             -circos {params.circos} 
             {params.options}
+            -threads {threads}
             2>&1 | tee -a {log}
         """)
 
-rule _hmftools_purple_unmatched:
-    input: 
-        amber = CFG["dirs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.amber.baf.vcf.gz",
-        cobalt = CFG["dirs"]["cobalt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.cobalt.ratio.tsv",
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam", 
-        gridss_somatic_vcf = CFG["dirs"]["inputs"] + "gridss_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic.vcf.gz",
-        gridss_filtered_vcf = CFG["dirs"]["inputs"] + "gridss_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filtered.vcf.gz",
-        reference_fa = str(rules._hmftools_input_references.output.genome_fa), 
-        gc_profile = str(rules._hmftools_get_cobalt_gc.output.gc)
-    output: 
-        files = expand(CFG["dirs"]["purple"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/{{tumour_id}}.purple.{out_file}", 
-            out_file = purple_out), 
-        plots = expand(CFG["dirs"]["purple"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/plot/{{tumour_id}}.{plot_name}.png", 
-            plot_name = purple_plots)
-    log: CFG["logs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/purple.log"
-    resources: 
-        **CFG["resources"]["purple"]
-    params: 
-        outdir = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}", 
-        options = CFG["options"]["purple"],
-        circos = "`which circos`", 
-        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
-    wildcard_constraints: 
-        pair_status = "unmatched"
-    conda: 
-        CFG["conda_envs"]["purple"]
-    threads: 
-        CFG["threads"]["purple"]
-    shell: 
-        op.as_one_line("""
-        PURPLE -Xmx{params.jvmheap}m 
-            -reference {wildcards.normal_id} 
-            -tumor {wildcards.tumour_id} 
-            -output_dir {params.outdir} 
-            -amber `dirname {input.amber}` 
-            -cobalt `dirname {input.cobalt}` 
-            -gc_profile {input.gc_profile} 
-            -ref_genome {input.reference_fa} 
-            -structural_vcf {input.gridss_filtered_vcf} 
-            -sv_recovery_vcf {input.gridss_somatic_vcf} 
-            -circos {params.circos} 
-            -tumor_only  
-            {params.options}
-            2>&1 | tee -a {log}
-        """)
-
-# Prepare LINX Ensembl data cache
-
-rule _hmftools_linx_prepare_ensembl: 
-    output: 
-        gene_data = CFG["dirs"]["inputs"] + "references/ensembl/HG{ensembl_build}/ensembl_gene_data.csv", 
-        transcript_data = CFG["dirs"]["inputs"] + "references/ensembl/HG{ensembl_build}/ensembl_trans_exon_data.csv", 
-        protein_data = CFG["dirs"]["inputs"] + "references/ensembl/HG{ensembl_build}/ensembl_protein_features.csv", 
-        splice_data = CFG["dirs"]["inputs"] + "references/ensembl/HG{ensembl_build}/ensembl_trans_splice_data.csv"
-    params: 
-        url = op.switch_on_wildcard("ensembl_build", CFG["switches"]["ensembl_url"]),
-        jar = "$(dirname $(readlink -e $(which linx)))/sv-linx.jar"
-    conda: 
-        CFG["conda_envs"]["linx"]
-    shell: 
-        op.as_one_line("""
-        java -cp {params.jar} com.hartwig.hmftools.linx.gene.GenerateEnsemblDataCache
-            -ensembl_db {params.url} -ensembl_user "anonymous" -ensembl_pass ""
-            -output_dir `dirname {output.splice_data}` -ref_genome_version HG{wildcards.ensembl_build}
-        """)
-    
-def _hmftools_get_ensembl_build(wildcards): 
-
-    # CFG = config["lcr-modules"]["gridss"]
-
-    if wildcards.genome_build == "hg38":
-        ensembl_build = "38"
-    else:
-        ensembl_build = "37"
-
-    ensembl_cache = expand(str(rules._hmftools_linx_prepare_ensembl.output.splice_data), ensembl_build = ensembl_build)
-
-    return ensembl_cache
 
 
 
@@ -503,23 +454,19 @@ def _hmftools_get_ensembl_build(wildcards):
 rule _hmftools_linx: 
     input: 
         purple_vcf = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.purple.sv.vcf.gz", 
-        ensembl_cache = _hmftools_get_ensembl_build, 
+        ensembl_cache = str(rules._hmftools_get_ensembl_cache.output.cache), 
         linx_db = str(rules._hmftools_get_linx_db.output)
     output: 
-        clusters = CFG["dirs"]["linx"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.linx.clusters.tsv", 
+        clusters = CFG["dirs"]["linx"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.linx.vis_sv_data.tsv", 
         svs = CFG["dirs"]["linx"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.linx.svs.tsv"
     log: CFG["dirs"]["linx"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/linx.log"
     resources: 
         **CFG["resources"]["linx"]
     params: 
-      alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build],
-      ensembl_build = lambda w: {
-          "grch37": "HG37",
-          "hs37d5": "HG37", 
-          "hg38": "HG38"
-      }[w.genome_build],
+      ref_genome_version = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build], 
       jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
-      options = CFG["options"]["linx"]
+      options = CFG["options"]["linx"], 
+      cache_subdir = lambda w: config["lcr-modules"]["hmftools"]["dirs"]["inputs"] + "references/" + w.genome_build + "/ensembl_cache/" + VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["linx"]
     threads: 
@@ -528,16 +475,15 @@ rule _hmftools_linx:
         op.as_one_line("""
         linx -Xmx{params.jvmheap}m 
             -sample {wildcards.tumour_id} 
-            -ref_genome_version {params.ensembl_build} 
+            -ref_genome_version {params.ref_genome_version} 
             -sv_vcf {input.purple_vcf} 
             -purple_dir `dirname {input.purple_vcf}` 
             -output_dir `dirname {output.clusters}`  
-            -gene_transcripts_dir `dirname {input.ensembl_cache}` 
-            -fragile_site_file {input.linx_db}/fragile_sites_hmf.{params.alt_build}.csv 
-            -line_element_file {input.linx_db}/line_elements.{params.alt_build}.csv 
-            -replication_origins_file {input.linx_db}/heli_rep_origins.{params.alt_build}.bed 
+            -gene_transcripts_dir {params.cache_subdir} 
+            -fragile_site_file {input.linx_db}/fragile_sites_hmf.{params.ref_genome_version}.csv 
+            -line_element_file {input.linx_db}/line_elements.{params.ref_genome_version}.csv 
             -viral_hosts_file {input.linx_db}/viral_host_ref.csv 
-            -known_fusion_file {input.linx_db}/known_fusion_data.{params.alt_build}.csv 
+            -known_fusion_file {input.linx_db}/known_fusion_data.{params.ref_genome_version}.csv 
             -check_fusions 
             -check_drivers 
             -write_vis_data 
@@ -548,7 +494,8 @@ rule _hmftools_linx:
 rule _hmftools_linx_viz: 
     input:
         clusters = rules._hmftools_linx.output.clusters,
-        ensembl_cache = _hmftools_get_ensembl_build
+        svs = rules._hmftools_linx.output.svs,
+        ensembl_cache = str(rules._hmftools_get_ensembl_cache.output.cache)
     output:
         plots = directory(CFG["dirs"]["linx"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/plot"),
         data = directory(CFG["dirs"]["linx"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/data")
@@ -559,7 +506,9 @@ rule _hmftools_linx_viz:
         linx_jar = "$(ls $(dirname $(readlink -e $(which linx)))/*.jar)", 
         circos = "$(which circos)", 
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
-        options = CFG["options"]["linx_viz"]
+        options = CFG["options"]["linx_viz"], 
+        cache_subdir = lambda w: config["lcr-modules"]["hmftools"]["dirs"]["inputs"] + "references/" + w.genome_build + "/ensembl_cache/" + VERSION_MAP_HMFTOOLS[w.genome_build], 
+        alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda:
         CFG["conda_envs"]["linx"]
     threads: 
@@ -567,77 +516,43 @@ rule _hmftools_linx_viz:
     
     shell:
         op.as_one_line("""
-        java -Xmx{params.jvmheap}m -cp {params.linx_jar} com.hartwig.hmftools.linx.visualiser.SvVisualiser 
-            -sample {wildcards.tumour_id} 
-            -gene_transcripts_dir `dirname {input.ensembl_cache}` 
-            -plot_out {output.plots} 
-            -data_out {output.data} 
-            -segment `dirname {input.clusters}`/{wildcards.tumour_id}.linx.vis_segments.tsv 
-            -link `dirname {input.clusters}`/{wildcards.tumour_id}.linx.vis_sv_data.tsv 
-            -exon `dirname {input.clusters}`/{wildcards.tumour_id}.linx.vis_gene_exon.tsv 
-            -cna `dirname {input.clusters}`/{wildcards.tumour_id}.linx.vis_copy_number.tsv 
-            -protein_domain `dirname {input.clusters}`/{wildcards.tumour_id}.linx.vis_protein_domain.tsv 
-            -fusion `dirname {input.clusters}`/{wildcards.tumour_id}.linx.fusions.tsv 
-            -circos {params.circos} 
-            -threads {threads} 
-            {params.options}
-            2>&1 | tee -a {log}
-        """) 
-
-rule _hmftools_linx_viz_annotate: 
-    input:
-        plots = rules._hmftools_linx_viz.output.plots, 
-        clusters = rules._hmftools_linx.output.clusters,
-        svs = rules._hmftools_linx.output.svs, 
-        ensembl_cache = _hmftools_get_ensembl_build
-    output:
-        annotated = CFG["dirs"]["linx"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/plots_annotated.done",
-    log: CFG["logs"]["linx"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/linx_viz_annotate.log"
-    resources:
-        **CFG["resources"]["linx_viz"]
-    params: 
-        linx_jar = "$(ls $(dirname $(readlink -e $(which linx)))/*.jar)", 
-        circos = "$(which circos)", 
-        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
-        options = CFG["options"]["linx_viz_annotate"]
-    conda:
-        CFG["conda_envs"]["linx"]
-    threads: 
-        CFG["threads"]["linx_viz"]
-    
-    shell:
-        op.as_one_line("""
-        touch {log};
-        tail -n +2 {input.clusters} | grep -v "ARTIFACT" | grep -v "INCOMPLETE" | cut -f 1 | while read cluster; do 
-            genes=$(cat {input.svs} | 
-                        awk -v c=$cluster 'BEGIN {{FS="\\t"}} {{OFS=";"}} $3 == c {{print $12,$13}}' | 
-                        tr ';' '\\n' | sort | uniq | tr '\\n' ','); 
-            if [[ $genes =~ [A-Z] ]]; then
-                echo $cluster $genes >> {log}; 
-
+        to_plot=$(dirname {input.svs})/to_plot.tsv;
+        tail -n +2 {input.svs} | awk '{{FS=OFS="\\t"}} $4 != "" {{print $3}}' | sort | uniq > $to_plot; 
+        if [[ $(cat $to_plot | wc -l) -lt 50 ]]; then
+            cat $to_plot | while read cluster; do 
                 java -Xmx{params.jvmheap}m -cp {params.linx_jar} com.hartwig.hmftools.linx.visualiser.SvVisualiser 
                     -sample {wildcards.tumour_id} 
-                    -gene_transcripts_dir `dirname {input.ensembl_cache}` 
-                    -plot_out `dirname {input.clusters}`/plot 
-                    -data_out `dirname {input.clusters}`/data 
-                    -segment `dirname {input.clusters}`/{wildcards.tumour_id}.linx.vis_segments.tsv 
-                    -link `dirname {input.clusters}`/{wildcards.tumour_id}.linx.vis_sv_data.tsv 
-                    -exon `dirname {input.clusters}`/{wildcards.tumour_id}.linx.vis_gene_exon.tsv 
-                    -cna `dirname {input.clusters}`/{wildcards.tumour_id}.linx.vis_copy_number.tsv 
-                    -protein_domain `dirname {input.clusters}`/{wildcards.tumour_id}.linx.vis_protein_domain.tsv 
-                    -fusion `dirname {input.clusters}`/{wildcards.tumour_id}.linx.fusions.tsv 
+                    -ref_genome_version V{params.alt_build}
+                    -gene_transcripts_dir {params.cache_subdir} 
+                    -plot_out {output.plots} 
+                    -data_out {output.data} 
+                    -vis_file_dir $(dirname {input.clusters})
                     -circos {params.circos} 
-                    -threads {threads} 
-                    -gene $genes
-                    -clusterId $cluster 
-                    {params.options}
-                    >> {log} 2>&1;
-            fi;           
-        done 
-        && touch {output.annotated}
-        """)
-
+                    -threads {threads}  
+                    -clusterId $cluster
+                    -plot_cluster_genes         
+                    2>&1 | tee -a {log};
+            done; 
+        else 
+            echo "Too many clusters to plot for {wildcards.tumour_id}--{wildcards.normal_id}--{wildcards.pair_status}. See chromosome outputs and consider manually selecting clusters to plot. " 2>&1 | tee -a {log}; 
+        fi;
+        for chrom in $(tail -n +2 {input.clusters} | cut -f8 | sort | uniq); do 
+            java -Xmx{params.jvmheap}m -cp {params.linx_jar} com.hartwig.hmftools.linx.visualiser.SvVisualiser 
+                -sample {wildcards.tumour_id} 
+                -ref_genome_version V{params.alt_build}
+                -gene_transcripts_dir {params.cache_subdir} 
+                -plot_out {output.plots} 
+                -data_out {output.data} 
+                -vis_file_dir $(dirname {input.clusters})
+                -circos {params.circos} 
+                -threads {threads}  
+                -chromosome ${{chrom}}
+                2>&1 | tee -a {log}; 
+        done
+        """) 
         
+
+
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 
@@ -661,7 +576,6 @@ rule _hmftools_purple_plots:
 rule _hmftools_linx_plots: 
     input:
         plots = CFG["dirs"]["linx"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/plot", 
-        annotated = rules._hmftools_linx_viz_annotate.output.annotated
     output: 
         plots = CFG["dirs"]["outputs"] + "linx_plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.symlinked"
     shell: 

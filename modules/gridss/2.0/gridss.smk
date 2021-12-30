@@ -40,17 +40,17 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["gridss"]`
 CFG = op.setup_module(
     name = "gridss",
-    version = "1.1",
-    subdirectories = ["inputs", "preprocess", "gridss", "viral_annotation", "gripss", "outputs"],
+    version = "2.0",
+    subdirectories = ["inputs", "preprocess", "gridss", "repeatmasker", "gripss", "outputs"],
 )
 
-GRIDSS_VERSION_MAP = {
+VERSION_MAP_GRIDSS = {
     "grch37": "hg19", 
     "hs37d5": "hg19", 
     "hg38": "hg38"
 }
 
-possible_genome_builds = GRIDSS_VERSION_MAP.keys()
+possible_genome_builds = VERSION_MAP_GRIDSS.keys()
 for genome_build in CFG["runs"]["tumour_genome_build"]:
     assert genome_build in possible_genome_builds, (
         "Samples table includes genome builds not yet compatible with this module. "
@@ -61,24 +61,16 @@ sample_ids = list(CFG['samples']['sample_id'])
 unmatched_normal_ids = list(config["lcr-modules"]["_shared"]["unmatched_normal_ids"].values())
 all_other_ids = list(set(sample_ids) - set(unmatched_normal_ids))
 
-
-
 # Define rules to be run locally when using a compute cluster
 localrules:
     _gridss_input_bam,
     _gridss_input_references,
     _gridss_setup_references,
     _gridss_get_pon, 
-    _gridss_get_viral_ref,
-    _gridss_setup_viral_ref,
     _gridss_symlink_preprocessed_normal, 
-    _gridss_unpaired_filter,
     _gridss_filter_gripss,
-    _gridss_unpaired_to_bedpe, 
     _gridss_gripss_to_bedpe, 
-    _gridss_output_viral_vcf, 
     _gridss_output_somatic_vcf,
-    _gridss_dispatch,
     _gridss_all
 
 
@@ -99,13 +91,14 @@ rule _gridss_input_references:
         ln -sf {input.genome_bwa_prefix}.* `dirname {output.genome_fa}`
         """)
 
+# Download the panel of normals
 rule _gridss_get_pon: 
     output: 
         pon_breakpoint = CFG["dirs"]["inputs"] + "references/{genome_build}/pon/gridss_pon_breakpoint.bedpe", 
         pon_breakend = CFG["dirs"]["inputs"] + "references/{genome_build}/pon/gridss_pon_single_breakend.bed", 
         known_pairs = CFG["dirs"]["inputs"] + "references/{genome_build}/pon/KnownFusionPairs.bedpe"
     params: 
-        alt_build = lambda w: GRIDSS_VERSION_MAP[w.genome_build],
+        alt_build = lambda w: VERSION_MAP_GRIDSS[w.genome_build], 
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/gridss/pon"
     shell: 
         op.as_one_line("""
@@ -136,40 +129,6 @@ rule _gridss_setup_references:
         --jvmheap 3G
         --steps {params.steps} 
         --workingdir `dirname {output.genome_img}`
-        """)
-
-# Symlink genome fasta with bwa and .fai indices to the same directory
-rule _gridss_get_viral_ref: 
-    output: 
-        viral_fa = CFG["dirs"]["inputs"] + "references/human_virus/human_virus.fa"
-    params: 
-        url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/gridss/viral_ref"
-    conda: 
-        CFG["conda_envs"]["wget"]
-    shell: 
-        'wget -r -np -nd -A \'human_virus.*\' -P `dirname {output.viral_fa}` {params.url}'
-
-# Generage human_virus.fa.img file
-rule _gridss_setup_viral_ref: 
-    input: 
-        fasta = str(rules._gridss_get_viral_ref.output.viral_fa)
-    output: 
-        viral_img = CFG["dirs"]["inputs"] + "references/human_virus/human_virus.fa.img"
-    params: 
-        steps = "setupreference"
-    conda: 
-        CFG["conda_envs"]["gridss"]
-    resources: 
-        mem_mb = 4000
-    threads: 8
-    shell: 
-        op.as_one_line("""
-        gridss
-        --reference {input.fasta} 
-        --threads {threads} 
-        --jvmheap 3G 
-        --steps {params.steps} 
-        --workingdir `dirname {output.viral_img}` 
         """)
 
 
@@ -226,7 +185,7 @@ rule _gridss_symlink_preprocessed_normal:
     input: 
         workdir = str(rules._gridss_preprocess_unmatched_normal.output.workdir)
     output: 
-        workdir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}.bam.gridss.working"))
+        workdir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/{sample_id}.bam.gridss.working"))
     priority: 0
     wildcard_constraints: 
         sample_id = "|".join(unmatched_normal_ids)
@@ -240,8 +199,8 @@ rule _gridss_preprocess:
         fasta = str(rules._gridss_input_references.output.genome_fa),
         fasta_img = str(rules._gridss_setup_references.output.genome_img)
     output:
-        workdir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}.bam.gridss.working"))
-    log: CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}/preprocess.log"
+        workdir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/{sample_id}.bam.gridss.working"))
+    log: CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/{sample_id}/preprocess.log"
     params:
         opts = CFG["options"]["gridss"], 
         steps = "preprocess", 
@@ -249,9 +208,9 @@ rule _gridss_preprocess:
     conda:
         CFG["conda_envs"]["gridss"]
     threads:
-        CFG["threads"]["gridss"]
+        CFG["threads"]["preprocess"]
     resources:
-        **CFG["resources"]["gridss"]
+        **CFG["resources"]["preprocess"]
     group: "enormous_bam"
     wildcard_constraints: 
         sample_id = "|".join(all_other_ids)
@@ -268,27 +227,70 @@ rule _gridss_preprocess:
         2>&1 | tee -a {log}
         """)
 
+def get_input_per_patient(wildcards):
+    CFG = config['lcr-modules']['gridss']
+    PATIENT = op.filter_samples(CFG["runs"], tumour_patient_id = wildcards.patient_id)
+    if wildcards.pair_status in ["matched", "unmatched"]:
+        SAMPLES = PATIENT['normal_sample_id'].unique().tolist() + PATIENT['tumour_sample_id'].tolist()
+        bams = expand(
+            [
+                str(rules._gridss_input_bam.output.sample_bam)
+            ], 
+            zip, 
+            sample_id = SAMPLES, 
+            allow_missing = True
+        )
+        preproc = expand(
+            [
+                str(rules._gridss_preprocess.output.workdir)
+            ], 
+            zip, 
+            sample_id = SAMPLES, 
+            allow_missing = True
+        )
+    elif wildcards.pair_status == "no_normal": 
+        bams = expand(
+            [
+                str(rules._gridss_input_bam.output.sample_bam)
+            ], 
+            zip, 
+            sample_id = PATIENT["tumour_sample_id"], 
+            allow_missing = True
+        )
+        preproc = expand(
+            [
+                str(rules._gridss_preprocess.output.workdir)
+            ], 
+            zip, 
+            sample_id = PATIENT["tumour_sample_id"], 
+            allow_missing = True
+        )
+    return {'bams': bams, 'preproc': preproc}
 
-
+def get_input_sample_ids(wildcards):
+    CFG = config['lcr-modules']['gridss']
+    PATIENT = op.filter_samples(CFG["runs"], tumour_patient_id = wildcards.patient_id)
+    if wildcards.pair_status in ["matched", "unmatched"]:
+        ids = ",".join([",".join(PATIENT['normal_sample_id'].unique().tolist()), ",".join(PATIENT['tumour_sample_id'].tolist())])
+    elif wildcards.pair_status == "no_normal": 
+        ids = ",".join(PATIENT['tumour_sample_id'])
+    return ids
 
 # Run GRIDSS in paired mode
-rule _gridss_paired:
+rule _gridss_run:
     input:
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        tumour_preproc = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam.gridss.working", 
-        normal_preproc = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{normal_id}.bam.gridss.working",
+        unpack(get_input_per_patient),
         fasta = str(rules._gridss_input_references.output.genome_fa),
         fasta_img = str(rules._gridss_setup_references.output.genome_img), 
-        blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed"), 
-        repeatmasker = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
+        blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed") 
     output:
-        vcf = temp(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_raw.vcf.gz"),
-        assembly = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/assembly.bam", 
-        assembly_dir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/assembly.bam.gridss.working")), 
-        vcf_dir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_raw.vcf.gz.gridss.working"))
-    log: CFG["logs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss.log"
+        vcf = temp(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/gridss_raw.vcf.gz"),
+        assembly = temp(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/assembly.bam"), 
+        assembly_dir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/assembly.bam.gridss.working")), 
+        vcf_dir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/gridss_raw.vcf.gz.gridss.working"))
+    log: CFG["logs"]["gridss"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/gridss.log"
     params:
+        ids = lambda wildcards: get_input_sample_ids(wildcards),
         opts = CFG["options"]["gridss"], 
         steps = "assemble,call", 
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8) 
@@ -298,8 +300,6 @@ rule _gridss_paired:
         CFG["threads"]["gridss"]
     resources:
         **CFG["resources"]["gridss"]
-    wildcard_constraints: 
-        pair_status = "matched|unmatched"
     group: "enormous_bam"
     shell:
         op.as_one_line("""
@@ -309,131 +309,90 @@ rule _gridss_paired:
         --workingdir `dirname {output.vcf}`
         --assembly {output.assembly}
         --blacklist {input.blacklist}
-        --repeatmaskerbed {input.repeatmasker}
         --threads {threads}
         --jvmheap {params.mem_mb}m
-        --labels "{wildcards.normal_id},{wildcards.tumour_id}"
+        --labels "{params.ids}"
         --steps {params.steps}
         {params.opts}
-        {input.normal_bam} 
-        {input.tumour_bam} 
+        {input.bams} 
         2>&1 | tee -a {log}
         """)
    
-# Run GRIDSS in unpaired mode
-rule _gridss_unpaired:
-    input:
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        tumour_preproc = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam.gridss.working",
-        fasta = str(rules._gridss_input_references.output.genome_fa),
-        fasta_img = str(rules._gridss_setup_references.output.genome_img), 
-        blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed"), 
-        repeatmasker = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
-    output:
-        vcf = temp(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_raw.vcf.gz"),
-        assembly = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/assembly.bam", 
-        assembly_dir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/assembly.bam.gridss.working")), 
-        vcf_dir = temp(directory(CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_raw.vcf.gz.gridss.working"))
-    log: CFG["logs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss.log"
+# Annotate GRIDSS VCF with Repeatmasker
+rule _gridss_annotate_repeatmasker: 
+    input: 
+        vcf = str(rules._gridss_run.output.vcf)
+    output: 
+        vcf = temp(CFG["dirs"]["repeatmasker"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/gridss_repeatmasker.vcf.gz"), 
+        tbi = temp(CFG["dirs"]["repeatmasker"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/gridss_repeatmasker.vcf.gz.tbi")
+    log: CFG["logs"]["repeatmasker"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/gridss_repeatmasker.log"
     params:
-        opts = CFG["options"]["gridss"], 
-        steps = "assemble,call", 
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8) 
     conda:
         CFG["conda_envs"]["gridss"]
     threads:
-        CFG["threads"]["gridss"]
+        CFG["threads"]["repeatmasker"]
     resources:
-        **CFG["resources"]["gridss"]
-    group: "enormous_bam"
-    wildcard_constraints: 
-        normal_id = "None",
-        pair_status = "no_normal"
+        **CFG["resources"]["repeatmasker"]
     shell:
         op.as_one_line("""
-        gridss
-        --reference {input.fasta}
-        --output {output.vcf}
-        --workingdir `dirname {output.vcf}`
-        --assembly {output.assembly}
-        --blacklist {input.blacklist}
-        --repeatmaskerbed {input.repeatmasker}
-        --threads {threads}
-        --jvmheap {params.mem_mb}m
-        --labels "{wildcards.tumour_id}"
-        --steps {params.steps}
-        {params.opts}
-        {input.tumour_bam} 
-        2>&1 | tee -a {log}
+        gridss_annotate_vcf_repeatmasker 
+        -o {output.vcf}
+        -t {threads} 
+        -w $(dirname {output.vcf})
+        {input.vcf} 
+        > {log} 2>&1 
         """)
 
-# Perform viral annotation of the output VCFs
-rule _gridss_viral_annotation: 
+def get_split_ids(wildcards): 
+    CFG = config['lcr-modules']['gridss']
+    if wildcards.normal_id == "None": 
+        return wildcards.tumour_id
+    else: 
+        return wildcards.normal_id + "," + wildcards.tumour_id
+
+rule _gridss_split_vcf: 
     input: 
-        vcf = CFG["dirs"]["gridss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_raw.vcf.gz", 
-        viral_ref = str(rules._gridss_get_viral_ref.output.viral_fa), 
-        viral_img = str(rules._gridss_setup_viral_ref.output)
+        vcf = str(rules._gridss_run.output.vcf)
     output: 
-        vcf = temp(CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.vcf.gz")
-    log: CFG["logs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.log"
-    resources: 
-        **CFG["resources"]["viral_annotation"]
+        vcf = temp(CFG['dirs']['repeatmasker'] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.gridss_split.vcf.gz"), 
+        tbi = temp(CFG['dirs']['repeatmasker'] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.gridss_split.vcf.gz.tbi")
+    log: CFG["logs"]["repeatmasker"] + "{seq_type}--{genome_build}/{patient_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.gridss_split_vcf.log"
     params: 
-        gridss_jar = "$(readlink -e $(which gridss)).jar", 
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
-    conda: 
-        CFG["conda_envs"]["gridss"]
-    threads: 
-        CFG["threads"]["viral_annotation"]
-    shell: 
-        op.as_one_line("""
-        java -Xmx{params.mem_mb}m 
-                -cp {params.gridss_jar} gridss.AnnotateInsertedSequence 
-				REFERENCE_SEQUENCE={input.viral_ref} 
-				INPUT={input.vcf} 
-				OUTPUT={output.vcf} 
-				WORKER_THREADS={threads} 
-                2>&1 | tee -a {log}
-        """)
-
-# Filter unpaired VCFs and output to bedpe. 
-rule _gridss_unpaired_filter: 
-    input: 
-        vcf = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation.vcf.gz"
-    output: 
-        vcf = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation_filtered.vcf.gz", 
-        tbi = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation_filtered.vcf.gz.tbi"
+        ids = lambda wildcards: get_split_ids(wildcards),
     conda: 
         CFG["conda_envs"]["bcftools"]
-    wildcard_constraints: 
-        normal_id = "None", 
-        pair_status = "no_normal"
+    threads: CFG['threads']['split']
+    resources: 
+        **CFG['resources']['split']
     shell: 
         op.as_one_line("""
-        zcat {input.vcf} | 
-            awk '($5 ~ /:/ && $7 == "PASS") || $1 ~ /^#/' | 
-            bcftools view -Oz -o {output.vcf} && 
-            tabix -p vcf {output.vcf}
+        bcftools view -s {params.ids} -Oz -o {output.vcf} {input.vcf} 2> {log} && 
+        tabix -p vcf {output.vcf}
         """)
 
-rule _gridss_unpaired_to_bedpe: 
-    input: 
-        vcf = str(rules._gridss_unpaired_filter.output.vcf)
-    output: 
-        bedpe = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation_filtered.bedpe"
-    conda:
-        CFG["conda_envs"]["svtools"]
-    shell: 
-        op.as_one_line("""
-        svtools vcftobedpe -i {input.vcf} -o {output.bedpe}
-        """) 
+def get_split_vcf(wildcards): 
+    CFG = config['lcr-modules']['gridss']
+    TUMOUR = op.filter_samples(CFG['runs'], tumour_sample_id = wildcards.tumour_id)
+    vcf = expand(
+        str(rules._gridss_split_vcf.output.vcf), 
+        patient_id = TUMOUR['tumour_patient_id'], 
+        allow_missing = True
+    )
+    return {'vcf': vcf}
 
-
+def get_gripss_sample_id_cli(wildcards):
+    CFG = config['lcr-modules']['gridss']
+    TUMOUR = op.filter_samples(CFG["runs"], tumour_sample_id = wildcards.tumour_id)
+    if wildcards.pair_status in ["matched", "unmatched"]:
+        return "-tumor " + str("".join(TUMOUR['tumour_sample_id'])) + " -reference " + str("".join(TUMOUR['normal_sample_id']))
+    elif wildcards.pair_status == "no_normal": 
+        return "-tumor " + str("".join(TUMOUR['tumour_sample_id']))
 
 # Perform somatic filtering against the panel of normals    
 rule _gridss_run_gripss: 
     input: 
-        vcf = str(rules._gridss_viral_annotation.output.vcf), 
+        unpack(get_split_vcf), 
         fasta = str(rules._gridss_input_references.output.genome_fa),
         pon_breakend = str(rules._gridss_get_pon.output.pon_breakend), 
         pon_breakpoint = str(rules._gridss_get_pon.output.pon_breakpoint), 
@@ -445,6 +404,7 @@ rule _gridss_run_gripss:
     resources: 
         **CFG["resources"]["gripss"]
     params:
+        cli = lambda wildcards: get_gripss_sample_id_cli(wildcards),
         opts = CFG["options"]["gripss"], 
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda: 
@@ -460,8 +420,7 @@ rule _gridss_run_gripss:
         -breakpoint_hotspot {input.known_pairs}  
         -input_vcf {input.vcf} 
         -output_vcf {output.vcf} 
-        -tumor {wildcards.tumour_id} 
-        -reference {wildcards.normal_id}  
+        {params.cli} 
         {params.opts} 
         2>&1 | tee -a {log} 
         """)
@@ -493,25 +452,11 @@ rule _gridss_gripss_to_bedpe:
         op.as_one_line("""
         zcat {input.vcf} | 
             awk '$1 ~ /^#/ || $5 ~ /:/' | 
-            svtools vcftobedpe -o {output.bedpe}
+            svtools vcftobedpe | grep -v "##" > {output.bedpe}
         """)
      
 
 # Symlink the final output files into the module results directory (under '99-outputs/')
-rule _gridss_output_viral_vcf:
-    input:
-        vcf = str(rules._gridss_unpaired_filter.output.vcf), 
-        tbi = str(rules._gridss_unpaired_filter.output.tbi), 
-        bedpe = str(rules._gridss_unpaired_to_bedpe.output.bedpe)
-    output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gridss_viral_annotation_filtered.vcf.gz", 
-        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gridss_viral_annotation_filtered.vcf.gz.tbi", 
-        bedpe = CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gridss_viral_annotation_filtered.bedpe"
-    run:
-        op.relative_symlink(input.vcf, output.vcf, in_module=True)
-        op.relative_symlink(input.tbi, output.tbi, in_module=True)
-        op.relative_symlink(input.bedpe, output.bedpe, in_module=True)
-
 rule _gridss_output_somatic_vcf:
     input:
         filtered = str(rules._gridss_filter_gripss.output.vcf), 
@@ -532,37 +477,7 @@ rule _gridss_output_somatic_vcf:
         op.relative_symlink(input.filtered_tbi, output.filtered_tbi, in_module=True)
         op.relative_symlink(input.bedpe, output.bedpe, in_module=True)
 
-def _gridss_predict_output(wildcards): 
-    """Request symlinks for all VCF files.
-    
-    This function requests symlinks depending on whether samples have 
-    been run in paired mode with gripss somatic filtering or in 
-    unpaired mode without gripss somatic filtering. 
-    """
-    
-    CFG = config["lcr-modules"]["gridss"]
 
-    if wildcards.pair_status == "matched" or wildcards.pair_status == "unmatched": 
-        vcf_names = ["gridss_somatic", "gridss_somatic_filtered"]
-        output_vcf = expand(str(CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf.gz"), 
-            vcf_name = vcf_names, 
-            **wildcards)
-
-    else: 
-        vcf_names = ["gridss_viral_annotation_filtered"]
-        output_vcf = expand(str(CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf.gz"), 
-            vcf_name = vcf_names, 
-            **wildcards)
-
-    return output_vcf 
-
-# Dispatch rule to return all symlinked files
-
-rule _gridss_dispatch: 
-    input: 
-        _gridss_predict_output
-    output: 
-        dispatched = touch(CFG["dirs"]["outputs"] + "dispatched/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.dispatched")
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -570,14 +485,19 @@ rule _gridss_all:
     input:
         expand(
             [
-                str(rules._gridss_dispatch.output.dispatched),
+                str(rules._gridss_output_somatic_vcf.output.filtered), 
+                str(rules._gridss_output_somatic_vcf.output.filtered_tbi), 
+                str(rules._gridss_output_somatic_vcf.output.somatic), 
+                str(rules._gridss_output_somatic_vcf.output.somatic_tbi), 
+                str(rules._gridss_output_somatic_vcf.output.bedpe)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            pair_status=CFG["runs"]["pair_status"]
+        )
 
 
 ##### CLEANUP #####
