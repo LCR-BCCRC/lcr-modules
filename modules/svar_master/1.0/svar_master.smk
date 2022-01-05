@@ -103,7 +103,7 @@ rule _svar_master_input_gridss:
         vcf = CFG_SV["dirs"]["inputs"] + "sv_vcfs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gridss.somatic_filtered.vcf.gz", 
         tbi = CFG_SV["dirs"]["inputs"] + "sv_vcfs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gridss.somatic_filtered.vcf.gz.tbi"
     group: 
-        "input_and_step_1"
+        "input_and_intersect"
     run:
         op.absolute_symlink(input.vcf, output.vcf)
         op.absolute_symlink(input.tbi, output.tbi)
