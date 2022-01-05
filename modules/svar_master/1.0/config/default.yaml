@@ -2,26 +2,79 @@ lcr-modules:
     
     svar_master:
 
-        # TODO: Update the list of available wildcards, if applicable
+        # To set up this config, copy only the sections that need updating to a new file and load it 
+        # after you load this config. 
+
+        # For most users, the `inputs` section should be the only part needed in a project-specific config. 
+        # If you've run a different version of one of the variant callers than those listed under `module_versions`, 
+        # you may need to update one one or more of those values. 
+
+        # If any of the jobs have resource or thread specifications that exceed what your system can reasonably handle, 
+        # you can copy those sections to your project config and update them there. 
+
+
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            slms_3_dir: "__UPDATE__"
+            hg19_builds: ["grch37", "hs37d5", "hg19"]
+            hg38_builds: ["hg38", "grch38"]
 
+        module_versions: 
+            manta: "2.3" # Minimum 2.0
+            gridss: "2.0" # Minimum 2.0
+            hmftools: "1.1" # Minimum 1.1
+            liftover: "2.0" # Minimum 2.0
+        
         scratch_subdirectories: []
 
+        switches: 
+            intersect: 
+                regions_bed: 
+                    grch37: "__UPDATE__"
+                    # A bed file of genes or regions to be whitelisted
+                    # Variants in these regions will not be filtered by VAF or depth
+                    # Use genome_build as the key and the path to the bed file as the value here  
+            annotate: 
+                annotation_bed: 
+                    grch37: "__UPDATE__"
+                    # Bed file of e.g. genes, regions, superenhancers, etc. to be used
+                    # Use genome_build as the key and the path to the bed file as the value here  
+                    # Must be sorted by the 'sort -k1,1 -k2,2n' method
+
+
         options:
-            step_1: ""
-            step_2: ""
+            intersect: 
+                combine_svs: "{MODSDIR}/src/combine_sv_vcfs.R"
+                bedpe_cols: "{MODSDIR}/etc/bedpe_combined_cols.tsv"
+                minvaf: 0.05
+                mindp: 10
+                maxgap: 100
+            combine_annotated: 
+                script: "{MODSDIR}/src/combine_annotated_bedpe.R"
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            filter_svs: "{MODSDIR}/envs/sv_annotation-1.6.0.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
             
         threads:
-            step_1: 4
+            intersect: 1
+            annotate: 1
+            combine: 1
+
 
         resources:
-            step_1: 
+            intersect: 
                 mem_mb: 2000
+                intersect: 1
+            annotate: 
+                mem_mb: 2000
+                annotate: 1
+            combine: 
+                mem_mb: 2000
+                combine: 1
+            
             
         pairing_config:
             genome:
@@ -32,3 +85,23 @@ lcr-modules:
                 run_paired_tumours: True
                 run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: False
+
+
+        # Update config values for sub-modules here
+        gridss: 
+            inputs: 
+                sample_bam: ""
+                sample_bai: ""
+
+        manta: 
+            inputs: 
+                sample_bam: ""
+                sample_bai: ""
+
+        hmftools: 
+            samples: 
+
+        liftover: 
+            tool: "gridss_manta"
+            input_type: "bedpe"
+
