@@ -29,6 +29,8 @@ suppressWarnings({
   # Load and tidy combined GRIDSS and Manta bedpe annotations
   combined_a <- read_tsv(snakemake@input[["a_combined"]], 
                          col_types = cols(
+                           CHROM_A = col_character(),
+                           CHROM_B = col_character(),
                            VAF = col_double()
                          ),
                          col_names <- c(
@@ -53,6 +55,8 @@ suppressWarnings({
   
   combined_b <- read_tsv(snakemake@input[["b_combined"]], 
                          col_types = cols(
+                           CHROM_A = col_character(),
+                           CHROM_B = col_character(),
                            VAF = col_double()
                          ), 
                          col_names <- c(
@@ -107,5 +111,7 @@ suppressWarnings({
       distinct(CHROM_A, CHROM_B, START_A, START_B, END_A, END_B, STRAND_A, STRAND_B, .keep_all = TRUE)
   } 
 write_tsv(combined_bedpe, snakemake@output[["bedpe"]])
+
+save.image(snakemake@log[[1]])
 
 })

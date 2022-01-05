@@ -186,7 +186,7 @@ rule _svar_master_annotate_combine:
     output: 
         bedpe = CFG_SV["dirs"]["annotate_svs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.annotated.bedpe"
     log: 
-        CFG_SV["dirs"]["annotate_svs"] + "log/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/bedtools_closest.log"
+        CFG_SV["dirs"]["annotate_svs"] + "log/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combine_annotated.RData"
     conda: 
         CFG_SV["conda_envs"]["filter_svs"]
     threads: 
