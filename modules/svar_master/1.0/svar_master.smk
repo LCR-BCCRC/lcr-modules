@@ -124,7 +124,7 @@ rule _svar_master_input_manta:
     output:
         vcf = CFG_SV["dirs"]["inputs"] + "sv_vcfs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.manta.vcf", 
     group: 
-        "input_and_step_1"
+        "input_and_intersect"
     run:
         op.absolute_symlink(input, output.vcf)
 
@@ -148,6 +148,8 @@ rule _svar_master_intersect:
     threads: CFG_SV["threads"]["intersect"]
     resources: 
         **CFG_SV["resources"]["intersect"]
+    group: 
+        "input_and_intersect"
     script: 
         CFG_SV["options"]["intersect"]["combine_svs"]
 
