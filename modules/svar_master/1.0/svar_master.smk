@@ -41,7 +41,6 @@ CFG_SV = op.setup_module(
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _svar_master_input_gridss,
     _svar_master_input_manta,
