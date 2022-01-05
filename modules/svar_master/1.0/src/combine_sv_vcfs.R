@@ -1,4 +1,4 @@
-# /usr/bin/Rscript
+# /usr/bin/env Rscript
 
 log <- file(snakemake@log[[1]], open="wt")
 sink(stdout(), type = "message")
