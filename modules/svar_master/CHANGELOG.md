@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Laura Hilton.
 
-<!-- TODO: Explain each important module design decision below. -->
-
-- No module design decisions explained here yet.
+- This module integrates Manta, GRIDSS, and the HMFtools PURPLE-LINX tools into a single pipeline. It combines the Manta and GRIDSS SV calls into a single bedpe file and annotates the breakpoints by the nearest gene/locus based on a user-provided bed file. 
+- Since this module includes the GRIDSS and Manta Snakefiles but also depends on the outputs of SLMS-3, SLMS-3 MUST be run before this module. It is also highly recommended to run GRIDSS on the majority of samples prior to launching the complete pipeline. This can be accomplished by specifying `_gridss_all` as the target when launching Snakemake.  
+- Since this pipeline contains many, many steps it is also highly recommended to throttle resources carefully when running on a cluster. See the configs for each module for how resource-intensive jobs can be throttled. 
