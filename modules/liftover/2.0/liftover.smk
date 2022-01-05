@@ -118,7 +118,7 @@ rule _run_liftover:
         native = rules._liftover_convert_2_bed.output.bed,
         chains = get_chain
     output:
-        lifted = CFG["dirs"]["liftover"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}--{type}.lifted_{chain}.bed",
+        lifted = temp(CFG["dirs"]["liftover"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}--{type}.lifted_{chain}.bed"),
         unmapped = CFG["dirs"]["liftover"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}--{type}.lifted_{chain}.unmapped.bed"
     log:
         stderr = CFG["logs"]["liftover"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}--{type}.lifted_{chain}.stderr.log"
@@ -142,7 +142,7 @@ rule _liftover_sort:
     input:
         lifted = rules._run_liftover.output.lifted
     output:
-        lifted_sorted = CFG["dirs"]["liftover"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}--{type}.lifted_{chain}.sorted.bed"
+        lifted_sorted = temp(CFG["dirs"]["liftover"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}--{type}.lifted_{chain}.sorted.bed")
     log:
         stderr = CFG["logs"]["liftover"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}--{type}.lifted_{chain}.sorted.stderr.log"
     shell:

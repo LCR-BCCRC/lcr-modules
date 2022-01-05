@@ -419,7 +419,9 @@ rule _hmftools_purple_matched:
         circos = "`which circos`", 
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.9)
     wildcard_constraints: 
-        pair_status = "matched|unmatched"
+        pair_status = "matched|unmatched", 
+        out_file = "|".join(purple_out), 
+        plot_name = "|".join(purple_plots)
     conda: 
         CFG["conda_envs"]["purple"]
     threads: 
@@ -559,6 +561,8 @@ rule _hmftools_purple_output:
         files = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.purple.{out_file}" 
     output:
         files = CFG["dirs"]["outputs"] + "purple_output/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.purple.{out_file}" 
+    wildcard_constraints: 
+        out_file = "|".join(purple_out) 
     run:
         op.relative_symlink(input.files, output.files, in_module=True)
 
@@ -567,6 +571,8 @@ rule _hmftools_purple_plots:
         plots = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/plot/{tumour_id}.{plot_name}.png"
     output: 
         plots = CFG["dirs"]["outputs"] + "purple_plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{plot_name}.png"
+    wildcard_constraints: 
+        plot_name = "|".join(purple_plots)
     run: 
         op.relative_symlink(input.plots, output.plots, in_module=True)
 
