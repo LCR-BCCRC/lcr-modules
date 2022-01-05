@@ -5,12 +5,12 @@ lcr-modules:
         # To set up this config, copy only the sections that need updating to a new file and load it 
         # after you load this config. 
 
-        # For most users, the `inputs` section should be the only part needed in a project-specific config. 
-        # If you've run a different version of one of the variant callers than those listed under `module_versions`, 
-        # you may need to update one one or more of those values. 
-
-        # If any of the jobs have resource or thread specifications that exceed what your system can reasonably handle, 
-        # you can copy those sections to your project config and update them there. 
+        # IMPORTANT NOTES
+        # Since this module includes the GRIDSS and Manta Snakefiles but also depends on the outputs of SLMS-3, SLMS-3 MUST be run before this module. 
+        # It is also highly recommended to run GRIDSS on the majority of samples prior to launching the complete pipeline. 
+        # This can be accomplished by specifying `_gridss_all` as the target when launching Snakemake.  
+        # Since this pipeline contains many, many steps it is also highly recommended to throttle resources carefully when running on a cluster. 
+        # See the configs for each module for how resource-intensive jobs can be throttled. 
 
 
         inputs:
