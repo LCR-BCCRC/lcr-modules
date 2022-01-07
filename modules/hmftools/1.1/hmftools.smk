@@ -91,6 +91,7 @@ rule _hmftools_input_bam:
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam", 
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai", 
+    group: "input_and_vcf"
     wildcard_constraints:
         genome_build = "|".join(VERSION_MAP_HMFTOOLS.keys()),
         pair_status = "matched|unmatched"
@@ -103,6 +104,7 @@ rule _hmftools_input_slms3:
         vcf = CFG["inputs"]["slms3_vcf"], 
     output: 
         vcf = CFG["dirs"]["inputs"] + "slms3_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/slms3.vcf.gz" 
+    group: "input_and_vcf"
     run: 
         op.relative_symlink(input.vcf, output.vcf)
 
@@ -117,6 +119,7 @@ rule _hmftools_input_gridss:
         gridss_somatic_tbi = CFG["dirs"]["inputs"] + "gridss_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic.vcf.gz.tbi",
         gridss_filtered_vcf = CFG["dirs"]["inputs"] + "gridss_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filtered.vcf.gz", 
         gridss_filtered_tbi = CFG["dirs"]["inputs"] + "gridss_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filtered.vcf.gz.tbi"
+    group: "input_and_vcf"
     run: 
         op.absolute_symlink(input.gridss_somatic_vcf, output.gridss_somatic_vcf)
         op.absolute_symlink(input.gridss_somatic_tbi, output.gridss_somatic_tbi)
@@ -229,6 +232,7 @@ rule _hmftools_slms3_sample_names:
     threads: CFG["threads"]["vcf_sample_names"]
     resources: 
         **CFG["resources"]["vcf_sample_names"]
+    group: "input_and_vcf"
     shell: 
         op.as_one_line("""
         bcftools view -Ov {input.vcf} | 
