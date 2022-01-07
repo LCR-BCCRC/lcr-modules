@@ -52,7 +52,7 @@ genome_builds:
         version: "grch37"
         provider: "ucsc"
         genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg19-reddy.fa"
-    grch38-nci:
+    hg38-nci:
         # NCI's version of GRCh38, with a costco-sized flat pack of decoys
         version: "grch38"
         provider: "ucsc"
