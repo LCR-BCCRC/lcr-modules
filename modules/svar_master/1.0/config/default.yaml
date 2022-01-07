@@ -46,13 +46,13 @@ lcr-modules:
 
         options:
             intersect: 
-                combine_svs: "{MODSDIR}/src/combine_sv_vcfs.R"
+                combine_svs: "src/combine_sv_vcfs.R"
                 bedpe_cols: "{MODSDIR}/etc/bedpe_combined_cols.tsv"
                 minvaf: 0.05
                 mindp: 10
                 maxgap: 100
             combine_annotated: 
-                script: "{MODSDIR}/src/combine_annotated_bedpe.R"
+                script: "src/combine_annotated_bedpe.R"
 
         conda_envs:
             filter_svs: "{MODSDIR}/envs/sv_annotation-1.6.0.yaml"
