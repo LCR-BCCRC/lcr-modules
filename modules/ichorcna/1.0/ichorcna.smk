@@ -178,42 +178,107 @@ rule _ichorcna_input_bam:
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai", # specific to readCounter
+        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
      
-# This function will return a comma-separated list of chromosomes to include in readCounter
-def get_chromosomes(wildcards):
-    chromosomes=[]
-    for i in range(1,23):
-        chromosomes.append(str(i))
-    chromosomes.append("X")
-    chromosomes.append("Y")
-    if "38" in str(wildcards.genome_build):
-        chromosomes = ["chr" + x for x in chromosomes]
-    chromosomes= ",".join(chromosomes)    
-    return chromosomes
 
-rule _ichorcna_read_counter:
+# set-up for CRAM files (readCounter does not work with CRAM)
+# deeptools to get .bw from .bam and .cram
+rule _ichorcna_bamCoverage:
     input:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
+        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai",
         ichorcna_package = CFG["dirs"]["inputs"] + "ichorcna_dependencies_installed.success",
         symlink_complete = ichorDir + "symlink.done"
     output:
-        CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/{sample_id}.bin{binSize}.wig"
+        bw = CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/bw/{sample_id}.bin{binSize}.bw"
     params:
-        binSize = CFG["options"]["readcounter"]["binSize"],
-        qual = CFG["options"]["readcounter"]["qual"],
-        chrs = get_chromosomes
-    conda: CFG["conda_envs"]["ichorcna"]
-    threads: CFG["threads"]["readcounter"]
+        binSize = CFG["options"]["deeptools"]["binSize"],
+        qual = CFG["options"]["deeptools"]["qual"],
+        excludeFlag = CFG["options"]["deeptools"]["flagExclude"],
+        opt = CFG["options"]["deeptools"]["opt"],
+        dirOut = CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/bw/"
+    conda: CFG["conda_envs"]["deeptools"]
+    threads: CFG["threads"]["deeptools"]
     resources:
-        **CFG["resources"]["readcounter"]
+        **CFG["resources"]["deeptools"]
     log:
-        CFG["logs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/{sample_id}.bin{binSize}.log"
+        CFG["logs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/bw/{sample_id}.bin{binSize}.log"
     shell:
-        "readCounter {input.bam} -c {params.chrs} -w {params.binSize} -q {params.qual} > {output} 2> {log}"
+        """
+            mkdir -p {params.dirOut}; 
+            bamCoverage -b {input.bam} --binSize {params.binSize} --minMappingQuality {params.qual} --samFlagExclude {params.excludeFlag} {params.opt} -o {output.bw} -p {threads}  
+        """
+
+
+# Converts bigWig to Wig
+rule _ichorcna_bigwigToWig:
+    input:
+        bw = CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/bw/{sample_id}.bin{binSize}.bw"
+    output:
+        wig_int = temp(CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/wig/{sample_id}.bin{binSize}{chrom}.wig"),
+    conda: CFG["conda_envs"]["ucsc-bigwigtowig"]
+    threads: CFG["threads"]["ucsc"]
+    resources:
+        **CFG["resources"]["ucsc"]
+    wildcard_constraints:
+        chrom = ".+(?<!--fixed)"
+    log:
+        CFG["logs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/wig/{sample_id}.bin{binSize}.{chrom}.log"
+    shell:
+        """
+            bigWigToWig {input.bw} {output.wig_int} -chrom={wildcards.chrom} 
+        """
+
+
+# This function will reformat the wig file to one that can be used for ichorCNA
+rule _ichorcna_spread_centromeres:
+    input:
+        wig_int = CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/wig/{sample_id}.bin{binSize}{chrom}.wig",
+    output:
+        wig = temp(CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/wig/{sample_id}.bin{binSize}.{chrom}--fixed.wig")
+    conda: CFG["conda_envs"]["bedops_tools"]
+    threads: CFG["threads"]["ucsc"]
+    resources:
+        **CFG["resources"]["ucsc"]
+    wildcard_constraints:
+        chrom = ".+(?<!--fixed)"
+    log:
+        CFG["logs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/wig/{sample_id}.bin{binSize}.{chrom}.bedops.log"
+    shell:
+        """
+            echo -e "fixedStep chrom={wildcards.chrom} start=1 step={wildcards.binSize} span={wildcards.binSize} " > {output.wig} &&
+            intersectBed -a <( bedops --chop {wildcards.binSize} --header  {input.wig_int} ) -b {input.wig_int} -wa -wb | awk '{{print $7}}' >> {output.wig} 2>> {log}
+        """
+
+
+# This function is used to get the wigs of the main chromosomes, which will be stitched together
+def get_chrom_wigs(wildcards):
+    CFG = config["lcr-modules"]["ichorcna"]
+    chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
+    with open(chrs) as file:
+        chrs = file.read().rstrip("\n").split("\n")
+    wig = expand(
+        CFG["dirs"]["readDepth"] + "{{seq_type}}--{{genome_build}}/{{binSize}}/wig/{{sample_id}}.bin{{binSize}}.{chrom}--fixed.wig", 
+        chrom = chrs
+    )
+    return(wig)
+
+
+rule _ichorcna_wigCompile:
+    input:
+        get_chrom_wigs
+    output:
+        wig = CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/wig/{sample_id}.bin{binSize}.wig"
+    shell:
+        """
+            cat {input} > {output.wig}
+        """
+
 
 
 # This function will return a comma-separated list of chromosomes to include in runIchorCNA
@@ -231,7 +296,7 @@ def get_chromosomes_R(wildcards):
 
 rule _run_ichorcna:
     input:
-        tum = CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/{tumour_id}.bin{binSize}.wig",
+        tum = CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/wig/{tumour_id}.bin{binSize}.wig",
     output:
         corrDepth = CFG["dirs"]["seg"] + "{seq_type}--{genome_build}/{binSize}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.correctedDepth.txt",
         param = CFG["dirs"]["seg"] + "{seq_type}--{genome_build}/{binSize}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.params.txt",
@@ -322,7 +387,7 @@ rule _ichorcna_all:
             pair_status=CFG["runs"]["pair_status"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
-            binSize=[CFG["options"]["readcounter"]["binSize"]] * len(CFG["runs"]["tumour_sample_id"]))
+            binSize=[CFG["options"]["deeptools"]["binSize"]] * len(CFG["runs"]["tumour_sample_id"]))
 
 
 
