@@ -27,16 +27,41 @@ genome_builds:
         version: "grch37"
         provider: "ensembl"
         genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hs37d5.fa"
+    grch37_masked:
+        # hard-masked repeats
+        version: "grch37"
+        provider: "ensembl"
+        genome_fasta_url: "http://ftp.ensembl.org/pub/grch37/current/fasta/homo_sapiens/dna/Homo_sapiens.GRCh37.dna_rm.primary_assembly.fa.gz"
+    grch38_masked:
+        # hard-masked repeats # release 102
+        version: "grch38"
+        provider: "ensembl"
+        genome_fasta_url: "http://ftp.ensembl.org/pub/release-102/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna_rm.primary_assembly.fa.gz"
+    hg19_masked:
+        # hard-masked repeats
+        version: "grch37"
+        provider: "ucsc"
+        genome_fasta_url: "https://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/hg19.fa.masked.gz"
+    hg38_masked:
+        # hard-masked repeats
+        version: "grch38"
+        provider: "ucsc"
+        genome_fasta_url: "https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.fa.masked.gz"
     hg19-reddy:
         # Version of hg19 with chrM at the start, and chrM with a length of 16569bp. Used for the Reddy dataset
         version: "grch37"
         provider: "ucsc"
         genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg19-reddy.fa"
-    grch38-nci:
+    hg38-nci:
         # NCI's version of GRCh38, with a costco-sized flat pack of decoys
         version: "grch38"
         provider: "ucsc"
         genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/grch38-nci.fa"
+    hg38-panea:
+        # Version of hg38 used by Panea et al.
+        version: "grch38"
+        provider: "ucsc"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg38-panea.fa"
 
 capture_space:
     exome-utr-grch38:
@@ -107,6 +132,12 @@ tools:
     gsutil: 
         conda_env: "envs/gsutil-4.53.yaml"
         version: "4.53"
+    sigprofiler:
+        conda_env: "envs/sigprofiler-1.1.yaml"
+        version: "1.1"
+    bcftools:
+        conda_env: "envs/bcftools-1.10.2.yaml"
+        version: "1.10.2"
 
 cvbio_config:
     gtf: 

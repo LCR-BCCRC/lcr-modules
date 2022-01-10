@@ -12,6 +12,8 @@ rule get_genome_fasta_download:
         fasta = rules.download_genome_fasta.output.fasta
     output: 
         fasta = "genomes/{genome_build}/genome_fasta/genome.fa"
+    wildcard_constraints:
+        genome_build = ".+(?<!masked)"
     conda: CONDA_ENVS["coreutils"]
     shell:
         "ln -srf {input.fasta} {output.fasta}"
@@ -24,6 +26,8 @@ rule index_genome_fasta:
         fai = "genomes/{genome_build}/genome_fasta/genome.fa.fai"
     log: 
         "genomes/{genome_build}/genome_fasta/genome.fa.fai.log"
+    wildcard_constraints:
+        genome_build = ".+(?<!masked)"
     conda: CONDA_ENVS["samtools"]
     shell:
         "samtools faidx {input.fasta} > {log} 2>&1"
@@ -101,6 +105,31 @@ rule get_sdf_refs:
     shell: 
         "ln -srfT {input.sdf} {output.sdf}"
 
+
+rule get_masked_genome_fasta_download:
+    input: 
+        fasta = rules.download_masked_genome_fasta.output.fasta
+    output: 
+        fasta = "genomes/{genome_build}/genome_fasta/genome.fa"
+    wildcard_constraints:
+        genome_build = ".+_masked"
+    conda: CONDA_ENVS["coreutils"]
+    shell:
+        "ln -srf {input.fasta} {output.fasta}"
+
+
+rule index_masked_genome_fasta:
+    input: 
+        fasta = rules.get_masked_genome_fasta_download.output.fasta
+    output: 
+        fai = "genomes/{genome_build}/genome_fasta/genome.fa.fai"
+    log: 
+        "genomes/{genome_build}/genome_fasta/genome.fa.fai.log"
+    wildcard_constraints:
+        genome_build = ".+_masked"
+    conda: CONDA_ENVS["samtools"]
+    shell:
+        "samtools faidx {input.fasta} > {log} 2>&1"
 
 
 ##### METADATA #####
@@ -356,6 +385,23 @@ rule get_af_only_gnomad_vcf:
         tabix {output.vcf}
         """)
 
+rule normalize_af_only_gnomad_vcf:
+    input:
+        fasta = rules.get_genome_fasta_download.output.fasta,
+        vcf = str(rules.get_af_only_gnomad_vcf.output.vcf)
+    output:
+        vcf = "genomes/{genome_build}/variation/af-only-gnomad.normalized.{genome_build}.vcf.gz",
+        vcf_index = "genomes/{genome_build}/variation/af-only-gnomad.normalized.{genome_build}.vcf.gz.tbi"
+    conda: CONDA_ENVS["bcftools"]
+    shell:
+        op.as_one_line("""
+        bcftools view {input.vcf} | grep -v "_alt" | bcftools norm -m -any -f {input.fasta} | bgzip -c > {output.vcf}
+            &&
+        bcftools index -t {output.vcf}
+            &&
+        touch {output.vcf_index}
+        """)
+
 rule get_mutect2_pon:
     input:
         vcf = get_download_file(rules.download_mutect2_pon.output.vcf)
@@ -536,4 +582,35 @@ rule create_interval_list:
     conda: CONDA_ENVS["gatk"]
     shell:
         "gatk BedToIntervalList --INPUT {input.bed} -SD {input.sd} -O {output.interval_list} > {log} 2>&1"
+
+##### SigProfiler #####
+
+rule download_sigprofiler_genome:
+    output:
+        complete = "downloads/sigprofiler_prereqs/{sigprofiler_build}.installed"
+    conda: CONDA_ENVS["sigprofiler"]
+    shell:
+        op.as_one_line("""
+        python -c 'from SigProfilerMatrixGenerator import install as genInstall;
+        genInstall.install("{wildcards.sigprofiler_build}", rsync = False, bash = True)'
+            &&
+        touch {output.complete}
+        """)
+
+def get_sigprofiler_genome(wildcards):
+    sigprofiler_build = ''
+    if wildcards.genome_build in ['grch37','hg19','hs37d5']:
+        sigprofiler_build = "GRCh37"
+    elif wildcards.genome_build in ['grch38','grch38-legacy','hg38','hg38-panea']:
+        sigprofiler_build = "GRCh38"
+    return("downloads/sigprofiler_prereqs/" + sigprofiler_build + ".installed")
+
+rule install_sigprofiler_genome:
+    input:
+        get_sigprofiler_genome
+    output:
+        complete = "genomes/{genome_build}/sigprofiler_genomes/{genome_build}.installed"
+    run:
+        op.relative_symlink(input, output.complete)
+
 
