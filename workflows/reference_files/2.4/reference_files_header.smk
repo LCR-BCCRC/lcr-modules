@@ -45,9 +45,19 @@ VERSION_UPPER = {
 }
 
 GENOME_VERSION_GROUPS = {}
-GENOME_VERSION_MAP = {}
+VCF2MAF_GENOME_VERSION_MAP = {}
 for genome_build in VERSION_UPPER.keys():
     GENOME_VERSION_GROUPS[genome_build] = []
+
+# For Starfish SDF files
+SDF_VERSION_MAP = {}
+SDF_GENOME_BUILDS = []
+SDF_IGNORE = {"grch38", "grch38-legacy"}  # Ignore non-chr prefixed versions of hg38 since we don't use them
+sdf_genome_mappings = {
+"GRCh37": {"ensembl": "1000g_v37_phase2.sdf", "ucsc": "hg19.sdf"},
+"GRCh38": {"ucsc": "GRCh38.sdf"}
+}
+
 
 DEFAULT_CAPSPACE = {}
 
@@ -60,8 +70,9 @@ for build_name, build_info in config["genome_builds"].items():
     )
     GENOME_VERSION_GROUPS[build_info["version"]].append(build_name)
     upper_genome_name = VERSION_UPPER[build_info["version"]]
-    GENOME_VERSION_MAP[build_name] = upper_genome_name
-    assert "provider" in build_info and build_info["provider"] in possible_providers, (
+    VCF2MAF_GENOME_VERSION_MAP[build_name] = upper_genome_name
+    genome_provider = build_info["provider"]
+    assert "provider" in build_info and genome_provider in possible_providers, (
         f"`provider` not set for `{build_name}` or `provider` not among {possible_providers}."
     )
     assert "genome_fasta_url" in build_info, f"`genome_fasta_url` not set for `{build_name}`."
@@ -70,6 +81,13 @@ for build_name, build_info in config["genome_builds"].items():
         f"Pinging `genome_fasta_url` for {build_name} returned HTTP code {url_code} "
         f"(rather than 200): \n{build_info['genome_fasta_url']}"
     )    
+    # Find the appropriate SDF file for this genome build
+    if build_name not in SDF_IGNORE:
+        SDF_GENOME_BUILDS.append(build_name)
+        try:
+            SDF_VERSION_MAP[build_name] = sdf_genome_mappings[upper_genome_name][genome_provider]
+        except KeyError as e:
+            raise AttributeError(f"Unable to locate a Starfish SDF file for genome build \'{upper_genome_name}\' and provider \'{genome_provider}\'") from e
 
 # Check parent genome, provider for the capture space
 for build_name, build_info in config["capture_space"].items():
@@ -366,13 +384,8 @@ rule download_liftover_chains:
 rule download_sdf: 
     output: 
         sdf = directory("downloads/sdf/{genome_build}/sdf")
-    params: 
-        build = lambda w: {
-            "grch37": "1000g_v37_phase2.sdf", 
-            "hs37d5": "1000g_v37_phase2.sdf",
-            "hg19": "hg19.sdf", 
-            "hg38": "GRCh38.sdf"
-        }[w.genome_build]
+    params:
+        build = lambda w: SDF_VERSION_MAP[w.genome_build]
     shell: 
         op.as_one_line("""
         wget -qO {output.sdf}.zip https://s3.amazonaws.com/rtg-datasets/references/{params.build}.zip && 

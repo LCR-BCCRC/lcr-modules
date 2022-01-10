@@ -97,7 +97,7 @@ rule get_sdf_refs:
     output: 
         sdf = directory("genomes/{genome_build}/sdf")
     wildcard_constraints: 
-        genome_build = "hg38|hg19|grch37|hs37d5|hg19-reddy"
+        genome_build = "|".join(SDF_GENOME_BUILDS)
     shell: 
         "ln -srfT {input.sdf} {output.sdf}"
 
@@ -428,7 +428,7 @@ def get_capture_space(sample_id, genome_build, seq_type, return_ext):
     panel = sample.iloc[0]['capture_space']
 
     # If this panel is "none" (aka not specified) use the default for this reference genome
-    if panel == "none":
+    if panel == "none" or panel is None or panel == "":
         # Get the provider for this version of the reference genome
         genome_version = None
         for version, builds in GENOME_VERSION_GROUPS.items():
