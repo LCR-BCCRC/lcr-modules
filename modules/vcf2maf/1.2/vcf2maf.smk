@@ -69,7 +69,7 @@ rule _vcf2maf_run:
         stderr = CFG["logs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_vcf2maf.stderr.log",
     params:
         opts = CFG["options"]["vcf2maf"],
-        build = lambda w: GENOME_VERSION_MAP[w.genome_build],
+        build = lambda w: VCF2MAF_GENOME_VERSION_MAP[w.genome_build],
         custom_enst = op.switch_on_wildcard("genome_build", CFG["switches"]["custom_enst"])
     conda:
         CFG["conda_envs"]["vcf2maf"]
@@ -91,7 +91,8 @@ rule _vcf2maf_run:
         --vep-data {input.vep_cache}
         --vep-path $vepPATH {params.opts}
         --custom-enst {params.custom_enst}
-        > {log.stdout} 2> {log.stderr}
+        > {log.stdout} 2> {log.stderr} &&
+        touch {output.vep}
         """)
 
 
