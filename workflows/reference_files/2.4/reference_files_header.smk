@@ -52,7 +52,7 @@ for genome_build in VERSION_UPPER.keys():
 # For Starfish SDF files
 SDF_VERSION_MAP = {}
 SDF_GENOME_BUILDS = []
-SDF_IGNORE = {"grch38", "grch38-legacy"}  # Ignore non-chr prefixed versions of hg38 since we don't use them
+SDF_IGNORE = {"grch38", "grch38-legacy", "grch38_masked"}  # Ignore non-chr prefixed versions of hg38 since we don't use them
 sdf_genome_mappings = {
 "GRCh37": {"ensembl": "1000g_v37_phase2.sdf", "ucsc": "hg19.sdf"},
 "GRCh38": {"ucsc": "GRCh38.sdf"}
