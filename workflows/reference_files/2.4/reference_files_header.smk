@@ -45,7 +45,7 @@ VERSION_UPPER = {
 }
 
 GENOME_VERSION_GROUPS = {}
-VCF2MAF_GENOME_VERSION_MAP = {}
+GENOME_VERSION_MAP = {}
 for genome_build in VERSION_UPPER.keys():
     GENOME_VERSION_GROUPS[genome_build] = []
 
@@ -70,7 +70,7 @@ for build_name, build_info in config["genome_builds"].items():
     )
     GENOME_VERSION_GROUPS[build_info["version"]].append(build_name)
     upper_genome_name = VERSION_UPPER[build_info["version"]]
-    VCF2MAF_GENOME_VERSION_MAP[build_name] = upper_genome_name
+    GENOME_VERSION_MAP[build_name] = upper_genome_name
     genome_provider = build_info["provider"]
     assert "provider" in build_info and genome_provider in possible_providers, (
         f"`provider` not set for `{build_name}` or `provider` not among {possible_providers}."
