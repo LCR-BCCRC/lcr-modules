@@ -135,13 +135,13 @@ def _mutect2_get_interval_cli_arg(
 
 
 def _mutect_get_capspace(wildcards):
-
+    CFG = config["lcr-modules"]["mutect2"]
     # If this isn't a capture sample, we don't have a capture space, so return nothing
     if wildcards.seq_type != "capture":
         return []
     try:
         # Get the appropriate capture space for this sample
-        cap_space = get_capture_space(wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "interval_list")
+        cap_space = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "interval_list")
         return " -L " + cap_space
     except NameError:
         # If we are using an older version of the reference workflow, we don't need to do anything

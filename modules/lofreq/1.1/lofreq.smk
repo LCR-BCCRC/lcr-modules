@@ -69,11 +69,16 @@ def _lofreq_get_capspace(wildcards):
     if wildcards.seq_type != "capture":
         return custom_bed if custom_bed else default_bed
     try:
+        if "tumour_id" in wildcards.keys():
         # Get the appropriate capture space for this sample
-        return get_capture_space(wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed")
+            this_bed = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed")
+        else:
+            this_bed = op.get_capture_space(CFG, wildcards.normal_id, wildcards.genome_build, wildcards.seq_type, "bed")
+        this_bed = reference_files(this_bed)
     except NameError:
         # If we are using an older version of the reference workflow, use the same region file as the genome sample 
-        return custom_bed if custom_bed else default_bed
+        this_bed = custom_bed if custom_bed else default_bed
+    return this_bed
 
 ##### RULES #####
 

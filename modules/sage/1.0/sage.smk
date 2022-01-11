@@ -122,16 +122,18 @@ def get_chromosomes(wildcards):
     return chromosomes
 
 def _sage_get_capspace(wildcards):
-
+    CFG = config["lcr-modules"]["sage"]
     # If this is a genome sample, return a BED file listing all chromosomes
     if wildcards.seq_type != "capture":
-        return rules._download_sage_references.output.panel_bed
+        this_bed = rules._download_sage_references.output.panel_bed
     try:
         # Get the appropriate capture space for this sample
-        return get_capture_space(wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed.gz")
+        this_bed = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed.gz")
+        this_bed = reference_files(this_bed)
     except NameError:
         # If we are using an older version of the reference workflow, use the same region file as the genome sample
-        return rules._download_sage_references.output.panel_bed
+        this_bed = rules._download_sage_references.output.panel_bed
+    return this_bed
 
 # Variant calling rule
 rule _run_sage:
