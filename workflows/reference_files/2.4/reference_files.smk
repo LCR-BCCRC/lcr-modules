@@ -459,40 +459,6 @@ def _check_capspace_provider(w):
         return {'bed': expand(rules.add_remove_chr_prefix_bed.output.converted_bed, capture_space = capture_space, genome_build = w.genome_build, chr_status= chr_status)}
 
 
-def get_capture_space(sample_id, genome_build, seq_type, return_ext):
-    """
-    Obtain the corresponding capture space file (gz, interval list etc) for the specified sample
-    """
-
-    # Get the corresponding capture space for a given sample
-    sample_table = CFG["samples"]
-    sample = sample_table.loc[(sample_table['sample_id'] == sample_id) &
-            (sample_table['genome_build'] == genome_build) &
-            (sample_table['seq_type'] == seq_type)]
-    if len(sample) != 1:
-        raise AssertionError("Found %s matches when examining the sample table for pair \'%s\' \'%s\' \'%s\'" % (len(sample), sample_id, genome_build, seq_type))
-    panel = sample.iloc[0]['capture_space']
-
-    # If this panel is "none" (aka not specified) use the default for this reference genome
-    if panel == "none" or panel is None or panel == "":
-        # Get the provider for this version of the reference genome
-        genome_version = None
-        for version, builds in GENOME_VERSION_GROUPS.items():
-            if genome_build in builds:
-                assert genome_version is None  # Failsafe, but this should never happen, as the reference workflow will not tolerate duplicates (I think)
-                genome_version = version
-        if genome_version is None:
-            raise AttributeError("Unable to find the corresponding genome version (ex. GRCh37) for build \'%s\'" % genome_build)
-        
-        try:
-            panel = DEFAULT_CAPSPACE[genome_version]
-        except KeyError as e:
-            raise AttributeError("No default capture space was specified for genome version \'%s\'. You can specify a default by setting \'default=\'true\'\' in a \'%s\'-based capture space in the reference config" % (genome_version, genome_version)) from e
-
-    # Now that we have found the corresponding capture region for this sample, obtain the requested file
-    return reference_files("genomes/" + genome_build + "/capture_space/" + panel + ".padded." + return_ext)
-
-
 rule get_capspace_bed_download:
     input:
         unpack(_check_capspace_provider)
