@@ -123,11 +123,12 @@ rule _mutect2_get_sm:
 # The first function loads the wildcard-containing file path and additional args from the config. 
 # The second replaces wildcards with those used in the rule. 
 def _mutect2_get_interval_cli_arg(
-    vcf_in = config["lcr-modules"]["mutect2"]["inputs"]["candidate_positions"]
+    vcf_in = config["lcr-modules"]["mutect2"]["inputs"]["candidate_positions"],
+    interval_arg_in = config["lcr-modules"]["mutect2"]["options"]["mutect2_interval_rules"]
 ):
     def _mutect2_get_interval_cli_custom(wildcards, input):
         if vcf_in:
-            param = f"-L {input.candidate_positions}"
+            param = f"-L {input.candidate_positions} {interval_arg_in}"
         else:
             param = ""
         return param
@@ -142,7 +143,8 @@ def _mutect_get_capspace(wildcards):
     try:
         # Get the appropriate capture space for this sample
         cap_space = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "interval_list")
-        return " -L " + cap_space
+        cap_space = reference_files(cap_space)
+        return cap_space
     except NameError:
         # If we are using an older version of the reference workflow, we don't need to do anything
         return []
@@ -186,7 +188,7 @@ rule _mutect2_run_matched_unmatched:
         -I {input.tumour_bam} -I {input.normal_bam}
         -R {input.fasta} -normal "$(cat {input.normal_sm})" -O {output.vcf}
         --germline-resource {input.gnomad} 
-        -L {wildcards.chrom} {params.interval_arg} {input.capture_arg}
+        -L {wildcards.chrom} {params.interval_arg} -L {input.capture_arg}
         -pon {input.pon} --f1r2-tar-gz {output.f1r2}
         > {log.stdout} 2> {log.stderr}
         """)
