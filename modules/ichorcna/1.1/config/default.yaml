@@ -11,10 +11,12 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
-            readcounter:
+            deeptools:
                 qual: 20 # only includes reads with mapping quality greater than 20
                 binSize:  1000000 # set window size to compute coverage 
                 # available binSizes are: 1000000, 500000, 50000, 10000
+                flagExclude: 1028
+                opt: " --ignoreDuplicates --extendReads "
             run:
                 ichorCNA_libdir: ""
                 ichorCNA_rscript:  "{MODSDIR}/src/runIchorCNA.R"
@@ -86,18 +88,24 @@ lcr-modules:
 
         conda_envs:
             ichorcna: "{MODSDIR}/envs/ichorcna.env.yaml"
-            hmmcopy_utils: "{MODSDIR}/envs/hmmcopy_utils.env.yaml"
+            deeptools: "{MODSDIR}/envs/deeptools.env.yaml"
+            bedops_tools: "{MODSDIR}/envs/bedops_tools.env.yaml"
+            ucsc-bigwigtowig: "{MODSDIR}/envs/ucsc-bigwigtowig.env.yaml"
 
         threads:
-            readcounter: 4
+            deeptools: 20
+            ucsc: 4
             run: 4
 
         resources:
-            readcounter:
-                mem_mb: 2000
+            deeptools:
+                mem_mb: 40000
+                bam: 1
+            ucsc:
+                mem_mb: 6000
                 bam: 1
             run: 
-                mem_mb: 2000
+                mem_mb: 6000
                 bam: 1
 
         pairing_config:
