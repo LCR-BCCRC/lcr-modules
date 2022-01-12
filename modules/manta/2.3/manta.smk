@@ -88,15 +88,15 @@ rule _manta_index_bed:
 
 def _manta_get_capspace(wildcards):
     CFG = config["lcr-modules"]["manta"]
-    # If this is a genome sample, return a BED file listing all chromosomes
-    if wildcards.seq_type != "capture":
-        this_bed = str(config["lcr-modules"]["manta"]["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz")
     try:
         # Get the appropriate capture space for this sample
         this_bed = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed.gz")
         this_bed = reference_files(this_bed)
     except NameError:
         # If we are using an older version of the reference workflow, use the same region file as the genome sample
+        this_bed = str(config["lcr-modules"]["manta"]["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz")
+    # If this is a genome sample, return a BED file listing all chromosomes
+    if wildcards.seq_type != "capture":
         this_bed = str(config["lcr-modules"]["manta"]["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz")
     return this_bed
 

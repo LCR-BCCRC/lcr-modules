@@ -65,9 +65,6 @@ def _lofreq_get_capspace(wildcards):
         custom_bed = CFG['switches']['regions_bed'][wildcards.seq_type]
     else:
         custom_bed = default_bed
-    # If this is a genome sample, return a BED file listing all chromosomes
-    if wildcards.seq_type != "capture":
-        return custom_bed if custom_bed else default_bed
     try:
         if "tumour_id" in wildcards.keys():
         # Get the appropriate capture space for this sample
@@ -78,6 +75,9 @@ def _lofreq_get_capspace(wildcards):
     except NameError:
         # If we are using an older version of the reference workflow, use the same region file as the genome sample 
         this_bed = custom_bed if custom_bed else default_bed
+    # If this is a genome sample, return a BED file listing all chromosomes
+    if wildcards.seq_type != "capture":
+        return custom_bed if custom_bed else default_bed
     return this_bed
 
 ##### RULES #####
