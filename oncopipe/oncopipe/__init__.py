@@ -9,6 +9,7 @@ import subprocess
 import collections.abc
 from datetime import datetime
 from collections import defaultdict, namedtuple
+from .__version__ import __version__
 
 import yaml
 import pandas as pd
