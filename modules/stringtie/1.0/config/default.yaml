@@ -1,27 +1,25 @@
 lcr-modules:
     
-    stringtie:
+    stringtie_run:
 
         # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
-
-        scratch_subdirectories: []
+            XS_script: "{MODSDIR}/src/tagXSstrandedData.awk"
 
         options:
-            step_1: ""
-            step_2: ""
-
+            stringtie_run: ""
+        
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            stringtie: "{MODSDIR}/envs/stringtie.yaml"
             
-        threads:
-            step_1: 4
+        threads: 
+            stringtie_run: 16
 
         resources:
             step_1: 
-                mem_mb: 2000
+                mem_mb: 15000
             
         pairing_config:
             mrna:
