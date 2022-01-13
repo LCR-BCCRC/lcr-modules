@@ -15,7 +15,7 @@
 import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
-min_oncopipe_version="1.0.11"
+min_oncopipe_version="1.0.12"
 import pkg_resources
 try:
     from packaging import version
