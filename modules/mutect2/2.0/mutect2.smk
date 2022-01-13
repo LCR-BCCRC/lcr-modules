@@ -230,7 +230,7 @@ rule _mutect2_run_no_normal:
         gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" 
         {params.opts} -I {input.tumour_bam} -R {input.fasta} 
         -O {output.vcf} --germline-resource {input.gnomad} 
-        -L {wildcards.chrom} {params.interval_arg} {input.capture_arg}
+        -L {wildcards.chrom} {params.interval_arg} -L {input.capture_arg}
         -pon {input.pon} --f1r2-tar-gz {output.f1r2}
         > {log.stdout} 2> {log.stderr}
         """)
