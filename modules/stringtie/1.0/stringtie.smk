@@ -37,15 +37,12 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "stringtie",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "stringtie", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _stringtie_input_bam,
-    _stringtie_step_2,
     _stringtie_output_gtf,
     _stringtie_all,
 
@@ -54,65 +51,52 @@ localrules:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
 rule _stringtie_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        bam = CFG["inputs"]["sample_bam"],
     output:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
+        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     group: 
         "input_and_step_1"
     run:
-        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bam, output.bam),
+        op.absolute_symlink(input.bam + ".bai", output.bai)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _stringtie_step_1:
+# Run stringtie
+rule _stringtie_run:
     input:
         bam = str(rules._stringtie_input_bam.output.bam),
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        ref_gtf = reference_files("genomes/{genome_build}/annotations/gencode_annotation-33.gtf"),
+        XS_script = CFG["inputs"]["XS_script"]
     output:
         gtf = CFG["dirs"]["stringtie"] + "{seq_type}--{genome_build}/{sample_id}/output.gtf"
     log:
-        stdout = CFG["logs"]["stringtie"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stdout.log",
-        stderr = CFG["logs"]["stringtie"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stderr.log"
+        stdout = CFG["logs"]["stringtie"] + "{seq_type}--{genome_build}/{sample_id}/stringtie_run.stdout.log",
+        stderr = CFG["logs"]["stringtie"] + "{seq_type}--{genome_build}/{sample_id}/stringtie_run.stderr.log"
     params:
-        opts = CFG["options"]["step_1"]
+        opts = CFG["options"]["stringtie_run"]
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["stringtie"]
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["stringtie_run"]
     resources:
-        **CFG["resources"]["step_1"]    # All resources necessary can be included and referenced from the config files.
+        **CFG["resources"]["stringtie_run"]    # All resources necessary can be included and referenced from the config files.
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --input {input.bam} --ref-fasta {input.fasta}
-        --output {output.gtf} --threads {threads} > {log.stdout} 2> {log.stderr}
+        samtools view -h {input.bam} | \
+        awk -v strType=2 -f {input.XS_script} | \
+        stringtie -o {output.gtf} -G {input.ref_gtf} {params.opts} \
+        -p {threads} -\
+        > {log.stdout} 2> {log.stderr}
         """)
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _stringtie_step_2:
-    input:
-        gtf = str(rules._stringtie_step_1.output.gtf)
-    output:
-        gtf = CFG["dirs"]["stringtie"] + "{seq_type}--{genome_build}/{sample_id}/output.filt.gtf"
-    log:
-        stderr = CFG["logs"]["stringtie"] + "{seq_type}--{genome_build}/{sample_id}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.gtf} > {output.gtf} 2> {log.stderr}"
-
-
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _stringtie_output_gtf:
     input:
-        gtf = str(rules._stringtie_step_2.output.gtf)
+        gtf = str(rules._stringtie_run.output.gtf)
     output:
         gtf = CFG["dirs"]["outputs"] + "gtf/{seq_type}--{genome_build}/{sample_id}.output.filt.gtf"
     run:
@@ -125,7 +109,6 @@ rule _stringtie_all:
         expand(
             [
                 str(rules._stringtie_output_gtf.output.gtf),
-                # TODO: If applicable, add other output rules here
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
