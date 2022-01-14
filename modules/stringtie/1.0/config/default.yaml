@@ -4,6 +4,7 @@ lcr-modules:
 
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
+            # Module designed to work with STAR bams output from modules/STAR/1.4
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
             XS_script: "{MODSDIR}/src/tagXSstrandedData.awk"
