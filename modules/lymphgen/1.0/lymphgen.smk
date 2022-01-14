@@ -78,7 +78,7 @@ rule _lymphgen_input_maf:
     input:
         maf = CFG["inputs"]["sample_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/input.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/" + outprefix + ".maf"
     run:
         op.relative_symlink(input.maf, output.maf)
 
