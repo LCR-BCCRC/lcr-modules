@@ -50,10 +50,29 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
-
         options:
             min_read_length: 49
             ebv_cutoff: [0.00004, 0.00008]
+    
+    stringtie:
+        inputs: 
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+            XS_script: "{MODSDIR}/src/tagXSstrandedData.awk"
+        options:
+            stringtie_run: ""
+        conda_envs:
+            stringtie: "{MODSDIR}/envs/stringtie.yaml"
+        threads: 
+            stringtie_run: 16
+        resources:
+            stringtie_run: 
+                mem_mb: 15000
+        pairing_config:
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
 
     utils:
         inputs:
