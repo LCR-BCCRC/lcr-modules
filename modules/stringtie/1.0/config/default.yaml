@@ -5,6 +5,7 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
             XS_script: "{MODSDIR}/src/tagXSstrandedData.awk"
 
         options:

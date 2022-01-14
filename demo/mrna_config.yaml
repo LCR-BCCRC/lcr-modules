@@ -57,6 +57,7 @@ lcr-modules:
     stringtie:
         inputs: 
             sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
             XS_script: "{MODSDIR}/src/tagXSstrandedData.awk"
         options:
             stringtie_run: ""
