@@ -1221,11 +1221,14 @@ def generate_runs(
     # Generate Sample instances for unmatched normal samples from sample IDs
     Sample = namedtuple("Sample", samples.columns.tolist())
     sample_genome_builds = samples["genome_build"].unique()
+    sample_seq_type = samples[["seq_type","genome_build"]].drop_duplicates()
+
     for seq_type, args_dict in pairing_config.items():
         if (
             "run_unpaired_tumours_with" in args_dict
             and args_dict["run_unpaired_tumours_with"] == "unmatched_normal"
             and unmatched_normal_ids is not None
+            and seq_type in sample_seq_type["seq_type"]
         ):
             unmatched_normals = dict()
             for key, normal_id in unmatched_normal_ids.items():
