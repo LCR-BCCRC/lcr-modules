@@ -10,5 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This release was authored by Krysta Coyle.
 
 - awk script necessary to introduce XS tags into STAR-aligned BAMs. Without XS tags, stringtie generates single-exon transcripts.
-- GTF mandatory, highly recommended for well-annotated genomes.
--Initial estimates of memory are conservative.
+- Reference GTF mandatory, highly recommended for well-annotated genomes.
+- Initial estimates of memory are conservative.
+- Module designed to work with STAR bams output from modules/STAR/1.4.
