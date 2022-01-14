@@ -58,6 +58,8 @@ rule _stringtie_input_bam:
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
+    group: 
+        "input_and_stringtie_run"
     run:
         op.absolute_symlink(input.bam, output.bam),
         op.absolute_symlink(input.bai, output.bai)
