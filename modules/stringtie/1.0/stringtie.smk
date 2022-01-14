@@ -58,8 +58,6 @@ rule _stringtie_input_bam:
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
-    group: 
-        "input_and_step_1"
     run:
         op.absolute_symlink(input.bam, output.bam),
         op.absolute_symlink(input.bai, output.bai)
@@ -72,7 +70,9 @@ rule _stringtie_run:
         ref_gtf = reference_files("genomes/{genome_build}/annotations/gencode_annotation-33.gtf"),
         XS_script = CFG["inputs"]["XS_script"]
     output:
-        gtf = CFG["dirs"]["stringtie"] + "{seq_type}--{genome_build}/{sample_id}/output.gtf"
+        gtf = CFG["dirs"]["stringtie"] + "{seq_type}--{genome_build}/{sample_id}/output.gtf"    
+    group: 
+        "input_and_stringtie_run"
     log:
         stdout = CFG["logs"]["stringtie"] + "{seq_type}--{genome_build}/{sample_id}/stringtie_run.stdout.log",
         stderr = CFG["logs"]["stringtie"] + "{seq_type}--{genome_build}/{sample_id}/stringtie_run.stderr.log"
