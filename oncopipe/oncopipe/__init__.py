@@ -1228,7 +1228,7 @@ def generate_runs(
             "run_unpaired_tumours_with" in args_dict
             and args_dict["run_unpaired_tumours_with"] == "unmatched_normal"
             and unmatched_normal_ids is not None
-            and seq_type in sample_seq_type["seq_type"]
+
         ):
             unmatched_normals = dict()
             for key, normal_id in unmatched_normal_ids.items():
@@ -1242,10 +1242,11 @@ def generate_runs(
                     (samples.sample_id == normal_id) & (samples.seq_type == seq_type)
                 ]
                 num_matches = len(normal_row)
-                assert num_matches == 1, (
-                    f"There are {num_matches} {seq_type} samples matching "
-                    f"the normal ID {normal_id} (instead of just one)."
-                )
+                if seq_type in sample_seq_type["seq_type"]:
+                    assert num_matches == 1, (
+                        f"There are {num_matches} {seq_type} samples matching "
+                        f"the normal ID {normal_id} (instead of just one)."
+                    )
                 unmatched_normals[key] = Sample(*normal_row.squeeze())
             args_dict["unmatched_normals"] = unmatched_normals
         elif (
