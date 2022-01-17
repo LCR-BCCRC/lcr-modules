@@ -1253,7 +1253,6 @@ def generate_runs(
                     f"config[‘unmatched_normal_ids’] is not excluded from the samples table"
                     )
                     quit()
-                #if seq_type in sample_seq_type["seq_type"]:
                 elif num_matches >= 1:
                     unmatched_normals[key] = Sample(*normal_row.squeeze())
             args_dict["unmatched_normals"] = unmatched_normals
