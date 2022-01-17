@@ -1222,6 +1222,7 @@ def generate_runs(
     Sample = namedtuple("Sample", samples.columns.tolist())
     sample_genome_builds = samples["genome_build"].unique()
     sample_seq_type = samples[["seq_type","genome_build"]].drop_duplicates()
+    pairing_config = { seq_type: pairing_config[seq_type] for seq_type in sample_seq_type["seq_type"].tolist() }
 
     for seq_type, args_dict in pairing_config.items():
         if (
@@ -1242,12 +1243,19 @@ def generate_runs(
                     (samples.sample_id == normal_id) & (samples.seq_type == seq_type)
                 ]
                 num_matches = len(normal_row)
-                if seq_type in sample_seq_type["seq_type"]:
-                    assert num_matches == 1, (
-                        f"There are {num_matches} {seq_type} samples matching "
-                        f"the normal ID {normal_id} (instead of just one)."
+
+                if (
+                    num_matches == 0
+                ):
+                    print(
+                    f"There are {num_matches} {seq_type} samples matching "
+                    f"the normal ID {normal_id}. Make sure the default unmatched normal for {key} specified in "
+                    f"config[‘unmatched_normal_ids’] is not excluded from the samples table"
                     )
-                unmatched_normals[key] = Sample(*normal_row.squeeze())
+                    quit()
+                #if seq_type in sample_seq_type["seq_type"]:
+                elif num_matches >= 1:
+                    unmatched_normals[key] = Sample(*normal_row.squeeze())
             args_dict["unmatched_normals"] = unmatched_normals
         elif (
             "run_unpaired_tumours_with" in args_dict
