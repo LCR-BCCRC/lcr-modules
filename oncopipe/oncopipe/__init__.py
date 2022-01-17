@@ -1253,8 +1253,16 @@ def generate_runs(
                     f"config[‘unmatched_normal_ids’] is not excluded from the samples table"
                     )
                     quit()
-                elif num_matches >= 1:
+                elif num_matches == 1:
                     unmatched_normals[key] = Sample(*normal_row.squeeze())
+                elif num_matches > 1:
+                    print(
+                    f"There are {num_matches} {seq_type} samples matching "
+                    f"the normal ID {normal_id}. This means there are {num_matches} normal samples for {key} in "
+                    f"the samples table and it is not desired. Please ensure all sample_id, seq_type, "
+                    f"and genome_build combinations are unique."
+                    )
+                    quit()
             args_dict["unmatched_normals"] = unmatched_normals
         elif (
             "run_unpaired_tumours_with" in args_dict
