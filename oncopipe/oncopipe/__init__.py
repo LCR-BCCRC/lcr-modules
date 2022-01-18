@@ -1837,7 +1837,11 @@ def get_capture_space(module_config, sample_id, genome_build, seq_type, return_e
 
     if len(this_sample) != 1:
         raise AssertionError("Found %s matches when examining the sample table for pair \'%s\' \'%s\' \'%s\'" % (len(sample), sample_id, genome_build, seq_type))
-    panel = this_sample.iloc[0]['capture_space']
+
+    if "capture_space" in this_sample.columns:
+        panel = this_sample.iloc[0]['capture_space']
+    else:
+        panel = "none"
 
     # If this panel is "none" (aka not specified) use the default for this reference genome
     if panel.upper() in (name.upper() for name in ['none', "na", "n/a", ""]):
