@@ -1222,13 +1222,14 @@ def generate_runs(
     Sample = namedtuple("Sample", samples.columns.tolist())
     sample_genome_builds = samples["genome_build"].unique()
     sample_seq_type = samples[["seq_type","genome_build"]].drop_duplicates()
+    pairing_config = { seq_type: pairing_config[seq_type] for seq_type in sample_seq_type["seq_type"].tolist() }
 
     for seq_type, args_dict in pairing_config.items():
         if (
             "run_unpaired_tumours_with" in args_dict
             and args_dict["run_unpaired_tumours_with"] == "unmatched_normal"
             and unmatched_normal_ids is not None
-            and seq_type in sample_seq_type["seq_type"]
+
         ):
             unmatched_normals = dict()
             for key, normal_id in unmatched_normal_ids.items():
@@ -1242,11 +1243,26 @@ def generate_runs(
                     (samples.sample_id == normal_id) & (samples.seq_type == seq_type)
                 ]
                 num_matches = len(normal_row)
-                assert num_matches == 1, (
+
+                if (
+                    num_matches == 0
+                ):
+                    print(
                     f"There are {num_matches} {seq_type} samples matching "
-                    f"the normal ID {normal_id} (instead of just one)."
-                )
-                unmatched_normals[key] = Sample(*normal_row.squeeze())
+                    f"the normal ID {normal_id}. Make sure the default unmatched normal for {key} specified in "
+                    f"config[‘unmatched_normal_ids’] is not excluded from the samples table"
+                    )
+                    quit()
+                elif num_matches == 1:
+                    unmatched_normals[key] = Sample(*normal_row.squeeze())
+                elif num_matches > 1:
+                    print(
+                    f"There are {num_matches} {seq_type} samples matching "
+                    f"the normal ID {normal_id}. This means there are {num_matches} normal samples for {key} in "
+                    f"the samples table and it is not desired. Please ensure all sample_id, seq_type, "
+                    f"and genome_build combinations are unique."
+                    )
+                    quit()
             args_dict["unmatched_normals"] = unmatched_normals
         elif (
             "run_unpaired_tumours_with" in args_dict
