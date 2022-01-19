@@ -15,6 +15,7 @@
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 import inspect
+import pandas as pd
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.12"
@@ -74,7 +75,20 @@ localrules:
 
 
 ##### RULES #####
-
+def _mutect_get_capspace(wildcards):
+    CFG = config["lcr-modules"]["mutect2"]
+    try:
+        # Get the appropriate capture space for this sample
+        cap_space = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "interval_list")
+        cap_space = reference_files(cap_space)
+        this_space = cap_space
+    # If we are using an older version of the reference workflow, we don't need to do anything
+    except NameError:
+        this_space = []
+    # If this isn't a capture sample, we don't have a capture space, so return nothing
+    if wildcards.seq_type != "capture":
+        this_space = []
+    return this_space
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _mutect2_input_bam:
@@ -97,11 +111,31 @@ rule _mutect2_dummy_positions:
 # Symlink chromosomes used for parallelization
 checkpoint _mutect2_input_chrs:
     input:
-        chrs = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
+        candidate_positions = CFG["inputs"]["candidate_positions"] if CFG["inputs"]["candidate_positions"] else str(rules._mutect2_dummy_positions.output),
+        chrs = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt"),
+        capture_arg = _mutect_get_capspace
     output:
-        chrs = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
+        chrs = CFG["dirs"]["inputs"] + "chroms/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutated_chromosomes.txt"
     run:
-        op.absolute_symlink(input.chrs, output.chrs)
+        # obtain list of main chromosomes
+        main_chrs = pd.read_csv(input.chrs, comment='#', sep='\t', header=None)
+        main_chrs = main_chrs.iloc[:, 0].astype(str).unique().tolist()
+        #obtain list of chromosomes in candidate positions
+        candidate_chrs = pd.read_csv(input.candidate_positions, comment='#', sep='\t')
+        candidate_chrs = candidate_chrs.iloc[:, 0].astype(str).unique().tolist()
+        # obtain list of chromosomes in the capture space
+        interval_chrs = pd.read_csv(input.capture_arg, comment='@', sep='\t')
+        interval_chrs = interval_chrs.iloc[:, 0].astype(str).unique().tolist()
+        # as there is no capture space for genomes and to handle chr prefixed/non prefixed cases consistently,
+        # return this list as main chromosomes
+        if not interval_chrs: # if list is empty
+            interval_chrs = main_chrs
+        # intersect the three lists to obtain chromosomes present in all
+        intersect_chrs = list(set(main_chrs) & set(candidate_chrs) & set(interval_chrs))
+        # convert list to single-column df
+        intersect_chrs = pd.DataFrame(intersect_chrs).sort_values(0)
+        # write out the file with mutated chromosomes
+        intersect_chrs.to_csv(output.chrs, index=False, header=False)
 
 
 # Retrieves from SM tag from BAM and writes to file
@@ -133,22 +167,6 @@ def _mutect2_get_interval_cli_arg(
             param = ""
         return param
     return _mutect2_get_interval_cli_custom
-
-
-def _mutect_get_capspace(wildcards):
-    CFG = config["lcr-modules"]["mutect2"]
-    try:
-        # Get the appropriate capture space for this sample
-        cap_space = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "interval_list")
-        cap_space = reference_files(cap_space)
-        this_space = cap_space
-    # If we are using an older version of the reference workflow, we don't need to do anything
-    except NameError:
-        this_space = []
-    # If this isn't a capture sample, we don't have a capture space, so return nothing
-    if wildcards.seq_type != "capture":
-        this_space = []
-    return this_space
 
 
 # Launces Mutect2 in matched and unmatched mode
