@@ -474,6 +474,7 @@ rule sort_and_pad_capspace:
        capture_bed = rules.get_capspace_bed_download.output.capture_bed,
        fai = rules.index_genome_fasta.output.fai
     output:
+        intermediate_bed = temp("genomes/{genome_build}/capture_space/{capture_space}.intermediate.bed"),
         padded_bed = "genomes/{genome_build}/capture_space/{capture_space}.padded.bed"
     params:
         padding_size = config['capture_params']['padding_size']  # Default to 200. I would be warry of changing
@@ -481,8 +482,11 @@ rule sort_and_pad_capspace:
         "genomes/{genome_build}/capture_space/{capture_space}.padded.bed.log"
     conda: CONDA_ENVS["bedtools"]
     shell:
-        "bedtools slop -b {params.padding_size} -i {input.capture_bed} -g {input.fai} | bedtools sort | bedtools merge > {output.padded_bed} 2> {log}"
-
+        op.as_one_line("""
+        cat {input.fai} | cut -f 1-2 | perl -ane 'print "$F[0]\\t0\\t$F[1]\\n"' | bedtools intersect -wa -a {input.capture_bed} -b stdin > {output.intermediate_bed}
+            &&
+        bedtools slop -b {params.padding_size} -i {output.intermediate_bed} -g {input.fai} | bedtools sort | bedtools merge > {output.padded_bed} 2> {log}
+        """)
 
 rule check_capspace_contigs:
     input:

@@ -530,10 +530,16 @@ rule download_capspace_bed:
     log:
         "downloads/capture_space/{capture_space}.{genome_build}.bed.log"
     params:
-        url = lambda w: config["capture_space"][w.capture_space]["capture_bed_url"],
+        path = lambda w: config["capture_space"][w.capture_space]["capture_bed_file"] if "capture_bed_file" in config["capture_space"][w.capture_space] else config["capture_space"][w.capture_space]["capture_bed_url"],
         provider = lambda w: config["capture_space"][w.capture_space]["provider"]
     shell:
-        "curl -L {params.url} > {output.capture_bed} 2> {log}"
+        op.as_one_line("""
+        if [ -e {params.path} ]; then
+            cat {params.path} > {output.capture_bed} 2> {log};
+        else
+            curl -L {params.path} > {output.capture_bed} 2> {log};
+        fi
+        """)
 
 rule add_remove_chr_prefix_bed:
     input:
