@@ -74,6 +74,12 @@ capture_space:
         provider: "ensembl"
         default: "true"
         capture_bed_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/capture_bed/grch37_all_genes.canonical.sort.bed4"
+    # to add custom capture space, follow this example and fill in dictionary keys
+    #name_of_capture_panel:
+        #genome: "grch37" or "hg38" as example
+        #provider: "ensembl" or "ucsc"
+        #capture_bed_url: here provide a link enclosed in "" to download bed file for capture panel if it is available in internet
+        #capture_bed_file: this key is optional and in "" you can specify path to a local bed file with capture panel
 
 capture_params:
     padding_size: "200"
