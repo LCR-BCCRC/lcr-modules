@@ -84,10 +84,10 @@ def _mutect_get_capspace(wildcards):
         this_space = cap_space
     # If we are using an older version of the reference workflow, we don't need to do anything
     except NameError:
-        this_space = []
+        this_space = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed")
     # If this isn't a capture sample, we don't have a capture space, so return nothing
     if wildcards.seq_type != "capture":
-        this_space = []
+        this_space = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed")
     return this_space
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
@@ -126,10 +126,6 @@ checkpoint _mutect2_input_chrs:
         # obtain list of chromosomes in the capture space
         interval_chrs = pd.read_csv(input.capture_arg, comment='@', sep='\t')
         interval_chrs = interval_chrs.iloc[:, 0].astype(str).unique().tolist()
-        # as there is no capture space for genomes and to handle chr prefixed/non prefixed cases consistently,
-        # return this list as main chromosomes
-        if not interval_chrs: # if list is empty
-            interval_chrs = main_chrs
         # intersect the three lists to obtain chromosomes present in all
         intersect_chrs = list(set(main_chrs) & set(candidate_chrs) & set(interval_chrs))
         # convert list to single-column df
