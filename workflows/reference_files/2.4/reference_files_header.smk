@@ -173,16 +173,22 @@ for chrom_map_file in CHROM_MAPPINGS_FILES:
 
 
 rule download_genome_fasta:
-    output: 
+    output:
         fasta = "downloads/genome_fasta/{genome_build}.fa"
-    log: 
+    log:
         "downloads/genome_fasta/{genome_build}.fa.log"
     wildcard_constraints:
         genome_build = ".+(?<!masked)"
-    params: 
-        url = lambda w: config["genome_builds"][w.genome_build]["genome_fasta_url"]
+    params:
+        path = lambda w: config["genome_builds"][w.genome_build]["genome_fasta_file"] if "genome_fasta_file" in config["genome_builds"][w.genome_build] else config["genome_builds"][w.genome_build]["genome_fasta_url"],
     shell:
-        "curl -L {params.url} > {output.fasta} 2> {log}"
+        op.as_one_line("""
+        if [ -e {params.path} ]; then
+            cat {params.path} > {output.fasta} 2> {log};
+        else
+            curl -L {params.path} > {output.fasta} 2> {log};
+        fi
+        """)
 
 rule download_masked_genome_fasta:
     output:
