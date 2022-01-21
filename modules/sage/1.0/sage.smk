@@ -16,7 +16,7 @@
 import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
-min_oncopipe_version="1.0.11"
+min_oncopipe_version="1.0.12"
 import pkg_resources
 try:
     from packaging import version
@@ -121,15 +121,29 @@ def get_chromosomes(wildcards):
     chromosomes= ",".join(chromosomes)    
     return chromosomes
 
+def _sage_get_capspace(wildcards):
+    CFG = config["lcr-modules"]["sage"]
+    try:
+        # Get the appropriate capture space for this sample
+        this_bed = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed.gz")
+        this_bed = reference_files(this_bed)
+    except NameError:
+        # If we are using an older version of the reference workflow, use the same region file as the genome sample
+        this_bed = rules._download_sage_references.output.panel_bed
+    # If this is a genome sample, return a BED file listing all chromosomes
+    if wildcards.seq_type != "capture":
+        this_bed = rules._download_sage_references.output.panel_bed
+    return this_bed
+
 # Variant calling rule
 rule _run_sage:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = str(rules._input_references.output.genome_fa),
-        hotspots = str(rules._download_sage_references.output.hotspots),
-        panel_bed = str(rules._download_sage_references.output.panel_bed),
-        high_conf_bed = str(rules._download_sage_references.output.high_conf_bed)
+        hotspots = rules._download_sage_references.output.hotspots,
+        high_conf_bed = str(rules._download_sage_references.output.high_conf_bed),
+        panel_bed = _sage_get_capspace
     output:
         vcf = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf"),
         vcf_gz = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf.gz")

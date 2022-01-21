@@ -6,7 +6,7 @@
 
 # Original Snakefile Author:    Bruno Grande
 # Module Author:                Bruno Grande
-# Additional Contributors:      N/A
+# Additional Contributors:      Chris Rushton
 
 
 ##### SETUP #####
@@ -15,7 +15,7 @@
 import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
-min_oncopipe_version="1.0.11"
+min_oncopipe_version="1.0.12"
 import pkg_resources
 try:
     from packaging import version
@@ -86,6 +86,20 @@ rule _manta_index_bed:
         tabix {output.bedz}
         """)
 
+def _manta_get_capspace(wildcards):
+    CFG = config["lcr-modules"]["manta"]
+    try:
+        # Get the appropriate capture space for this sample
+        this_bed = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed.gz")
+        this_bed = reference_files(this_bed)
+    except NameError:
+        # If we are using an older version of the reference workflow, use the same region file as the genome sample
+        this_bed = str(config["lcr-modules"]["manta"]["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz")
+    # If this is a genome sample, return a BED file listing all chromosomes
+    if wildcards.seq_type != "capture":
+        this_bed = str(config["lcr-modules"]["manta"]["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz")
+    return this_bed
+
 # Configures the manta workflow with the input BAM files and reference FASTA file.
 rule _manta_configure_paired:
     input:
@@ -93,7 +107,7 @@ rule _manta_configure_paired:
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         config = op.switch_on_wildcard("seq_type", CFG["switches"]["manta_config"]),
-        bedz = str(rules._manta_index_bed.output.bedz)
+        bedz = _manta_get_capspace
     output:
         runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
@@ -120,7 +134,7 @@ rule _manta_configure_unpaired:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         config = op.switch_on_wildcard("seq_type", CFG["switches"]["manta_config"]),
-        bedz = str(rules._manta_index_bed.output.bedz)
+        bedz = _manta_get_capspace
     output:
         runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
@@ -135,7 +149,7 @@ rule _manta_configure_unpaired:
         CFG["conda_envs"]["manta"]
     shell:
         op.as_one_line("""
-        configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {input.bedz}
+        configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {params.bedz}
         --runDir "$(dirname {output.runwf})" {params.tumour_bam_arg_name} {input.tumour_bam}
         --config {input.config} > {log.stdout} 2> {log.stderr}
         """)
@@ -289,6 +303,7 @@ def _manta_predict_output(wildcards):
     )
 
     return outputs_with_bedpe + outputs_without_bedpe
+
 
 
 # Generates the target symlinks for each run depending on the Manta output VCF files

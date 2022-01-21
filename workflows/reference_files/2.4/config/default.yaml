@@ -47,6 +47,42 @@ genome_builds:
         version: "grch38"
         provider: "ucsc"
         genome_fasta_url: "https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.fa.masked.gz"
+    hg19-reddy:
+        # Version of hg19 with chrM at the start, and chrM with a length of 16569bp. Used for the Reddy dataset
+        version: "grch37"
+        provider: "ucsc"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg19-reddy.fa"
+    hg38-nci:
+        # NCI's version of GRCh38, with a costco-sized flat pack of decoys
+        version: "grch38"
+        provider: "ucsc"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/grch38-nci.fa"
+    hg38-panea:
+        # Version of hg38 used by Panea et al.
+        version: "grch38"
+        provider: "ucsc"
+        genome_fasta_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/hg38-panea.fa"
+
+capture_space:
+    exome-utr-grch38:
+        genome: "grch38"
+        provider: "ucsc"
+        default: "true"
+        capture_bed_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/capture_bed/grch38_all_genes.canonical.sort.bed4"
+    exome-utr-grch37:
+        genome: "grch37"
+        provider: "ensembl"
+        default: "true"
+        capture_bed_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/capture_bed/grch37_all_genes.canonical.sort.bed4"
+    # to add custom capture space, follow this example and fill in dictionary keys
+    #name_of_capture_panel:
+        #genome: "grch37" or "hg38" as example
+        #provider: "ensembl" or "ucsc"
+        #capture_bed_url: here provide a link enclosed in "" to download bed file for capture panel if it is available in internet
+        #capture_bed_file: this key is optional and in "" you can specify path to a local bed file with capture panel
+
+capture_params:
+    padding_size: "200"
 
 wildcard_values:
     gencode_release: ["33"]
@@ -57,6 +93,9 @@ wildcard_values:
     rm_version: ["hg19", "hg38"]
 
 tools:
+    bedtools:
+        conda_env: "envs/bedtools-2.29.2.yaml"
+        version: "2.29.2"
     coreutils: 
         conda_env: "envs/coreutils-8.31.yaml"
         version: "8.31"
@@ -66,6 +105,9 @@ tools:
     samtools: 
         conda_env: "envs/samtools-1.9.yaml"
         version: "1.9"
+    tabix:
+        conda_env: "envs/tabix-0.2.6.yaml"
+        version: "0.2.6"
     bwa: 
         conda_env: "envs/bwa-0.7.17.yaml"
         version: "0.7.17"

@@ -15,7 +15,7 @@
 import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
-min_oncopipe_version="1.0.11"
+min_oncopipe_version="1.0.12"
 import pkg_resources
 try:
     from packaging import version
@@ -58,6 +58,27 @@ localrules:
     _lofreq_all,
     _lofreq_link_to_preprocessed
 
+def _lofreq_get_capspace(wildcards):
+    CFG=config["lcr-modules"]["lofreq"]
+    default_bed = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed")
+    if str(wildcards.seq_type) in CFG['switches']['regions_bed'].keys():
+        custom_bed = CFG['switches']['regions_bed'][wildcards.seq_type]
+    else:
+        custom_bed = default_bed
+    try:
+        if "tumour_id" in wildcards.keys():
+        # Get the appropriate capture space for this sample
+            this_bed = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed")
+        else:
+            this_bed = op.get_capture_space(CFG, wildcards.normal_id, wildcards.genome_build, wildcards.seq_type, "bed")
+        this_bed = reference_files(this_bed)
+    except NameError:
+        # If we are using an older version of the reference workflow, use the same region file as the genome sample 
+        this_bed = custom_bed if custom_bed else default_bed
+    # If this is a genome sample, return a BED file listing all chromosomes
+    if wildcards.seq_type != "capture":
+        return custom_bed if custom_bed else default_bed
+    return this_bed
 
 ##### RULES #####
 
@@ -84,7 +105,7 @@ rule _lofreq_preprocess_normal:
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
-        bed = op.switch_on_wildcard("seq_type", CFG["switches"]["regions_bed"])
+        bed = _lofreq_get_capspace
     output:
         preprocessing_start = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/preprocessing.started",
         vcf_relaxed = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/normal_relaxed.vcf.gz",
@@ -164,7 +185,7 @@ rule _lofreq_run_tumour_unmatched:
         vcf_relaxed = str(rules._lofreq_link_to_preprocessed.output.vcf_relaxed),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
-        bed = op.switch_on_wildcard("seq_type", CFG["switches"]["regions_bed"])
+        bed = _lofreq_get_capspace
     output:
         vcf_snvs_filtered = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.snvs.vcf.gz",
         vcf_indels_filtered = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.indels.vcf.gz",
@@ -202,7 +223,7 @@ rule _lofreq_run_tumour_matched:
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
-        bed = op.switch_on_wildcard("seq_type", CFG["switches"]["regions_bed"])
+        bed = _lofreq_get_capspace
     output:
         vcf_relaxed = temp(CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_relaxed.vcf.gz"),
         vcf_snvs_filtered = temp(CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.snvs.vcf.gz"),

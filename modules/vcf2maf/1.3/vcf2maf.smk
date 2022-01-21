@@ -31,7 +31,7 @@ localrules:
     _vcf2maf_crossmap,
     _vcf2maf_all
 
-VERSION_MAP = {
+VCF2MAF_GENOME_VERSION_MAP = {
     "grch37": "GRCh37",
     "hg38": "GRCh38",
     "hs37d5": "GRCh37"
@@ -83,7 +83,7 @@ rule _vcf2maf_run:
         stderr = CFG["logs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_vcf2maf.stderr.log",
     params:
         opts = CFG["options"]["vcf2maf"],
-        build = lambda w: VERSION_MAP[w.genome_build],
+        build = lambda w: VCF2MAF_GENOME_VERSION_MAP[w.genome_build],
         custom_enst = op.switch_on_wildcard("genome_build", CFG["switches"]["custom_enst"])
     conda:
         CFG["conda_envs"]["vcf2maf"]
@@ -115,7 +115,8 @@ rule _vcf2maf_run:
             --custom-enst {params.custom_enst}
             --retain-info gnomADg_AF
             >> {log.stdout} 2>> {log.stderr};
-        else echo "WARNING: PATH is not set properly, using $(which vcf2maf.pl) will result in error during execution. Please ensure $VCF2MAF_SCRIPT exists." > {log.stderr};fi
+        else echo "WARNING: PATH is not set properly, using $(which vcf2maf.pl) will result in error during execution. Please ensure $VCF2MAF_SCRIPT exists." > {log.stderr};fi  &&
+        touch {output.vep}
         """)
 
 rule _vcf2maf_gnomad_filter_maf:
