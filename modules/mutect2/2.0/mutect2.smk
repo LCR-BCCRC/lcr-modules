@@ -115,7 +115,7 @@ checkpoint _mutect2_input_chrs:
         chrs = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt"),
         capture_arg = _mutect_get_capspace
     output:
-        chrs = CFG["dirs"]["inputs"] + "chroms/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutated_chromosomes.txt"
+        chrs = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
     run:
         # obtain list of main chromosomes
         main_chrs = pd.read_csv(input.chrs, comment='#', sep='\t', header=None)
