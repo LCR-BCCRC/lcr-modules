@@ -5,7 +5,7 @@ All notable changes to the `cnvkit` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0] - 2021-11-29
+## [1.0] - 2022-01-22
 
 This release was authored by Jasper Wong.
 
@@ -28,3 +28,5 @@ Segmented log2 ratios (.cns) - tumour samples
 Segmented log2 ratios (.call.cns) - tumour samples
 - same as .cns, but contains absolute copy number (based on log.ratio and a t-test)
 - also contains a t-test p-value (notably it is a test against log.ratio 0.0) - if it is n.s., then it is assumed to be CN = 2
+
+BAF was also added by using bcftools to call SNPs from a reference dbSNP file. This was then used to determine BAF.
