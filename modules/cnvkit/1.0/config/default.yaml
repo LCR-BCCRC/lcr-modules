@@ -6,29 +6,59 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
 
         scratch_subdirectories: []
 
         options:
-            step_1: ""
-            step_2: ""
+            hard_masked: True
+            target_bed:
+                agilent: ""
+                idt: ""
+            batch: "--drop-low-coverage "
+            SNPs: 
+                quality: 20
+                opts: "--ignore-RG  --skip-indels  --count-orphans  --annotate DP,AD "
+            BAF:
+                rescale: "clonal"
+                min_depth: 20
+            scatter:
+                min_depth: 20
+                ymax: 10
+                ymin: -10
+
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            cnvkit: "{MODSDIR}/envs/cnvkit-0.9.7.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             
         threads:
-            step_1: 4
+            batch: 24
+            seg: 8
+
 
         resources:
-            step_1: 
-                mem_mb: 2000
-            
+            batch: 
+                mem_mb: 10000
+            SNPs: 
+                mem_mb: 8000
+                bam: 1
+            seg: 
+                mem_mb: 6000
+            outputs:
+                mem_mb: 6000
+
+
         pairing_config:
             genome:
                 run_paired_tumours: True
                 run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: False
             capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            exome:
                 run_paired_tumours: True
                 run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: False
