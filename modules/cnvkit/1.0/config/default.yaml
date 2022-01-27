@@ -10,21 +10,33 @@ lcr-modules:
 
         scratch_subdirectories: []
 
+
         options:
+            # Do you want to use a hard-masked reference fasta? This may improve FFPE sample calls
             hard_masked: True
+            # Provide a path to your target/capture regions in BED format
             target_bed:
                 agilent: ""
                 idt: ""
+            # this is for any additional parameters you want to include in your batch calling mode
+            # default here is to ignore low coverage regions # you can also add other flags here
             batch: "--drop-low-coverage "
+            # this is for bcftools calling across your dbSNP sites
+            # note that bcftools call -mv is already used in the rule - it will annotate GT which is vital to cnvkit
             SNPs: 
-                quality: 20
+                quality: 20 # minimum quality
                 opts: "--ignore-RG  --skip-indels  --count-orphans  --annotate DP,AD "
+            # currently rescaling option is "clonal", meaning it will round the log2ratio to the nearest integer copy number
+            # alternately, you can use "threshold", which applies hard thresholds
+            # there is also "none", which skips integer copy numbers as output
             BAF:
                 rescale: "clonal"
-                min_depth: 20
+                min_depth: 20 # minimum depth needed to call BAF
+                opts: "" # you can use additional options here, for example -y assumes a male reference
+                # if you set rescale as "threshold", you can include "-t=-1.1,-0.4,0.3,0.7" to rescale the copy number state to your thresholds you set here
             scatter:
-                min_depth: 20
-                ymax: 10
+                min_depth: 20 # minimum depth to include 
+                ymax: 10 
                 ymin: -10
 
 
@@ -55,10 +67,6 @@ lcr-modules:
                 run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: False
             capture:
-                run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
-                run_paired_tumours_as_unpaired: False
-            exome:
                 run_paired_tumours: True
                 run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: False

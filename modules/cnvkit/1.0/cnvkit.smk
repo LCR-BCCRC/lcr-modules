@@ -20,7 +20,7 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "cnvkit",
     version = "1.0",
-    subdirectories = ["inputs", "cnvkit", "cn_calls", "SNPs", "BAF", "scatter", "outputs"],
+    subdirectories = ["inputs", "cnvkit", "cn_calls", "SNPs", "BAF", "scatter", "seg", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -36,30 +36,27 @@ if CFG["options"]["hard_masked"] == True:
     CFG["runs"]["masked"] = "_masked"
 else:
     CFG["runs"]["masked"] = ""
-    
-wildcard_constraints:
-    masked = ".{0}|_masked",
-    genome_build = ".+(?<!masked)"
-    
-    
+
+
 # cnvkit reference files
 # gene annotation files
 rule _get_refFlat:
     output:
-        refFlat = CFG["dirs"]["inputs"] + "ref/refFlat.txt"
+        refFlat = CFG["dirs"]["inputs"] + "{genome_build}/refFlat.txt"
     params:
-        url = lambda w: {
-            "grch37": "http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refFlat.txt.gz",
-            "hg19": "http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refFlat.txt.gz",
-            "hs37d5": "http://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/refFlat.txt.gz",
-            "grch38": "http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/refFlat.txt.gz",
-            "hg38": "http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/refFlat.txt.gz"
-        }
+        url = "http://hgdownload.soe.ucsc.edu/goldenPath/",
+        build = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19",
+        gzip = CFG["dirs"]["inputs"] + "ref/refFlat.txt.gz",
+        prefix = lambda w: "" if "grch" in str({w.genome_build}) else "chr",
+        tmp = CFG["dirs"]["inputs"] + "ref/refFlat.txt.tmp"
     shell:
         """
-            wget -O {output.refFlat} {params.url}
+            wget -O {params.gzip} {params.url}{params.build}/database/refFlat.txt.gz &&
+            gzip -d {params.gzip} &&
+            sed 's/chr/{params.prefix}/g' {output.refFlat} > {params.tmp} &&
+            mv {params.tmp} {output.refFlat}
         """
-
+    
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _cnvkit_input_bam:
@@ -88,6 +85,14 @@ def get_normals(wildcards):
     normals = list(dict.fromkeys(normals))
     return normals
 
+def _cnvkit_get_capspace(wildcards):
+    CFG = config["lcr-modules"]["cnvkit"]
+    if str(wildcards.capture_space) in CFG["options"]["target_bed"]:
+        bed = op.switch_on_wildcard("capture_space", CFG["options"]["target_bed"])
+    else:
+        bed = op.get_capture_space(CFG, wildcards.normal_id, wildcards.genome_build, wildcards.seq_type, "bed")
+    return bed
+    
 
 rule _run_cnvkit_batch:
     input:
@@ -98,7 +103,7 @@ rule _run_cnvkit_batch:
                         genome_build = CFG["runs"]["tumour_genome_build"],
                         seq_type = CFG["runs"]["tumour_seq_type"]),
         controls = get_normals,
-        refFlat = CFG["dirs"]["inputs"] + "ref/refFlat.txt",
+        refFlat = str(rules._get_refFlat.output.refFlat),
         fasta =  reference_files("genomes/{genome_build}{masked}/genome_fasta/genome.fa"),
     output: 
         panel_of_norms = CFG["dirs"]["cnvkit"] + "{seq_type}--{genome_build}{masked}/{capture_space}/normal_reference.cnn",
@@ -113,7 +118,8 @@ rule _run_cnvkit_batch:
                 tumour_id = CFG["runs"]["tumour_sample_id"]),
     params:
         outdir = CFG["dirs"]["cnvkit"] + "{seq_type}--{genome_build}{masked}/{capture_space}/",
-        targets = op.switch_on_wildcard("capture_space", CFG["options"]["target_bed"]),
+        # targets = op.switch_on_wildcard("capture_space", CFG["options"]["target_bed"]),
+        targets = _cnvkit_get_capspace,
         opts = CFG["options"]["batch"]
     conda:
         CFG["conda_envs"]["cnvkit"]
@@ -121,10 +127,13 @@ rule _run_cnvkit_batch:
         CFG["threads"]["batch"]
     resources:
         **CFG["resources"]["batch"]
+    wildcard_constraints:
+        masked = ".{0}|_masked",
+        genome_build = ".+(?<!masked)"
     log: 
         stdout = CFG["logs"]["cnvkit"] + "{seq_type}--{genome_build}{masked}/{capture_space}_cnr.log"
     shell:
-        "cnvkit.py batch {input.samples} --normal {input.controls} --fasta {input.fasta} --annotate {input.refFlat} --processes {threads} --output-reference {output.panel_of_norms} --targets {params.targets} --output-dir {params.outdir} {params.opts} > {log} 2&>1 "
+        op.as_one_line("""cnvkit.py batch {input.samples} --normal {input.controls} --fasta {input.fasta} --annotate {input.refFlat} --processes {threads} --output-reference {output.panel_of_norms} --targets {params.targets} --output-dir {params.outdir} {params.opts} > {log} 2&>1 """)
 
 
 rule _cnvkit_symlink_cns:
@@ -132,6 +141,9 @@ rule _cnvkit_symlink_cns:
         call_cns = CFG["dirs"]["cnvkit"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns"
     output:
         call_cns = CFG["dirs"]["cn_calls"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns"
+    wildcard_constraints:
+        masked = ".{0}|_masked",
+        genome_build = ".+(?<!masked)"
     run:
         op.relative_symlink(input.call_cns, output.call_cns, in_module = True)
 
@@ -175,7 +187,7 @@ rule _cnvkit_mpileup_per_chrom:
     input:
         bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}.bam",
         fastaFile = reference_files("genomes/{genome_build}{masked}/genome_fasta/genome.fa"),
-        bed = CFG["dirs"]["SNPs"]  + "{genome_build}/dbsnp.common_all-151.bed"
+        bed = str(rules._cnvkit_dbsnp_to_bed.output.bed)
     output: # creates a temporary file for mpileup
         vcf = temp(CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}{masked}/{capture_space}/{sample_id}.{chrom}.vcf.gz"),
         tbi = temp(CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}{masked}/{capture_space}/{sample_id}.{chrom}.vcf.gz.tbi")
@@ -187,6 +199,9 @@ rule _cnvkit_mpileup_per_chrom:
     resources: 
         **CFG["resources"]["SNPs"]
     group: "cnvkit"
+    wildcard_constraints:
+        masked = ".{0}|_masked",
+        genome_build = ".+(?<!masked)"
     log:
         stderr = CFG["logs"]["SNPs"] + "{capture_space}/{seq_type}--{genome_build}{masked}/{sample_id}/{chrom}.vcf.stderr.log",
     shell:
@@ -208,6 +223,9 @@ rule _cnvkit_concatenate_vcf:
     group: "cnvkit"
     conda:
         CFG["conda_envs"]["bcftools"]
+    wildcard_constraints:
+        masked = ".{0}|_masked",
+        genome_build = ".+(?<!masked)"
     shell: 
         """
             bcftools concat {input.vcf} -Oz -o {output.vcf} && 
@@ -219,7 +237,7 @@ rule _cnvkit_concatenate_vcf:
 # Integrating cnvkit with BAF
 # ----------------------------------------------------------------------------------------------- #
 rule _run_cnvkit_call_vcf:
-    input: 
+    input:        
         cns = CFG["dirs"]["cn_calls"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns",
         vcf = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.vcf.gz",
         tbi = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.vcf.gz.tbi"
@@ -227,21 +245,26 @@ rule _run_cnvkit_call_vcf:
         cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns"
     params:
         rescale = CFG["options"]["BAF"]["rescale"],
-        min_depth = CFG["options"]["BAF"]["min_depth"]
+        min_depth = CFG["options"]["BAF"]["min_depth"],
+        opts = CFG["options"]["BAF"]["opts"]
     log: 
         CFG["logs"]["BAF"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_call.log"
+    group: "cnvkit"
     conda: 
         CFG["conda_envs"]["cnvkit"]
+    wildcard_constraints:
+        masked = ".{0}|_masked",
+        genome_build = ".+(?<!masked)"
     shell:
         """
-            cnvkit.py call {input.cns} --output {output.cns} -v {input.vcf} --min-variant-depth {params.min_depth} -m {params.rescale} &> {log}
+            cnvkit.py call {input.cns} --output {output.cns} -v {input.vcf} --min-variant-depth {params.min_depth} -m {params.rescale} {params.opts} &> {log}
         """
 
 
 rule _run_cnvkit_scatter:
     input:
         cnr = CFG["dirs"]["cnvkit"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.cnr",
-        cns = CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns",
+        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns", 
         vcf = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.vcf.gz",
         tbi = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.vcf.gz.tbi"
     output: 
@@ -252,42 +275,72 @@ rule _run_cnvkit_scatter:
         ymin = CFG["options"]["scatter"]["ymin"]
     conda: 
         CFG["conda_envs"]["cnvkit"]
+    group: "cnvkit"
+    wildcard_constraints:
+        masked = ".{0}|_masked",
+        genome_build = ".+(?<!masked)"
     shell:
         "cnvkit.py scatter {input.cnr} -s {input.cns} --output {output.png} -v {input.vcf} --min-variant-depth {params.min_depth} --y-max {params.ymax} --y-min {params.ymin}"
 
 
 rule _cnvkit_to_seg:
     input:
-        expand(
-            [
-                CFG["dirs"]["BAF"] + "{{seq_type}}--{{genome_build}}{{masked}}/{capture_space}/{tumour_id}.call.cns"
-            ],
-            zip,  # Run expand() with zip(), not product()
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            capture_space=CFG["runs"]["tumour_capture_space"])
+        cns = str(rules._run_cnvkit_call_vcf.output.cns),
     output:
-        CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}{masked}/cnvkit.seg"
+        seg = CFG["dirs"]["seg"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.seg"
     conda:
         CFG["conda_envs"]["cnvkit"]
     threads:
         CFG["threads"]["seg"]
     resources:
-        **CFG["resources"]["outputs"]
+        **CFG["resources"]["seg"]
+    wildcard_constraints:
+        masked = ".{0}|_masked",
+        genome_build = ".+(?<!masked)"
     shell:
-        """cnvkit.py export seg {input} -o {output} """
+        """cnvkit.py export seg {input.cns} -o {output.seg} """
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _cnvkit_output:
     input:
         call_cns = str(rules._run_cnvkit_call_vcf.output.cns),
-        scatter = str(rules._run_cnvkit_scatter.output.png)
+        scatter = str(rules._run_cnvkit_scatter.output.png),
+        seg = str(rules._cnvkit_to_seg.output.seg)
     output:
-        call_cns = CFG["dirs"]["outputs"] + "BAF_cns/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns",
-        scatter = CFG["dirs"]["outputs"] + "plots/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_scatter.png"
+        call_cns = CFG["dirs"]["outputs"] + "capture_space/BAF_cns/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns",
+        scatter = CFG["dirs"]["outputs"] + "capture_space/plots/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_scatter.png",
+        seg = CFG["dirs"]["outputs"] + "capture_space/seg/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.seg"
+    wildcard_constraints:
+        masked = ".{0}|_masked",
+        genome_build = ".+(?<!masked)"
     run:
         op.relative_symlink(input.call_cns, output.call_cns, in_module = True)
         op.relative_symlink(input.scatter, output.scatter, in_module = True)
+        op.relative_symlink(input.seg, output.seg, in_module = True)
+
+
+# this is to collapse the wildcard {capture_space} to streamline downstream analyses
+rule _cnvkit_output_no_capture_space:
+    input:
+        call_cns = str(rules._run_cnvkit_call_vcf.output.cns),
+        scatter = str(rules._run_cnvkit_scatter.output.png),
+        seg = str(rules._cnvkit_to_seg.output.seg)
+    output:
+        call_cns = touch(CFG["dirs"]["outputs"] + "no_capture_space/done/BAF_cns/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns"),
+        scatter = touch(CFG["dirs"]["outputs"] + "no_capture_space/done/plots/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_scatter.png"),
+        seg = touch(CFG["dirs"]["outputs"] + "no_capture_space/done/seg/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.seg")
+    params:
+        call_cns = CFG["dirs"]["outputs"] + "no_capture_space/BAF_cns/{seq_type}--{genome_build}{masked}/{tumour_id}.call.cns",
+        scatter = CFG["dirs"]["outputs"] + "no_capture_space/plots/{seq_type}--{genome_build}{masked}/{tumour_id}_scatter.png",
+        seg = CFG["dirs"]["outputs"] + "no_capture_space/seg/{seq_type}--{genome_build}{masked}/{tumour_id}.seg"
+    wildcard_constraints:
+        masked = ".{0}|_masked",
+        genome_build = ".+(?<!masked)"
+    run:
+        op.relative_symlink(input.call_cns, params.call_cns, in_module = True)
+        op.relative_symlink(input.scatter, params.scatter, in_module = True)
+        op.relative_symlink(input.seg, params.seg, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -295,9 +348,12 @@ rule _cnvkit_all:
     input:
         expand(
             [
+                str(rules._cnvkit_output_no_capture_space.output.call_cns),
+                str(rules._cnvkit_output_no_capture_space.output.scatter),
+                str(rules._cnvkit_output_no_capture_space.output.seg),
                 str(rules._cnvkit_output.output.call_cns),
                 str(rules._cnvkit_output.output.scatter),
-                str(rules._cnvkit_to_seg.output)
+                str(rules._cnvkit_output.output.seg),
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
@@ -306,8 +362,8 @@ rule _cnvkit_all:
             normal_id=CFG["runs"]["normal_sample_id"],
             pair_status=CFG["runs"]["pair_status"],
             capture_space=CFG["runs"]["tumour_capture_space"],
-            masked=CFG["runs"]["masked"]),
-
+            masked=CFG["runs"]["masked"],
+        )
 
 
 ##### CLEANUP #####
