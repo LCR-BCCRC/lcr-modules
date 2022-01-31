@@ -44,6 +44,23 @@ VERSION_UPPER = {
     "grch38": "GRCh38",
 }
 
+GENOME_VERSION_GROUPS = {}
+GENOME_VERSION_MAP = {}
+for genome_build in VERSION_UPPER.keys():
+    GENOME_VERSION_GROUPS[genome_build] = []
+
+# For Starfish SDF files
+SDF_VERSION_MAP = {}
+SDF_GENOME_BUILDS = []
+SDF_IGNORE = {"grch38", "grch38-legacy", "grch38_masked"}  # Ignore non-chr prefixed versions of hg38 since we don't use them
+sdf_genome_mappings = {
+"GRCh37": {"ensembl": "1000g_v37_phase2.sdf", "ucsc": "hg19.sdf"},
+"GRCh38": {"ucsc": "GRCh38.sdf"}
+}
+
+
+DEFAULT_CAPSPACE = {}
+
 # Check genome build versions, providers, and genome_fasta
 possible_versions = list(VERSION_UPPER.keys())
 possible_providers = ["ensembl", "ucsc", "gencode", "ncbi"]
@@ -51,7 +68,11 @@ for build_name, build_info in config["genome_builds"].items():
     assert "version" in build_info and build_info["version"] in possible_versions, (
         f"`version` not set for `{build_name}` or `version` not among {possible_versions}."
     )
-    assert "provider" in build_info and build_info["provider"] in possible_providers, (
+    GENOME_VERSION_GROUPS[build_info["version"]].append(build_name)
+    upper_genome_name = VERSION_UPPER[build_info["version"]]
+    GENOME_VERSION_MAP[build_name] = upper_genome_name
+    genome_provider = build_info["provider"]
+    assert "provider" in build_info and genome_provider in possible_providers, (
         f"`provider` not set for `{build_name}` or `provider` not among {possible_providers}."
     )
     assert "genome_fasta_url" in build_info, f"`genome_fasta_url` not set for `{build_name}`."
@@ -60,6 +81,36 @@ for build_name, build_info in config["genome_builds"].items():
         f"Pinging `genome_fasta_url` for {build_name} returned HTTP code {url_code} "
         f"(rather than 200): \n{build_info['genome_fasta_url']}"
     )    
+    # Find the appropriate SDF file for this genome build
+    if build_name not in SDF_IGNORE:
+        SDF_GENOME_BUILDS.append(build_name)
+        try:
+            SDF_VERSION_MAP[build_name] = sdf_genome_mappings[upper_genome_name][genome_provider]
+        except KeyError as e:
+            raise AttributeError(f"Unable to locate a Starfish SDF file for genome build \'{upper_genome_name}\' and provider \'{genome_provider}\'") from e
+
+# Check parent genome, provider for the capture space
+for build_name, build_info in config["capture_space"].items():
+    assert "provider" in build_info and build_info["provider"] in possible_providers, (
+        f"`provider` not set for `{build_name}` or `provider` not among {possible_providers}."
+        )
+    assert "genome" in build_info and build_info["genome"] in possible_versions,(
+        f"`genome` not set for `{build_name}` or `genome` not among {possible_versions}." )
+    assert "capture_bed_url" in build_info
+    url_code = urllib.request.urlopen(build_info["capture_bed_url"]).getcode()
+    assert url_code == 200, (
+         f"Pinging `capture_bed_url` for {build_name} returned HTTP code {url_code} "
+         f"(rather than 200): \n{build_info['capture_bed_url']}"
+        )
+    if "default" in build_info:
+        assert build_info["default"].lower() in ["true", "false"], (
+            f"true/false required for for \'default\' field"
+            )
+        build_version = build_info["genome"]
+        if build_version in DEFAULT_CAPSPACE:
+            # i.e. a default has already been specified for this genome version!
+            raise AttributeError("For reference genome version \'%s\', both \'%s\' and \'%s\' were specified as default capture spaces in the reference config" % (build_version, DEFAULT_CAPSPACE[build_version], build_name))
+        DEFAULT_CAPSPACE[build_info["genome"]] = build_name
 
 
 ##### TOOLS #####
@@ -122,15 +173,33 @@ for chrom_map_file in CHROM_MAPPINGS_FILES:
 
 
 rule download_genome_fasta:
-    output: 
+    output:
         fasta = "downloads/genome_fasta/{genome_build}.fa"
-    log: 
+    log:
         "downloads/genome_fasta/{genome_build}.fa.log"
-    params: 
+    wildcard_constraints:
+        genome_build = ".+(?<!masked)"
+    params:
+        path = lambda w: config["genome_builds"][w.genome_build]["genome_fasta_file"] if "genome_fasta_file" in config["genome_builds"][w.genome_build] else config["genome_builds"][w.genome_build]["genome_fasta_url"],
+    shell:
+        op.as_one_line("""
+        if [ -e {params.path} ]; then
+            cat {params.path} > {output.fasta} 2> {log};
+        else
+            curl -L {params.path} > {output.fasta} 2> {log};
+        fi
+        """)
+
+rule download_masked_genome_fasta:
+    output:
+        fasta = "downloads/genome_fasta/{genome_build}.fa"
+    wildcard_constraints:
+        genome_build = ".+_masked"
+    params:
         url = lambda w: config["genome_builds"][w.genome_build]["genome_fasta_url"]
     shell:
-        "curl -L {params.url} > {output.fasta} 2> {log}"
-
+        "curl -L {params.url} | "
+        "gzip -d > {output.fasta} "
 
 rule download_main_chromosomes:
     input:
@@ -333,13 +402,8 @@ rule download_liftover_chains:
 rule download_sdf: 
     output: 
         sdf = directory("downloads/sdf/{genome_build}/sdf")
-    params: 
-        build = lambda w: {
-            "grch37": "1000g_v37_phase2.sdf", 
-            "hs37d5": "1000g_v37_phase2.sdf",
-            "hg19": "hg19.sdf", 
-            "hg38": "GRCh38.sdf"
-        }[w.genome_build]
+    params:
+        build = lambda w: SDF_VERSION_MAP[w.genome_build]
     shell: 
         op.as_one_line("""
         wget -qO {output.sdf}.zip https://s3.amazonaws.com/rtg-datasets/references/{params.build}.zip && 
@@ -456,7 +520,7 @@ rule download_par_bed:
 
 
 def get_matching_download_rules(file):
-    ignored_rules = ["download_genome_fasta", "download_sdf"]
+    ignored_rules = ["download_genome_fasta", "download_masked_genome_fasta", "download_sdf", "download_sigprofiler_genome"]
     rule_names = [ r for r in dir(rules) if r.startswith("download_")]
     rule_names = [ r for r in rule_names if r not in ignored_rules ]
     rule_list = [ getattr(rules, name) for name in rule_names ]
@@ -469,10 +533,11 @@ def get_matching_download_rules(file):
         # At least one output file should produce
         num_matches = []
         for output_file in r.output:
-            assert "{version}" in output_file, (
-                f"The `{rule_name}` download rule doesn't have a `{{version}}` "
-                f"wildcard in the output file ('{output_file}')."
-            )
+            if rule_name != "download_capspace_bed":  # Workaround since we don't really care about the provider for the capture space
+                assert "{version}" in output_file, (
+                    f"The `{rule_name}` download rule doesn't have a `{{version}}` "
+                    f"wildcard in the output file ('{output_file}')."
+                )
             matches = smk.io.glob_wildcards(output_file, [file])
             num_matches.append(len(matches[0]))
         if any(num > 0 for num in num_matches):
@@ -566,6 +631,57 @@ def get_download_file(file):
         download_file = "genomes/{genome_build}/" + download_file
         return download_file
     return get_download_file_custom
+
+
+### CAPTURE SPACE ###
+rule download_capspace_bed:
+    output:
+        capture_bed = "downloads/capture_space/{capture_space}.{genome_build}.bed"
+    log:
+        "downloads/capture_space/{capture_space}.{genome_build}.bed.log"
+    params:
+        path = lambda w: config["capture_space"][w.capture_space]["capture_bed_file"] if "capture_bed_file" in config["capture_space"][w.capture_space] else config["capture_space"][w.capture_space]["capture_bed_url"],
+        provider = lambda w: config["capture_space"][w.capture_space]["provider"]
+    shell:
+        op.as_one_line("""
+        if [ -e {params.path} ]; then
+            cat {params.path} > {output.capture_bed} 2> {log};
+        else
+            curl -L {params.path} > {output.capture_bed} 2> {log};
+        fi
+        """)
+
+rule add_remove_chr_prefix_bed:
+    input:
+        capture_bed = rules.download_capspace_bed.output.capture_bed
+    output:
+        converted_bed = "downloads/capture_space/{capture_space}.{genome_build}.{chr_status}.bed"
+    run:
+        # Converts the specified BED file and adds/removes chr prefixes
+        if wildcards.chr_status == "chr":  # i.e. we need to add a chr prefix
+            add_chr = True
+        else:
+            add_chr = False
+
+        # Process the BED file
+        with open(input.capture_bed) as f, open(output.converted_bed, "w") as o:
+            i = 0
+            for line in f:
+                i += 1
+                # Make sure that this BED entry is chr-prefixed or not
+                if add_chr and line.startswith("chr"):
+                    # We were asked to add a chr prefix, but one already exists
+                    raise AttributeError("I was asked to add a \'chr\' prefix to \'%s\', but that BED is already \'chr\' prefixed on line %s" % (input.capture_bed, line))
+                if not add_chr and not line.startswith("chr"):
+                    # We were asked to remove a chr prefix, but there isn't one
+                    raise AttributeError("I was asked to remove a \'chr\' prefix \'%s\', but it isn't chr prefixed on line %s" % (input.capture_bed, line))
+
+                if add_chr:
+                    line = "chr" + line
+                else:
+                    line = line.replace("chr", "")
+
+                o.write(line)
 
 
 ##### SHARED #####

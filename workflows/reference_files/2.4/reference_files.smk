@@ -22,6 +22,8 @@ rule get_genome_fasta_download:
         fasta = rules.download_genome_fasta.output.fasta
     output: 
         fasta = "genomes/{genome_build}/genome_fasta/genome.fa"
+    wildcard_constraints:
+        genome_build = ".+(?<!masked)"
     conda: CONDA_ENVS["coreutils"]
     shell:
         "ln -srf {input.fasta} {output.fasta}"
@@ -34,6 +36,8 @@ rule index_genome_fasta:
         fai = "genomes/{genome_build}/genome_fasta/genome.fa.fai"
     log: 
         "genomes/{genome_build}/genome_fasta/genome.fa.fai.log"
+    wildcard_constraints:
+        genome_build = ".+(?<!masked)"
     conda: CONDA_ENVS["samtools"]
     shell:
         "samtools faidx {input.fasta} > {log} 2>&1"
@@ -107,10 +111,35 @@ rule get_sdf_refs:
     output: 
         sdf = directory("genomes/{genome_build}/sdf")
     wildcard_constraints: 
-        genome_build = "hg38|hg19|grch37|hs37d5"
+        genome_build = "|".join(SDF_GENOME_BUILDS)
     shell: 
         "ln -srfT {input.sdf} {output.sdf}"
 
+
+rule get_masked_genome_fasta_download:
+    input: 
+        fasta = rules.download_masked_genome_fasta.output.fasta
+    output: 
+        fasta = "genomes/{genome_build}/genome_fasta/genome.fa"
+    wildcard_constraints:
+        genome_build = ".+_masked"
+    conda: CONDA_ENVS["coreutils"]
+    shell:
+        "ln -srf {input.fasta} {output.fasta}"
+
+
+rule index_masked_genome_fasta:
+    input: 
+        fasta = rules.get_masked_genome_fasta_download.output.fasta
+    output: 
+        fai = "genomes/{genome_build}/genome_fasta/genome.fa.fai"
+    log: 
+        "genomes/{genome_build}/genome_fasta/genome.fa.fai.log"
+    wildcard_constraints:
+        genome_build = ".+_masked"
+    conda: CONDA_ENVS["samtools"]
+    shell:
+        "samtools faidx {input.fasta} > {log} 2>&1"
 
 
 ##### METADATA #####
@@ -573,6 +602,23 @@ rule get_af_only_gnomad_vcf:
         tabix {output.vcf}
         """)
 
+rule normalize_af_only_gnomad_vcf:
+    input:
+        fasta = rules.get_genome_fasta_download.output.fasta,
+        vcf = str(rules.get_af_only_gnomad_vcf.output.vcf)
+    output:
+        vcf = "genomes/{genome_build}/variation/af-only-gnomad.normalized.{genome_build}.vcf.gz",
+        vcf_index = "genomes/{genome_build}/variation/af-only-gnomad.normalized.{genome_build}.vcf.gz.tbi"
+    conda: CONDA_ENVS["bcftools"]
+    shell:
+        op.as_one_line("""
+        bcftools view {input.vcf} | grep -v "_alt" | bcftools norm -m -any -f {input.fasta} | bgzip -c > {output.vcf}
+            &&
+        bcftools index -t {output.vcf}
+            &&
+        touch {output.vcf_index}
+        """)
+
 rule get_mutect2_pon:
     input:
         vcf = get_download_file(rules.download_mutect2_pon.output.vcf)
@@ -598,3 +644,160 @@ rule get_mutect2_small_exac:
             &&
         tabix {output.vcf}
         """)
+
+
+### FOR HANDLING CAPTURE SPACE/TARGETED SEQUENCING DATA ###
+# Added by Chris
+# What this *should* do (if I have written these rules correctly) is obtain a capture space BED file
+# check the contig names against the reference (and replace them as necessary), pad, sort,merge, and generate a bgzip/tabix
+# indexed version of the BED as well as an interval list.
+
+def _check_capspace_provider(w):
+    # Checks to determine if both the capture space BED and associated reference genome
+    # are chr prefixed or not
+
+    # If this is specified as the "default", make sure we obtain the relevent capture space
+    default_key = "default-" + w.genome_build
+    if default_key not in config["capture_space"] and w.capture_space == default_key:
+        # aka if the user hasn't explicitly specified a default using a default name
+        capture_space = _get_default_capspace(w)
+    else:
+        capture_space = w.capture_space
+
+    genome_provider = config["genome_builds"][w.genome_build]["provider"]
+    bed_provider = config["capture_space"][capture_space]["provider"]
+    
+    # If the providers match (i.e. they share the same prefix), just use the downloaded version
+    if genome_provider == bed_provider:
+        return {'bed': expand(rules.download_capspace_bed.output.capture_bed, capture_space=capture_space, genome_build=w.genome_build)}
+    else:
+        # Prompt the prefix to be converted
+        chr_status = "chr" if genome_provider == "ucsc" else "no_chr"
+        return {'bed': expand(rules.add_remove_chr_prefix_bed.output.converted_bed, capture_space = capture_space, genome_build = w.genome_build, chr_status= chr_status)}
+
+
+rule get_capspace_bed_download:
+    input:
+        unpack(_check_capspace_provider)
+    output:
+        capture_bed = "genomes/{genome_build}/capture_space/{capture_space}.bed"
+    conda: CONDA_ENVS["coreutils"]
+    shell:
+        "ln -srf {input.bed} {output.capture_bed}"
+
+
+rule sort_and_pad_capspace:
+    input:
+       capture_bed = rules.get_capspace_bed_download.output.capture_bed,
+       fai = rules.index_genome_fasta.output.fai
+    output:
+        intermediate_bed = temp("genomes/{genome_build}/capture_space/{capture_space}.intermediate.bed"),
+        padded_bed = "genomes/{genome_build}/capture_space/{capture_space}.padded.bed"
+    params:
+        padding_size = config['capture_params']['padding_size']  # Default to 200. I would be warry of changing
+    log:
+        "genomes/{genome_build}/capture_space/{capture_space}.padded.bed.log"
+    conda: CONDA_ENVS["bedtools"]
+    shell:
+        op.as_one_line("""
+        cat {input.fai} | cut -f 1-2 | perl -ane 'print "$F[0]\\t0\\t$F[1]\\n"' | bedtools intersect -wa -a {input.capture_bed} -b stdin > {output.intermediate_bed}
+            &&
+        bedtools slop -b {params.padding_size} -i {output.intermediate_bed} -g {input.fai} | bedtools sort | bedtools merge > {output.padded_bed} 2> {log}
+        """)
+
+rule check_capspace_contigs:
+    input:
+        bed = rules.get_capspace_bed_download.output.capture_bed,
+        fai = rules.index_genome_fasta.output.fai
+    output:
+        contig_log = "genomes/{genome_build}/capture_space/{capture_space}.check_contigs.log"
+    run:
+        # Parse BED contigs
+        bed_contigs = set()
+        with open(input.bed) as f:
+            for line in f:
+                line = line.rstrip()
+                contig = line.split("\t")[0]
+                if contig not in bed_contigs:
+                    bed_contigs.add(contig)
+
+        # Parse fai contigs
+        fai_contigs = set()
+        with open(input.fai) as f:
+            for line in f:
+                line = line.rstrip()
+                contig = line.split('\t')[0]
+                if contig not in fai_contigs:
+                    fai_contigs.add(contig)
+
+        # Check the BED file for contigs that are not in the reference genome
+        missing_contigs = list(x for x in bed_contigs if x not in fai_contigs)
+        with open(output.contig_log, "w") as o:
+            if len(missing_contigs) == 0:
+                o.write("No contigs missing from reference")
+            else:
+                o.write("The following contigs were missing from the reference\n")
+                o.write("\n".join(missing_contigs))
+            o.write("\n")
+
+
+rule compress_index_capspace_bed:
+    input:
+        capture_bed = rules.sort_and_pad_capspace.output.padded_bed
+    output:
+        bgzip_bed = "genomes/{genome_build}/capture_space/{capture_space}.padded.bed.gz",
+        tabix = "genomes/{genome_build}/capture_space/{capture_space}.padded.bed.gz.tbi"
+    log:
+        "genomes/{genome_build}/capture_space/{capture_space}.padded.bed.gz.log"
+    conda: CONDA_ENVS["tabix"]
+    shell:
+        op.as_one_line("""
+        bgzip -c {input.capture_bed} > {output.bgzip_bed}
+            &&
+        tabix -p bed {output.bgzip_bed}
+        """)
+
+
+rule create_interval_list:
+    input:
+        bed = rules.sort_and_pad_capspace.output.padded_bed,
+        sd = rules.create_gatk_dict.output.dict
+    output:
+        interval_list = "genomes/{genome_build}/capture_space/{capture_space}.padded.interval_list"
+    log:
+        "genomes/{genome_build}/capture_space/{capture_space}.padded.interval_list.log"
+    conda: CONDA_ENVS["gatk"]
+    shell:
+        "gatk BedToIntervalList --INPUT {input.bed} -SD {input.sd} -O {output.interval_list} > {log} 2>&1"
+
+##### SigProfiler #####
+
+rule download_sigprofiler_genome:
+    output:
+        complete = "downloads/sigprofiler_prereqs/{sigprofiler_build}.installed"
+    conda: CONDA_ENVS["sigprofiler"]
+    shell:
+        op.as_one_line("""
+        python -c 'from SigProfilerMatrixGenerator import install as genInstall;
+        genInstall.install("{wildcards.sigprofiler_build}", rsync = False, bash = True)'
+            &&
+        touch {output.complete}
+        """)
+
+def get_sigprofiler_genome(wildcards):
+    sigprofiler_build = ''
+    if wildcards.genome_build in ['grch37','hg19','hs37d5']:
+        sigprofiler_build = "GRCh37"
+    elif wildcards.genome_build in ['grch38','grch38-legacy','hg38','hg38-panea']:
+        sigprofiler_build = "GRCh38"
+    return("downloads/sigprofiler_prereqs/" + sigprofiler_build + ".installed")
+
+rule install_sigprofiler_genome:
+    input:
+        get_sigprofiler_genome
+    output:
+        complete = "genomes/{genome_build}/sigprofiler_genomes/{genome_build}.installed"
+    run:
+        op.relative_symlink(input, output.complete)
+
+

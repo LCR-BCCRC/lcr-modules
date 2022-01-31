@@ -39,6 +39,8 @@ rule all:
             [
                 rules.get_genome_fasta_download.output.fasta,
                 rules.index_genome_fasta.output.fai,
+                rules.get_masked_genome_fasta_download.output.fasta,
+                rules.index_masked_genome_fasta.output.fai,
                 rules.get_main_chromosomes_download.output.txt,
                 rules.get_main_chromosomes_download.output.bed,
                 rules.get_main_chromosomes_download.output.chrx,
