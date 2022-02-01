@@ -108,19 +108,6 @@ rule _download_sage_references:
         wget -O {output.high_conf_bed} {params.url}/HighConfidence.{params.build}.bed.gz
         """)
 
-# Non-standard chromosomes in rare cases cause SAGE error. This function will read the main chromosomes
-# file for each genome build using file produced by reference_files workflow, and supply it as
-# a comma-deliminated list of chromosomes for SAGE run.
-def get_chromosomes(wildcards):
-    chromosomes=[]
-    for i in range(1,23):
-        chromosomes.append(str(i))
-    chromosomes.append("X")
-    if "38" in str(wildcards.genome_build):
-        chromosomes = ["chr" + x for x in chromosomes]
-    chromosomes= ",".join(chromosomes)    
-    return chromosomes
-
 def _sage_get_capspace(wildcards):
     CFG = config["lcr-modules"]["sage"]
     try:
@@ -143,7 +130,8 @@ rule _run_sage:
         fasta = str(rules._input_references.output.genome_fa),
         hotspots = rules._download_sage_references.output.hotspots,
         high_conf_bed = str(rules._download_sage_references.output.high_conf_bed),
-        panel_bed = _sage_get_capspace
+        panel_bed = _sage_get_capspace,
+        main_chromosomes = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
     output:
         vcf = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf"),
         vcf_gz = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf.gz")
@@ -152,7 +140,7 @@ rule _run_sage:
         stderr = CFG["logs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run_sage.stderr.log"
     params:
         opts = CFG["options"]["sage_run"],
-        chromosomes = get_chromosomes,
+        #chromosomes = _get_chromosomes,
         assembly = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19",
         sage= "$(dirname $(readlink -e $(which SAGE)))/sage.jar",
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
@@ -166,11 +154,13 @@ rule _run_sage:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname)" > {log.stdout}
         &&
+        SAGE_CHROMOSOMES=$(cat {input.main_chromosomes} | paste -sd, -)
+        &&
         java -Xms1G -Xmx{params.jvmheap}m
         -cp {params.sage} com.hartwig.hmftools.sage.SageApplication
         -threads {threads}
         {params.opts}
-        -chr {params.chromosomes}
+        -chr $SAGE_CHROMOSOMES
         -reference {wildcards.normal_id}
         -reference_bam {input.normal_bam}
         -tumor {wildcards.tumour_id} 
