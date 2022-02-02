@@ -140,7 +140,6 @@ rule _run_sage:
         stderr = CFG["logs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run_sage.stderr.log"
     params:
         opts = CFG["options"]["sage_run"],
-        #chromosomes = _get_chromosomes,
         assembly = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19",
         sage= "$(dirname $(readlink -e $(which SAGE)))/sage.jar",
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
