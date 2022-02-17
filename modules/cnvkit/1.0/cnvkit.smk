@@ -32,11 +32,6 @@ localrules:
 
 
 ##### RULES #####
-if CFG["options"]["hard_masked"] == True:
-    CFG["runs"]["masked"] = "_masked"
-else:
-    CFG["runs"]["masked"] = ""
-
 
 # cnvkit reference files
 # gene annotation files
@@ -47,7 +42,7 @@ rule _get_refFlat:
         url = "http://hgdownload.soe.ucsc.edu/goldenPath/",
         build = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19",
         txt = CFG["dirs"]["inputs"] + "{genome_build}/refFlat.txt",
-        prefix = lambda w: "" if "grch" in str({w.genome_build}) else "chr",
+        prefix = lambda w: "chr" if "hg" in str({w.genome_build}) else "",
     shell:
         """
             wget {params.url}{params.build}/database/refFlat.txt.gz -O - | gzip -d > {params.txt} &&
@@ -72,20 +67,17 @@ rule _cnvkit_input_bam:
 
 rule _cnvkit_accessible_regions:
     input:
-        fasta = reference_files("genomes/{genome_build}{masked}/genome_fasta/genome.fa")
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        access = CFG["dirs"]["inputs"] + "reference/access.{genome_build}{masked}.bed"
+        access = CFG["dirs"]["inputs"] + "reference/access.{genome_build}.bed"
     conda:
         CFG["conda_envs"]["cnvkit"]
     threads:
         CFG["threads"]["reference"]
     resources:
         **CFG["resources"]["reference"]
-    wildcard_constraints:
-        masked = ".{0}|_masked",
-        genome_build = ".+(?<!masked)"
     log:
-        stdout = CFG["logs"]["inputs"] + "{genome_build}{masked}_access.log"
+        stdout = CFG["logs"]["inputs"] + "{genome_build}_access.log"
     shell:
         """
             cnvkit.py access {input.fasta} -o {output.access} &> {log.stdout}
@@ -95,9 +87,9 @@ rule _cnvkit_accessible_regions:
 # filters out chrG, chrJ, chrM from bed
 rule _cnvkit_filter_main_chrs:
     input:
-        access = CFG["dirs"]["inputs"] + "reference/access.{genome_build}{masked}.bed"
+        access = CFG["dirs"]["inputs"] + "reference/access.{genome_build}.bed"
     output:
-        access_main = CFG["dirs"]["inputs"] + "reference/access_main.{genome_build}{masked}.bed"
+        access_main = CFG["dirs"]["inputs"] + "reference/access_main.{genome_build}.bed"
     shell:
         """
             grep -v GL {input.access} | grep -v J | grep -v M > {output.access_main} 
@@ -124,7 +116,7 @@ def _cnvkit_get_capspace(wildcards):
     default_bed = reference_files("genomes/" + wildcards.genome_build + "/capture_space/" + wildcards.capture_space + ".bed") 
     # if there is a custom bed in the config that pertains to the capture_space variable, then use that
     if str(wildcards.capture_space) in CFG["options"]["target_bed"].keys():
-        bed = op.switch_on_wildcard("capture_space", CFG["options"]["target_bed"])
+        bed = CFG["options"]["target_bed"][wildcards.capture_space]
     # if there is "none" instead, then we go towards the default, which is the full exon-space
     elif "none" in str({wildcards.capture_space}):
         if "38" in str({wildcards.genome_build}):
@@ -139,24 +131,21 @@ def _cnvkit_get_capspace(wildcards):
 
 rule _cnvkit_build_access_bed:
     input:
-        access = CFG["dirs"]["inputs"] + "reference/access_main.{genome_build}{masked}.bed",
+        access = CFG["dirs"]["inputs"] + "reference/access_main.{genome_build}.bed",
         bam = _cnvkit_get_normals,
         targets = _cnvkit_get_capspace,
         refFlat = str(rules._get_refFlat.output.refFlat)
     output:
-        target = CFG["dirs"]["inputs"] + "reference/{seq_type}--{genome_build}{masked}/{capture_space}/target_sites.target.bed",
-        antitarget = CFG["dirs"]["inputs"] + "reference/{seq_type}--{genome_build}{masked}/{capture_space}/target_sites.antitarget.bed"
+        target = CFG["dirs"]["inputs"] + "reference/{seq_type}--{genome_build}/{capture_space}/target_sites.target.bed",
+        antitarget = CFG["dirs"]["inputs"] + "reference/{seq_type}--{genome_build}/{capture_space}/target_sites.antitarget.bed"
     conda:
         CFG["conda_envs"]["cnvkit"]
     threads:
         CFG["threads"]["reference"]
     resources:
         **CFG["resources"]["reference"]
-    wildcard_constraints:
-        masked = ".{0}|_masked",
-        genome_build = ".+(?<!masked)"
     log:
-        stdout = CFG["logs"]["inputs"] + "{seq_type}--{genome_build}{masked}/{capture_space}_autobin.log"
+        stdout = CFG["logs"]["inputs"] + "{seq_type}--{genome_build}/{capture_space}_autobin.log"
     shell:
         """
             cnvkit.py autobin {input.bam} -t {input.targets} -g {input.access} --annotate {input.refFlat} --short-names --target-output-bed {output.target} --antitarget-output-bed {output.antitarget} &> {log.stdout}
@@ -169,17 +158,14 @@ rule _coverage_target:
         bam = str(rules._cnvkit_input_bam.output.bam),
         bed = str(rules._cnvkit_build_access_bed.output.target),
     output:
-        cov = CFG["dirs"]["coverage"] + "target/{seq_type}--{genome_build}{masked}/{capture_space}/{sample_id}.targetcoverage.cnn"
+        cov = CFG["dirs"]["coverage"] + "target/{seq_type}--{genome_build}/{capture_space}/{sample_id}.targetcoverage.cnn"
     conda: CFG["conda_envs"]["cnvkit"]
     threads:
         CFG["threads"]["reference"]
     resources:
         **CFG["resources"]["reference"]
-    wildcard_constraints:
-        masked = ".{0}|_masked",
-        genome_build = ".+(?<!masked)"
     log:
-        stdout = CFG["logs"]["coverage"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{sample_id}_target.log"
+        stdout = CFG["logs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_target.log"
     shell:
         """
             cnvkit.py coverage {input.bam} {input.bed} -o {output.cov} -p {threads} &> {log.stdout}
@@ -190,17 +176,14 @@ rule _coverage_antitarget:
         bam = str(rules._cnvkit_input_bam.output.bam),
         bed = str(rules._cnvkit_build_access_bed.output.antitarget),
     output:
-        cov = CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}{masked}/{capture_space}/{sample_id}.antitargetcoverage.cnn"
+        cov = CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}/{capture_space}/{sample_id}.antitargetcoverage.cnn"
     conda: CFG["conda_envs"]["cnvkit"]
     threads:
         CFG["threads"]["reference"]
     resources:
         **CFG["resources"]["reference"]
-    wildcard_constraints:
-        masked = ".{0}|_masked",
-        genome_build = ".+(?<!masked)"
     log:
-        stdout = CFG["logs"]["coverage"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{sample_id}_antitarget.log"
+        stdout = CFG["logs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_antitarget.log"
     shell:
         """
             cnvkit.py coverage {input.bam} {input.bed} -o {output.cov} -p {threads} &> {log.stdout}
@@ -212,13 +195,12 @@ def get_normals_target(wildcards):
     CFG = config["lcr-modules"]["cnvkit"]
     runs = CFG["runs"]
     platform = runs[runs['tumour_capture_space'].isin([wildcards.capture_space])]
-    normals = expand(CFG["dirs"]["coverage"] +  "target/{seq_type}--{genome_build}{masked}/{capture_space}/{normal_id}.targetcoverage.cnn", 
+    normals = expand(CFG["dirs"]["coverage"] +  "target/{seq_type}--{genome_build}/{capture_space}/{normal_id}.targetcoverage.cnn", 
                         zip,
                         seq_type = platform['tumour_seq_type'],
                         genome_build = platform['tumour_genome_build'],
                         normal_id = platform["normal_sample_id"],
-                        capture_space=platform["tumour_capture_space"],
-                        masked=platform["masked"])
+                        capture_space=platform["tumour_capture_space"])
     normals = list(dict.fromkeys(normals))
     return normals
 
@@ -226,13 +208,12 @@ def get_normals_anti(wildcards):
     CFG = config["lcr-modules"]["cnvkit"]
     runs = CFG["runs"]
     platform = runs[runs['tumour_capture_space'].isin([wildcards.capture_space])]
-    normals = expand(CFG["dirs"]["coverage"] +  "antitarget/{seq_type}--{genome_build}{masked}/{capture_space}/{normal_id}.antitargetcoverage.cnn", 
+    normals = expand(CFG["dirs"]["coverage"] +  "antitarget/{seq_type}--{genome_build}/{capture_space}/{normal_id}.antitargetcoverage.cnn", 
                         zip,
                         seq_type = platform['tumour_seq_type'],
                         genome_build = platform['tumour_genome_build'],
                         normal_id = platform["normal_sample_id"],
-                        capture_space=platform["tumour_capture_space"],
-                        masked=platform["masked"])
+                        capture_space=platform["tumour_capture_space"])
     normals = list(dict.fromkeys(normals))
     return normals
 
@@ -243,20 +224,17 @@ if CFG["options"]["new_normals"] == True:
             control_target = get_normals_target,
             control_antitarget = get_normals_anti,
         output:
-            pon = CFG["dirs"]["coverage"] +  "normal/{seq_type}--{genome_build}{masked}/{capture_space}/normal_reference.cnn"
+            pon = CFG["dirs"]["coverage"] +  "normal/{seq_type}--{genome_build}/{capture_space}/normal_reference.cnn"
         params:
-            fasta = reference_files("genomes/{genome_build}{masked}/genome_fasta/genome.fa"),
+            fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
             male_reference = CFG["options"]["male_ref"]
         conda: CFG["conda_envs"]["cnvkit"]
         threads:
             CFG["threads"]["reference"]
         resources:
             **CFG["resources"]["reference"]
-        wildcard_constraints:
-            masked = ".{0}|_masked",
-            genome_build = ".+(?<!masked)"
         log:
-            stdout = CFG["logs"]["coverage"] + "{seq_type}--{genome_build}{masked}/{capture_space}/normal_antitarget.log"
+            stdout = CFG["logs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/normal_antitarget.log"
         shell:
             """
                 cnvkit.py reference {input.control_target} {input.control_antitarget} --fasta {params.fasta} -o {output.pon} {params.male_reference} &> {log.stdout}
@@ -265,19 +243,16 @@ if CFG["options"]["new_normals"] == True:
 
 rule _cnvkit_fix:
     input:
-        targetcov = CFG["dirs"]["coverage"]  + "target/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.targetcoverage.cnn",
-        antitargetcov = CFG["dirs"]["coverage"]  + "antitarget/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.antitargetcoverage.cnn",
-        pon_reference = CFG["dirs"]["coverage"]  + "normal/{seq_type}--{genome_build}{masked}/{capture_space}/normal_reference.cnn"
+        targetcov = CFG["dirs"]["coverage"]  + "target/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.targetcoverage.cnn",
+        antitargetcov = CFG["dirs"]["coverage"]  + "antitarget/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.antitargetcoverage.cnn",
+        pon_reference = CFG["dirs"]["coverage"]  + "normal/{seq_type}--{genome_build}/{capture_space}/normal_reference.cnn"
     output:
-        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.cnr"
+        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr"
     conda: CFG["conda_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["fix"]
-    wildcard_constraints:
-        masked = ".{0}|_masked",
-        genome_build = ".+(?<!masked)"
     log:
-        stdout = CFG["logs"]["fix"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.log"
+        stdout = CFG["logs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.log"
     shell:
         """
             cnvkit.py fix {input.targetcov} {input.antitargetcov} {input.pon_reference} -o {output.cnr} &> {log.stdout}
@@ -285,20 +260,17 @@ rule _cnvkit_fix:
 
 rule _cnvkit_segment:
     input:
-        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.cnr"
+        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr"
     output:
-        cns = CFG["dirs"]["cns"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.cns"
+        cns = CFG["dirs"]["cns"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cns"
     params:
         method = CFG["options"]["cns"]["method"]
     conda: CFG["conda_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["cns"]
     threads: CFG["threads"]["cns"]
-    wildcard_constraints:
-        masked = ".{0}|_masked",
-        genome_build = ".+(?<!masked)"
     log: 
-        stdout = CFG["logs"]["cns"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.segment.log"
+        stdout = CFG["logs"]["cns"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.segment.log"
     shell:
         """
             cnvkit.py segment {input.cnr} -o {output.cns} -p {threads} --drop-low-coverage -m {params.method} &> {log.stdout}
@@ -343,11 +315,11 @@ def _cnvkit_get_chr_mpileups_tbi(wildcards):
 rule _cnvkit_mpileup_per_chrom:
     input:
         bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}.bam",
-        fastaFile = reference_files("genomes/{genome_build}{masked}/genome_fasta/genome.fa"),
+        fastaFile = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         bed = str(rules._cnvkit_dbsnp_to_bed.output.bed)
     output: # creates a temporary file for mpileup
-        vcf = temp(CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}{masked}/{capture_space}/{sample_id}.{chrom}.vcf.gz"),
-        tbi = temp(CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}{masked}/{capture_space}/{sample_id}.{chrom}.vcf.gz.tbi")
+        vcf = temp(CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{sample_id}.{chrom}.vcf.gz"),
+        tbi = temp(CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{sample_id}.{chrom}.vcf.gz.tbi")
     params:
         quality = CFG["options"]["SNPs"]["quality"],
         opts = CFG["options"]["SNPs"]["opts"]
@@ -356,11 +328,8 @@ rule _cnvkit_mpileup_per_chrom:
     resources: 
         **CFG["resources"]["SNPs"]
     group: "cnvkit"
-    wildcard_constraints:
-        masked = ".{0}|_masked",
-        genome_build = ".+(?<!masked)"
     log:
-        stderr = CFG["logs"]["SNPs"] + "{capture_space}/{seq_type}--{genome_build}{masked}/{sample_id}/{chrom}.vcf.stderr.log",
+        stderr = CFG["logs"]["SNPs"] + "{capture_space}/{seq_type}--{genome_build}/{sample_id}/{chrom}.vcf.stderr.log",
     shell:
         """
             bcftools mpileup -T {input.bed} -r {wildcards.chrom} -f {input.fastaFile} -Q {params.quality} {params.opts} -Ou {input.bam} | bcftools call -mv -Oz -o {output.vcf} 2> {log.stderr} && 
@@ -373,16 +342,13 @@ rule _cnvkit_concatenate_vcf:
         vcf = _cnvkit_get_chr_mpileups,
         tbi = _cnvkit_get_chr_mpileups_tbi,
     output: 
-        vcf = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}{masked}/{capture_space}/{sample_id}.vcf.gz",
-        tbi = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}{masked}/{capture_space}/{sample_id}.vcf.gz.tbi"
+        vcf = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{sample_id}.vcf.gz",
+        tbi = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{sample_id}.vcf.gz.tbi"
     resources: 
         **CFG["resources"]["SNPs"]
     group: "cnvkit"
     conda:
         CFG["conda_envs"]["bcftools"]
-    wildcard_constraints:
-        masked = ".{0}|_masked",
-        genome_build = ".+(?<!masked)"
     shell: 
         """
             bcftools concat {input.vcf} -Oz -o {output.vcf} && 
@@ -397,20 +363,17 @@ rule _cnvkit_concatenate_vcf:
 # Note that the t-test is not used in filtration step, but the ci is
 rule _cnvkit_segmetrics_ttest:
     input:
-        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.cnr",
-        cns = CFG["dirs"]["cns"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.cns"
+        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr",
+        cns = CFG["dirs"]["cns"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cns"
     output:
-        cns = temp(CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.raw.cns")
+        cns = temp(CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.raw.cns")
     params:
         add_col = CFG["options"]["segmetrics"]["add_col"]
     log:
-        stdout = CFG["logs"]["BAF"] + "segmetrics/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_segmetrics.log"
+        stdout = CFG["logs"]["BAF"] + "segmetrics/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_segmetrics.log"
     conda: CFG["conda_envs"]["cnvkit"]
     resources: 
         **CFG["resources"]["call"]
-    wildcard_constraints:
-        masked = ".{0}|_masked",
-        genome_build = ".+(?<!masked)"
     group: "call_cns"
     shell:
         """
@@ -420,11 +383,11 @@ rule _cnvkit_segmetrics_ttest:
 
 rule _run_cnvkit_call_vcf:
     input:        
-        cns = CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.raw.cns",
-        vcf = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.vcf.gz",
-        tbi = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.vcf.gz.tbi"
+        cns = CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.raw.cns",
+        vcf = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.gz",
+        tbi = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.gz.tbi"
     output: 
-        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns"
+        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns"
     params:
         rescale = CFG["options"]["BAF"]["rescale"],
         min_depth = CFG["options"]["BAF"]["min_depth"],
@@ -432,15 +395,12 @@ rule _run_cnvkit_call_vcf:
         male_ref = CFG["options"]["male_ref"],
         opts = CFG["options"]["BAF"]["opts"]
     log: 
-        CFG["logs"]["BAF"] + "call/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_call.log"
+        CFG["logs"]["BAF"] + "call/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_call.log"
     group: "cnvkit"
     conda: 
         CFG["conda_envs"]["cnvkit"]
     resources: 
         **CFG["resources"]["call"]
-    wildcard_constraints:
-        masked = ".{0}|_masked",
-        genome_build = ".+(?<!masked)"
     shell:
         """
             cnvkit.py call {input.cns} --output {output.cns} -v {input.vcf} --min-variant-depth {params.min_depth} -m {params.rescale} --filter {params.filter_by} {params.male_ref} {params.opts} &> {log}
@@ -450,12 +410,12 @@ rule _run_cnvkit_call_vcf:
 # plot a scatter plot of amps and dels, also BAF
 rule _run_cnvkit_scatter:
     input:
-        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.cnr",
-        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns", 
-        vcf = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.vcf.gz",
-        tbi = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.vcf.gz.tbi"
+        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr",
+        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns", 
+        vcf = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.gz",
+        tbi = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.gz.tbi"
     output: 
-        png = CFG["dirs"]["plots"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_scatter.png"
+        png = CFG["dirs"]["plots"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_scatter.png"
     params:
         min_depth = CFG["options"]["scatter"]["min_depth"],
         ymax = CFG["options"]["scatter"]["ymax"],
@@ -463,13 +423,10 @@ rule _run_cnvkit_scatter:
     conda: 
         CFG["conda_envs"]["cnvkit"]
     group: "cnvkit"
-    wildcard_constraints:
-        masked = ".{0}|_masked",
-        genome_build = ".+(?<!masked)"
     resources:
         **CFG["resources"]["plots"]
     log:
-        stdout = CFG["logs"]["plots"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_scatter.log"
+        stdout = CFG["logs"]["plots"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_scatter.log"
     shell:
         "cnvkit.py scatter {input.cnr} -s {input.cns} --output {output.png} -v {input.vcf} --min-variant-depth {params.min_depth} --y-max {params.ymax} --y-min {params.ymin} &> {log.stdout} "
 
@@ -477,23 +434,20 @@ rule _run_cnvkit_scatter:
 # plot chromosome diagrams highlighting these amps/dels and also key genes that are located in these CNVs
 rule _run_cnvkit_diagram:
     input:
-        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.cnr",
-        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns", 
+        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr",
+        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns", 
     output:  # only pdf works
-        pdf = CFG["dirs"]["plots"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_diagram.pdf"
+        pdf = CFG["dirs"]["plots"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_diagram.pdf"
     params:
         threshold = CFG["options"]["diagram"]["threshold"], # to only label genes in high level amps and dels
         male_ref = CFG["options"]["male_ref"]
     conda: 
         CFG["conda_envs"]["cnvkit"]
     group: "cnvkit"
-    wildcard_constraints:
-        masked = ".{0}|_masked",
-        genome_build = ".+(?<!masked)"
     resources:
         **CFG["resources"]["plots"]
     log:
-        stdout = CFG["logs"]["plots"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_diagram.log"
+        stdout = CFG["logs"]["plots"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_diagram.log"
     shell:
         "cnvkit.py diagram {input.cnr} -s {input.cns} --output {output.pdf} -t {params.threshold} {params.male_ref} &> {log.stdout} "
 
@@ -501,16 +455,16 @@ rule _run_cnvkit_diagram:
 # find potential breakpoints across the CNVs or regions with large CN signal inconsistencies
 rule _cnvkit_breaks:
     input:
-        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.cnr",
-        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns", 
+        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr",
+        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns", 
     output:
-        breaks = CFG["dirs"]["breaks"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.genebreaks.txt"
+        breaks = CFG["dirs"]["breaks"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.genebreaks.txt"
     conda: 
         CFG["conda_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["breaks"]
     log:
-        stderr = CFG["logs"]["breaks"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_breaks.log"
+        stderr = CFG["logs"]["breaks"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_breaks.log"
     shell:
         """
             cnvkit.py breaks {input.cnr} {input.cns} > {output.breaks} 2> {log.stderr}
@@ -521,10 +475,10 @@ rule _cnvkit_breaks:
 # without cns as input, the gene's weighted bin counts are used instead
 rule _cnvkit_genemetrics_seg:
     input:
-        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.cnr",
-        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns", 
+        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr",
+        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns", 
     output:
-        genemetrics = CFG["dirs"]["geneMetrics"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}/segment.gene_cn.txt"
+        genemetrics = CFG["dirs"]["geneMetrics"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/segment.gene_cn.txt"
     params:
         threshold = CFG["options"]["geneMetrics"]["threshold"],
         min_segments = CFG["options"]["geneMetrics"]["min_segments"], # to remove false positives that cover a small number of bins
@@ -539,9 +493,9 @@ rule _cnvkit_genemetrics_seg:
 
 rule _cnvkit_genemetrics:
     input:
-        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.cnr",
+        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr",
     output:
-        genemetrics = CFG["dirs"]["geneMetrics"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}/bin.gene_cn.txt"
+        genemetrics = CFG["dirs"]["geneMetrics"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/bin.gene_cn.txt"
     params:
         threshold = CFG["options"]["geneMetrics"]["threshold"],
         min_segments = CFG["options"]["geneMetrics"]["min_segments"], # to remove false positives that cover a small number of bins
@@ -558,10 +512,10 @@ rule _cnvkit_genemetrics:
 # can take the intersection of the two methods to filter for a list of genes that confidently have CN change
 rule _cnvkit_trusted_genes_cna:
     input:
-        segGene = CFG["dirs"]["geneMetrics"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}/segment.gene_cn.txt",
-        binGene = CFG["dirs"]["geneMetrics"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}/bin.gene_cn.txt"
+        segGene = CFG["dirs"]["geneMetrics"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/segment.gene_cn.txt",
+        binGene = CFG["dirs"]["geneMetrics"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/bin.gene_cn.txt"
     output:
-        trusted_genes = CFG["dirs"]["geneMetrics"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}/trusted_genes.txt"
+        trusted_genes = CFG["dirs"]["geneMetrics"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/trusted_genes.txt"
     shell:
         """
             comm -12 <(tail -n+2 {input.segGene} | cut -f1 | sort ) <(tail -n+2 {input.binGene} | cut -f1 | sort ) > {output.trusted_genes}
@@ -570,13 +524,13 @@ rule _cnvkit_trusted_genes_cna:
 
 rule _cnvkit_infer_sex:
     input:
-        targetcov = CFG["dirs"]["coverage"] + "target/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.targetcoverage.cnn",
-        antitargetcov = CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.antitargetcoverage.cnn",
-        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.cnr",
-        cns = CFG["dirs"]["cns"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.cns",
-        call =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns"
+        targetcov = CFG["dirs"]["coverage"] + "target/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.targetcoverage.cnn",
+        antitargetcov = CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.antitargetcoverage.cnn",
+        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr",
+        cns = CFG["dirs"]["cns"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cns",
+        call =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns"
     output:
-        sex = CFG["dirs"]["geneMetrics"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}/inferred_sex.txt"
+        sex = CFG["dirs"]["geneMetrics"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/inferred_sex.txt"
     params:
         male_ref = CFG["options"]["male_ref"]
     conda: CFG["conda_envs"]["cnvkit"]
@@ -592,16 +546,13 @@ rule _cnvkit_to_seg:
     input:
         cns = str(rules._run_cnvkit_call_vcf.output.cns),
     output:
-        seg = CFG["dirs"]["seg"] + "{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.seg"
+        seg = CFG["dirs"]["seg"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.seg"
     conda:
         CFG["conda_envs"]["cnvkit"]
     threads:
         CFG["threads"]["seg"]
     resources:
         **CFG["resources"]["seg"]
-    wildcard_constraints:
-        masked = ".{0}|_masked",
-        genome_build = ".+(?<!masked)"
     shell:
         """cnvkit.py export seg {input.cns} -o {output.seg} """
 
@@ -618,17 +569,14 @@ rule _cnvkit_output:
         sex = str(rules._cnvkit_infer_sex.output.sex),
         seg = str(rules._cnvkit_to_seg.output.seg)
     output:
-        call_cns = CFG["dirs"]["outputs"] + "wildcard_capture/BAF_cns/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns",
-        scatter = CFG["dirs"]["outputs"] + "wildcard_capture/scatter/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_scatter.png",
-        diagram = CFG["dirs"]["outputs"] + "wildcard_capture/diagram/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_diagram.pdf",
-        breaks = CFG["dirs"]["outputs"] + "wildcard_capture/breaks/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_genebreaks.txt",
-        gene_seg = CFG["dirs"]["outputs"] + "wildcard_capture/geneMetrics/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_geneSeg.txt",
-        geneList = CFG["dirs"]["outputs"] + "wildcard_capture/geneList/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_genebreaks.txt",
-        sex = CFG["dirs"]["outputs"] + "wildcard_capture/sex/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_genebreaks.txt",
-        seg = CFG["dirs"]["outputs"] + "wildcard_capture/seg/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.seg"
-    wildcard_constraints:
-        masked = ".{0}|_masked",
-        genome_build = ".+(?<!masked)"
+        call_cns = CFG["dirs"]["outputs"] + "wildcard_capture/BAF_cns/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns",
+        scatter = CFG["dirs"]["outputs"] + "wildcard_capture/scatter/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_scatter.png",
+        diagram = CFG["dirs"]["outputs"] + "wildcard_capture/diagram/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_diagram.pdf",
+        breaks = CFG["dirs"]["outputs"] + "wildcard_capture/breaks/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_genebreaks.txt",
+        gene_seg = CFG["dirs"]["outputs"] + "wildcard_capture/geneMetrics/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_geneSeg.txt",
+        geneList = CFG["dirs"]["outputs"] + "wildcard_capture/geneList/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_genebreaks.txt",
+        sex = CFG["dirs"]["outputs"] + "wildcard_capture/sex/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_genebreaks.txt",
+        seg = CFG["dirs"]["outputs"] + "wildcard_capture/seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.seg"
     run:
         op.relative_symlink(input.call_cns, output.call_cns, in_module = True)
         op.relative_symlink(input.scatter, output.scatter, in_module = True)
@@ -652,26 +600,23 @@ rule _cnvkit_output_no_capture_space:
         sex = str(rules._cnvkit_infer_sex.output.sex),
         seg = str(rules._cnvkit_to_seg.output.seg)
     output:
-        call_cns = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/BAF_cns/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.call.cns"),
-        scatter = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/scatter/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_scatter.png"),
-        diagram = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/diagram/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_diagram.pdf"),
-        breaks = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/breaks/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_genebreaks.txt"),
-        gene_seg = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/geneMetrics/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_geneSeg.txt"),
-        geneList = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/geneList/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_genebreaks.txt"),
-        sex = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/sex/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}_genebreaks.txt"),
-        seg = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/seg/{seq_type}--{genome_build}{masked}/{capture_space}/{tumour_id}.seg")
+        call_cns = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/BAF_cns/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns"),
+        scatter = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/scatter/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_scatter.png"),
+        diagram = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/diagram/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_diagram.pdf"),
+        breaks = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/breaks/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_genebreaks.txt"),
+        gene_seg = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/geneMetrics/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_geneSeg.txt"),
+        geneList = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/geneList/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_genebreaks.txt"),
+        sex = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/sex/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_genebreaks.txt"),
+        seg = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.seg")
     params:
-        call_cns = CFG["dirs"]["outputs"] + "no_wildcard_capture/BAF_cns/{seq_type}--{genome_build}{masked}/{tumour_id}.call.cns",
-        scatter = CFG["dirs"]["outputs"] + "no_wildcard_capture/scatter/{seq_type}--{genome_build}{masked}/{tumour_id}_scatter.png",
-        diagram = CFG["dirs"]["outputs"] + "no_wildcard_capture/diagram/{seq_type}--{genome_build}{masked}/{tumour_id}_diagram.pdf",
-        breaks = CFG["dirs"]["outputs"] + "no_wildcard_capture/breaks/{seq_type}--{genome_build}{masked}/{tumour_id}_genebreaks.txt",
-        gene_seg = CFG["dirs"]["outputs"] + "no_wildcard_capture/geneMetrics/{seq_type}--{genome_build}{masked}/{tumour_id}_geneSeg.txt",
-        geneList = CFG["dirs"]["outputs"] + "no_wildcard_capture/geneList/{seq_type}--{genome_build}{masked}/{tumour_id}_genebreaks.txt",
-        sex = CFG["dirs"]["outputs"] + "no_wildcard_capture/sex/{seq_type}--{genome_build}{masked}/{tumour_id}_genebreaks.txt",
-        seg = CFG["dirs"]["outputs"] + "no_wildcard_capture/seg/{seq_type}--{genome_build}{masked}/{tumour_id}.seg"
-    wildcard_constraints:
-        masked = ".{0}|_masked",
-        genome_build = ".+(?<!masked)"
+        call_cns = CFG["dirs"]["outputs"] + "no_wildcard_capture/BAF_cns/{seq_type}--{genome_build}/{tumour_id}.call.cns",
+        scatter = CFG["dirs"]["outputs"] + "no_wildcard_capture/scatter/{seq_type}--{genome_build}/{tumour_id}_scatter.png",
+        diagram = CFG["dirs"]["outputs"] + "no_wildcard_capture/diagram/{seq_type}--{genome_build}/{tumour_id}_diagram.pdf",
+        breaks = CFG["dirs"]["outputs"] + "no_wildcard_capture/breaks/{seq_type}--{genome_build}/{tumour_id}_genebreaks.txt",
+        gene_seg = CFG["dirs"]["outputs"] + "no_wildcard_capture/geneMetrics/{seq_type}--{genome_build}/{tumour_id}_geneSeg.txt",
+        geneList = CFG["dirs"]["outputs"] + "no_wildcard_capture/geneList/{seq_type}--{genome_build}/{tumour_id}_genebreaks.txt",
+        sex = CFG["dirs"]["outputs"] + "no_wildcard_capture/sex/{seq_type}--{genome_build}/{tumour_id}_genebreaks.txt",
+        seg = CFG["dirs"]["outputs"] + "no_wildcard_capture/seg/{seq_type}--{genome_build}/{tumour_id}.seg"
     run:
         op.relative_symlink(input.call_cns, params.call_cns, in_module = True)
         op.relative_symlink(input.scatter, params.scatter, in_module = True)
@@ -712,7 +657,6 @@ rule _cnvkit_all:
             normal_id=CFG["runs"]["normal_sample_id"],
             pair_status=CFG["runs"]["pair_status"],
             capture_space=CFG["runs"]["tumour_capture_space"],
-            masked=CFG["runs"]["masked"],
         )
 
 

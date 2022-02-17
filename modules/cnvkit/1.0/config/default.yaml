@@ -12,8 +12,6 @@ lcr-modules:
 
 
         options:
-            # Do you want to use a hard-masked reference fasta? This may improve FFPE sample calls
-            hard_masked: True
 
             # Do you have new normals that you want to roll into your analyses? If not, then use the previously generated normal panel
             new_normals: True
