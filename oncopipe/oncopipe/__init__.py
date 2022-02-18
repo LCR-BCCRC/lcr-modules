@@ -9,6 +9,7 @@ import subprocess
 import collections.abc
 from datetime import datetime
 from collections import defaultdict, namedtuple
+from .__version__ import __version__
 
 import yaml
 import pandas as pd
@@ -1221,11 +1222,15 @@ def generate_runs(
     # Generate Sample instances for unmatched normal samples from sample IDs
     Sample = namedtuple("Sample", samples.columns.tolist())
     sample_genome_builds = samples["genome_build"].unique()
+    sample_seq_type = samples[["seq_type","genome_build"]].drop_duplicates()
+    pairing_config = { seq_type: pairing_config[seq_type] for seq_type in sample_seq_type["seq_type"].tolist() }
+
     for seq_type, args_dict in pairing_config.items():
         if (
             "run_unpaired_tumours_with" in args_dict
             and args_dict["run_unpaired_tumours_with"] == "unmatched_normal"
             and unmatched_normal_ids is not None
+
         ):
             unmatched_normals = dict()
             for key, normal_id in unmatched_normal_ids.items():
@@ -1239,11 +1244,26 @@ def generate_runs(
                     (samples.sample_id == normal_id) & (samples.seq_type == seq_type)
                 ]
                 num_matches = len(normal_row)
-                assert num_matches == 1, (
+
+                if (
+                    num_matches == 0
+                ):
+                    print(
                     f"There are {num_matches} {seq_type} samples matching "
-                    f"the normal ID {normal_id} (instead of just one)."
-                )
-                unmatched_normals[key] = Sample(*normal_row.squeeze())
+                    f"the normal ID {normal_id}. Make sure the default unmatched normal for {key} specified in "
+                    f"config[‘unmatched_normal_ids’] is not excluded from the samples table"
+                    )
+                    quit()
+                elif num_matches == 1:
+                    unmatched_normals[key] = Sample(*normal_row.squeeze())
+                elif num_matches > 1:
+                    print(
+                    f"There are {num_matches} {seq_type} samples matching "
+                    f"the normal ID {normal_id}. This means there are {num_matches} normal samples for {key} in "
+                    f"the samples table and it is not desired. Please ensure all sample_id, seq_type, "
+                    f"and genome_build combinations are unique."
+                    )
+                    quit()
             args_dict["unmatched_normals"] = unmatched_normals
         elif (
             "run_unpaired_tumours_with" in args_dict
@@ -1781,3 +1801,56 @@ def cleanup_module(module_config):
     # Add back the TSV fields
     for field in tsv_fields.keys():
         module_config[field] = tsv_fields[field]
+
+
+# Kostia functions
+def get_capture_space(module_config, sample_id, genome_build, seq_type, return_ext):
+    """Returns path to the file with capspace to be used for  genome build.
+
+    Parameters
+    ----------
+    module_config : dict
+        The module-specific configuration.
+    sample_id : str
+        The id for a specific sample for which capture space should be returned.
+        Allows for both normal and tumour id.
+    genome_build : str
+        The specific genome build for which to return capture space.
+        Allows to unambiguously handle samples aligned to different genome versions.
+    seq_type : str
+        The soecific seq type for which to return capture space.
+    return_ext : str
+        The extension of the capture space file to be returned (.bed, .vcf, .vcf.gz).
+
+    Returns
+    -------
+    str
+        The path to a file relative to the reference files parental directory.
+    """
+
+    # Convenient variable to access sample table
+    module_samples = module_config["samples"]
+
+    this_sample = module_samples.loc[(module_samples['sample_id'] == sample_id) &
+            (module_samples['genome_build'] == genome_build) &
+            (module_samples['seq_type'] == seq_type)]
+
+    if len(this_sample) != 1:
+        raise AssertionError("Found %s matches when examining the sample table for pair \'%s\' \'%s\' \'%s\'" % (len(sample), sample_id, genome_build, seq_type))
+
+    if "capture_space" in this_sample.columns:
+        panel = this_sample.iloc[0]['capture_space']
+    else:
+        panel = "none"
+
+    # If this panel is "none" (aka not specified) use the default for this reference genome
+    if panel.upper() in (name.upper() for name in ['none', "na", "n/a", ""]):
+        try:
+            if "38" in genome_build:
+                panel = "exome-utr-grch38"
+            else:
+                panel = "exome-utr-grch37"
+        except KeyError as e:
+            raise AttributeError("No default capture space was specified for genome version \'%s\'. You can specify a default by setting \'default=\'true\'\' in a \'%s\'-based capture space in the reference config" % (genome_version, genome_version)) from e
+    # Now that we have found the corresponding capture region for this sample, obtain the requested file
+    return "genomes/" + genome_build + "/capture_space/" + panel + ".padded." + return_ext

@@ -26,6 +26,7 @@ minimalSubclonePresence = minimumSubclonePresenceValue
 noisyData = booNoise
 printNA = naBoo
 ploidy = ploidyInput
+readCountThreshold = rcCountThresold
 #step = stepValue
 telocentromeric = teloValue
 uniqueMatch = uniqBoo
@@ -48,7 +49,6 @@ mateOrientation = FR
 
 [BAF]
 
-fastaFile = fastaPath
 shiftInQuality = phredQuality
 SNPfile = DBsnpFile
 minimalCoveragePerPosition = minCovPerPos

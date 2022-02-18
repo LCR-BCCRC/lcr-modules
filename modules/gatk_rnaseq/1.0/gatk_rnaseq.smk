@@ -60,10 +60,12 @@ rule _gatk_rnaseq_input_bam:
         bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai"
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
+        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai",
     run:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 
 rule _gatk_splitntrim:
@@ -71,7 +73,8 @@ rule _gatk_splitntrim:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        bam = temp(CFG["dirs"]["gatk_splitntrim"] +  "bam/{seq_type}--{genome_build}/{sample_id}.split_reassign_mq.bam")
+        bam = temp(CFG["dirs"]["gatk_splitntrim"] +  "bam/{seq_type}--{genome_build}/{sample_id}.split_reassign_mq.bam"),
+        bai = temp(CFG["dirs"]["gatk_splitntrim"] +  "bam/{seq_type}--{genome_build}/{sample_id}.split_reassign_mq.bai")
     log:
         stdout = CFG["logs"]["gatk_splitntrim"] + "{seq_type}--{genome_build}/{sample_id}.gatk_splitntrim.stdout.log",
         stderr = CFG["logs"]["gatk_splitntrim"] + "{seq_type}--{genome_build}/{sample_id}.gatk_splitntrim.stderr.log"
@@ -81,6 +84,8 @@ rule _gatk_splitntrim:
         gatk_opts = CFG["options"]["gatk_splitntrim"]
     conda:
         CFG["conda_envs"]["gatk_rnaseq"]
+    group: "split_bam"
+    priority: 50
     threads:
         CFG["threads"]["gatk_splitntrim"]
     resources:
@@ -94,9 +99,11 @@ rule _gatk_splitntrim:
 
 rule _gatk_addRG:
     input:
-        bam = str(rules._gatk_splitntrim.output)
+        bam = str(rules._gatk_splitntrim.output.bam),
+        bai = str(rules._gatk_splitntrim.output.bai)
     output:
-        bam = temp(CFG["dirs"]["gatk_splitntrim"] + "bam_withRG/{seq_type}--{genome_build}/{sample_id}.withRG.bam")
+        bam = temp(CFG["dirs"]["gatk_splitntrim"] + "bam_withRG/{seq_type}--{genome_build}/{sample_id}.withRG.bam"),
+        bai = temp(CFG["dirs"]["gatk_splitntrim"] + "bam_withRG/{seq_type}--{genome_build}/{sample_id}.withRG.bam.bai")
     params:
         sampleName = "{sample_id}",
         platform = CFG["options"]["gatk_addRG"]["platform"],
@@ -104,6 +111,8 @@ rule _gatk_addRG:
         stringency = CFG["options"]["gatk_addRG"]["stringency"]
     conda:
         CFG["conda_envs"]["picard"]
+    group: "split_bam"
+    priority: 40
     log:
         stdout = CFG["logs"]["gatk_splitntrim"] + "bam_withRG/{seq_type}--{genome_build}/{sample_id}.addRG.stdout.log"
     threads:
@@ -118,7 +127,7 @@ rule _gatk_addRG:
 
 rule _gatk_base_recalibration:
     input:
-        bam = str(rules._gatk_addRG.output),
+        bam = str(rules._gatk_addRG.output.bam),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         table = CFG["dirs"]["base_recal_report"] + "{seq_type}--{genome_build}/{sample_id}.recalibration_report.grp"
@@ -133,6 +142,8 @@ rule _gatk_base_recalibration:
         gatk_opts = CFG["options"]["gatk_baserecalibrator"]
     conda:
         CFG["conda_envs"]["gatk_rnaseq"]
+    group: "split_bam"
+    priority: 30
     threads: CFG["threads"]["gatk_base_recalibration"]
     resources:
         **CFG["resources"]["gatk_base_recalibration"]
@@ -145,6 +156,7 @@ rule _gatk_base_recalibration:
 rule _gatk_applybqsr:
     input:
         bam = str(rules._gatk_addRG.output.bam),
+        bai = str(rules._gatk_addRG.output.bai),
         table = str(rules._gatk_base_recalibration.output.table),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
@@ -159,6 +171,8 @@ rule _gatk_applybqsr:
         gatk_opts = CFG["options"]["gatk_applybqsr"]
     conda:
         CFG["conda_envs"]["gatk_rnaseq"]
+    group: "split_bam"
+    priority: 20
     threads: CFG["threads"]["gatk_applybqsr"]
     resources:
         **CFG["resources"]["gatk_applybqsr"]
@@ -188,6 +202,7 @@ rule _gatk_variant_calling:
         gatk_opts = CFG["options"]["gatk_variant_calling"]["gatk_opts"]
     conda:
         CFG["conda_envs"]["gatk_rnaseq"]
+    group: "split_bam"
     threads: CFG["threads"]["gatk_variant_calling"]
     resources:
         **CFG["resources"]["gatk_variant_calling"]

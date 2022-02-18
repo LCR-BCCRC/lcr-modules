@@ -44,7 +44,7 @@ CFG = op.setup_module(
 )
 
 #set variable for prepending to PATH based on config
-SCRIPT_PATH = CFG['inputs']['src_dir']
+BATTENBERG_SCRIPT_PATH = CFG['inputs']['src_dir']
 #this is used in place of the shell.prefix() because that was not working consistently. This is not ideal. 
 
 #this preserves the variable when using lambda functions
@@ -54,7 +54,7 @@ _battenberg_CFG = CFG
 localrules:
     _battenberg_all
 
-VERSION_MAP = {
+BATTENBERG_VERSION_MAP = {
     "hg19": "grch37",
     "grch37": "grch37",
     "hs37d5": "grch37",
@@ -77,10 +77,10 @@ rule _battenberg_get_reference:
         genomesloci = directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_1000genomesloci2012_v3")
     params:
         url = "https://www.bcgsc.ca/downloads/morinlab/reference",
-        alt_build = lambda w: VERSION_MAP[w.genome_build],
+        alt_build = lambda w: BATTENBERG_VERSION_MAP[w.genome_build],
         folder = CFG["dirs"]["inputs"] + "reference/{genome_build}",
         build = "{genome_build}",
-        PATH = CFG['inputs']['src_dir']
+        battenberg_path = CFG['inputs']['src_dir']
     resources:
         **CFG["resources"]["reference"]
     threads:
@@ -98,7 +98,7 @@ rule _battenberg_get_reference:
         &&
         wget -O {output.impute_info} {params.url}/impute_info_{params.alt_build}.txt
         &&
-        python {params.PATH}/reference_correction.py {params.build}
+        python {params.battenberg_path}/reference_correction.py {params.build} $(dirname $(readlink -f {output.impute_info}))
         &&
         wget -qO-  {params.url}/battenberg_{params.alt_build}_replic_correction.tar.gz |
         tar -xvz > {output.battenberg_wgs_replic_correction} -C {params.folder}
@@ -155,7 +155,7 @@ rule _infer_patient_sex:
     threads: 8
     shell:
         op.as_one_line(""" 
-        PATH={SCRIPT_PATH}:$PATH; 
+        PATH={BATTENBERG_SCRIPT_PATH}:$PATH;
         echo "running {rule} for {wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr} ;
         calc_sex_status.sh {input.normal_bam} {input.fasta} {wildcards.normal_id} > {output.sex_result} 2>> {log.stderr} &&
         echo "DONE running {rule} for {wildcards.normal_id} on $(hostname) at $(date)" >> {log.stderr} 
@@ -171,7 +171,7 @@ rule _run_battenberg:
         installed = CFG["dirs"]["inputs"] + "battenberg_dependencies_installed.success",
         sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        impute_info = CFG["dirs"]["inputs"] + "reference/{genome_build}/impute_info.txt"
+        impute_info = str(rules._battenberg_get_reference.output.impute_info)
 
     output:
         refit=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_refit_suggestion.txt",
@@ -205,7 +205,7 @@ rule _run_battenberg:
         sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
         echo "setting sex as $sex";
         Rscript {params.script} -t {wildcards.tumour_id} 
-        -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta} --reference {params.ref}
+        -n {wildcards.normal_id} --tb $(readlink -f {input.tumour_bam}) --nb $(readlink -f {input.normal_bam}) -f {input.fasta} --reference $(readlink -f {params.ref})
         -o {params.out_dir} --chr_prefixed_genome $chr_prefixed --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" >> {log.stdout}; 
         """)
