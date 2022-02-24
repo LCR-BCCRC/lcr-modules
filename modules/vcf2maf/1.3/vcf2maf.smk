@@ -15,30 +15,54 @@ import sys, os
 from os.path import join
 
 import oncopipe as op
+import pandas as pd
 
 # Setup module and store module-specific configuration in `CONFIG`
 CFG = op.setup_module(
     name = "vcf2maf",
     version = "1.3",
-    subdirectories = ["inputs","decompressed","vcf2maf","crossmap","outputs"]
+    subdirectories = ["inputs","decompressed","vcf2maf","crossmap", "normalize", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
 localrules:
     _vcf2maf_input_vcf,
     _vcf2maf_gnomad_filter_maf,
-    _vcf2maf_output_maf,
+    _vcf2maf_output_maf_native,
+    _vcf2maf_output_maf_projection,
     _vcf2maf_crossmap,
     _vcf2maf_all
 
-VCF2MAF_GENOME_VERSION_MAP = {
-    "grch37": "GRCh37",
-    "hg38": "GRCh38",
-    "hs37d5": "GRCh37"
-}
-
 #set variable for prepending to PATH based on config
 VCF2MAF_SCRIPT_PATH = CFG['inputs']['src_dir']
+
+# This is going to be annoying, but to normalize prefixes, we need to determine
+# 1) Which iteration of the genome build something is (i.e. GRch37 or GRCh38)
+# 2) If a genome build is chr-prefixed or not
+# To determine this, lets load the reference config and re-parse it
+VCF2MAF_REFERENCE_CONFIG = CFG["options"]["reference_config"]  # TEMP, remove later
+configfile: VCF2MAF_REFERENCE_CONFIG
+# Store all the attributes we will need
+VCF2MAF_GENOME_VERSION = {}  # Will be a simple {"GRCh38-SFU": "grch38"} etc.
+VCF2MAF_GENOME_PREFIX = {}  # Will be a simple hash of {"GRCh38-SFU": True} if chr-prefixed
+VCF2MAF_VERSION_MAP = {}
+
+for genome_build, attributes in config['genome_builds'].items():
+    try:
+        genome_version = attributes["version"]
+    except KeyError as e:  
+        # This wasn't included in the reference entry for this genome build
+        # This should never happen, as the reference workflow checks for this,
+        # but ¯\_(ツ)_/¯
+        raise AttributeError(f"Unable to determine the \"version\" of genome {genome_version} in reference config {VCF2MAF_REFERENCE_CONFIG}") from e
+    try:
+        genome_provider = attributes["provider"]
+    except KeyError as e:
+        raise AttributeError(f"Unable to determine the \"provider\" of genome {genome_version} in reference config {VCF2MAF_REFERENCE_CONFIG}") from e
+
+    VCF2MAF_GENOME_VERSION[genome_build] = genome_version  # What is the parent genome build?
+    VCF2MAF_GENOME_PREFIX[genome_build] = True if genome_provider == "ucsc" else False  # Is this chr-prefixed?
+    VCF2MAF_VERSION_MAP[genome_build] = genome_version.replace("grch", "GRCh")  # Genome build for vcf2maf
 
 ##### RULES #####
 
@@ -83,8 +107,8 @@ rule _vcf2maf_run:
         stderr = CFG["logs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_vcf2maf.stderr.log",
     params:
         opts = CFG["options"]["vcf2maf"],
-        build = lambda w: VCF2MAF_GENOME_VERSION_MAP[w.genome_build],
-        custom_enst = op.switch_on_wildcard("genome_build", CFG["switches"]["custom_enst"])
+        build = lambda w: VCF2MAF_VERSION_MAP[w.genome_build],
+        custom_enst = lambda w: config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.genome_build]]
     conda:
         CFG["conda_envs"]["vcf2maf"]
     threads:
@@ -115,7 +139,7 @@ rule _vcf2maf_run:
             --custom-enst {params.custom_enst}
             --retain-info gnomADg_AF
             >> {log.stdout} 2>> {log.stderr};
-        else echo "WARNING: PATH is not set properly, using $(which vcf2maf.pl) will result in error during execution. Please ensure $VCF2MAF_SCRIPT exists." > {log.stderr};fi  &&
+        else echo "WARNING: PATH is not set properly, using $(which vcf2maf.pl) will result in error during execution. Please ensure $VCF2MAF_SCRIPT exists." > {log.stderr};fi &&
         touch {output.vep}
         """)
 
@@ -137,66 +161,162 @@ rule _vcf2maf_gnomad_filter_maf:
         touch {output.dropped_maf}
         """)
 
-def get_chain(wildcards):
-    if "38" in str({wildcards.genome_build}):
-        return reference_files("genomes/{genome_build}/chains/grch38/hg38ToHg19.over.chain")
+def get_original_genome(wildcards):
+    # Determine the original (i.e. input) reference genome for this sample
+    # Since this module projects to various output genome builds, we need to parse the sample table for the starting build
+    # To determine what we need to do
+    runs_table = config['lcr-modules']["vcf2maf"]["runs"]
+    sample_entry = runs_table.loc[(runs_table["tumour_sample_id"] == wildcards.tumour_id) & (runs_table["normal_sample_id"] == wildcards.normal_id) & (runs_table["tumour_seq_type"] == wildcards.seq_type)]
+    if len(sample_entry) == 0:
+        raise AttributeError("Unable to locate a a sample with tumour_id:{wildcards.tumour_id}, normal_id:{wildcards.normal_id}, seq_type:{wildcards.seq_type} in the \'runs\' table")
+    original_genome_build = sample_entry.iloc[0]["tumour_genome_build"]
+    return original_genome_build
+
+def get_chain(genome_build):
+    # NOTE: This only currently supports hg38 and hg19. If you are using other genome builds, this will need to be handled
+    if VCF2MAF_GENOME_VERSION[genome_build] == "grch38":
+        return reference_files("genomes/" + genome_build + "/chains/grch38/hg38ToHg19.over.chain")
     else:
-        return reference_files("genomes/{genome_build}/chains/grch37/hg19ToHg38.over.chain")
+        return reference_files("genomes/" + genome_build +"/chains/grch37/hg19ToHg38.over.chain")
+
+
+def crossmap_input(wildcards):
+    original_genome_build = get_original_genome(wildcards)
+    return {"maf": expand(rules._vcf2maf_gnomad_filter_maf.output.maf, **wildcards, genome_build = original_genome_build),
+            "convert_coord": config['lcr-modules']["vcf2maf"]["inputs"]["convert_coord"],
+            "chains": get_chain(original_genome_build)}
 
 rule _vcf2maf_crossmap:
     input:
-        maf = rules._vcf2maf_gnomad_filter_maf.output.maf,
-        convert_coord = CFG["inputs"]["convert_coord"],
-        chains = get_chain
+        unpack(crossmap_input)
     output:
-        dispatched =  CFG["dirs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.converted"
+        maf = CFG["dirs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.maf"
     log:
-        stdout = CFG["logs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.crossmap.stdout.log",
-        stderr = CFG["logs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.crossmap.stderr.log"
+        stdout = CFG["logs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.crossmap.stdout.log",
+        stderr = CFG["logs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.crossmap.stderr.log"
     conda:
         CFG["conda_envs"]["crossmap"]
     threads:
         CFG["threads"]["vcf2maf"]
     resources:
         **CFG["resources"]["crossmap"]
-    params:
-        out_name = CFG["dirs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.converted_",
-        chain = lambda w: "hg38ToHg19" if "38" in str({w.genome_build}) else "hg19ToHg38",
-        file = ".maf"
+    wildcard_constraints:
+        target_build = "hg38|hg19"  # Crossmap only converts to chr-prefixed outputs, so these are what will be generated
     shell:
         op.as_one_line("""
         {input.convert_coord}
         {input.maf}
         {input.chains}
-        {params.out_name}{params.chain}{params.file}
+        {output.maf}
         crossmap
         > {log.stdout} 2> {log.stderr}
-        && touch {output.dispatched}
         """)
 
 
-rule _vcf2maf_output_maf:
+def get_normalize_input(wildcards, genome_build_only = False):
+    new_genome_build  = wildcards.target_build
+    # Since snakemake only knows what the TARGET genome build is, we need to find the source
+    original_genome_build = get_original_genome(wildcards)
+    original_genome_version = VCF2MAF_GENOME_VERSION[original_genome_build]
+    new_genome_version = VCF2MAF_GENOME_VERSION[new_genome_build]
+
+    # If using this function as an input function for snakemake
+    if not genome_build_only:
+        # Do we need to run CrossMap on this? Check the genome version
+        if original_genome_version != new_genome_version:
+            # Source does not match, get the converted MAF from CrossMap
+            wildcards.target_build = "hg38" if new_genome_version == "grch38" else "hg19"  # Since CrossMap only outputs to these types
+            return expand(rules._vcf2maf_crossmap.output.maf, **wildcards)
+        else:
+            # Source matches. CrossMap not necessary
+            return expand(rules._vcf2maf_gnomad_filter_maf.output.maf, **wildcards, genome_build = original_genome_build)
+    else:
+        # Just return the original genome build
+        if original_genome_version != new_genome_version:
+            return "hg38" if new_genome_version == "grch38" else "hg19"
+        else:
+            return original_genome_version
+
+# Add or remove chr prefix as necessary
+rule _vcf2maf_normalize_prefix:
     input:
-        maf = str(rules._vcf2maf_gnomad_filter_maf.output.maf),
-        maf_converted = str(rules._vcf2maf_crossmap.output.dispatched)
+        maf = get_normalize_input
     output:
-        maf = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_{base_name}.maf"
+        maf = CFG["dirs"]["normalize"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.maf"
     params:
-        chain = lambda w: "hg38ToHg19" if "38" in str({w.genome_build}) else "hg19ToHg38"
+        dest_chr = lambda w: VCF2MAF_GENOME_PREFIX[w.target_build]
+    wildcard_constraints:
+        target_build = "|".join(CFG["options"]["target_builds"])
+    run:
+        input.maf = input.maf[0]  # Because of the input function and expand(), the input is technically a list of length 1
+        maf_open = pd.read_csv(input.maf, sep = "\t")
+        # Update build column in the MAF
+        maf_open["NCBI_Build"] = wildcards.target_build
+        # To handle CrossMap weirdness, remove all chr-prefixes and add them back later
+        maf_open["Chromosome"] = maf_open["Chromosome"].astype(str).str.replace('chr', '')
+        if params.dest_chr:  # Will evaluate to True if the destination genome is chr-prefixed
+            # Add chr prefix
+            maf_open['Chromosome'] = 'chr' + maf_open['Chromosome'].astype(str)
+
+        maf_open.to_csv(output.maf, sep="\t", index=False)
+
+rule _vcf2maf_output_maf_projection:
+    input:
+        maf = str(rules._vcf2maf_normalize_prefix.output.maf),
+    output:
+        maf = CFG["dirs"]["outputs"] + "{seq_type}--{target_build}--projection/{tumour_id}--{normal_id}--{pair_status}_{base_name}.maf"
+    wildcard_constraints:
+        target_build = "|".join(CFG["options"]["target_builds"])
     run:
         op.relative_symlink(input.maf, output.maf)
-        op.relative_symlink((input.maf_converted+str("_")+str(params.chain)+str(".maf")), (output.maf[:-4]+str(".converted_")+str(params.chain)+str(".maf")))
+
+rule _vcf2maf_output_maf_native:
+    input:
+        maf = str(rules._vcf2maf_normalize_prefix.output.maf),
+    output:
+        maf = CFG["dirs"]["outputs"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}_{base_name}.maf"
+    wildcard_constraints:
+        target_build = "|".join(CFG["options"]["target_builds"])
+    run:
+        op.relative_symlink(input.maf, output.maf)
+
+
+def specify_output_folder(wildcards):
+    original_genome_build = get_original_genome(wildcards)
+    target_genome_build = wildcards.target_build
+    # Sanity check that this genome build is specified in the reference config provided
+    if not target_genome_build in VCF2MAF_GENOME_VERSION:
+        raise AttributeError(f"Target genome build {target_genome_build} is not specified in reference config {VCF2MAF_REFERENCE_CONFIG}")
+
+    # If this MAF was converted from a different genome build, specify a different output filter
+    if VCF2MAF_GENOME_VERSION[original_genome_build] != VCF2MAF_GENOME_VERSION[target_genome_build]:
+        return rules._vcf2maf_output_maf_projection.output.maf
+    else:
+        return rules._vcf2maf_output_maf_native.output.maf
+
+rule _vcf2maf_output_dispatch:
+    input:
+        maf = specify_output_folder
+    output:
+        dispatch = CFG["dirs"]["_parent"] + "dispatch/{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}_{base_name}.dispatch"
+    shell:
+        "touch {output.dispatch}"
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _vcf2maf_all:
     input:
-        expand(str(rules._vcf2maf_output_maf.output.maf), zip,
-            seq_type = CFG["runs"]["tumour_seq_type"],
-            genome_build = CFG["runs"]["tumour_genome_build"],
-            tumour_id = CFG["runs"]["tumour_sample_id"],
-            normal_id = CFG["runs"]["normal_sample_id"],
-            pair_status = CFG["runs"]["pair_status"],
-            base_name = [CFG["vcf_base_name"]] * len(CFG["runs"]["tumour_sample_id"]))
+        expand(
+            expand(str(rules._vcf2maf_output_dispatch.output.dispatch), zip,
+                seq_type = CFG["runs"]["tumour_seq_type"],
+                tumour_id = CFG["runs"]["tumour_sample_id"],
+                normal_id = CFG["runs"]["normal_sample_id"],
+                pair_status = CFG["runs"]["pair_status"],
+                base_name = [CFG["vcf_base_name"]] * len(CFG["runs"]["tumour_sample_id"]),
+                allow_missing = True),
+            target_build = CFG["options"]["target_builds"])
+        # Why are there two expand statements? Well we want every iteration of these MAFs for all the target genome builds
+        # But that is the only wildcard we want to expand to all iterations
+        # Hence the inner expand is using zip()
 
 ##### CLEANUP #####
 
