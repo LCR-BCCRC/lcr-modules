@@ -24,9 +24,8 @@ lcr-modules:
         # if no non-canonical transcript IDs to be included, leave switches empty
         switches:
             custom_enst:
-              hg38: ""
+              grch38: ""
               grch37: ""
-              hs37d5: ""
 
         conda_envs:
             vcf2maf: "{MODSDIR}/envs/vcf2maf-1.6.18.yaml"

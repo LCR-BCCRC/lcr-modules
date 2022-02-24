@@ -40,7 +40,7 @@ VCF2MAF_SCRIPT_PATH = CFG['inputs']['src_dir']
 # 1) Which iteration of the genome build something is (i.e. GRch37 or GRCh38)
 # 2) If a genome build is chr-prefixed or not
 # To determine this, lets load the reference config and re-parse it
-VCF2MAF_REFERENCE_CONFIG = CFG["options"]["reference_config"]  # TEMP, remove later
+VCF2MAF_REFERENCE_CONFIG = CFG["options"]["reference_config"]  # Reference config path
 configfile: VCF2MAF_REFERENCE_CONFIG
 # Store all the attributes we will need
 VCF2MAF_GENOME_VERSION = {}  # Will be a simple {"GRCh38-SFU": "grch38"} etc.
@@ -165,11 +165,12 @@ def get_original_genome(wildcards):
     # Determine the original (i.e. input) reference genome for this sample
     # Since this module projects to various output genome builds, we need to parse the sample table for the starting build
     # To determine what we need to do
-    runs_table = config['lcr-modules']["vcf2maf"]["runs"]
-    sample_entry = runs_table.loc[(runs_table["tumour_sample_id"] == wildcards.tumour_id) & (runs_table["normal_sample_id"] == wildcards.normal_id) & (runs_table["tumour_seq_type"] == wildcards.seq_type)]
+    print(config['lcr-modules']["vcf2maf"]["samples"].columns)
+    sample_table = config['lcr-modules']["vcf2maf"]["samples"]
+    sample_entry = sample_table.loc[(sample_table["sample_id"] == wildcards.tumour_id) & (sample_table["seq_type"] == wildcards.seq_type)]
     if len(sample_entry) == 0:
-        raise AttributeError("Unable to locate a a sample with tumour_id:{wildcards.tumour_id}, normal_id:{wildcards.normal_id}, seq_type:{wildcards.seq_type} in the \'runs\' table")
-    original_genome_build = sample_entry.iloc[0]["tumour_genome_build"]
+        raise AttributeError("Unable to locate a a sample with tumour_id:{wildcards.tumour_id}, normal_id:{wildcards.normal_id}, seq_type:{wildcards.seq_type} in the \'sample\' table")
+    original_genome_build = sample_entry.iloc[0]["genome_build"]
     return original_genome_build
 
 def get_chain(genome_build):
@@ -220,7 +221,7 @@ def get_normalize_input(wildcards, genome_build_only = False):
     original_genome_version = VCF2MAF_GENOME_VERSION[original_genome_build]
     new_genome_version = VCF2MAF_GENOME_VERSION[new_genome_build]
 
-    # If using this function as an input function for snakemake
+    # If using this as an input function for snakemake
     if not genome_build_only:
         # Do we need to run CrossMap on this? Check the genome version
         if original_genome_version != new_genome_version:
