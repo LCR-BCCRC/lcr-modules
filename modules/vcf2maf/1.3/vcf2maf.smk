@@ -28,8 +28,7 @@ CFG = op.setup_module(
 localrules:
     _vcf2maf_input_vcf,
     _vcf2maf_gnomad_filter_maf,
-    _vcf2maf_output_maf_native,
-    _vcf2maf_output_maf_projection,
+    _vcf2maf_output_maf,
     _vcf2maf_crossmap,
     _vcf2maf_all
 
@@ -147,7 +146,7 @@ rule _vcf2maf_gnomad_filter_maf:
     input:
         maf = str(rules._vcf2maf_run.output.maf)
     output:
-        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.maf",
+        maf = temp(CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.maf"),
         dropped_maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.dropped.maf.gz"
     params:
         opts = CFG["options"]["gnomAD_cutoff"],
@@ -165,7 +164,6 @@ def get_original_genome(wildcards):
     # Determine the original (i.e. input) reference genome for this sample
     # Since this module projects to various output genome builds, we need to parse the sample table for the starting build
     # To determine what we need to do
-    print(config['lcr-modules']["vcf2maf"]["samples"].columns)
     sample_table = config['lcr-modules']["vcf2maf"]["samples"]
     sample_entry = sample_table.loc[(sample_table["sample_id"] == wildcards.tumour_id) & (sample_table["seq_type"] == wildcards.seq_type)]
     if len(sample_entry) == 0:
@@ -175,10 +173,13 @@ def get_original_genome(wildcards):
 
 def get_chain(genome_build):
     # NOTE: This only currently supports hg38 and hg19. If you are using other genome builds, this will need to be handled
-    if VCF2MAF_GENOME_VERSION[genome_build] == "grch38":
+    genome_version = VCF2MAF_GENOME_VERSION[genome_build]
+    if genome_version == "grch38":
         return reference_files("genomes/" + genome_build + "/chains/grch38/hg38ToHg19.over.chain")
-    else:
+    elif genome_version == "grch37":
         return reference_files("genomes/" + genome_build +"/chains/grch37/hg19ToHg38.over.chain")
+    else:
+        raise AttributeError(f"No supported CrossMap chain for {genome_version} within this module")
 
 
 def crossmap_input(wildcards):
@@ -191,7 +192,7 @@ rule _vcf2maf_crossmap:
     input:
         unpack(crossmap_input)
     output:
-        maf = CFG["dirs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.maf"
+        maf = temp(CFG["dirs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.maf")
     log:
         stdout = CFG["logs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.crossmap.stdout.log",
         stderr = CFG["logs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.crossmap.stderr.log"
@@ -271,43 +272,21 @@ rule _vcf2maf_output_maf_projection:
     run:
         op.relative_symlink(input.maf, output.maf)
 
-rule _vcf2maf_output_maf_native:
+rule _vcf2maf_output_maf:
     input:
         maf = str(rules._vcf2maf_normalize_prefix.output.maf),
     output:
-        maf = CFG["dirs"]["outputs"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}_{base_name}.maf"
+        maf = CFG["dirs"]["outputs"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}_{base_name}.{target_build}.maf"
     wildcard_constraints:
         target_build = "|".join(CFG["options"]["target_builds"])
     run:
         op.relative_symlink(input.maf, output.maf)
 
-
-def specify_output_folder(wildcards):
-    original_genome_build = get_original_genome(wildcards)
-    target_genome_build = wildcards.target_build
-    # Sanity check that this genome build is specified in the reference config provided
-    if not target_genome_build in VCF2MAF_GENOME_VERSION:
-        raise AttributeError(f"Target genome build {target_genome_build} is not specified in reference config {VCF2MAF_REFERENCE_CONFIG}")
-
-    # If this MAF was converted from a different genome build, specify a different output filter
-    if VCF2MAF_GENOME_VERSION[original_genome_build] != VCF2MAF_GENOME_VERSION[target_genome_build]:
-        return rules._vcf2maf_output_maf_projection.output.maf
-    else:
-        return rules._vcf2maf_output_maf_native.output.maf
-
-rule _vcf2maf_output_dispatch:
-    input:
-        maf = specify_output_folder
-    output:
-        dispatch = CFG["dirs"]["_parent"] + "dispatch/{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}_{base_name}.dispatch"
-    shell:
-        "touch {output.dispatch}"
-
 # Generates the target sentinels for each run, which generate the symlinks
 rule _vcf2maf_all:
     input:
         expand(
-            expand(str(rules._vcf2maf_output_dispatch.output.dispatch), zip,
+            expand(str(rules._vcf2maf_output_maf.output.maf), zip,
                 seq_type = CFG["runs"]["tumour_seq_type"],
                 tumour_id = CFG["runs"]["tumour_sample_id"],
                 normal_id = CFG["runs"]["normal_sample_id"],
