@@ -28,8 +28,10 @@ except ModuleNotFoundError:
 
 current_version = pkg_resources.get_distribution("oncopipe").version
 if version.parse(current_version) < version.parse(min_oncopipe_version):
-    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
-    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
 # End of dependency checking section 
@@ -62,9 +64,13 @@ rule _liftover_input_seg:
     input:
         seg = CFG["inputs"]["sample_seg"]
     output:
-        seg = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.seg"
+        seg = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.seg",
+        another_seg = CFG["dirs"]["outputs"] + "from--{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.seg"
+    wildcard_constraints:
+        tool = CFG["tool"]
     run:
         op.relative_symlink(input.seg, output.seg)
+        op.relative_symlink(input.seg, output.another_seg)
 
 
 # Convert initial seg file into bed format
@@ -207,7 +213,8 @@ rule _liftover_all:
     input:
         expand(
             [
-                str(rules._liftover_output_seg.output.seg)
+                str(rules._liftover_output_seg.output.seg),
+                str(rules._liftover_input_seg.output.another_seg)
             ],
             zip,  # Run expand() with zip(), not product()
             tumour_sample_id=CFG["runs"]["tumour_sample_id"],

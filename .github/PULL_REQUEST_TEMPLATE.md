@@ -16,6 +16,8 @@
 
 - [ ] Input and output files are being symlinked into the `CFG["inputs"]` and `CFG["outputs"]` subdirectories, respectively.
 
+- [ ] I grouped the input symlinking rule to the next job that uses the input files. 
+
 - [ ] I updated the final target rule (`*_all`) to include every output rule.
 
 - [ ] I explained important module design decisions in `CHANGELOG.md`.
