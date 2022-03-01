@@ -71,3 +71,24 @@ lcr-modules:
         options:
             min_read_length: 49
             ebv_cutoff: [0.00004, 0.00008]
+
+    combine_cnv:
+        inputs:
+            names: 
+                ["battenberg", "sequenza"] # Comma-separated list of names of each input variant caller you would like used in output file names. 
+                # These must appear in the same order as the paths listed under `paths` below. 
+                # Example: 
+                # ["strelka", "lofreq"]
+
+            sample_seg: 
+                ["/projects/rmorin_scratch/lcr-modules_demo_results/env_test/battenberg-1.2/99-outputs/seg/capture--grch37/TCRBOA7-T-WEX--TCRBOA7-N-WEX_subclones.igv.seg",
+                "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/sequenza-1.4/99-outputs/filtered_seg/capture--grch37/TCRBOA7-T-WEX--TCRBOA7-N-WEX--matched.igv.seg"] # Comma-separated list of paths to each VCF file to use as input to Starfish. 
+                # Available wildcards: {tumour_id}, {normal_id}, {sample_id}, {pair_status}, {genome_build}, {seq_type}. 
+                # Example: 
+                # [
+                #     "results/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz", 
+                #     "results/lofreq-1.0/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz"
+                # ]
+            sample_vcf: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/slms_3-1.0/99-outputs/vcf/capture--grch37/TCRBOA7-T-WEX--TCRBOA7-N-WEX--matched.slms-3.final.vcf.gz"
+
+        projections: ["grch37", "hg38"]

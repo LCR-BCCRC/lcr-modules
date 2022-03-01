@@ -1,30 +1,10 @@
 lcr-modules:
-    
-          combine_cnv:
-              inputs:
-                names: 
-                    ["__UPDATE__"] # Comma-separated list of names of each input variant caller you would like used in output file names. 
-                    # These must appear in the same order as the paths listed under `paths` below. 
-                    # Example: 
-                    # ["strelka", "lofreq"]
 
-                sample_seg: 
-                    ["__UPDATE__"] # Comma-separated list of paths to each VCF file to use as input to Starfish. 
-                    # Available wildcards: {tumour_id}, {normal_id}, {sample_id}, {pair_status}, {genome_build}, {seq_type}. 
-                    # Example: 
-                    # [
-                    #     "results/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz", 
-                    #     "results/lofreq-1.0/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz"
-                    # ]
-                sample_vcf: "__UPDATE__"
-
-
-
-
-        # inputs:
-        #     # Available wildcards: {seq_type} {genome_build} {sample_id}
-        #     sample_seg: "__UPDATE__"
-        #     sample_vcf: "__UPDATE__"
+    combine_cnv:
+        inputs:
+            names: ["__UPDATE__"]
+            sample_seg: ["__UPDATE__"]
+            sample_vcf: "__UPDATE__"
 
         scratch_subdirectories: []
 
@@ -35,7 +15,6 @@ lcr-modules:
 
         options:
             concatenate_segs: "{MODSDIR}/src/bash/concatenate.sh"
-            chromArm: "{SCRIPTSDIR}/fill_segments/1.0/src/chromArm.hg38.tsv"
             seg2bed2seg: "{REPODIR}/modules/liftover/1.2/src/convert_for_liftover.py"
             min_mismatch: 0.75
 
@@ -46,8 +25,6 @@ lcr-modules:
             combine_cnv:
                 mem_mb: 12000
                 disk_mb: 1000 # Will ensure at least this much space is left
-
-
 
         pairing_config:
             genome:
