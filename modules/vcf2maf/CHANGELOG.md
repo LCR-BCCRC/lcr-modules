@@ -5,6 +5,15 @@ All notable changes to the `vcf2maf` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3] - 2022-02-23
+
+This release was kind of authored by Christopher Rushton. Someone else originally authored this release
+
+- Now supports automatic CrossMap/chr prefix changing for target genome builds for all input VCF files. For instance, an input VCF called against hg38-nci will now be used to generate a MAF file against both hg38 (no changes, chr-prefixed), GRCh38 (remove chr prefix), hg19 (CrossMap and chr-prefixed) and GRCh37 (CrossMap and chr-prefix). The reference workflow config is used to determine the "same" and "different" genome versions and chr prefixes. Also handles cases where CrossMap adds extra chr-prefixes to already prefixed output files, and updates the NCBI_Build column of the output MAF file.
+- Improved handling of non-standard genome versions
+- Updated custom ENST ID files to only require one per genome build version ("grch38" and "grch37")
+
+
 ## [1.2] - 2020-12-01
 
 This release was authored by Kostia Dreval
