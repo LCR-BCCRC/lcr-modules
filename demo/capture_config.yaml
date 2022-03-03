@@ -90,5 +90,10 @@ lcr-modules:
                 #     "results/lofreq-1.0/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz"
                 # ]
             sample_vcf: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/slms_3-1.0/99-outputs/vcf/capture--grch37/TCRBOA7-T-WEX--TCRBOA7-N-WEX--matched.slms-3.final.vcf.gz"
+            #test_key: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/"
 
         projections: ["grch37", "hg38"]
+
+        #module_versions:
+            #battenberg: "1.2"
+            #sequenza: "1.4"

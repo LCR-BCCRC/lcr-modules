@@ -14,6 +14,7 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+#import glob
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -56,6 +57,14 @@ CFG["inputs"]["seg"] = dict(zip(CFG["inputs"]["names"], CFG["inputs"]["sample_se
 callers = list(CFG["inputs"]["seg"].keys())
 callers = [caller.lower() for caller in callers]
 
+#for caller in callers:
+#    CFG = config["lcr-modules"]["combine_cnv"]
+#    path = CFG["inputs"]["test_key"] + caller + "-" + CFG["module_versions"][caller] + "/99-outputs/"
+#    print(path)
+#    existing_outputs = glob.glob(path + r'/**/*.seg', recursive=True)
+#    print(existing_outputs)
+
+#quit()
 
 ##### RULES #####
 
@@ -252,16 +261,30 @@ rule _combine_cnv_output_seg:
 
 
 # Generates the target sentinels for each run, which generate the symlinks
+rule _combine_cnv_merge:
+    input:
+        expand(
+            [
+                CFG["dirs"]["outputs"] + "{seq_type}--projection/{caller}--merged.filtered.filled.{{genome_build}}.seg"
+            ],
+            zip,  # Run expand() with zip(), not product()
+            seq_type=CFG["runs"]["tumour_seq_type"].drop_duplicates().tolist()*len(CFG["projections"]),
+            caller = callers*len(CFG["projections"]))
+    output:
+        CFG["dirs"]["outputs"] + "master_merge/merged.filtered.filled.{genome_build}.seg"
+    shell:
+        "cat input > output"
+
 rule _combine_cnv_all:
     input:
         expand(
             [
-                str(rules._combine_cnv_output_seg.output.merged_seg)
+                str(rules._combine_cnv_merge.output)
             ],
-            zip,  # Run expand() with zip(), not product()
-            seq_type=[CFG["runs"]["tumour_seq_type"][0]]*len(callers)*len(CFG["projections"]),
-            caller = callers*len(CFG["projections"]),
-            genome_build=CFG["projections"]*len(callers))
+            zip,
+            genome_build=CFG["projections"]
+        )
+
 
 ##### CLEANUP #####
 
