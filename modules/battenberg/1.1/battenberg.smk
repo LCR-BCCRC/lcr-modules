@@ -95,6 +95,8 @@ rule _infer_patient_sex:
     log:
         stderr = CFG["logs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}_infer_sex_stderr.log"
     group: "setup_run"
+    conda:
+        CFG["conda_envs"]["samtools"]
     threads: 8
     shell:
         op.as_one_line("""

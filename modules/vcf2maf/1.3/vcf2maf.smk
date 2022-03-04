@@ -88,6 +88,8 @@ rule _vcf2maf_annotate_gnomad:
         **CFG["resources"]["annotate"]
     threads: 
         CFG["threads"]["annotate"]
+    wildcard_constraints: 
+        base_name = CFG["vcf_base_name"]
     shell:
         op.as_one_line("""
         bcftools annotate --threads {threads} -a {input.normalized_gnomad} {input.vcf} -c "INFO/gnomADg_AF:=INFO/AF" -o {output.vcf}
@@ -114,6 +116,8 @@ rule _vcf2maf_run:
         CFG["threads"]["vcf2maf"]
     resources:
         **CFG["resources"]["vcf2maf"]
+    wildcard_constraints: 
+        base_name = CFG["vcf_base_name"]
     shell:
         op.as_one_line("""
         VCF2MAF_SCRIPT_PATH={VCF2MAF_SCRIPT_PATH};
@@ -151,6 +155,8 @@ rule _vcf2maf_gnomad_filter_maf:
     params:
         opts = CFG["options"]["gnomAD_cutoff"],
         temp_file = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.dropped.maf"
+    wildcard_constraints: 
+        base_name = CFG["vcf_base_name"]
     shell:
         op.as_one_line("""
         cat {input.maf} | perl -lane 'next if /^(!?#)/; my @cols = split /\t/; @AF_all =split/,/, $cols[114]; $skip=0; for(@AF_all){{$skip++ if $_ > {params.opts}}} if ($skip) {{print STDERR;}} else {{print;}};' > {output.maf} 2>{params.temp_file}
@@ -203,7 +209,8 @@ rule _vcf2maf_crossmap:
     resources:
         **CFG["resources"]["crossmap"]
     wildcard_constraints:
-        target_build = "hg38|hg19"  # Crossmap only converts to chr-prefixed outputs, so these are what will be generated
+        target_build = "hg38|hg19",  # Crossmap only converts to chr-prefixed outputs, so these are what will be generated
+        base_name = CFG["vcf_base_name"]
     shell:
         op.as_one_line("""
         {input.convert_coord}
@@ -248,7 +255,8 @@ rule _vcf2maf_normalize_prefix:
     params:
         dest_chr = lambda w: VCF2MAF_GENOME_PREFIX[w.target_build]
     wildcard_constraints:
-        target_build = "|".join(CFG["options"]["target_builds"])
+        target_build = "|".join(CFG["options"]["target_builds"]), 
+        base_name = CFG["vcf_base_name"]
     run:
         input.maf = input.maf[0]  # Because of the input function and expand(), the input is technically a list of length 1
         maf_open = pd.read_csv(input.maf, sep = "\t")
@@ -268,7 +276,8 @@ rule _vcf2maf_output_maf_projection:
     output:
         maf = CFG["dirs"]["outputs"] + "{seq_type}--{target_build}--projection/{tumour_id}--{normal_id}--{pair_status}_{base_name}.maf"
     wildcard_constraints:
-        target_build = "|".join(CFG["options"]["target_builds"])
+        target_build = "|".join(CFG["options"]["target_builds"]), 
+        base_name = CFG["vcf_base_name"]
     run:
         op.relative_symlink(input.maf, output.maf)
 
@@ -278,7 +287,8 @@ rule _vcf2maf_output_maf:
     output:
         maf = CFG["dirs"]["outputs"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}_{base_name}.{target_build}.maf"
     wildcard_constraints:
-        target_build = "|".join(CFG["options"]["target_builds"])
+        target_build = "|".join(CFG["options"]["target_builds"]), 
+        base_name = CFG["vcf_base_name"]
     run:
         op.relative_symlink(input.maf, output.maf)
 
