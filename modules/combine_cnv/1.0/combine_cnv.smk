@@ -45,8 +45,8 @@ CFG = op.setup_module(
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _combine_cnv_input,
-    _combine_cnv_filteR,
+    _combine_cnv_input_matched,
+    _combine_cnv_input_unmatched
     _combine_cnv_seg2bed,
     _combine_cnv_fill_segments,
     _combine_cnv_output_seg,
@@ -68,45 +68,53 @@ callers = [caller.lower() for caller in callers]
 
 ##### RULES #####
 
+def _combine_cnv_get_bams(wildcards):
+    CFG = config["lcr-modules"]["combine_cnv"]
+    tbl = CFG["runs"]
+    this_pair_status = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["pair_status"]
+    if str(this_pair_status[0]) == "matched":
+        supported_callers = ["battenberg", "sequenza"]
+        this_caller = [value for value in callers if value in supported_callers]
+        print(this_caller)
+        print(type(this_caller))
+
+    print(this_path)
+    for i in this_caller:
+        print("new: " + i)
+        return(str(i))
+    
+
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-rule _combine_cnv_input:
+rule _combine_cnv_input_matched:
     input:
         seg = lambda w: config["lcr-modules"]["combine_cnv"]["inputs"]["seg"][w.caller],
-        vcf = CFG["inputs"]["sample_vcf"]
+        #seg = _combine_cnv_get_bams,
     output:
-        seg = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{caller}/{tumour_id}--{normal_id}--{pair_status}.seg",
-        vcf = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{caller}/{tumour_id}--{normal_id}--{pair_status}.vcf.gz"
+        seg = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{caller}/{tumour_id}--{normal_id}--{pair_status}.seg"
+    wildcard_constraints:
+        pair_status = "matched",
+        caller = "battenberg|sequenza"
+    run:
+        op.absolute_symlink(input.seg, output.seg)
+        op.absolute_symlink(input.vcf, output.vcf)
+
+rule _combine_cnv_input_unmatched:
+    input:
+        seg = lambda w: config["lcr-modules"]["combine_cnv"]["inputs"]["seg"][w.caller]
+    output:
+        seg = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{caller}/{tumour_id}--{normal_id}--{pair_status}.seg"
+    wildcard_constraints:
+        pair_status = "unmatched",
+        caller = "controlfreec|cnvkit"
     run:
         op.absolute_symlink(input.seg, output.seg)
         op.absolute_symlink(input.vcf, output.vcf)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-rule _combine_cnv_filteR:
-    input:
-        seg_file = str(rules._combine_cnv_input.output.seg),
-        vcf_file = str(rules._combine_cnv_input.output.vcf),
-        blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed")
-    output:
-        cnv = temp(CFG["dirs"]["filter_cnv"] + "{seq_type}--{genome_build}/{caller}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.CNV.tsv"),
-        seg = temp(CFG["dirs"]["filter_cnv"] + "{seq_type}--{genome_build}/{caller}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.filtered.seg")
-    params:
-        genome_build = lambda w: "hg38" if "38" in str(w.genome_build) else "hg19"
-    conda:
-        CFG["conda_envs"]["CNVfilteR"]
-    threads:
-        CFG["threads"]["combine_cnv"]
-    resources:
-        **CFG["resources"]["combine_cnv"]
-    script:
-        "src/R/CNVfilteR.R"
-
-
 rule _combine_cnv_seg2bed:
     input:
-        seg = str(rules._combine_cnv_filteR.output.seg),
-        cnv = str(rules._combine_cnv_filteR.output.cnv)
+        seg = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{caller}/{tumour_id}--{normal_id}--{pair_status}.seg"
     output:
         bed = temp(CFG["dirs"]["filter_cnv"] + "{seq_type}--{genome_build}/{caller}/{tumour_id}--{normal_id}--{pair_status}.{caller}.bed"),
         header = temp(CFG["dirs"]["filter_cnv"] + "{seq_type}--{genome_build}/{caller}/{tumour_id}--{normal_id}--{pair_status}.{caller}.bed.header")

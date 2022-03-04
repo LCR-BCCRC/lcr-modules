@@ -78,7 +78,7 @@ lcr-modules:
                 ["battenberg", "sequenza"] # Comma-separated list of names of each input variant caller you would like used in output file names. 
                 # These must appear in the same order as the paths listed under `paths` below. 
                 # Example: 
-                # ["strelka", "lofreq"]
+                # ["battenberg", "sequenza"]
 
             sample_seg: 
                 ["/projects/rmorin_scratch/lcr-modules_demo_results/env_test/battenberg-1.2/99-outputs/seg/capture--grch37/TCRBOA7-T-WEX--TCRBOA7-N-WEX_subclones.igv.seg",
@@ -86,14 +86,7 @@ lcr-modules:
                 # Available wildcards: {tumour_id}, {normal_id}, {sample_id}, {pair_status}, {genome_build}, {seq_type}. 
                 # Example: 
                 # [
-                #     "results/strelka-1.1/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka.combined.vcf.gz", 
-                #     "results/lofreq-1.0/99-outputs/vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lofreq.snvs.vcf.gz"
+                #     "results/battenberg-1.2/99-outputs/seg/capture--grch37/TCRBOA7-T-WEX--TCRBOA7-N-WEX_subclones.igv.seg", 
+                #     "results/sequenza-1.4/99-outputs/filtered_seg/capture--grch37/TCRBOA7-T-WEX--TCRBOA7-N-WEX--matched.igv.seg"
                 # ]
-            sample_vcf: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/slms_3-1.0/99-outputs/vcf/capture--grch37/TCRBOA7-T-WEX--TCRBOA7-N-WEX--matched.slms-3.final.vcf.gz"
-            #test_key: "/projects/rmorin_scratch/lcr-modules_demo_results/env_test/"
-
         projections: ["grch37", "hg38"]
-
-        #module_versions:
-            #battenberg: "1.2"
-            #sequenza: "1.4"
