@@ -171,12 +171,12 @@ rule _svar_master_annotate:
         **CFG_SV["resources"]["annotate"]
     shell: 
         op.as_one_line("""
-        tail -n+2 {input.bedpe} | 
+        tail -n+2 {input.bedpe} | grep -v "hs37d5" | 
         cut -f 1-3,7-15 | sort -k1,1 -k2,2n | 
-        bedtools closest -D ref -a stdin -b {params.annotations} > {output.a_bed}; 
+        bedtools closest -D ref -a stdin -b {params.annotations} > {output.a_bed} 2> {log}; 
         tail -n+2 {input.bedpe} | 
-        cut -f 4-15 | sort -k1,1 -k2,2n | 
-        bedtools closest -D ref -a stdin -b {params.annotations} > {output.b_bed};
+        cut -f 4-15 | sort -k1,1 -k2,2n | grep -v "hs37d5" | 
+        bedtools closest -D ref -a stdin -b {params.annotations} > {output.b_bed} 2>> {log};
         """) 
 
 rule _svar_master_annotate_combine: 
