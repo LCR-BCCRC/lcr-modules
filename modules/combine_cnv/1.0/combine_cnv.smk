@@ -46,9 +46,8 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _combine_cnv_input_matched,
-    _combine_cnv_input_unmatched
+    _combine_cnv_input_unmatched,
     _combine_cnv_seg2bed,
-    _combine_cnv_fill_segments,
     _combine_cnv_output_seg,
     _combine_cnv_all,
 
@@ -209,41 +208,16 @@ rule _combine_cnv_cleanup:
         "src/R/cleanup.R"
 
 
-def get_chrArm(wildcards):
-    if "38" in str({wildcards.genome_build}):
-        return config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/src/chromArm.hg38.tsv"
-    else:
-        return config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/src/chromArm.hg19.tsv"
-
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-rule _combine_cnv_fill_segments:
-    input:
-        seg = str(rules._combine_cnv_cleanup.output.seg_complete),
-        chrArm = get_chrArm
-    output:
-        seg = CFG["dirs"]["combine_cnv"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.filtered.filled.{caller}.{genome_build}.seg"
-    params:
-        chrArm = get_chrArm
-    conda:
-        CFG["conda_envs"]["fill_segments"]
-    threads:
-        CFG["threads"]["combine_cnv"]
-    resources:
-        **CFG["resources"]["combine_cnv"]
-    script:
-        "src/python/fill.py"
-
-
 # Example variant filtering rule (single-threaded; can be run on cluster head node)
 rule _combine_cnv_merge_segs:
     input:
-        seg_file = expand(CFG["dirs"]["combine_cnv"] + "{{seq_type}}--projection/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.filtered.filled.{{caller}}.{{genome_build}}.seg", zip,
+        seg_file = expand(CFG["dirs"]["filter_cnv"] + "{{seq_type}}--projection/{tumour_id}--{normal_id}--{pair_status}.{{caller}}.complete.{{genome_build}}.seg", zip,
                 tumour_id=CFG["runs"]["tumour_sample_id"],
                 normal_id=CFG["runs"]["normal_sample_id"],
                 pair_status=CFG["runs"]["pair_status"])
 
     output:
-        seg = CFG["dirs"]["combine_cnv"] + "{seq_type}--projection/{caller}--merged.filtered.filled.{genome_build}.seg"
+        seg = CFG["dirs"]["combine_cnv"] + "{seq_type}--projection/{caller}--merged.{genome_build}.seg"
     params:
         concatenate = CFG["options"]["concatenate_segs"],
         input_dir = CFG["dirs"]["combine_cnv"] + "{seq_type}--projection"
@@ -262,7 +236,7 @@ rule _combine_cnv_output_seg:
     input:
         merged_seg = str(rules._combine_cnv_merge_segs.output.seg),
     output:
-        merged_seg = CFG["dirs"]["outputs"] + "{seq_type}--projection/{caller}--merged.filtered.filled.{genome_build}.seg"
+        merged_seg = CFG["dirs"]["outputs"] + "{seq_type}--projection/{caller}--merged.{genome_build}.seg"
     run:
         op.relative_symlink(input.merged_seg, output.merged_seg, in_module=True)
 
@@ -273,13 +247,13 @@ rule _combine_cnv_merge:
     input:
         expand(
             [
-                CFG["dirs"]["outputs"] + "{seq_type}--projection/{caller}--merged.filtered.filled.{{genome_build}}.seg"
+                CFG["dirs"]["outputs"] + "{seq_type}--projection/{caller}--merged.{{genome_build}}.seg"
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"].drop_duplicates().tolist()*len(CFG["projections"]),
             caller = callers*len(CFG["projections"]))
     output:
-        CFG["dirs"]["outputs"] + "master_merge/merged.filtered.filled.{genome_build}.seg"
+        CFG["dirs"]["outputs"] + "master_merge/merged.{genome_build}.seg"
     shell:
         "cat input > output"
 
