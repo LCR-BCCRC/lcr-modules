@@ -193,25 +193,11 @@ rule _combine_cnv_liftover_bed2seg:
         --output {output.seg_lifted} 
         """)
 
-rule _combine_cnv_cleanup:
-    input:
-        seg = str(rules._combine_cnv_liftover_bed2seg.output.seg_lifted)
-    output:
-        seg_complete = CFG["dirs"]["filter_cnv"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{caller}.complete.{genome_build}.seg"
-    conda:
-        CFG["conda_envs"]["CNVfilteR"]
-    threads:
-        CFG["threads"]["combine_cnv"]
-    resources:
-        **CFG["resources"]["combine_cnv"]
-    script:
-        "src/R/cleanup.R"
-
 
 # Example variant filtering rule (single-threaded; can be run on cluster head node)
 rule _combine_cnv_merge_segs:
     input:
-        seg_file = expand(CFG["dirs"]["filter_cnv"] + "{{seq_type}}--projection/{tumour_id}--{normal_id}--{pair_status}.{{caller}}.complete.{{genome_build}}.seg", zip,
+        seg_file = expand(CFG["dirs"]["filter_cnv"] + "{{seq_type}}--projection/{tumour_id}--{normal_id}--{pair_status}.{{caller}}.{{genome_build}}.seg", zip,
                 tumour_id=CFG["runs"]["tumour_sample_id"],
                 normal_id=CFG["runs"]["normal_sample_id"],
                 pair_status=CFG["runs"]["pair_status"])
