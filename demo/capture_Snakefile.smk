@@ -38,7 +38,6 @@ configfile: "../modules/utils/2.1/config/default.yaml"
 configfile: "../modules/liftover/1.2/config/default.yaml"
 configfile: "../modules/battenberg/1.2/config/default.yaml"
 configfile: "../modules/pathseq/1.0/config/default.yaml"
-configfile: "../modules/combine_cnv/1.0/config/default.yaml"
 
 # Load project-specific config, which includes the shared 
 # configuration and some module-specific config updates
@@ -64,7 +63,6 @@ include: "../modules/utils/2.1/utils.smk"
 include: "../modules/liftover/1.2/liftover.smk"
 include: "../modules/battenberg/1.2/battenberg.smk"
 include: "../modules/pathseq/1.0/pathseq.smk"
-include: "../modules/combine_cnv/1.0/combine_cnv.smk"
 
 
 ##### TARGETS ######
@@ -78,5 +76,4 @@ rule all:
         rules._bwa_mem_all.input,
         rules._liftover_all.input,
         rules._battenberg_all.input,
-        rules._pathseq_all.input,
-        rules._combine_cnv_all.input
+        rules._pathseq_all.input
