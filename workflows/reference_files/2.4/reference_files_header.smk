@@ -96,12 +96,14 @@ for build_name, build_info in config["capture_space"].items():
         )
     assert "genome" in build_info and build_info["genome"] in possible_versions,(
         f"`genome` not set for `{build_name}` or `genome` not among {possible_versions}." )
-    assert "capture_bed_url" in build_info
-    url_code = urllib.request.urlopen(build_info["capture_bed_url"]).getcode()
-    assert url_code == 200, (
-         f"Pinging `capture_bed_url` for {build_name} returned HTTP code {url_code} "
-         f"(rather than 200): \n{build_info['capture_bed_url']}"
-        )
+    if "capture_bed_url" in build_info: 
+        url_code = urllib.request.urlopen(build_info["capture_bed_url"]).getcode()
+        assert url_code == 200, (
+            f"Pinging `capture_bed_url` for {build_name} returned HTTP code {url_code} "
+            f"(rather than 200): \n{build_info['capture_bed_url']}"
+            )
+    else: 
+        assert "capture_bed_file" in build_info
     if "default" in build_info:
         assert build_info["default"].lower() in ["true", "false"], (
             f"true/false required for for \'default\' field"
