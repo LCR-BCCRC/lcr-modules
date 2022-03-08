@@ -93,6 +93,8 @@ if CFG["temp_outputs"]:
         log:
             stdout = CFG["logs"]["fastq"] + "{seq_type}/{sample_id}/bam2fastq.stdout.log",
             stderr = CFG["logs"]["fastq"] + "{seq_type}/{sample_id}/bam2fastq.stderr.log"
+        wildcard_constraints:
+            sample_id = "|".join(other_rna)
         params:
             opts = CFG["options"]["bam2fastq"]
         conda:
