@@ -13,6 +13,12 @@ lcr-modules:
             battenberg: "{MODSDIR}/envs/battenberg-1.1.yaml"
             wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+
+        options:
+            liftover_module_version: "2.0"
+            prefixed_projections: ["hg19", "hg38"]
+            non_prefixed_projections: ["grch37", "grch38", "hs37d5"]
 
         resources:
             battenberg:
