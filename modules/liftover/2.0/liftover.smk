@@ -51,7 +51,7 @@ localrules:
     _run_liftover,
     _liftover_sort,
     _liftover_bed_2_seg,
-    _liftover_fill_segments,
+    _liftover_fill_lifted_segments,
     _liftover_output,
     _liftover_all
 
@@ -205,7 +205,7 @@ rule _liftover_bed_2_bedpe:
 
 
 # Fill in empty segments after lifting them over
-rule _liftover_fill_segments:
+rule _liftover_fill_lifted_segments:
     input:
         seg_lifted = str(rules._liftover_bed_2_seg.output.seg_lifted)
     output:
@@ -214,25 +214,29 @@ rule _liftover_fill_segments:
         stdout = CFG["logs"]["restore_from_bed"] + "from--{seq_type}--{genome_build}/filled_segments/{tumour_id}--{normal_id}--{pair_status}.{tool}.lifted_{chain}.filled.stdout.log",
         stderr = CFG["logs"]["restore_from_bed"] + "from--{seq_type}--{genome_build}/filled_segments/{tumour_id}--{normal_id}--{pair_status}.{tool}.lifted_{chain}.filled.stderr.log"
     params:
-        script = CFG["options"]["fill_segments"],
-        chromArm = op.switch_on_wildcard("chain", CFG["chromArm"])
+        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/",
+        script = "fill_segments.sh",
+        arm_file = lambda w: "src/chromArm.hg38.bed" if "38" in str({w.genome_build}) else "src/chromArm.grch37.bed",
+        blacklist_file = lambda w: "src/blacklisted.hg38.bed" if "38" in str({w.genome_build}) else "src/blacklisted.grch37.bed"
     conda:
-        CFG["conda_envs"]["liftover-366"]
+        CFG["conda_envs"]["bedtools"]
     wildcard_constraints: 
         tool = cnv_tools
     shell:
         op.as_one_line("""
-        python3 {params.script}
-        --input {input.seg_lifted}
-        --output {output.seg_filled}
-        --chromArm {params.chromArm}
-        > {log.stdout}
-        2> {log.stderr}
+        echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
+        bash {params.path}{params.script}
+        {params.path}{params.arm_file}
+        {input.seg_lifted}
+        {params.path}{params.blacklist_file}
+        {output.seg_filled}
+        {wildcards.tumour_id}
+        2>> {log.stderr}
         """)
 
 def get_final_output(wildcards): 
     if wildcards.tool in cnv_tools: 
-        output = str(rules._liftover_fill_segments.output.seg_filled)
+        output = str(rules._liftover_fill_lifted_segments.output.seg_filled)
     if wildcards.tool in sv_tools: 
         output = str(rules._liftover_bed_2_bedpe.output.bedpe_lifted)
     return output
