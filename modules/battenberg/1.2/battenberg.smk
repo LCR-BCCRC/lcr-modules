@@ -272,12 +272,12 @@ def _battenberg_determine_projection(wildcards):
 
     if any(substring in this_genome_build[0] for substring in prefixed_projections):
         print(f"This genome build {this_genome_build[0]} for sample {wildcards.tumour_id} is specified to be chr prefixed.")
-        hg38_projection = str(rules._liftover_input_file.output.another_tsv).replace("{genome_build}", this_genome_build[0])
+        hg38_projection = str(rules._liftover_native_output.output).replace("{genome_build}", this_genome_build[0])
         grch37_projection = str(rules._liftover_output.output).replace("{genome_build}", this_genome_build[0]).replace("{chain}", "hg38ToHg19")
 
     elif any(substring in this_genome_build[0] for substring in non_prefixed_projections):
         print(f"This genome build {this_genome_build[0]} for sample {wildcards.tumour_id} is specified to be non-prefixed.")
-        grch37_projection = str(rules._liftover_input_file.output.another_tsv).replace("{genome_build}", this_genome_build[0])
+        grch37_projection = str(rules._liftover_native_output.output).replace("{genome_build}", this_genome_build[0])
         hg38_projection = str(rules._liftover_output.output).replace("{genome_build}", this_genome_build[0]).replace("{chain}", "hg19ToHg38")
     
     else:

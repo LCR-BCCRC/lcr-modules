@@ -52,7 +52,9 @@ localrules:
     _liftover_sort,
     _liftover_bed_2_seg,
     _liftover_fill_lifted_segments,
+    _liftover_fill_native_segments,
     _liftover_output,
+    _liftover_native_output,
     _liftover_all
 
 # Define tool_name values for CNV vs BEDPE liftover to use as wildcard constraints
@@ -68,7 +70,7 @@ rule _liftover_input_file:
         tsv = CFG["inputs"]["sample_file"]
     output:
         tsv = CFG["dirs"]["inputs"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}." + CFG["input_type"],
-        another_tsv = CFG["dirs"]["outputs"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}." + CFG["input_type"]
+        another_tsv = CFG["dirs"]["inputs"] + "from--{seq_type}--{genome_build}/native/{tumour_id}--{normal_id}--{pair_status}.{tool}." + CFG["input_type"]
     wildcard_constraints:
         tool = CFG["tool"]
     run:
@@ -234,21 +236,72 @@ rule _liftover_fill_lifted_segments:
         2>> {log.stderr}
         """)
 
-def get_final_output(wildcards): 
-    if wildcards.tool in cnv_tools: 
+
+# Fill in empty segments after lifting them over
+rule _liftover_fill_native_segments:
+    input:
+        seg_lifted = str(rules._liftover_input_file.output.another_tsv)
+    output:
+        seg_filled = CFG["dirs"]["restore_from_bed"] + "from--{seq_type}--{genome_build}/filled_segments/{tumour_id}--{normal_id}--{pair_status}.{tool}.filled.seg"
+    log:
+        stdout = CFG["logs"]["restore_from_bed"] + "from--{seq_type}--{genome_build}/filled_segments/{tumour_id}--{normal_id}--{pair_status}.{tool}.filled.stdout.log",
+        stderr = CFG["logs"]["restore_from_bed"] + "from--{seq_type}--{genome_build}/filled_segments/{tumour_id}--{normal_id}--{pair_status}.{tool}.filled.stderr.log"
+    params:
+        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/",
+        script = "fill_segments.sh",
+        arm_file = lambda w: "src/chromArm.hg38.bed" if "38" in str({w.genome_build}) else "src/chromArm.grch37.bed",
+        blacklist_file = lambda w: "src/blacklisted.hg38.bed" if "38" in str({w.genome_build}) else "src/blacklisted.grch37.bed"
+    conda:
+        CFG["conda_envs"]["bedtools"]
+    wildcard_constraints:
+        tool = cnv_tools
+    shell:
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
+        bash {params.path}{params.script}
+        {params.path}{params.arm_file}
+        {input.seg_lifted}
+        {params.path}{params.blacklist_file}
+        {output.seg_filled}
+        {wildcards.tumour_id}
+        2>> {log.stderr}
+        """)
+
+def get_final_lifted_output(wildcards):
+    if wildcards.tool in cnv_tools:
         output = str(rules._liftover_fill_lifted_segments.output.seg_filled)
-    if wildcards.tool in sv_tools: 
+    if wildcards.tool in sv_tools:
         output = str(rules._liftover_bed_2_bedpe.output.bedpe_lifted)
+    return output
+
+def get_final_native_output(wildcards):
+    if wildcards.tool in cnv_tools:
+        output = str(rules._liftover_fill_native_segments.output.seg_filled)
+    if wildcards.tool in sv_tools:
+        output = str(rules._liftover_input_file.output.another_tsv)
     return output
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _liftover_output:
     input:
-        get_final_output
+        get_final_lifted_output
     output:
         CFG["dirs"]["outputs"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}.lifted_{chain}." + CFG["input_type"]
     run:
         op.relative_symlink(input, output, in_module=True)
+
+
+rule _liftover_native_output:
+    input:
+        get_final_native_output
+    output:
+        CFG["dirs"]["outputs"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}." + CFG["input_type"]
+    run:
+        if wildcards.tool in cnv_tools:
+            op.relative_symlink(input, output, in_module=True)
+        if wildcards.tool in sv_tools:
+            with open(output, 'a'):  # just touch it
+                pass
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -257,7 +310,7 @@ rule _liftover_all:
         expand(
             [
                 str(rules._liftover_output.output),
-                str(rules._liftover_input_file.output.another_tsv)
+                str(rules._liftover_native_output.output)
             ],
             zip,  # Run expand() with zip(), not product()
             tumour_id=CFG["runs"]["tumour_sample_id"],
