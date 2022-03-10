@@ -233,6 +233,7 @@ rule _liftover_fill_lifted_segments:
         {params.path}{params.blacklist_file}
         {output.seg_filled}
         {wildcards.tumour_id}
+        SEG
         2>> {log.stderr}
         """)
 
@@ -264,6 +265,7 @@ rule _liftover_fill_native_segments:
         {params.path}{params.blacklist_file}
         {output.seg_filled}
         {wildcards.tumour_id}
+        SEG
         2>> {log.stderr}
         """)
 

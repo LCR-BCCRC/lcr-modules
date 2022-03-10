@@ -231,6 +231,37 @@ rule _battenberg_to_igv_seg:
         """)
 
 
+# Fill subclones.txt with empty regions for compatibility with downstream tools
+rule _battenberg_fill_subclones:
+    input:
+        sub = str(rules._run_battenberg.output.sub)
+    output:
+        sub = CFG_battenberg["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.filled.txt"
+    log:
+        stderr = CFG_battenberg["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_fill_subclones.stderr.log"
+    threads: 1
+    group: "post_process"
+    params:
+        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/",
+        script = "fill_segments.sh",
+        arm_file = lambda w: "src/chromArm.hg38.bed" if "38" in str({w.genome_build}) else "src/chromArm.grch37.bed",
+        blacklist_file = lambda w: "src/blacklisted.hg38.bed" if "38" in str({w.genome_build}) else "src/blacklisted.grch37.bed"
+    conda:
+        CFG_battenberg["conda_envs"]["bedtools"]
+    shell:
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
+        bash {params.path}{params.script}
+        {params.path}{params.arm_file}
+        {input.sub}
+        {params.path}{params.blacklist_file}
+        {output.sub}
+        {wildcards.tumour_id}
+        subclones
+        2>> {log.stderr}
+        """)
+
+
 #due to the large number of files (several per chromosome) that are not explicit outputs, do some glob-based cleaning in the output directory
 rule _battenberg_cleanup:
     input:
@@ -331,7 +362,7 @@ rule _battenberg_output_projection:
 rule _battenberg_output_seg:
     input:
         seg = rules._battenberg_to_igv_seg.output.seg,
-        sub = rules._run_battenberg.output.sub,
+        sub = rules._battenberg_fill_subclones.output.sub,
         cp = rules._run_battenberg.output.cp
     output:
         seg = CFG_battenberg["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.battenberg.seg",
