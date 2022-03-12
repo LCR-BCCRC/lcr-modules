@@ -43,7 +43,7 @@ CFG = op.setup_module(
     version = "1.2",
     subdirectories = ["inputs", "fastq", "outputs"],
 )
-
+print(CFG["samples"]["sample_id"].tolist())
 # Define rules to be run locally when using a compute cluster
 localrules:
     _bam2fastq_input_bam,
@@ -94,7 +94,7 @@ if CFG["temp_outputs"]:
             stdout = CFG["logs"]["fastq"] + "{seq_type}/{sample_id}/bam2fastq.stdout.log",
             stderr = CFG["logs"]["fastq"] + "{seq_type}/{sample_id}/bam2fastq.stderr.log"
         wildcard_constraints:
-            sample_id = "|".join(mrna_bams)
+           sample_id = "|".join(CFG["samples"]["sample_id"].tolist())
         params:
             opts = CFG["options"]["bam2fastq"]
         conda:
