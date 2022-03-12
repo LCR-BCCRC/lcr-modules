@@ -43,7 +43,7 @@ CFG = op.setup_module(
     version = "1.2",
     subdirectories = ["inputs", "fastq", "outputs"],
 )
-print(CFG["samples"]["sample_id"].tolist())
+
 # Define rules to be run locally when using a compute cluster
 localrules:
     _bam2fastq_input_bam,
