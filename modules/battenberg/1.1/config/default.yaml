@@ -40,7 +40,7 @@ lcr-modules:
             txt:
                 subclones: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt"
                 cell_ploidy: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
-            
+
         resources:
             battenberg:
                 mem_mb: 200000
