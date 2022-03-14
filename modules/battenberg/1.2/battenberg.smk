@@ -404,12 +404,10 @@ rule _battenberg_all:
             zip,  # Run expand() with zip(), not product()
             tumour_id=CFG_battenberg["runs"]["tumour_sample_id"],
             normal_id=CFG_battenberg["runs"]["normal_sample_id"],
-            #genome_build = CFG_battenberg["runs"]["tumour_genome_build"],
             seq_type=CFG_battenberg["runs"]["tumour_seq_type"],
             pair_status=CFG_battenberg["runs"]["pair_status"],
             #repeat the tool name N times in expand so each pair in run is used
             tool=[config["lcr-modules"]["liftover"]["tool"]] * len(CFG_battenberg["runs"]["tumour_sample_id"])
-            #chain=["hg38ToHg19" if "38" in str(x) else "hg19ToHg38" for x in CFG_battenberg["runs"]["tumour_genome_build"]]
             )
 
 
