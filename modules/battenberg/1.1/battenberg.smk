@@ -290,8 +290,8 @@ rule _battenberg_output_projection:
         grch37_projection = str(rules._battenberg_normalize_projection.output.grch37_projection),
         hg38_projection = str(rules._battenberg_normalize_projection.output.hg38_projection)
     output:
-        grch37_projection = CFG_battenberg["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg",
-        hg38_projection = CFG_battenberg["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+        grch37_projection = CFG_battenberg["dirs"]["outputs"] + CFG_battenberg["output"]["seg"]["grch37_projection"],
+        hg38_projection = CFG_battenberg["dirs"]["outputs"] + CFG_battenberg["output"]["seg"]["hg38_projection"]
     threads: 1
     group: "post_process"
     run:
@@ -308,9 +308,9 @@ rule _battenberg_output_seg:
         sub = rules._battenberg_fill_subclones.output.sub,
         cp = rules._run_battenberg.output.cp
     output:
-        seg = CFG_battenberg["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.igv.seg",
-        sub = CFG_battenberg["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt",
-        cp = CFG_battenberg["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
+        seg = CFG_battenberg["dirs"]["outputs"] + CFG_battenberg["output"]["seg"]["original"],
+        sub = CFG_battenberg["dirs"]["outputs"] + CFG_battenberg["output"]["txt"]["subclones"],
+        cp = CFG_battenberg["dirs"]["outputs"] + CFG_battenberg["output"]["txt"]["cell_ploidy"]
     params: 
         batt_dir = CFG_battenberg["dirs"]["battenberg"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
         png_dir = CFG_battenberg["dirs"]["outputs"] + "png/{seq_type}--{genome_build}"

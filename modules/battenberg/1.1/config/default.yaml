@@ -29,6 +29,17 @@ lcr-modules:
             liftover_module_version: "2.0"
             prefixed_projections: ["hg19", "hg38"]
             non_prefixed_projections: ["grch37", "grch38", "hs37d5"]
+
+        output: # specify the naming convention for the output files under 99-outputs/
+                # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
+                # other wildcards are not supported in the naming scheme of output files
+            seg:
+                original: "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.igv.seg"
+                grch37_projection: "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"
+                hg38_projection: "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+            txt:
+                subclones: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt"
+                cell_ploidy: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
             
         resources:
             battenberg:
