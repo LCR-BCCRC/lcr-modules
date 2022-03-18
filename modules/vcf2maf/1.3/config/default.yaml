@@ -9,8 +9,8 @@ lcr-modules:
             sample_vcf_gz: "__UPDATE__" #full path to your compressed vcfs from favourite variant caller (with wildcards. You must encapsulate everything unique to the variant caller naming scheme in {base_name})
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
-            blacklist_template: "__UPDATE__"
-            project_base: "__UPDATE__"
+            blacklist_template: "__UPDATE__" # Path to blacklist file relative to project_base. Available wildcards: {seq_type}, {projection}
+            project_base: "__UPDATE__" # Full absolute path to prepend to blacklist_template above
             convert_coord: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.sh"
             augment_ssm: "{SCRIPTSDIR}/augment_ssm/1.0/augment_ssm.py"
             deblacklisting: "{MODSDIR}/src/deblacklist_ssm.R"
