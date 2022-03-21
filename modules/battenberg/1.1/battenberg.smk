@@ -399,7 +399,7 @@ rule _battenberg_output_seg:
 rule _battenberg_all:
     input:
         expand(
-            [ 
+            [
                 rules._battenberg_output_seg.output.sub,
                 rules._battenberg_output_seg.output.seg,
                 rules._battenberg_cleanup.output.complete
