@@ -28,7 +28,7 @@ lcr-modules:
             fill_segments: "{SCRIPTSDIR}/fill_segments/1.0/fill_segments.py"
         conda_envs:
             liftover-366: "{MODSDIR}/envs/liftover-366.yaml"
-            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            fill_segments: "{SCRIPTSDIR}/fill_segments/1.0/fill_segments.yaml"
         # tsv with chromosome coordinates for each genome build
         chromArm:
             hg19ToHg38: "{SCRIPTSDIR}/fill_segments/1.0/src/chromArm.hg38.tsv"
