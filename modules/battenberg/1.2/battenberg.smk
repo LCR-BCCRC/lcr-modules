@@ -41,7 +41,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "battenberg",
     version = "1.2",
-    subdirectories = ["inputs", "infer_sex","battenberg", "convert_coordinates", "fill_regions", "normalize", "outputs"],
+    subdirectories = ["inputs", "infer_sex", "battenberg", "convert_coordinates", "fill_regions", "normalize", "outputs"],
 )
 
 #set variable for prepending to PATH based on config

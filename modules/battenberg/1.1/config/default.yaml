@@ -24,11 +24,13 @@ lcr-modules:
             battenberg: "{MODSDIR}/envs/battenberg-1.1.yaml"
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
 
         options:
-            liftover_module_version: "2.0"
-            prefixed_projections: ["hg19", "hg38"]
-            non_prefixed_projections: ["grch37", "grch38", "hs37d5"]
+            liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
+            liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
+            prefixed_projections: ["hg19", "hg38"] # List here the base names of chr-prefixed projections
+            non_prefixed_projections: ["grch37", "grch38", "hs37d5"] # List here the base names of non-prefixed projections
 
         output: # specify the naming convention for the output files under 99-outputs/
                 # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
