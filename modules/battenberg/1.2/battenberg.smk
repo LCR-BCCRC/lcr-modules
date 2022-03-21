@@ -36,20 +36,20 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 
 # End of dependency checking section    
 
-# Setup module and store module-specific configuration in `CFG_battenberg`
-# `CFG_battenberg` is a shortcut to `config["lcr-modules"]["battenberg"]`
-CFG_battenberg = op.setup_module(
+# Setup module and store module-specific configuration in `CFG`
+# `CFG` is a shortcut to `config["lcr-modules"]["battenberg"]`
+CFG = op.setup_module(
     name = "battenberg",
     version = "1.2",
-    subdirectories = ["inputs", "infer_sex","battenberg", "normalize", "outputs"],
+    subdirectories = ["inputs", "infer_sex","battenberg", "convert_coordinates", "fill_regions", "normalize", "outputs"],
 )
 
 #set variable for prepending to PATH based on config
-BATTENBERG_SCRIPT_PATH = CFG_battenberg['inputs']['src_dir']
+BATTENBERG_SCRIPT_PATH = CFG['inputs']['src_dir']
 #this is used in place of the shell.prefix() because that was not working consistently. This is not ideal. 
 
 #this preserves the variable when using lambda functions
-#_battenberg_CFG_battenberg = CFG_battenberg
+#_battenberg_CFG = CFG
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -70,22 +70,22 @@ BATTENBERG_VERSION_MAP = {
 # Downloads the reference files into the module results directory (under '00-inputs/') from https://www.bcgsc.ca/downloads/morinlab/reference/ . 
 rule _battenberg_get_reference:
     output:
-        battenberg_impute =  directory(CFG_battenberg["dirs"]["inputs"] + "reference/{genome_build}/battenberg_impute_v3"),
-        impute_info = CFG_battenberg["dirs"]["inputs"] + "reference/{genome_build}/impute_info.txt",
-        probloci =  CFG_battenberg["dirs"]["inputs"] + "reference/{genome_build}/probloci.txt.gz",
-        battenberg_wgs_replic_correction = directory(CFG_battenberg["dirs"]["inputs"] + "reference/{genome_build}/battenberg_wgs_replic_correction_1000g_v3"),
-        battenberg_gc_correction = directory(CFG_battenberg["dirs"]["inputs"] + "reference/{genome_build}/battenberg_wgs_gc_correction_1000g_v3"),  
-        genomesloci = directory(CFG_battenberg["dirs"]["inputs"] + "reference/{genome_build}/battenberg_1000genomesloci2012_v3")
+        battenberg_impute =  directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_impute_v3"),
+        impute_info = CFG["dirs"]["inputs"] + "reference/{genome_build}/impute_info.txt",
+        probloci =  CFG["dirs"]["inputs"] + "reference/{genome_build}/probloci.txt.gz",
+        battenberg_wgs_replic_correction = directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_wgs_replic_correction_1000g_v3"),
+        battenberg_gc_correction = directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_wgs_gc_correction_1000g_v3"),  
+        genomesloci = directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_1000genomesloci2012_v3")
     params:
         url = "https://www.bcgsc.ca/downloads/morinlab/reference",
         alt_build = lambda w: BATTENBERG_VERSION_MAP[w.genome_build],
-        folder = CFG_battenberg["dirs"]["inputs"] + "reference/{genome_build}",
+        folder = CFG["dirs"]["inputs"] + "reference/{genome_build}",
         build = "{genome_build}",
-        battenberg_path = CFG_battenberg['inputs']['src_dir']
+        battenberg_path = CFG['inputs']['src_dir']
     resources:
-        **CFG_battenberg["resources"]["reference"]
+        **CFG["resources"]["reference"]
     threads:
-        CFG_battenberg["threads"]["reference"]
+        CFG["threads"]["reference"]
     shell:
         op.as_one_line("""
         wget -qO-  {params.url}/battenberg_impute_{params.alt_build}.tar.gz  |
@@ -112,11 +112,11 @@ rule _battenberg_get_reference:
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _battenberg_input_bam:
     input:
-        bam = CFG_battenberg["inputs"]["sample_bam"]
+        bam = CFG["inputs"]["sample_bam"]
     output:
-        bam = CFG_battenberg["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG_battenberg["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
-        crai = CFG_battenberg["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
+        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
+        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     group: "setup_run"
     run:
         op.absolute_symlink(input.bam, output.bam)
@@ -128,11 +128,11 @@ rule _battenberg_input_bam:
 # I am open to suggestions for how to get around this.
 rule _install_battenberg:
     output:
-        complete = CFG_battenberg["dirs"]["inputs"] + "battenberg_dependencies_installed.success"
+        complete = CFG["dirs"]["inputs"] + "battenberg_dependencies_installed.success"
     conda:
-        CFG_battenberg["conda_envs"]["battenberg"]
+        CFG["conda_envs"]["battenberg"]
     log:
-        input = CFG_battenberg["logs"]["inputs"] + "input.log"
+        input = CFG["logs"]["inputs"] + "input.log"
     shell:
         """
         R -q -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' >> {log.input} && ##move some of this to config?
@@ -143,15 +143,15 @@ rule _install_battenberg:
 # The result of calc_sex_status.sh is stored in a file to avoid having to rerun it unnecessarily
 rule _infer_patient_sex:
     input: 
-        normal_bam = CFG_battenberg["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
+        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
-    output: sex_result = CFG_battenberg["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex"
+    output: sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex"
     resources:
-        **CFG_battenberg["resources"]["infer_sex"]
+        **CFG["resources"]["infer_sex"]
     log:
-        stderr = CFG_battenberg["logs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}_infer_sex_stderr.log"
+        stderr = CFG["logs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}_infer_sex_stderr.log"
     conda:
-        CFG_battenberg["conda_envs"]["samtools"]
+        CFG["conda_envs"]["samtools"]
     group: "setup_run"
     threads: 8
     shell:
@@ -167,37 +167,37 @@ rule _infer_patient_sex:
 # of partially completed jobs (e.g. if they run out of RAM and are killed by the cluster, they can automatically retry)
 rule _run_battenberg:
     input:
-        tumour_bam = CFG_battenberg["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        normal_bam = CFG_battenberg["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        installed = CFG_battenberg["dirs"]["inputs"] + "battenberg_dependencies_installed.success",
-        sex_result = CFG_battenberg["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
+        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
+        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
+        installed = CFG["dirs"]["inputs"] + "battenberg_dependencies_installed.success",
+        sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         impute_info = str(rules._battenberg_get_reference.output.impute_info)
 
     output:
-        refit=CFG_battenberg["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_refit_suggestion.txt",
-        sub=CFG_battenberg["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.txt",
-        ac=temp(CFG_battenberg["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_alleleCounts.tab"),
-        mb=temp(CFG_battenberg["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantBAF.tab"),
-        mlrg=temp(CFG_battenberg["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantLogR_gcCorrected.tab"),
-        mlr=temp(CFG_battenberg["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantLogR.tab"),
-        nlr=temp(CFG_battenberg["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_normalLogR.tab"),
-        nb=temp(CFG_battenberg["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_normalBAF.tab"),
-        cp=CFG_battenberg["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_cellularity_ploidy.txt"
+        refit=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_refit_suggestion.txt",
+        sub=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.txt",
+        ac=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_alleleCounts.tab"),
+        mb=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantBAF.tab"),
+        mlrg=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantLogR_gcCorrected.tab"),
+        mlr=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantLogR.tab"),
+        nlr=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_normalLogR.tab"),
+        nb=temp(CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_normalBAF.tab"),
+        cp=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_cellularity_ploidy.txt"
     log:
-        stdout = CFG_battenberg["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stdout.log",
-        stderr = CFG_battenberg["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stderr.log"
+        stdout = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stdout.log",
+        stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stderr.log"
     params:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        script = CFG_battenberg["inputs"]["battenberg_script"],
-        out_dir = CFG_battenberg["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
-        ref = CFG_battenberg["dirs"]["inputs"] + "reference/{genome_build}"
+        script = CFG["inputs"]["battenberg_script"],
+        out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
+        ref = CFG["dirs"]["inputs"] + "reference/{genome_build}"
     conda:
-        CFG_battenberg["conda_envs"]["battenberg"]
+        CFG["conda_envs"]["battenberg"]
     resources:
-        **CFG_battenberg["resources"]["battenberg"]
+        **CFG["resources"]["battenberg"]
     threads:
-        CFG_battenberg["threads"]["battenberg"]
+        CFG["threads"]["battenberg"]
     shell:
        op.as_one_line("""
         if [[ $(head -c 4 {params.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed='false'; fi;
@@ -216,11 +216,11 @@ rule _run_battenberg:
 rule _battenberg_to_igv_seg:
     input:
         sub = rules._run_battenberg.output.sub,
-        cnv2igv = CFG_battenberg["inputs"]["cnv2igv"]
+        cnv2igv = CFG["inputs"]["cnv2igv"]
     output:
-        seg = CFG_battenberg["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.igv.seg"
+        seg = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.igv.seg"
     log:
-        stderr = CFG_battenberg["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_seg2igv.stderr.log"
+        stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_seg2igv.stderr.log"
     threads: 1
     group: "post_process"
     shell:
@@ -236,9 +236,9 @@ rule _battenberg_fill_subclones:
     input:
         sub = str(rules._run_battenberg.output.sub)
     output:
-        sub = CFG_battenberg["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.filled.txt"
+        sub = CFG["dirs"]["fill_regions"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.filled.txt"
     log:
-        stderr = CFG_battenberg["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_fill_subclones.stderr.log"
+        stderr = CFG["logs"]["fill_regions"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_fill_subclones.stderr.log"
     threads: 1
     group: "post_process"
     params:
@@ -247,7 +247,7 @@ rule _battenberg_fill_subclones:
         arm_file = lambda w: "src/chromArm.hg38.bed" if "38" in str({w.genome_build}) else "src/chromArm.grch37.bed",
         blacklist_file = lambda w: "src/blacklisted.hg38.bed" if "38" in str({w.genome_build}) else "src/blacklisted.grch37.bed"
     conda:
-        CFG_battenberg["conda_envs"]["bedtools"]
+        CFG["conda_envs"]["bedtools"]
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -267,7 +267,7 @@ rule _battenberg_cleanup:
     input:
         rules._battenberg_to_igv_seg.output.seg
     output:
-        complete = CFG_battenberg["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_cleanup_complete.txt"
+        complete = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_cleanup_complete.txt"
     group: "post_process"
     shell:
         op.as_one_line("""
@@ -280,37 +280,69 @@ rule _battenberg_cleanup:
         """)
 
 
-configfile: config["lcr-modules"]["_shared"]["lcr-modules"] + "modules/liftover/" + CFG_battenberg["options"]["liftover_module_version"] + "/config/default.yaml"
-config["lcr-modules"]["liftover"]["runs"] = CFG_battenberg["runs"]
-config["lcr-modules"]["liftover"]["dirs"]["_parent"] = (config["lcr-modules"]["_shared"]["root_output_dir"] +
-    "battenberg" +
-    "-" +
-    config["lcr-modules"]["battenberg"]["version"] +
-    "_liftover-" + CFG_battenberg["options"]["liftover_module_version"])
-config["lcr-modules"]["liftover"]["tool"] = "battenberg"
-config["lcr-modules"]["liftover"]["input_type"] = "seg"
-config["lcr-modules"]["liftover"]["inputs"]["sample_file"] = str(rules._battenberg_to_igv_seg.output.seg)
+def _battenberg_get_chain(wildcards):
+    if "38" in str({wildcards.genome_build}):
+        return reference_files("genomes/{genome_build}/chains/grch38/hg38ToHg19.over.chain")
+    else:
+        return reference_files("genomes/{genome_build}/chains/grch37/hg19ToHg38.over.chain")
 
-include: "../../liftover/" + CFG_battenberg["options"]["liftover_module_version"] + "/liftover.smk"
+# Convert the coordinates of seg file to a different genome build
+rule _battenberg_convert_coordinates:
+    input:
+        battenberg_native = str(rules._battenberg_to_igv_seg.output.seg),
+        battenberg_chain = _battenberg_get_chain
+    output:
+        battenberg_lifted = CFG["dirs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.seg"
+    log:
+        stderr = CFG["logs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.stderr.log"
+    threads: 1
+    group: "post_process"
+    params:
+        liftover_script = CFG["options"]["liftover_script_path"],
+        liftover_minmatch = CFG["options"]["liftover_minMatch"]
+    conda:
+        CFG["conda_envs"]["liftover"]
+    shell:
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
+        bash {params.liftover_script}
+        SEG
+        {input.battenberg_native}
+        {output.battenberg_lifted}
+        {input.battenberg_chain}
+        YES
+        {params.liftover_minmatch}
+        2>> {log.stderr}
+        """)
+
 
 def _battenberg_determine_projection(wildcards):
-    CFG_battenberg = config["lcr-modules"]["battenberg"]
-    tbl = CFG_battenberg["runs"]
+    CFG = config["lcr-modules"]["battenberg"]
+    tbl = CFG["runs"]
     this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"]
     
-    prefixed_projections = CFG_battenberg["options"]["prefixed_projections"]
-    non_prefixed_projections = CFG_battenberg["options"]["non_prefixed_projections"]
+    prefixed_projections = CFG["options"]["prefixed_projections"]
+    non_prefixed_projections = CFG["options"]["non_prefixed_projections"]
 
     if any(substring in this_genome_build[0] for substring in prefixed_projections):
-        print(f"This genome build {this_genome_build[0]} for sample {wildcards.tumour_id} is specified to be chr prefixed.")
-        hg38_projection = str(rules._liftover_native_output.output).replace("{genome_build}", this_genome_build[0])
-        grch37_projection = str(rules._liftover_output.output).replace("{genome_build}", this_genome_build[0]).replace("{chain}", "hg38ToHg19")
+        hg38_projection = str(rules._battenberg_to_igv_seg.output.seg).replace("{genome_build}", this_genome_build[0])
+        grch37_projection = str(rules._battenberg_convert_coordinates.output.battenberg_lifted).replace("{genome_build}", this_genome_build[0])
+        # handle the hg19 (prefixed) separately
+        if "38" in str(this_genome_build[0]):
+            grch37_projection = grch37_projection.replace("{chain}", "hg38ToHg19")
+        else:
+            grch37_projection = grch37_projection.replace("{chain}", "hg19ToHg38")
 
     elif any(substring in this_genome_build[0] for substring in non_prefixed_projections):
-        print(f"This genome build {this_genome_build[0]} for sample {wildcards.tumour_id} is specified to be non-prefixed.")
-        grch37_projection = str(rules._liftover_native_output.output).replace("{genome_build}", this_genome_build[0])
-        hg38_projection = str(rules._liftover_output.output).replace("{genome_build}", this_genome_build[0]).replace("{chain}", "hg19ToHg38")
-    
+        grch37_projection = str(rules._battenberg_to_igv_seg.output.seg).replace("{genome_build}", this_genome_build[0])
+        hg38_projection = str(rules._battenberg_convert_coordinates.output.battenberg_lifted).replace("{genome_build}", this_genome_build[0])
+        # handle the grch38 (non-prefixed) separately
+        if "38" in str(this_genome_build[0]):
+            hg38_projection = hg38_projection.replace("{chain}", "hg38ToHg19")
+        else:
+            hg38_projection = hg38_projection.replace("{chain}", "hg19ToHg38")
+
+
     else:
         raise AttributeError(f"The specified genome build {this_genome_build[0]} is not specified in the config under options to indicate its chr prefixing.")
 
@@ -320,22 +352,63 @@ def _battenberg_determine_projection(wildcards):
     }
 
 
-# Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _battenberg_normalize_projection:
+
+# Convert the coordinates of seg file to a different genome build
+rule _battenberg_fill_segments:
     input:
         unpack(_battenberg_determine_projection)
     output:
-        grch37_projection = CFG_battenberg["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg",
-        hg38_projection = CFG_battenberg["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+        grch37_filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg",
+        hg38_filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+    log:
+        stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}_fill_segments.stderr.log"
+    threads: 1
+    group: "post_process"
+    params:
+        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/"
+    conda:
+        CFG["conda_envs"]["bedtools"]
+    shell:
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
+        echo "Filling grch37 projection" >> {log.stderr};
+        bash {params.path}fill_segments.sh
+        {params.path}src/chromArm.grch37.bed
+        {input.grch37_projection}
+        {params.path}src/blacklisted.grch37.bed
+        {output.grch37_filled}
+        {wildcards.tumour_id}
+        SEG
+        2>> {log.stderr};
+        echo "Filling hg38 projection" >> {log.stderr};
+        bash {params.path}fill_segments.sh
+        {params.path}src/chromArm.hg38.bed
+        {input.hg38_projection}
+        {params.path}src/blacklisted.hg38.bed
+        {output.hg38_filled}
+        {wildcards.tumour_id}
+        SEG
+        2>> {log.stderr};
+        """)
+    
+
+# Symlinks the final output files into the module results directory (under '99-outputs/')
+rule _battenberg_normalize_projection:
+    input:
+        grch37_filled = str(rules._battenberg_fill_segments.output.grch37_filled),
+        hg38_filled = str(rules._battenberg_fill_segments.output.hg38_filled)
+    output:
+        grch37_projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg",
+        hg38_projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
     threads: 1
     group: "post_process"
     run:
         # grch37 is always non-prefixed
-        seg_open = pd.read_csv(input.grch37_projection, sep = "\t")
+        seg_open = pd.read_csv(input.grch37_filled, sep = "\t")
         seg_open["chrom"] = seg_open["chrom"].astype(str).str.replace('chr', '')
         seg_open.to_csv(output.grch37_projection, sep="\t", index=False)
         # hg38 is always prefixed, but add it if currently missing
-        seg_open = pd.read_csv(input.hg38_projection, sep = "\t")
+        seg_open = pd.read_csv(input.hg38_filled, sep = "\t")
         chrom = list(seg_open['chrom'])
         for i in range(len(chrom)):
             if 'chr' not in str(chrom[i]):
@@ -348,8 +421,8 @@ rule _battenberg_output_projection:
         grch37_projection = str(rules._battenberg_normalize_projection.output.grch37_projection),
         hg38_projection = str(rules._battenberg_normalize_projection.output.hg38_projection)
     output:
-        grch37_projection = CFG_battenberg["dirs"]["outputs"] + CFG_battenberg["output"]["seg"]["grch37_projection"],
-        hg38_projection = CFG_battenberg["dirs"]["outputs"] + CFG_battenberg["output"]["seg"]["hg38_projection"]
+        grch37_projection = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["grch37_projection"],
+        hg38_projection = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["hg38_projection"]
     threads: 1
     group: "post_process"
     run:
@@ -365,12 +438,12 @@ rule _battenberg_output_seg:
         sub = rules._battenberg_fill_subclones.output.sub,
         cp = rules._run_battenberg.output.cp
     output:
-        seg = CFG_battenberg["dirs"]["outputs"] + CFG_battenberg["output"]["seg"]["original"],
-        sub = CFG_battenberg["dirs"]["outputs"] + CFG_battenberg["output"]["txt"]["subclones"],
-        cp = CFG_battenberg["dirs"]["outputs"] + CFG_battenberg["output"]["txt"]["cell_ploidy"]
+        seg = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["original"],
+        sub = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["subclones"],
+        cp = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["cell_ploidy"]
     params: 
-        batt_dir = CFG_battenberg["dirs"]["battenberg"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
-        png_dir = CFG_battenberg["dirs"]["outputs"] + "png/{seq_type}--{genome_build}"
+        batt_dir = CFG["dirs"]["battenberg"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
+        png_dir = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}"
     group: "post_process"
     run:
         plots = glob.glob(params.batt_dir + "/*.png")
@@ -386,35 +459,33 @@ rule _battenberg_all:
     input:
         expand(
             [ 
-                rules._run_battenberg.output.sub,
+                rules._battenberg_output_seg.output.sub,
                 rules._battenberg_output_seg.output.seg,
                 rules._battenberg_cleanup.output.complete
             ],
             zip,  # Run expand() with zip(), not product()
-            seq_type=CFG_battenberg["runs"]["tumour_seq_type"],
-            genome_build=CFG_battenberg["runs"]["tumour_genome_build"],
-            tumour_id=CFG_battenberg["runs"]["tumour_sample_id"],
-            normal_id=CFG_battenberg["runs"]["normal_sample_id"],
-            pair_status=CFG_battenberg["runs"]["pair_status"]),
+            seq_type=CFG["runs"]["tumour_seq_type"],
+            genome_build=CFG["runs"]["tumour_genome_build"],
+            tumour_id=CFG["runs"]["tumour_sample_id"],
+            normal_id=CFG["runs"]["normal_sample_id"],
+            pair_status=CFG["runs"]["pair_status"]),
         expand(
             [
                 str(rules._battenberg_output_projection.output.grch37_projection),
                 str(rules._battenberg_output_projection.output.hg38_projection)
             ],
             zip,  # Run expand() with zip(), not product()
-            tumour_id=CFG_battenberg["runs"]["tumour_sample_id"],
-            normal_id=CFG_battenberg["runs"]["normal_sample_id"],
-            seq_type=CFG_battenberg["runs"]["tumour_seq_type"],
-            pair_status=CFG_battenberg["runs"]["pair_status"],
+            tumour_id=CFG["runs"]["tumour_sample_id"],
+            normal_id=CFG["runs"]["normal_sample_id"],
+            seq_type=CFG["runs"]["tumour_seq_type"],
+            pair_status=CFG["runs"]["pair_status"],
             #repeat the tool name N times in expand so each pair in run is used
-            tool=[config["lcr-modules"]["liftover"]["tool"]] * len(CFG_battenberg["runs"]["tumour_sample_id"])
-            )
+            tool=["battenberg"] * len(CFG["runs"]["tumour_sample_id"]))
 
 
 ##### CLEANUP #####
 
 
 # Perform some clean-up tasks, including storing the module-specific
-# configuration on disk and deleting the `CFG_battenberg` variable
-CFG=CFG_battenberg
-op.cleanup_module(CFG_battenberg)
+# configuration on disk and deleting the `CFG` variable
+op.cleanup_module(CFG)
