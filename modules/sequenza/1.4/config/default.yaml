@@ -24,7 +24,14 @@ lcr-modules:
             r-sequenza: "{MODSDIR}/envs/r-sequenza-3.0.0.yaml"
             cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.3/python-3.8.3.yaml"
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
-            
+            liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
+
+        options:
+            liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
+            liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
+            prefixed_projections: ["hg19", "hg38"] # List here the base names of chr-prefixed projections
+            non_prefixed_projections: ["grch37", "grch38", "hs37d5"] # List here the base names of non-prefixed projections
+
         resources:
             vcf_sort:
                 mem_mb: 2000
