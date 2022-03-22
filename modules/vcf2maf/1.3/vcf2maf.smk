@@ -31,6 +31,7 @@ localrules:
     _vcf2maf_input_bam, 
     _vcf2maf_output_maf,
     _vcf2maf_gnomad_filter_maf, 
+    _vcf2maf_install_GAMBLR,
     _vcf2maf_output_original, 
     _vcf2maf_normalize_prefix,
     _vcf2maf_all
