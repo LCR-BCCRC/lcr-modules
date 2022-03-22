@@ -371,8 +371,8 @@ rule _sequenza_output_projection:
         grch37_projection = str(rules._sequenza_normalize_projection.output.grch37_projection),
         hg38_projection = str(rules._sequenza_normalize_projection.output.hg38_projection)
     output:
-        grch37_projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg",
-        hg38_projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+        grch37_projection = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["grch37_projection"],
+        hg38_projection = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["hg38_projection"]
     threads: 1
     run:
         op.relative_symlink(input.grch37_projection, output.grch37_projection, in_module = True)
@@ -382,9 +382,9 @@ rule _sequenza_output_projection:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _sequenza_output_seg:
     input:
-        seg = str(rules._sequenza_cnv2igv.output.igv)
+        seg = str(rules._sequenza_cnv2igv.output.igv).replace("{filter_status}", "filtered")
     output:
-        seg = CFG["dirs"]["outputs"] + "{filter_status}_seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.igv.seg"
+        seg = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["original"]
     run:
         op.relative_symlink(input.seg, output.seg, in_module=True)
 
@@ -394,7 +394,7 @@ rule _sequenza_all:
     input:
         expand(
             [
-                str(rules._sequenza_output_seg.output.seg).replace("{filter_status}", "filtered")
+                str(rules._sequenza_output_seg.output.seg)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
