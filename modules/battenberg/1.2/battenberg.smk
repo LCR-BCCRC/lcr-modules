@@ -341,8 +341,6 @@ def _battenberg_determine_projection(wildcards):
             hg38_projection = hg38_projection.replace("{chain}", "hg38ToHg19")
         else:
             hg38_projection = hg38_projection.replace("{chain}", "hg19ToHg38")
-
-
     else:
         raise AttributeError(f"The specified genome build {this_genome_build[0]} is not specified in the config under options to indicate its chr prefixing.")
 
@@ -350,7 +348,6 @@ def _battenberg_determine_projection(wildcards):
         "grch37_projection": grch37_projection,
         "hg38_projection": hg38_projection
     }
-
 
 
 # Convert the coordinates of seg file to a different genome build
@@ -390,7 +387,7 @@ rule _battenberg_fill_segments:
         SEG
         2>> {log.stderr};
         """)
-    
+
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _battenberg_normalize_projection:
