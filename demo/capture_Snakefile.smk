@@ -35,7 +35,6 @@ configfile: "../modules/bam2fastq/1.2/config/default.yaml"
 configfile: "../modules/sequenza/1.4/config/default.yaml"
 configfile: "../modules/bwa_mem/1.1/config/default.yaml"
 configfile: "../modules/utils/2.1/config/default.yaml"
-configfile: "../modules/liftover/1.2/config/default.yaml"
 configfile: "../modules/battenberg/1.2/config/default.yaml"
 configfile: "../modules/pathseq/1.0/config/default.yaml"
 
@@ -60,7 +59,6 @@ include: "../modules/bam2fastq/1.2/bam2fastq.smk"
 include: "../modules/sequenza/1.4/sequenza.smk"
 include: "../modules/bwa_mem/1.1/bwa_mem.smk"
 include: "../modules/utils/2.1/utils.smk"
-include: "../modules/liftover/1.2/liftover.smk"
 include: "../modules/battenberg/1.2/battenberg.smk"
 include: "../modules/pathseq/1.0/pathseq.smk"
 
@@ -74,6 +72,5 @@ rule all:
         rules._bam2fastq_all.input,
         rules._sequenza_all.input,
         rules._bwa_mem_all.input,
-        rules._liftover_all.input,
         rules._battenberg_all.input,
         rules._pathseq_all.input
