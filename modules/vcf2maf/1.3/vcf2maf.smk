@@ -50,6 +50,9 @@ VCF2MAF_GENOME_VERSION = {}  # Will be a simple {"GRCh38-SFU": "grch38"} etc.
 VCF2MAF_GENOME_PREFIX = {}  # Will be a simple hash of {"GRCh38-SFU": True} if chr-prefixed
 VCF2MAF_VERSION_MAP = {}
 
+# Interpret the absolute path to this script so it doesn't get interpreted relative to the module snakefile later. 
+AUGMENT_SSM = os.path.abspath(config["lcr-modules"]["vcf2maf"]["inputs"]["augment_ssm"])
+
 for genome_build, attributes in config['genome_builds'].items():
     try:
         genome_version = attributes["version"]
@@ -212,7 +215,7 @@ rule _vcf2maf_install_GAMBLR:
     shell:
         op.as_one_line("""
         wget -qO {output.config} {params.config_url} &&
-        R -q -e 'devtools::install_github("morinlab/GAMBLR"{params.branch})' 
+        R -q -e 'options(timeout=9999999); devtools::install_github("morinlab/GAMBLR"{params.branch})' 
         """)
 
 rule _vcf2maf_deblacklist_maf: 
@@ -302,7 +305,7 @@ rule _vcf2maf_augment_maf:
         filter = "|".join(["raw", "deblacklisted"]), 
         tumour_id = "|".join(MULTI_SAMPLES.tumour_sample_id.tolist())
     script:
-        config["lcr-modules"]["vcf2maf"]["inputs"]["augment_ssm"]
+        AUGMENT_SSM
 
 
 rule _vcf2maf_output_original: 
