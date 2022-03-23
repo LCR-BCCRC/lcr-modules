@@ -13,7 +13,7 @@ lcr-modules:
             project_base: "__UPDATE__" # Full absolute path to prepend to blacklist_template above
             convert_coord: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.sh"
             augment_ssm: "{SCRIPTSDIR}/augment_ssm/1.0/augment_ssm.py"
-            deblacklisting: "{MODSDIR}/src/deblacklist_ssm.R"
+            deblacklisting: "src/deblacklist_ssm.R"
             gamblr_branch: "" # Leave blank unless you need to install from a specific branch from the GAMBLR repo (expert users only)
             gamblr_config_url: "https://raw.githubusercontent.com/morinlab/GAMBLR/master/config.yml"
             src_dir: "{MODSDIR}/src"
