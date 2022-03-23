@@ -107,6 +107,8 @@ rule _download_GEM:
         touch(CFG["dirs"]["inputs"] + "references/GEM/.done")
     params:
         dirOut = CFG["dirs"]["inputs"] + "references/GEM/"
+    conda:
+        CFG["conda_envs"]["wget"]
     resources: **CFG["resources"]["gem"]
     shell:
         "wget https://sourceforge.net/projects/gemlibrary/files/gem-library/Binary%20pre-release%203/GEM-binaries-Linux-x86_64-core_i3-20130406-045632.tbz2/download -O {params.dirOut}/GEM-lib.tbz2 && bzip2 -dc {params.dirOut}/GEM-lib.tbz2 | tar -xvf - -C {params.dirOut}/"
