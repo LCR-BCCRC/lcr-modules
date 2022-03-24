@@ -28,6 +28,11 @@ lcr-modules:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
         scratch_subdirectories: []
+        options:
+            # in bam2seqz pass any additional flags for the sequenza-utils. For example, this can include --normal2 to use for depth.ratio calculation.
+            bam2seqz: "--qlimit 30"
+            seqz_binning: "--window 300"
+            cnv2igv: "--mode sequenza"
 
     bwa_mem:
         inputs:
