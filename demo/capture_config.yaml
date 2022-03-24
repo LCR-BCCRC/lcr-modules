@@ -68,3 +68,8 @@ lcr-modules:
         options:
             min_read_length: 49
             ebv_cutoff: [0.00004, 0.00008]
+
+    cnvkit:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
