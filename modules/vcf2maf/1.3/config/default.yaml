@@ -7,7 +7,15 @@ lcr-modules:
             # Available wildcards: {out_dir}, {seq_type}, {genome_build}, {tumour_id}, {normal_id}, {pair_status}, {vcf_name}, {base_name}
             vep_cache: "__UPDATE__" #example "ref/ensembl_vep_cache/"
             sample_vcf_gz: "__UPDATE__" #full path to your compressed vcfs from favourite variant caller (with wildcards. You must encapsulate everything unique to the variant caller naming scheme in {base_name})
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            blacklist_template: "__UPDATE__" # Path to blacklist file relative to project_base. Available wildcards: {seq_type}, {projection}
+            project_base: "__UPDATE__" # Full absolute path to prepend to blacklist_template above
             convert_coord: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.sh"
+            augment_ssm: "{SCRIPTSDIR}/augment_ssm/1.0/augment_ssm.py"
+            deblacklisting: "src/deblacklist_ssm.R"
+            gamblr_branch: "" # Leave blank unless you need to install from a specific branch from the GAMBLR repo (expert users only)
+            gamblr_config_url: "https://raw.githubusercontent.com/morinlab/GAMBLR/master/config.yml"
             src_dir: "{MODSDIR}/src"
         vcf_base_name: "__UPDATE__" #put the consistent portion of the file name here. For Strelka, this is "combined.passed"
         options:
@@ -19,9 +27,15 @@ lcr-modules:
             gnomAD_cutoff: 0.001 # cut-off to be used for AF frequency of germline variants in gnomAD
             target_builds: ["hg38", "grch38", "hg19", "grch37"]  # Target genome builds for chr-prefixing and CrossMap
             reference_config: "__UPDATE__"  # Path to the reference workflow config file. Usef to handle reference genome builds;
+            augment: False # Whether or not mafs should be augmented with variants from tumours from the same patient
+            across_seq_types: False # Indicate whether mafs should be augmented across seq_types, e.g. genome with capture. Possible values: True/False
+            filter: ["raw", "deblacklisted"] # Subset to indicate whether raw and/or deblacklisted mafs should be generated. 
+            seq_type_blacklist: "both" # Indicate whether a combined seq_type blacklist should be applied ("both") or only one that matches the seq_type of the input maf ("matching")
+            drop_threshold: 4 # Threshold for blacklist variant count for dropping a variant
         # here you can specify path to txt file with a list of custom ENST IDs that override canonical selection
         # it will be parsed to --custom-enst flag of vcf2maf
         # if no non-canonical transcript IDs to be included, leave switches empty
+        # Only available switch values are grch37 and grch38, and will be mapped to related builds. 
         switches:
             custom_enst:
               grch38: ""
@@ -31,19 +45,31 @@ lcr-modules:
             vcf2maf: "{MODSDIR}/envs/vcf2maf-1.6.18.yaml"
             crossmap: "{SCRIPTSDIR}/crossmap/1.0/convert_maf_coords.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            pysam: "{MODSDIR}/envs/pysam-0.18.0.yaml"
+            gamblr: "{MODSDIR}/envs/gamblr.yaml"
             
         threads:
             vcf2maf: 12
             annotate: 4
+            deblacklist: 1
+            augment: 12
         
         resources:
             vcf2maf: 
                 mem_mb: 12000
                 vcf: 1
+            augment: 
+                mem_mb: 12000
+                augment: 1
             annotate: 
                 mem_mb: 12000
+                annotate: 1
+            deblacklist: 
+                mem_mb: 5000
+                deblacklist: 1
             crossmap:
                 mem_mb: 12000
+                crossmap: 1
 
         pairing_config:
             genome:
