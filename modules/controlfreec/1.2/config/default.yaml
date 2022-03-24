@@ -72,6 +72,26 @@ lcr-modules:
             prefixed_projections: ["hg19", "hg38"] # List here the base names of chr-prefixed projections
             non_prefixed_projections: ["grch37", "grch38", "hs37d5"] # List here the base names of non-prefixed projections
 
+        output: # specify the naming convention for the output files under 99-outputs/
+                # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
+                # other wildcards are not supported in the naming scheme of output files
+            seg:
+                original: "seg/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.igv.seg"
+                grch37_projection: "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"
+                hg38_projection: "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+            bed:
+                bed: "bed/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.bed"
+                circos: "bed/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.circos.bed"
+            txt:
+                cnv: "txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.txt"
+                baf: "txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.txt"
+                ratio: "txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.txt"
+            png:
+                ratio: "png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.png"
+                log2: "png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.log2.png"
+                baf: "png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.png"
+
+
         software:
             FREEC_sig: "{MODSDIR}/src/assess_significance.R"
             FREEC_graph: "{MODSDIR}/src/makeGraph.R"

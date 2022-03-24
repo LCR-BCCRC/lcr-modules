@@ -631,8 +631,8 @@ rule _controlfreec_output_projection:
         grch37_projection = str(rules._controlfreec_normalize_projection.output.grch37_projection),
         hg38_projection = str(rules._controlfreec_normalize_projection.output.hg38_projection)
     output:
-        grch37_projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg",
-        hg38_projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+        grch37_projection = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["grch37_projection"],
+        hg38_projection = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["hg38_projection"]
     threads: 1
     run:
         op.relative_symlink(input.grch37_projection, output.grch37_projection, in_module = True)
@@ -652,15 +652,15 @@ rule _controlfreec_output:
         circos = str(rules._controlfreec_freec2circos.output.circos),
         igv = str(rules._controlfreec_cnv2igv.output.seg)
     output:
-        plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/plots/{tumour_id}--{normal_id}--{pair_status}.ratio.png",
-        log2plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/log2plots/{tumour_id}--{normal_id}--{pair_status}.ratio.log2.png",
-        CNV = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/CNV/{tumour_id}--{normal_id}--{pair_status}.CNVs.p.value.txt",
-        bed = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/bed/{tumour_id}--{normal_id}--{pair_status}.CNVs.bed",
-        BAF = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/BAF/{tumour_id}--{normal_id}--{pair_status}.BAF.txt",
-        BAFgraph = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/BAFplot/{tumour_id}--{normal_id}--{pair_status}.BAF.png",
-        ratio = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/ratio/{tumour_id}--{normal_id}--{pair_status}.ratio.txt",
-        circos = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/circos/{tumour_id}--{normal_id}--{pair_status}.circos.bed",
-        igv = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}{masked}/igv/{tumour_id}--{normal_id}--{pair_status}.igv.seg"
+        plot = CFG["dirs"]["outputs"] + CFG["output"]["png"]["ratio"],
+        log2plot = CFG["dirs"]["outputs"] + CFG["output"]["png"]["log2"],
+        CNV = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["cnv"],
+        bed = CFG["dirs"]["outputs"] + CFG["output"]["bed"]["bed"],
+        BAF = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["baf"],
+        BAFgraph = CFG["dirs"]["outputs"] + CFG["output"]["png"]["baf"],
+        ratio = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["ratio"],
+        circos = CFG["dirs"]["outputs"] + CFG["output"]["bed"]["circos"],
+        igv = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["original"]
     run:
         op.relative_symlink(input.plot, output.plot, in_module = True)
         op.relative_symlink(input.log2plot, output.log2plot, in_module = True)
