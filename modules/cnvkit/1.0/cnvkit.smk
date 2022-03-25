@@ -20,7 +20,7 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "cnvkit",
     version = "1.0",
-    subdirectories = ["inputs", "coverage", "fix", "cns", "SNPs", "BAF", "plots", "breaks", "geneMetrics", "seg", "outputs"],
+    subdirectories = ["inputs", "coverage", "fix", "cns", "SNPs", "BAF", "plots", "breaks", "geneMetrics", "seg", "convert_coordinates", "fill_regions", "normalize", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -557,6 +557,152 @@ rule _cnvkit_to_seg:
         """cnvkit.py export seg {input.cns} -o {output.seg} """
 
 
+def _cnvkit_get_chain(wildcards):
+    if "38" in str({wildcards.genome_build}):
+        return reference_files("genomes/{genome_build}/chains/grch38/hg38ToHg19.over.chain")
+    else:
+        return reference_files("genomes/{genome_build}/chains/grch37/hg19ToHg38.over.chain")
+
+
+# Convert the coordinates of seg file to a different genome build
+rule _cnvkit_convert_coordinates:
+    input:
+        cnvkit_native = str(rules._cnvkit_to_seg.output.seg),
+        cnvkit_chain = _cnvkit_get_chain
+    output:
+        cnvkit_lifted = CFG["dirs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{capture_space}/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.seg"
+    log:
+        stderr = CFG["logs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{capture_space}/{tumour_id}--{normal_id}/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.stderr.log"
+    threads: 1
+    params:
+        liftover_script = CFG["options"]["liftover_script_path"],
+        liftover_minmatch = CFG["options"]["liftover_minMatch"]
+    conda:
+        CFG["conda_envs"]["liftover"]
+    shell:
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
+        bash {params.liftover_script}
+        SEG
+        {input.cnvkit_native}
+        {output.cnvkit_lifted}
+        {input.cnvkit_chain}
+        YES
+        {params.liftover_minmatch}
+        2>> {log.stderr}
+        """)
+
+
+def _cnvkit_determine_projection(wildcards):
+    CFG = config["lcr-modules"]["cnvkit"]
+    tbl = CFG["runs"]
+    this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"]
+    this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"]
+
+    prefixed_projections = CFG["options"]["prefixed_projections"]
+    non_prefixed_projections = CFG["options"]["non_prefixed_projections"]
+
+    if any(substring in this_genome_build[0] for substring in prefixed_projections):
+        hg38_projection = str(rules._cnvkit_to_seg.output.seg).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
+        grch37_projection = str(rules._cnvkit_convert_coordinates.output.cnvkit_lifted).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
+        # handle the hg19 (prefixed) separately
+        if "38" in str(this_genome_build[0]):
+            grch37_projection = grch37_projection.replace("{chain}", "hg38ToHg19")
+        else:
+            grch37_projection = grch37_projection.replace("{chain}", "hg19ToHg38")
+
+    elif any(substring in this_genome_build[0] for substring in non_prefixed_projections):
+        grch37_projection = str(rules._cnvkit_to_seg.output.seg).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
+        hg38_projection = str(rules._cnvkit_convert_coordinates.output.cnvkit_lifted).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
+        # handle the grch38 (non-prefixed) separately
+        if "38" in str(this_genome_build[0]):
+            hg38_projection = hg38_projection.replace("{chain}", "hg38ToHg19")
+        else:
+            hg38_projection = hg38_projection.replace("{chain}", "hg19ToHg38")
+    else:
+        raise AttributeError(f"The specified genome build {this_genome_build[0]} is not specified in the config under options to indicate its chr prefixing.")
+
+    return{
+        "grch37_projection": grch37_projection,
+        "hg38_projection": hg38_projection
+    }
+
+
+# Fill the missing segments of seg files with neutral regions to complete the genome coverage
+rule _cnvkit_fill_segments:
+    input:
+        unpack(_cnvkit_determine_projection)
+    output:
+        grch37_filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg",
+        hg38_filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+    log:
+        stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}_fill_segments.stderr.log"
+    threads: 1
+    params:
+        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/"
+    conda:
+        CFG["conda_envs"]["bedtools"]
+    shell:
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
+        echo "Filling grch37 projection" >> {log.stderr};
+        bash {params.path}fill_segments.sh
+        {params.path}src/chromArm.grch37.bed
+        {input.grch37_projection}
+        {params.path}src/blacklisted.grch37.bed
+        {output.grch37_filled}
+        {wildcards.tumour_id}
+        SEG
+        2>> {log.stderr};
+        echo "Filling hg38 projection" >> {log.stderr};
+        bash {params.path}fill_segments.sh
+        {params.path}src/chromArm.hg38.bed
+        {input.hg38_projection}
+        {params.path}src/blacklisted.hg38.bed
+        {output.hg38_filled}
+        {wildcards.tumour_id}
+        SEG
+        2>> {log.stderr};
+        """)
+
+
+# Normalize chr prefixing
+rule _cnvkit_normalize_projection:
+    input:
+        grch37_filled = str(rules._cnvkit_fill_segments.output.grch37_filled),
+        hg38_filled = str(rules._cnvkit_fill_segments.output.hg38_filled)
+    output:
+        grch37_projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg",
+        hg38_projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+    threads: 1
+    run:
+        # grch37 is always non-prefixed
+        seg_open = pd.read_csv(input.grch37_filled, sep = "\t")
+        seg_open["chrom"] = seg_open["chrom"].astype(str).str.replace('chr', '')
+        seg_open.to_csv(output.grch37_projection, sep="\t", index=False)
+        # hg38 is always prefixed, but add it if currently missing
+        seg_open = pd.read_csv(input.hg38_filled, sep = "\t")
+        chrom = list(seg_open['chrom'])
+        for i in range(len(chrom)):
+            if 'chr' not in str(chrom[i]):
+                chrom[i]='chr'+str(chrom[i])
+        seg_open.loc[:, 'chrom']=chrom
+        seg_open.to_csv(output.hg38_projection, sep="\t", index=False)
+
+
+rule _cnvkit_output_projection:
+    input:
+        grch37_projection = str(rules._cnvkit_normalize_projection.output.grch37_projection),
+        hg38_projection = str(rules._cnvkit_normalize_projection.output.hg38_projection)
+    output:
+        grch37_projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg",
+        hg38_projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+    threads: 1
+    run:
+        op.relative_symlink(input.grch37_projection, output.grch37_projection, in_module = True)
+        op.relative_symlink(input.hg38_projection, output.hg38_projection, in_module = True)
+
+
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _cnvkit_output:
     input:
@@ -657,7 +803,20 @@ rule _cnvkit_all:
             normal_id=CFG["runs"]["normal_sample_id"],
             pair_status=CFG["runs"]["pair_status"],
             capture_space=CFG["runs"]["tumour_capture_space"],
-        )
+        ),
+        expand(
+            [
+                str(rules._cnvkit_output_projection.output.grch37_projection),
+                str(rules._cnvkit_output_projection.output.hg38_projection)
+            ],
+            zip,  # Run expand() with zip(), not product()
+            tumour_id=CFG["runs"]["tumour_sample_id"],
+            normal_id=CFG["runs"]["normal_sample_id"],
+            seq_type=CFG["runs"]["tumour_seq_type"],
+            pair_status=CFG["runs"]["pair_status"],
+            #repeat the tool name N times in expand so each pair in run is used
+            tool=["cnvkit"] * len(CFG["runs"]["tumour_sample_id"])
+            )
 
 
 ##### CLEANUP #####
