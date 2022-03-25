@@ -65,6 +65,13 @@ lcr-modules:
             prefixed_projections: ["hg19", "hg38"] # List here the base names of chr-prefixed projections
             non_prefixed_projections: ["grch37", "grch38", "hs37d5"] # List here the base names of non-prefixed projections
 
+        output: # specify the naming convention for the output files under 99-outputs/
+                # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
+                # other wildcards are not supported in the naming scheme of output files
+            seg:
+                original: "seg/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.igv.seg"
+                grch37_projection: "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"
+                hg38_projection: "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
 
         conda_envs:
             cnvkit: "{MODSDIR}/envs/cnvkit-0.9.9.yaml"

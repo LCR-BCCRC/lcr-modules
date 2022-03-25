@@ -695,8 +695,8 @@ rule _cnvkit_output_projection:
         grch37_projection = str(rules._cnvkit_normalize_projection.output.grch37_projection),
         hg38_projection = str(rules._cnvkit_normalize_projection.output.hg38_projection)
     output:
-        grch37_projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg",
-        hg38_projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+        grch37_projection = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["grch37_projection"],
+        hg38_projection = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["hg38_projection"]
     threads: 1
     run:
         op.relative_symlink(input.grch37_projection, output.grch37_projection, in_module = True)
