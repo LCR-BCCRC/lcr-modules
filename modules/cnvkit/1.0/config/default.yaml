@@ -69,9 +69,20 @@ lcr-modules:
                 # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
                 # other wildcards are not supported in the naming scheme of output files
             seg:
-                original: "seg/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.igv.seg"
+                original: "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.igv.seg"
                 grch37_projection: "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"
                 hg38_projection: "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+            pdf:
+                diagram: "plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.diagram.pdf"
+            png:
+                scatter: "plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.scatter.png"
+            cns:
+                call: "cns/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.cns"
+            txt:
+                breaks: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneBreaks.txt"
+                gene_seg: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneSeg.txt"
+                geneList: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneList.txt"
+                sex: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sex.txt"
 
         conda_envs:
             cnvkit: "{MODSDIR}/envs/cnvkit-0.9.9.yaml"

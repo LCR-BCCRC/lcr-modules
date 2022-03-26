@@ -387,7 +387,7 @@ rule _run_cnvkit_call_vcf:
         vcf = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.gz",
         tbi = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.gz.tbi"
     output: 
-        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns"
+        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cns"
     params:
         rescale = CFG["options"]["BAF"]["rescale"],
         min_depth = CFG["options"]["BAF"]["min_depth"],
@@ -411,7 +411,7 @@ rule _run_cnvkit_call_vcf:
 rule _run_cnvkit_scatter:
     input:
         cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr",
-        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns", 
+        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cns", 
         vcf = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.gz",
         tbi = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.gz.tbi"
     output: 
@@ -435,7 +435,7 @@ rule _run_cnvkit_scatter:
 rule _run_cnvkit_diagram:
     input:
         cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr",
-        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns", 
+        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cns", 
     output:  # only pdf works
         pdf = CFG["dirs"]["plots"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_diagram.pdf"
     params:
@@ -456,7 +456,7 @@ rule _run_cnvkit_diagram:
 rule _cnvkit_breaks:
     input:
         cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr",
-        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns", 
+        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cns", 
     output:
         breaks = CFG["dirs"]["breaks"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.genebreaks.txt"
     conda: 
@@ -476,7 +476,7 @@ rule _cnvkit_breaks:
 rule _cnvkit_genemetrics_seg:
     input:
         cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr",
-        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns", 
+        cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cns", 
     output:
         genemetrics = CFG["dirs"]["geneMetrics"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/segment.gene_cn.txt"
     params:
@@ -528,7 +528,7 @@ rule _cnvkit_infer_sex:
         antitargetcov = CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.antitargetcoverage.cnn",
         cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr",
         cns = CFG["dirs"]["cns"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cns",
-        call =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns"
+        call =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cns"
     output:
         sex = CFG["dirs"]["geneMetrics"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/inferred_sex.txt"
     params:
@@ -689,7 +689,7 @@ rule _cnvkit_normalize_projection:
         seg_open.loc[:, 'chrom']=chrom
         seg_open.to_csv(output.hg38_projection, sep="\t", index=False)
 
-
+# Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _cnvkit_output_projection:
     input:
         grch37_projection = str(rules._cnvkit_normalize_projection.output.grch37_projection),
@@ -703,26 +703,45 @@ rule _cnvkit_output_projection:
         op.relative_symlink(input.hg38_projection, output.hg38_projection, in_module = True)
 
 
+# Output files without a capture_space wildcard in them for consistency
+def _cnvkit_drop_capture_space_wc(wildcards):
+    CFG = config["lcr-modules"]["cnvkit"]
+    tbl = CFG["runs"]
+    this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"]
+
+    call_cns = str(rules._run_cnvkit_call_vcf.output.cns).replace("{capture_space}", this_space[0])
+    scatter = str(rules._run_cnvkit_scatter.output.png).replace("{capture_space}", this_space[0])
+    diagram = str(rules._run_cnvkit_diagram.output.pdf).replace("{capture_space}", this_space[0])
+    breaks = str(rules._cnvkit_breaks.output.breaks).replace("{capture_space}", this_space[0])
+    gene_seg = str(rules._cnvkit_genemetrics_seg.output.genemetrics).replace("{capture_space}", this_space[0])
+    geneList = str(rules._cnvkit_trusted_genes_cna.output.trusted_genes).replace("{capture_space}", this_space[0])
+    sex = str(rules._cnvkit_infer_sex.output.sex).replace("{capture_space}", this_space[0])
+    seg = str(rules._cnvkit_to_seg.output.seg).replace("{capture_space}", this_space[0])
+
+    return{
+        "call_cns": call_cns,
+        "scatter": scatter,
+        "diagram": diagram,
+        "breaks": breaks,
+        "gene_seg": gene_seg,
+        "geneList": geneList,
+        "sex": sex,
+        "seg": seg
+    }
+
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _cnvkit_output:
+rule _cnvkit_output_no_capture_space:
     input:
-        call_cns = str(rules._run_cnvkit_call_vcf.output.cns),
-        scatter = str(rules._run_cnvkit_scatter.output.png),
-        diagram = str(rules._run_cnvkit_diagram.output.pdf),
-        breaks = str(rules._cnvkit_breaks.output.breaks),
-        gene_seg = str(rules._cnvkit_genemetrics_seg.output.genemetrics),
-        geneList = str(rules._cnvkit_trusted_genes_cna.output.trusted_genes),
-        sex = str(rules._cnvkit_infer_sex.output.sex),
-        seg = str(rules._cnvkit_to_seg.output.seg)
+        unpack(_cnvkit_drop_capture_space_wc)
     output:
-        call_cns = CFG["dirs"]["outputs"] + "wildcard_capture/BAF_cns/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns",
-        scatter = CFG["dirs"]["outputs"] + "wildcard_capture/scatter/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_scatter.png",
-        diagram = CFG["dirs"]["outputs"] + "wildcard_capture/diagram/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_diagram.pdf",
-        breaks = CFG["dirs"]["outputs"] + "wildcard_capture/breaks/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_genebreaks.txt",
-        gene_seg = CFG["dirs"]["outputs"] + "wildcard_capture/geneMetrics/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_geneSeg.txt",
-        geneList = CFG["dirs"]["outputs"] + "wildcard_capture/geneList/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_genebreaks.txt",
-        sex = CFG["dirs"]["outputs"] + "wildcard_capture/sex/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_genebreaks.txt",
-        seg = CFG["dirs"]["outputs"] + "wildcard_capture/seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.seg"
+        call_cns = CFG["dirs"]["outputs"] + CFG["output"]["cns"]["call"],
+        scatter = CFG["dirs"]["outputs"] + CFG["output"]["png"]["scatter"],
+        diagram = CFG["dirs"]["outputs"] + CFG["output"]["pdf"]["diagram"],
+        breaks = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["breaks"],
+        gene_seg = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["gene_seg"],
+        geneList = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["geneList"],
+        sex = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["sex"],
+        seg = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["original"]
     run:
         op.relative_symlink(input.call_cns, output.call_cns, in_module = True)
         op.relative_symlink(input.scatter, output.scatter, in_module = True)
@@ -732,46 +751,6 @@ rule _cnvkit_output:
         op.relative_symlink(input.geneList, output.geneList, in_module = True)
         op.relative_symlink(input.sex, output.sex, in_module = True)
         op.relative_symlink(input.seg, output.seg, in_module = True)
-
-
-# this is to collapse the wildcard {capture_space} to streamline downstream analyses
-rule _cnvkit_output_no_capture_space:
-    input:
-        call_cns = str(rules._run_cnvkit_call_vcf.output.cns),
-        scatter = str(rules._run_cnvkit_scatter.output.png),
-        diagram = str(rules._run_cnvkit_diagram.output.pdf),
-        breaks = str(rules._cnvkit_breaks.output.breaks),
-        gene_seg = str(rules._cnvkit_genemetrics_seg.output.genemetrics),
-        geneList = str(rules._cnvkit_trusted_genes_cna.output.trusted_genes),
-        sex = str(rules._cnvkit_infer_sex.output.sex),
-        seg = str(rules._cnvkit_to_seg.output.seg)
-    output:
-        call_cns = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/BAF_cns/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.call.cns"),
-        scatter = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/scatter/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_scatter.png"),
-        diagram = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/diagram/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_diagram.pdf"),
-        breaks = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/breaks/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_genebreaks.txt"),
-        gene_seg = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/geneMetrics/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_geneSeg.txt"),
-        geneList = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/geneList/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_genebreaks.txt"),
-        sex = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/sex/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_genebreaks.txt"),
-        seg = touch(CFG["dirs"]["outputs"] + "no_wildcard_capture/seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.seg")
-    params:
-        call_cns = CFG["dirs"]["outputs"] + "no_wildcard_capture/BAF_cns/{seq_type}--{genome_build}/{tumour_id}.call.cns",
-        scatter = CFG["dirs"]["outputs"] + "no_wildcard_capture/scatter/{seq_type}--{genome_build}/{tumour_id}_scatter.png",
-        diagram = CFG["dirs"]["outputs"] + "no_wildcard_capture/diagram/{seq_type}--{genome_build}/{tumour_id}_diagram.pdf",
-        breaks = CFG["dirs"]["outputs"] + "no_wildcard_capture/breaks/{seq_type}--{genome_build}/{tumour_id}_genebreaks.txt",
-        gene_seg = CFG["dirs"]["outputs"] + "no_wildcard_capture/geneMetrics/{seq_type}--{genome_build}/{tumour_id}_geneSeg.txt",
-        geneList = CFG["dirs"]["outputs"] + "no_wildcard_capture/geneList/{seq_type}--{genome_build}/{tumour_id}_genebreaks.txt",
-        sex = CFG["dirs"]["outputs"] + "no_wildcard_capture/sex/{seq_type}--{genome_build}/{tumour_id}_genebreaks.txt",
-        seg = CFG["dirs"]["outputs"] + "no_wildcard_capture/seg/{seq_type}--{genome_build}/{tumour_id}.seg"
-    run:
-        op.relative_symlink(input.call_cns, params.call_cns, in_module = True)
-        op.relative_symlink(input.scatter, params.scatter, in_module = True)
-        op.relative_symlink(input.diagram, params.diagram, in_module = True)
-        op.relative_symlink(input.breaks, params.breaks, in_module = True)
-        op.relative_symlink(input.gene_seg, params.gene_seg, in_module = True)
-        op.relative_symlink(input.geneList, params.geneList, in_module = True)
-        op.relative_symlink(input.sex, params.sex, in_module = True)
-        op.relative_symlink(input.seg, params.seg, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -786,23 +765,14 @@ rule _cnvkit_all:
                 str(rules._cnvkit_output_no_capture_space.output.gene_seg),
                 str(rules._cnvkit_output_no_capture_space.output.geneList),                
                 str(rules._cnvkit_output_no_capture_space.output.sex),
-                str(rules._cnvkit_output_no_capture_space.output.seg),
-                str(rules._cnvkit_output.output.call_cns),
-                str(rules._cnvkit_output.output.scatter),
-                str(rules._cnvkit_output.output.diagram),
-                str(rules._cnvkit_output.output.breaks),
-                str(rules._cnvkit_output.output.gene_seg),
-                str(rules._cnvkit_output.output.geneList),                
-                str(rules._cnvkit_output.output.sex),
-                str(rules._cnvkit_output.output.seg),
+                str(rules._cnvkit_output_no_capture_space.output.seg)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"],
-            capture_space=CFG["runs"]["tumour_capture_space"],
+            pair_status=CFG["runs"]["pair_status"]
         ),
         expand(
             [
