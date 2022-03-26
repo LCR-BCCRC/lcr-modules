@@ -26,7 +26,6 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _cnvkit_input_bam,
-    _cnvkit_output_no_capture_space,
     _cnvkit_output,
     _cnvkit_all,
 
@@ -346,6 +345,8 @@ rule _cnvkit_concatenate_vcf:
         tbi = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{sample_id}.vcf.gz.tbi"
     resources: 
         **CFG["resources"]["SNPs"]
+    wildcard_constraints:
+        genome_build = "|".join(CFG["runs"]["tumour_genome_build"])
     group: "cnvkit"
     conda:
         CFG["conda_envs"]["bcftools"]
@@ -730,7 +731,7 @@ def _cnvkit_drop_capture_space_wc(wildcards):
     }
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _cnvkit_output_no_capture_space:
+rule _cnvkit_output:
     input:
         unpack(_cnvkit_drop_capture_space_wc)
     output:
@@ -758,14 +759,14 @@ rule _cnvkit_all:
     input:
         expand(
             [
-                str(rules._cnvkit_output_no_capture_space.output.call_cns),
-                str(rules._cnvkit_output_no_capture_space.output.scatter),
-                str(rules._cnvkit_output_no_capture_space.output.diagram),
-                str(rules._cnvkit_output_no_capture_space.output.breaks),
-                str(rules._cnvkit_output_no_capture_space.output.gene_seg),
-                str(rules._cnvkit_output_no_capture_space.output.geneList),                
-                str(rules._cnvkit_output_no_capture_space.output.sex),
-                str(rules._cnvkit_output_no_capture_space.output.seg)
+                str(rules._cnvkit_output.output.call_cns),
+                str(rules._cnvkit_output.output.scatter),
+                str(rules._cnvkit_output.output.diagram),
+                str(rules._cnvkit_output.output.breaks),
+                str(rules._cnvkit_output.output.gene_seg),
+                str(rules._cnvkit_output.output.geneList),                
+                str(rules._cnvkit_output.output.sex),
+                str(rules._cnvkit_output.output.seg)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
