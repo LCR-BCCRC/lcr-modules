@@ -696,8 +696,8 @@ rule _cnvkit_output_projection:
         grch37_projection = str(rules._cnvkit_normalize_projection.output.grch37_projection),
         hg38_projection = str(rules._cnvkit_normalize_projection.output.hg38_projection)
     output:
-        grch37_projection = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["grch37_projection"],
-        hg38_projection = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["hg38_projection"]
+        grch37_projection = CFG["output"]["seg"]["grch37_projection"],
+        hg38_projection = CFG["output"]["seg"]["hg38_projection"]
     threads: 1
     run:
         op.relative_symlink(input.grch37_projection, output.grch37_projection, in_module = True)
@@ -735,14 +735,14 @@ rule _cnvkit_output:
     input:
         unpack(_cnvkit_drop_capture_space_wc)
     output:
-        call_cns = CFG["dirs"]["outputs"] + CFG["output"]["cns"]["call"],
-        scatter = CFG["dirs"]["outputs"] + CFG["output"]["png"]["scatter"],
-        diagram = CFG["dirs"]["outputs"] + CFG["output"]["pdf"]["diagram"],
-        breaks = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["breaks"],
-        gene_seg = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["gene_seg"],
-        geneList = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["geneList"],
-        sex = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["sex"],
-        seg = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["original"]
+        call_cns = CFG["output"]["cns"]["call"],
+        scatter = CFG["output"]["png"]["scatter"],
+        diagram = CFG["output"]["pdf"]["diagram"],
+        breaks = CFG["output"]["txt"]["breaks"],
+        gene_seg = CFG["output"]["txt"]["gene_seg"],
+        geneList = CFG["output"]["txt"]["geneList"],
+        sex = CFG["output"]["txt"]["sex"],
+        seg = CFG["output"]["seg"]["original"]
     run:
         op.relative_symlink(input.call_cns, output.call_cns, in_module = True)
         op.relative_symlink(input.scatter, output.scatter, in_module = True)

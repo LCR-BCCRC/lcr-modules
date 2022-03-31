@@ -225,6 +225,8 @@ rule _controlfreec_generate_chrFasta:
 rule _controlfreec_check_chrFiles:
     input:
         _controlfreec_get_chr_fastas
+    wildcard_constraints:
+        genome_build = "|".join(CFG["runs"]["tumour_genome_build"])
     output:
         touch(CFG["dirs"]["inputs"] + "references/{genome_build}/freec/chr/.all_done")
 
@@ -291,6 +293,8 @@ rule _controlfreec_concatenate_pileups:
         mpileup = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.bam_minipileup.pileup.gz")
     resources: 
         **CFG["resources"]["cat"]
+    wildcard_constraints:
+        genome_build = "|".join(CFG["runs"]["tumour_genome_build"])
     group: "controlfreec"
     shell: 
         "cat {input.mpileup} > {output.mpileup} "
@@ -631,8 +635,8 @@ rule _controlfreec_output_projection:
         grch37_projection = str(rules._controlfreec_normalize_projection.output.grch37_projection),
         hg38_projection = str(rules._controlfreec_normalize_projection.output.hg38_projection)
     output:
-        grch37_projection = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["grch37_projection"],
-        hg38_projection = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["hg38_projection"]
+        grch37_projection = CFG["output"]["seg"]["grch37_projection"],
+        hg38_projection = CFG["output"]["seg"]["hg38_projection"]
     threads: 1
     run:
         op.relative_symlink(input.grch37_projection, output.grch37_projection, in_module = True)
@@ -652,15 +656,15 @@ rule _controlfreec_output:
         circos = str(rules._controlfreec_freec2circos.output.circos),
         igv = str(rules._controlfreec_cnv2igv.output.seg)
     output:
-        plot = CFG["dirs"]["outputs"] + CFG["output"]["png"]["ratio"],
-        log2plot = CFG["dirs"]["outputs"] + CFG["output"]["png"]["log2"],
-        CNV = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["cnv"],
-        bed = CFG["dirs"]["outputs"] + CFG["output"]["bed"]["bed"],
-        BAF = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["baf"],
-        BAFgraph = CFG["dirs"]["outputs"] + CFG["output"]["png"]["baf"],
-        ratio = CFG["dirs"]["outputs"] + CFG["output"]["txt"]["ratio"],
-        circos = CFG["dirs"]["outputs"] + CFG["output"]["bed"]["circos"],
-        igv = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["original"]
+        plot = CFG["output"]["png"]["ratio"],
+        log2plot = CFG["output"]["png"]["log2"],
+        CNV = CFG["output"]["txt"]["cnv"],
+        bed = CFG["output"]["bed"]["bed"],
+        BAF = CFG["output"]["txt"]["baf"],
+        BAFgraph = CFG["output"]["png"]["baf"],
+        ratio = CFG["output"]["txt"]["ratio"],
+        circos = CFG["output"]["bed"]["circos"],
+        igv = CFG["output"]["seg"]["original"]
     run:
         op.relative_symlink(input.plot, output.plot, in_module = True)
         op.relative_symlink(input.log2plot, output.log2plot, in_module = True)

@@ -76,20 +76,20 @@ lcr-modules:
                 # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
                 # other wildcards are not supported in the naming scheme of output files
             seg:
-                original: "seg/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.seg"
-                grch37_projection: "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"
-                hg38_projection: "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+                original: "results/controlfreec-1.2/99-outputs/seg/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.seg"
+                grch37_projection: "results/controlfreec-1.2/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"
+                hg38_projection: "results/controlfreec-1.2/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
             bed:
-                bed: "bed/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.bed"
-                circos: "bed/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.circos.bed"
+                bed: "results/controlfreec-1.2/99-outputs/bed/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.bed"
+                circos: "results/controlfreec-1.2/99-outputs/bed/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.circos.bed"
             txt:
-                cnv: "txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.txt"
-                baf: "txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.txt"
-                ratio: "txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.txt"
+                cnv: "results/controlfreec-1.2/99-outputs/txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.txt"
+                baf: "results/controlfreec-1.2/99-outputs/txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.txt"
+                ratio: "results/controlfreec-1.2/99-outputs/txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.txt"
             png:
-                ratio: "png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.png"
-                log2: "png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.log2.png"
-                baf: "png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.png"
+                ratio: "results/controlfreec-1.2/99-outputs/png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.png"
+                log2: "results/controlfreec-1.2/99-outputs/png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.log2.png"
+                baf: "results/controlfreec-1.2/99-outputs/png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.png"
 
 
         software:
