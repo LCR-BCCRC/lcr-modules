@@ -390,13 +390,11 @@ rule _battenberg_fill_segments:
 
 
 def _battenberg_determine_projection(wildcards):
-    print(wildcards.projection)
     CFG = config["lcr-modules"]["battenberg"]
     if any(substring in wildcards.projection for substring in ["hg19", "grch37", "hs37d5"]):
         this_file = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"
     elif any(substring in wildcards.projection for substring in ["hg38", "grch38"]):
         this_file = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
-    print(this_file)
     return (this_file)
 
 
