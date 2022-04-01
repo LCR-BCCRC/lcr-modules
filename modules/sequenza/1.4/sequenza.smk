@@ -269,8 +269,8 @@ rule _sequenza_convert_coordinates:
         2>> {log.stderr}
         """)
 
-
-def _sequenza_determine_projection(wildcards):
+# ensure to request the correct files for each projection and drop wildcards that won't be used downstream
+def _sequenza_prepare_projection(wildcards):
     CFG = config["lcr-modules"]["sequenza"]
     tbl = CFG["runs"]
     this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"]
@@ -304,13 +304,13 @@ def _sequenza_determine_projection(wildcards):
     }
 
 
-# Convert the coordinates of seg file to a different genome build
+# Fill segments of both native and filled file
 rule _sequenza_fill_segments:
     input:
-        unpack(_sequenza_determine_projection)
+        unpack(_sequenza_prepare_projection)
     output:
-        grch37_filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg",
-        hg38_filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+        grch37_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"),
+        hg38_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg")
     log:
         stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}_fill_segments.stderr.log"
     threads: 1
@@ -341,43 +341,53 @@ rule _sequenza_fill_segments:
         2>> {log.stderr};
         """)
 
+def _sequenza_determine_projection(wildcards):
+    CFG = config["lcr-modules"]["sequenza"]
+    if any(substring in wildcards.projection for substring in ["hg19", "grch37", "hs37d5"]):
+        this_file = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"
+    elif any(substring in wildcards.projection for substring in ["hg38", "grch38"]):
+        this_file = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+    return (this_file)
 
-# Normalize chr prefixing
+
+# Normalize chr prefix of the output file
 rule _sequenza_normalize_projection:
     input:
-        grch37_filled = str(rules._sequenza_fill_segments.output.grch37_filled),
-        hg38_filled = str(rules._sequenza_fill_segments.output.hg38_filled)
+        filled = _sequenza_determine_projection,
+        chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
     output:
-        grch37_projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg",
-        hg38_projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+        projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
     threads: 1
+    group: "post_process"
     run:
-        # grch37 is always non-prefixed
-        seg_open = pd.read_csv(input.grch37_filled, sep = "\t")
-        seg_open["chrom"] = seg_open["chrom"].astype(str).str.replace('chr', '')
-        seg_open.to_csv(output.grch37_projection, sep="\t", index=False)
-        # hg38 is always prefixed, but add it if currently missing
-        seg_open = pd.read_csv(input.hg38_filled, sep = "\t")
-        chrom = list(seg_open['chrom'])
-        for i in range(len(chrom)):
-            if 'chr' not in str(chrom[i]):
-                chrom[i]='chr'+str(chrom[i])
-        seg_open.loc[:, 'chrom']=chrom
-        seg_open.to_csv(output.hg38_projection, sep="\t", index=False)
+        # read the main chromosomes file of the projection
+        chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
+        # handle chr prefix
+        if "chr" in chromosomes["chromosome"][0]:
+            seg_open = pd.read_csv(input.filled, sep = "\t")
+            chrom = list(seg_open['chrom'])
+            # avoid cases of chrchr1 if the prefix already there
+            for i in range(len(chrom)):
+                if 'chr' not in str(chrom[i]):
+                    chrom[i]='chr'+str(chrom[i])
+            seg_open.loc[:, 'chrom']=chrom
+            seg_open.to_csv(output.projection, sep="\t", index=False)
+        else:
+            # remove chr prefix
+            seg_open = pd.read_csv(input.filled, sep = "\t")
+            seg_open["chrom"] = seg_open["chrom"].astype(str).str.replace('chr', '')
+            seg_open.to_csv(output.projection, sep="\t", index=False)
 
 
+# Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _sequenza_output_projection:
     input:
-        grch37_projection = str(rules._sequenza_normalize_projection.output.grch37_projection),
-        hg38_projection = str(rules._sequenza_normalize_projection.output.hg38_projection)
+        projection = str(rules._sequenza_normalize_projection.output.projection)
     output:
-        grch37_projection = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["grch37_projection"],
-        hg38_projection = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["hg38_projection"]
+        projection = CFG["output"]["seg"]["projection"]
     threads: 1
     run:
-        op.relative_symlink(input.grch37_projection, output.grch37_projection, in_module = True)
-        op.relative_symlink(input.hg38_projection, output.hg38_projection, in_module = True)
-
+        op.relative_symlink(input.projection, output.projection, in_module = True)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _sequenza_output_seg:
@@ -403,9 +413,9 @@ rule _sequenza_all:
             normal_id=CFG["runs"]["normal_sample_id"],
             pair_status=CFG["runs"]["pair_status"]),
         expand(
+            expand(
             [
-                str(rules._sequenza_output_projection.output.grch37_projection),
-                str(rules._sequenza_output_projection.output.hg38_projection)
+                str(rules._sequenza_output_projection.output.projection)
             ],
             zip,  # Run expand() with zip(), not product()
             tumour_id=CFG["runs"]["tumour_sample_id"],
@@ -413,8 +423,9 @@ rule _sequenza_all:
             seq_type=CFG["runs"]["tumour_seq_type"],
             pair_status=CFG["runs"]["pair_status"],
             #repeat the tool name N times in expand so each pair in run is used
-            tool=["sequenza"] * len(CFG["runs"]["tumour_sample_id"])
-            )
+            tool=["sequenza"] * len(CFG["runs"]["tumour_sample_id"]),
+            allow_missing=True),
+            projection=CFG["output"]["requested_projections"])
 
 
 ##### CLEANUP #####

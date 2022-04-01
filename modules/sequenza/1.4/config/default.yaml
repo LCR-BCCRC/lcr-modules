@@ -36,9 +36,10 @@ lcr-modules:
                 # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
                 # other wildcards are not supported in the naming scheme of output files
             seg:
-                original: "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
-                grch37_projection: "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"
-                hg38_projection: "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+                original: "results/sequenza-1.4/99-outputs/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
+                projection: "results/sequenza-1.4/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+            # specify in which projections you want the output files
+            requested_projections: ["grch37", "hg38"]
 
         resources:
             vcf_sort:
