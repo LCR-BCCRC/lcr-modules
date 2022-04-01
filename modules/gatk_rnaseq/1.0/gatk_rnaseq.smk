@@ -85,7 +85,6 @@ rule _gatk_splitntrim:
     conda:
         CFG["conda_envs"]["gatk_rnaseq"]
     group: "split_bam"
-    priority: 50
     threads:
         CFG["threads"]["gatk_splitntrim"]
     resources:
@@ -112,7 +111,6 @@ rule _gatk_addRG:
     conda:
         CFG["conda_envs"]["picard"]
     group: "split_bam"
-    priority: 40
     log:
         stdout = CFG["logs"]["gatk_splitntrim"] + "bam_withRG/{seq_type}--{genome_build}/{sample_id}.addRG.stdout.log"
     threads:
@@ -143,14 +141,13 @@ rule _gatk_base_recalibration:
     conda:
         CFG["conda_envs"]["gatk_rnaseq"]
     group: "split_bam"
-    priority: 30
     threads: CFG["threads"]["gatk_base_recalibration"]
     resources:
         **CFG["resources"]["gatk_base_recalibration"]
-    shell:
+    shell: # -known-sites {params.gnomad} 
         op.as_one_line("""
         gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" BaseRecalibrator {params.gatk_opts} 
-        -R {input.fasta} -I {input.bam} -known-sites {params.dbsnp} -known-sites {params.gnomad} -O {output.table} > {log.stdout} 2> {log.stderr}
+        -R {input.fasta} -I {input.bam} -known-sites {params.dbsnp} -O {output.table} > {log.stdout} 2> {log.stderr}
         """)
         
 rule _gatk_applybqsr:
@@ -160,8 +157,10 @@ rule _gatk_applybqsr:
         table = str(rules._gatk_base_recalibration.output.table),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        bam = temp(CFG["dirs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}/{sample_id}.recalibrated.bam"),
-        bai = temp(CFG["dirs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}/{sample_id}.recalibrated.bai")
+        # bam = temp(CFG["dirs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}/{sample_id}.recalibrated.bam"),
+        # bai = temp(CFG["dirs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}/{sample_id}.recalibrated.bai")
+        bam = CFG["dirs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}/{sample_id}.recalibrated.bam",
+        bai = CFG["dirs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}/{sample_id}.recalibrated.bai"
     log:
         stdout = CFG["logs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}/{sample_id}.gatk_base_recal.stdout.log",
         stderr = CFG["logs"]["gatk_applybqsr"] + "{seq_type}--{genome_build}/{sample_id}.gatk_base_recal.stderr.log"
@@ -172,7 +171,6 @@ rule _gatk_applybqsr:
     conda:
         CFG["conda_envs"]["gatk_rnaseq"]
     group: "split_bam"
-    priority: 20
     threads: CFG["threads"]["gatk_applybqsr"]
     resources:
         **CFG["resources"]["gatk_applybqsr"]
@@ -265,18 +263,42 @@ rule _gatk_rnaseq_merge_vcfs:
         bcftools index -t --threads {threads} {output.vcf} 2>> {log.stderr}
         """)
         
-        
-rule _gatk_variant_filtration:
+# select SNPs only since INDELs are not reliable
+rule _gatk_variant_selection:
     input:
         vcf = str(rules._gatk_rnaseq_merge_vcfs.output.vcf),
         tbi = str(rules._gatk_rnaseq_merge_vcfs.output.tbi),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
+        vcf = temp(CFG["dirs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.SNP.vcf.gz"),
+        tbi = temp(CFG["dirs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.SNP.vcf.gz.tbi")
+    log:
+        stdout = CFG["logs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.variant_select.stdout.log",
+        stderr = CFG["logs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.variant_select.stderr.log"
+    conda:
+        CFG["conda_envs"]["gatk_rnaseq"]
+    threads: CFG["threads"]["gatk_variant_filtration"]
+    resources:
+        **CFG["resources"]["gatk_variant_filtration"]
+    shell:
+        op.as_one_line("""
+        gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" SelectVariants -R {input.fasta} -V {input.vcf} 
+        --select-type-to-include SNP -restrict-alleles-to BIALLELIC 
+        -O {output.vcf} > {log.stdout} 2> {log.stderr}
+        """)
+        
+
+rule _gatk_variant_filtration:
+    input:
+        vcf = str(rules._gatk_variant_selection.output.vcf),
+        tbi = str(rules._gatk_variant_selection.output.tbi),
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+    output:
         vcf = CFG["dirs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.filtered.vcf.gz",
         tbi = CFG["dirs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.filtered.vcf.gz.tbi"
     log:
-        stdout = CFG["logs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.gatk_base_recal.stdout.log",
-        stderr = CFG["logs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.gatk_base_recal.stderr.log"
+        stdout = CFG["logs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.variant_filt.stdout.log",
+        stderr = CFG["logs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.variant_filt.stderr.log"
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["java_opts"],
@@ -292,16 +314,39 @@ rule _gatk_variant_filtration:
         # flag to remove: FS - phred score with strand bias > 30; QD - Variant conf/qual by depth < 2; DP - read depth < 5
         op.as_one_line("""
         gatk --java-options "-Xmx{params.mem_mb}m {params.opts}" VariantFiltration -R {input.fasta} -V {input.vcf} 
-        -window {params.window} -cluster-size {params.cluster_size}  
+        -window {params.window} -cluster-size {params.cluster_size} 
         {params.filter_expression}  
         -O {output.vcf} > {log.stdout} 2> {log.stderr}
         """)
 
 
+# minimum AD threshold (min 5 reads that support the alternate allele)
+rule _gatk_filter_AD:
+    input:
+        vcf = str(rules._gatk_variant_filtration.output.vcf),
+        tbi = str(rules._gatk_variant_filtration.output.tbi)
+    output:
+        vcf = temp(CFG["dirs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.AD.filtered.vcf.gz"),
+        tbi = temp(CFG["dirs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.AD.filtered.vcf.gz.tbi")
+    log:
+        stderr = CFG["logs"]["gatk_variant_filtration"] + "{seq_type}--{genome_build}/{sample_id}.AD.variant_filt.stderr.log"
+    conda:
+        CFG["conda_envs"]["bcftools"]
+    threads: CFG["threads"]["gatk_variant_filtration"]
+    resources:
+        **CFG["resources"]["gatk_variant_filtration"]
+    shell:
+        op.as_one_line("""
+        bcftools filter -i 'AD[0:1-] > 5' -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
+                    &&
+        tabix -p vcf {output.vcf} 2>> {log.stderr}
+        """)
+
 # Filters for PASS variants
 rule _gatk_rnaseq_filter_passed:
-    input:
-        vcf = str(rules._gatk_variant_filtration.output.vcf)
+    input:        
+        vcf = str(rules._gatk_filter_AD.output.vcf),
+        tbi = str(rules._gatk_filter_AD.output.tbi)
     output:
         vcf = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/temp/{sample_id}.output.passed.vcf.gz",
         tbi = CFG["dirs"]["passed"] + "{seq_type}--{genome_build}/temp/{sample_id}.output.passed.vcf.gz.tbi"
@@ -327,8 +372,7 @@ rule _gatk_rnaseq_filter_passed:
 rule _gatk_rnaseq_removeAF:
     input:
         vcf = str(rules._gatk_rnaseq_filter_passed.output.vcf),
-        tbi = str(rules._gatk_rnaseq_filter_passed.output.tbi),
-        gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")
+        tbi = str(rules._gatk_rnaseq_filter_passed.output.tbi)
     output:
         vcf = temp(CFG["dirs"]["gnomad_filter"] + "{seq_type}--{genome_build}/{sample_id}.combined.removeAF.vcf.gz"), 
         tbi = temp(CFG["dirs"]["gnomad_filter"] + "{seq_type}--{genome_build}/{sample_id}.combined.removeAF.vcf.gz.tbi")

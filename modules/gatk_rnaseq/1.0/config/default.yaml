@@ -59,16 +59,12 @@ lcr-modules:
                 bam: 1
             gatk_addRG:
                 mem_mb: 12000
-                bam: 1
             gatk_base_recalibration:
                 mem_mb: 12000
-                bam: 1
             gatk_applybqsr:
                 mem_mb: 12000
-                bam: 1
             gatk_variant_calling:
                 mem_mb: 12000
-                bam: 1
             gatk_variant_filtration:
                 mem_mb: 12000
             merge_vcfs:
