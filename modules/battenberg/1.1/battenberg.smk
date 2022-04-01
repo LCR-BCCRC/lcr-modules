@@ -373,7 +373,7 @@ rule _battenberg_output_projection:
     input:
         projection = str(rules._battenberg_normalize_projection.output.projection)
     output:
-        projection = "results/battenberg-1.2/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+        projection = CFG["output"]["seg"]["projection"]
     threads: 1
     group: "post_process"
     run:

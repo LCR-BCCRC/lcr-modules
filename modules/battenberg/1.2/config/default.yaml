@@ -27,8 +27,7 @@ lcr-modules:
                 # other wildcards are not supported in the naming scheme of output files
             seg:
                 original: "results/battenberg-1.2/99-outputs/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.seg"
-                grch37_projection: "results/battenberg-1.2/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"
-                hg38_projection: "results/battenberg-1.2/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+                projection: "results/battenberg-1.2/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
             txt:
                 subclones: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt"
                 cell_ploidy: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
