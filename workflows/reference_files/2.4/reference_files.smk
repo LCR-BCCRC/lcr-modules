@@ -232,15 +232,18 @@ rule calc_gc_content:
 
 rule get_dbsnp_download: 
     input:
-        vcf = get_download_file(rules.download_dbsnp_vcf.output.vcf)
+        vcf = get_download_file(rules.download_dbsnp_vcf.output.vcf),
+        fai = str(rules.index_genome_fasta.output.fai),
+        bed = str(rules.get_main_chromosomes_withY_download.output.bed)
     output:
-        vcf = "genomes/{genome_build}/variation/dbsnp.common_all-{dbsnp_build}.vcf.gz"
-    conda: CONDA_ENVS["samtools"]
+        vcf = "genomes/{genome_build}/variation/dbsnp.common_all-{dbsnp_build}.vcf.gz",
+        tmpfile = temp("genomes/{genome_build}/variation/dbsnp.common_all-{dbsnp_build}.vcf.tmp")
+    conda: CONDA_ENVS["bcftools"]
     shell:
         op.as_one_line("""
-        bgzip -c {input.vcf} > {output.vcf}
-            &&
-        tabix {output.vcf}
+        zgrep -v '##contig' {input.vcf} > {output.tmpfile} &&
+        bcftools reheader --fai {input.fai} {output.tmpfile} | bcftools view -T {input.bed} -O z -o {output.vcf} &&
+        bcftools index -t {output.vcf}
         """)
 
 ##### PICARD METRICS
@@ -374,15 +377,18 @@ rule create_salmon_index:
 
 rule get_af_only_gnomad_vcf:
     input:
-        vcf = get_download_file(rules.download_af_only_gnomad_vcf.output.vcf)
+        vcf = get_download_file(rules.download_af_only_gnomad_vcf.output.vcf),
+        fai = str(rules.index_genome_fasta.output.fai),
+        bed = str(rules.get_main_chromosomes_withY_download.output.bed)
     output:
-        vcf = "genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"
-    conda: CONDA_ENVS["samtools"]
+        vcf = "genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz",
+        tmpfile = temp("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.tmp")
+    conda: CONDA_ENVS["bcftools"]
     shell:
-        op.as_one_line(""" 
-        bgzip -c {input.vcf} > {output.vcf}
-            &&
-        tabix {output.vcf}
+        op.as_one_line("""
+        zgrep -v '##contig' {input.vcf} > {output.tmpfile} &&
+        bcftools reheader --fai {input.fai} {output.tmpfile} | bcftools view -T {input.bed} -O z -o {output.vcf} &&
+        bcftools index -t {output.vcf}
         """)
 
 rule normalize_af_only_gnomad_vcf:
@@ -404,28 +410,38 @@ rule normalize_af_only_gnomad_vcf:
 
 rule get_mutect2_pon:
     input:
-        vcf = get_download_file(rules.download_mutect2_pon.output.vcf)
+        vcf = get_download_file(rules.download_mutect2_pon.output.vcf),
+        fai = str(rules.index_genome_fasta.output.fai),
+        bed = str(rules.get_main_chromosomes_withY_download.output.bed)
     output:
-        vcf = "genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz"
-    conda: CONDA_ENVS["samtools"]
+        vcf = "genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz",
+        tmpfile = temp("genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.tmp")
+    conda: CONDA_ENVS["bcftools"]
+    log:
+        "genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.log"
     shell:
         op.as_one_line(""" 
-        bgzip -c {input.vcf} > {output.vcf}
-            &&
-        tabix {output.vcf}
+        zgrep -v '##contig' {input.vcf} > {output.tmpfile} &&
+        bcftools reheader --fai {input.fai} {output.tmpfile} | bcftools view -T {input.bed} -O z -o {output.vcf} 2> {log} &&
+        bcftools index -t {output.vcf}
         """)
 
 rule get_mutect2_small_exac:
     input:
-        vcf = get_download_file(rules.download_mutect2_small_exac.output.vcf)
+        vcf = get_download_file(rules.download_mutect2_small_exac.output.vcf),
+        fai = str(rules.index_genome_fasta.output.fai),
+        bed = str(rules.get_main_chromosomes_withY_download.output.bed)
     output:
-        vcf = "genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz"
-    conda: CONDA_ENVS["samtools"]
+        vcf = "genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz",
+        tmpfile = temp("genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.tmp")
+    log:
+        "genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.log"
+    conda: CONDA_ENVS["bcftools"]
     shell:
         op.as_one_line(""" 
-        bgzip -c {input.vcf} > {output.vcf}
-            &&
-        tabix {output.vcf}
+        zgrep -v '##contig' {input.vcf} > {output.tmpfile} &&
+        bcftools reheader --fai {input.fai} {output.tmpfile} | bcftools view -T {input.bed} -O z -o {output.vcf} 2> {log} &&
+        bcftools index -t {output.vcf}
         """)
 
 
@@ -582,5 +598,3 @@ rule install_sigprofiler_genome:
         complete = "genomes/{genome_build}/sigprofiler_genomes/{genome_build}.installed"
     run:
         op.relative_symlink(input, output.complete)
-
-

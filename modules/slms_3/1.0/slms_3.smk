@@ -247,8 +247,11 @@ rule _slms_3_annotate_sage_gnomad:
         bcftools annotate --threads {threads} 
         -a {input.gnomad} -c INFO/AF {input.vcf} | 
         awk 'BEGIN {{FS=OFS="\\t"}} {{ if ($1 !~ /^#/ && $8 !~ ";AF=") $8=$8";AF=0"; print $0; }}' | 
-        sed 's/{wildcards.tumour_id}/TUMOR/g' | 
-        sed 's/{wildcards.normal_id}/NORMAL/g' | 
+        perl -ne '$norm="{wildcards.normal_id}";
+                  $tum="{wildcards.tumour_id}";
+                  s/(\s)$tum(\s)/$1TUMOR$2/;
+                  s/(\s)$norm(\s)/$1NORMAL$2/;
+                  print;' |
         bcftools view -s "NORMAL,TUMOR" -i 'INFO/AF < 0.0001' -Oz -o {output.vcf} 2> {log.stderr} 
         &&
         tabix -p vcf {output.vcf} 2>> {log.stderr}

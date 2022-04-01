@@ -79,12 +79,12 @@ rule _star_input_fastq:
 def get_overhang(wildcards,build = False):
     tbl = config["lcr-modules"]["star"]["samples"]
     read_length = tbl.loc[(tbl.sample_id==wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type), 'read_length'].values[0]
-    return(read_length - 1)
+    return(int(read_length - 1))
 
 def get_index(wildcards, build=False): 
     tbl = config["lcr-modules"]["star"]["samples"]
     read_length = tbl.loc[(tbl.sample_id==wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type), 'read_length'].values[0]
-    overhang = (read_length - 1)
+    overhang = int(read_length - 1)
     gencode_release = config["lcr-modules"]["star"]["reference_params"]["gencode_release"]
     index = reference_files(expand("genomes/{{genome_build}}/star_index/star-2.7.3a/gencode-{release}/overhang-{overhang}",
         release = gencode_release, overhang = overhang
