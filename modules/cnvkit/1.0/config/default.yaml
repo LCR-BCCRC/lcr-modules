@@ -70,8 +70,7 @@ lcr-modules:
                 # other wildcards are not supported in the naming scheme of output files
             seg:
                 original: "results/cnvkit-1.0/99-outputs/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
-                grch37_projection: "results/cnvkit-1.0/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"
-                hg38_projection: "results/cnvkit-1.0/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+                projection: "results/cnvkit-1.0/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
             pdf:
                 diagram: "results/cnvkit-1.0/99-outputs/plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.diagram.pdf"
             png:
@@ -83,6 +82,8 @@ lcr-modules:
                 gene_seg: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneSeg.txt"
                 geneList: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneList.txt"
                 sex: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sex.txt"
+            # specify in which projections you want the output files
+            requested_projections: ["grch37", "hg38"]
 
         conda_envs:
             cnvkit: "{MODSDIR}/envs/cnvkit-0.9.9.yaml"
