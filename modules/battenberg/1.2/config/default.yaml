@@ -32,6 +32,8 @@ lcr-modules:
             txt:
                 subclones: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt"
                 cell_ploidy: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
+            # specify in which projections you want the output files
+            requested_projections: ["grch37", "hg38"]
 
         resources:
             battenberg:
