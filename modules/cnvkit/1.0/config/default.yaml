@@ -23,8 +23,12 @@ lcr-modules:
 
             # Provide a path to your target/capture regions in BED format
             target_bed:
-                agilent: ""
-                idt: ""
+                hg19:
+                    agilent: ""
+                    idt: ""
+                hg38:
+                    agilent: ""
+                    idt: ""
 
 
             cns:

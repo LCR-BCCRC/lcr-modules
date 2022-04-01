@@ -115,8 +115,8 @@ def _cnvkit_get_capspace(wildcards):
     # default is just taking values from genome_build and capture_space in metadata
     default_bed = reference_files("genomes/" + wildcards.genome_build + "/capture_space/" + wildcards.capture_space + ".bed") 
     # if there is a custom bed in the config that pertains to the capture_space variable, then use that
-    if str(wildcards.capture_space) in CFG["options"]["target_bed"].keys():
-        bed = CFG["options"]["target_bed"][wildcards.capture_space]
+    if str(wildcards.capture_space) in CFG["options"]["target_bed"][wildcards.genome_build].keys():
+        bed = CFG["options"]["target_bed"][wildcards.genome_build][wildcards.capture_space]
     # if there is "none" instead, then we go towards the default, which is the full exon-space
     elif "none" in str({wildcards.capture_space}):
         if "38" in str({wildcards.genome_build}):
