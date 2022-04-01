@@ -119,6 +119,9 @@ lcr-modules:
                 mem_mb: 6000
             outputs:
                 mem_mb: 6000
+            post_cnvkit:
+                mem_mb: 2000
+                bam: 1
 
 
         pairing_config:

@@ -554,6 +554,7 @@ rule _cnvkit_to_seg:
         CFG["threads"]["seg"]
     resources:
         **CFG["resources"]["seg"]
+    group: "cnvkit_post_process"
     shell:
         """cnvkit.py export seg {input.cns} -o {output.seg} """
 
@@ -580,6 +581,7 @@ rule _cnvkit_convert_coordinates:
         liftover_minmatch = CFG["options"]["liftover_minMatch"]
     conda:
         CFG["conda_envs"]["liftover"]
+    group: "cnvkit_post_process"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -643,6 +645,7 @@ rule _cnvkit_fill_segments:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/"
     conda:
         CFG["conda_envs"]["bedtools"]
+    group: "cnvkit_post_process"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -683,8 +686,10 @@ rule _cnvkit_normalize_projection:
         chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
     output:
         projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+    resources:
+        **CFG["resources"]["post_cnvkit"]
     threads: 1
-    group: "post_process"
+    group: "cnvkit_post_process"
     run:
         # read the main chromosomes file of the projection
         chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
@@ -711,6 +716,7 @@ rule _cnvkit_output_projection:
     output:
         projection = CFG["output"]["seg"]["projection"]
     threads: 1
+    group: "cnvkit_post_process"
     run:
         op.relative_symlink(input.projection, output.projection, in_module = True)
 
@@ -754,6 +760,7 @@ rule _cnvkit_output:
         geneList = CFG["output"]["txt"]["geneList"],
         sex = CFG["output"]["txt"]["sex"],
         seg = CFG["output"]["seg"]["original"]
+    group: "cnvkit_post_process"
     run:
         op.relative_symlink(input.call_cns, output.call_cns, in_module = True)
         op.relative_symlink(input.scatter, output.scatter, in_module = True)

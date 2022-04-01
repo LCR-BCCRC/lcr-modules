@@ -227,6 +227,7 @@ rule _sequenza_cnv2igv:
         opts = CFG["options"]["cnv2igv"]
     conda:
         CFG["conda_envs"]["cnv2igv"]
+    group: "sequenza_post_process"
     shell:
         op.as_one_line("""
         python {input.cnv2igv} {params.opts} --sample {wildcards.tumour_id} 
@@ -256,6 +257,7 @@ rule _sequenza_convert_coordinates:
         liftover_minmatch = CFG["options"]["liftover_minMatch"]
     conda:
         CFG["conda_envs"]["liftover"]
+    group: "sequenza_post_process"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -318,6 +320,7 @@ rule _sequenza_fill_segments:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/"
     conda:
         CFG["conda_envs"]["bedtools"]
+    group: "sequenza_post_process"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -357,8 +360,10 @@ rule _sequenza_normalize_projection:
         chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
     output:
         projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+    resources:
+        **CFG["resources"]["post_sequenza"]
     threads: 1
-    group: "post_process"
+    group: "sequenza_post_process"
     run:
         # read the main chromosomes file of the projection
         chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
@@ -386,6 +391,7 @@ rule _sequenza_output_projection:
     output:
         projection = CFG["output"]["seg"]["projection"]
     threads: 1
+    group: "sequenza_post_process"
     run:
         op.relative_symlink(input.projection, output.projection, in_module = True)
 
@@ -395,6 +401,7 @@ rule _sequenza_output_seg:
         seg = str(rules._sequenza_cnv2igv.output.igv).replace("{filter_status}", "filtered")
     output:
         seg = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["original"]
+    group: "sequenza_post_process"
     run:
         op.relative_symlink(input.seg, output.seg, in_module=True)
 

@@ -51,6 +51,9 @@ lcr-modules:
             infer_sex:
                 mem_mb: 20000
                 bam: 1
+            post_battenberg:
+                mem_mb: 2000
+                bam: 1
         
         threads:
             battenberg: 24

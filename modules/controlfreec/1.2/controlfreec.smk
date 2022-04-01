@@ -494,6 +494,7 @@ rule _controlfreec_cnv2igv:
     conda: CFG["conda_envs"]["controlfreec"]
     log:
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/cnv2igv.stderr.log"
+    group: "controlfreec_post_process"
     shell:
         "python3 {params.cnv2igv} --mode controlfreec --sample {params.tumour_id} {input.cnv} > {output.seg} 2> {log.stderr} "
 
@@ -519,6 +520,7 @@ rule _controlfreec_convert_coordinates:
         liftover_minmatch = CFG["options"]["liftover_minMatch"]
     conda:
         CFG["conda_envs"]["liftover"]
+    group: "controlfreec_post_process"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -582,6 +584,7 @@ rule _controlfreec_fill_segments:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/"
     conda:
         CFG["conda_envs"]["bedtools"]
+    group: "controlfreec_post_process"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -622,7 +625,10 @@ rule _controlfreec_normalize_projection:
         chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
     output:
         projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+    resources:
+        **CFG["resources"]["post_controlfreec"]
     threads: 1
+    group: "controlfreec_post_process"
     run:
         # read the main chromosomes file of the projection
         chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
@@ -650,6 +656,7 @@ rule _controlfreec_output_projection:
     output:
         projection = CFG["output"]["seg"]["projection"]
     threads: 1
+    group: "controlfreec_post_process"
     run:
         op.relative_symlink(input.projection, output.projection, in_module = True)
 
@@ -676,6 +683,7 @@ rule _controlfreec_output:
         ratio = CFG["output"]["txt"]["ratio"],
         circos = CFG["output"]["bed"]["circos"],
         igv = CFG["output"]["seg"]["original"]
+    group: "controlfreec_post_process"
     run:
         op.relative_symlink(input.plot, output.plot, in_module = True)
         op.relative_symlink(input.log2plot, output.log2plot, in_module = True)

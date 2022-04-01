@@ -163,7 +163,7 @@ rule _battenberg_to_igv_seg:
     log:
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_seg2igv.stderr.log"
     threads: 1
-    group: "post_process"
+    group: "battenberg_post_process"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -181,7 +181,7 @@ rule _battenberg_fill_subclones:
     log:
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_fill_subclones.stderr.log"
     threads: 1
-    group: "post_process"
+    group: "battenberg_post_process"
     params:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/",
         script = "fill_segments.sh",
@@ -209,7 +209,7 @@ rule _battenberg_cleanup:
         rules._battenberg_to_igv_seg.output.seg
     output:
         complete = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_cleanup_complete.txt"
-    group: "post_process"
+    group: "battenberg_post_process"
     shell:
         op.as_one_line("""
         d=$(dirname {output});
@@ -237,7 +237,7 @@ rule _battenberg_convert_coordinates:
     log:
         stderr = CFG["logs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.stderr.log"
     threads: 1
-    group: "post_process"
+    group: "battenberg_post_process"
     params:
         liftover_script = CFG["options"]["liftover_script_path"],
         liftover_minmatch = CFG["options"]["liftover_minMatch"]
@@ -301,7 +301,7 @@ rule _battenberg_fill_segments:
     log:
         stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}_fill_segments.stderr.log"
     threads: 1
-    group: "post_process"
+    group: "battenberg_post_process"
     params:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/"
     conda:
@@ -346,8 +346,10 @@ rule _battenberg_normalize_projection:
         chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
     output:
         projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+    resources:
+        **CFG["resources"]["post_battenberg"]
     threads: 1
-    group: "post_process"
+    group: "battenberg_post_process"
     run:
         # read the main chromosomes file of the projection
         chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
@@ -375,7 +377,7 @@ rule _battenberg_output_projection:
     output:
         projection = CFG["output"]["seg"]["projection"]
     threads: 1
-    group: "post_process"
+    group: "battenberg_post_process"
     run:
         op.relative_symlink(input.projection, output.projection, in_module = True)
 
@@ -394,7 +396,7 @@ rule _battenberg_output_seg:
     params: 
         batt_dir = CFG["dirs"]["battenberg"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
         png_dir = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}"
-    group: "post_process"
+    group: "battenberg_post_process"
     run:
         plots = glob.glob(params.batt_dir + "/*.png")
         for png in plots:

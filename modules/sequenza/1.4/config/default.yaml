@@ -55,6 +55,9 @@ lcr-modules:
             sequenza:
                 mem_mb: 20000
                 disk_mb: 10000
+            post_sequenza:
+                mem_mb: 2000
+                bam: 1
         
         threads:
             bam2seqz: 3

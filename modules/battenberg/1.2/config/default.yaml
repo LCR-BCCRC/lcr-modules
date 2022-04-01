@@ -43,6 +43,9 @@ lcr-modules:
                 bam: 1
             reference:
                 mem_mb: 8000
+            post_battenberg:
+                mem_mb: 2000
+                bam: 1
 
         threads:
             battenberg: 24

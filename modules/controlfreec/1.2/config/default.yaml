@@ -132,6 +132,9 @@ lcr-modules:
                 mem_mb: 1000
             cnv2igv:
                 mem_mb: 1000
+            post_controlfreec:
+                mem_mb: 2000
+                bam: 1
 
         
         pairing_config:
