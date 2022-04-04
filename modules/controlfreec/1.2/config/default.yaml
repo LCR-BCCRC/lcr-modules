@@ -13,6 +13,9 @@ lcr-modules:
         
         conda_envs:
             controlfreec: "{MODSDIR}/envs/controlfreec.env.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
 
 
         options:
@@ -63,6 +66,32 @@ lcr-modules:
             maxEditDistance: 0 # maximum number of edit operations allowed while verifying candidate matches by dynamic programming (can be a float 0-1, which represents differences of size n% of length, or a non-negative integer, which is a fixed number of edits)
             strata: 0 # a stratum is a set of matches all having the same string distance from the query, GEM mapper will try to find n amount of matches to explore
 
+            # liftOver options to convert between genomic builds
+            liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
+            liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
+            prefixed_projections: ["hg19", "hg38"] # List here the base names of chr-prefixed projections
+            non_prefixed_projections: ["grch37", "grch38", "hs37d5"] # List here the base names of non-prefixed projections
+
+        output: # specify the naming convention for the output files under 99-outputs/
+                # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
+                # other wildcards are not supported in the naming scheme of output files
+            seg:
+                original: "results/controlfreec-1.2/99-outputs/seg/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.seg"
+                projection: "results/controlfreec-1.2/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+            bed:
+                bed: "results/controlfreec-1.2/99-outputs/bed/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.bed"
+                circos: "results/controlfreec-1.2/99-outputs/bed/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.circos.bed"
+            txt:
+                cnv: "results/controlfreec-1.2/99-outputs/txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.txt"
+                baf: "results/controlfreec-1.2/99-outputs/txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.txt"
+                ratio: "results/controlfreec-1.2/99-outputs/txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.txt"
+            png:
+                ratio: "results/controlfreec-1.2/99-outputs/png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.png"
+                log2: "results/controlfreec-1.2/99-outputs/png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.log2.png"
+                baf: "results/controlfreec-1.2/99-outputs/png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.png"
+            # specify in which projections you want the output files
+            requested_projections: ["grch37", "hg38"]
+
 
         software:
             FREEC_sig: "{MODSDIR}/src/assess_significance.R"
@@ -103,6 +132,9 @@ lcr-modules:
                 mem_mb: 1000
             cnv2igv:
                 mem_mb: 1000
+            post_controlfreec:
+                mem_mb: 2000
+                bam: 1
 
         
         pairing_config:
