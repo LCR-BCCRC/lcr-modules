@@ -326,6 +326,8 @@ rule _cnvkit_mpileup_per_chrom:
         CFG["conda_envs"]["bcftools"]
     resources: 
         **CFG["resources"]["SNPs"]
+    wildcard_constraints: 
+        sample_id = "|".join(CFG["samples"]["sample_id"].tolist())
     group: "cnvkit"
     log:
         stderr = CFG["logs"]["SNPs"] + "{capture_space}/{seq_type}--{genome_build}/{sample_id}/{chrom}.vcf.stderr.log",
@@ -346,7 +348,8 @@ rule _cnvkit_concatenate_vcf:
     resources: 
         **CFG["resources"]["SNPs"]
     wildcard_constraints:
-        genome_build = "|".join(CFG["runs"]["tumour_genome_build"])
+        genome_build = "|".join(CFG["runs"]["tumour_genome_build"]),
+        sample_id = "|".join(CFG["samples"]["sample_id"].tolist())
     group: "cnvkit"
     conda:
         CFG["conda_envs"]["bcftools"]
@@ -373,6 +376,8 @@ rule _cnvkit_segmetrics_ttest:
     log:
         stdout = CFG["logs"]["BAF"] + "segmetrics/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_segmetrics.log"
     conda: CFG["conda_envs"]["cnvkit"]
+    wildcard_constraints: 
+        tumour_id = "|".join(CFG["runs"]["tumour_sample_id"].tolist())
     resources: 
         **CFG["resources"]["call"]
     group: "call_cns"
@@ -402,6 +407,8 @@ rule _run_cnvkit_call_vcf:
         CFG["conda_envs"]["cnvkit"]
     resources: 
         **CFG["resources"]["call"]
+    wildcard_constraints: 
+        tumour_id = "|".join(CFG["runs"]["tumour_sample_id"].tolist())
     shell:
         """
             cnvkit.py call {input.cns} --output {output.cns} -v {input.vcf} --min-variant-depth {params.min_depth} -m {params.rescale} --filter {params.filter_by} {params.male_ref} {params.opts} &> {log}
@@ -599,8 +606,8 @@ rule _cnvkit_convert_coordinates:
 def _cnvkit_prepare_projection(wildcards):
     CFG = config["lcr-modules"]["cnvkit"]
     tbl = CFG["runs"]
-    this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"]
-    this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"]
+    this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"].tolist()
+    this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
 
     prefixed_projections = CFG["options"]["prefixed_projections"]
     non_prefixed_projections = CFG["options"]["non_prefixed_projections"]
@@ -690,6 +697,8 @@ rule _cnvkit_normalize_projection:
         **CFG["resources"]["post_cnvkit"]
     threads: 1
     group: "cnvkit_post_process"
+    wildcard_constraints: 
+        projection = "|".join(CFG["output"]["requested_projections"])
     run:
         # read the main chromosomes file of the projection
         chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
@@ -717,6 +726,9 @@ rule _cnvkit_output_projection:
         projection = CFG["output"]["seg"]["projection"]
     threads: 1
     group: "cnvkit_post_process"
+    wildcard_constraints: 
+        projection = "|".join(CFG["output"]["requested_projections"]), 
+        pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist()))
     run:
         op.relative_symlink(input.projection, output.projection, in_module = True)
 
@@ -725,7 +737,7 @@ rule _cnvkit_output_projection:
 def _cnvkit_drop_capture_space_wc(wildcards):
     CFG = config["lcr-modules"]["cnvkit"]
     tbl = CFG["runs"]
-    this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"]
+    this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
 
     call_cns = str(rules._run_cnvkit_call_vcf.output.cns).replace("{capture_space}", this_space[0])
     scatter = str(rules._run_cnvkit_scatter.output.png).replace("{capture_space}", this_space[0])
@@ -761,6 +773,9 @@ rule _cnvkit_output:
         sex = CFG["output"]["txt"]["sex"],
         seg = CFG["output"]["seg"]["original"]
     group: "cnvkit_post_process"
+    wildcard_constraints: 
+        projection = "|".join(CFG["output"]["requested_projections"]), 
+        pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist()))
     run:
         op.relative_symlink(input.call_cns, output.call_cns, in_module = True)
         op.relative_symlink(input.scatter, output.scatter, in_module = True)
@@ -803,9 +818,8 @@ rule _cnvkit_all:
             normal_id=CFG["runs"]["normal_sample_id"],
             seq_type=CFG["runs"]["tumour_seq_type"],
             pair_status=CFG["runs"]["pair_status"],
-            #repeat the tool name N times in expand so each pair in run is used
-            tool=["cnvkit"] * len(CFG["runs"]["tumour_sample_id"]),
             allow_missing=True),
+            tool = "cnvkit",
             projection=CFG["output"]["requested_projections"])
 
 
