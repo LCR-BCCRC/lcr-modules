@@ -538,8 +538,8 @@ rule _controlfreec_convert_coordinates:
 def _controlfreec_prepare_projection(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
     tbl = CFG["runs"]
-    this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"]
-    this_masked = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["masked"]
+    this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"].tolist()
+    this_masked = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["masked"].tolist()
 
     prefixed_projections = CFG["options"]["prefixed_projections"]
     non_prefixed_projections = CFG["options"]["non_prefixed_projections"]
