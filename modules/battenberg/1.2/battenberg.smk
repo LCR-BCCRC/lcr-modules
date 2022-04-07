@@ -216,7 +216,7 @@ rule _run_battenberg:
 rule _battenberg_to_igv_seg:
     input:
         sub = rules._run_battenberg.output.sub,
-        cnv2igv = CFG["inputs"]["cnv2igv"]
+        cnv2igv = ancient(CFG["inputs"]["cnv2igv"])
     output:
         seg = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.igv.seg"
     log:
@@ -319,7 +319,7 @@ rule _battenberg_convert_coordinates:
 def _battenberg_prepare_projection(wildcards):
     CFG = config["lcr-modules"]["battenberg"]
     tbl = CFG["runs"]
-    this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"]
+    this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"].tolist()
     
     prefixed_projections = CFG["options"]["prefixed_projections"]
     non_prefixed_projections = CFG["options"]["non_prefixed_projections"]

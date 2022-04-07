@@ -218,7 +218,7 @@ rule _sequenza_run:
 rule _sequenza_cnv2igv:
     input:
         segments = str(rules._sequenza_run.output.segments),
-        cnv2igv =  CFG["inputs"]["cnv2igv"]
+        cnv2igv =  ancient(CFG["inputs"]["cnv2igv"])
     output:
         igv = CFG["dirs"]["igv_seg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{filter_status}/sequenza_segments.igv.seg"
     log:
@@ -275,7 +275,7 @@ rule _sequenza_convert_coordinates:
 def _sequenza_prepare_projection(wildcards):
     CFG = config["lcr-modules"]["sequenza"]
     tbl = CFG["runs"]
-    this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"]
+    this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"].tolist()
 
     prefixed_projections = CFG["options"]["prefixed_projections"]
     non_prefixed_projections = CFG["options"]["non_prefixed_projections"]
