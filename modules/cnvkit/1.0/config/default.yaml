@@ -63,11 +63,37 @@ lcr-modules:
                 threshold: 0.15 # 0.2 will report single-copy gains/losses in a completely pure tumour sample or germline. A lower threshold would be necessary if significant normal cell contamination is present.
                 min_segments: 3 # minimum number of segments/bins that need to be consistently called
 
+            # liftOver options to convert between genomic builds
+            liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
+            liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
+            prefixed_projections: ["hg19", "hg38"] # List here the base names of chr-prefixed projections
+            non_prefixed_projections: ["grch37", "grch38", "hs37d5"] # List here the base names of non-prefixed projections
 
+        output: # specify the naming convention for the output files under 99-outputs/
+                # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
+                # other wildcards are not supported in the naming scheme of output files
+            seg:
+                original: "results/cnvkit-1.0/99-outputs/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
+                projection: "results/cnvkit-1.0/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+            pdf:
+                diagram: "results/cnvkit-1.0/99-outputs/plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.diagram.pdf"
+            png:
+                scatter: "results/cnvkit-1.0/99-outputs/plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.scatter.png"
+            cns:
+                call: "results/cnvkit-1.0/99-outputs/cns/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.cns"
+            txt:
+                breaks: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneBreaks.txt"
+                gene_seg: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneSeg.txt"
+                geneList: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneList.txt"
+                sex: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sex.txt"
+            # specify in which projections you want the output files
+            requested_projections: ["grch37", "hg38"]
 
         conda_envs:
             cnvkit: "{MODSDIR}/envs/cnvkit-0.9.9.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
             
         threads:
             reference: 24
@@ -97,6 +123,9 @@ lcr-modules:
                 mem_mb: 6000
             outputs:
                 mem_mb: 6000
+            post_cnvkit:
+                mem_mb: 2000
+                bam: 1
 
 
         pairing_config:
