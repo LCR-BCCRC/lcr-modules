@@ -1,5 +1,5 @@
 lcr-modules:
-    
+
     controlfreec:
 
         inputs:
@@ -8,9 +8,9 @@ lcr-modules:
             sample_bai: "__UPDATE__"
 
 
-        scratch_subdirectories: [] 
+        scratch_subdirectories: []
         # rules _controlfreec_mpileup_per_chrom and _controlfreec_concatenate_pileups would require scratch space
-        
+
         conda_envs:
             controlfreec: "{MODSDIR}/envs/controlfreec.env.yaml"
             wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
@@ -21,7 +21,7 @@ lcr-modules:
         options:
             configFile: "{MODSDIR}/config/freec/config_WGS.txt"
             BedGraphOutput: FALSE # option to generate BedGraphs for UCSC genome browser
-            breakPointThreshold: 0.6 # threshold for segmentaiton of normalized profiles - 
+            breakPointThreshold: 0.6 # threshold for segmentaiton of normalized profiles -
                 # use 0.6 for more segments to get more CNVs
             breakPointType: 2
                 # breakpoint types: desired behaviour for ambiguous regions (polyN or low map):
@@ -44,7 +44,7 @@ lcr-modules:
             printNA: FALSE
             telocentromeric: 50000 # size of pre-telomeric and pre-centromeric regions to exclude
             uniqueMatch: FALSE # uses mappability profile to correct read counts
-            
+
             #optional options: (uncomment these options in config_WGS.txt to implement them)
             #if implemented, contamination will overrule contaminationAdjustment
             #step and window will overrule coefficientOfVariation
@@ -52,7 +52,7 @@ lcr-modules:
             sex: XX or XY # sex=XX will exclude chrY and sex=XY will not annotate one copy of X and Y as a loss
             step: 20000 # only if window is specified; do not use for WES
             window: 100000 # window size
-            
+
             #BAF options:
             minimalCoveragePerPosition: 10 # for BAF: minimum position coverage default is 0
             minQualityPerPosition: 20 # for BAF: minimum base quality
@@ -83,7 +83,6 @@ lcr-modules:
                 circos: "results/controlfreec-1.2/99-outputs/bed/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.circos.bed"
             txt:
                 cnv: "results/controlfreec-1.2/99-outputs/txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.txt"
-                baf: "results/controlfreec-1.2/99-outputs/txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.txt"
                 ratio: "results/controlfreec-1.2/99-outputs/txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.txt"
             png:
                 ratio: "results/controlfreec-1.2/99-outputs/png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.png"
@@ -101,7 +100,7 @@ lcr-modules:
             freec2circos: "{MODSDIR}/src/freec2circos.pl"
             cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.4/cnv2igv.py"
 
-        
+
         threads:
             gem: 24
             controlfreec_run: 24
@@ -136,7 +135,7 @@ lcr-modules:
                 mem_mb: 2000
                 bam: 1
 
-        
+
         pairing_config:
             genome:
                 run_paired_tumours: True

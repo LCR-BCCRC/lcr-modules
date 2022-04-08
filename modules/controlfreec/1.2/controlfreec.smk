@@ -33,7 +33,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
                 )
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
-# End of dependency checking section 
+# End of dependency checking section
 
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["controlfreec"]`
@@ -55,14 +55,14 @@ localrules:
 
 ##### RULES #####
 
-#### Rules for mappability reference 
+#### Rules for mappability reference
 # to generate and use hard-masked mappability (i.e. recommended for FFPE genomes) if CFG["options"]["hard_masked"] == True
 # to use the default genome's mappability file (downloaded from their website), set it CFG["options"]["hard_masked"] == False
 if CFG["options"]["hard_masked"] == True:
     CFG["runs"]["masked"] = "_masked"
 else:
     CFG["runs"]["masked"] = ""
-    
+
 wildcard_constraints:
     masked = ".{0}|_masked",
     genome_build = ".+(?<!masked)"
@@ -263,7 +263,7 @@ def _controlfreec_get_chr_mpileups(wildcards):
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     mpileups = expand(
-        CFG["dirs"]["mpileup"] + "{{seq_type}}--{{genome_build}}/{{sample_id}}.{chrom}.minipileup.pileup.gz", 
+        CFG["dirs"]["mpileup"] + "{{seq_type}}--{{genome_build}}/{{sample_id}}.{chrom}.minipileup.pileup.gz",
         chrom = chrs
     )
     return(mpileups)
@@ -278,7 +278,7 @@ rule _controlfreec_mpileup_per_chrom:
         pileup = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.{chrom}.minipileup.pileup.gz")
     conda:
         CFG["conda_envs"]["controlfreec"]
-    resources: 
+    resources:
         **CFG["resources"]["mpileup"]
     group: "controlfreec"
     log:
@@ -287,16 +287,16 @@ rule _controlfreec_mpileup_per_chrom:
         "samtools mpileup -l {input.bed} -r {wildcards.chrom} -Q 20 -f {input.fastaFile} {input.bam} | gzip -c > {output.pileup} 2> {log.stderr}"
 
 rule _controlfreec_concatenate_pileups:
-    input: 
+    input:
         mpileup = _controlfreec_get_chr_mpileups
-    output: 
+    output:
         mpileup = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.bam_minipileup.pileup.gz")
-    resources: 
+    resources:
         **CFG["resources"]["cat"]
     wildcard_constraints:
         genome_build = "|".join(CFG["runs"]["tumour_genome_build"])
     group: "controlfreec"
-    shell: 
+    shell:
         "cat {input.mpileup} > {output.mpileup} "
 
 
@@ -417,7 +417,7 @@ rule _controlfreec_calc_sig:
     threads: CFG["threads"]["calc_sig"]
     resources: **CFG["resources"]["calc_sig"]
     conda: CFG["conda_envs"]["controlfreec"]
-    log:         
+    log:
         stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/calc_sig.stdout.log",
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/calc_sig.stderr.log"
     shell:
@@ -438,7 +438,7 @@ rule _controlfreec_plot:
     threads: CFG["threads"]["plot"]
     resources: **CFG["resources"]["plot"]
     conda: CFG["conda_envs"]["controlfreec"]
-    log: 
+    log:
         stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/plot.stdout.log",
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/plot.stderr.log"
     shell:
@@ -479,8 +479,8 @@ rule _controlfreec_freec2circos:
     shell:
         "ploidy=$(grep Output_Ploidy {input.info} | cut -f 2); "
         "perl {params.freec2circos} -f {input.ratios} -p $ploidy > {output.circos} 2> {log.stderr}"
-        
-        
+
+
 rule _controlfreec_cnv2igv:
     input:
         cnv = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs.p.value.txt"
@@ -668,7 +668,6 @@ rule _controlfreec_output:
         log2plot = str(rules._controlfreec_plot.output.log2plot),
         CNV = str(rules._controlfreec_calc_sig.output.txt),
         bed = str(rules._controlfreec_freec2bed.output.bed),
-        BAF = str(rules._controlfreec_run.output.BAF),
         BAFgraph = str(rules._controlfreec_plot.output.bafplot),
         ratio = str(rules._controlfreec_run.output.ratio),
         circos = str(rules._controlfreec_freec2circos.output.circos),
@@ -678,7 +677,6 @@ rule _controlfreec_output:
         log2plot = CFG["output"]["png"]["log2"],
         CNV = CFG["output"]["txt"]["cnv"],
         bed = CFG["output"]["bed"]["bed"],
-        BAF = CFG["output"]["txt"]["baf"],
         BAFgraph = CFG["output"]["png"]["baf"],
         ratio = CFG["output"]["txt"]["ratio"],
         circos = CFG["output"]["bed"]["circos"],
@@ -689,7 +687,6 @@ rule _controlfreec_output:
         op.relative_symlink(input.log2plot, output.log2plot, in_module = True)
         op.relative_symlink(input.CNV, output.CNV, in_module = True)
         op.relative_symlink(input.bed, output.bed, in_module = True)
-        op.relative_symlink(input.BAF, output.BAF, in_module = True)
         op.relative_symlink(input.BAFgraph, output.BAFgraph, in_module = True)
         op.relative_symlink(input.ratio, output.ratio, in_module = True)
         op.relative_symlink(input.circos, output.circos, in_module = True)
@@ -705,7 +702,6 @@ rule _controlfreec_all:
                 str(rules._controlfreec_output.output.log2plot),
                 str(rules._controlfreec_output.output.CNV),
                 str(rules._controlfreec_output.output.bed),
-                str(rules._controlfreec_output.output.BAF),
                 str(rules._controlfreec_output.output.BAFgraph),
                 str(rules._controlfreec_output.output.ratio),
                 str(rules._controlfreec_output.output.circos),
