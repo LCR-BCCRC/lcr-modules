@@ -1,0 +1,32 @@
+lcr-modules:
+    
+    nanopolish:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            sample_fastq: "__UPDATE__"
+            sample_index: "__UPDATE__"
+            sample_fai: "__UPDATE__"
+            sample_gzi: "__UPDATE__"
+            sample_readdb:  "__UPDATE__"
+            #Path to directory where nanopolish should be installed
+            nanopolish_exec: "__UPDATE__"
+
+        scratch_subdirectories: []
+            
+        threads:
+            nanopolish: 10
+            
+        mem_mb:
+            meth_calls: 5000
+            meth_freq: 10000
+            merge_nanopolish_calls: 5000
+            merge_nanopolish_freq: 5000
+            
+
+        pairing_config:
+            promethION:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
