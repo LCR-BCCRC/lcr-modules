@@ -1,0 +1,25 @@
+lcr-modules:
+    
+    promethion_svs:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+        
+        scratch_subdirectories: []
+
+        conda_envs:
+            cuteSV: "{MODSDIR}/envs/cuteSV.yaml"
+
+        threads:
+            cuteSV: 20
+            
+        mem_mb:
+            cuteSV: 25000
+            
+
+        pairing_config:
+            promethION:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
