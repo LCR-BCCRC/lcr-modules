@@ -1,6 +1,6 @@
 lcr-modules:
     
-    promethion_svs:
+    cutesv:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
@@ -9,13 +9,13 @@ lcr-modules:
         scratch_subdirectories: []
 
         conda_envs:
-            cuteSV: "{MODSDIR}/envs/cuteSV.yaml"
+            cutesv: "{MODSDIR}/envs/cuteSV.yaml"
 
         threads:
-            cuteSV: 20
+            cutesv: 20
             
         mem_mb:
-            cuteSV: 25000
+            cutesv: 25000
             
 
         pairing_config:
