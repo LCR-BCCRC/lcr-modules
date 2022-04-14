@@ -33,20 +33,17 @@ lcr-modules:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
         scratch_subdirectories: []
+        options:
+            # in bam2seqz pass any additional flags for the sequenza-utils. For example, this can include --normal2 to use for depth.ratio calculation.
+            bam2seqz: "--qlimit 30"
+            seqz_binning: "--window 300"
+            cnv2igv: "--mode sequenza"
 
     bwa_mem:
         inputs:
             sample_fastq_1: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read1.fastq.gz"
             sample_fastq_2: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read2.fastq.gz"
         scratch_subdirectories: []
-
-
-    liftover:
-        tool: "sequenza"
-        dirs:
-            _parent: "results/sequenza-1.4_liftover-1.2"
-        inputs:
-            sample_seg: "results/sequenza-1.4/99-outputs/filtered_seg/{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.igv.seg"
 
     utils:
         inputs:
@@ -71,3 +68,8 @@ lcr-modules:
         options:
             min_read_length: 49
             ebv_cutoff: [0.00004, 0.00008]
+
+    cnvkit:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"

@@ -19,16 +19,38 @@ lcr-modules:
             chr_prefixed_reference:
                 hg38: " --chr_prefixed_genome "
                 grch37: " "
+            liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
+            liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
+            prefixed_projections: ["hg19", "hg38"] # List here the base names of chr-prefixed projections
+            non_prefixed_projections: ["grch37", "grch38", "hs37d5"] # List here the base names of non-prefixed projections
 
         conda_envs:
-            battenberg: "{MODSDIR}/envs/battenberg-1.0.yaml"
-            
+            battenberg: "{MODSDIR}/envs/battenberg-1.1.yaml"
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
+
+        output: # specify the naming convention for the output files under 99-outputs/
+                # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
+                # other wildcards are not supported in the naming scheme of output files
+            seg:
+                original: "results/battenberg-1.1/99-outputs/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.seg"
+                projection: "results/battenberg-1.1/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+            txt:
+                subclones: "results/battenberg-1.1/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt"
+                cell_ploidy: "results/battenberg-1.1/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
+            # specify in which projections you want the output files
+            requested_projections: ["grch37", "hg38"]
+
         resources:
             battenberg:
                 mem_mb: 200000
                 bam: 1
             infer_sex:
                 mem_mb: 20000
+                bam: 1
+            post_battenberg:
+                mem_mb: 2000
                 bam: 1
         
         threads:

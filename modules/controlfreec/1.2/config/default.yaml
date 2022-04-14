@@ -1,5 +1,5 @@
 lcr-modules:
-    
+
     controlfreec:
 
         inputs:
@@ -8,17 +8,20 @@ lcr-modules:
             sample_bai: "__UPDATE__"
 
 
-        scratch_subdirectories: [] 
+        scratch_subdirectories: []
         # rules _controlfreec_mpileup_per_chrom and _controlfreec_concatenate_pileups would require scratch space
-        
+
         conda_envs:
             controlfreec: "{MODSDIR}/envs/controlfreec.env.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
 
 
         options:
             configFile: "{MODSDIR}/config/freec/config_WGS.txt"
             BedGraphOutput: FALSE # option to generate BedGraphs for UCSC genome browser
-            breakPointThreshold: 0.6 # threshold for segmentaiton of normalized profiles - 
+            breakPointThreshold: 0.6 # threshold for segmentaiton of normalized profiles -
                 # use 0.6 for more segments to get more CNVs
             breakPointType: 2
                 # breakpoint types: desired behaviour for ambiguous regions (polyN or low map):
@@ -41,7 +44,7 @@ lcr-modules:
             printNA: FALSE
             telocentromeric: 50000 # size of pre-telomeric and pre-centromeric regions to exclude
             uniqueMatch: FALSE # uses mappability profile to correct read counts
-            
+
             #optional options: (uncomment these options in config_WGS.txt to implement them)
             #if implemented, contamination will overrule contaminationAdjustment
             #step and window will overrule coefficientOfVariation
@@ -49,7 +52,7 @@ lcr-modules:
             sex: XX or XY # sex=XX will exclude chrY and sex=XY will not annotate one copy of X and Y as a loss
             step: 20000 # only if window is specified; do not use for WES
             window: 100000 # window size
-            
+
             #BAF options:
             minimalCoveragePerPosition: 10 # for BAF: minimum position coverage default is 0
             minQualityPerPosition: 20 # for BAF: minimum base quality
@@ -63,6 +66,31 @@ lcr-modules:
             maxEditDistance: 0 # maximum number of edit operations allowed while verifying candidate matches by dynamic programming (can be a float 0-1, which represents differences of size n% of length, or a non-negative integer, which is a fixed number of edits)
             strata: 0 # a stratum is a set of matches all having the same string distance from the query, GEM mapper will try to find n amount of matches to explore
 
+            # liftOver options to convert between genomic builds
+            liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
+            liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
+            prefixed_projections: ["hg19", "hg38"] # List here the base names of chr-prefixed projections
+            non_prefixed_projections: ["grch37", "grch38", "hs37d5"] # List here the base names of non-prefixed projections
+
+        output: # specify the naming convention for the output files under 99-outputs/
+                # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
+                # other wildcards are not supported in the naming scheme of output files
+            seg:
+                original: "results/controlfreec-1.2/99-outputs/seg/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.seg"
+                projection: "results/controlfreec-1.2/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+            bed:
+                bed: "results/controlfreec-1.2/99-outputs/bed/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.bed"
+                circos: "results/controlfreec-1.2/99-outputs/bed/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.circos.bed"
+            txt:
+                cnv: "results/controlfreec-1.2/99-outputs/txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.txt"
+                ratio: "results/controlfreec-1.2/99-outputs/txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.txt"
+            png:
+                ratio: "results/controlfreec-1.2/99-outputs/png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.png"
+                log2: "results/controlfreec-1.2/99-outputs/png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.log2.png"
+                baf: "results/controlfreec-1.2/99-outputs/png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.png"
+            # specify in which projections you want the output files
+            requested_projections: ["grch37", "hg38"]
+
 
         software:
             FREEC_sig: "{MODSDIR}/src/assess_significance.R"
@@ -72,7 +100,7 @@ lcr-modules:
             freec2circos: "{MODSDIR}/src/freec2circos.pl"
             cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.4/cnv2igv.py"
 
-        
+
         threads:
             gem: 24
             controlfreec_run: 24
@@ -103,8 +131,11 @@ lcr-modules:
                 mem_mb: 1000
             cnv2igv:
                 mem_mb: 1000
+            post_controlfreec:
+                mem_mb: 2000
+                bam: 1
 
-        
+
         pairing_config:
             genome:
                 run_paired_tumours: True
