@@ -9,13 +9,16 @@ lcr-modules:
         scratch_subdirectories: []
 
         conda_envs:
-            sniffles: "{MODSDIR}/envs/sniffles.yaml"
+            sniffles: "{MODSDIR}/envs/sniffles-2.0.3.yaml"
+            svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
 
         threads:
             sniffles: 20
+            vcf_to_bedpe: 1
             
         mem_mb:
             sniffles: 25000
+            vcf_to_bedpe: 2000
             
 
         pairing_config:

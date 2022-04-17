@@ -56,7 +56,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "sniffles",
     version = "1.0",
-    subdirectories = ["inputs", "sniffles", "outputs"]
+    subdirectories = ["inputs", "sniffles", "bedpe", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -92,15 +92,52 @@ rule _sniffles:
     conda: 
         CFG["conda_envs"]["sniffles"]
     resources: 
-        mem_mb = 25000
+       mem_mb = CFG["mem_mb"]["sniffles"]
     threads:    
         CFG["threads"]["sniffles"]  
     conda :
         CFG["conda_envs"]["sniffles"]
     log:
-        stderr = CFG["logs"]["sniffles"] + "{seq_type}--{genome_build}/{sample_id}/sniffles.stderr.log"               
+        CFG["logs"]["sniffles"] + "{seq_type}--{genome_build}/{sample_id}/sniffles.log"               
     shell:
-        "sniffles -t {threads} --input {input.bam} --vcf {output.vcf} --reference {input.fasta} --non-germline" 
+        op.as_one_line('''
+        sniffles -t {threads} --input {input.bam} 
+        --vcf {output.vcf} --reference {input.fasta} 
+        --non-germline 
+        2>&1 | tee -a {log}
+        ''') 
+
+rule _sniffles_vcf_to_bedpe:
+    input:
+        vcf = str(rules._sniffles.output.vcf)
+    output:
+        bedpe = CFG["dirs"]["bedpe"] + "{seq_type}--{genome_build}/{sample_id}.bedpe"
+    log:
+        stderr = CFG["logs"]["bedpe"] + "{seq_type}--{genome_build}/{sample_id}/sniffles_vcf_to_bedpe.stderr.log"
+    conda:
+        CFG["conda_envs"]["svtools"]
+    threads:
+        CFG["threads"]["vcf_to_bedpe"]
+    resources: 
+        mem_mb = CFG["mem_mb"]["vcf_to_bedpe"]
+    shell:
+        "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log.stderr}"
+
+
+# Symlinks the final output files into the module results directory (under '99-outputs/')
+rule _sniffles_output:
+    input:
+        vcf = str(rules._sniffles.output.vcf),
+        bedpe = str(rules._sniffles_vcf_to_bedpe.output.bedpe)
+    output:
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.vcf",
+        bedpe = CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{sample_id}.bedpe"
+
+    run:
+        op.relative_symlink(input.vcf, output.vcf, in_module= True),
+        op.relative_symlink(input.bedpe, output.bedpe, in_module= True)
+
+
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -108,7 +145,9 @@ rule _sniffles_all:
     input:
         expand(
             [
-                str(rules._sniffles_output.output.sniffles),
+                str(rules._sniffles_output.output.vcf),
+                str(rules._sniffles_output.output.bedpe)
+
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
@@ -121,6 +160,4 @@ rule _sniffles_all:
 
 # Perform some clean-up tasks, including storing the module-specific
 # configuration on disk and deleting the `CFG` variable
-op.cleanup_module(CFG)                  
-
-
+op.cleanup_module(CFG)  
