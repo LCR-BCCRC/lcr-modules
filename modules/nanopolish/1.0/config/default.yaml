@@ -13,7 +13,7 @@ lcr-modules:
             #Path to directory where nanopolish should be installed
             nanopolish_exec: "__UPDATE__"
 
-        scratch_subdirectories: []
+        scratch_subdirectories: ["meth_calls","meth_freq","merged_nanopolish_calls"]
             
         threads:
             nanopolish: 10
