@@ -55,7 +55,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "cutesv",
     version = "1.0",
-    subdirectories = ["inputs", "cutesv", "cutesv_working", "outputs"]
+    subdirectories = ["inputs", "cutesv", "cutesv_working", "bedpe", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -95,24 +95,47 @@ rule _cutesv:
     conda :
         CFG["conda_envs"]["cutesv"] 
     log:
-        stderr = CFG["logs"]["cutesv"] + "{seq_type}--{genome_build}/{sample_id}/cutesv.stderr.log"             
+        CFG["logs"]["cutesv"] + "{seq_type}--{genome_build}/{sample_id}/cutesv.log"             
     shell:
          op.as_one_line("""
             mkdir {output.dir} &&
             cuteSV {input.bam} {input.fasta} {output.vcf} {output.dir}
             --threads {threads} --max_cluster_bias_INS 100 --diff_ratio_merging_INS 0.3 
-            --max_cluster_bias_DEL 100 --diff_ratio_merging_DEL 0.3""")    
+            --max_cluster_bias_DEL 100 --diff_ratio_merging_DEL 0.3
+            2>&1 | tee -a {log}
+            """)    
+
+
+rule _cutesv_vcf_to_bedpe:
+    input:
+        vcf = str(rules._cutesv.output.vcf)
+    output:
+        bedpe = CFG["dirs"]["bedpe"] + "{seq_type}--{genome_build}/{sample_id}.bedpe"
+    log:
+        stderr = CFG["logs"]["bedpe"] + "{seq_type}--{genome_build}/{sample_id}/cutesv_vcf_to_bedpe.stderr.log"
+    conda:
+        CFG["conda_envs"]["svtools"]
+    threads:
+        CFG["threads"]["vcf_to_bedpe"]
+    resources: 
+        mem_mb = CFG["mem_mb"]["vcf_to_bedpe"]
+    shell:
+        "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log.stderr}"
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _cutesv_output:
     input:
-        cutesv = str(rules._cutesv.output.vcf)
+        vcf = str(rules._cutesv.output.vcf),
+        bedpe = str(rules._cutesv_vcf_to_bedpe.output.bedpe)
     output:
-        cutesv = CFG["dirs"]["outputs"] + "cutesv/{seq_type}--{genome_build}/{sample_id}.vcf"
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.vcf",
+        bedpe = CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{sample_id}.bedpe"
 
     run:
-        op.relative_symlink(input.cutesv, output.cutesv, in_module= True)
+        op.relative_symlink(input.vcf, output.vcf, in_module= True),
+        op.relative_symlink(input.bedpe, output.bedpe, in_module= True)
+
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -120,8 +143,9 @@ rule _cutesv_all:
     input:
         expand(
             [
-                str(rules._cutesv_output.output.cutesv)
-            ],
+                str(rules._cutesv_output.output.vcf),
+                str(rules._cutesv_output.output.bedpe)
+            ],    
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
             genome_build=CFG["samples"]["genome_build"],
@@ -133,12 +157,4 @@ rule _cutesv_all:
 
 # Perform some clean-up tasks, including storing the module-specific
 # configuration on disk and deleting the `CFG` variable
-op.cleanup_module(CFG)                  
-
-
-
-
-
-
-
-
+op.cleanup_module(CFG)  
