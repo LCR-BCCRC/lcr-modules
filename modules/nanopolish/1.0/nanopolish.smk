@@ -102,20 +102,17 @@ rule _install_nanopolish:
     params:
         nanopolish = CFG["inputs"]["nanopolish_exec"]
     output: 
-        complete = CFG["inputs"]["nanopolish_exec"] + "/nanopolish_dependencies_installed.success"
+        complete = touch(CFG["inputs"]["nanopolish_exec"] + "/nanopolish_dependencies_installed.success")
     shell:
-        '''
-
-        if [ ! -f {params.nanopolish}/nanopolish ]; then
-            mkdir -p {params.nanopolish};
-            git clone git@github.com:jts/nanopolish.git {params.nanopolish};
-            cd {params.nanopolish};
-            make;
-            cd -;
-        fi
+        op.as_one_line('''
+        mkdir -p {params.nanopolish};
+        git clone git@github.com:jts/nanopolish.git {params.nanopolish};
+        cd {params.nanopolish};
+        make;
+        cd -;
         
-        touch  {output.complete};
-        '''
+        {output.complete};
+        ''')
 
 
 # Symlink chromosomes used for parallelization
@@ -147,7 +144,12 @@ rule _nanopolish_meth_calls:
         calls = CFG["dirs"]["meth_calls"] + "{seq_type}--{genome_build}/{sample_id}/chromosomes/{chrom}.calls.tsv.gz"    
 
     shell:
-        "{params.nano} call-methylation -t {threads} -r {input.fastq} -b {input.bam} -g {input.fasta} -q cpg -w {wildcards.chrom} | gzip > {output.calls} "
+        op.as_one_line('''
+            {params.nano} call-methylation -t {threads} 
+            -r {input.fastq} -b {input.bam} -g {input.fasta} 
+            -q cpg -w {wildcards.chrom} | gzip > {output.calls} 
+            2> {log.stderr}
+            ''')
 
 
 rule _nanopolish_meth_freq:
@@ -162,7 +164,7 @@ rule _nanopolish_meth_freq:
         resources: 
             mem_mb = CFG["mem_mb"]["meth_freq"] 
         shell:
-            "{params.nano} -s {input.calls} | gzip > {output.freq}"
+            "{params.nano} -s {input.calls} | gzip > {output.freq} 2> {log.stderr}"
 
 
 def _nanopolish_get_chr_meth_calls(wildcards):
@@ -195,14 +197,12 @@ rule _merge_nanopolish_calls:
     output:
         calls = CFG["dirs"]["merged_nanopolish_calls"] + "{seq_type}--{genome_build}/{sample_id}.calls.tsv.gz"
     resources: 
-        mem_mb = CFG["mem_mb"]["merged_nanopolish_calls"] 
-    log:
-        stderr = CFG["logs"]["merged_nanopolish_calls"] + "{seq_type}--{genome_build}/{sample_id}/merged_nanopolish_calls.stderr.log"               
+        mem_mb = CFG["mem_mb"]["merged_nanopolish_calls"]               
     shell:
         op.as_one_line("""
         zcat {input.calls} | grep -v "chromosome" |
         cat <(zcat {input.calls} | head -n1) - | 
-        gzip >  {output.calls}
+        gzip >  {output.calls} 
         """)
 
 
@@ -212,9 +212,7 @@ rule _merge_nanopolish_freq:
     output:
         freq = CFG["dirs"]["merged_nanopolish_freq"] + "{seq_type}--{genome_build}/{sample_id}.frequency.tsv.gz"
     resources: 
-        mem_mb = CFG["mem_mb"]["merged_nanopolish_freq"] 
-    log:
-        stderr = CFG["logs"]["merged_nanopolish_freq"] + "{seq_type}--{genome_build}/{sample_id}/merged_nanopolish_freq.stderr.log"    
+        mem_mb = CFG["mem_mb"]["merged_nanopolish_freq"]   
     shell:
         op.as_one_line("""
         zcat {input.freq} | grep -v "chromosome" |
