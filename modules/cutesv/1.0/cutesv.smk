@@ -86,7 +86,12 @@ rule _cutesv:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     threads:
-         CFG["threads"]["cutesv"]
+        CFG["threads"]["cutesv"]
+    params:
+        INS_bias = CFG["cutesv"]["INS_bias"],
+        INS_merge = CFG["cutesv"]["INS_merge"],
+        DEL_bias = CFG["cutesv"]["DEL_bias"],
+        DEL_merge = CFG["cutesv"]["DEL_merge"]
     resources: 
         mem_mb = CFG["mem_mb"]["cutesv"]        
     output:
@@ -100,8 +105,10 @@ rule _cutesv:
          op.as_one_line("""
             mkdir {output.dir} &&
             cuteSV {input.bam} {input.fasta} {output.vcf} {output.dir}
-            --threads {threads} --max_cluster_bias_INS 100 --diff_ratio_merging_INS 0.3 
-            --max_cluster_bias_DEL 100 --diff_ratio_merging_DEL 0.3
+            --threads {threads} --max_cluster_bias_INS {params.INS_bias} 
+            --diff_ratio_merging_INS {params.INS_merge}
+            --max_cluster_bias_DEL {params.DEL_bias}
+            --diff_ratio_merging_DEL {params.DEL_merge}
             2>&1 | tee -a {log}
             """)    
 
@@ -157,4 +164,4 @@ rule _cutesv_all:
 
 # Perform some clean-up tasks, including storing the module-specific
 # configuration on disk and deleting the `CFG` variable
-op.cleanup_module(CFG)  
+op.cleanup_module(CFG)        
