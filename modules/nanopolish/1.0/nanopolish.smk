@@ -200,8 +200,8 @@ rule _merge_nanopolish_calls:
         stderr = CFG["logs"]["merged_nanopolish_calls"] + "{seq_type}--{genome_build}/{sample_id}/merged_nanopolish_calls.stderr.log"               
     shell:
         op.as_one_line("""
-        zcat {input.calls} | sort -V -k1,1 -k2,2 |
-        cat <(grep "chromosome" | head -n1) <(grep -v "chromosome") | 
+        zcat {input.calls} | grep -v "chromosome" |
+        cat <(zcat {input.calls} | head -n1) - | 
         gzip >  {output.calls}
         """)
 
@@ -217,8 +217,8 @@ rule _merge_nanopolish_freq:
         stderr = CFG["logs"]["merged_nanopolish_freq"] + "{seq_type}--{genome_build}/{sample_id}/merged_nanopolish_freq.stderr.log"    
     shell:
         op.as_one_line("""
-        zcat {input.freq} | sort -V -k1,1 -k2,2 |
-        cat <(grep "chromosome" | head -n1) <(grep -v "chromosome") | 
+        zcat {input.freq} | grep -v "chromosome" |
+        cat <(zcat {input.freq} | head -n1) - | 
         gzip >  {output.freq}
         """)
 
