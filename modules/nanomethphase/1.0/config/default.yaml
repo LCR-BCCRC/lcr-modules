@@ -1,0 +1,36 @@
+lcr-modules:
+    
+    nanomethphase:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            meth_calls: "__UPDATE__"
+            vcf: "__UPDATE__"
+        
+        scratch_subdirectories: []
+
+        conda_envs:
+            nanomethphase: "{MODSDIR}/envs/nanomethphase.yaml"
+            clair3: "{MODSDIR}/envs/clair3.yaml"
+            whatshap: "{MODSDIR}/envs/whatshap.yaml"
+
+        threads:
+            methyl_call: 20
+            nanomethphase: 50
+            clair3: 50
+            
+        mem_mb:
+            methyl_call: 25000 
+            clair3: 25000
+            whatshap: 25000
+            
+        clair3:
+            model: "/projects/rmorin_scratch/conda_environments/gambl-opv12/bin/models/r941_prom_hac_g360+g422"   
+
+        pairing_config:
+            promethION:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+
