@@ -111,7 +111,6 @@ rule _install_nanopolish:
         make;
         cd -;
         
-        {output.complete};
         ''')
 
 
