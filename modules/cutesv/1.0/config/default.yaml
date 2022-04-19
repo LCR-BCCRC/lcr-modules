@@ -6,7 +6,7 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
         
-        scratch_subdirectories: ["cutesv_working"]
+        scratch_subdirectories: []
 
         conda_envs:
             cutesv: "{MODSDIR}/envs/cuteSV-1.0.13.yaml"
