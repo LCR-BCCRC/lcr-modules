@@ -35,17 +35,17 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 
 
 # Setup module and store module-specific configuration in `CFG`
-# `CFG` is a shortcut to `config["lcr-modules"]["combine_cnv"]`
+# `CFG` is a shortcut to `config["lcr-modules"]["cnv_master"]`
 CFG = op.setup_module(
-    name = "combine_cnv",
+    name = "cnv_master",
     version = "1.0",
     subdirectories = ["inputs", "merges", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _combine_cnv_input,
-    _combine_cnv_all
+    _cnv_master_input,
+    _cnv_master_all
 
 
 CFG["seg"] = dict(zip(CFG["names"], CFG["seg"]))
@@ -56,7 +56,7 @@ callers = [caller.lower() for caller in callers]
 ##### RULES #####
 
 def _find_best_seg(wildcards):
-    CFG = config["lcr-modules"]["combine_cnv"]
+    CFG = config["lcr-modules"]["cnv_master"]
     possible_outputs = []
     for caller in callers:
         possible_outputs = possible_outputs + (expand(CFG["seg"][caller],
@@ -75,7 +75,7 @@ def _find_best_seg(wildcards):
     return(possible_outputs[0])
 
 
-rule _combine_cnv_input:
+rule _cnv_master_input:
     input:
         seg = _find_best_seg
     output:
@@ -85,9 +85,9 @@ rule _combine_cnv_input:
 
 
 def _get_all_captures(this_seq_type):
-    CFG = config["lcr-modules"]["combine_cnv"]
+    CFG = config["lcr-modules"]["cnv_master"]
     all_captures = op.filter_samples(CFG["runs"], tumour_seq_type = this_seq_type)
-    this_set = expand(str(rules._combine_cnv_input.output.seg),
+    this_set = expand(str(rules._cnv_master_input.output.seg),
                             zip,
                             allow_missing = True,
                             tumour_id=all_captures["tumour_sample_id"],
@@ -97,7 +97,7 @@ def _get_all_captures(this_seq_type):
     return(this_set)
 
 # Generates the target sentinels for each run, which generate the symlinks
-rule _combine_cnv_merge_genome_projections:
+rule _cnv_master_merge_genome_projections:
     input:
         seg_file = _get_all_captures("genome")
     output:
@@ -108,15 +108,15 @@ rule _combine_cnv_merge_genome_projections:
     conda:
         CFG["conda_envs"]["R"]
     threads:
-        CFG["threads"]["combine_cnv"]
+        CFG["threads"]["cnv_master"]
     resources:
-        **CFG["resources"]["combine_cnv"]
-    group: "combine_cnv"
+        **CFG["resources"]["cnv_master"]
+    group: "cnv_master"
     script:
         "src/R/merge_segs.R"
 
 
-rule _combine_cnv_merge_capture_projections:
+rule _cnv_master_merge_capture_projections:
     input:
         seg_file = _get_all_captures("capture")
     output:
@@ -127,52 +127,52 @@ rule _combine_cnv_merge_capture_projections:
     conda:
         CFG["conda_envs"]["R"]
     threads:
-        CFG["threads"]["combine_cnv"]
+        CFG["threads"]["cnv_master"]
     resources:
-        **CFG["resources"]["combine_cnv"]
-    group: "combine_cnv"
+        **CFG["resources"]["cnv_master"]
+    group: "cnv_master"
     script:
         "src/R/merge_segs.R"
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _combine_cnv_output_genome_merges:
+rule _cnv_master_output_genome_merges:
     input:
-        genome_merge = str(rules._combine_cnv_merge_genome_projections.output.merge),
-        genome_content = str(rules._combine_cnv_merge_genome_projections.output.contents)
+        genome_merge = str(rules._cnv_master_merge_genome_projections.output.merge),
+        genome_content = str(rules._cnv_master_merge_genome_projections.output.contents)
     output:
         genome_merge = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}.seg",
         genome_content = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}.contents"
     wildcard_constraints:
         seq_type="genome"
-    group: "combine_cnv"
+    group: "cnv_master"
     run:
         op.relative_symlink(input.genome_merge, output.genome_merge, in_module = True)
         op.relative_symlink(input.genome_content, output.genome_content, in_module = True)
 
 
-rule _combine_cnv_output_capture_merges:
+rule _cnv_master_output_capture_merges:
     input:
-        capture_merge = str(rules._combine_cnv_merge_capture_projections.output.merge),
-        capture_content = str(rules._combine_cnv_merge_capture_projections.output.contents)
+        capture_merge = str(rules._cnv_master_merge_capture_projections.output.merge),
+        capture_content = str(rules._cnv_master_merge_capture_projections.output.contents)
     output:
         capture_merge = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}.seg",
         capture_content = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}.contents"
     wildcard_constraints:
         seq_type="capture"
-    group: "combine_cnv"
+    group: "cnv_master"
     run:
         op.relative_symlink(input.capture_merge, output.capture_merge, in_module = True)
         op.relative_symlink(input.capture_content, output.capture_content, in_module = True)
 
-rule _combine_cnv_all:
+rule _cnv_master_all:
     input:
         expand(
             [
-                str(rules._combine_cnv_output_genome_merges.output.genome_merge),
-                str(rules._combine_cnv_output_genome_merges.output.genome_content),
-                str(rules._combine_cnv_output_capture_merges.output.capture_merge),
-                str(rules._combine_cnv_output_capture_merges.output.capture_content)
+                str(rules._cnv_master_output_genome_merges.output.genome_merge),
+                str(rules._cnv_master_output_genome_merges.output.genome_content),
+                str(rules._cnv_master_output_capture_merges.output.capture_merge),
+                str(rules._cnv_master_output_capture_merges.output.capture_content)
             ],
             projection=CFG["projections"],
             seq_type=list(CFG["runs"]["tumour_seq_type"].unique())

@@ -1,6 +1,6 @@
 lcr-modules:
 
-    combine_cnv:
+    cnv_master:
         # comma-separated list of modules used to call CNV
         # this order will also determine the preference which module's output will be used when multiple outputs are available
         # example: ["battenberg", "sequenza", "cnvkit", "controlfreec"]
@@ -27,10 +27,10 @@ lcr-modules:
             R: "{SCRIPTSDIR}/salmon2counts/1.0/salmon2counts.yaml"
 
         threads:
-            combine_cnv: 4
+            cnv_master: 4
 
         resources:
-            combine_cnv:
+            cnv_master:
                 mem_mb: 12000
                 disk_mb: 1000 # Will ensure at least this much space is left
 
