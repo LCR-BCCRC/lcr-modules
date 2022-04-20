@@ -44,11 +44,8 @@ CFG = op.setup_module(
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _combine_cnv_input_matched,
-    _combine_cnv_input_unmatched,
-    _combine_cnv_seg2bed,
-    _combine_cnv_output_seg,
-    _combine_cnv_all,
+    _combine_cnv_input,
+    _combine_cnv_all
 
 
 CFG["seg"] = dict(zip(CFG["names"], CFG["seg"]))
@@ -110,6 +107,11 @@ rule _combine_cnv_merge_genome_projections:
         seq_type="genome"
     conda:
         CFG["conda_envs"]["R"]
+    threads:
+        CFG["threads"]["combine_cnv"]
+    resources:
+        **CFG["resources"]["combine_cnv"]
+    group: "combine_cnv"
     script:
         "src/R/merge_segs.R"
 
@@ -124,6 +126,11 @@ rule _combine_cnv_merge_capture_projections:
         seq_type="capture"
     conda:
         CFG["conda_envs"]["R"]
+    threads:
+        CFG["threads"]["combine_cnv"]
+    resources:
+        **CFG["resources"]["combine_cnv"]
+    group: "combine_cnv"
     script:
         "src/R/merge_segs.R"
 
@@ -138,6 +145,7 @@ rule _combine_cnv_output_genome_merges:
         genome_content = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}.contents"
     wildcard_constraints:
         seq_type="genome"
+    group: "combine_cnv"
     run:
         op.relative_symlink(input.genome_merge, output.genome_merge, in_module = True)
         op.relative_symlink(input.genome_content, output.genome_content, in_module = True)
@@ -152,6 +160,7 @@ rule _combine_cnv_output_capture_merges:
         capture_content = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}.contents"
     wildcard_constraints:
         seq_type="capture"
+    group: "combine_cnv"
     run:
         op.relative_symlink(input.capture_merge, output.capture_merge, in_module = True)
         op.relative_symlink(input.capture_content, output.capture_content, in_module = True)
