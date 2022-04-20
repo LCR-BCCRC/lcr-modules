@@ -24,14 +24,7 @@ lcr-modules:
         scratch_subdirectories: []
 
         conda_envs:
-            CNVfilteR: "{MODSDIR}/envs/CNVfilteR.yaml"
-            fill_segments: "{SCRIPTSDIR}/fill_segments/1.0/fill_segments.yaml"
-            liftover-366: "{REPODIR}/modules/liftover/1.2/envs/liftover-366.yaml"
-
-        options:
-            concatenate_segs: "{MODSDIR}/src/bash/concatenate.sh"
-            seg2bed2seg: "{REPODIR}/modules/liftover/1.2/src/convert_for_liftover.py"
-            min_mismatch: 0.75
+            R: "{SCRIPTSDIR}/salmon2counts/1.0/salmon2counts.yaml"
 
         threads:
             combine_cnv: 4

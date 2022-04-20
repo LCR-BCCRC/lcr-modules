@@ -107,10 +107,11 @@ rule _combine_cnv_merge_genome_projections:
         merge = CFG["dirs"]["merges"] + "{seq_type}/projection--{projection}.seg",
         contents = CFG["dirs"]["merges"] + "{seq_type}/projection--{projection}.contents"
     wildcard_constraints:
-        tool=CFG["names"],
         seq_type="genome"
-    shell:
-        "touch output"
+    conda:
+        CFG["conda_envs"]["R"]
+    script:
+        "src/R/merge_segs.R"
 
 
 rule _combine_cnv_merge_capture_projections:
@@ -121,8 +122,10 @@ rule _combine_cnv_merge_capture_projections:
         contents = CFG["dirs"]["merges"] + "{seq_type}/projection--{projection}.contents"
     wildcard_constraints:
         seq_type="capture"
-    shell:
-        "touch output"
+    conda:
+        CFG["conda_envs"]["R"]
+    script:
+        "src/R/merge_segs.R"
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
