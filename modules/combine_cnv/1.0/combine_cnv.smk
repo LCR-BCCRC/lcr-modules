@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "combine_cnv",
     version = "1.0",
-    subdirectories = ["inputs", "filter_cnv", "combine_cnv", "outputs"],
+    subdirectories = ["inputs", "merges", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -54,7 +54,7 @@ localrules:
 CFG["seg"] = dict(zip(CFG["names"], CFG["seg"]))
 callers = list(CFG["seg"].keys())
 callers = [caller.lower() for caller in callers]
-sample_sets = {key:[] for key in callers}
+
 
 ##### RULES #####
 
@@ -105,8 +105,8 @@ rule _combine_cnv_merge_genome_projections:
     input:
         seg_file = _get_all_captures("genome")
     output:
-        merge = CFG["dirs"]["outputs"] + "merges/{seq_type}/projection--{projection}.seg",
-        contents = CFG["dirs"]["outputs"] + "merges/{seq_type}/projection--{projection}.contents"
+        merge = CFG["dirs"]["merges"] + "{seq_type}/projection--{projection}.seg",
+        contents = CFG["dirs"]["merges"] + "{seq_type}/projection--{projection}.contents"
     wildcard_constraints:
         tool=CFG["names"],
         seq_type="genome"
@@ -118,22 +118,50 @@ rule _combine_cnv_merge_capture_projections:
     input:
         seg_file = _get_all_captures("capture")
     output:
-        merge = CFG["dirs"]["outputs"] + "merges/{seq_type}/projection--{projection}.seg",
-        contents = CFG["dirs"]["outputs"] + "merges/{seq_type}/projection--{projection}.contents"
+        merge = CFG["dirs"]["merges"] + "{seq_type}/projection--{projection}.seg",
+        contents = CFG["dirs"]["merges"] + "{seq_type}/projection--{projection}.contents"
     wildcard_constraints:
-        tool=CFG["names"],
         seq_type="capture"
     shell:
         "touch output"
+
+
+# Symlinks the final output files into the module results directory (under '99-outputs/')
+rule _combine_cnv_output_genome_merges:
+    input:
+        genome_merge = str(rules._combine_cnv_merge_genome_projections.output.merge),
+        genome_content = str(rules._combine_cnv_merge_genome_projections.output.contents)
+    output:
+        genome_merge = CFG["dirs"]["outputs"] + "{seq_type}/projection--{projection}.seg",
+        genome_content = CFG["dirs"]["outputs"] + "{seq_type}/projection--{projection}.contents"
+    wildcard_constraints:
+        seq_type="genome"
+    run:
+        op.relative_symlink(input.genome_merge, output.genome_merge, in_module = True)
+        op.relative_symlink(input.genome_content, output.genome_content, in_module = True)
+
+
+rule _combine_cnv_output_capture_merges:
+    input:
+        capture_merge = str(rules._combine_cnv_merge_capture_projections.output.merge),
+        capture_content = str(rules._combine_cnv_merge_capture_projections.output.contents)
+    output:
+        capture_merge = CFG["dirs"]["outputs"] + "{seq_type}/projection--{projection}.seg",
+        capture_content = CFG["dirs"]["outputs"] + "{seq_type}/projection--{projection}.contents"
+    wildcard_constraints:
+        seq_type="capture"
+    run:
+        op.relative_symlink(input.capture_merge, output.capture_merge, in_module = True)
+        op.relative_symlink(input.capture_content, output.capture_content, in_module = True)
 
 rule _combine_cnv_all:
     input:
         expand(
             [
-                str(rules._combine_cnv_merge_genome_projections.output.merge),
-                str(rules._combine_cnv_merge_genome_projections.output.contents),
-                str(rules._combine_cnv_merge_capture_projections.output.merge),
-                str(rules._combine_cnv_merge_capture_projections.output.contents),
+                str(rules._combine_cnv_output_genome_merges.output.genome_merge),
+                str(rules._combine_cnv_output_genome_merges.output.genome_content),
+                str(rules._combine_cnv_output_capture_merges.output.capture_merge),
+                str(rules._combine_cnv_output_capture_merges.output.capture_content)
             ],
             projection=CFG["projections"],
             seq_type=list(CFG["runs"]["tumour_seq_type"].unique())
