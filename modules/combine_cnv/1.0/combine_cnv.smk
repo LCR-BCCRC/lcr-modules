@@ -69,7 +69,6 @@ def _find_best_seg(wildcards):
                               tool=CFG["names"],
                               projection=wildcards.projection,
                               seq_type=list(CFG["runs"]["tumour_seq_type"].unique())))
-    print(possible_outputs)
     possible_outputs = [path for path in possible_outputs if os.path.exists(path)]
     assert (len(possible_outputs) >= 1), (
         f"No ouput was found for the sample {wildcards.tumour_id} in projection {wildcards.projection}. "
@@ -132,8 +131,8 @@ rule _combine_cnv_output_genome_merges:
         genome_merge = str(rules._combine_cnv_merge_genome_projections.output.merge),
         genome_content = str(rules._combine_cnv_merge_genome_projections.output.contents)
     output:
-        genome_merge = CFG["dirs"]["outputs"] + "{seq_type}/projection--{projection}.seg",
-        genome_content = CFG["dirs"]["outputs"] + "{seq_type}/projection--{projection}.contents"
+        genome_merge = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}.seg",
+        genome_content = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}.contents"
     wildcard_constraints:
         seq_type="genome"
     run:
@@ -146,8 +145,8 @@ rule _combine_cnv_output_capture_merges:
         capture_merge = str(rules._combine_cnv_merge_capture_projections.output.merge),
         capture_content = str(rules._combine_cnv_merge_capture_projections.output.contents)
     output:
-        capture_merge = CFG["dirs"]["outputs"] + "{seq_type}/projection--{projection}.seg",
-        capture_content = CFG["dirs"]["outputs"] + "{seq_type}/projection--{projection}.contents"
+        capture_merge = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}.seg",
+        capture_content = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}.contents"
     wildcard_constraints:
         seq_type="capture"
     run:
