@@ -108,7 +108,6 @@ def bed_to_seg(input_file, column_names, output_file):
     seg.columns = seg.columns[:3].tolist()+col_names
 
     # rearrange columns order to match it original .seg file
-    seg = seg.rename(lambda x: 'ID' if x == 'sample' else x, axis=1)
     ID_column = seg[['ID']]
     other_columns = seg.drop(['ID'], axis=1)
     seg = ID_column.join(other_columns)
