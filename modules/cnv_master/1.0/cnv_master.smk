@@ -55,6 +55,8 @@ callers = [caller.lower() for caller in callers]
 
 ##### RULES #####
 
+# this function will find the existing outputs for every sample in the sample table
+# it will preferrentially use the output from the tool according to user-sepcified order
 def _find_best_seg(wildcards):
     CFG = config["lcr-modules"]["cnv_master"]
     possible_outputs = []
@@ -74,7 +76,7 @@ def _find_best_seg(wildcards):
     print(f"Will use file {possible_outputs[0]} for the sample {wildcards.tumour_id}.")
     return(possible_outputs[0])
 
-
+# symlink the input files into 00-inputs
 rule _cnv_master_input:
     input:
         seg = _find_best_seg
@@ -84,22 +86,23 @@ rule _cnv_master_input:
         op.absolute_symlink(input.seg, output.seg)
 
 
-def _get_all_captures(this_seq_type):
+def _get_all_segs(this_seq_type):
     CFG = config["lcr-modules"]["cnv_master"]
-    all_captures = op.filter_samples(CFG["runs"], tumour_seq_type = this_seq_type)
+    all_segs = op.filter_samples(CFG["runs"], tumour_seq_type = this_seq_type)
     this_set = expand(str(rules._cnv_master_input.output.seg),
                             zip,
                             allow_missing = True,
-                            tumour_id=all_captures["tumour_sample_id"],
-                            normal_id=all_captures["normal_sample_id"],
-                            pair_status=all_captures["pair_status"],
-                            seq_type=all_captures["tumour_seq_type"])
+                            tumour_id=all_segs["tumour_sample_id"],
+                            normal_id=all_segs["normal_sample_id"],
+                            pair_status=all_segs["pair_status"],
+                            seq_type=all_segs["tumour_seq_type"])
     return(this_set)
 
-# Generates the target sentinels for each run, which generate the symlinks
+
+# Generates the merged files for the genomes if they are present in sample table
 rule _cnv_master_merge_genome_projections:
     input:
-        seg_file = _get_all_captures("genome")
+        seg_file = _get_all_segs("genome")
     output:
         merge = CFG["dirs"]["merges"] + "{seq_type}/projection--{projection}.seg",
         contents = CFG["dirs"]["merges"] + "{seq_type}/projection--{projection}.contents"
@@ -116,9 +119,10 @@ rule _cnv_master_merge_genome_projections:
         "src/R/merge_segs.R"
 
 
+# Generates the merged files for the captures if they are present in sample table
 rule _cnv_master_merge_capture_projections:
     input:
-        seg_file = _get_all_captures("capture")
+        seg_file = _get_all_segs("capture")
     output:
         merge = CFG["dirs"]["merges"] + "{seq_type}/projection--{projection}.seg",
         contents = CFG["dirs"]["merges"] + "{seq_type}/projection--{projection}.contents"
