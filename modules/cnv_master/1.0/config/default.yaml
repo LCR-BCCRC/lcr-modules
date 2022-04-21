@@ -24,7 +24,7 @@ lcr-modules:
         scratch_subdirectories: []
 
         conda_envs:
-            R: "{SCRIPTSDIR}/salmon2counts/1.0/salmon2counts.yaml"
+            R: "{MODSDIR}/envs/readr-2.1.2.yaml"
 
         threads:
             cnv_master: 4
