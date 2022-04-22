@@ -47,9 +47,7 @@ localrules:
     _cnv_master_input,
     _cnv_master_all
 
-
-CFG["seg"] = dict(zip(CFG["names"], CFG["seg"]))
-callers = list(CFG["seg"].keys())
+callers = list(CFG["inputs"].keys())
 callers = [caller.lower() for caller in callers]
 
 
@@ -61,11 +59,11 @@ def _find_best_seg(wildcards):
     CFG = config["lcr-modules"]["cnv_master"]
     possible_outputs = []
     for caller in callers:
-        possible_outputs = possible_outputs + (expand(CFG["seg"][caller],
+        possible_outputs = possible_outputs + (expand(CFG["inputs"][caller],
                               tumour_id=wildcards.tumour_id,
                               normal_id=wildcards.normal_id,
                               pair_status=wildcards.pair_status,
-                              tool=CFG["names"],
+                              tool=CFG["inputs"].keys(),
                               projection=wildcards.projection,
                               seq_type=list(CFG["runs"]["tumour_seq_type"].unique())))
     possible_outputs = [path for path in possible_outputs if os.path.exists(path)]
