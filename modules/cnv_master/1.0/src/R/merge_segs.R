@@ -10,13 +10,7 @@ suppressWarnings(suppressPackageStartupMessages({
     "readr", "dplyr", "tidyr", "purrr"
   )
 
-  installed_packages <- rownames(installed.packages())
-
   for (pkg in required_packages){
-    if (!pkg %in% installed_packages) {
-      message(paste0("Installing ", pkg, "..."))
-      install.packages(pkg, repos = "https://mirror.rcg.sfu.ca/mirror/CRAN/")
-    }
     library(pkg, character.only = TRUE)
   }
 }))
