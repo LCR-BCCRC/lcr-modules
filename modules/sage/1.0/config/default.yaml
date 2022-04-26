@@ -1,11 +1,11 @@
 lcr-modules:
-    
+
     sage:
 
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
-            
+
 
         scratch_subdirectories: []
 
@@ -16,9 +16,9 @@ lcr-modules:
 
 
         conda_envs:
-            sage: "{MODSDIR}/envs/hmftools-sage-2.6.yaml"
+            sage: "{MODSDIR}/envs/hmftools-sage-3.0.1.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
-            
+
         resources:
             sage_run:
                 mem_mb: 60000
@@ -27,7 +27,7 @@ lcr-modules:
             filter:
                 mem_mb: 8000
                 disk_mb: 10000 # Will ensure at least this much space is left
-        
+
         threads:
             sage_run: 24
             filter: 1
