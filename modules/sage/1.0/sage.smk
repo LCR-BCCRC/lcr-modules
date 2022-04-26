@@ -33,14 +33,14 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
                 )
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
-# End of dependency checking section 
+# End of dependency checking section
 
 
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["sage"]`
 CFG = op.setup_module(
     name = "sage",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "sage", "vcf", "outputs"]
 )
 
@@ -72,16 +72,16 @@ rule _sage_input_bam:
 
 # Setup shared reference files. Symlinking these files to 00-inputs to ensure index and dictionary are present
 # before pipeline starts, otherwise on a fresh directory dictionary is not created and worflow exits.
-rule _input_references: 
-    input: 
+rule _input_references:
+    input:
         genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         genome_fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
         genome_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
-    output: 
-        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa", 
-        genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa.fai", 
+    output:
+        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa",
+        genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa.fai",
         genome_dict = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.dict"
-    shell: 
+    shell:
         op.as_one_line("""
         ln -s {input.genome_fa} {output.genome_fa} &&
         ln -s {input.genome_fai} {output.genome_fai} &&
@@ -89,17 +89,17 @@ rule _input_references:
         """)
 
 # Download specific reference files
-rule _download_sage_references: 
-    input: 
+rule _download_sage_references:
+    input:
         genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
-    output: 
+    output:
         hotspots = CFG["dirs"]["inputs"] + "references/{genome_build}/sage/KnownHotspots.vcf.gz",
         panel_bed = CFG["dirs"]["inputs"] + "references/{genome_build}/sage/ActionableCodingPanel.somatic.bed.gz",
         high_conf_bed = CFG["dirs"]["inputs"] + "references/{genome_build}/sage/HighConfidence.bed.gz"
     params:
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/sage",
         build = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19"
-    shell: 
+    shell:
         op.as_one_line("""
         wget -O {output.hotspots} {params.url}/KnownHotspots.{params.build}.vcf.gz
           &&
@@ -140,7 +140,7 @@ rule _run_sage:
         stderr = CFG["logs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run_sage.stderr.log"
     params:
         opts = CFG["options"]["sage_run"],
-        assembly = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19",
+        assembly = lambda w: "38" if "38" in str({w.genome_build}) else "37",
         sage= "$(dirname $(readlink -e $(which SAGE)))/sage.jar",
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
@@ -153,18 +153,18 @@ rule _run_sage:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname)" > {log.stdout}
         &&
-        SAGE_CHROMOSOMES=$(cat {input.main_chromosomes} | paste -sd, -)
+        SAGE_CHROMOSOMES=$(cat {input.main_chromosomes} | paste -sd ";" -)
         &&
         java -Xms1G -Xmx{params.jvmheap}m
         -cp {params.sage} com.hartwig.hmftools.sage.SageApplication
         -threads {threads}
         {params.opts}
-        -chr $SAGE_CHROMOSOMES
+        -specific_chr $SAGE_CHROMOSOMES
         -reference {wildcards.normal_id}
         -reference_bam {input.normal_bam}
-        -tumor {wildcards.tumour_id} 
+        -tumor {wildcards.tumour_id}
         -tumor_bam {input.tumour_bam}
-        -assembly {params.assembly}
+        -ref_genome_version {params.assembly}
         -ref_genome {input.fasta}
         -hotspots {input.hotspots}
         -panel_bed {input.panel_bed}
@@ -195,7 +195,7 @@ rule _sage_filter_vcf:
     shell:
         op.as_one_line("""
         bcftools view -f ".,PASS" {input.vcf} -Ov
-          | 
+          |
         bcftools sort --max-mem {params.heap_mem}M -Oz -o {output.vcf_passed}
         >> {log.stdout} 2>> {log.stderr}
           &&
@@ -210,7 +210,7 @@ rule _sage_split_vcf:
         indels = CFG["dirs"]["vcf"] + "indels/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/indels.vcf.gz",
         indels_tbi = CFG["dirs"]["vcf"] + "indels/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/indels.vcf.gz.tbi",
         snvs = CFG["dirs"]["vcf"] + "snvs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/snvs.vcf.gz",
-        snvs_tbi = CFG["dirs"]["vcf"] + "snvs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/snvs.vcf.gz.tbi",        
+        snvs_tbi = CFG["dirs"]["vcf"] + "snvs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/snvs.vcf.gz.tbi",
     log:
         stdout = CFG["logs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/split_passed.stdout.log",
         stderr = CFG["logs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/split_passed.stderr.log"
