@@ -67,6 +67,7 @@ dependencies:
   - gxx_linux-64=10.3.0
   - harfbuzz=4.2.1
   - hmftools-sage=3.0.1
+  - htslib=1.15.1
   - icu=70.1
   - idna=3.3
   - jbig=2.1
@@ -228,6 +229,7 @@ dependencies:
   - six=1.16.0
   - sqlite=3.38.2
   - sysroot_linux-64=2.12
+  - tabix=1.11
   - tk=8.6.12
   - tktable=2.10
   - tqdm=4.64.0
@@ -261,11 +263,7 @@ dependencies:
     - brotlipy==0.7.0
     - certifi==2021.10.8
     - cffi==1.15.0
-    - conda==4.12.0
-    - conda-package-handling==1.8.1
     - cryptography==36.0.2
-    - libmambapy==0.22.1
-    - mamba==0.22.1
     - pycosat==0.6.3
     - pysocks==1.7.1
     - ruamel-yaml-conda==0.15.80
