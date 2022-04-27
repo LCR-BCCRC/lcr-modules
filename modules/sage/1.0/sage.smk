@@ -40,7 +40,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["sage"]`
 CFG = op.setup_module(
     name = "sage",
-    version = "1.1",
+    version = "1.0",
     subdirectories = ["inputs", "sage", "vcf", "outputs"]
 )
 
@@ -95,10 +95,16 @@ rule _download_sage_references:
     output:
         hotspots = CFG["dirs"]["inputs"] + "references/{genome_build}/sage/KnownHotspots.vcf.gz",
         panel_bed = CFG["dirs"]["inputs"] + "references/{genome_build}/sage/ActionableCodingPanel.somatic.bed.gz",
-        high_conf_bed = CFG["dirs"]["inputs"] + "references/{genome_build}/sage/HighConfidence.bed.gz"
+        high_conf_bed = CFG["dirs"]["inputs"] + "references/{genome_build}/sage/HighConfidence.bed.gz",
+        cache = directory(CFG["dirs"]["inputs"] + "references/{genome_build}/ensembl_cache/"),
+        complete = touch(CFG["dirs"]["inputs"] + "references/{genome_build}/ensembl_cache/cache.complete")
     params:
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/sage",
-        build = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19"
+        url_cache = "www.bcgsc.ca/downloads/morinlab/hmftools-references/ensembl_data_cache",
+        build = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19",
+        cache_build = lambda w: "38" if "38" in str({w.genome_build}) else "37"
+    conda:
+        CFG["conda_envs"]["wget"]
     shell:
         op.as_one_line("""
         wget -O {output.hotspots} {params.url}/KnownHotspots.{params.build}.vcf.gz
@@ -106,6 +112,12 @@ rule _download_sage_references:
         wget -O {output.panel_bed} {params.url}/ActionableCodingPanel.somatic.{params.build}.bed.gz
           &&
         wget -O {output.high_conf_bed} {params.url}/HighConfidence.{params.build}.bed.gz
+          &&
+        wget -O {output.cache}/{params.cache_build}.zip {params.url_cache}/{params.cache_build}.zip
+          &&
+        unzip -d {output.cache} {output.cache}/{params.cache_build}.zip
+          &&
+        touch {output.complete}
         """)
 
 def _sage_get_capspace(wildcards):
@@ -130,6 +142,7 @@ rule _run_sage:
         fasta = str(rules._input_references.output.genome_fa),
         hotspots = rules._download_sage_references.output.hotspots,
         high_conf_bed = str(rules._download_sage_references.output.high_conf_bed),
+        cache = str(rules._download_sage_references.output.cache),
         panel_bed = _sage_get_capspace,
         main_chromosomes = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
     output:
@@ -141,6 +154,7 @@ rule _run_sage:
     params:
         opts = CFG["options"]["sage_run"],
         assembly = lambda w: "38" if "38" in str({w.genome_build}) else "37",
+        cache_dir = lambda w: config["lcr-modules"]["sage"]["dirs"]["inputs"] + "references/" + w.genome_build + "/ensembl_cache/" + str("38" if "38" in str({w.genome_build}) else "37"),
         sage= "$(dirname $(readlink -e $(which SAGE)))/sage.jar",
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
@@ -169,6 +183,7 @@ rule _run_sage:
         -hotspots {input.hotspots}
         -panel_bed {input.panel_bed}
         -high_confidence_bed {input.high_conf_bed}
+        -ensembl_data_dir {params.cache_dir}
         -out {output.vcf}
         >>  {log.stdout} 2>> {log.stderr}
         && bgzip -c {output.vcf} > {output.vcf_gz}
