@@ -40,7 +40,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["sage"]`
 CFG = op.setup_module(
     name = "sage",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "sage", "vcf", "outputs"]
 )
 
