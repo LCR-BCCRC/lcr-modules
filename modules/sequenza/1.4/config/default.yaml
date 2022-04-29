@@ -1,5 +1,5 @@
 lcr-modules:
-    
+
     sequenza:
 
         inputs:
@@ -12,12 +12,16 @@ lcr-modules:
             cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.3/cnv2igv.py"
 
         scratch_subdirectories: []
-        
+
         options:
             # in bam2seqz pass any additional flags for the sequenza-utils. For example, this can include --normal2 to use for depth.ratio calculation.
             bam2seqz: "--qlimit 30"
             seqz_binning: "--window 300"
             cnv2igv: "--mode sequenza"
+            liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
+            liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
+            prefixed_projections: ["hg19", "hg38"] # List here the base names of chr-prefixed projections
+            non_prefixed_projections: ["grch37", "grch38", "hs37d5"] # List here the base names of non-prefixed projections
 
         conda_envs:
             sequenza-utils: "{MODSDIR}/envs/sequenza-utils-3.0.0.yaml"
@@ -25,12 +29,6 @@ lcr-modules:
             cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.3/python-3.8.3.yaml"
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
             liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
-
-        options:
-            liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
-            liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
-            prefixed_projections: ["hg19", "hg38"] # List here the base names of chr-prefixed projections
-            non_prefixed_projections: ["grch37", "grch38", "hs37d5"] # List here the base names of non-prefixed projections
 
         output: # specify the naming convention for the output files under 99-outputs/
                 # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
@@ -58,12 +56,12 @@ lcr-modules:
             post_sequenza:
                 mem_mb: 2000
                 bam: 1
-        
+
         threads:
             bam2seqz: 3
             merge_seqz: 1
             filter_seqz: 1
-            sequenza: 8 
+            sequenza: 8
 
 
         # For now, only supporting matched tumour-normal pairs

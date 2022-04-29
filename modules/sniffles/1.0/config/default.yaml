@@ -1,6 +1,6 @@
 lcr-modules:
     
-    cutesv:
+    sniffles:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
@@ -9,23 +9,17 @@ lcr-modules:
         scratch_subdirectories: []
 
         conda_envs:
-            cutesv: "{MODSDIR}/envs/cuteSV-1.0.13.yaml"
+            sniffles: "{MODSDIR}/envs/sniffles-2.0.3.yaml"
             svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
 
         threads:
-            cutesv: 20
+            sniffles: 20
             vcf_to_bedpe: 1
             
         mem_mb:
-            cutesv: 25000
+            sniffles: 25000
             vcf_to_bedpe: 2000
             
-        cutesv:
-            #Recommended ONT default values
-            INS_bias: 100
-            INS_merge: 0.3
-            DEL_bias: 100
-            DEL_merge: 0.3
 
         pairing_config:
             promethION:
