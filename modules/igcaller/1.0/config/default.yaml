@@ -1,0 +1,90 @@
+lcr-modules:
+    
+    igcaller:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+
+        # Path to local IgCaller github repository: e.g., /path/to/IgCaller/
+        igcaller_path: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            _igcaller_run: 
+                -p 1
+                -kmb no
+                -mq 0
+                -bq 13
+                -d 2
+                -ad 1
+                -vafN 0.2
+                -vaf 0.66,1
+                -shortV yes
+                -mqOnco 15
+                -mntonco 5
+                -mntoncoPass 10
+                -mnnonco 2
+                -mncPoN 2
+
+        switches:
+            _igcaller_run:
+                _default: "-seq wgs"
+                capture: "-seq wes"
+
+        # Add key:value pair for any new genomes for IgCaller's -V parameter
+        genome_version:
+            grch37: "hg19"
+            hg38: "hg38"
+            grch38: "hg38"
+            hg19: "hg19"
+            grch38-legacy: "hg38"
+            hs37d5: "hg19"
+            grch37_masked: "hg19"
+            grch38_masked: "hg38"
+            hg19_masked: "hg19"
+            hg38_masked: "hg38"
+            hg19-reddy: "hg19"
+            hg38-nci: "hg38"
+            hg38-panea: "hg38"
+            exome-utr-grch38: "hg38"
+            exome-utr-grch37: "hg38"
+
+        # Add key:value pair for any new genomes for IgCaller's -C parameter
+        chr_annotation:
+            grch37: "ensembl"
+            hg38: "ucsc"
+            grch38: "ensembl"
+            hg19: "ucsc"
+            grch38-legacy: "ensembl"
+            hs37d5: "ensembl"
+            grch37_masked: "ensembl"
+            grch38_masked: "ensembl"
+            hg19_masked: "ucsc"
+            hg38_masked: "ucsc"
+            hg19-reddy: "ucsc"
+            hg38-nci: "ucsc"
+            hg38-panea: "ucsc"
+            exome-utr-grch38: "ucsc"
+            exome-utr-grch37: "ensembl"
+
+        conda_envs:
+            igcaller: "{MODSDIR}/envs/igcaller-1.2-env.yaml"
+            
+        threads:
+            _igcaller_run: 1
+
+        resources:
+            _igcaller_run: 
+                mem_mb: 2000
+            
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: False
