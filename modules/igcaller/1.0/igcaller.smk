@@ -37,7 +37,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "igcaller",
     version = "1.0",
-    subdirectories = ["inputs", "igcaller", "outputs"],
+    subdirectories = ["inputs", "igcaller", "outputs"]
 )
 
 IGCALLER_PATH = CFG["igcaller_path"]
@@ -68,7 +68,7 @@ rule _igcaller_input_bam:
 
 
 # Runs IgCaller in paired mode
-rule _igcaller_run_unpaired:
+rule _igcaller_run_paired:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
