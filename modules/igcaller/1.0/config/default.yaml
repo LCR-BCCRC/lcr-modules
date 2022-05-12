@@ -7,7 +7,7 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
 
-        # Path to local IgCaller github repository: e.g., /path/to/IgCaller/
+        # Path to where to install IgCaller
         igcaller_path: "__UPDATE__"
 
         scratch_subdirectories: []

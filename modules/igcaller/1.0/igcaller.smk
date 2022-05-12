@@ -40,12 +40,12 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "igcaller", "outputs"]
 )
 
-IGCALLER_PATH = CFG["igcaller_path"]
 
 # Define rules to be run locally when using a compute cluster
 localrules:
     _igcaller_input_bam,
     _igcaller_output_tsv,
+    _igcaller_install,
     _igcaller_all
 
 
@@ -69,9 +69,27 @@ rule _igcaller_input_bam:
         op.absolute_symlink(input.bai, output.crai)
 
 
+# Download and install IgCaller v1.2 if it doesn't exist in CFG["igcaller_path"]
+rule _igcaller_install:
+    params:
+        igcaller = CFG["igcaller_path"]
+    output:
+        complete = CFG["igcaller_path"] + "igcaller-1.2.installed"
+    shell:
+        """
+        if [ ! -f {params.igcaller}/IgCaller-1.2/IgCaller.py ]; then
+            mkdir -p {params.igcaller}
+            wget -O {params.igcaller}/v1.2.zip https://github.com/ferrannadeu/IgCaller/archive/refs/tags/v1.2.zip && unzip {params.igcaller}/v1.2.zip -d {params.igcaller}/ && rm {params.igcaller}/v1.2.zip
+        fi
+
+        touch {output.complete}
+        """
+
+
 # Runs IgCaller in paired mode
 rule _igcaller_run_paired:
     input:
+        installed = CFG["igcaller_path"] + "igcaller-1.2.installed",
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
@@ -85,7 +103,8 @@ rule _igcaller_run_paired:
         version = op.switch_on_wildcard("genome_build", CFG["genome_version"]),
         chr_annot = op.switch_on_wildcard("genome_build", CFG["chr_annotation"]),
         seq = op.switch_on_wildcard("seq_type", CFG["switches"]["_igcaller_run"]),
-        outdir = CFG["dirs"]["igcaller"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/"
+        outdir = CFG["dirs"]["igcaller"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/",
+        igcaller = CFG["igcaller_path"]
     wildcard_constraints:
         pair_status = "matched|unmatched"
     conda:
@@ -98,7 +117,8 @@ rule _igcaller_run_paired:
         "input_and_igcaller_run"
     shell:
         op.as_one_line("""
-        python3 {IGCALLER_PATH}/IgCaller.py -I {IGCALLER_PATH}/IgCaller_reference_files/
+        python3 {params.igcaller}/IgCaller-1.2/IgCaller.py 
+        -I {params.igcaller}/IgCaller-1.2/IgCaller_reference_files/
         -V {params.version} -T {input.tumour_bam} -N {input.normal_bam} -R {input.fasta} 
         -C {params.chr_annot} {params.seq} -o {params.outdir} {params.opts} -@ {threads}
         """)
@@ -107,6 +127,7 @@ rule _igcaller_run_paired:
 # Runs IgCaller in unpaired mode
 rule _igcaller_run_unpaired:
     input:
+        installed = CFG["igcaller_path"] + "igcaller-1.2.installed",
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
@@ -119,7 +140,8 @@ rule _igcaller_run_unpaired:
         version = op.switch_on_wildcard("genome_build", CFG["genome_version"]),
         chr_annot = op.switch_on_wildcard("genome_build", CFG["chr_annotation"]),
         seq = op.switch_on_wildcard("seq_type", CFG["switches"]["_igcaller_run"]),
-        outdir = CFG["dirs"]["igcaller"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/"
+        outdir = CFG["dirs"]["igcaller"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/",
+        igcaller = CFG["igcaller_path"]
     wildcard_constraints:
         pair_status = "no_normal"
     conda:
@@ -132,7 +154,8 @@ rule _igcaller_run_unpaired:
         "input_and_igcaller_run"
     shell:
         op.as_one_line(""" 
-        python3 {IGCALLER_PATH}/IgCaller.py -I {IGCALLER_PATH}/IgCaller_reference_files/
+        python3 {params.igcaller}/IgCaller-1.2/IgCaller.py 
+        -I {params.igcaller}/IgCaller-1.2/IgCaller_reference_files/
         -V {params.version} -T {input.tumour_bam} -R {input.fasta} {params.seq}
         -C {params.chr_annot} -o {params.outdir} {params.opts} -@ {threads}
         """)
