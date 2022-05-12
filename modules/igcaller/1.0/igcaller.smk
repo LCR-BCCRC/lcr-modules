@@ -98,7 +98,7 @@ rule _igcaller_run_paired:
         op.as_one_line("""
         python3 {IGCALLER_PATH}/IgCaller.py -I {IGCALLER_PATH}/IgCaller_reference_files/
         -V {params.version} -T {input.tumour_bam} -N {input.normal_bam} -R {input.fasta} 
-        -C {params.chr_annot} -seq {params.seq} -o {params.outdir} {params.opts} -@ {threads}
+        -C {params.chr_annot} {params.seq} -o {params.outdir} {params.opts} -@ {threads}
         """)
 
 
@@ -131,7 +131,7 @@ rule _igcaller_run_unpaired:
     shell:
         op.as_one_line(""" 
         python3 {IGCALLER_PATH}/IgCaller.py -I {IGCALLER_PATH}/IgCaller_reference_files/
-        -V {params.version} -T {input.tumour_bam} -R {input.fasta} -seq {params.seq}
+        -V {params.version} -T {input.tumour_bam} -R {input.fasta} {params.seq}
         -C {params.chr_annot} -o {params.outdir} {params.opts} -@ {threads}
         """)
 
