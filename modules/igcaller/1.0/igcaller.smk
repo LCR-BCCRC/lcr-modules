@@ -59,12 +59,14 @@ rule _igcaller_input_bam:
         bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
+        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     group: 
         "input_and_igcaller_run"
     run:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 
 # Runs IgCaller in paired mode
@@ -74,7 +76,7 @@ rule _igcaller_run_paired:
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        tsv = CFG["dirs"]["igcaller"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_output_filtered.tsv"
+        tsv = CFG["dirs"]["igcaller"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_IgCaller/{tumour_id}_output_filtered.tsv"
     log:
         stdout = CFG["logs"]["igcaller"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/igcaller_run.stdout.log",
         stderr = CFG["logs"]["igcaller"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/igcaller_run.stderr.log"
@@ -108,7 +110,7 @@ rule _igcaller_run_unpaired:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        tsv = CFG["dirs"]["igcaller"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_output_filtered.tsv"
+        tsv = CFG["dirs"]["igcaller"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_IgCaller/{tumour_id}_output_filtered.tsv"
     log:
         stdout = CFG["logs"]["igcaller"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/igcaller_run.stdout.log",
         stderr = CFG["logs"]["igcaller"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/igcaller_run.stderr.log"
@@ -139,7 +141,7 @@ rule _igcaller_run_unpaired:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _igcaller_output_tsv:
     input:
-        CFG["dirs"]["igcaller"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_output_filtered.tsv"
+        tsv = CFG["dirs"]["igcaller"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_IgCaller/{tumour_id}_output_filtered.tsv"
     output:
         tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filtered.tsv"
     run:
