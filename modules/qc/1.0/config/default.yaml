@@ -26,10 +26,13 @@ lcr-modules:
         resources:
             samtools_stat:
                 mem_mb: 20000
+                samtools_stat: 1
             QualityScoreDistribution:
                 mem_mb: 100000
+                base_qual: 1
             CollectMetrics:
                 mem_mb: 100000
+                collect_metics: 2
 
         pairing_config:
             genome:
