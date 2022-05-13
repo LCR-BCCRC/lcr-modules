@@ -15,6 +15,7 @@ lcr-modules:
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            gatkR: "{MODSDIR}/envs/gatkR.yaml"
 
         threads:
             samtools_stat: 8
