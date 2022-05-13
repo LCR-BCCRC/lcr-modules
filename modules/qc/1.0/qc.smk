@@ -68,6 +68,23 @@ rule _qc_input_bam:
         op.relative_symlink(input.bai, output.bai)
         op.relative_symlink(input.bai, output.crai)
 
+# symlink the reference files to ensure all index/dictionaries are available for GATK tools
+rule _input_references:
+    input:
+        genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        genome_fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
+        genome_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
+    output:
+        genome_fa = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa",
+        genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa.fai",
+        genome_dict = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.dict"
+    shell:
+        op.as_one_line("""
+        ln -s {input.genome_fa} {output.genome_fa} &&
+        ln -s {input.genome_fai} {output.genome_fai} &&
+        ln -s {input.genome_dict} {output.genome_dict}
+        """)
+
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
 # TODO: Replace example rule below with actual rule
