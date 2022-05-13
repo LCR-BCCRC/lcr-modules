@@ -181,16 +181,13 @@ rule _qc_gatk_wgs:
 def _qc_get_intervals(wildcards):
     CFG = config["lcr-modules"]["qc"]
     try:
-        if "tumour_id" in wildcards.keys():
         # Get the appropriate capture space for this sample
-            these_intervals = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "interval_list")
-        else:
-            these_intervals = op.get_capture_space(CFG, wildcards.normal_id, wildcards.genome_build, wildcards.seq_type, "interval_list")
+        these_intervals = op.get_capture_space(CFG, wildcards.sample_id, wildcards.genome_build, wildcards.seq_type, "interval_list")
         these_intervals = reference_files(these_intervals)
     except NameError:
         # If we are using an older version of the reference workflow, use the same region file as the genome sample
         raise AssertionError(
-            f"No capture space was provided for the sample {wildcards.tumour_id} and cannot be generated for {wildcards.genome_build}. "
+            f"No capture space was provided for the sample {wildcards.sample_id} and cannot be generated for {wildcards.genome_build}. "
             f"Please add custom capture space or use one of supported genome builds."
         )
     return these_intervals
