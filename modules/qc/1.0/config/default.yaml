@@ -12,6 +12,7 @@ lcr-modules:
         options:
             samtools_stat: "--remove-dups --remove-overlaps "
             QualityScoreDistribution: "--ALIGNED_READS_ONLY true"
+            CollectWgsMetrics: ""
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
@@ -19,12 +20,15 @@ lcr-modules:
 
         threads:
             samtools_stat: 8
-            QualityScoreDistribution: 24
+            QualityScoreDistribution: 12
+            CollectWgsMetrics: 24
 
         resources:
             samtools_stat:
                 mem_mb: 20000
             QualityScoreDistribution:
+                mem_mb: 100000
+            CollectWgsMetrics:
                 mem_mb: 100000
 
         pairing_config:

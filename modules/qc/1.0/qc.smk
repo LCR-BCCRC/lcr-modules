@@ -145,29 +145,38 @@ rule _qc_gatk_basequality:
         echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
         """)
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _qc_step_1:
+rule _qc_gatk_wgs:
     input:
         bam = str(rules._qc_input_bam.output.bam),
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        fasta = str(rules._qc_input_references.output.genome_fa)
     output:
-        tsv = CFG["dirs"]["qc"] + "{seq_type}--{genome_build}/{sample_id}/output.tsv"
+        gatk_wgs = CFG["dirs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.{genome_build}.CollectWgsMetrics.txt"
     log:
-        stdout = CFG["logs"]["qc"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stdout.log",
-        stderr = CFG["logs"]["qc"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stderr.log"
+        stdout = CFG["logs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.CollectWgsMetrics.stdout.log",
+        stderr = CFG["logs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.CollectWgsMetrics.stderr.log"
+    wildcard_constraints:
+        seq_type = "genome"
     params:
-        opts = CFG["options"]["step_1"]
+        opts = CFG["options"]["CollectWgsMetrics"],
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["gatkR"]
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["CollectWgsMetrics"]
     resources:
-        **CFG["resources"]["step_1"]    # All resources necessary can be included and referenced from the config files.
+        **CFG["resources"]["CollectWgsMetrics"]
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --input {input.bam} --ref-fasta {input.fasta}
-        --output {output.tsv} --threads {threads} > {log.stdout} 2> {log.stderr}
+        echo "running {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
+        gatk CollectWgsMetrics --spark-master local[{threads}]
+        --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
+        {params.opts}
+        -I {input.bam}
+        -O {output.gatk_basequal}
+        -R {input.fasta}
+        >> {log.stdout}
+        2>> {log.stderr} &&
+        echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
         """)
 
 
