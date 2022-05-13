@@ -235,22 +235,6 @@ rule _qc_gatk_wes:
         """)
 
 
-
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _qc_step_2:
-    input:
-        tsv = str(rules._qc_step_1.output.tsv)
-    output:
-        tsv = CFG["dirs"]["qc"] + "{seq_type}--{genome_build}/{sample_id}/output.filt.tsv"
-    log:
-        stderr = CFG["logs"]["qc"] + "{seq_type}--{genome_build}/{sample_id}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.tsv} > {output.tsv} 2> {log.stderr}"
-
-
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 # TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _qc_output_tsv:
