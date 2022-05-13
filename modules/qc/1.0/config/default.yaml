@@ -11,17 +11,20 @@ lcr-modules:
 
         options:
             samtools_stat: "--remove-dups --remove-overlaps "
-            step_2: ""
+            QualityScoreDistribution: "--ALIGNED_READS_ONLY true"
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
 
         threads:
             samtools_stat: 8
+            QualityScoreDistribution: 24
 
         resources:
             samtools_stat:
                 mem_mb: 20000
+            QualityScoreDistribution:
+                mem_mb: 100000
 
         pairing_config:
             genome:

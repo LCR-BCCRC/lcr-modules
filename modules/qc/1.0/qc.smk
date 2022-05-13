@@ -91,9 +91,9 @@ rule _qc_samtools_stat:
     input:
         bam = str(rules._qc_input_bam.output.bam)
     output:
-        samtools_stat = CFG["dirs"]["samtools"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.{genome_build}.stat"
+        samtools_stat = CFG["dirs"]["samtools"] + "{seq_type}--{genome_build}/{sample_id}.{genome_build}.stat"
     log:
-        stderr = CFG["logs"]["samtools"] + "{seq_type}--{genome_build}/{sample_id}/run_samtools.stderr.log"
+        stderr = CFG["logs"]["samtools"] + "{seq_type}--{genome_build}/{sample_id}.run_samtools.stderr.log"
     params:
         opts = CFG["options"]["samtools_stat"]
     conda:
@@ -110,6 +110,39 @@ rule _qc_samtools_stat:
         {input.bam}
         >> {output.flagstat}
         2>> {log.stderr}
+        """)
+
+
+rule _qc_gatk_basequality:
+    input:
+        bam = str(rules._qc_input_bam.output.bam)
+    output:
+        gatk_basequal = CFG["dirs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.{genome_build}.QualityScoreDistribution.txt",
+        gatk_basequal_chart = CFG["dirs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.{genome_build}.QualityScoreDistribution.pdf"
+    log:
+        stdout = CFG["logs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.QualityScoreDistribution.stdout.log",
+        stderr = CFG["logs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.QualityScoreDistribution.stderr.log"
+    params:
+        opts = CFG["options"]["QualityScoreDistribution"],
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    conda:
+        CFG["conda_envs"]["gatkR"]
+    threads:
+        CFG["threads"]["QualityScoreDistribution"]
+    resources:
+        **CFG["resources"]["QualityScoreDistribution"]
+    shell:
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
+        gatk QualityScoreDistribution --spark-master local[{threads}]
+        --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
+        {params.opts}
+        -I {input.bam}
+        -O {output.gatk_basequal}
+        -CHART {output.gatk_basequal_chart}
+        >> {log.stdout}
+        2>> {log.stderr} &&
+        echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
         """)
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
