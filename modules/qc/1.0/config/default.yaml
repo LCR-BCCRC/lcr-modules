@@ -10,7 +10,7 @@ lcr-modules:
 
         options:
             samtools_stat: "--remove-dups --remove-overlaps "
-            QualityScoreDistribution: "--ALIGNED_READS_ONLY true --VALIDATION_STRINGENCY LENIENT"
+            QualityScoreDistribution: "--alignedReadsOnly true --read-validation-stringency LENIENT"
             CollectWgsMetrics: "--USE_FAST_ALGORITHM true --VALIDATION_STRINGENCY LENIENT"
             CollectHsMetrics: "--VALIDATION_STRINGENCY LENIENT"
 

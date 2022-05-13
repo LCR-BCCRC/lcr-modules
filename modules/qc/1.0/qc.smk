@@ -61,8 +61,8 @@ rule _qc_input_bam:
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
         op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
-        op.relative_symlink(input.bai, output.crai)
+        op.relative_symlink(input.bam + ".bai", output.bai)
+        op.relative_symlink(input.bam + ".bai", output.crai)
 
 # symlink the reference files to ensure all index/dictionaries are available for GATK tools
 rule _qc_input_references:
@@ -100,11 +100,11 @@ rule _qc_samtools_stat:
         **CFG["resources"]["samtools_stat"]
     shell:
         op.as_one_line("""
-        samtools stat
+        samtools stats
         {params.opts}
         --threads {threads}
         {input.bam}
-        >> {output.flagstat}
+        >> {output.samtools_stat}
         2>> {log.stderr}
         """)
 
@@ -130,12 +130,12 @@ rule _qc_gatk_basequality:
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
-        gatk QualityScoreDistribution --spark-master local[{threads}]
+        gatk QualityScoreDistributionSpark --spark-master local[{threads}]
         --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
         {params.opts}
         -I {input.bam}
         -O {output.gatk_basequal}
-        -CHART {output.gatk_basequal_chart}
+        -C {output.gatk_basequal_chart}
         >> {log.stdout}
         2>> {log.stderr} &&
         echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
@@ -166,8 +166,9 @@ rule _qc_gatk_wgs:
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
-        gatk CollectWgsMetrics --spark-master local[{threads}]
+        gatk
         --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
+        CollectWgsMetrics
         {params.opts}
         -I {input.bam}
         -O {output.gatk_basequal}
@@ -216,11 +217,12 @@ rule _qc_gatk_wes:
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
-        gatk CollectHsMetrics --spark-master local[{threads}]
+        gatk
         --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
+        CollectHsMetrics
         {params.opts}
         -I {input.bam}
-        -O {output.gatk_basequal}
+        -O {output.gatk_wes}
         -R {input.fasta}
         -BI {input.intervals}
         -TI {input.intervals}
