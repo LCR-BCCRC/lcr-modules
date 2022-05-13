@@ -1,5 +1,5 @@
 lcr-modules:
-    
+
     qc:
 
         # TODO: Update the list of available wildcards, if applicable
@@ -10,19 +10,19 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
-            step_1: ""
+            samtools_stat: "--remove-dups --remove-overlaps "
             step_2: ""
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            
+
         threads:
-            step_1: 4
+            samtools_stat: 8
 
         resources:
-            step_1: 
-                mem_mb: 2000
-            
+            samtools_stat:
+                mem_mb: 20000
+
         pairing_config:
             genome:
                 run_paired_tumours: False

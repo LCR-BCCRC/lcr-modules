@@ -69,7 +69,7 @@ rule _qc_input_bam:
         op.relative_symlink(input.bai, output.crai)
 
 # symlink the reference files to ensure all index/dictionaries are available for GATK tools
-rule _input_references:
+rule _qc_input_references:
     input:
         genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         genome_fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
@@ -85,6 +85,32 @@ rule _input_references:
         ln -s {input.genome_dict} {output.genome_dict}
         """)
 
+
+# Collect samtools stats
+rule _qc_samtools_stat:
+    input:
+        bam = str(rules._qc_input_bam.output.bam)
+    output:
+        samtools_stat = CFG["dirs"]["samtools"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.{genome_build}.stat"
+    log:
+        stderr = CFG["logs"]["samtools"] + "{seq_type}--{genome_build}/{sample_id}/run_samtools.stderr.log"
+    params:
+        opts = CFG["options"]["samtools_stat"]
+    conda:
+        CFG["conda_envs"]["samtools"]
+    threads:
+        CFG["threads"]["samtools_stat"]
+    resources:
+        **CFG["resources"]["samtools_stat"]
+    shell:
+        op.as_one_line("""
+        samtools stat
+        {params.opts}
+        --threads {threads}
+        {input.bam}
+        >> {output.flagstat}
+        2>> {log.stderr}
+        """)
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
 # TODO: Replace example rule below with actual rule
