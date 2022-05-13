@@ -162,9 +162,9 @@ rule _qc_gatk_wgs:
     conda:
         CFG["conda_envs"]["gatkR"]
     threads:
-        CFG["threads"]["CollectWgsMetrics"]
+        CFG["threads"]["CollectMetrics"]
     resources:
-        **CFG["resources"]["CollectWgsMetrics"]
+        **CFG["resources"]["CollectMetrics"]
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
@@ -178,6 +178,44 @@ rule _qc_gatk_wgs:
         2>> {log.stderr} &&
         echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
         """)
+
+
+rule _qc_gatk_wes:
+    input:
+        bam = str(rules._qc_input_bam.output.bam),
+        fasta = str(rules._qc_input_references.output.genome_fa)
+    output:
+        gatk_wes = CFG["dirs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.{genome_build}.CollectHsMetrics.txt"
+    log:
+        stdout = CFG["logs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.CollectHsMetrics.stdout.log",
+        stderr = CFG["logs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.CollectHsMetrics.stderr.log"
+    wildcard_constraints:
+        seq_type = "capture"
+    params:
+        opts = CFG["options"]["CollectHsMetrics"],
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    conda:
+        CFG["conda_envs"]["gatkR"]
+    threads:
+        CFG["threads"]["CollectMetrics"]
+    resources:
+        **CFG["resources"]["CollectMetrics"]
+    shell:
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
+        gatk CollectHsMetrics --spark-master local[{threads}]
+        --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
+        {params.opts}
+        -I {input.bam}
+        -O {output.gatk_basequal}
+        -R {input.fasta}
+        -BI
+        -TI
+        >> {log.stdout}
+        2>> {log.stderr} &&
+        echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
+        """)
+
 
 
 # Example variant filtering rule (single-threaded; can be run on cluster head node)
