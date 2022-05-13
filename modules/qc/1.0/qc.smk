@@ -38,7 +38,7 @@ CFG = op.setup_module(
     name = "qc",
     version = "1.0",
     # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "qc", "outputs"],
+    subdirectories = ["inputs", "samtools", "gatk", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -60,11 +60,13 @@ rule _qc_input_bam:
     input:
         bam = CFG["inputs"]["sample_bam"]
     output:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
-    group: 
-        "input_and_step_1"
+        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
+        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
-        op.absolute_symlink(input.bam, output.bam)
+        op.relative_symlink(input.bam, output.bam)
+        op.relative_symlink(input.bai, output.bai)
+        op.relative_symlink(input.bai, output.crai)
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
