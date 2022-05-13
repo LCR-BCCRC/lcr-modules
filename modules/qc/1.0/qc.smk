@@ -108,7 +108,7 @@ rule _qc_samtools_stat:
         2>> {log.stderr}
         """)
 
-
+# Collecting GATK base quality metrics
 rule _qc_gatk_basequality:
     input:
         bam = str(rules._qc_input_bam.output.bam)
@@ -141,6 +141,8 @@ rule _qc_gatk_basequality:
         echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
         """)
 
+
+# Collect GATK QC metrics (separately for genomes/exomes)
 rule _qc_gatk_wgs:
     input:
         bam = str(rules._qc_input_bam.output.bam),
@@ -231,14 +233,27 @@ rule _qc_gatk_wes:
         """)
 
 
+def _qc_get_stats(wildcards):
+    if wildcards.seq_type in ["capture"]:
+        output = str(rules._qc_gatk_wes.output.gatk_wes)
+    else:
+        output = str(rules._qc_gatk_wgs.output.gatk_wgs)
+    return output
+
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _qc_output_tsv:
     input:
-        tsv = str(rules._qc_step_2.output.tsv)
+        stat = str(rules._qc_samtools_stat.output.samtools_stat),
+        base_qual = str(rules._qc_gatk_basequality.output.gatk_basequal),
+        metrics = _qc_get_stats
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{sample_id}.output.filt.tsv"
+        stat = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.stat.tsv",
+        base_qual = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.QualityScoreDistribution.tsv",
+        metrics = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.CollectMetrics.tsv",
     run:
-        op.relative_symlink(input.tsv, output.tsv, in_module= True)
+        op.relative_symlink(input.stat, output.stat, in_module= True)
+        op.relative_symlink(input.base_qual, output.base_qual, in_module= True)
+        op.relative_symlink(input.metrics, output.metrics, in_module= True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -246,7 +261,9 @@ rule _qc_all:
     input:
         expand(
             [
-                str(rules._qc_output_tsv.output.tsv),
+                str(rules._qc_output_tsv.output.stat),
+                str(rules._qc_output_tsv.output.base_qual),
+                str(rules._qc_output_tsv.output.metrics)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
