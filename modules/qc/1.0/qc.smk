@@ -37,25 +37,21 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "qc",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "samtools", "gatk", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _qc_input_bam,
-    _qc_step_2,
+    _qc_input_references,
     _qc_output_tsv,
-    _qc_all,
+    _qc_all
 
 
 ##### RULES #####
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
 rule _qc_input_bam:
     input:
         bam = CFG["inputs"]["sample_bam"]
@@ -236,7 +232,6 @@ rule _qc_gatk_wes:
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _qc_output_tsv:
     input:
         tsv = str(rules._qc_step_2.output.tsv)
@@ -252,7 +247,6 @@ rule _qc_all:
         expand(
             [
                 str(rules._qc_output_tsv.output.tsv),
-                # TODO: If applicable, add other output rules here
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
