@@ -34,7 +34,7 @@ lcr-modules:
                 base_qual: 1
             CollectMetrics:
                 mem_mb: 100000
-                collect_metics: 1
+                collect_metrics: 1
             collect:
                 mem_mb: 4000
 
