@@ -38,8 +38,9 @@ configfile: "../modules/utils/2.1/config/default.yaml"
 configfile: "../modules/battenberg/1.2/config/default.yaml"
 configfile: "../modules/pathseq/1.0/config/default.yaml"
 configfile: "../modules/cnvkit/1.0/config/default.yaml"
+configfile: "../modules/qc/1.0/config/default.yaml"
 
-# Load project-specific config, which includes the shared 
+# Load project-specific config, which includes the shared
 # configuration and some module-specific config updates
 configfile: "capture_config.yaml"
 
@@ -63,6 +64,7 @@ include: "../modules/utils/2.1/utils.smk"
 include: "../modules/battenberg/1.2/battenberg.smk"
 include: "../modules/pathseq/1.0/pathseq.smk"
 include: "../modules/cnvkit/1.0/cnvkit.smk"
+include: "../modules/qc/1.0/qc.smk"
 
 
 ##### TARGETS ######
@@ -76,4 +78,5 @@ rule all:
         rules._bwa_mem_all.input,
         rules._battenberg_all.input,
         rules._pathseq_all.input,
-        rules._cnvkit_all.input
+        rules._cnvkit_all.input,
+        rules._qc_all.input
