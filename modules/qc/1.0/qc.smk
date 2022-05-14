@@ -37,7 +37,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "qc",
     version = "1.0",
-    subdirectories = ["inputs", "samtools", "gatk", "outputs"],
+    subdirectories = ["inputs", "samtools", "gatk", "aggregated_metrics", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -171,7 +171,7 @@ rule _qc_gatk_wgs:
         CollectWgsMetrics
         {params.opts}
         -I {input.bam}
-        -O {output.gatk_basequal}
+        -O {output.gatk_wgs}
         -R {input.fasta}
         >> {log.stdout}
         2>> {log.stderr} &&
@@ -239,7 +239,54 @@ def _qc_get_stats(wildcards):
         output = str(rules._qc_gatk_wgs.output.gatk_wgs)
     return output
 
+
+# Collect required metrix into a tidy table
+rule _qc_collect_metrics:
+    input:
+        stat = str(rules._qc_samtools_stat.output.samtools_stat),
+        base_qual = str(rules._qc_gatk_basequality.output.gatk_basequal),
+        metrics = _qc_get_stats
+    output:
+        stat = CFG["dirs"]["aggregated_metrics"] + "{seq_type}--{genome_build}/{sample_id}.metrix.tsv"
+    conda:
+        CFG["conda_envs"]["gatkR"]
+    threads:
+        CFG["threads"]["collect"]
+    resources:
+        **CFG["resources"]["collect"]
+    script:
+        "src/R/aggregate_metrics.R"
+
+
+# Combine all individual metrics into one single file
+rule _qc_merge_metrics:
+    input:
+        expand(
+            [
+                str(rules._qc_collect_metrics.output.stat)
+            ],
+            zip,
+            genome_build=CFG["samples"]["genome_build"],
+            sample_id=CFG["samples"]["sample_id"],
+            allow_missing = True)
+    output:
+        CFG["dirs"]["aggregated_metrics"] + "{seq_type}/master_qc_metrics_output.tsv"
+    shell:
+        op.as_one_line("""
+        head -n1 {input[0]} > {output};
+        tail -n+2 -q {input} >> {output};
+        """)
+
+
 # Symlinks the final output files into the module results directory (under '99-outputs/')
+rule _qc_symlink_output:
+    input:
+        str(rules._qc_merge_metrics.output)
+    output:
+        CFG["dirs"]["outputs"] + "{seq_type}.qc_metrics.tsv",
+    run:
+        op.relative_symlink(input, output, in_module= True)
+
 rule _qc_output_tsv:
     input:
         stat = str(rules._qc_samtools_stat.output.samtools_stat),
@@ -267,7 +314,12 @@ rule _qc_all:
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
             genome_build=CFG["samples"]["genome_build"],
-            sample_id=CFG["samples"]["sample_id"])
+            sample_id=CFG["samples"]["sample_id"]),
+        expand(
+            [
+                str(rules._qc_symlink_output.output)
+            ],
+            seq_type=list(CFG["samples"]["seq_type"].unique()))
 
 
 ##### CLEANUP #####
