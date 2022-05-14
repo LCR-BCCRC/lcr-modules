@@ -9,8 +9,8 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
-            samtools_stat: "--remove-dups --remove-overlaps "
-            QualityScoreDistribution: "--alignedReadsOnly true --read-validation-stringency LENIENT"
+            samtools_stat: "" # can specify --remove-dups --remove-overlaps
+            QualityScoreDistribution: "--VALIDATION_STRINGENCY LENIENT" # can specify --ALIGNED_READS_ONLY true
             CollectWgsMetrics: "--USE_FAST_ALGORITHM true --VALIDATION_STRINGENCY LENIENT"
             CollectHsMetrics: "--VALIDATION_STRINGENCY LENIENT"
 
@@ -34,7 +34,7 @@ lcr-modules:
                 base_qual: 1
             CollectMetrics:
                 mem_mb: 100000
-                collect_metics: 2
+                collect_metics: 1
             collect:
                 mem_mb: 4000
 

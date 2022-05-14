@@ -111,13 +111,14 @@ rule _qc_samtools_stat:
 # Collecting GATK base quality metrics
 rule _qc_gatk_basequality:
     input:
-        bam = str(rules._qc_input_bam.output.bam)
+        bam = str(rules._qc_input_bam.output.bam),
+        fasta = str(rules._qc_input_references.output.genome_fa)
     output:
-        gatk_basequal = CFG["dirs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.{genome_build}.QualityScoreDistribution.txt",
-        gatk_basequal_chart = CFG["dirs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.{genome_build}.QualityScoreDistribution.pdf"
+        gatk_basequal = CFG["dirs"]["gatk"] + "QualityScoreDistribution/{seq_type}--{genome_build}/{sample_id}.{genome_build}.QualityScoreDistribution.txt",
+        gatk_basequal_chart = CFG["dirs"]["gatk"] + "QualityScoreDistribution/{seq_type}--{genome_build}/{sample_id}.{genome_build}.QualityScoreDistribution.pdf"
     log:
-        stdout = CFG["logs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.QualityScoreDistribution.stdout.log",
-        stderr = CFG["logs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.QualityScoreDistribution.stderr.log"
+        stdout = CFG["logs"]["gatk"] + "QualityScoreDistribution/{seq_type}--{genome_build}/{sample_id}.QualityScoreDistribution.stdout.log",
+        stderr = CFG["logs"]["gatk"] + "QualityScoreDistribution/{seq_type}--{genome_build}/{sample_id}.QualityScoreDistribution.stderr.log"
     params:
         opts = CFG["options"]["QualityScoreDistribution"],
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
@@ -130,12 +131,14 @@ rule _qc_gatk_basequality:
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
-        gatk QualityScoreDistributionSpark --spark-master local[{threads}]
+        gatk
         --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
+        QualityScoreDistribution
         {params.opts}
         -I {input.bam}
         -O {output.gatk_basequal}
-        -C {output.gatk_basequal_chart}
+        -CHART {output.gatk_basequal_chart}
+        -R {input.fasta}
         >> {log.stdout}
         2>> {log.stderr} &&
         echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
@@ -148,10 +151,10 @@ rule _qc_gatk_wgs:
         bam = str(rules._qc_input_bam.output.bam),
         fasta = str(rules._qc_input_references.output.genome_fa)
     output:
-        gatk_wgs = CFG["dirs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.{genome_build}.CollectWgsMetrics.txt"
+        gatk_wgs = CFG["dirs"]["gatk"] + "CollectMetrics/{seq_type}--{genome_build}/{sample_id}.{genome_build}.CollectWgsMetrics.txt"
     log:
-        stdout = CFG["logs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.CollectWgsMetrics.stdout.log",
-        stderr = CFG["logs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.CollectWgsMetrics.stderr.log"
+        stdout = CFG["logs"]["gatk"] + "CollectMetrics/{seq_type}--{genome_build}/{sample_id}.CollectWgsMetrics.stdout.log",
+        stderr = CFG["logs"]["gatk"] + "CollectMetrics/{seq_type}--{genome_build}/{sample_id}.CollectWgsMetrics.stderr.log"
     wildcard_constraints:
         seq_type = "genome"
     params:
@@ -199,10 +202,10 @@ rule _qc_gatk_wes:
         fasta = str(rules._qc_input_references.output.genome_fa),
         intervals = _qc_get_intervals
     output:
-        gatk_wes = CFG["dirs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.{genome_build}.CollectHsMetrics.txt"
+        gatk_wes = CFG["dirs"]["gatk"] + "CollectMetrics/{seq_type}--{genome_build}/{sample_id}.{genome_build}.CollectHsMetrics.txt"
     log:
-        stdout = CFG["logs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.CollectHsMetrics.stdout.log",
-        stderr = CFG["logs"]["gatk"] + "{seq_type}--{genome_build}/{sample_id}.CollectHsMetrics.stderr.log"
+        stdout = CFG["logs"]["gatk"] + "CollectMetrics/{seq_type}--{genome_build}/{sample_id}.CollectHsMetrics.stdout.log",
+        stderr = CFG["logs"]["gatk"] + "CollectMetrics/{seq_type}--{genome_build}/{sample_id}.CollectHsMetrics.stderr.log"
     wildcard_constraints:
         seq_type = "capture"
     params:
