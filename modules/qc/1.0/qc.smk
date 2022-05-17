@@ -177,6 +177,7 @@ rule _qc_gatk_wgs:
         -I {input.bam}
         -O {output.gatk_wgs}
         -R {input.fasta}
+        --READ_LENGTH $(grep ^SN {input.samtools_stats} | cut -f 2- | grep "average length:" | cut -f 2)
         >> {log.stdout}
         2>> {log.stderr} &&
         echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
