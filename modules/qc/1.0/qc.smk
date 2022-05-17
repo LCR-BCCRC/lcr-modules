@@ -149,7 +149,8 @@ rule _qc_gatk_basequality:
 rule _qc_gatk_wgs:
     input:
         bam = str(rules._qc_input_bam.output.bam),
-        fasta = str(rules._qc_input_references.output.genome_fa)
+        fasta = str(rules._qc_input_references.output.genome_fa),
+        samtools_stats = str(rules._qc_samtools_stat.output.samtools_stat)
     output:
         gatk_wgs = CFG["dirs"]["gatk"] + "CollectMetrics/{seq_type}--{genome_build}/{sample_id}.{genome_build}.CollectWgsMetrics.txt"
     log:
@@ -182,20 +183,109 @@ rule _qc_gatk_wgs:
         """)
 
 
+def _qc_get_baits(wildcards):
+    CFG = config["lcr-modules"]["qc"]
+    # simplify config options by re-using the capture space bertween e.g grch37 and hs37d5
+    if "38" in str(wildcards.genome_build):
+        this_genome_build = "hg38"
+    else:
+        this_genome_build = "grch37"
+
+    if "baits_regions" in  CFG:
+        # If user specified path to bed file in the sample table, use it from dictionary in config
+        if wildcards.baits_regions in list(CFG["baits_regions"][this_genome_build].keys()):
+            these_baits = str(wildcards.baits_regions)
+        else:
+            print(
+                f"WARNING: the baits regions were specified in the sample table, but were not found in config "
+                f"for {wildcards.genome_build} ({this_genome_build}) and {wildcards.seq_type} combination. Using the default space ..."
+            )
+            these_baits = "_default"
+    else:
+        # use default
+        these_baits = "_default"
+
+    return(str(CFG["baits_regions"][this_genome_build][these_baits]))
+
+
+# Subset contigs in bed to those present in the reference and sort the output
+# This is needed to pass GATK validation
+rule _qc_sort_baits:
+    input:
+        baits = _qc_get_baits,
+        fai = str(rules._qc_input_references.output.genome_fai)
+    output:
+        baits = CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.bed",
+        inermediate_baits = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.INTEMEDIATE.bed")
+    conda:
+        CFG["conda_envs"]["bedtools"]
+    shell:
+        op.as_one_line("""
+        if [ -e {input.baits} ]; then
+            cat {input.baits} > {output.inermediate_baits};
+        else
+            curl -L {input.baits} > {output.inermediate_baits};
+        fi
+            &&
+        cut -f 1-2  {input.fai} |
+        perl -ane 'print "$F[0]\\t0\\t$F[1]\\n"' |
+        bedtools intersect -wa -a {output.inermediate_baits} -b stdin |
+        bedtools sort |
+        bedtools merge >
+        {output.baits}
+        """)
+
+# Create interval list
+rule _qc_baits_to_interval_list:
+    input:
+        baits = str(rules._qc_sort_baits.output.baits),
+        genome_dict = str(rules._qc_input_references.output.genome_dict)
+    output:
+        interval_list = CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.interval_list"
+    conda:
+        CFG["conda_envs"]["gatkR"]
+    shell:
+        op.as_one_line("""
+        gatk BedToIntervalList
+        --INPUT {input.baits}
+        -SD {input.genome_dict}
+        -O {output.interval_list}
+        """)
+
+# get the proper interval list corresponding to each sample, if provided
 def _qc_get_intervals(wildcards):
     CFG = config["lcr-modules"]["qc"]
-    try:
-        # Get the appropriate capture space for this sample
-        these_intervals = op.get_capture_space(CFG, wildcards.sample_id, wildcards.genome_build, wildcards.seq_type, "interval_list")
-        these_intervals = reference_files(these_intervals)
-    except NameError:
-        # If we are using an older version of the reference workflow, use the same region file as the genome sample
-        raise AssertionError(
-            f"No capture space was provided for the sample {wildcards.sample_id} and cannot be generated for {wildcards.genome_build}. "
-            f"Please add custom capture space or use one of supported genome builds."
-        )
-    return these_intervals
+    samples = CFG["samples"]
+    this_sample = samples.loc[(samples['sample_id'] == wildcards.sample_id) &
+            (samples['genome_build'] == wildcards.genome_build) &
+            (samples['seq_type'] == wildcards.seq_type)]
 
+    # ensure the sample is uniquely mapped
+    if len(this_sample) != 1:
+        raise AssertionError("Found %s matches when examining the sample table for \'%s\' \'%s\' \'%s\'" % (len(sample), sample_id, genome_build, seq_type))
+
+    # simplify config options by re-using the capture space bertween e.g grch37 and hs37d5
+    if "38" in str(wildcards.genome_build):
+        this_genome_build = "hg38"
+    else:
+        this_genome_build = "grch37"
+
+    if "baits_regions" in  this_sample:
+        # If user specified path to bed file in the sample table, use it from dictionary in config
+        if str(this_sample.iloc[0]['baits_regions']) in list(CFG["baits_regions"][this_genome_build].keys()):
+            these_baits = str(this_sample.iloc[0]['baits_regions'])
+        else:
+            print(
+                f"WARNING: the baits regions were specified in the sample table, but were not found in config "
+                f"for {wildcards.genome_build} ({this_genome_build}) and {wildcards.seq_type} combination. Using the default space ..."
+            )
+            these_baits = "_default"
+    else:
+        # use default
+        these_baits = "_default"
+    return(expand(str(rules._qc_baits_to_interval_list.output.interval_list), baits_regions=these_baits,allow_missing=True))
+
+# Collect metrics on WES samples
 rule _qc_gatk_wes:
     input:
         bam = str(rules._qc_input_bam.output.bam),
