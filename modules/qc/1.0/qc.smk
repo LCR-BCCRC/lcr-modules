@@ -228,6 +228,16 @@ rule _qc_sort_baits:
             curl -L {input.baits} > {output.inermediate_baits};
         fi
             &&
+        QC_REF_PREFIXED==$(head -1 {input.fai} | cut -f 1)
+            &&
+        BED_PREFIXED==$(head -1 {output.inermediate_baits} | cut -f 1)
+            &&
+        if [[ $QC_REF_PREFIXED == *"chr"* && ! $BED_PREFIXED == *"chr"* ]]; then
+            cat {output.inermediate_baits} | perl -ne "s/^/chr/g;print" > {output.inermediate_baits}.fix_prefix;
+            rm {output.inermediate_baits};
+            mv {output.inermediate_baits}.fix_prefix {output.inermediate_baits};
+        fi
+            &&
         cut -f 1-2  {input.fai} |
         perl -ane 'print "$F[0]\\t0\\t$F[1]\\n"' |
         bedtools intersect -wa -a {output.inermediate_baits} -b stdin |
