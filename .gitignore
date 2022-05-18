@@ -31,7 +31,7 @@ MANIFEST
 
 # Files creates when testing the demo project or workflows
 .snakemake/
-demo/results
+demo/results*
 demo/reference
 demo/scratch
 demo/data/*bam
