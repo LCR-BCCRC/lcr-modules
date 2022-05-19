@@ -217,7 +217,7 @@ rule _qc_sort_baits:
         fai = str(rules._qc_input_references.output.genome_fai)
     output:
         baits = CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.bed",
-        inermediate_baits = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.INTEMEDIATE.bed")
+        intermediate_baits = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.INTERMEDIATE.bed")
     conda:
         CFG["conda_envs"]["bedtools"]
     shell:
