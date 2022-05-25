@@ -213,19 +213,20 @@ def _qc_get_baits(wildcards):
 # This is needed to pass GATK validation
 rule _qc_sort_baits:
     input:
-        baits = _qc_get_baits,
         fai = str(rules._qc_input_references.output.genome_fai)
     output:
         baits = CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.bed",
         intermediate_baits = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.INTERMEDIATE.bed")
     conda:
         CFG["conda_envs"]["bedtools"]
+    params:
+        baits = _qc_get_baits
     shell:
         op.as_one_line("""
-        if [ -e {input.baits} ]; then
-            cat {input.baits} > {output.intermediate_baits};
+        if [ -e {params.baits} ]; then
+            cat {params.baits} > {output.intermediate_baits};
         else
-            curl -L {input.baits} > {output.intermediate_baits};
+            curl -L {params.baits} > {output.intermediate_baits};
         fi
             &&
         QC_REF_PREFIXED==$(head -1 {input.fai} | cut -f 1)

@@ -16,11 +16,11 @@ lcr-modules:
 
         baits_regions:
             grch37: # other grch37-based reference genomes are also supported within this key, e.g. hs37d5
-                _default: "{MODSDIR}/src/baits/agilent_sureselect_v5_target_regions.grch37.bed"
+                _default: "https://www.bcgsc.ca/downloads/morinlab/reference/agilent_sureselect_v5_target_regions.grch37.bed"
                 # add another key here to specify a custom bed file with baits regions if needed
                 # either local path of URL can be specified
             hg38:
-                _default: "{MODSDIR}/src/baits/agilent_sureselect_v5_target_regions.hg38.bed"
+                _default: "https://www.bcgsc.ca/downloads/morinlab/reference/agilent_sureselect_v5_target_regions.hg38.bed"
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
