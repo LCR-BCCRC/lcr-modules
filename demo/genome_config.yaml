@@ -93,3 +93,7 @@ lcr-modules:
             bam_sort: 48000
         threads:
             bam_sort: 12
+
+    qc:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
