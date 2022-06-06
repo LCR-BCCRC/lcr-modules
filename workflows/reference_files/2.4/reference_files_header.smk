@@ -75,12 +75,6 @@ for build_name, build_info in config["genome_builds"].items():
     assert "provider" in build_info and genome_provider in possible_providers, (
         f"`provider` not set for `{build_name}` or `provider` not among {possible_providers}."
     )
-    if "genome_fasta_url" in build_info:
-        url_code = urllib.request.urlopen(build_info["genome_fasta_url"]).getcode()
-        assert url_code == 200, (
-            f"Pinging `genome_fasta_url` for {build_name} returned HTTP code {url_code} "
-            f"(rather than 200): \n{build_info['genome_fasta_url']}"
-        )
     # Find the appropriate SDF file for this genome build
     if build_name not in SDF_IGNORE:
         SDF_GENOME_BUILDS.append(build_name)
