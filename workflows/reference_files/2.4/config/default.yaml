@@ -144,6 +144,9 @@ tools:
     bcftools:
         conda_env: "envs/bcftools-1.10.2.yaml"
         version: "1.10.2"
+    igblast:
+        conda_env: "envs/igblast-1.17.1.yaml"
+        version: "1.17.1"
 
 cvbio_config:
     gtf: 
