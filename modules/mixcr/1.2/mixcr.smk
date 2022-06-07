@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["mixcr"]`
 CFG = op.setup_module(
     name = "mixcr",
-    version = "1.1",
+    version = "1.2",
     subdirectories = ["inputs", "mixcr", "outputs"],
 )
 
@@ -125,6 +125,7 @@ localrules:
     _igblastn_run,
     _update_mixcr_results,
     _symlink_mixcr_update,
+    _mixcr_chains,
     _mixcr_all,
 
 
