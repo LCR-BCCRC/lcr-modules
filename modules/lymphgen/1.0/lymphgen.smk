@@ -10,7 +10,7 @@ import pandas
 # Contributors:     NA
 
 # LymphGen classifier writen by George Wright
-# DO NOT DISTRIBUTE THE LYMPHGEN SOURCE CODE WITHOUT GEORGE'S PERMISSION
+# DO NOT DISTRIBUTE THE LYMPHGEN SOURCE CODE WITHOUT GEORGE WRIGHT'S PERMISSION
 # This module has been brought to you by Krysta's Girl Guide cookies. Helping me
 # miss all weight loss goals since 2018
 
@@ -25,7 +25,7 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "lymphgen",
     version = "1.0",
-    subdirectories = ["inputs", "reformat_seg", "lymphgen_input", "add_svs", "lymphgen_run", "outputs"],
+    subdirectories = ["inputs", "reformat_seg", "lymphgen_input", "add_svs", "lymphgen_run", "composite_other", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -36,9 +36,11 @@ localrules:
     _lymphgen_input_no_cnv,
     _lymphgen_add_sv,
     _lymphgen_add_sv_blank,
-    _lymphgen_run_cnv,
+    _lymphgen_run_cnv_A53,
+    _lymphgen_run_cnv_noA53,
     _lymphgen_run_no_cnv,
     _lymphgen_reformat_seg,
+    _lymphgen_flag_comp,
     _lymphgen_output_txt,
     _lymphgen_all,
 
@@ -301,8 +303,8 @@ def _get_sample_annotation(wildcards):
     else:
         return str(rules._lymphgen_add_sv_blank.output.sample_annotation)
 
-# With CNVs
-rule _lymphgen_run_cnv:
+# With CNVs, with A53
+rule _lymphgen_run_cnv_A53:
     input:
         sample_annotation = _get_sample_annotation,
         mutation_flat = str(rules._lymphgen_input_cnv.output.mutation_flat),
@@ -310,20 +312,46 @@ rule _lymphgen_run_cnv:
         cnv_flat = str(rules._lymphgen_input_cnv.output.cnv_flat),
         cnv_arm = str(rules._lymphgen_input_cnv.output.cnv_arm)
     output:
-        result = CFG["dirs"]["lymphgen_run"] + "{outprefix}.results.{cnvs_wc}.{sv_wc}.tsv"
+        result = CFG["dirs"]["lymphgen_run"] + "{outprefix}.results.{cnvs_wc}.{sv_wc}.{A53_wc}.tsv"
     log:
-        stderr = CFG["logs"]["lymphgen_run"] + "{outprefix}.lymphgen.{cnvs_wc}.{sv_wc}.stderr.log",
-        stdout = CFG["logs"]["lymphgen_run"] + "{outprefix}.lymphgen.{cnvs_wc}.{sv_wc}.stdout.log"
+        stderr = CFG["logs"]["lymphgen_run"] + "{outprefix}.lymphgen.{cnvs_wc}.{sv_wc}.{A53_wc}.stderr.log",
+        stdout = CFG["logs"]["lymphgen_run"] + "{outprefix}.lymphgen.{cnvs_wc}.{sv_wc}.{A53_wc}.stdout.log"
     params:
         lymphgen_path = CFG["options"]["lymphgen_run"]["lymphgen_path"]
     conda:
         CFG['conda_envs']['optparse']
     wildcard_constraints:
-        cnvs_wc = "with_cnvs"
+        cnvs_wc = "with_cnvs",
+        A53_wc = "with_A53"
     shell:
         op.as_one_line("""
         Rscript {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list} -c {input.cnv_flat}
         -a {input.cnv_arm} -o {output.result} > {log.stdout} 2> {log.stderr} """)
+
+# With CNVs, no A53
+rule _lymphgen_run_cnv_noA53:
+    input:
+        sample_annotation = _get_sample_annotation,
+        mutation_flat = str(rules._lymphgen_input_cnv.output.mutation_flat),
+        gene_list = str(rules._lymphgen_input_cnv.output.gene_list),
+        cnv_flat = str(rules._lymphgen_input_cnv.output.cnv_flat),
+        cnv_arm = str(rules._lymphgen_input_cnv.output.cnv_arm)
+    output:
+        result = CFG["dirs"]["lymphgen_run"] + "{outprefix}.results.{cnvs_wc}.{sv_wc}.{A53_wc}.tsv"
+    log:
+        stderr = CFG["logs"]["lymphgen_run"] + "{outprefix}.lymphgen.{cnvs_wc}.{sv_wc}.{A53_wc}.stderr.log",
+        stdout = CFG["logs"]["lymphgen_run"] + "{outprefix}.lymphgen.{cnvs_wc}.{sv_wc}.{A53_wc}.stdout.log"
+    params:
+        lymphgen_path = CFG["options"]["lymphgen_run"]["lymphgen_path"]
+    conda:
+        CFG['conda_envs']['optparse']
+    wildcard_constraints:
+        cnvs_wc = "with_cnvs",
+        A53_wc = "no_A53"
+    shell:
+        op.as_one_line("""
+        Rscript {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list} -c {input.cnv_flat}
+        -a {input.cnv_arm} -o {output.result} --no_A53 > {log.stdout} 2> {log.stderr} """)
 
 # No CNVs
 rule _lymphgen_run_no_cnv:
@@ -332,10 +360,10 @@ rule _lymphgen_run_no_cnv:
         mutation_flat = str(rules._lymphgen_input_no_cnv.output.mutation_flat),
         gene_list = str(rules._lymphgen_input_no_cnv.output.gene_list)
     output:
-        result = CFG["dirs"]["lymphgen_run"] + "{outprefix}.results.{cnvs_wc}.{sv_wc}.tsv"
+        result = CFG["dirs"]["lymphgen_run"] + "{outprefix}.results.{cnvs_wc}.{sv_wc}.{A53_wc}.tsv"
     log:
-        stderr = CFG["logs"]["lymphgen_run"] + "{outprefix}.lymphgen.{cnvs_wc}.{sv_wc}.stderr.log",
-        stdout = CFG["logs"]["lymphgen_run"] + "{outprefix}.lymphgen.{cnvs_wc}.{sv_wc}.stdout.log"
+        stderr = CFG["logs"]["lymphgen_run"] + "{outprefix}.lymphgen.{cnvs_wc}.{sv_wc}.{A53_wc}.stderr.log",
+        stdout = CFG["logs"]["lymphgen_run"] + "{outprefix}.lymphgen.{cnvs_wc}.{sv_wc}.{A53_wc}.stdout.log"
     params:
         lymphgen_path = CFG["options"]["lymphgen_run"]["lymphgen_path"]
     conda:
@@ -347,13 +375,32 @@ rule _lymphgen_run_no_cnv:
         Rscript {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list}
         -o {output.result} > {log.stdout} 2> {log.stderr}""")
 
+# STEP 6. Flag samples that fall in the composite "Dead Zone"
+rule _lymphgen_flag_comp:
+    input:
+        txt = str(rules._lymphgen_run_cnv_A53.output.result)
+    output:
+        txt = CFG["dirs"]["composite_other"] + "{outprefix}.lymphgen_composite_other.{cnvs_wc}.{sv_wc}.{A53_wc}.tsv"
+    run:
+        loaded_calls = pandas.read_csv(input.txt, sep="\t")
+
+        # Subset down to cases not classified by LymphGen (i.e. "Other")
+        othercases = loaded_calls.loc[loaded_calls["Subtype.Prediction"] == "Other"]
+
+        # Grab the confidence columns. These will change depending on which subgroups were included in the classification
+        confcols = list(x for x in othercases.columns if x.startswith("Confidence"))
+        confvalues = othercases[confcols] > 0.5
+        compother = othercases[confvalues.any(1)]
+        compother.to_csv(output.txt, sep = "\t")
+
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _lymphgen_output_txt:
     input:
-        txt = str(rules._lymphgen_run_cnv.output.result)
+        txt = str(rules._lymphgen_run_cnv_A53.output.result),
+        comp = str(rules._lymphgen_flag_comp.output.txt)
     output:
-        txt = CFG["dirs"]["outputs"] + "{outprefix}.lymphgen_calls.{cnvs_wc}.{sv_wc}.tsv"
+        txt = CFG["dirs"]["outputs"] + "{outprefix}.lymphgen_calls.{cnvs_wc}.{sv_wc}.{A53_wc}.tsv"
     run:
         op.relative_symlink(input.txt, output.txt)
 
@@ -372,6 +419,12 @@ if "sample_sv_info" in CFG["inputs"] and CFG["inputs"]["sample_sv_info"] != "" a
 else:
     sv_wc = ["no_sv"]
 
+# Are we including A53 subgroup in the output?
+if "sample_seg" in CFG["inputs"] and CFG["inputs"]["sample_seg"] != "" and CFG["inputs"]["sample_seg"] != "None":  # We have CNV calls
+    a53_wc = ["with_A53", "no_A53"]
+else:
+    a53_wc = ["no_A53"]
+
 rule _lymphgen_all:
     input:
         expand(
@@ -380,9 +433,8 @@ rule _lymphgen_all:
             ],
             outprefix = outprefix,
             cnvs_wc = cnvs_wc,
-            sv_wc = sv_wc
-
-
+            sv_wc = sv_wc,
+            A53_wc = a53_wc
         )
 
 
