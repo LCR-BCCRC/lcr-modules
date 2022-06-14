@@ -100,6 +100,7 @@ rule _mutsig_prepare_maf:
         {input.maf}
         {input.sample_sets}
         $(dirname {output.maf})/
+        {wildcards.sample_set}
         MutSig2CV
         {params.include_non_coding}
         """)
@@ -204,7 +205,7 @@ rule _mutsig_configure_mcr:
             &&
         touch {output.configured}
             &&
-        ln -s {params.scripts_directory}/bash/run_Mutsig2CV.sh run_MutSig2CV.sh
+        ln -s {params.scripts_directory}bash/run_Mutsig2CV.sh run_MutSig2CV.sh
             &&
         ln -s $(dirname {output.configured})/libncurses.so.6 libncurses.so.5
             &&
