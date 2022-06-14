@@ -10,6 +10,7 @@ lcr-modules:
         seq_types: ["genome", "capture"]
         include_non_coding: True
         prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
+        src_dir: "{MODSDIR}/src/"
 
         scratch_subdirectories: []
 
@@ -23,10 +24,10 @@ lcr-modules:
             matlab: "{MODSDIR}/envs/matlab.yml"
 
         threads:
-            step_1: 4
+            mutsig: 2
 
         resources:
-            step_1:
+            mutsig:
                 mem_mb: 2000
 
         pairing_config:

@@ -178,6 +178,7 @@ rule _mutsig_configure_mcr:
         CFG["conda_envs"]["matlab"]
     params:
         running_directory = CFG["dirs"]["mcr"],
+        scripts_directory = CFG["dirs"]["src_dir"],
         conda_prefix = lambda w: workflow.conda_prefix if workflow.conda_prefix else os.path.abspath(".snakemake/conda")
     shell:
         op.as_one_line("""
@@ -193,6 +194,8 @@ rule _mutsig_configure_mcr:
             &&
         touch {output.configured}
             &&
+        ln -s {params.scripts_directory}/bash/run_Mutsig2CV.sh run_MutSig2CV.sh
+            &&
         ln -s $(dirname {output.configured})/libncurses.so.6 libncurses.so.5
             &&
         ln -s $(dirname {output.configured})/libtinfow.so.6 libtinfow.so.6
@@ -205,33 +208,39 @@ rule _mutsig_configure_mcr:
         """)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _mutsig_step_1:
+# Actual MutSig2CV run
+rule _mutsig_run:
     input:
-        tumour_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}.maf",
-        normal_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{normal_id}.maf",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        mcr = str(rules._mutsig_download_mcr.output.local_mcr),
+        mcr_installed = str(rules._mutsig_install_mcr.output.local_mcr),
+        mcr_configured = str(rules._mutsig_configure_mcr.output.local_mcr),
+        mutsig = str(rules._mutsig_download_mutsig.output.mutsig),
+        maf = str(rules._mutsig_prepare_maf.output.maf)
     output:
-        tsv = CFG["dirs"]["mutsig"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.tsv"
+        mutsig_maf = temp(CFG["dirs"]["mutsig"] + "{sample_set}/final_analysis_set.maf"),
+        mutsig_sig_genes = CFG["dirs"]["mutsig"] + "{sample_set}/sig_genes.txt",
+        success = CFG["dirs"]["mutsig"] + "{sample_set}/mutsig.success"
     log:
-        stdout = CFG["logs"]["mutsig"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-        stderr = CFG["logs"]["mutsig"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
-    params:
-        opts = CFG["options"]["step_1"]
+        stdout = CFG["logs"]["mutsig"] + "{sample_set}/mutsig.stdout.log",
+        stderr = CFG["logs"]["mutsig"] + "{sample_set}/mutsig.stderr.log"
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["matlab"]
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["mutsig"]
     resources:
-        **CFG["resources"]["step_1"]
-    group:
-        "input_and_step_1"
+        **CFG["resources"]["mutsig"]
+    params:
+        running_directory = CFG["dirs"]["mcr"]
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --tumour {input.tumour_maf} --normal {input.normal_maf}
-        --ref-fasta {input.fasta} --output {output.tsv} --threads {threads}
+        cd {params.running_directory}
+        .run_MutSig2CV.sh
+        $(dirname {input.mcr_installed})/v81/
+        {input.maf}
+        $(dirname {output.success})
         > {log.stdout} 2> {log.stderr}
+            &&
+        touch {output.success}
         """)
 
 
