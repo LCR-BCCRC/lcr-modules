@@ -133,6 +133,9 @@ rule _mutsig_download_mcr:
     output:
         mcr_installer = temp(CFG["dirs"]["mcr"] + "MCR_R2013a_glnxa64_installer.zip"),
         local_mcr = directory(CFG["dirs"]["mcr"] + "local_mcr")
+    log:
+        stdout = CFG["logs"]["mcr"] + "download_mcr.stdout.log",
+        stderr = CFG["logs"]["mcr"] + "download_mcr.stderr.log"
     conda:
         CFG["conda_envs"]["wget"]
     shell:
@@ -142,6 +145,7 @@ rule _mutsig_download_mcr:
         https://ssd.mathworks.com/supportfiles/MCR_Runtime/R2013a/MCR_R2013a_glnxa64_installer.zip
             &&
         unzip {output.mcr_installer} -d $(dirname {output.mcr_installer})
+        > {log.stdout} 2> {log.stderr}
             &&
         mkdir {output.local_mcr}
         """)
@@ -153,6 +157,9 @@ rule _mutsig_install_mcr:
         mcr = str(rules._mutsig_download_mcr.output.mcr_installer)
     output:
         local_mcr = CFG["dirs"]["mcr"] + "install.success"
+    log:
+        stdout = CFG["logs"]["mcr"] + "install_mcr.stdout.log",
+        stderr = CFG["logs"]["mcr"] + "install_mcr.stderr.log"
     conda:
         CFG["conda_envs"]["matlab"]
     shell:
@@ -160,7 +167,8 @@ rule _mutsig_install_mcr:
         $(dirname {input.mcr})/install
         -mode silent
         -agreeToLicense yes
-        -destinationFolder $(dirname {output.local_mcr})
+        -destinationFolder $(dirname $(readlink -f {output.local_mcr}))
+        > {log.stdout} 2> {log.stderr}
             &&
         touch {output.local_mcr}
         """)
