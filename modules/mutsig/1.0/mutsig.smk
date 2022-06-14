@@ -14,6 +14,7 @@
 # Import package with useful functions for developing analysis modules
 import sys, os
 from os.path import join
+import glob
 import hashlib
 import oncopipe as op
 
@@ -63,7 +64,7 @@ rule _mutsig_input_maf:
         sample_sets = CFG["inputs"]["sample_sets"]
     output:
         maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/input.maf",
-        sample_sets = CFG["dirs"]["inputs"] + "sample_sets/sample_sets.tsv"
+        sample_sets = CFG["dirs"]["inputs"] + "sample_sets/{seq_type}_sample_sets.tsv"
     run:
         op.absolute_symlink(input.maf, output.maf)
         op.absolute_symlink(input.sample_sets, output.sample_sets)
@@ -83,7 +84,7 @@ rule _mutsig_prepare_maf:
     conda:
         CFG["conda_envs"]["salmon2counts"]
     params:
-        include_non_coding = str(CFG["include_non_coding"]).upper()
+        include_non_coding = str(CFG["include_non_coding"]).upper(),
         script = CFG["prepare_mafs"]
     shell:
         op.as_one_line("""
@@ -99,7 +100,7 @@ rule _mutsig_prepare_maf:
 # Download the MutSig2CV
 rule _mutsig_download_mutsig:
     output:
-        mutsig_compressed = temp(CFG["dirs"]["inputs"] + "MutSig2CV/MutSig2CV.tar.gz")
+        mutsig_compressed = temp(CFG["dirs"]["inputs"] + "MutSig2CV/MutSig2CV.tar.gz"),
         mutsig = CFG["dirs"]["inputs"] + "MutSig2CV/MutSig2CV.success"
     conda:
         CFG["conda_envs"]["wget"]
@@ -118,7 +119,7 @@ rule _mutsig_download_mutsig:
 rule _mutsig_download_mcr:
     output:
         mcr_installer = temp(CFG["dirs"]["mcr"] + "MCR_R2013a_glnxa64_installer.zip"),
-        local_mcr = directory(CFG["dirs"]["mcr"] + "/local_mcr")
+        local_mcr = directory(CFG["dirs"]["mcr"] + "local_mcr")
     conda:
         CFG["conda_envs"]["wget"]
     shell:
@@ -138,7 +139,7 @@ rule _mutsig_install_mcr:
     input:
         mcr = str(rules._mutsig_download_mcr.output.mcr_installer)
     output:
-        local_mcr = CFG["dirs"]["mcr"] + "/local_mcr/install.success"
+        local_mcr = CFG["dirs"]["mcr"] + "local_mcr/install.success"
     conda:
         CFG["conda_envs"]["matlab"]
     shell:
@@ -163,7 +164,8 @@ f = open(CFG["conda_envs"]["matlab"], 'rb')
 md5hash.update(f.read())
 f.close()
 h = md5hash.hexdigest()
-MATLAB = glob.glob(conda_prefix + "/" + h[:8] + "*")[0]
+print(conda_prefix + "/" + h)
+MATLAB = str(conda_prefix + "/" + h)
 
 # Configure local MCR
 rule _mutsig_configure_mcr:
@@ -172,13 +174,13 @@ rule _mutsig_configure_mcr:
         mcr_installed = str(rules._mutsig_install_mcr.output.local_mcr),
         mutsig = str(rules._mutsig_download_mutsig.output.mutsig)
     output:
-        local_mcr = CFG["dirs"]["mcr"] + "/local_mcr/configure.success".
+        local_mcr = CFG["dirs"]["mcr"] + "local_mcr/configure.success",
         configured = MATLAB + "/lib/configure.success"
     conda:
         CFG["conda_envs"]["matlab"]
     params:
         running_directory = CFG["dirs"]["mcr"],
-        scripts_directory = CFG["dirs"]["src_dir"],
+        scripts_directory = CFG["src_dir"],
         conda_prefix = lambda w: workflow.conda_prefix if workflow.conda_prefix else os.path.abspath(".snakemake/conda")
     shell:
         op.as_one_line("""
@@ -263,7 +265,7 @@ rule _mutsig_all:
                 str(rules._mutsig_output_txt.output.txt),
                 # TODO: If applicable, add other output rules here
             ],
-            pair_status=CFG["sample_set"])
+            sample_set=CFG["sample_set"])
 
 
 ##### CLEANUP #####
