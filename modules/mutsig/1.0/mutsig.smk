@@ -12,6 +12,9 @@
 ##### SETUP #####
 
 # Import package with useful functions for developing analysis modules
+import sys, os
+from os.path import join
+import hashlib
 import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
@@ -38,7 +41,7 @@ CFG = op.setup_module(
     name = "mutsig",
     version = "1.0",
     # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "mutsig", "outputs"],
+    subdirectories = ["inputs", "mcr", "mutsig", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -65,7 +68,7 @@ rule _mutsig_input_maf:
         op.absolute_symlink(input.maf, output.maf)
         op.absolute_symlink(input.sample_sets, output.sample_sets)
 
-# Prepare the maf file for th einput to MutSig2CV
+# Prepare the maf file for the input to MutSig2CV
 rule _mutsig_prepare_maf:
     input:
         maf = expand(
@@ -91,6 +94,95 @@ rule _mutsig_prepare_maf:
         MutSig2CV
         {params.include_non_coding}
         """)
+
+
+# Download the MCR installer
+rule _mutsig_download_mcr:
+    output:
+        mcr_installer = temp(CFG["dirs"]["mcr"] + "MCR_R2013a_glnxa64_installer.zip"),
+        local_mcr = directory(CFG["dirs"]["mcr"] + "/local_mcr")
+    conda:
+        CFG["conda_envs"]["wget"]
+    shell:
+        op.as_one_line("""
+        wget -O
+        {output.mcr_installer}
+        https://ssd.mathworks.com/supportfiles/MCR_Runtime/R2013a/MCR_R2013a_glnxa64_installer.zip
+            &&
+        unzip {output.mcr_installer} -d $(dirname {output.mcr_installer})
+            &&
+        mkdir {output.local_mcr}
+        """)
+
+
+# Install local MCR
+rule _mutsig_install_mcr:
+    input:
+        mcr = str(rules._mutsig_download_mcr.output.mcr_installer)
+    output:
+        local_mcr = CFG["dirs"]["mcr"] + "/local_mcr/install.success"
+    conda:
+        CFG["conda_envs"]["matlab"]
+    shell:
+        op.as_one_line("""
+        $(dirname {input.mcr})/install
+        -mode silent
+        -agreeToLicense yes
+        -destinationFolder $(dirname {output.local_mcr})
+            &&
+        touch {output.local_mcr}
+        """)
+
+# Obtain the path to the matlab conda environment
+md5hash = hashlib.md5()
+if workflow.conda_prefix:
+    conda_prefix = workflow.conda_prefix
+else:
+    conda_prefix = os.path.abspath(".snakemake/conda")
+
+md5hash.update(conda_prefix.encode())
+f = open(CFG["conda_envs"]["matlab"], 'rb')
+md5hash.update(f.read())
+f.close()
+h = md5hash.hexdigest()
+MATLAB = glob.glob(conda_prefix + "/" + h[:8] + "*")[0]
+
+# Configure local MCR
+rule _mutsig_configure_mcr:
+    input:
+        mcr = str(rules._mutsig_download_mcr.output.local_mcr),
+        mcr_installed = str(rules._mutsig_install_mcr.output.local_mcr)
+    output:
+        local_mcr = CFG["dirs"]["mcr"] + "/local_mcr/configure.success".
+        configured = MATLAB + "/lib/configure.success"
+    conda:
+        CFG["conda_envs"]["matlab"]
+    params:
+        running_directory = CFG["dirs"]["mcr"],
+        conda_prefix = lambda w: workflow.conda_prefix if workflow.conda_prefix else os.path.abspath(".snakemake/conda")
+    shell:
+        op.as_one_line("""
+        cd {input.mcr}/v81/runtime/glnxa64/
+            &&
+        ln -s libmwmclmcrrt.so.8.1 libmwmclmcrrt.so.9.0.1
+            &&
+        cd ../../../bin/glnxa64/
+            &&
+        ln -s libboost_system.so.1.49.0 libboost_system.so.1.56.0
+            &&
+        cd {params.running_directory}
+            &&
+        touch {output.configured}
+            &&
+        ln -s $(dirname {output.configured})/libncurses.so.6 libncurses.so.5
+            &&
+        ln -s $(dirname {output.configured})/libtinfow.so.6 libtinfow.so.6
+            &&
+        ln -s {params.running_directory}/sys/java/jre/glnxa64/jre/lib/amd64/server/libjvm.so libjvm.so
+            &&
+        touch {output.local_mcr}
+        """)
+
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
