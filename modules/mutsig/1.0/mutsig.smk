@@ -49,7 +49,7 @@ CFG = op.setup_module(
 localrules:
     _mutsig_input_maf,
     _mutsig_step_2,
-    _mutsig_output_tsv,
+    _mutsig_output_txt,
     _mutsig_all,
 
 
@@ -244,30 +244,15 @@ rule _mutsig_run:
         """)
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _mutsig_step_2:
-    input:
-        tsv = str(rules._mutsig_step_1.output.tsv)
-    output:
-        tsv = CFG["dirs"]["mutsig"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.tsv"
-    log:
-        stderr = CFG["logs"]["mutsig"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.tsv} > {output.tsv} 2> {log.stderr}"
-
-
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 # TODO: If applicable, add an output rule for each file meant to be exposed to the user
-rule _mutsig_output_tsv:
+rule _mutsig_output_txt:
     input:
-        tsv = str(rules._mutsig_step_2.output.tsv)
+        txt = str(rules._mutsig_run.output.mutsig_sig_genes)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.tsv"
+        txt = CFG["dirs"]["outputs"] + "txt/{sample_set}/{sample_set}.sig_genes.txt"
     run:
-        op.relative_symlink(input.tsv, output.tsv, in_module= True)
+        op.relative_symlink(input.txt, output.txt, in_module= True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -275,15 +260,10 @@ rule _mutsig_all:
     input:
         expand(
             [
-                str(rules._mutsig_output_tsv.output.tsv),
+                str(rules._mutsig_output_txt.output.txt),
                 # TODO: If applicable, add other output rules here
             ],
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            genome_build=CFG["runs"]["tumour_genome_build"],
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            pair_status=CFG["sample_set"])
 
 
 ##### CLEANUP #####
