@@ -6,6 +6,7 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             master_maf: "__UPDATE__"
+            sample_sets: "__UPDATE__"
         sample_set: ["__UPDATE__"]
         seq_types: ["genome", "capture"]
         include_non_coding: True
