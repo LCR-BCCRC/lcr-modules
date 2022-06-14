@@ -60,14 +60,22 @@ localrules:
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _mutsig_input_maf:
     input:
-        maf = CFG["inputs"]["master_maf"],
-        sample_sets = CFG["inputs"]["sample_sets"]
+        maf = CFG["inputs"]["master_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/input.maf",
-        sample_sets = CFG["dirs"]["inputs"] + "sample_sets/{seq_type}_sample_sets.tsv"
+        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
+
+
+# Symlinks the input files into the module results directory (under '00-inputs/')
+rule _mutsig_input_subsets:
+    input:
+        sample_sets = CFG["inputs"]["sample_sets"]
+    output:
+        sample_sets = CFG["dirs"]["inputs"] + "sample_sets/sample_sets.tsv"
+    run:
         op.absolute_symlink(input.sample_sets, output.sample_sets)
+
 
 # Prepare the maf file for the input to MutSig2CV
 rule _mutsig_prepare_maf:
@@ -77,7 +85,7 @@ rule _mutsig_prepare_maf:
                     allow_missing=True,
                     seq_type=CFG["seq_types"]
                     ),
-        sample_sets = str(rules._mutsig_input_maf.output.sample_sets)
+        sample_sets = str(rules._mutsig_input_subsets.output.sample_sets)
     output:
         maf = temp(CFG["dirs"]["inputs"] + "maf/{sample_set}.maf"),
         contents = CFG["dirs"]["inputs"] + "maf/{sample_set}.maf.content"
@@ -139,7 +147,7 @@ rule _mutsig_install_mcr:
     input:
         mcr = str(rules._mutsig_download_mcr.output.mcr_installer)
     output:
-        local_mcr = CFG["dirs"]["mcr"] + "local_mcr/install.success"
+        local_mcr = CFG["dirs"]["mcr"] + "install.success"
     conda:
         CFG["conda_envs"]["matlab"]
     shell:
@@ -174,7 +182,7 @@ rule _mutsig_configure_mcr:
         mcr_installed = str(rules._mutsig_install_mcr.output.local_mcr),
         mutsig = str(rules._mutsig_download_mutsig.output.mutsig)
     output:
-        local_mcr = CFG["dirs"]["mcr"] + "local_mcr/configure.success",
+        local_mcr = CFG["dirs"]["mcr"] + "configure.success",
         configured = MATLAB + "/lib/configure.success"
     conda:
         CFG["conda_envs"]["matlab"]
