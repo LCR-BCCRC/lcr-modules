@@ -1,11 +1,15 @@
 lcr-modules:
-    
+
     mutsig:
 
         # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_maf: "__UPDATE__"
+            master_maf: "__UPDATE__"
+        sample_set: ["__UPDATE__"]
+        seq_types: ["genome", "capture"]
+        include_non_coding: True
+        prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
 
         scratch_subdirectories: []
 
@@ -14,15 +18,15 @@ lcr-modules:
             step_2: ""
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            
+            salmon2counts: "{SCRIPTSDIR}/salmon2counts/1.0/salmon2counts.yaml"
+
         threads:
             step_1: 4
 
         resources:
-            step_1: 
+            step_1:
                 mem_mb: 2000
-            
+
         pairing_config:
             genome:
                 run_paired_tumours: True

@@ -54,17 +54,43 @@ localrules:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
 rule _mutsig_input_maf:
     input:
-        maf = CFG["inputs"]["sample_maf"]
+        maf = CFG["inputs"]["master_maf"],
+        sample_sets = CFG["inputs"]["sample_sets"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{sample_id}.maf"
-    group: 
-        "input_and_step_1"
+        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/input.maf",
+        sample_sets = CFG["dirs"]["inputs"] + "sample_sets/sample_sets.tsv"
     run:
         op.absolute_symlink(input.maf, output.maf)
+        op.absolute_symlink(input.sample_sets, output.sample_sets)
+
+# Prepare the maf file for th einput to MutSig2CV
+rule _mutsig_prepare_maf:
+    input:
+        maf = expand(
+                    str(rules._mutsig_input_maf.output.maf),
+                    allow_missing=True,
+                    seq_type=CFG["seq_types"]
+                    ),
+        sample_sets = str(rules._mutsig_input_maf.output.sample_sets)
+    output:
+        maf = temp(CFG["dirs"]["inputs"] + "maf/{sample_set}.maf"),
+        contents = CFG["dirs"]["inputs"] + "maf/{sample_set}.maf.content"
+    conda:
+        CFG["conda_envs"]["salmon2counts"]
+    params:
+        include_non_coding = str(CFG["include_non_coding"]).upper()
+        script = CFG["prepare_mafs"]
+    shell:
+        op.as_one_line("""
+        Rscript {params.script}
+        {input.maf}
+        {input.sample_sets}
+        $(dirname {output.maf})/
+        MutSig2CV
+        {params.include_non_coding}
+        """)
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
@@ -87,7 +113,7 @@ rule _mutsig_step_1:
         CFG["threads"]["step_1"]
     resources:
         **CFG["resources"]["step_1"]
-    group: 
+    group:
         "input_and_step_1"
     shell:
         op.as_one_line("""
