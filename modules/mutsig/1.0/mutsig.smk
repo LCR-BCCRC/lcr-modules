@@ -89,6 +89,9 @@ rule _mutsig_prepare_maf:
     output:
         maf = temp(CFG["dirs"]["inputs"] + "maf/{sample_set}.maf"),
         contents = CFG["dirs"]["inputs"] + "maf/{sample_set}.maf.content"
+    log:
+        stdout = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stderr.log"
     conda:
         CFG["conda_envs"]["salmon2counts"]
     params:
@@ -103,6 +106,7 @@ rule _mutsig_prepare_maf:
         {wildcards.sample_set}
         MutSig2CV
         {params.include_non_coding}
+        > {log.stdout} 2> {log.stderr}
         """)
 
 
