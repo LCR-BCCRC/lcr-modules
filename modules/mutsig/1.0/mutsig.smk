@@ -96,6 +96,24 @@ rule _mutsig_prepare_maf:
         """)
 
 
+# Download the MutSig2CV
+rule _mutsig_download_mutsig:
+    output:
+        mutsig_compressed = temp(CFG["dirs"]["inputs"] + "MutSig2CV/MutSig2CV.tar.gz")
+        mutsig = CFG["dirs"]["inputs"] + "MutSig2CV/MutSig2CV.success"
+    conda:
+        CFG["conda_envs"]["wget"]
+    shell:
+        op.as_one_line("""
+        wget
+        -O {output.mutsig_compressed}
+        http://software.broadinstitute.org/cancer/cga/sites/default/files/data/tools/mutsig/MutSig2CV.tar.gz
+            &&
+        tar -xvf {output.mutsig_compressed} -C $(dirname {output.mutsig})
+            &&
+        touch {output.mutsig}
+        """)
+
 # Download the MCR installer
 rule _mutsig_download_mcr:
     output:
@@ -105,8 +123,8 @@ rule _mutsig_download_mcr:
         CFG["conda_envs"]["wget"]
     shell:
         op.as_one_line("""
-        wget -O
-        {output.mcr_installer}
+        wget
+        -O {output.mcr_installer}
         https://ssd.mathworks.com/supportfiles/MCR_Runtime/R2013a/MCR_R2013a_glnxa64_installer.zip
             &&
         unzip {output.mcr_installer} -d $(dirname {output.mcr_installer})
@@ -151,7 +169,8 @@ MATLAB = glob.glob(conda_prefix + "/" + h[:8] + "*")[0]
 rule _mutsig_configure_mcr:
     input:
         mcr = str(rules._mutsig_download_mcr.output.local_mcr),
-        mcr_installed = str(rules._mutsig_install_mcr.output.local_mcr)
+        mcr_installed = str(rules._mutsig_install_mcr.output.local_mcr),
+        mutsig = str(rules._mutsig_download_mutsig.output.mutsig)
     output:
         local_mcr = CFG["dirs"]["mcr"] + "/local_mcr/configure.success".
         configured = MATLAB + "/lib/configure.success"
@@ -180,9 +199,10 @@ rule _mutsig_configure_mcr:
             &&
         ln -s {params.running_directory}/sys/java/jre/glnxa64/jre/lib/amd64/server/libjvm.so libjvm.so
             &&
+        ln -s $(dirname {input.mutsig})/reference/ reference
+            &&
         touch {output.local_mcr}
         """)
-
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
