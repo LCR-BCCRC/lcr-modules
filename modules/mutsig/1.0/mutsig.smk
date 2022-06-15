@@ -47,9 +47,13 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _mutsig_input_maf,
-    _mutsig_step_2,
+    _mutsig_input_subsets,
+    _mutsig_prepare_maf,
+    _mutsig_download_mutsig,
+    _mutsig_download_mcr,
+    _mutsig_configure_mcr,
     _mutsig_output_txt,
-    _mutsig_all,
+    _mutsig_all
 
 
 ##### RULES #####
