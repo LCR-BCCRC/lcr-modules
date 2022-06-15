@@ -114,7 +114,7 @@ rule _mutsig_prepare_maf:
 rule _mutsig_download_mutsig:
     output:
         mutsig_compressed = temp(CFG["dirs"]["inputs"] + "MutSig2CV/MutSig2CV.tar.gz"),
-        mutsig = CFG["dirs"]["inputs"] + "MutSig2CV/MutSig2CV.success"
+        mutsig = CFG["dirs"]["mcr"] + "MutSig2CV/MutSig2CV.success"
     conda:
         CFG["conda_envs"]["wget"]
     shell:
@@ -167,7 +167,7 @@ rule _mutsig_install_mcr:
         $(dirname {input.mcr})/install
         -mode silent
         -agreeToLicense yes
-        -destinationFolder $(dirname $(readlink -f {output.local_mcr}))
+        -destinationFolder $(dirname $(readlink -f {output.local_mcr}))/local_mcr
         > {log.stdout} 2> {log.stderr}
             &&
         touch {output.local_mcr}
@@ -200,34 +200,34 @@ rule _mutsig_configure_mcr:
     conda:
         CFG["conda_envs"]["matlab"]
     params:
-        running_directory = CFG["dirs"]["mcr"],
-        scripts_directory = CFG["src_dir"],
+        running_directory = os.path.abspath(CFG["dirs"]["mcr"]),
+        scripts_directory = os.path.abspath(CFG["src_dir"]),
         conda_prefix = lambda w: workflow.conda_prefix if workflow.conda_prefix else os.path.abspath(".snakemake/conda")
     shell:
         op.as_one_line("""
         cd {input.mcr}/v81/runtime/glnxa64/
             &&
-        ln -s libmwmclmcrrt.so.8.1 libmwmclmcrrt.so.9.0.1
+        ln -sf libmwmclmcrrt.so.8.1 libmwmclmcrrt.so.9.0.1
             &&
-        cd ../../../bin/glnxa64/
+        cd ../../bin/glnxa64/
             &&
-        ln -s libboost_system.so.1.49.0 libboost_system.so.1.56.0
+        ln -sf libboost_system.so.1.49.0 libboost_system.so.1.56.0
             &&
         cd {params.running_directory}
             &&
         touch {output.configured}
             &&
-        ln -s {params.scripts_directory}bash/run_Mutsig2CV.sh run_MutSig2CV.sh
+        ln -sf {params.scripts_directory}/bash/run_MutSig2CV.sh .
             &&
-        ln -s $(dirname {output.configured})/libncurses.so.6 libncurses.so.5
+        ln -sf $(dirname {output.configured})/libncurses.so.6 libncurses.so.5
             &&
-        ln -s $(dirname {output.configured})/libtinfow.so.6 libtinfow.so.6
+        ln -sf $(dirname {output.configured})/libtinfow.so.6 libtinfow.so.6
             &&
-        ln -s {params.running_directory}/sys/java/jre/glnxa64/jre/lib/amd64/server/libjvm.so libjvm.so
+        ln -sf {params.running_directory}/sys/java/jre/glnxa64/jre/lib/amd64/server/libjvm.so libjvm.so
             &&
-        ln -s $(dirname {input.mutsig})/reference/ reference
+        ln -sf MutSig2CV/mutsig2cv/reference .
             &&
-        touch {output.local_mcr}
+        touch configure.success
         """)
 
 
@@ -243,9 +243,6 @@ rule _mutsig_run:
         mutsig_maf = temp(CFG["dirs"]["mutsig"] + "{sample_set}/final_analysis_set.maf"),
         mutsig_sig_genes = CFG["dirs"]["mutsig"] + "{sample_set}/sig_genes.txt",
         success = CFG["dirs"]["mutsig"] + "{sample_set}/mutsig.success"
-    log:
-        stdout = CFG["logs"]["mutsig"] + "{sample_set}/mutsig.stdout.log",
-        stderr = CFG["logs"]["mutsig"] + "{sample_set}/mutsig.stderr.log"
     conda:
         CFG["conda_envs"]["matlab"]
     threads:
@@ -257,11 +254,12 @@ rule _mutsig_run:
     shell:
         op.as_one_line("""
         cd {params.running_directory}
-        .run_MutSig2CV.sh
-        $(dirname {input.mcr_installed})/v81/
-        {input.maf}
-        $(dirname {output.success})
-        > {log.stdout} 2> {log.stderr}
+            &&
+        ./run_MutSig2CV.sh
+        local_mcr/v81
+        ../00-inputs/maf/{wildcards.sample_set}.maf
+        ../02-mutsig/{wildcards.sample_set}/
+        > ../02-mutsig/{wildcards.sample_set}/log
             &&
         touch {output.success}
         """)
