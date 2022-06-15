@@ -2,9 +2,8 @@ lcr-modules:
 
     mutsig:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            # Available wildcards: {seq_type}
             master_maf: "__UPDATE__"
             sample_sets: "__UPDATE__"
         sample_set: ["__UPDATE__"]
@@ -14,10 +13,6 @@ lcr-modules:
         src_dir: "{MODSDIR}/src/"
 
         scratch_subdirectories: []
-
-        options:
-            step_1: ""
-            step_2: ""
 
         conda_envs:
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
