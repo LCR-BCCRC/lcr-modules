@@ -93,7 +93,7 @@ rule _mutsig_prepare_maf:
         stdout = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stdout.log",
         stderr = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stderr.log"
     conda:
-        CFG["conda_envs"]["salmon2counts"]
+        CFG["conda_envs"]["prepare_mafs"]
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         script = CFG["prepare_mafs"]

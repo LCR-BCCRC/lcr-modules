@@ -20,7 +20,7 @@ lcr-modules:
             step_2: ""
 
         conda_envs:
-            salmon2counts: "{SCRIPTSDIR}/salmon2counts/1.0/salmon2counts.yaml"
+            prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
             wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
             matlab: "{MODSDIR}/envs/matlab.yaml"
 
