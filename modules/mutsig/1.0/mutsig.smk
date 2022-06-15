@@ -41,12 +41,10 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "mutsig",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "mcr", "mutsig", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _mutsig_input_maf,
     _mutsig_step_2,
@@ -266,7 +264,6 @@ rule _mutsig_run:
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _mutsig_output_txt:
     input:
         txt = str(rules._mutsig_run.output.mutsig_sig_genes)
@@ -282,7 +279,6 @@ rule _mutsig_all:
         expand(
             [
                 str(rules._mutsig_output_txt.output.txt),
-                # TODO: If applicable, add other output rules here
             ],
             sample_set=CFG["sample_set"])
 
