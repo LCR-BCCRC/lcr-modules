@@ -261,7 +261,7 @@ rule _mutsig_run:
         ../02-mutsig/{wildcards.sample_set}/
         > ../02-mutsig/{wildcards.sample_set}/log
             &&
-        touch {output.success}
+        touch ../02-mutsig/{wildcards.sample_set}/mutsig.success
         """)
 
 
