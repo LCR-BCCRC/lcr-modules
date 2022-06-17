@@ -236,10 +236,10 @@ rule _mutsig_configure_mcr:
 # Actual MutSig2CV run
 rule _mutsig_run:
     input:
-        mcr = str(rules._mutsig_download_mcr.output.local_mcr),
-        mcr_installed = str(rules._mutsig_install_mcr.output.local_mcr),
-        mcr_configured = str(rules._mutsig_configure_mcr.output.local_mcr),
-        mutsig = str(rules._mutsig_download_mutsig.output.mutsig),
+        mcr = ancient(str(rules._mutsig_download_mcr.output.local_mcr)),
+        mcr_installed = ancient(str(rules._mutsig_install_mcr.output.local_mcr)),
+        mcr_configured = ancient(str(rules._mutsig_configure_mcr.output.local_mcr)),
+        mutsig = ancient(str(rules._mutsig_download_mutsig.output.mutsig)),
         maf = str(rules._mutsig_prepare_maf.output.maf)
     output:
         mutsig_maf = temp(CFG["dirs"]["mutsig"] + "{sample_set}/final_analysis_set.maf"),
