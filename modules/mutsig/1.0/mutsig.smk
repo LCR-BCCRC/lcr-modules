@@ -87,7 +87,7 @@ rule _mutsig_prepare_maf:
                     allow_missing=True,
                     seq_type=CFG["seq_types"]
                     ),
-        sample_sets = str(rules._mutsig_input_subsets.output.sample_sets)
+        sample_sets = ancient(str(rules._mutsig_input_subsets.output.sample_sets))
     output:
         maf = temp(CFG["dirs"]["inputs"] + "maf/{sample_set}.maf"),
         contents = CFG["dirs"]["inputs"] + "maf/{sample_set}.maf.content"
