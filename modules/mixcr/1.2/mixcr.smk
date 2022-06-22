@@ -52,12 +52,12 @@ if CFG["igblastn"]:
     parameters_ok = False
     for seq_type in list(CFG["samples"]["seq_type"]):
         seq_type_parameters = CFG["options"]["mixcr_run"][seq_type]
-        if "--contig-assembly" in seq_type_parameters:
+        if "--contig-assembly" in seq_type_parameters: 
             parameters_ok = True
-        assert parameters_ok, (
-            "Config 'igblastn' value is set to True, but ['mixcr_run']['options'] are missing '--contig-assembly'. "
-            "Include '--contig-assembly' in CFG['mixcr_run']['options'][seq_type] to run igblastn.\n "
-        "\n***** NOTE: using '--contig-assembly' may increase run duration. *****\n"
+        assert "--contig-assembly" in run_parameters, (
+            "Config 'igblastn' value is set to True, but ['mixcr_run']['options'] does not include '--contig-assembly'. "
+            "Include '--contig-assembly' in CFG['mixcr_run']['options'] to run igblastn.\n "
+            "\n***** NOTE: using '--contig-assembly' may increase run duration. *****\n"
     )
 
 RECEPTORS = CFG["receptors"]
@@ -87,38 +87,38 @@ config_run_parameters = CFG["options"]["mixcr_run"]
 
 for seq_type, run_parameters in config_run_parameters.items():
     if seq_type in list(CFG["samples"]["seq_type"]):
-override = False
-if "--receptor-type" in run_parameters:
-    if not "--receptor-type xcr" in run_parameters:
-        param_list = run_parameters.split("--")
-        receptor_param = list(filter(lambda x: x.startswith("receptor-type"), param_list))
-        rec_type = receptor_param[0].split(' ')[1]
-        if len(RECEPTORS) == 1:
-            desired_run_1 = "--receptor-type " + RECEPTORS[0].lower()
-            if RECEPTORS[0] in ig_type:
-                desired_run_2 = "--receptor-type bcr"
-            elif RECEPTORS[0] in tr_type:
-                desired_run_2 = "--receptor-type tcr"
-            if not desired_run_1 in run_parameters and not desired_run_2 in run_parameters:
-                override = True
-                desired_run = desired_run_2
-        if len(RECEPTORS) > 1:
-            if all(receptor in ig_type for receptor in RECEPTORS):
-                desired_run = "--receptor-type bcr"
-                if rec_type != "bcr":
-                    override = True
-            if all(receptor in tr_type for receptor in RECEPTORS):
-                desired_run = "--receptor-type tcr"
-                if rec_type != "tcr":
-                    override = True
-            if any(receptor in ig_type for receptor in RECEPTORS) and any(receptor in tr_type for receptor in RECEPTORS):
-                desired_run = "--receptor-type xcr"
-                override = True
+        override = False
+        if "--receptor-type" in run_parameters:
+            if not "--receptor-type xcr" in run_parameters:
+                param_list = run_parameters.split("--")
+                receptor_param = list(filter(lambda x: x.startswith("receptor-type"), param_list))
+                rec_type = receptor_param[0].split(' ')[1]
+                if len(RECEPTORS) == 1:
+                    desired_run_1 = "--receptor-type " + RECEPTORS[0].lower()
+                    if RECEPTORS[0] in ig_type:
+                        desired_run_2 = "--receptor-type bcr"
+                    elif RECEPTORS[0] in tr_type:
+                        desired_run_2 = "--receptor-type tcr"
+                    if not desired_run_1 in run_parameters and not desired_run_2 in run_parameters:
+                        override = True
+                        desired_run = desired_run_2
+                if len(RECEPTORS) > 1:
+                    if all(receptor in ig_type for receptor in RECEPTORS):
+                        desired_run = "--receptor-type bcr"
+                        if rec_type != "bcr":
+                            override = True
+                    if all(receptor in tr_type for receptor in RECEPTORS):
+                        desired_run = "--receptor-type tcr"
+                        if rec_type != "tcr":
+                            override = True
+                    if any(receptor in ig_type for receptor in RECEPTORS) and any(receptor in tr_type for receptor in RECEPTORS):
+                        desired_run = "--receptor-type xcr"
+                        override = True
 
-if override:
+        if override:
             print(f"----- Desired receptors: {RECEPTORS} \n----- Replacing receptor type specified in config for {seq_type} run: '--receptor-type {rec_type}' to '{desired_run}'")
     
-    override_parameters = run_parameters.replace("--receptor-type " + rec_type, desired_run)
+            override_parameters = run_parameters.replace("--receptor-type " + rec_type, desired_run)
             CFG["options"]["mixcr_run"][seq_type] = override_parameters
 
 # Define rules to be run locally when using a compute cluster
@@ -252,7 +252,7 @@ if CFG["igblastn"]:
             seq_info = rules._mixcr_to_fasta.output.seq_info,
             script = CFG["igblast_scripts"]["igblastn2mixcr"]
         output:
-            txt = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.status.txt"
+            txt = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.igblast.txt"
         shell:
             "{input.script} -d {input.db} -m {input.og_mixcr} -o {output.txt} -s {input.seq_info}"
 
@@ -260,27 +260,23 @@ if CFG["igblastn"]:
         input:
             txt = rules._update_mixcr_results.output.txt
         output:
-            txt = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.status.txt"
+            txt = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.igblast.txt"
+        wildcard_constraints:
+            chain = '[A-Z]+'
         run:
             op.relative_symlink(input.txt, output.txt, in_module=True)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _mixcr_output_txt:
     input:
-        txt = rules._mixcr_run.output.txt,
-        report = rules._mixcr_run.output.report
+        results = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.txt"
     output:
-        txt = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clonotypes.ALL.txt",
-        report = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.report"
+        results = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.txt"
+    wildcard_constraints:
+        chain = '[A-Z]+'
     run:
-        op.relative_symlink(input.txt, output.txt, in_module=True)
-        op.relative_symlink(input.report, output.report, in_module=True)
-
-#rule _mixcr_chains:
-#    input:
-#        results = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.txt"
-
-
+        op.relative_symlink(input.results, output.results, in_module=True)
+                           
 # Generates the target sentinels for each run, which generate the symlinks
 
 if CFG["igblastn"]:
