@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["mixcr"]`
 CFG = op.setup_module(
     name = "mixcr",
-    version = "1.1",
+    version = "1.2",
     subdirectories = ["inputs", "mixcr", "outputs"],
 )
 
@@ -48,21 +48,24 @@ assert type(CFG["igblastn"])==bool, (
     "True: Runs igblastn alignment to retrieve % identity to IMGT sequences. This requires the '--contig-assembly' parameter when running MiXCR and may increase running time. "
     )
 
-run_parameters = CFG["options"]["mixcr_run"]["mrna"]
-
 if CFG["igblastn"]:
-    assert "--contig-assembly" in run_parameters, (
-        "Config 'igblastn' value is set to True, but ['mixcr_run']['options'] does not include '--contig-assembly'. "
-        "Include '--contig-assembly' in CFG['mixcr_run']['options'] to run igblastn.\n "
+    parameters_ok = False
+    for seq_type in list(CFG["samples"]["seq_type"]):
+        seq_type_parameters = CFG["options"]["mixcr_run"][seq_type]
+        if "--contig-assembly" in seq_type_parameters:
+            parameters_ok = True
+        assert parameters_ok, (
+            "Config 'igblastn' value is set to True, but ['mixcr_run']['options'] are missing '--contig-assembly'. "
+            "Include '--contig-assembly' in CFG['mixcr_run']['options'][seq_type] to run igblastn.\n "
         "\n***** NOTE: using '--contig-assembly' may increase run duration. *****\n"
     )
 
 RECEPTORS = CFG["receptors"]
 
-RANGE = ["IGH","IGL","IGK","TRA","TRB","TRD","TRG"]
-
 ig_type = ["IGH","IGK","IGL"]
 tr_type = ["TRA", "TRB", "TRD", "TRG"]
+
+RANGE = ig_type + tr_type
 
 if isinstance(RECEPTORS, str):
     RECEPTORS = RECEPTORS.split(" ")
@@ -80,9 +83,11 @@ assert all(receptor in RANGE for receptor in RECEPTORS), (
     "Choose from: 'ALL', 'BCR', 'TCR' or list of IGH, IGK, IGL, TRA, TRB, TRD, TRG. "
 )
 
-override = False
-print(f"MiXCR run parameters: \n'{run_parameters}'")
+config_run_parameters = CFG["options"]["mixcr_run"]
 
+for seq_type, run_parameters in config_run_parameters.items():
+    if seq_type in list(CFG["samples"]["seq_type"]):
+override = False
 if "--receptor-type" in run_parameters:
     if not "--receptor-type xcr" in run_parameters:
         param_list = run_parameters.split("--")
@@ -111,10 +116,10 @@ if "--receptor-type" in run_parameters:
                 override = True
 
 if override:
-    print(f"----- Desired recepors: {RECEPTORS} \n----- Replacing receptor type specified in config: '--receptor-type {rec_type}' to '{desired_run}'")
+            print(f"----- Desired receptors: {RECEPTORS} \n----- Replacing receptor type specified in config for {seq_type} run: '--receptor-type {rec_type}' to '{desired_run}'")
     
     override_parameters = run_parameters.replace("--receptor-type " + rec_type, desired_run)
-    CFG["options"]["mixcr_run"]["mrna"] = override_parameters
+            CFG["options"]["mixcr_run"][seq_type] = override_parameters
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -187,8 +192,6 @@ rule _mixcr_run:
     conda: CFG["conda_envs"]["java"]
     threads:
         CFG["threads"]["mixcr_run"]
-    message:
-        "{params.mixcr}"    
     shell:
         op.as_one_line("""
         {params.mixcr} analyze shotgun -Xmx{params.jvmheap}m
@@ -273,9 +276,9 @@ rule _mixcr_output_txt:
         op.relative_symlink(input.txt, output.txt, in_module=True)
         op.relative_symlink(input.report, output.report, in_module=True)
 
-rule _mixcr_chains:
-    input:
-        results = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.txt"
+#rule _mixcr_chains:
+#    input:
+#        results = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.txt"
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -288,7 +291,7 @@ if CFG["igblastn"]:
                     [
                         rules._install_mixcr.output.complete,
                         rules._symlink_mixcr_update.output.txt,
-                        rules._mixcr_output_txt.output.txt,
+                        rules._mixcr_output_txt.output.results,
                     ],
                     zip,
                     seq_type=CFG["samples"]["seq_type"],
@@ -302,8 +305,7 @@ elif not CFG["igblastn"]:
                 expand(
                     [
                         rules._install_mixcr.output.complete,
-                        rules._mixcr_output_txt.output.txt,
-                        rules._mixcr_chains.input.results,
+                        rules._mixcr_output_txt.output.results,
                     ],
                     zip,  # Run expand() with zip(), not product()
                     seq_type=CFG["samples"]["seq_type"],

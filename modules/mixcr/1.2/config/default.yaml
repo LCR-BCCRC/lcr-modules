@@ -11,14 +11,14 @@ lcr-modules:
 
         scratch_subdirectories: []
 
-        receptors: # Set in snakefile
+        receptors: "__UPDATE__"
         ###### Desired IG/TCR chains in list format or keyword:
         ###### "ALL" = ['IGH', 'IGL', 'IGK', 'TRA', 'TRB', 'TRD', 'TRG']
         ###### "BCR" = ['IGH', 'IGL', 'IGK']
         ###### "TCR" = ['TRA', 'TRB', 'TRD', 'TRG']
 
-        igblastn: "__UPDATE__"
-        #Boolean
+        igblastn: False
+        # Boolean
         # Set to True to perform igblastn alignment to IMGT database
 
         igblast_scripts:
