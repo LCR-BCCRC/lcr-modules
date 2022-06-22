@@ -1,0 +1,37 @@
+lcr-modules:
+
+    mutsig:
+
+        inputs:
+            # Available wildcards: {seq_type}
+            master_maf: "__UPDATE__"
+            sample_sets: "__UPDATE__"
+        sample_set: ["__UPDATE__"]
+        seq_types: ["genome", "capture"]
+        include_non_coding: True
+        prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
+        src_dir: "{MODSDIR}/src/"
+
+        scratch_subdirectories: []
+
+        conda_envs:
+            prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+            matlab: "{MODSDIR}/envs/matlab.yaml"
+
+        threads:
+            mutsig: 2
+
+        resources:
+            mutsig:
+                mem_mb: 250000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
