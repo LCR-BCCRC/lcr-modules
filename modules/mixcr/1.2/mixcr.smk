@@ -54,7 +54,7 @@ if CFG["igblastn"]:
         seq_type_parameters = CFG["options"]["mixcr_run"][seq_type]
         if "--contig-assembly" in seq_type_parameters: 
             parameters_ok = True
-        assert "--contig-assembly" in run_parameters, (
+        assert parameters_ok, (
             "Config 'igblastn' value is set to True, but ['mixcr_run']['options'] does not include '--contig-assembly'. "
             "Include '--contig-assembly' in CFG['mixcr_run']['options'] to run igblastn.\n "
             "\n***** NOTE: using '--contig-assembly' may increase run duration. *****\n"
