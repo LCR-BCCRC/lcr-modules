@@ -170,11 +170,11 @@ rule _install_mixcr:
 # Run MiXCR rule
 rule _mixcr_run:
     input:
-        fastq_1 = rules._mixcr_input_fastq.output.fastq_1,
-        fastq_2 = rules._mixcr_input_fastq.output.fastq_2,
+        fastq_1 = str(rules._mixcr_input_fastq.output.fastq_1),
+        fastq_2 = str(rules._mixcr_input_fastq.output.fastq_2),
         fastq_1_real = CFG["inputs"]["sample_fastq_1"], # Prevent premature deletion of fastqs marked as temp
         fastq_2_real = CFG["inputs"]["sample_fastq_2"],
-        installed = rules._install_mixcr.output.complete
+        installed = str(rules._install_mixcr.output.complete)
     output:
         txt = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.ALL.txt",
         report = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.report",
@@ -207,8 +207,8 @@ if CFG["igblastn"]:
         
     rule _mixcr_to_fasta:
         input:
-            mixcr_finished = rules._mixcr_run.output.txt,
-            mixcr_chains = rules._mixcr_run.output.results,
+            mixcr_finished = str(rules._mixcr_run.output.txt),
+            mixcr_chains = str(rules._mixcr_run.output.results),
             mixcr_results = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.txt",
             script = CFG["igblast_scripts"]["mixcr2fasta"]
         output:
@@ -222,7 +222,7 @@ if CFG["igblastn"]:
 
     rule _igblastn_run:
         input:
-            fasta = rules._mixcr_to_fasta.output.fasta,
+            fasta = str(rules._mixcr_to_fasta.output.fasta),
             ig_db = reference_files("genomes/no_build/igblast/database/imgt_database.success")
         output:
             db = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.igblastn.fmt7"
@@ -247,9 +247,9 @@ if CFG["igblastn"]:
 
     rule _update_mixcr_results:
         input:
-            db = rules._igblastn_run.output.db,
+            db = str(rules._igblastn_run.output.db),
             og_mixcr = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.txt",
-            seq_info = rules._mixcr_to_fasta.output.seq_info,
+            seq_info = str(rules._mixcr_to_fasta.output.seq_info),
             script = CFG["igblast_scripts"]["igblastn2mixcr"]
         output:
             txt = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.igblast.txt"
@@ -258,7 +258,7 @@ if CFG["igblastn"]:
 
     rule _symlink_mixcr_update:
         input:
-            txt = rules._update_mixcr_results.output.txt
+            txt = str(rules._update_mixcr_results.output.txt)
         output:
             txt = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.igblast.txt"
         wildcard_constraints:
@@ -285,9 +285,9 @@ if CFG["igblastn"]:
             expand(
                 expand(
                     [
-                        rules._install_mixcr.output.complete,
-                        rules._symlink_mixcr_update.output.txt,
-                        rules._mixcr_output_txt.output.results,
+                        str(rules._install_mixcr.output.complete),
+                        str(rules._symlink_mixcr_update.output.txt),
+                        str(rules._mixcr_output_txt.output.results),
                     ],
                     zip,
                     seq_type=CFG["samples"]["seq_type"],
@@ -300,8 +300,8 @@ elif not CFG["igblastn"]:
             expand(
                 expand(
                     [
-                        rules._install_mixcr.output.complete,
-                        rules._mixcr_output_txt.output.results,
+                        str(rules._install_mixcr.output.complete),
+                        str(rules._mixcr_output_txt.output.results),
                     ],
                     zip,  # Run expand() with zip(), not product()
                     seq_type=CFG["samples"]["seq_type"],
