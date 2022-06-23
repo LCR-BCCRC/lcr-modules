@@ -30,7 +30,12 @@ localrules: download_genome_fasta,
             create_star_index, 
             get_gencode_download,
             download_af_only_gnomad_vcf,
-            download_liftover_chains
+            download_liftover_chains,
+            _get_imgt_database,
+            _combine_imgt_files,
+            _remove_imgt_dups,
+            _create_imgt_database,
+            _imgt_db_success
 
 
 # Check for genome builds
