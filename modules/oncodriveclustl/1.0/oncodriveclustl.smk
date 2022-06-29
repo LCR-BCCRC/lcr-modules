@@ -71,7 +71,7 @@ rule _oncodriveclustl_prep_input:
         txt = temp(CFG["dirs"]["oncodriveclustl"] + "{projection}/{sample_set}/{sample_set}.maf")
     params:
         sample_set = CFG["dirs"]["inputs"] + "sample_sets/sample_sets.tsv",
-        non_coding = str(CFG["include_non_coding"].upper())
+        non_coding = str(CFG["include_non_coding"]).upper()
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     shell:
@@ -95,8 +95,8 @@ rule _oncodriveclustl_run:
         stderr = CFG["dirs"]["oncodriveclustl"] + "{projection}/{sample_set}/oncodriveclustl.stderr.log"
     params:
         local_path = CFG["reference_files_directory"],
-        regions = CFG["options"]["regions"][CFG["genome_build"].replace("grch37","hg19").replace("grch38","hg38")],
-        build = CFG["genome_build"].replace("grch37","hg19").replacec("grch38","hg38"),
+        regions = CFG["options"]["regions_file"][CFG["genome_build"].replace("grch37","hg19").replace("grch38","hg38")],
+        build = CFG["genome_build"].replace("grch37","hg19").replace("grch38","hg38"),
         opts = CFG["options"]["clustl"]
     threads:
         CFG["threads"]["clustl"]
