@@ -30,8 +30,8 @@ lcr-modules:
             clustl: 4
 
         resources:
-            mem_mb:
-                clustl: 20000
+            clustl:
+                mem_mb: 20000
 
         pairing_config:
             genome:

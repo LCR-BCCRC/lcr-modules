@@ -37,7 +37,6 @@ localrules:
     _oncodriveclustl_input_maf,
     _oncodriveclustl_sample_set,
     _oncodriveclustl_prep_input,
-    _oncodriveclustl_run,
     _oncodriveclustl_txt,
     _oncodriveclustl_all
 
@@ -50,7 +49,7 @@ rule _oncodriveclustl_input_maf:
     input:
         master_maf = CFG["inputs"]["master_maf"]
     output:
-        master_maf = temp(CFG["dirs"]["inputs"] + "maf/{seq_type}--{projection}/input.maf")
+        master_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{projection}/input.maf"
     run:
         op.absolute_symlink(input.master_maf, output.master_maf)
 
@@ -86,10 +85,11 @@ rule _oncodriveclustl_prep_input:
 
 rule _oncodriveclustl_run:
     input:
-        txt = rules._oncodriveclustl_prep_input.output.txt
+        txt = str(rules._oncodriveclustl_prep_input.output.txt)
     output:
         tsv = CFG["dirs"]["oncodriveclustl"] + "{projection}/{sample_set}/clusters_results.tsv",
-        txt = CFG["dirs"]["oncodriveclustl"] + "{projection}/{sample_set}/elements_results.txt"
+        txt = CFG["dirs"]["oncodriveclustl"] + "{projection}/{sample_set}/elements_results.txt",
+        png = CFG["dirs"]["oncodriveclustl"] + "{projection}/{sample_set}/quantile_quantile_plot.png"
     log:
         stdout = CFG["dirs"]["oncodriveclustl"] + "{projection}/{sample_set}/oncodriveclustl.stdout.log",
         stderr = CFG["dirs"]["oncodriveclustl"] + "{projection}/{sample_set}/oncodriveclustl.stderr.log"
@@ -100,6 +100,8 @@ rule _oncodriveclustl_run:
         opts = CFG["options"]["clustl"]
     threads:
         CFG["threads"]["clustl"]
+    resources:
+        **CFG["resources"]["clustl"]
     conda: CFG["conda_envs"]["clustl"]
     shell:
         op.as_one_line("""
@@ -112,14 +114,17 @@ rule _oncodriveclustl_run:
 
 rule _oncodriveclustl_txt:
     input:
-        tsv = rules._oncodriveclustl_run.output.tsv,
-        txt = rules._oncodriveclustl_run.output.txt
+        tsv = str(rules._oncodriveclustl_run.output.tsv),
+        txt = str(rules._oncodriveclustl_run.output.txt),
+        png = str(rules._oncodriveclustl_run.output.png)
     output:
         tsv = CFG["dirs"]["outputs"] + "{projection}/{sample_set}_clusters_results.tsv",
-        txt = CFG["dirs"]["outputs"] + "{projection}/{sample_set}_elements_results.txt"
+        txt = CFG["dirs"]["outputs"] + "{projection}/{sample_set}_elements_results.txt",
+        png = CFG["dirs"]["outputs"] + "{projection}/{sample_set}_quantile_quantile_plot.png"
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module=True)
         op.relative_symlink(input.txt, output.txt, in_module=True)
+        op.relative_symlink(input.png, output.png, in_module=True)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _oncodriveclustl_all:
@@ -127,7 +132,8 @@ rule _oncodriveclustl_all:
         expand(
             [
                 str(rules._oncodriveclustl_txt.output.txt),
-                str(rules._oncodriveclustl_txt.output.tsv)
+                str(rules._oncodriveclustl_txt.output.tsv),
+                str(rules._oncodriveclustl_txt.output.png)
             ],
             zip,
             projection=CFG["genome_build"],
