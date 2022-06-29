@@ -1,0 +1,48 @@
+lcr-modules:
+    
+    oncodriveclustl:
+
+        inputs:
+            # Available wildcards: {seq_type} {projection}
+            master_maf: "__UPDATE__"
+            sample_sets: "__UPDATE__"
+        sample_set: "__UPDATE__"
+        seq_types: ["genome","capture"]
+        prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
+        reference_files_directory: "__UPDATE__"
+        include_non_coding: False # True or False
+        genome_build: "__UPDATE__" #hg19 or #hg38
+
+
+        scratch_subdirectories: []
+
+        options:
+            regions_file:
+                    hg19: "__UPDATE__"
+                    hg38: "__UPDATE__"
+            clustl: ""
+
+        conda_envs:
+            prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
+            clustl: "{MODSDIR}/envs/oncodriveclustl-1.1.3.yaml"
+
+        threads:
+            clustl: 4
+
+        resources:
+            mem_mb:
+                clustl: 20000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:  
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
