@@ -69,14 +69,13 @@ rule _oncodriveclustl_prep_input:
     output:
         txt = temp(CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}/{sample_set}.maf")
     params:
-        sample_set = CFG["dirs"]["inputs"] + "sample_sets/sample_sets.tsv",
         non_coding = str(CFG["include_non_coding"]).upper()
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     shell:
         op.as_one_line("""
         Rscript {input.r_script} 
-        {input.maf} {params.sample_set}
+        {input.maf} {input.sample_set} 
         "$(dirname $(realpath {output.txt}))"
         {wildcards.sample_set} 
         Oncodrive 
