@@ -6,20 +6,21 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build}
             master_maf: "__UPDATE__"
             sample_sets: "__UPDATE__"
+
         sample_set: "__UPDATE__"
+        genome_build: "__UPDATE__"
         seq_types: ["genome","capture"]
         prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
-        reference_files_directory: "__UPDATE__"
         include_non_coding: False # True or False
-        genome_build: "__UPDATE__" 
-
+        
+        reference_files_directory: "__UPDATE__"
+        regions_file:
+            hg19: "__UPDATE__"
+            hg38: "__UPDATE__"
 
         scratch_subdirectories: []
 
         options:
-            regions_file:
-                    hg19: "__UPDATE__"
-                    hg38: "__UPDATE__"
             clustl: ""
 
         conda_envs:
