@@ -14,3 +14,9 @@ You can run LymphGen using just SNVs, or with CNV and SV data
 Note if you provide CNV and SV files, you should specify the appropriate column names in the config file
 All possible iterations of LymphGen will be run (i.e. if you provide both CNVs and SNVs, LymphGen will be run
 with both CNVs and SNVs, as well as just with SNVs)
+
+## [1.0] - 2022-05-10
+
+Additional improvements, authored by Chris "scienceparrot" Rushton.
+
+Add an additional iteration of LymphGen, which excludes the A53 subgroup from classification
