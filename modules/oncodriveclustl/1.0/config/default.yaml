@@ -3,7 +3,7 @@ lcr-modules:
     oncodriveclustl:
 
         inputs:
-            # Available wildcards: {seq_type} {projection}
+            # Available wildcards: {seq_type} {genome_build}
             master_maf: "__UPDATE__"
             sample_sets: "__UPDATE__"
         sample_set: "__UPDATE__"
@@ -11,7 +11,7 @@ lcr-modules:
         prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
         reference_files_directory: "__UPDATE__"
         include_non_coding: False # True or False
-        genome_build: "__UPDATE__" # Will be used as wildcard for {projection} in master_maf
+        genome_build: "__UPDATE__" 
 
 
         scratch_subdirectories: []

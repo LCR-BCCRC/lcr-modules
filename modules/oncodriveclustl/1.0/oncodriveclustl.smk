@@ -49,7 +49,7 @@ rule _oncodriveclustl_input_maf:
     input:
         master_maf = CFG["inputs"]["master_maf"]
     output:
-        master_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{projection}/input.maf"
+        master_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/input.maf"
     run:
         op.absolute_symlink(input.master_maf, output.master_maf)
 
@@ -63,11 +63,11 @@ rule _oncodriveclustl_sample_set:
 
 rule _oncodriveclustl_prep_input:
     input:
-        maf = expand(str(rules._oncodriveclustl_input_maf.output.master_maf), seq_type = CFG["seq_types"], projection = CFG["genome_build"]),
+        maf = expand(str(rules._oncodriveclustl_input_maf.output.master_maf), seq_type = CFG["seq_types"], genome_build = CFG["genome_build"]),
         sample_set = str(rules._oncodriveclustl_sample_set.output.sample_set),
         r_script = CFG["prepare_mafs"]
     output:
-        txt = temp(CFG["dirs"]["oncodriveclustl"] + "{projection}/{sample_set}/{sample_set}.maf")
+        txt = temp(CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}/{sample_set}.maf")
     params:
         sample_set = CFG["dirs"]["inputs"] + "sample_sets/sample_sets.tsv",
         non_coding = str(CFG["include_non_coding"]).upper()
@@ -87,12 +87,12 @@ rule _oncodriveclustl_run:
     input:
         txt = str(rules._oncodriveclustl_prep_input.output.txt)
     output:
-        tsv = CFG["dirs"]["oncodriveclustl"] + "{projection}/{sample_set}/clusters_results.tsv",
-        txt = CFG["dirs"]["oncodriveclustl"] + "{projection}/{sample_set}/elements_results.txt",
-        png = CFG["dirs"]["oncodriveclustl"] + "{projection}/{sample_set}/quantile_quantile_plot.png"
+        tsv = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}/clusters_results.tsv",
+        txt = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}/elements_results.txt",
+        png = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}/quantile_quantile_plot.png"
     log:
-        stdout = CFG["dirs"]["oncodriveclustl"] + "{projection}/{sample_set}/oncodriveclustl.stdout.log",
-        stderr = CFG["dirs"]["oncodriveclustl"] + "{projection}/{sample_set}/oncodriveclustl.stderr.log"
+        stdout = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}/oncodriveclustl.stdout.log",
+        stderr = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}/oncodriveclustl.stderr.log"
     params:
         local_path = CFG["reference_files_directory"],
         regions = CFG["options"]["regions_file"][CFG["genome_build"].replace("grch37","hg19").replace("grch38","hg38")],
@@ -118,9 +118,9 @@ rule _oncodriveclustl_txt:
         txt = str(rules._oncodriveclustl_run.output.txt),
         png = str(rules._oncodriveclustl_run.output.png)
     output:
-        tsv = CFG["dirs"]["outputs"] + "{projection}/{sample_set}_clusters_results.tsv",
-        txt = CFG["dirs"]["outputs"] + "{projection}/{sample_set}_elements_results.txt",
-        png = CFG["dirs"]["outputs"] + "{projection}/{sample_set}_quantile_quantile_plot.png"
+        tsv = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}_clusters_results.tsv",
+        txt = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}_elements_results.txt",
+        png = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}_quantile_quantile_plot.png"
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module=True)
         op.relative_symlink(input.txt, output.txt, in_module=True)
@@ -136,7 +136,7 @@ rule _oncodriveclustl_all:
                 str(rules._oncodriveclustl_txt.output.png)
             ],
             zip,
-            projection=CFG["genome_build"],
+            genome_build=CFG["genome_build"],
             sample_set=CFG["sample_set"]
         )
 
