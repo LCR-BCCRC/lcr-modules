@@ -2,25 +2,23 @@ lcr-modules:
     
     muttimer:
 
-        # TODO: Update the list of available wildcards, if applicable
+        dirs: 
+            _parent: "results/icgc_dart/mutationtimer-test" #example for combining with Battenberg module: "results/battenberg-1.0_liftover-1.1"
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_maf: "__UPDATE__"
-
-        scratch_subdirectories: []
-
-        options:
-            step_1: ""
-            step_2: ""
+            # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status} {base_name}
+            maf: "results/icgc_dart/slms-3_vcf2maf_current/level_3/augmented_mafs/99-outputs/genome--hs37d5/{tumour_id}--{normal_id}--matched_final_augmented.maf"   
+            cellularity: "results/icgc_dart/battenberg_current/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt" # battenberg/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt
+            subclones: "results/icgc_dart/battenberg_current/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt" # battenberg/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt
+            clust: "results/icgc_dart/dpclust-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_2000iters_1000burnin_bestClusterInfo.txt" # battenberg/02-battenberg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_rho_and_psi.txt
+            
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            muttimer: "{MODSDIR}/envs/mutationtimer.yaml"       
             
-        threads:
-            step_1: 4
+        scripts: 
+            mtr_make_inputs: "{MODSDIR}/src/make_mtr_inputs.R"
+            mtr_main: "{MODSDIR}/src/run_mtr.R"
 
-        mem_mb:
-            step_1: 2000
 
         pairing_config:
             genome:
