@@ -63,7 +63,7 @@ rule _oncodriveclustl_sample_set:
 
 rule _oncodriveclustl_prep_input:
     input:
-        maf = expand(str(rules._oncodriveclustl_input_maf.output.master_maf), seq_type = CFG["seq_types"], genome_build = CFG["genome_build"]),
+        maf = expand(str(rules._oncodriveclustl_input_maf.output.master_maf), seq_type = CFG["seq_types"], allow_missing=True),
         sample_set = str(rules._oncodriveclustl_sample_set.output.sample_set),
         r_script = CFG["prepare_mafs"]
     output:
@@ -96,7 +96,7 @@ rule _oncodriveclustl_run:
         local_path = CFG["reference_files_directory"],
         regions = lambda wildcards: config["lcr-modules"]["oncodriveclustl"]["regions_file"][(wildcards.genome_build).replace("grch37","hg19").replace("grch38","hg38")],
         build = lambda wildcards: (wildcards.genome_build).replace("grch37","hg19").replace("grch38","hg38"),
-        opts = CFG["options"]["clustl"]
+        opts = CFG["options"]["clustl"] if CFG["options"]["clustl"] is not None else ""
     threads:
         CFG["threads"]["clustl"]
     resources:
@@ -134,7 +134,6 @@ rule _oncodriveclustl_all:
                 str(rules._oncodriveclustl_txt.output.tsv),
                 str(rules._oncodriveclustl_txt.output.png)
             ],
-            zip,
             genome_build=CFG["genome_build"],
             sample_set=CFG["sample_set"]
         )
