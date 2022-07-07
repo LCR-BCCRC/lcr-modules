@@ -94,8 +94,8 @@ rule _oncodriveclustl_run:
         stderr = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}/oncodriveclustl.stderr.log"
     params:
         local_path = CFG["reference_files_directory"],
-        regions = CFG["options"]["regions_file"][CFG["genome_build"].replace("grch37","hg19").replace("grch38","hg38")],
-        build = CFG["genome_build"].replace("grch37","hg19").replace("grch38","hg38"),
+        regions = lambda wildcards: config["lcr-modules"]["oncodriveclustl"]["regions_file"][(wildcards.genome_build).replace("grch37","hg19").replace("grch38","hg38")],
+        build = lambda wildcards: (wildcards.genome_build).replace("grch37","hg19").replace("grch38","hg38"),
         opts = CFG["options"]["clustl"]
     threads:
         CFG["threads"]["clustl"]
