@@ -2,6 +2,9 @@ lcr-modules:
     
     mixcr:
 
+        dirs:
+            _parent: "__UPDATE__"
+
         inputs:
             # Available wildcards: {seq_type} {sample_id}
             sample_fastq_1: "__UPDATE__" 
