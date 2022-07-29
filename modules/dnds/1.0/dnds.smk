@@ -73,6 +73,39 @@ rule _dnds_input_subsets:
         op.absolute_symlink(input.sample_sets, output.sample_sets)
 
 
+# Prepare the maf file for the input to MutSig2CV
+rule _dnds_prepare_maf:
+    input:
+        maf = expand(
+                    str(rules._dnds_input_maf.output.maf),
+                    allow_missing=True,
+                    seq_type=CFG["seq_types"]
+                    ),
+        sample_sets = ancient(str(rules._dnds_input_subsets.output.sample_sets))
+    output:
+        maf = temp(CFG["dirs"]["inputs"] + "maf/{sample_set}.maf"),
+        contents = CFG["dirs"]["inputs"] + "maf/{sample_set}.maf.content"
+    log:
+        stdout = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stderr.log"
+    conda:
+        CFG["conda_envs"]["prepare_mafs"]
+    params:
+        include_non_coding = str(CFG["include_non_coding"]).upper(),
+        script = CFG["prepare_mafs"]
+    shell:
+        op.as_one_line("""
+        Rscript {params.script}
+        {input.maf}
+        {input.sample_sets}
+        $(dirname {output.maf})/
+        {wildcards.sample_set}
+        dNdS
+        {params.include_non_coding}
+        > {log.stdout} 2> {log.stderr}
+        """)
+
+
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
 # TODO: Replace example rule below with actual rule
 rule _dnds_step_1:
