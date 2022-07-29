@@ -1,4 +1,4 @@
-name: /projects/rmorin_scratch/for_kostia/dndscv
+name: dndscv
 channels:
   - r
   - bioconda
