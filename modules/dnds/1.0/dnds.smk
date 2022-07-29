@@ -106,6 +106,21 @@ rule _dnds_prepare_maf:
         """)
 
 
+# Install dNdS
+# only available from github, not through conda/CRAN/Biocmanager
+rule _install_dnds:
+    output:
+        complete = CFG["dirs"]["inputs"] + "dnds_installed.success"
+    conda:
+        CFG["conda_envs"]["dnds"]
+    log:
+        input = CFG["logs"]["inputs"] + "install_dnds.log"
+    shell:
+        """
+        R -q -e 'devtools::install_github("im3sanger/dndscv")' >> {log.input} &&
+        touch {output.complete}"""
+
+
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
 # TODO: Replace example rule below with actual rule
 rule _dnds_step_1:

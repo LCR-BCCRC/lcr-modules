@@ -17,7 +17,7 @@ lcr-modules:
             step_2: ""
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/dnds.yaml"
+            dnds: "{MODSDIR}/envs/dnds.yaml"
 
         threads:
             step_1: 4
