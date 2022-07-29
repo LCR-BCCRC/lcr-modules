@@ -54,17 +54,23 @@ localrules:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
 rule _dnds_input_maf:
     input:
-        maf = CFG["inputs"]["sample_maf"]
+        maf = CFG["inputs"]["master_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{sample_id}.maf"
-    group: 
-        "input_and_step_1"
+        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
+
+
+# Symlinks the input files into the module results directory (under '00-inputs/')
+rule _dnds_input_subsets:
+    input:
+        sample_sets = CFG["inputs"]["sample_sets"]
+    output:
+        sample_sets = CFG["dirs"]["inputs"] + "sample_sets/sample_sets.tsv"
+    run:
+        op.absolute_symlink(input.sample_sets, output.sample_sets)
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
@@ -87,7 +93,7 @@ rule _dnds_step_1:
         CFG["threads"]["step_1"]
     resources:
         **CFG["resources"]["step_1"]
-    group: 
+    group:
         "input_and_step_1"
     shell:
         op.as_one_line("""
