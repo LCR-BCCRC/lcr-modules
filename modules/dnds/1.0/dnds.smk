@@ -127,9 +127,8 @@ rule _dnds_run:
         dnds = ancient(str(CFG["dirs"]["inputs"] + "dnds_installed.success")),
         maf = str(rules._dnds_prepare_maf.output.maf)
     output:
-        mutsig_maf = temp(CFG["dirs"]["mutsig"] + "{sample_set}/final_analysis_set.maf"),
-        mutsig_sig_genes = CFG["dirs"]["mutsig"] + "{sample_set}/sig_genes.txt",
-        success = CFG["dirs"]["mutsig"] + "{sample_set}/mutsig.success"
+        dnds_sig_genes = CFG["dirs"]["dnds"] + "{sample_set}/sig_genes.tsv",
+        annotmuts = CFG["dirs"]["dnds"] + "{sample_set}/annotmuts.tsv"
     conda:
         CFG["conda_envs"]["dnds"]
     threads:
@@ -141,19 +140,15 @@ rule _dnds_run:
     script:
         "src/R/run_dnds.R"
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _dnds_step_2:
+
+# Symlinks the final output files into the module results directory (under '99-outputs/')
+rule _dnds_output_tsv:
     input:
-        tsv = str(rules._dnds_step_1.output.tsv)
+        tsv = str(rules._dnds_run.output.dnds_sig_genes)
     output:
-        tsv = CFG["dirs"]["dnds"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.tsv"
-    log:
-        stderr = CFG["logs"]["dnds"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.tsv} > {output.tsv} 2> {log.stderr}"
+        txt = CFG["dirs"]["outputs"] + "tsv/{sample_set}/{sample_set}.sig_genes.tsv"
+    run:
+        op.relative_symlink(input.txt, output.txt, in_module= True)
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
