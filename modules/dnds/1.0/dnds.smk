@@ -121,35 +121,25 @@ rule _install_dnds:
         touch {output.complete}"""
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _dnds_step_1:
+# Actual dNdS run
+rule _dnds_run:
     input:
-        tumour_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}.maf",
-        normal_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{normal_id}.maf",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        dnds = ancient(str(CFG["dirs"]["inputs"] + "dnds_installed.success")),
+        maf = str(rules._dnds_prepare_maf.output.maf)
     output:
-        tsv = CFG["dirs"]["dnds"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.tsv"
-    log:
-        stdout = CFG["logs"]["dnds"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-        stderr = CFG["logs"]["dnds"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
-    params:
-        opts = CFG["options"]["step_1"]
+        mutsig_maf = temp(CFG["dirs"]["mutsig"] + "{sample_set}/final_analysis_set.maf"),
+        mutsig_sig_genes = CFG["dirs"]["mutsig"] + "{sample_set}/sig_genes.txt",
+        success = CFG["dirs"]["mutsig"] + "{sample_set}/mutsig.success"
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["dnds"]
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["dnds"]
     resources:
-        **CFG["resources"]["step_1"]
-    group:
-        "input_and_step_1"
-    shell:
-        op.as_one_line("""
-        <TODO> {params.opts} --tumour {input.tumour_maf} --normal {input.normal_maf}
-        --ref-fasta {input.fasta} --output {output.tsv} --threads {threads}
-        > {log.stdout} 2> {log.stderr}
-        """)
-
+        **CFG["resources"]["dnds"]
+    params:
+        running_directory = CFG["dirs"]["mcr"]
+    script:
+        "src/R/run_dnds.R"
 
 # Example variant filtering rule (single-threaded; can be run on cluster head node)
 # TODO: Replace example rule below with actual rule

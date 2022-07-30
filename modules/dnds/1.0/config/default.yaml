@@ -20,11 +20,11 @@ lcr-modules:
             dnds: "{MODSDIR}/envs/dnds.yaml"
 
         threads:
-            step_1: 4
+            dnds: 2
 
         resources:
-            step_1:
-                mem_mb: 2000
+            dnds:
+                mem_mb: 36000
 
         pairing_config:
             genome:
