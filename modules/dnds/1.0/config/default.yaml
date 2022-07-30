@@ -17,6 +17,7 @@ lcr-modules:
             step_2: ""
 
         conda_envs:
+            prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
             dnds: "{MODSDIR}/envs/dnds.yaml"
 
         threads:
