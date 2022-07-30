@@ -146,20 +146,9 @@ rule _dnds_output_tsv:
     input:
         tsv = str(rules._dnds_run.output.dnds_sig_genes)
     output:
-        txt = CFG["dirs"]["outputs"] + "tsv/{sample_set}/{sample_set}.sig_genes.tsv"
+        tsv = CFG["dirs"]["outputs"] + "tsv/{sample_set}/{sample_set}.sig_genes.tsv"
     run:
         op.relative_symlink(input.txt, output.txt, in_module= True)
-
-
-# Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
-rule _dnds_output_tsv:
-    input:
-        tsv = str(rules._dnds_step_2.output.tsv)
-    output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.tsv"
-    run:
-        op.relative_symlink(input.tsv, output.tsv, in_module= True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -168,15 +157,8 @@ rule _dnds_all:
         expand(
             [
                 str(rules._dnds_output_tsv.output.tsv),
-                # TODO: If applicable, add other output rules here
             ],
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            genome_build=CFG["runs"]["tumour_genome_build"],
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
-
+            sample_set=CFG["sample_set"])
 
 ##### CLEANUP #####
 
