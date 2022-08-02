@@ -150,7 +150,7 @@ rule _dnds_output_tsv:
     output:
         tsv = CFG["dirs"]["outputs"] + "tsv/{sample_set}/{sample_set}.sig_genes.tsv"
     run:
-        op.relative_symlink(input.txt, output.txt, in_module= True)
+        op.relative_symlink(input.tsv, output.tsv, in_module= True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
