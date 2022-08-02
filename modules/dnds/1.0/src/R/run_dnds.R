@@ -33,13 +33,19 @@ dndsout = dndscv(maf)
 # Sig genes
 sig_genes = as.data.frame(dndsout$sel_cv)
 
-write_tsv(sig_genes,
-          snakemake@output[[1]]
-)
+write.table(
+    sig_genes,
+    file=snakemake@output[[1]],
+    quote=FALSE,
+    sep='\t',
+    row.names = NA)
 
 # Annotated mutations
 annotmuts = as.data.frame(dndsout$annotmuts)
 
-write_tsv(sig_genes,
-          snakemake@output[[2]]
-)
+write.table(
+    annotmuts,
+    file=snakemake@output[[2]],
+    quote=FALSE,
+    sep='\t',
+    row.names = NA)
