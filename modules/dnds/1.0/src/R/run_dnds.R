@@ -15,7 +15,6 @@ message("Loading packages...")
 suppressWarnings(
 suppressPackageStartupMessages({
     library(dndscv)
-    library(readr)
 })
 )
 
