@@ -14,7 +14,6 @@ lcr-modules:
 
         options:
             step_1: ""
-            step_2: ""
 
         conda_envs:
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"

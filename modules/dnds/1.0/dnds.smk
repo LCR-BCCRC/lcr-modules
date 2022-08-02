@@ -45,9 +45,11 @@ CFG = op.setup_module(
 # TODO: Replace with actual rules once you change the rule names
 localrules:
     _dnds_input_maf,
-    _dnds_step_2,
+    _dnds_input_subsets,
+    _dnds_prepare_maf,
+    _install_dnds,
     _dnds_output_tsv,
-    _dnds_all,
+    _dnds_all
 
 
 ##### RULES #####
