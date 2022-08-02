@@ -39,10 +39,14 @@ if(file.exists(snakemake@params[[1]])){
     )
     dndsout = dndscv(
         maf,
-        gene_list=target_genes$V1
+        gene_list=target_genes$V1,
+        max_muts_per_gene_per_sample=snakemake@params[[2]]
     )
 }else{
-    dndsout = dndscv(maf)
+    dndsout = dndscv(
+        maf,
+        max_muts_per_gene_per_sample=snakemake@params[[2]]
+    )
 }
 
 # Sig genes

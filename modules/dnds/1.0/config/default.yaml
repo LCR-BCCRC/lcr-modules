@@ -16,6 +16,9 @@ lcr-modules:
             target_genes: "" # optionally, specify path to the genes of interest if this is a targeted sequencing
                             # this will restrict SMG search to only these genes
                             # this is a tsv file that contain one gene symbol/row and is expected to be without header
+            max_muts_per_gene_per_sample: Inf # How many mutations/gene dNdS should consider?
+                                            # This default value will consider all mutations/gene.
+                                            # When modified, this should be integer number.
 
         conda_envs:
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
