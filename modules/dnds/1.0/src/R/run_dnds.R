@@ -38,7 +38,7 @@ write.table(
     file=snakemake@output[[1]],
     quote=FALSE,
     sep='\t',
-    row.names = NA)
+    row.names = FALSE)
 
 # Annotated mutations
 annotmuts = as.data.frame(dndsout$annotmuts)
@@ -48,4 +48,4 @@ write.table(
     file=snakemake@output[[2]],
     quote=FALSE,
     sep='\t',
-    row.names = NA)
+    row.names = FALSE)
