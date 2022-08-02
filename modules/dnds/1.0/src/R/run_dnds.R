@@ -28,7 +28,22 @@ maf = read.table(
 maf = as.data.frame(maf)
 
 # Run the dNdS
-dndsout = dndscv(maf)
+# should we restrict to target genes?
+if(file.exists(snakemake@params[[1]])){
+    print(paste("Restricting analysis to target genes specified in", snakemake@params[[1]]))
+    # Read the target genes file
+    target_genes = read.table(
+        file = snakemake@params[[1]],
+        sep = '\t',
+        header = FALSE
+    )
+    dndsout = dndscv(
+        maf,
+        gene_list=target_genes$V1
+    )
+}else{
+    dndsout = dndscv(maf)
+}
 
 # Sig genes
 sig_genes = as.data.frame(dndsout$sel_cv)

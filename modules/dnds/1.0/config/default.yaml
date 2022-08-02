@@ -13,7 +13,9 @@ lcr-modules:
         src_dir: "{MODSDIR}/src/"
 
         options:
-            step_1: ""
+            target_genes: "" # optionally, specify path to the genes of interest if this is a targeted sequencing
+                            # this will restrict SMG search to only these genes
+                            # this is a tsv file that contain one gene symbol/row and is expected to be without header
 
         conda_envs:
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"

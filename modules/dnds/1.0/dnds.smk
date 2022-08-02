@@ -136,7 +136,7 @@ rule _dnds_run:
     resources:
         **CFG["resources"]["dnds"]
     params:
-        target_genes = "target_genes"
+        target_genes = CFG["options"]["target_genes"]
     script:
         "src/R/run_dnds.R"
 
