@@ -51,9 +51,9 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # End of dependency checking section 
 
 # Setup module and store module-specific configuration in `CFG`
-# `CFG` is a shortcut to `config["lcr-modules"]["nanomethphase"]`
+# `CFG` is a shortcut to `config["lcr-modules"]["whatshap"]`
 CFG = op.setup_module(
-    name = "nanomethphase",
+    name = "whatshap",
     version = "1.0",
     subdirectories = ["inputs", "clair3", "filter_clair3", "whatshap_phase_vcf", "whatshap_phase_bam" ,"outputs"]
 )
@@ -90,17 +90,20 @@ rule _clair3:
         dir = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}"
     conda :
         CFG["conda_envs"]["clair3"]  
+    threads:
+        CFG["threads"]["clair3"]    
     resources: 
         mem_mb = CFG["mem_mb"]["clair3"]     
     log:
         stderr = CFG["logs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/clair3.stderr.log"    
     output:
-        vcf = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/phased_merged.vcf.gz"       
+        vcf = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/phased_merged.vcf.gz"          
     shell:
          op.as_one_line("""run_clair3.sh  
             -b {input.bam} -f {input.fasta} -t {threads} -p "ont"
             -m {params.model} -o {params.dir}
-            --remove_intermediate_dir 2> {log.stderr} """)
+            --remove_intermediate_dir --enable_phasing
+            2> {log.stderr} """)
 
 rule _filter_clair3:
     input:
@@ -116,7 +119,7 @@ rule _whatshap_phase_vcf:
     input:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        vcf = CFG["inputs"]["vcf"] if CFG["inputs"]["vcf"] else str(rules._filter_clair3.output.filtered)
+        vcf = CFG["inputs"]["vcf"] 
     conda :
         CFG["conda_envs"]["whatshap"] 
     resources: 
@@ -133,19 +136,19 @@ rule _whatshap_phase_vcf:
 
 rule _whatshap_phase_bam:
     input:
-        vcf = str(rules._whatshap_phase_vcf.output.vcf),
-        bam = bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        vcf = str(rules._filter_clair3.output.filtered) if not CFG["inputs"]["vcf"] else str(rules._whatshap_phase_vcf.output.vcf),
+        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     conda:
         CFG["conda_envs"]["whatshap"]
     resources: 
         mem_mb = CFG["mem_mb"]["whatshap"] 
     threads:
-        CFG["threads"]["whatshap_phase_bam"]           
+        CFG["threads"]["whatshap"]           
     log:
         stderr = CFG["logs"]["whatshap_phase_bam"] + "{seq_type}--{genome_build}/{sample_id}/whatshap_phase_vcf.stderr.log"  
     output:
-        bam = CFG["dirs"]["whatshap_phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.phased.bam"
+        bam = CFG["dirs"]["whatshap_phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.phased.bam",
         bai = CFG["dirs"]["whatshap_phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.phased.bam.bai"
     shell:
         op.as_one_line(""" whatshap haplotag -o {output.bam} --output-threads={threads} --reference={input.fasta} {input.vcf} {input.bam} 
@@ -157,7 +160,7 @@ rule _whatshap_phase_bam:
 rule _whatshap_output:
     input:
         bam = str(rules._whatshap_phase_bam.output.bam),
-        bai = str(rules._whatshap_phase_bam.output.bam.bai)
+        bai = str(rules._whatshap_phase_bam.output.bai)
 
     output:
         bam = CFG["dirs"]["outputs"] + "whatshap_phase_bam/{seq_type}--{genome_build}/{sample_id}.phased.bam",
@@ -168,7 +171,7 @@ rule _whatshap_output:
         op.relative_symlink(input.bai, output.bai, in_module= True)
 
 # Generates the target sentinels for each run, which generate the symlinks
-rule _nanomethphase_all:
+rule _whatshap_all:
     input:
         expand(
             [

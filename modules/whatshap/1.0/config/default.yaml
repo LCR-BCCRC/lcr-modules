@@ -1,11 +1,11 @@
 lcr-modules:
     
-    nanomethphase:
+    whatshap:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
-            vcf: "__UPDATE__" #needs to be a vcf with 10 columns with tumour snvs in column 10, or leave blank to use clair variant calls
+            vcf: "__UPDATE__" #Update path to vcfs to use variant calls from illumina data or leave blank to run clair3 and use promethion variant calls
         
         scratch_subdirectories: []
 
@@ -22,7 +22,8 @@ lcr-modules:
             whatshap: 25000
             
         clair3:
-            model: "{CONDA_PREFIX}/bin/models/r941_prom_hac_g360+g422"   
+            model: "{CONDA_PREFIX}/bin/models/{model_name}" #update CONDA_PREFIX to prefix of Clair3 conda environment and select model to use recommended to use r941_prom_hac_g360+g422 for GSC bams   
+            platform: "__UPDATE__" #choose from {"ont","hifi","ilmn"}
 
         pairing_config:
             promethION:
