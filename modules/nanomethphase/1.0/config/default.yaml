@@ -26,7 +26,7 @@ lcr-modules:
             whatshap: 25000
             
         clair3:
-            model: "{CONDA_PREFIX}/bin/models/r941_prom_hac_g360+g422"   
+            model: "{CONDA_PREFIX}/bin/models/{model_name}" #Update to conda prefix of Clair3 environment and select appropriate model recommended r941_prom_hac_g360+g422 for GSC bams   
 
         pairing_config:
             promethION:

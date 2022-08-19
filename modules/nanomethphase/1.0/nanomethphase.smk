@@ -109,6 +109,8 @@ rule _clair3:
     params: 
         model = CFG["clair3"]["model"],
         dir = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}"
+    threads:
+        CFG["threads"]["clair3"]    
     conda :
         CFG["conda_envs"]["clair3"]  
     resources: 
@@ -116,7 +118,7 @@ rule _clair3:
     log:
         stderr = CFG["logs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/clair3.stderr.log"    
     output:
-        vcf = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/phased_merged.vcf.gz"       
+        vcf = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/phased_merge_output.vcf.gz"       
     shell:
          op.as_one_line("""run_clair3.sh  
             -b {input.bam} -f {input.fasta} -t {threads} -p "ont"
@@ -148,7 +150,7 @@ rule _whatshap_phase_vcf:
         vcf = temp(CFG["dirs"]["whatshap_phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}.output.vcf"),
         vcf_gz = CFG["dirs"]["whatshap_phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}.output.vcf.gz"
     shell:
-        op.as_one_line(""" whatshap phase -o {output.vcf} --reference={input.fasta} {input.vcf} {input.bam} 
+        op.as_one_line(""" whatshap phase --ignore-read-groups -o {output.vcf} --reference={input.fasta} {input.vcf} {input.bam} 
             && bgzip -c {output.vcf} > {output.vcf_gz} """)
 
 
@@ -161,16 +163,18 @@ rule _nanomethphase:
     threads:
         CFG["threads"]["nanomethphase"]
     params:
-        prefix =  CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}"
+        prefix =  CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}"
     conda :
         CFG["conda_envs"]["nanomethphase"] 
     log:
         stderr = CFG["logs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/nanomethphase.stderr.log"         
     output:
-        HP1_bis_bam = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}_NanoMethPhase_HP1_Converted2Bisulfite.bam",
-        HP2_bis_bam = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}_NanoMethPhase_HP2_Converted2Bisulfite.bam",
-        HP1_freq = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}_NanoMethPhase_HP1_MethylFrequency.tsv",
-        HP2_freq = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}_NanoMethPhase_HP2_MethylFrequency.tsv"
+        HP1_bis_bam = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP1_Converted2Bisulfite.bam",
+        HP2_bis_bam = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP2_Converted2Bisulfite.bam",
+        HP1_bis_bai = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP1_Converted2Bisulfite.bam.bai",
+        HP2_bis_bai = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP2_Converted2Bisulfite.bam.bai",
+        HP1_freq = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP1_MethylFrequency.tsv",
+        HP2_freq = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP2_MethylFrequency.tsv"
     shell:
         op.as_one_line("""
         nanomethphase phase -mc {input.mc} -of methylcall,bam2bis -o {params.prefix} 
@@ -184,18 +188,24 @@ rule _nanomethphase_output:
     input:
         HP1_bam = str(rules._nanomethphase.output.HP1_bis_bam),
         HP2_bam = str(rules._nanomethphase.output.HP2_bis_bam),
+        HP1_bai = str(rules._nanomethphase.output.HP1_bis_bai),
+        HP2_bai = str(rules._nanomethphase.output.HP2_bis_bai),
         HP1_freq = str(rules._nanomethphase.output.HP1_freq),
         HP2_freq = str(rules._nanomethphase.output.HP2_freq)
 
     output:
         HP1_bam = CFG["dirs"]["outputs"] + "bam2bis/{seq_type}--{genome_build}/{sample_id}_NanoMethPhase_HP1_Converted2Bisulfite.bam",
         HP2_bam = CFG["dirs"]["outputs"] + "bam2bis/{seq_type}--{genome_build}/{sample_id}_NanoMethPhase_HP2_Converted2Bisulfite.bam",
+        HP1_bai = CFG["dirs"]["outputs"] + "bam2bis/{seq_type}--{genome_build}/{sample_id}_NanoMethPhase_HP1_Converted2Bisulfite.bam.bai",
+        HP2_bai = CFG["dirs"]["outputs"] + "bam2bis/{seq_type}--{genome_build}/{sample_id}_NanoMethPhase_HP2_Converted2Bisulfite.bam.bai",
         HP1_freq = CFG["dirs"]["outputs"] + "meth_freq/{seq_type}--{genome_build}/{sample_id}_NanoMethPhase_HP1_MethylFrequency.tsv",
         HP2_freq = CFG["dirs"]["outputs"] + "meth_freq/{seq_type}--{genome_build}/{sample_id}_NanoMethPhase_HP2_MethylFrequency.tsv"
 
     run:
         op.relative_symlink(input.HP1_bam, output.HP1_bam, in_module= True),
         op.relative_symlink(input.HP2_bam, output.HP2_bam, in_module= True),
+        op.relative_symlink(input.HP1_bai, output.HP1_bam, in_module= True),
+        op.relative_symlink(input.HP2_bai, output.HP2_bam, in_module= True),
         op.relative_symlink(input.HP1_freq, output.HP1_freq, in_module= True),
         op.relative_symlink(input.HP2_freq, output.HP2_freq, in_module= True)
 
@@ -206,6 +216,8 @@ rule _nanomethphase_all:
             [
                 str(rules._nanomethphase_output.output.HP1_bam),
                 str(rules._nanomethphase_output.output.HP2_bam),
+                str(rules._nanomethphase_output.output.HP1_bai),
+                str(rules._nanomethphase_output.output.HP2_bai),
                 str(rules._nanomethphase_output.output.HP1_freq),
                 str(rules._nanomethphase_output.output.HP2_freq)
             ],
@@ -220,4 +232,4 @@ rule _nanomethphase_all:
 
 # Perform some clean-up tasks, including storing the module-specific
 # configuration on disk and deleting the `CFG` variable
-op.cleanup_module(CFG)  
+op.cleanup_module(CFG) 
