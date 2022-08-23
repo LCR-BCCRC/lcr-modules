@@ -97,7 +97,7 @@ rule _clair3:
     log:
         stderr = CFG["logs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/clair3.stderr.log"    
     output:
-        vcf = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/phased_merged.vcf.gz"          
+        vcf = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/phased_merge_output.vcf.gz"          
     shell:
          op.as_one_line("""run_clair3.sh  
             -b {input.bam} -f {input.fasta} -t {threads} -p "ont"
@@ -110,10 +110,12 @@ rule _filter_clair3:
         vcf = str(rules._clair3.output.vcf)
     output: 
         filtered = CFG["dirs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}.filtered_phased_merged.vcf.gz"
+    conda :
+        CFG["conda_envs"]["clair3"]
     log:
         stderr = CFG["logs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}/filter_clair3.stderr.log"      
     shell :
-        "zcat {input.vcf} | awk '$6 > 20' | gzip > {output.filtered} 2> {log.stderr}"       
+        "zcat {input.vcf} | awk '$6 > 20 || $1 ~ /^#/' | bgzip > {output.filtered} && tabix -p vcf {output.filtered}  2> {log.stderr}"       
 
 rule _whatshap_phase_vcf:
     input:
@@ -151,8 +153,8 @@ rule _whatshap_phase_bam:
         bam = CFG["dirs"]["whatshap_phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.phased.bam",
         bai = CFG["dirs"]["whatshap_phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.phased.bam.bai"
     shell:
-        op.as_one_line(""" whatshap haplotag -o {output.bam} --output-threads={threads} --reference={input.fasta} {input.vcf} {input.bam} 
-            && samtools index @{threads} {output.bam} 2> {log.stderr}""")
+        op.as_one_line(""" whatshap haplotag -o {output.bam} --output-threads={threads} --ignore-read-groups --reference={input.fasta} {input.vcf} {input.bam} 
+            && samtools index -@{threads} {output.bam} 2> {log.stderr}""")
 
                
 
