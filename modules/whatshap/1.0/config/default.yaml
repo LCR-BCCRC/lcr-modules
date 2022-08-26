@@ -6,7 +6,7 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
             vcf: "__UPDATE__" #Update path to vcf to use variant calls from illumina data or leave blank to run clair3 and use promethion variant calls
-        		      #VCF needs to be single sample, only containing variants from the sample you want to phase ie no variants from a matched normal if phasing tumour sample
+        		      #VCF needs to have GT info and needs to be single sample, only containing variants from the sample you want to phase ie no variants from a matched normal if phasing tumour sample
 			      #Module will run faster when vcf is indexed but will also run without an index present 
 
         scratch_subdirectories: []
