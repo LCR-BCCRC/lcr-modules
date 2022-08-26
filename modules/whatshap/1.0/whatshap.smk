@@ -87,7 +87,8 @@ rule _clair3:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     params: 
         model = CFG["clair3"]["model"],
-        dir = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}"
+        dir = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}",
+        platform = CFG["clair3"]["platform"]
     conda :
         CFG["conda_envs"]["clair3"]  
     threads:
@@ -100,7 +101,7 @@ rule _clair3:
         vcf = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/phased_merge_output.vcf.gz"          
     shell:
          op.as_one_line("""run_clair3.sh  
-            -b {input.bam} -f {input.fasta} -t {threads} -p "ont"
+            -b {input.bam} -f {input.fasta} -t {threads} -p {params.platform}
             -m {params.model} -o {params.dir}
             --remove_intermediate_dir --enable_phasing
             2> {log.stderr} """)
