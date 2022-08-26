@@ -132,13 +132,13 @@ rule _whatshap_phase_vcf:
         vcf = temp(CFG["dirs"]["whatshap_phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}.phased.vcf"),
         vcf_gz = CFG["dirs"]["whatshap_phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}.phased.vcf.gz"
     shell:
-        op.as_one_line(""" whatshap phase -o {output.vcf} --reference={input.fasta} {input.vcf} {input.bam} 
-            && bgzip -c {output.vcf} > {output.vcf_gz} 2> {log.stderr} """)
+        op.as_one_line(""" whatshap phase -o {output.vcf} --ignore-read-groups --reference={input.fasta} {input.vcf} {input.bam} 
+            && bgzip -c {output.vcf} > {output.vcf_gz} && tabix -p vcf {output.vcf_gz} 2> {log.stderr} """)
 
 
 rule _whatshap_phase_bam:
     input:
-        vcf = str(rules._filter_clair3.output.filtered) if not CFG["inputs"]["vcf"] else str(rules._whatshap_phase_vcf.output.vcf),
+        vcf = str(rules._filter_clair3.output.filtered) if not CFG["inputs"]["vcf"] else str(rules._whatshap_phase_vcf.output.vcf_gz),
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     conda:
@@ -148,7 +148,7 @@ rule _whatshap_phase_bam:
     threads:
         CFG["threads"]["whatshap"]           
     log:
-        stderr = CFG["logs"]["whatshap_phase_bam"] + "{seq_type}--{genome_build}/{sample_id}/whatshap_phase_vcf.stderr.log"  
+        stderr = CFG["logs"]["whatshap_phase_bam"] + "{seq_type}--{genome_build}/{sample_id}/whatshap_phase_bam.stderr.log"  
     output:
         bam = CFG["dirs"]["whatshap_phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.phased.bam",
         bai = CFG["dirs"]["whatshap_phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.phased.bam.bai"

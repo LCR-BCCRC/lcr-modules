@@ -5,8 +5,10 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
-            vcf: "__UPDATE__" #Update path to vcfs to use variant calls from illumina data or leave blank to run clair3 and use promethion variant calls
-        
+            vcf: "__UPDATE__" #Update path to vcf to use variant calls from illumina data or leave blank to run clair3 and use promethion variant calls
+        		      #VCF needs to be single sample, only containing variants from the sample you want to phase ie no variants from a matched normal if phasing tumour sample
+			      #Module will run faster when vcf is indexed but will also run without an index present 
+
         scratch_subdirectories: []
 
         conda_envs:
@@ -22,7 +24,8 @@ lcr-modules:
             whatshap: 25000
             
         clair3:
-            model: "{CONDA_PREFIX}/bin/models/{model_name}" #update CONDA_PREFIX to prefix of Clair3 conda environment and select model to use recommended to use r941_prom_hac_g360+g422 for GSC bams   
+            model: "{CONDA_PREFIX}/bin/models/{model_name}" #__UPDATE__ CONDA_PREFIX needs to be updated to prefix of Clair3 conda environment and model_name to model you're wanting to use 
+							    #recommended to use r941_prom_hac_g360+g422 for GSC bams   
             platform: "__UPDATE__" #choose from {"ont","hifi","ilmn"}
 
         pairing_config:
