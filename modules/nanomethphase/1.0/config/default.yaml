@@ -6,7 +6,9 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
             meth_calls: "__UPDATE__"
-            vcf: "__UPDATE__" #needs to be a vcf with 10 columns with tumour snvs in column 10, or leave blank to use clair variant calls
+            vcf: "__UPDATE__" #needs to be a vcf with gt info and variants from a single sample in column 10 
+			      #ie if run matched tumour normal vcf should contain only calls from tumour, 
+			      #or leave blank to use clair3 variant calls
         
         scratch_subdirectories: []
 
@@ -26,7 +28,8 @@ lcr-modules:
             whatshap: 25000
             
         clair3:
-            model: "{CONDA_PREFIX}/bin/models/{model_name}" #Update to conda prefix of Clair3 environment and select appropriate model recommended r941_prom_hac_g360+g422 for GSC bams   
+            model: "{CONDA_PREFIX}/bin/models/{model_name}" #Update to conda prefix of Clair3 environment and select appropriate model recommended r941_prom_hac_g360+g422 for GSC bams
+            platform: "__UPDATE__" #select from {"ont","hifi","ilm"}
 
         pairing_config:
             promethION:

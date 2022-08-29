@@ -11,7 +11,7 @@ dependencies:
   - blas=2.3
   - bzip2=1.0.8
   - c-ares=1.18.1
-  - ca-certificates=2021.10.8
+  - ca-certificates=2022.6.15
   - decorator=4.4.2
   - htslib=1.15.1
   - isa-l=2.30.0
@@ -52,6 +52,7 @@ dependencies:
   - python-isal=0.11.1
   - python_abi=3.7
   - readline=8.1
+  - samtools=1.15.1
   - scipy=1.5.3
   - setuptools=62.1.0
   - six=1.16.0

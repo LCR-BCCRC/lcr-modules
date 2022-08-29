@@ -150,7 +150,8 @@ rule _whatshap_phase_vcf:
         vcf = temp(CFG["dirs"]["whatshap_phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}.output.vcf"),
         vcf_gz = CFG["dirs"]["whatshap_phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}.output.vcf.gz"
     shell:
-        op.as_one_line(""" whatshap phase --ignore-read-groups -o {output.vcf} --reference={input.fasta} {input.vcf} {input.bam} 
+        op.as_one_line(""" whatshap phase --ignore-read-groups --sample={wildcards.sample_id} -o {output.vcf} 
+            --reference={input.fasta} {input.vcf} {input.bam} 
             && bgzip -c {output.vcf} > {output.vcf_gz} """)
 
 
@@ -179,7 +180,8 @@ rule _nanomethphase:
         op.as_one_line("""
         nanomethphase phase -mc {input.mc} -of methylcall,bam2bis -o {params.prefix} 
         -b {input.bam} -r {input.fasta} -v {input.vcf}
-        -t {threads} -is
+        -t {threads} -is && samtools index -@ {threads} {output.HP1_bis_bam} &&
+        samtools index -@ {threads} {output.HP2_bis_bam}
         """)  
 
 
@@ -204,8 +206,8 @@ rule _nanomethphase_output:
     run:
         op.relative_symlink(input.HP1_bam, output.HP1_bam, in_module= True),
         op.relative_symlink(input.HP2_bam, output.HP2_bam, in_module= True),
-        op.relative_symlink(input.HP1_bai, output.HP1_bam, in_module= True),
-        op.relative_symlink(input.HP2_bai, output.HP2_bam, in_module= True),
+        op.relative_symlink(input.HP1_bai, output.HP1_bai, in_module= True),
+        op.relative_symlink(input.HP2_bai, output.HP2_bai, in_module= True),
         op.relative_symlink(input.HP1_freq, output.HP1_freq, in_module= True),
         op.relative_symlink(input.HP2_freq, output.HP2_freq, in_module= True)
 
@@ -232,4 +234,5 @@ rule _nanomethphase_all:
 
 # Perform some clean-up tasks, including storing the module-specific
 # configuration on disk and deleting the `CFG` variable
-op.cleanup_module(CFG) 
+op.cleanup_module(CFG)  
+
