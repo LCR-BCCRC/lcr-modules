@@ -14,7 +14,7 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
-
+import pandas as pd
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -28,8 +28,10 @@ except ModuleNotFoundError:
 
 current_version = pkg_resources.get_distribution("oncopipe").version
 if version.parse(current_version) < version.parse(min_oncopipe_version):
-    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
-    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
 # End of dependency checking section
@@ -40,7 +42,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "sequenza",
     version = "1.4",
-    subdirectories = ["inputs", "seqz", "sequenza", "igv_seg", "outputs"]
+    subdirectories = ["inputs", "seqz", "sequenza", "igv_seg", "convert_coordinates", "fill_regions", "normalize", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -78,7 +80,7 @@ checkpoint _sequenza_input_chroms:
     output:
         txt = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
     run:
-        op.relative_symlink(input.txt, output.txt)
+        op.absolute_symlink(input.txt, output.txt)
 
 
 # Pulls in list of chromosomes for the genome builds
@@ -216,7 +218,7 @@ rule _sequenza_run:
 rule _sequenza_cnv2igv:
     input:
         segments = str(rules._sequenza_run.output.segments),
-        cnv2igv =  CFG["inputs"]["cnv2igv"]
+        cnv2igv =  ancient(CFG["inputs"]["cnv2igv"])
     output:
         igv = CFG["dirs"]["igv_seg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{filter_status}/sequenza_segments.igv.seg"
     log:
@@ -225,6 +227,7 @@ rule _sequenza_cnv2igv:
         opts = CFG["options"]["cnv2igv"]
     conda:
         CFG["conda_envs"]["cnv2igv"]
+    group: "sequenza_post_process"
     shell:
         op.as_one_line("""
         python {input.cnv2igv} {params.opts} --sample {wildcards.tumour_id} 
@@ -232,12 +235,173 @@ rule _sequenza_cnv2igv:
         """)
 
 
+def _sequenza_get_chain(wildcards):
+    if "38" in str({wildcards.genome_build}):
+        return reference_files("genomes/{genome_build}/chains/grch38/hg38ToHg19.over.chain")
+    else:
+        return reference_files("genomes/{genome_build}/chains/grch37/hg19ToHg38.over.chain")
+
+
+# Convert the coordinates of seg file to a different genome build
+rule _sequenza_convert_coordinates:
+    input:
+        sequenza_native = str(rules._sequenza_cnv2igv.output.igv).replace("{filter_status}", "filtered"),
+        sequenza_chain = _sequenza_get_chain
+    output:
+        sequenza_lifted = CFG["dirs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.seg"
+    log:
+        stderr = CFG["logs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.stderr.log"
+    threads: 1
+    params:
+        liftover_script = CFG["options"]["liftover_script_path"],
+        liftover_minmatch = CFG["options"]["liftover_minMatch"]
+    conda:
+        CFG["conda_envs"]["liftover"]
+    group: "sequenza_post_process"
+    shell:
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
+        bash {params.liftover_script}
+        SEG
+        {input.sequenza_native}
+        {output.sequenza_lifted}
+        {input.sequenza_chain}
+        YES
+        {params.liftover_minmatch}
+        2>> {log.stderr}
+        """)
+
+# ensure to request the correct files for each projection and drop wildcards that won't be used downstream
+def _sequenza_prepare_projection(wildcards):
+    CFG = config["lcr-modules"]["sequenza"]
+    tbl = CFG["runs"]
+    this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"].tolist()
+
+    prefixed_projections = CFG["options"]["prefixed_projections"]
+    non_prefixed_projections = CFG["options"]["non_prefixed_projections"]
+
+    if any(substring in this_genome_build[0] for substring in prefixed_projections):
+        hg38_projection = str(rules._sequenza_cnv2igv.output.igv).replace("{genome_build}", this_genome_build[0]).replace("{filter_status}", "filtered")
+        grch37_projection = str(rules._sequenza_convert_coordinates.output.sequenza_lifted).replace("{genome_build}", this_genome_build[0])
+        # handle the hg19 (prefixed) separately
+        if "38" in str(this_genome_build[0]):
+            grch37_projection = grch37_projection.replace("{chain}", "hg38ToHg19")
+        else:
+            grch37_projection = grch37_projection.replace("{chain}", "hg19ToHg38")
+
+    elif any(substring in this_genome_build[0] for substring in non_prefixed_projections):
+        grch37_projection = str(rules._sequenza_cnv2igv.output.igv).replace("{genome_build}", this_genome_build[0]).replace("{filter_status}", "filtered")
+        hg38_projection = str(rules._sequenza_convert_coordinates.output.sequenza_lifted).replace("{genome_build}", this_genome_build[0])
+        # handle the grch38 (non-prefixed) separately
+        if "38" in str(this_genome_build[0]):
+            hg38_projection = hg38_projection.replace("{chain}", "hg38ToHg19")
+        else:
+            hg38_projection = hg38_projection.replace("{chain}", "hg19ToHg38")
+    else:
+        raise AttributeError(f"The specified genome build {this_genome_build[0]} is not specified in the config under options to indicate its chr prefixing.")
+
+    return{
+        "grch37_projection": grch37_projection,
+        "hg38_projection": hg38_projection
+    }
+
+
+# Fill segments of both native and filled file
+rule _sequenza_fill_segments:
+    input:
+        unpack(_sequenza_prepare_projection)
+    output:
+        grch37_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"),
+        hg38_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg")
+    log:
+        stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}_fill_segments.stderr.log"
+    threads: 1
+    params:
+        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/"
+    conda:
+        CFG["conda_envs"]["bedtools"]
+    group: "sequenza_post_process"
+    shell:
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
+        echo "Filling grch37 projection" >> {log.stderr};
+        bash {params.path}fill_segments.sh
+        {params.path}src/chromArm.grch37.bed
+        {input.grch37_projection}
+        {params.path}src/blacklisted.grch37.bed
+        {output.grch37_filled}
+        {wildcards.tumour_id}
+        SEG
+        2>> {log.stderr};
+        echo "Filling hg38 projection" >> {log.stderr};
+        bash {params.path}fill_segments.sh
+        {params.path}src/chromArm.hg38.bed
+        {input.hg38_projection}
+        {params.path}src/blacklisted.hg38.bed
+        {output.hg38_filled}
+        {wildcards.tumour_id}
+        SEG
+        2>> {log.stderr};
+        """)
+
+def _sequenza_determine_projection(wildcards):
+    CFG = config["lcr-modules"]["sequenza"]
+    if any(substring in wildcards.projection for substring in ["hg19", "grch37", "hs37d5"]):
+        this_file = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"
+    elif any(substring in wildcards.projection for substring in ["hg38", "grch38"]):
+        this_file = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+    return (this_file)
+
+
+# Normalize chr prefix of the output file
+rule _sequenza_normalize_projection:
+    input:
+        filled = _sequenza_determine_projection,
+        chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
+    output:
+        projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+    resources:
+        **CFG["resources"]["post_sequenza"]
+    threads: 1
+    group: "sequenza_post_process"
+    run:
+        # read the main chromosomes file of the projection
+        chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
+        # handle chr prefix
+        if "chr" in chromosomes["chromosome"][0]:
+            seg_open = pd.read_csv(input.filled, sep = "\t")
+            chrom = list(seg_open['chrom'])
+            # avoid cases of chrchr1 if the prefix already there
+            for i in range(len(chrom)):
+                if 'chr' not in str(chrom[i]):
+                    chrom[i]='chr'+str(chrom[i])
+            seg_open.loc[:, 'chrom']=chrom
+            seg_open.to_csv(output.projection, sep="\t", index=False)
+        else:
+            # remove chr prefix
+            seg_open = pd.read_csv(input.filled, sep = "\t")
+            seg_open["chrom"] = seg_open["chrom"].astype(str).str.replace('chr', '')
+            seg_open.to_csv(output.projection, sep="\t", index=False)
+
+
+# Symlinks the final output files into the module results directory (under '99-outputs/')
+rule _sequenza_output_projection:
+    input:
+        projection = str(rules._sequenza_normalize_projection.output.projection)
+    output:
+        projection = CFG["output"]["seg"]["projection"]
+    threads: 1
+    group: "sequenza_post_process"
+    run:
+        op.relative_symlink(input.projection, output.projection, in_module = True)
+
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _sequenza_output_seg:
     input:
-        seg = str(rules._sequenza_cnv2igv.output.igv)
+        seg = str(rules._sequenza_cnv2igv.output.igv).replace("{filter_status}", "filtered")
     output:
-        seg = CFG["dirs"]["outputs"] + "{filter_status}_seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.igv.seg"
+        seg = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["original"]
+    group: "sequenza_post_process"
     run:
         op.relative_symlink(input.seg, output.seg, in_module=True)
 
@@ -247,15 +411,28 @@ rule _sequenza_all:
     input:
         expand(
             [
-                str(rules._sequenza_output_seg.output.seg).replace("{filter_status}", "filtered"),
-                str(rules._sequenza_output_seg.output.seg).replace("{filter_status}", "unfiltered"),
+                str(rules._sequenza_output_seg.output.seg)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            pair_status=CFG["runs"]["pair_status"]),
+        expand(
+            expand(
+            [
+                str(rules._sequenza_output_projection.output.projection)
+            ],
+            zip,  # Run expand() with zip(), not product()
+            tumour_id=CFG["runs"]["tumour_sample_id"],
+            normal_id=CFG["runs"]["normal_sample_id"],
+            seq_type=CFG["runs"]["tumour_seq_type"],
+            pair_status=CFG["runs"]["pair_status"],
+            #repeat the tool name N times in expand so each pair in run is used
+            tool=["sequenza"] * len(CFG["runs"]["tumour_sample_id"]),
+            allow_missing=True),
+            projection=CFG["output"]["requested_projections"])
 
 
 ##### CLEANUP #####

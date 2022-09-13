@@ -1,0 +1,58 @@
+lcr-modules:
+
+    qc:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            samtools_stat: "" # can specify --remove-dups --remove-overlaps
+            QualityScoreDistribution: "--VALIDATION_STRINGENCY LENIENT" # can specify --ALIGNED_READS_ONLY true
+            CollectWgsMetrics: "--USE_FAST_ALGORITHM true --VALIDATION_STRINGENCY LENIENT"
+            CollectHsMetrics: "--VALIDATION_STRINGENCY LENIENT"
+
+        baits_regions:
+            grch37: # other grch37-based reference genomes are also supported within this key, e.g. hs37d5
+                _default: "https://www.bcgsc.ca/downloads/morinlab/reference/agilent_sureselect_v5_target_regions.grch37.bed"
+                # add another key here to specify a custom bed file with baits regions if needed
+                # either local path of URL can be specified
+            hg38:
+                _default: "https://www.bcgsc.ca/downloads/morinlab/reference/agilent_sureselect_v5_target_regions.hg38.bed"
+
+        conda_envs:
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            gatkR: "{MODSDIR}/envs/gatkR.yaml"
+
+        threads:
+            samtools_stat: 8
+            QualityScoreDistribution: 12
+            CollectMetrics: 24
+            collect: 2
+
+
+        resources:
+            samtools_stat:
+                mem_mb: 20000
+                samtools_stat: 1
+            QualityScoreDistribution:
+                mem_mb: 100000
+                base_qual: 1
+            CollectMetrics:
+                mem_mb: 100000
+                collect_metrics: 1
+            collect:
+                mem_mb: 4000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

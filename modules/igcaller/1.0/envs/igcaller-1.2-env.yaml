@@ -1,0 +1,54 @@
+name: igcaller
+channels:
+  - defaults
+  - conda-forge
+  - anaconda
+  - bioconda
+dependencies:
+  - _libgcc_mutex=0.1
+  - _openmp_mutex=4.5
+  - blas=1.0
+  - bzip2=1.0.8
+  - c-ares=1.18.1
+  - ca-certificates=2022.4.26
+  - certifi=2021.10.8
+  - curl=7.82.0
+  - docutils=0.18.1
+  - htslib=1.15.1
+  - krb5=1.19.2
+  - ld_impl_linux-64=2.35.1
+  - libcurl=7.82.0
+  - libdeflate=1.10
+  - libedit=3.1.20210910
+  - libev=4.33
+  - libffi=3.3
+  - libgcc-ng=11.2.0
+  - libgfortran-ng=7.5.0
+  - libgfortran4=7.5.0
+  - libgomp=11.2.0
+  - libnghttp2=1.46.0
+  - libopenblas=0.3.18
+  - libssh2=1.10.0
+  - libstdcxx-ng=9.3.0
+  - libuuid=1.0.3
+  - libzlib=1.2.11
+  - ncurses=6.3
+  - numpy=1.21.5
+  - numpy-base=1.21.5
+  - openssl=1.1.1o
+  - pip=21.2.4
+  - python=3.10.4
+  - python_abi=3.10
+  - readline=8.1.2
+  - regex=2022.3.15
+  - samtools=1.6
+  - scipy=1.7.3
+  - setuptools=61.2.0
+  - sqlite=3.38.2
+  - statistics=1.0.3.5
+  - tk=8.6.11
+  - tzdata=2022a
+  - wheel=0.37.1
+  - xz=5.2.5
+  - zlib=1.2.11
+prefix: /home/prasathp/miniconda3/envs/igcaller

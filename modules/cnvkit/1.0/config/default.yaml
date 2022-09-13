@@ -1,0 +1,139 @@
+lcr-modules:
+    
+    cnvkit:
+
+        # TODO: Update the list of available wildcards, if applicable
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+
+        options:
+
+            # Do you have new normals that you want to roll into your analyses? If not, then use the previously generated normal panel
+            new_normals: True
+
+            # Setting up the normal reference (note that this will need to be consistent for all downstream analyses). If you want to set it as a female reference, you can change "-y" to " "
+            male_ref: " -y "
+            # Female samples normalized to a male reference will show a doubling of chromosome X (log2 value about +1.0) and complete loss of chromosome Y (log2 value below -3.0, usually far below).
+            # Male samples normalized to a female reference will show a single-copy loss of chromosome X (log2 value about -1.0). The chromosome Y value should be near 0.0, but the log2 values may be noisier and less reliable than on autosomes.
+
+            # Provide a path to your target/capture regions in BED format
+            target_bed:
+                hg19:
+                    agilent: ""
+                    idt: ""
+                hg38:
+                    agilent: ""
+                    idt: ""
+
+
+            cns:
+                method: "cbs " #segmentation methods (default)
+                # choices: cbs, flasso, haar, none, hmm, hmm-tumor, hmm-germline
+ 
+            # this is for bcftools calling across your dbSNP sites
+            # note that bcftools call -mv is already used in the rule - it will annotate GT which is vital to cnvkit
+            SNPs: 
+                quality: 20 # minimum quality
+                opts: "--ignore-RG  --skip-indels  --count-orphans  --annotate DP,AD "
+
+            segmetrics:
+                add_col: " --drop-low-coverage --ci --t-test "
+
+            # currently rescaling option is "clonal", meaning it will round the log2ratio to the nearest integer copy number
+            # alternately, you can use "threshold", which applies hard thresholds
+            # there is also "none", which skips integer copy numbers as output
+            BAF:
+                rescale: "threshold"
+                min_depth: 20 # minimum depth needed to call BAF
+                filter_by: "ci" # filters "raw" segments to remove likely false positives
+                opts: "" # you can use additional options here, for example -y assumes a male reference
+                # if you set rescale as "threshold", you can include "-t=-1.1,-0.4,0.3,0.7" to rescale the copy number state to your thresholds you set here
+            scatter:
+                min_depth: 20 # minimum depth to include 
+                ymax: 10 
+                ymin: -10
+            diagram:
+                threshold: 0.6
+            geneMetrics:
+                threshold: 0.15 # 0.2 will report single-copy gains/losses in a completely pure tumour sample or germline. A lower threshold would be necessary if significant normal cell contamination is present.
+                min_segments: 3 # minimum number of segments/bins that need to be consistently called
+
+            # liftOver options to convert between genomic builds
+            liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
+            liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
+            prefixed_projections: ["hg19", "hg38"] # List here the base names of chr-prefixed projections
+            non_prefixed_projections: ["grch37", "grch38", "hs37d5"] # List here the base names of non-prefixed projections
+
+        output: # specify the naming convention for the output files under 99-outputs/
+                # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
+                # other wildcards are not supported in the naming scheme of output files
+            seg:
+                original: "results/cnvkit-1.0/99-outputs/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
+                projection: "results/cnvkit-1.0/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+            pdf:
+                diagram: "results/cnvkit-1.0/99-outputs/plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.diagram.pdf"
+            png:
+                scatter: "results/cnvkit-1.0/99-outputs/plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.scatter.png"
+            cns:
+                call: "results/cnvkit-1.0/99-outputs/cns/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.cns"
+            txt:
+                breaks: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneBreaks.txt"
+                gene_seg: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneSeg.txt"
+                geneList: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneList.txt"
+                sex: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sex.txt"
+            # specify in which projections you want the output files
+            requested_projections: ["grch37", "hg38"]
+
+        conda_envs:
+            cnvkit: "{MODSDIR}/envs/cnvkit-0.9.9.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
+            
+        threads:
+            reference: 24
+            cns: 24
+            seg: 8
+
+
+        resources:
+            reference: 
+                mem_mb: 48000
+            fix:
+                mem_mb: 12000
+            cns:
+                mem_mb: 8000
+            SNPs:
+                mem_mb: 8000
+                bam: 1
+            call:
+                mem_mb: 8000
+            plots:
+                mem_mb: 8000
+            breaks:
+                mem_mb: 6000            
+            geneMetrics:
+                mem_mb: 6000
+            seg: 
+                mem_mb: 6000
+            outputs:
+                mem_mb: 6000
+            post_cnvkit:
+                mem_mb: 2000
+                bam: 1
+
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False

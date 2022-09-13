@@ -16,7 +16,7 @@
 import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
-min_oncopipe_version="1.0.11"
+min_oncopipe_version="1.0.12"
 import pkg_resources
 try:
     from packaging import version
@@ -27,8 +27,10 @@ except ModuleNotFoundError:
 
 current_version = pkg_resources.get_distribution("oncopipe").version
 if version.parse(current_version) < version.parse(min_oncopipe_version):
-    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
-    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
 # End of dependency checking section 
@@ -106,18 +108,19 @@ rule _download_sage_references:
         wget -O {output.high_conf_bed} {params.url}/HighConfidence.{params.build}.bed.gz
         """)
 
-# Non-standard chromosomes in rare cases cause SAGE error. This function will read the main chromosomes
-# file for each genome build using file produced by reference_files workflow, and supply it as
-# a comma-deliminated list of chromosomes for SAGE run.
-def get_chromosomes(wildcards):
-    chromosomes=[]
-    for i in range(1,23):
-        chromosomes.append(str(i))
-    chromosomes.append("X")
-    if "38" in str(wildcards.genome_build):
-        chromosomes = ["chr" + x for x in chromosomes]
-    chromosomes= ",".join(chromosomes)    
-    return chromosomes
+def _sage_get_capspace(wildcards):
+    CFG = config["lcr-modules"]["sage"]
+    try:
+        # Get the appropriate capture space for this sample
+        this_bed = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed.gz")
+        this_bed = reference_files(this_bed)
+    except NameError:
+        # If we are using an older version of the reference workflow, use the same region file as the genome sample
+        this_bed = rules._download_sage_references.output.panel_bed
+    # If this is a genome sample, return a BED file listing all chromosomes
+    if wildcards.seq_type != "capture":
+        this_bed = rules._download_sage_references.output.panel_bed
+    return this_bed
 
 # Variant calling rule
 rule _run_sage:
@@ -125,18 +128,18 @@ rule _run_sage:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = str(rules._input_references.output.genome_fa),
-        hotspots = str(rules._download_sage_references.output.hotspots),
-        panel_bed = str(rules._download_sage_references.output.panel_bed),
-        high_conf_bed = str(rules._download_sage_references.output.high_conf_bed)
+        hotspots = rules._download_sage_references.output.hotspots,
+        high_conf_bed = str(rules._download_sage_references.output.high_conf_bed),
+        panel_bed = _sage_get_capspace,
+        main_chromosomes = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
     output:
         vcf = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf"),
-        vcf_gz = CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf.gz"
+        vcf_gz = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf.gz")
     log:
         stdout = CFG["logs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run_sage.stdout.log",
         stderr = CFG["logs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run_sage.stderr.log"
     params:
         opts = CFG["options"]["sage_run"],
-        chromosomes = get_chromosomes,
         assembly = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19",
         sage= "$(dirname $(readlink -e $(which SAGE)))/sage.jar",
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
@@ -150,11 +153,13 @@ rule _run_sage:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname)" > {log.stdout}
         &&
+        SAGE_CHROMOSOMES=$(cat {input.main_chromosomes} | paste -sd, -)
+        &&
         java -Xms1G -Xmx{params.jvmheap}m
         -cp {params.sage} com.hartwig.hmftools.sage.SageApplication
         -threads {threads}
         {params.opts}
-        -chr {params.chromosomes}
+        -chr $SAGE_CHROMOSOMES
         -reference {wildcards.normal_id}
         -reference_bam {input.normal_bam}
         -tumor {wildcards.tumour_id} 

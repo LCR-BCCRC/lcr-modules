@@ -16,6 +16,8 @@
 
 - [ ] Input and output files are being symlinked into the `CFG["inputs"]` and `CFG["outputs"]` subdirectories, respectively.
 
+- [ ] I grouped the input symlinking rule to the next job that uses the input files. 
+
 - [ ] I updated the final target rule (`*_all`) to include every output rule.
 
 - [ ] I explained important module design decisions in `CHANGELOG.md`.
@@ -48,4 +50,11 @@
 
 ## Checklist for Updated Module
 
-To be completed.
+Important! If you are updating the module version, ensure the previous version of the module is restored from master.
+If you want to restore a deleted file or directory from the remote master, you can use `git checkout origin/master path/to/file`,
+then a `git commit` will ensure that file is tracked on your branch again.
+Example:
+```
+mv modules/strelka/1.1 modules/strelka/1.2
+git checkout origin/master modules/strelka/1.1
+```

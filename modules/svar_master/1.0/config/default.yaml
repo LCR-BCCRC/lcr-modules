@@ -1,0 +1,107 @@
+lcr-modules:
+    
+    svar_master:
+
+        # To set up this config, copy only the sections that need updating to a new file and load it 
+        # after you load this config. 
+
+        # IMPORTANT NOTES
+        # Since this module includes the GRIDSS and Manta Snakefiles but also depends on the outputs of SLMS-3, SLMS-3 MUST be run before this module. 
+        # It is also highly recommended to run GRIDSS on the majority of samples prior to launching the complete pipeline. 
+        # This can be accomplished by specifying `_gridss_all` as the target when launching Snakemake.  
+        # Since this pipeline contains many, many steps it is also highly recommended to throttle resources carefully when running on a cluster. 
+        # See the configs for each module for how resource-intensive jobs can be throttled. 
+
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            slms_3_dir: "__UPDATE__"
+            hg19_builds: ["grch37", "hs37d5", "hg19"]
+            hg38_builds: ["hg38", "grch38"]
+
+        module_versions: 
+            manta: "2.3" # Minimum 2.0
+            gridss: "2.0" # Minimum 2.0
+            hmftools: "1.1" # Minimum 1.1
+            liftover: "2.0" # Minimum 2.0
+        
+        scratch_subdirectories: []
+
+        switches: 
+            intersect: 
+                regions_bed: 
+                    grch37: "__UPDATE__"
+                    # A bed file of genes or regions to be whitelisted
+                    # Variants in these regions will not be filtered by VAF or depth
+                    # Use genome_build as the key and the path to the bed file as the value here  
+            annotate: 
+                annotation_bed: 
+                    grch37: "__UPDATE__"
+                    # Bed file of e.g. genes, regions, superenhancers, etc. to be used
+                    # Use genome_build as the key and the path to the bed file as the value here  
+                    # Must be sorted by the 'sort -k1,1 -k2,2n' method
+
+
+        options:
+            intersect: 
+                combine_svs: "src/combine_sv_vcfs.R"
+                bedpe_cols: "{MODSDIR}/etc/bedpe_combined_cols.tsv"
+                minvaf: 0.05
+                mindp: 10
+                maxgap: 100
+            combine_annotated: 
+                script: "src/combine_annotated_bedpe.R"
+
+        conda_envs:
+            filter_svs: "{MODSDIR}/envs/sv_annotation-1.6.0.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            
+        threads:
+            intersect: 1
+            annotate: 1
+            combine: 1
+
+
+        resources:
+            intersect: 
+                mem_mb: 2000
+                intersect: 1
+            annotate: 
+                mem_mb: 2000
+                annotate: 1
+            combine: 
+                mem_mb: 2000
+                combine: 1
+            
+            
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+
+
+        # Update config values for sub-modules here
+        gridss: 
+            inputs: 
+                sample_bam: ""
+                sample_bai: ""
+
+        manta: 
+            inputs: 
+                sample_bam: ""
+                sample_bai: ""
+
+        hmftools: 
+            samples: 
+
+        liftover: 
+            tool: "gridss_manta"
+            input_type: "bedpe"
+

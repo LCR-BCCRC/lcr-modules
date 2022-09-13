@@ -1,0 +1,28 @@
+lcr-modules:
+    
+    sniffles:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+        
+        scratch_subdirectories: []
+
+        conda_envs:
+            sniffles: "{MODSDIR}/envs/sniffles-2.0.3.yaml"
+            svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
+
+        threads:
+            sniffles: 20
+            vcf_to_bedpe: 1
+            
+        mem_mb:
+            sniffles: 25000
+            vcf_to_bedpe: 2000
+            
+
+        pairing_config:
+            promethION:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

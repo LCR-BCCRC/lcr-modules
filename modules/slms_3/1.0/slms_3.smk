@@ -28,8 +28,10 @@ except ModuleNotFoundError:
 
 current_version = pkg_resources.get_distribution("oncopipe").version
 if version.parse(current_version) < version.parse(min_oncopipe_version):
-    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
-    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
 # End of dependency checking section 
@@ -245,8 +247,11 @@ rule _slms_3_annotate_sage_gnomad:
         bcftools annotate --threads {threads} 
         -a {input.gnomad} -c INFO/AF {input.vcf} | 
         awk 'BEGIN {{FS=OFS="\\t"}} {{ if ($1 !~ /^#/ && $8 !~ ";AF=") $8=$8";AF=0"; print $0; }}' | 
-        sed 's/{wildcards.tumour_id}/TUMOR/g' | 
-        sed 's/{wildcards.normal_id}/NORMAL/g' | 
+        perl -ne '$norm="{wildcards.normal_id}";
+                  $tum="{wildcards.tumour_id}";
+                  s/(\s)$tum(\s)/$1TUMOR$2/;
+                  s/(\s)$norm(\s)/$1NORMAL$2/;
+                  print;' |
         bcftools view -s "NORMAL,TUMOR" -i 'INFO/AF < 0.0001' -Oz -o {output.vcf} 2> {log.stderr} 
         &&
         tabix -p vcf {output.vcf} 2>> {log.stderr}
@@ -299,10 +304,9 @@ rule _slms_3_mutect2_depth_filt:
         CFG_SLMS3["threads"]["mutect2_depth_filt"]
     shell: 
         op.as_one_line("""
-        tsamp=$(zgrep "##tumor_sample=" {input.vcf} | sed 's|##tumor_sample=||g');
-        nsamp=$(zgrep "##normal_sample=" {input.vcf} | sed 's|##normal_sample=||g');
         bcftools view {input.vcf} | 
-        sed "s|$tsamp|TUMOR|g" | sed "s|$nsamp|NORMAL|g" |  
+        perl -ne 'if(/^\#\#normal_sample=(.+)$/){{$norm=$1;}}if(/tumor_sample=(.+)$/){{$tum = $1;}}s/(\s)$tum(\s)/$1TUMOR$2/;s/(\s)$norm(\s)/$1NORMAL$2/;print;'|
+        sed 's/##INFO=<ID=AS_FilterStatus,Number=A/##INFO=<ID=AS_FilterStatus,Number=1/' |   
         bcftools view  -s "NORMAL,TUMOR" -i 'FMT/DP[@{input.table}] >= 10 && FMT/AD[@{input.table}:1] >= 4 && FMT/AF[@{input.table}:0] >= 0.1' 
         -Oz -o {output.vcf} 2> {log.stderr} && 
         tabix -p vcf {output.vcf} 2>> {log.stderr}
@@ -450,4 +454,5 @@ rule _slms_3_all:
 
 # Perform some clean-up tasks, including storing the module-specific
 # configuration on disk and deleting the `CFG` variable
-# op.cleanup_module(CFG_SLMS3)
+CFG=CFG_SLMS3
+op.cleanup_module(CFG)

@@ -8,11 +8,9 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
             # Available wildcards: {seq_type} {genome_build} {tumour_id} 
-            # Note: SLMS-3 outputs are recommended. 
-            # The pipeline will take any VCF where the samples are labeled 'TUMOR' and 'NORMAL', 
-            # and where the VCF is annotated with "AD" and "DP" fields. 
+            # Note: Only outputs of running Strelka in matched normal mode are accepted
             # Must be in bgzip with `.vcf.gz` extension. 
-            slms3_vcf: "__UPDATE__" 
+            strelka_vcf: "__UPDATE__" 
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             # Note: These are output by the gripss somatic filtering step of the gridss module
             gridss_somatic: "__UPDATE__" # Output of GRIPSS
@@ -61,15 +59,15 @@ lcr-modules:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
-            amber: "{MODSDIR}/envs/hmftools-amber-3.5.yaml"
-            cobalt: "{MODSDIR}/envs/hmftools-cobalt-1.11.yaml"
-            purple: "{MODSDIR}/envs/hmftools-purple-2.54.yaml"
-            linx: "{MODSDIR}/envs/hmftools-linx-1.15.yaml"
-            linx_annotate: "{MODSDIR}/envs/hmftools-linx-1.15.yaml"
+            amber: "{MODSDIR}/envs/hmftools-amber-3.4.yaml"
+            cobalt: "{MODSDIR}/envs/hmftools-cobalt-1.9.yaml"
+            purple: "{MODSDIR}/envs/hmftools-purple-2.48.yaml"
+            linx: "{MODSDIR}/envs/hmftools-linx-1.11.yaml"
             snpeff: "{MODSDIR}/envs/snpeff-4.3.1t.yaml"
             
         threads:
-            vcf_sample_names: 1
+            strelka_sample_names: 1
+            annotate_strelka: 4
             snpeff: 4
             amber: 16
             cobalt: 16
@@ -78,8 +76,10 @@ lcr-modules:
             linx_viz: 8
 
         resources:
-            vcf_sample_names: 
+            strelka_sample_names: 
                 mem_mb: 1000
+            annotate_strelka:  
+                mem_mb: 5000
             snpeff: 
                 mem_mb: 5000
             amber:  

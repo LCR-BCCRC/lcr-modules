@@ -1,0 +1,62 @@
+lcr-modules:
+    
+    gridss:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        scratch_subdirectories: [] # Recommended: ["gridss", "preprocess"]
+
+        options:
+            gridss: 
+                --picardoptions VALIDATION_STRINGENCY=SILENT
+            filter_unpaired: 
+            gripss: 
+            # Hard filters remove variants from output VCF
+            # Soft filters add flags to output VCF
+            # These flags don't work with the current version of GRIPSS
+            # A fix is being prepared by the developers
+                -hard_max_normal_absolute_support 3
+                -hard_max_normal_relative_support 0.06
+                -soft_max_normal_relative_support 0.03       
+        
+        conda_envs:
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+            gridss: "{MODSDIR}/envs/gridss-2.12.0.yaml"
+            gripss: "{MODSDIR}/envs/hmftools-gripss-1.11.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
+            
+        threads:
+            preprocess: 8
+            gridss: 24
+            repeatmasker: 24
+            filter_gridss: 1
+            gripss: 1 # Not multi-threaded
+            split: 1
+
+        resources:
+            preprocess: 
+                mem_mb: 37500
+                preprocess: 1
+            gridss: 
+                mem_mb: 37500 # Recommended per GRIDSS manual
+                gridss: 1
+            repeatmasker: 
+                mem_mb: 100000
+            gripss: 
+                mem_mb: 20000 # May need to be increased for FFPE tumours
+            split: 
+                mem_mb: 2000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
