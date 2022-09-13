@@ -154,6 +154,7 @@ rule _phylowgs_input_maf:
         maf = CFG["inputs"]["maf"],
     output:
         maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf",
+    group: "input_maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
 
@@ -165,6 +166,7 @@ rule _phylowgs_input_battenberg:
     output:
         cellularity = CFG["dirs"]["inputs"] + "battenberg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.cellularity_ploidy.txt",
         subclones = CFG["dirs"]["inputs"] + "battenberg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.subclones.txt"
+    group: "input_battenberg"
     run:
         op.absolute_symlink(input.cellularity, output.cellularity)
         op.absolute_symlink(input.subclones, output.subclones)
@@ -187,6 +189,7 @@ rule _phylowgs_parse_battenberg:
         CFG["threads"]["create_inputs"]
     resources:
         **CFG["resources"]["create_inputs"]
+    group: "input_battenberg"
     shell:
         op.as_one_line("""
         cellularity=$(tail -n +2 {input.cellularity} | cut -f 1);
@@ -203,6 +206,7 @@ rule _phylowgs_maf_to_vcf:
         vcf = temp(CFG['dirs']['maf_to_vcf'] + "{seq_type}--{genome_build}/{patient_id}/{tumour_id}--{normal_id}--{pair_status}.maf_to.vcf")
     conda:
         CFG["conda_envs"]["vcf2maf"]
+    group: "input_maf"
     shell:
         op.as_one_line("""
         maf2vcf.pl --input-maf {input.maf} --output-dir $(dirname {output.vcf}) --output-vcf {output.vcf} --ref-fasta {input.fasta}
