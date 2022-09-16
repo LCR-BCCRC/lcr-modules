@@ -1,0 +1,34 @@
+lcr-modules:
+    
+    phase_variants:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            vcf: "__UPDATE__" #needs to be a vcf with 10 columns with tumour snvs in column 10, or leave blank to use clair variant calls
+        
+        scratch_subdirectories: []
+
+        conda_envs:
+            clair3: "{MODSDIR}/envs/clair3.yaml"
+            whatshap: "{MODSDIR}/envs/whatshap.yaml"
+
+        threads:
+            clair3: 50
+            whatshap: 50
+
+        mem_mb:
+            clair3: 25000
+            whatshap: 25000
+            
+        clair3:
+            platform: "__UPDATE__" #Update sequencing platform select from {ont,hifi,ilmn} 
+            model: "__UPDATE__" #Update to select appropriate model from {r941_prom_sup_g5014,r941_prom_hac_g360+g422,hifi,ilmn} recommended r941_prom_hac_g360+g422 for GSC bams for more info see https://github.com/HKU-BAL/Clair3    
+            filter: "__UPDATE__" #Update to set variant quality cut off for filtering to select high confidence variants for phasing recommended cut off of 20 
+
+        pairing_config:
+            promethION:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+
