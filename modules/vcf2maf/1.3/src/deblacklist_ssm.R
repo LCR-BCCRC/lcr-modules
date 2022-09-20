@@ -13,8 +13,8 @@ library(readr)
 library(glue)
 
 genome_build = ifelse(
-    str_detect(snakemake@wildcards[["genome_build"]], "38"), 
-    "hg38", 
+    str_detect(snakemake@wildcards[["genome_build"]], "38"),
+    "hg38",
     "grch37"
 )
 
@@ -27,16 +27,23 @@ maf = snakemake@input[["maf"]]
 
 seq_type = if (seq_type_param == "both") c("genome", "capture") else snakemake@wildcards[["seq_type"]]
 
-fread_maf(maf) %>% 
-    mutate(Chromosome = as.character(Chromosome)) %>% 
+this_maf = fread_maf(maf)
+
+if (nrow(this_maf)>0){
+    this_maf %>%
+    mutate(Chromosome = as.character(Chromosome)) %>%
     annotate_ssm_blacklist(
-        genome_build = genome_build, 
-        blacklist_file_template = blacklist_template, 
-        project_base = project_base, 
-        seq_type = seq_type, 
-        verbose = TRUE, 
+        genome_build = genome_build,
+        blacklist_file_template = blacklist_template,
+        project_base = project_base,
+        seq_type = seq_type,
+        verbose = TRUE,
         drop_threshold = drop_threshold
-    ) %>% 
+    ) %>%
     write_tsv(snakemake@output[["maf"]])
+} else {
+    message(paste("WARNING: Detected 0 vartiants for the sample", snakemake@wildcards[["tumour_id"]]))
+    this_maf %>% write_tsv(snakemake@output[["maf"]])
+}
 
 sink()

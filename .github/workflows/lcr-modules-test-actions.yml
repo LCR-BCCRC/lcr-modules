@@ -1,0 +1,56 @@
+name: lcr-modules
+on: 
+    pull_request:
+        types: [opened, edited]
+permissions: read-all
+defaults:
+    run:
+        shell: bash
+env:
+    LCR_MODULE_REF: "/reference/lcr-modules-reference/"  # Thanos-specific
+    LCR_MODULE_DEMODATA: "/reference/lcr-modules-reference/demo"
+jobs:
+    run-capture-demo:
+        # INCLUDE SELF-HOSTED, OTHERWISE IT USES THE CLOUD AND WILL START COSTING US $$$$
+        # These tags are specified by the runner
+        runs-on: [self-hosted, linux]
+        steps:
+            # SETUP SOFTWARE
+            # Clone repos
+          - name: Checkout lcr-modules repo
+            uses: actions/checkout@v3
+            with:
+                path: lcr-modules
+          - name: Checkout lcr-scripts repo
+            uses: actions/checkout@v3
+            with:
+                repository: LCR-BCCRC/lcr-scripts
+                path: lcr-scripts
+            # As the github actions for installing conda are GARBAGE, here we will use a user-account install
+            # I am assuming the user has installed miniconda3 in their home directory
+          - name: Setup conda and mamba
+            run: $HOME/miniconda3/bin/conda install -c conda-forge mamba 'python>3.8'
+            # Install python dependencies
+          - name: Install oncopipe
+            run: pip install -e $GITHUB_WORKSPACE/lcr-modules/oncopipe/
+          - name: Symlink reference directory
+            run: ln -s $LCR_MODULE_REF $GITHUB_WORKSPACE/lcr-modules/demo/reference
+
+            # SETUP DEMO DATA
+          - name: Download demo data
+            uses: actions/checkout@v3
+            with:
+                    repository: LCR-BCCRC/lcr-modules-demo
+                    path: lcr-modules-demo
+          - name: Link demo data
+            run: ln -s $GITHUB_WORKSPACE/lcr-modules-demo/*.bam $GITHUB_WORKSPACE/lcr-modules-demo/*.bai $GITHUB_WORKSPACE/lcr-modules/ci/data/
+
+            # RUN TESTS
+          - name: Capture dry run
+            run: cd $GITHUB_WORKSPACE/lcr-modules/ci/ && ./dry-run.sh capture_Snakefile.smk all "-p"
+          - name: Capture run
+            run: cd $GITHUB_WORKSPACE/lcr-modules/ci/ && ./run.sh capture_Snakefile.smk all "-p" 10
+            # Cleanup
+          - name: Cleanup results
+            #if: always()
+            run: rm -r $GITHUB_WORKSPACE/lcr-modules/demo/results/

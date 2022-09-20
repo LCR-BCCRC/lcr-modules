@@ -98,6 +98,7 @@ rule _cnvkit_filter_main_chrs:
 def _cnvkit_get_normals(wildcards):
     CFG = config["lcr-modules"]["cnvkit"]
     capture_space = CFG["runs"][CFG["runs"]["normal_capture_space"].isin([wildcards.capture_space])]
+    capture_space = capture_space[capture_space["normal_genome_build"].isin([wildcards.genome_build])]
     capture_space = capture_space[capture_space["normal_seq_type"].isin([wildcards.seq_type])]
     normals = expand(CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}.bam", 
                     zip,
@@ -114,8 +115,8 @@ def _cnvkit_get_capspace(wildcards):
     # default is just taking values from genome_build and capture_space in metadata
     default_bed = reference_files("genomes/" + wildcards.genome_build + "/capture_space/" + wildcards.capture_space + ".bed") 
     # if there is a custom bed in the config that pertains to the capture_space variable, then use that
-    if str(wildcards.capture_space) in CFG["options"]["target_bed"].keys():
-        bed = CFG["options"]["target_bed"][wildcards.capture_space]
+    if wildcards.genome_build in CFG["options"]["target_bed"] and str(wildcards.capture_space) in CFG["options"]["target_bed"][wildcards.genome_build].keys():
+        bed = CFG["options"]["target_bed"][wildcards.genome_build][wildcards.capture_space]
     # if there is "none" instead, then we go towards the default, which is the full exon-space
     elif "none" in str({wildcards.capture_space}):
         if "38" in str({wildcards.genome_build}):
@@ -194,6 +195,7 @@ def get_normals_target(wildcards):
     CFG = config["lcr-modules"]["cnvkit"]
     runs = CFG["runs"]
     platform = runs[runs['tumour_capture_space'].isin([wildcards.capture_space])]
+    platform = platform[platform['tumour_genome_build'].isin([wildcards.genome_build])]
     normals = expand(CFG["dirs"]["coverage"] +  "target/{seq_type}--{genome_build}/{capture_space}/{normal_id}.targetcoverage.cnn", 
                         zip,
                         seq_type = platform['tumour_seq_type'],
@@ -207,6 +209,7 @@ def get_normals_anti(wildcards):
     CFG = config["lcr-modules"]["cnvkit"]
     runs = CFG["runs"]
     platform = runs[runs['tumour_capture_space'].isin([wildcards.capture_space])]
+    platform = platform[platform['tumour_genome_build'].isin([wildcards.genome_build])]
     normals = expand(CFG["dirs"]["coverage"] +  "antitarget/{seq_type}--{genome_build}/{capture_space}/{normal_id}.antitargetcoverage.cnn", 
                         zip,
                         seq_type = platform['tumour_seq_type'],

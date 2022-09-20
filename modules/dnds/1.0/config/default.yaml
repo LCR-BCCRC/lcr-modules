@@ -1,0 +1,42 @@
+lcr-modules:
+
+    dnds:
+
+        inputs:
+            # Available wildcards: {seq_type}
+            master_maf: "__UPDATE__"
+            sample_sets: "__UPDATE__"
+        sample_set: ["__UPDATE__"]
+        seq_types: ["genome", "capture"]
+        include_non_coding: True
+        prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
+        src_dir: "{MODSDIR}/src/"
+
+        options:
+            target_genes: "" # optionally, specify path to the genes of interest if this is a targeted sequencing
+                            # this will restrict SMG search to only these genes
+                            # this is a tsv file that contain one gene symbol/row and is expected to be without header
+            max_muts_per_gene_per_sample: Inf # How many mutations/gene dNdS should consider?
+                                            # This default value will consider all mutations/gene.
+                                            # When modified, this should be integer number.
+
+        conda_envs:
+            prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
+            dnds: "{MODSDIR}/envs/dnds.yaml"
+
+        threads:
+            dnds: 2
+
+        resources:
+            dnds:
+                mem_mb: 36000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False

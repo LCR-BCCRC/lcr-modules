@@ -113,6 +113,7 @@ rule _lofreq_run:
         else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
         """)
 
+
 # indels are not yet called but this rule merges the empty indels file with the snvs file to produce the consistently named "combined" vcf. 
 rule _lofreq_combine_vcf:
     input:

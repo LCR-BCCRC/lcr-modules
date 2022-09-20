@@ -377,7 +377,6 @@ class SomaticSNVCaller(object):
                 #return self.num_tests_from_log(elines)
             else:
                 assert not os.path.exists(out_log)
-        print(f"HERE! {cmd}")
         (o, e) = self.subprocess_wrapper(cmd, close_tmp=False)
         fh = open(out_log, 'w')
         fh.write('# %s\n' % ' '.join(cmd))
@@ -400,7 +399,7 @@ class SomaticSNVCaller(object):
         from relaxed calls
         """
 
-        num_snv_tests, num_indel_tests = num_tests 
+        num_snv_tests, num_indel_tests = num_tests
         assert sample_type in ['normal', 'tumor']
 
         # filtering stringently using tumor stringent settings
@@ -826,7 +825,7 @@ def main():
         somatic_snv_caller = SomaticSNVCaller(
             bam_n=args.normal, bam_t=args.tumor, ref=args.ref,
             outprefix=args.outprefix, bed=args.bed, dbsnp=args.dbsnp,
-            continue_interrupted=args.continue_interrupted, 
+            continue_interrupted=args.continue_interrupted,
             normal_only=args.normal_only)
     except AssertionError as e:
         LOG.fatal("%s" % str(e))
