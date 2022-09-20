@@ -103,7 +103,7 @@ rule _clair3:
     shell:
          op.as_one_line("""run_clair3.sh  
             -b {input.bam} -f {input.fasta} -t {threads} -p {params.platform}
-            -m ${{CONDA_PREFIX}}/{params.model} -o {params.dir}
+            -m ${{CONDA_PREFIX}}{params.model} -o {params.dir}
             --remove_intermediate_dir --enable_phasing
             2> {log.stderr} """)
 

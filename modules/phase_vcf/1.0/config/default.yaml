@@ -5,7 +5,9 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
-            vcf: "__UPDATE__" #needs to be a vcf with 10 columns with tumour snvs in column 10, or leave blank to use clair variant calls
+            vcf: "__UPDATE__" #Update path to vcfs to use variant calls from short-reads or leave blank to run clair3 and use long-read variant calls
+                              #needs to be a vcf with variant calls from single sample
+                              # ie if variant calls are from tumour-normal pairs vcf should contain only calls from tumour  
         
         scratch_subdirectories: []
 
