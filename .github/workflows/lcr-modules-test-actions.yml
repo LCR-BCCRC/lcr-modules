@@ -1,7 +1,7 @@
 name: lcr-modules
-on: 
-    pull_request:
-        types: [opened, edited]
+on: [push]
+#    pull_request:
+#        types: [opened, edited]
 permissions: read-all
 defaults:
     run:
