@@ -6,7 +6,7 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
             vcf: "__UPDATE__" #Update path to bgzipped phased vcf
-            index: "__UPDATE__" #Update path to vcf index
+            index: "__UPDATE__" #Update path to phased vcf index
 
         scratch_subdirectories: []
 
