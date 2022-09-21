@@ -377,6 +377,7 @@ class SomaticSNVCaller(object):
                 #return self.num_tests_from_log(elines)
             else:
                 assert not os.path.exists(out_log)
+        print(f"HERE! {cmd}")
         (o, e) = self.subprocess_wrapper(cmd, close_tmp=False)
         fh = open(out_log, 'w')
         fh.write('# %s\n' % ' '.join(cmd))

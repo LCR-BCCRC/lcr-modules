@@ -34,7 +34,7 @@ jobs:
           - name: Install oncopipe
             run: pip install -e $GITHUB_WORKSPACE/lcr-modules/oncopipe/
           - name: Symlink reference directory
-            run: ln -s $LCR_MODULE_REF $GITHUB_WORKSPACE/lcr-modules/demo/reference
+            run: ln -s $LCR_MODULE_REF $GITHUB_WORKSPACE/lcr-modules/ci/reference
 
             # SETUP DEMO DATA
           - name: Download demo data
@@ -53,4 +53,4 @@ jobs:
             # Cleanup
           - name: Cleanup results
             #if: always()
-            run: rm -r $GITHUB_WORKSPACE/lcr-modules/demo/results/
+            run: rm -r $GITHUB_WORKSPACE/lcr-modules/ci/results/
