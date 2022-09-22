@@ -55,7 +55,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "nanomethphase",
     version = "1.0",
-    subdirectories = ["inputs", "methyl_call", "clair3", "filter_clair3", "whatshap_phase_vcf","nanomethphase","outputs"]
+    subdirectories = ["inputs", "methyl_call", "nanomethphase","outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -73,15 +73,21 @@ rule _promethion_input:
     input:
         bam = CFG["inputs"]["sample_bam"],
         bai = CFG["inputs"]["sample_bai"],
-        mc = CFG["inputs"]["meth_calls"]
+        mc = CFG["inputs"]["meth_calls"],
+        vcf = CFG["inputs"]["vcf"],
+        index = CFG["inputs"]["index"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
-        mc = CFG["dirs"]["inputs"] + "meth_calls/{seq_type}--{genome_build}/{sample_id}.calls.tsv.gz"
+        mc = CFG["dirs"]["inputs"] + "meth_calls/{seq_type}--{genome_build}/{sample_id}.calls.tsv.gz",
+        vcf = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.vcf.gz",
+        index = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.vcf.gz.tbi"
     run:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
         op.absolute_symlink(input.mc, output.mc)
+        op.absolute_symlink(input.vcf, output.vcf)
+        op.absolute_symlink(input.index, output.index)
 
 rule _methyl_call_processor:
     input:
@@ -102,64 +108,11 @@ rule _methyl_call_processor:
         sort -k1,1 -k2,2n -k3,3n | bgzip > {output.bed} && tabix -p bed {output.bed}
         """)   
 
-rule _clair3:
-    input:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
-    params: 
-        model = CFG["clair3"]["model"],
-        dir = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}"
-    threads:
-        CFG["threads"]["clair3"]    
-    conda :
-        CFG["conda_envs"]["clair3"]  
-    resources: 
-        mem_mb = CFG["mem_mb"]["clair3"]     
-    log:
-        stderr = CFG["logs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/clair3.stderr.log"    
-    output:
-        vcf = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/phased_merge_output.vcf.gz"       
-    shell:
-         op.as_one_line("""run_clair3.sh  
-            -b {input.bam} -f {input.fasta} -t {threads} -p "ont"
-            -m {params.model} -o {params.dir}
-            --remove_intermediate_dir --enable_phasing """)
-
-rule _filter_clair3:
-    input:
-        vcf = str(rules._clair3.output.vcf)
-    output: 
-        filtered = CFG["dirs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}.filtered_phased_merged.vcf.gz"
-    log:
-        stderr = CFG["logs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}/filter_clair3.stderr.log"      
-    shell :
-        "zcat {input.vcf} | awk '$6 > 20' | gzip > {output.filtered}"       
-
-rule _whatshap_phase_vcf:
-    input:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        vcf = CFG["inputs"]["vcf"] 
-    conda :
-        CFG["conda_envs"]["whatshap"] 
-    resources: 
-        mem_mb = CFG["mem_mb"]["whatshap"]        
-    log:
-        stderr = CFG["logs"]["whatshap_phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/whatshap_phase_vcf.stderr.log"    
-    output:
-        vcf = temp(CFG["dirs"]["whatshap_phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}.output.vcf"),
-        vcf_gz = CFG["dirs"]["whatshap_phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}.output.vcf.gz"
-    shell:
-        op.as_one_line(""" whatshap phase --ignore-read-groups --sample={wildcards.sample_id} -o {output.vcf} 
-            --reference={input.fasta} {input.vcf} {input.bam} 
-            && bgzip -c {output.vcf} > {output.vcf_gz} """)
-
-
 rule _nanomethphase:
     input:  
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        vcf = str(rules._whatshap_phase_vcf.output.vcf_gz) if CFG["inputs"]["vcf"] else str(rules._filter_clair3.output.filtered),
+        vcf = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.vcf.gz",
         mc = str(rules._methyl_call_processor.output.bed)
     threads:
         CFG["threads"]["nanomethphase"]

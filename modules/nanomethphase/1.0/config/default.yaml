@@ -5,32 +5,22 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
-            meth_calls: "__UPDATE__"
-            vcf: "__UPDATE__" #needs to be a vcf with gt info and variants from a single sample in column 10 
-			      #ie if run matched tumour normal vcf should contain only calls from tumour, 
-			      #or leave blank to use clair3 variant calls
+            meth_calls: "__UPDATE__" #Update to path of nanopolish meth calls
+            vcf: "__UPDATE__" #Update to path of bgzipped phased vcf
+            index: "__UPDATE__" #Update to path phased vcf index 
         
         scratch_subdirectories: []
 
         conda_envs:
             nanomethphase: "{MODSDIR}/envs/nanomethphase.yaml"
-            clair3: "{MODSDIR}/envs/clair3.yaml"
-            whatshap: "{MODSDIR}/envs/whatshap.yaml"
 
         threads:
             methyl_call: 20
             nanomethphase: 50
-            clair3: 50
             
         mem_mb:
             methyl_call: 25000 
-            clair3: 25000
-            whatshap: 25000
             
-        clair3:
-            model: "{CONDA_PREFIX}/bin/models/{model_name}" #Update to conda prefix of Clair3 environment and select appropriate model recommended r941_prom_hac_g360+g422 for GSC bams
-            platform: "__UPDATE__" #select from {"ont","hifi","ilm"}
-
         pairing_config:
             promethION:
                 run_paired_tumours: False
