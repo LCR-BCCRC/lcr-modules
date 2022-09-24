@@ -208,7 +208,7 @@ if CFG["igblastn"]:
     rule _mixcr_to_fasta:
         input:
             mixcr_finished = str(rules._mixcr_run.output.txt),
-            mixcr_chains = str(rules._mixcr_run.output.results),
+            mixcr_chains = rules._mixcr_run.output.results,
             mixcr_results = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.txt",
             script = CFG["igblast_scripts"]["mixcr2fasta"]
         output:
