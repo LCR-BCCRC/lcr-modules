@@ -1,0 +1,29 @@
+lcr-modules:
+    
+    nanomethphase:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            meth_calls: "__UPDATE__" #Update to path of nanopolish meth calls
+            vcf: "__UPDATE__" #Update to path of bgzipped phased vcf
+            index: "__UPDATE__" #Update to path phased vcf index 
+        
+        scratch_subdirectories: []
+
+        conda_envs:
+            nanomethphase: "{MODSDIR}/envs/nanomethphase.yaml"
+
+        threads:
+            methyl_call: 20
+            nanomethphase: 50
+            
+        mem_mb:
+            methyl_call: 25000 
+            
+        pairing_config:
+            promethION:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+
