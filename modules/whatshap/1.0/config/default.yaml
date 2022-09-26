@@ -1,0 +1,27 @@
+lcr-modules:
+    
+    whatshap:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            vcf: "__UPDATE__" #Update path to bgzipped phased vcf
+            index: "__UPDATE__" #Update path to phased vcf index
+
+        scratch_subdirectories: []
+
+        conda_envs:
+            whatshap: "{MODSDIR}/envs/whatshap.yaml"
+
+        threads:
+            whatshap: 50
+
+        mem_mb:
+            whatshap: 25000
+            
+        pairing_config:
+            promethION:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+
