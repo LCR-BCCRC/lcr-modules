@@ -402,8 +402,6 @@ rule _vcf2maf_reannotate:
         opts = CFG["options"]["maf2maf"],
         build = lambda w: VCF2MAF_VERSION_MAP[w.target_build],
         custom_enst = lambda w: "--custom-enst " + str(config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.target_build]]) if config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.target_build]] != "" else ""
-    #wildcard_constraints:
-    #    target_build = lambda w: "grch37" if "38" in str(get_original_genome(wildcards)[0]) else "hg38"
     conda:
         CFG["conda_envs"]["vcf2maf"]
     threads:
