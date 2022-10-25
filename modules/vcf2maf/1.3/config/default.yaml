@@ -23,6 +23,7 @@ lcr-modules:
             # --filter-vcf     A VCF for FILTER tag common_variant. Set to 0 to disable [~/.vep/ExAC_nonTCGA.r0.3.1.sites.vep.vcf.gz]
             #--species        Ensembl-friendly name of species (e.g. mus_musculus for mouse) [homo_sapiens]
             #--cache-version  Version of offline cache to use with VEP (e.g. 75, 84, 91) [Default: Installed version]
+            maf2maf: "--cache-version 86 --species homo_sapiens --retain-cols gnomAD_AF,gnomADg_AF"
             species: "homo_sapiens"
             gnomAD_cutoff: 0.001 # cut-off to be used for AF frequency of germline variants in gnomAD
             target_builds: ["hg38", "grch38", "hg19", "grch37"]  # Target genome builds for chr-prefixing and CrossMap
@@ -50,6 +51,7 @@ lcr-modules:
             
         threads:
             vcf2maf: 12
+            maf2maf: 4
             annotate: 4
             deblacklist: 1
             augment: 12
@@ -58,6 +60,9 @@ lcr-modules:
             vcf2maf: 
                 mem_mb: 12000
                 vcf: 1
+            maf2maf: 
+                mem_mb: 12000
+                maf: 1
             augment: 
                 mem_mb: 12000
                 augment: 1
