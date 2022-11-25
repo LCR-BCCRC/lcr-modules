@@ -36,6 +36,8 @@ lcr-modules:
             seg:
                 original: "results/sequenza-1.4/99-outputs/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
                 projection: "results/sequenza-1.4/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+            txt:
+                segments: "results/sequenza-1.4/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.txt"
             # specify in which projections you want the output files
             requested_projections: ["grch37", "hg38"]
 
