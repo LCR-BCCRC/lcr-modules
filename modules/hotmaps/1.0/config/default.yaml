@@ -1,0 +1,26 @@
+lcr-modules:
+    
+    hotmaps:
+
+        # TODO: Update the list of available wildcards, if applicable
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_maf: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            step_1: ""
+            step_2: ""
+
+        conda_envs:
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            
+        threads:
+            step_1: 4
+
+        resources:
+            step_1: 
+                mem_mb: 2000
+            
+        pairing_config:
