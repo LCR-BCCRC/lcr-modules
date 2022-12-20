@@ -535,10 +535,22 @@ def _purecn_gatk_coverage_get_chr_depth(wildcards):
         chrom = chrs
     )
     return(coverage)
+    
+def _purecn_gatk_coverage_get_chr_statistics(wildcards):
+    CFG = config["lcr-modules"]["purecn"]
+    chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
+    with open(chrs) as file:
+        chrs = file.read().rstrip("\n").split("\n")
+    statistics = expand(
+        CFG["dirs"]["coverage"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}/{{sample_id}}_coverage_gatk_{chrom}.sample_interval_statistics", 
+        chrom = chrs
+    )
+    return(statistics)
 
 rule _purecn_gatk_coverage_concatenate_depths:
     input: 
         depth = _purecn_gatk_coverage_get_chr_depth,
+        statistics = _purecn_gatk_coverage_get_chr_statistics,
     output: 
         depth = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_coverage_gatk.sample_interval_summary"
     shell: 
@@ -553,6 +565,7 @@ rule _purecn_gatk_coverage_concatenate_depths:
 
 
 # Generate pureCN coverage files for all - used only in de novo pureCN
+# Using GATK depthOfCoverage to generate all coverage files; pureCN used to normalize by GC
 rule _purecn_coverage:
     input:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",

@@ -124,7 +124,7 @@ bamorcram <- function(file){
 
 
 getCoverageBams <- function(bamFiles, indexFiles, outdir, interval.file, reference,
-    force = FALSE, keep.duplicates = FALSE, remove_mapq0 = FALSE, name, samtools) {
+    force = FALSE, keep.duplicates = FALSE, remove_mapq0 = FALSE, name) {
 
     bamFiles <- bamFiles
     indexFiles <- indexFiles
@@ -133,34 +133,12 @@ getCoverageBams <- function(bamFiles, indexFiles, outdir, interval.file, referen
     force <- force
     name <- name
     reference <- reference
-    samtools <- samtools
     
     file.type = bamorcram(bamFiles)
     
     if (is.null(file.type))
       stop("Cannot read from file - it is not a valid BAM or CRAM.")
-    
-    ref = ''
-    if (file.type == 'cram'){
-      sl = tryCatch(seqlengths(FaFile(reference)), error = function(e) NULL)
-      if (is.null(sl))
-        stop("Valid fasta file must be provided with CRAM.")
-      ref = paste('-T', reference)
-    }
-    else{
-      sl = seqlengths(BamFile(bamFiles))
-    } 
-    
-    # cmd = '%s view %s %s %s -q %s ' 
-    # | cut -f "3,4,9" - this would take chrom, start, cov
-    
-    # st.flag = "-f 0x02 -F 0x10"
-    # min.mapq = 30
-    
-    # bamFiles = pipe(sprintf(cmd, samtools, ref, st.flag, bamFiles, min.mapq), open = 'r')
-    # bamFiles = system(sprintf(cmd, samtools, ref, st.flag, bamFiles, min.mapq))
-    
-    
+
     .getCoverageBam <- function(bam.file, index.file = NULL, outdir,
         interval.file, force) {
         checkDataTableVersion()
@@ -250,7 +228,7 @@ if (!is.null(bam.file)) {
         stop("List of BAM files and BAI files of different length.")
     }    
     
-    coverageFiles <- getCoverageBams(bamFiles, indexFiles, outdir, interval.file, reference, force, opt$keep_duplicates, opt$remove_mapq0, opt$name, opt$samtools)
+    coverageFiles <- getCoverageBams(bamFiles, indexFiles, outdir, interval.file, reference, force, opt$keep_duplicates, opt$remove_mapq0, opt$name)
   }
   else if(file.type == 'cram'){
     flog.info("CRAM file - coverage file should be included in params.")
