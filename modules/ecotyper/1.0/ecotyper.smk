@@ -42,10 +42,11 @@ CFG = op.setup_module(
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _ecotyper_input_tsv,
-    _ecotyper_step_2,
-    _ecotyper_output_tsv,
-    _ecotyper_all,
+    _ecotyper_install,
+    _ecotyper_input_matrix,
+    _ecotyper_input_annotations,
+    _ecotyper_output_assignments,
+    _ecotyper_all
 
 
 ##### RULES #####
