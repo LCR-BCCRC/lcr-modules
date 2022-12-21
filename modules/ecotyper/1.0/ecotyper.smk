@@ -107,9 +107,9 @@ rule _ecotyper_create_mapping:
     conda:
         CFG["conda_envs"]["ecotyper"]
     threads:
-        CFG["threads"]["preprocessing"]
+        CFG["threads"]["processing"]
     resources:
-        **CFG["resources"]["preprocessing"]
+        **CFG["resources"]["processing"]
     group:
         "preprocessing"
     script:
@@ -123,7 +123,7 @@ rule _ecotyper_run:
         ge_matrix = str(rules._ecotyper_create_mapping.output.ge_matrix),
         annotations = str(rules._ecotyper_create_mapping.output.annotations)
     output:
-        b_cell_assinments = CFG["dirs"]["ecotyper"] + "RecoveryOutput/bulk_lymphoma_data/B.cells/state_assignment.txt",
+        b_cell_assignments = CFG["dirs"]["ecotyper"] + "RecoveryOutput/bulk_lymphoma_data/B.cells/state_assignment.txt",
         b_cell_heatmap = CFG["dirs"]["ecotyper"] + "RecoveryOutput/bulk_lymphoma_data/B.cells/state_assignment_heatmap.pdf",
         ecotype_assignments = CFG["dirs"]["ecotyper"] + "RecoveryOutput/bulk_lymphoma_data/Ecotypes/ecotype_assignment.txt",
         ecotype_heatmap = CFG["dirs"]["ecotyper"] + "RecoveryOutput/bulk_lymphoma_data/Ecotypes/heatmap_assigned_samples_viridis.pdf"
@@ -149,25 +149,27 @@ rule _ecotyper_run:
         -m {input.ge_matrix}
         -a {input.annotations}
         {params.opts}
-        -o $(realpath $(dirname {params.out_dir}))
+        -o $(realpath $(dirname {params.out_dir}))"/RecoveryOutput"
         -t {threads}
         > {log.stdout} 2> {log.stderr}
         """)
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _ecotyper_step_2:
+# Postprocess outputs to return to the same sample ids
+rule _ecotyper_postprocess:
     input:
-        tsv = str(rules._ecotyper_step_1.output.tsv)
+        mapping = str(rules._ecotyper_create_mapping.output.mapping),
+        b_cell_assignments = str(rules._ecotyper_run.output.b_cell_assignments)
     output:
-        tsv = CFG["dirs"]["ecotyper"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.tsv"
-    log:
-        stderr = CFG["logs"]["ecotyper"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.tsv} > {output.tsv} 2> {log.stderr}"
+        complete = CFG["dirs"]["ecotyper"] + "RecoveryOutput/bulk_lymphoma_data/mapping_complete"
+    conda:
+        CFG["conda_envs"]["ecotyper"]
+    threads:
+        CFG["threads"]["processing"]
+    resources:
+        **CFG["resources"]["processing"]
+    script:
+        "src/R/postprocess.R"
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')

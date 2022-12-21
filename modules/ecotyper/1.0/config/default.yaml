@@ -12,17 +12,20 @@ lcr-modules:
 
         options:
             ecotyper_version: "cc92e8c" # here the sha for the commit of ecotyper version can be specified to clone a specific version
-
+            annotation_tracks: "-c pathology" # comma-separated list of columns from metadata to plot as annotations on heatmap
 
         conda_envs:
             ecotyper: "{MODSDIR}/envs/ecotyper.yaml"
 
         threads:
-            preprocessing: 2
+            processing: 2
+            ecotyper: 16
 
         resources:
-            preprocessing:
+            processing:
                 mem_mb: 20000
+            ecotyper:
+                mem_mb: 40000
 
         pairing_config:
             mrna:
