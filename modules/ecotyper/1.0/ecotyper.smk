@@ -54,17 +54,48 @@ localrules:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
-rule _ecotyper_input_tsv:
+# The gene expression matrix
+rule _ecotyper_input_matrix:
     input:
-        tsv = CFG["inputs"]["sample_tsv"]
+        ge_matrix = CFG["inputs"]["ge_matrix"]
     output:
-        tsv = CFG["dirs"]["inputs"] + "tsv/{seq_type}--{genome_build}/{sample_id}.tsv"
-    group: 
-        "input_and_step_1"
+        ge_matrix = CFG["dirs"]["inputs"] + "gene_expression.tsv"
+    group:
+        "preprocessing"
     run:
-        op.absolute_symlink(input.tsv, output.tsv)
+        op.absolute_symlink(input.ge_matrix, output.ge_matrix)
+
+# The annotations file
+rule _ecotyper_input_annotations:
+    input:
+        annotations = CFG["inputs"]["annotations"]
+    output:
+        annotations = CFG["dirs"]["inputs"] + "annotations.tsv"
+    group:
+        "preprocessing"
+    run:
+        op.absolute_symlink(input.annotations, output.annotations)
+
+
+# Preprocess matrix and annotations to prepare run
+rule _ecotyper_create_mapping:
+    input:
+        ge_matrix = str(rules._ecotyper_input_matrix.output.ge_matrix),
+        annotations = str(rules._ecotyper_input_annotations.output.annotations)
+    output:
+        mapping = CFG["dirs"]["ecotyper"] + "mapping.tsv",
+        ge_matrix = CFG["dirs"]["ecotyper"] + "mapped_ge_matrix.tsv",
+        annotations = CFG["dirs"]["ecotyper"] + "mapped_annotations.tsv"
+    conda:
+        CFG["conda_envs"]["ecotyper"]
+    threads:
+        CFG["threads"]["preprocessing"]
+    resources:
+        **CFG["resources"]["preprocessing"]
+    group:
+        "preprocessing"
+    script:
+        "src/R/preprocess.R"
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
@@ -87,7 +118,7 @@ rule _ecotyper_step_1:
         CFG["threads"]["step_1"]
     resources:
         **CFG["resources"]["step_1"]
-    group: 
+    group:
         "input_and_step_1"
     shell:
         op.as_one_line("""

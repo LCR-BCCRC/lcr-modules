@@ -1,11 +1,12 @@
 lcr-modules:
-    
+
     ecotyper:
 
         # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_tsv: "__UPDATE__"
+            ge_matrix: "__UPDATE__"
+            annotations: "__UPDATE__"
 
         scratch_subdirectories: []
 
@@ -14,15 +15,15 @@ lcr-modules:
             step_2: ""
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            
+            ecotyper: "{MODSDIR}/envs/ecotyper.yaml"
+
         threads:
             step_1: 4
 
         resources:
-            step_1: 
+            step_1:
                 mem_mb: 2000
-            
+
         pairing_config:
             mrna:
                 run_paired_tumours: True
