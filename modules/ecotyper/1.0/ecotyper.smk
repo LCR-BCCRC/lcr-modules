@@ -52,6 +52,22 @@ localrules:
 
 ##### RULES #####
 
+# Download ecotyper from git repo without cloning the repo itself
+# Decompress files into the 00-inputs
+# Since ecotyper is not tagged with versions, use a specific commit sha
+rule _ecotyper_install:
+    output:
+        ecotyper = CFG["dirs"]["inputs"] + "ecotyper/EcoTyper_recovery_bulk.R", # one of the files in the repo
+    params:
+        url = "https://github.com/digitalcytometry/ecotyper/archive/" + str(CFG["options"]["ecotyper_version"]) + ".tar.gz",
+        folder = CFG["dirs"]["inputs"]
+    shell:
+        op.as_one_line("""
+        mkdir {params.folder}/ecotyper
+            &&
+        wget -qO- {params.url} |
+        tar xzf - -C {params.folder}/ecotyper/ --strip-components=1
+        """)
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 # The gene expression matrix

@@ -11,8 +11,8 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
-            step_1: ""
-            step_2: ""
+            ecotyper_version: "cc92e8c" # here the sha for the commit of ecotyper version can be specified to clone a specific version
+
 
         conda_envs:
             ecotyper: "{MODSDIR}/envs/ecotyper.yaml"
