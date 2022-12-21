@@ -3,7 +3,11 @@ lcr-modules:
     ecotyper:
 
         inputs:
+            # Gene expression matrix. Must be in wide format with samples in columns, genes in rows
+            # First column must contain gene names (column-name agnostic)
+            # Ensembl columns "gene_id" and "ensembl_gene_id" are dropped by default
             ge_matrix: "__UPDATE__"
+            # Annotations for the samples. First column is required by Ecotyper to be "ID"
             annotations: "__UPDATE__"
 
         scratch_subdirectories: []

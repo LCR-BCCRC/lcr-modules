@@ -25,7 +25,7 @@ ge_matrix <- as.data.frame(
 )
 
 # Drop some columns if they are present in the matrix
-if("gene_id" in colnames(ge_matrix)){
+if("gene_id" %in% colnames(ge_matrix)){
     ge_matrix <- matrix[ , !names(matrix) %in% "gene_id"]
 }
 
