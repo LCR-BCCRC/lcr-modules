@@ -139,6 +139,8 @@ rule _ecotyper_run:
         CFG["threads"]["ecotyper"]
     resources:
         **CFG["resources"]["ecotyper"]
+    group:
+        "run"
     shell:
         op.as_one_line("""
         cd $(realpath $(dirname {input.ecotyper_script}))
@@ -168,19 +170,30 @@ rule _ecotyper_postprocess:
         CFG["threads"]["processing"]
     resources:
         **CFG["resources"]["processing"]
+    group:
+        "run"
     script:
         "src/R/postprocess.R"
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
-rule _ecotyper_output_tsv:
+rule _ecotyper_output_assignments:
     input:
-        tsv = str(rules._ecotyper_step_2.output.tsv)
+        mapping_complete = str(rules._ecotyper_postprocess.output.complete),
+        b_cell_assignments = str(rules._ecotyper_run.output.b_cell_assignments),
+        b_cell_heatmap = str(rules._ecotyper_run.output.b_cell_heatmap),
+        ecotype_assignments = str(rules._ecotyper_run.output.ecotype_assignments),
+        ecotype_heatmap = str(rules._ecotyper_run.output.b_cell_heatmap)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.tsv"
+        b_cell_assignments = CFG["dirs"]["outputs"] + "bulk_lymphoma_data/B.cells/state_assignment.txt",
+        b_cell_heatmap = CFG["dirs"]["outputs"] + "bulk_lymphoma_data/B.cells/state_assignment_heatmap.pdf",
+        ecotype_assignments = CFG["dirs"]["outputs"] + "bulk_lymphoma_data/Ecotypes/ecotype_assignment.txt",
+        ecotype_heatmap = CFG["dirs"]["outputs"] + "bulk_lymphoma_data/Ecotypes/heatmap_assigned_samples_viridis.pdf"
     run:
-        op.relative_symlink(input.tsv, output.tsv, in_module= True)
+        op.relative_symlink(input.b_cell_assignments, output.b_cell_assignments, in_module= True)
+        op.relative_symlink(input.b_cell_heatmap, output.b_cell_heatmap, in_module= True)
+        op.relative_symlink(input.ecotype_assignments, output.ecotype_assignments, in_module= True)
+        op.relative_symlink(input.ecotype_heatmap, output.ecotype_heatmap, in_module= True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -188,15 +201,13 @@ rule _ecotyper_all:
     input:
         expand(
             [
-                str(rules._ecotyper_output_tsv.output.tsv),
+                str(rules._ecotyper_output_assignments.output.b_cell_assignments),
+                str(rules._ecotyper_output_assignments.output.b_cell_heatmap),
+                str(rules._ecotyper_output_assignments.output.ecotype_assignments),
+                str(rules._ecotyper_output_assignments.output.ecotype_heatmap)
                 # TODO: If applicable, add other output rules here
-            ],
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            genome_build=CFG["runs"]["tumour_genome_build"],
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            ]
+        )
 
 
 ##### CLEANUP #####
