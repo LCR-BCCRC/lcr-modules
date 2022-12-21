@@ -37,12 +37,10 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "ecotyper",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "ecotyper", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _ecotyper_input_tsv,
     _ecotyper_step_2,
@@ -205,7 +203,6 @@ rule _ecotyper_all:
                 str(rules._ecotyper_output_assignments.output.b_cell_heatmap),
                 str(rules._ecotyper_output_assignments.output.ecotype_assignments),
                 str(rules._ecotyper_output_assignments.output.ecotype_heatmap)
-                # TODO: If applicable, add other output rules here
             ]
         )
 

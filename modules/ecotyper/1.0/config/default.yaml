@@ -2,9 +2,7 @@ lcr-modules:
 
     ecotyper:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
             ge_matrix: "__UPDATE__"
             annotations: "__UPDATE__"
 
