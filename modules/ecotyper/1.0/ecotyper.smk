@@ -57,10 +57,12 @@ localrules:
 # Since ecotyper is not tagged with versions, use a specific commit sha
 rule _ecotyper_install:
     output:
-        ecotyper = CFG["dirs"]["inputs"] + "ecotyper/EcoTyper_recovery_bulk.R", # one of the files in the repo
+        ecotyper_script = CFG["dirs"]["inputs"] + "ecotyper/EcoTyper_recovery_bulk.R", # one of the files in the repo
     params:
         url = "https://github.com/digitalcytometry/ecotyper/archive/" + str(CFG["options"]["ecotyper_version"]) + ".tar.gz",
         folder = CFG["dirs"]["inputs"]
+    group:
+        "preprocessing"
     shell:
         op.as_one_line("""
         mkdir {params.folder}/ecotyper
@@ -114,32 +116,41 @@ rule _ecotyper_create_mapping:
         "src/R/preprocess.R"
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _ecotyper_step_1:
+# Run ecotyper recovery
+rule _ecotyper_run:
     input:
-        tumour_tsv = CFG["dirs"]["inputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}.tsv",
-        normal_tsv = CFG["dirs"]["inputs"] + "tsv/{seq_type}--{genome_build}/{normal_id}.tsv",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        ecotyper_script = str(rules._ecotyper_install.output.ecotyper_script),
+        ge_matrix = str(rules._ecotyper_create_mapping.output.ge_matrix),
+        annotations = str(rules._ecotyper_create_mapping.output.annotations)
     output:
-        tsv = CFG["dirs"]["ecotyper"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.tsv"
+        b_cell_assinments = CFG["dirs"]["ecotyper"] + "RecoveryOutput/bulk_lymphoma_data/B.cells/state_assignment.txt",
+        b_cell_heatmap = CFG["dirs"]["ecotyper"] + "RecoveryOutput/bulk_lymphoma_data/B.cells/state_assignment_heatmap.pdf",
+        ecotype_assignments = CFG["dirs"]["ecotyper"] + "RecoveryOutput/bulk_lymphoma_data/Ecotypes/ecotype_assignment.txt",
+        ecotype_heatmap = CFG["dirs"]["ecotyper"] + "RecoveryOutput/bulk_lymphoma_data/Ecotypes/heatmap_assigned_samples_viridis.pdf"
     log:
-        stdout = CFG["logs"]["ecotyper"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-        stderr = CFG["logs"]["ecotyper"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
+        stdout = CFG["logs"]["ecotyper"] + "ecotyper_run.stdout.log",
+        stderr = CFG["logs"]["ecotyper"] + "ecotyper_run.stderr.log"
     params:
-        opts = CFG["options"]["step_1"]
+        opts = CFG["options"]["annotation_tracks"],
+        out_dir = CFG["dirs"]["ecotyper"]
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["ecotyper"]
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["ecotyper"]
     resources:
-        **CFG["resources"]["step_1"]
-    group:
-        "input_and_step_1"
+        **CFG["resources"]["ecotyper"]
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --tumour {input.tumour_tsv} --normal {input.normal_tsv}
-        --ref-fasta {input.fasta} --output {output.tsv} --threads {threads}
+        cd $(realpath $(dirname {input.ecotyper_script}))
+            &&
+        Rscript
+        {input.ecotyper_script}
+        -d Lymphoma
+        -m {input.ge_matrix}
+        -a {input.annotations}
+        {params.opts}
+        -o $(realpath $(dirname {params.out_dir}))
+        -t {threads}
         > {log.stdout} 2> {log.stderr}
         """)
 

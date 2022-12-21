@@ -18,11 +18,11 @@ lcr-modules:
             ecotyper: "{MODSDIR}/envs/ecotyper.yaml"
 
         threads:
-            step_1: 4
+            preprocessing: 2
 
         resources:
-            step_1:
-                mem_mb: 2000
+            preprocessing:
+                mem_mb: 20000
 
         pairing_config:
             mrna:
