@@ -83,9 +83,9 @@ rule _ecotyper_create_mapping:
         ge_matrix = str(rules._ecotyper_input_matrix.output.ge_matrix),
         annotations = str(rules._ecotyper_input_annotations.output.annotations)
     output:
-        mapping = CFG["dirs"]["ecotyper"] + "mapping.tsv",
-        ge_matrix = CFG["dirs"]["ecotyper"] + "mapped_ge_matrix.tsv",
-        annotations = CFG["dirs"]["ecotyper"] + "mapped_annotations.tsv"
+        mapping = temp(CFG["dirs"]["ecotyper"] + "mapping.tsv"),
+        ge_matrix = temp(CFG["dirs"]["ecotyper"] + "mapped_ge_matrix.tsv"),
+        annotations = temp(CFG["dirs"]["ecotyper"] + "mapped_annotations.tsv")
     conda:
         CFG["conda_envs"]["ecotyper"]
     threads:
