@@ -196,7 +196,7 @@ rule _ecotyper_output_assignments:
         b_cell_assignments = str(rules._ecotyper_run.output.b_cell_assignments),
         b_cell_heatmap = str(rules._ecotyper_run.output.b_cell_heatmap),
         ecotype_assignments = str(rules._ecotyper_run.output.ecotype_assignments),
-        ecotype_heatmap = str(rules._ecotyper_run.output.b_cell_heatmap)
+        ecotype_heatmap = str(rules._ecotyper_run.output.ecotype_heatmap)
     output:
         b_cell_assignments = CFG["dirs"]["outputs"] + "bulk_lymphoma_data/B.cells/state_assignment.txt",
         b_cell_heatmap = CFG["dirs"]["outputs"] + "bulk_lymphoma_data/B.cells/state_assignment_heatmap.pdf",
