@@ -64,10 +64,8 @@ rule _ecotyper_install:
         "preprocessing"
     shell:
         op.as_one_line("""
-        mkdir {params.folder}/ecotyper
-            &&
         wget -qO- {params.url} |
-        tar xzf - -C {params.folder}/ecotyper/ --strip-components=1
+        tar xzf - -C {params.folder}ecotyper/ --strip-components=1
         """)
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
@@ -122,10 +120,10 @@ rule _ecotyper_run:
         ge_matrix = str(rules._ecotyper_create_mapping.output.ge_matrix),
         annotations = str(rules._ecotyper_create_mapping.output.annotations)
     output:
-        b_cell_assignments = CFG["dirs"]["ecotyper"] + "RecoveryOutput/bulk_lymphoma_data/B.cells/state_assignment.txt",
-        b_cell_heatmap = CFG["dirs"]["ecotyper"] + "RecoveryOutput/bulk_lymphoma_data/B.cells/state_assignment_heatmap.pdf",
-        ecotype_assignments = CFG["dirs"]["ecotyper"] + "RecoveryOutput/bulk_lymphoma_data/Ecotypes/ecotype_assignment.txt",
-        ecotype_heatmap = CFG["dirs"]["ecotyper"] + "RecoveryOutput/bulk_lymphoma_data/Ecotypes/heatmap_assigned_samples_viridis.pdf"
+        b_cell_assignments = CFG["dirs"]["ecotyper"] + "mapped_ge_matrix/B.cells/state_assignment.txt",
+        b_cell_heatmap = CFG["dirs"]["ecotyper"] + "mapped_ge_matrix/B.cells/state_assignment_heatmap.pdf",
+        ecotype_assignments = CFG["dirs"]["ecotyper"] + "mapped_ge_matrix/Ecotypes/ecotype_assignment.txt",
+        ecotype_heatmap = CFG["dirs"]["ecotyper"] + "mapped_ge_matrix/Ecotypes/heatmap_assigned_samples_viridis.pdf"
     log:
         stdout = CFG["logs"]["ecotyper"] + "ecotyper_run.stdout.log",
         stderr = CFG["logs"]["ecotyper"] + "ecotyper_run.stderr.log"
@@ -142,17 +140,28 @@ rule _ecotyper_run:
         "run"
     shell:
         op.as_one_line("""
-        cd $(realpath $(dirname {input.ecotyper_script}))
+        ECOTYPER_INPUT_MATRIX=$(realpath {input.ge_matrix})
+            &&
+        ECOTYPER_INPUT_ANNOTATIONS=$(realpath {input.annotations})
+            &&
+        ECOTYPER_OUT_DIR=$(readlink -f {params.out_dir})/
+            &&
+        echo $ECOTYPER_OUT_DIR
+            &&
+        cd $(dirname {input.ecotyper_script})
+            &&
+        pwd
+            &&
+        echo $ECOTYPER_OUT_DIR
             &&
         Rscript
-        {input.ecotyper_script}
+        $(basename {input.ecotyper_script})
         -d Lymphoma
-        -m {input.ge_matrix}
-        -a {input.annotations}
+        -m $ECOTYPER_INPUT_MATRIX
+        -a $ECOTYPER_INPUT_ANNOTATIONS
         {params.opts}
-        -o $(realpath $(dirname {params.out_dir}))"/RecoveryOutput"
+        -o $ECOTYPER_OUT_DIR
         -t {threads}
-        > {log.stdout} 2> {log.stderr}
         """)
 
 
@@ -162,7 +171,7 @@ rule _ecotyper_postprocess:
         mapping = str(rules._ecotyper_create_mapping.output.mapping),
         b_cell_assignments = str(rules._ecotyper_run.output.b_cell_assignments)
     output:
-        complete = CFG["dirs"]["ecotyper"] + "RecoveryOutput/bulk_lymphoma_data/mapping_complete"
+        complete = CFG["dirs"]["ecotyper"] + "mapped_ge_matrix/mapping_complete"
     conda:
         CFG["conda_envs"]["ecotyper"]
     threads:

@@ -12,14 +12,15 @@ mapping <- read_tsv(
     normalizePath(
         snakemake@input[[1]]
     )
+)
 
 # Sample file to get the path to the output directory
 file <- snakemake@input[[2]]
 
 # Get the second level direstory of all outputs
 dir <- gsub(
-    "bulk_lymphoma_data.*",
-    "bulk_lymphoma_data",
+    "mapped_ge_matrix.*",
+    "mapped_ge_matrix",
     file
 )
 
@@ -67,4 +68,10 @@ files <- list.files(dir,
 lapply(
     files,
     map_ids
+)
+
+# Writing sentinnel file to indicate the end of snakemake rule
+cat(
+    NULL,
+    file = snakemake@output[[1]]
 )

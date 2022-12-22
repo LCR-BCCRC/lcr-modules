@@ -18,11 +18,11 @@ ge_matrix <- as.data.frame(
 
 # Drop some columns if they are present in the matrix
 if("gene_id" %in% colnames(ge_matrix)){
-    ge_matrix <- matrix[ , !names(matrix) %in% "gene_id"]
+    ge_matrix <- ge_matrix[ , !names(ge_matrix) %in% "gene_id"]
 }
 
-if("ensembl_gene_id" in colnames(ge_matrix)){
-    ge_matrix <- matrix[ , !names(matrix) %in% "ensembl_gene_id"]
+if("ensembl_gene_id" %in% colnames(ge_matrix)){
+    ge_matrix <- ge_matrix[ , !names(ge_matrix) %in% "ensembl_gene_id"]
 }
 
 # Read in the annotations
@@ -36,7 +36,7 @@ annotations <- as.data.frame(
 # Make sure there are annotations for every sample
 annotations <- subset(
     annotations,
-    ID %in% colnames(matrix)
+    ID %in% colnames(ge_matrix)
 )
 
 # Subset matrix to these samples with annotations
