@@ -146,13 +146,9 @@ rule _ecotyper_run:
             &&
         ECOTYPER_OUT_DIR=$(readlink -f {params.out_dir})/
             &&
-        echo $ECOTYPER_OUT_DIR
+        if [ -e $(echo $ECOTYPER_OUT_DIR)mapped_ge_matrix ]; then rm -R $(echo $ECOTYPER_OUT_DIR)mapped_ge_matrix; fi
             &&
         cd $(dirname {input.ecotyper_script})
-            &&
-        pwd
-            &&
-        echo $ECOTYPER_OUT_DIR
             &&
         Rscript
         $(basename {input.ecotyper_script})
