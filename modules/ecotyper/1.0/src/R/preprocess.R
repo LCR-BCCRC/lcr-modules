@@ -40,6 +40,11 @@ annotations <- as.data.frame(
     annotations
 )
 
+# Create column ID if sample_id is present
+if("sample_id" %in% colnames(annotations)){
+    annotations$ID <- annotations$sample_id
+}
+
 # Make sure there are annotations for every sample
 annotations <- subset(
     annotations,
