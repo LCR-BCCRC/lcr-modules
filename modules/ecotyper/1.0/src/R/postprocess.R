@@ -1,6 +1,9 @@
 #!/usr/bin/env Rscript
 #
 
+log <- file(snakemake@log[[1]], open="wt")
+sink(log)
+
 suppressWarnings(
     suppressPackageStartupMessages(
         library(readr)
@@ -8,9 +11,11 @@ suppressWarnings(
 )
 
 # Get the mapping to sample ids
-mapping <- read_tsv(
-    normalizePath(
-        snakemake@input[[1]]
+mapping <- suppressMessages(
+    read_tsv(
+        normalizePath(
+            snakemake@input[[1]]
+        )
     )
 )
 
@@ -75,3 +80,5 @@ cat(
     NULL,
     file = snakemake@output[[1]]
 )
+
+sink()

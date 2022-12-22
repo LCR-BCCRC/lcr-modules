@@ -101,6 +101,8 @@ rule _ecotyper_create_mapping:
         mapping = temp(CFG["dirs"]["ecotyper"] + "mapping.tsv"),
         ge_matrix = temp(CFG["dirs"]["ecotyper"] + "mapped_ge_matrix.tsv"),
         annotations = temp(CFG["dirs"]["ecotyper"] + "mapped_annotations.tsv")
+    log:
+        stdout = CFG["logs"]["ecotyper"] + "ecotyper_preprocess.stdout.log"
     conda:
         CFG["conda_envs"]["ecotyper"]
     threads:
@@ -144,6 +146,10 @@ rule _ecotyper_run:
             &&
         ECOTYPER_INPUT_ANNOTATIONS=$(realpath {input.annotations})
             &&
+        ECOTYPER_STDOUT_LOG=$(realpath {log.stdout})
+            &&
+        ECOTYPER_STDERR_LOG=$(realpath {log.stderr})
+            &&
         ECOTYPER_OUT_DIR=$(readlink -f {params.out_dir})/
             &&
         if [ -e $(echo $ECOTYPER_OUT_DIR)mapped_ge_matrix ]; then rm -R $(echo $ECOTYPER_OUT_DIR)mapped_ge_matrix; fi
@@ -158,6 +164,7 @@ rule _ecotyper_run:
         {params.opts}
         -o $ECOTYPER_OUT_DIR
         -t {threads}
+        > $ECOTYPER_STDOUT_LOG 2> $ECOTYPER_STDERR_LOG
         """)
 
 
@@ -168,6 +175,8 @@ rule _ecotyper_postprocess:
         b_cell_assignments = str(rules._ecotyper_run.output.b_cell_assignments)
     output:
         complete = CFG["dirs"]["ecotyper"] + "mapped_ge_matrix/mapping_complete"
+    log:
+        stdout = CFG["logs"]["ecotyper"] + "ecotyper_postprocess.stdout.log"
     conda:
         CFG["conda_envs"]["ecotyper"]
     threads:

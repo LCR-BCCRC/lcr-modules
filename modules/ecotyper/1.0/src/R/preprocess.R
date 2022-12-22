@@ -1,6 +1,9 @@
 #!/usr/bin/env Rscript
 #
 
+log <- file(snakemake@log[[1]], open="wt")
+sink(log)
+
 suppressWarnings(
     suppressPackageStartupMessages(
         library(readr)
@@ -9,8 +12,10 @@ suppressWarnings(
 
 
 # Read in the matrix
-ge_matrix <- read_tsv(
-    snakemake@input[[1]]
+ge_matrix <- suppressMessages(
+    read_tsv(
+        snakemake@input[[1]]
+    )
 )
 ge_matrix <- as.data.frame(
     ge_matrix
@@ -26,8 +31,10 @@ if("ensembl_gene_id" %in% colnames(ge_matrix)){
 }
 
 # Read in the annotations
-annotations <- read_tsv(
-    snakemake@input[[2]]
+annotations <- suppressMessages(
+    read_tsv(
+        snakemake@input[[2]]
+    )
 )
 annotations <- as.data.frame(
     annotations
@@ -89,3 +96,5 @@ colnames(ge_matrix) <- generate_names(
 write_tsv(mapping, snakemake@output[[1]])
 write_tsv(ge_matrix, snakemake@output[[2]])
 write_tsv(annotations, snakemake@output[[3]])
+
+sink()
