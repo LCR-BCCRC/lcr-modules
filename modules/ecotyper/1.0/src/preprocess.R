@@ -1,19 +1,11 @@
 #!/usr/bin/env Rscript
 #
 
-suppressWarnings(suppressPackageStartupMessages({
-
-  message("Loading packages...")
-
-  required_packages <- c(
-    "readr"
-  )
-
-  for (pkg in required_packages){
-    library(pkg, character.only = TRUE)
-  }
-}))
-
+suppressWarnings(
+    suppressPackageStartupMessages(
+        library(readr)
+    )
+)
 
 
 # Read in the matrix
@@ -78,7 +70,7 @@ generate_names <- function(
 
 # Creating mapping data
 mapping <- data.frame(
-    ID = annotations$ID,
+    sample_id = annotations$ID,
     mapping = generate_names(
         annotations$ID
     )
