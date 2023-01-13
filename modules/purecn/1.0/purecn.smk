@@ -136,6 +136,8 @@ def get_genome_fasta(wildcards):
             return CFG["dirs"]["inputs"] + "references/grch37_masked/freec/genome_header.fa"
         else:
             raise AttributeError(f"The specified grch genome build is not available for use.")
+    elif "hs37d5" in str({wildcards.genome_build}):
+        return CFG["dirs"]["inputs"] + "references/grch37_masked/freec/genome_header.fa"
     else:
         if "38" in str({wildcards.genome_build}):
             return reference_files("genomes/hg38_masked/genome_fasta/genome.fa")
@@ -292,9 +294,9 @@ rule _purecn_setinterval:
 rule _purecn_mutect2_germline:
     input:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"),
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")
+        dbsnp = ancient(reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")),
+        fasta = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.fa")),
+        gnomad = ancient(reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"))
     output:
         vcf = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.{chrom}.vcf.gz"),
         tbi = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.{chrom}.vcf.gz.tbi")
@@ -499,7 +501,7 @@ rule _purecn_gatk_interval_list_chrom:
         chrom_int = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_{chrom}.intervals_gatk.list")
     shell:
         """
-            egrep -i '{wildcards.chrom}:.*-.*' {input.gatk_intervals} > {output.chrom_int}
+            egrep -i '^{wildcards.chrom}:.*-.*' {input.gatk_intervals} > {output.chrom_int}
         """
 
 rule _purecn_gatk_depthOfCoverage:
@@ -509,20 +511,20 @@ rule _purecn_gatk_depthOfCoverage:
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.crai",
         intervals =  CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_{chrom}.intervals_gatk.list"
     output:
-        coverage = temp(CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_coverage_gatk_{chrom}.sample_interval_summary"),
-        statistics = temp(CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_coverage_gatk_{chrom}.sample_interval_statistics")
+        coverage = temp(CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.sample_interval_summary"),
+        statistics = temp(CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.sample_interval_statistics")
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
         opts = CFG["options"]["mutect"],
         genome_fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        base_name = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_coverage_gatk_{chrom}"
+        base_name = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}"
     log: 
         CFG["logs"]["coverage"] + "gatk_coverage/{seq_type}--{genome_build}/{capture_space}/{sample_id}.{chrom}.log"
     conda: CFG["conda_envs"]["mutect"]
     resources: **CFG["resources"]["mutect"]
     shell:
         """
-            gatk DepthOfCoverage --java-options "-Xmx{params.mem_mb}m" {params.opts} --omit-depth-output-at-each-base --omit-locus-table --omit-per-sample-statistics -R {params.genome_fasta} -I {input.bam} -O {params.base_name} --intervals {input.intervals} > {log} 2>&1
+            gatk DepthOfCoverage --java-options "-Xmx{params.mem_mb}m" {params.opts} --omit-depth-output-at-each-base --omit-locus-table --omit-per-sample-statistics --interval-merging-rule OVERLAPPING_ONLY -R {params.genome_fasta} -I {input.bam} -O {params.base_name} --intervals {input.intervals} > {log} 2>&1
         """
 
 def _purecn_gatk_coverage_get_chr_depth(wildcards):
@@ -531,7 +533,7 @@ def _purecn_gatk_coverage_get_chr_depth(wildcards):
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     coverage = expand(
-        CFG["dirs"]["coverage"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}/{{sample_id}}_coverage_gatk_{chrom}.sample_interval_summary", 
+        CFG["dirs"]["coverage"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}/{{sample_id}}.{chrom}.sample_interval_summary", 
         chrom = chrs
     )
     return(coverage)
@@ -542,7 +544,7 @@ def _purecn_gatk_coverage_get_chr_statistics(wildcards):
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     statistics = expand(
-        CFG["dirs"]["coverage"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}/{{sample_id}}_coverage_gatk_{chrom}.sample_interval_statistics", 
+        CFG["dirs"]["coverage"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}/{{sample_id}}.{chrom}.sample_interval_statistics", 
         chrom = chrs
     )
     return(statistics)
@@ -552,7 +554,7 @@ rule _purecn_gatk_coverage_concatenate_depths:
         depth = _purecn_gatk_coverage_get_chr_depth,
         statistics = _purecn_gatk_coverage_get_chr_statistics,
     output: 
-        depth = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_coverage_gatk.sample_interval_summary"
+        depth = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.sample_interval_summary"
     shell: 
         """
             file1=$(echo {input.depth} | cut -d " " -f1 )
@@ -571,7 +573,7 @@ rule _purecn_coverage:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
         intervals =  CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals.txt",
-        coverage = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_coverage_gatk.sample_interval_summary"
+        coverage = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.sample_interval_summary"
     output:
         coverage = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_coverage_loess.txt.gz"
     params:
@@ -634,9 +636,9 @@ rule coverage_list_normals:
 rule _purecn_mutect2_tumour_germline:
     input:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"),
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"),
+        dbsnp = ancient(reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")),
+        fasta = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.fa")),
+        gnomad = ancient(reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")),
         pon = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/{capture_space}_mutect2_pon.vcf.gz"
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.vcf.gz"),
@@ -784,7 +786,7 @@ if CFG["cnvkit_seg"] == True:
             cnr = str(rules._purecn_symlink_cnvkit_cnr.output.cnr),
             seg = str(rules._purecn_symlink_cnvkit_seg.output.seg),
             vcf = str(rules._purecn_mutect2_tumour_concatenate_vcf.output.vcf),
-            normal_db = str(rules._purecn_set_normal.output.normal_db),
+            normal_db = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/purecn_cnvkit_normal/mapping_bias_{capture_space}_{genome_build}.rds",
             stats = str(rules._purecn_mutect2_merge_stats.output.stats),
             blacklist = str(rules._purecn_setup_blacklist_bed.output.blacklist)
         output:
@@ -889,8 +891,8 @@ rule _purecn_denovo_run:
     input:
         cnr = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_coverage_loess.txt.gz",
         vcf = str(rules._purecn_mutect2_tumour_concatenate_vcf.output.vcf),
-        normal_db =  str(rules._purecn_set_normal_denovo.output.normal_db),
-        normals = str(rules._purecn_set_normal_denovo.output.normals),
+        normal_db = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/purecn_denovo_normal/mapping_bias_{capture_space}_{genome_build}.rds",
+        normals = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/purecn_denovo_normal/normalDB_{capture_space}_{genome_build}.rds",
         stats = str(rules._purecn_mutect2_merge_stats.output.stats),
         blacklist = str(rules._purecn_setup_blacklist_bed.output.blacklist),
         intervals = str(rules._purecn_setinterval.output.intervals)

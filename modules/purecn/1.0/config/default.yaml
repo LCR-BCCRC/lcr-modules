@@ -126,7 +126,7 @@ lcr-modules:
             setinterval: 
                 mem_mb: 6000
             mutect:
-                mem_mb: 10000
+                mem_mb: 12000
             concatenate_vcf:
                 mem_mb: 8000
                 pileup: 1

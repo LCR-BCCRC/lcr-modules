@@ -243,9 +243,9 @@ if (!is.null(bam.file)) {
 ### GC-normalize coverage -----------------------------------------------------
 .gcNormalize <- function(gatk.coverage, interval.file, outdir, force) {
     checkDataTableVersion()
-    output.file <- file.path(outdir,  gsub(".txt$|.txt.gz$|_interval_summary",
-        "_loess.txt.gz", basename(gatk.coverage)))
-    outpng.file <- sub("txt.gz$", "png", output.file)
+    output.file <- file.path(outdir,  gsub(".txt$|.txt.gz$|.sample_interval_summary$|_coverage.txt.gz$",
+        "_coverage_loess.txt.gz", basename(gatk.coverage)))
+    outpng.file <- sub(".txt.gz$", ".png", output.file)
     output.qc.file <- sub(".txt.gz$", "_qc.txt", output.file)
 
     if (file.exists(output.file) && !force) {
