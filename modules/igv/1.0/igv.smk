@@ -215,23 +215,6 @@ rule _igv_run:
         touch {output.success}
         """)
 
-#rule _igv_run:
-#    input:
-#        batch_script = str(rules._igv_merge_batch_scripts.output.merged_batch),
-#        igv_installed = str(rules._igv_download_igv.output.igv_installed),
-#    output:
-#        success = CFG["dirs"]["outputs"] + "merged_batch_snapshot.finished"
-#    params:
-#        igv = CFG["dirs"]["igv"] + "IGV_Linux_2.16.0/igv.sh"
-#    log:
-#        stdout = CFG["logs"]["igv"] + "run_igv_merged_batch.stdout.log",
-#        stderr = CFG["logs"]["igv"] + "run_igv_merged_batch.stderr.log"
-#    shell:
-#        op.as_one_line("""
-#        xvfb-run --auto-servernum {params.igv} -b {input.batch_script} > {log.stdout} 2> {log.stderr} &&
-#        touch {output.success}
-#        """)
-
 # Generates the target sentinels for each run, which generate the symlinks
 if CFG["test_run"] is False:
     rule _igv_all:
