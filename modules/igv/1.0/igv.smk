@@ -48,6 +48,7 @@ localrules:
     _igv_symlink_regions_file,
     _igv_symlink_metadata,
     _igv_symlink_maf,
+    _igv_format_regions_file,
     _igv_liftover_regions,
     _igv_create_batch_script,
     _igv_download_igv,
@@ -92,17 +93,36 @@ rule _igv_reduce_maf_cols:
         cut -f 1,5,6,7,9,10,11,13,16 {input.maf} > {output.maf}
         """)
 
+# Prepare regions file for liftover
+rule _igv_format_regions_file:
+    input:
+        regions = str(rules._igv_symlink_regions_file.output.regions_file)
+    output:
+        regions = config["lcr-modules"]["igv"]["dirs"]["inputs"] + "regions/regions_file_formatted.txt"
+    params:
+        regions_format = config["lcr-modules"]["igv"]["inputs"]["regions_format"],
+        oncodriveclustl_params = config["lcr-modules"]["igv"]["filter_maf"]["oncodriveclustl_options"]
+    script:
+        config["lcr-modules"]["igv"]["scripts"]["format_regions"]
+
+REGIONS_FORMAT = {
+    "maf": "maf",
+    "oncodriveclustl": "bed",
+    "hotmaps": "bed",
+    "genomic_regions": "bed"
+}
 
 rule _igv_liftover_regions:
     input:
-        regions = str(rules._igv_symlink_regions_file.output.regions_file),
+        regions = str(rules._igv_format_regions_file.output.regions),
         liftover_script = CFG["scripts"]["region_liftover_script"]
     output:
         regions_lifted = CFG["dirs"]["inputs"] + "regions/regions_file_{genome_build}.txt"
     params:
         chain_file = reference_files(CFG["liftover_regions"]["reference_chain_file"][(CFG["inputs"]["regions_build"]).replace("hg19","grch37").replace("grch38","hg38")]),
         target_reference = lambda w: config["lcr-modules"]["igv"]["liftover_regions"]["target_reference"][w.genome_build],
-        regions_type = CFG["inputs"]["regions_format"].lower(),
+        regions_type = REGIONS_FORMAT[CFG["inputs"]["regions_format"].lower()],
+        regions_build = CFG["inputs"]["regions_build"].replace("grch37","GRCh37").replace("hg38","GRCh38"),
         target_build = lambda w: w.genome_build.replace("grch37","GRCh37").replace("hg38", "GRCh38")
     conda:
         CFG["conda_envs"]["liftover_regions"]
@@ -112,55 +132,27 @@ rule _igv_liftover_regions:
     shell:
         op.as_one_line("""
         {input.liftover_script} {input.regions} 
-        {params.regions_type} {params.target_build} 
+        {params.regions_type} {params.regions_build} {params.target_build} 
         {output.regions_lifted} {params.chain_file} 
         {params.target_reference} > {log.stdout} 2> {log.stderr}
         """)
 
-# Filter the MAF based on regions file
+# Pass metadata as a pandas dataframe directly from the samples value specified in config
 rule _igv_filter_maf:
     input:
         maf = str(rules._igv_reduce_maf_cols.output.maf),
         regions = str(rules._igv_liftover_regions.output.regions_lifted)
     output:
-        maf_filtered = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}_cols_filtered.maf"
+        maf_filtered = config["lcr-modules"]["igv"]["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}_cols_filtered.maf"
     params:
-        regions_format = CFG["inputs"]["regions_format"].lower(),
-        metadata = CFG["inputs"]["metadata"],
+        regions_format = REGIONS_FORMAT[config["lcr-modules"]["igv"]["inputs"]["regions_format"].lower()],
+        metadata = config["lcr-modules"]["igv"]["samples"] if CFG["inputs"]["metadata"] is None else CFG["inputs"]["metadata"],
         genome_build = lambda w: w.genome_build,
         seq_type = lambda w: w.seq_type,
-        genome_map = CFG["genome_map"],
-        oncodriveclustl_params = CFG["filter_maf"]["oncodriveclustl_options"]
-    run:
-        # Read input MAF and regions into pandas df
-        maf_df = pd.read_table(input.maf, comment="#", sep="\t")
-        regions_df = pd.read_table(input.regions, comment="#", sep="\t")
-        if params.regions_format in ["maf"]:
-        # Create common columns to subset the larger MAF down
-            count = 0
-            for df in [maf_df, regions_df]:
-                count += 1
-                if count == 1:
-                    print(f"Working on maf df")
-                if count == 2:
-                    print(f"Working on regions df")
-                df["chr_std"] = df.apply(lambda x: str(x["Chromosome"]).replace("chr",""), axis=1)
-                df["genomic_pos_std"] = df["chr_std"] + ":" + df["Start_Position"].map(str) + "_" + df["End_Position"].map(str)
-
-            # Filter larger MAF 
-            filtered_maf = maf_df[maf_df["genomic_pos_std"].isin(regions_df["genomic_pos_std"])]
-
-            # Filter only to BAM files of corresponding build and seq_type
-            SAMPLES = op.load_samples(params.metadata)
-            SAMPLES = op.filter_samples(SAMPLES, seq_type=params.seq_type)
-            genome_build_list = params.genome_map[params.genome_build]
-            print(f"Only including samples of these builds: {genome_build_list}")
-            BUILD_SAMPLES = op.filter_samples(SAMPLES, genome_build=genome_build_list)
-            filtered_maf = filtered_maf[filtered_maf["Tumor_Sample_Barcode"].isin(BUILD_SAMPLES.sample_id)]
-
-            # Write output
-            filtered_maf.to_csv(output.maf_filtered, sep="\t")
-
+        genome_map = config["lcr-modules"]["igv"]["genome_map"],
+        oncodriveclustl_params = config["lcr-modules"]["igv"]["filter_maf"]["oncodriveclustl_options"]
+    script:
+        config["lcr-modules"]["igv"]["scripts"]["filter_script"]
     
 # Pass filtered MAF to create batch script
 rule _igv_create_batch_script:
@@ -189,21 +181,6 @@ rule _igv_create_batch_script:
         --genome_build {params.genome_build} --seq_type {params.seq_type} > {log.stdout} 2> {log.stderr}
         """)
 
-#rule _igv_merge_batch_scripts:
-#    input:
-#        batch_scripts = expand(str(rules._igv_create_batch_script.output.batch_script), genome_build=["hg38","grch37"], seq_type=["capture","genome"]),
-#    output:
-#        merged_batch = CFG["dirs"]["batch_scripts"] + "merged_script.batch"
-#    params:
-#        script_dir = CFG["dirs"]["batch_scripts"]
-#    shell:
-#        op.as_one_line("""
-#        batch_dir={params.script_dir} &&
-#        cat <(cat $(echo $batch_dir)/*.batch) <(echo end) | awk '{{ if ($0 !~ "exit") print $0 }}' | sed 's/end/exit\n/g' > {output.merged_batch}
-#        """)
-
-
-#### WHEN LAST CHECKED DRY RUN WORKS UP TO HERE B-) 
 rule _igv_download_igv:
     output:
         igv_zip = CFG["dirs"]["igv"] + "IGV_2.7.2.zip",
@@ -256,9 +233,18 @@ rule _igv_run:
 #        """)
 
 # Generates the target sentinels for each run, which generate the symlinks
-rule _igv_all:
-    input:
-        expand(rules._igv_run.output.success, seq_type=["genome","capture"], genome_build=["hg38","grch37"])
+if CFG["test_run"] is False:
+    rule _igv_all:
+        input:
+            expand(rules._igv_run.output.success, seq_type=["genome","capture"], genome_build=["hg38","grch37"])
+
+
+if CFG["test_run"] is True:
+    rule _igv_all:
+        input:
+            expand(rules._igv_filter_maf.output.maf_filtered, seq_type=["genome","capture"], genome_build=["hg38","grch37"])
+
+
 
 
 ##### CLEANUP #####
