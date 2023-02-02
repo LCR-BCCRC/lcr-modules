@@ -13,13 +13,15 @@
 
 input_regions=$1
 input_type=$2
-target_build=$3
-output_file=$4
-chain_file=$5
-target_ref=$6
+regions_build=$3
+target_build=$4
+output_file=$5
+chain_file=$6
+target_ref=$7
 
 echo "Input regions file:       $input_regions"
 echo "Input regions type:       $input_type"
+echo "Input regions build:      $regions_build"
 echo "Target genome build:      $target_build"
 echo "Output file:              $output_file"
 echo "Chain file:               $chain_file"
@@ -32,8 +34,7 @@ intermediate_output_file=$(echo $output_file)_int
 if [ "$input_type" == "maf" ] ;
 then
     echo "Proceeding with MAF input..."
-
-    if grep -q $target_build $input_regions ;
+    if [ $regions_build == $target_build ] ;
     then
         echo "WARNING: Input regions file $input_regions is already $target_build. Copying contents of $input_regions to $output_file";
         cut -f 1,5,6,7,9,10,11,13,16 $input_regions > $output_file 
@@ -46,4 +47,20 @@ then
     fi
     echo "Finished MAF block."
 fi
+
+if [ "$input_type" == "bed" ] ;
+    then
+        echo "Proceeding with BED input..."
+        if [ $regions_build == $target_build ] ;
+        then
+            echo "WARNING: Input regions file $input_regions is already $target_build. Copying contents of $input_regions to $output_file";
+            cat $input_regions > $output_file
+        else
+            echo "Input regions file $input_regions does not appear to be $target_build. Proceeding with conversion to $target_build"
+            echo "CrossMap.py bed $chain_file $input_regions $output_file"
+            CrossMap.py bed $chain_file $input_regions $output_file
+        fi
+        echo "Finished BED block."
+fi      
+
 echo "End of bash script"
