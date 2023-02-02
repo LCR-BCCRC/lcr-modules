@@ -12,12 +12,13 @@ lcr-modules:
             regions_format: "__UPDATE__"
             regions_build: "__UPDATE__" # Genome build of regions file, will be lifted over to filter MAFs on opposite genome builds
 
+        test_run: True # Create only the filtered MAF, to get an estimate of how many snapshots will be taken
+
         filter_maf:
             oncodriveclustl_options: # These parameters will filter down the OncodriveCLUSTL cluster results file.
-                q_value: # Desired q-value of OncodriveCLUSTL clusters
-                scores: # Desired scores of OncodriveCLUSTL clusters
+                p_value: # Desired q-value of OncodriveCLUSTL clusters
+                score: # Desired scores of OncodriveCLUSTL clusters
                 n_samples: # Desired number of samples in OncodriveCLUSTL clusters
-                
 
         genome_map: # Map different builds in metadata
             grch37: ["grch37","hg19","hg19-clc","hg19-reddy","hs37d5"]
@@ -38,6 +39,8 @@ lcr-modules:
             batch_script_per_sample: # True/False. Default is False. If True, a batch script will be created to accompany each snapshot for easy access in IGV.
                     
         scripts:
+            format_regions: "etc/format_regions.py"
+            filter_script: "etc/filter_maf.py"
             region_liftover_script: "{MODSDIR}/etc/liftover_regions.sh"
             batch_script: "{MODSDIR}/etc/generate_batch_scripts.py"
 
