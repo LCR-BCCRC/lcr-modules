@@ -4,6 +4,21 @@ import os
 import pandas as pd
 import oncopipe as op
 
+def format_hotmaps(hotmaps_regions):
+    # Convert HotMAPS coordinates to BED format
+
+    hotmaps_regions["chr_std"] = hotmaps_regions.apply(lambda x: str(x["Chromosome"]).replace("chr",""), axis=1)
+    chr_std = "chr" + hotmaps_regions["Chromosome"].map(str)
+
+    hotmaps_reformatted = pd.DataFrame(
+        {
+            "chrom": chr_std,
+            "start": hotmaps_regions["Start_Position"],
+            "end": hotmaps_regions["Start_Position"]
+        }
+    )
+    return hotmaps_reformatted
+
 def format_clustl(clustl_regions):
     # Convert OncodriveCLUSTL cluster coordinates to BED format
     p_filter = CLUSTL_PARAMS["p_value"]
@@ -49,6 +64,7 @@ def format_regions(regions, regions_format):
     format_functions = {
         "maf": format_maf,
         "oncodriveclustl": format_clustl,
+        "hotmaps": format_hotmaps,
         "genomic_pos": format_genomic_pos
     }
 
@@ -65,6 +81,8 @@ if regions_format == "oncodriveclustl":
 # Read regions into dataframe
 regions_df = pd.read_table(regions_file, comment="#", sep="\t")
 
+# Reformat for liftover based on regions format
 regions_formatted = format_regions(regions_df, regions_format)
 
+# Output regions file
 regions_formatted.to_csv(output_file, sep="\t", index=False)
