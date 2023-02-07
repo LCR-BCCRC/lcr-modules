@@ -4,6 +4,48 @@ import os
 import pandas as pd
 import oncopipe as op
 
+def format_mutation_id(mutation_id):
+    ## Modify dataframe to handle NA values in columns
+    #mutation_id = mutation_id.fillna(0)
+#
+    ## Filter dataframe based on config option
+    #max_distinct_genome_cohorts = MUTATION_ID_PARAMS["max_distinct_genome_cohorts"]
+    #min_total_genome_samples = MUTATION_ID_PARAMS["min_total_genome_samples"]
+    #
+    #max_distinct_capture_cohorts = MUTATION_ID_PARAMS["max_distinct_capture_cohorts"]
+    #min_total_capture_samples = MUTATION_ID_PARAMS["min_total_capture_samples"]
+#
+    #for key, filter_value in {
+    #    "distinct_genome_cohorts": max_distinct_genome_cohorts, 
+    #    "total_genome": min_total_genome_samples, 
+    #    "distinct_capture_cohorts": max_distinct_capture_cohorts,
+    #    "total_capture": min_total_capture_samples
+    #}.items():
+    #    if filter_value is not None:
+    #        if key in ["distinct_genome_cohorts", "distinct_capture_cohorts"]:
+    #            mutation_id = mutation_id[mutation_id[key] <= float(filter_value)]
+    #        else:
+    #            mutation_id = mutation_id[mutation_id[key] >= float(filter_value)]
+
+    # Create columns required for liftover in BED format
+    genomic_pos_col = f"mutation_id_{REGIONS_BUILD}"
+
+    for col, idx in {"chr_std": 0, "start": 1, "end": 2}.items():
+        mutation_id[col] = mutation_id.apply(lambda x: str(x[genomic_pos_col]).split(":")[idx].replace("chr",""), axis=1)
+
+    mutation_id_reformatted = pd.DataFrame(
+        {
+            "chrom": "chr" + mutation_id["chr_std"],
+            "start": mutation_id["start"],
+            "end": mutation_id["end"]
+        }
+    )
+
+    # Remove duplicate rows
+    mutation_id_reformatted = mutation_id_reformatted.drop_duplicates(keep='first')
+
+    return mutation_id_reformatted
+
 def format_hotmaps(hotmaps_regions):
     # Convert HotMAPS coordinates to BED format
 
@@ -20,7 +62,6 @@ def format_hotmaps(hotmaps_regions):
     return hotmaps_reformatted
 
 def format_clustl(clustl_regions):
-    # Convert OncodriveCLUSTL cluster coordinates to BED format
     p_filter = CLUSTL_PARAMS["p_value"]
     score_filter = CLUSTL_PARAMS["score"]
     n_samples_filter = CLUSTL_PARAMS["n_samples"]
@@ -34,6 +75,8 @@ def format_clustl(clustl_regions):
 
     # Reformat CLUSTL coordinates to handle clusters that cross introns (when CLUSTL concatenated mode is used)
     clustl_regions = clustl_regions.assign(COORDINATES = clustl_regions.COORDINATES.str.split(";")).explode("COORDINATES")
+    
+    # Convert OncodriveCLUSTL cluster coordinates to BED format
     clustl_regions["COORDINATES"] = clustl_regions.apply(
         lambda x: list(
             range(
@@ -65,7 +108,7 @@ def format_regions(regions, regions_format):
         "maf": format_maf,
         "oncodriveclustl": format_clustl,
         "hotmaps": format_hotmaps,
-        "genomic_pos": format_genomic_pos
+        "mutation_id": format_mutation_id
     }
 
     return format_functions[regions_format](regions)
@@ -77,6 +120,10 @@ output_file = snakemake.output[0]
 
 if regions_format == "oncodriveclustl":
     CLUSTL_PARAMS = snakemake.params[1]
+
+if regions_format == "mutation_id":
+    REGIONS_BUILD = snakemake.params[2]
+    REGIONS_BUILD = REGIONS_BUILD.lower()
 
 # Read regions into dataframe
 regions_df = pd.read_table(regions_file, comment="#", sep="\t")

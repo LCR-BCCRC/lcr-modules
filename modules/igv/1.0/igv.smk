@@ -101,7 +101,8 @@ rule _igv_format_regions_file:
         regions = config["lcr-modules"]["igv"]["dirs"]["inputs"] + "regions/regions_file_formatted.txt"
     params:
         regions_format = config["lcr-modules"]["igv"]["inputs"]["regions_format"],
-        oncodriveclustl_params = config["lcr-modules"]["igv"]["filter_maf"]["oncodriveclustl_options"]
+        oncodriveclustl_params = config["lcr-modules"]["igv"]["filter_maf"]["oncodriveclustl_options"],
+        regions_build = config["lcr-modules"]["igv"]["inputs"]["regions_build"]
     script:
         config["lcr-modules"]["igv"]["scripts"]["format_regions"]
 
@@ -109,7 +110,7 @@ REGIONS_FORMAT = {
     "maf": "maf",
     "oncodriveclustl": "bed",
     "hotmaps": "bed",
-    "genomic_regions": "bed"
+    "mutation_id": "bed"
 }
 
 rule _igv_liftover_regions:
