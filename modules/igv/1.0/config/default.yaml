@@ -19,6 +19,7 @@ lcr-modules:
                 p_value: # Desired q-value of OncodriveCLUSTL clusters
                 score: # Desired scores of OncodriveCLUSTL clusters
                 n_samples: # Desired number of samples in OncodriveCLUSTL clusters
+            n_snapshots: 20 # Number of snapshots to take per unique variant position. Default is set to max (1000000).
 
         genome_map: # Map different builds in metadata
             grch37: ["grch37","hg19","hg19-clc","hg19-reddy","hs37d5"]
@@ -35,7 +36,6 @@ lcr-modules:
         generate_batch_script:
             padding: 300
             max_height: 400
-            n_snapshots: 20 # Number of snapshots to take per unique variant. Default is 20.
             batch_script_per_sample: # True/False. Default is False. If True, a batch script will be created to accompany each snapshot for easy access in IGV.
                     
         scripts:

@@ -151,7 +151,8 @@ rule _igv_filter_maf:
         genome_build = lambda w: w.genome_build,
         seq_type = lambda w: w.seq_type,
         genome_map = config["lcr-modules"]["igv"]["genome_map"],
-        oncodriveclustl_params = config["lcr-modules"]["igv"]["filter_maf"]["oncodriveclustl_options"]
+        oncodriveclustl_params = config["lcr-modules"]["igv"]["filter_maf"]["oncodriveclustl_options"],
+        n_snapshots = config["lcr-modules"]["igv"]["filter_maf"]["n_snapshots"] if config["lcr-modules"]["igv"]["filter_maf"]["n_snapshots"] is not None else 1000000
     script:
         config["lcr-modules"]["igv"]["scripts"]["filter_script"]
     
@@ -168,8 +169,7 @@ rule _igv_create_batch_script:
         genome_build = lambda w: w.genome_build,
         seq_type = lambda w: w.seq_type,
         padding = CFG["generate_batch_script"]["padding"],
-        max_height = CFG["generate_batch_script"]["max_height"],
-        n_snapshots = CFG["generate_batch_script"]["n_snapshots"]
+        max_height = CFG["generate_batch_script"]["max_height"]
     log:
         stdout = CFG["logs"]["batch_scripts"] + "{seq_type}--{genome_build}_batch_script.stdout.log",
         stderr = CFG["logs"]["batch_scripts"] + "{seq_type}--{genome_build}_batch_script.stderr.log"
@@ -178,7 +178,7 @@ rule _igv_create_batch_script:
         {params.py_script} {input.maf_filtered} 
         --output {output.batch_script} --metadata {input.metadata} 
         --padding {params.padding} --max_height {params.max_height} 
-        --snapshot_dir {params.snapshot_dir} --n_snapshots {params.n_snapshots}
+        --snapshot_dir {params.snapshot_dir}
         --genome_build {params.genome_build} --seq_type {params.seq_type} > {log.stdout} 2> {log.stderr}
         """)
 

@@ -26,8 +26,7 @@ def main():
         max_height = args.max_height,
         seq_type = args.seq_type,
         genome_build = args.genome_build,
-        snapshot_dir=args.snapshot_dir,
-        n_snapshots=args.n_snapshots)
+        snapshot_dir=args.snapshot_dir)
 
     close_files(args)
 
@@ -85,16 +84,6 @@ def parse_arguments():
         help=(
             "Parent directory where {chromosome}/{region} subdirectories will be "
             "populated with IGV snapshots."
-        )
-    )
-
-    parser.add_argument(
-        "--n_snapshots",
-        "-n",
-        type=int,
-        default=20,
-        help=(
-            "Maximum number of different snapshots for each position."
         )
     )
 
@@ -249,7 +238,7 @@ def output_lines(lines, output):
     text = "\n".join(lines)
     output.write(text)
 
-def generate_igv_batch(regions, output, max_height, seq_type, genome_build, snapshot_dir, n_snapshots):
+def generate_igv_batch(regions, output, max_height, seq_type, genome_build, snapshot_dir):
 
     # The lines for the batch script encompassing all regions and sample_ids
     all_lines = []
@@ -275,7 +264,7 @@ def generate_igv_batch(regions, output, max_height, seq_type, genome_build, snap
         for unique_region in regions_in_dir.regions.unique():
 
             # Subset rows by number of snapshots desired per region
-            regions_subset = regions_in_dir[regions_in_dir["regions"]==unique_region][:n_snapshots]
+            regions_subset = regions_in_dir[regions_in_dir["regions"]==unique_region]
             
             # Generate lines of batch script per region subset
             lines = generate_igv_batch_per_region(
