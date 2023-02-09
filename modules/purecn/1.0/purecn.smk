@@ -256,6 +256,18 @@ def _purecn_get_capspace(wildcards):
         bed = default_bed
     return bed
 
+# the intervalsfile will automatically annotate gene information given either hg19 or hg38 for humans
+def _get_genome_build_db(wildcards):
+    CFG = config["lcr-modules"]["purecn"]
+    if any(builds in str({wildcards.genome_build}) for builds in ['grch38', 'hg38']):
+        return "hg38"
+    if "38" in str({wildcards.genome_build}):
+        return "hg38"
+    if any(builds in str({wildcards.genome_build}) for builds in ['grch37', 'hg19', 'hs37d5']):
+        return "hg19"
+    if "19" in str({wildcards.genome_build}):
+        return "hg19"
+
 rule _purecn_setinterval:
     input:
         bw = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.bw",
@@ -263,7 +275,7 @@ rule _purecn_setinterval:
         intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals.txt"
     params:
         genome = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        genome_build = "{genome_build}",
+        genome_build = _get_genome_build_db,
         intervalfile_script = CFG["software"]["intervalfile_script"],
         bed = _purecn_get_capspace,
         force = CFG["options"]["setinterval"]["force"],
@@ -554,14 +566,14 @@ rule _purecn_gatk_coverage_concatenate_depths:
         depth = _purecn_gatk_coverage_get_chr_depth,
         statistics = _purecn_gatk_coverage_get_chr_statistics,
     output: 
-        depth = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.sample_interval_summary"
+        depth = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.sample_interval_summary.gz"
     shell: 
         """
             file1=$(echo {input.depth} | cut -d " " -f1 )
-            head -n 1 $file1 > {output.depth}
+            head -n 1 $file1 | gzip > {output.depth}
             for sample in {input.depth}            
             do
-                awk '(NR > 1)' $sample >> {output.depth}
+                awk '(NR > 1)' $sample | gzip >> {output.depth}
             done
         """
 
@@ -573,7 +585,7 @@ rule _purecn_coverage:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
         intervals =  CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals.txt",
-        coverage = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.sample_interval_summary"
+        coverage = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.sample_interval_summary.gz"
     output:
         coverage = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_coverage_loess.txt.gz"
     params:
@@ -793,7 +805,9 @@ if CFG["cnvkit_seg"] == True:
             ploidy = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.csv",
             seg = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg",
             gene_cn = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_genes.csv",
-            loh = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_loh.csv"
+            loh = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_loh.csv",
+            rds = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.rds"),
+            pdf = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf",
         params:
             outdir = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/",
             sample_id = "{tumour_id}",
@@ -833,9 +847,23 @@ if CFG["cnvkit_seg"] == True:
             """
 
 if CFG["cnvkit_seg"] == True:
+    rule _purecn_cleanup_xs:
+        input:
+            rds = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.rds",
+            pdf = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf",
+        output:
+            rds_removed = touch(CFG["dirs"]["pureCN_cnvkit"] + "cleanup/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.done")
+        shell:
+            """
+                rm {input.rds} ;
+                rm {input.pdf}
+            """
+
+if CFG["cnvkit_seg"] == True:
     rule _purecn_fix_seg:
         input:
             purecn_native = str(rules._purecn_run.output.seg),
+            rds_removed = str(rules._purecn_cleanup_xs.output.rds_removed)
         output:
             purecn_converted_seg = CFG["dirs"]["convert_coordinates"] + "purecn_cnvkit/fixed_seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg"
         params:
@@ -844,7 +872,7 @@ if CFG["cnvkit_seg"] == True:
             """
                 {params.tidy_pureCN_script} -i {input.purecn_native} -o {output.purecn_converted_seg}
             """
-
+ 
 
 # -------------------------------------------------------------------------------------------------- #
 # For pureCN de novo PSCBS seg method using its own coverage files
@@ -899,7 +927,9 @@ rule _purecn_denovo_run:
     output:
         ploidy = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.csv",
         seg = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg",
-        loh = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_loh.csv"
+        loh = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_loh.csv",
+        rds = temp(CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.rds"),
+        pdf = temp(CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf"),
     params:
         outdir = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/",
         sample_id = "{tumour_id}",
@@ -939,9 +969,22 @@ rule _purecn_denovo_run:
                 {params.opts} > {log} 2>&1
         """
 
+rule _purecn_denovo_cleanup_xs:
+    input:
+        rds = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.rds",
+        pdf = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf",
+    output:
+        rds_removed = touch(CFG["dirs"]["pureCN"] + "cleanup/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.done")
+    shell:
+        """
+            rm {input.rds} ;
+            rm {input.pdf}
+        """
+
 rule _purecn_denovo_fix_seg:
     input:
         purecn_native = str(rules._purecn_denovo_run.output.seg),
+        rds_removed = str(rules._purecn_denovo_cleanup_xs.output.rds_removed)
     output:
         purecn_converted_seg = CFG["dirs"]["convert_coordinates"] + "purecn_denovo/fixed_seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg"
     params:
@@ -950,7 +993,7 @@ rule _purecn_denovo_fix_seg:
         """
             {params.tidy_pureCN_script} -i {input.purecn_native} -o {output.purecn_converted_seg}
         """
-
+        
 # -------------------------------------------------------------------------------------------------- #
 # Part V  - Project to other genome builds and remove capture_space wildcard
 # -------------------------------------------------------------------------------------------------- #
