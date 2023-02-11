@@ -7,7 +7,7 @@ import oncopipe as op
 
 def filter_by_bed(maf, regions, metadata):
 
-    # Remove rows that contain column names
+    # Remove row containing column names
     regions = regions[regions[0].str.contains("chrom")==False]
 
     # Create common columns between BED and MAF
