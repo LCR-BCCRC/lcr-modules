@@ -10,25 +10,51 @@ import math
 
 def main():
     # Parse arguments
-    args = parse_arguments()
+    #args = parse_arguments()
+
+    # Read MAF file containing variants and create a dataframe linking regions, sample_ids, and bam paths
+    #regions = get_regions_df(
+    #    args.input_maf,
+    #    metadata=args.metadata,
+    #    seq_type=args.seq_type,
+    #    padding=args.padding)
+
+    # Format and output the batch script 
+    #generate_igv_batch(
+    #    regions = regions,
+    #    output = args.output,
+    #    max_height = args.max_height,
+    #    seq_type = args.seq_type,
+    #    genome_build = args.genome_build,
+    #    snapshot_dir=args.snapshot_dir)
+
+    input_maf = open(snakemake.input[0], "r")
 
     # Read MAF file containing variants and create a dataframe linking regions, sample_ids, and bam paths
     regions = get_regions_df(
-        args.input_maf,
-        metadata=args.metadata,
-        seq_type=args.seq_type,
-        padding=args.padding)
+        input_maf,
+        metadata=snakemake.params[0],
+        seq_type=snakemake.params[3],
+        padding=snakemake.params[4]
+    )
+
+    input_maf.close()
+
+    outfile = open(snakemake.output[0], "w")
 
     # Format and output the batch script 
     generate_igv_batch(
         regions = regions,
-        output = args.output,
-        max_height = args.max_height,
-        seq_type = args.seq_type,
-        genome_build = args.genome_build,
-        snapshot_dir=args.snapshot_dir)
+        output = outfile,
+        max_height = snakemake.params[5],
+        seq_type = snakemake.params[3],
+        genome_build = snakemake.params[2],
+        snapshot_dir = snakemake.params[1]
+    )
 
-    close_files(args)
+    outfile.close()
+
+    #close_files(args)
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -109,9 +135,9 @@ def parse_arguments():
 def get_regions_df(input_maf, metadata, seq_type, padding):
     # Read MAF as dataframe
     maf = pd.read_table(input_maf, comment="#")
-
-    # Read metadata as dataframe
-    metadata = pd.read_table(metadata, comment="#")
+    
+    # Metadata should already be a dataframe
+    assert isinstance(metadata, pd.DataFrame), "Metadata is not in Pandas dataframe format."
 
     # Filter metadata down to only samples of required seq_type
     metadata = metadata[metadata["seq_type"]==seq_type]
