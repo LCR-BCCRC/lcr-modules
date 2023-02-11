@@ -41,6 +41,10 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "batch_scripts", "igv", "snapshots", "outputs"],
 )
 
+# Rename genome builds in metadata to match up with MAFs?
+CFG["samples"]["genome_build"].mask(CFG["samples"]["genome_build"].isin(CFG["genome_map"]["grch37"]), "grch37", inplace=True)
+CFG["samples"]["genome_build"].mask(CFG["samples"]["genome_build"].isin(CFG["genome_map"]["hg38"]), "hg38", inplace=True)
+
 
 # Define rules to be run locally when using a compute cluster
 # TODO: Replace with actual rules once you change the rule names
@@ -53,6 +57,14 @@ localrules:
     _igv_create_batch_script,
     _igv_download_igv,
     _igv_run
+
+##### FUNCTIONS #####
+
+
+def get_bams(wildcards):
+    metadata = config["lcr-modules"]["igv"]["samples"]
+    return expand("data/{{seq_type}}_bams/{{sample_id}}.{genome_build}.bam", genome_build=metadata[(metadata.sample_id == wildcards.sample_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"])
+
 
 
 ##### RULES #####
@@ -67,13 +79,13 @@ rule _igv_symlink_regions_file:
     run:
         op.absolute_symlink(input.regions_file, output.regions_file)
 
-rule _igv_symlink_metadata:
+rule _igv_symlink_bams:
     input:
-        metadata = CFG["inputs"]["metadata"]
+        bam = get_bams
     output:
-        metadata = CFG["dirs"]["inputs"] + "metadata/metadata.tsv"
+        bam = CFG["dirs"]["inputs"] + "bams/{seq_type}/{sample_id}.bam"
     run:
-        op.absolute_symlink(input.metadata, output.metadata)
+        op.absolute_symlink(input.bam, output.bam)
 
 rule _igv_symlink_maf:
     input:
@@ -147,7 +159,7 @@ rule _igv_filter_maf:
         maf_filtered = config["lcr-modules"]["igv"]["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}_cols_filtered.maf"
     params:
         regions_format = REGIONS_FORMAT[config["lcr-modules"]["igv"]["inputs"]["regions_format"].lower()],
-        metadata = config["lcr-modules"]["igv"]["samples"] if CFG["inputs"]["metadata"] is None else CFG["inputs"]["metadata"],
+        metadata = config["lcr-modules"]["igv"]["samples"],
         genome_build = lambda w: w.genome_build,
         seq_type = lambda w: w.seq_type,
         genome_map = config["lcr-modules"]["igv"]["genome_map"],
@@ -159,28 +171,18 @@ rule _igv_filter_maf:
 # Pass filtered MAF to create batch script
 rule _igv_create_batch_script:
     input:
-        maf_filtered = str(rules._igv_filter_maf.output.maf_filtered),
-        metadata = str(rules._igv_symlink_metadata.output.metadata)
+        maf_filtered = str(rules._igv_filter_maf.output.maf_filtered)
     output:
-        batch_script = temp(CFG["dirs"]["batch_scripts"] + "{seq_type}--{genome_build}.batch")
+        batch_script = temp(config["lcr-modules"]["igv"]["dirs"]["batch_scripts"] + "{seq_type}--{genome_build}.batch")
     params:
-        py_script = CFG["scripts"]["batch_script"],
-        snapshot_dir = CFG["dirs"]["snapshots"],
+        metadata = config["lcr-modules"]["igv"]["samples"],
+        snapshot_dir = config["lcr-modules"]["igv"]["dirs"]["snapshots"],
         genome_build = lambda w: w.genome_build,
         seq_type = lambda w: w.seq_type,
-        padding = CFG["generate_batch_script"]["padding"],
-        max_height = CFG["generate_batch_script"]["max_height"]
-    log:
-        stdout = CFG["logs"]["batch_scripts"] + "{seq_type}--{genome_build}_batch_script.stdout.log",
-        stderr = CFG["logs"]["batch_scripts"] + "{seq_type}--{genome_build}_batch_script.stderr.log"
-    shell:
-        op.as_one_line("""
-        {params.py_script} {input.maf_filtered} 
-        --output {output.batch_script} --metadata {input.metadata} 
-        --padding {params.padding} --max_height {params.max_height} 
-        --snapshot_dir {params.snapshot_dir}
-        --genome_build {params.genome_build} --seq_type {params.seq_type} > {log.stdout} 2> {log.stderr}
-        """)
+        padding = config["lcr-modules"]["igv"]["generate_batch_script"]["padding"],
+        max_height = config["lcr-modules"]["igv"]["generate_batch_script"]["max_height"]
+    script:
+        config["lcr-modules"]["igv"]["scripts"]["batch_script"]
 
 rule _igv_download_igv:
     output:
@@ -198,12 +200,21 @@ rule _igv_download_igv:
         touch {output.igv_installed}
         """)
 
+rule _igv_track_samples:
+    input:
+        bam = str(rules._igv_symlink_bams.output.bam)
+    output:
+        finished = CFG["dirs"]["outputs"] + "samples/{seq_type}/{sample_id}_" + CFG["inputs"]["regions_format"] + ".track"
+    shell:
+        "touch {output.finished}"
+
 rule _igv_run:
     input:
         batch_script = str(rules._igv_create_batch_script.output.batch_script),
         igv_installed = str(rules._igv_download_igv.output.igv_installed),
+        sample_track = expand(str(rules._igv_track_samples.output.finished), zip, seq_type=CFG["samples"]["seq_type"], sample_id=CFG["samples"]["sample_id"])
     output:
-        success = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}_snapshot.finished"
+        success = CFG["dirs"]["outputs"] + "snapshots/{seq_type}--{genome_build}_snapshot.finished"
     params:
         #igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh"
         igv = "/projects/rmorin/projects/RNA_seq_ssm/test/bin/IGV_Linux_2.7.2/igv.sh"
@@ -220,13 +231,12 @@ rule _igv_run:
 if CFG["test_run"] is False:
     rule _igv_all:
         input:
-            expand(rules._igv_run.output.success, seq_type=["genome","capture"], genome_build=["hg38","grch37"])
-
+            expand(str(rules._igv_run.output.success), seq_type=CFG["samples"]["seq_type"], genome_build=CFG["samples"]["genome_build"])
 
 if CFG["test_run"] is True:
     rule _igv_all:
         input:
-            expand(rules._igv_filter_maf.output.maf_filtered, seq_type=["genome","capture"], genome_build=["hg38","grch37"])
+            expand(rules._igv_filter_maf.output.maf_filtered, seq_type=CFG["samples"]["seq_type"], genome_build=CFG["samples"]["seq_type"])
 
 
 
