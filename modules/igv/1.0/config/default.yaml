@@ -6,13 +6,12 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             master_maf: # MAFs to draw sample_id and variants from
-            metadata: # Metadata containing bam link names, sample_id, and genome_build columns
 
             regions_file: "__UPDATE__" # Path to a MAF, VCF, BED or BEDPE file containing regions of interest to create snapshots of.
             regions_format: "__UPDATE__"
             regions_build: "__UPDATE__" # Genome build of regions file, will be lifted over to filter MAFs on opposite genome builds
 
-        test_run: True # Create only the filtered MAF, to get an estimate of how many snapshots will be taken
+        test_run: False # Create only the filtered MAF, to get an estimate of how many snapshots will be taken
 
         filter_maf:
             oncodriveclustl_options: # These parameters will filter down the OncodriveCLUSTL cluster results file.
@@ -37,12 +36,12 @@ lcr-modules:
             padding: 300
             max_height: 400
             batch_script_per_sample: # True/False. Default is False. If True, a batch script will be created to accompany each snapshot for easy access in IGV.
-                    
+
         scripts:
             format_regions: "etc/format_regions.py"
             filter_script: "etc/filter_maf.py"
             region_liftover_script: "{MODSDIR}/etc/liftover_regions.sh"
-            batch_script: "{MODSDIR}/etc/generate_batch_scripts.py"
+            batch_script: "etc/generate_batch_scripts.py"
 
         scratch_subdirectories: []
 
@@ -67,7 +66,7 @@ lcr-modules:
                 run_paired_tumours: False
                 run_unpaired_tumours_with: "no_normal"
                 run_paired_tumours_as_unpaired: False
-            mrna:
+            capture:
                 run_paired_tumours: False
                 run_unpaired_tumours_with: "no_normal"
                 run_paired_tumours_as_unpaired: False
