@@ -17,6 +17,7 @@ lcr-modules:
             annotation_tracks: "-c pathology" # comma-separated list of columns from metadata to plot as annotations on heatmap
 
         conda_envs:
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
             ecotyper: "{MODSDIR}/envs/ecotyper.yaml"
 
         threads:

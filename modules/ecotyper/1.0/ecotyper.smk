@@ -60,6 +60,8 @@ rule _ecotyper_install:
     params:
         url = "https://github.com/digitalcytometry/ecotyper/archive/" + str(CFG["options"]["ecotyper_version"]) + ".tar.gz",
         folder = CFG["dirs"]["inputs"]
+    conda:
+        CFG["conda_envs"]["wget"]
     group:
         "preprocessing"
     shell:
