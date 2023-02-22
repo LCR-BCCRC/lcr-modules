@@ -1,0 +1,37 @@
+lcr-modules:
+
+    ecotyper:
+
+        inputs:
+            # Gene expression matrix. Must be in wide format with samples in columns, genes in rows
+            # First column must contain gene names (column-name agnostic)
+            # Ensembl columns "gene_id" and "ensembl_gene_id" are dropped by default
+            ge_matrix: "__UPDATE__"
+            # Annotations for the samples. First column is required by Ecotyper to be "ID"
+            annotations: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            ecotyper_version: "cc92e8c" # here the sha for the commit of ecotyper version can be specified to clone a specific version
+            annotation_tracks: "-c pathology" # comma-separated list of columns from metadata to plot as annotations on heatmap
+
+        conda_envs:
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+            ecotyper: "{MODSDIR}/envs/ecotyper.yaml"
+
+        threads:
+            processing: 2
+            ecotyper: 16
+
+        resources:
+            processing:
+                mem_mb: 20000
+            ecotyper:
+                mem_mb: 40000
+
+        pairing_config:
+            mrna:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: False
