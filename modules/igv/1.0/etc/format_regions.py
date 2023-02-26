@@ -3,29 +3,12 @@
 import os
 import pandas as pd
 import oncopipe as op
+import vcf
+import shutil
 
 def format_mutation_id(mutation_id):
-    ## Modify dataframe to handle NA values in columns
-    #mutation_id = mutation_id.fillna(0)
-#
-    ## Filter dataframe based on config option
-    #max_distinct_genome_cohorts = MUTATION_ID_PARAMS["max_distinct_genome_cohorts"]
-    #min_total_genome_samples = MUTATION_ID_PARAMS["min_total_genome_samples"]
-    #
-    #max_distinct_capture_cohorts = MUTATION_ID_PARAMS["max_distinct_capture_cohorts"]
-    #min_total_capture_samples = MUTATION_ID_PARAMS["min_total_capture_samples"]
-#
-    #for key, filter_value in {
-    #    "distinct_genome_cohorts": max_distinct_genome_cohorts, 
-    #    "total_genome": min_total_genome_samples, 
-    #    "distinct_capture_cohorts": max_distinct_capture_cohorts,
-    #    "total_capture": min_total_capture_samples
-    #}.items():
-    #    if filter_value is not None:
-    #        if key in ["distinct_genome_cohorts", "distinct_capture_cohorts"]:
-    #            mutation_id = mutation_id[mutation_id[key] <= float(filter_value)]
-    #        else:
-    #            mutation_id = mutation_id[mutation_id[key] >= float(filter_value)]
+    # Read regions into dataframe
+    mutation_id = pd.read_table(mutation_id, comment="#", sep="\t")
 
     # Create columns required for liftover in BED format
     genomic_pos_col = f"mutation_id_{REGIONS_BUILD}"
@@ -47,6 +30,9 @@ def format_mutation_id(mutation_id):
     return mutation_id_reformatted
 
 def format_hotmaps(hotmaps_regions):
+    # Read regions into dataframe
+    hotmaps_regions = pd.read_table(hotmaps_regions, comment="#", sep="\t")
+
     # Convert HotMAPS coordinates to BED format
 
     hotmaps_regions["chr_std"] = hotmaps_regions.apply(lambda x: str(x["Chromosome"]).replace("chr",""), axis=1)
@@ -62,6 +48,9 @@ def format_hotmaps(hotmaps_regions):
     return hotmaps_reformatted
 
 def format_clustl(clustl_regions):
+    # Read regions into dataframe
+    clustl_regions = pd.read_table(clustl_regions, comment="#", sep="\t")
+
     p_filter = CLUSTL_PARAMS["p_value"]
     score_filter = CLUSTL_PARAMS["score"]
     n_samples_filter = CLUSTL_PARAMS["n_samples"]
@@ -99,16 +88,63 @@ def format_clustl(clustl_regions):
     )
     return clustl_reformatted
 
-def format_maf(regions):
-    # If the regions format is a MAF, don't need to reformat for liftover
-    return regions
+def format_vcf(regions):
+    # Load VCF file
+    vcf_reader = vcf.Reader(open(regions, "rb"))
+
+    # Convert VCF records to BED format
+    chroms = []
+    pos = []
+    events_seen = set()
+
+    for record in vcf_reader:
+        if len(record.FILTER) > 0:
+            continue
+        
+        # Skip SVs with ID matching previous record
+        if record.ID in events_seen:
+            continue
+
+        chromosome = "chr" + str(record.CHROM).replace("chr","")
+        position = record.POS
+
+        chroms.append(chromosome)
+        pos.append(position)
+
+        if record.is_sv and "END" in record.INFO:
+            # Add end position of SV to regions of interest
+            end = record.INFO["END"][0]
+
+            chroms.append(chromosome)
+            pos.append(end)
+
+        if record.is_sv and record.INFO["SVTYPE"] == "BND":
+            # Add end position of SV to regions of interest
+            chromosome = "chr" + str(record.ALT[0].chr).replace("chr","")
+            position = record.ALT[0].pos
+
+            chroms.append(chromosome)
+            pos.append(position)
+
+            # To skip mate event in VCF file
+            events_seen.add(record.INFO["MATEID"])
+    
+    vcf_reformatted = pd.DataFrame(
+        {
+            "chrom": chroms,
+            "start": pos,
+            "end": pos
+        }
+    )
+
+    return vcf_reformatted
 
 def format_regions(regions, regions_format):
     format_functions = {
-        "maf": format_maf,
         "oncodriveclustl": format_clustl,
         "hotmaps": format_hotmaps,
-        "mutation_id": format_mutation_id
+        "mutation_id": format_mutation_id,
+        "vcf": format_vcf,
     }
 
     return format_functions[regions_format](regions)
@@ -125,11 +161,13 @@ if regions_format == "mutation_id":
     REGIONS_BUILD = snakemake.params[2]
     REGIONS_BUILD = REGIONS_BUILD.lower()
 
-# Read regions into dataframe
-regions_df = pd.read_table(regions_file, comment="#", sep="\t")
+if regions_format == "bed" or regions_format == "maf":
+    # Do not need to reformat for liftover
+    shutil.copy(regions_file, output_file)
+    exit()
 
 # Reformat for liftover based on regions format
-regions_formatted = format_regions(regions_df, regions_format)
+regions_formatted = format_regions(regions_file, regions_format)
 
 # Output regions file
 regions_formatted.to_csv(output_file, sep="\t", index=False)
