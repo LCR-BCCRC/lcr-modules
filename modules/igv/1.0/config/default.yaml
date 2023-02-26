@@ -2,19 +2,17 @@ lcr-modules:
     
     igv:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
-            master_maf: # MAFs to draw sample_id and variants from
-
-            regions_file: "__UPDATE__" # Path to a MAF, VCF, BED or BEDPE file containing regions of interest to create snapshots of.
+            # Available wildcards: {seq_type} {tumour_sample_id} {normal_sample_id} {pair_status} {genome_build}
+            maf: "__UPDATE__"
+            regions_file: "__UPDATE__" # Path to a MAF, VCF, BED, OncodriveCLUSTL clusters file, HotMAPS results file, or mutation_id file containing regions of interest to snapshot.
             regions_format: "__UPDATE__"
-            regions_build: "__UPDATE__" # Genome build of regions file, will be lifted over to filter MAFs on opposite genome builds
+            regions_build: "__UPDATE__" # Genome build of regions file, which will be lifted over as needed to filter MAFs on opposite genome builds
 
-        test_run: False # Create only the filtered MAF, to get an estimate of how many snapshots will be taken
+        test_run: True # Stop after MAF filtering step to get an estimate of how many snapshots will be taken
 
         filter_maf:
-            oncodriveclustl_options: # These parameters will filter down the OncodriveCLUSTL cluster results file.
+            oncodriveclustl_options: # These parameters will filter the OncodriveCLUSTL cluster results file.
                 p_value: # Desired q-value of OncodriveCLUSTL clusters
                 score: # Desired scores of OncodriveCLUSTL clusters
                 n_samples: # Desired number of samples in OncodriveCLUSTL clusters
@@ -30,12 +28,14 @@ lcr-modules:
                 hg38: "genomes/hg38/chains/grch38/hg38ToHg19.over.chain"
             target_reference:
                 grch37: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh37-lite/Sequence/WholeGenomeFasta/genome.fa"
-                hg38: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh37-lite/Sequence/WholeGenomeFasta/genome.fa"
+                hg38: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh38/Sequence/WholeGenomeFasta/genome.fa"
 
         generate_batch_script:
+            temp: True # Create temporary batch files
+            image_format: ".svg"
             padding: 300
             max_height: 400
-            batch_script_per_sample: # True/False. Default is False. If True, a batch script will be created to accompany each snapshot for easy access in IGV.
+            igv_options: []
 
         scripts:
             format_regions: "etc/format_regions.py"
@@ -63,10 +63,10 @@ lcr-modules:
             
         pairing_config:
             genome:
-                run_paired_tumours: False
-                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: False
             capture:
-                run_paired_tumours: False
-                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: False

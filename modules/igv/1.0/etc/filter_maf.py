@@ -5,7 +5,7 @@ import math
 import pandas as pd
 import oncopipe as op
 
-def filter_by_bed(maf, regions, metadata):
+def filter_by_bed(maf, regions):
 
     # Remove row containing column names
     regions = regions[regions[0].str.contains("chrom")==False]
@@ -20,7 +20,7 @@ def filter_by_bed(maf, regions, metadata):
     filtered_maf = maf[maf["genomic_pos_std"].isin(regions["genomic_pos_std"])]
     return filtered_maf
 
-def filter_by_maf(maf, regions, metadata):
+def filter_by_maf(maf, regions):
 
     # Create common column by which to subset MAF
     for df in [maf, regions]:
@@ -31,7 +31,7 @@ def filter_by_maf(maf, regions, metadata):
     filtered_maf = maf[maf["genomic_pos_std"].isin(regions["genomic_pos_std"])]
     return filtered_maf
 
-def maf_filter(maf, regions, regions_format, metadata, genome_build, seq_type, genome_map):
+def maf_filter(maf, regions, regions_format):
     # Read input MAF and regions file as dataframes
     maf_df = pd.read_table(maf, comment="#", sep="\t")
 
@@ -40,19 +40,16 @@ def maf_filter(maf, regions, regions_format, metadata, genome_build, seq_type, g
     else:
         regions_df = pd.read_table(regions, comment="#", sep="\t", header=None)
 
-    # Select rows in MAF containing correct seq_type and build
-    metadata = op.filter_samples(metadata, seq_type=seq_type)
-    genome_build_list = genome_map[genome_build]
-    metadata = op.filter_samples(metadata, genome_build=genome_build_list)
-
-    maf_df = maf_df[maf_df["Tumor_Sample_Barcode"].isin(metadata.sample_id)]
+    # Return empty dataframe without filtering if df is empty
+    if len(maf_df)==0:
+        return maf_df
 
     filter_functions = {
         "maf": filter_by_maf,
         "bed": filter_by_bed
         }
     
-    return filter_functions[regions_format](maf_df, regions_df, metadata)
+    return filter_functions[regions_format](maf_df, regions_df)
 
 def maf_reduce_snapshots(maf, snapshots):
     # Only include max of number of snapshots for each variant
@@ -70,20 +67,9 @@ regions_format = snakemake.params[0]
 
 if regions_format == "oncodriveclustl":
     # This should act as a global variable
-    CLUSTL_PARAMS = snakemake.params[5]
+    CLUSTL_PARAMS = snakemake.params[1]
 
-n_snapshots = snakemake.params[6]
-
-# Metadata file or dataframe mapping sample_ids to bam file paths
-metadata = snakemake.params[1]
-if not isinstance(metadata, pd.DataFrame):
-    metadata = pd.read_table(metadata, comment="#", sep="\t")
-
-maf_genome_build = snakemake.params[2]
-maf_seq_type = snakemake.params[3]
-
-# Dictionary of genome builds present in the MAF to label as grch37 / hg38
-genome_map = snakemake.params[4]
+n_snapshots = snakemake.params[2]
 
 output_file = snakemake.output[0]
 
@@ -92,11 +78,7 @@ output_file = snakemake.output[0]
 filtered_maf = maf_filter(
     maf=maf_file, 
     regions=regions_file,
-    regions_format=regions_format,
-    metadata=metadata,
-    genome_build=maf_genome_build,
-    seq_type=maf_seq_type,
-    genome_map=genome_map
+    regions_format=regions_format
     )
 
 filtered_maf = maf_reduce_snapshots(maf=filtered_maf, snapshots=n_snapshots)

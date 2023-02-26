@@ -9,146 +9,62 @@ import oncopipe as op
 import math
 
 def main():
-    # Parse arguments
-    #args = parse_arguments()
 
-    # Read MAF file containing variants and create a dataframe linking regions, sample_ids, and bam paths
-    #regions = get_regions_df(
-    #    args.input_maf,
-    #    metadata=args.metadata,
-    #    seq_type=args.seq_type,
-    #    padding=args.padding)
+    input_bam = snakemake.input[0]
+    input_bai = snakemake.input[1]
+    input_maf = open(snakemake.input[2], "r")
+    outfile = open(snakemake.output[0], "w")
 
-    # Format and output the batch script 
-    #generate_igv_batch(
-    #    regions = regions,
-    #    output = args.output,
-    #    max_height = args.max_height,
-    #    seq_type = args.seq_type,
-    #    genome_build = args.genome_build,
-    #    snapshot_dir=args.snapshot_dir)
+    # Skip sample if no variants in filtered MAF file
+    line_count = 0
+    for line in input_maf:
+        line_count += 1
+        if line_count > 1:
+            break
+    if line_count < 2:
+        line = generate_igv_batch_footer()
+        output_lines(line, outfile)
+        input_maf.close()
+        outfile.close()
+        exit()
 
-    input_maf = open(snakemake.input[0], "r")
+    # Return to top of MAF
+    input_maf.seek(0)
 
     # Read MAF file containing variants and create a dataframe linking regions, sample_ids, and bam paths
     regions = get_regions_df(
         input_maf,
-        metadata=snakemake.params[0],
-        seq_type=snakemake.params[3],
-        padding=snakemake.params[4]
+        seq_type=snakemake.params[2],
+        padding=snakemake.params[3]
     )
 
     input_maf.close()
 
-    outfile = open(snakemake.output[0], "w")
-
     # Format and output the batch script 
     generate_igv_batch(
+        bam = input_bam,
+        bai = input_bai,
         regions = regions,
         output = outfile,
-        max_height = snakemake.params[5],
-        seq_type = snakemake.params[3],
-        genome_build = snakemake.params[2],
-        snapshot_dir = snakemake.params[1]
+        max_height = snakemake.params[4],
+        seq_type = snakemake.params[2],
+        genome_build = snakemake.params[1],
+        snapshot_dir = snakemake.params[0],
+        igv_options = snakemake.params[5],
+        image_format = snakemake.params[6]
     )
 
     outfile.close()
 
-    #close_files(args)
-
-def parse_arguments():
-    parser = argparse.ArgumentParser(description=__doc__)
-
-    parser.add_argument(
-        "input_maf",
-        type=argparse.FileType("r"),
-        default="-",
-        help=f"Input MAF. Can be '-' for stdin"
-    )
-
-    parser.add_argument(
-        "--output",
-        "-o",
-        metavar="OUTPUT_FILE",
-        type=argparse.FileType("w"),
-        help="Output IGV batch script."
-    )
-
-    parser.add_argument(
-        "--metadata",
-        "-v",
-        metavar="METADATA",
-        type=argparse.FileType("r"),
-        help="Metadata mapping sample IDs to BAM paths"
-    )
-
-    default_padding = 300
-    parser.add_argument(
-        "--padding",
-        "-p",
-        type=int,
-        default=default_padding,
-        help=(
-            "Amount of padding added before and after each locus. "
-            f"Default padding is {default_padding}"
-        ),
-    )
-
-    default_max_height = 400
-    parser.add_argument(
-        "--max_height",
-        "-m",
-        type=int,
-        default=default_max_height,
-        help="Maximum panel height in IGV. Default max height is {default_max_height}"
-    )
-
-    parser.add_argument(
-        "--snapshot_dir",
-        "-d",
-        required=True,
-        help=(
-            "Parent directory where {chromosome}/{region} subdirectories will be "
-            "populated with IGV snapshots."
-        )
-    )
-
-    parser.add_argument(
-        "--genome_build",
-        "-g",
-        required=True,
-        help="Specify IGV genome build for snapshots."
-    )
-
-    parser.add_argument(
-        "--seq_type",
-        "-s",
-        required=True,
-        type=str,
-        help="Specify sequencing type for BAM extraction."
-    )
-
-    args = parser.parse_args()
-
-    return args
-
-def get_regions_df(input_maf, metadata, seq_type, padding):
+def get_regions_df(input_maf, seq_type, padding):
     # Read MAF as dataframe
-    maf = pd.read_table(input_maf, comment="#")
-    
-    # Metadata should already be a dataframe
-    assert isinstance(metadata, pd.DataFrame), "Metadata is not in Pandas dataframe format."
-
-    # Filter metadata down to only samples of required seq_type
-    metadata = metadata[metadata["seq_type"]==seq_type]
-    metadata = metadata[["sample_id","link_name"]]
+    maf = pd.read_table(input_maf, comment="#", sep="\t")
 
     # Make sure required minimum columns are present in the maf
     columns = [
         "Chromosome",
         "Start_Position",
         "End_Position",
-        "Tumor_Sample_Barcode",
     ]
     
     assert(all(c in list(maf.columns) for c in columns)), (
@@ -168,7 +84,6 @@ def get_regions_df(input_maf, metadata, seq_type, padding):
         )
 
     # Create a pandas dataframe with to link regions with sample_ids and bam files
-
     chrom = (maf["Chromosome"].astype(str)).apply(lambda x: x.replace("chr",""))
 
     # Snapshots will be held in parent directories of 1000-nt intervals for easier navigation
@@ -188,64 +103,103 @@ def get_regions_df(input_maf, metadata, seq_type, padding):
         "sample_id": maf.Tumor_Sample_Barcode,
         }
     )
-
-    # Link bam paths to regions by merging metadata and regions dataframes by sample_id 
-    regions_df = pd.merge(regions_df, metadata, on="sample_id", how="left")
     
     return regions_df
 
-def generate_igv_batch_header(bam_file, max_height, snapshot_dir, genome_build):
+def generate_igv_batch_header(bam_file, index_file, max_height, genome_build):
     lines = []
+
+    genome_build = genome_build.replace("grch37","hg19").replace("grch38","hg38")
 
     bam_file = os.path.realpath(bam_file)
     lines.append(f"load {bam_file}")
 
+    bai_file = os.path.realpath(index_file)
+    lines.append(f"index={bai_file}")
+
     lines.append(f"maxPanelHeight {max_height}")
-    lines.append(f"snapshotDirectory {snapshot_dir}")
     lines.append(f"genome {genome_build}")
 
     return lines
 
-def generate_igv_batch_per_row(regions, snapshot_filename):
+def generate_igv_batch_per_row(regions, snapshot_filename, igv_options):
     lines = []
     lines.append(f"goto {regions}")
     lines.append("sort")
     lines.append("collapse")
+    for option in igv_options:
+        lines.append(option)
     lines.append(f"snapshot {snapshot_filename}")
-    lines.append("new")
 
     return lines
 
-def generate_igv_batch_per_region(regions, max_height, genome_build, snapshot_dir):
+def generate_igv_batch(bam, bai, regions, output, max_height, seq_type, genome_build, snapshot_dir, igv_options, image_format):
+
+    # Lines for batch script encompassing all regions and sample_ids
+    all_lines = []
+
+    header = generate_igv_batch_header(
+        bam, bai, max_height, genome_build
+    )
+
+    all_lines.extend(header)
+
+    for dir_region in regions.dir_regions.unique():
+        regions_in_dir = regions[regions["dir_regions"]==dir_region]
+
+        lines = generate_igv_batch_per_region(
+            regions=regions_in_dir,
+            max_height=max_height,
+            seq_type=seq_type,
+            genome_build=genome_build,
+            snapshot_dir=snapshot_dir,
+            options=igv_options,
+            image_format=image_format
+        )
+
+        if lines is not None:
+            all_lines.extend(lines)
+
+    footer = generate_igv_batch_footer()
+    all_lines.extend(footer)
+
+    output_lines(all_lines, output)
+
+
+def generate_igv_batch_per_region(regions, max_height, seq_type, genome_build, snapshot_dir, options, image_format):
     
-    # Lines of batch script
+    # Batch script lines
     lines = []
 
-    # Add lines to batch script for each region
+    # Set up snapshot directory string
+    dir_chrom = regions.dir_regions.unique()[0].split(":")[0]
+    dir_interval = regions.dir_regions.unique()[0].split(":")[1]
+    seq_type_build = f"{seq_type}--{genome_build}"
+
+    # Add snapshot directory line to batch script
+    snapshot_regions_dir = os.path.join(snapshot_dir, seq_type_build, dir_chrom, dir_interval, "")
+    lines.append(f"snapshotDirectory {snapshot_regions_dir}")
+
+    # Add lines to batch script for each sample
     for _, row in regions.iterrows():
+        # Add components of filename as a list
         filename = []
 
         filename.append(row.regions)
+
+        # Include gene name if available
         if "region_name" in row:
             filename.append(row.region_name)
         filename.append(row.sample_id)
 
-        filename = "--".join(filename) + ".png"
-        filename = filename.replace(" ", "_")
+        if not image_format.startswith("."):
+            image_format = "." + image_format
 
-        bam_file = row.link_name
+        filename = "--".join(filename) + image_format
 
-        genome_build = genome_build.replace("grch37","hg19").replace("grch38","hg38")
-
-        header = generate_igv_batch_header(
-            bam_file, max_height, snapshot_dir, genome_build
-        )
-        lines.extend(header)
-
-        row_lines = generate_igv_batch_per_row(regions = row.regions, snapshot_filename = filename)
+        row_lines = generate_igv_batch_per_row(regions = row.regions, snapshot_filename = filename, igv_options = options)
 
         lines.extend(row_lines)
-    
     return lines
 
 def close_files(args):
@@ -263,49 +217,6 @@ def output_lines(lines, output):
     lines.append("")
     text = "\n".join(lines)
     output.write(text)
-
-def generate_igv_batch(regions, output, max_height, seq_type, genome_build, snapshot_dir):
-
-    # The lines for the batch script encompassing all regions and sample_ids
-    all_lines = []
-
-    # Create batch scripts per unique 1000-nt interval region
-    dir_regions = regions.dir_regions.unique()
-
-    for dir_region in dir_regions:
-
-        # Get chromosome string for parent directory
-        dir_chrom = dir_region.split(":")[0]
-        # Get 1000nt interval region for subdirectory
-        dir_interval = dir_region.split(":")[1]
-
-        seq_type_build = f"{seq_type}--{genome_build}"
-        
-        region_snapshot_dir = os.path.join(snapshot_dir, seq_type_build, dir_chrom, dir_interval, "")
-        
-        # Subset all regions down to those in the 1000nt interval
-        regions_in_dir = regions[regions["dir_regions"]==dir_region]
-
-        # Iterate through unique regions within interval
-        for unique_region in regions_in_dir.regions.unique():
-
-            # Subset rows by number of snapshots desired per region
-            regions_subset = regions_in_dir[regions_in_dir["regions"]==unique_region]
-            
-            # Generate lines of batch script per region subset
-            lines = generate_igv_batch_per_region(
-                regions = regions_subset,
-                max_height=max_height, 
-                genome_build=genome_build,
-                snapshot_dir=region_snapshot_dir)
-
-            if lines is not None:
-                all_lines.extend(lines)
-
-    footer = generate_igv_batch_footer()
-    all_lines.extend(footer)
-
-    output_lines(all_lines, output)
 
 if __name__ == "__main__":
     main()
