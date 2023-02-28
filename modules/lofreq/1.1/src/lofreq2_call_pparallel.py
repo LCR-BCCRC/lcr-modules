@@ -168,8 +168,30 @@ def concat_vcf_files(vcf_files, vcf_out, source=None):
     assert not os.path.exists(vcf_out)
     #I didn't address the FIXME issue noted above but another bug was fixed here.
     #This now uses bcftools to overcome systematic failures of merging with certain data sets due to multi-allelic variants
+    num_vcf_files = len(vcf_files)
+    sub_out_vcfs = []
+    for i in range(0, num_vcf_files, 1000):
+        vcf_out_sub = vcf_out + "." + str(i) + ".vcf"
+        sub_out_vcfs.append(vcf_out_sub)
+        cmd = ['bcftools', 'concat', '-a', '-O', 'z', '-o', vcf_out_sub]
+        cmd.extend(vcf_files[i:i+1000])
+        idx = ['bcftools','index','-t', vcf_out_sub]
+        try:
+            subprocess.check_call(cmd)
+        except subprocess.CalledProcessError as e:
+            LOG.fatal("The following command failed with return code %d: %s" % (
+                e.returncode, ' '.join(cmd)))
+            sys.exit(1)
+        try:
+            subprocess.check_call(idx)
+        except subprocess.CalledProcessError as e:
+            LOG.fatal("The following command failed with return code %d: %s" % (
+                e.returncode, ' '.join(cmd)))
+            sys.exit(1)
+
+    # Merge the individual merged VCFs
     cmd = ['bcftools', 'concat', '-a', '-O', 'z', '-o', vcf_out]
-    cmd.extend(vcf_files)
+    cmd.extend(sub_out_vcfs)
     idx = ['bcftools','index','-t', vcf_out]
     try:
         subprocess.check_call(cmd)
@@ -183,6 +205,7 @@ def concat_vcf_files(vcf_files, vcf_out, source=None):
         LOG.fatal("The following command failed with return code %d: %s" % (
             e.returncode, ' '.join(cmd)))
         sys.exit(1)
+
 
 def sq_list_from_bam_samtools(bam):
     """Extract SQs listed in BAM head using samtools
@@ -208,7 +231,7 @@ def sq_list_from_bam_samtools(bam):
     if sys.version_info[0] > 2:
         stdoutdata = stdoutdata.decode()
     stdout_lines = str.splitlines(stdoutdata)
- 
+
     sq_list = []
 
     for line in stdout_lines:

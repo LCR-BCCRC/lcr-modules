@@ -400,7 +400,7 @@ class SomaticSNVCaller(object):
         from relaxed calls
         """
 
-        num_snv_tests, num_indel_tests = num_tests 
+        num_snv_tests, num_indel_tests = num_tests
         assert sample_type in ['normal', 'tumor']
 
         # filtering stringently using tumor stringent settings
@@ -826,7 +826,7 @@ def main():
         somatic_snv_caller = SomaticSNVCaller(
             bam_n=args.normal, bam_t=args.tumor, ref=args.ref,
             outprefix=args.outprefix, bed=args.bed, dbsnp=args.dbsnp,
-            continue_interrupted=args.continue_interrupted, 
+            continue_interrupted=args.continue_interrupted,
             normal_only=args.normal_only)
     except AssertionError as e:
         LOG.fatal("%s" % str(e))

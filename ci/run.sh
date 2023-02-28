@@ -37,6 +37,6 @@ if (( $CORES_AVAILABLE == 0 )); then
     exit 1
 fi
 
-nice -n 10 snakemake -p --cores $cores $snakemake_flags -s $snakefile --latency-wait 120 --use-conda $TARGETS
+nice -n 10 snakemake -p --cores $cores $snakemake_flags -s $snakefile --keep-going --latency-wait 120 --use-conda $TARGETS
 
 

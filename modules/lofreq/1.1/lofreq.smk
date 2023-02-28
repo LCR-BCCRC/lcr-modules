@@ -54,6 +54,7 @@ all_other_ids = list(set(sample_ids) - set(unmatched_normal_ids))
 # Define rules to be run locally when using a compute cluster
 localrules:
     _lofreq_input_bam,
+    _lofreq_configure_software,
     _lofreq_output_vcf,
     _lofreq_all,
     _lofreq_link_to_preprocessed
@@ -82,6 +83,25 @@ def _lofreq_get_capspace(wildcards):
 
 ##### RULES #####
 
+# Setup LoFreq to use system-specific binaries, but custom python scripts
+# By default, the LoFreq binary (from my understanding) uses python scripts in the same directory as the binary
+# So lets put the conda binary with our python scripts
+rule _lofreq_configure_software:
+    output:
+        lofreq = CFG["dirs"]["inputs"] + "lofreq/lofreq",
+        lofreq_dir = directory(CFG["dirs"]["inputs"] + "lofreq/")
+    conda:
+        CFG["conda_envs"]["lofreq"]
+    shell:
+        op.as_one_line("""
+        lofreq=$(which lofreq);
+        lofreq_parallel=$(realpath -e {SCRIPT_PATH}/lofreq2_somatic.py);
+        lofreq_somatic=$(realpath -e {SCRIPT_PATH}/lofreq2_call_pparallel.py);
+        cp $lofreq {output.lofreq};
+        ln -s $lofreq_parallel {output.lofreq_dir};
+        ln -s $lofreq_somatic {output.lofreq_dir}
+        """)
+
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _lofreq_input_bam:
@@ -105,7 +125,8 @@ rule _lofreq_preprocess_normal:
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
-        bed = _lofreq_get_capspace
+        bed = _lofreq_get_capspace,
+        lofreq_dir = str(rules._lofreq_configure_software.output.lofreq_dir)
     output:
         preprocessing_start = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/preprocessing.started",
         vcf_relaxed = CFG["dirs"]["lofreq_normal"] + "{seq_type}--{genome_build}/{normal_id}/normal_relaxed.vcf.gz",
@@ -129,18 +150,13 @@ rule _lofreq_preprocess_normal:
         normal_id="|".join(unmatched_normal_ids)
     shell:
         op.as_one_line("""
-        SCRIPT_PATH={SCRIPT_PATH};
-        PATH=$SCRIPT_PATH:$PATH;
-        SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
-        if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
-            echo "using bundled patched script $SCRIPT";
-            touch {output.preprocessing_start}
-            && 
-            lofreq somatic --normal_only {params.opts} --threads {threads} -t {input.normal_bam} -n {input.normal_bam}
-            -f {input.fasta} -o $(dirname {output.vcf_relaxed})/ -d {input.dbsnp} --bed {input.bed}
-            > {log.stdout} 2> {log.stderr} && 
-            touch {output.preprocessing_complete};
-        else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
+        PATH={input.lofreq_dir}:$PATH;
+        touch {output.preprocessing_start}
+        &&
+        lofreq somatic --normal_only {params.opts} --threads {threads} -t {input.normal_bam} -n {input.normal_bam}
+        -f {input.fasta} -o $(dirname {output.vcf_relaxed})/ -d {input.dbsnp} --bed {input.bed}
+        > {log.stdout} 2> {log.stderr} && 
+        touch {output.preprocessing_complete};
         """)
 
 
@@ -185,7 +201,8 @@ rule _lofreq_run_tumour_unmatched:
         vcf_relaxed = str(rules._lofreq_link_to_preprocessed.output.vcf_relaxed),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
-        bed = _lofreq_get_capspace
+        bed = _lofreq_get_capspace,
+        lofreq_dir = str(rules._lofreq_configure_software.output.lofreq_dir)
     output:
         vcf_snvs_filtered = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.snvs.vcf.gz",
         vcf_indels_filtered = CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.indels.vcf.gz",
@@ -206,15 +223,10 @@ rule _lofreq_run_tumour_unmatched:
         pair_status = "unmatched" 
     shell:
         op.as_one_line("""
-        SCRIPT_PATH={SCRIPT_PATH};
-        PATH=$SCRIPT_PATH:$PATH;
-        SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
-        if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
-            echo "using bundled patched script $SCRIPT";
-            lofreq somatic --continue {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
-            -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} --bed {input.bed}
-            > {log.stdout} 2> {log.stderr};
-        else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
+        PATH={input.lofreq_dir}:$PATH;
+        lofreq somatic --continue {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
+        -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} --bed {input.bed}
+        > {log.stdout} 2> {log.stderr};
         """)
 
 rule _lofreq_run_tumour_matched:
@@ -223,7 +235,8 @@ rule _lofreq_run_tumour_matched:
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
-        bed = _lofreq_get_capspace
+        bed = _lofreq_get_capspace,
+        lofreq_dir = str(rules._lofreq_configure_software.output.lofreq_dir)
     output:
         vcf_relaxed = temp(CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_relaxed.vcf.gz"),
         vcf_snvs_filtered = temp(CFG["dirs"]["lofreq_somatic"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somatic_final_minus-dbsnp.snvs.vcf.gz"),
@@ -245,15 +258,10 @@ rule _lofreq_run_tumour_matched:
         pair_status = "matched"
     shell:
         op.as_one_line("""
-        SCRIPT_PATH={SCRIPT_PATH};
-        PATH=$SCRIPT_PATH:$PATH;
-        SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
-        if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
-            echo "using bundled patched script $SCRIPT";
-            lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
-            -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} --bed {input.bed}
-            > {log.stdout} 2> {log.stderr};
-        else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
+        PATH={input.lofreq_dir}:$PATH;
+        lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
+        -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} --bed {input.bed}
+        > {log.stdout} 2> {log.stderr};
         """)
 
 # indels are not yet called but this rule merges the empty indels file with the snvs file to produce the consistently named "combined" vcf. 

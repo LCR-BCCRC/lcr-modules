@@ -74,6 +74,10 @@ capture_space:
         provider: "ensembl"
         default: "true"
         capture_bed_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/capture_bed/grch37_all_genes.canonical.sort.bed4"
+    ci-demo-capture:
+        genome: "grch38"
+        provider: "ucsc"
+        capture_bed_url: "https://www.bcgsc.ca/downloads/lcr-modules/genome_fastas/capture_bed/synthetic_captured_panel.bed6"
     # to add custom capture space, follow this example and fill in dictionary keys
     #name_of_capture_panel:
         #genome: "grch37" or "hg38" as example

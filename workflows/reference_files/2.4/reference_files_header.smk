@@ -76,11 +76,17 @@ for build_name, build_info in config["genome_builds"].items():
         f"`provider` not set for `{build_name}` or `provider` not among {possible_providers}."
     )
     if "genome_fasta_url" in build_info:
-        url_code = urllib.request.urlopen(build_info["genome_fasta_url"]).getcode()
-        assert url_code == 200, (
-            f"Pinging `genome_fasta_url` for {build_name} returned HTTP code {url_code} "
-            f"(rather than 200): \n{build_info['genome_fasta_url']}"
-        )
+        try:
+            url_code = urllib.request.urlopen(build_info["genome_fasta_url"]).getcode()
+            assert url_code == 200, (
+                f"Pinging `genome_fasta_url` for {build_name} returned HTTP code {url_code} "
+                f"(rather than 200): \n{build_info['genome_fasta_url']}"
+            )
+        except urllib.error.URLError as e:
+            # Something strange happened when trying to ping the file. This can happen even if the file is
+            # accessible and availible to download
+            pass
+
     # Find the appropriate SDF file for this genome build
     if build_name not in SDF_IGNORE:
         SDF_GENOME_BUILDS.append(build_name)
@@ -97,11 +103,15 @@ for build_name, build_info in config["capture_space"].items():
     assert "genome" in build_info and build_info["genome"] in possible_versions,(
         f"`genome` not set for `{build_name}` or `genome` not among {possible_versions}." )
     if "capture_bed_url" in build_info: 
-        url_code = urllib.request.urlopen(build_info["capture_bed_url"]).getcode()
-        assert url_code == 200, (
-            f"Pinging `capture_bed_url` for {build_name} returned HTTP code {url_code} "
-            f"(rather than 200): \n{build_info['capture_bed_url']}"
-            )
+        try:
+            url_code = urllib.request.urlopen(build_info["capture_bed_url"]).getcode()
+            assert url_code == 200, (
+                f"Pinging `capture_bed_url` for {build_name} returned HTTP code {url_code} "
+                f"(rather than 200): \n{build_info['capture_bed_url']}"
+                )
+        except urllib.error.URLError as e:
+            # See above. Same reasoning
+            pass
     else: 
         assert "capture_bed_file" in build_info
     if "default" in build_info:

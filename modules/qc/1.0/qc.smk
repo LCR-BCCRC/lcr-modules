@@ -85,7 +85,9 @@ rule _qc_input_references:
 # Collect samtools stats
 rule _qc_samtools_stat:
     input:
-        bam = str(rules._qc_input_bam.output.bam)
+        bam = str(rules._qc_input_bam.output.bam),
+        genome_fa = str(rules._qc_input_references.output.genome_fa),
+        genome_fai = str(rules._qc_input_references.output.genome_fai)
     output:
         samtools_stat = CFG["dirs"]["samtools"] + "{seq_type}--{genome_build}/{sample_id}.{genome_build}.stat"
     log:
@@ -103,6 +105,7 @@ rule _qc_samtools_stat:
         samtools stats
         {params.opts}
         --threads {threads}
+        --reference {input.genome_fa}
         {input.bam}
         >> {output.samtools_stat}
         2>> {log.stderr}

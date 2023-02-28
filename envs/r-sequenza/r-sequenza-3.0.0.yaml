@@ -12,7 +12,7 @@ dependencies:
   - bioconductor-biocgenerics=0.34.0
   - bioconductor-copynumber=1.28.0
   - bioconductor-genomeinfodb=1.24.0
-  - bioconductor-genomeinfodbdata=1.2.3
+  - bioconductor-genomeinfodbdata=1.2.4
   - bioconductor-genomicranges=1.40.0
   - bioconductor-iranges=2.22.1
   - bioconductor-s4vectors=0.26.0
@@ -23,7 +23,7 @@ dependencies:
   - ca-certificates=2020.6.20
   - cairo=1.16.0
   - certifi=2020.6.20
-  - curl=7.71.0
+  - curl=7.71.1
   - fontconfig=2.13.1
   - freetype=2.10.2
   - fribidi=1.0.9
@@ -44,7 +44,7 @@ dependencies:
   - ld_impl_linux-64=2.34
   - libblas=3.8.0
   - libcblas=3.8.0
-  - libcurl=7.71.0
+  - libcurl=7.71.1
   - libedit=3.1.20191231
   - libffi=3.2.1
   - libgcc-ng=9.2.0

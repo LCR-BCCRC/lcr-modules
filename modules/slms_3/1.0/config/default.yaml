@@ -20,7 +20,7 @@ lcr-modules:
         module_versions:
             manta: "2.3" # Minimum: 2.0
             strelka: "1.1" # Minimum: 1.1
-            lofreq: "1.0" # Minimum: 1.0
+            lofreq: "1.1" # Minimum: 1.0
             sage: "1.0" # Minimum: 1.0
             mutect2: "2.0" # Minimum: 2.0
             starfish: "2.0" # Minimum: 2.0
@@ -29,6 +29,7 @@ lcr-modules:
 
         conda_envs:
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
 
         options: 
             cleanup_vcfs: False # Boolean True or False. Indicate whether temp VCF files generated as part of SLMS-3 should be removed upon completion. 
