@@ -11,6 +11,8 @@ lcr-modules:
 
         test_run: True # Stop after MAF filtering step to get an estimate of how many snapshots will be taken
 
+        view_as_pairs: False # Toggle pairwise orientation in IGV
+
         filter_maf:
             oncodriveclustl_options: # These parameters will filter the OncodriveCLUSTL cluster results file.
                 p_value: # Desired q-value of OncodriveCLUSTL clusters
@@ -35,6 +37,7 @@ lcr-modules:
             image_format: ".svg"
             padding: 300
             max_height: 400
+            # Available batch script options: https://github.com/igvteam/igv/wiki/Batch-commands
             igv_options: []
 
         scripts:
