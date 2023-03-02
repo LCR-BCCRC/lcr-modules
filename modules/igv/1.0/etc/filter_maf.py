@@ -25,36 +25,54 @@ def filter_by_maf(maf, regions):
     # Create common column by which to subset MAF
     for df in [maf, regions]:
         df["chr_std"] = df.apply(lambda x: str(x["Chromosome"]).replace("chr",""), axis=1)
-        df["genomic_pos_std"] = df["chr_std"] + ":" + df["Start_Position"].map(str) + "_" + df["End_Position"].map(str)
+        df["genomic_pos_std"] = df["chr_std"] + ":" + df["Start_Position"].map(str)
 
     # Subset the MAF
     filtered_maf = maf[maf["genomic_pos_std"].isin(regions["genomic_pos_std"])]
     return filtered_maf
 
 def maf_filter(maf, regions, regions_format):
-    # Read input MAF and regions file as dataframes
-    maf_df = pd.read_table(maf, comment="#", sep="\t")
-
+    
     if regions_format != "bed":
         regions_df = pd.read_table(regions, comment="#", sep="\t")
     else:
         regions_df = pd.read_table(regions, comment="#", sep="\t", header=None)
 
     # Return empty dataframe without filtering if df is empty
-    if len(maf_df)==0:
-        return maf_df
+    if len(maf)==0:
+        return maf
 
     filter_functions = {
         "maf": filter_by_maf,
         "bed": filter_by_bed
         }
     
-    return filter_functions[regions_format](maf_df, regions_df)
+    return filter_functions[regions_format](maf, regions_df)
 
 def maf_reduce_snapshots(maf, snapshots):
     # Only include max of number of snapshots for each variant
     maf = maf.groupby(["Chromosome","Start_Position", "End_Position", "Reference_Allele", "Tumor_Seq_Allele2"]).head(n=snapshots)
 
+    return maf
+
+def maf_add_columns(maf, metadata):
+    # Read input MAF as df
+    maf = pd.read_table(maf, comment="#", sep="\t")
+
+    sample_id = maf["Tumor_Sample_Barcode"].unique()[0]
+
+    row = metadata[metadata["tumour_sample_id"]==sample_id]
+
+    seq_type = row["tumour_seq_type"].item()
+    genome_build = row["tumour_genome_build"].item()
+    normal_sample_id = row["normal_sample_id"].item()
+    pair_status = row["pair_status"].item()
+
+    maf["seq_type"] = seq_type
+    maf["genome_build"] = genome_build
+    maf["normal_sample_id"] = normal_sample_id
+    maf["pair_status"] = pair_status
+    
     return maf
 
 def write_output(maf, outfile):
@@ -65,6 +83,8 @@ maf_file = snakemake.input[0]
 regions_file = snakemake.input[1]
 regions_format = snakemake.params[0]
 
+metadata = snakemake.params[3]
+
 if regions_format == "oncodriveclustl":
     # This should act as a global variable
     CLUSTL_PARAMS = snakemake.params[1]
@@ -73,10 +93,12 @@ n_snapshots = snakemake.params[2]
 
 output_file = snakemake.output[0]
 
+maf = maf_add_columns(maf=maf_file, metadata=metadata)
+
 # Peform filtering
 
 filtered_maf = maf_filter(
-    maf=maf_file, 
+    maf=maf, 
     regions=regions_file,
     regions_format=regions_format
     )

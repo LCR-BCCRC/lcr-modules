@@ -65,6 +65,7 @@ def get_regions_df(input_maf, seq_type, padding):
         "Chromosome",
         "Start_Position",
         "End_Position",
+        "Hugo_Symbol",
     ]
     
     assert(all(c in list(maf.columns) for c in columns)), (
@@ -86,21 +87,20 @@ def get_regions_df(input_maf, seq_type, padding):
     # Create a pandas dataframe with to link regions with sample_ids and bam files
     chrom = (maf["Chromosome"].astype(str)).apply(lambda x: x.replace("chr",""))
 
-    # Snapshots will be held in parent directories of 1000-nt intervals for easier navigation
-    dir_start = ((maf["Start_Position"] / 1000).apply(lambda x: math.trunc(x)) * 1000).astype(str)
-    dir_end = (dir_start.astype(int) + 1000).astype(str)
-    dir_regions = "chr" + chrom + ":" + dir_start + "_" + dir_end
-
-    # Specify the regions that will be captured by IGV based on variant positions and padding
-    region_start = (maf["Start_Position"] - padding).astype(str)
-    region_end = (maf["End_Position"] + padding).astype(str)
-    regions = "chr" + chrom + ":" + region_start + "-" + region_end
+    # Specify the regions that will be captured by IGV based on variant positions
+    region_position = (maf["Start_Position"]).astype(str)
+    snapshot_start = (maf["Start_Position"] - padding).astype(str)
+    snapshot_end = (maf["End_Position"] + padding).astype(str)
+    snapshot_coordinates = "chr" + chrom + ":" + snapshot_start + "-" + snapshot_end
+    regions = "chr" + chrom + ":" + region_position
 
     regions_df = pd.DataFrame(
-        {"dir_regions": dir_regions,
-        "regions": regions,
+        {"chromosome": "chr" + chrom,
+        "region": regions,
         "region_name": maf.Hugo_Symbol,
         "sample_id": maf.Tumor_Sample_Barcode,
+        "snapshot_coordinates": snapshot_coordinates,
+        "padding": padding
         }
     )
     
@@ -122,9 +122,9 @@ def generate_igv_batch_header(bam_file, index_file, max_height, genome_build):
 
     return lines
 
-def generate_igv_batch_per_row(regions, snapshot_filename, igv_options):
+def generate_igv_batch_per_row(coordinates, snapshot_filename, igv_options):
     lines = []
-    lines.append(f"goto {regions}")
+    lines.append(f"goto {coordinates}")
     lines.append("sort")
     lines.append("collapse")
     for option in igv_options:
@@ -144,11 +144,11 @@ def generate_igv_batch(bam, bai, regions, output, max_height, seq_type, genome_b
 
     all_lines.extend(header)
 
-    for dir_region in regions.dir_regions.unique():
-        regions_in_dir = regions[regions["dir_regions"]==dir_region]
+    for chrom in regions.chromosome.unique():
+        chrom_regions = regions[regions["chromosome"]==chrom]
 
         lines = generate_igv_batch_per_region(
-            regions=regions_in_dir,
+            regions=chrom_regions,
             max_height=max_height,
             seq_type=seq_type,
             genome_build=genome_build,
@@ -172,12 +172,11 @@ def generate_igv_batch_per_region(regions, max_height, seq_type, genome_build, s
     lines = []
 
     # Set up snapshot directory string
-    dir_chrom = regions.dir_regions.unique()[0].split(":")[0]
-    dir_interval = regions.dir_regions.unique()[0].split(":")[1]
+    dir_chrom = regions.chromosome.unique()[0].split(":")[0]
     seq_type_build = f"{seq_type}--{genome_build}"
 
     # Add snapshot directory line to batch script
-    snapshot_regions_dir = os.path.join(snapshot_dir, seq_type_build, dir_chrom, dir_interval, "")
+    snapshot_regions_dir = os.path.join(snapshot_dir, seq_type_build, dir_chrom, "")
     lines.append(f"snapshotDirectory {snapshot_regions_dir}")
 
     # Add lines to batch script for each sample
@@ -185,19 +184,20 @@ def generate_igv_batch_per_region(regions, max_height, seq_type, genome_build, s
         # Add components of filename as a list
         filename = []
 
-        filename.append(row.regions)
+        filename.append(row.region)
 
-        # Include gene name if available
-        if "region_name" in row:
-            filename.append(row.region_name)
+        filename.append(str(row.padding))
+
+        filename.append(row.region_name)
+        
         filename.append(row.sample_id)
 
-        if not image_format.startswith("."):
-            image_format = "." + image_format
+        #if not image_format.startswith("."):
+        #    image_format = "." + image_format
 
-        filename = "--".join(filename) + image_format
+        filename = "--".join(filename) + ".png"
 
-        row_lines = generate_igv_batch_per_row(regions = row.regions, snapshot_filename = filename, igv_options = options)
+        row_lines = generate_igv_batch_per_row(coordinates = row.snapshot_coordinates, snapshot_filename = filename, igv_options = options)
 
         lines.extend(row_lines)
     return lines
