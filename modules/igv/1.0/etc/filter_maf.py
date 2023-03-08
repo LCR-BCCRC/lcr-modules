@@ -11,10 +11,10 @@ def filter_by_bed(maf, regions):
     regions = regions[regions[0].str.contains("chrom")==False]
 
     # Create common columns between BED and MAF
-    regions["chr_std"] = regions.apply(lambda x: str(x[0]).replace("chr",""), axis=1)
+    regions["chr_std"] = regions.apply(lambda x: "chr" + str(x[0]).replace("chr",""), axis=1)
     regions["genomic_pos_std"] = regions["chr_std"] + ":" + regions[1].map(str)
 
-    maf["chr_std"] = maf.apply(lambda x: str(x["Chromosome"]).replace("chr",""), axis=1)
+    maf["chr_std"] = maf.apply(lambda x: "chr" + str(x["Chromosome"]).replace("chr",""), axis=1)
     maf["genomic_pos_std"] = maf["chr_std"] + ":" + maf["Start_Position"].map(str)
 
     filtered_maf = maf[maf["genomic_pos_std"].isin(regions["genomic_pos_std"])]
@@ -24,7 +24,7 @@ def filter_by_maf(maf, regions):
 
     # Create common column by which to subset MAF
     for df in [maf, regions]:
-        df["chr_std"] = df.apply(lambda x: str(x["Chromosome"]).replace("chr",""), axis=1)
+        df["chr_std"] = df.apply(lambda x: "chr" + str(x["Chromosome"]).replace("chr",""), axis=1)
         df["genomic_pos_std"] = df["chr_std"] + ":" + df["Start_Position"].map(str)
 
     # Subset the MAF

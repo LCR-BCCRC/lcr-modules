@@ -44,6 +44,7 @@ lcr-modules:
             format_regions: "etc/format_regions.py"
             filter_script: "etc/filter_maf.py"
             region_liftover_script: "{MODSDIR}/etc/liftover_regions.sh"
+            batch_script_per_variant: "etc/generate_batch_script_per_variant.py"
             batch_script: "etc/generate_batch_scripts.py"
 
         scratch_subdirectories: []
