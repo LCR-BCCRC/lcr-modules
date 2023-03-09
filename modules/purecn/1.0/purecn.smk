@@ -806,8 +806,8 @@ if CFG["cnvkit_seg"] == True:
             seg = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg",
             gene_cn = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_genes.csv",
             loh = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_loh.csv",
-            rds = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.rds"),
-            pdf = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf",
+            rds = temp(CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.rds"),
+            pdf = temp(CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf")
         params:
             outdir = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/",
             sample_id = "{tumour_id}",
@@ -852,7 +852,7 @@ if CFG["cnvkit_seg"] == True:
             rds = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.rds",
             pdf = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf",
         output:
-            rds_removed = touch(CFG["dirs"]["pureCN_cnvkit"] + "cleanup/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.done")
+            rds_removed = touch(CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.done")
         shell:
             """
                 rm {input.rds} ;
@@ -974,7 +974,7 @@ rule _purecn_denovo_cleanup_xs:
         rds = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.rds",
         pdf = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf",
     output:
-        rds_removed = touch(CFG["dirs"]["pureCN"] + "cleanup/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.done")
+        rds_removed = touch(CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.done")
     shell:
         """
             rm {input.rds} ;
@@ -1093,10 +1093,10 @@ def _purecn_prepare_projection(wildcards):
             hg38_projection = hg38_projection.replace("{chain}", "hg19ToHg38")
     else:
         raise AttributeError(f"The specified genome build {this_genome_build[0]} is not specified in the config under options to indicate its chr prefixing.")
-
+    
     return{
         "grch37_projection": grch37_projection,
-        "hg38_projection": hg38_projection,
+        "hg38_projection": hg38_projection
     }
     
     
