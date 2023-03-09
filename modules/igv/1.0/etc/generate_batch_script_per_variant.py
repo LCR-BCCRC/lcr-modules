@@ -108,10 +108,10 @@ def generate_igv_batch_header(bam, index, max_height, genome_build):
 
     return lines
 
-def generate_igv_batch_footer():
-    lines = []
-    lines.append("exit")
-    return lines
+#def generate_igv_batch_footer():
+#    lines = []
+#    lines.append("exit")
+#    return lines
 
 def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_build, seq_type, igv_options, max_height):
     for _, row in regions.iterrows():
@@ -143,8 +143,8 @@ def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_bui
 
         all_lines.extend(lines)
 
-        footer = generate_igv_batch_footer()
-        all_lines.extend(footer)
+        #footer = generate_igv_batch_footer()
+        #all_lines.extend(footer)
 
         batch_file_path = os.path.join(output_dir, seq_type_build, batch_filename)
         
