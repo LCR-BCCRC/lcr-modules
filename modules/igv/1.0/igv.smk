@@ -145,8 +145,6 @@ rule _igv_format_regions_file:
         regions_format = config["lcr-modules"]["igv"]["inputs"]["regions_format"],
         oncodriveclustl_params = config["lcr-modules"]["igv"]["filter_maf"]["oncodriveclustl_options"],
         regions_build = config["lcr-modules"]["igv"]["inputs"]["regions_build"]
-    conda:
-        CFG["conda_envs"]["format_regions"]
     script:
         config["lcr-modules"]["igv"]["scripts"]["format_regions"]
 

@@ -3,7 +3,6 @@
 import os
 import pandas as pd
 import oncopipe as op
-import vcf
 import shutil
 
 def format_mutation_id(mutation_id):
@@ -88,63 +87,12 @@ def format_clustl(clustl_regions):
     )
     return clustl_reformatted
 
-def format_vcf(regions):
-    # Load VCF file
-    vcf_reader = vcf.Reader(open(regions, "rb"))
-
-    # Convert VCF records to BED format
-    chroms = []
-    pos = []
-    events_seen = set()
-
-    for record in vcf_reader:
-        if len(record.FILTER) > 0:
-            continue
-        
-        # Skip SVs with ID matching previous record
-        if record.ID in events_seen:
-            continue
-
-        chromosome = "chr" + str(record.CHROM).replace("chr","")
-        position = record.POS
-
-        chroms.append(chromosome)
-        pos.append(position)
-
-        if record.is_sv and "END" in record.INFO:
-            # Add end position of SV to regions of interest
-            end = record.INFO["END"][0]
-
-            chroms.append(chromosome)
-            pos.append(end)
-
-        if record.is_sv and record.INFO["SVTYPE"] == "BND":
-            # Add end position of SV to regions of interest
-            chromosome = "chr" + str(record.ALT[0].chr).replace("chr","")
-            position = record.ALT[0].pos
-
-            chroms.append(chromosome)
-            pos.append(position)
-
-            # To skip mate event in VCF file
-            events_seen.add(record.INFO["MATEID"])
-    
-    vcf_reformatted = pd.DataFrame(
-        {
-            "chrom": chroms,
-            "start": pos,
-            "end": pos
-        }
-    )
-
-    return vcf_reformatted
 
 def format_regions(regions, regions_format):
     format_functions = {
         "oncodriveclustl": format_clustl,
         "hotmaps": format_hotmaps,
-        "mutation_id": format_mutation_id,
-        "vcf": format_vcf,
+        "mutation_id": format_mutation_id
     }
 
     return format_functions[regions_format](regions)
