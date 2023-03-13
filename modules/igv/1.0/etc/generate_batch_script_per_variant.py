@@ -20,6 +20,7 @@ def main():
             break
     if line_count < 2:
         input_maf.close()
+        touch_output = open(snakemake.output[0],"w")
         touch_output.close()
         exit()
 
