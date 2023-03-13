@@ -290,8 +290,6 @@ rule _igv_download_igv:
         touch {output.igv_installed}
         """)
 
-#TODO: check if i should add line to only run batch scripts with more than one line
-
 checkpoint _igv_run:
     input:
         igv = str(rules._igv_download_igv.output.igv_installed),
@@ -356,59 +354,6 @@ rule _igv_check_snapshots:
         snapshots = CFG["dirs"]["outputs"] + "completed/{seq_type}--{genome_build}--{tumour_sample_id}.completed"
     shell:
         "touch {output.snapshots}"
-
-
-#rule _igv_run:
-#    input:
-#        igv = str(rules._igv_download_igv.output.igv_installed),
-#        batch_script = CFG["dirs"]["batch_scripts"] + "{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_sample_id}.batch"
-#    output:
-#        #snapshot_completed = CFG["dirs"]["snapshots"] + "completed/{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.snapshot_completed",
-#        snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_sample_id}.png"
-#    params:
-#        igv = "/projects/rmorin/projects/RNA_seq_ssm/test/bin/IGV_Linux_2.7.2/igv.sh"
-#    resources:
-#        runtime = "30s"
-#    shell:
-#        op.as_one_line("""
-#        xvfb-run --auto-servernum {params.igv} -b {input.batch_script}
-#        """)
-
-#rule _igv_symlink_snapshot:
-#    input:
-#        snapshot = str(rules._igv_run.output.snapshot)
-#    output:
-#        snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_sample_id}.png"
-#    run:
-#        op.relative_symlink(input.snapshot, output.snapshot)
-
-#def _evaluate_snapshots(wildcards):
-#    CFG = config["lcr-modules"]["igv"]
-#    checkpoint_output = checkpoints._igv_create_batch_script_per_variant.get(**wildcards).output.sample_batch
-#    maf = expand(rules._igv_filter_maf.output.maf, zip, seq_type=wildcards.seq_type, genome_build=wildcards.genome_build, tumour_sample_id=wildcards.tumour_sample_id, normal_sample_id=CFG["runs"][(CFG["runs"]["tumour_sample_id"]==wildcards.tumour_sample_id) & (CFG["runs"]["tumour_seq_type"]==wildcards.seq_type) & (CFG["runs"]["tumour_genome_build"]==wildcards.genome_build)]["normal_sample_id"], pair_status=CFG["runs"][(CFG["runs"]["tumour_sample_id"]==wildcards.tumour_sample_id) & (CFG["runs"]["tumour_seq_type"]==wildcards.seq_type) & (CFG["runs"]["tumour_genome_build"]==wildcards.genome_build)]["pair_status"])
-#    
-#    maf_table = pd.read_table(maf[0], comment="#", sep="\t")
-#    
-#    return expand(
-#        expand(
-#            str(rules._igv_symlink_snapshot.output.snapshot),
-#            zip,
-#            chromosome = maf_table["chr_std"],
-#            start_position = maf_table["Start_Position"],
-#            gene = maf_table["Hugo_Symbol"],
-#            tumour_sample_id = maf_table["Tumor_Sample_Barcode"],
-#            seq_type = maf_table["seq_type"],
-#            genome_build = maf_table["genome_build"],
-#            allow_missing=True
-#        ),
-#        padding=str(CFG["generate_batch_script"]["padding"])
-#    )
-
-#rule _igv_check_outputs:
-#    input:
-#        snapshots = _evaluate_snapshots
-#    output:
-#        touch(CFG["dirs"]["outputs"] + "completed/.{tumour_sample_id}--{seq_type}--{genome_build}.complete")
 
 # Generates the target sentinels for each run, which generate the symlinks
 if CFG["test_run"] is False:
