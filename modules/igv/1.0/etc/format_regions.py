@@ -5,6 +5,33 @@ import pandas as pd
 import oncopipe as op
 import shutil
 
+def main():
+
+    regions_file = snakemake.input[0]
+    regions_format = snakemake.params[0]
+
+    output_file = snakemake.output[0]
+
+    if regions_format == "oncodriveclustl":
+        global CLUSTL_PARAMS
+        CLUSTL_PARAMS = snakemake.params[1]
+
+    if regions_format == "mutation_id":
+        global REGIONS_BUILD
+        REGIONS_BUILD = snakemake.params[2]
+        REGIONS_BUILD = REGIONS_BUILD.lower()
+
+    if regions_format == "bed" or regions_format == "maf":
+        # Do not need to reformat for liftover
+        shutil.copy(regions_file, output_file)
+        exit()
+
+    # Reformat for liftover based on regions format
+    regions_formatted = format_regions(regions_file, regions_format)
+
+    # Output regions file
+    regions_formatted.to_csv(output_file, sep="\t", index=False)
+
 def format_mutation_id(mutation_id):
     # Read regions into dataframe
     mutation_id = pd.read_table(mutation_id, comment="#", sep="\t")
@@ -97,25 +124,5 @@ def format_regions(regions, regions_format):
 
     return format_functions[regions_format](regions)
 
-regions_file = snakemake.input[0]
-regions_format = snakemake.params[0]
-
-output_file = snakemake.output[0]
-
-if regions_format == "oncodriveclustl":
-    CLUSTL_PARAMS = snakemake.params[1]
-
-if regions_format == "mutation_id":
-    REGIONS_BUILD = snakemake.params[2]
-    REGIONS_BUILD = REGIONS_BUILD.lower()
-
-if regions_format == "bed" or regions_format == "maf":
-    # Do not need to reformat for liftover
-    shutil.copy(regions_file, output_file)
-    exit()
-
-# Reformat for liftover based on regions format
-regions_formatted = format_regions(regions_file, regions_format)
-
-# Output regions file
-regions_formatted.to_csv(output_file, sep="\t", index=False)
+if __name__ == "__main__":
+    main()
