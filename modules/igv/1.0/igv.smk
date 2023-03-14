@@ -296,9 +296,12 @@ checkpoint _igv_run:
         batch_script = _evaluate_batches
     output:
         complete = CFG["dirs"]["snapshots"] + "completed/{seq_type}--{genome_build}--{tumour_sample_id}.completed"
+    log:
+        stdout = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_sample_id}_igv_run.stdout",
+        stderr = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_sample_id}_igv_run.stderr"
     params:
         merged_batch = str(rules._igv_create_batch_script_per_variant.output.variant_batch),
-        igv = "/projects/rmorin/projects/RNA_seq_ssm/test/bin/IGV_Linux_2.7.2/igv.sh"
+        igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh"
     shell:
         op.as_one_line("""
         echo 'exit' >> {params.merged_batch} ;
