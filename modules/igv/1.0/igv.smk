@@ -137,11 +137,14 @@ rule _igv_format_regions_file:
     input:
         regions = str(rules._igv_symlink_regions_file.output.regions_file)
     output:
-        regions = config["lcr-modules"]["igv"]["dirs"]["inputs"] + "regions/regions_file_formatted.txt"
+        regions = CFG["dirs"]["inputs"] + "regions/regions_file_formatted.txt"
     params:
-        regions_format = config["lcr-modules"]["igv"]["inputs"]["regions_format"],
-        oncodriveclustl_params = config["lcr-modules"]["igv"]["filter_maf"]["oncodriveclustl_options"],
-        regions_build = config["lcr-modules"]["igv"]["inputs"]["regions_build"]
+        regions_format = CFG["inputs"]["regions_format"],
+        oncodriveclustl_params = CFG["filter_maf"]["oncodriveclustl_options"],
+        regions_build = CFG["inputs"]["regions_build"]
+    log:
+        stdout = CFG["logs"]["inputs"] + "format_regions.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "format_regions.stderr.log"
     script:
         config["lcr-modules"]["igv"]["scripts"]["format_regions"]
 
@@ -237,6 +240,7 @@ rule _igv_batches_to_merge:
         dispatched_batch_script = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_sample_id}.batched"
     params:
         batch_script_file = str(rules._igv_create_batch_script_per_variant.output.variant_batch)
+    threads: (workflow.cores / 10)
     run:
         batch_script_path = os.path.abspath(input.batch_script)
         output_file = os.path.abspath(params.batch_script_file)
@@ -304,10 +308,11 @@ checkpoint _igv_run:
     params:
         merged_batch = str(rules._igv_create_batch_script_per_variant.output.variant_batch),
         igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh"
+    threads: (workflow.cores / 5)
     shell:
         op.as_one_line("""
         echo 'exit' >> {params.merged_batch} ;
-        xvfb-run --auto-servernum {params.igv} -b {params.merged_batch} ;
+        xvfb-run --auto-servernum {params.igv} -b {params.merged_batch} > {log.stdout} 2> {log.stderr} ;
         touch {output.complete}
         """)
 
