@@ -214,7 +214,9 @@ checkpoint _igv_create_batch_script_per_variant:
     input:
         filter_maf = expand(str(rules._igv_filter_maf.output.maf), zip, normal_sample_id=CFG["runs"]["normal_sample_id"], pair_status=CFG["runs"]["pair_status"], allow_missing=True),
         bam_file = str(rules._igv_symlink_bam.output.bam),
-        bai_file = str(rules._igv_symlink_bai.output.bai)
+        bai_file = str(rules._igv_symlink_bai.output.bai),
+        regions_lifted = str(rules._igv_liftover_regions.output.regions),
+        regions_formatted = str(rules._igv_format_regions_file.output.regions)
     output:
         variant_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{tumour_sample_id}.batch"
     params:
