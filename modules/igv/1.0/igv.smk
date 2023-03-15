@@ -43,7 +43,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "igv",
     version = "1.0",
-    subdirectories = ["inputs", "maf_filtered", "regions_lifted", "batch_scripts", "igv", "snapshots", "outputs"],
+    subdirectories = ["inputs", "batch_scripts", "igv", "snapshots", "outputs"],
 )
 
 # Rename genome builds in metadata to match up with MAFs?
@@ -160,7 +160,7 @@ rule _igv_liftover_regions:
         regions = str(rules._igv_format_regions_file.output.regions),
         liftover_script = CFG["scripts"]["region_liftover_script"]
     output:
-        regions = CFG["dirs"]["regions_lifted"] + "regions_file_{genome_build}.txt"
+        regions = CFG["dirs"]["inputs"] + "regions/regions_file_{genome_build}.crossmap.txt"
     params:
         chain_file = reference_files(CFG["liftover_regions"]["reference_chain_file"][(CFG["inputs"]["regions_build"]).replace("hg19","grch37").replace("grch38","hg38")]),
         target_reference = lambda w: config["lcr-modules"]["igv"]["liftover_regions"]["target_reference"][w.genome_build],
@@ -180,42 +180,27 @@ rule _igv_liftover_regions:
         {params.target_reference} > {log.stdout} 2> {log.stderr}
         """)
 
-if CFG["test_run"] == False:
-    # Pass metadata as a pandas dataframe directly from the samples value specified in config
-    rule _igv_filter_maf:
-        input:
-            maf = str(rules._igv_reduce_maf_cols.output.maf),
-            regions = str(rules._igv_liftover_regions.output.regions)
-        output:
-            maf = CFG["dirs"]["maf_filtered"] + "{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.maf"
-        params:
-            regions_format = REGIONS_FORMAT[CFG["inputs"]["regions_format"].lower()],
-            oncodriveclustl_params = CFG["filter_maf"]["oncodriveclustl_options"],
-            n_snapshots = CFG["filter_maf"]["n_snapshots"] if CFG["filter_maf"]["n_snapshots"] is not None else 1000000,
-            metadata = CFG["runs"]
-        script:
-            config["lcr-modules"]["igv"]["scripts"]["filter_script"]
-
-elif CFG["test_run"] == True:
-    # Pass metadata as a pandas dataframe directly from the samples value specified in config
-    rule _igv_filter_maf:
-        input:
-            maf = str(rules._igv_reduce_maf_cols.output.maf),
-            regions = str(rules._igv_liftover_regions.output.regions)
-        output:
-            maf = CFG["dirs"]["maf_filtered"] + "{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.maf"
-        params:
-            regions_format = REGIONS_FORMAT[CFG["inputs"]["regions_format"].lower()],
-            oncodriveclustl_params = CFG["filter_maf"]["oncodriveclustl_options"],
-            n_snapshots = CFG["filter_maf"]["n_snapshots"] if CFG["filter_maf"]["n_snapshots"] is not None else 1000000,
-            metadata = CFG["runs"]
-        script:
-            config["lcr-modules"]["igv"]["scripts"]["filter_script"]
+# Pass metadata as a pandas dataframe directly from the samples value specified in config
+rule _igv_filter_maf:
+    input:
+        maf = str(rules._igv_reduce_maf_cols.output.maf),
+        regions = str(rules._igv_liftover_regions.output.regions)
+    output:
+        maf = CFG["dirs"]["inputs"] + "maf/filtered_maf/{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.maf"
+    params:
+        regions_format = REGIONS_FORMAT[CFG["inputs"]["regions_format"].lower()],
+        oncodriveclustl_params = CFG["filter_maf"]["oncodriveclustl_options"],
+        n_snapshots = CFG["filter_maf"]["n_snapshots"] if CFG["filter_maf"]["n_snapshots"] is not None else 1000000,
+        metadata = CFG["runs"]
+    wildcard_constraints:
+        seq_type = "[a-zA-Z]+"
+    script:
+        config["lcr-modules"]["igv"]["scripts"]["filter_script"]
 
 # Create multiple batch scripts per sample for each variant
 checkpoint _igv_create_batch_script_per_variant:
     input:
-        filter_maf = expand(str(rules._igv_filter_maf.output.maf), zip, normal_sample_id=CFG["runs"]["normal_sample_id"], pair_status=CFG["runs"]["pair_status"], allow_missing=True),
+        filter_maf = expand(str(rules._igv_filter_maf.output.maf), zip, normal_sample_id=CFG["runs"]["normal_sample_id"], pair_status=CFG["runs"]["pair_status"], allow_missing=True)[0],
         bam_file = str(rules._igv_symlink_bam.output.bam),
         bai_file = str(rules._igv_symlink_bai.output.bai),
         regions_lifted = str(rules._igv_liftover_regions.output.regions),
