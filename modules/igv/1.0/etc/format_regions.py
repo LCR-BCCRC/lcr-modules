@@ -1,36 +1,42 @@
 #!/usr/bin/env python
 
 import os
+import sys
 import pandas as pd
 import oncopipe as op
 import shutil
 
 def main():
 
-    regions_file = snakemake.input[0]
-    regions_format = snakemake.params[0]
+    with open(snakemake.log[0], "w") as stdout, open(snakemake.log[1], "w") as stderr:
+        # Set up logging
+        sys.stdout = stdout
+        sys.stderr = stderr
 
-    output_file = snakemake.output[0]
+        regions_file = snakemake.input[0]
+        regions_format = snakemake.params[0]
 
-    if regions_format == "oncodriveclustl":
-        global CLUSTL_PARAMS
-        CLUSTL_PARAMS = snakemake.params[1]
+        output_file = snakemake.output[0]
 
-    if regions_format == "mutation_id":
-        global REGIONS_BUILD
-        REGIONS_BUILD = snakemake.params[2]
-        REGIONS_BUILD = REGIONS_BUILD.lower()
+        if regions_format == "oncodriveclustl":
+            global CLUSTL_PARAMS
+            CLUSTL_PARAMS = snakemake.params[1]
 
-    if regions_format == "bed" or regions_format == "maf":
-        # Do not need to reformat for liftover
-        shutil.copy(regions_file, output_file)
-        exit()
+        if regions_format == "mutation_id":
+            global REGIONS_BUILD
+            REGIONS_BUILD = snakemake.params[2]
+            REGIONS_BUILD = REGIONS_BUILD.lower()
 
-    # Reformat for liftover based on regions format
-    regions_formatted = format_regions(regions_file, regions_format)
+        if regions_format == "bed" or regions_format == "maf":
+            # Do not need to reformat for liftover
+            shutil.copy(regions_file, output_file)
+            exit()
 
-    # Output regions file
-    regions_formatted.to_csv(output_file, sep="\t", index=False)
+        # Reformat for liftover based on regions format
+        regions_formatted = format_regions(regions_file, regions_format)
+
+        # Output regions file
+        regions_formatted.to_csv(output_file, sep="\t", index=False)
 
 def format_mutation_id(mutation_id):
     # Read regions into dataframe

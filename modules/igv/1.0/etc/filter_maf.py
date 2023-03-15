@@ -1,9 +1,46 @@
 #!/usr/bin/env python
 
 import os
+import sys
 import math
 import pandas as pd
 import oncopipe as op
+
+def main():
+
+    with open(snakemake.log[0], "w") as stdout, open(snakemake.log[1], "w") as stderr:
+        # Set up logging
+        sys.stdout = stdout
+        sys.stderr = stderr
+
+        maf_file = snakemake.input[0]
+
+        regions_file = snakemake.input[1]
+        regions_format = snakemake.params[0]
+
+        metadata = snakemake.params[3]
+
+        if regions_format == "oncodriveclustl":
+            global CLUSTL_PARAMS
+            CLUSTL_PARAMS = snakemake.params[1]
+
+        n_snapshots = snakemake.params[2]
+
+        output_file = snakemake.output[0]
+
+        maf = maf_add_columns(maf=maf_file, metadata=metadata)
+
+        # Peform filtering
+
+        filtered_maf = maf_filter(
+            maf=maf, 
+            regions=regions_file,
+            regions_format=regions_format
+            )
+
+        filtered_maf = maf_reduce_snapshots(maf=filtered_maf, snapshots=n_snapshots)
+
+        write_output(filtered_maf, output_file)
 
 def filter_by_bed(maf, regions):
 
@@ -78,31 +115,5 @@ def maf_add_columns(maf, metadata):
 def write_output(maf, outfile):
     maf.to_csv(outfile, sep="\t", index=False)
 
-maf_file = snakemake.input[0]
-
-regions_file = snakemake.input[1]
-regions_format = snakemake.params[0]
-
-metadata = snakemake.params[3]
-
-if regions_format == "oncodriveclustl":
-    # This should act as a global variable
-    CLUSTL_PARAMS = snakemake.params[1]
-
-n_snapshots = snakemake.params[2]
-
-output_file = snakemake.output[0]
-
-maf = maf_add_columns(maf=maf_file, metadata=metadata)
-
-# Peform filtering
-
-filtered_maf = maf_filter(
-    maf=maf, 
-    regions=regions_file,
-    regions_format=regions_format
-    )
-
-filtered_maf = maf_reduce_snapshots(maf=filtered_maf, snapshots=n_snapshots)
-
-write_output(filtered_maf, output_file)
+if __name__ == "__main__":
+    main()

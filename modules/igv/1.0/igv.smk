@@ -192,6 +192,9 @@ rule _igv_filter_maf:
         oncodriveclustl_params = CFG["filter_maf"]["oncodriveclustl_options"],
         n_snapshots = CFG["filter_maf"]["n_snapshots"] if CFG["filter_maf"]["n_snapshots"] is not None else 1000000,
         metadata = CFG["runs"]
+    log:
+        stdout = CFG["logs"]["inputs"] + "filter_maf/{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}/filter_maf.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "filter_maf/{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}/filter_maf.stderr.log"
     wildcard_constraints:
         seq_type = "[a-zA-Z]+"
     script:
