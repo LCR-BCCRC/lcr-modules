@@ -250,7 +250,21 @@ rule _igv_batches_to_merge:
 def _evaluate_batches(wildcards):
     CFG = config["lcr-modules"]["igv"]
     checkpoint_output = checkpoints._igv_create_batch_script_per_variant.get(**wildcards).output.variant_batch
-    maf = expand(rules._igv_filter_maf.output.maf, zip, seq_type=wildcards.seq_type, genome_build=wildcards.genome_build, tumour_sample_id=wildcards.tumour_sample_id, normal_sample_id=CFG["runs"][(CFG["runs"]["tumour_sample_id"]==wildcards.tumour_sample_id) & (CFG["runs"]["tumour_seq_type"]==wildcards.seq_type) & (CFG["runs"]["tumour_genome_build"]==wildcards.genome_build)]["normal_sample_id"], pair_status=CFG["runs"][(CFG["runs"]["tumour_sample_id"]==wildcards.tumour_sample_id) & (CFG["runs"]["tumour_seq_type"]==wildcards.seq_type) & (CFG["runs"]["tumour_genome_build"]==wildcards.genome_build)]["pair_status"])
+    
+    this_sample = op.filter_runs(CFG["runs"], tumour_sample_id = wildcards.tumour_id, tumour_genome_build = wildcards.genome_build, tuomur_seq_type = wildcards.seq_type)
+    
+    normal_sample_id = this_sample["normal_sample_id"]
+    pair_status = this_sample["pair_status"]
+
+    maf = expand(
+        str(rules._igv_filter_maf.output.maf), 
+        zip, 
+        seq_type=wildcards.seq_type, 
+        genome_build=wildcards.genome_build, 
+        tumour_sample_id=wildcards.tumour_sample_id, 
+        normal_sample_id=normal_sample_id, 
+        pair_status=pair_status
+    )
     
     if os.path.exists(maf[0]):
         maf_table = pd.read_table(maf[0], comment="#", sep="\t")
@@ -308,9 +322,10 @@ checkpoint _igv_run:
         if [ $lines -gt 0 ] ;
         then
         echo 'exit' >> {params.merged_batch} ;
-        xvfb-run --auto-servernum {params.igv} -b {params.merged_batch} > {log.stdout} 2> {log.stderr} ;
-        fi ;
+        xvfb-run --auto-servernum {params.igv} -b {params.merged_batch} > {log.stdout} 2> {log.stderr} && touch {output.complete} ;
+        else
         touch {output.complete}
+        fi
         """)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
@@ -326,13 +341,20 @@ rule _igv_symlink_snapshot:
 def _symlink_snapshot(wildcards):
     CFG = config["lcr-modules"]["igv"]
     checkpoint_outputs = checkpoints._igv_run.get(**wildcards).output.complete
+    
+    this_sample = op.filter_runs(CFG["runs"], tumour_sample_id = wildcards.tumour_id, tumour_seq_type = wildcards.seq_type, tumour_genome_build = wildcards.genome_build)
+
+    normal_sample_id = this_sample["normal_sample_id"]
+    pair_status = this_sample["pair_status"]
+
     maf = expand(
         str(rules._igv_filter_maf.output.maf), 
-        zip, seq_type=wildcards.seq_type, 
+        zip, 
+        seq_type=wildcards.seq_type, 
         genome_build=wildcards.genome_build, 
         tumour_sample_id=wildcards.tumour_sample_id, 
-        normal_sample_id=CFG["runs"][(CFG["runs"]["tumour_sample_id"]==wildcards.tumour_sample_id) & (CFG["runs"]["tumour_seq_type"]==wildcards.seq_type) & (CFG["runs"]["tumour_genome_build"]==wildcards.genome_build)]["normal_sample_id"], 
-        pair_status=CFG["runs"][(CFG["runs"]["tumour_sample_id"]==wildcards.tumour_sample_id) & (CFG["runs"]["tumour_seq_type"]==wildcards.seq_type) & (CFG["runs"]["tumour_genome_build"]==wildcards.genome_build)]["pair_status"]
+        normal_sample_id=normal_sample_id, 
+        pair_status=pair_status
     )
 
     if os.path.exists(maf[0]):
