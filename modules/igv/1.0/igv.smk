@@ -296,16 +296,20 @@ checkpoint _igv_run:
     output:
         complete = CFG["dirs"]["snapshots"] + "completed/{seq_type}--{genome_build}--{tumour_sample_id}.completed"
     log:
-        stdout = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_sample_id}_igv_run.stdout",
-        stderr = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_sample_id}_igv_run.stderr"
+        stdout = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_sample_id}_igv_run.stdout.log",
+        stderr = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_sample_id}_igv_run.stderr.log"
     params:
         merged_batch = str(rules._igv_create_batch_script_per_variant.output.variant_batch),
         igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh"
     threads: (workflow.cores)
     shell:
         op.as_one_line("""
+        lines=$(wc -l < {params.merged_batch}) ;
+        if [ $lines -gt 0 ] ;
+        then
         echo 'exit' >> {params.merged_batch} ;
         xvfb-run --auto-servernum {params.igv} -b {params.merged_batch} > {log.stdout} 2> {log.stderr} ;
+        fi ;
         touch {output.complete}
         """)
 
