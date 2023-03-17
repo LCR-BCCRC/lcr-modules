@@ -70,11 +70,11 @@ localrules:
 
 def get_bams(wildcards):
     metadata = config["lcr-modules"]["igv"]["samples"]
-    return expand("data/{{seq_type}}_bams/{{tumour_id}}.{genome_build}.bam", genome_build=metadata[(metadata.sample_id == wildcards.tumour_sample_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"])
+    return expand("data/{{seq_type}}_bams/{{tumour_id}}.{genome_build}.bam", genome_build=metadata[(metadata.sample_id == wildcards.tumour_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"])
 
 def get_bai(wildcards):
     metadata = config["lcr-modules"]["igv"]["samples"]
-    return expand("data/{{seq_type}}_bams/{{tumour_id}}.{genome_build}.bam.bai", genome_build=metadata[(metadata.sample_id == wildcards.tumour_sample_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"])
+    return expand("data/{{seq_type}}_bams/{{tumour_id}}.{genome_build}.bam.bai", genome_build=metadata[(metadata.sample_id == wildcards.tumour_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"])
 
 def get_maf(wildcards):
     unix_group = config["unix_group"]
@@ -251,7 +251,7 @@ def _evaluate_batches(wildcards):
     CFG = config["lcr-modules"]["igv"]
     checkpoint_output = checkpoints._igv_create_batch_script_per_variant.get(**wildcards).output.variant_batch
     
-    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id = wildcards.tumour_id, tumour_genome_build = wildcards.genome_build, tuomur_seq_type = wildcards.seq_type)
+    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id = wildcards.tumour_id, tumour_genome_build = wildcards.genome_build, tumour_seq_type = wildcards.seq_type)
     
     normal_sample_id = this_sample["normal_sample_id"]
     pair_status = this_sample["pair_status"]
@@ -261,7 +261,7 @@ def _evaluate_batches(wildcards):
         zip, 
         seq_type=wildcards.seq_type, 
         genome_build=wildcards.genome_build, 
-        tumour_sample_id=wildcards.tumour_sample_id, 
+        tumour_id=wildcards.tumour_id, 
         normal_sample_id=normal_sample_id, 
         pair_status=pair_status
     )
@@ -276,7 +276,7 @@ def _evaluate_batches(wildcards):
                 chromosome = maf_table["chr_std"],
                 start_position = maf_table["Start_Position"],
                 gene = maf_table["Hugo_Symbol"],
-                tumour_sample_id = maf_table["Tumor_Sample_Barcode"],
+                tumour_id = maf_table["Tumor_Sample_Barcode"],
                 seq_type = maf_table["seq_type"],
                 genome_build = maf_table["genome_build"],
                 allow_missing=True
@@ -324,7 +324,7 @@ checkpoint _igv_run:
         echo 'exit' >> {params.merged_batch} ;
         xvfb-run --auto-servernum {params.igv} -b {params.merged_batch} > {log.stdout} 2> {log.stderr} && touch {output.complete} ;
         else
-        touch {output.complete}
+        touch {output.complete} ;
         fi
         """)
 
@@ -342,7 +342,7 @@ def _symlink_snapshot(wildcards):
     CFG = config["lcr-modules"]["igv"]
     checkpoint_outputs = checkpoints._igv_run.get(**wildcards).output.complete
     
-    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id = wildcards.tumour_id, tumour_seq_type = wildcards.seq_type, tumour_genome_build = wildcards.genome_build)
+    this_sample = op.filter_samples(CFG["runs"], tumour_id = wildcards.tumour_id, tumour_seq_type = wildcards.seq_type, tumour_genome_build = wildcards.genome_build)
 
     normal_sample_id = this_sample["normal_sample_id"]
     pair_status = this_sample["pair_status"]
@@ -352,7 +352,7 @@ def _symlink_snapshot(wildcards):
         zip, 
         seq_type=wildcards.seq_type, 
         genome_build=wildcards.genome_build, 
-        tumour_sample_id=wildcards.tumour_sample_id, 
+        tumour_id=wildcards.tumour_id, 
         normal_sample_id=normal_sample_id, 
         pair_status=pair_status
     )
@@ -369,7 +369,7 @@ def _symlink_snapshot(wildcards):
                 chromosome = maf_table["chr_std"],
                 start_position = maf_table["Start_Position"],
                 gene = maf_table["Hugo_Symbol"],
-                tumour_sample_id = maf_table["Tumor_Sample_Barcode"],
+                tumour_id = maf_table["Tumor_Sample_Barcode"],
                 allow_missing=True
             ),
             padding = str(CFG["generate_batch_script"]["padding"])
