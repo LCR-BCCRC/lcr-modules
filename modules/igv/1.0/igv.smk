@@ -70,11 +70,11 @@ localrules:
 
 def get_bams(wildcards):
     metadata = config["lcr-modules"]["igv"]["samples"]
-    return expand("data/{{seq_type}}_bams/{{tumour_sample_id}}.{genome_build}.bam", genome_build=metadata[(metadata.sample_id == wildcards.tumour_sample_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"])
+    return expand("data/{{seq_type}}_bams/{{tumour_id}}.{genome_build}.bam", genome_build=metadata[(metadata.sample_id == wildcards.tumour_sample_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"])
 
 def get_bai(wildcards):
     metadata = config["lcr-modules"]["igv"]["samples"]
-    return expand("data/{{seq_type}}_bams/{{tumour_sample_id}}.{genome_build}.bam.bai", genome_build=metadata[(metadata.sample_id == wildcards.tumour_sample_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"])
+    return expand("data/{{seq_type}}_bams/{{tumour_id}}.{genome_build}.bam.bai", genome_build=metadata[(metadata.sample_id == wildcards.tumour_sample_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"])
 
 def get_maf(wildcards):
     unix_group = config["unix_group"]
@@ -97,7 +97,7 @@ rule _igv_symlink_bam:
     input:
         bam = get_bams
     output:
-        bam = CFG["dirs"]["inputs"] + "bams/{seq_type}/{tumour_sample_id}.bam"
+        bam = CFG["dirs"]["inputs"] + "bams/{seq_type}/{tumour_id}.bam"
     run:
         op.absolute_symlink(input.bam, output.bam)
 
@@ -105,7 +105,7 @@ rule _igv_symlink_bai:
     input:
         bai = get_bai
     output:
-        bai = CFG["dirs"]["inputs"] + "bams/{seq_type}/{tumour_sample_id}.bam.bai"
+        bai = CFG["dirs"]["inputs"] + "bams/{seq_type}/{tumour_id}.bam.bai"
     run:
         op.absolute_symlink(input.bai, output.bai)
 
@@ -113,7 +113,7 @@ rule _igv_symlink_maf:
     input:
         maf = get_maf
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_sample_id}--{pair_status}.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
 
@@ -122,7 +122,7 @@ rule _igv_reduce_maf_cols:
     input:
         maf = str(rules._igv_symlink_maf.output.maf)
     output:
-        maf = temp(CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.maf.temp")
+        maf = temp(CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_sample_id}--{pair_status}.maf.temp")
     shell:
         op.as_one_line("""
         cut -f 1,5,6,7,9,10,11,13,16 {input.maf} > {output.maf}
@@ -182,15 +182,15 @@ rule _igv_filter_maf:
         maf = str(rules._igv_reduce_maf_cols.output.maf),
         regions = str(rules._igv_liftover_regions.output.regions)
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/filtered_maf/{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/filtered_maf/{seq_type}--{genome_build}/{tumour_id}--{normal_sample_id}--{pair_status}.maf"
     params:
         regions_format = REGIONS_FORMAT[CFG["inputs"]["regions_format"].lower()],
         oncodriveclustl_params = CFG["filter_maf"]["oncodriveclustl_options"],
         n_snapshots = CFG["filter_maf"]["n_snapshots"] if CFG["filter_maf"]["n_snapshots"] is not None else 1000000,
         metadata = CFG["runs"]
     log:
-        stdout = CFG["logs"]["inputs"] + "filter_maf/{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}/filter_maf.stdout.log",
-        stderr = CFG["logs"]["inputs"] + "filter_maf/{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}/filter_maf.stderr.log"
+        stdout = CFG["logs"]["inputs"] + "filter_maf/{seq_type}--{genome_build}/{tumour_id}--{normal_sample_id}--{pair_status}/filter_maf.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "filter_maf/{seq_type}--{genome_build}/{tumour_id}--{normal_sample_id}--{pair_status}/filter_maf.stderr.log"
     wildcard_constraints:
         seq_type = "[a-zA-Z]+"
     script:
@@ -205,7 +205,7 @@ checkpoint _igv_create_batch_script_per_variant:
         regions_lifted = str(rules._igv_liftover_regions.output.regions),
         regions_formatted = str(rules._igv_format_regions_file.output.regions)
     output:
-        variant_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{tumour_sample_id}.batch"
+        variant_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{tumour_id}.batch"
     params:
         batch_dir = config["lcr-modules"]["igv"]["dirs"]["batch_scripts"],
         snapshot_dir = config["lcr-modules"]["igv"]["dirs"]["snapshots"],
@@ -220,9 +220,9 @@ checkpoint _igv_create_batch_script_per_variant:
 # Keep track of which variant and sample_id combinations have been seen, merge individual variant batch scripts into a large batch script per sample_id
 rule _igv_batches_to_merge:
     input:
-        batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_sample_id}.batch"
+        batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}.batch"
     output:
-        dispatched_batch_script = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_sample_id}.batched"
+        dispatched_batch_script = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}.batched"
     params:
         batch_script_file = str(rules._igv_create_batch_script_per_variant.output.variant_batch)
     threads: (workflow.cores / 10)
@@ -251,7 +251,7 @@ def _evaluate_batches(wildcards):
     CFG = config["lcr-modules"]["igv"]
     checkpoint_output = checkpoints._igv_create_batch_script_per_variant.get(**wildcards).output.variant_batch
     
-    this_sample = op.filter_runs(CFG["runs"], tumour_sample_id = wildcards.tumour_id, tumour_genome_build = wildcards.genome_build, tuomur_seq_type = wildcards.seq_type)
+    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id = wildcards.tumour_id, tumour_genome_build = wildcards.genome_build, tuomur_seq_type = wildcards.seq_type)
     
     normal_sample_id = this_sample["normal_sample_id"]
     pair_status = this_sample["pair_status"]
@@ -308,10 +308,10 @@ checkpoint _igv_run:
         igv = str(rules._igv_download_igv.output.igv_installed),
         batch_script = _evaluate_batches
     output:
-        complete = CFG["dirs"]["snapshots"] + "completed/{seq_type}--{genome_build}--{tumour_sample_id}.completed"
+        complete = CFG["dirs"]["snapshots"] + "completed/{seq_type}--{genome_build}--{tumour_id}.completed"
     log:
-        stdout = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_sample_id}_igv_run.stdout.log",
-        stderr = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_sample_id}_igv_run.stderr.log"
+        stdout = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_id}_igv_run.stdout.log",
+        stderr = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_id}_igv_run.stderr.log"
     params:
         merged_batch = str(rules._igv_create_batch_script_per_variant.output.variant_batch),
         igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh"
@@ -331,9 +331,9 @@ checkpoint _igv_run:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _igv_symlink_snapshot:
     input:
-        snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_sample_id}.png"
+        snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}.png"
     output:
-        snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_sample_id}.png"
+        snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}.png"
     run:
         op.relative_symlink(input.snapshot, output.snapshot)
 
@@ -342,7 +342,7 @@ def _symlink_snapshot(wildcards):
     CFG = config["lcr-modules"]["igv"]
     checkpoint_outputs = checkpoints._igv_run.get(**wildcards).output.complete
     
-    this_sample = op.filter_runs(CFG["runs"], tumour_sample_id = wildcards.tumour_id, tumour_seq_type = wildcards.seq_type, tumour_genome_build = wildcards.genome_build)
+    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id = wildcards.tumour_id, tumour_seq_type = wildcards.seq_type, tumour_genome_build = wildcards.genome_build)
 
     normal_sample_id = this_sample["normal_sample_id"]
     pair_status = this_sample["pair_status"]
@@ -383,7 +383,7 @@ rule _igv_check_snapshots:
         snapshots = _symlink_snapshot,
         igv_completed = str(rules._igv_run.output.complete)
     output:
-        snapshots = CFG["dirs"]["outputs"] + "completed/{seq_type}--{genome_build}--{tumour_sample_id}.completed"
+        snapshots = CFG["dirs"]["outputs"] + "completed/{seq_type}--{genome_build}--{tumour_id}.completed"
     shell:
         "touch {output.snapshots}"
 
@@ -391,7 +391,7 @@ rule _igv_check_snapshots:
 if CFG["test_run"] is False:
     rule _igv_all:
         input:
-            expand([str(rules._igv_run.output.complete), str(rules._igv_check_snapshots.output.snapshots)], zip, tumour_sample_id=CFG["runs"]["tumour_sample_id"], seq_type=CFG["runs"]["tumour_seq_type"], genome_build=CFG["runs"]["tumour_genome_build"])
+            expand([str(rules._igv_run.output.complete), str(rules._igv_check_snapshots.output.snapshots)], zip, tumour_id=CFG["runs"]["tumour_sample_id"], seq_type=CFG["runs"]["tumour_seq_type"], genome_build=CFG["runs"]["tumour_genome_build"])
 
 #if CFG["test_run"] is False:
 #    rule _igv_all:
@@ -401,7 +401,7 @@ if CFG["test_run"] is False:
 if CFG["test_run"] is True:
     rule _igv_all:
         input:
-            expand(rules._igv_filter_maf.output.maf, zip, seq_type=CFG["runs"]["tumour_seq_type"], tumour_sample_id=CFG["runs"]["tumour_sample_id"], normal_sample_id=CFG["runs"]["normal_sample_id"], pair_status=CFG["runs"]["pair_status"], genome_build=CFG["runs"]["tumour_genome_build"])
+            expand(rules._igv_filter_maf.output.maf, zip, seq_type=CFG["runs"]["tumour_seq_type"], tumour_id=CFG["runs"]["tumour_sample_id"], normal_sample_id=CFG["runs"]["normal_sample_id"], pair_status=CFG["runs"]["pair_status"], genome_build=CFG["runs"]["tumour_genome_build"])
 
 
 ##### CLEANUP #####
