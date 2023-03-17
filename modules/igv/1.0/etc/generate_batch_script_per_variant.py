@@ -100,8 +100,8 @@ def generate_igv_batch_header(bam, index, max_height, genome_build):
 
     genome_build = genome_build.replace("grch37","hg19")
 
-    bam_file = os.path.realpath(bam)
-    bai_file = os.path.realpath(index)
+    bam_file = bam
+    bai_file = index
     lines.append(f"load {bam_file} index={bai_file}")
 
     lines.append(f"maxPanelHeight {max_height}")
