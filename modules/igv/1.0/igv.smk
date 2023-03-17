@@ -14,11 +14,7 @@
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 import pandas as pd
-
-# Needed for getting snapshot paths
 import os
-# Needed for copying contents of individual variant batch scripts to a merged sample batch_script
-import shutil
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -46,7 +42,7 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "batch_scripts", "igv", "snapshots", "outputs"],
 )
 
-# Rename genome builds in metadata to match up with MAFs?
+# Rename genome_build values in sample metadata to correlate with MAF values
 CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(CFG["genome_map"]["grch37"]), "grch37", inplace=True)
 CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(CFG["genome_map"]["hg38"]), "hg38", inplace=True)
 
@@ -121,7 +117,7 @@ rule _igv_symlink_maf:
     run:
         op.absolute_symlink(input.maf, output.maf)
 
-# Filter to essential columns to prevent errors in parsing with pandas
+# Reduce MAF columns to prevent parsing errors in Pandas
 rule _igv_reduce_maf_cols:
     input:
         maf = str(rules._igv_symlink_maf.output.maf)
@@ -132,7 +128,7 @@ rule _igv_reduce_maf_cols:
         cut -f 1,5,6,7,9,10,11,13,16 {input.maf} > {output.maf}
         """)
 
-# Prepare regions file for liftover
+# Convert input regions file into BED format
 rule _igv_format_regions_file:
     input:
         regions = str(rules._igv_symlink_regions_file.output.regions_file)
@@ -180,7 +176,7 @@ rule _igv_liftover_regions:
         {params.target_reference} > {log.stdout} 2> {log.stderr}
         """)
 
-# Pass metadata as a pandas dataframe directly from the samples value specified in config
+# Filter MAF to lines containing positions of interest
 rule _igv_filter_maf:
     input:
         maf = str(rules._igv_reduce_maf_cols.output.maf),
@@ -200,7 +196,7 @@ rule _igv_filter_maf:
     script:
         config["lcr-modules"]["igv"]["scripts"]["filter_script"]
 
-# Create multiple batch scripts per sample for each variant
+# Create batch scripts for each variant within sample_id's filtered MAF
 checkpoint _igv_create_batch_script_per_variant:
     input:
         filter_maf = expand(str(rules._igv_filter_maf.output.maf), zip, normal_sample_id=CFG["runs"]["normal_sample_id"], pair_status=CFG["runs"]["pair_status"], allow_missing=True)[0],
@@ -221,6 +217,7 @@ checkpoint _igv_create_batch_script_per_variant:
     script:
         config["lcr-modules"]["igv"]["scripts"]["batch_script_per_variant"]
 
+# Keep track of which variant and sample_id combinations have been seen, merge individual variant batch scripts into a large batch script per sample_id
 rule _igv_batches_to_merge:
     input:
         batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_sample_id}.batch"
@@ -235,14 +232,21 @@ rule _igv_batches_to_merge:
 
         batch_script = open(batch_script_path, "r")
 
+        with open(output_file, "r") as f:
+            merged_lines = len(f.readlines())
+
         with open(output_file, "a") as handle:
             for line in batch_script:
+                if merged_lines > 0:
+                    if line.startswith(("load","maxPanelHeight","genome")):
+                        continue
                 handle.write(line)
         batch_script.close()
 
         output_touch = open(output.dispatched_batch_script, "w")
         output_touch.close()
 
+# Return list of all batch scripts that were created from the filtered maf and merged
 def _evaluate_batches(wildcards):
     CFG = config["lcr-modules"]["igv"]
     checkpoint_output = checkpoints._igv_create_batch_script_per_variant.get(**wildcards).output.variant_batch
@@ -284,6 +288,7 @@ rule _igv_download_igv:
         touch {output.igv_installed}
         """)
 
+# Run IGV once all individual variant batch scripts have been merged into one script per sample_id
 checkpoint _igv_run:
     input:
         igv = str(rules._igv_download_igv.output.igv_installed),
@@ -296,7 +301,7 @@ checkpoint _igv_run:
     params:
         merged_batch = str(rules._igv_create_batch_script_per_variant.output.variant_batch),
         igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh"
-    threads: (workflow.cores / 5)
+    threads: (workflow.cores)
     shell:
         op.as_one_line("""
         echo 'exit' >> {params.merged_batch} ;
@@ -304,6 +309,7 @@ checkpoint _igv_run:
         touch {output.complete}
         """)
 
+# Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _igv_symlink_snapshot:
     input:
         snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_sample_id}.png"
@@ -312,6 +318,7 @@ rule _igv_symlink_snapshot:
     run:
         op.relative_symlink(input.snapshot, output.snapshot)
 
+# Return a list of all snapshots that were taken during IGV
 def _symlink_snapshot(wildcards):
     CFG = config["lcr-modules"]["igv"]
     checkpoint_outputs = checkpoints._igv_run.get(**wildcards).output.complete
@@ -344,6 +351,7 @@ def _symlink_snapshot(wildcards):
     else:
         return []
 
+# Check that snapshots have been symlinked
 rule _igv_check_snapshots:
     input:
         snapshots = _symlink_snapshot,
