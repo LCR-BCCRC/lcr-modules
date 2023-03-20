@@ -342,7 +342,7 @@ def _symlink_snapshot(wildcards):
     CFG = config["lcr-modules"]["igv"]
     checkpoint_outputs = checkpoints._igv_run.get(**wildcards).output.complete
     
-    this_sample = op.filter_samples(CFG["runs"], tumour_id = wildcards.tumour_id, tumour_seq_type = wildcards.seq_type, tumour_genome_build = wildcards.genome_build)
+    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id = wildcards.tumour_id, tumour_seq_type = wildcards.seq_type, tumour_genome_build = wildcards.genome_build)
 
     normal_sample_id = this_sample["normal_sample_id"]
     pair_status = this_sample["pair_status"]
