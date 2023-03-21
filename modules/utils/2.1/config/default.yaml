@@ -13,7 +13,7 @@ lcr-modules:
 ## Lines commented out with `#?` can optionally be user-configured
 ## Lines commented out with `##` act as regular comments
 
-        paired_modules: ["bwa_mem", "star"]
+        paired_modules: ["bwa_mem", "star", minimap2]
         ## See main README.md for how to set `samples` in the Snakefile
         #! samples: null
 

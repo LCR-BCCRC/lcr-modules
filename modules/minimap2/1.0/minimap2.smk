@@ -38,85 +38,113 @@ CFG = op.setup_module(
     name = "minimap2",
     version = "1.0",
     # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "minimap2", "outputs"],
+    subdirectories = ["inputs", "minimap2", "sort_bam", "outputs"],
 )
 
+#include: "../../utils/2.1/utils.smk"
+
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _minimap2_input_fastq,
-    _minimap2_step_2,
+    _minimap2_symlink_bam,
     _minimap2_output_bam,
     _minimap2_all,
 
+sample_ids_minimap2 = list(CFG['samples']['sample_id'])
 
 ##### RULES #####
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
 rule _minimap2_input_fastq:
     input:
         fastq = CFG["inputs"]["sample_fastq"]
     output:
-        fastq = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.fastq"
-    group: 
-        "input_and_step_1"
+        fastq = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.fastq.gz"
     run:
         op.absolute_symlink(input.fastq, output.fastq)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _minimap2_step_1:
+rule _minimap2_run:
     input:
         fastq = str(rules._minimap2_input_fastq.output.fastq),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        bam = CFG["dirs"]["minimap2"] + "{seq_type}--{genome_build}/{sample_id}/output.bam"
+        sam = pipe(CFG["dirs"]["minimap2"] + "{seq_type}--{genome_build}/{sample_id}_out.sam")
     log:
-        stdout = CFG["logs"]["minimap2"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stdout.log",
-        stderr = CFG["logs"]["minimap2"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stderr.log"
+        stdout = CFG["logs"]["minimap2"] + "{seq_type}--{genome_build}/{sample_id}/minimap2.stdout.log",
+        stderr = CFG["logs"]["minimap2"] + "{seq_type}--{genome_build}/{sample_id}/minimap2.stderr.log"
     params:
-        opts = CFG["options"]["step_1"]
+        opts = CFG["options"]["minimap2"]
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["minimap2"]
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["minimap2"]
     resources:
-        **CFG["resources"]["step_1"]    # All resources necessary can be included and referenced from the config files.
+        **CFG["resources"]["minimap2"]
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --input {input.fastq} --ref-fasta {input.fasta}
-        --output {output.bam} --threads {threads} > {log.stdout} 2> {log.stderr}
+        minimap2 {params.opts}
+        -t {threads} 
+        {input.fasta} 
+        {input.fastq} 
+        -o {output.sam} 
+        > {log.stdout} 
+        2> {log.stderr}
         """)
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _minimap2_step_2:
+rule _minimap2_samtools:
     input:
-        bam = str(rules._minimap2_step_1.output.bam)
+        sam = str(rules._minimap2_run.output.sam)
     output:
-        bam = CFG["dirs"]["minimap2"] + "{seq_type}--{genome_build}/{sample_id}/output.filt.bam"
+        bam = CFG["dirs"]["minimap2"] + "{seq_type}--{genome_build}/{sample_id}_out.bam",
+        complete = touch(CFG["dirs"]["minimap2"] + "{seq_type}--{genome_build}/{sample_id}_out.bam.complete")
     log:
-        stderr = CFG["logs"]["minimap2"] + "{seq_type}--{genome_build}/{sample_id}/step_2.stderr.log"
+        stderr = CFG["logs"]["minimap2"] + "{seq_type}--{genome_build}/{sample_id}/samtools.stderr.log"
     params:
-        opts = CFG["options"]["step_2"]
+        opts = CFG["options"]["samtools"]
+    conda:
+        CFG["conda_envs"]["samtools"]
+    threads:
+        CFG["threads"]["samtools"]
+    resources:
+        **CFG["resources"]["samtools"]
     shell:
-        "grep {params.opts} {input.bam} > {output.bam} 2> {log.stderr}"
+        op.as_one_line("""
+        samtools view {params.opts}
+        {input.sam} > {output.bam} 
+        2> {log.stderr}
+        """)
+
+
+rule _minimap2_symlink_bam:
+    input:
+        bam = str(rules._minimap2_samtools.output.bam)
+    output:
+        bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.bam"
+    wildcard_constraints: 
+        sample_id = "|".join(sample_ids_minimap2)
+    run:
+        op.absolute_symlink(input.bam, output.bam)
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _minimap2_output_bam:
     input:
-        bam = str(rules._minimap2_step_2.output.bam)
+        bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam",
+        bai = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam.bai",
+        sorted_bam = str(rules._minimap2_symlink_bam.input.bam)
     output:
-        bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.output.filt.bam"
+        bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
+    wildcard_constraints: 
+        sample_id = "|".join(sample_ids_minimap2)
     run:
-        op.relative_symlink(input.bam, output.bam, in_module= True)
+        op.relative_symlink(input.bam, output.bam, in_module=True)
+        op.relative_symlink(input.bai, output.bam + ".bai", in_module=True)
+        os.remove(input.sorted_bam)
+        shell("touch {input.sorted_bam}.deleted")
+
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -125,11 +153,10 @@ rule _minimap2_all:
         expand(
             [
                 str(rules._minimap2_output_bam.output.bam),
-                # TODO: If applicable, add other output rules here
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
-            genome_build=CFG["samples"]["genome_build"],
+            genome_build=CFG["inputs"]["reference_build"],
             sample_id=CFG["samples"]["sample_id"])
 
 

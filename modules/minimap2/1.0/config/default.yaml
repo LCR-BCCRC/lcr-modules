@@ -6,21 +6,31 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_fastq: "__UPDATE__"
+            reference_build: "__UPDATE__"
 
         scratch_subdirectories: []
 
         options:
-            step_1: ""
-            step_2: ""
+            minimap2: '-ax map-ont -L --MD -Y -R "@RG\tID:{sample_id}\tLB:{sample_id}\tPL:ONT\tSM:{sample_id}"'
+            samtools: '-bhS'
 
         conda_envs:
+            minimap2: "{MODSDIR}/envs/minimap2-2.24.yaml"
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             
         threads:
-            step_1: 4
+            minimap2: 4
+            samtools: 1
 
         resources:
-            step_1: 
-                mem_mb: 2000
+            minimap2: 
+                mem_mb: 30000
+            samtools:
+                mem_mb: 10000
             
         pairing_config:
+            promethION:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+
