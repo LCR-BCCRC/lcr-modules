@@ -322,7 +322,8 @@ checkpoint _igv_run:
         if [ $lines -gt 0 ] ;
         then
         echo 'exit' >> {params.merged_batch} ;
-        xvfb-run --auto-servernum {params.igv} -b {params.merged_batch} > {log.stdout} 2> {log.stderr} && touch {output.complete} ;
+        maxtime=$(($(wc -l < {params.merged_batch}) * 5 + 15)) ;
+        timeout $maxtime xvfb-run --auto-servernum {params.igv} -b {params.merged_batch} > {log.stdout} 2> {log.stderr} && touch {output.complete} ;
         else
         touch {output.complete} ;
         fi
