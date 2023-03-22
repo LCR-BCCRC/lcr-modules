@@ -222,7 +222,7 @@ rule _igv_batches_to_merge:
     input:
         batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}.batch"
     output:
-        dispatched_batch_script = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}.batched"
+        dispatched_batch_script = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}.batch"
     params:
         batch_script_file = str(rules._igv_create_batch_script_per_variant.output.variant_batch)
     threads: (workflow.cores / 10)
