@@ -92,7 +92,7 @@ def generate_igv_batch_per_row(coordinates, snapshot_filename, igv_options):
     lines.append("collapse")
     for option in igv_options:
         lines.append(option)
-    lines.append("setSleepInterval 100")
+    lines.append("setSleepInterval 1000")
     lines.append(f"snapshot {snapshot_filename}")
 
     return lines
