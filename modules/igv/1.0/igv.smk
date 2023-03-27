@@ -86,9 +86,9 @@ def get_maf(wildcards):
 ##### RULES #####
 
 if CFG["view_as_pairs"]:
-    file_suffix = "pairs."
+    SUFFIX = ".pairs"
 else:
-    file_suffix = ""
+    SUFFIX = ""
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
@@ -203,7 +203,7 @@ rule _igv_filter_maf:
     script:
         config["lcr-modules"]["igv"]["scripts"]["filter_script"]
 
-# Create batch scripts for each variant within sample_id's filtered MAF
+# Create batch scripts for each variant
 checkpoint _igv_create_batch_script_per_variant:
     input:
         filter_maf = expand(str(rules._igv_filter_maf.output.maf), zip, normal_sample_id=CFG["runs"]["normal_sample_id"], pair_status=CFG["runs"]["pair_status"], allow_missing=True)[0],
@@ -212,7 +212,7 @@ checkpoint _igv_create_batch_script_per_variant:
         regions_lifted = str(rules._igv_liftover_regions.output.regions),
         regions_formatted = str(rules._igv_format_regions_file.output.regions)
     output:
-        variant_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{tumour_id}.{suffix}batch"
+        variant_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{tumour_id}" + SUFFIX + ".batch"
     params:
         batch_dir = config["lcr-modules"]["igv"]["dirs"]["batch_scripts"],
         snapshot_dir = config["lcr-modules"]["igv"]["dirs"]["snapshots"],
@@ -228,9 +228,9 @@ checkpoint _igv_create_batch_script_per_variant:
 # Keep track of which variant and sample_id combinations have been seen, merge individual variant batch scripts into a large batch script per sample_id
 rule _igv_batches_to_merge:
     input:
-        batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}.{suffix}batch"
+        batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}" + SUFFIX + ".batch"
     output:
-        dispatched_batch_script = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}.{suffix}batch"
+        dispatched_batch_script = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}" + SUFFIX + ".batch"
     params:
         batch_script_file = str(rules._igv_create_batch_script_per_variant.output.variant_batch)
     threads: (workflow.cores / 10)
@@ -289,8 +289,7 @@ def _evaluate_batches(wildcards):
                 genome_build = maf_table["genome_build"],
                 allow_missing=True
             ),
-            padding = str(CFG["generate_batch_script"]["padding"]),
-            suffix = file_suffix
+            padding = str(CFG["generate_batch_script"]["padding"])
         )
     else:
         return []
@@ -317,10 +316,10 @@ checkpoint _igv_run:
         igv = str(rules._igv_download_igv.output.igv_installed),
         batch_script = _evaluate_batches
     output:
-        complete = CFG["dirs"]["snapshots"] + "completed/{seq_type}--{genome_build}--{tumour_id}.{suffix}completed"
+        complete = CFG["dirs"]["snapshots"] + "completed/{seq_type}--{genome_build}--{tumour_id}.completed"
     log:
-        stdout = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_id}_igv_run.{suffix}stdout.log",
-        stderr = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_id}_igv_run.{suffix}stderr.log"
+        stdout = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_id}_igv_run.stdout.log",
+        stderr = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_id}_igv_run.stderr.log"
     params:
         merged_batch = str(rules._igv_create_batch_script_per_variant.output.variant_batch),
         igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh"
@@ -344,9 +343,9 @@ checkpoint _igv_run:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _igv_symlink_snapshot:
     input:
-        snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}.{suffix}png"
+        snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}" + SUFFIX + ".png"
     output:
-        snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}.{suffix}png"
+        snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}" + SUFFIX + ".png"
     run:
         op.relative_symlink(input.snapshot, output.snapshot)
 
@@ -385,8 +384,7 @@ def _symlink_snapshot(wildcards):
                 tumour_id = maf_table["Tumor_Sample_Barcode"],
                 allow_missing=True
             ),
-            padding = str(CFG["generate_batch_script"]["padding"]),
-            suffix = file_suffix
+            padding = str(CFG["generate_batch_script"]["padding"])
         )
     else:
         return []
@@ -397,7 +395,7 @@ rule _igv_check_snapshots:
         snapshots = _symlink_snapshot,
         igv_completed = str(rules._igv_run.output.complete)
     output:
-        snapshots = CFG["dirs"]["outputs"] + "completed/{seq_type}--{genome_build}--{tumour_id}.{suffix}completed"
+        snapshots = CFG["dirs"]["outputs"] + "completed/{seq_type}--{genome_build}--{tumour_id}.completed"
     shell:
         "touch {output.snapshots}"
 
@@ -425,7 +423,7 @@ if CFG["test_run"] is True:
 
             return expand(
                 expand(
-                    CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}.{suffix}batch",
+                    CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}" + SUFFIX + ".batch",
                     zip,
                     seq_type = maf_table["seq_type"],
                     genome_build = maf_table["genome_build"],
@@ -435,8 +433,7 @@ if CFG["test_run"] is True:
                     tumour_id = maf_table["Tumor_Sample_Barcode"],
                     allow_missing = True
                     ),
-                padding = str(CFG["generate_batch_script"]["padding"]),
-                suffix = file_suffix
+                padding = str(CFG["generate_batch_script"]["padding"])
                 )
         else:
             return []
@@ -445,7 +442,7 @@ if CFG["test_run"] is True:
         input:
             batch_script = _estimate_batches
         output:
-            batch_script = temp(CFG["dirs"]["batch_scripts"] + "mock_batches/{seq_type}--{genome_build}--{tumour_id}.{suffix}batch")
+            batch_script = temp(CFG["dirs"]["batch_scripts"] + "mock_batches/{seq_type}--{genome_build}--{tumour_id}.batch")
         run:
             CFG = config["lcr-modules"]["igv"]
             if not os.path.exists(CFG["dirs"]["batch_scripts"] + "mock_batches"):
@@ -456,44 +453,44 @@ if CFG["test_run"] is True:
 
     rule _igv_estimate_snapshots:
         input:
-            batch_scripts = expand(str(rules._igv_mock_merge_batches.output.batch_script), zip, tumour_id=CFG["runs"]["tumour_sample_id"], seq_type=CFG["runs"]["tumour_seq_type"], genome_build=CFG["runs"]["tumour_genome_build"], suffix=file_suffix)
+            batch_scripts = expand(str(rules._igv_mock_merge_batches.output.batch_script), zip, tumour_id=CFG["runs"]["tumour_sample_id"], seq_type=CFG["runs"]["tumour_seq_type"], genome_build=CFG["runs"]["tumour_genome_build"])
         output:
             summary = CFG["dirs"]["batch_scripts"] + "mock_batches/snapshot_summary.txt"
         params:
-            dispatch_dir = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/"
+            dispatch_dir = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/",
+            suffix = SUFFIX
         run:
-            gene_ids = []
+            sample_dictionary = {}
 
             for sample_batches in input.batch_scripts:
                 with open(sample_batches, "r") as handle:
                     for batch_path in handle:
                         batch_path = batch_path.split("/")
-                        snapshot_name = batch_path[-1]
+                        snapshot_name = batch_path[-1].split(f"{params.suffix}.batch")[0]
                         seq_type = batch_path[-2].split("--")[0]
-                        genome_build = batch_path[-2].split("--")[1]      
+                        genome_build = batch_path[-2].split("--")[1]
+                        sample_id = snapshot_name.split("--")[3]
 
-                        potential_dispatch_file = params.dispatch_dir + f"{seq_type}--{genome_build}/{snapshot_name}"
-
+                        potential_dispatch_file = params.dispatch_dir + f"{seq_type}--{genome_build}/{snapshot_name}{params.suffix}.batch" 
                         if not os.path.exists(potential_dispatch_file):
                             gene = snapshot_name.split("--")[2]
-                            gene_ids.append(gene)
+                            if not sample_id in list(sample_dictionary):
+                                sample_dictionary[sample_id] = [gene]
+                            else:
+                                sample_dictionary[sample_id].append(gene)
 
-            snapshot_summary = pd.DataFrame(
-                {
-                    "gene": list(set(gene_ids)),
-                    "snapshots": map(gene_ids.count, list(set(gene_ids)))
-                }
-            )
+            snapshot_summary = pd.DataFrame(list(sample_dictionary.items()), columns=["sample_id","snapshots"])
+            snapshot_summary["snapshots"] = snapshot_summary["snapshots"].apply(lambda x: len(x))
 
             snapshot_summary.loc["Total"] = snapshot_summary.sum()
-            snapshot_summary["gene"]["Total"] = "Total"
+            snapshot_summary["sample_id"]["Total"] = "Total"
             snapshot_summary.to_csv(output.summary, sep="\t", index=False)
 
 # Generates the target sentinels for each run, which generate the symlinks
 if CFG["test_run"] is False:
     rule _igv_all:
         input:
-            expand([str(rules._igv_run.output.complete), str(rules._igv_check_snapshots.output.snapshots)], zip, tumour_id=CFG["runs"]["tumour_sample_id"], seq_type=CFG["runs"]["tumour_seq_type"], genome_build=CFG["runs"]["tumour_genome_build"], suffix=file_suffix)
+            expand([str(rules._igv_run.output.complete), str(rules._igv_check_snapshots.output.snapshots)], zip, tumour_id=CFG["runs"]["tumour_sample_id"], seq_type=CFG["runs"]["tumour_seq_type"], genome_build=CFG["runs"]["tumour_genome_build"])
 
 if CFG["test_run"] is True:
     rule _igv_all:
