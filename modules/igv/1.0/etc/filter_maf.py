@@ -28,6 +28,16 @@ def main():
 
         output_file = snakemake.output[0]
 
+        # Return empty dataframe if no lines in MAF
+        line_count = count_lines(maf_file)
+        if line_count == 1:
+            empty_maf = pd.read_table(maf_file, comment="#", sep="\t")
+            # Add columns required by workflow
+            required_columns = ["seq_type","genome_build","chr_std"]
+            maf_table = maf_table.assign(**{col:None for col in required_columns if col not in empty_maf.columns})
+            write_output(empty_maf, output_file)
+            exit()
+
         maf = maf_add_columns(maf=maf_file, metadata=metadata)
 
         # Peform filtering
@@ -41,6 +51,11 @@ def main():
         filtered_maf = maf_reduce_snapshots(maf=filtered_maf, snapshots=n_snapshots)
 
         write_output(filtered_maf, output_file)
+
+def count_lines(maf):
+    with open(maf, "r") as handle:
+        total_lines = len(handle.readlines())
+    return total_lines
 
 def filter_by_bed(maf, regions):
 
