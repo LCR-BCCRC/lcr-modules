@@ -1,0 +1,34 @@
+lcr-modules:
+    
+    sv_repair:
+
+        # TODO: Update the list of available wildcards, if applicable
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bedpe: "results/gambl/manta-2.3/04-bedpe/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somaticSV.bedpe"
+            tumour_bam: "data/genome_bams/{tumour_id}.{genome_build}.bam",
+            tumour_bai: "data/genome_bams/{tumour_id}.{genome_build}.bam.bai"
+
+        scratch_subdirectories: []
+
+        options:
+            window_size: 1000
+            step_2: ""
+
+        conda_envs:
+            readR: "{MODSDIR}/envs/readr-2.1.2.yaml"
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            bedtools: "{MODSDIR}/envs/bamtools-2.29.2.yaml"
+            
+        threads:
+            step_1: 4
+
+        resources:
+            step_1: 
+                mem_mb: 2000
+            
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
