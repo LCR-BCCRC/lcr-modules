@@ -458,21 +458,20 @@ if CFG["test_run"] is True:
             sample_dictionary = {}
 
             for sample_batches in input.batch_scripts:
+                tumour_id = sample_batches.split("--")[-1].replace(".batch","")
+                sample_dictionary[tumour_id] = []
                 with open(sample_batches, "r") as handle:
                     for batch_path in handle:
                         batch_path = batch_path.split("/")
                         snapshot_name = batch_path[-1].split(f"{params.suffix}.batch")[0]
                         seq_type = batch_path[-2].split("--")[0]
                         genome_build = batch_path[-2].split("--")[1]
-                        sample_id = snapshot_name.split("--")[3]
+                        sample_id = snapshot_name.split("--")[2]
 
                         potential_dispatch_file = params.dispatch_dir + f"{seq_type}--{genome_build}/{snapshot_name}{params.suffix}.batch" 
                         if not os.path.exists(potential_dispatch_file):
-                            gene = snapshot_name.split("--")[2]
-                            if not sample_id in list(sample_dictionary):
-                                sample_dictionary[sample_id] = [gene]
-                            else:
-                                sample_dictionary[sample_id].append(gene)
+                            gene = snapshot_name.split("--")[1]
+                            sample_dictionary[sample_id].append(gene)
 
             snapshot_summary = pd.DataFrame(list(sample_dictionary.items()), columns=["sample_id","snapshots"])
             snapshot_summary["snapshots"] = snapshot_summary["snapshots"].apply(lambda x: len(x))
