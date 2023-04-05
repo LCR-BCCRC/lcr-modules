@@ -193,7 +193,6 @@ rule _igv_filter_maf:
     params:
         regions_format = REGIONS_FORMAT[CFG["inputs"]["regions_format"].lower()],
         oncodriveclustl_params = CFG["filter_maf"]["oncodriveclustl_options"],
-        n_snapshots = CFG["filter_maf"]["n_snapshots"] if CFG["filter_maf"]["n_snapshots"] is not None else 1000000,
         metadata = CFG["runs"]
     log:
         stdout = CFG["logs"]["inputs"] + "filter_maf/{seq_type}--{genome_build}/{tumour_id}--{normal_sample_id}--{pair_status}/filter_maf.stdout.log",

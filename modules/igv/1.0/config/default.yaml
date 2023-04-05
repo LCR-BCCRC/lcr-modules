@@ -18,7 +18,6 @@ lcr-modules:
                 p_value: # Desired q-value of OncodriveCLUSTL clusters
                 score: # Desired scores of OncodriveCLUSTL clusters
                 n_samples: # Desired number of samples in OncodriveCLUSTL clusters
-            n_snapshots: 20 # Number of snapshots to take per unique variant position. Default is set to max (1000000).
 
         genome_map: # Map different builds in metadata
             grch37: ["grch37","hg19","hg19-clc","hg19-reddy","hs37d5"]
@@ -33,10 +32,8 @@ lcr-modules:
                 hg38: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh38/Sequence/WholeGenomeFasta/genome.fa"
 
         generate_batch_script:
-            temp: True # Create temporary batch files
-            image_format: ".svg"
-            padding: 300
-            max_height: 400
+            padding: 80
+            max_height: 1000
             # Available batch script options: https://github.com/igvteam/igv/wiki/Batch-commands
             igv_options: []
 
@@ -55,7 +52,6 @@ lcr-modules:
 
         conda_envs:
             liftover_regions: "{MODSDIR}/envs/crossmap.yaml"
-            format_regions: "{MODSDIR}/envs/format_regions.yaml"
             wget: "{REPODIR}/envs/wget/wget-1.20.1.yaml"
             
         threads:

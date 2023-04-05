@@ -18,13 +18,11 @@ def main():
         regions_file = snakemake.input[1]
         regions_format = snakemake.params[0]
 
-        metadata = snakemake.params[3]
+        metadata = snakemake.params[2]
 
         if regions_format == "oncodriveclustl":
             global CLUSTL_PARAMS
             CLUSTL_PARAMS = snakemake.params[1]
-
-        n_snapshots = snakemake.params[2]
 
         output_file = snakemake.output[0]
 
