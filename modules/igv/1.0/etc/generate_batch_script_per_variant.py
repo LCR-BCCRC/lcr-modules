@@ -132,14 +132,8 @@ def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_bui
 
         filename = []
         filename.append(row.region),
-        filename.append(str(row.padding))
         filename.append(row.region_name)
         filename.append(row.sample_id)
-
-        if as_pairs:
-            suffix = ".pairs"
-        else:
-            suffix = ""
 
         batch_filename = "--".join(filename) + suffix + ".batch"
         filename = "--".join(filename) + suffix + ".png"
