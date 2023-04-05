@@ -335,9 +335,10 @@ checkpoint _igv_run:
         then
         echo 'exit' >> {params.merged_batch} ;
         fi ;
-        maxtime=$(($(wc -l < {params.merged_batch}) * 5 + 15)) ;
-        timeout $maxtime xvfb-run --auto-servernum {params.igv} -b {params.merged_batch} > {log.stdout} 2> {log.stderr} && touch {output.complete} ;
+        maxtime=$(($(wc -l < {params.merged_batch}) * 60 + 15)) ;
+        timeout $maxtime xvfb-run -s "-screen 0 1920x1080x24" --auto-servernum {params.igv} -b {params.merged_batch} > {log.stdout} 2> {log.stderr} && touch {output.complete} ;
         else
+        echo 'Skipping sample {wildcards.tumour_id} because it either has no variants to snapshot or all variants have been already been snapshot.' ;
         touch {output.complete} ;
         fi
         """)
