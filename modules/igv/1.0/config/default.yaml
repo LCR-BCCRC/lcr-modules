@@ -36,7 +36,7 @@ lcr-modules:
             max_height: 1000
             sleep_timer: 2000 # Batch scripts with more options may require longer sleep intervals
             # Available batch script options: https://github.com/igvteam/igv/wiki/Batch-commands
-            igv_options: []
+            igv_options: ["colorBy INSERT_SIZE", "preference SAM.SHOW_CENTER_LINE TRUE", "expand 100", "NAME_PANEL_WIDTH 70"]
 
         scripts:
             format_regions: "etc/format_regions.py"
