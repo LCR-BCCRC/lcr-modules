@@ -237,6 +237,7 @@ rule _pathseq_run:
         taxonomy = str(rules._pathseq_download_taxonomy.output.taxonomy),
         microbe_dict = str(rules._pathseq_download_microbe_references.output.microbe_dict),
         microbe_image = str(rules._pathseq_download_microbe_references.output.microbe_image)
+        genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         bam = temp(CFG["dirs"]["pathseq"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.{genome_build}.pathseq.bam"),
         scores = CFG["dirs"]["pathseq"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.{genome_build}.pathseq.scores.txt"
@@ -270,6 +271,7 @@ rule _pathseq_run:
           --taxonomy-file {input.taxonomy}
           --output {output.bam}
           --scores-output {output.scores}
+          --reference {input.genome_fa}
           >> {log.stdout}
           2>> {log.stderr} &&  
           echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
