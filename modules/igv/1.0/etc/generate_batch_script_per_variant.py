@@ -47,7 +47,9 @@ def main():
         seq_type = snakemake.params[3],
         igv_options = snakemake.params[5],
         max_height = snakemake.params[6],
-        as_pairs = snakemake.params[7]
+        suffix = snakemake.params[7],
+        as_pairs = snakemake.params[8],
+        sleep_timer = snakemake.params[9]
     )
 
     touch_output = open(snakemake.output[0], "w")
@@ -85,19 +87,17 @@ def output_lines(lines, batch_output):
     output.write(text)
     output.close()
 
-def generate_igv_batch_per_row(coordinates, snapshot_filename, igv_options):
+def generate_igv_batch_per_row(coordinates, snapshot_filename, sleep_timer):
     lines = []
     lines.append(f"goto {coordinates}")
     lines.append("sort")
     lines.append("collapse")
-    for option in igv_options:
-        lines.append(option)
-    lines.append("setSleepInterval 1000")
+    lines.append(f"setSleepInterval {sleep_timer}")
     lines.append(f"snapshot {snapshot_filename}")
 
     return lines
 
-def generate_igv_batch_header(bam, index, max_height, genome_build, as_pairs):
+def generate_igv_batch_header(bam, index, max_height, genome_build, igv_options, as_pairs):
     lines = []
 
     genome_build = genome_build.replace("grch37","hg19")
@@ -108,17 +108,20 @@ def generate_igv_batch_header(bam, index, max_height, genome_build, as_pairs):
 
     lines.append(f"maxPanelHeight {max_height}")
     lines.append(f"genome {genome_build}")
+    
+    for option in igv_options:
+        lines.append(option)
 
     if as_pairs:
         lines.append("viewaspairs")
 
     return lines
 
-def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_build, seq_type, igv_options, max_height, as_pairs=False):
+def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_build, seq_type, igv_options, max_height, suffix, as_pairs=False, sleep_timer=2000):
     for _, row in regions.iterrows():
         all_lines = []
 
-        header = generate_igv_batch_header(bam=bam, index=bai, max_height=max_height, genome_build=genome_build, as_pairs=as_pairs)
+        header = generate_igv_batch_header(bam=bam, index=bai, max_height=max_height, genome_build=genome_build, igv_options=igv_options, as_pairs=as_pairs)
         all_lines.extend(header)
 
         dir_chrom = row.chromosome
@@ -144,7 +147,7 @@ def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_bui
         lines = generate_igv_batch_per_row(
             coordinates = row.snapshot_coordinates,
             snapshot_filename = filename,
-            igv_options = igv_options
+            sleep_timer = sleep_timer
         )
 
         all_lines.extend(lines)

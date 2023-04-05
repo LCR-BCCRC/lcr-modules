@@ -34,6 +34,7 @@ lcr-modules:
         generate_batch_script:
             padding: 80
             max_height: 1000
+            sleep_timer: 2000 # Batch scripts with more options may require longer sleep intervals
             # Available batch script options: https://github.com/igvteam/igv/wiki/Batch-commands
             igv_options: []
 
@@ -53,7 +54,7 @@ lcr-modules:
         conda_envs:
             liftover_regions: "{MODSDIR}/envs/crossmap.yaml"
             wget: "{REPODIR}/envs/wget/wget-1.20.1.yaml"
-            
+
         threads:
             step_1: 4
 

@@ -46,6 +46,10 @@ CFG = op.setup_module(
 CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(CFG["genome_map"]["grch37"]), "grch37", inplace=True)
 CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(CFG["genome_map"]["hg38"]), "hg38", inplace=True)
 
+# Define output file suffix based on config parameters
+SUFFIX = ".pad" + str(CFG["generate_batch_script"]["padding"]) 
+if CFG["view_as_pairs"]:
+    SUFFIX = SUFFIX + ".pairs"
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -85,10 +89,6 @@ def get_maf(wildcards):
 
 ##### RULES #####
 
-if CFG["view_as_pairs"]:
-    SUFFIX = ".pairs"
-else:
-    SUFFIX = ""
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
@@ -220,18 +220,21 @@ checkpoint _igv_create_batch_script_per_variant:
         padding = config["lcr-modules"]["igv"]["generate_batch_script"]["padding"],
         igv_options = config["lcr-modules"]["igv"]["generate_batch_script"]["igv_options"],
         max_height = config["lcr-modules"]["igv"]["generate_batch_script"]["max_height"],
-        view_pairs = config["lcr-modules"]["igv"]["view_as_pairs"]
+        suffix = SUFFIX,
+        view_pairs = config["lcr-modules"]["igv"]["view_as_pairs"],
+        sleep_timer = config["lcr-modules"]["igv"]["generate_batch_script"]["sleep_timer"]
     script:
         config["lcr-modules"]["igv"]["scripts"]["batch_script_per_variant"]
 
 # Keep track of which variant and sample_id combinations have been seen, merge individual variant batch scripts into a large batch script per sample_id
 rule _igv_batches_to_merge:
     input:
-        batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}" + SUFFIX + ".batch"
+        batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch"
     output:
-        dispatched_batch_script = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}" + SUFFIX + ".batch"
+        dispatched_batch_script = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch"
     params:
-        batch_script_file = str(rules._igv_create_batch_script_per_variant.output.variant_batch)
+        batch_script_file = str(rules._igv_create_batch_script_per_variant.output.variant_batch),
+        igv_options = CFG["generate_batch_script"]["igv_options"]
     threads: (workflow.cores / 10)
     run:
         batch_script_path = os.path.abspath(input.batch_script)
@@ -246,6 +249,8 @@ rule _igv_batches_to_merge:
             for line in batch_script:
                 if merged_lines > 0:
                     if line.startswith(("load","maxPanelHeight","genome","viewaspairs")):
+                        continue
+                    if line.startswith(tuple(params.igv_options)):
                         continue
                 handle.write(line)
         batch_script.close()
@@ -277,7 +282,6 @@ def _evaluate_batches(wildcards):
         maf_table = pd.read_table(maf[0], comment="#", sep="\t")
 
         return expand(
-            expand(
                 str(rules._igv_batches_to_merge.output.dispatched_batch_script),
                 zip,
                 chromosome = maf_table["chr_std"],
@@ -285,11 +289,8 @@ def _evaluate_batches(wildcards):
                 gene = maf_table["Hugo_Symbol"],
                 tumour_id = maf_table["Tumor_Sample_Barcode"],
                 seq_type = maf_table["seq_type"],
-                genome_build = maf_table["genome_build"],
-                allow_missing=True
-            ),
-            padding = str(CFG["generate_batch_script"]["padding"])
-        )
+                genome_build = maf_table["genome_build"]
+            )
     else:
         return []
 
@@ -313,7 +314,8 @@ rule _igv_download_igv:
 checkpoint _igv_run:
     input:
         igv = str(rules._igv_download_igv.output.igv_installed),
-        batch_script = _evaluate_batches
+        batch_script = _evaluate_batches,
+        merged_batch = str(rules._igv_create_batch_script_per_variant.output.variant_batch)
     output:
         complete = CFG["dirs"]["snapshots"] + "completed/{seq_type}--{genome_build}--{tumour_id}.completed"
     log:
@@ -321,7 +323,8 @@ checkpoint _igv_run:
         stderr = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_id}_igv_run.stderr.log"
     params:
         merged_batch = str(rules._igv_create_batch_script_per_variant.output.variant_batch),
-        igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh"
+        igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh",
+        max_time = CFG["generate_batch_script"]["sleep_timer"]
     threads: (workflow.cores)
     shell:
         op.as_one_line("""
@@ -342,9 +345,9 @@ checkpoint _igv_run:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _igv_symlink_snapshot:
     input:
-        snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}" + SUFFIX + ".png"
+        snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
     output:
-        snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}" + SUFFIX + ".png"
+        snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
     run:
         op.relative_symlink(input.snapshot, output.snapshot)
 
@@ -372,7 +375,6 @@ def _symlink_snapshot(wildcards):
         maf_table = pd.read_table(maf[0], comment="#", sep="\t")
 
         return expand(
-            expand(
                 str(rules._igv_symlink_snapshot.output.snapshot), 
                 zip,
                 seq_type = maf_table["seq_type"],
@@ -380,11 +382,8 @@ def _symlink_snapshot(wildcards):
                 chromosome = maf_table["chr_std"],
                 start_position = maf_table["Start_Position"],
                 gene = maf_table["Hugo_Symbol"],
-                tumour_id = maf_table["Tumor_Sample_Barcode"],
-                allow_missing=True
-            ),
-            padding = str(CFG["generate_batch_script"]["padding"])
-        )
+                tumour_id = maf_table["Tumor_Sample_Barcode"]
+            )
     else:
         return []
 
@@ -421,18 +420,14 @@ if CFG["test_run"] is True:
             maf_table = pd.read_table(maf[0], comment="#", sep="\t")
 
             return expand(
-                expand(
-                    CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{padding}--{gene}--{tumour_id}" + SUFFIX + ".batch",
+                    CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch",
                     zip,
                     seq_type = maf_table["seq_type"],
                     genome_build = maf_table["genome_build"],
                     chromosome = maf_table["chr_std"],
                     start_position = maf_table["Start_Position"],
                     gene = maf_table["Hugo_Symbol"],
-                    tumour_id = maf_table["Tumor_Sample_Barcode"],
-                    allow_missing = True
-                    ),
-                padding = str(CFG["generate_batch_script"]["padding"])
+                    tumour_id = maf_table["Tumor_Sample_Barcode"]
                 )
         else:
             return []
