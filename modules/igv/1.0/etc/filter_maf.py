@@ -32,14 +32,13 @@ def main():
             empty_maf = pd.read_table(maf_file, comment="#", sep="\t")
             # Add columns required by workflow
             required_columns = ["seq_type","genome_build","chr_std"]
-            maf_table = maf_table.assign(**{col:None for col in required_columns if col not in empty_maf.columns})
+            empty_maf = empty_maf.assign(**{col:None for col in required_columns if col not in empty_maf.columns})
             write_output(empty_maf, output_file)
             exit()
 
         maf = maf_add_columns(maf=maf_file, metadata=metadata)
 
-        # Peform filtering
-
+        # Perform filtering
         filtered_maf = maf_filter(
             maf=maf, 
             regions=regions_file,
