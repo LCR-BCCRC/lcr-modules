@@ -6,3 +6,4 @@ Intron
 5'Flank
 3'Flank
 5'UTR
+3'UTR
