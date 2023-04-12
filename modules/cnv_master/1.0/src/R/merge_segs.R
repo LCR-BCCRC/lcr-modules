@@ -22,25 +22,16 @@ message("Loading data from individual seg files ...")
 files <- snakemake@input[]
 
 # read individual files and keep file paths in the column filename
-data =
-tibble(filename = files$seg_file) %>% # create a data frame
-  # holding the file names
-  mutate(file_contents = map(filename,          # read files into
-                             ~ read_tsv(files$seg_file, col_types = cols())) # a new data column
-  ) %>%
-  unnest(cols = c(file_contents))
+data = lapply(files$seg_file, read_tsv, col_types = "ccddddd")
+
 
 # strip file paths for the final seg file
-output <- data %>%
-  select(-filename) %>%
+output <- bind_rows(data) %>%
   distinct %>%
   as.data.frame
 
 # this is the file path of all individual segs used in merging
-contents <- data %>%
-  select(filename) %>%
-  unique %>%
-  as.data.frame
+contents <- data.frame(filename = files$seg_file)
 
 # Output data ------------------------------------------------------
 message("Writing final outputs ...")
