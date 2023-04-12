@@ -138,12 +138,30 @@ tools:
     gsutil: 
         conda_env: "envs/gsutil-4.53.yaml"
         version: "4.53"
+    wiggletools:
+        conda_env: "envs/wiggletools-1.2.10.yaml"
+        version: "1.2.10"
+    rtracklayer:
+        conda_env: "envs/rtracklayer-1.50.0.yaml"
+        version: "1.50.0"
+    jabba:
+        conda_env: "envs/jabba.yaml"
+        version: "1.0.0"
     sigprofiler:
         conda_env: "envs/sigprofiler-1.1.yaml"
         version: "1.1"
     bcftools:
         conda_env: "envs/bcftools-1.10.2.yaml"
         version: "1.10.2"
+pon:
+    hg38: "etc/hg38.normals.tbl"
+    grch37: "etc/grch37.normals.tbl"
+
+jabba:
+    fragcounter: "src/jabba/run_custom_fragcounter.R"
+    make_pon: "src/jabba/make_pon.R"
+    make_germline: "src/jabba/make_germline_filter.R"
+
 
 cvbio_config:
     gtf: 
