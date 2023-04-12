@@ -96,7 +96,7 @@ def get_normal_cn(chrom, sex):
 def load_snv_df(file_name, sample_id="tumour"):
     df = pd.read_csv(file_name, sep="\t")
     # PyClone only works on SNPs, not InDels
-    df = df[df["Variant_Type"].isin(["SNP"])]
+    # df = df[df["Variant_Type"].isin(["SNP"])]
     # Ignore intergenic mutations (IGR)
     df = df[~df["Variant_Classification"].isin(["IGR"])]
     # Acutally I can't do this sub-sampling here because the mutations in all files for all tumours
