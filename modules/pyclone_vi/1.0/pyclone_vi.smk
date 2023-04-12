@@ -45,7 +45,10 @@ f = open("config/envs/GAMBLR.yaml", 'rb')
 md5hash.update(f.read())
 f.close()
 h = md5hash.hexdigest()
-GAMBLR = glob.glob(conda_prefix + "/" + h[:8] + "*")[0]
+GAMBLR = glob.glob(conda_prefix + "/" + h[:8] + "*")
+for file in GAMBLR:
+    if os.path.isdir(file):
+        GAMBLR = file
 
 rule _pyclone_vi_install_GAMBLR:
     params:
@@ -369,6 +372,16 @@ if isinstance(PATIENTS_GENOMES, pd.DataFrame) and isinstance(PATIENTS_CAPTURE, p
 
 rule _pyclone_vi_all:
     input:
+        expand(
+            rules._pyclone_vi_input_maf.output.maf,
+            zip,
+            tumour_id = CFG["runs"]["tumour_sample_id"],
+            normal_id = CFG["runs"]["normal_sample_id"],
+            pair_status = CFG["runs"]["pair_status"],
+            seq_type = CFG["runs"]["tumour_seq_type"],
+            genome_build = CFG["runs"]["tumour_genome_build"],
+            patient_id = CFG["runs"]["tumour_patient_id"]
+        ),
         expand(
             [
                 str(rules._pyclone_vi_output_tsv.output.phyclone),
