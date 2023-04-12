@@ -71,7 +71,6 @@ def _find_best_seg(wildcards):
         f"No ouput was found for the sample {wildcards.tumour_id} in projection {wildcards.projection}. "
         f"Please ensure it exists at one of the paths specified through config."
     )
-    print(f"Will use file {possible_outputs[0]} for the sample {wildcards.tumour_id}.")
     return(possible_outputs[0])
 
 # symlink the input files into 00-inputs
