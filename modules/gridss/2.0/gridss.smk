@@ -44,17 +44,13 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "preprocess", "gridss", "repeatmasker", "gripss", "outputs"],
 )
 
-VERSION_MAP_GRIDSS = {
-    "grch37": "hg19", 
-    "hs37d5": "hg19", 
-    "hg38": "hg38"
-}
+VERSION_MAP_GRIDSS = CFG["options"]["version_map"]
 
-possible_genome_builds = VERSION_MAP_GRIDSS.keys()
+possible_genome_builds = ", ".join(list(VERSION_MAP_GRIDSS.keys()))
 for genome_build in CFG["runs"]["tumour_genome_build"]:
     assert genome_build in possible_genome_builds, (
-        "Samples table includes genome builds not yet compatible with this module. "
-        "This module is currently only compatible with {possible_genome_builds}. "
+        f"Samples table includes genome builds not yet compatible with this module. "
+        f"This module is currently only compatible with {possible_genome_builds}. "
     )
 
 sample_ids = list(CFG['samples']['sample_id'])

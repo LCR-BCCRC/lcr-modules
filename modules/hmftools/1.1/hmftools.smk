@@ -61,17 +61,13 @@ localrules:
     _hmftools_all
 
 
-VERSION_MAP_HMFTOOLS = {
-    "grch37": "37",
-    "hs37d5": "37",
-    "hg38": "38"
-}
+VERSION_MAP_HMFTOOLS = CFG["options"]["version_map"]
 
-possible_genome_builds = VERSION_MAP_HMFTOOLS.keys()
+possible_genome_builds = ", ".join(list(VERSION_MAP_HMFTOOLS.keys()))
 for genome_build in CFG["runs"]["tumour_genome_build"]:
     assert genome_build in possible_genome_builds, (
-        "Samples table includes genome builds not yet compatible with this module. "
-        "This module is currently only compatible with {possible_genome_builds}. "
+        f"Samples table includes genome builds not yet compatible with this module. "
+        f"This module is currently only compatible with {possible_genome_builds}. "
     )
 
 
