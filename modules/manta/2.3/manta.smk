@@ -59,8 +59,8 @@ localrules:
 # Symlinks the input BAM files into the module output directory (under '00-inputs/').
 rule _manta_input_bam:
     input:
-        sample_bam = CFG["inputs"]["sample_bam"],
-        sample_bai = CFG["inputs"]["sample_bai"]
+        sample_bam = ancient(CFG["inputs"]["sample_bam"]),
+        sample_bai = ancient(CFG["inputs"]["sample_bai"])
     output:
         sample_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         sample_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
@@ -103,8 +103,8 @@ def _manta_get_capspace(wildcards):
 # Configures the manta workflow with the input BAM files and reference FASTA file.
 rule _manta_configure_paired:
     input:
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
+        tumour_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam"),
+        normal_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam"),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         config = op.switch_on_wildcard("seq_type", CFG["switches"]["manta_config"]),
         bedz = _manta_get_capspace
@@ -131,7 +131,7 @@ rule _manta_configure_paired:
 # Configures the manta workflow with the input BAM files and reference FASTA file.
 rule _manta_configure_unpaired:
     input:
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
+        tumour_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam"),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         config = op.switch_on_wildcard("seq_type", CFG["switches"]["manta_config"]),
         bedz = _manta_get_capspace
