@@ -248,6 +248,7 @@ rule _lofreq_run_tumour_matched:
         SCRIPT_PATH={SCRIPT_PATH};
         PATH=$SCRIPT_PATH:$PATH;
         SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
+        if [[ -e {output.vcf_snvs_all}.tbi ]]; then rm -f $(dirname {output.vcf_relaxed})/*; fi; 
         if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
             echo "using bundled patched script $SCRIPT";
             lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
