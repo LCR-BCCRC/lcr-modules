@@ -14,8 +14,10 @@ NUM_CORES="${2:-24}"
 
 SNAKEMAKE_FLAGS="${3:-""}"
 CONDA_PFX="${4:-$CONDA_PREFIX}"
+TARGET_RULE="${5:-"all"}"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 snakemake $SNAKEMAKE_FLAGS --cores "${NUM_CORES}" --use-conda --conda-prefix $CONDA_PFX --directory "${SCRIPT_DIR}" \
+    --config reference_directory="${REF_DIR}" \
     --snakefile "${SCRIPT_DIR}/prepare_reference_files.smk" \
-    --config reference_directory="${REF_DIR}"
+    $TARGET_RULE
