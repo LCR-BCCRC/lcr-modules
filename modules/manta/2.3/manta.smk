@@ -149,7 +149,7 @@ rule _manta_configure_unpaired:
         CFG["conda_envs"]["manta"]
     shell:
         op.as_one_line("""
-        configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {params.bedz}
+        configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {input.bedz}
         --runDir "$(dirname {output.runwf})" {params.tumour_bam_arg_name} {input.tumour_bam}
         --config {input.config} > {log.stdout} 2> {log.stderr}
         """)
