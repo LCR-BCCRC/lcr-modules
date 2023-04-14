@@ -168,8 +168,8 @@ rule _cnv_master_output_capture_merges:
 
 rule _cnv_master_all:
     input:
-        expand(_get_all_segs("genome"), projection = ["grch37", "hg38"]),
-        expand(_get_all_segs("capture"), projection = ["grch37", "hg38"]),
+        expand(_get_all_segs("genome"), projection = CFG["projections"]),
+        expand(_get_all_segs("capture"), projection = CFG["projections"]),
         expand(
             [
                 str(rules._cnv_master_output_genome_merges.output.genome_merge),
