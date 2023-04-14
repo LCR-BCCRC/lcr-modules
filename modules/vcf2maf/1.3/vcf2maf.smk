@@ -17,6 +17,7 @@ import hashlib
 
 import oncopipe as op
 import pandas as pd
+import glob as glob
 
 # Setup module and store module-specific configuration in `CONFIG`
 CFG = op.setup_module(
@@ -30,7 +31,6 @@ localrules:
     _vcf2maf_input_vcf,
     _vcf2maf_input_bam,
     _vcf2maf_output_maf,
-    _vcf2maf_gnomad_filter_maf,
     _vcf2maf_install_GAMBLR,
     _vcf2maf_output_original,
     _vcf2maf_normalize_prefix,
@@ -201,7 +201,10 @@ f = open("config/envs/GAMBLR.yaml", 'rb')
 md5hash.update(f.read())
 f.close()
 h = md5hash.hexdigest()
-GAMBLR = glob.glob(conda_prefix + "/" + h[:8] + "*")[0]
+GAMBLR = glob.glob(conda_prefix + "/" + h[:8] + "*")
+for file in GAMBLR: 
+    if os.path.isdir(file): 
+        GAMBLR = file
 
 rule _vcf2maf_install_GAMBLR:
     params:

@@ -33,7 +33,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
                 )
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
-# End of dependency checking section 
+# End of dependency checking section
 
 
 # Setup module and store module-specific configuration in `CFG`
@@ -66,15 +66,15 @@ def get_genome_build(wildcards):
 def get_bams(wildcards,build = False):
     CFG = config["lcr-modules"]["bam2fastq"]
     tbl = CFG["samples"]
-    return(expand(
-        CFG["dirs"]["inputs"] + "{{seq_type}}--{genome_build}/{{sample_id}}.bam", 
+    return(ancient(expand(
+        CFG["dirs"]["inputs"] + "{{seq_type}}--{genome_build}/{{sample_id}}.bam",
         genome_build = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["genome_build"]
-    ))
+    )))
 
 
 rule _bam2fastq_input_bam:
     input:
-        bam_path = CFG['inputs']['sample_bam']
+        bam_path = ancient(CFG['inputs']['sample_bam'])
     output:
         bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bam"
     run:
@@ -85,7 +85,7 @@ rule _bam2fastq_input_bam:
 if CFG["temp_outputs"]:
     rule _bam2fastq_run:
         input:
-            bam = get_bams,
+            bam = ancient(get_bams),
             genome = get_genome_build
         output:
             fastq_1 = temp(CFG["dirs"]["fastq"] + "{seq_type}/{sample_id}.read1.fastq.gz"),
@@ -106,7 +106,7 @@ if CFG["temp_outputs"]:
         shell:
             op.as_one_line("""
             picard -Xmx{resources.mem_mb}m SamToFastq {params.opts}
-            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2}) 
+            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2})
             REFERENCE_SEQUENCE={input.genome}
             > {log.stdout} &> {log.stderr}
             """)
@@ -133,7 +133,7 @@ elif not CFG["temp_outputs"]:
         shell:
             op.as_one_line("""
             picard -Xmx{resources.mem_mb}m SamToFastq {params.opts}
-            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2}) 
+            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2})
             REFERENCE_SEQUENCE={input.genome}
             > {log.stdout} &> {log.stderr}
             """)
