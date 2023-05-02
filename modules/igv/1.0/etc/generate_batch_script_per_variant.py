@@ -5,55 +5,72 @@ import warnings
 import numpy as np
 import pandas as pd
 import oncopipe as op
+import sys
+import logging
+import traceback
+
+def log_exceptions(exctype, value, tb):
+    logging.critical(''.join(traceback.format_tb(tb)))
+    logging.critical('{0}: {1}'.format(exctype, value))
+
+sys.excepthook = log_exceptions
 
 def main():
+    with open(snakemake.log[0], "w") as stdout:
+        # Set up logging
+        sys.stdout = stdout
 
-    input_maf = open(snakemake.input[0], "r")
-    input_bam = snakemake.input[1]
-    input_bai = snakemake.input[2]
+        try:
+            input_maf = open(snakemake.input[0], "r")
+            input_bam = snakemake.input[1]
+            input_bai = snakemake.input[2]
 
-    # Skip if no variants in outfile
-    line_count = 0
-    for line in input_maf:
-        line_count += 1
-        if line_count > 1:
-            break
-    if line_count < 2:
-        input_maf.close()
-        touch_output = open(snakemake.output[0],"w")
-        touch_output.close()
-        exit()
+            # Skip if no variants in outfile
+            line_count = 0
+            for line in input_maf:
+                line_count += 1
+                if line_count > 1:
+                    break
+            if line_count < 2:
+                input_maf.close()
+                touch_output = open(snakemake.output[0],"w")
+                touch_output.close()
+                exit()
 
-    # Return to top of MAF
-    input_maf.seek(0)
+            # Return to top of MAF
+            input_maf.seek(0)
 
-    # Read MAF file and create dataframe
-    regions = get_regions_df(
-        input_maf,
-        seq_type=snakemake.params[2],
-        padding=snakemake.params[4]
-    )
+            # Read MAF file and create dataframe
+            regions = get_regions_df(
+                input_maf,
+                seq_type=snakemake.params[2],
+                padding=snakemake.params[4]
+            )
 
-    input_maf.close()
+            input_maf.close()
 
-    # Create the batch scripts
-    generate_igv_batches(
-        regions = regions,
-        bam = input_bam,
-        bai = input_bai,
-        output_dir = snakemake.params[0],
-        snapshot_dir = snakemake.params[1],
-        genome_build = snakemake.params[2],
-        seq_type = snakemake.params[3],
-        igv_options = snakemake.params[5],
-        max_height = snakemake.params[6],
-        suffix = snakemake.params[7],
-        as_pairs = snakemake.params[8],
-        sleep_timer = snakemake.params[9]
-    )
+            # Create the batch scripts
+            generate_igv_batches(
+                regions = regions,
+                bam = input_bam,
+                bai = input_bai,
+                output_dir = snakemake.params[0],
+                snapshot_dir = snakemake.params[1],
+                genome_build = snakemake.params[2],
+                seq_type = snakemake.params[3],
+                igv_options = snakemake.params[5],
+                max_height = snakemake.params[6],
+                suffix = snakemake.params[7],
+                as_pairs = snakemake.params[8],
+                sleep_timer = snakemake.params[9]
+            )
 
-    touch_output = open(snakemake.output[0], "w")
-    touch_output.close()
+            touch_output = open(snakemake.output[0], "w")
+            touch_output.close()
+        
+        except Exception as e:
+            logging.error(e, exc_info=1)
+            raise
 
 def get_regions_df(input_maf, seq_type, padding):
     # Read MAF as dataframe
@@ -87,17 +104,16 @@ def output_lines(lines, batch_output):
     output.write(text)
     output.close()
 
-def generate_igv_batch_per_row(coordinates, snapshot_filename, sleep_timer):
+def generate_igv_batch_per_row(coordinates, snapshot_filename):
     lines = []
     lines.append(f"goto {coordinates}")
     lines.append("sort")
     lines.append("collapse")
-    lines.append(f"setSleepInterval {sleep_timer}")
     lines.append(f"snapshot {snapshot_filename}")
 
     return lines
 
-def generate_igv_batch_header(bam, index, max_height, genome_build, igv_options, as_pairs):
+def generate_igv_batch_header(bam, index, max_height, genome_build, igv_options, sleep_timer, as_pairs):
     lines = []
 
     genome_build = genome_build.replace("grch37","hg19")
@@ -109,8 +125,11 @@ def generate_igv_batch_header(bam, index, max_height, genome_build, igv_options,
     lines.append(f"maxPanelHeight {max_height}")
     lines.append(f"genome {genome_build}")
     
-    for option in igv_options:
-        lines.append(option)
+    if igv_options is not None:
+        for option in igv_options:
+            lines.append(option)
+
+    lines.append(f"setSleepInterval {sleep_timer}")
 
     if as_pairs:
         lines.append("viewaspairs")
@@ -121,7 +140,7 @@ def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_bui
     for _, row in regions.iterrows():
         all_lines = []
 
-        header = generate_igv_batch_header(bam=bam, index=bai, max_height=max_height, genome_build=genome_build, igv_options=igv_options, as_pairs=as_pairs)
+        header = generate_igv_batch_header(bam=bam, index=bai, max_height=max_height, genome_build=genome_build, igv_options=igv_options, sleep_timer=sleep_timer, as_pairs=as_pairs)
         all_lines.extend(header)
 
         dir_chrom = row.chromosome
@@ -140,8 +159,7 @@ def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_bui
 
         lines = generate_igv_batch_per_row(
             coordinates = row.snapshot_coordinates,
-            snapshot_filename = filename,
-            sleep_timer = sleep_timer
+            snapshot_filename = filename
         )
 
         all_lines.extend(lines)
@@ -155,4 +173,9 @@ def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_bui
         output_lines(all_lines, batch_file_path)
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.DEBUG,
+        filename=snakemake.log[1],
+        filemode='w'
+    )
     main()
