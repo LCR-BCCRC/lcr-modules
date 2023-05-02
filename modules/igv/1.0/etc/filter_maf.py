@@ -2,52 +2,63 @@
 
 import os
 import sys
-import math
+import logging
+import traceback
 import pandas as pd
 import oncopipe as op
 
+
+def log_exceptions(exctype, value, tb):
+    logging.critical(''.join(traceback.format_tb(tb)))
+    logging.critical('{0}: {1}'.format(exctype, value))
+
+sys.excepthook = log_exceptions
+
 def main():
 
-    with open(snakemake.log[0], "w") as stdout, open(snakemake.log[1], "w") as stderr:
+    with open(snakemake.log[0], "w") as stdout:
         # Set up logging
         sys.stdout = stdout
-        sys.stderr = stderr
+        
+        try:
 
-        maf_file = snakemake.input[0]
+            maf_file = snakemake.input[0]
 
-        regions_file = snakemake.input[1]
-        regions_format = snakemake.params[0]
+            regions_file = snakemake.input[1]
+            regions_format = snakemake.params[0]
 
-        metadata = snakemake.params[2]
+            metadata = snakemake.params[2]
 
-        if regions_format == "oncodriveclustl":
-            global CLUSTL_PARAMS
-            CLUSTL_PARAMS = snakemake.params[1]
+            if regions_format == "oncodriveclustl":
+                global CLUSTL_PARAMS
+                CLUSTL_PARAMS = snakemake.params[1]
 
-        output_file = snakemake.output[0]
+            output_file = snakemake.output[0]
 
-        # Return empty dataframe if no lines in MAF
-        line_count = count_lines(maf_file)
-        if line_count == 1:
-            empty_maf = pd.read_table(maf_file, comment="#", sep="\t")
-            # Add columns required by workflow
-            required_columns = ["seq_type","genome_build","chr_std"]
-            empty_maf = empty_maf.assign(**{col:None for col in required_columns if col not in empty_maf.columns})
-            write_output(empty_maf, output_file)
-            exit()
+            # Return empty dataframe if no lines in MAF
+            line_count = count_lines(maf_file)
+            if line_count == 1:
+                empty_maf = pd.read_table(maf_file, comment="#", sep="\t")
+                # Add columns required by workflow
+                required_columns = ["seq_type","genome_build","chr_std"]
+                empty_maf = empty_maf.assign(**{col:None for col in required_columns if col not in empty_maf.columns})
+                write_output(empty_maf, output_file)
+                exit()
 
-        maf = maf_add_columns(maf=maf_file, metadata=metadata)
+            maf = maf_add_columns(maf=maf_file, metadata=metadata)
 
-        # Perform filtering
-        filtered_maf = maf_filter(
-            maf=maf, 
-            regions=regions_file,
-            regions_format=regions_format
-            )
+            # Perform filtering
+            filtered_maf = maf_filter(
+                maf=maf, 
+                regions=regions_file,
+                regions_format=regions_format
+                )
 
-        filtered_maf = maf_reduce_snapshots(maf=filtered_maf, snapshots=n_snapshots)
-
-        write_output(filtered_maf, output_file)
+            write_output(filtered_maf, output_file)
+        
+        except Exception as e:
+            logging.error(e, exc_info=1)
+            raise
 
 def count_lines(maf):
     with open(maf, "r") as handle:
@@ -98,12 +109,6 @@ def maf_filter(maf, regions, regions_format):
     
     return filter_functions[regions_format](maf, regions_df)
 
-def maf_reduce_snapshots(maf, snapshots):
-    # Only include max of number of snapshots for each variant
-    maf = maf.groupby(["Chromosome","Start_Position", "End_Position", "Reference_Allele", "Tumor_Seq_Allele2"]).head(n=snapshots)
-
-    return maf
-
 def maf_add_columns(maf, metadata):
     # Read input MAF as df
     maf = pd.read_table(maf, comment="#", sep="\t")
@@ -128,4 +133,10 @@ def write_output(maf, outfile):
     maf.to_csv(outfile, sep="\t", index=False)
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.DEBUG,
+        filename=snakemake.log[1],
+        filemode='w'
+    )
+    
     main()
