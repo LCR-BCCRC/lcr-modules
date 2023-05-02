@@ -5,38 +5,50 @@ import sys
 import pandas as pd
 import oncopipe as op
 import shutil
+import logging
+import traceback
+
+def log_exceptions(exctype, value, tb):
+    logging.critical(''.join(traceback.format_tb(tb)))
+    logging.critical('{0}: {1}'.format(exctype, value))
+
+sys.excepthook = log_exceptions
 
 def main():
 
-    with open(snakemake.log[0], "w") as stdout, open(snakemake.log[1], "w") as stderr:
+    with open(snakemake.log[0], "w") as stdout:
         # Set up logging
         sys.stdout = stdout
-        sys.stderr = stderr
 
-        regions_file = snakemake.input[0]
-        regions_format = snakemake.params[0]
+        try:
+            regions_file = snakemake.input[0]
+            regions_format = snakemake.params[0]
 
-        output_file = snakemake.output[0]
+            output_file = snakemake.output[0]
 
-        if regions_format == "oncodriveclustl":
-            global CLUSTL_PARAMS
-            CLUSTL_PARAMS = snakemake.params[1]
+            if regions_format == "oncodriveclustl":
+                global CLUSTL_PARAMS
+                CLUSTL_PARAMS = snakemake.params[1]
 
-        if regions_format == "mutation_id":
-            global REGIONS_BUILD
-            REGIONS_BUILD = snakemake.params[2]
-            REGIONS_BUILD = REGIONS_BUILD.lower()
+            if regions_format == "mutation_id":
+                global REGIONS_BUILD
+                REGIONS_BUILD = snakemake.params[2]
+                REGIONS_BUILD = REGIONS_BUILD.lower()
 
-        if regions_format == "bed" or regions_format == "maf":
-            # Do not need to reformat for liftover
-            shutil.copy(regions_file, output_file)
-            exit()
+            if regions_format == "bed" or regions_format == "maf":
+                # Do not need to reformat for liftover
+                shutil.copy(regions_file, output_file)
+                exit()
 
-        # Reformat for liftover based on regions format
-        regions_formatted = format_regions(regions_file, regions_format)
+            # Reformat for liftover based on regions format
+            regions_formatted = format_regions(regions_file, regions_format)
 
-        # Output regions file
-        regions_formatted.to_csv(output_file, sep="\t", index=False)
+            # Output regions file
+            regions_formatted.to_csv(output_file, sep="\t", index=False)
+        
+        except Exception as e:
+            logging.error(e, exc_info=1)
+            raise
 
 def format_mutation_id(mutation_id):
     # Read regions into dataframe
@@ -131,4 +143,9 @@ def format_regions(regions, regions_format):
     return format_functions[regions_format](regions)
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.DEBUG,
+        filename=snakemake.log[1],
+        filemode='w'
+    )
     main()
