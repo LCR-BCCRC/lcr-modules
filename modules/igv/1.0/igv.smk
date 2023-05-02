@@ -223,6 +223,9 @@ checkpoint _igv_create_batch_script_per_variant:
         suffix = SUFFIX,
         view_pairs = config["lcr-modules"]["igv"]["view_as_pairs"],
         sleep_timer = config["lcr-modules"]["igv"]["generate_batch_script"]["sleep_timer"]
+    log:
+        stdout = CFG["logs"]["batch_scripts"] + "_igv_create_batch_script_per_variant/{seq_type}--{genome_build}/{tumour_id}" + SUFFIX + ".stdout.log",
+        stderr = CFG["logs"]["batch_scripts"] + "_igv_create_batch_script_per_variant/{seq_type}--{genome_build}/{tumour_id}" + SUFFIX + ".stderr.log"
     script:
         config["lcr-modules"]["igv"]["scripts"]["batch_script_per_variant"]
 
@@ -248,7 +251,7 @@ rule _igv_batches_to_merge:
         with open(output_file, "a") as handle:
             for line in batch_script:
                 if merged_lines > 0:
-                    if line.startswith(("load","maxPanelHeight","genome","viewaspairs")):
+                    if line.startswith(("load","maxPanelHeight","genome","viewaspairs","setSleepInterval")):
                         continue
                     if line.startswith(tuple(params.igv_options)):
                         continue
