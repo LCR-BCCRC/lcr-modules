@@ -2,16 +2,22 @@ lcr-modules:
     
     minimap2:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_fastq: "__UPDATE__"
-            reference_build: "__UPDATE__"
+            sample_fastq:
+                promethION: "__UPDATE__"
 
         scratch_subdirectories: []
 
         options:
-            minimap2: '-ax map-ont -L --MD -Y -R "@RG\tID:{sample_id}\tLB:{sample_id}\tPL:ONT\tSM:{sample_id}"'
+            minimap2:
+                # -ax map-ont: aligns long noisy reads (ONT) to a reference genome and outputs it in SAM format
+                # -L: writes CIGAR with >65535 operators at CG tag. This makes it compatible with older tools
+                # --MD: outputs the MD tag
+                # -Y: use soft clipping for supplementary alignments
+                # -R: SAM read group line in specified format
+                promethION: '-ax map-ont -L --MD -Y -R "@RG\tID:{sample_id}\tLB:{sample_id}\tPL:ONT\tSM:{sample_id}"'
+                genome: '-ax sr -L --MD -Y -R "@RG\tID:{sample_id}\tLB:{sample_id}\tPL:Illumina\tSM:{sample_id}"'
             samtools: '-bhS'
 
         conda_envs:

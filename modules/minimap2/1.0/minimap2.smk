@@ -37,11 +37,8 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "minimap2",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "minimap2", "sort_bam", "outputs"],
 )
-
-#include: "../../utils/2.1/utils.smk"
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -52,22 +49,47 @@ localrules:
 
 sample_ids_minimap2 = list(CFG['samples']['sample_id'])
 
+
 ##### RULES #####
 
+
+def _input_fastq(wildcards):
+    CFG = config["lcr-modules"]["minimap2"]
+    if wildcards.seq_type == "promethION":
+        fastqs = CFG["inputs"]["sample_fastq"]["promethION"]
+    else:
+        fastqs = CFG["inputs"]["sample_fastq"]["genome"]
+    return(fastqs)
+    
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _minimap2_input_fastq:
     input:
-        fastq = CFG["inputs"]["sample_fastq"]
+        fastq = _input_fastq
     output:
-        fastq = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.fastq.gz"
+        fastq = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.fastq_{number}.gz"
     run:
         op.absolute_symlink(input.fastq, output.fastq)
 
 
+def _get_fastq(wildcards):
+    CFG = config["lcr-modules"]["minimap2"]
+    if wildcards.seq_type == "promethION":
+        fastq = expand(str(rules._minimap2_input_fastq.output.fastq), zip,
+        seq_type = wildcards.seq_type,
+        sample_id = wildcards.sample_id,
+        number = "unpaired")
+    else:
+        fastq = expand(str(rules._minimap2_input_fastq.output.fastq), zip,
+        seq_type = wildcards.seq_type,
+        sample_id = wildcards.sample_id,
+        number = ["1", "2"])
+    return(fastq)
+
+
 rule _minimap2_run:
     input:
-        fastq = str(rules._minimap2_input_fastq.output.fastq),
+        fastq = _get_fastq,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         sam = pipe(CFG["dirs"]["minimap2"] + "{seq_type}--{genome_build}/{sample_id}_out.sam")
@@ -75,7 +97,7 @@ rule _minimap2_run:
         stdout = CFG["logs"]["minimap2"] + "{seq_type}--{genome_build}/{sample_id}/minimap2.stdout.log",
         stderr = CFG["logs"]["minimap2"] + "{seq_type}--{genome_build}/{sample_id}/minimap2.stderr.log"
     params:
-        opts = CFG["options"]["minimap2"]
+        opts = op.switch_on_wildcard("seq_type", CFG["options"]["minimap2"])
     conda:
         CFG["conda_envs"]["minimap2"]
     threads:
@@ -118,6 +140,7 @@ rule _minimap2_samtools:
         """)
 
 
+# Create symlink in subdirectory where BAM files will be sorted by the `utils` module
 rule _minimap2_symlink_bam:
     input:
         bam = str(rules._minimap2_samtools.output.bam)
@@ -129,7 +152,8 @@ rule _minimap2_symlink_bam:
         op.absolute_symlink(input.bam, output.bam)
 
 
-# Symlinks the final output files into the module results directory (under '99-outputs/')
+# This rule will trigger the `utils` rule for sorting the BAM file
+# By this point, the sorted BAM file exists, so this rule deletes the original BAM file
 rule _minimap2_output_bam:
     input:
         bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam",
@@ -156,7 +180,7 @@ rule _minimap2_all:
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
-            genome_build=CFG["inputs"]["reference_build"],
+            genome_build=CFG["samples"]["genome_build"],
             sample_id=CFG["samples"]["sample_id"])
 
 

@@ -11,4 +11,7 @@ This release was authored by Haya Shaalan.
 
 <!-- TODO: Explain each important module design decision below. -->
 
-- No module design decisions explained here yet.
+- This module can take paired and unpaired fastq files.
+- Performs short and long read alignment based on {seq_type}. Parameters are switched and can be configured through the config.
+- Uses the utils module and writes the outputs to 99-outputs.
+- Final output is a bam file with naming format: bam/{seq_type}--{genome_build}/{sample_id}.bam.
