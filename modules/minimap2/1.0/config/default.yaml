@@ -6,6 +6,7 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_fastq:
                 promethION: "__UPDATE__"
+                genome: "__UPDATE__"
 
         scratch_subdirectories: []
 
