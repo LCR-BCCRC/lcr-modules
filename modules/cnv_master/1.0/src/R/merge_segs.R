@@ -21,9 +21,52 @@ message("Loading data from individual seg files ...")
 
 files <- snakemake@input[]
 
-# read individual files and keep file paths in the column filename
-data = lapply(files$seg_file, read_tsv, col_types = "ccddddd")
+# This function will handle discrepancy in the output from
+# CNVkit and Pure CN and will harmonize the colnames, output format
 
+my_merge_function <- function(path) {
+    incoming_data <- suppressMessages(
+        suppressWarnings(
+            read_tsv(
+                path,
+                col_types = "ccddddd"
+            )
+        )
+    )
+
+    colnames(incoming_data) <- gsub(
+        "loc.",
+        "",
+        colnames(incoming_data)
+    )
+
+    if ("seg.mean" %in% colnames(incoming_data)) {
+        incoming_data <- rename(
+            incoming_data,
+            log.ratio = seg.mean
+        )
+    }
+
+    if ("num.mark" %in% colnames(incoming_data)) {
+        incoming_data <- select(
+            incoming_data,
+            -num.mark
+        )
+
+        incoming_data <- mutate(
+            incoming_data,
+            LOH_flag = NA,
+            .before = "log.ratio"
+        )
+    }
+
+    return(incoming_data)
+}
+
+data <- lapply(
+  files$seg_file,
+  my_merge_function
+)
 
 # strip file paths for the final seg file
 output <- bind_rows(data) %>%
