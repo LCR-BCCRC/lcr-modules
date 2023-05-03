@@ -262,7 +262,7 @@ if CFG["igblastn"]:
         output:
             txt = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.igblast.txt"
         wildcard_constraints:
-            chain = '[A-Z]+'
+            chain = "|".join(RECEPTORS)
         run:
             op.relative_symlink(input.txt, output.txt, in_module=True)
 
