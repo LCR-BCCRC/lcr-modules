@@ -5,6 +5,18 @@ All notable changes to the `mixcr` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2] - 2022-06-6
+
+This release was updated by Manuela Cruz.
+
+- Removes dependency on `{genome_build}`wildcard.
+- Adds requirement to specify desired receptor results in config.
+- Explicitly defines output files for desired receptors as `mixcr.{sample_id}.clonotypes.{chain}.txt`. This allows `mixcr` to rerun if necessary to create desired receptors files.
+- Adds option to run `igblastn` on `mixcr` results.
+- Checks that `mixcr` run parameters are compatible with IgBLASTN requirements.
+- Modifies run parameters if necessary to obtain results for desired receptors.
+- Includes scripts for parsing `mixcr` and `igblastn` results and merging results into file `mixcr.{sample_id}.clonotypes.{chain}.status.txt`
+
 ## [1.1] - 2020-12-21
 
 This release was updated by Laura Hilton. 
