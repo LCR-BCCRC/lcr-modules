@@ -7,13 +7,18 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1" # ulimit fix
 def main():
     """ Performs NMF decomposition with provided matrix """
     args = parse_arguments()
+
+    exome.param = False
+    if args.exome == 'True':
+        exome.param = True
+
     sig.sigProfilerExtractor(input_type = 'matrix', \
                              output = args.output, \
                              input_data = args.input_data, \
                              reference_genome = args.ref, \
                              opportunity_genome = args.ref, \
                              context_type = args.context_type, \
-                             exome = args.exome, \
+                             exome = exome.param, \
                              minimum_signatures = args.minimum_signatures, \
                              maximum_signatures = args.maximum_signatures, \
                              nmf_replicates = args.nmf_replicates, \
@@ -45,7 +50,7 @@ def parse_arguments():
     parser.add_argument('output', help = 'Path to output directory.')
     parser.add_argument('ref', help = 'Reference build of matrix.')
     parser.add_argument('context_type', default = '96,DINUC,ID', help = 'A string of mutaion context name/names separated by comma (","). The items in the list defines the mutational contexts to be considered to extract the signatures. The default value is "96,DINUC,ID", where "96" is the SBS96 context, "DINUC" is the DINUCLEOTIDE context and ID is INDEL context.')
-    parser.add_argument('exome', default = False, type = bool, help = 'Defines if the exomes will be extracted. The default value is "%(default)s".')
+    parser.add_argument('exome', default = 'False', help = 'Defines if the exomes will be extracted. The default value is "%(default)s".')
     parser.add_argument('minimum_signatures', default = 1, type = int, help = "The minimum number of signatures to be extracted. The default value is %(default)s.")
     parser.add_argument('maximum_signatures', default = 25, type = int, help = "The maximum number of signatures to be extracted. The default value is %(default)s.")
     parser.add_argument('cpu', default = -1, type = int, help = 'Number of threads to use. Default use all threads.')
