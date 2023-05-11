@@ -165,6 +165,7 @@ rule _sigprofiler_run_extract:
         stderr = CFG["logs"]["extract"] + "{seq_type}--{genome_build}/{sample_set}/extract.{type}.stderr.log"
     params:
         opts = CFG["options"]["extract"],
+        rad = CFG["options"].get("extract_search_radius", "2"),
         ref = lambda w: config['lcr-modules']['sigprofiler']["sigpro_genomes"][w.genome_build],
         context_type = '96,DINUC,ID',
         exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
@@ -177,8 +178,8 @@ rule _sigprofiler_run_extract:
         op.as_one_line("""
         python {input.script} {params.opts} {input.mat} {params.outpath} 
         {params.ref} {params.context_type} {params.exome}
-        $(awk 'BEGIN {{OFS=FS=","}} $1 ~ "*" {{S=substr($1,1,length($1)-1); if (S-2<1) {{print 1}} else {{print S-2}}}}' {input.stat})
-        $(awk 'BEGIN {{OFS=FS=","}} $1 ~ "*" {{S=substr($1,1,length($1)-1); print S+2}}' {input.stat})
+        $(awk 'BEGIN {{OFS=FS=","}} $1 ~ "*" {{S=substr($1,1,length($1)-1); if (S-{params.rad}<1) {{print 1}} else {{print S-{params.rad}}}}}' {input.stat})
+        $(awk 'BEGIN {{OFS=FS=","}} $1 ~ "*" {{S=substr($1,1,length($1)-1); print S+{params.rad}}}' {input.stat})
         {threads} > {log.stdout} 2> {log.stderr}
         """)
 

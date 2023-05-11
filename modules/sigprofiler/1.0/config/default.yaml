@@ -71,6 +71,7 @@ lcr-modules:
                 --nnls_remove_penalty 0.01
                 --initial_remove_penalty 0.05
                 --refit_denovo_signatures True
+            extract_search_radius: "2"
 
         threads:
             generator: 1
