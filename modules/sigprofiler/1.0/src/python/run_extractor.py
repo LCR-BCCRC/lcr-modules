@@ -8,9 +8,9 @@ def main():
     """ Performs NMF decomposition with provided matrix """
     args = parse_arguments()
 
-    exome.param = False
+    exome_param = False
     if args.exome == 'True':
-        exome.param = True
+        exome_param = True
 
     sig.sigProfilerExtractor(input_type = 'matrix', \
                              output = args.output, \
@@ -18,7 +18,7 @@ def main():
                              reference_genome = args.ref, \
                              opportunity_genome = args.ref, \
                              context_type = args.context_type, \
-                             exome = exome.param, \
+                             exome = exome_param, \
                              minimum_signatures = args.minimum_signatures, \
                              maximum_signatures = args.maximum_signatures, \
                              nmf_replicates = args.nmf_replicates, \
