@@ -144,6 +144,18 @@ tools:
     bcftools:
         conda_env: "envs/bcftools-1.10.2.yaml"
         version: "1.10.2"
+    bedtools:
+        conda_env: "envs/bedtools-2.29.2.yaml"
+        version: "2.29.2"
+    wiggletools:
+        conda_env: "envs/wiggletools-1.2.10.yaml"
+        version: "1.2.10"
+    rtracklayer:
+        conda_env: "envs/rtracklayer-1.50.0.yaml"
+        version: "1.50.0"
+    jabba:
+        conda_env: "envs/jabba.yaml"
+        version: "1.0.0"
 
 cvbio_config:
     gtf: 
@@ -162,6 +174,11 @@ cvbio_config:
         skip: "false"
         delimiter: "\t"
     bed: 
+        comment: "#"
+        columns: "0"
+        skip: "false"
+        delimiter: "\t"
+    gff:
         comment: "#"
         columns: "0"
         skip: "false"

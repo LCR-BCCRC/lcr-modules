@@ -226,6 +226,63 @@ rule calc_gc_content:
             |
         gzip -c > {output.wig}
         """)
+rule get_jabba_gc_rds:
+    input:
+        bed = get_download_file(rules.download_ucsc_gc.output.bed),
+        txt = get_download_file(rules.download_ucsc_chrom_sizes.output.txt)
+    output:
+        rds = "genomes/{genome_build}/annotations/jabba/gc1000.rds"
+    conda: CONDA_ENVS["rtracklayer"]
+    shell:
+        op.as_one_line("""
+        Rscript
+            -e 'library(rtracklayer); gr <- import("{input.bed}")'
+            -e 'names(mcols(gr))[1] <- "score"; gr[gr$score == "nan",]$score <- 0'
+            -e 'gr$score <- as.numeric(gr$score)'
+            -e 'sizes <- read.delim("{input.txt}", stringsAsFactors = FALSE, col.names = c("chrom", "length"), header = FALSE)'
+            -e 'sizes <- unlist(split(as.numeric(sizes$length), sizes$chrom))[levels(seqnames(gr))]'
+            -e 'seqlengths(gr) <- sizes'
+            -e 'saveRDS(gr, "{output.rds}")'
+        """)
+
+rule get_jabba_map_rds:
+    input:
+        bed = get_download_file(rules.download_ucsc_map.output.bed),
+        txt = get_download_file(rules.download_ucsc_chrom_sizes.output.txt)
+    output:
+        rds = "genomes/{genome_build}/annotations/jabba/map1000.rds"
+    conda: CONDA_ENVS["rtracklayer"]
+    shell:
+        op.as_one_line("""
+        Rscript
+            -e 'library(rtracklayer); gr <- import("{input.bed}")'
+            -e 'names(mcols(gr))[1] <- "score"; gr[gr$score == "nan",]$score <- 0'
+            -e 'gr$score <- as.numeric(gr$score)'
+            -e 'sizes <- read.delim("{input.txt}", stringsAsFactors = FALSE, col.names = c("chrom", "length"), header = FALSE)'
+            -e 'sizes <- unlist(split(as.numeric(sizes$length), sizes$chrom))[levels(seqnames(gr))]'
+            -e 'seqlengths(gr) <- sizes'
+            -e 'saveRDS(gr, "{output.rds}")'
+        """)
+
+rule get_par_rds:
+    input:
+        bed = get_download_file(rules.download_par_bed.output.bed),
+        txt = get_download_file(rules.download_ucsc_chrom_sizes.output.txt)
+    output:
+        rds = "genomes/{genome_build}/annotations/jabba/PAR_{genome_build}.rds"
+    conda: CONDA_ENVS["rtracklayer"]
+    shell:
+        op.as_one_line(""" 
+        Rscript 
+            -e 'library(rtracklayer); gr <- import("{input.bed}")'
+            -e 'sizes <- read.delim("{input.txt}", stringsAsFactors = FALSE, col.names = c("chrom", "length"), header = FALSE)'
+            -e 'sizes <- unlist(split(as.numeric(sizes$length), sizes$chrom))[levels(seqnames(gr))]'
+            -e 'seqlengths(gr) <- sizes'
+            -e 'saveRDS(gr, "{output.rds}")'
+        """)
+
+
+
 
 ##### VARIATION #####
 
@@ -598,3 +655,32 @@ rule install_sigprofiler_genome:
         complete = "genomes/{genome_build}/sigprofiler_genomes/{genome_build}.installed"
     run:
         op.relative_symlink(input, output.complete)
+
+
+##### Non-B DNA structure #####
+
+rule combine_gff_nonb:
+    input:
+        complete = str(rules.download_nonb_dna_gff.output.complete)
+    params:
+        gff = lambda w: expand("downloads/nonb_dna/gff/{genome_build}/chr{chr}_{Btype}.gff", chr=[str(i) for i in range(1,22)] + ["MT","X","Y"], Btype=["Z","MR","IR","GQ","DR","APR"], allow_missing=True)
+    output:
+        gff = "genomes/{version}/nonb_dna/gff/{genome_build}.gff",
+        complete = "downloads/nonb_dna/gff/{version}.{genome_build}.combine.complete"
+    shell:
+        op.as_one_line("""
+            tail -n +2 -q {params.gff} > {output.gff} &&
+            touch {output.complete}
+        """)
+
+rule gff_nonb_cvbio:
+    input:
+        gff = str(rules.combine_gff_nonb.output.gff)
+    output:
+        bed = "genomes/{version}/nonb_dna/{genome_build}.bed"
+    conda:
+        CONDA_ENVS["bedops"]
+    shell:
+        op.as_one_line("""
+            gff2bed < {input.gff} > {output.bed}
+        """)
