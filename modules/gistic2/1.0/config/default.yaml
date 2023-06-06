@@ -1,10 +1,7 @@
 lcr-modules:
-    
     gistic2:
-
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            # Available wildcards: {seq_type} {projection} {conf}
             sample_seg: "__UPDATE__"
 
         projections: ["grch37", "hg38"]
@@ -12,7 +9,7 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
-            conf_level: "90"
+            conf_level: "90" # Confidence level used to calculate the region containing a driver.
             gistic2_run: "-gcm extreme -maxseg 5000 -brlen 0.5 -js 1 -qvt 0.5 -td 0.05"
             # -gcm  gene_collapse_method    Method for reducing marker-level copy number data to the gene-level copy number data in the gene tables. Allowed values are mean, median, min, max or extreme.
             # -maxseg   ziggs.max_segs_per_sample   Maximum number of segments allowed for a sample in the input data. Samples with more segments than this threshold are excluded from the analysis.
@@ -33,10 +30,10 @@ lcr-modules:
             
         pairing_config:
             genome:
-                run_paired_tumours: True
+                run_paired_tumours: False
                 run_unpaired_tumours_with: "no_normal"
-                run_paired_tumours_as_unpaired: False
+                run_paired_tumours_as_unpaired: True
             capture:
-                run_paired_tumours: True
+                run_paired_tumours: False
                 run_unpaired_tumours_with: "no_normal"
-                run_paired_tumours_as_unpaired: False
+                run_paired_tumours_as_unpaired: True
