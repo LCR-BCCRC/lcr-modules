@@ -94,12 +94,7 @@ rule _gistic2_run:
         stderr = CFG["logs"]["gistic2"] + "{seq_type}--projection/all--{projection}/gistic2.stderr.log"
     params:
         base_dir = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/",
-        gcm = CFG["options"]["gistic2_run"]["gene_collapse_method"],
-        maxseg = CFG["options"]["gistic2_run"]["max_segs_per_sample"],
-        brlen = CFG["options"]["gistic2_run"]["broad_len_cutoff"],
-        js = CFG["options"]["gistic2_run"]["join_segment_size"],
-        qvt = CFG["options"]["gistic2_run"]["qv_thresh"],
-        td = CFG["options"]["gistic2_run"]["t_del"]
+        opts = CFG["options"]["gistic2_run"]
     conda:
         CFG["conda_envs"]["gistic2"]
     threads:
@@ -109,10 +104,9 @@ rule _gistic2_run:
 
     shell:
         op.as_one_line("""
-        gistic2 -b {params.basedir} -seg {input.seg} -mk {input.marker}
-        -refgene {input.refgene_mat} -genegistic 1 -broad 1 -conf 0.{wildcards.conf} -savegene 1 -gcm {params.gcm} 
-        -maxseg {params.maxseg} -v 30 -brlen {params.brlen} -js {params.js} -qvt {params.qvt} -td {params.td} 
-        -saveseg 0 -savedata 0
+        gistic2 -b {params.basedir} -seg {input.seg} -mk {input.marker} -refgene {input.refgene_mat} 
+        -genegistic 1 -broad 1 -savegene 1 -conf 0.{wildcards.conf} -v 30 -saveseg 0 -savedata 0
+        {params.opts}
         > {log.stdout} 2> {log.stderr}
         """)
 

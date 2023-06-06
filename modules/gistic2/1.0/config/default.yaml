@@ -12,14 +12,14 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
-            gistic2_run:
-                conf_level: "90"
-                gene_collapse_method: "extreme"
-                max_segs_per_sample: "5000"
-                broad_len_cutoff: "0.5"
-                join_segment_size: "1"
-                qv_thresh: "0.5"
-                t_del: "0.05"
+            conf_level: "90"
+            gistic2_run: "-gcm extreme -maxseg 5000 -brlen 0.5 -js 1 -qvt 0.5 -td 0.05"
+            # -gcm  gene_collapse_method    Method for reducing marker-level copy number data to the gene-level copy number data in the gene tables. Allowed values are mean, median, min, max or extreme.
+            # -maxseg   ziggs.max_segs_per_sample   Maximum number of segments allowed for a sample in the input data. Samples with more segments than this threshold are excluded from the analysis.
+            # -brlen    broad_len_cutoff    Threshold used to distinguish broad from focal events, given in units of fraction of chromosome arm.
+            # -js   join_segment_size   Smallest number of markers to allow in segments from the segmented data. Segments that contain fewer than this number of markers are joined to the neighboring segment that is closest in copy number.
+            # -qvt  qv_thresh   Significance threshold for q-values. Regions with q-values below this number are considered significant.
+            # -td   t_del   Threshold for copy number deletions. Regions with a copy number loss below the negative of this positive value are considered deletions. Regions with a smaller copy number loss are considered noise and set to 0.
 
         conda_envs:
             gistic2: "{MODSDIR}/envs/gistic2-2.0.23.yaml"
