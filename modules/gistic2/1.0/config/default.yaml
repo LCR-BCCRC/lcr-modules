@@ -24,7 +24,6 @@ lcr-modules:
         conda_envs:
             gistic2: "{MODSDIR}/envs/gistic2-2.0.23.yaml"
             
-        # I believe this isn't needed
         threads:
             gistic2_run: 4
 

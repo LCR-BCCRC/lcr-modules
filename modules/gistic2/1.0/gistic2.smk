@@ -103,7 +103,6 @@ rule _gistic2_run:
     conda:
         CFG["conda_envs"]["gistic2"]
     threads:
-    # I believe this can be removed
         CFG["threads"]["gistic2_run"]
     resources:
         **CFG["resources"]["gistic2_run"]
