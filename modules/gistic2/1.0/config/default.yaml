@@ -1,7 +1,7 @@
 lcr-modules:
     gistic2:
         inputs:
-            # Available wildcards: {seq_type} {projection} {conf}
+            # Available wildcards: {seq_type} {projection}
             sample_seg: "__UPDATE__"
 
         projections: ["grch37", "hg38"]
