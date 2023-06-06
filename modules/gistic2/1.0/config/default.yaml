@@ -7,28 +7,37 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_seg: "__UPDATE__"
 
+        projections: ["grch37", "hg38"]
+
         scratch_subdirectories: []
 
         options:
-            step_1: ""
-            step_2: ""
+            gistic2_run:
+                conf_level: "90"
+                gene_collapse_method: "extreme"
+                max_segs_per_sample: "5000"
+                broad_len_cutoff: "0.5"
+                join_segment_size: "1"
+                qv_thresh: "0.5"
+                t_del: "0.05"
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            gistic2: "{MODSDIR}/envs/gistic2-2.0.23.yaml"
             
+        # I believe this isn't needed
         threads:
-            step_1: 4
+            gistic2_run: 4
 
         resources:
-            step_1: 
+            gistic2_run: 
                 mem_mb: 2000
             
         pairing_config:
             genome:
-                run_paired_tumours: False
+                run_paired_tumours: True
                 run_unpaired_tumours_with: "no_normal"
-                run_paired_tumours_as_unpaired: True
+                run_paired_tumours_as_unpaired: False
             capture:
-                run_paired_tumours: False
+                run_paired_tumours: True
                 run_unpaired_tumours_with: "no_normal"
-                run_paired_tumours_as_unpaired: True
+                run_paired_tumours_as_unpaired: False

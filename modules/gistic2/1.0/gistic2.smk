@@ -37,16 +37,13 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "gistic2",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "gistic2", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _gistic2_input_seg,
-    _gistic2_step_2,
-    _gistic2_output_txt,
+    _gistic2_output,
     _gistic2_all,
 
 
@@ -55,88 +52,151 @@ localrules:
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 # TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
+# TODO: add marker file?
 rule _gistic2_input_seg:
     input:
         seg = CFG["inputs"]["sample_seg"]
     output:
-        seg = CFG["dirs"]["inputs"] + "seg/{seq_type}--{genome_build}/{sample_id}.seg"
-    group: 
-        "input_and_step_1"
+        seg = CFG["dirs"]["inputs"] + "{seq_type}--projection/all--{projection}.seg"
     run:
         op.absolute_symlink(input.seg, output.seg)
 
-
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _gistic2_step_1:
+# Run gistic2 for a single seq_type (capture, genome) 
+# and generate an empty file named processing.complete to indicate that the run actually completed and it's safe to symlink to the outputs
+rule _gistic2_run:
     input:
-        tumour_seg = CFG["dirs"]["inputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}.seg",
-        normal_seg = CFG["dirs"]["inputs"] + "seg/{seq_type}--{genome_build}/{normal_id}.seg",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        seg = CFG["dirs"]["inputs"] + "{seq_type}--projection/all--{projection}.seg",
+        refgene_mat = "/home/sgillis/cancer_docker_singularity/gistic2/reference/hg38.UCSC.add_miR.160920.refgene.mat"
+        #reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        marker = "/projects/nhl_meta_analysis_scratch/gambl/results_local/icgc_dart/combine_cnv-1.0/level_3/gistic_bl_dlbcl/markers_gistic.txt"
     output:
-        txt = CFG["dirs"]["gistic2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.txt"
+        all_data_by_genes = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/all_data_by_genes.txt",
+        all_thresholded_by_genes = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/all_thresholded.by_genes.txt",
+        amp_qplot_pdf = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/amp_qplot.pdf",
+        amp_qplot_png = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/amp_qplot.png",
+        broad_data_by_genes = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/broad_data_by_genes.txt",
+        broad_significance_results = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/broad_significance_results.txt",
+        broad_values_by_arm = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/broad_values_by_arm.txt",
+        del_qplot_pdf = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/del_qplot.pdf",
+        del_qplot_png = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/del_qplot.png",
+        focal_data_by_genes = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/focal_data_by_genes.txt",
+        freqarms_vs_ngenes = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/freqarms_vs_ngenes.pdf",
+        raw_copy_number_pdf = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/raw_copy_number.pdf",
+        raw_copy_number_png = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/raw_copy_number.png",
+        sample_cutoffs = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/sample_cutoffs.txt",
+        sample_seg_counts = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/sample_seg_counts.txt",
+        scores = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/scores.gistic",
+        processing_complete = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/processing.complete"
     log:
-        stdout = CFG["logs"]["gistic2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-        stderr = CFG["logs"]["gistic2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
+        stdout = CFG["logs"]["gistic2"] + "{seq_type}--projection/all--{projection}/gistic2.stdout.log",
+        stderr = CFG["logs"]["gistic2"] + "{seq_type}--projection/all--{projection}/gistic2.stderr.log"
     params:
-        opts = CFG["options"]["step_1"]
+        base_dir = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/",
+        conf = CFG["options"]["gistic2_run"]["conf_level"],
+        gcm = CFG["options"]["gistic2_run"]["gene_collapse_method"],
+        maxseg = CFG["options"]["gistic2_run"]["max_segs_per_sample"],
+        brlen = CFG["options"]["gistic2_run"]["broad_len_cutoff"],
+        js = CFG["options"]["gistic2_run"]["join_segment_size"],
+        qvt = CFG["options"]["gistic2_run"]["qv_thresh"],
+        td = CFG["options"]["gistic2_run"]["t_del"]
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["gistic2"]
     threads:
-        CFG["threads"]["step_1"]
+    # I believe this can be removed
+        CFG["threads"]["gistic2_run"]
     resources:
-        **CFG["resources"]["step_1"]
-    group: 
-        "input_and_step_1"
+        **CFG["resources"]["gistic2_run"]
+
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --tumour {input.tumour_seg} --normal {input.normal_seg}
-        --ref-fasta {input.fasta} --output {output.txt} --threads {threads}
-        > {log.stdout} 2> {log.stderr}
+        gistic2 -b {params.basedir} -seg {input.seg} -mk {input.marker}
+        -refgene {input.refgene_mat} -genegistic 1 -broad 1 -conf 0.{params.conf} -savegene 1 -gcm {params.gcm} 
+        -maxseg {params.maxseg} -v 30 -brlen {params.brlen} -js {params.js} -qvt {params.qvt} -td {params.td} 
+        -saveseg 0 -savedata 0
+        > {log.stdout} 2> {log.stderr} && 
+        touch {output.processing_complete};
         """)
 
-
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _gistic2_step_2:
-    input:
-        txt = str(rules._gistic2_step_1.output.txt)
-    output:
-        txt = CFG["dirs"]["gistic2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.txt"
-    log:
-        stderr = CFG["logs"]["gistic2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.txt} > {output.txt} 2> {log.stderr}"
-
-
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
-rule _gistic2_output_txt:
+rule _gistic2_output:
     input:
-        txt = str(rules._gistic2_step_2.output.txt)
+        all_data_by_genes = str(rules._gistic2_run.output.all_data_by_genes),
+        all_thresholded_by_genes = str(rules._gistic2_run.output.all_thresholded_by_genes),
+        amp_qplot_pdf = str(rules._gistic2_run.output.amp_qplot_pdf),
+        amp_qplot_png = str(rules._gistic2_run.output.amp_qplot_png),
+        broad_data_by_genes = str(rules._gistic2_run.output.broad_data_by_genes),
+        broad_significance_results = str(rules._gistic2_run.output.broad_significance_results),
+        broad_values_by_arm = str(rules._gistic2_run.output.broad_values_by_arm),
+        del_qplot_pdf = str(rules._gistic2_run.output.del_qplot_pdf),
+        del_qplot_png = str(rules._gistic2_run.output.del_qplot_png),
+        focal_data_by_genes = str(rules._gistic2_run.output.focal_data_by_genes),
+        freqarms_vs_ngenes = str(rules._gistic2_run.output.freqarms_vs_ngenes),
+        raw_copy_number_pdf = str(rules._gistic2_run.output.raw_copy_number_pdf),
+        raw_copy_number_png = str(rules._gistic2_run.output.raw_copy_number_png),
+        sample_cutoffs = str(rules._gistic2_run.output.sample_cutoffs),
+        sample_seg_counts = str(rules._gistic2_run.output.sample_seg_counts),
+        scores = str(rules._gistic2_run.output.scores)
     output:
-        txt = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.txt"
+        all_data_by_genes = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/all_data_by_genes.txt",
+        all_thresholded_by_genes = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/all_thresholded.by_genes.txt",
+        amp_qplot_pdf = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/amp_qplot.pdf",
+        amp_qplot_png = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/amp_qplot.png",
+        broad_data_by_genes = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/broad_data_by_genes.txt",
+        broad_significance_results = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/broad_significance_results.txt",
+        broad_values_by_arm = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/broad_values_by_arm.txt",
+        del_qplot_pdf = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/del_qplot.pdf",
+        del_qplot_png = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/del_qplot.png",
+        focal_data_by_genes = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/focal_data_by_genes.txt",
+        freqarms_vs_ngenes = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/freqarms_vs_ngenes.pdf",
+        raw_copy_number_pdf = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/raw_copy_number.pdf",
+        raw_copy_number_png = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/raw_copy_number.png",
+        sample_cutoffs = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/sample_cutoffs.txt",
+        sample_seg_counts = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/sample_seg_counts.txt",
+        scores = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/scores.gistic",
+
     run:
-        op.relative_symlink(input.txt, output.txt, in_module= True)
+        op.relative_symlink(input.all_data_by_genes, output.all_data_by_genes, in_module= True),
+        op.relative_symlink(input.all_thresholded_by_genes, output.all_thresholded_by_genes, in_module= True),
+        op.relative_symlink(input.amp_qplot_pdf, output.amp_qplot_pdf, in_module= True),
+        op.relative_symlink(input.amp_qplot_png, output.amp_qplot_png, in_module= True),
+        op.relative_symlink(input.broad_data_by_genes, output.broad_data_by_genes, in_module= True),
+        op.relative_symlink(input.broad_significance_results, output.broad_significance_results, in_module= True),
+        op.relative_symlink(input.broad_values_by_arm, output.broad_values_by_arm, in_module= True),
+        op.relative_symlink(input.del_qplot_pdf, output.del_qplot_pdf, in_module= True),
+        op.relative_symlink(input.del_qplot_png, output.del_qplot_png, in_module= True),
+        op.relative_symlink(input.focal_data_by_genes, output.focal_data_by_genes, in_module= True),
+        op.relative_symlink(input.freqarms_vs_ngenes, output.freqarms_vs_ngenes, in_module= True),
+        op.relative_symlink(input.raw_copy_number_pdf, output.raw_copy_number_pdf, in_module= True),
+        op.relative_symlink(input.raw_copy_number_png, output.raw_copy_number_png, in_module= True),
+        op.relative_symlink(input.sample_cutoffs, output.sample_cutoffs, in_module= True),
+        op.relative_symlink(input.sample_seg_counts, output.sample_seg_counts, in_module= True),
+        op.relative_symlink(input.scores, output.scores, in_module= True)
 
 
-# Generates the target sentinels for each run, which generate the symlinks
 rule _gistic2_all:
     input:
         expand(
             [
-                str(rules._gistic2_output_txt.output.txt),
-                # TODO: If applicable, add other output rules here
+                str(rules._gistic2_output.output.all_data_by_genes),
+                str(rules._gistic2_output.output.all_thresholded_by_genes),
+                str(rules._gistic2_output.output.amp_qplot_pdf),
+                str(rules._gistic2_output.output.amp_qplot_png),
+                str(rules._gistic2_output.output.broad_data_by_genes),
+                str(rules._gistic2_output.output.broad_significance_results),
+                str(rules._gistic2_output.output.broad_values_by_arm),
+                str(rules._gistic2_output.output.del_qplot_pdf),
+                str(rules._gistic2_output.output.del_qplot_png),
+                str(rules._gistic2_output.output.focal_data_by_genes),
+                str(rules._gistic2_output.output.freqarms_vs_ngenes),
+                str(rules._gistic2_output.output.raw_copy_number_pdf),
+                str(rules._gistic2_output.output.raw_copy_number_png),
+                str(rules._gistic2_output.output.sample_cutoffs),
+                str(rules._gistic2_output.output.sample_seg_counts),
+                str(rules._gistic2_output.output.scores)
             ],
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            genome_build=CFG["runs"]["tumour_genome_build"],
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            projection=CFG["projections"],
+            seq_type=list(CFG["runs"]["tumour_seq_type"].unique())
+            )
 
 
 ##### CLEANUP #####
