@@ -1,0 +1,30 @@
+name: gistic2
+channels:
+  - hcc
+  - conda-forge
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=2_gnu
+  - gistic2=2.0.23=h8fb1749_1
+  - libgcc-ng=12.2.0=h65d4601_19
+  - libgomp=12.2.0=h65d4601_19
+  - libuuid=2.32.1=h7f98852_1000
+  - libxcb=1.13=h7f98852_1004
+  - libzlib=1.2.13=h166bdaf_4
+  - mcr=8.3=0
+  - ncurses=5.9=10
+  - pthread-stubs=0.4=h36c2ea0_1001
+  - xorg-kbproto=1.0.7=h7f98852_1002
+  - xorg-libice=1.0.10=h7f98852_0
+  - xorg-libsm=1.2.3=hd9c2040_1000
+  - xorg-libx11=1.8.4=h0b41bf4_0
+  - xorg-libxau=1.0.9=h7f98852_0
+  - xorg-libxdmcp=1.1.3=h7f98852_0
+  - xorg-libxext=1.3.4=h0b41bf4_2
+  - xorg-libxmu=1.1.3=h7f98852_0
+  - xorg-libxt=1.2.1=h7f98852_2
+  - xorg-xextproto=7.3.0=h0b41bf4_1003
+  - xorg-xproto=7.0.31=h7f98852_1007
+  - zlib=1.2.13=h166bdaf_4
+prefix: /home/sgillis/miniconda3/envs/gistic2
