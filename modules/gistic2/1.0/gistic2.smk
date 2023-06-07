@@ -66,7 +66,7 @@ rule _gistic2_make_markers:
     input:
         seg = str(rule._gistic2_fill_segments.output.seg)
     output:
-        temp_markers = temp(CFG["dirs"]["markers"] + "{seq_type}--projection/temp_markers--{projection}.txt")
+        temp_markers = temp(CFG["dirs"]["markers"] + "{seq_type}--projection/temp_markers--{projection}.txt"),
         markers = CFG["dirs"]["markers"] + "{seq_type}--projection/markers--{projection}.txt"
     log:
         stderr = CFG["logs"]["markers"] + "{seq_type}--projection/all--{projection}/markers.stderr.log"
