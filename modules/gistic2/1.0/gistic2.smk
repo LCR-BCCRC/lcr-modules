@@ -106,7 +106,6 @@ rule _gistic2_make_markers:
 # Run gistic2 for a single seq_type (capture, genome) for the confidence thresholds listed in the config
 rule _gistic2_run:
     input:
-    # TO-DO: change to seg from rule above
         seg = str(rule._gistic2_fill_segments.output.seg),
         refgene_mat = "/home/sgillis/cancer_docker_singularity/gistic2/reference/hg38.UCSC.add_miR.160920.refgene.mat"
         #reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
