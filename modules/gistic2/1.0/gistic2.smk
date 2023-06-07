@@ -84,7 +84,7 @@ rule _gistic2_make_markers:
 rule _gistic2_run:
     input:
         seg = str(rule._gistic2_fill_segments.output.seg),
-        refgene_mat = "/home/sgillis/cancer_docker_singularity/gistic2/reference/hg38.UCSC.add_miR.160920.refgene.mat"
+        refgene_mat = "/home/sgillis/cancer_docker_singularity/gistic2/reference/hg38.UCSC.add_miR.160920.refgene.mat",
         #reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
         markers = str(rule._gistic2_make_markers.output.markers)
     output:
@@ -172,7 +172,7 @@ rule _gistic2_output:
         regions_track = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/regions_track.conf_{conf}.bed",
         sample_cutoffs = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/sample_cutoffs.txt",
         sample_seg_counts = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/sample_seg_counts.txt",
-        scores = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/scores.gistic",
+        scores = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/scores.gistic"
 
     run:
         op.relative_symlink(input.all_data_by_genes, output.all_data_by_genes, in_module= True),
