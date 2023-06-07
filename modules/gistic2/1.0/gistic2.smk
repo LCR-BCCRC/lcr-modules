@@ -110,8 +110,7 @@ rule _gistic2_run:
         seg = str(rule._gistic2_fill_segments.output.seg),
         refgene_mat = "/home/sgillis/cancer_docker_singularity/gistic2/reference/hg38.UCSC.add_miR.160920.refgene.mat"
         #reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
-        marker = "/projects/nhl_meta_analysis_scratch/gambl/results_local/icgc_dart/combine_cnv-1.0/level_3/gistic_bl_dlbcl/markers_gistic.txt"
-        # markers = str(rule._gistic2_make_markers.output.markers)
+        markers = str(rule._gistic2_make_markers.output.markers)
     output:
         all_data_by_genes = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/all_data_by_genes.txt",
         all_lesions = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/all_lesions.conf_{conf}.txt",
@@ -148,7 +147,7 @@ rule _gistic2_run:
 
     shell:
         op.as_one_line("""
-        gistic2 -b {params.basedir} -seg {input.seg} -mk {input.marker} -refgene {input.refgene_mat} 
+        gistic2 -b {params.basedir} -seg {input.seg} -mk {input.markers} -refgene {input.refgene_mat} 
         -genegistic 1 -broad 1 -savegene 1 -conf 0.{wildcards.conf} -v 30 -saveseg 0 -savedata 0
         {params.opts}
         > {log.stdout} 2> {log.stderr}
