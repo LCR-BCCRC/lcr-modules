@@ -37,12 +37,13 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "gistic2",
     version = "1.0",
-    subdirectories = ["inputs", "gistic2", "outputs"],
+    subdirectories = ["inputs", "fill_segments", "markers", "gistic2", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
 localrules:
     _gistic2_input_seg,
+    _gistic2_make_markers
     _gistic2_output,
     _gistic2_all,
 
@@ -52,7 +53,6 @@ localrules:
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 # TODO: If applicable, add an input rule for each input file used by the module
-# TODO: add marker file?
 rule _gistic2_input_seg:
     input:
         seg = CFG["inputs"]["sample_seg"]
@@ -61,13 +61,57 @@ rule _gistic2_input_seg:
     run:
         op.absolute_symlink(input.seg, output.seg)
 
+# Fill empty segments in the seg file by creating a dummy segment with log2(CN)=0 and no LOH
+rule _gistic2_fill_segments:
+    input:
+        seg = str(rule._gistic2_input_seg.output.seg)
+    output:
+        seg = CFG["dirs"]["fill_segments"] + "{seq_type}--projection/all--{projection}.seg"
+    log:
+        stdout = CFG["logs"]["fill_segments"] + "{seq_type}--projection/all--{projection}/fill_segments.stdout.log",
+        stderr = CFG["logs"]["fill_segments"] + "{seq_type}--projection/all--{projection}/fill_segments.stderr.log"
+    params:
+        opts = CFG["options"]["fill_segments"]
+        fill_segments = CFG["scripts"]["fill_segments"]
+    conda:
+        CFG["conda_envs"]["fill_segments"]
+    threads:
+        CFG["threads"]["fill_segments"]
+    resources:
+        **CFG["resources"]["fill_segments"]
+    shell: 
+        op.as_one_line("""
+        python3 {params.fill_segments} --input {input.seg} --chromArm {params.opts} --output {output.seg}
+        """)
+
+# Create a markers file that has every segment start and end that appears in the seg file
+rule _gistic2_make_markers:
+    input:
+        seg = str(rule._gistic2_fill_segments.output.seg)
+    output:
+        temp_markers = temp(CFG["dirs"]["markers"] + "{seq_type}--projection/temp_markers--{projection}.txt")
+        markers = CFG["dirs"]["markers"] + "{seq_type}--projection/markers--{projection}.txt"
+    log:
+        stderr = CFG["logs"]["markers"] + "{seq_type}--projection/all--{projection}/markers.stderr.log"
+    shell: 
+        op.as_one_line("""
+        sed '1d' {input.seg} | cut -f2,3 > {output.temp_markers}
+            &&
+        sed '1d' {input.seg} | cut -f2,4 >> {output.temp_markers}
+            &&
+        sort -V -k1,1 -k2,2nr {output.temp_markers} | uniq | nl > {output.markers} 
+        2> {log.stderr}
+        """)
+
 # Run gistic2 for a single seq_type (capture, genome) for the confidence thresholds listed in the config
 rule _gistic2_run:
     input:
-        seg = CFG["dirs"]["inputs"] + "{seq_type}--projection/all--{projection}.seg",
+    # TO-DO: change to seg from rule above
+        seg = str(rule._gistic2_fill_segments.output.seg),
         refgene_mat = "/home/sgillis/cancer_docker_singularity/gistic2/reference/hg38.UCSC.add_miR.160920.refgene.mat"
         #reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
         marker = "/projects/nhl_meta_analysis_scratch/gambl/results_local/icgc_dart/combine_cnv-1.0/level_3/gistic_bl_dlbcl/markers_gistic.txt"
+        # markers = str(rule._gistic2_make_markers.output.markers)
     output:
         all_data_by_genes = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/all_data_by_genes.txt",
         all_lesions = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/all_lesions.conf_{conf}.txt",
