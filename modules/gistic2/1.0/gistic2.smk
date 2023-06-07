@@ -37,7 +37,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "gistic2",
     version = "1.0",
-    subdirectories = ["inputs", "fill_segments", "markers", "gistic2", "outputs"],
+    subdirectories = ["inputs", "markers", "gistic2", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -55,34 +55,11 @@ localrules:
 # TODO: If applicable, add an input rule for each input file used by the module
 rule _gistic2_input_seg:
     input:
-        seg = CFG["inputs"]["sample_seg"]
+        seg = CFG["inputs"]["seg"]
     output:
         seg = CFG["dirs"]["inputs"] + "{seq_type}--projection/all--{projection}.seg"
     run:
         op.absolute_symlink(input.seg, output.seg)
-
-# Fill empty segments in the seg file by creating a dummy segment with log2(CN)=0 and no LOH
-rule _gistic2_fill_segments:
-    input:
-        seg = str(rule._gistic2_input_seg.output.seg)
-    output:
-        seg = CFG["dirs"]["fill_segments"] + "{seq_type}--projection/all--{projection}.seg"
-    log:
-        stdout = CFG["logs"]["fill_segments"] + "{seq_type}--projection/all--{projection}/fill_segments.stdout.log",
-        stderr = CFG["logs"]["fill_segments"] + "{seq_type}--projection/all--{projection}/fill_segments.stderr.log"
-    params:
-        opts = CFG["options"]["fill_segments"]
-        fill_segments = CFG["scripts"]["fill_segments"]
-    conda:
-        CFG["conda_envs"]["fill_segments"]
-    threads:
-        CFG["threads"]["fill_segments"]
-    resources:
-        **CFG["resources"]["fill_segments"]
-    shell: 
-        op.as_one_line("""
-        python3 {params.fill_segments} --input {input.seg} --chromArm {params.opts} --output {output.seg}
-        """)
 
 # Create a markers file that has every segment start and end that appears in the seg file
 rule _gistic2_make_markers:

@@ -1,18 +1,16 @@
 lcr-modules:
     gistic2:
         inputs:
+            # The seg files should be "filled", meaning missing segments should be replaced with a dummy segment with log2(CN)=0 and no LOH.
+            # The cnv_master module outputs seg files in this filled format
             # Available wildcards: {seq_type} {projection}
-            sample_seg: "__UPDATE__"
+            seg: "__UPDATE__"
 
         projections: ["grch37", "hg38"]
 
         scratch_subdirectories: []
 
-        scripts:
-            fill_segments: "{SCRIPTSDIR}/fill_segments/1.0/fill_segments.py"
-
         options:
-            fill_segments: "{SCRIPTSDIR}/fill_segments/1.0/src/chromArm.{projection}.tsv"
             conf_level: "90" # Confidence level used to calculate the region containing a driver.
             gistic2_run: "-gcm extreme -maxseg 5000 -brlen 0.5 -js 1 -qvt 0.5 -td 0.05"
             # -gcm  gene_collapse_method    Method for reducing marker-level copy number data to the gene-level copy number data in the gene tables. Allowed values are mean, median, min, max or extreme.
@@ -23,16 +21,12 @@ lcr-modules:
             # -td   t_del   Threshold for copy number deletions. Regions with a copy number loss below the negative of this positive value are considered deletions. Regions with a smaller copy number loss are considered noise and set to 0.
 
         conda_envs:
-            fill_segments: "{SCRIPTSDIR}/fill_segments/1.0/fill_segments.yaml"
             gistic2: "{MODSDIR}/envs/gistic2-2.0.23.yaml"
             
         threads:
-            fill_segments: 1
             gistic2_run: 4
 
         resources:
-            fill_segments: 
-                mem_mb: 2000
             gistic2_run: 
                 mem_mb: 2000
             
