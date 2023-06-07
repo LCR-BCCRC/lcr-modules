@@ -64,7 +64,7 @@ rule _gistic2_input_seg:
 # Create a markers file that has every segment start and end that appears in the seg file
 rule _gistic2_make_markers:
     input:
-        seg = str(rule._gistic2_fill_segments.output.seg)
+        seg = str(rule._gistic2_input_seg.output.seg)
     output:
         temp_markers = temp(CFG["dirs"]["markers"] + "{seq_type}--projection/temp_markers--{projection}.txt"),
         markers = CFG["dirs"]["markers"] + "{seq_type}--projection/markers--{projection}.txt"
@@ -83,7 +83,7 @@ rule _gistic2_make_markers:
 # Run gistic2 for a single seq_type (capture, genome) for the confidence thresholds listed in the config
 rule _gistic2_run:
     input:
-        seg = str(rule._gistic2_fill_segments.output.seg),
+        seg = str(rule._gistic2_input_seg.output.seg),
         refgene_mat = "/home/sgillis/cancer_docker_singularity/gistic2/reference/hg38.UCSC.add_miR.160920.refgene.mat",
         #reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
         markers = str(rule._gistic2_make_markers.output.markers)
