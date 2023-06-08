@@ -6,37 +6,41 @@ lcr-modules:
             # Available wildcards: {seq_type} {tumour_sample_id} {normal_sample_id} {pair_status} {genome_build}
             maf: "__UPDATE__"
             regions_file: "__UPDATE__" # Path to a MAF, VCF, BED, OncodriveCLUSTL clusters file, HotMAPS results file, or mutation_id file containing regions of interest to snapshot.
-            regions_format: "__UPDATE__"
+            regions_format: "__UPDATE__" # Available options are "bed", "maf", "oncodriveclust", "hotmaps" or "mutation_id"
             regions_build: "__UPDATE__" # Genome build of regions file, which will be lifted over as needed to filter MAFs on opposite genome builds
 
-        test_run: True # Stop after MAF filtering step to get an estimate of how many snapshots will be taken
+        test_run: True # Stop after MAF filtering step to estimate total number of snapshots
 
-        view_as_pairs: False # Toggle pairwise orientation in IGV
+        options:
+            filter_maf:
+                oncodriveclustl_options: # These parameters will filter the OncodriveCLUSTL cluster results file.
+                    p_value: 0.001 # Maximum p-value of OncodriveCLUSTL clusters
+                    score: # Minimum score of OncodriveCLUSTL clusters
+                    n_samples: 5 # Desired number of samples in OncodriveCLUSTL clusters
 
-        filter_maf:
-            oncodriveclustl_options: # These parameters will filter the OncodriveCLUSTL cluster results file.
-                p_value: # Desired q-value of OncodriveCLUSTL clusters
-                score: # Desired scores of OncodriveCLUSTL clusters
-                n_samples: # Desired number of samples in OncodriveCLUSTL clusters
+            genome_map: # Map builds between metadata and MAFs
+                grch37: ["grch37","hg19","hg19-clc","hg19-reddy","hs37d5"]
+                hg38: ["hg38","hg38-nci","hg38-panea","grch38"]
 
-        genome_map: # Map different builds in metadata
-            grch37: ["grch37","hg19","hg19-clc","hg19-reddy","hs37d5"]
-            hg38: ["hg38","hg38-nci","hg38-panea","grch38"]
+            liftover_regions:
+                reference_chain_file:
+                    grch37: "genomes/grch37/chains/grch37/hg19ToHg38.over.chain"
+                    hg38: "genomes/hg38/chains/grch38/hg38ToHg19.over.chain"
+                target_reference:
+                    grch37: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh37-lite/Sequence/WholeGenomeFasta/genome.fa"
+                    hg38: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh38/Sequence/WholeGenomeFasta/genome.fa"
 
-        liftover_regions:
-            reference_chain_file:
-                grch37: "genomes/grch37/chains/grch37/hg19ToHg38.over.chain"
-                hg38: "genomes/hg38/chains/grch38/hg38ToHg19.over.chain"
-            target_reference:
-                grch37: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh37-lite/Sequence/WholeGenomeFasta/genome.fa"
-                hg38: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh38/Sequence/WholeGenomeFasta/genome.fa"
+            generate_batch_script:
+                padding: 100 # Base pairs upstream and downstream of variant position
+                max_height: 1000
+                sleep_timer: 2000 # Batch scripts with more options may require longer sleep intervals
+                # Available igv options: https://github.com/igvteam/igv/wiki/Batch-commands
+                igv_options: ["preference SAM.COLOR_BY READ_STRAND", "preference SAM.SHOW_CENTER_LINE TRUE", "preference SAM.DOWNSAMPLE_READS FALSE"]
+                view_as_pairs: False # Toggle pairwise orientation in IGV
 
-        generate_batch_script:
-            padding: 80
-            max_height: 1000
-            sleep_timer: 2000 # Batch scripts with more options may require longer sleep intervals
-            # Available batch script options: https://github.com/igvteam/igv/wiki/Batch-commands
-            igv_options: ["colorBy INSERT_SIZE", "preference SAM.SHOW_CENTER_LINE TRUE", "expand 100", "NAME_PANEL_WIDTH 70"]
+            xvfb_parameters:
+                server_number: "99"
+                server_args: ""
 
         scripts:
             format_regions: "etc/format_regions.py"
@@ -47,16 +51,15 @@ lcr-modules:
 
         scratch_subdirectories: []
 
-        options:
-            step_1: ""
-            step_2: ""
-
         conda_envs:
             liftover_regions: "{MODSDIR}/envs/crossmap.yaml"
             wget: "{REPODIR}/envs/wget/wget-1.20.1.yaml"
 
         threads:
-            step_1: 4
+            _igv_symlink_bam: 30
+            _igv_symlink_bai: 30
+            _igv_quality_control: 20
+            _igv_symlink_snapshot: 20
 
         resources:
             step_1: 
