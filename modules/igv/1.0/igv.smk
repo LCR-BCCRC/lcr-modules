@@ -342,6 +342,16 @@ checkpoint _igv_run:
         fi ;
         maxtime=$(($(wc -l < {params.merged_batch}) * 60 + 15)) ;
         timeout $maxtime xvfb-run -s "-screen 0 1920x1080x24" {params.server_number} {params.server_args} {params.igv} -b {params.merged_batch} > {log.stdout} 2> {log.stderr} && touch {output.complete} ;
+        exit=$? ;
+        if [ $exit -ne 0 ] ;
+        then
+        if grep -q -e "No such process" {log.stderr} && grep -q -e "Executing Command: exit" {log.stdout} ;
+        then
+        echo "All IGV batch script commands have completed succesfully, but an Xvfb-run kill error has occurred." >> {log.stdout} && touch {output.complete} ;
+        else
+        false ;
+        fi ;
+        fi ;
         else
         echo 'Skipping sample {wildcards.tumour_id} because it either has no variants to snapshot or all variants have been already been snapshot.' ;
         touch {output.complete} ;
