@@ -105,6 +105,8 @@ rule _igv_symlink_bam:
         bam = get_bams
     output:
         bam = CFG["dirs"]["inputs"] + "bams/{seq_type}/{tumour_id}.bam"
+    threads:
+        CFG["threads"]["_igv_symlink_bam"]
     run:
         op.absolute_symlink(input.bam, output.bam)
 
@@ -113,6 +115,8 @@ rule _igv_symlink_bai:
         bai = get_bai
     output:
         bai = CFG["dirs"]["inputs"] + "bams/{seq_type}/{tumour_id}.bam.bai"
+    threads:
+        CFG["threads"]["_igv_symlink_bai"]
     run:
         op.absolute_symlink(input.bai, output.bai)
 
