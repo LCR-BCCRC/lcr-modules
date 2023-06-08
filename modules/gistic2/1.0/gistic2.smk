@@ -123,7 +123,7 @@ rule _gistic2_run:
 
     shell:
         op.as_one_line("""
-        gistic2 -b {params.basedir} -seg {input.seg} -mk {input.markers} -refgene {input.refgene_mat} 
+        gistic2 -b {params.base_dir} -seg {input.seg} -mk {input.markers} -refgene {input.refgene_mat} 
         -genegistic 1 -broad 1 -savegene 1 -conf 0.{wildcards.conf} -v 30 -saveseg 0 -savedata 0
         {params.opts}
         > {log.stdout} 2> {log.stderr}
