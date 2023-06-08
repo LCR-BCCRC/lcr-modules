@@ -358,14 +358,91 @@ checkpoint _igv_run:
         fi
         """)
 
+rule _igv_quality_control:
+    input:
+        igv = str(rules._igv_run.output.complete),
+        snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
+    output:
+        snapshot_qc = temp(CFG["dirs"]["snapshots"] + "qc/{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".qc")
+    params:
+        batch_script = lambda w: config["lcr-modules"]["igv"]["dirs"]["batch_scripts"] + f"single_batch_scripts/{w.seq_type}--{w.genome_build}/{w.chromosome}:{w.start_position}--{w.gene}--{w.tumour_id}" + SUFFIX + ".batch",
+        merged_batch = lambda w: config["lcr-modules"]["igv"]["dirs"]["batch_scripts"] + f"merged_batch_scripts/{w.seq_type}--{w.genome_build}/{w.tumour_id}" + SUFFIX + ".batch",
+        igv = config["lcr-modules"]["igv"]["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh",
+        server_number = "-n " + config["lcr-modules"]["igv"]["options"]["xvfb_parameters"]["server_number"] if config["lcr-modules"]["igv"]["options"]["xvfb_parameters"]["server_number"] is not None else "--auto-servernum",
+        server_args = config["lcr-modules"]["igv"]["options"]["xvfb_parameters"]["server_args"],
+        batch_temp = lambda w: config["lcr-modules"]["igv"]["dirs"]["batch_scripts"] + f"single_batch_scripts/{w.seq_type}--{w.genome_build}/{w.chromosome}:{w.start_position}--{w.gene}--{w.tumour_id}" + SUFFIX + ".batch.temp"
+    log:
+        stdout = CFG["logs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + "_quality_control.stdout.log",
+        stderr = CFG["logs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + "_quality_control.stderr.log"
+    threads:
+        CFG["threads"]["_igv_quality_control"]
+    run:
+        import subprocess
+        height = str(subprocess.check_output(f"identify -format '%h' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
+        width = str(subprocess.check_output(f"identify -format '%w' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
+        if height == "559" or height == "506" or height=="547":
+            print(f"{input.snapshot} appears to be truncated. Rerunning IGV with increased sleep interval.")
+            os.system(f'sleep=$(grep "Sleep" {params.batch_script} | cut -d " " -f 2) && sed "s/setSleepInterval $sleep/setSleepInterval 10000/g" {params.batch_script} > {params.batch_temp} && echo "exit" >> {params.batch_temp}')
+            os.system(f'echo "Snapshot appears to be truncated. Rerunning IGV on batch script {params.batch_script} with increased sleep interval" > {log.stdout}')
+            os.system(f'maxtime=$(($(wc -l < {params.batch_temp}) * 60 + 15)) ; timeout --foreground $maxtime xvfb-run -s "-screen 0 1980x1020x24" {params.server_number} {params.server_args} {params.igv} -b {params.batch_temp} >> {log.stdout} 2>> {log.stderr}')
+            os.system(f'rm {params.batch_temp}')
+        if width == "640":
+            with open(log.stdout, "a") as handle:
+                handle.write(f"Snapshot {input.snapshot} width is 640. Improper dimensions might be due to xvfb-run unable to connect to current server {params.server_number} due to a server lock file existing in directory '/tmp/.X*'. Attempting to run on a different server number...")
+                if params.server_number == "--auto-servernum" or params.server_number == "-n 99":
+                    new_server = 1
+                while width == "640":
+                    handle.write(f'Attempting...\nxvfb-run -s "-screen 0 1980x1020x24" -n {str(new_server)} {params.server_args} {params.igv} -b {params.merged_batch} >> {log.stdout} 2>> {log.stderr}')
+                    os.system(f'maxtime=$(($(wc -l < {params.merged_batch}) * 60 + 15)) ; timeout --foreground $maxtime xvfb-run -s "-screen 0 1980x1020x24" -n {str(new_server)} {params.server_args} {params.igv} -b {params.merged_batch} >> {log.stdout} 2>> {log.stderr}')
+                    width = str(subprocess.check_output(f"identify -format '%w' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
+                    new_server += 1
+        os.system(f'touch {output.snapshot_qc}')
+
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _igv_symlink_snapshot:
     input:
         snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
     output:
         snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
+    threads:
+        CFG["threads"]["_igv_symlink_snapshot"]
     run:
         op.relative_symlink(input.snapshot, output.snapshot)
+
+# Return a list of all snapshots that have undergone quality control
+def _quality_control(wildcards):
+    CFG = config["lcr-modules"]["igv"]
+    checkpoint_outputs = checkpoints._igv_run.get(**wildcards).output.complete
+
+    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id = wildcards.tumour_id, tumour_seq_type = wildcards.seq_type, tumour_genome_build = wildcards.genome_build)
+
+    normal_sample_id = this_sample["normal_sample_id"]
+    pair_status = this_sample["pair_status"]
+
+    maf = expand(
+        str(rules._igv_filter_maf.output.maf),
+        zip,
+        seq_type=wildcards.seq_type,
+        genome_build=wildcards.genome_build,
+        tumour_id=wildcards.tumour_id,
+        normal_sample_id=normal_sample_id,
+        pair_status=pair_status
+    )
+
+    if os.path.exists(maf[0]):
+        maf_table = pd.read_table(maf[0], comment="#", sep="\t")
+        return expand(
+            str(rules._igv_quality_control.output.snapshot_qc),
+            zip,
+            seq_type = maf_table["seq_type"],
+            genome_build = maf_table["genome_build"],
+            chromosome = maf_table["chr_std"],
+            start_position = maf_table["Start_Position"],
+            gene = maf_table["Hugo_Symbol"],
+            tumour_id = maf_table["Tumor_Sample_Barcode"]
+        )
+    else:
+        return []
 
 # Return a list of all snapshots that were taken during IGV
 def _symlink_snapshot(wildcards):
@@ -403,11 +480,12 @@ def _symlink_snapshot(wildcards):
     else:
         return []
 
-# Check that snapshots have been symlinked
+# Check that snapshots have been symlinked and quality controlled
 rule _igv_check_snapshots:
     input:
         snapshots = _symlink_snapshot,
-        igv_completed = str(rules._igv_run.output.complete)
+        igv_completed = str(rules._igv_run.output.complete),
+        quality_control = _quality_control
     output:
         snapshots = CFG["dirs"]["outputs"] + "completed/{seq_type}--{genome_build}--{tumour_id}.completed"
     shell:
