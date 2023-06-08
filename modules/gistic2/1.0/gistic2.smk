@@ -224,11 +224,11 @@ rule _gistic2_all:
                     str(rules._gistic2_output.output.scores)
                 ],
                 zip,
-                projection=CFG["projections"],
-                seq_type = CFG["runs"]["tumour_seq_type"],
+                seq_type = CFG["samples"]["seq_type"].unique(),
                 allow_missing = True # Allows snakemake to expand on these wildcards and fill conf below
             ),
-            conf = CFG["options"]["conf_level"]
+            conf = CFG["options"]["conf_level"],
+            projection=CFG["projections"]
         )
 
 ##### CLEANUP #####
