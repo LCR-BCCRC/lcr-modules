@@ -43,12 +43,12 @@ CFG = op.setup_module(
 )
 
 # Rename genome_build values in sample metadata to correlate with MAF values
-CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(CFG["genome_map"]["grch37"]), "grch37", inplace=True)
-CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(CFG["genome_map"]["hg38"]), "hg38", inplace=True)
+CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(CFG["options"]["genome_map"]["grch37"]), "grch37", inplace=True)
+CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(CFG["options"]["genome_map"]["hg38"]), "hg38", inplace=True)
 
 # Define output file suffix based on config parameters
-SUFFIX = ".pad" + str(CFG["generate_batch_script"]["padding"]) 
-if CFG["view_as_pairs"]:
+SUFFIX = ".pad" + str(CFG["options"]["generate_batch_script"]["padding"]) 
+if CFG["options"]["generate_batch_script"]["view_as_pairs"]:
     SUFFIX = SUFFIX + ".pairs"
 
 # Define rules to be run locally when using a compute cluster
