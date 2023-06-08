@@ -43,7 +43,7 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _gistic2_input_seg,
-    _gistic2_make_markers
+    _gistic2_make_markers,
     _gistic2_output,
     _gistic2_all,
 
