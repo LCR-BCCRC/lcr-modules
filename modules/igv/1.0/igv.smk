@@ -143,7 +143,7 @@ rule _igv_format_regions_file:
         regions = CFG["dirs"]["inputs"] + "regions/regions_file_formatted.txt"
     params:
         regions_format = CFG["inputs"]["regions_format"],
-        oncodriveclustl_params = CFG["filter_maf"]["oncodriveclustl_options"],
+        oncodriveclustl_params = CFG["options"]["filter_maf"]["oncodriveclustl_options"],
         regions_build = CFG["inputs"]["regions_build"]
     log:
         stdout = CFG["logs"]["inputs"] + "format_regions.stdout.log",
@@ -165,8 +165,8 @@ rule _igv_liftover_regions:
     output:
         regions = CFG["dirs"]["inputs"] + "regions/regions_file_{genome_build}.crossmap.txt"
     params:
-        chain_file = reference_files(CFG["liftover_regions"]["reference_chain_file"][(CFG["inputs"]["regions_build"]).replace("hg19","grch37").replace("grch38","hg38")]),
-        target_reference = lambda w: config["lcr-modules"]["igv"]["liftover_regions"]["target_reference"][w.genome_build],
+        chain_file = reference_files(CFG["options"]["liftover_regions"]["reference_chain_file"][(CFG["inputs"]["regions_build"]).replace("hg19","grch37").replace("grch38","hg38")]),
+        target_reference = lambda w: config["lcr-modules"]["igv"]["options"]["liftover_regions"]["target_reference"][w.genome_build],
         regions_type = REGIONS_FORMAT[CFG["inputs"]["regions_format"].lower()],
         regions_build = CFG["inputs"]["regions_build"].replace("grch37","GRCh37").replace("hg38","GRCh38"),
         target_build = lambda w: w.genome_build.replace("grch37","GRCh37").replace("hg38", "GRCh38")
@@ -192,7 +192,7 @@ rule _igv_filter_maf:
         maf = CFG["dirs"]["inputs"] + "maf/filtered_maf/{seq_type}--{genome_build}/{tumour_id}--{normal_sample_id}--{pair_status}.maf"
     params:
         regions_format = REGIONS_FORMAT[CFG["inputs"]["regions_format"].lower()],
-        oncodriveclustl_params = CFG["filter_maf"]["oncodriveclustl_options"],
+        oncodriveclustl_params = CFG["options"]["filter_maf"]["oncodriveclustl_options"],
         metadata = CFG["runs"]
     log:
         stdout = CFG["logs"]["inputs"] + "filter_maf/{seq_type}--{genome_build}/{tumour_id}--{normal_sample_id}--{pair_status}/filter_maf.stdout.log",
@@ -217,12 +217,12 @@ checkpoint _igv_create_batch_script_per_variant:
         snapshot_dir = config["lcr-modules"]["igv"]["dirs"]["snapshots"],
         genome_build = lambda w: w.genome_build,
         seq_type = lambda w: w.seq_type,
-        padding = config["lcr-modules"]["igv"]["generate_batch_script"]["padding"],
-        igv_options = config["lcr-modules"]["igv"]["generate_batch_script"]["igv_options"],
-        max_height = config["lcr-modules"]["igv"]["generate_batch_script"]["max_height"],
+        padding = config["lcr-modules"]["igv"]["options"]["generate_batch_script"]["padding"],
+        igv_options = config["lcr-modules"]["igv"]["options"]["generate_batch_script"]["igv_options"],
+        max_height = config["lcr-modules"]["igv"]["options"]["generate_batch_script"]["max_height"],
         suffix = SUFFIX,
-        view_pairs = config["lcr-modules"]["igv"]["view_as_pairs"],
-        sleep_timer = config["lcr-modules"]["igv"]["generate_batch_script"]["sleep_timer"]
+        view_pairs = config["lcr-modules"]["igv"]["options"]["generate_batch_script"]["view_as_pairs"],
+        sleep_timer = config["lcr-modules"]["igv"]["options"]["generate_batch_script"]["sleep_timer"]
     log:
         stdout = CFG["logs"]["batch_scripts"] + "_igv_create_batch_script_per_variant/{seq_type}--{genome_build}/{tumour_id}" + SUFFIX + ".stdout.log",
         stderr = CFG["logs"]["batch_scripts"] + "_igv_create_batch_script_per_variant/{seq_type}--{genome_build}/{tumour_id}" + SUFFIX + ".stderr.log"
@@ -237,7 +237,7 @@ rule _igv_batches_to_merge:
         dispatched_batch_script = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch"
     params:
         batch_script_file = str(rules._igv_create_batch_script_per_variant.output.variant_batch),
-        igv_options = CFG["generate_batch_script"]["igv_options"]
+        igv_options = CFG["options"]["generate_batch_script"]["igv_options"]
     threads: (workflow.cores / 10)
     run:
         batch_script_path = os.path.abspath(input.batch_script)
@@ -327,7 +327,9 @@ checkpoint _igv_run:
     params:
         merged_batch = str(rules._igv_create_batch_script_per_variant.output.variant_batch),
         igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh",
-        max_time = CFG["generate_batch_script"]["sleep_timer"]
+        max_time = CFG["options"]["generate_batch_script"]["sleep_timer"],
+        server_number = "-n " + CFG["options"]["xvfb_parameters"]["server_number"] if CFG["options"]["xvfb_parameters"]["server_number"] is not None else "--auto-servernum",
+        server_args = CFG["options"]["xvfb_parameters"]["server_args"]
     threads: (workflow.cores)
     shell:
         op.as_one_line("""
