@@ -68,9 +68,12 @@ rule _gistic2_standard_chr:
         seg = str(rules._gistic2_input_seg.output.seg)
     output:
         seg = CFG["dirs"]["standard_chr"] + "{seq_type}--projection/all--{projection}--standard_Chr.seg"
+    log:
+        stderr = CFG["logs"]["standard_chr"] + "{seq_type}--projection/all--{projection}/standard_Chr.stderr.log"
     run:
         op.as_one_line("""
         awk -F '\t' 'BEGIN{{IGNORECASE = 1}} $2 !~ /Un|random|alt/ {{print}}' {input.seg} > {output.seg}
+        2> {log.stderr}
         """)
  
 
