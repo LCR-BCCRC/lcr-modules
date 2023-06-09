@@ -46,7 +46,7 @@ localrules:
     _gistic2_standard_chr,
     _gistic2_make_markers,
     _gistic2_output,
-    _gistic2_all,
+    _gistic2_all
 
 
 ##### RULES #####
@@ -70,12 +70,11 @@ rule _gistic2_standard_chr:
         seg = CFG["dirs"]["standard_chr"] + "{seq_type}--projection/all--{projection}--standard_Chr.seg"
     log:
         stderr = CFG["logs"]["standard_chr"] + "{seq_type}--projection/all--{projection}/standard_Chr.stderr.log"
-    run:
+    shell:
         op.as_one_line("""
-        awk -F '\t' 'BEGIN{{IGNORECASE = 1}} $2 !~ /Un|random|alt/ {{print}}' {input.seg} > {output.seg}
+        awk 'BEGIN{{IGNORECASE = 1}} {{FS="\t"}} $2 !~ /Un|random|alt/ {{print}}' {input.seg} > {output.seg}
         2> {log.stderr}
         """)
- 
 
 # Create a markers file that has every segment start and end that appears in the seg file
 rule _gistic2_make_markers:
@@ -136,7 +135,6 @@ rule _gistic2_run:
         CFG["threads"]["gistic2_run"]
     resources:
         **CFG["resources"]["gistic2_run"]
-
     shell:
         op.as_one_line("""
         gistic2 -b {params.base_dir} -seg {input.seg} -mk {input.markers} -refgene {input.refgene_mat} 
