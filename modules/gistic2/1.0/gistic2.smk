@@ -37,13 +37,13 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "gistic2",
     version = "1.0",
-    subdirectories = ["inputs", "remove_Un_Chr", "markers", "gistic2", "outputs"],
+    subdirectories = ["inputs", "standard_chr", "markers", "gistic2", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
 localrules:
     _gistic2_input_seg,
-    _gistic2_remove_un_chr,
+    _gistic2_standard_chr,
     _gistic2_make_markers,
     _gistic2_output,
     _gistic2_all,
@@ -62,22 +62,22 @@ rule _gistic2_input_seg:
     run:
         op.absolute_symlink(input.seg, output.seg)
 
-# Removes entries for Unknown chromosomes e.g. Un_gl000212 in grch37
-rule _gistic2_remove_un_chr:
+# Removes entries for non-standard chromosomes from the seg file
+rule _gistic2_standard_chr:
     input:
         seg = str(rules._gistic2_input_seg.output.seg)
     output:
-        seg = CFG["dirs"]["remove_Un_Chr"] + "{seq_type}--projection/all--{projection}--Chr_Un_removed.seg"
+        seg = CFG["dirs"]["standard_chr"] + "{seq_type}--projection/all--{projection}--standard_Chr.seg"
     run:
         op.as_one_line("""
-        awk -F '\t' '$2 !~ /Un/ {{print}}' {input.seg} > {output.seg}
+        awk -F '\t' 'BEGIN{{IGNORECASE = 1}} $2 !~ /Un|random|alt/ {{print}}' {input.seg} > {output.seg}
         """)
  
 
 # Create a markers file that has every segment start and end that appears in the seg file
 rule _gistic2_make_markers:
     input:
-        seg = str(rules._gistic2_remove_un_chr.output.seg)
+        seg = str(rules._gistic2_standard_chr.output.seg)
     output:
         temp_markers = temp(CFG["dirs"]["markers"] + "{seq_type}--projection/temp_markers--{projection}.txt"),
         markers = CFG["dirs"]["markers"] + "{seq_type}--projection/markers--{projection}.txt"
@@ -96,7 +96,7 @@ rule _gistic2_make_markers:
 # Run gistic2 for a single seq_type (capture, genome) for the confidence thresholds listed in the config
 rule _gistic2_run:
     input:
-        seg = str(rules._gistic2_remove_un_chr.output.seg),
+        seg = str(rules._gistic2_standard_chr.output.seg),
         refgene_mat = "/home/sgillis/cancer_docker_singularity/gistic2/reference/hg38.UCSC.add_miR.160920.refgene.mat",
         #reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
         markers = str(rules._gistic2_make_markers.output.markers)
