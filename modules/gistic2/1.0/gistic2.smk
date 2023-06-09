@@ -70,7 +70,7 @@ rule _gistic2_remove_un_chr:
         seg = CFG["dirs"]["remove_Un_Chr"] + "{seq_type}--projection/all--{projection}--Chr_Un_removed.seg"
     run:
         op.as_one_line("""
-        awk -F '\t' '$2 !~ /Un/ {{print}}' {input.seg}
+        awk -F '\t' '$2 !~ /Un/ {{print}}' {input.seg} > {output.seg}
         """)
  
 
