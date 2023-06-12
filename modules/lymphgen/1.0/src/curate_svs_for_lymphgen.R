@@ -1,21 +1,43 @@
 source("/projects/rmorin/projects/gambl-repos/gambl-lhilton/src/R/GAMBLR_libs.R")
 library(GAMBLR)
 
-all_fish <- snakemake@input[["fish"]]
-one_svar_master <- snakemake@input[["svar_master"]]
+# different cases for inputs
+#   1) fish w/ sample_id + svar master -- has_fish & has_sv
+#   2) fish w/ sample_id + manta -- has_fish & has_sv
+#   3) fish w/o sample_id (like empty fish) + svar master -- ~has_fish & has_sv
+#   4) fish w/o sample_id (like empty fish) + manta -- ~has_fish & has_sv
+#   5) fish w/ sample_id + empty sv -- has_fish & ~has_sv
 
-one_svar_master <- fread(one_svar_master) %>% as.data.frame()
+all_fish <- snakemake@input[["fish"]]
+sv <- snakemake@input[["sv"]]
+
+if (str_detect(sv, "manta")) { # manta
+  sv <- fread(sv, skip = 130) %>% 
+    as.data.frame() %>% 
+    rename(CHROM_A = '#CHROM_A') %>% 
+    select(CHROM_A, START_A, END_A, QUAL, STRAND_A, CHROM_B, START_B, END_B, STRAND_B) %>% 
+    rename(SCORE = QUAL) %>% 
+    mutate(tumour_sample_id = snakemake@wildcards[["tumour_id"]])
+} else if (str_detect(sv, "svar_master")) { # svar_master
+  sv <- fread(sv) %>% 
+    as.data.frame() %>% 
+    select(CHROM_A, START_A, END_A, SCORE, STRAND_A, CHROM_B, START_B, END_B, STRAND_B, tumour_sample_id)
+} else { # empty
+  sv <- fread(sv) %>% 
+    as.data.frame()
+}
+
 all_fish <- fread(all_fish) %>% as.data.frame()
 one_fish <- all_fish %>%
-  filter(sample_id == snakemake@wildcards[[3]])
+  filter(sample_id == snakemake@wildcards[["tumour_id"]])
 
 config_bcl6 <- snakemake@config[["lcr-modules"]][["lymphgen"]][["options"]][["real_bcl6"]]
 config_bcl2 <- snakemake@config[["lcr-modules"]][["lymphgen"]][["options"]][["real_bcl2"]]
 
-one_svar_master$CHROM_A <- as.character(one_svar_master$CHROM_A)
-one_svar_master$CHROM_B <- as.character(one_svar_master$CHROM_B)
+sv$CHROM_A <- as.character(sv$CHROM_A)
+sv$CHROM_B <- as.character(sv$CHROM_B)
 
-if (nrow(one_svar_master) == 0) {
+if (nrow(sv) == 0) {
   svar_master_annotated <- data.frame(matrix(ncol = 14, nrow = 0))
   x <- c(
     "chrom1", "start1", "end1", "chrom2", "start2", "end2", "name", "score",
@@ -23,10 +45,7 @@ if (nrow(one_svar_master) == 0) {
   )
   colnames(svar_master_annotated) <- x
 } else {
-  one_svar_master_bcl <- one_svar_master %>%
-    filter(str_detect(ANNOTATION_A, "BCL[26]") | str_detect(ANNOTATION_B, "BCL[26]"))
-
-  svar_master_annotated <- annotate_sv(one_svar_master_bcl) %>%
+  svar_master_annotated <- annotate_sv(sv) %>%
     filter(!str_detect(fusion, "^NA-")) %>%
     filter(str_detect(fusion, "BCL[26]"))
 }
@@ -42,19 +61,21 @@ real_bcl2 <- svar_master_annotated %>%
   pull(fusion)
 
 if (nrow(one_fish) == 0) {
-  one_fish <- one_fish %>%
-    mutate(across(everything(), as.character)) %>%
-    add_row(sample_id = snakemake@wildcards[[3]], BCL2_BA_consensus = "NEG", BCL6_BA_consensus = "NEG")
+  final_sv <- one_fish %>%
+    add_row(sample_id = snakemake@wildcards[["tumour_id"]],
+            BCL2_BA_consensus = case_when(!(is_empty(real_bcl2)) ~ "POS",
+      TRUE ~ "NEG"), BCL6_BA_consensus = case_when(!(is_empty(real_bcl6)) ~ "POS",
+        TRUE ~ "NEG"))
+} else {
+  final_sv <- one_fish %>%
+    mutate(BCL2_BA_consensus = case_when(
+      BCL2_BA_consensus == "POS" | !(is_empty(real_bcl2)) ~ "POS",
+      TRUE ~ "NEG"
+    )) %>%
+    mutate(BCL6_BA_consensus = case_when(
+      BCL6_BA_consensus == "POS" | !(is_empty(real_bcl6)) ~ "POS",
+      TRUE ~ "NEG"
+    ))
 }
-
-final_sv <- one_fish %>%
-  mutate(BCL2_BA_consensus = case_when(
-    BCL2_BA_consensus == "POS" | !(is_empty(real_bcl2)) ~ "POS",
-    TRUE ~ "NEG"
-  )) %>%
-  mutate(BCL6_BA_consensus = case_when(
-    BCL6_BA_consensus == "POS" | !(is_empty(real_bcl6)) ~ "POS",
-    TRUE ~ "NEG"
-  ))
 
 write_tsv(final_sv, snakemake@output[[1]])

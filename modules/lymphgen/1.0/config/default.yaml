@@ -22,11 +22,12 @@ lcr-modules:
             sample_sv_info: 
             # All the SV files will be merged with a final SV file created for each sample so the order of keys don't matter 
             # If there is no fish sv file put "{MODSDIR}/etc/empty_sv_fish.tsv" in key fish 
-            # If there is no svar_master file put "{MODSDIR}/etc/empty_svar_master.tsv" under both empty_svar and svar_master keys
             # Always keep all three keys with real file paths 
                 fish: "__UPDATE__"
-                empty_svar: "{MODSDIR}/etc/empty_svar_master.tsv" 
-                svar_master: "__UPDATE__" 
+                other:
+                    svar_master: "__UPDATE__"
+                    manta: "__UPDATE__"
+                    empty_sv: "{MODSDIR}/etc/empty_svar_master.tsv"  
             # Path to the directory where LGenIC should be installed
             lgenic_exec: "__UPDATE__"
             gamblr_branch: "" # Leave blank unless you need to install from a specific branch from the GAMBLR repo (expert users only)
@@ -41,15 +42,11 @@ lcr-modules:
                 run_paired_tumours: True
                 run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: False
-        
-        unmatched_normal_ids:
-            capture--grch37: "__UPDATE__"
-            # Add additional {seq_type}--{genome_build}
 
         options:
             reformat_seg:  #  Default columns for Battenberg output
                 Tumor_Sample_Barcode: "ID"
-                chromosome: "chr"
+                chromosome: "chrom"
                 start: "start"
                 end: "end"
                 CN: "log.ratio"
@@ -65,9 +62,10 @@ lcr-modules:
                 bcl6falsevalues: "__UPDATE__"
             lymphgen_input:
                 seq_type: "__UPDATE__"  # Availible options: exome/genome (they do the same thing) and targeted (for panels)
-                use_log_ratio: "__UPDATE__"
+                use_log_ratio: "True"
             lymphgen_run:
-                lymphgen_path: "/projects/rmorin/software/lcr-scripts/LymphGen/Run_Lymphgen.R"
+                lymphgen_path: "/home/fymoayyed/LymphGen/Run_Lymphgen.R"
+                lymphgen_sv: "{MODSDIR}/src/curate_svs_for_lymphgen.R"
             # Indicate a list of fusions to be used to determine if the sample has BCL2 or BCL6 rearrangement 
             # Defaults are below - change if needed
             real_bcl2: ["IGH", "IGL", "IGK"] 

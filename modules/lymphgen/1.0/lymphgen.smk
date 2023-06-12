@@ -31,15 +31,40 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "reformat_seg", "lymphgen_input", "add_svs", "lymphgen_run", "composite_other", "outputs"],
 )
 
+assert ("empty" in list(CFG["inputs"]["sample_seg"].keys())), (
+    "'config['inputs']['sample_seg']['empty']' must be present and unmodified"
+)
+
+assert ("empty_sv" in list(CFG["inputs"]["sample_sv_info"]["other"].keys())), (
+    "'config['inputs']['sample_sv_info']['other']['empty_sv']' must be present and unmodified"
+)
+
 def _find_best_seg(wildcards):
     this_tumor = op.filter_samples(RUNS, genome_build = wildcards.genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, seq_type = wildcards.seq_type)
     return this_tumor.cnv_path
 
-def _find_best_svar_master(wildcards):
+def _find_best_sv(wildcards):
     this_tumor = op.filter_samples(RUNS, genome_build = wildcards.genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, seq_type = wildcards.seq_type)
-    return this_tumor.svar_master_path
+    print(this_tumor.has_sv)
+    print(this_tumor.has_sv.bool())
+    print(this_tumor["has_sv"].bool())
+    if this_tumor["has_sv"].bool() == False:
+        return config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["other"]["empty_sv"]
+    else:
+        return this_tumor.sv_path
 
-def best_seg(mod_config):
+def has_fish(mod_config):
+    fish = CFG["inputs"]["sample_sv_info"]["fish"]
+    fish = pandas.read_csv(fish, sep='\t')
+    fish_sample_ids = fish['sample_id'].to_numpy()
+    mod_config['has_fish'] = False
+    for i, row in mod_config.iterrows():
+        if row['tumour_sample_id'] in fish_sample_ids:
+            mod_config['has_fish'] = True
+        else:
+            mod_config['has_fish'] = False
+
+def best_seg_sv(mod_config):
     callers_seg = list(mod_config["inputs"]["sample_seg"].keys())
     callers_seg = [caller.lower() for caller in callers_seg]
     dfm = mod_config["runs"]
@@ -64,11 +89,46 @@ def best_seg(mod_config):
         
         mod_config["runs"].at[index, "cnv_path"] = df[index]["cnv_path"]
 
+    callers_sv = list(mod_config["inputs"]["sample_sv_info"]["other"].keys())
+    callers_sv = [caller.lower() for caller in callers_sv]
+    dfm = mod_config["runs"]
+    df = dfm.to_dict('index')
+    for index in df.keys():
+        possible_outputs = []
+        for caller in callers_sv:
+            if caller == "empty_sv":
+                possible_output = [mod_config["inputs"]["sample_sv_info"]["other"][caller]]
+            else:
+                possible_output = (expand(mod_config["inputs"]["sample_sv_info"]["other"][caller], zip,
+                                        tumour_id=df[index]["tumour_sample_id"],
+                                        normal_id=df[index]["normal_sample_id"],
+                                        pair_status=df[index]["pair_status"],
+                                        genome_build=df[index]["tumour_genome_build"],
+                                        seq_type=df[index]["tumour_seq_type"]))
+
+            if os.path.exists(possible_output[0]):
+                possible_outputs += possible_output
+
+        df[index]["sv_path"] = possible_outputs[0]
+
+        mod_config["runs"].at[index, "sv_path"] = df[index]["sv_path"]
+
     all = mod_config["runs"]
+
+    all['has_sv'] = False
+    for i, row in all.iterrows():
+        if (row['tumour_seq_type'] == "capture") & (row['sv_path'] != config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["other"]["empty_sv"]):
+            all.at[i, 'has_sv'] = True
+        else:
+            all.at[i, 'has_sv'] = False
+           
+    has_fish(all)
+
     return(all)
 
 
-RUNS = best_seg(CFG)
+RUNS = best_seg_sv(CFG)
+print(RUNS)
 
 
 # Define rules to be run locally when using a compute cluster
@@ -291,31 +351,31 @@ rule _lymphgen_install_GAMBLR:
 
 #print(CFG["inputs"]["sample_sv_info"]["svar_master"])
 
-def get_svar_master(wildcards):
-    possible_output = (expand(config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["svar_master"], zip,
-                                        tumour_id=wildcards.tumour_id,
-                                        normal_id=wildcards.normal_id,
-                                        pair_status=wildcards.pair_status,
-                                        genome_build=wildcards.genome_build,
-                                        seq_type=wildcards.seq_type))
+# def get_svar_master(wildcards):
+#     possible_output = (expand(config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["svar_master"], zip,
+#                                         tumour_id=wildcards.tumour_id,
+#                                         normal_id=wildcards.normal_id,
+#                                         pair_status=wildcards.pair_status,
+#                                         genome_build=wildcards.genome_build,
+#                                         seq_type=wildcards.seq_type))
 
     
-    if os.path.exists(possible_output[0]):
-        return possible_output[0]
-    else:
-        return config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["empty_svar"]
+#     if os.path.exists(possible_output[0]):
+#         return possible_output[0]
+#     else:
+#         return config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["empty_sv"]
 
 
-def get_svar(wildcards):
-    if config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["svar_master"] == config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["empty_svar"]:
-        return config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["empty_svar"]
-    else:
-        return get_svar_master(wildcards)
+# def get_svar(wildcards):
+#     if config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["svar_master"] == config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["empty_svar"]:
+#         return config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["empty_svar"]
+#     else:
+#         return get_svar_master(wildcards)
 
 rule _lymphgen_input_sv:
     input:
         fish = CFG["inputs"]["sample_sv_info"]["fish"],
-        svar_master = get_svar, 
+        sv = _find_best_sv,
         gamblr = ancient(rules._lymphgen_install_GAMBLR.output.installed)
     output:
         sv = CFG["dirs"]["inputs"] + "sv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.tsv"
@@ -323,6 +383,8 @@ rule _lymphgen_input_sv:
         "lymphgen"
     conda:
         CFG['conda_envs']['gamblr']
+    wildcard_constraints:
+        sv_wc = "with_sv"
     script:
         config["lcr-modules"]["lymphgen"]['options']['lymphgen_run']['lymphgen_sv']
 
@@ -551,20 +613,14 @@ rule _lymphgen_output_txt:
 # Set the applicable wildcards, based on the provided input files
 # Are we running LymphGen with CNV/SV data?
 
-if "sample_sv_info" in CFG["inputs"] and CFG["inputs"]["sample_sv_info"] != "" and CFG["inputs"]["sample_sv_info"] != "None":
-    sv_wc = ["with_sv", "no_sv"]
-else:
-    sv_wc = ["no_sv"]
+RUNS_CNV_SV = RUNS[((RUNS['has_sv'] == True) | (RUNS['has_fish'] == True)) & (RUNS['cnv_path'] != CFG["inputs"]["sample_seg"]["empty"])]
 
-# Are we including A53 subgroup in the output?
-if "sample_seg" in CFG["inputs"] and CFG["inputs"]["sample_seg"] != "" and CFG["inputs"]["sample_seg"] != "None":  # We have CNV calls
-    a53_wc = ["with_A53", "no_A53"]
-else:
-    a53_wc = ["no_A53"]
+RUNS_NO_CNV_SV = RUNS[((RUNS['has_sv'] == True) | (RUNS['has_fish'] == True)) & (RUNS['cnv_path'] == CFG["inputs"]["sample_seg"]["empty"])]
 
-RUNS_CNV = RUNS[RUNS['cnv_path'] != CFG["inputs"]["sample_seg"]["empty"]]
+RUNS_CNV_NO_SV = RUNS[((RUNS['has_sv'] == False) & (RUNS['has_fish'] == False)) & (RUNS['cnv_path'] != CFG["inputs"]["sample_seg"]["empty"])]
 
-RUNS_NO_CNV = RUNS[RUNS['cnv_path'] == CFG["inputs"]["sample_seg"]["empty"]]
+RUNS_NO_CNV_NO_SV = RUNS[((RUNS['has_sv'] == False) & (RUNS['has_fish'] == False)) & (RUNS['cnv_path'] == CFG["inputs"]["sample_seg"]["empty"])]
+
 
 rule _lymphgen_all:
     input:
@@ -574,16 +630,16 @@ rule _lymphgen_all:
                     str(rules._lymphgen_output_txt.output.txt),
                 ],
                 zip,
-                seq_type=RUNS_CNV["tumour_seq_type"],
-                genome_build=RUNS_CNV["tumour_genome_build"],
-                tumour_id=RUNS_CNV["tumour_sample_id"],
-                normal_id=RUNS_CNV["normal_sample_id"],
-                pair_status=RUNS_CNV["pair_status"], 
+                seq_type=RUNS_CNV_SV["tumour_seq_type"],
+                genome_build=RUNS_CNV_SV["tumour_genome_build"],
+                tumour_id=RUNS_CNV_SV["tumour_sample_id"],
+                normal_id=RUNS_CNV_SV["normal_sample_id"],
+                pair_status=RUNS_CNV_SV["pair_status"], 
                 allow_missing = True
             ),
             cnvs_wc = ["with_cnvs", "no_cnvs"],
-            sv_wc = sv_wc,
-            A53_wc = a53_wc,
+            sv_wc = ["with_sv", "no_sv"],
+            A53_wc = ["with_A53", "no_A53"],
         ),
         expand(
             expand(
@@ -591,16 +647,50 @@ rule _lymphgen_all:
                     str(rules._lymphgen_output_txt.output.txt),
                 ],
                 zip,
-                seq_type=RUNS_NO_CNV["tumour_seq_type"],
-                genome_build=RUNS_NO_CNV["tumour_genome_build"],
-                tumour_id=RUNS_NO_CNV["tumour_sample_id"],
-                normal_id=RUNS_NO_CNV["normal_sample_id"],
-                pair_status=RUNS_NO_CNV["pair_status"], 
+                seq_type=RUNS_NO_CNV_SV["tumour_seq_type"],
+                genome_build=RUNS_NO_CNV_SV["tumour_genome_build"],
+                tumour_id=RUNS_NO_CNV_SV["tumour_sample_id"],
+                normal_id=RUNS_NO_CNV_SV["normal_sample_id"],
+                pair_status=RUNS_NO_CNV_SV["pair_status"], 
                 allow_missing = True
             ),
             cnvs_wc = ["no_cnvs"],
-            sv_wc = sv_wc,
-            A53_wc = a53_wc,
+            sv_wc = ["with_sv", "no_sv"],
+            A53_wc = ["no_A53"],
+        ),
+        expand(
+            expand(
+                [
+                    str(rules._lymphgen_output_txt.output.txt),
+                ],
+                zip,
+                seq_type=RUNS_CNV_NO_SV["tumour_seq_type"],
+                genome_build=RUNS_CNV_NO_SV["tumour_genome_build"],
+                tumour_id=RUNS_CNV_NO_SV["tumour_sample_id"],
+                normal_id=RUNS_CNV_NO_SV["normal_sample_id"],
+                pair_status=RUNS_CNV_NO_SV["pair_status"], 
+                allow_missing = True
+            ),
+            cnvs_wc = ["with_cnvs", "no_cnvs"],
+            sv_wc = ["no_sv"],
+            A53_wc = ["with_A53", "no_A53"],
+        ),
+        expand(
+            expand(
+                [
+                    str(rules._lymphgen_output_txt.output.txt),
+                ],
+                zip,
+                seq_type=RUNS_NO_CNV_NO_SV["tumour_seq_type"],
+                genome_build=RUNS_NO_CNV_NO_SV["tumour_genome_build"],
+                tumour_id=RUNS_NO_CNV_NO_SV["tumour_sample_id"],
+                normal_id=RUNS_NO_CNV_NO_SV["normal_sample_id"],
+                pair_status=RUNS_NO_CNV_NO_SV["pair_status"], 
+                allow_missing = True
+            ),
+            cnvs_wc = ["no_cnvs"],
+            sv_wc = ["no_sv"],
+            A53_wc = ["no_A53"],
         )
 
 
