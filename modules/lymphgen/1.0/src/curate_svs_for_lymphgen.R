@@ -12,8 +12,7 @@ all_fish <- snakemake@input[["fish"]]
 sv <- snakemake@input[["sv"]]
 
 if (str_detect(sv, "manta")) { # manta
-  sv <- fread(sv, skip = 130) %>% 
-    as.data.frame() %>% 
+  sv <- fread(sv, skip = "CHROM") %>% 
     rename(CHROM_A = '#CHROM_A') %>% 
     select(CHROM_A, START_A, END_A, QUAL, STRAND_A, CHROM_B, START_B, END_B, STRAND_B) %>% 
     rename(SCORE = QUAL) %>% 

@@ -31,11 +31,11 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "reformat_seg", "lymphgen_input", "add_svs", "lymphgen_run", "composite_other", "outputs"],
 )
 
-assert (CFG["inputs"]["sample_seg"]["empty"] == "{MODSDIR}/etc/empty.seg"), (
+assert (CFG["inputs"]["sample_seg"]["empty"].endswith("etc/empty.seg")), (
     "'config['inputs']['sample_seg']['empty']' must be present and unmodified"
 )
 
-assert (CFG["inputs"]["sample_sv_info"]["other"]["empty_sv"] == "{MODSDIR}/etc/empty_svar_master.tsv"), (
+assert (CFG["inputs"]["sample_sv_info"]["other"]["empty_sv"].endswith("etc/empty_svar_master.tsv")), (
     "'config['inputs']['sample_sv_info']['other']['empty_sv']' must be present and unmodified"
 )
 
