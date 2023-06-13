@@ -31,11 +31,11 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "reformat_seg", "lymphgen_input", "add_svs", "lymphgen_run", "composite_other", "outputs"],
 )
 
-assert ("empty" in list(CFG["inputs"]["sample_seg"].keys())), (
+assert (CFG["inputs"]["sample_seg"]["empty"] == "{MODSDIR}/etc/empty.seg"), (
     "'config['inputs']['sample_seg']['empty']' must be present and unmodified"
 )
 
-assert ("empty_sv" in list(CFG["inputs"]["sample_sv_info"]["other"].keys())), (
+assert (CFG["inputs"]["sample_sv_info"]["other"]["empty_sv"] == "{MODSDIR}/etc/empty_svar_master.tsv"), (
     "'config['inputs']['sample_sv_info']['other']['empty_sv']' must be present and unmodified"
 )
 
@@ -45,9 +45,6 @@ def _find_best_seg(wildcards):
 
 def _find_best_sv(wildcards):
     this_tumor = op.filter_samples(RUNS, genome_build = wildcards.genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, seq_type = wildcards.seq_type)
-    print(this_tumor.has_sv)
-    print(this_tumor.has_sv.bool())
-    print(this_tumor["has_sv"].bool())
     if this_tumor["has_sv"].bool() == False:
         return config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["other"]["empty_sv"]
     else:
@@ -65,6 +62,7 @@ def has_fish(mod_config):
             mod_config['has_fish'] = False
 
 def best_seg_sv(mod_config):
+    # set the cnv_path to be used for each sample based on sample_seg keys in the config 
     callers_seg = list(mod_config["inputs"]["sample_seg"].keys())
     callers_seg = [caller.lower() for caller in callers_seg]
     dfm = mod_config["runs"]
@@ -89,6 +87,7 @@ def best_seg_sv(mod_config):
         
         mod_config["runs"].at[index, "cnv_path"] = df[index]["cnv_path"]
 
+    # set the sv_path to be used for each sample based on ["sample_sv_info"]["other"] keys 
     callers_sv = list(mod_config["inputs"]["sample_sv_info"]["other"].keys())
     callers_sv = [caller.lower() for caller in callers_sv]
     dfm = mod_config["runs"]
@@ -115,20 +114,26 @@ def best_seg_sv(mod_config):
 
     all = mod_config["runs"]
 
+    # creates a column in the RUNS table for having sv 
+    # if a sample is capture, it should only go through the with_sv pipeline if it has FISH
+    #       this is because detecting SVs using short read sequencing often resembles common #       sequencing and alignment artifacts. 
+    # if a sample is genome, it should go through with_sv whether it has FISH OR svar_master OR # manta outputs
     all['has_sv'] = False
     for i, row in all.iterrows():
-        if (row['tumour_seq_type'] == "capture") & (row['sv_path'] != config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["other"]["empty_sv"]):
+        # if the sample is genome and it doesn't have an empty SV path for manta or svar_master 
+        if (row['tumour_seq_type'] == "genome") & (row['sv_path'] != config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["other"]["empty_sv"]):
             all.at[i, 'has_sv'] = True
         else:
             all.at[i, 'has_sv'] = False
-           
+
+    # this function creates a column 'has_fish' based on whether there is FISH data for the 
+    # sample in the input FISH table 
     has_fish(all)
 
     return(all)
 
 
 RUNS = best_seg_sv(CFG)
-print(RUNS)
 
 
 # Define rules to be run locally when using a compute cluster
@@ -348,29 +353,6 @@ rule _lymphgen_install_GAMBLR:
         wget -qO {output.config} {params.config_url} &&
         R -q -e 'options(timeout=9999999); devtools::install_github("morinlab/GAMBLR"{params.branch})'
         """)
-
-#print(CFG["inputs"]["sample_sv_info"]["svar_master"])
-
-# def get_svar_master(wildcards):
-#     possible_output = (expand(config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["svar_master"], zip,
-#                                         tumour_id=wildcards.tumour_id,
-#                                         normal_id=wildcards.normal_id,
-#                                         pair_status=wildcards.pair_status,
-#                                         genome_build=wildcards.genome_build,
-#                                         seq_type=wildcards.seq_type))
-
-    
-#     if os.path.exists(possible_output[0]):
-#         return possible_output[0]
-#     else:
-#         return config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["empty_sv"]
-
-
-# def get_svar(wildcards):
-#     if config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["svar_master"] == config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["empty_svar"]:
-#         return config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["empty_svar"]
-#     else:
-#         return get_svar_master(wildcards)
 
 rule _lymphgen_input_sv:
     input:
@@ -612,6 +594,10 @@ rule _lymphgen_output_txt:
 
 # Set the applicable wildcards, based on the provided input files
 # Are we running LymphGen with CNV/SV data?
+
+# runs with CNV if the cnv_path in the RUNS table is not empty
+# runs with SV if there is an sv_path or FISH data for the sample (previous functions alter 
+# these values based on whether the sample is genome or capture)
 
 RUNS_CNV_SV = RUNS[((RUNS['has_sv'] == True) | (RUNS['has_fish'] == True)) & (RUNS['cnv_path'] != CFG["inputs"]["sample_seg"]["empty"])]
 

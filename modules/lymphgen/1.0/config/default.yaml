@@ -64,7 +64,7 @@ lcr-modules:
                 seq_type: "__UPDATE__"  # Availible options: exome/genome (they do the same thing) and targeted (for panels)
                 use_log_ratio: "True"
             lymphgen_run:
-                lymphgen_path: "/home/fymoayyed/LymphGen/Run_Lymphgen.R"
+                lymphgen_path: "__UPDATE__"
                 lymphgen_sv: "{MODSDIR}/src/curate_svs_for_lymphgen.R"
             # Indicate a list of fusions to be used to determine if the sample has BCL2 or BCL6 rearrangement 
             # Defaults are below - change if needed
