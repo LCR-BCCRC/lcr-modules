@@ -206,10 +206,30 @@ rule _igv_filter_maf:
     script:
         config["lcr-modules"]["igv"]["scripts"]["filter_script"]
 
+def _get_maf(wildcards):
+    CFG = config["lcr-modules"]["igv"]
+
+    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id=wildcards.tumour_id, tumour_seq_type=wildcards.seq_type)
+    genome_build = this_sample["tumour_genome_build"]
+    normal_sample_id = this_sample["normal_sample_id"]
+    pair_status = this_sample["pair_status"]
+
+    return (
+        expand(
+            str(rules._igv_filter_maf.output.maf),
+            zip,
+            seq_type = wildcards.seq_type,
+            genome_build = genome_build,
+            tumour_id = wildcards.tumour_id,
+            normal_sample_id = normal_sample_id,
+            pair_status = pair_status
+        )
+    )
+
 # Create batch scripts for each variant
 checkpoint _igv_create_batch_script_per_variant:
     input:
-        filter_maf = expand(str(rules._igv_filter_maf.output.maf), zip, normal_sample_id=CFG["runs"]["normal_sample_id"], pair_status=CFG["runs"]["pair_status"], allow_missing=True)[0],
+        filter_maf = _get_maf,
         bam_file = str(rules._igv_symlink_bam.output.bam),
         bai_file = str(rules._igv_symlink_bai.output.bai),
         regions_lifted = str(rules._igv_liftover_regions.output.regions),
