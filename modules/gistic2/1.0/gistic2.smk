@@ -95,12 +95,23 @@ rule _gistic2_make_markers:
         2> {log.stderr}
         """)
 
+# Download refgene MAT reference file
+rule _gistic2_download_ref:
+    output:
+        refgene_mat = CFG["dirs"]["inputs"] + "references/{projection}.refgene.mat
+    params:
+        url = "http://bcgsc.ca/downloads/morinlab/gistic2_references/{projection}.refgene.mat"
+        folder = CFG["dirs"]["inputs"] + "references"
+    shell:
+        op.as_one_line("""
+        wget -P {params.folder} {params.url} 
+        """)
+
 # Run gistic2 for a single seq_type (capture, genome) for the confidence thresholds listed in the config
 rule _gistic2_run:
     input:
         seg = str(rules._gistic2_standard_chr.output.seg),
-        refgene_mat = "/home/sgillis/cancer_docker_singularity/gistic2/reference/hg38.UCSC.add_miR.160920.refgene.mat",
-        #reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        refgene_mat = str(rules._gistic2_download_ref.output.refgene_mat),
         markers = str(rules._gistic2_make_markers.output.markers)
     output:
         all_data_by_genes = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/all_data_by_genes.txt",
