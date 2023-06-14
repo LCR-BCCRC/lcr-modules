@@ -100,7 +100,7 @@ rule _gistic2_download_ref:
     output:
         refgene_mat = CFG["dirs"]["inputs"] + "references/{projection}.refgene.mat"
     params:
-        url = "http://bcgsc.ca/downloads/morinlab/gistic2_references/{projection}.refgene.mat"
+        url = "http://bcgsc.ca/downloads/morinlab/gistic2_references/{projection}.refgene.mat",
         folder = CFG["dirs"]["inputs"] + "references"
     shell:
         op.as_one_line("""
