@@ -45,6 +45,7 @@ localrules:
     _gistic2_input_seg,
     _gistic2_standard_chr,
     _gistic2_make_markers,
+    _gistic2_download_ref,
     _gistic2_output,
     _gistic2_all
 
