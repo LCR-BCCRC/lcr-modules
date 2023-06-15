@@ -54,12 +54,13 @@ localrules:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
 rule _gistic2_input_seg:
     input:
         seg = CFG["inputs"]["seg"]
     output:
         seg = CFG["dirs"]["inputs"] + "{seq_type}--projection/all--{projection}.seg"
+    group: 
+        "input_and_standard_chr"
     run:
         op.absolute_symlink(input.seg, output.seg)
 
@@ -71,6 +72,8 @@ rule _gistic2_standard_chr:
         seg = CFG["dirs"]["standard_chr"] + "{seq_type}--projection/all--{projection}--standard_Chr.seg"
     log:
         stderr = CFG["logs"]["standard_chr"] + "{seq_type}--projection/all--{projection}/standard_Chr.stderr.log"
+    group: 
+        "input_and_standard_chr"
     shell:
         op.as_one_line("""
         awk 'BEGIN{{IGNORECASE = 1}} {{FS="\t"}} $2 !~ /Un|random|alt/ {{print}}' {input.seg} > {output.seg}
@@ -96,7 +99,7 @@ rule _gistic2_make_markers:
         2> {log.stderr}
         """)
 
-# Download refgene MAT reference file
+# Download refgene reference MAT file
 rule _gistic2_download_ref:
     output:
         refgene_mat = CFG["dirs"]["inputs"] + "references/{projection}.refgene.mat"
