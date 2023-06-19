@@ -46,6 +46,14 @@ CFG = op.setup_module(
 CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(CFG["options"]["genome_map"]["grch37"]), "grch37", inplace=True)
 CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(CFG["options"]["genome_map"]["hg38"]), "hg38", inplace=True)
 
+# Remove samples if MAF files don't exist
+maf_path = CFG["inputs"]["maf"]
+def get_maf_path(row):
+    return maf_path.format(unix_group=row["tumour_unix_group"], seq_type=row["tumour_seq_type"], tumour_id=row["tumour_sample_id"], normal_sample_id=row["normal_sample_id"], pair_status=row["pair_status"], genome_build=row["tumour_genome_build"])
+
+CFG["runs"]["maf_path"] = CFG["runs"].apply(get_maf_path, axis=1)
+CFG["runs"] = CFG["runs"][CFG["runs"]["maf_path"].apply(os.path.exists)]
+
 # Define output file suffix based on config parameters
 SUFFIX = ".pad" + str(CFG["options"]["generate_batch_script"]["padding"]) 
 if CFG["options"]["generate_batch_script"]["view_as_pairs"]:
@@ -176,6 +184,8 @@ rule _igv_liftover_regions:
         target_build = lambda w: w.genome_build.replace("grch37","GRCh37").replace("hg38", "GRCh38")
     conda:
         CFG["conda_envs"]["liftover_regions"]
+    resources:
+        **CFG["resources"]["_igv_liftover_regions"]
     log:
         stdout = CFG["logs"]["inputs"] + "liftover_regions_{genome_build}.stdout.log",
         stderr = CFG["logs"]["inputs"] + "liftover_regions_{genome_build}.stderr.log"
@@ -345,15 +355,17 @@ checkpoint _igv_run:
         merged_batch = str(rules._igv_create_batch_script_per_variant.output.variant_batch)
     output:
         complete = CFG["dirs"]["snapshots"] + "completed/{seq_type}--{genome_build}--{tumour_id}.completed"
-    log:
-        stdout = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_id}_igv_run.stdout.log",
-        stderr = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_id}_igv_run.stderr.log"
     params:
         merged_batch = str(rules._igv_create_batch_script_per_variant.output.variant_batch),
         igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh",
         max_time = CFG["options"]["generate_batch_script"]["sleep_timer"],
         server_number = "-n " + CFG["options"]["xvfb_parameters"]["server_number"] if CFG["options"]["xvfb_parameters"]["server_number"] is not None else "--auto-servernum",
         server_args = CFG["options"]["xvfb_parameters"]["server_args"]
+    resources:
+        **CFG["resources"]["_igv_run"]
+    log:
+        stdout = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_id}_igv_run.stdout.log",
+        stderr = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{tumour_id}_igv_run.stderr.log"
     threads: (workflow.cores)
     shell:
         op.as_one_line("""
@@ -395,6 +407,8 @@ rule _igv_quality_control:
         server_number = "-n " + config["lcr-modules"]["igv"]["options"]["xvfb_parameters"]["server_number"] if config["lcr-modules"]["igv"]["options"]["xvfb_parameters"]["server_number"] is not None else "--auto-servernum",
         server_args = config["lcr-modules"]["igv"]["options"]["xvfb_parameters"]["server_args"],
         batch_temp = lambda w: config["lcr-modules"]["igv"]["dirs"]["batch_scripts"] + f"single_batch_scripts/{w.seq_type}--{w.genome_build}/{w.chromosome}:{w.start_position}--{w.gene}--{w.tumour_id}" + SUFFIX + ".batch.temp"
+    resources:
+        **CFG["resources"]["_igv_quality_control"]
     log:
         stdout = CFG["logs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + "_quality_control.stdout.log",
         stderr = CFG["logs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + "_quality_control.stderr.log"
@@ -413,8 +427,10 @@ rule _igv_quality_control:
         if width == "640":
             with open(log.stdout, "a") as handle:
                 handle.write(f"Snapshot {input.snapshot} width is 640. Improper dimensions might be due to xvfb-run unable to connect to current server {params.server_number} due to a server lock file existing in directory '/tmp/.X*'. Attempting to run on a different server number...")
-                if params.server_number == "--auto-servernum" or params.server_number == "-n 99":
+                if params.server_number == "--auto-servernum" or int(params.server_number.replace("-n ","")) >= 99:
                     new_server = 1
+                else:
+                    new_server = int(params.server_number.replace("-n ","")) + 1
                 while width == "640":
                     handle.write(f'Attempting...\nxvfb-run -s "-screen 0 1980x1020x24" -n {str(new_server)} {params.server_args} {params.igv} -b {params.merged_batch} >> {log.stdout} 2>> {log.stderr}')
                     os.system(f'maxtime=$(($(wc -l < {params.merged_batch}) * 60 + 15)) ; timeout --foreground $maxtime xvfb-run -s "-screen 0 1980x1020x24" -n {str(new_server)} {params.server_args} {params.igv} -b {params.merged_batch} >> {log.stdout} 2>> {log.stderr}')
@@ -425,7 +441,7 @@ rule _igv_quality_control:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _igv_symlink_snapshot:
     input:
-        snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
+        snapshot = ancient(CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png")
     output:
         snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
     threads:
@@ -573,6 +589,7 @@ if CFG["test_run"] is True:
             suffix = SUFFIX
         run:
             sample_dictionary = {}
+            seen = []
 
             for sample_batches in input.batch_scripts:
                 tumour_id = sample_batches.split("--")[-1].replace(".batch","")
@@ -581,6 +598,10 @@ if CFG["test_run"] is True:
                     for batch_path in handle:
                         batch_path = batch_path.split("/")
                         snapshot_name = batch_path[-1].split(f"{params.suffix}.batch")[0]
+                        if not snapshot_name in seen:
+                            seen.append(snapshot_name)
+                        else:
+                            continue
                         seq_type = batch_path[-2].split("--")[0]
                         genome_build = batch_path[-2].split("--")[1]
                         sample_id = snapshot_name.split("--")[2]
