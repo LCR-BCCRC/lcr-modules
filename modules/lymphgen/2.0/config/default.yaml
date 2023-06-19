@@ -1,0 +1,77 @@
+lcr-modules:
+    
+    lymphgen:
+
+        inputs:
+            # Available wildcards: {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {genome_build}
+            sample_maf: "__UPDATE__" 
+            sample_seg: 
+            # Each key below can be the file path, with wildcards, for the output of a CNV file produced by a specific cnv caller (eg. battenberg)
+            # The order of the keys determine what which file paths to prioritize first
+            #       eg. battenberg: "results/battenberg-1.2/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+            #           sequenza: "results/sequenza-1.4/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+            #    It will first look for that sample's battenberg cnv file and then sequenza 
+            # Only uncomment the keys that have file paths that exist (always keep "empty" uncommented)
+            # Add any additional keys before "empty"
+            # If you don't have an CNV data, just include "empty" (an empty seg file), and the module will run without cnv data 
+                # battenberg: "__UPDATE__"
+                # sequenza: "__UPDATE__"
+                # controlfreec: "__UPDATE__"
+                # cnvkit: "__UPDATE__"
+                empty: "{MODSDIR}/etc/empty.seg" 
+            sample_sv_info: 
+            # All the SV files will be merged with a final SV file created for each sample so the order of keys don't matter 
+            # If there is no fish sv file put "{MODSDIR}/etc/empty_sv_fish.tsv" in key fish 
+            # Always keep all three keys with real file paths 
+                fish: "__UPDATE__"
+                other:
+                    svar_master: "__UPDATE__"
+                    manta: "__UPDATE__"
+                    empty_sv: "{MODSDIR}/etc/empty_svar_master.tsv"  
+            # Path to the directory where LGenIC should be installed
+            lgenic_exec: "__UPDATE__"
+            gamblr_branch: "" # Leave blank unless you need to install from a specific branch from the GAMBLR repo (expert users only)
+            gamblr_config_url: "https://raw.githubusercontent.com/morinlab/GAMBLR/master/config.yml"
+        
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+
+        options:
+            reformat_seg:  #  Default columns for Battenberg output
+                Tumor_Sample_Barcode: "ID"
+                chromosome: "chrom"
+                start: "start"
+                end: "end"
+                CN: "log.ratio"
+            add_svs:  # Use "" if N/A (you are not providing SVs)
+                samplecol: "__UPDATE__"
+                bcl2col: "__UPDATE__"
+                # Note any field value not present in either true/false is considered NA
+                bcl2truevalues: "__UPDATE__" # Can use a list here
+                bcl2falsevalues: "__UPDATE__"
+                bcl6col: "__UPDATE__"
+                # Note any field value not present in either true/false is considered NA
+                bcl6truevalues: "__UPDATE__"  # Can use a list
+                bcl6falsevalues: "__UPDATE__"
+            lymphgen_input:
+                seq_type: "__UPDATE__"  # Availible options: exome/genome (they do the same thing) and targeted (for panels)
+                use_log_ratio: "True"
+            lymphgen_run:
+                lymphgen_path: "__UPDATE__"
+                lymphgen_sv: "{MODSDIR}/src/curate_svs_for_lymphgen.R"
+            # Indicate a list of fusions to be used to determine if the sample has BCL2 or BCL6 rearrangement 
+            # Defaults are below - change if needed
+            real_bcl2: ["IGH", "IGL", "IGK"] 
+            real_bcl6: ["CIITA", "MYC", "HIST1H2BK", "IGH", "IGL", "LEPREL1", "LRMP", "MBNL1", "PAX5", "RFTN1", "ZEB2", "IGK"]
+
+        conda_envs:
+            optparse: "{MODSDIR}/envs/r-optparse-1.6.yaml"
+            sorted_containers: "{MODSDIR}/envs/sortedcontainers-2.4.0.yaml"
+            gamblr: "{MODSDIR}/envs/gamblr.yaml"
