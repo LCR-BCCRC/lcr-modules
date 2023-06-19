@@ -62,8 +62,12 @@ lcr-modules:
             _igv_symlink_snapshot: 20
 
         resources:
-            step_1: 
+            _igv_liftover_regions:
                 mem_mb: 2000
+            _igv_run:
+                mem_mb: 2500
+            _igv_quality_control:
+                mem_mb: 2500
             
         pairing_config:
             genome:
