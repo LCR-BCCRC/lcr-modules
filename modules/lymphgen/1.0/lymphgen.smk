@@ -22,6 +22,14 @@ import glob as glob
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+#
+assert (config["lcr-modules"]["lymphgen"]["inputs"]["sample_seg"]["empty"] == "{MODSDIR}/etc/empty.seg"), (
+    "'config['inputs']['sample_seg']['empty']' must be present and unmodified"
+)
+
+assert (config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["other"]["empty_sv"] == "{MODSDIR}/etc/empty_svar_master.tsv"), (
+    "'config['inputs']['sample_sv_info']['other']['empty_sv']' must be present and unmodified"
+)
 
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["lymphgen"]`
@@ -31,13 +39,6 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "reformat_seg", "lymphgen_input", "add_svs", "lymphgen_run", "composite_other", "outputs"],
 )
 
-assert (CFG["inputs"]["sample_seg"]["empty"].endswith("etc/empty.seg")), (
-    "'config['inputs']['sample_seg']['empty']' must be present and unmodified"
-)
-
-assert (CFG["inputs"]["sample_sv_info"]["other"]["empty_sv"].endswith("etc/empty_svar_master.tsv")), (
-    "'config['inputs']['sample_sv_info']['other']['empty_sv']' must be present and unmodified"
-)
 
 def _find_best_seg(wildcards):
     this_tumor = op.filter_samples(RUNS, genome_build = wildcards.genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, seq_type = wildcards.seq_type)
