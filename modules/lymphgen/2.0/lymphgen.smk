@@ -35,7 +35,7 @@ assert (config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["other"]["
 # `CFG` is a shortcut to `config["lcr-modules"]["lymphgen"]`
 CFG = op.setup_module(
     name = "lymphgen",
-    version = "1.0",
+    version = "2.0",
     subdirectories = ["inputs", "reformat_seg", "lymphgen_input", "add_svs", "lymphgen_run", "composite_other", "outputs"],
 )
 
