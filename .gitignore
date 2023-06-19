@@ -46,8 +46,3 @@ demo/scratch_archive
 /docs/build
 /docs/source/_build
 demo/run_clc.sh
-
-result*/
-test_lymphgen/*
-.RData
-.gitignore
