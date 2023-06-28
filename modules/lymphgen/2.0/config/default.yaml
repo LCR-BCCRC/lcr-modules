@@ -25,6 +25,7 @@ lcr-modules:
             # Always keep all three keys with real file paths 
                 fish: "__UPDATE__"
                 other:
+                # svar_master file path MUST contain "svar_master" and manta file path MUST NOT contain 
                     svar_master: "__UPDATE__"
                     manta: "__UPDATE__"
                     empty_sv: "{MODSDIR}/etc/empty_svar_master.tsv"  

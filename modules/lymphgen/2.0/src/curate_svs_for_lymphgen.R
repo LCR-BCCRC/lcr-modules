@@ -11,14 +11,14 @@ library(GAMBLR)
 all_fish <- snakemake@input[["fish"]]
 sv <- snakemake@input[["sv"]]
 
-if (str_detect(sv, "manta")) { # manta
+if (!(str_detect(sv, "svar_master"))) { # manta
   sv <- fread(sv, skip = "CHROM") %>% 
     rename(CHROM_A = '#CHROM_A') %>% 
     select(CHROM_A, START_A, END_A, QUAL, STRAND_A, CHROM_B, START_B, END_B, STRAND_B) %>% 
     rename(SCORE = QUAL) %>% 
     mutate(tumour_sample_id = snakemake@wildcards[["tumour_id"]])
 } else if (str_detect(sv, "svar_master")) { # svar_master
-  sv <- fread(sv) %>% 
+  sv <- fread(sv) %>%  
     as.data.frame() %>% 
     select(CHROM_A, START_A, END_A, SCORE, STRAND_A, CHROM_B, START_B, END_B, STRAND_B, tumour_sample_id)
 } else { # empty
