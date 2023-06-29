@@ -5,22 +5,25 @@ lcr-modules:
         # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_maf: "__UPDATE__"
+            master_maf: "__UPDATE__"
+            tiles_size: "__UPDATE__"
+            
 
         scratch_subdirectories: []
 
+        src_dir: "{MODSDIR}/src/"
+
         options:
-            step_1: ""
-            step_2: ""
+
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            fishhook: "{MODSDIR}/envs/fishhook.yaml"
             
         threads:
-            step_1: 4
+            fishhook: 1
 
         resources:
-            step_1: 
+            fishhook: 
                 mem_mb: 2000
             
         pairing_config:

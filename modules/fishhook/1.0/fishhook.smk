@@ -58,11 +58,9 @@ localrules:
 # TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
 rule _fishhook_input_maf:
     input:
-        maf = CFG["inputs"]["sample_maf"]
+        maf = CFG["inputs"]["master_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{sample_id}.maf"
-    group: 
-        "input_and_step_1"
+        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
 
@@ -106,6 +104,25 @@ rule _fishhook_step_2:
         opts = CFG["options"]["step_2"]
     shell:
         "grep {params.opts} {input.tsv} > {output.tsv} 2> {log.stderr}"
+
+
+# Install dNdS
+# only available from github, not through conda/CRAN/Biocmanager
+rule _install_fishhook:
+    output:
+        complete = CFG["dirs"]["inputs"] + "fishhook_installed.success"
+    conda:
+        CFG["conda_envs"]["fishhook"]
+    log:
+        input = CFG["logs"]["inputs"] + "install_fishhook.log"
+    shell:
+        """
+        R -q -e 'devtools::install_github("mskilab/gUtils")' >> {log.input} &&
+        R -q -e 'devtools::install_github("mskilab/gTrack")' >> {log.input} &&
+        R -q -e 'devtools::install_github("mskilab/gChain")' >> {log.input} &&
+        R -q -e 'devtools::install_github("mskilab/skitools")' >> {log.input} &&
+        R -q -e 'devtools::install_github("mskilab/fishHook")' >> {log.input} &&
+        touch {output.complete}"""
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
