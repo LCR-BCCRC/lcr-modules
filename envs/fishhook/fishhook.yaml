@@ -1,5 +1,7 @@
 name: fishhook
 channels:
+  - r
+  - bioconda
   - conda-forge
   - defaults
 dependencies:
