@@ -45,7 +45,8 @@ CFG = op.setup_module(
 # TODO: Replace with actual rules once you change the rule names
 localrules:
     _fishhook_input_maf,
-    _fishhook_step_2,
+    _install_fishhook,
+    _run_fishhook,
     _fishhook_output_tsv,
     _fishhook_all,
 
@@ -60,53 +61,11 @@ rule _fishhook_input_maf:
     input:
         maf = CFG["inputs"]["master_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/input.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
 
-
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _fishhook_step_1:
-    input:
-        maf = str(rules._fishhook_input_maf.output.maf),
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
-    output:
-        tsv = CFG["dirs"]["fishhook"] + "{seq_type}--{genome_build}/{sample_id}/output.tsv"
-    log:
-        stdout = CFG["logs"]["fishhook"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stdout.log",
-        stderr = CFG["logs"]["fishhook"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stderr.log"
-    params:
-        opts = CFG["options"]["step_1"]
-    conda:
-        CFG["conda_envs"]["samtools"]
-    threads:
-        CFG["threads"]["step_1"]
-    resources:
-        **CFG["resources"]["step_1"]    # All resources necessary can be included and referenced from the config files.
-    shell:
-        op.as_one_line("""
-        <TODO> {params.opts} --input {input.maf} --ref-fasta {input.fasta}
-        --output {output.tsv} --threads {threads} > {log.stdout} 2> {log.stderr}
-        """)
-
-
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _fishhook_step_2:
-    input:
-        tsv = str(rules._fishhook_step_1.output.tsv)
-    output:
-        tsv = CFG["dirs"]["fishhook"] + "{seq_type}--{genome_build}/{sample_id}/output.filt.tsv"
-    log:
-        stderr = CFG["logs"]["fishhook"] + "{seq_type}--{genome_build}/{sample_id}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.tsv} > {output.tsv} 2> {log.stderr}"
-
-
-# Install dNdS
+# Install fishhook
 # only available from github, not through conda/CRAN/Biocmanager
 rule _install_fishhook:
     output:
@@ -117,21 +76,40 @@ rule _install_fishhook:
         input = CFG["logs"]["inputs"] + "install_fishhook.log"
     shell:
         """
-        R -q -e 'devtools::install_github("mskilab/gUtils")' >> {log.input} &&
-        R -q -e 'devtools::install_github("mskilab/gTrack")' >> {log.input} &&
-        R -q -e 'devtools::install_github("mskilab/gChain")' >> {log.input} &&
-        R -q -e 'devtools::install_github("mskilab/skitools")' >> {log.input} &&
-        R -q -e 'devtools::install_github("mskilab/fishHook")' >> {log.input} &&
+        R -q -e 'devtools::install_github(c("jokergoo/ComplexHeatmap","mskilab/gUtils","mskilab/gTrack","mskilab/gChain", "mskilab/skitools", "mskilab/fishHook"))' >> {log.input} &&
         touch {output.complete}"""
+
+
+# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
+# TODO: Replace example rule below with actual rule
+rule _run_fishhook:
+    input:
+        fishhook = CFG["dirs"]["inputs"] + "fishhook_installed.success",
+        maf = rules._fishhook_input_maf.output.maf,
+    output:
+        tsv = CFG["dirs"]["fishhook"] + "output.tsv"
+    log:
+        stdout = CFG["logs"]["fishhook"] + "run_fishhook.stdout.log",
+        stderr = CFG["logs"]["fishhook"] + "run_fishhook.stderr.log"
+    params:
+        tiles_size = CFG["options"]["tiles_size"]
+    conda:
+        CFG["conda_envs"]["fishhook"]
+    threads:
+        CFG["threads"]["fishhook"]
+    resources:
+        **CFG["resources"]["fishhook"]    # All resources necessary can be included and referenced from the config files.
+    script:
+        "scr/R/run_fishhook.R"
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 # TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _fishhook_output_tsv:
     input:
-        tsv = str(rules._fishhook_step_2.output.tsv)
+        tsv = str(rules._run_fishhook.output.tsv)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{sample_id}.output.filt.tsv"
+        tsv = CFG["dirs"]["outputs"] + "tsv/output.fishhook.tsv"
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module= True)
 
@@ -139,15 +117,9 @@ rule _fishhook_output_tsv:
 # Generates the target sentinels for each run, which generate the symlinks
 rule _fishhook_all:
     input:
-        expand(
-            [
-                str(rules._fishhook_output_tsv.output.tsv),
-                # TODO: If applicable, add other output rules here
-            ],
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["samples"]["seq_type"],
-            genome_build=CFG["samples"]["genome_build"],
-            sample_id=CFG["samples"]["sample_id"])
+        tsv = rules._fishhook_output_tsv.output.tsv
+
+
 
 
 ##### CLEANUP #####

@@ -5,16 +5,12 @@ lcr-modules:
         # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            master_maf: "__UPDATE__"
-            tiles_size: "__UPDATE__"
+            master_maf: "../../../fishhook/data_dlbcl_full.maf"
             
-
-        scratch_subdirectories: []
-
         src_dir: "{MODSDIR}/src/"
 
         options:
-
+            tiles_size: 1000
 
         conda_envs:
             fishhook: "{MODSDIR}/envs/fishhook.yaml"
@@ -24,6 +20,14 @@ lcr-modules:
 
         resources:
             fishhook: 
-                mem_mb: 2000
-            
+                mem_mb: 10000
+
         pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False           
