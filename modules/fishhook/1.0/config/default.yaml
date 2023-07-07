@@ -3,10 +3,10 @@ lcr-modules:
     fishhook:
         inputs:
             # Available wildcards: {seq_type}
-            master_maf: "../../../fishhook/data_dlbcl_full.maf"
-            sample_sets: "../../../fishhook/sample_id.tsv"
+            master_maf: "__UPDATE__"
+            sample_sets: "__UPDATE__"
 
-        sample_set: ["test"]
+        sample_set: ["__UPDATE__"]
         seq_types: ["genome", "capture"]
         include_non_coding: True
         prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
