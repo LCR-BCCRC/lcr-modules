@@ -1,18 +1,23 @@
 lcr-modules:
     
     fishhook:
-
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            # Available wildcards: {seq_type}
             master_maf: "../../../fishhook/data_dlbcl_full.maf"
-            
+            sample_sets: "../../../fishhook/sample_id.tsv"
+
+        sample_set: ["test"]
+        seq_types: ["genome", "capture"]
+        include_non_coding: True
+        prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
         src_dir: "{MODSDIR}/src/"
+
 
         options:
             tiles_size: 1000
 
         conda_envs:
+            prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
             fishhook: "{MODSDIR}/envs/fishhook.yaml"
             
         threads:

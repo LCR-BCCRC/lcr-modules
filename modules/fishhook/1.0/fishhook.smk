@@ -45,6 +45,8 @@ CFG = op.setup_module(
 # TODO: Replace with actual rules once you change the rule names
 localrules:
     _fishhook_input_maf,
+    _fishhook_input_subsets,
+    _fishhook_prepare_maf,
     _install_fishhook,
     _run_fishhook,
     _fishhook_output_tsv,
@@ -55,15 +57,55 @@ localrules:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
 rule _fishhook_input_maf:
     input:
         maf = CFG["inputs"]["master_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/input.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
+
+# Symlinks the input files into the module results directory (under '00-inputs/')
+rule _fishhook_input_subsets:
+    input:
+        sample_sets = CFG["inputs"]["sample_sets"]
+    output:
+        sample_sets = CFG["dirs"]["inputs"] + "sample_sets/sample_sets.tsv"
+    run:
+        op.absolute_symlink(input.sample_sets, output.sample_sets)
+
+# Prepare the maf file for the input to Fishhook
+rule _fishhook_prepare_maf:
+    input:
+        maf = expand(
+                    str(rules._fishhook_input_maf.output.maf),
+                    allow_missing=True,
+                    seq_type=CFG["seq_types"]
+                    ),
+        sample_sets = ancient(str(rules._fishhook_input_subsets.output.sample_sets))
+    output:
+        maf = temp(CFG["dirs"]["inputs"] + "maf/{sample_set}.maf"),
+        contents = CFG["dirs"]["inputs"] + "maf/{sample_set}.maf.content"
+    log:
+        stdout = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stderr.log"
+    conda:
+        CFG["conda_envs"]["prepare_mafs"]
+    params:
+        include_non_coding = str(CFG["include_non_coding"]).upper(),
+        script = CFG["prepare_mafs"]
+    shell:
+        op.as_one_line("""
+        Rscript {params.script}
+        {input.maf}
+        {input.sample_sets}
+        $(dirname {output.maf})/
+        {wildcards.sample_set}
+        FishHook
+        {params.include_non_coding}
+        > {log.stdout} 2> {log.stderr}
+        """)
+
 
 # Install fishhook
 # only available from github, not through conda/CRAN/Biocmanager
@@ -84,21 +126,18 @@ rule _install_fishhook:
 # TODO: Replace example rule below with actual rule
 rule _run_fishhook:
     input:
-        fishhook = CFG["dirs"]["inputs"] + "fishhook_installed.success",
-        maf = rules._fishhook_input_maf.output.maf,
+        fishhook = ancient(str(CFG["dirs"]["inputs"] + "fishhook_installed.success")),
+        maf = str(rules._fishhook_prepare_maf.output.maf)
     output:
-        tsv = CFG["dirs"]["fishhook"] + "output.tsv"
-    log:
-        stdout = CFG["logs"]["fishhook"] + "run_fishhook.stdout.log",
-        stderr = CFG["logs"]["fishhook"] + "run_fishhook.stderr.log"
-    params:
-        tiles_size = CFG["options"]["tiles_size"]
+        tsv = CFG["dirs"]["fishhook"] + "{sample_set}/fishhook.output.maf"
     conda:
         CFG["conda_envs"]["fishhook"]
     threads:
         CFG["threads"]["fishhook"]
     resources:
-        **CFG["resources"]["fishhook"]    # All resources necessary can be included and referenced from the config files.
+        **CFG["resources"]["fishhook"]     
+    params:
+        tiles_size = CFG["options"]["tiles_size"]
     script:
         "scr/R/run_fishhook.R"
 
@@ -109,7 +148,7 @@ rule _fishhook_output_tsv:
     input:
         tsv = str(rules._run_fishhook.output.tsv)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/output.fishhook.tsv"
+        tsv = CFG["dirs"]["outputs"] + "tsv/{sample_set}/{sample_set}.fishhook.tsv"
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module= True)
 
@@ -117,9 +156,11 @@ rule _fishhook_output_tsv:
 # Generates the target sentinels for each run, which generate the symlinks
 rule _fishhook_all:
     input:
-        tsv = rules._fishhook_output_tsv.output.tsv
-
-
+        expand(
+            [
+                str(rules._fishhook_output_tsv.output.tsv),
+            ],
+            sample_set=CFG["sample_set"])
 
 
 ##### CLEANUP #####
