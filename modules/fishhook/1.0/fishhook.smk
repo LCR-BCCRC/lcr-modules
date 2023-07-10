@@ -137,7 +137,8 @@ rule _run_fishhook:
     resources:
         **CFG["resources"]["fishhook"]     
     params:
-        tiles_size = CFG["options"]["tiles_size"]
+        tiles_size = CFG["options"]["tiles_size"],
+        coveriate = CFG["options"]["coveriates"]
     script:
         "scr/R/run_fishhook.R"
 

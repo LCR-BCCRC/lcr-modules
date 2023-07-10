@@ -13,6 +13,9 @@ message("Loading packages...")
 suppressWarnings(
   suppressPackageStartupMessages({
     library(fishHook)
+    library(gTrack)
+    library(rtracklayer)
+    library(skitools)
   })
 )
 #load maf and convert to GRange
@@ -23,7 +26,27 @@ tiles = gr.tile(seqinfo(maf), snakemake@params[[1]])
 
 events = maf %Q% (Variant_Classification != 'Silent')
 
-fish_tiles = Fish(hypotheses = tiles, events = events, eligible = eligible, idcol = 'Tumor_Sample_Barcode',use_local_mut_density=TRUE)
+if(file.exists(snakemake@params[[2]])){
+  message("Running FishHook with Coveriate...")
+  fish_tiles = Fish(hypotheses = tiles, 
+                    events = events, 
+                    eligible = eligible, 
+                    idcol = 'Tumor_Sample_Barcode',
+                    use_local_mut_density=TRUE)
+  
+  coveriate_data = gr.sub(import(snakemake@params[[2]]), 'chr', "") ## import from bed then gUtils::gr.sub to strip 'chr' identifier
+  coveriate = Cov(coveriate_data, name = 'coveriate')
+  fish_tiles$covariates = c(coveriate)
+  
+}else{
+  message("Running FishHook without Coveriate...")
+  fish_tiles = Fish(hypotheses = tiles, 
+                    events = events, 
+                    eligible = eligible, 
+                    idcol = 'Tumor_Sample_Barcode',
+                    use_local_mut_density=TRUE)
+  
+}
 
 fish_tiles$score()
 

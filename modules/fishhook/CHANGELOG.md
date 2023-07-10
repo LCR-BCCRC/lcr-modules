@@ -11,4 +11,6 @@ This release was authored by Jacky Yiu.
 
 <!-- TODO: Explain each important module design decision below. -->
 
-- No module design decisions explained here yet.
+- Both grch37-based and grach38-based  maf files are supported, please supply coveriate file of the same type
+- The snakefiles relies on the lcr-script `generate_smg_inputs` to produce the input maf.
+- The implementation is similar to the other SMG lcr-modules, e.g. mutsig, dnds.

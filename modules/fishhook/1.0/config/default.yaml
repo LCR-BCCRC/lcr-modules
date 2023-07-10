@@ -12,9 +12,9 @@ lcr-modules:
         prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
         src_dir: "{MODSDIR}/src/"
 
-
         options:
-            tiles_size: 1000
+            tiles_size: 1000 #This is the size of tiles you want to split the genome into
+            coveriates: "_UPDATE_" #please supply a coveriate file in bed format, leave it blank if you want to run FishHook without coveriates
 
         conda_envs:
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
