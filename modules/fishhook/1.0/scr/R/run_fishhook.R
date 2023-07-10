@@ -15,7 +15,6 @@ suppressWarnings(
     library(fishHook)
     library(gTrack)
     library(rtracklayer)
-    library(skitools)
   })
 )
 #load maf and convert to GRange
