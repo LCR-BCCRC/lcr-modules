@@ -37,12 +37,10 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "fishhook",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "fishhook", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _fishhook_input_maf,
     _fishhook_input_subsets,
@@ -123,7 +121,6 @@ rule _install_fishhook:
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
 rule _run_fishhook:
     input:
         fishhook = ancient(str(CFG["dirs"]["inputs"] + "fishhook_installed.success")),
@@ -144,7 +141,6 @@ rule _run_fishhook:
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _fishhook_output_tsv:
     input:
         tsv = str(rules._run_fishhook.output.tsv)
