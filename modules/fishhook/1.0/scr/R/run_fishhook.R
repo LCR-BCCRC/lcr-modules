@@ -54,15 +54,15 @@ if(is.null(snakemake@params[[1]])){
                     use_local_mut_density=TRUE)
 }
 
-#If user provide coveriates files
+#If user provide covariates files
 if(file.exists(snakemake@params[[2]])){
   message("Running FishHook with Coveriate...")
-  coveriate_data = gr.sub(import(snakemake@params[[2]]), 'chr', "") ## import from bed then gUtils::gr.sub to strip 'chr' identifier
-  coveriate = Cov(coveriate_data, name = 'coveriate')
-  fish$covariates = c(coveriate)
+  covariates_data = gr.sub(import(snakemake@params[[2]]), 'chr', "") ## import from bed then gUtils::gr.sub to strip 'chr' identifier
+  covariate = Cov(covariates_data, name = 'covariate')
+  fish$covariates = c(covariate)
   
 }else{
-  message("Running FishHook without Coveriate...")
+  message("Running FishHook without Covariates...")
 }
 
 fish$score()
