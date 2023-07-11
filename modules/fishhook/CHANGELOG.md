@@ -9,8 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Jacky Yiu.
 
-<!-- TODO: Explain each important module design decision below. -->
-
-- Both grch37-based and grach38-based  maf files are supported, please supply coveriate file of the same type
+- Both grch37-based and grch38-based maf files are supported, please supply coveriate file of the same build
 - The snakefiles relies on the lcr-script `generate_smg_inputs` to produce the input maf.
 - The implementation is similar to the other SMG lcr-modules, e.g. mutsig, dnds.
