@@ -89,6 +89,15 @@ rule _gistic2_download_ref:
         wget -P {params.folder} {params.url} 
         """)
 
+def get_seg_seq_type(wildcards, input_dir=CFG["dirs"]["inputs"]):
+    if ("capture" in wildcards.seq_type) and ("genome" in wildcards.seq_type):
+        param = "--genome " + input_dir + "genome--projection/all--{wildcards.projection}.seg --capture " + input_dir + "capture--projection/all--{wildcards.projection}.seg"
+    elif ("capture" in wildcards.seq_type) and ("genome" not in wildcards.seq_type):
+        param = "--capture " + input_dir + "capture--projection/all--{wildcards.projection}.seg"
+    elif ("capture" not in wildcards.seq_type) and ("genome" in wildcards.seq_type):
+        param = "--genome " + input_dir + "genome--projection/all--{wildcards.projection}.seg"
+    return(param)
+
 # Merges capture and genome seg files if available, and subset to the case_set provided
 rule _gistic2_prepare_seg:
     input:
@@ -101,18 +110,18 @@ rule _gistic2_prepare_seg:
         stderr = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.stderr.log"
     params:
         script = CFG["prepare_seg"],
+        seg_seq_type = get_seg_seq_type()
         case_set = CFG["case_set"]
     group: 
         "input_and_format"
     shell:
         op.as_one_line("""
-       Rscript {params.script} 
-       --genome 
-       --capture 
-       --output_dir $(dirname {output.seg})/ 
-       --all_sample_sets {params.all_sample_sets} 
-       --case_set {params.case_set} 
-       > {log.stdout} 2> {log.stderr}
+        Rscript {params.script} 
+        {params.seq_seq_type} 
+        --output_dir $(dirname {output.seg})/ 
+        --all_sample_sets {params.all_sample_sets} 
+        --case_set {params.case_set} 
+        > {log.stdout} 2> {log.stderr}
         """)
 
 # Removes entries for non-standard chromosomes from the seg file
