@@ -64,6 +64,18 @@ rule _gistic2_input_seg:
     run:
         op.absolute_symlink(input.seg, output.seg)
 
+# Download refgene reference MAT file
+rule _gistic2_download_ref:
+    output:
+        refgene_mat = CFG["dirs"]["inputs"] + "references/{projection}.refgene.mat"
+    params:
+        url = "http://bcgsc.ca/downloads/morinlab/gistic2_references/{projection}.refgene.mat",
+        folder = CFG["dirs"]["inputs"] + "references"
+    shell:
+        op.as_one_line("""
+        wget -P {params.folder} {params.url} 
+        """)
+
 # Removes entries for non-standard chromosomes from the seg file
 rule _gistic2_standard_chr:
     input:
@@ -97,18 +109,6 @@ rule _gistic2_make_markers:
             &&
         sort -V -k1,1 -k2,2nr {output.temp_markers} | uniq | nl > {output.markers} 
         2> {log.stderr}
-        """)
-
-# Download refgene reference MAT file
-rule _gistic2_download_ref:
-    output:
-        refgene_mat = CFG["dirs"]["inputs"] + "references/{projection}.refgene.mat"
-    params:
-        url = "http://bcgsc.ca/downloads/morinlab/gistic2_references/{projection}.refgene.mat",
-        folder = CFG["dirs"]["inputs"] + "references"
-    shell:
-        op.as_one_line("""
-        wget -P {params.folder} {params.url} 
         """)
 
 # Run gistic2 for a single seq_type (capture, genome) for the confidence thresholds listed in the config
