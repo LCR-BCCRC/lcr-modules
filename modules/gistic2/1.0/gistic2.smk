@@ -37,12 +37,14 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "gistic2",
     version = "1.0",
-    subdirectories = ["inputs", "standard_chr", "markers", "gistic2", "outputs"],
+    subdirectories = ["inputs", "prepare_seg", "standard_chr", "markers", "gistic2", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
 localrules:
     _gistic2_input_seg,
+    _gistic2_input_sample_sets,
+    _gistic2_prepare_seg,
     _gistic2_standard_chr,
     _gistic2_make_markers,
     _gistic2_download_ref,
@@ -60,9 +62,20 @@ rule _gistic2_input_seg:
     output:
         seg = CFG["dirs"]["inputs"] + "{seq_type}--projection/all--{projection}.seg"
     group: 
-        "input_and_standard_chr"
+        "input_and_format"
     run:
         op.absolute_symlink(input.seg, output.seg)
+
+# Symlinks the input files into the module results directory (under '00-inputs/')
+rule _gistic2_input_sample_sets:
+    input:
+        all_sample_sets = CFG["inputs"]["all_sample_sets"]
+    output:
+        all_sample_sets = CFG["dirs"]["inputs"] + "sample_sets/all_sample_sets.tsv"
+    group: 
+        "input_and_format"
+    run:
+        op.absolute_symlink(input.all_sample_sets, output.all_sample_sets)
 
 # Download refgene reference MAT file
 rule _gistic2_download_ref:
@@ -76,16 +89,42 @@ rule _gistic2_download_ref:
         wget -P {params.folder} {params.url} 
         """)
 
+# Merges capture and genome seg files if available, and subset to the case_set provided
+rule _gistic2_prepare_seg:
+    input:
+        seg = str(rules._gistic2_input_seg.output.seg),
+        all_sample_sets = ancient(str(rules._gistic2_input_sample_sets.output.all_sample_sets))
+    output:
+        seg = CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}.seg"
+    log:
+        stdout = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.stdout.log",
+        stderr = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.stderr.log"
+    params:
+        script = CFG["prepare_seg"],
+        case_set = CFG["case_set"]
+    group: 
+        "input_and_format"
+    shell:
+        op.as_one_line("""
+       Rscript {params.script} 
+       --genome 
+       --capture 
+       --output_dir $(dirname {output.seg})/ 
+       --all_sample_sets {params.all_sample_sets} 
+       --case_set {params.case_set} 
+       > {log.stdout} 2> {log.stderr}
+        """)
+
 # Removes entries for non-standard chromosomes from the seg file
 rule _gistic2_standard_chr:
     input:
         seg = str(rules._gistic2_input_seg.output.seg)
     output:
-        seg = CFG["dirs"]["standard_chr"] + "{seq_type}--projection/all--{projection}--standard_Chr.seg"
+        seg = CFG["dirs"]["standard_chr"] + "{case_set}--{projection}--standard_Chr.seg"
     log:
-        stderr = CFG["logs"]["standard_chr"] + "{seq_type}--projection/all--{projection}/standard_Chr.stderr.log"
+        stderr = CFG["logs"]["standard_chr"] + "{case_set}--{projection}--standard_Chr.stderr.log"
     group: 
-        "input_and_standard_chr"
+        "input_and_format"
     shell:
         op.as_one_line("""
         awk 'BEGIN{{IGNORECASE = 1}} {{FS="\t"}} $2 !~ /Un|random|alt/ {{print}}' {input.seg} > {output.seg}
@@ -97,10 +136,10 @@ rule _gistic2_make_markers:
     input:
         seg = str(rules._gistic2_standard_chr.output.seg)
     output:
-        temp_markers = temp(CFG["dirs"]["markers"] + "{seq_type}--projection/temp_markers--{projection}.txt"),
-        markers = CFG["dirs"]["markers"] + "{seq_type}--projection/markers--{projection}.txt"
+        temp_markers = temp(CFG["dirs"]["markers"] + "temp_markers--{case_set}--{projection}.txt"),
+        markers = CFG["dirs"]["markers"] + "markers--{case_set}--{projection}.txt"
     log:
-        stderr = CFG["logs"]["markers"] + "{seq_type}--projection/all--{projection}/markers.stderr.log"
+        stderr = CFG["logs"]["markers"] + "{case_set}--{projection}--markers.stderr.log"
     shell: 
         op.as_one_line("""
         sed '1d' {input.seg} | cut -f2,3 > {output.temp_markers}
@@ -118,31 +157,31 @@ rule _gistic2_run:
         refgene_mat = str(rules._gistic2_download_ref.output.refgene_mat),
         markers = str(rules._gistic2_make_markers.output.markers)
     output:
-        all_data_by_genes = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/all_data_by_genes.txt",
-        all_lesions = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/all_lesions.conf_{conf}.txt",
-        all_thresholded_by_genes = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/all_thresholded.by_genes.txt",
-        amp_genes = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/amp_genes.conf_{conf}.txt",
-        amp_qplot_pdf = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/amp_qplot.pdf",
-        amp_qplot_png = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/amp_qplot.png",
-        broad_data_by_genes = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/broad_data_by_genes.txt",
-        broad_significance_results = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/broad_significance_results.txt",
-        broad_values_by_arm = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/broad_values_by_arm.txt",
-        del_genes = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/del_genes.conf_{conf}.txt",
-        del_qplot_pdf = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/del_qplot.pdf",
-        del_qplot_png = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/del_qplot.png",
-        focal_data_by_genes = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/focal_data_by_genes.txt",
-        freqarms_vs_ngenes = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/freqarms_vs_ngenes.pdf",
-        raw_copy_number_pdf = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/raw_copy_number.pdf",
-        raw_copy_number_png = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/raw_copy_number.png",
-        regions_track = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/regions_track.conf_{conf}.bed",
-        sample_cutoffs = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/sample_cutoffs.txt",
-        sample_seg_counts = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/sample_seg_counts.txt",
-        scores = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/scores.gistic"
+        all_data_by_genes = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/all_data_by_genes.txt",
+        all_lesions = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/all_lesions.conf_{conf}.txt",
+        all_thresholded_by_genes = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/all_thresholded.by_genes.txt",
+        amp_genes = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/amp_genes.conf_{conf}.txt",
+        amp_qplot_pdf = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/amp_qplot.pdf",
+        amp_qplot_png = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/amp_qplot.png",
+        broad_data_by_genes = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/broad_data_by_genes.txt",
+        broad_significance_results = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/broad_significance_results.txt",
+        broad_values_by_arm = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/broad_values_by_arm.txt",
+        del_genes = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/del_genes.conf_{conf}.txt",
+        del_qplot_pdf = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/del_qplot.pdf",
+        del_qplot_png = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/del_qplot.png",
+        focal_data_by_genes = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/focal_data_by_genes.txt",
+        freqarms_vs_ngenes = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/freqarms_vs_ngenes.pdf",
+        raw_copy_number_pdf = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/raw_copy_number.pdf",
+        raw_copy_number_png = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/raw_copy_number.png",
+        regions_track = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/regions_track.conf_{conf}.bed",
+        sample_cutoffs = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/sample_cutoffs.txt",
+        sample_seg_counts = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/sample_seg_counts.txt",
+        scores = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/scores.gistic"
     log:
-        stdout = CFG["logs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/gistic2.stdout.log",
-        stderr = CFG["logs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/gistic2.stderr.log"
+        stdout = CFG["logs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/gistic2.stdout.log",
+        stderr = CFG["logs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/gistic2.stderr.log"
     params:
-        base_dir = CFG["dirs"]["gistic2"] + "{seq_type}--projection/all--{projection}/conf_{conf}/",
+        base_dir = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/",
         opts = CFG["options"]["gistic2_run"]
     conda:
         CFG["conda_envs"]["gistic2"]
@@ -182,26 +221,26 @@ rule _gistic2_output:
         sample_seg_counts = str(rules._gistic2_run.output.sample_seg_counts),
         scores = str(rules._gistic2_run.output.scores)
     output:
-        all_data_by_genes = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/all_data_by_genes.txt",
-        all_lesions = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/all_lesions.conf_{conf}.txt",
-        all_thresholded_by_genes = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/all_thresholded.by_genes.txt",
-        amp_genes = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/amp_genes.conf_{conf}.txt",
-        amp_qplot_pdf = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/amp_qplot.pdf",
-        amp_qplot_png = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/amp_qplot.png",
-        broad_data_by_genes = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/broad_data_by_genes.txt",
-        broad_significance_results = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/broad_significance_results.txt",
-        broad_values_by_arm = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/broad_values_by_arm.txt",
-        del_genes = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/del_genes.conf_{conf}.txt",
-        del_qplot_pdf = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/del_qplot.pdf",
-        del_qplot_png = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/del_qplot.png",
-        focal_data_by_genes = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/focal_data_by_genes.txt",
-        freqarms_vs_ngenes = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/freqarms_vs_ngenes.pdf",
-        raw_copy_number_pdf = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/raw_copy_number.pdf",
-        raw_copy_number_png = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/raw_copy_number.png",
-        regions_track = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/regions_track.conf_{conf}.bed",
-        sample_cutoffs = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/sample_cutoffs.txt",
-        sample_seg_counts = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/sample_seg_counts.txt",
-        scores = CFG["dirs"]["outputs"] + "{seq_type}--projection/all--{projection}/conf_{conf}/scores.gistic"
+        all_data_by_genes = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/all_data_by_genes.txt",
+        all_lesions = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/all_lesions.conf_{conf}.txt",
+        all_thresholded_by_genes = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/all_thresholded.by_genes.txt",
+        amp_genes = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/amp_genes.conf_{conf}.txt",
+        amp_qplot_pdf = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/amp_qplot.pdf",
+        amp_qplot_png = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/amp_qplot.png",
+        broad_data_by_genes = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/broad_data_by_genes.txt",
+        broad_significance_results = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/broad_significance_results.txt",
+        broad_values_by_arm = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/broad_values_by_arm.txt",
+        del_genes = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/del_genes.conf_{conf}.txt",
+        del_qplot_pdf = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/del_qplot.pdf",
+        del_qplot_png = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/del_qplot.png",
+        focal_data_by_genes = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/focal_data_by_genes.txt",
+        freqarms_vs_ngenes = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/freqarms_vs_ngenes.pdf",
+        raw_copy_number_pdf = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/raw_copy_number.pdf",
+        raw_copy_number_png = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/raw_copy_number.png",
+        regions_track = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/regions_track.conf_{conf}.bed",
+        sample_cutoffs = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/sample_cutoffs.txt",
+        sample_seg_counts = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/sample_seg_counts.txt",
+        scores = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/scores.gistic"
 
     run:
         op.relative_symlink(input.all_data_by_genes, output.all_data_by_genes, in_module= True),
@@ -257,7 +296,8 @@ rule _gistic2_all:
                 allow_missing = True # Allows snakemake to expand on these wildcards and fill conf below
             ),
             conf = CFG["options"]["conf_level"],
-            projection=CFG["projections"]
+            projection = CFG["projections"],
+            case_set = CFG["case_set"]
         )
 
 ##### CLEANUP #####
