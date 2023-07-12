@@ -45,7 +45,7 @@ def main():
                 write_output(empty_maf, output_file)
                 exit()
 
-            maf = maf_add_columns(maf=maf_file, metadata=metadata)
+            maf = maf_add_columns(maf=maf_file, metadata=metadata, wildcards=snakemake.wildcards)
 
             # Perform filtering
             filtered_maf = maf_filter(
@@ -109,18 +109,15 @@ def maf_filter(maf, regions, regions_format):
     
     return filter_functions[regions_format](maf, regions_df)
 
-def maf_add_columns(maf, metadata):
+def maf_add_columns(maf, metadata, wildcards):
     # Read input MAF as df
     maf = pd.read_table(maf, comment="#", sep="\t")
 
-    sample_id = maf["Tumor_Sample_Barcode"].unique()[0]
-
-    row = metadata[metadata["tumour_sample_id"]==sample_id]
-
-    seq_type = row["tumour_seq_type"].item()
-    genome_build = row["tumour_genome_build"].item()
-    normal_sample_id = row["normal_sample_id"].item()
-    pair_status = row["pair_status"].item()
+    sample_id = snakemake.wildcards["tumour_id"]
+    seq_type = snakemake.wildcards["seq_type"]
+    genome_build = snakemake.wildcards["genome_build"]
+    normal_sample_id = snakemake.wildcards["normal_sample_id"]
+    pair_status = snakemake.wildcards["pair_status"]
 
     maf["seq_type"] = seq_type
     maf["genome_build"] = genome_build
