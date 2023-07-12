@@ -46,14 +46,6 @@ CFG = op.setup_module(
 CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(CFG["options"]["genome_map"]["grch37"]), "grch37", inplace=True)
 CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(CFG["options"]["genome_map"]["hg38"]), "hg38", inplace=True)
 
-# Remove samples if MAF files don't exist
-maf_path = CFG["inputs"]["maf"]
-def get_maf_path(row):
-    return maf_path.format(unix_group=row["tumour_unix_group"], seq_type=row["tumour_seq_type"], tumour_id=row["tumour_sample_id"], normal_sample_id=row["normal_sample_id"], pair_status=row["pair_status"], genome_build=row["tumour_genome_build"])
-
-CFG["runs"]["maf_path"] = CFG["runs"].apply(get_maf_path, axis=1)
-CFG["runs"] = CFG["runs"][CFG["runs"]["maf_path"].apply(os.path.exists)]
-
 # Define output file suffix based on config parameters
 SUFFIX = ".pad" + str(CFG["options"]["generate_batch_script"]["padding"]) 
 if CFG["options"]["generate_batch_script"]["view_as_pairs"]:
@@ -412,36 +404,56 @@ rule _igv_quality_control:
     log:
         stdout = CFG["logs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + "_quality_control.stdout.log",
         stderr = CFG["logs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + "_quality_control.stderr.log"
-    threads:
-        CFG["threads"]["_igv_quality_control"]
+    threads: (workflow.cores)
     run:
         import subprocess
+        success = True
         height = str(subprocess.check_output(f"identify -format '%h' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
         width = str(subprocess.check_output(f"identify -format '%w' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
-        if height == "559" or height == "506" or height=="547":
-            print(f"{input.snapshot} appears to be truncated. Rerunning IGV with increased sleep interval.")
+        if height in ["506","547","559"]:
+            attempts = 0
             os.system(f'sleep=$(grep "Sleep" {params.batch_script} | cut -d " " -f 2) && sed "s/setSleepInterval $sleep/setSleepInterval 10000/g" {params.batch_script} > {params.batch_temp} && echo "exit" >> {params.batch_temp}')
-            os.system(f'echo "Snapshot appears to be truncated. Rerunning IGV on batch script {params.batch_script} with increased sleep interval" > {log.stdout}')
-            os.system(f'maxtime=$(($(wc -l < {params.batch_temp}) * 60 + 15)) ; timeout --foreground $maxtime xvfb-run -s "-screen 0 1980x1020x24" {params.server_number} {params.server_args} {params.igv} -b {params.batch_temp} >> {log.stdout} 2>> {log.stderr}')
-            os.system(f'rm {params.batch_temp}')
+            while height in ["506","547","559"] and attempts < 4:
+                os.system(f'echo "Snapshot may be truncated. Current snapshot height is {height}. Rerunning IGV batch script {params.batch_script} with increased sleep interval.\n" >> {log.stdout}')
+                attempts += 1
+                os.system(f'echo "IGV ATTEMPT #{attempts}:" >> {log.stdout}')
+                os.system(f'echo "IGV ATTEMPT #{attempts}:" >> {log.stderr}')
+                os.system(f'maxtime=$(($(wc -l < {params.batch_temp}) * 60 + 15)) ; timeout --foreground $maxtime xvfb-run -s "-screen 0 1980x1020x24" {params.server_number} {params.server_args} {params.igv} -b {params.batch_temp} >> {log.stdout} 2>> {log.stderr}')
+                height = str(subprocess.check_output(f"identify -format '%h' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
+            if height in ["547","559"]:
+                kurtosis, skewness = [float(value.split(": ")[1]) for value in str(subprocess.check_output(f'identify -verbose {input.snapshot} | grep -E "kurtosis|skewness" | tail -n 2', shell=True)).replace("\\n'","").split("\\n      ")]
+                blank_kurtosis = {"547": 18.5, "559": 18.2}
+                blank_skew = -4
+                if kurtosis > blank_kurtosis[height] and skewness < blank_skew:
+                    os.system(f'echo "Snapshot may be blank. Current values:\nHeight:{height}, kurtosis: {str(kurtosis)}, skewness: {str(skewness)}\nSnapshots with height of 547, kurtosis greater than 18.5, and skewness less than 4 are likely blank and may be due to errors reading BAM file headers or Java address bind errors. Snapshots with height of 559, kurtosis greater than 18.2, and skewness less than 4 are likely blank and may be due to errors during IGV run." >> {log.stdout}')
+                    success = False
+            if height == "506":
+                os.system(f'echo "Snapshot height is {height} and may still be truncated or improperly loaded. Check snapshot {input.snapshot}" >> {log.stdout}')
+                success = False
         if width == "640":
-            with open(log.stdout, "a") as handle:
-                handle.write(f"Snapshot {input.snapshot} width is 640. Improper dimensions might be due to xvfb-run unable to connect to current server {params.server_number} due to a server lock file existing in directory '/tmp/.X*'. Attempting to run on a different server number...")
-                if params.server_number == "--auto-servernum" or int(params.server_number.replace("-n ","")) >= 99:
-                    new_server = 1
-                else:
-                    new_server = int(params.server_number.replace("-n ","")) + 1
-                while width == "640":
-                    handle.write(f'Attempting...\nxvfb-run -s "-screen 0 1980x1020x24" -n {str(new_server)} {params.server_args} {params.igv} -b {params.merged_batch} >> {log.stdout} 2>> {log.stderr}')
-                    os.system(f'maxtime=$(($(wc -l < {params.merged_batch}) * 60 + 15)) ; timeout --foreground $maxtime xvfb-run -s "-screen 0 1980x1020x24" -n {str(new_server)} {params.server_args} {params.igv} -b {params.merged_batch} >> {log.stdout} 2>> {log.stderr}')
-                    width = str(subprocess.check_output(f"identify -format '%w' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
-                    new_server += 1
-        os.system(f'touch {output.snapshot_qc}')
+            attempts = 0
+            os.system(f'echo "Snapshot appears to be in incorrect dimensions. Current width is {width} and might be due to xvfb-run unable to connect to current server {params.server_number} due to a server lock. Attempting to run on different server number..." >> {log.stdout}')
+            if params.server_number == "--auto-servernum" or int(params.server_number.replace("-n ","")) >= 99:
+                new_server = 1
+            else:
+                new_server = int(params.server_number.replace("-n ","")) + 1
+            while width == "640" and attempts < 5:
+                os.system(f'echo "Attempting with server number {new_server}..." >> {log.stdout}')
+                os.system(f'echo "Attempting with server number {new_server}..." >> {log.stderr}')
+                os.system(f'maxtime=$(($(wc -l < {params.merged_batch}) * 60 + 15)) ; timeout --foreground $maxtime xvfb-run -s "-screen 0 1980x1020x24" -n {str(new_server)} {params.server_args} {params.igv} -b {params.merged_batch} >> {log.stdout} 2>> {log.stderr}')
+                width = str(subprocess.check_output(f"identify -format '%w' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
+                new_server += 1
+            if width == "640":
+                os.system(f'echo "Snapshot still appears to be in improper dimensions. Double check xvfb-run parameters." >> {log.stdout}')
+                success = False
+        if success == True:
+            os.system(f'touch {output.snapshot_qc}')
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _igv_symlink_snapshot:
     input:
-        snapshot = ancient(CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png")
+        snapshot = ancient(CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"),
+        snapshot_qc = str(rules._igv_quality_control.output.snapshot_qc)
     output:
         snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
     threads:
@@ -450,39 +462,39 @@ rule _igv_symlink_snapshot:
         op.relative_symlink(input.snapshot, output.snapshot)
 
 # Return a list of all snapshots that have undergone quality control
-def _quality_control(wildcards):
-    CFG = config["lcr-modules"]["igv"]
-    checkpoint_outputs = checkpoints._igv_run.get(**wildcards).output.complete
-
-    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id = wildcards.tumour_id, tumour_seq_type = wildcards.seq_type, tumour_genome_build = wildcards.genome_build)
-
-    normal_sample_id = this_sample["normal_sample_id"]
-    pair_status = this_sample["pair_status"]
-
-    maf = expand(
-        str(rules._igv_filter_maf.output.maf),
-        zip,
-        seq_type=wildcards.seq_type,
-        genome_build=wildcards.genome_build,
-        tumour_id=wildcards.tumour_id,
-        normal_sample_id=normal_sample_id,
-        pair_status=pair_status
-    )
-
-    if os.path.exists(maf[0]):
-        maf_table = pd.read_table(maf[0], comment="#", sep="\t")
-        return expand(
-            str(rules._igv_quality_control.output.snapshot_qc),
-            zip,
-            seq_type = maf_table["seq_type"],
-            genome_build = maf_table["genome_build"],
-            chromosome = maf_table["chr_std"],
-            start_position = maf_table["Start_Position"],
-            gene = maf_table["Hugo_Symbol"],
-            tumour_id = maf_table["Tumor_Sample_Barcode"]
-        )
-    else:
-        return []
+#def _quality_control(wildcards):
+#    CFG = config["lcr-modules"]["igv"]
+#    checkpoint_outputs = checkpoints._igv_run.get(**wildcards).output.complete
+#
+#    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id = wildcards.tumour_id, tumour_seq_type = wildcards.seq_type, tumour_genome_build = wildcards.genome_build)
+#
+#    normal_sample_id = this_sample["normal_sample_id"]
+#    pair_status = this_sample["pair_status"]
+#
+#    maf = expand(
+#        str(rules._igv_filter_maf.output.maf),
+#        zip,
+#        seq_type=wildcards.seq_type,
+#        genome_build=wildcards.genome_build,
+#        tumour_id=wildcards.tumour_id,
+#        normal_sample_id=normal_sample_id,
+#        pair_status=pair_status
+#    )
+#
+#    if os.path.exists(maf[0]):
+#        maf_table = pd.read_table(maf[0], comment="#", sep="\t")
+#        return expand(
+#            str(rules._igv_quality_control.output.snapshot_qc),
+#            zip,
+#            seq_type = maf_table["seq_type"],
+#            genome_build = maf_table["genome_build"],
+#            chromosome = maf_table["chr_std"],
+#            start_position = maf_table["Start_Position"],
+#            gene = maf_table["Hugo_Symbol"],
+#            tumour_id = maf_table["Tumor_Sample_Barcode"]
+#        )
+#    else:
+#        return []
 
 # Return a list of all snapshots that were taken during IGV
 def _symlink_snapshot(wildcards):
@@ -523,9 +535,8 @@ def _symlink_snapshot(wildcards):
 # Check that snapshots have been symlinked and quality controlled
 rule _igv_check_snapshots:
     input:
-        snapshots = _symlink_snapshot,
         igv_completed = str(rules._igv_run.output.complete),
-        quality_control = _quality_control
+        snapshots = _symlink_snapshot
     output:
         snapshots = CFG["dirs"]["outputs"] + "completed/{seq_type}--{genome_build}--{tumour_id}.completed"
     shell:
