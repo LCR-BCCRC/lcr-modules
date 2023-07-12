@@ -80,7 +80,7 @@ def format_hotmaps(hotmaps_regions):
     # Convert HotMAPS coordinates to BED format
 
     hotmaps_regions["chr_std"] = hotmaps_regions.apply(lambda x: str(x["Chromosome"]).replace("chr",""), axis=1)
-    chr_std = "chr" + hotmaps_regions["Chromosome"].map(str)
+    chr_std = "chr" + hotmaps_regions["chr_std"].map(str)
 
     hotmaps_reformatted = pd.DataFrame(
         {
