@@ -98,6 +98,9 @@ def get_seg_seq_type(wildcards, input_dir=CFG["dirs"]["inputs"]):
         param = "--genome " + input_dir + "genome--projection/all--{wildcards.projection}.seg"
     return(param)
 
+print(get_seg_seq_type())
+quit()
+
 # Merges capture and genome seg files if available, and subset to the case_set provided
 rule _gistic2_prepare_seg:
     input:
@@ -110,7 +113,7 @@ rule _gistic2_prepare_seg:
         stderr = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.stderr.log"
     params:
         script = CFG["prepare_seg"],
-        seg_seq_type = get_seg_seq_type()
+        seg_seq_type = get_seg_seq_type,
         case_set = CFG["case_set"]
     group: 
         "input_and_format"
