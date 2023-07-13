@@ -58,7 +58,6 @@ lcr-modules:
         threads:
             _igv_symlink_bam: 30
             _igv_symlink_bai: 30
-            _igv_quality_control: 20
             _igv_symlink_snapshot: 20
 
         resources:
