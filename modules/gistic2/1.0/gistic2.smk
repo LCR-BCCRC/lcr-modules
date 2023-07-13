@@ -89,13 +89,15 @@ rule _gistic2_download_ref:
         wget -P {params.folder} {params.url} 
         """)
 
-def _get_seg_input_params(input_files = [str(rules._gistic2_input_seg.output.seg)]):
-    # match "genome" and/or "capture" in the input file names, add flag to string
-    genome_param = ["--genome " + v for v in input_files if "genome" in v]
-    capture_param = ["--capture " + v for v in input_files if "capture" in v]
-
-    # combine into one string
-    return(" ".join(genome_param + capture_param))
+def _get_seg_input_params(wildcards, input_dir=CFG["dirs"]["inputs"], seq_types = CFG["samples"]["seq_type"].unique()):
+    if "capture" in seq_types and "genome" in seq_types:
+        param = "--genome " + input_dir + "genome--projection/all--{wildcards.projection}.seg --capture " + input_dir + "capture--projection/all--{wildcards.projection}.seg"
+    elif "capture" in seq_types and "genome" not in seq_types:
+        param = "--capture " + input_dir + "capture--projection/all--{wildcards.projection}.seg"
+    elif "capture" not in seq_types and "genome" in seq_types:
+        param = "--genome " + input_dir + "genome--projection/all--{wildcards.projection}.seg"
+    
+    return(param)
 
 # Merges capture and genome seg files if available, and subset to the case_set provided
 rule _gistic2_prepare_seg:
