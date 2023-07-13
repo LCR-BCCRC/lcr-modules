@@ -90,11 +90,11 @@ rule _gistic2_download_ref:
         """)
 
 def _get_seg_input_params(wildcards, input_dir=CFG["dirs"]["inputs"]):
-    if ("capture" in wildcards.seq_type) and ("genome" in wildcards.seq_type):
+    if ("capture" in wildcards.seq_type and "genome" in wildcards.seq_type):
         param = "--genome " + input_dir + "genome--projection/all--{{wildcards.projection}}.seg --capture " + input_dir + "capture--projection/all--{{wildcards.projection}}.seg"
-    elif ("capture" in wildcards.seq_type) and ("genome" not in wildcards.seq_type):
+    elif ("capture" in wildcards.seq_type and "genome" not in wildcards.seq_type):
         param = "--capture " + input_dir + "capture--projection/all--{{wildcards.projection}}.seg"
-    elif ("capture" not in wildcards.seq_type) and ("genome" in wildcards.seq_type):
+    elif ("capture" not in wildcards.seq_type and "genome" in wildcards.seq_type):
         param = "--genome " + input_dir + "genome--projection/all--{{wildcards.projection}}.seg"
     return(param)
 
@@ -119,7 +119,7 @@ rule _gistic2_prepare_seg:
         Rscript {params.script} 
         {params.seg_input_params} 
         --output_dir $(dirname {output.seg})/ 
-        --all_sample_sets {params.all_sample_sets} 
+        --all_sample_sets {input.all_sample_sets} 
         --case_set {params.case_set} 
         > {log.stdout} 2> {log.stderr}
         """)
@@ -127,7 +127,7 @@ rule _gistic2_prepare_seg:
 # Removes entries for non-standard chromosomes from the seg file
 rule _gistic2_standard_chr:
     input:
-        seg = str(rules._gistic2_input_seg.output.seg)
+        seg = str(rules._gistic2_prepare_seg.output.seg)
     output:
         seg = CFG["dirs"]["standard_chr"] + "{case_set}--{projection}--standard_Chr.seg"
     log:
