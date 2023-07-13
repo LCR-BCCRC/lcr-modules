@@ -89,13 +89,13 @@ rule _gistic2_download_ref:
         wget -P {params.folder} {params.url} 
         """)
 
-def _get_seg_input_params(input_files = [str(rules._gistic2_input_seg.output.seg)]):
-    # match "genome" and/or "capture" in the input file names, add flag to string
-    genome_param = ["--genome " + v for v in input_files if "genome" in v]
-    capture_param = ["--capture " + v for v in input_files if "capture" in v]
+# def _get_seg_input_params(input_files = [str(rules._gistic2_input_seg.output.seg)]):
+#     # match "genome" and/or "capture" in the input file names, add flag to string
+#     genome_param = ["--genome " + v for v in input_files if "genome" in v]
+#     capture_param = ["--capture " + v for v in input_files if "capture" in v]
 
-    # combine into one string
-    return(" ".join(genome_param + capture_param))
+#     # combine into one string
+#     return(" ".join(genome_param + capture_param))
 
 # Merges capture and genome seg files if available, and subset to the case_set provided
 rule _gistic2_prepare_seg:
@@ -103,7 +103,8 @@ rule _gistic2_prepare_seg:
         seg = expand(str(rules._gistic2_input_seg.output.seg),
                     allow_missing=True,
                     seq_type=CFG["samples"]["seq_type"].unique()
-                    )
+                    ),
+        seg_dir = CFG["dirs"]["inputs"]
     output:
         seg = CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}.seg"
     log:
@@ -111,19 +112,38 @@ rule _gistic2_prepare_seg:
         stderr = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.stderr.log"
     params:
         script = CFG["prepare_seg"],
-        seg_input_params = _get_seg_input_params,
         case_set = CFG["case_set"]
     group: 
         "input_and_format"
-    shell:
-        op.as_one_line("""
-        Rscript {params.script} 
-        {params.seg_input_params} 
-        --output_dir $(dirname {output.seg})/ 
-        --all_sample_sets {input.all_sample_sets} 
-        --case_set {params.case_set} 
-        > {log.stdout} 2> {log.stderr}
-        """)
+    run:
+        if "capture" in input.seg and "genome" in input.seg:
+            shell(op.as_one_line("""
+            Rscript {params.script} 
+            --genome {input.seg_dir}genome--projection/all--{projection}.seg 
+            --capture  {input.seg_dir}capture--projection/all--{projection}.seg 
+            --output_dir $(dirname {output.seg})/ 
+            --all_sample_sets {input.all_sample_sets} 
+            --case_set {params.case_set} 
+            > {log.stdout} 2> {log.stderr}
+            """))
+        elif "capture" in input.seg and "genome" not in input.seg:
+            shell(op.as_one_line("""
+            Rscript {params.script} 
+            --capture  {input.seg_dir}capture--projection/all--{projection}.seg 
+            --output_dir $(dirname {output.seg})/ 
+            --all_sample_sets {input.all_sample_sets} 
+            --case_set {params.case_set} 
+            > {log.stdout} 2> {log.stderr}
+            """))
+        elif "capture" not in input.seg and "genome" in input.seg:
+            shell(op.as_one_line("""
+            Rscript {params.script} 
+            --genome {input.seg_dir}genome--projection/all--{projection}.seg 
+            --output_dir $(dirname {output.seg})/ 
+            --all_sample_sets {input.all_sample_sets} 
+            --case_set {params.case_set} 
+            > {log.stdout} 2> {log.stderr}
+            """))
 
 # Removes entries for non-standard chromosomes from the seg file
 rule _gistic2_standard_chr:
@@ -278,33 +298,28 @@ rule _gistic2_output:
 rule _gistic2_all:
     input:
         expand(
-            expand(
-                [
-                    str(rules._gistic2_output.output.all_data_by_genes),
-                    str(rules._gistic2_output.output.all_lesions),
-                    str(rules._gistic2_output.output.all_thresholded_by_genes),
-                    str(rules._gistic2_output.output.amp_genes),
-                    str(rules._gistic2_output.output.amp_qplot_pdf),
-                    str(rules._gistic2_output.output.amp_qplot_png),
-                    str(rules._gistic2_output.output.broad_data_by_genes),
-                    str(rules._gistic2_output.output.broad_significance_results),
-                    str(rules._gistic2_output.output.broad_values_by_arm),
-                    str(rules._gistic2_output.output.del_genes),
-                    str(rules._gistic2_output.output.del_qplot_pdf),
-                    str(rules._gistic2_output.output.del_qplot_png),
-                    str(rules._gistic2_output.output.focal_data_by_genes),
-                    str(rules._gistic2_output.output.freqarms_vs_ngenes),
-                    str(rules._gistic2_output.output.raw_copy_number_pdf),
-                    str(rules._gistic2_output.output.raw_copy_number_png),
-                    str(rules._gistic2_output.output.regions_track),
-                    str(rules._gistic2_output.output.sample_cutoffs),
-                    str(rules._gistic2_output.output.sample_seg_counts),
-                    str(rules._gistic2_output.output.scores)
-                ],
-                zip,
-                seq_type = CFG["samples"]["seq_type"].unique(),
-                allow_missing = True # Allows snakemake to expand on these wildcards and fill conf below
-            ),                
+            [
+                str(rules._gistic2_output.output.all_data_by_genes),
+                str(rules._gistic2_output.output.all_lesions),
+                str(rules._gistic2_output.output.all_thresholded_by_genes),
+                str(rules._gistic2_output.output.amp_genes),
+                str(rules._gistic2_output.output.amp_qplot_pdf),
+                str(rules._gistic2_output.output.amp_qplot_png),
+                str(rules._gistic2_output.output.broad_data_by_genes),
+                str(rules._gistic2_output.output.broad_significance_results),
+                str(rules._gistic2_output.output.broad_values_by_arm),
+                str(rules._gistic2_output.output.del_genes),
+                str(rules._gistic2_output.output.del_qplot_pdf),
+                str(rules._gistic2_output.output.del_qplot_png),
+                str(rules._gistic2_output.output.focal_data_by_genes),
+                str(rules._gistic2_output.output.freqarms_vs_ngenes),
+                str(rules._gistic2_output.output.raw_copy_number_pdf),
+                str(rules._gistic2_output.output.raw_copy_number_png),
+                str(rules._gistic2_output.output.regions_track),
+                str(rules._gistic2_output.output.sample_cutoffs),
+                str(rules._gistic2_output.output.sample_seg_counts),
+                str(rules._gistic2_output.output.scores)
+            ],              
             conf = CFG["options"]["conf_level"],
             projection = CFG["projections"],
             case_set = CFG["case_set"]
