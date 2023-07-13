@@ -91,11 +91,12 @@ rule _gistic2_download_ref:
 
 def _get_seg_input_params(wildcards, input_dir=CFG["dirs"]["inputs"], seq_types = CFG["samples"]["seq_type"].unique()):
     if "capture" in seq_types and "genome" in seq_types:
-        param = "--genome " + input_dir + "genome--projection/all--{wildcards.projection}.seg --capture " + input_dir + "capture--projection/all--{wildcards.projection}.seg"
+        param = "--genome " + input_dir + "genome--projection/all--" + wildcards.projection + ".seg --capture " \
+                + input_dir + "capture--projection/all--" + wildcards.projection + ".seg"
     elif "capture" in seq_types and "genome" not in seq_types:
-        param = "--capture " + input_dir + "capture--projection/all--{wildcards.projection}.seg"
+        param = "--capture " + input_dir + "capture--projection/all--" + wildcards.projection + ".seg"
     elif "capture" not in seq_types and "genome" in seq_types:
-        param = "--genome " + input_dir + "genome--projection/all--{wildcards.projection}.seg"
+        param = "--genome " + input_dir + "genome--projection/all--" + wildcards.projection + ".seg"
     
     return(param)
 
