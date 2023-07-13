@@ -89,13 +89,13 @@ rule _gistic2_download_ref:
         wget -P {params.folder} {params.url} 
         """)
 
-# def _get_seg_input_params(input_files = [str(rules._gistic2_input_seg.output.seg)]):
-#     # match "genome" and/or "capture" in the input file names, add flag to string
-#     genome_param = ["--genome " + v for v in input_files if "genome" in v]
-#     capture_param = ["--capture " + v for v in input_files if "capture" in v]
+def _get_seg_input_params(input_files = [str(rules._gistic2_input_seg.output.seg)]):
+    # match "genome" and/or "capture" in the input file names, add flag to string
+    genome_param = ["--genome " + v for v in input_files if "genome" in v]
+    capture_param = ["--capture " + v for v in input_files if "capture" in v]
 
-#     # combine into one string
-#     return(" ".join(genome_param + capture_param))
+    # combine into one string
+    return(" ".join(genome_param + capture_param))
 
 # Merges capture and genome seg files if available, and subset to the case_set provided
 rule _gistic2_prepare_seg:
@@ -104,6 +104,7 @@ rule _gistic2_prepare_seg:
                     allow_missing=True,
                     seq_type=CFG["samples"]["seq_type"].unique()
                     ),
+        all_sample_sets = str(rules._gistic2_input_sample_sets.output.all_sample_sets),
         seg_dir = CFG["dirs"]["inputs"]
     output:
         seg = CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}.seg"
@@ -112,38 +113,19 @@ rule _gistic2_prepare_seg:
         stderr = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.stderr.log"
     params:
         script = CFG["prepare_seg"],
-        case_set = CFG["case_set"]
+        case_set = CFG["case_set"],
+        seg_input_params = _get_seg_input_params
     group: 
         "input_and_format"
-    run:
-        if "capture" in input.seg and "genome" in input.seg:
-            shell(op.as_one_line("""
-            Rscript {params.script} 
-            --genome {input.seg_dir}genome--projection/all--{projection}.seg 
-            --capture  {input.seg_dir}capture--projection/all--{projection}.seg 
-            --output_dir $(dirname {output.seg})/ 
-            --all_sample_sets {input.all_sample_sets} 
-            --case_set {params.case_set} 
-            > {log.stdout} 2> {log.stderr}
-            """))
-        elif "capture" in input.seg and "genome" not in input.seg:
-            shell(op.as_one_line("""
-            Rscript {params.script} 
-            --capture  {input.seg_dir}capture--projection/all--{projection}.seg 
-            --output_dir $(dirname {output.seg})/ 
-            --all_sample_sets {input.all_sample_sets} 
-            --case_set {params.case_set} 
-            > {log.stdout} 2> {log.stderr}
-            """))
-        elif "capture" not in input.seg and "genome" in input.seg:
-            shell(op.as_one_line("""
-            Rscript {params.script} 
-            --genome {input.seg_dir}genome--projection/all--{projection}.seg 
-            --output_dir $(dirname {output.seg})/ 
-            --all_sample_sets {input.all_sample_sets} 
-            --case_set {params.case_set} 
-            > {log.stdout} 2> {log.stderr}
-            """))
+    shell:
+        op.as_one_line("""
+        Rscript {params.script} 
+        {params.seg_input_params} 
+        --output_dir $(dirname {output.seg})/ 
+        --all_sample_sets {input.all_sample_sets} 
+        --case_set {params.case_set} 
+        > {log.stdout} 2> {log.stderr}
+        """)
 
 # Removes entries for non-standard chromosomes from the seg file
 rule _gistic2_standard_chr:
