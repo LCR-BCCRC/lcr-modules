@@ -89,23 +89,21 @@ rule _gistic2_download_ref:
         wget -P {params.folder} {params.url} 
         """)
 
-def _get_seg_input_params(wildcards, input_dir=CFG["dirs"]["inputs"]):
-    if ("capture" in wildcards.seq_type and "genome" in wildcards.seq_type):
-        param = expand("--genome {INPUT_DIR}/genome--projection/all--{{wildcards.projection}}.seg --capture {INPUT_DIR}/capture--projection/all--{{wildcards.projection}}.seg", 
-        INPUT_DIR=input_dir)
-    elif ("capture" in wildcards.seq_type and "genome" not in wildcards.seq_type):
-        param = expand("--capture {INPUT_DIR}/capture--projection/all--{{wildcards.projection}}.seg", 
-        INPUT_DIR=input_dir)
-    elif ("capture" not in wildcards.seq_type and "genome" in wildcards.seq_type):
-        param = expand("--genome {INPUT_DIR}/genome--projection/all--{{wildcards.projection}}.seg", 
-        INPUT_DIR=input_dir)
-    return(param)
+def _get_seg_input_params(input_files = [str(rules._gistic2_input_seg.output.seg)]):
+    # match "genome" and/or "capture" in the input file names, add flag to string
+    genome_param = ["--genome " + v for v in input_files if "genome" in v]
+    capture_param = ["--capture " + v for v in input_files if "capture" in v]
+
+    # combine into one string
+    return(" ".join(genome_param + capture_param))
 
 # Merges capture and genome seg files if available, and subset to the case_set provided
 rule _gistic2_prepare_seg:
     input:
-        seg = str(rules._gistic2_input_seg.output.seg),
-        all_sample_sets = ancient(str(rules._gistic2_input_sample_sets.output.all_sample_sets))
+        seg = expand(str(rules._gistic2_input_seg.output.seg),
+                    allow_missing=True,
+                    seq_type=CFG["samples"]["seq_type"].unique()
+                    )
     output:
         seg = CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}.seg"
     log:
@@ -306,7 +304,7 @@ rule _gistic2_all:
                 zip,
                 seq_type = CFG["samples"]["seq_type"].unique(),
                 allow_missing = True # Allows snakemake to expand on these wildcards and fill conf below
-            ),
+            ),                
             conf = CFG["options"]["conf_level"],
             projection = CFG["projections"],
             case_set = CFG["case_set"]
