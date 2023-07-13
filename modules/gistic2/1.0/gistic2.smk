@@ -153,8 +153,6 @@ rule _gistic2_standard_chr:
         seg = CFG["dirs"]["standard_chr"] + "{case_set}--{projection}--standard_Chr.seg"
     log:
         stderr = CFG["logs"]["standard_chr"] + "{case_set}--{projection}--standard_Chr.stderr.log"
-    group: 
-        "input_and_format"
     shell:
         op.as_one_line("""
         awk 'BEGIN{{IGNORECASE = 1}} {{FS="\t"}} $2 !~ /Un|random|alt/ {{print}}' {input.seg} > {output.seg}
