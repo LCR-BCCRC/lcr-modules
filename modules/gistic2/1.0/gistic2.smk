@@ -91,11 +91,14 @@ rule _gistic2_download_ref:
 
 def _get_seg_input_params(wildcards, input_dir=CFG["dirs"]["inputs"]):
     if ("capture" in wildcards.seq_type and "genome" in wildcards.seq_type):
-        param = "--genome " + input_dir + "genome--projection/all--{{wildcards.projection}}.seg --capture " + input_dir + "capture--projection/all--{{wildcards.projection}}.seg"
+        param = expand("--genome {INPUT_DIR}/genome--projection/all--{{wildcards.projection}}.seg --capture {INPUT_DIR}/capture--projection/all--{{wildcards.projection}}.seg", 
+        INPUT_DIR=input_dir)
     elif ("capture" in wildcards.seq_type and "genome" not in wildcards.seq_type):
-        param = "--capture " + input_dir + "capture--projection/all--{{wildcards.projection}}.seg"
+        param = expand("--capture {INPUT_DIR}/capture--projection/all--{{wildcards.projection}}.seg", 
+        INPUT_DIR=input_dir)
     elif ("capture" not in wildcards.seq_type and "genome" in wildcards.seq_type):
-        param = "--genome " + input_dir + "genome--projection/all--{{wildcards.projection}}.seg"
+        param = expand("--genome {INPUT_DIR}/genome--projection/all--{{wildcards.projection}}.seg", 
+        INPUT_DIR=input_dir)
     return(param)
 
 # Merges capture and genome seg files if available, and subset to the case_set provided
