@@ -124,6 +124,7 @@ rule _gistic2_prepare_seg:
         op.as_one_line("""
         Rscript {params.script} 
         {params.seg_input_params} 
+        --projection {wildcards.projection} 
         --output_dir $(dirname {output.seg})/ 
         --all_sample_sets {input.all_sample_sets} 
         --case_set {params.case_set} 
@@ -257,7 +258,7 @@ rule _gistic2_output:
 
     run:
         op.relative_symlink(input.all_data_by_genes, output.all_data_by_genes, in_module= True),
-        op.relative_symlink(input.all_lesions, output.all_lesionss, in_module= True),
+        op.relative_symlink(input.all_lesions, output.all_lesions, in_module= True),
         op.relative_symlink(input.all_thresholded_by_genes, output.all_thresholded_by_genes, in_module= True),
         op.relative_symlink(input.amp_genes, output.amp_genes, in_module= True),
         op.relative_symlink(input.amp_qplot_pdf, output.amp_qplot_pdf, in_module= True),
