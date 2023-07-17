@@ -109,7 +109,7 @@ rule _gistic2_prepare_seg:
                     allow_missing=True,
                     seq_type=CFG["samples"]["seq_type"].unique()
                     ),
-        all_sample_sets = str(rules._gistic2_input_sample_sets.output.all_sample_sets),
+        all_sample_sets = ancient(str(rules._gistic2_input_sample_sets.output.all_sample_sets)),
         seg_dir = CFG["dirs"]["inputs"]
     output:
         seg = CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}.seg"
