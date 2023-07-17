@@ -62,7 +62,7 @@ rule _gistic2_input_seg:
     output:
         seg = CFG["dirs"]["inputs"] + "{seq_type}--projection/all--{projection}.seg"
     group: 
-        "input_and_format"
+        "input_files"
     run:
         op.absolute_symlink(input.seg, output.seg)
 
@@ -73,7 +73,7 @@ rule _gistic2_input_sample_sets:
     output:
         all_sample_sets = CFG["dirs"]["inputs"] + "sample_sets/all_sample_sets.tsv"
     group: 
-        "input_and_format"
+        "input_files"
     run:
         op.absolute_symlink(input.all_sample_sets, output.all_sample_sets)
 
@@ -81,6 +81,8 @@ rule _gistic2_input_sample_sets:
 rule _gistic2_download_ref:
     output:
         refgene_mat = CFG["dirs"]["inputs"] + "references/{projection}.refgene.mat"
+    group:
+        "input_files"
     params:
         url = "http://bcgsc.ca/downloads/morinlab/gistic2_references/{projection}.refgene.mat",
         folder = CFG["dirs"]["inputs"] + "references"
@@ -118,8 +120,6 @@ rule _gistic2_prepare_seg:
         script = CFG["prepare_seg"],
         case_set = CFG["case_set"],
         seg_input_params = _get_seg_input_params
-    group: 
-        "input_and_format"
     shell:
         op.as_one_line("""
         Rscript {params.script} 
