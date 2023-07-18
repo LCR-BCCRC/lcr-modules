@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Sierra Gillis.
 
-<!-- TODO: Explain each important module design decision below. -->
-
-- No module design decisions explained here yet.
+- All preprocess of the seg file is performed by one step.
+Includes keeping genomic data over capture data where available, filtering out overlapping
+segments, filtering out data for non-canonical chromosomes
