@@ -37,7 +37,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "gistic2",
     version = "1.0",
-    subdirectories = ["inputs", "prepare_seg", "standard_chr", "markers", "gistic2", "outputs"],
+    subdirectories = ["inputs", "prepare_seg", "markers", "gistic2", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -45,7 +45,6 @@ localrules:
     _gistic2_input_seg,
     _gistic2_input_sample_sets,
     _gistic2_prepare_seg,
-    _gistic2_standard_chr,
     _gistic2_make_markers,
     _gistic2_download_ref,
     _gistic2_output,
@@ -133,24 +132,10 @@ rule _gistic2_prepare_seg:
         > {log.stdout} 2> {log.stderr}
         """)
 
-# Removes entries for non-standard chromosomes from the seg file
-rule _gistic2_standard_chr:
-    input:
-        seg = str(rules._gistic2_prepare_seg.output.seg)
-    output:
-        seg = CFG["dirs"]["standard_chr"] + "{case_set}--{projection}--standard_Chr.seg"
-    log:
-        stderr = CFG["logs"]["standard_chr"] + "{case_set}--{projection}--standard_Chr.stderr.log"
-    shell:
-        op.as_one_line("""
-        awk 'BEGIN{{IGNORECASE = 1}} {{FS="\t"}} $2 !~ /Un|random|alt/ {{print}}' {input.seg} > {output.seg}
-        2> {log.stderr}
-        """)
-
 # Create a markers file that has every segment start and end that appears in the seg file
 rule _gistic2_make_markers:
     input:
-        seg = str(rules._gistic2_standard_chr.output.seg)
+        seg = str(rules._gistic2_prepare_seg.output.seg)
     output:
         temp_markers = temp(CFG["dirs"]["markers"] + "temp_markers--{case_set}--{projection}.txt"),
         markers = CFG["dirs"]["markers"] + "markers--{case_set}--{projection}.txt"
@@ -169,7 +154,7 @@ rule _gistic2_make_markers:
 # Run gistic2 for a single seq_type (capture, genome) for the confidence thresholds listed in the config
 rule _gistic2_run:
     input:
-        seg = str(rules._gistic2_standard_chr.output.seg),
+        seg = str(rules._gistic2_prepare_seg.output.seg),
         refgene_mat = str(rules._gistic2_download_ref.output.refgene_mat),
         markers = str(rules._gistic2_make_markers.output.markers)
     output:
