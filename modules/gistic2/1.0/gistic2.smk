@@ -119,7 +119,6 @@ rule _gistic2_prepare_seg:
         "input_and_format"
     params:
         script = CFG["prepare_seg"],
-        case_set = CFG["case_set"],
         seg_input_params = _get_seg_input_params
     shell:
         op.as_one_line("""
@@ -128,7 +127,7 @@ rule _gistic2_prepare_seg:
         --projection {wildcards.projection} 
         --output_dir $(dirname {output.seg})/ 
         --all_sample_sets {input.all_sample_sets} 
-        --case_set {params.case_set} 
+        --case_set {wildcards.case_set} 
         > {log.stdout} 2> {log.stderr}
         """)
 
