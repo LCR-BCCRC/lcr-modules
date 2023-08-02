@@ -142,12 +142,12 @@ getCoverageBams <- function(bamFiles, indexFiles, outdir, interval.file, referen
     .getCoverageBam <- function(bam.file, index.file = NULL, outdir,
         interval.file, force) {
         checkDataTableVersion()
-	if (!is.null(name)) {
-        	output.file <- file.path(outdir,  paste0(name, "_coverage.txt.gz"))
-	} else {
-                output.file <- file.path(outdir,  gsub(".bam$", "_coverage.txt.gz",
-                        basename(bam.file)))
-	}
+      	if (!is.null(name)) {
+              	output.file <- file.path(outdir,  paste0(name, "_coverage.txt.gz"))
+      	} else {
+                      output.file <- file.path(outdir,  gsub(".bam$", "_coverage.txt.gz",
+                              basename(bam.file)))
+      	}
         futile.logger::flog.info("Processing %s...", output.file)
         if (!is.null(index.file)) {
             index.file <- normalizePath(index.file, mustWork=TRUE)
@@ -232,7 +232,6 @@ if (!is.null(bam.file)) {
   }
   else if(file.type == 'cram'){
     flog.info("CRAM file - coverage file should be included in params.")
-    
     coverageFiles <- gatk.coverage
   }
   else{
@@ -243,7 +242,7 @@ if (!is.null(bam.file)) {
 ### GC-normalize coverage -----------------------------------------------------
 .gcNormalize <- function(gatk.coverage, interval.file, outdir, force) {
     checkDataTableVersion()
-    output.file <- file.path(outdir,  gsub(".txt$|.txt.gz$|.sample_interval_summary$|_coverage.txt.gz$",
+    output.file <- file.path(outdir,  gsub(".txt$|.txt.gz$|.sample_interval_summary.gz$|.sample_interval_summary$|_coverage.txt.gz$",
         "_coverage_loess.txt.gz", basename(gatk.coverage)))
     outpng.file <- sub(".txt.gz$", ".png", output.file)
     output.qc.file <- sub(".txt.gz$", "_qc.txt", output.file)

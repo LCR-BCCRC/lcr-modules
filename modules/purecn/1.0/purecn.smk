@@ -510,7 +510,7 @@ rule _purecn_gatk_interval_list_chrom:
     input:
         gatk_intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals_gatk.list"
     output:
-        chrom_int = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_{chrom}.intervals_gatk.list")
+        chrom_int = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_{chrom}.intervals_gatk.list"
     shell:
         """
             egrep -i '^{wildcards.chrom}:.*-.*' {input.gatk_intervals} > {output.chrom_int}
@@ -567,15 +567,17 @@ rule _purecn_gatk_coverage_concatenate_depths:
         statistics = _purecn_gatk_coverage_get_chr_statistics,
     output: 
         depth = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.sample_interval_summary.gz"
+    resources: **CFG["resources"]["concatenate_vcf"]
     shell: 
-        """
-            file1=$(echo {input.depth} | cut -d " " -f1 )
-            head -n 1 $file1 | gzip > {output.depth}
-            for sample in {input.depth}            
+        op.as_one_line(
+            """
+            file1=$(echo {input.depth} | cut -d " " -f1 ) ;
+            head -n 1 $file1 | gzip > {output.depth} ; 
+            for sample in {input.depth};            
             do
-                awk '(NR > 1)' $sample | gzip >> {output.depth}
+                awk '(NR > 1)' $sample | gzip >> {output.depth} ;
             done
-        """
+            """)
 
 
 # Generate pureCN coverage files for all - used only in de novo pureCN
@@ -774,9 +776,9 @@ if CFG['options']['new_normals'] == True:
 
 def _adjust_segMethod(wildcards):
     CFG = config["lcr-modules"]["purecn"]
-    if any(sample in str({wildcards.tumour_id}) for sample in CFG["options"]["flagged_samples"]):
+    if any(sample in str({wildcards.tumour_id}) for sample in CFG["options"]["purecn_cnvkit"]["flagged_samples"]):
         return 'Hclust'
-    elif any(sample in str({wildcards.tumour_id}) for sample in CFG["options"]["failed_samples"]):
+    elif any(sample in str({wildcards.tumour_id}) for sample in CFG["options"]["purecn_cnvkit"]["failed_samples"]):
         return 'none'
     else:
         return 'PSCBS'
@@ -908,9 +910,9 @@ if CFG['options']['new_normals'] == True:
 
 def _adjust_segMethod_denovo(wildcards):
     CFG = config["lcr-modules"]["purecn"]
-    if any(sample in str({wildcards.tumour_id}) for sample in CFG["options"]["flagged_samples"]):
+    if any(sample in str({wildcards.tumour_id}) for sample in CFG["options"]["purecn_denovo"]["flagged_samples"]):
         return 'CBS'
-    elif any(sample in str({wildcards.tumour_id}) for sample in CFG["options"]["failed_samples"]):
+    elif any(sample in str({wildcards.tumour_id}) for sample in CFG["options"]["purecn_denovo"]["failed_samples"]):
         return 'none'
     else:
         return 'PSCBS'
@@ -938,7 +940,7 @@ rule _purecn_denovo_run:
         max_cn = CFG["options"]["pureCN"]["max_cn"],
         model = CFG["options"]["pureCN"]["model"],
         alpha = CFG["options"]["pureCN"]["alpha"],
-        segmentation_method = _adjust_segMethod,
+        segmentation_method = _adjust_segMethod_denovo,
         opts = CFG["options"]["pureCN"]["opts"]
     conda: CFG["conda_envs"]["purecn"]
     resources:
@@ -1300,13 +1302,11 @@ rule _purecn_denovo_normalize_projection:
             seg_open.to_csv(output.projection, sep="\t", index=False)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _purecn_output_projection:
+rule _purecn_cnvkit_output_projection:
     input:
-        projection = str(rules._purecn_normalize_projection.output.projection),
-        projection_denovo = str(rules._purecn_denovo_normalize_projection.output.projection),
+        projection = str(rules._purecn_normalize_projection.output.projection)
     output:
-        projection = CFG["output"]["cnvkit_seg"]["projection"],
-        projection_denovo = CFG["output"]["denovo_seg"]["projection"]
+        projection = CFG["output"]["cnvkit_seg"]["projection"]
     threads: 1
     group: "purecn_post_process"
     wildcard_constraints: 
@@ -1316,11 +1316,24 @@ rule _purecn_output_projection:
         tool = "purecn"
     run:
         op.relative_symlink(input.projection, output.projection, in_module = True)
+
+rule _purecn_denovo_output_projection:
+    input:
+        projection_denovo = str(rules._purecn_denovo_normalize_projection.output.projection),
+    output:
+        projection_denovo = CFG["output"]["denovo_seg"]["projection"]
+    threads: 1
+    group: "purecn_post_process"
+    wildcard_constraints: 
+        projection = "|".join(CFG["output"]["requested_projections"]), 
+        pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
+        purecn_version = "|".join(CFG["output"]["purecn_versions"]),
+        tool = "purecn"
+    run:
         op.relative_symlink(input.projection_denovo, output.projection_denovo, in_module = True)
 
-
 # Output files without a capture_space wildcard in them for consistency
-def _purecn_drop_capture_space_wc(wildcards):
+def _purecn_cnvkit_drop_capture_space_wc(wildcards):
     CFG = config["lcr-modules"]["purecn"]
     tbl = CFG["runs"]
     this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
@@ -1328,28 +1341,33 @@ def _purecn_drop_capture_space_wc(wildcards):
     cnvkit_ploidy = str(rules._purecn_run.output.ploidy).replace("{capture_space}", this_space[0])
     cnvkit_gene_cn = str(rules._purecn_run.output.gene_cn).replace("{capture_space}", this_space[0])
     cnvkit_loh = str(rules._purecn_run.output.loh).replace("{capture_space}", this_space[0])
-    denovo_ploidy = str(rules._purecn_denovo_run.output.ploidy).replace("{capture_space}", this_space[0])
-    denovo_loh = str(rules._purecn_denovo_run.output.loh).replace("{capture_space}", this_space[0])
-
     return{
         "cnvkit_ploidy": cnvkit_ploidy,
         "cnvkit_gene_cn": cnvkit_gene_cn,
-        "cnvkit_loh": cnvkit_loh,
+        "cnvkit_loh": cnvkit_loh
+    }
+
+def _purecn_denovo_drop_capture_space_wc(wildcards):
+    CFG = config["lcr-modules"]["purecn"]
+    tbl = CFG["runs"]
+    this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
+
+    denovo_ploidy = str(rules._purecn_denovo_run.output.ploidy).replace("{capture_space}", this_space[0])
+    denovo_loh = str(rules._purecn_denovo_run.output.loh).replace("{capture_space}", this_space[0])
+    return{
         "denovo_ploidy": denovo_ploidy,
         "denovo_loh": denovo_loh
     }
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _purecn_output_files:
+rule _purecn_cnvkit_output_files:
     input:
-        unpack(_purecn_drop_capture_space_wc)
+        unpack(_purecn_cnvkit_drop_capture_space_wc)
     output:
         cnvkit_ploidy = CFG["output"]["cnvkit_ploidy"]["info"],
         cnvkit_gene_cn = CFG["output"]["cnvkit_gene_cn"]["cnvkit_gene_cn"],
-        cnvkit_loh = CFG["output"]["cnvkit_loh"]["cnvkit_loh"],
-        denovo_ploidy = CFG["output"]["denovo_ploidy"]["info"],
-        denovo_loh = CFG["output"]["denovo_loh"]["denovo_loh"]
+        cnvkit_loh = CFG["output"]["cnvkit_loh"]["cnvkit_loh"]
     group: "cnvkit_post_process"
     wildcard_constraints: 
         projection = "|".join(CFG["output"]["requested_projections"]), 
@@ -1359,29 +1377,50 @@ rule _purecn_output_files:
         op.relative_symlink(input.cnvkit_ploidy, output.cnvkit_ploidy, in_module = True)
         op.relative_symlink(input.cnvkit_gene_cn, output.cnvkit_gene_cn, in_module = True)
         op.relative_symlink(input.cnvkit_loh, output.cnvkit_loh, in_module = True)
+        
+rule _purecn_denovo_output_files:
+    input:
+        unpack(_purecn_denovo_drop_capture_space_wc)
+    output:
+        denovo_ploidy = CFG["output"]["denovo_ploidy"]["info"],
+        denovo_loh = CFG["output"]["denovo_loh"]["denovo_loh"]
+    group: "cnvkit_post_process"
+    wildcard_constraints: 
+        projection = "|".join(CFG["output"]["requested_projections"]), 
+        pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
+        purecn_version = "|".join(CFG["output"]["purecn_versions"])
+    run:
         op.relative_symlink(input.denovo_ploidy, output.denovo_ploidy, in_module = True)
         op.relative_symlink(input.denovo_loh, output.denovo_loh, in_module = True)
 
 
-def _purecn_drop_capture_space_wc_seg(wildcards):
+def _purecn_cnvkit_drop_capture_space_wc_seg(wildcards):
     CFG = config["lcr-modules"]["purecn"]
     tbl = CFG["runs"]
     this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
 
     cnvkit_seg = str(rules._purecn_fix_seg.output.purecn_converted_seg).replace("{capture_space}", this_space[0])
+
+    return{
+        "cnvkit_seg": cnvkit_seg
+    }
+
+def _purecn_denovo_drop_capture_space_wc_seg(wildcards):
+    CFG = config["lcr-modules"]["purecn"]
+    tbl = CFG["runs"]
+    this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
+
     denovo_seg = str(rules._purecn_denovo_fix_seg.output.purecn_converted_seg).replace("{capture_space}", this_space[0])
 
     return{
-        "cnvkit_seg": cnvkit_seg,
         "denovo_seg": denovo_seg
     }
 
-rule _purecn_output_seg:
+rule _purecn_cnvkit_output_seg:
     input:
-        unpack(_purecn_drop_capture_space_wc_seg)
+        unpack(_purecn_cnvkit_drop_capture_space_wc_seg)
     output:
-        cnvkit_seg = CFG["output"]["cnvkit_seg"]["original"],
-        denovo_seg = CFG["output"]["denovo_seg"]["original"],
+        cnvkit_seg = CFG["output"]["cnvkit_seg"]["original"]
     group: "cnvkit_post_process"
     wildcard_constraints: 
         projection = "|".join(CFG["output"]["requested_projections"]), 
@@ -1389,7 +1428,35 @@ rule _purecn_output_seg:
         purecn_version = "|".join(CFG["output"]["purecn_versions"])
     run:
         op.relative_symlink(input.cnvkit_seg, output.cnvkit_seg, in_module = True)
+
+rule _purecn_denovo_output_seg:
+    input:
+        unpack(_purecn_denovo_drop_capture_space_wc_seg)
+    output:
+        denovo_seg = CFG["output"]["denovo_seg"]["original"],
+    group: "cnvkit_post_process"
+    wildcard_constraints: 
+        projection = "|".join(CFG["output"]["requested_projections"]), 
+        pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
+        purecn_version = "|".join(CFG["output"]["purecn_versions"])
+    run:
         op.relative_symlink(input.denovo_seg, output.denovo_seg, in_module = True)
+
+# Select the seg file that had the least amount of deviation (noise) - as measured by the MAD value
+def _purecn_take_lowest_MAD(wildcards):
+    CFG = config["lcr-modules"]["purecn"]
+    tbl = CFG["runs"]
+    this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
+
+    cnvkit_seg = str(rules._purecn_output_seg.output.cnvkit_seg)
+    denovo_seg = str(rules._purecn_output_seg.output.denovo_seg)
+
+    
+
+    return{
+        "cnvkit_seg": cnvkit_seg,
+        "denovo_seg": denovo_seg
+    }
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -1397,13 +1464,13 @@ rule _purecn_all:
     input:
         expand(
             [
-                str(rules._purecn_output_seg.output.cnvkit_seg),
-                str(rules._purecn_output_files.output.cnvkit_ploidy),
-                str(rules._purecn_output_files.output.cnvkit_gene_cn),
-                str(rules._purecn_output_files.output.cnvkit_loh),
-                str(rules._purecn_output_seg.output.denovo_seg),
-                str(rules._purecn_output_files.output.denovo_ploidy),
-                str(rules._purecn_output_files.output.denovo_loh),
+                str(rules._purecn_cnvkit_output_seg.output.cnvkit_seg),
+                str(rules._purecn_cnvkit_output_files.output.cnvkit_ploidy),
+                str(rules._purecn_cnvkit_output_files.output.cnvkit_gene_cn),
+                str(rules._purecn_cnvkit_output_files.output.cnvkit_loh),
+                str(rules._purecn_denovo_output_seg.output.denovo_seg),
+                str(rules._purecn_denovo_output_files.output.denovo_ploidy),
+                str(rules._purecn_denovo_output_files.output.denovo_loh),
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
@@ -1415,8 +1482,8 @@ rule _purecn_all:
         expand(
             expand(
             [
-                str(rules._purecn_output_projection.output.projection),
-                str(rules._purecn_output_projection.output.projection_denovo)
+                str(rules._purecn_cnvkit_output_projection.output.projection),
+                str(rules._purecn_denovo_output_projection.output.projection_denovo)
             ],
             zip,  # Run expand() with zip(), not product()
             tumour_id=CFG["runs"]["tumour_sample_id"],

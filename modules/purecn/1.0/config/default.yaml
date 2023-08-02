@@ -64,8 +64,12 @@ lcr-modules:
                 opts: "--force --post-optimize --seed 123 "
             
             # the default segmentation method is PSCBS, which leverages vcf info to determine bins
-            flagged_samples: "[]" # populate with sample names that you want to convert to using the standard Hclust method, which is the standard pureCN to cnvkit call. Noisy segmentation will remain noisy however.
-            failed_samples: "[]" # populate with sample names that have failed both methods. It will use "none" as the segmentation method. Note, that if the sample fails this and also failed de novo pureCN calling, then the sample may just be problematic. Should omit the sample entirely.
+            purecn_cnvkit:
+                flagged_samples: "[]" # populate with sample names that you want to convert to using the standard Hclust method, which is the standard pureCN to cnvkit call. Noisy segmentation will remain noisy however.
+                failed_samples: "[]" # populate with sample names that have failed both methods. It will use "none" as the segmentation method. Note, that if the sample fails this and also failed de novo pureCN calling, then the sample may just be problematic. Should omit the sample entirely.
+            purecn_denovo:
+                flagged_samples: "[]" # populate with sample names that you want to convert to using the standard CBS method, which is the standard pureCN to cnvkit call. Noisy segmentation will remain noisy however.
+                failed_samples: "[]" # populate with sample names that have failed both methods. It will use "none" as the segmentation method. Note, that if the sample fails this and also failed de novo pureCN calling, then the sample may just be problematic. Should omit the sample entirely.
 
             # liftOver options to convert between genomic builds
             liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
