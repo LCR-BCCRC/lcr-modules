@@ -104,6 +104,8 @@ lcr-modules:
                 info: "results/purecn-1.0/99-outputs/purecn_denovo/info/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.info.csv"
             denovo_loh:
                 denovo_loh: "results/purecn-1.0/99-outputs/purecn_denovo/loh/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.loh.csv"
+            best_seg: "results/purecn-1.0/99-outputs/best_seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+
             # specify in which projections you want the output files
             requested_projections: ["grch37", "hg38"]
             purecn_versions: ["purecn_cnvkit", "purecn_denovo"]
