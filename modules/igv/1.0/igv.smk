@@ -408,12 +408,25 @@ rule _igv_quality_control:
     run:
         import subprocess
         success = True
-        height = str(subprocess.check_output(f"identify -format '%h' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
-        width = str(subprocess.check_output(f"identify -format '%w' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
+        corrupt_checks = 0
+        is_corrupt = True
+        while corrupt_checks < 2 and is_corrupt == True:
+            corrupt_checks += 1
+            try:
+                height = str(subprocess.check_output(f"identify -format '%h' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
+                width = str(subprocess.check_output(f"identify -format '%w' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
+                is_corrupt = False
+            except:
+                os.system(f'echo "Snapshot may be corrupt. Rerunning IGV, attempt {str(corrupt_checks)}:" >> {log.stdout}')
+                os.system(f'cat {params.batch_script} > {params.batch_temp} && echo "exit" >> {params.batch_temp}')
+                os.system(f'maxtime=$(($(wc -l < {params.batch_temp}) * 60 + 15)) ; timeout --foreground $maxtime xvfb-run -s "-screen 0 1980x1020x24" {params.server_number} {params.server_args} {params.igv} -b {params.batch_temp} >> {log.stdout} 2>> {log.stderr}')
+        if is_corrupt == True:
+            os.system(f'echo "Snapshot may be corrupt." >> {log.stdout}')
+            success = False
         if height in ["506","547","559"]:
             attempts = 0
-            os.system(f'sleep=$(grep "Sleep" {params.batch_script} | cut -d " " -f 2) && sed "s/setSleepInterval $sleep/setSleepInterval 10000/g" {params.batch_script} > {params.batch_temp} && echo "exit" >> {params.batch_temp}')
-            while height in ["506","547","559"] and attempts < 4:
+            os.system(f'sleep=$(grep "Sleep" {params.batch_script} | cut -d " " -f 2) && sed "s/setSleepInterval $sleep/setSleepInterval 5000/g" {params.batch_script} > {params.batch_temp} && echo "exit" >> {params.batch_temp}')
+            while height in ["506","547","559"] and attempts < 3:
                 os.system(f'echo "Snapshot may be truncated. Current snapshot height is {height}. Rerunning IGV batch script {params.batch_script} with increased sleep interval.\n" >> {log.stdout}')
                 attempts += 1
                 os.system(f'echo "IGV ATTEMPT #{attempts}:" >> {log.stdout}')
@@ -425,7 +438,7 @@ rule _igv_quality_control:
                 blank_kurtosis = {"547": 18.5, "559": 18.2}
                 blank_skew = -4
                 if kurtosis > blank_kurtosis[height] and skewness < blank_skew:
-                    os.system(f'echo "Snapshot may be blank. Current values:\nHeight:{height}, kurtosis: {str(kurtosis)}, skewness: {str(skewness)}\nSnapshots with height of 547, kurtosis greater than 18.5, and skewness less than 4 are likely blank and may be due to errors reading BAM file headers or Java address bind errors. Snapshots with height of 559, kurtosis greater than 18.2, and skewness less than 4 are likely blank and may be due to errors during IGV run." >> {log.stdout}')
+                    os.system(f'echo "Snapshot may be blank. Current values:\nHeight:{height}, kurtosis: {str(kurtosis)}, skewness: {str(skewness)}\nSnapshots with height of 547, kurtosis greater than 18.5, and skewness less than 4 are likely blank, snapshots with height of 559, kurtosis greater than 18.2, and skewness less than 4 may be blank. Blank snapshots may be due to errors reading BAM file headers, Java address bind errors or other errors occurring during IGV run." >> {log.stdout}')
                     success = False
             if height == "506":
                 os.system(f'echo "Snapshot height is {height} and may still be truncated or improperly loaded. Check snapshot {input.snapshot}" >> {log.stdout}')
