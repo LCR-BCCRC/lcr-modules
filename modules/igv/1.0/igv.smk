@@ -474,42 +474,7 @@ rule _igv_symlink_snapshot:
     run:
         op.relative_symlink(input.snapshot, output.snapshot)
 
-# Return a list of all snapshots that have undergone quality control
-#def _quality_control(wildcards):
-#    CFG = config["lcr-modules"]["igv"]
-#    checkpoint_outputs = checkpoints._igv_run.get(**wildcards).output.complete
-#
-#    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id = wildcards.tumour_id, tumour_seq_type = wildcards.seq_type, tumour_genome_build = wildcards.genome_build)
-#
-#    normal_sample_id = this_sample["normal_sample_id"]
-#    pair_status = this_sample["pair_status"]
-#
-#    maf = expand(
-#        str(rules._igv_filter_maf.output.maf),
-#        zip,
-#        seq_type=wildcards.seq_type,
-#        genome_build=wildcards.genome_build,
-#        tumour_id=wildcards.tumour_id,
-#        normal_sample_id=normal_sample_id,
-#        pair_status=pair_status
-#    )
-#
-#    if os.path.exists(maf[0]):
-#        maf_table = pd.read_table(maf[0], comment="#", sep="\t")
-#        return expand(
-#            str(rules._igv_quality_control.output.snapshot_qc),
-#            zip,
-#            seq_type = maf_table["seq_type"],
-#            genome_build = maf_table["genome_build"],
-#            chromosome = maf_table["chr_std"],
-#            start_position = maf_table["Start_Position"],
-#            gene = maf_table["Hugo_Symbol"],
-#            tumour_id = maf_table["Tumor_Sample_Barcode"]
-#        )
-#    else:
-#        return []
-
-# Return a list of all snapshots that were taken during IGV
+# Return a list of all snapshots that were taken during IGV for each specific tumour_id, tumour_seq_type, and tumour_genome_build combination
 def _symlink_snapshot(wildcards):
     CFG = config["lcr-modules"]["igv"]
     checkpoint_outputs = checkpoints._igv_run.get(**wildcards).output.complete
