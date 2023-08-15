@@ -13,8 +13,8 @@ lcr-modules:
         src_dir: "{MODSDIR}/src/"
 
         options:
-            include_silent_mutation: False #Include silent mutation in maf file
-            tiles_size: 1000  #This is the size of tiles you want to split the genome into, leave blank if you want to use a gene list as hypothese
+            include_silent_mutation: False #Include silent mutations in maf file
+            tiles_size: 1000 #This is the size of tiles you want to split the genome into, leave blank if you want to use a gene list as hypothese
             target_gene_list: "" #If you do not provide a tile size, please provide a gene list in gtf format (e.g GENCODE v19 genes for GRCH37: gencode.v19.genes.gtf) for Fishhook to do a gene-centric analysis
             target_gene_list_only_protein_coding: True #Only include protein coding genes in gene list
             covariates: "" #please supply a coveriate file in bed format, leave it blank if you want to run FishHook without covariates
