@@ -36,7 +36,6 @@ if(is.null(snakemake@params[[1]])){
     message("Subsetting Gene List for Protein Coding Gene Only...")
     genes = genes %Q% (gene_type == 'protein_coding') 
   }
-  message("hello jacky...")
   fish = Fish(hypotheses = genes, 
                     events = events,
                     idcol = 'Tumor_Sample_Barcode',
