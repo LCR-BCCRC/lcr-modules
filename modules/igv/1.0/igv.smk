@@ -67,8 +67,9 @@ localrules:
     _igv_run,
     _igv_symlink_snapshot,
     _igv_check_snapshots,
-    _igv_mock_merge_batches,
-    _igv_estimate_snapshots
+    _igv_touch_summary,
+    _igv_estimate_snapshots,
+    _igv_snapshot_estimate_finished
 
 
 ##### FUNCTIONS #####
@@ -255,7 +256,7 @@ checkpoint _igv_create_batch_script_per_variant:
     script:
         config["lcr-modules"]["igv"]["scripts"]["batch_script_per_variant"]
 
-if CFG["estimate_only"] == False:
+if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
     # Keep track of which variant and sample_id combinations have been seen, merge individual variant batch scripts into a large batch script per sample_id
     rule _igv_batches_to_merge:
         input:
@@ -411,6 +412,8 @@ if CFG["estimate_only"] == False:
             success = True
             corrupt_checks = 0
             is_corrupt = True
+            height = None
+            width = None
             while corrupt_checks < 2 and is_corrupt == True:
                 corrupt_checks += 1
                 try:
@@ -521,7 +524,7 @@ if CFG["estimate_only"] == False:
         shell:
             "touch {output.snapshots}"
 
-if CFG["estimate_only"] is True: 
+if CFG["estimate_only"] is True and CFG["identify_failed_snaps"] is False: 
 
     rule _igv_touch_summary:
         input:
@@ -602,16 +605,103 @@ if CFG["estimate_only"] is True:
         shell:
             "touch {output.mock_merge_finished}"
 
+if CFG["identify_failed_snaps"] is True and CFG["estimate_only"] is False:
+    rule _igv_touch_failed:
+        input:
+            finished_batch_scripts = expand(str(rules._igv_create_batch_script_per_variant.output.variant_batch), zip, seq_type = CFG["runs"]["tumour_seq_type"], tumour_id=CFG["runs"]["tumour_sample_id"], genome_build=CFG["runs"]["tumour_genome_build"])
+        output:
+            failed_summary = CFG["dirs"]["outputs"] + "snapshot_estimates/failed_summary.txt",
+            failed_ready = temp(CFG["dirs"]["outputs"] + "snapshot_estimates/touch_failed.completed")
+        run:
+            header = "\t".join(["sample_id","seq_type","genome_build","gene","chromosome","position","snapshot_path"])
+            with open(output.failed_summary, "w") as handle:
+                handle.write(header + "\n")
+            ready = open(output.failed_ready, "w")
+            ready.close()
+
+    rule _igv_find_failed:
+        input:
+            single_batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch",
+            failed_file_ready = str(rules._igv_touch_failed.output.failed_ready)
+        output:
+            mock_dispatch_batch_script = temp(CFG["dirs"]["batch_scripts"] + "mock_dispatched_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch")
+        params:
+            failed_summary = str(rules._igv_touch_failed.output.failed_summary),
+            theoretical_snap = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png",
+            theoretical_symlink = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
+        run:
+            if not os.path.exists(params.theoretical_symlink) and os.path.exists(params.theoretical_snap):
+                with open(params.failed_summary, "a") as handle:
+                    tumour_id = wildcards.tumour_id,
+                    seq_type = wildcards.seq_type,
+                    genome_build = wildcards.genome_build,
+                    gene = wildcards.gene,
+                    chromosome = wildcards.chromosome,
+                    position = wildcards.start_position,
+                    snapshot_path = params.theoretical_snap
+
+                    outline = "\t".join([tumour_id, seq_type, genome_build, gene, chromosome, position, snapshot_path])
+                    handle.write(outline + "\n")
+            finished = open(output.mock_dispatch_batch_script, "w")
+            finished.close()
+
+    def _find_failed(wildcards):
+        CFG = config["lcr-modules"]["igv"]
+        checkpoint_outputs = checkpoints._igv_create_batch_script_per_variant.get(**wildcards).output.variant_batch
+
+        this_sample = op.filter_samples(CFG["runs"], tumour_seq_type = wildcards.seq_type, tumour_genome_build = wildcards.genome_build, tumour_sample_id = wildcards.tumour_id)
+        normal_sample_id = this_sample["normal_sample_id"]
+        pair_status = this_sample["pair_status"]
+
+        maf = expand(
+            str(rules._igv_filter_maf.output.maf),
+            zip,
+            seq_type=wildcards.seq_type,
+            genome_build=wildcards.genome_build,
+            tumour_id=wildcards.tumour_id,
+            normal_sample_id=normal_sample_id,
+            pair_status=pair_status
+        )
+
+        if os.path.exists(maf[0]):
+            maf_table = pd.read_table(maf[0], sep="\t", comment="#")
+
+            return expand(
+                str(rules._igv_find_failed.output.mock_dispatch_batch_script),
+                zip,
+                seq_type = maf_table["seq_type"],
+                genome_build = maf_table["genome_build"],
+                chromosome = maf_table["chr_std"],
+                start_position = maf_table["Start_Position"],
+                gene = maf_table["Hugo_Symbol"],
+                tumour_id = maf_table["Tumor_Sample_Barcode"]
+            )
+        else:
+            return []
+
+    rule _igv_failed_estimate_finished:
+        input:
+            _find_failed
+        output:
+            mock_merge_finished = temp(CFG["dirs"]["outputs"] + "snapshot_estimates/completed/{seq_type}--{genome_build}/{tumour_id}.failed.completed")
+        shell:
+            "touch {output.mock_merge_finished}"
+
 # Generates the target sentinels for each run, which generate the symlinks
-if CFG["estimate_only"] is False:
+if CFG["estimate_only"] is False and CFG["identify_failed_snaps"] is False:
     rule _igv_all:
         input:
             expand([str(rules._igv_run.output.complete), str(rules._igv_check_snapshots.output.snapshots)], zip, tumour_id=CFG["runs"]["tumour_sample_id"], seq_type=CFG["runs"]["tumour_seq_type"], genome_build=CFG["runs"]["tumour_genome_build"])
 
-if CFG["estimate_only"] is True:
+if CFG["estimate_only"] is True and CFG["identify_failed_snaps"] is False:
     rule _igv_all:
         input:
             expand(str(rules._igv_snapshot_estimate_finished.output.mock_merge_finished), zip, tumour_id=CFG["runs"]["tumour_sample_id"], seq_type=CFG["runs"]["tumour_seq_type"], genome_build=CFG["runs"]["tumour_genome_build"])
+
+if CFG["identify_failed_snaps"] is True and CFG["estimate_only"] is False:
+    rule _igv_all:
+        input:
+            expand(str(rules._igv_failed_estimate_finished.output.mock_merge_finished), zip, tumour_id=CFG["runs"]["tumour_sample_id"], seq_type=CFG["runs"]["tumour_seq_type"], genome_build=CFG["runs"]["tumour_genome_build"])
 
 
 ##### CLEANUP #####

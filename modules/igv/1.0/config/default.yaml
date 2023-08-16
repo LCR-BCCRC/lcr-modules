@@ -10,6 +10,7 @@ lcr-modules:
             regions_build: "__UPDATE__" # Genome build of regions file, which will be lifted over as needed to filter MAFs on opposite genome builds
 
         estimate_only: True # Stop after MAF filtering step to estimate total number of snapshots
+        identify_failed_snaps: False
 
         options:
             filter_maf:
