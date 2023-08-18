@@ -5,16 +5,46 @@ lcr-modules:
         # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_maf: "__UPDATE__"
+            input_maf: "__UPDATE__"
 
-        scratch_subdirectories: []
+        maf_processing:
+            generate_smg_input: True
+            sample_sets: "__UPDATE__"
+            seq_types: ["genome","capture"]
+            include_non_coding: False
+            prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
+            #matched_only: This is not an option in lcr-script SMG script
+            #filter_criteria: This is also not an option in lcr-script SMG script
+            #metadata: not needed in lcr script SMG script
+
+        hotmaps_repo: "https://github.com/morinlab/HotMAPS/archive/refs/heads/master.zip"
+
+        pdb_stucture_dirs:
+            modbase_dir: "__UPDATE__"
+            pdb_dir: "__UPDATE__"
+            refseq_homology_dir: "%(modbase_dir)s/ModBase_H_sapiens_2013_refseq/models/model/"
+            ensembl_homology_dir: "%(modbase_dir)s/H_sapiens_2013/models/"
+            biological_assembly_dir: "%(pdb_dir)s/biounit/coordinates/all/"
+            non_biological_assembly_dir: "%(pdb_dir)s/structures/all/pdb/"
 
         options:
-            step_1: ""
-            step_2: ""
+            mysql:
+                mysql_host:
+                mysql_user:
+                mysql_db:
+                mysql_passwd:
+            hotmaps:
+                hypermut_threshold:
+                group_func:
+                q_value:
+                num_sim:
+                radius:
+
+       scratch_subdirectories: []
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            hotmaps: "{MODSDIR}/envs/hotmaps.yaml"
             
         threads:
             step_1: 4
@@ -24,3 +54,11 @@ lcr-modules:
                 mem_mb: 2000
             
         pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
