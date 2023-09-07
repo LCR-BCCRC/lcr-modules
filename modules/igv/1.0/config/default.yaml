@@ -9,7 +9,7 @@ lcr-modules:
             regions_format: "__UPDATE__" # Available options are "bed", "maf", "oncodriveclustl", "hotmaps" or "mutation_id"
             regions_build: "__UPDATE__" # Genome build of regions file, which will be lifted over as needed to filter MAFs on opposite genome builds
 
-        estimate_only: True # Stop after MAF filtering step to estimate total number of snapshots
+        estimate_only: False # Stop after MAF filtering step to estimate total number of snapshots
         identify_failed_snaps: False
 
         options:
@@ -31,12 +31,16 @@ lcr-modules:
                     grch37: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh37-lite/Sequence/WholeGenomeFasta/genome.fa"
                     hg38: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh38/Sequence/WholeGenomeFasta/genome.fa"
 
+            igv_presets: ["default", "paired_reads"]
+
             generate_batch_script:
                 padding: 100 # Base pairs upstream and downstream of variant position
                 max_height: 1000
                 sleep_timer: 2000 # Batch scripts with more options may require longer sleep intervals
                 # Available igv options: https://github.com/igvteam/igv/wiki/Batch-commands
-                igv_options: ["preference SAM.COLOR_BY READ_STRAND", "preference SAM.SHOW_CENTER_LINE TRUE", "preference SAM.DOWNSAMPLE_READS FALSE"]
+                igv_options: 
+                    default: ["preference SAM.COLOR_BY READ_STRAND", "preference SAM.SHOW_CENTER_LINE TRUE", "preference SAM.SHADE_BASE_QUALITY true", "preference SAM.DOWNSAMPLE_READS FALSE", "preference SAM.ALLELE_THRESHOLD 0.05", "sort"]
+                    paired_reads: ["viewaspairs", "preference SAM.COLOR_BY READ_STRAND", "preference SAM.SHOW_CENTER_LINE TRUE", "preference SAM.SHADE_BASE_QUALITY true", "preference SAM.DOWNSAMPLE_READS FALSE", "preference SAM.ALLELE_THRESHOLD 0.05", "sort QUALITY"]
                 view_as_pairs: False # Toggle pairwise orientation in IGV
 
             xvfb_parameters:
