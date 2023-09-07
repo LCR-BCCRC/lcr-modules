@@ -113,37 +113,23 @@ def output_lines(lines, batch_output):
     output.write(text)
     output.close()
 
-def generate_igv_batch_per_row(sleep_interval, presets, options, coordinates, directory, child_dir, seq_build, chrom_directory, snapshot_filename):
+def generate_igv_batch_per_row(sleep_interval, preset, options, coordinates, directory, child_dir, seq_build, chrom_directory, snapshot_filename):
     lines = []
-    paired_lines = []
 
     lines.append(f"goto {coordinates}")
 
-    for preset in presets:
-        snapshot_regions_dir = os.path.join(directory, seq_build, child_dir, preset, chrom_directory, "")
-        if preset == "paired_reads":
-            # Low sleep interval to speed up process
-            paired_lines.append("setSleepInterval 1")
-            paired_lines.append(f"snapshotDirectory {snapshot_regions_dir}")
-            for igv_option in options["paired_reads"]:
-                paired_lines.append(igv_option)
-            paired_lines.append(f"setSleepInterval {sleep_interval}")
-            paired_lines.append("collapse")
-            paired_lines.append(f"snapshot {snapshot_filename}")
-        else:
-            # Low sleep interval to speed up process
-            lines.append("setSleepInterval 1")
-            lines.append(f"snapshotDirectory {snapshot_regions_dir}")
-            for igv_option in options[preset]:
-                lines.append(igv_option)
-            lines.append(f"setSleepInterval {sleep_interval}")
-            lines.append("collapse")
-            lines.append(f"snapshot {snapshot_filename}")
+    snapshot_regions_dir = os.path.join(directory, seq_build, child_dir, preset, chrom_directory, "")
 
-    # Paired lines go last because `View as Pairs` setting remains on until IGV session ends
-    variant_lines = lines + paired_lines
-
-    return variant_lines
+    # Low sleep interval to speed up process
+    lines.append("setSleepInterval 1")
+    lines.append(f"snapshotDirectory {snapshot_regions_dir}")
+    for igv_option in options[preset]:
+        lines.append(igv_option)
+    lines.append(f"setSleepInterval {sleep_interval}")
+    lines.append("collapse")
+    lines.append(f"snapshot {snapshot_filename}")
+    
+    return lines
 
 def generate_igv_batch_header(bam, index, max_height, genome_build):
     lines = []
@@ -161,49 +147,49 @@ def generate_igv_batch_header(bam, index, max_height, genome_build):
     return lines
 
 def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_build, seq_type, suffix, igv_presets, igv_options, max_height, sleep_timer=2000):
-    for _, row in regions.iterrows():
-        all_lines = []
+    for preset in igv_presets:
+        for _, row in regions.iterrows():
+            all_lines = []
 
-        header = generate_igv_batch_header(bam=bam, index=bai, max_height=max_height, genome_build=genome_build)
-        all_lines.extend(header)
+            header = generate_igv_batch_header(bam=bam, index=bai, max_height=max_height, genome_build=genome_build)
+            all_lines.extend(header)
 
-        if row.pair_status == "matched":
-            child_directory = "tumour_normal_pair"
-        elif row.pair_status == "unmatched":
-            child_directory = "tumour_only"
+            if row.pair_status == "matched":
+                child_directory = "tumour_normal_pair"
+            elif row.pair_status == "unmatched":
+                child_directory = "tumour_only"
 
-        seq_type_build = f"{seq_type}--{genome_build}"
-        chrom_dir = row.chromosome
+            seq_type_build = f"{seq_type}--{genome_build}"
+            chrom_dir = row.chromosome
 
-        filename = []
-        filename.append(row.region),
-        filename.append(row.region_name)
-        filename.append(row.sample_id)
+            filename = []
+            filename.append(row.region),
+            filename.append(row.region_name)
+            filename.append(row.sample_id)
 
-        batch_filename = "--".join(filename) + suffix + ".batch"
-        filename = "--".join(filename) + suffix + ".png"
+            batch_filename = "--".join(filename) + suffix + ".batch"
+            filename = "--".join(filename) + suffix + ".png"
 
-        lines = generate_igv_batch_per_row(
-            sleep_interval = sleep_timer,
-            presets = igv_presets,
-            options = igv_options,
-            coordinates = row.snapshot_coordinates,
-            directory = snapshot_dir,
-            child_dir = child_directory,
-            seq_build = seq_type_build,
-            chrom_directory = chrom_dir,
-            snapshot_filename = filename
-        )
+            lines = generate_igv_batch_per_row(
+                sleep_interval = sleep_timer,
+                preset = preset,
+                options = igv_options,
+                coordinates = row.snapshot_coordinates,
+                directory = snapshot_dir,
+                child_dir = child_directory,
+                seq_build = seq_type_build,
+                chrom_directory = chrom_dir,
+                snapshot_filename = filename
+            )
 
-        all_lines.extend(lines)
+            all_lines.extend(lines)
 
-        for subdir in [os.path.join(output_dir, "single_batch_scripts"), os.path.join(output_dir, "single_batch_scripts", seq_type_build)]:
-            if not os.path.exists(subdir):
-                os.mkdir(subdir)
+            # Make subdirectories if necessary because snakemake won't make them since rule is a checkpoint
+            os.makedirs(os.path.join(output_dir, "single_batch_scripts", seq_type_build, child_directory, preset), exist_ok=True)
 
-        batch_file_path = os.path.join(output_dir, "single_batch_scripts", seq_type_build, batch_filename)
-        
-        output_lines(all_lines, batch_file_path)
+            batch_file_path = os.path.join(output_dir, "single_batch_scripts", seq_type_build, child_directory, preset, batch_filename)
+
+            output_lines(all_lines, batch_file_path)
 
 if __name__ == "__main__":
     logging.basicConfig(

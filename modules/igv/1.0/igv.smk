@@ -49,6 +49,12 @@ CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(
 # Define output file suffix based on config parameters
 SUFFIX = ".pad" + str(CFG["options"]["generate_batch_script"]["padding"])
 
+# Reorganize presets so paired_reads is last
+PRESETS = CFG["options"]["igv_presets"]
+if "paired_reads" in PRESETS:
+    paired_idx = PRESETS.index("paired_reads")
+    PRESETS[paired_idx], PRESETS[len(PRESETS)-1] = PRESETS[len(PRESETS)-1], PRESETS[paired_idx]
+
 # Define rules to be run locally when using a compute cluster
 localrules:
     _igv_symlink_regions_file,
@@ -231,66 +237,79 @@ rule _igv_filter_maf:
     script:
         config["lcr-modules"]["igv"]["scripts"]["filter_script"]
 
-def _get_maf(wildcards):
-    CFG = config["lcr-modules"]["igv"]
-
-    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id=wildcards.tumour_id, tumour_seq_type=wildcards.seq_type)
-    genome_build = this_sample["tumour_genome_build"]
-    normal_sample_id = this_sample["normal_sample_id"]
-    pair_status = this_sample["pair_status"]
-
-    return (
-        expand(
-            str(rules._igv_filter_maf.output.maf),
-            zip,
-            seq_type = wildcards.seq_type,
-            genome_build = genome_build,
-            tumour_id = wildcards.tumour_id,
-            normal_sample_id = normal_sample_id,
-            pair_status = pair_status
-        )
-    )
-
-def _get_bam_files(wildcards):
-    CFG = config["lcr-modules"]["igv"]
-
-    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id=wildcards.tumour_id, tumour_seq_type=wildcards.seq_type)
-    normal_sample_id = this_sample["normal_sample_id"]
-    pair_status = this_sample["pair_status"]
-
-    if pair_status.item() == "matched":
-        tumour_bam_file = expand(str(rules._igv_symlink_bam.output.bam), zip, seq_type=wildcards.seq_type, tumour_id=wildcards.tumour_id)[0]
-        normal_bam_file = expand(str(rules._igv_symlink_normal_bam.output.bam), zip, seq_type=wildcards.seq_type, normal_sample_id=normal_sample_id)[0]
-        return([tumour_bam_file, normal_bam_file])
-
-    if pair_status.item() == "unmatched":
-        return (
-            expand(str(rules._igv_symlink_bam.output.bam), zip, seq_type=wildcards.seq_type, tumour_id=wildcards.tumour_id)
-        )
-
-def _get_bai_files(wildcards):
-    CFG = config["lcr-modules"]["igv"]
-
-    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id=wildcards.tumour_id, tumour_seq_type=wildcards.seq_type)
-    normal_sample_id = this_sample["normal_sample_id"]
-    pair_status = this_sample["pair_status"]
-
-    if pair_status.item() == "matched":
-        tumour_bai_file = expand(str(rules._igv_symlink_bai.output.bai), zip, seq_type=wildcards.seq_type, tumour_id=wildcards.tumour_id)[0]
-        normal_bai_file = expand(str(rules._igv_symlink_normal_bai.output.bai), zip, seq_type=wildcards.seq_type, normal_sample_id=normal_sample_id)[0]
-        return([tumour_bai_file, normal_bai_file])
-    if pair_status.item() == "unmatched":
-        return(
-            expand(str(rules._igv_symlink_bai.output.bai), zip, seq_type=wildcards.seq_type, tumour_id=wildcards.tumour_id)
-        )
-
 if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
+
+    # Trigger batch scripts to be created if new presets are specified
+    rule _igv_touch_presets:
+        output:
+            preset = CFG["dirs"]["inputs"] + "presets/{preset}.touch"
+        shell:
+            "touch {output.preset}"
+
+    def _get_maf(wildcards):
+        CFG = config["lcr-modules"]["igv"]
+
+        this_sample = op.filter_samples(CFG["runs"], tumour_sample_id=wildcards.tumour_id, tumour_seq_type=wildcards.seq_type)
+        genome_build = this_sample["tumour_genome_build"]
+        normal_sample_id = this_sample["normal_sample_id"]
+        pair_status = this_sample["pair_status"]
+
+        return (
+            expand(
+                str(rules._igv_filter_maf.output.maf),
+                zip,
+                seq_type = wildcards.seq_type,
+                genome_build = genome_build,
+                tumour_id = wildcards.tumour_id,
+                normal_sample_id = normal_sample_id,
+                pair_status = pair_status
+            )
+        )
+
+    def _get_bam_files(wildcards):
+        CFG = config["lcr-modules"]["igv"]
+
+        this_sample = op.filter_samples(CFG["runs"], tumour_sample_id=wildcards.tumour_id, tumour_seq_type=wildcards.seq_type)
+        normal_sample_id = this_sample["normal_sample_id"]
+        pair_status = this_sample["pair_status"]
+
+        if pair_status.item() == "matched":
+            tumour_bam_file = expand(str(rules._igv_symlink_bam.output.bam), zip, seq_type=wildcards.seq_type, tumour_id=wildcards.tumour_id)[0]
+            normal_bam_file = expand(str(rules._igv_symlink_normal_bam.output.bam), zip, seq_type=wildcards.seq_type, normal_sample_id=normal_sample_id)[0]
+            return([tumour_bam_file, normal_bam_file])
+
+        if pair_status.item() == "unmatched":
+            return (
+                expand(str(rules._igv_symlink_bam.output.bam), zip, seq_type=wildcards.seq_type, tumour_id=wildcards.tumour_id)
+            )
+
+    def _get_bai_files(wildcards):
+        CFG = config["lcr-modules"]["igv"]
+
+        this_sample = op.filter_samples(CFG["runs"], tumour_sample_id=wildcards.tumour_id, tumour_seq_type=wildcards.seq_type)
+        normal_sample_id = this_sample["normal_sample_id"]
+        pair_status = this_sample["pair_status"]
+
+        if pair_status.item() == "matched":
+            tumour_bai_file = expand(str(rules._igv_symlink_bai.output.bai), zip, seq_type=wildcards.seq_type, tumour_id=wildcards.tumour_id)[0]
+            normal_bai_file = expand(str(rules._igv_symlink_normal_bai.output.bai), zip, seq_type=wildcards.seq_type, normal_sample_id=normal_sample_id)[0]
+            return([tumour_bai_file, normal_bai_file])
+        if pair_status.item() == "unmatched":
+            return(
+                expand(str(rules._igv_symlink_bai.output.bai), zip, seq_type=wildcards.seq_type, tumour_id=wildcards.tumour_id)
+            )
+
+    def _get_presets(wildcards):
+        CFG = config["lcr-modules"]["igv"]
+        return(expand(str(rules._igv_touch_presets.output.preset), preset=CFG["options"]["igv_presets"]))
+
     # Create batch scripts for each variant
     checkpoint _igv_create_batch_script_per_variant:
         input:
             bam_file = _get_bam_files,
             bai_file = _get_bai_files,
             filter_maf = _get_maf,
+            presets = _get_presets,
             regions_lifted = str(rules._igv_liftover_regions.output.regions),
             regions_formatted = str(rules._igv_format_regions_file.output.regions)
         output:
@@ -312,9 +331,9 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
     # Keep track of which variant and sample_id combinations have been seen, merge individual variant batch scripts into a large batch script per sample_id
     rule _igv_batches_to_merge:
         input:
-            batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch"
+            batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch"
         output:
-            dispatched_batch_script = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch"
+            dispatched_batch_script = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch"
         params:
             batch_script_file = str(rules._igv_create_batch_script_per_variant.output.variant_batch),
             igv_options = CFG["options"]["generate_batch_script"]["igv_options"]
@@ -331,9 +350,7 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
             with open(output_file, "a") as handle:
                 for line in batch_script:
                     if merged_lines > 0:
-                        if line.startswith(("load","maxPanelHeight","genome","viewaspairs","setSleepInterval")):
-                            continue
-                        if line.startswith(tuple(params.igv_options)):
+                        if line.startswith(("load","maxPanelHeight","genome")):
                             continue
                     handle.write(line)
             batch_script.close()
@@ -351,6 +368,9 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
         normal_sample_id = this_sample["normal_sample_id"]
         pair_status = this_sample["pair_status"]
 
+        # Assign pair_status_directories based on pair_status value
+        PAIR_STATUS_DICT = {"matched": "tumour_normal_pair", "unmatched": "tumour_only"}
+
         maf = expand(
             str(rules._igv_filter_maf.output.maf), 
             zip, 
@@ -365,15 +385,23 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
             maf_table = pd.read_table(maf[0], comment="#", sep="\t")
 
             return expand(
-                    str(rules._igv_batches_to_merge.output.dispatched_batch_script),
-                    zip,
-                    chromosome = maf_table["chr_std"],
-                    start_position = maf_table["Start_Position"],
-                    gene = maf_table["Hugo_Symbol"],
-                    tumour_id = maf_table["Tumor_Sample_Barcode"],
-                    seq_type = maf_table["seq_type"],
-                    genome_build = maf_table["genome_build"]
-                )
+                expand(
+                    expand(
+                        str(rules._igv_batches_to_merge.output.dispatched_batch_script),
+                        zip,
+                        chromosome = maf_table["chr_std"],
+                        start_position = maf_table["Start_Position"],
+                        gene = maf_table["Hugo_Symbol"],
+                        tumour_id = maf_table["Tumor_Sample_Barcode"],
+                        seq_type = maf_table["seq_type"],
+                        genome_build = maf_table["genome_build"],
+                        allow_missing = True
+                    ),
+                    pair_status_directory = PAIR_STATUS_DICT[pair_status.item()],
+                    allow_missing = True
+                ),
+                preset_directory = PRESETS
+            )
         else:
             return []
 
