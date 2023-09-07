@@ -47,9 +47,7 @@ CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(
 CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(CFG["options"]["genome_map"]["hg38"]), "hg38", inplace=True)
 
 # Define output file suffix based on config parameters
-SUFFIX = ".pad" + str(CFG["options"]["generate_batch_script"]["padding"]) 
-if CFG["options"]["generate_batch_script"]["view_as_pairs"]:
-    SUFFIX = SUFFIX + ".pairs"
+SUFFIX = ".pad" + str(CFG["options"]["generate_batch_script"]["padding"])
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -82,6 +80,14 @@ def get_bams(wildcards):
 def get_bai(wildcards):
     metadata = config["lcr-modules"]["igv"]["samples"]
     return expand("data/{{seq_type}}_bams/{{tumour_id}}.{genome_build}.bam.bai", genome_build=metadata[(metadata.sample_id == wildcards.tumour_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"])
+
+def get_normal_bam(wildcards):
+    metadata = config["lcr-modules"]["igv"]["samples"]
+    return expand("data/{{seq_type}}_bams/{{normal_sample_id}}.{genome_build}.bam", genome_build=metadata[(metadata.sample_id == wildcards.normal_sample_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"])
+
+def get_normal_bai(wildcards):
+    metadata = config["lcr-modules"]["igv"]["samples"]
+    return expand("data/{{seq_type}}_bams/{{normal_sample_id}}.{genome_build}.bam.bai", genome_build=metadata[(metadata.sample_id == wildcards.normal_sample_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"])
 
 def get_maf(wildcards):
     unix_group = config["unix_group"]
@@ -118,6 +124,22 @@ rule _igv_symlink_bai:
         bai = CFG["dirs"]["inputs"] + "bams/{seq_type}/{tumour_id}.bam.bai"
     threads:
         CFG["threads"]["_igv_symlink_bai"]
+    run:
+        op.absolute_symlink(input.bai, output.bai)
+
+rule _igv_symlink_normal_bam:
+    input:
+        bam = get_normal_bam
+    output:
+        bam = CFG["dirs"]["inputs"] + "normal_bams/{seq_type}/{normal_sample_id}.bam"
+    run:
+        op.absolute_symlink(input.bam, output.bam)
+
+rule _igv_symlink_normal_bai:
+    input:
+        bai = get_normal_bai
+    output:
+        bai = CFG["dirs"]["inputs"] + "normal_bams/{seq_type}/{normal_sample_id}.bam.bai"
     run:
         op.absolute_symlink(input.bai, output.bai)
 
@@ -229,13 +251,46 @@ def _get_maf(wildcards):
         )
     )
 
+def _get_bam_files(wildcards):
+    CFG = config["lcr-modules"]["igv"]
+
+    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id=wildcards.tumour_id, tumour_seq_type=wildcards.seq_type)
+    normal_sample_id = this_sample["normal_sample_id"]
+    pair_status = this_sample["pair_status"]
+
+    if pair_status.item() == "matched":
+        tumour_bam_file = expand(str(rules._igv_symlink_bam.output.bam), zip, seq_type=wildcards.seq_type, tumour_id=wildcards.tumour_id)[0]
+        normal_bam_file = expand(str(rules._igv_symlink_normal_bam.output.bam), zip, seq_type=wildcards.seq_type, normal_sample_id=normal_sample_id)[0]
+        return([tumour_bam_file, normal_bam_file])
+
+    if pair_status.item() == "unmatched":
+        return (
+            expand(str(rules._igv_symlink_bam.output.bam), zip, seq_type=wildcards.seq_type, tumour_id=wildcards.tumour_id)
+        )
+
+def _get_bai_files(wildcards):
+    CFG = config["lcr-modules"]["igv"]
+
+    this_sample = op.filter_samples(CFG["runs"], tumour_sample_id=wildcards.tumour_id, tumour_seq_type=wildcards.seq_type)
+    normal_sample_id = this_sample["normal_sample_id"]
+    pair_status = this_sample["pair_status"]
+
+    if pair_status.item() == "matched":
+        tumour_bai_file = expand(str(rules._igv_symlink_bai.output.bai), zip, seq_type=wildcards.seq_type, tumour_id=wildcards.tumour_id)[0]
+        normal_bai_file = expand(str(rules._igv_symlink_normal_bai.output.bai), zip, seq_type=wildcards.seq_type, normal_sample_id=normal_sample_id)[0]
+        return([tumour_bai_file, normal_bai_file])
+    if pair_status.item() == "unmatched":
+        return(
+            expand(str(rules._igv_symlink_bai.output.bai), zip, seq_type=wildcards.seq_type, tumour_id=wildcards.tumour_id)
+        )
+
 if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
     # Create batch scripts for each variant
     checkpoint _igv_create_batch_script_per_variant:
         input:
+            bam_file = _get_bam_files,
+            bai_file = _get_bai_files,
             filter_maf = _get_maf,
-            bam_file = str(rules._igv_symlink_bam.output.bam),
-            bai_file = str(rules._igv_symlink_bai.output.bai),
             regions_lifted = str(rules._igv_liftover_regions.output.regions),
             regions_formatted = str(rules._igv_format_regions_file.output.regions)
         output:
@@ -245,12 +300,9 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
             snapshot_dir = config["lcr-modules"]["igv"]["dirs"]["snapshots"],
             genome_build = lambda w: w.genome_build,
             seq_type = lambda w: w.seq_type,
-            padding = config["lcr-modules"]["igv"]["options"]["generate_batch_script"]["padding"],
-            igv_options = config["lcr-modules"]["igv"]["options"]["generate_batch_script"]["igv_options"],
-            max_height = config["lcr-modules"]["igv"]["options"]["generate_batch_script"]["max_height"],
+            batch_options = config["lcr-modules"]["igv"]["options"]["generate_batch_script"],
             suffix = SUFFIX,
-            view_pairs = config["lcr-modules"]["igv"]["options"]["generate_batch_script"]["view_as_pairs"],
-            sleep_timer = config["lcr-modules"]["igv"]["options"]["generate_batch_script"]["sleep_timer"]
+            igv_presets = config["lcr-modules"]["igv"]["options"]["igv_presets"]
         log:
             stdout = CFG["logs"]["batch_scripts"] + "_igv_create_batch_script_per_variant/{seq_type}--{genome_build}/{tumour_id}" + SUFFIX + ".stdout.log",
             stderr = CFG["logs"]["batch_scripts"] + "_igv_create_batch_script_per_variant/{seq_type}--{genome_build}/{tumour_id}" + SUFFIX + ".stderr.log"
@@ -391,9 +443,9 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
     rule _igv_quality_control:
         input:
             igv = str(rules._igv_run.output.complete),
-            snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
+            snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
         output:
-            snapshot_qc = temp(CFG["dirs"]["snapshots"] + "qc/{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".qc")
+            snapshot_qc = temp(CFG["dirs"]["snapshots"] + "qc/{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".qc")
         params:
             batch_script = lambda w: config["lcr-modules"]["igv"]["dirs"]["batch_scripts"] + f"single_batch_scripts/{w.seq_type}--{w.genome_build}/{w.chromosome}:{w.start_position}--{w.gene}--{w.tumour_id}" + SUFFIX + ".batch",
             merged_batch = lambda w: config["lcr-modules"]["igv"]["dirs"]["batch_scripts"] + f"merged_batch_scripts/{w.seq_type}--{w.genome_build}/{w.tumour_id}" + SUFFIX + ".batch",
@@ -404,8 +456,8 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
         resources:
             **CFG["resources"]["_igv_quality_control"]
         log:
-            stdout = CFG["logs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + "_quality_control.stdout.log",
-            stderr = CFG["logs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + "_quality_control.stderr.log"
+            stdout = CFG["logs"]["snapshots"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + "_quality_control.stdout.log",
+            stderr = CFG["logs"]["snapshots"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + "_quality_control.stderr.log"
         threads: (workflow.cores)
         run:
             import subprocess
@@ -469,10 +521,10 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
     # Symlinks the final output files into the module results directory (under '99-outputs/')
     rule _igv_symlink_snapshot:
         input:
-            snapshot = ancient(CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"),
+            snapshot = ancient(CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"),
             snapshot_qc = str(rules._igv_quality_control.output.snapshot_qc)
         output:
-            snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
+            snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
         threads:
             CFG["threads"]["_igv_symlink_snapshot"]
         run:
@@ -488,6 +540,9 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
         normal_sample_id = this_sample["normal_sample_id"]
         pair_status = this_sample["pair_status"]
 
+        # Assign pair_status_directories based on pair_status value
+        PAIR_STATUS_DICT = {"matched": "tumour_normal_pair", "unmatched": "tumour_only"}
+
         maf = expand(
             str(rules._igv_filter_maf.output.maf), 
             zip, 
@@ -502,14 +557,22 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
             maf_table = pd.read_table(maf[0], comment="#", sep="\t")
 
             return expand(
-                    str(rules._igv_symlink_snapshot.output.snapshot), 
-                    zip,
-                    seq_type = maf_table["seq_type"],
-                    genome_build = maf_table["genome_build"],
-                    chromosome = maf_table["chr_std"],
-                    start_position = maf_table["Start_Position"],
-                    gene = maf_table["Hugo_Symbol"],
-                    tumour_id = maf_table["Tumor_Sample_Barcode"]
+                    expand(
+                        expand(
+                            str(rules._igv_symlink_snapshot.output.snapshot),
+                            zip,
+                            seq_type = maf_table["seq_type"],
+                            genome_build = maf_table["genome_build"],
+                            chromosome = maf_table["chr_std"],
+                            start_position = maf_table["Start_Position"],
+                            gene = maf_table["Hugo_Symbol"],
+                            tumour_id = maf_table["Tumor_Sample_Barcode"],
+                            allow_missing = True
+                        ),
+                        pair_status_directory = PAIR_STATUS_DICT[pair_status.item()],
+                        allow_missing = True
+                    ),
+                    preset_directory = CFG["options"]["igv_presets"]
                 )
         else:
             return []
