@@ -21,9 +21,18 @@ def main():
         sys.stdout = stdout
 
         try:
-            input_maf = open(snakemake.input[0], "r")
-            input_bam = snakemake.input[1]
-            input_bai = snakemake.input[2]
+            # Handle matched samples with matched normal BAMs
+            input_bams = snakemake.input[0:len(snakemake.input) - 3]
+            input_bam = input_bams[:int(len(input_bams) / 2)]
+            input_bai = input_bams[int(len(input_bams)/2):]
+            
+            inputs = snakemake.input[-3:len(snakemake.input)]
+            batch_options = snakemake.params[4]
+
+            # Print run info for logging
+            print(f"Setting up batch scripts using the following inputs:\nBam files:\t{input_bam}\nBai files:\t{input_bai}\nParameters:\t{snakemake.params[6]}\nBatch options:\t{batch_options}")
+
+            input_maf = open(inputs[0], "r")
 
             # Skip if no variants in outfile
             line_count = 0
@@ -43,8 +52,7 @@ def main():
             # Read MAF file and create dataframe
             regions = get_regions_df(
                 input_maf,
-                seq_type=snakemake.params[2],
-                padding=snakemake.params[4]
+                padding=batch_options["padding"]
             )
 
             input_maf.close()
@@ -58,11 +66,11 @@ def main():
                 snapshot_dir = snakemake.params[1],
                 genome_build = snakemake.params[2],
                 seq_type = snakemake.params[3],
-                igv_options = snakemake.params[5],
-                max_height = snakemake.params[6],
-                suffix = snakemake.params[7],
-                as_pairs = snakemake.params[8],
-                sleep_timer = snakemake.params[9]
+                suffix = snakemake.params[5],
+                igv_presets = snakemake.params[6],
+                igv_options = batch_options["igv_options"],
+                max_height = batch_options["max_height"],
+                sleep_timer = batch_options["sleep_timer"]
             )
 
             touch_output = open(snakemake.output[0], "w")
@@ -72,7 +80,7 @@ def main():
             logging.error(e, exc_info=1)
             raise
 
-def get_regions_df(input_maf, seq_type, padding):
+def get_regions_df(input_maf, padding):
     # Read MAF as dataframe
     maf = pd.read_table(input_maf, comment="#", sep="\t")
 
@@ -91,7 +99,8 @@ def get_regions_df(input_maf, seq_type, padding):
         "region_name": maf.Hugo_Symbol,
         "sample_id": maf.Tumor_Sample_Barcode,
         "snapshot_coordinates": snapshot_coordinates,
-        "padding": padding
+        "padding": padding,
+        "pair_status": maf.pair_status
         }
     )
 
@@ -104,50 +113,67 @@ def output_lines(lines, batch_output):
     output.write(text)
     output.close()
 
-def generate_igv_batch_per_row(coordinates, snapshot_filename):
+def generate_igv_batch_per_row(sleep_interval, presets, options, coordinates, directory, child_dir, seq_build, chrom_directory, snapshot_filename):
     lines = []
+    paired_lines = []
+
     lines.append(f"goto {coordinates}")
-    lines.append("sort")
-    lines.append("collapse")
-    lines.append(f"snapshot {snapshot_filename}")
 
-    return lines
+    for preset in presets:
+        snapshot_regions_dir = os.path.join(directory, seq_build, child_dir, preset, chrom_directory, "")
+        if preset == "paired_reads":
+            # Low sleep interval to speed up process
+            paired_lines.append("setSleepInterval 1")
+            paired_lines.append(f"snapshotDirectory {snapshot_regions_dir}")
+            for igv_option in options["paired_reads"]:
+                paired_lines.append(igv_option)
+            paired_lines.append(f"setSleepInterval {sleep_interval}")
+            paired_lines.append("collapse")
+            paired_lines.append(f"snapshot {snapshot_filename}")
+        else:
+            # Low sleep interval to speed up process
+            lines.append("setSleepInterval 1")
+            lines.append(f"snapshotDirectory {snapshot_regions_dir}")
+            for igv_option in options[preset]:
+                lines.append(igv_option)
+            lines.append(f"setSleepInterval {sleep_interval}")
+            lines.append("collapse")
+            lines.append(f"snapshot {snapshot_filename}")
 
-def generate_igv_batch_header(bam, index, max_height, genome_build, igv_options, sleep_timer, as_pairs):
+    # Paired lines go last because `View as Pairs` setting remains on until IGV session ends
+    variant_lines = lines + paired_lines
+
+    return variant_lines
+
+def generate_igv_batch_header(bam, index, max_height, genome_build):
     lines = []
 
     genome_build = genome_build.replace("grch37","hg19")
 
-    bam_file = bam
-    bai_file = index
-    lines.append(f"load {bam_file} index={bai_file}")
+    assert len(bam) == len(index), "Error while generating batch script: number of .bam files and .bai files are not equal"
+
+    for i in range(0,len(bam)):
+        lines.append(f"load {bam[i]} index={index[i]}")
 
     lines.append(f"maxPanelHeight {max_height}")
     lines.append(f"genome {genome_build}")
-    
-    if igv_options is not None:
-        for option in igv_options:
-            lines.append(option)
-
-    lines.append(f"setSleepInterval {sleep_timer}")
-
-    if as_pairs:
-        lines.append("viewaspairs")
 
     return lines
 
-def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_build, seq_type, igv_options, max_height, suffix, as_pairs=False, sleep_timer=2000):
+def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_build, seq_type, suffix, igv_presets, igv_options, max_height, sleep_timer=2000):
     for _, row in regions.iterrows():
         all_lines = []
 
-        header = generate_igv_batch_header(bam=bam, index=bai, max_height=max_height, genome_build=genome_build, igv_options=igv_options, sleep_timer=sleep_timer, as_pairs=as_pairs)
+        header = generate_igv_batch_header(bam=bam, index=bai, max_height=max_height, genome_build=genome_build)
         all_lines.extend(header)
 
-        dir_chrom = row.chromosome
-        seq_type_build = f"{seq_type}--{genome_build}"
+        if row.pair_status == "matched":
+            child_directory = "tumour_normal_pair"
+        elif row.pair_status == "unmatched":
+            child_directory = "tumour_only"
 
-        snapshot_regions_dir = os.path.join(snapshot_dir, seq_type_build, dir_chrom, "")
-        all_lines.append(f"snapshotDirectory {snapshot_regions_dir}")
+        seq_type_build = f"{seq_type}--{genome_build}"
+        chrom_dir = row.chromosome
 
         filename = []
         filename.append(row.region),
@@ -158,7 +184,14 @@ def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_bui
         filename = "--".join(filename) + suffix + ".png"
 
         lines = generate_igv_batch_per_row(
+            sleep_interval = sleep_timer,
+            presets = igv_presets,
+            options = igv_options,
             coordinates = row.snapshot_coordinates,
+            directory = snapshot_dir,
+            child_dir = child_directory,
+            seq_build = seq_type_build,
+            chrom_directory = chrom_dir,
             snapshot_filename = filename
         )
 
