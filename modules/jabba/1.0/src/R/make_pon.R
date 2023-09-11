@@ -28,6 +28,7 @@ nrml.tbl <- data.table(
     sample = nrml.smp,
     normal_cov = nrml.rds
 )
+if (!dir.exists(dirname(tbl.out))) {dir.create(dirname(tbl.out), recursive = TRUE)}
 
 saveRDS(nrml.tbl, tbl.out)
 

@@ -6,6 +6,7 @@ suppressPackageStartupMessages({
   library(magrittr)
   library(purrr)
   library(gGnome)
+  library(gUtils)
 })
 
 #####   PARSER  #####
@@ -20,33 +21,43 @@ args <- parser$parse_args()
 
 ##### TESTING #####
 
+# setwd('/projects/rmorin/projects/gambl-repos/gambl-kcoyle/')
 # args <- list()
-# args$manta <- 'results/gambl/jabba-1.0/00-inputs/junc/manta/genome--hg38/05-18796T--05-18796N--matched.vcf'
-# args$gridss <- 'results/gambl/jabba-1.0/00-inputs/junc/gridss/genome--hg38/05-18796T--05-18796N--matched.vcf'
+# args$manta <- 'results/gambl/jabba_battenberg_purities/00-inputs/junc/manta/genome--hg38/01-20357T--01-20357N--matched.vcf'
+# args$gridss <- 'results/gambl/jabba_battenberg_purities/00-inputs/junc/gridss/genome--hg38/01-20357T--01-20357N--matched.bnd.vcf'
 # args$genome <- 'hg38'
-# args$pad <- 50
+# args$pad <- 100
+# args$rds <- 'results/gambl/jabba_battenberg_purities/00-inputs/junc/merged/genome--hg38/01-20357T--01-20357N--matched.rds'
 
 ##### MERGING #####
 
 br <- list()
 
 sl <- NULL
+
+
 if (args$genome == 'grch37') {
     sl <- hg_seqlengths('BSgenome.Hsapiens.UCSC.hg19::Hsapiens', chr = FALSE)
 } else if (args$genome == 'hg38') {
     sl <- hg_seqlengths('BSgenome.Hsapiens.UCSC.hg38::Hsapiens', chr = TRUE)
 }
 
+
 # FIX: jJ fails when no breakpoints are present
 # i.e., only del, dup, ins are present
 # Should only be a problem with Manta
+
+# Error arises when using seqlengths, removed ", seqlengths = sl" from manta & gridss
 br$manta <- 
   tryCatch({
-    jJ(args$manta, seqlengths = sl)
+    jJ(args$manta#,  hg=args$genome)
+    )
+    #jJ(args$manta, seqlengths = hg_seqlengths(genome = DEFAULT_GENOME))
   }, error = function(e){
     GRanges()
   })
-br$gridss <- jJ(args$gridss, seqlengths = sl)
+br$gridss <- jJ(args$gridss#,  hg=args$genome
+               )
 
 any.empty <- any(map_int(br, length)==0)
 
@@ -74,6 +85,6 @@ if (!any.empty) {
 values(br.merged.grl) <- br.merged.val
 
 ##### OUTPUT #####
-
+if (!dir.exists(dirname(args$rds))) {dir.create(dirname(args$rds), recursive = TRUE)}
 saveRDS(br.merged.grl, file = args$rds)
 
