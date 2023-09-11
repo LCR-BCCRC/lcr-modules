@@ -661,12 +661,12 @@ rule install_sigprofiler_genome:
 
 rule combine_gff_nonb:
     input:
-        complete = str(rules.download_nonb_dna_gff.output.complete)
+        complete = str(rules.move_nonb_dna_gff.output.complete)
     params:
-        gff = lambda w: expand("downloads/nonb_dna/gff/{genome_build}/chr{chr}_{Btype}.gff", chr=[str(i) for i in range(1,22)] + ["MT","X","Y"], Btype=["Z","MR","IR","GQ","DR","APR"], allow_missing=True)
+        gff = expand("downloads/nonb_dna/gff/{genome_build}/chr{chr}_{Btype}.gff", chr=[str(i) for i in range(1,22)] + ["MT","X","Y"], Btype=["Z","MR","IR","GQ","DR","APR"], allow_missing=True)
     output:
-        gff = "genomes/{version}/nonb_dna/gff/{genome_build}.gff",
-        complete = "downloads/nonb_dna/gff/{version}.{genome_build}.combine.complete"
+        gff = "genomes/{genome_build}/nonb_dna/gff/{genome_build}.gff",
+        complete = "downloads/nonb_dna/gff/{genome_build}.combine.complete"
     shell:
         op.as_one_line("""
             tail -n +2 -q {params.gff} > {output.gff} &&
@@ -677,9 +677,11 @@ rule gff_nonb_cvbio:
     input:
         gff = str(rules.combine_gff_nonb.output.gff)
     output:
-        bed = "genomes/{version}/nonb_dna/{genome_build}.bed"
+        bed = "genomes/{genome_build}/nonb_dna/{genome_build}.bed"
     conda:
         CONDA_ENVS["bedops"]
+    resources:
+        mem_mb = 5000
     shell:
         op.as_one_line("""
             gff2bed < {input.gff} > {output.bed}

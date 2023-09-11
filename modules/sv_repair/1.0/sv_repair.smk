@@ -38,103 +38,148 @@ CFG = op.setup_module(
     name = "sv_repair",
     version = "1.0",
     # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "window_bedpe","bed","fasta","tumor_reads","clustal", "sv_repair", "outputs"],
+    subdirectories = ["inputs","filter_vcf", "vcf_to_df","bed","rmsk","nonb_dna", "repair", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
 # TODO: Replace with actual rules once you change the rule names
 localrules:
-    _sv_repair_input_bedpe,
-    _sv_repair_step_2,
-    _sv_repair_output_unk,
-    _sv_repair_all,
+    _sv_repair_input_vcf,
+    _sv_repair_filter_vcf,
+    #_sv_repair_output_unk
 
 
 ##### RULES #####
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
-rule _sv_repair_input_bedpe:
+
+rule _sv_repair_input_vcf:
     input:
-        bedpe = CFG["inputs"]["sample_bedpe"]
-        tumour_bam = CFG["inputs"]["tumour_bam"]
-        tumour_bai = CFG["inputs"]["tumour_bai"]
+        vcf = CFG["inputs"]["sample_vcf"]
     output:
-        bedpe = CFG["dirs"]["inputs"] + "bedpe/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somaticSV.bedpe"
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.{genome_build}.bam"
-        tumour_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.{genome_build}.bam.bai
-    group: 
-        "input_and_step_1"
+        vcf = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somaticSV.vcf"
     run:
-        op.absolute_symlink(input.bedpe, output.bedpe),
-        op.absolute_symlink(input.tumour_bam, output.tumour_bam),
-        op.absolute_symlink(input.tumour_bai, output.tumour_bai)
+        op.absolute_symlink(input.vcf, output.vcf)
 
 
-## Add windows to bedpe
-rule _sv_repair_step_1:rule add_windows_bedpe:
-	input:
-		bedpe = str(rules.input_bedpe.output.bedpe)
-	output:
-		bedpe = CFG["dirs"]["window_bedpe"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somaticSV.bedpe"
-	log:
-		stdout = CFG["logs"]["window_bedpe"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/add_windows.stdout.log"
-	params:
-        CFG["options"]["window_size"]
-	conda:
-		CFG["conda_envs"]["readr"]
-	script:
-		"../../src/R/bedpe.windows.R"
+rule _sv_repair_filter_vcf:
+    input:
+        vcf = str(rules._sv_repair_input_vcf.output.vcf)
+    output:
+        file = CFG["dirs"]["filter_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/filter.complete",
+        vcf = CFG["dirs"]["filter_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somaticSV.pass.precise.recode.vcf"
+    log:
+        stdout = CFG["logs"]["filter_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/filter_vcf.stdout.log"
+    params:
+        prefix = CFG["dirs"]["filter_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somaticSV.pass.precise"
+    conda:
+        CFG["conda_envs"]["vcftools"]
+    shell:
+        op.as_one_line("""
+            vcftools --vcf {input.vcf} --remove-filtered-all --remove-INFO "IMPRECISE" --recode --recode-INFO-all --out {params.prefix} && touch {output.file}
+        """)
 
-## Convert bedpe to bed
-rule bedpe_to_bed:
-	input:
-		bedpe = str(rules.add_windows_bedpe.output.bedpe)
-	output:
-		bed = OUTPUT_DIR + "03-bed/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somaticSV.bed"
-	log:
-		stdout = OUTPUT_DIR + "00-logs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/bedpe.to.bed.stdout.log"
-	conda:
-		CFG["conda_envs"]["readr"]
-	script:
-		"../../src/R/bedpe.to.bed.R"
+rule _sv_repair_vcf_to_df:
+    input:
+        vcf = CFG["dirs"]["filter_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somaticSV.pass.precise.recode.vcf"
+    output:
+        tsv = CFG["dirs"]["vcf_to_df"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somaticSV.pass.precise.tsv"
+    log:
+        stdout = CFG["logs"]["vcf_to_df"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/vcf_to_df.stdout.log"
+    script:
+        "src/python/vcf.fields.py"
 
+rule _sv_repair_vcf_to_bed:
+    input:
+        vcf = CFG["dirs"]["filter_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somaticSV.pass.precise.recode.vcf"
+    output:
+        bed = CFG["dirs"]["bed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somaticSV.pass.precise.bed"
+    log:
+        stdout = CFG["logs"]["bed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/vcf_to_bed.stdout.log"
+    shell:
+        op.as_one_line("""
+            awk '{{if ($0 ~ /^[[:space:]]*#/){{NR--}}else{{print $1"\t"$2-1"\t"$2}}}}' {input.vcf} > {output.bed}
+        """)
 
-rule get_fasta:
-	conda:
+rule _sv_repair_bed_rmsk:
+    input:
+        bed = str(rules._sv_repair_vcf_to_bed.output.bed),
+        tsv = str(rules._sv_repair_vcf_to_df.output.tsv),
+        rmsk = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
+    output:
+        bed = CFG["dirs"]["rmsk"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/intersect.rmsk.bed"
+    conda:
         CFG["conda_envs"]["bedtools"]
-	input:
-		bed = str(rules.bedpe_to_bed.output.bed),
-		genome_fasta = "/projects/rmorin/projects/gambl-repos/gambl-kcoyle/ref/lcr-modules-references-STABLE/genomes/{genome_build}/genome_fasta/genome.fa"
-	log:
-		stdout = OUTPUT_DIR + "00-logs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/get_fasta.stdout.log"
-	output:
-		reference_fasta = OUTPUT_DIR + "04-fasta/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/reference.fa"
-	shell:
-		op.as_one_line("""
-			bedtools getfasta -s -fo {output.reference_fasta} -fi {input.genome_fasta} -bed {input.bed} 
-		""")
+    log:
+        stdout = CFG["logs"]["rmsk"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/intersect_rmsk.stdout.log"
+    shell:
+        op.as_one_line("""
+            bedtools intersect -a {input.bed} -b {input.rmsk} -loj > {output.bed}
+        """)
 
-# Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
-rule _sv_repair_output_unk:
+rule _sv_repair_nonb_dna:
     input:
-        unk = str(rules._sv_repair_step_2.output.unk)
+        ref_bed = reference_files("genomes/{genome_build}/nonb_dna/{genome_build}.bed"),
+        bed = str(rules._sv_repair_vcf_to_bed.output.bed),
+        tsv = str(rules._sv_repair_vcf_to_df.output.tsv)
     output:
-        unk = CFG["dirs"]["outputs"] + "unk/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.unk"
-    run:
-        op.relative_symlink(input.unk, output.unk, in_module= True)
+        bed = CFG["dirs"]["nonb_dna"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/intersect.nonb.bed"
+    conda:
+        CFG["conda_envs"]["bedtools"]
+    resources:
+        mem_mb = 10000
+    log:
+        stdout = CFG["logs"]["nonb_dna"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/intersect_nonb.stdout.log"
+    shell:
+        op.as_one_line("""
+            bedtools intersect -a {input.bed} -b {input.ref_bed} -loj > {output.bed}
+        """)
 
+rule _sv_repair_mechanisms:
+    input:
+        vcf_df = str(rules._sv_repair_vcf_to_df.output.tsv),
+        rmsk = str(rules._sv_repair_bed_rmsk.output.bed),
+        non_b = str(rules._sv_repair_nonb_dna.output.bed)
+    params:
+        name = "{tumour_id}--{normal_id}--{pair_status}"
+    output:
+        tsv = CFG["dirs"]["repair"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/repair.mech.tsv",
+        paired = CFG["dirs"]["repair"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/repair.table.tsv"
+    resources:
+        mem_mb = 10000
+    log:
+        stdout = CFG["logs"]["repair"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/repair.mech.log"
+    script:
+        "src/R/repair_mech.R"
+
+rule _sv_output_files:
+    input:
+        tsv = str(rules._sv_repair_mechanisms.output.tsv),
+        paired = str(rules._sv_repair_mechanisms.output.paired)
+    output:
+        tsv = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/repair.mech.tsv",
+        paired = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/repair.table.tsv"
+    run:
+        op.absolute_symlink(input.tsv, output.tsv),
+        op.absolute_symlink(input.paired, output.paired)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _sv_repair_all:
     input:
         expand(
             [
-                str(rules._sv_repair_output_unk.output.unk),
-                # TODO: If applicable, add other output rules here
+                str(rules._sv_output_files.output.paired),
+            ],
+            zip,  # Run expand() with zip(), not product()
+            seq_type=CFG["runs"]["tumour_seq_type"],
+            genome_build=CFG["runs"]["tumour_genome_build"],
+            tumour_id=CFG["runs"]["tumour_sample_id"],
+            normal_id=CFG["runs"]["normal_sample_id"],
+            pair_status=CFG["runs"]["pair_status"]),
+        expand(
+            [
+                str(rules._sv_output_files.output.tsv),
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
@@ -142,6 +187,7 @@ rule _sv_repair_all:
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
             pair_status=CFG["runs"]["pair_status"])
+
 
 
 ##### CLEANUP #####

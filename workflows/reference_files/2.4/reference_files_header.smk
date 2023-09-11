@@ -30,7 +30,8 @@ localrules: download_genome_fasta,
             create_star_index, 
             get_gencode_download,
             download_af_only_gnomad_vcf,
-            download_liftover_chains
+            download_liftover_chains,
+            download_nonb_dna_gff
 
 
 # Check for genome builds
@@ -413,27 +414,40 @@ rule download_sdf:
         mv $(dirname {output.sdf})/{params.build}/* {output.sdf}
         """)
 
-rule download_nonb_dna_gff:
+rule download_nonb_dna_gff: ##error is somewhere here
     output:
-        dir = directory("downloads/nonb_dna/gff/{genome_build}.{version}"),
-        complete = "downloads/nonb_dna/gff/{genome_build}.{version}.download.complete"
+        tar = "downloads/nonb_dna/gff/{genome_build}/gff.tar.gz",
+        complete = "downloads/nonb_dna/gff/{genome_build}/download.complete"
     conda: CONDA_ENVS["bedops"]
     params:
-        provider = lambda w: {"grch37": "ensembl", "hg38": "ucsc"}[w.version],
+        #provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
         build = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19",
         url = "https://ncifrederick.cancer.gov/bacs/ftp/actions/download/?resource=/bioinfo/static/nonb_dwnld/human_"
-    wildcard_constraints: 
-        version = "grch37|grch38"
     shell:
         op.as_one_line("""
-        wget -O {output.dir} {params.url}{params.build}/human_{params.build}.gff.tar.gz
-        &&
-        tar -xvzf {output.dir}
-        &&
-        mv {output.dir}/*/gff/*.gff {output.dir}/.
+        wget -qO {output.tar} {params.url}{params.build}/human_{params.build}.gff.tar.gz
         &&
         touch {output.complete}
         """)
+
+rule move_nonb_dna_gff:
+    input:
+        complete = str(rules.download_nonb_dna_gff.output.complete),
+        tar = str(rules.download_nonb_dna_gff.output.tar)
+    params:
+        #provider = lambda w: {"grch37": "ensembl", "grch38": "ucsc"}[w.version],
+        dir = directory("downloads/nonb_dna/gff/{genome_build}")
+    output:
+        complete = "downloads/nonb_dna/gff/{genome_build}/move.complete"
+    shell:
+        op.as_one_line("""
+        tar -xzf {input.tar} -C $(dirname {input.tar})
+        &&
+        mv {params.dir}/*/gff/*.gff {params.dir}/
+        &&
+        touch {output.complete}
+        """)
+
 rule download_ucsc_chrom_sizes:
     output:
         txt = 'downloads/chrom_sizes/sizes.{version}.txt'

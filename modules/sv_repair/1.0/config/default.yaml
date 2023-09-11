@@ -1,34 +1,26 @@
 lcr-modules:
-    
-    sv_repair:
 
-        # TODO: Update the list of available wildcards, if applicable
+    sv_repair:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bedpe: "results/gambl/manta-2.3/04-bedpe/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/somaticSV.bedpe"
-            tumour_bam: "data/genome_bams/{tumour_id}.{genome_build}.bam",
-            tumour_bai: "data/genome_bams/{tumour_id}.{genome_build}.bam.bai"
+            sample_vcf: "results/gambl/manta-2.3/99-outputs/vcf/{seq_type}--{genome_build}/somaticSV/{tumour_id}--{normal_id}--{pair_status}.somaticSV.vcf"
 
         scratch_subdirectories: []
 
         options:
             window_size: 1000
-            step_2: ""
 
         conda_envs:
-            readR: "{MODSDIR}/envs/readr-2.1.2.yaml"
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            bedtools: "{MODSDIR}/envs/bamtools-2.29.2.yaml"
-            
-        threads:
-            step_1: 4
+            readR: "config/envs/r-env.yaml"
+            vcftools: "config/envs/vcftools.yaml"
+            sambamba: "src/lcr-modules/envs/sambamba/sambamba-0.7.1.yaml"
+            samtools: "src/lcr-modules/envs/samtools/samtools-1.9.yaml"
+            bedtools: "src/lcr-modules/envs/bedtools/bedtools-2.29.2.yaml"
+            clustalo: "config/envs/clustalo.yaml"
 
-        resources:
-            step_1: 
-                mem_mb: 2000
-            
         pairing_config:
             genome:
                 run_paired_tumours: True
                 run_unpaired_tumours_with: "unmatched_normal"
+                run_unpaired_tumours_with: null
                 run_paired_tumours_as_unpaired: False
