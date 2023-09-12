@@ -120,8 +120,6 @@ def generate_igv_batch_per_row(sleep_interval, preset, options, coordinates, dir
 
     snapshot_regions_dir = os.path.join(directory, seq_build, child_dir, preset, chrom_directory, "")
 
-    # Low sleep interval to speed up process
-    lines.append("setSleepInterval 1")
     lines.append(f"snapshotDirectory {snapshot_regions_dir}")
     for igv_option in options[preset]:
         lines.append(igv_option)
@@ -150,6 +148,8 @@ def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_bui
     for preset in igv_presets:
         for _, row in regions.iterrows():
             all_lines = []
+
+            merged_batch_suffix = row.sample_id + suffix + ".batch"
 
             header = generate_igv_batch_header(bam=bam, index=bai, max_height=max_height, genome_build=genome_build)
             all_lines.extend(header)
@@ -185,11 +185,19 @@ def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_bui
             all_lines.extend(lines)
 
             # Make subdirectories if necessary because snakemake won't make them since rule is a checkpoint
-            os.makedirs(os.path.join(output_dir, "single_batch_scripts", seq_type_build, child_directory, preset), exist_ok=True)
+            os.makedirs(os.path.join(output_dir, "single_batch_scripts", seq_type_build, preset), exist_ok=True)
 
-            batch_file_path = os.path.join(output_dir, "single_batch_scripts", seq_type_build, child_directory, preset, batch_filename)
+            batch_file_path = os.path.join(output_dir, "single_batch_scripts", seq_type_build, preset, batch_filename)
 
             output_lines(all_lines, batch_file_path)
+        
+        os.makedirs(os.path.join(output_dir, "merged_batch_scripts", seq_type_build, preset), exist_ok=True)
+
+        merged_preset_path = os.path.join(output_dir, "merged_batch_scripts", seq_type_build, preset, merged_batch_suffix)
+
+        merged_preset_touch = open(merged_preset_path, "w")
+        merged_preset_touch.close()
+
 
 if __name__ == "__main__":
     logging.basicConfig(
