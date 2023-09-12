@@ -3,7 +3,8 @@ lcr-modules:
     minimap2:
 
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            # Available wildcards: {seq_type} {genome_build} {sample_id} {number}
+            # The {number} wildcard is used to obtain read 1 and 2 fastq files for short-read Illumina genomes
             sample_fastq:
                 promethION: "__UPDATE__"
                 genome: "__UPDATE__"
@@ -26,12 +27,12 @@ lcr-modules:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             
         threads:
-            minimap2: 4
-            samtools: 1
+            minimap2: 24
+            samtools: 24
 
         resources:
             minimap2: 
-                mem_mb: 30000
+                mem_mb: 50000
             samtools:
                 mem_mb: 10000
             
@@ -40,4 +41,12 @@ lcr-modules:
                 run_paired_tumours: False
                 run_unpaired_tumours_with: "no_normal"
                 run_paired_tumours_as_unpaired: True
+
+    utils:
+        mem_mb:
+            bam_sort: 90000
+            bam_index: 15000
+        threads:
+            bam_sort: 24
+            bam_index: 12
 
