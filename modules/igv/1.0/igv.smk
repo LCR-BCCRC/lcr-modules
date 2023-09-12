@@ -637,10 +637,13 @@ if CFG["estimate_only"] is True and CFG["identify_failed_snaps"] is False:
             finished_filtered_mafs = expand(str(rules._igv_filter_maf.output.maf), zip, seq_type = CFG["runs"]["tumour_seq_type"], tumour_id=CFG["runs"]["tumour_sample_id"], genome_build=CFG["runs"]["tumour_genome_build"], normal_sample_id=CFG["runs"]["normal_sample_id"], pair_status=CFG["runs"]["pair_status"])
         output:
             snapshot_summary = CFG["dirs"]["outputs"] + "snapshot_estimates/snapshot_summary.txt",
+            snapshot_estimate = CFG["dirs"]["outputs"] + "snapshot_estimates/snapshot_estimate.txt",
             summary_ready = temp(CFG["dirs"]["outputs"] + "snapshot_estimates/touch_summary.completed")
         run:
-            header = "\t".join(["sample_id","seq_type","genome_build","gene","chromosome","position"])
+            header = "\t".join(["sample_id","seq_type","genome_build","gene","chromosome","position", "igv_preset"])
             with open(output.snapshot_summary,"w") as handle:
+                handle.write(header + "\n")
+            with open(output.snapshot_estimate, "w") as handle:
                 handle.write(header + "\n")
             ready = open(output.summary_ready, "w")
             ready.close()
@@ -650,9 +653,10 @@ if CFG["estimate_only"] is True and CFG["identify_failed_snaps"] is False:
             maf = str(rules._igv_filter_maf.output.maf),
             summary_file_ready = str(rules._igv_touch_summary.output.summary_ready)
         output:
-            estimate_finished = temp(CFG["dirs"]["batch_scripts"] + "estimate_batch_scripts/{seq_type}--{genome_build}/{tumour_id}--{normal_sample_id}--{pair_status}.temp")
+            estimate_finished = temp(CFG["dirs"]["batch_scripts"] + "estimate_batch_scripts/{seq_type}--{genome_build}/{preset_directory}/{tumour_id}--{normal_sample_id}--{pair_status}.temp")
         params:
-            snapshot_summary = str(rules._igv_touch_summary.output.snapshot_summary)
+            snapshot_summary = str(rules._igv_touch_summary.output.snapshot_summary),
+            snapshot_estimate = str(rules._igv_touch_summary.output.snapshot_estimate)
         threads: (workflow.cores)
         run:
             CFG = config["lcr-modules"]["igv"]
@@ -661,18 +665,23 @@ if CFG["estimate_only"] is True and CFG["identify_failed_snaps"] is False:
             seq_type = wildcards.seq_type
             genome_build = wildcards.genome_build
             tumour_id = wildcards.tumour_id
+            preset = wildcards.preset_directory
+
+            snapshot_summary = open(params.snapshot_summary, "a")
+            snapshot_estimate = open(params.snapshot_estimate, "a")
 
             for index, row in maf_table.iterrows():
                 gene = row["Hugo_Symbol"]
                 chromosome = row["chr_std"]
                 position = str(row["Start_Position"])
 
-                dispatch_path = CFG["dirs"]["batch_scripts"] + f"dispatched_batch_scripts/{seq_type}--{genome_build}/{chromosome}:{position}--{gene}--{tumour_id}" + SUFFIX + ".batch"
+                dispatch_path = CFG["dirs"]["batch_scripts"] + f"dispatched_batch_scripts/{seq_type}--{genome_build}/{preset}/{chromosome}:{position}--{gene}--{tumour_id}" + SUFFIX + ".batch"
+
+                outline = "\t".join([tumour_id, seq_type, genome_build, gene, chromosome, position, preset])
+                snapshot_summary.write(outline + "\n")
 
                 if not os.path.exists(dispatch_path):
-                    with open(params.snapshot_summary, "a") as handle:
-                        outline = "\t".join([tumour_id, seq_type, genome_build, gene, chromosome, position])
-                        handle.write(outline + "\n")
+                    snapshot_estimate.write(outline + "\n")
             
             finished = open(output.estimate_finished, "w")
             finished.close()
@@ -769,7 +778,19 @@ if CFG["estimate_only"] is False and CFG["identify_failed_snaps"] is False:
 if CFG["estimate_only"] is True and CFG["identify_failed_snaps"] is False:
     rule _igv_all:
         input:
-            expand(str(rules._igv_estimate_snapshots.output.estimate_finished), zip, seq_type=CFG["runs"]["tumour_seq_type"], genome_build=CFG["runs"]["tumour_genome_build"], tumour_id=CFG["runs"]["tumour_sample_id"], normal_sample_id=CFG["runs"]["normal_sample_id"], pair_status=CFG["runs"]["pair_status"])
+            expand(
+                expand(
+                    str(rules._igv_estimate_snapshots.output.estimate_finished),
+                    zip,
+                    seq_type=CFG["runs"]["tumour_seq_type"],
+                    genome_build=CFG["runs"]["tumour_genome_build"],
+                    tumour_id=CFG["runs"]["tumour_sample_id"],
+                    normal_sample_id=CFG["runs"]["normal_sample_id"],
+                    pair_status=CFG["runs"]["pair_status"],
+                    allow_missing=True
+                ),
+                preset_directory=CFG["options"]["igv_presets"]
+            )
 
 if CFG["identify_failed_snaps"] is True and CFG["estimate_only"] is False:
     rule _igv_all:
