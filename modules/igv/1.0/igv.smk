@@ -694,7 +694,7 @@ if CFG["identify_failed_snaps"] is True and CFG["estimate_only"] is False:
             failed_summary = CFG["dirs"]["outputs"] + "snapshot_estimates/failed_summary.txt",
             failed_ready = temp(CFG["dirs"]["outputs"] + "snapshot_estimates/touch_failed.completed")
         run:
-            header = "\t".join(["sample_id","seq_type","genome_build","gene","chromosome","position","snapshot_path"])
+            header = "\t".join(["sample_id","seq_type","genome_build","gene","chromosome","position","preset","snapshot_path"])
             with open(output.failed_summary, "w") as handle:
                 handle.write(header + "\n")
             ready = open(output.failed_ready, "w")
@@ -705,7 +705,7 @@ if CFG["identify_failed_snaps"] is True and CFG["estimate_only"] is False:
             maf = str(rules._igv_filter_maf.output.maf),
             failed_ready = str(rules._igv_touch_failed.output.failed_ready)
         output:
-            failed_finished = temp(CFG["dirs"]["batch_scripts"] + "estimate_failed_scripts/{seq_type}--{genome_build}/{tumour_id}--{normal_sample_id}--{pair_status}.temp")
+            failed_finished = temp(CFG["dirs"]["batch_scripts"] + "estimate_failed_scripts/{seq_type}--{genome_build}/{preset_directory}/{tumour_id}--{normal_sample_id}--{pair_status}.temp")
         params:
             failed_summary = str(rules._igv_touch_failed.output.failed_summary)
         threads: (workflow.cores)
@@ -717,18 +717,20 @@ if CFG["identify_failed_snaps"] is True and CFG["estimate_only"] is False:
             seq_type = wildcards.seq_type
             genome_build = wildcards.genome_build
             tumour_id = wildcards.tumour_id
+            preset = wildcards.preset_directory
+            pair_status_directory = PAIR_STATUS_DICT[wildcards.pair_status]
 
             for index, row in maf_table.iterrows():
                 gene = row["Hugo_Symbol"]
                 chromosome = row["chr_std"]
                 position = str(row["Start_Position"])
 
-                snapshot = CFG["dirs"]["snapshots"] + f"{seq_type}--{genome_build}/{chromosome}/{chromosome}:{position}--{gene}--{tumour_id}" + SUFFIX + ".png"
-                snapshot_symlink = CFG["dirs"]["outputs"] + f"{seq_type}--{genome_build}/{chromosome}/{chromosome}:{position}--{gene}--{tumour_id}" + SUFFIX + ".png"
+                snapshot = CFG["dirs"]["snapshots"] + f"{seq_type}--{genome_build}/{pair_status_directory}/{preset}/{chromosome}/{chromosome}:{position}--{gene}--{tumour_id}" + SUFFIX + ".png"
+                snapshot_symlink = CFG["dirs"]["outputs"] + f"{seq_type}--{genome_build}/{pair_status_directory}/{preset}/{chromosome}/{chromosome}:{position}--{gene}--{tumour_id}" + SUFFIX + ".png"
 
                 success = True
                 if not os.path.exists(snapshot):
-                    print(f"{snapshot} doesn't exist")
+                    print(f"{snapshot} doesn't exist yet, skipping...")
                 if os.path.exists(snapshot):
                     if not os.path.exists(snapshot_symlink):
                         success = False
@@ -750,7 +752,7 @@ if CFG["identify_failed_snaps"] is True and CFG["estimate_only"] is False:
                 if success is False:
                     with open(params.failed_summary, "a") as handle:
                         print("Writing line to failed file")
-                        outline = "\t".join([tumour_id, seq_type, genome_build, gene, chromosome, position, snapshot])
+                        outline = "\t".join([tumour_id, seq_type, genome_build, gene, chromosome, position, preset, snapshot])
                         handle.write(outline + "\n")
                     
             finished = open(output.failed_finished, "w")
@@ -795,7 +797,19 @@ if CFG["estimate_only"] is True and CFG["identify_failed_snaps"] is False:
 if CFG["identify_failed_snaps"] is True and CFG["estimate_only"] is False:
     rule _igv_all:
         input:
-            expand(str(rules._igv_find_failed.output.failed_finished), zip, seq_type=CFG["runs"]["tumour_seq_type"], genome_build=CFG["runs"]["tumour_genome_build"], tumour_id=CFG["runs"]["tumour_sample_id"], normal_sample_id=CFG["runs"]["normal_sample_id"], pair_status=CFG["runs"]["pair_status"])
+            expand(
+                expand(
+                    str(rules._igv_find_failed.output.failed_finished),
+                    zip,
+                    seq_type=CFG["runs"]["tumour_seq_type"],
+                    genome_build=CFG["runs"]["tumour_genome_build"],
+                    tumour_id=CFG["runs"]["tumour_sample_id"],
+                    normal_sample_id=CFG["runs"]["normal_sample_id"],
+                    pair_status=CFG["runs"]["pair_status"],
+                    allow_missing=True
+                ),
+                preset_directory=CFG["options"]["igv_presets"]
+            )
 
 
 ##### CLEANUP #####
