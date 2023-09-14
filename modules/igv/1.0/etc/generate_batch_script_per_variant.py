@@ -42,8 +42,15 @@ def main():
                     break
             if line_count < 2:
                 input_maf.close()
-                touch_output = open(snakemake.output[0],"w")
-                touch_output.close()
+                touch_outputs(
+                    output_dir = snakemake.params[0],
+                    seq_type = snakemake.wildcards["seq_type"],
+                    genome_build = snakemake.wildcards["genome_build"],
+                    presets = snakemake.params[6],
+                    tumour_id = snakemake.wildcards["tumour_id"],
+                    suffix = snakemake.params[5],
+                    finished_file = snakemake.output[0]
+                )
                 exit()
 
             # Return to top of MAF
@@ -79,6 +86,16 @@ def main():
         except Exception as e:
             logging.error(e, exc_info=1)
             raise
+
+def touch_outputs(output_dir, seq_type, genome_build, presets, tumour_id, suffix, finished_file):
+    tumour_suffix = tumour_id + suffix + ".batch"
+    for preset in presets:
+        os.makedirs(os.path.join(output_dir, "--".join([seq_type, genome_build]), preset), exist_ok = True)
+        merged_batch = os.path.join(output_dir, "merged_batch_scripts", "--".join([seq_type, genome_build]), preset, tumour_suffix)
+        merged_file = open(merged_batch, "w")
+        merged_file.close()
+    touch_finished = open(finished_file, "w")
+    touch_finished.close()
 
 def get_regions_df(input_maf, padding):
     # Read MAF as dataframe
