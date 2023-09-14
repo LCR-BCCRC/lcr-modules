@@ -633,8 +633,6 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
 if CFG["estimate_only"] is True and CFG["identify_failed_snaps"] is False: 
 
     rule _igv_touch_summary:
-        input:
-            finished_filtered_mafs = expand(str(rules._igv_filter_maf.output.maf), zip, seq_type = CFG["runs"]["tumour_seq_type"], tumour_id=CFG["runs"]["tumour_sample_id"], genome_build=CFG["runs"]["tumour_genome_build"], normal_sample_id=CFG["runs"]["normal_sample_id"], pair_status=CFG["runs"]["pair_status"])
         output:
             snapshot_summary = CFG["dirs"]["outputs"] + "snapshot_estimates/snapshot_summary.txt",
             snapshot_estimate = CFG["dirs"]["outputs"] + "snapshot_estimates/snapshot_estimate.txt",
