@@ -299,7 +299,7 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
             regions_formatted = str(rules._igv_format_regions_file.output.regions)
         output:
             batches_finished = CFG["dirs"]["batch_scripts"] + "completed/{seq_type}--{genome_build}/{tumour_id}.finished",
-            variant_batch = expand(CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{{seq_type}}--{{genome_build}}/{preset_directory}/{{tumour_id}}" + SUFFIX + ".batch", preset_directory = CFG["options"]["igv_presets"], allow_missing=True),
+            variant_batch = expand(CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{{seq_type}}--{{genome_build}}/{preset}/{{tumour_id}}" + SUFFIX + ".batch", preset = CFG["options"]["igv_presets"], allow_missing=True),
         params:
             batch_dir = config["lcr-modules"]["igv"]["dirs"]["batch_scripts"],
             snapshot_dir = config["lcr-modules"]["igv"]["dirs"]["snapshots"],
@@ -317,12 +317,12 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
     # Keep track of which variant and sample_id combinations have been seen, merge individual variant batch scripts into a large batch script per sample_id
     rule _igv_batches_to_merge:
         input:
-            batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{preset_directory}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch"
+            batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{preset}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch"
         output:
-            dispatched_batch_script = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/{seq_type}--{genome_build}/{preset_directory}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch"
+            dispatched_batch_script = CFG["dirs"]["batch_scripts"] + "dispatched_batch_scripts/{seq_type}--{genome_build}/{preset}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch"
         params:
-            merged_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{preset_directory}/{tumour_id}" + SUFFIX + ".batch",
-            igv_options = lambda w: config["lcr-modules"]["igv"]["options"]["generate_batch_script"]["igv_options"][w.preset_directory]
+            merged_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{preset}/{tumour_id}" + SUFFIX + ".batch",
+            igv_options = lambda w: config["lcr-modules"]["igv"]["options"]["generate_batch_script"]["igv_options"][w.preset]
         threads: (workflow.cores / 10)
         run:
             batch_script_path = os.path.abspath(input.batch_script)
@@ -381,7 +381,7 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
                         genome_build = maf_table["genome_build"],
                         allow_missing = True
                     ),
-                    preset_directory = wildcards.preset_directory
+                    preset = wildcards.preset
                 )
         else:
             return []
@@ -409,9 +409,9 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
             batch_script = _evaluate_batches,
             finished_batches = str(rules._igv_create_batch_script_per_variant.output.batches_finished)
         output:
-            complete = CFG["dirs"]["snapshots"] + "completed/{seq_type}--{genome_build}--{tumour_id}--{preset_directory}.completed"
+            complete = CFG["dirs"]["snapshots"] + "completed/{seq_type}--{genome_build}--{tumour_id}--{preset}.completed"
         params:
-            merged_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{preset_directory}/{tumour_id}" + SUFFIX + ".batch",
+            merged_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{preset}/{tumour_id}" + SUFFIX + ".batch",
             igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh",
             max_time = CFG["options"]["generate_batch_script"]["sleep_timer"],
             server_number = "-n " + CFG["options"]["xvfb_parameters"]["server_number"] if CFG["options"]["xvfb_parameters"]["server_number"] is not None else "--auto-servernum",
@@ -419,8 +419,8 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
         resources:
             **CFG["resources"]["_igv_run"]
         log:
-            stdout = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{preset_directory}/{tumour_id}_igv_run.stdout.log",
-            stderr = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{preset_directory}/{tumour_id}_igv_run.stderr.log"
+            stdout = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{preset}/{tumour_id}_igv_run.stdout.log",
+            stderr = CFG["logs"]["igv"] + "{seq_type}--{genome_build}/{preset}/{tumour_id}_igv_run.stderr.log"
         threads: (workflow.cores)
         shell:
             op.as_one_line("""
@@ -463,23 +463,23 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
     rule _igv_quality_control:
         input:
             igv = str(rules._igv_run.output.complete),
-            snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png",
+            snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png",
             failed_summary = str(rules._igv_track_failed.output.ready)
         output:
-            snapshot_qc = temp(CFG["dirs"]["snapshots"] + "qc/{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".qc")
+            snapshot_qc = temp(CFG["dirs"]["snapshots"] + "qc/{seq_type}--{genome_build}/{pair_status_directory}/{preset}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".qc")
         params:
-            batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{preset_directory}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch",
-            merged_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{preset_directory}/{tumour_id}" + SUFFIX + ".batch",
+            batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{preset}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch",
+            merged_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{preset}/{tumour_id}" + SUFFIX + ".batch",
             igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh",
             server_number = "-n " + CFG["options"]["xvfb_parameters"]["server_number"] if CFG["options"]["xvfb_parameters"]["server_number"] is not None else "--auto-servernum",
             server_args = CFG["options"]["xvfb_parameters"]["server_args"],
-            batch_temp = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{preset_directory}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch.temp",
+            batch_temp = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{preset}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch.temp",
             failed_summary = str(rules._igv_track_failed.output.failed_summary)
         resources:
             **CFG["resources"]["_igv_quality_control"]
         log:
-            stdout = CFG["logs"]["snapshots"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + "_quality_control.stdout.log",
-            stderr = CFG["logs"]["snapshots"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + "_quality_control.stderr.log"
+            stdout = CFG["logs"]["snapshots"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + "_quality_control.stdout.log",
+            stderr = CFG["logs"]["snapshots"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + "_quality_control.stderr.log"
         threads: (workflow.cores)
         run:
             import subprocess
@@ -540,17 +540,17 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
             if success == True:
                 os.system(f'touch {output.snapshot_qc}')
             if success == False:
-                outline = "\t".join([wildcards.tumour_id, wildcards.seq_type, wildcards.genome_build, wildcards.gene, wildcards.chromosome, wildcards.start_position, wildcards.preset_directory, input.snapshot])
+                outline = "\t".join([wildcards.tumour_id, wildcards.seq_type, wildcards.genome_build, wildcards.gene, wildcards.chromosome, wildcards.start_position, wildcards.preset, input.snapshot])
                 with open(params.failed_summary, "a") as handle:
                     handle.write(outline + "\n")
 
     # Symlinks the final output files into the module results directory (under '99-outputs/')
     rule _igv_symlink_snapshot:
         input:
-            snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png",
+            snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png",
             snapshot_qc = str(rules._igv_quality_control.output.snapshot_qc)
         output:
-            snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
+            snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
         threads:
             CFG["threads"]["_igv_symlink_snapshot"]
         run:
@@ -592,7 +592,7 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
                             allow_missing = True
                         ),
                         pair_status_directory = PAIR_STATUS_DICT[pair_status.item()],
-                        preset_directory = wildcards.preset_directory
+                        preset = wildcards.preset
                     )
         else:
             return []
@@ -633,7 +633,7 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
                             allow_missing = True
                         ),
                         pair_status_directory = PAIR_STATUS_DICT[pair_status.item()],
-                        preset_directory = wildcards.preset_directory
+                        preset = wildcards.preset
                     )
 
     # Check that snapshots have been symlinked and quality controlled
@@ -643,7 +643,7 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
             snapshots = _symlink_snapshot,
             quality_control = _quality_control
         output:
-            snapshots = CFG["dirs"]["outputs"] + "completed/{preset_directory}/{seq_type}--{genome_build}--{tumour_id}.completed"
+            snapshots = CFG["dirs"]["outputs"] + "completed/{preset}/{seq_type}--{genome_build}--{tumour_id}.completed"
         shell:
             "touch {output.snapshots}"
 
@@ -668,7 +668,7 @@ if CFG["estimate_only"] is True and CFG["identify_failed_snaps"] is False:
             maf = str(rules._igv_filter_maf.output.maf),
             summary_file_ready = str(rules._igv_touch_summary.output.summary_ready)
         output:
-            estimate_finished = temp(CFG["dirs"]["batch_scripts"] + "estimate_batch_scripts/{seq_type}--{genome_build}/{preset_directory}/{tumour_id}--{normal_sample_id}--{pair_status}.temp")
+            estimate_finished = temp(CFG["dirs"]["batch_scripts"] + "estimate_batch_scripts/{seq_type}--{genome_build}/{preset}/{tumour_id}--{normal_sample_id}--{pair_status}.temp")
         params:
             snapshot_summary = str(rules._igv_touch_summary.output.snapshot_summary),
             snapshot_estimate = str(rules._igv_touch_summary.output.snapshot_estimate)
@@ -680,7 +680,7 @@ if CFG["estimate_only"] is True and CFG["identify_failed_snaps"] is False:
             seq_type = wildcards.seq_type
             genome_build = wildcards.genome_build
             tumour_id = wildcards.tumour_id
-            preset = wildcards.preset_directory
+            preset = wildcards.preset
 
             snapshot_summary = open(params.snapshot_summary, "a")
             snapshot_estimate = open(params.snapshot_estimate, "a")
@@ -720,7 +720,7 @@ if CFG["identify_failed_snaps"] is True and CFG["estimate_only"] is False:
             maf = str(rules._igv_filter_maf.output.maf),
             failed_ready = str(rules._igv_touch_failed.output.failed_ready)
         output:
-            failed_finished = temp(CFG["dirs"]["batch_scripts"] + "estimate_failed_scripts/{seq_type}--{genome_build}/{preset_directory}/{tumour_id}--{normal_sample_id}--{pair_status}.temp")
+            failed_finished = temp(CFG["dirs"]["batch_scripts"] + "estimate_failed_scripts/{seq_type}--{genome_build}/{preset}/{tumour_id}--{normal_sample_id}--{pair_status}.temp")
         params:
             failed_summary = str(rules._igv_touch_failed.output.failed_summary)
         threads: (workflow.cores)
@@ -732,7 +732,7 @@ if CFG["identify_failed_snaps"] is True and CFG["estimate_only"] is False:
             seq_type = wildcards.seq_type
             genome_build = wildcards.genome_build
             tumour_id = wildcards.tumour_id
-            preset = wildcards.preset_directory
+            preset = wildcards.preset
             pair_status_directory = PAIR_STATUS_DICT[wildcards.pair_status]
 
             for index, row in maf_table.iterrows():
@@ -789,7 +789,7 @@ if CFG["estimate_only"] is False and CFG["identify_failed_snaps"] is False:
                     genome_build=CFG["runs"]["tumour_genome_build"],
                     allow_missing=True
                 ),
-                preset_directory=CFG["options"]["igv_presets"]
+                preset=CFG["options"]["igv_presets"]
             )
 
 if CFG["estimate_only"] is True and CFG["identify_failed_snaps"] is False:
@@ -806,7 +806,7 @@ if CFG["estimate_only"] is True and CFG["identify_failed_snaps"] is False:
                     pair_status=CFG["runs"]["pair_status"],
                     allow_missing=True
                 ),
-                preset_directory=CFG["options"]["igv_presets"]
+                preset=CFG["options"]["igv_presets"]
             )
 
 if CFG["identify_failed_snaps"] is True and CFG["estimate_only"] is False:
@@ -823,7 +823,7 @@ if CFG["identify_failed_snaps"] is True and CFG["estimate_only"] is False:
                     pair_status=CFG["runs"]["pair_status"],
                     allow_missing=True
                 ),
-                preset_directory=CFG["options"]["igv_presets"]
+                preset=CFG["options"]["igv_presets"]
             )
 
 
