@@ -449,10 +449,22 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
             fi
             """)
 
+    rule _igv_track_failed:
+        output:
+            failed_summary = CFG["dirs"]["outputs"] + "snapshot_estimates/failed_summary.txt",
+            ready = temp(CFG["dirs"]["outputs"] + "snapshot_estimates/failed_summary.completed")
+        run:
+            header = "\t".join(["sample_id","seq_type","genome_build","gene","chromosome","position","preset","snapshot_path"])
+            with open(output.failed_summary, "w") as handle:
+                handle.write(header + "\n")
+            ready = open(output.ready, "w")
+            ready.close()
+
     rule _igv_quality_control:
         input:
             igv = str(rules._igv_run.output.complete),
-            snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png"
+            snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".png",
+            failed_summary = str(rules._igv_track_failed.output.ready)
         output:
             snapshot_qc = temp(CFG["dirs"]["snapshots"] + "qc/{seq_type}--{genome_build}/{pair_status_directory}/{preset_directory}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".qc")
         params:
@@ -461,7 +473,8 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
             igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh",
             server_number = "-n " + CFG["options"]["xvfb_parameters"]["server_number"] if CFG["options"]["xvfb_parameters"]["server_number"] is not None else "--auto-servernum",
             server_args = CFG["options"]["xvfb_parameters"]["server_args"],
-            batch_temp = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{preset_directory}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch.temp"
+            batch_temp = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{preset_directory}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch.temp",
+            failed_summary = str(rules._igv_track_failed.output.failed_summary)
         resources:
             **CFG["resources"]["_igv_quality_control"]
         log:
@@ -526,6 +539,10 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
                     success = False
             if success == True:
                 os.system(f'touch {output.snapshot_qc}')
+            if success == False:
+                outline = "\t".join([wildcards.tumour_id, wildcards.seq_type, wildcards.genome_build, wildcards.gene, wildcards.chromosome, wildcards.start_position, wildcards.preset_directory, input.snapshot])
+                with open(params.failed_summary, "a") as handle:
+                    handle.write(outline + "\n")
 
     # Symlinks the final output files into the module results directory (under '99-outputs/')
     rule _igv_symlink_snapshot:
