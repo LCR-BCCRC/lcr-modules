@@ -26,6 +26,17 @@ def main():
 
             output_file = snakemake.output[0]
 
+            line_count = 0
+            with open(regions_file, "r") as handle:
+                for line in handle:
+                    line_count += 1
+                    if line_count > 1:
+                        break
+            if line_count < 2:
+                touch_output = open(output_file, "w")
+                touch_output.close()
+                exit()
+
             if regions_format == "oncodriveclustl":
                 global CLUSTL_PARAMS
                 CLUSTL_PARAMS = snakemake.params[1]
