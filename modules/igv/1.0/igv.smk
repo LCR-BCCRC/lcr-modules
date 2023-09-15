@@ -201,7 +201,8 @@ rule _igv_format_regions:
         config["lcr-modules"]["igv"]["scripts"]["format_regions"]
 
 REGIONS_FORMAT = {
-    "maf": "maf",
+    "bed": "bed",
+    "maf": "bed",
     "oncodriveclustl": "bed",
     "hotmaps": "bed",
     "mutation_id": "bed"
@@ -209,28 +210,28 @@ REGIONS_FORMAT = {
 
 rule _igv_liftover_regions:
     input:
-        regions = str(rules._igv_format_regions_file.output.regions),
+        regions = str(rules._igv_format_regions.output.regions),
         liftover_script = CFG["scripts"]["region_liftover_script"]
     output:
-        regions = CFG["dirs"]["inputs"] + "regions/regions_file_{genome_build}.crossmap.txt"
+        regions = CFG["dirs"]["inputs"] + "regions/{tool_type}.{tool_build}To{genome_build}.crossmap.txt"
     params:
-        chain_file = reference_files(CFG["options"]["liftover_regions"]["reference_chain_file"][(CFG["inputs"]["regions_build"]).replace("hg19","grch37").replace("grch38","hg38")]),
+        chain_file = lambda w: reference_files(config["lcr-modules"]["igv"]["options"]["liftover_regions"]["reference_chain_file"][w.tool_build]),
         target_reference = lambda w: config["lcr-modules"]["igv"]["options"]["liftover_regions"]["target_reference"][w.genome_build],
-        regions_type = REGIONS_FORMAT[CFG["inputs"]["regions_format"].lower()],
-        regions_build = CFG["inputs"]["regions_build"].replace("grch37","GRCh37").replace("hg38","GRCh38"),
-        target_build = lambda w: w.genome_build.replace("grch37","GRCh37").replace("hg38", "GRCh38")
+        regions_type = lambda w: REGIONS_FORMAT[(w.tool_type).lower()],
+        regions_build = lambda w: (w.tool_build).replace("grch37","GRCh37").replace("hg38","GRCh38"),
+        target_build = lambda w: (w.genome_build).replace("grch37","GRCh37").replace("hg38","GRCh38")
     conda:
         CFG["conda_envs"]["liftover_regions"]
     resources:
         **CFG["resources"]["_igv_liftover_regions"]
     log:
-        stdout = CFG["logs"]["inputs"] + "liftover_regions_{genome_build}.stdout.log",
-        stderr = CFG["logs"]["inputs"] + "liftover_regions_{genome_build}.stderr.log"
+        stdout = CFG["logs"]["inputs"] + "liftover_regions_{tool_type}.{tool_build}To{genome_build}.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "liftover_regions_{tool_type}.{tool_build}To{genome_build}.stderr.log"
     shell:
         op.as_one_line("""
-        {input.liftover_script} {input.regions} 
-        {params.regions_type} {params.regions_build} {params.target_build} 
-        {output.regions} {params.chain_file} 
+        {input.liftover_script}
+        {input.regions} {params.regions_type} {params.regions_build}
+        {params.target_build} {output.regions} {params.chain_file}
         {params.target_reference} > {log.stdout} 2> {log.stderr}
         """)
 
