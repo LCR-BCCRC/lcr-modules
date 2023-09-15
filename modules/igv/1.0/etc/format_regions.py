@@ -133,10 +133,10 @@ def format_clustl(clustl_regions):
     clustl_regions = clustl_regions.explode("COORDINATES")
 
     # Create columnsn required for BED format
-    chr_str = "chr" + clustl_regions["CHROMOSOME"].map(str)
+    chr_std = "chr" + clustl_regions["CHROMOSOME"].map(str)
     clustl_reformatted = pd.DataFrame(
         {
-            "chrom": chr_str,
+            "chrom": chr_std,
             "start": clustl_regions["COORDINATES"],
             "end": clustl_regions["COORDINATES"]
         }
