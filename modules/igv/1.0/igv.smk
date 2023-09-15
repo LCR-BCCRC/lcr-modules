@@ -185,18 +185,18 @@ rule _igv_merge_regions:
         merged_df.to_csv(output.merged_regions, sep="\t", index=False)
 
 # Convert input regions file into BED format
-rule _igv_format_regions_file:
+rule _igv_format_regions:
     input:
-        regions = str(rules._igv_symlink_regions_file.output.regions_file)
+        regions = str(rules._igv_merge_regions.output.merged_regions)
     output:
-        regions = CFG["dirs"]["inputs"] + "regions/regions_file_formatted.txt"
+        regions = CFG["dirs"]["inputs"] + "regions/{tool_type}_formatted.{tool_build}.tsv"
     params:
-        regions_format = CFG["inputs"]["regions_format"],
+        regions_format = lambda w: w.tool_type,
         oncodriveclustl_params = CFG["options"]["filter_maf"]["oncodriveclustl_options"],
-        regions_build = CFG["inputs"]["regions_build"]
+        regions_build = lambda w: w.tool_build
     log:
-        stdout = CFG["logs"]["inputs"] + "format_regions.stdout.log",
-        stderr = CFG["logs"]["inputs"] + "format_regions.stderr.log"
+        stdout = CFG["logs"]["inputs"] + "format_regions_{tool_type}.{tool_build}.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "format_regions_{tool_type}.{tool_build}.stderr.log"
     script:
         config["lcr-modules"]["igv"]["scripts"]["format_regions"]
 
