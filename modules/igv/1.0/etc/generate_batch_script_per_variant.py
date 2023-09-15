@@ -22,17 +22,17 @@ def main():
 
         try:
             # Handle matched samples with matched normal BAMs
-            input_bams = snakemake.input[0:len(snakemake.input) - 3]
+            input_bams = snakemake.input[0:len(snakemake.input) - 1]
             input_bam = input_bams[:int(len(input_bams) / 2)]
             input_bai = input_bams[int(len(input_bams)/2):]
             
-            inputs = snakemake.input[-3:len(snakemake.input)]
+            maf = snakemake.input[-1]
             batch_options = snakemake.params[4]
 
             # Print run info for logging
             print(f"Setting up batch scripts using the following inputs:\nBam files:\t{input_bam}\nBai files:\t{input_bai}\nParameters:\t{snakemake.params[6]}\nBatch options:\t{batch_options}")
 
-            input_maf = open(inputs[0], "r")
+            input_maf = open(maf, "r")
 
             # Skip if no variants in outfile
             line_count = 0

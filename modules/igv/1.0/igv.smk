@@ -341,9 +341,7 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
         input:
             bam_file = _get_bam_files,
             bai_file = _get_bai_files,
-            filter_maf = _get_maf,
-            regions_lifted = str(rules._igv_liftover_regions.output.regions),
-            regions_formatted = str(rules._igv_format_regions_file.output.regions)
+            filter_maf = _get_maf
         output:
             batches_finished = CFG["dirs"]["batch_scripts"] + "completed/{seq_type}--{genome_build}/{tumour_id}.finished",
             variant_batch = expand(CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{{seq_type}}--{{genome_build}}/{preset}/{{tumour_id}}" + SUFFIX + ".batch", preset = CFG["options"]["igv_presets"], allow_missing=True),
