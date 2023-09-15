@@ -27,7 +27,7 @@ def main():
             regions_file = snakemake.input[1]
             regions_format = snakemake.params[0]
 
-            metadata = snakemake.params[2]
+            metadata = snakemake.params[1]
 
             output_file = snakemake.output[0]
 
