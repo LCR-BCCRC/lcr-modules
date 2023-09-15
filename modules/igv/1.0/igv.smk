@@ -235,6 +235,34 @@ rule _igv_liftover_regions:
         {params.target_reference} > {log.stdout} 2> {log.stderr}
         """)
 
+def _get_lifted_regions(wildcards):
+    CFG = config["lcr-modules"]["igv"]
+    return expand(
+        expand(
+            str(rules._igv_liftover_regions.output.regions),
+            tool_type = list(CFG["regions"]),
+            tool_build = ["grch37","hg38"],
+            allow_missing = True
+        ),
+        genome_build = wildcards.genome_build
+    )
+
+rule _igv_merge_lifted_regions:
+    input:
+        regions = _get_lifted_regions
+    output:
+        regions = CFG["dirs"]["inputs"] + "regions/regions.{genome_build}.txt"
+    run:
+        merged_df = pd.DataFrame()
+        for region in input.regions:
+            try:
+                df = pd.read_table(region, comment = "#", sep = "\t")
+                merged_df = pd.concat([merged_df, df])
+            except:
+                print(f"Lifted regions file is empty: {region}")
+        merged_df = merged_df.drop_duplicates()
+        merged_df.to_csv(output.regions, sep="\t", index=False)
+
 # Filter MAF to lines containing positions of interest
 rule _igv_filter_maf:
     input:
