@@ -5,9 +5,23 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {tumour_sample_id} {normal_sample_id} {pair_status} {genome_build}
             maf: "__UPDATE__"
-            regions_file: "__UPDATE__" # Path to a MAF, VCF, BED, OncodriveCLUSTL clusters file, HotMAPS results file, or mutation_id file containing regions of interest to snapshot.
-            regions_format: "__UPDATE__" # Available options are "bed", "maf", "oncodriveclustl", "hotmaps" or "mutation_id"
-            regions_build: "__UPDATE__" # Genome build of regions file, which will be lifted over as needed to filter MAFs on opposite genome builds
+
+        regions:
+            oncodriveclustl:
+                grch37: []
+                hg38: []
+            hotmaps:
+                grch37: []
+                hg38: []
+            bed:
+                grch37: []
+                hg38: []
+            maf:
+                grch37: []
+                hg38: []
+            mutation_id:
+                grch37: []
+                hg38: []
 
         estimate_only: False # Stop after MAF filtering step to estimate total number of snapshots
         identify_failed_snaps: False
