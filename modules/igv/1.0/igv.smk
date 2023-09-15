@@ -165,6 +165,25 @@ rule _igv_reduce_maf_cols:
         cut -f 1,5,6,7,9,10,11,13,16 {input.maf} > {output.maf}
         """)
 
+rule _igv_merge_regions:
+    input:
+        input_regions = lambda w: config["lcr-modules"]["igv"]["regions"][w.tool_type][w.tool_build]
+    output:
+        merged_regions = CFG["dirs"]["inputs"] + "regions/{tool_type}_merged.{tool_build}.tsv"
+    log:
+        stdout = CFG["logs"]["inputs"] + "merge_{tool_type}_regions.{tool_build}.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "merge_{tool_type}_regions.{tool_build}.stderr.log"
+    run:
+        merged_df = pd.DataFrame()
+        for result in input.input_regions:
+            try:
+                df = pd.read_table(result, comment="#", sep="\t")
+                merged_df = pd.concat([merged_df, df])
+            except:
+                with open(log.stdout, "a") as header:
+                    header.write(f"Error reading or merging file {result}\n")
+        merged_df.to_csv(output.merged_regions, sep="\t", index=False)
+
 # Convert input regions file into BED format
 rule _igv_format_regions_file:
     input:
