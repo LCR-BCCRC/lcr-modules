@@ -267,12 +267,11 @@ rule _igv_merge_lifted_regions:
 rule _igv_filter_maf:
     input:
         maf = str(rules._igv_reduce_maf_cols.output.maf),
-        regions = str(rules._igv_liftover_regions.output.regions)
+        regions = str(rules._igv_merge_lifted_regions.output.regions)
     output:
         maf = CFG["dirs"]["inputs"] + "maf/filtered_maf/{seq_type}--{genome_build}/{tumour_id}--{normal_sample_id}--{pair_status}.maf"
     params:
-        regions_format = REGIONS_FORMAT[CFG["inputs"]["regions_format"].lower()],
-        oncodriveclustl_params = CFG["options"]["filter_maf"]["oncodriveclustl_options"],
+        regions_format = "bed",
         metadata = CFG["runs"]
     log:
         stdout = CFG["logs"]["inputs"] + "filter_maf/{seq_type}--{genome_build}/{tumour_id}--{normal_sample_id}--{pair_status}/filter_maf.stdout.log",

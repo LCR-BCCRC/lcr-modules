@@ -29,10 +29,6 @@ def main():
 
             metadata = snakemake.params[2]
 
-            if regions_format == "oncodriveclustl":
-                global CLUSTL_PARAMS
-                CLUSTL_PARAMS = snakemake.params[1]
-
             output_file = snakemake.output[0]
 
             # Return empty dataframe if no lines in MAF
