@@ -46,7 +46,7 @@ def main():
                 REGIONS_BUILD = snakemake.params[2]
                 REGIONS_BUILD = REGIONS_BUILD.lower()
 
-            if regions_format == "bed" or regions_format == "maf":
+            if regions_format == "bed":
                 # Do not need to reformat for liftover
                 shutil.copy(regions_file, output_file)
                 exit()
@@ -143,12 +143,29 @@ def format_clustl(clustl_regions):
     )
     return clustl_reformatted
 
+def format_maf(maf):
+    # Read regions into dataframe
+    maf_regions = pd.read_table(maf, comment="#", sep="\t")
+
+    # Create dataframe in BED format
+    chr_std = "chr" + maf_regions["Chromosome"].map(str).replace("chr","")
+
+    maf_reformatted = pd.DataFrame(
+        {
+            "chrom": chr_std,
+            "start": maf_regions["Start_Position"],
+            "end": maf_regions["End_Position"]
+        }
+    )
+
+    return maf_reformatted
 
 def format_regions(regions, regions_format):
     format_functions = {
         "oncodriveclustl": format_clustl,
         "hotmaps": format_hotmaps,
-        "mutation_id": format_mutation_id
+        "mutation_id": format_mutation_id,
+        "maf": format_maf
     }
 
     return format_functions[regions_format](regions)
