@@ -13,6 +13,7 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+from datetime import datetime
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -53,6 +54,9 @@ localrules:
 
 ##### RULES #####
 
+# Get month-year to use as a wildcard
+onstart:
+    launch_date = datetime.today().strftime('%Y-%m')
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _gistic2_input_seg:
@@ -65,7 +69,6 @@ rule _gistic2_input_seg:
     run:
         op.absolute_symlink(input.seg, output.seg)
 
-# Symlinks the input files into the module results directory (under '00-inputs/')
 rule _gistic2_input_sample_sets:
     input:
         all_sample_sets = CFG["inputs"]["all_sample_sets"]
@@ -75,6 +78,17 @@ rule _gistic2_input_sample_sets:
         "input_and_format"
     run:
         op.absolute_symlink(input.all_sample_sets, output.all_sample_sets)
+
+
+rule _gistic2_input_metadata:
+    input:
+        metadata = CFG["inputs"]["metadata"]
+    output:
+        metadata = CFG["dirs"]["inputs"] + "sample_sets/metadata.tsv"
+    group: 
+        "input_and_format"
+    run:
+        op.absolute_symlink(input.metadata, output.metadata)
 
 # Download refgene reference MAT file
 rule _gistic2_download_ref:
@@ -90,17 +104,6 @@ rule _gistic2_download_ref:
         wget -P {params.folder} {params.url} 
         """)
 
-def _get_seg_input_params(wildcards, input_dir=CFG["dirs"]["inputs"], seq_types = CFG["samples"]["seq_type"].unique()):
-    if "capture" in seq_types and "genome" in seq_types:
-        param = "--genome " + input_dir + "genome--projection/all--" + wildcards.projection + ".seg --capture " \
-                + input_dir + "capture--projection/all--" + wildcards.projection + ".seg"
-    elif "capture" in seq_types and "genome" not in seq_types:
-        param = "--capture " + input_dir + "capture--projection/all--" + wildcards.projection + ".seg"
-    elif "capture" not in seq_types and "genome" in seq_types:
-        param = "--genome " + input_dir + "genome--projection/all--" + wildcards.projection + ".seg"
-    
-    return(param)
-
 # Merges capture and genome seg files if available, and subset to the case_set provided
 rule _gistic2_prepare_seg:
     input:
@@ -109,25 +112,22 @@ rule _gistic2_prepare_seg:
                     seq_type=CFG["samples"]["seq_type"].unique()
                     ),
         all_sample_sets = ancient(str(rules._gistic2_input_sample_sets.output.all_sample_sets)),
+        metadata = ancient(str(rules._gistic2_input_metadata.output.metadata)),
         seg_dir = CFG["dirs"]["inputs"]
     output:
-        seg = CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}.seg"
+        seg = CFG["dirs"]["prepare_seg"] + "{case_set}/{launch_date}--{md5sum}/{projection}.seg"
     log:
-        stdout = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.stdout.log",
-        stderr = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.stderr.log"
+        stdout = CFG["logs"]["prepare_seg"] + "{case_set}/{launch_date}--{md5sum}/{projection}.stdout.log",
+        stderr = CFG["logs"]["prepare_seg"] + "{case_set}/{launch_date}--{md5sum}/{projection}.stderr.log"
     group: 
         "input_and_format"
     params:
         script = CFG["prepare_seg"],
-        seg_input_params = _get_seg_input_params
+        launch_date = launch_date
+        seq_type = CFG["samples"]["seq_type"].unique()
     shell:
         op.as_one_line("""
-        Rscript {params.script} 
-        {params.seg_input_params} 
-        --projection {wildcards.projection} 
-        --output_dir $(dirname {output.seg})/ 
-        --all_sample_sets {input.all_sample_sets} 
-        --case_set {wildcards.case_set} 
+        {params.script}
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -137,9 +137,9 @@ rule _gistic2_make_markers:
         seg = str(rules._gistic2_prepare_seg.output.seg)
     output:
         temp_markers = temp(CFG["dirs"]["markers"] + "temp_markers--{case_set}--{projection}.txt"),
-        markers = CFG["dirs"]["markers"] + "markers--{case_set}--{projection}.txt"
+        markers = CFG["dirs"]["markers"] + "markers--{case_set}--{launch_date}--{md5sum}--{projection}.txt"
     log:
-        stderr = CFG["logs"]["markers"] + "{case_set}--{projection}--markers.stderr.log"
+        stderr = CFG["logs"]["markers"] + "{case_set}--{launch_date}--{md5sum}--{projection}--markers.stderr.log"
     shell: 
         op.as_one_line("""
         sed '1d' {input.seg} | cut -f2,3 > {output.temp_markers}
@@ -157,16 +157,16 @@ rule _gistic2_run:
         refgene_mat = str(rules._gistic2_download_ref.output.refgene_mat),
         markers = str(rules._gistic2_make_markers.output.markers)
     output:
-        all_data_by_genes = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/all_data_by_genes.txt",
-        all_lesions = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/all_lesions.conf_{conf}.txt",
-        amp_genes = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/amp_genes.conf_{conf}.txt",
-        del_genes = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/del_genes.conf_{conf}.txt",
-        scores = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/scores.gistic"
+        all_data_by_genes = CFG["dirs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/all_data_by_genes.txt",
+        all_lesions = CFG["dirs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/all_lesions.conf_{conf}.txt",
+        amp_genes = CFG["dirs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/amp_genes.conf_{conf}.txt",
+        del_genes = CFG["dirs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/del_genes.conf_{conf}.txt",
+        scores = CFG["dirs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/scores.gistic"
     log:
-        stdout = CFG["logs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/gistic2.stdout.log",
-        stderr = CFG["logs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/gistic2.stderr.log"
+        stdout = CFG["logs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/gistic2.stdout.log",
+        stderr = CFG["logs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/gistic2.stderr.log"
     params:
-        base_dir = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/conf_{conf}/",
+        base_dir = CFG["dirs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/",
         opts = CFG["options"]["gistic2_run"]
     conda:
         CFG["conda_envs"]["gistic2"]
@@ -191,11 +191,11 @@ rule _gistic2_output:
         del_genes = str(rules._gistic2_run.output.del_genes),
         scores = str(rules._gistic2_run.output.scores)
     output:
-        all_data_by_genes = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/all_data_by_genes.txt",
-        all_lesions = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/all_lesions.conf_{conf}.txt",
-        amp_genes = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/amp_genes.conf_{conf}.txt",
-        del_genes = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/del_genes.conf_{conf}.txt",
-        scores = CFG["dirs"]["outputs"] + "{case_set}--{projection}/conf_{conf}/scores.gistic"
+        all_data_by_genes = CFG["dirs"]["outputs"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/all_data_by_genes.txt",
+        all_lesions = CFG["dirs"]["outputs"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/all_lesions.conf_{conf}.txt",
+        amp_genes = CFG["dirs"]["outputs"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/amp_genes.conf_{conf}.txt",
+        del_genes = CFG["dirs"]["outputs"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/del_genes.conf_{conf}.txt",
+        scores = CFG["dirs"]["outputs"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/scores.gistic"
 
     run:
         op.relative_symlink(input.all_data_by_genes, output.all_data_by_genes, in_module= True),
@@ -217,7 +217,10 @@ rule _gistic2_all:
             ],              
             conf = CFG["options"]["conf_level"],
             projection = CFG["projections"],
-            case_set = CFG["case_set"]
+            case_set = CFG["case_set"],
+            launch_date = launch_date
+            # TO DO
+            # md5sum
         )
 
 ##### CLEANUP #####
