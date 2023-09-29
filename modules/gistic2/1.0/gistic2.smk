@@ -54,10 +54,6 @@ localrules:
 
 ##### RULES #####
 
-# Get month-year to use as a wildcard
-onstart:
-    launch_date = datetime.today().strftime('%Y-%m')
-
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _gistic2_input_seg:
     input:
@@ -102,7 +98,7 @@ checkpoint _gistic2_prepare_seg:
                     ),
         all_sample_sets = ancient(str(rules._gistic2_input_sample_sets.output.all_sample_sets))
     output:
-        seg = CFG["dirs"]["prepare_seg"] + "{case_set}/{launch_date}--{md5sum}/{projection}.seg"
+        seg = CFG["dirs"]["prepare_seg"] + "{case_set}/{launch_date}--{md5sum}/{projection}.seg",
         md5sum = CFG["dirs"]["prepare_seg"] + "{case_set}/{launch_date}--{md5sum}/md5sum.txt"
     log:
         stdout = CFG["logs"]["prepare_seg"] + "{case_set}/{launch_date}--{md5sum}/{projection}.stdout.log",
@@ -111,7 +107,7 @@ checkpoint _gistic2_prepare_seg:
         "input_and_format"
     params:
         script = CFG["prepare_seg"],
-        launch_date = launch_date
+        launch_date = launch_date,
         seq_type = CFG["samples"]["seq_type"].unique()
     shell:
         op.as_one_line("""
@@ -123,8 +119,8 @@ def _gistic2_get_md5sums(wildcards):
     CFG = config["lcr-modules"]["gistic2"]
     ckpt = checkpoints._gistic2_prepare_seg.get(**wildcards).output.md5sum
     hash = pd.read_csv(ckpt, header = None)
-    segs = expand(CFG["dirs"]["prepare_seg"] "{{case_set}}/{{launch_date}}--{md5sum}/{{projection}}.seg",
-        md5sum = hash)
+    segs = expand(
+            CFG["dirs"]["prepare_seg"] + "{{case_set}}/{{launch_date}}--{md5sum}/{{projection}}.seg", md5sum = hash)
     
     return(segs)
 
@@ -215,7 +211,7 @@ rule _gistic2_all:
             conf = CFG["options"]["conf_level"],
             projection = CFG["projections"],
             case_set = CFG["case_set"],
-            launch_date = launch_date
+            launch_date = datetime.today().strftime('%Y-%m')
         )
 
 ##### CLEANUP #####
