@@ -53,6 +53,7 @@ localrules:
 
 
 ##### RULES #####
+launch_date = datetime.today().strftime('%Y-%m')
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _gistic2_input_seg:
@@ -211,7 +212,7 @@ rule _gistic2_all:
             conf = CFG["options"]["conf_level"],
             projection = CFG["projections"],
             case_set = CFG["case_set"],
-            launch_date = datetime.today().strftime('%Y-%m')
+            launch_date = launch_date
         )
 
 ##### CLEANUP #####
