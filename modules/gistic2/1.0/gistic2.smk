@@ -79,17 +79,6 @@ rule _gistic2_input_sample_sets:
     run:
         op.absolute_symlink(input.all_sample_sets, output.all_sample_sets)
 
-
-rule _gistic2_input_metadata:
-    input:
-        metadata = CFG["inputs"]["metadata"]
-    output:
-        metadata = CFG["dirs"]["inputs"] + "sample_sets/metadata.tsv"
-    group: 
-        "input_and_format"
-    run:
-        op.absolute_symlink(input.metadata, output.metadata)
-
 # Download refgene reference MAT file
 rule _gistic2_download_ref:
     output:
@@ -105,17 +94,16 @@ rule _gistic2_download_ref:
         """)
 
 # Merges capture and genome seg files if available, and subset to the case_set provided
-rule _gistic2_prepare_seg:
+checkpoint _gistic2_prepare_seg:
     input:
         seg = expand(str(rules._gistic2_input_seg.output.seg),
                     allow_missing=True,
                     seq_type=CFG["samples"]["seq_type"].unique()
                     ),
-        all_sample_sets = ancient(str(rules._gistic2_input_sample_sets.output.all_sample_sets)),
-        metadata = ancient(str(rules._gistic2_input_metadata.output.metadata)),
-        seg_dir = CFG["dirs"]["inputs"]
+        all_sample_sets = ancient(str(rules._gistic2_input_sample_sets.output.all_sample_sets))
     output:
         seg = CFG["dirs"]["prepare_seg"] + "{case_set}/{launch_date}--{md5sum}/{projection}.seg"
+        md5sum = CFG["dirs"]["prepare_seg"] + "{case_set}/{launch_date}--{md5sum}/md5sum.txt"
     log:
         stdout = CFG["logs"]["prepare_seg"] + "{case_set}/{launch_date}--{md5sum}/{projection}.stdout.log",
         stderr = CFG["logs"]["prepare_seg"] + "{case_set}/{launch_date}--{md5sum}/{projection}.stderr.log"
@@ -131,10 +119,19 @@ rule _gistic2_prepare_seg:
         > {log.stdout} 2> {log.stderr}
         """)
 
+def _gistic2_get_md5sums(wildcards):
+    CFG = config["lcr-modules"]["gistic2"]
+    ckpt = checkpoints._gistic2_prepare_seg.get(**wildcards).output.md5sum
+    hash = pd.read_csv(ckpt, header = None)
+    segs = expand(CFG["dirs"]["prepare_seg"] "{{case_set}}/{{launch_date}}--{md5sum}/{{projection}}.seg",
+        md5sum = hash)
+    
+    return(segs)
+
 # Create a markers file that has every segment start and end that appears in the seg file
 rule _gistic2_make_markers:
     input:
-        seg = str(rules._gistic2_prepare_seg.output.seg)
+        seg = _gistic2_get_md5sums
     output:
         temp_markers = temp(CFG["dirs"]["markers"] + "temp_markers--{case_set}--{projection}.txt"),
         markers = CFG["dirs"]["markers"] + "markers--{case_set}--{launch_date}--{md5sum}--{projection}.txt"
@@ -219,8 +216,6 @@ rule _gistic2_all:
             projection = CFG["projections"],
             case_set = CFG["case_set"],
             launch_date = launch_date
-            # TO DO
-            # md5sum
         )
 
 ##### CLEANUP #####
