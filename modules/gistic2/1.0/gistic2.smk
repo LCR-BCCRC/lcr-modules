@@ -66,15 +66,15 @@ rule _gistic2_input_seg:
     run:
         op.absolute_symlink(input.seg, output.seg)
 
-rule _gistic2_input_sample_sets:
+rule _gistic2_input_subsetting_categories:
     input:
-        all_sample_sets = CFG["inputs"]["all_sample_sets"]
+        subsetting_categories = CFG["inputs"]["subsetting_categories"]
     output:
-        all_sample_sets = CFG["dirs"]["inputs"] + "sample_sets/all_sample_sets.tsv"
+        subsetting_categories = CFG["dirs"]["inputs"] + "sample_sets/subsetting_categories.tsv"
     group: 
         "input_and_format"
     run:
-        op.absolute_symlink(input.all_sample_sets, output.all_sample_sets)
+        op.absolute_symlink(input.subsetting_categories, output.subsetting_categories)
 
 # Download refgene reference MAT file
 rule _gistic2_download_ref:
@@ -97,7 +97,7 @@ checkpoint _gistic2_prepare_seg:
                     allow_missing=True,
                     seq_type=CFG["samples"]["seq_type"].unique()
                     ),
-        all_sample_sets = str(rules._gistic2_input_sample_sets.output.all_sample_sets)
+        subsetting_categories = str(rules._gistic2_input_subsetting_categories.output.subsetting_categories)
     output:
         directory(CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}")
     log:
