@@ -101,8 +101,8 @@ checkpoint _gistic2_prepare_seg:
     output:
         directory(CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}")
     log:
-        stdout = expand(CFG["logs"]["prepare_seg"] + "{case_set}--{projection}/{launch_date}.stdout.log", launch_date=launch_date, allow_missing=True),
-        stderr = expand(CFG["logs"]["prepare_seg"] + "{case_set}--{projection}/{launch_date}.stderr.log", launch_date=launch_date, allow_missing=True)
+        stdout = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.stdout.log",
+        stderr = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.stderr.log"
     group: 
         "input_and_format"
     params:
