@@ -1,0 +1,66 @@
+Thu Sep 21 10:49:38 PDT 2023: Full log file is: ./gridss.full.20230921_104937.gphost08.bcgsc.ca.107910.log
+Thu Sep 21 10:49:38 PDT 2023: Found /usr/bin/time
+Thu Sep 21 10:49:38 PDT 2023: Using GRIDSS jar /projects/rmorin_scratch/conda_environments/35e5df37/share/gridss-2.13.0/gridss.jar
+Thu Sep 21 10:49:38 PDT 2023: Using reference genome ""
+Thu Sep 21 10:49:38 PDT 2023: 
+Usage: gridss [options] -r <reference.fa> -o <output.vcf.gz> -a <assembly.bam> input1.bam [input2.bam [...]]
+
+    -r/--reference: reference genome to use.
+    -o/--output: output VCF.
+    -a/--assembly: location of the GRIDSS assembly BAM. This file will be
+        created by GRIDSS.
+    -t/--threads: number of threads to use. (Default: 8)
+    -j/--jar: location of GRIDSS jar
+    -w/--workingdir: directory to place GRIDSS intermediate and temporary files
+        .gridss.working subdirectories will be created. (Default: .)
+    -b/--blacklist: BED file containing regions to ignore
+    -s/--steps: processing steps to run. Defaults to all steps.
+        Multiple steps are specified using comma separators.
+        Possible steps are:
+        setupreference, preprocess, assemble, call, all
+        WARNING: multiple instances of GRIDSS generating reference
+        files at the same time will result in file corruption.
+        Make sure these files are generated before runninng parallel
+        GRIDSS jobs.
+    -c/--configuration: configuration file use to override default GRIDSS
+        settings.
+    -l/--labels: comma separated labels to use in the output VCF for the input
+        files. Supporting read counts for input files with the same label are
+        aggregated (useful for multiple sequencing runs of the same sample).
+        Labels default to input filenames, unless a single read group with a
+        non-empty sample name exists in which case the read group sample name
+        is used (which can be disabled by "useReadGroupSampleNameCategoryLabel=false"
+        in the configuration file). If labels are specified, they must be
+        specified for all input files.
+    --externalaligner: use the system version of bwa instead of the in-process
+        version packaged with GRIDSS (default)
+    --internalaligner: use the in-process version of bwa instead of system
+        version. Faster but alignment results can change between runs.
+    --jvmheap: size of JVM heap for the high-memory component of assembly and
+        variant calling. (Default: 30g)
+    --otherjvmheap: size of JVM heap for everything else. Useful to prevent
+        java out of memory errors when using large (>4Gb) reference genomes.
+        Note that some parts of assembly and variant calling use this heap
+        size. (Default: 4g)
+    --skipsoftcliprealignment: [EXPERIMENTAL] skip soft clip realignment.
+        Reduces runtime for aligners that report split read alignments.
+    --maxcoverage: maximum coverage. Regions with coverage in excess of this
+        are ignored. (Default: 50000)
+    --picardoptions: additional standard Picard command line options. Useful
+        options include VALIDATION_STRINGENCY=LENIENT and COMPRESSION_LEVEL=0.
+        https://broadinstitute.github.io/picard/command-line-overview.html
+    --useproperpair: use SAM 'proper pair' flag to determine whether a read
+        pair is discordant. Default: use library fragment size distribution to
+        determine read pair concordance.
+    --concordantreadpairdistribution: portion of 6 sigma read pairs distribution
+        considered concordantly mapped. (Default: 0.995)
+    --keepTempFiles: keep intermediate files. Not recommended except for
+        debugging due to the high disk usage.
+    --nojni: do not use JNI native code acceleration libraries JNI libraries:
+        snappy, GKL, ssw, bwa
+    --jobindex: zero-based assembly job index. Only required when performing
+        parallel assembly across multiple processes.
+    --jobnodes: total number of assembly jobs. Only required when performing
+        parallel assembly across multiple processes.
+    
+Thu Sep 21 10:49:38 PDT 2023: Reference genome must be specified. Specify using the --reference command line argument
