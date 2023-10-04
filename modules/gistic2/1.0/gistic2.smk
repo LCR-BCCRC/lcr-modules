@@ -97,40 +97,39 @@ checkpoint _gistic2_prepare_seg:
                     allow_missing=True,
                     seq_type=CFG["samples"]["seq_type"].unique()
                     ),
-        all_sample_sets = ancient(str(rules._gistic2_input_sample_sets.output.all_sample_sets))
+        all_sample_sets = str(rules._gistic2_input_sample_sets.output.all_sample_sets)
     output:
-        seg = CFG["dirs"]["prepare_seg"] + "{case_set}/{launch_date}--{md5sum}/{projection}.seg",
-        md5sum = CFG["dirs"]["prepare_seg"] + "{case_set}/{launch_date}--{md5sum}/md5sum.txt"
+        directory(CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}")
     log:
-        stdout = CFG["logs"]["prepare_seg"] + "{case_set}/{launch_date}--{md5sum}/{projection}.stdout.log",
-        stderr = CFG["logs"]["prepare_seg"] + "{case_set}/{launch_date}--{md5sum}/{projection}.stderr.log"
+        stdout = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.stdout.log",
+        stderr = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.stderr.log"
     group: 
         "input_and_format"
     params:
         script = CFG["prepare_seg"],
         launch_date = launch_date,
+        case_set = CFG["case_set"],
         seq_type = CFG["samples"]["seq_type"].unique()
     shell:
         op.as_one_line("""
         {params.script}
-        > {log.stdout} 2> {log.stderr}
         """)
 
-def _gistic2_get_md5sums(wildcards):
+def _gistic2_get_seg_with_md5sum(wildcards):
     CFG = config["lcr-modules"]["gistic2"]
-    ckpt = checkpoints._gistic2_prepare_seg.get(**wildcards).output.md5sum
-    hash = pd.read_csv(ckpt, header = None)
+    checkpoint_output = checkpoints._gistic2_prepare_seg.get(**wildcards).output[0]
+    sums, = glob_wildcards(checkpoint_output + launch_date + "--{md5sum}.seg")
     segs = expand(
-            CFG["dirs"]["prepare_seg"] + "{{case_set}}/{{launch_date}}--{md5sum}/{{projection}}.seg", md5sum = hash)
+            CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}/{launch_date}--{md5sum}.seg", md5sum = sums, launch_date=launch_date)
     
     return(segs)
 
 # Create a markers file that has every segment start and end that appears in the seg file
 rule _gistic2_make_markers:
     input:
-        seg = _gistic2_get_md5sums
+        seg = _gistic2_get_seg_with_md5sum
     output:
-        temp_markers = temp(CFG["dirs"]["markers"] + "temp_markers--{case_set}--{projection}.txt"),
+        temp_markers = temp(CFG["dirs"]["markers"] + "temp_markers--{case_set}--{launch_date}--{md5sum}--{projection}.txt"),
         markers = CFG["dirs"]["markers"] + "markers--{case_set}--{launch_date}--{md5sum}--{projection}.txt"
     log:
         stderr = CFG["logs"]["markers"] + "{case_set}--{launch_date}--{md5sum}--{projection}--markers.stderr.log"
@@ -147,7 +146,7 @@ rule _gistic2_make_markers:
 # Run gistic2 for a single seq_type (capture, genome) for the confidence thresholds listed in the config
 rule _gistic2_run:
     input:
-        seg = str(rules._gistic2_prepare_seg.output.seg),
+        seg = _gistic2_get_seg_with_md5sum,
         refgene_mat = str(rules._gistic2_download_ref.output.refgene_mat),
         markers = str(rules._gistic2_make_markers.output.markers)
     output:
@@ -198,6 +197,11 @@ rule _gistic2_output:
         op.relative_symlink(input.del_genes, output.del_genes, in_module= True),
         op.relative_symlink(input.scores, output.scores, in_module= True)
 
+def _gistic2_get_md5sums(wildcards):
+    checkpoint_output = checkpoints._gistic2_prepare_seg.get(**wildcards).output[0]
+    sums, = glob_wildcards(checkpoint_output + launch_date + "--{md5sum}.seg")
+
+    return(sums)
 
 rule _gistic2_all:
     input:
@@ -212,7 +216,8 @@ rule _gistic2_all:
             conf = CFG["options"]["conf_level"],
             projection = CFG["projections"],
             case_set = CFG["case_set"],
-            launch_date = launch_date
+            launch_date = launch_date,
+            md5sum = _gistic2_get_md5sums
         )
 
 ##### CLEANUP #####
