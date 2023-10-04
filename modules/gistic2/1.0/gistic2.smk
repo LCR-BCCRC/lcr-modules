@@ -113,6 +113,7 @@ checkpoint _gistic2_prepare_seg:
     shell:
         op.as_one_line("""
         {params.script}
+        > {log.stdout} 2> {log.stderr}
         """)
 
 def _gistic2_get_seg_with_md5sum(wildcards):
