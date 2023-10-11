@@ -14,6 +14,7 @@
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 from datetime import datetime
+import numpy as np
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -101,20 +102,16 @@ checkpoint _gistic2_prepare_seg:
     output:
         directory(CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}")
     log:
-        stdout = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.stdout.log",
-        stderr = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.stderr.log"
+        log = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.log"
     group: 
         "input_and_format"
     params:
-        script = CFG["prepare_seg"],
         launch_date = launch_date,
         case_set = CFG["case_set"],
-        seq_type = CFG["samples"]["seq_type"].unique()
-    shell:
-        op.as_one_line("""
-        {params.script}
-        > {log.stdout} 2> {log.stderr}
-        """)
+        seq_type = CFG["samples"]["seq_type"].unique(),
+        metadata = CFG["samples"][["sample_id","seq_type","genome_build","cohort","pathology","unix_group"]].to_numpy(na_value='')
+    script:
+        config["lcr-modules"]["gistic2"]["prepare_seg"]
 
 def _gistic2_get_seg_with_md5sum(wildcards):
     CFG = config["lcr-modules"]["gistic2"]
