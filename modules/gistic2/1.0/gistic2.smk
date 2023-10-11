@@ -109,7 +109,7 @@ checkpoint _gistic2_prepare_seg:
         launch_date = launch_date,
         case_set = CFG["case_set"],
         seq_type = CFG["samples"]["seq_type"].unique(),
-        metadata = CFG["samples"][["sample_id","seq_type","genome_build","cohort","pathology","unix_group"]].to_numpy(na_value='')
+        metadata = CFG["samples"][["sample_id","seq_type","genome_build","cohort","pathology","unix_group","time_point"]].to_numpy(na_value='')
     script:
         config["lcr-modules"]["gistic2"]["prepare_seg"]
 
