@@ -100,9 +100,9 @@ checkpoint _gistic2_prepare_seg:
                     ),
         subsetting_categories = str(rules._gistic2_input_subsetting_categories.output.subsetting_categories)
     output:
-        directory(CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}")
+        directory(CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}")
     log:
-        log = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}.log"
+        log = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}.log"
     group: 
         "input_and_format"
     params:
@@ -116,9 +116,11 @@ checkpoint _gistic2_prepare_seg:
 def _gistic2_get_seg_with_md5sum(wildcards):
     CFG = config["lcr-modules"]["gistic2"]
     checkpoint_output = checkpoints._gistic2_prepare_seg.get(**wildcards).output[0]
-    sums, = glob_wildcards(checkpoint_output + launch_date + "--{md5sum}.seg")
+    print("checkpoint_output", checkpoint_output)
+    sums, = glob_wildcards(checkpoint_output + "/{md5sum}.seg")
+    print("sums", sums)
     segs = expand(
-            CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}/{launch_date}--{md5sum}.seg", md5sum = sums, launch_date=launch_date)
+            CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}/{md5sum}.seg", md5sum = sums, launch_date=launch_date, allow_missing=True)
     
     return(segs)
 
@@ -127,10 +129,10 @@ rule _gistic2_make_markers:
     input:
         seg = _gistic2_get_seg_with_md5sum
     output:
-        temp_markers = temp(CFG["dirs"]["markers"] + "temp_markers--{case_set}--{launch_date}--{md5sum}--{projection}.txt"),
-        markers = CFG["dirs"]["markers"] + "markers--{case_set}--{launch_date}--{md5sum}--{projection}.txt"
+        temp_markers = temp(CFG["dirs"]["markers"] + "temp_markers--{case_set}--{projection}--{launch_date}--{md5sum}.txt"),
+        markers = CFG["dirs"]["markers"] + "markers--{case_set}--{projection}--{launch_date}--{md5sum}.txt"
     log:
-        stderr = CFG["logs"]["markers"] + "{case_set}--{launch_date}--{md5sum}--{projection}--markers.stderr.log"
+        stderr = CFG["logs"]["markers"] + "{case_set}--{projection}--{launch_date}--{md5sum}--markers.stderr.log"
     shell: 
         op.as_one_line("""
         sed '1d' {input.seg} | cut -f2,3 > {output.temp_markers}
@@ -148,16 +150,16 @@ rule _gistic2_run:
         refgene_mat = str(rules._gistic2_download_ref.output.refgene_mat),
         markers = str(rules._gistic2_make_markers.output.markers)
     output:
-        all_data_by_genes = CFG["dirs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/all_data_by_genes.txt",
-        all_lesions = CFG["dirs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/all_lesions.conf_{conf}.txt",
-        amp_genes = CFG["dirs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/amp_genes.conf_{conf}.txt",
-        del_genes = CFG["dirs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/del_genes.conf_{conf}.txt",
-        scores = CFG["dirs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/scores.gistic"
+        all_data_by_genes = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/all_data_by_genes.txt",
+        all_lesions = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/all_lesions.conf_{conf}.txt",
+        amp_genes = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/amp_genes.conf_{conf}.txt",
+        del_genes = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/del_genes.conf_{conf}.txt",
+        scores = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/scores.gistic"
     log:
-        stdout = CFG["logs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/gistic2.stdout.log",
-        stderr = CFG["logs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/gistic2.stderr.log"
+        stdout = CFG["logs"]["gistic2"] + "{case_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/gistic2.stdout.log",
+        stderr = CFG["logs"]["gistic2"] + "{case_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/gistic2.stderr.log"
     params:
-        base_dir = CFG["dirs"]["gistic2"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/",
+        base_dir = CFG["dirs"]["gistic2"] + "{case_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/",
         opts = CFG["options"]["gistic2_run"]
     conda:
         CFG["conda_envs"]["gistic2"]
@@ -182,11 +184,11 @@ rule _gistic2_output:
         del_genes = str(rules._gistic2_run.output.del_genes),
         scores = str(rules._gistic2_run.output.scores)
     output:
-        all_data_by_genes = CFG["dirs"]["outputs"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/all_data_by_genes.txt",
-        all_lesions = CFG["dirs"]["outputs"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/all_lesions.conf_{conf}.txt",
-        amp_genes = CFG["dirs"]["outputs"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/amp_genes.conf_{conf}.txt",
-        del_genes = CFG["dirs"]["outputs"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/del_genes.conf_{conf}.txt",
-        scores = CFG["dirs"]["outputs"] + "{case_set}/{launch_date}--{md5sum}/{projection}/conf_{conf}/scores.gistic"
+        all_data_by_genes = CFG["dirs"]["outputs"] + "{case_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/all_data_by_genes.txt",
+        all_lesions = CFG["dirs"]["outputs"] + "{case_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/all_lesions.conf_{conf}.txt",
+        amp_genes = CFG["dirs"]["outputs"] + "{case_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/amp_genes.conf_{conf}.txt",
+        del_genes = CFG["dirs"]["outputs"] + "{case_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/del_genes.conf_{conf}.txt",
+        scores = CFG["dirs"]["outputs"] + "{case_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/scores.gistic"
 
     run:
         op.relative_symlink(input.all_data_by_genes, output.all_data_by_genes, in_module= True),
