@@ -55,6 +55,7 @@ localrules:
 
 ##### RULES #####
 launch_date = datetime.today().strftime('%Y-%m')
+sums = None # will be defined after the checkpoint as a global variable so we can use it in rule all
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _gistic2_input_seg:
@@ -116,13 +117,13 @@ checkpoint _gistic2_prepare_seg:
 def _gistic2_get_seg_with_md5sum(wildcards):
     CFG = config["lcr-modules"]["gistic2"]
     checkpoint_output = checkpoints._gistic2_prepare_seg.get(**wildcards).output[0]
-    print("checkpoint_output", checkpoint_output)
+    global sums
     sums, = glob_wildcards(checkpoint_output + "/{md5sum}.seg")
-    print("sums", sums)
     segs = expand(
             CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}/{md5sum}.seg", md5sum = sums, launch_date=launch_date, allow_missing=True)
     
     return(segs)
+
 
 # Create a markers file that has every segment start and end that appears in the seg file
 rule _gistic2_make_markers:
@@ -197,12 +198,6 @@ rule _gistic2_output:
         op.relative_symlink(input.del_genes, output.del_genes, in_module= True),
         op.relative_symlink(input.scores, output.scores, in_module= True)
 
-def _gistic2_get_md5sums(wildcards):
-    checkpoint_output = checkpoints._gistic2_prepare_seg.get(**wildcards).output[0]
-    sums, = glob_wildcards(checkpoint_output + launch_date + "--{md5sum}.seg")
-
-    return(sums)
-
 rule _gistic2_all:
     input:
         expand(
@@ -217,7 +212,7 @@ rule _gistic2_all:
             projection = CFG["projections"],
             case_set = CFG["case_set"],
             launch_date = launch_date,
-            md5sum = _gistic2_get_md5sums
+            md5sum = sums
         )
 
 ##### CLEANUP #####
