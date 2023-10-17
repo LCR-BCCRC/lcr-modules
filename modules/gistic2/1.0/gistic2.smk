@@ -57,6 +57,16 @@ localrules:
 launch_date = datetime.today().strftime('%Y-%m')
 sums = None # will be defined after the checkpoint as a global variable so we can use it in rule all
 
+def _gistic2_get_seg_with_md5sum(wildcards):
+    CFG = config["lcr-modules"]["gistic2"]
+    checkpoint_output = checkpoints._gistic2_prepare_seg.get(**wildcards).output[0]
+    global sums
+    sums, = glob_wildcards(checkpoint_output + "/{md5sum}.seg")
+    segs = expand(
+            CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}/{md5sum}.seg", md5sum = sums, launch_date=launch_date, allow_missing=True)
+    
+    return(segs)
+
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _gistic2_input_seg:
     input:
@@ -107,8 +117,6 @@ checkpoint _gistic2_prepare_seg:
     group: 
         "input_and_format"
     params:
-        launch_date = launch_date,
-        case_set = CFG["case_set"],
         seq_type = CFG["samples"]["seq_type"].unique(),
         metadata = CFG["samples"][["sample_id","seq_type","genome_build","cohort","pathology","unix_group","time_point"]].to_numpy(na_value='')
     script:
