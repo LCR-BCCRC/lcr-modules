@@ -50,22 +50,12 @@ localrules:
     _gistic2_make_markers,
     _gistic2_download_ref,
     _gistic2_output,
+    _gistic2_aggregate,
     _gistic2_all
 
 
 ##### RULES #####
 launch_date = datetime.today().strftime('%Y-%m')
-sums = None # will be defined after the checkpoint as a global variable so we can use it in rule all
-
-def _gistic2_get_seg_with_md5sum(wildcards):
-    CFG = config["lcr-modules"]["gistic2"]
-    checkpoint_output = checkpoints._gistic2_prepare_seg.get(**wildcards).output[0]
-    global sums
-    sums, = glob_wildcards(checkpoint_output + "/{md5sum}.seg")
-    segs = expand(
-            CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}/{md5sum}.seg", md5sum = sums, launch_date=launch_date, allow_missing=True)
-    
-    return(segs)
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _gistic2_input_seg:
@@ -106,8 +96,8 @@ rule _gistic2_download_ref:
 checkpoint _gistic2_prepare_seg:
     input:
         seg = expand(str(rules._gistic2_input_seg.output.seg),
-                    allow_missing=True,
-                    seq_type=CFG["samples"]["seq_type"].unique()
+                    seq_type=CFG["samples"]["seq_type"].unique(),
+                    projection = CFG["projections"]
                     ),
         subsetting_categories = str(rules._gistic2_input_subsetting_categories.output.subsetting_categories)
     output:
@@ -125,10 +115,8 @@ checkpoint _gistic2_prepare_seg:
 def _gistic2_get_seg_with_md5sum(wildcards):
     CFG = config["lcr-modules"]["gistic2"]
     checkpoint_output = checkpoints._gistic2_prepare_seg.get(**wildcards).output[0]
-    global sums
-    sums, = glob_wildcards(checkpoint_output + "/{md5sum}.seg")
-    segs = expand(
-            CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}/{md5sum}.seg", md5sum = sums, launch_date=launch_date, allow_missing=True)
+    SUMS, = glob_wildcards(checkpoint_output + "/{md5sum}.seg")
+    segs = expand(CFG["dirs"]["prepare_seg"] + "{{case_set}}--{{projection}}--{{launch_date}}/{md5sum}.seg", md5sum = SUMS)
     
     return(segs)
 
@@ -206,21 +194,40 @@ rule _gistic2_output:
         op.relative_symlink(input.del_genes, output.del_genes, in_module= True),
         op.relative_symlink(input.scores, output.scores, in_module= True)
 
+def _for_aggregate(wildcards):
+    CFG = config["lcr-modules"]["gistic2"]
+    checkpoint_output = checkpoints._gistic2_prepare_seg.get(**wildcards).output[0]
+    SUMS, = glob_wildcards(checkpoint_output +"/{md5sum}.seg")
+    return expand(
+        [
+            CFG["dirs"]["outputs"] + "{{case_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/all_data_by_genes.txt",
+            CFG["dirs"]["outputs"] + "{{case_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/all_lesions.conf_{{conf}}.txt",
+            CFG["dirs"]["outputs"] + "{{case_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/amp_genes.conf_{{conf}}.txt",
+            CFG["dirs"]["outputs"] + "{{case_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/del_genes.conf_{{conf}}.txt",
+            CFG["dirs"]["outputs"] + "{{case_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/scores.gistic"
+        ],
+        md5sum = SUMS
+        )
+
+rule _gistic2_aggregate:
+    input:
+        _for_aggregate
+    output:
+        aggregate = CFG["dirs"]["outputs"] + "{case_set}--{projection}--{launch_date}--{conf}.done"
+    shell:
+        op.as_one_line("""touch {output.aggregate}""")
+
+
 rule _gistic2_all:
     input:
         expand(
             [
-                str(rules._gistic2_output.output.all_data_by_genes),
-                str(rules._gistic2_output.output.all_lesions),
-                str(rules._gistic2_output.output.amp_genes),
-                str(rules._gistic2_output.output.del_genes),
-                str(rules._gistic2_output.output.scores)
+                str(rules._gistic2_aggregate.output.aggregate),
             ],              
             conf = CFG["options"]["conf_level"],
             projection = CFG["projections"],
             case_set = CFG["case_set"],
-            launch_date = launch_date,
-            md5sum = sums
+            launch_date = launch_date
         )
 
 ##### CLEANUP #####
