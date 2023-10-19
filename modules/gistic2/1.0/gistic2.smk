@@ -97,7 +97,7 @@ checkpoint _gistic2_prepare_seg:
     input:
         seg = expand(str(rules._gistic2_input_seg.output.seg),
                     seq_type=CFG["samples"]["seq_type"].unique(),
-                    projection = CFG["projections"]
+                    allow_missing=True
                     ),
         subsetting_categories = str(rules._gistic2_input_subsetting_categories.output.subsetting_categories)
     output:
