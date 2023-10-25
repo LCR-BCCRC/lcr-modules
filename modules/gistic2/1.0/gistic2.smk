@@ -16,6 +16,7 @@ import oncopipe as op
 from datetime import datetime
 import numpy as np
 
+
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
 import pkg_resources
@@ -101,7 +102,8 @@ checkpoint _gistic2_prepare_seg:
                     ),
         subsetting_categories = str(rules._gistic2_input_subsetting_categories.output.subsetting_categories)
     output:
-        directory(CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}")
+        # directory(CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}"),
+        CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}/done"
     log:
         log = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}.log"
     group: 
@@ -112,19 +114,10 @@ checkpoint _gistic2_prepare_seg:
     script:
         config["lcr-modules"]["gistic2"]["prepare_seg"]
 
-def _gistic2_get_seg_with_md5sum(wildcards):
-    CFG = config["lcr-modules"]["gistic2"]
-    checkpoint_output = checkpoints._gistic2_prepare_seg.get(**wildcards).output[0]
-    SUMS, = glob_wildcards(checkpoint_output + "/{md5sum}.seg")
-    segs = expand(CFG["dirs"]["prepare_seg"] + "{{case_set}}--{{projection}}--{{launch_date}}/{md5sum}.seg", md5sum = SUMS)
-    
-    return(segs)
-
-
 # Create a markers file that has every segment start and end that appears in the seg file
 rule _gistic2_make_markers:
     input:
-        seg = _gistic2_get_seg_with_md5sum
+        seg = CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}/{md5sum}.seg"
     output:
         temp_markers = temp(CFG["dirs"]["markers"] + "temp_markers--{case_set}--{projection}--{launch_date}--{md5sum}.txt"),
         markers = CFG["dirs"]["markers"] + "markers--{case_set}--{projection}--{launch_date}--{md5sum}.txt"
@@ -143,7 +136,7 @@ rule _gistic2_make_markers:
 # Run gistic2 for a single seq_type (capture, genome) for the confidence thresholds listed in the config
 rule _gistic2_run:
     input:
-        seg = _gistic2_get_seg_with_md5sum,
+        seg = CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}/{md5sum}.seg",
         refgene_mat = str(rules._gistic2_download_ref.output.refgene_mat),
         markers = str(rules._gistic2_make_markers.output.markers)
     output:
@@ -196,8 +189,13 @@ rule _gistic2_output:
 
 def _for_aggregate(wildcards):
     CFG = config["lcr-modules"]["gistic2"]
-    checkpoint_output = checkpoints._gistic2_prepare_seg.get(**wildcards).output[0]
+    print("Inside the aggregate fn")
+    print("checkpoint_output")
+    checkpoint_output = os.path.dirname(str(checkpoints._gistic2_prepare_seg.get(**wildcards).output[0]))
+    print(checkpoint_output)
     SUMS, = glob_wildcards(checkpoint_output +"/{md5sum}.seg")
+    print("SUMS")
+    print(SUMS)
     return expand(
         [
             CFG["dirs"]["outputs"] + "{{case_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/all_data_by_genes.txt",
@@ -222,7 +220,8 @@ rule _gistic2_all:
     input:
         expand(
             [
-                str(rules._gistic2_aggregate.output.aggregate),
+                CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}/done",
+                str(rules._gistic2_aggregate.output.aggregate)
             ],              
             conf = CFG["options"]["conf_level"],
             projection = CFG["projections"],
