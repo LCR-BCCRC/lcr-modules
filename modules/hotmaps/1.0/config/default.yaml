@@ -4,15 +4,20 @@ lcr-modules:
 
         # TODO: Update the list of available wildcards, if applicable
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            # Available wildcards: {seq_type} {genome_build}
             input_maf: "__UPDATE__"
+            sample_sets: "__UPDATE__"
 
         maf_processing:
             generate_smg_input: True
-            sample_sets: "__UPDATE__"
+            sample_sets: ["__UPDATE__"]
             seq_types: ["genome","capture"]
             include_non_coding: False
             prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
+        
+        vcf2maf:
+            vep_cache: "__UPDATE__"
+            options: ""
             #matched_only: This is not an option in lcr-script SMG script
             #filter_criteria: This is also not an option in lcr-script SMG script
             #metadata: not needed in lcr script SMG script
@@ -40,10 +45,12 @@ lcr-modules:
                 num_sim:
                 radius:
 
-       scratch_subdirectories: []
+        scratch_subdirectories: []
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools.yaml"
             hotmaps: "{MODSDIR}/envs/hotmaps.yaml"
             
         threads:
