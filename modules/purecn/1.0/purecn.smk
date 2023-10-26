@@ -16,6 +16,7 @@ import oncopipe as op
 import glob
 import os
 import re
+import sys
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -850,7 +851,7 @@ if CFG["cnvkit_seg"] == True:
                     --alpha {params.alpha} \
                     --model {params.model} \
                     --cores {threads} \
-                    {params.opts}  > {log} 2>&1
+                    {params.opts}  > {log} 2>&1 
             """
 
 if CFG["cnvkit_seg"] == True:
@@ -860,6 +861,7 @@ if CFG["cnvkit_seg"] == True:
             pdf = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf",
         output:
             rds_removed = touch(CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.done")
+        group: "cnvkit_post_process"
         shell:
             """
                 rm {input.rds} ;
@@ -876,6 +878,7 @@ if CFG["cnvkit_seg"] == True:
         params:
             tidy_pureCN_script = CFG["software"]["tidy_pureCN_script"],
             sample_id = "{tumour_id}"
+        group: "cnvkit_post_process"
         shell:
             """
                 {params.tidy_pureCN_script} -i {input.purecn_native} -o {output.purecn_converted_seg} -s {params.sample_id}
@@ -974,7 +977,7 @@ rule _purecn_denovo_run:
                 --alpha {params.alpha} \
                 --model betabin \
                 --cores {threads} \
-                {params.opts} > {log} 2>&1
+                {params.opts} > {log} 2>&1 
         """
 
 rule _purecn_denovo_cleanup_xs:
@@ -983,6 +986,7 @@ rule _purecn_denovo_cleanup_xs:
         pdf = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf",
     output:
         rds_removed = touch(CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.done")
+    group: "purecn_post_process"
     shell:
         """
             rm {input.rds} ;
@@ -998,6 +1002,7 @@ rule _purecn_denovo_fix_seg:
     params:
         tidy_pureCN_script = CFG["software"]["tidy_pureCN_script"],
         sample_id = "{tumour_id}"
+    group: "purecn_post_process"
     shell:
         """
             {params.tidy_pureCN_script} -i {input.purecn_native} -o {output.purecn_converted_seg} -s {params.sample_id}
@@ -1457,13 +1462,21 @@ def _purecn_take_lowest_MAD(wildcards):
 
     this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
 
-    cnvkit_seg = "results/icgc_dart/purecn-1.0/99-outputs/purecn_cnvkit/seg/" + wildcards.seq_type + "--projection/" + wildcards.tumour_id + "--" + wildcards.normal_id + "--" + wildcards.pair_status + "." + wildcards.tool + "." + wildcards.projection + ".seg"
+    cnvkit_seg = CFG["dirs"]["outputs"] + "purecn_cnvkit/seg/" + wildcards.seq_type + "--projection/" + wildcards.tumour_id + "--" + wildcards.normal_id + "--" + wildcards.pair_status + "." + wildcards.tool + "." + wildcards.projection + ".seg"
     
-    denovo_seg = "results/icgc_dart/purecn-1.0/99-outputs/purecn_denovo/seg/" + wildcards.seq_type + "--projection/" + wildcards.tumour_id + "--" + wildcards.normal_id + "--" + wildcards.pair_status + "." + wildcards.tool + "." + wildcards.projection + ".seg"
+    denovo_seg = CFG["dirs"]["outputs"] + "purecn_denovo/seg/" + wildcards.seq_type + "--projection/" + wildcards.tumour_id + "--" + wildcards.normal_id + "--" + wildcards.pair_status + "." + wildcards.tool + "." + wildcards.projection + ".seg"
     
     
-    cnvkit_dir = glob.glob("results/icgc_dart/purecn-1.0/05-pureCN_cnvkit/" + wildcards.seq_type + "--*/*/" + wildcards.tumour_id)
-    denovo_dir = glob.glob("results/icgc_dart/purecn-1.0/06-pureCN/" + wildcards.seq_type + "--*/*/" + wildcards.tumour_id)
+    cnvkit_dir = glob.glob(CFG["dirs"]["pureCN_cnvkit"] + wildcards.seq_type + "--*/*/" + wildcards.tumour_id)
+    denovo_dir = glob.glob(CFG["dirs"]["pureCN"] + wildcards.seq_type + "--*/*/" + wildcards.tumour_id)
+    
+    if any(sample in str({wildcards.tumour_id}) for sample in CFG["output"]["best_seg_manual"]["purecn_denovo"]):
+        if os.path.isfile(str(denovo_seg)):
+            best_seg = denovo_seg
+            
+    elif any(sample in str({wildcards.tumour_id}) for sample in CFG["output"]["best_seg_manual"]["purecn_cnvkit"]):
+        if os.path.isfile(str(cnvkit_seg)):
+            best_seg = cnvkit_seg
     
     if os.path.isfile(str(cnvkit_seg)) and os.path.isfile(str(denovo_seg)):
         
@@ -1486,7 +1499,33 @@ def _purecn_take_lowest_MAD(wildcards):
         denovo_mapd_value = float(denovo_mapd[len(denovo_mapd)-1].split()[8])
         
         if (denovo_mapd_value < cnvkit_mapd_value):
-            best_seg = str(denovo_seg)
+            # Account for seg files that are over-segmented but have a lower MAD
+            count_denovo = []
+            with open(denovo_seg) as file:
+                next(file)
+                for line in file:
+                    line = line.rstrip('\n').rstrip('\r')
+                    cols = line.split('\t')
+                    if (float(cols[5]) > 0.5 or float(cols[5]) <-0.5 ):
+                        count_denovo.append(line)
+            count_denovo = len(count_denovo)
+            
+            count_cnvkit = []
+            with open(cnvkit_seg) as file:
+                next(file)
+                for line in file:
+                    line = line.rstrip('\n').rstrip('\r')
+                    cols = line.split('\t')
+                    if (float(cols[5]) > 0.5 or float(cols[5]) <-0.5 ):
+                        count_cnvkit.append(line)
+            count_cnvkit = len(count_cnvkit)
+            if (count_cnvkit > 0):
+                if (float(count_denovo/count_cnvkit) > 2.8 and count_denovo > 400):
+                    best_seg = str(cnvkit_seg)
+                else:
+                    best_seg = str(denovo_seg)
+            else:
+                best_seg = str(denovo_seg)
         else:
             best_seg = str(cnvkit_seg)
         

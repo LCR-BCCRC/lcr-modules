@@ -65,11 +65,11 @@ lcr-modules:
             
             # the default segmentation method is PSCBS, which leverages vcf info to determine bins
             purecn_cnvkit:
-                flagged_samples: "[]" # populate with sample names that you want to convert to using the standard Hclust method, which is the standard pureCN to cnvkit call. Noisy segmentation will remain noisy however.
-                failed_samples: "[]" # populate with sample names that have failed both methods. It will use "none" as the segmentation method. Note, that if the sample fails this and also failed de novo pureCN calling, then the sample may just be problematic. Should omit the sample entirely.
+                flagged_samples: [] # populate with sample names that you want to convert to using the standard Hclust method, which is the standard pureCN to cnvkit call. Noisy segmentation will remain noisy however.
+                failed_samples: [] # populate with sample names that have failed both methods. It will use "none" as the segmentation method. Note, that if the sample fails this and also failed de novo pureCN calling, then the sample may just be problematic. Should omit the sample entirely.
             purecn_denovo:
-                flagged_samples: "[]" # populate with sample names that you want to convert to using the standard CBS method, which is the standard pureCN to cnvkit call. Noisy segmentation will remain noisy however.
-                failed_samples: "[]" # populate with sample names that have failed both methods. It will use "none" as the segmentation method. Note, that if the sample fails this and also failed de novo pureCN calling, then the sample may just be problematic. Should omit the sample entirely.
+                flagged_samples: [] # populate with sample names that you want to convert to using the standard CBS method, which is the standard pureCN to cnvkit call. Noisy segmentation will remain noisy however.
+                failed_samples: [] # populate with sample names that have failed both methods. It will use "none" as the segmentation method. Note, that if the sample fails this and also failed de novo pureCN calling, then the sample may just be problematic. Should omit the sample entirely.
 
             # liftOver options to convert between genomic builds
             liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
@@ -110,6 +110,10 @@ lcr-modules:
             requested_projections: ["grch37", "hg38"]
             purecn_versions: ["purecn_cnvkit", "purecn_denovo"]
 
+            best_seg_manual:
+                purecn_denovo: []
+                purecn_cnvkit: []
+
         conda_envs:
             mutect: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
@@ -124,7 +128,7 @@ lcr-modules:
             gem: 4
             setinterval: 3
             coverage: 3
-            pureCN: 1
+            pureCN: 4
 
         resources:
             gem:
