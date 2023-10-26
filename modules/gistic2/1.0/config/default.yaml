@@ -9,6 +9,8 @@ lcr-modules:
         case_set: [__UPDATE__] # E.g. ["DLBCL-only", "BL_DLBCL-BL-like_all"]
         prepare_seg: "/projects/rmorin_scratch/sgillis_temp/lcr-scripts/generate_smr_inputs/1.0/generate_smr_inputs.R"
         projections: ["grch37", "hg38"]
+        # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
+        # launch_date: "2023-06"
 
         scratch_subdirectories: []
 

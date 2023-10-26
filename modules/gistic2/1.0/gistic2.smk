@@ -56,7 +56,10 @@ localrules:
 
 
 ##### RULES #####
-launch_date = datetime.today().strftime('%Y-%m')
+if "launch_date" in CFG:
+    launch_date = CFG['launch_date']
+else:
+    launch_date = datetime.today().strftime('%Y-%m')
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _gistic2_input_seg:
@@ -64,8 +67,6 @@ rule _gistic2_input_seg:
         seg = CFG["inputs"]["seg"]
     output:
         seg = CFG["dirs"]["inputs"] + "{seq_type}--projection/all--{projection}.seg"
-    group: 
-        "input_and_format"
     run:
         op.absolute_symlink(input.seg, output.seg)
 
@@ -74,8 +75,6 @@ rule _gistic2_input_subsetting_categories:
         subsetting_categories = CFG["inputs"]["subsetting_categories"]
     output:
         subsetting_categories = CFG["dirs"]["inputs"] + "sample_sets/subsetting_categories.tsv"
-    group: 
-        "input_and_format"
     run:
         op.absolute_symlink(input.subsetting_categories, output.subsetting_categories)
 
@@ -83,8 +82,6 @@ rule _gistic2_input_subsetting_categories:
 rule _gistic2_download_ref:
     output:
         refgene_mat = CFG["dirs"]["inputs"] + "references/{projection}.refgene.mat"
-    group: 
-        "input_and_format"
     params:
         url = "http://bcgsc.ca/downloads/morinlab/gistic2_references/{projection}.refgene.mat",
         folder = CFG["dirs"]["inputs"] + "references"
@@ -106,8 +103,6 @@ checkpoint _gistic2_prepare_seg:
         CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}/done"
     log:
         log = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}.log"
-    group: 
-        "input_and_format"
     params:
         seq_type = CFG["samples"]["seq_type"].unique(),
         metadata = CFG["samples"][["sample_id","seq_type","genome_build","cohort","pathology","unix_group","time_point"]].to_numpy(na_value='')
