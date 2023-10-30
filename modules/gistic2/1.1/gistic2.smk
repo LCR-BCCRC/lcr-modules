@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["gistic2"]`
 CFG = op.setup_module(
     name = "gistic2",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "prepare_seg", "markers", "gistic2", "outputs"],
 )
 
