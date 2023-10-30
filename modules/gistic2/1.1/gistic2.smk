@@ -184,13 +184,8 @@ rule _gistic2_output:
 
 def _for_aggregate(wildcards):
     CFG = config["lcr-modules"]["gistic2"]
-    print("Inside the aggregate fn")
-    print("checkpoint_output")
     checkpoint_output = os.path.dirname(str(checkpoints._gistic2_prepare_seg.get(**wildcards).output[0]))
-    print(checkpoint_output)
     SUMS, = glob_wildcards(checkpoint_output +"/{md5sum}.seg")
-    print("SUMS")
-    print(SUMS)
     return expand(
         [
             CFG["dirs"]["outputs"] + "{{case_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/all_data_by_genes.txt",
