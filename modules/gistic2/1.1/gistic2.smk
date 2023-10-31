@@ -61,6 +61,9 @@ if "launch_date" in CFG:
 else:
     launch_date = datetime.today().strftime('%Y-%m')
 
+# Interpret the absolute path to this script so it doesn't get interpreted relative to the module snakefile later.
+PREPARE_SEG =  os.path.abspath(config["lcr-modules"]["gistic2"]["prepare_seg"])
+
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _gistic2_input_seg:
     input:
@@ -107,7 +110,7 @@ checkpoint _gistic2_prepare_seg:
         seq_type = CFG["samples"]["seq_type"].unique(),
         metadata = CFG["samples"][["sample_id","seq_type","genome_build","cohort","pathology","unix_group","time_point"]].to_numpy(na_value='')
     script:
-        config["lcr-modules"]["gistic2"]["prepare_seg"]
+        PREPARE_SEG
 
 # Create a markers file that has every segment start and end that appears in the seg file
 rule _gistic2_make_markers:
