@@ -1,0 +1,21 @@
+
+rule _sv_repair_bed_rmsk:
+    input:
+        bed = str(rules._sv_repair_vcf_to_bed.output.bed),
+        tsv = str(rules._sv_repair_vcf_to_df.output.tsv),
+        rmsk = reference_files("genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed")
+    output:
+        bed = CFG["dirs"]["rmsk"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/intersect.rmsk.bed",
+        tsv = CFG["dirs"]["rmsk"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/intersect.somaticSV.pass.precise.tsv"
+    conda:
+        CFG["conda_envs"]["bedtools"]
+    log:
+        stdout = CFG["logs"]["rmsk"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/intersect_rmsk.stdout.log"
+    shell:
+        op.as_one_line("""
+            bedtools intersect -a {input.bed} -b {input.rmsk} -loj > {output.bed}
+            &&
+            sed -i '1i chr\tstart\tend\tchr.feature\tstart.feature\tend.feature\tname' {output.bed}
+            &&
+            paste {input.tsv} {output.bed} > {output.tsv}
+        """)
