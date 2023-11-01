@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["gistic2"]`
 CFG = op.setup_module(
     name = "gistic2",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "prepare_seg", "markers", "gistic2", "outputs"],
 )
 
@@ -60,6 +60,9 @@ if "launch_date" in CFG:
     launch_date = CFG['launch_date']
 else:
     launch_date = datetime.today().strftime('%Y-%m')
+
+# Interpret the absolute path to this script so it doesn't get interpreted relative to the module snakefile later.
+PREPARE_SEG =  os.path.abspath(config["lcr-modules"]["gistic2"]["prepare_seg"])
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _gistic2_input_seg:
@@ -107,7 +110,7 @@ checkpoint _gistic2_prepare_seg:
         seq_type = CFG["samples"]["seq_type"].unique(),
         metadata = CFG["samples"][["sample_id","seq_type","genome_build","cohort","pathology","unix_group","time_point"]].to_numpy(na_value='')
     script:
-        config["lcr-modules"]["gistic2"]["prepare_seg"]
+        PREPARE_SEG
 
 # Create a markers file that has every segment start and end that appears in the seg file
 rule _gistic2_make_markers:
@@ -184,13 +187,8 @@ rule _gistic2_output:
 
 def _for_aggregate(wildcards):
     CFG = config["lcr-modules"]["gistic2"]
-    print("Inside the aggregate fn")
-    print("checkpoint_output")
     checkpoint_output = os.path.dirname(str(checkpoints._gistic2_prepare_seg.get(**wildcards).output[0]))
-    print(checkpoint_output)
     SUMS, = glob_wildcards(checkpoint_output +"/{md5sum}.seg")
-    print("SUMS")
-    print(SUMS)
     return expand(
         [
             CFG["dirs"]["outputs"] + "{{case_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/all_data_by_genes.txt",
