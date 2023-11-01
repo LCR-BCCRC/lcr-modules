@@ -1,5 +1,5 @@
 lcr-modules:
-    
+
     gridss:
 
         inputs:
@@ -10,25 +10,30 @@ lcr-modules:
         scratch_subdirectories: [] # Recommended: ["gridss", "preprocess"]
 
         options:
-            gridss: 
+            version_map: # How genome_builds in samples table map to build numbers in hmftools reference files.
+                # genome_build: ["hg19|hg38"]
+                grch37: "hg19" # No chr-prefixes allowed.
+                hs37d5: "hg19"
+                hg38: "hg38" # Must be chr-prefixed.
+            gridss:
                 --picardoptions VALIDATION_STRINGENCY=SILENT
-            filter_unpaired: 
-            gripss: 
+            filter_unpaired:
+            gripss:
             # Hard filters remove variants from output VCF
             # Soft filters add flags to output VCF
             # These flags don't work with the current version of GRIPSS
             # A fix is being prepared by the developers
                 -hard_max_normal_absolute_support 3
                 -hard_max_normal_relative_support 0.06
-                -soft_max_normal_relative_support 0.03       
-        
+                -soft_max_normal_relative_support 0.03
+
         conda_envs:
             wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
             gridss: "{MODSDIR}/envs/gridss-2.12.0.yaml"
             gripss: "{MODSDIR}/envs/hmftools-gripss-1.11.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
-            
+
         threads:
             preprocess: 8
             gridss: 24
@@ -38,17 +43,17 @@ lcr-modules:
             split: 1
 
         resources:
-            preprocess: 
+            preprocess:
                 mem_mb: 37500
                 preprocess: 1
-            gridss: 
+            gridss:
                 mem_mb: 37500 # Recommended per GRIDSS manual
                 gridss: 1
-            repeatmasker: 
+            repeatmasker:
                 mem_mb: 100000
-            gripss: 
+            gripss:
                 mem_mb: 20000 # May need to be increased for FFPE tumours
-            split: 
+            split:
                 mem_mb: 2000
 
         pairing_config:

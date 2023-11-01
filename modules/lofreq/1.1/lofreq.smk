@@ -86,8 +86,8 @@ def _lofreq_get_capspace(wildcards):
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _lofreq_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"],
-        bai = CFG["inputs"]["sample_bai"]
+        bam = ancient(CFG["inputs"]["sample_bam"]),
+        bai = ancient(CFG["inputs"]["sample_bai"])
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
@@ -180,8 +180,8 @@ rule _lofreq_link_to_preprocessed:
 rule _lofreq_run_tumour_unmatched:
     input:
         preprocessing_complete = str(rules._lofreq_link_to_preprocessed.output.preprocessing_complete),
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
+        tumour_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam"),
+        normal_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam"),
         vcf_relaxed = str(rules._lofreq_link_to_preprocessed.output.vcf_relaxed),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
@@ -219,8 +219,8 @@ rule _lofreq_run_tumour_unmatched:
 
 rule _lofreq_run_tumour_matched:
     input:
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
+        tumour_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam"),
+        normal_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam"),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"), #in our experience, this filter doesn't remove as many SNPs as one would expect
         bed = _lofreq_get_capspace
@@ -248,6 +248,7 @@ rule _lofreq_run_tumour_matched:
         SCRIPT_PATH={SCRIPT_PATH};
         PATH=$SCRIPT_PATH:$PATH;
         SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
+        if [[ -e {output.vcf_snvs_all}.tbi ]]; then rm -f $(dirname {output.vcf_relaxed})/*; fi; 
         if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
             echo "using bundled patched script $SCRIPT";
             lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
