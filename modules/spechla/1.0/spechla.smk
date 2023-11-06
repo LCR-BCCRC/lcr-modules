@@ -61,37 +61,36 @@ rule _spechla_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai",
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.crai"
-    group: 
-        "symlink"
     run:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
         op.absolute_symlink(input.bai, output.crai)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
 rule _spechla_setup:
     output:
-        txt = touch(CFG["dirs"]["inputs"] + "SpecHLA/clone.done")
+        txt = touch(CFG["dirs"]["inputs"] + "SpecHLA_" + str(CFG["options"]["spechla_version"]) + "/clone.done")
     log:
         stdout = CFG["logs"]["inputs"] + "git_clone.stdout.log"
     params:
-        scriptdir = CFG["dirs"]["inputs"] + "SpecHLA"
+        scriptdir = CFG["dirs"]["inputs"] + "SpecHLA_" + str(CFG["options"]["spechla_version"]),
+        url = "https://github.com/deepomicslab/SpecHLA/archive/refs/tags/v" + str(CFG["options"]["spechla_version"]) + ".tar.gz"
     shell:
         op.as_one_line("""
-        git clone git@github.com:deepomicslab/SpecHLA.git --depth 1  {params.scriptdir} > {log.stdout} 2>&1 && 
+        mkdir -p {params.scriptdir} &&
+        wget -qO- {params.url} | tar xzf - -C {params.scriptdir} --strip-components 1 > {log.stdout} 2>&1 && 
         chmod +x -R {params.scriptdir}/bin/*
         """)
 
 rule _spechla_index:
     input:
-        txt = CFG["dirs"]["inputs"] + "SpecHLA/clone.done"
+        txt = str(rules._spechla_setup.output.txt)
     output:
-        txt = touch(CFG["dirs"]["inputs"] + "SpecHLA/index.done")
+        txt = touch(CFG["dirs"]["inputs"] + "SpecHLA_" + str(CFG["options"]["spechla_version"]) + "/index.done")
     log:
         stdout = CFG["logs"]["inputs"] + "index.stdout.log"
     params:
-        scriptdir = CFG["dirs"]["inputs"] + "SpecHLA"
+        scriptdir = CFG["dirs"]["inputs"] + "SpecHLA_" + str(CFG["options"]["spechla_version"])
     threads:
         CFG["threads"]["setup"]
     resources:
@@ -111,7 +110,7 @@ def _which_genome(wildcards):
 
 rule _spechla_extract_reads:
     input:
-        txt = CFG["dirs"]["inputs"] + "SpecHLA/index.done",
+        txt = str(rules._spechla_setup.output.txt),
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai",
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.crai"
@@ -122,8 +121,7 @@ rule _spechla_extract_reads:
     log:
         stderr = CFG["logs"]["hla_reads"] + "{seq_type}--{genome_build}/{sample_id}/extract_reads.stderr.log"
     params:
-        scriptdir = CFG["dirs"]["inputs"] + "SpecHLA",
-        sample_id = "{sample_id}",
+        scriptdir = CFG["dirs"]["inputs"] + "SpecHLA_" + str(CFG["options"]["spechla_version"]),
         genome = _which_genome,
         outdir = CFG["dirs"]["hla_reads"] + "{seq_type}--{genome_build}/"
     conda: CFG["conda_envs"]["spechla"]
@@ -134,7 +132,7 @@ rule _spechla_extract_reads:
         **CFG["resources"]["extract_reads"]  
     shell:
         op.as_one_line("""
-        bash {params.scriptdir}/script/ExtractHLAread.sh -s {params.sample_id} -b {input.bam} -r {params.genome} -o {params.outdir} > {log.stderr} 2>&1
+        bash {params.scriptdir}/script/ExtractHLAread.sh -s {wildcards.sample_id} -b {input.bam} -r {params.genome} -o {params.outdir} > {log.stderr} 2>&1
         """)
 
 #Choose full-length or exon typing [0|1]. 0 indicates full-length, 1 means exon,
@@ -148,7 +146,8 @@ def _which_seqtype(wildcards):
 rule _spechla_hla_typing:
     input:
         fq_1 = CFG["dirs"]["hla_reads"] + "{seq_type}--{genome_build}/{sample_id}_extract_1.fq.gz",
-        fq_2 = CFG["dirs"]["hla_reads"] + "{seq_type}--{genome_build}/{sample_id}_extract_2.fq.gz",fastq_unpaired = CFG["dirs"]["hla_reads"] + "{seq_type}--{genome_build}/{sample_id}_extract.unpaired.fq.gz"
+        fq_2 = CFG["dirs"]["hla_reads"] + "{seq_type}--{genome_build}/{sample_id}_extract_2.fq.gz",
+        fastq_unpaired = CFG["dirs"]["hla_reads"] + "{seq_type}--{genome_build}/{sample_id}_extract.unpaired.fq.gz"
     output:
         hla_results = CFG["dirs"]["spechla"] + "{seq_type}--{genome_build}/{sample_id}/hla.result.txt",
         realigned_bam = temp(CFG["dirs"]["spechla"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.realign.sort.bam"),
@@ -156,8 +155,7 @@ rule _spechla_hla_typing:
     log:
         stderr = CFG["logs"]["spechla"] + "{seq_type}--{genome_build}/{sample_id}/extract_reads.stderr.log"
     params:
-        scriptdir = CFG["dirs"]["inputs"] + "SpecHLA",
-        sample_id = "{sample_id}",
+        scriptdir = CFG["dirs"]["inputs"] + "SpecHLA_" + str(CFG["options"]["spechla_version"]),
         outdir = CFG["dirs"]["spechla"] + "{seq_type}--{genome_build}/",
         which_seqtype = _which_seqtype,
         var_quality = CFG["options"]["spechla"]["var_qual"],
@@ -174,7 +172,7 @@ rule _spechla_hla_typing:
     shell:
         op.as_one_line("""
         bash {params.scriptdir}/script/whole/SpecHLA.sh 
-        -n {params.sample_id} 
+        -n {wildcards.sample_id} 
         -1 {input.fq_1} 
         -2 {input.fq_2} 
         -o {params.outdir} 
@@ -254,12 +252,13 @@ rule _spechla_loh:
     log:
         stderr = CFG["logs"]["loh"] + "{seq_type}--{genome_build}/{sample_id}/loh.stderr.log"
     params:
-        scriptdir = CFG["dirs"]["inputs"] + "SpecHLA",
+        scriptdir = CFG["dirs"]["inputs"] + "SpecHLA_" + str(CFG["options"]["spechla_version"]),
         sample_id = "{sample_id}",
         purity = _get_sample_purity,
         ploidy = _get_sample_ploidy,
         outdir = CFG["dirs"]["loh"] + "{seq_type}--{genome_build}/{sample_id}/"
     conda: CFG["conda_envs"]["spechla"]
+    group: "loh_symlink"
     threads:
         CFG["threads"]["spechla"]
     resources:
@@ -283,6 +282,7 @@ rule _spechla_output_txt:
     output:
         hla_results = CFG["dirs"]["outputs"] + "hla_results/{seq_type}--{genome_build}/{sample_id}.hla.result.txt",
         loh_info = CFG["dirs"]["outputs"] + "loh_info/{seq_type}--{genome_build}/{sample_id}.merge.hla.copy.txt"
+    group: "loh_symlink"
     run:
         op.relative_symlink(input.hla_results, output.hla_results, in_module= True)
         op.relative_symlink(input.loh_info, output.loh_info, in_module= True)

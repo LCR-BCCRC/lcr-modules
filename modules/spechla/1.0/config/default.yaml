@@ -12,6 +12,7 @@ lcr-modules:
 
         options:
             spechla:
+                spechla_version: 1.0.2 # Change the version if needed/updated. The repo will be downloaded into a new folder.
                 var_qual: 0.01 #  Minimum variant quality. Default is 0.01. Set it larger in high quality samples.
                 var_depth: 5 # Minimum variant depth
                 min_depth_masking: 5 # The mean depth in a window lower than this value will be masked by N, default is 5. Set 0 to avoid masking.
