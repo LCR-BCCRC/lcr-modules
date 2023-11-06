@@ -446,7 +446,7 @@ rule _gridss_gripss_to_bedpe:
         CFG["conda_envs"]["svtools"]
     shell:
         op.as_one_line("""
-        if zcat {input.vcf} | tail -1  | grep -q "^#CHROM";
+        if zcat {input.vcf} |  awk '$1 ~ /^#/ || $5 ~ /:/' | tail -1  | grep -q "^#CHROM";
         then
             touch {output.bedpe};
         else
