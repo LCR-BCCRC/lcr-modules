@@ -112,6 +112,9 @@ suppressWarnings({
       filter(!(CHROM_A == CHROM_B & abs(START_A - START_B) < 5000)) %>% 
       distinct(CHROM_A, CHROM_B, START_A, START_B, END_A, END_B, STRAND_A, STRAND_B, .keep_all = TRUE)
   } 
+  else if (nrow(combined_a) > 0 & nrow(combined_b) > 0) {
+    combined_bedpe <- data.frame()
+  }
 write_tsv(combined_bedpe, snakemake@output[["bedpe"]])
 
 save.image(snakemake@log[[1]])
