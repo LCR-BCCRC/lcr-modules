@@ -1,0 +1,59 @@
+lcr-modules:
+    
+    spechla:
+
+        # TODO: Update the list of available wildcards, if applicable
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            spechla:
+                spechla_version: 1.0.2 # Change the version if needed/updated. The repo will be downloaded into a new folder.
+                var_qual: 0.01 #  Minimum variant quality. Default is 0.01. Set it larger in high quality samples.
+                var_depth: 5 # Minimum variant depth
+                min_depth_masking: 5 # The mean depth in a window lower than this value will be masked by N, default is 5. Set 0 to avoid masking.
+                long_indels: False
+                opts: "" # Other options to manually enter:
+                # -r 0.1: The minimum Minor Allele Frequency (MAF), default is 0.05 for full length and 0.1 for exon typing.
+                # -z False: Whether only mask exon region, True or False, default is False.
+                # -p The population of the sample [Asian, Black, Caucasian, Unknown, nonuse] for annotation. Default is Unknown, meaning use mean allele frequency in all populations. nonuse indicates only adopting mapping score and considering zero-frequency alleles.
+            
+            purity_ploidy_file: "" 
+                # path to a text file containing the purity and ploidy information of each sample
+                # file format is: sample_id\tploidy\tpurity
+                # if information is not there, then assumed ploidy = 2, purity = 1
+
+        conda_envs:
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            spechla: "{MODSDIR}/envs/spechla_env.yaml"
+            
+        threads:
+            setup: 4
+            extract_reads: 4
+            spechla: 6
+
+        resources:
+            setup: 
+                mem_mb: 6000
+            extract_reads: 
+                mem_mb: 6000
+            spechla: 
+                mem_mb: 8000
+            
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
