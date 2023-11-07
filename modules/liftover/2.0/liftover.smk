@@ -195,12 +195,17 @@ rule _liftover_bed_2_bedpe:
         tool = sv_tools
     shell:
         op.as_one_line("""
-        python {params.opts} 
-        --inType "bedpeA_bedpeB"
-        --input {input.lifted_sorted[0]}
-        --column-header {input.headers[0]}
-        --output {output.bedpe_lifted} 
-        2> {log.stderr}
+        if [ -s {input.lifted_sorted[0]} ]; 
+        then
+            python {params.opts} 
+            --inType "bedpeA_bedpeB"
+            --input {input.lifted_sorted[0]}
+            --column-header {input.headers[0]}
+            --output {output.bedpe_lifted} 
+            2> {log.stderr};
+        else
+            touch {output.bedpe_lifted};
+        fi
         """)
 
 
