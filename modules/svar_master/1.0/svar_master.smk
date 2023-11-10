@@ -184,7 +184,7 @@ rule _svar_master_annotate:
         fi
         """) 
 
-rule _svar_master_annotate_combine: 
+checkpoint _svar_master_annotate_combine: 
     input: 
         a_combined = str(rules._svar_master_annotate.output.a_bed), 
         b_combined = str(rules._svar_master_annotate.output.b_bed) 
@@ -201,16 +201,36 @@ rule _svar_master_annotate_combine:
     script: 
         CFG_SV["options"]["combine_annotated"]["script"]
 
+rule _svar_master_touch_empty_file:
+    output:
+        another_tsv = CFG_SV["dirs"]["annotate_svs"] + "_empty/from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}.bedpe" 
+    shell:
+        "touch {output.another_tsv}"
+
 
 config["lcr-modules"]["liftover"]["dirs"]["_parent"] = CFG_SV["dirs"]["_parent"] + "liftover-" + CFG_SV["module_versions"]["liftover"]
-config["lcr-modules"]["liftover"]["inputs"]["sample_file"] = str(rules._svar_master_annotate_combine.output.bedpe)
+config["lcr-modules"]["liftover"]["inputs"]["sample_file"] = CFG_SV["dirs"]["annotate_svs"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}.annotated.bedpe"
 
 include: "../../liftover/" + CFG_SV["module_versions"]["liftover"] + "/liftover.smk"
+
+def get_lifted_native(w): 
+    with checkpoints._svar_master_annotate_combine.get(seq_type = w.seq_type, genome_build = w.genome_build, tumour_id = w.tumour_id, normal_id = w.normal_id, pair_status = w.pair_status).output.bedpe.open() as f: 
+        if len(f.readlines()) > 0: 
+            return rules._liftover_input_file.output.another_tsv
+        else: 
+            return rules._svar_master_touch_empty_file.output.another_tsv
+
+def get_lifted_output(w): 
+    with checkpoints._svar_master_annotate_combine.get(seq_type = w.seq_type, genome_build = w.genome_build, tumour_id = w.tumour_id, normal_id = w.normal_id, pair_status = w.pair_status).output.bedpe.open() as f: 
+        if len(f.readlines()) > 0: 
+            return rules._liftover_output.output
+        else: 
+            return rules._svar_master_touch_empty_file.output.another_tsv
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _svar_master_output_native:
     input:
-        native = str(rules._liftover_input_file.output.another_tsv) 
+        native = get_lifted_native
     output:
         native = CFG_SV["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}.native.bedpe"
     run:
@@ -218,7 +238,7 @@ rule _svar_master_output_native:
 
 rule _svar_master_output_lifted:
     input:
-        lifted = str(rules._liftover_output.output)
+        lifted = get_lifted_output
     output:
         lifted = CFG_SV["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}.lifted_{chain}.bedpe"
     run:
@@ -232,7 +252,7 @@ rule _svar_master_all:
         rules._gridss_all.input, 
         rules._manta_all.input, 
         rules._hmftools_all.input, 
-        rules._liftover_all.input, 
+        # rules._liftover_all.input, 
         expand(
             [
                 str(rules._svar_master_output_native.output.native),
