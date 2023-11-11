@@ -201,13 +201,9 @@ checkpoint _svar_master_annotate_combine:
     script: 
         CFG_SV["options"]["combine_annotated"]["script"]
 
-def _get_checkpoint_annotate_combine_output(wildcards):
-    chckpt_output = checkpoints._svar_master_annotate_combine.get(**wildcards).output.bedpe
-    return chckpt_output
-
 rule _svar_master_touch_empty_file:
     input:
-        _get_checkpoint_annotate_combine_output
+        CFG_SV["dirs"]["annotate_svs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.annotated.bedpe"
     output:
         another_tsv = CFG_SV["dirs"]["annotate_svs"] + "_empty/from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}.bedpe" 
     shell:
