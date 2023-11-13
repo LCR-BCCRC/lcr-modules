@@ -314,76 +314,347 @@ rule _hotmaps_merge_mafs:
         main_maf = main_maf[["Tumor_Sample_Barcode","Chromosome","Start_Position","End_Position","Reference_Allele","Tumor_Seq_Allele2","Hugo_Symbol","Variant_Classification","HGVSp_Short","Transcript_ID","Strand"]]
         main_maf.to_csv(output.maf, sep="\t", index=False)
 
-#rule _hotmaps_map_mutations:
-#    input:
-#        maf = str(rules._hotmaps_merge_mafs.output.maf)
-#    output:
+rule _hotmaps_prep_mutations:
+    input:
+        maf = CFG["inputs"]["custom_maf"],
+    output:
+        mupit_non_filtered = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/non_filtered_mupit.input.{sample_set}.maf"
+    params:
+        mut_dir = lambda w: config["lcr-modules"]["hotmaps"]["dirs"]["hotmaps"] + f"/{w.sample_set}/mutations/",
+        mysql_host = CFG["options"]["mysql"]["mysql_host"],
+        mysql_user = CFG["options"]["mysql"]["mysql_user"],
+        mysql_pass = CFG["options"]["mysql"]["mysql_passwd"],
+        mysql_db = CFG["options"]["mysql"]["mysql_db"],
+        mut_regex = "'^input.+\.maf'$",
+        script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/mupit/map_maf_to_structure.py"
+    conda:
+        CFG["conda_envs"]["hotmaps"]
+    shell:
+        op.as_one_line("""
+        python {params.script} --data-dir {params.mut_dir} --match-regex {params.mut_regex} --host {params.mysql_host} --db {params.mysql_db} --mysql-user {params.mysql_user} --mysql-passwd {params.mysql_pass} --output-dir {params.mut_dir}
+        """)
+
+rule _hotmaps_prep_mupit_annotation:
+    input:
+        maf = CFG["inputs"]["custom_maf"]
+    output:
+        annotation = CFG["dirs"]["hotmaps"] + "{sample_set}/mupit_annotations/mupit_mutations_{sample_set}"
+    params:
+        mut_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/",
+        tumor_type = "{sample_set}",
+        mysql_db = CFG["options"]["mysql"]["mysql_db"],
+        mysql_host = CFG["options"]["mysql"]["mysql_host"],
+        mysql_user = CFG["options"]["mysql"]["mysql_user"],
+        mysql_pass = CFG["options"]["mysql"]["mysql_passwd"],
+        cov_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/",
+        hypermut = "-mt " + CFG["options"]["hotmaps"]["hypermut_threshold"] if CFG["options"]["hotmaps"]["hypermut_threshold"] is not None else "",
+        script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/maf/convert_maf_to_mupit.py"
+    conda:
+        CFG["conda_envs"]["hotmaps"]
+    shell:
+        op.as_one_line("""
+        python {params.script} --maf {input.maf} -mh {params.mysql_host} -mdb {params.mysql_db} --mysql-user {params.mysql_user} --mysql-passwd {params.mysql_pass} --tumor-type {params.tumor_type} --no-stratify {params.hypermut} -i {params.cov_dir} --output {output.annotation}
+        """)
+
+rule _hotmaps_filter_hypermutated:
+    input:
+        maf = CFG["inputs"]["custom_maf"],
+        nf_mupit = str(rules._hotmaps_prep_mutations.output.mupit_non_filtered)
+    output:
+        hypermut = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/hypermutated.{sample_set}.txt",
+        mupit = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/mupit.input.{sample_set}.maf"
+    params:
+        script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/mupit/filter_hypermutated.py",
+        mut_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/",
+        mut_regex = "'^input.+\.maf'$",
+        mut_threshold = "--mut-threshold " + CFG["options"]["hotmaps"]["hypermut_threshold"] if CFG["options"]["hotmaps"]["hypermut_threshold"] is not None else "",
+    conda:
+        CFG["conda_envs"]["hotmaps"]
+    shell:
+        op.as_one_line("""
+        python {params.script} --raw-dir {params.mut_dir} --match-regex {params.mut_regex} {params.mut_threshold} --sample-col Tumor_Sample_Barcode --data-dir {params.mut_dir}
+        """)
 
 
+rule _hotmaps_count_mutations:
+    input:
+        mupit = str(rules._hotmaps_filter_hypermutated.output.mupit)
+    output:
+        collected = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/collected.input.{sample_set}.maf"
+    params:
+        script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/mupit/count_mutations.py",
+        data_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/"
+    shell:
+        op.as_one_line("""
+        python {params.script} --data-dir {params.data_dir}
+        """)
+
+rule _hotmaps_format_mutations:
+    input:
+        collected = str(rules._hotmaps_count_mutations.output.collected)
+    output:
+        tcga = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/mutation_tcga.{sample_set}.txt"
+    params:
+        script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/mupit/format_mutations_table.py",
+        data_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/"
+    shell:
+        op.as_one_line("""
+        python {params.script} --data-dir {params.data_dir}
+        """)
+
+rule _hotmaps_merge_mutations:
+    input:
+        tcga = str(rules._hotmaps_format_mutations.output.tcga)
+    output:
+        mysql_mut = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/mysql.mutations.tcga.txt"
+    params:
+        script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/mupit/merge_mutations_table_data.py",
+        data_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/"
+    shell:
+        op.as_one_line("""
+        python {params.script} {params.data_dir}
+        """)
+
+rule _hotmaps_load_mutations:
+    input:
+        mysql_mut = str(rules._hotmaps_merge_mutations.output.mysql_mut)
+    output:
+        mysql_loaded = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/loaded.success"
+    params:
+        script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/mupit/load_mutations_table.py",
+        mysql_db = CFG["options"]["mysql"]["mysql_db"],
+        mysql_host = CFG["options"]["mysql"]["mysql_host"],
+        mysql_user = CFG["options"]["mysql"]["mysql_user"],
+        mysql_pass = CFG["options"]["mysql"]["mysql_passwd"]
+    conda:
+        CFG["conda_envs"]["hotmaps"]
+    shell:
+        op.as_one_line("""
+        python {params.script} -m {input.mysql_mut} --host {params.mysql_host} --mysql-user {params.mysql_user} --mysql-passwd {params.mysql_pass} --db {params.mysql_db} &&
+        touch {output.mysql_loaded}
+        """)
+
+rule _hotmaps_get_mutations:
+    input:
+        done = str(rules._hotmaps_load_mutations.output.mysql_loaded)
+    output:
+        mutations = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/mutations.txt"
+    params:
+        script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/sql/get_mutations.sql",
+        mysql_db = CFG["options"]["mysql"]["mysql_db"],
+        mysql_host = CFG["options"]["mysql"]["mysql_host"],
+        mysql_user = CFG["options"]["mysql"]["mysql_user"],
+        mysql_pass = CFG["options"]["mysql"]["mysql_passwd"]
+    conda:
+        CFG["conda_envs"]["hotmaps"]
+    shell:
+        op.as_one_line("""
+        mysql -u {params.mysql_user} -A -p{params.mysql_pass} -h {params.mysql_host} {params.mysql_db} < {params.script} > {output.mutations}
+        """)
+
+rule _hotmaps_split_pdbs:
+    input:
+        mutations = str(rules._hotmaps_get_mutations.output.mutations),
+        pdb = str(rules._hotmaps_add_pdb_description.output.fully_described_pdb)
+    output:
+        done = CFG["dirs"]["hotmaps"] + "{sample_set}/split_pdbs/split_pdbs.success"
+    params:
+        splits = CFG["options"]["hotmaps"]["pdb_splits"],
+        split_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/split_pdbs/",
+        script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/divide_pdb_info.py"
+    shell:
+        op.as_one_line("""
+        python {params.script} -f {input.pdb} -m {input.mutations} -n {params.splits} --split-dir {params.split_dir} &&
+        touch {output.done}
+        """)
+
+rule _hotmaps_run_hotspot:
+    input:
+        mutations = str(rules._hotmaps_split_pdbs.output.done)
+    output:
+        hotspot = CFG["dirs"]["hotmaps"] + "{sample_set}/hotspot/full_output/output_{split}.txt"
+    params:
+        script =  CFG["dirs"]["inputs"] + "HotMAPS-master/hotspot.py",
+        mutation = CFG["dirs"]["hotmaps"] + "{sample_set}/split_pdbs/mut_info_split_{split}.txt",
+        pdb = CFG["dirs"]["hotmaps"] + "{sample_set}/split_pdbs/pdb_info_split_{split}.txt",
+        num_sims = CFG["options"]["hotmaps"]["num_sims"],
+        radius = CFG["options"]["hotmaps"]["radius"],
+        error = CFG["dirs"]["hotmaps"] + "{sample_set}/hotspot/error/error_pdb_{split}.txt"
+    conda: 
+        CFG["conda_envs"]["hotmaps"]
+    threads: CFG["threads"]["hotmaps"]
+    resources:
+        **CFG["resources"]["hotmaps"]
+    log:
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/hotmaps_run_{split}.stdout.log"
+    shell:
+        op.as_one_line("""
+        python {params.script} --log-level=INFO -m {params.mutation} -a {params.pdb} -t EVERY -n {params.num_sims} 
+        -r {params.radius} -o {output.hotspot} -e {params.error} --log {log.stdout}
+        """)
+
+def _get_splits(wildcards):
+    CFG = config["lcr-modules"]["hotmaps"]
+    SPLITS = []
+    for i in range(0, CFG["options"]["hotmaps"]["pdb_splits"]):
+        SPLITS.append(str(i))
+    return expand(str(rules._hotmaps_run_hotspot.output.hotspot), split = SPLITS, allow_missing=True)
+
+rule _hotmaps_merge_hotspots:
+    input:
+        mutations = _get_splits
+    output:
+        merged = CFG["dirs"]["hotmaps"] + "{sample_set}/output_merged.txt"
+    params:
+        output_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/hotspot/full_output/output_*"
+    shell:
+        op.as_one_line("""
+        cat {params.output_dir} | awk -F"\t" '/Structure/{{s++}}{{if(s==1){{print$0}}}}{{if(s>1 && $0 !~ "^Structure"){{print $0}}}}' > {output.merged}
+        """)
+
+rule _hotmaps_multiple_test_correct:
+    input:
+        merged = str(rules._hotmaps_merge_hotspots.output.merged),
+        mupit_annotation = str(rules._hotmaps_prep_mupit_annotation.output.annotation)
+    output:
+        mtc = CFG["dirs"]["hotmaps"] + "{sample_set}/mtc_output_min_.{q_value}.txt",
+        significance = CFG["dirs"]["hotmaps"] + "{sample_set}/significance_level_.{q_value}.txt"
+    params:
+        script = CFG["dirs"]["inputs"] + "HotMAPS-master/multiple_testing_correction.py",
+        mupit_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/mupit_annotations/",
+        radius = CFG["options"]["hotmaps"]["radius"],
+        group_func = CFG["options"]["hotmaps"]["group_func"],
+        q_value = lambda w: w.q_value,
+    conda:
+        CFG["conda_envs"]["hotmaps"]
+    shell:
+        op.as_one_line("""
+        python {params.script} -i {input.merged} -f {params.group_func} -m {params.mupit_dir} -q {params.q_value} -o {output.mtc} -s {output.significance}
+        """)
+
+rule _hotmaps_find_gene:
+    input:
+        mtc = str(rules._hotmaps_multiple_test_correct.output.mtc),
+        pdb = str(rules._hotmaps_add_pdb_description.output.fully_described_pdb),
+        mupit_annotation = str(rules._hotmaps_prep_mupit_annotation.output.annotation)
+    output:
+        hotspots = CFG["dirs"]["hotmaps"] + "{sample_set}/hotspot_regions_gene_.{q_value}.txt"
+    params:
+        script = CFG["dirs"]["inputs"] + "HotMAPS-master/find_hotspot_regions_gene.py",
+        mupit_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/mupit_annotations/",
+        radius = CFG["options"]["hotmaps"]["radius"],
+        q_value = lambda w: w.q_value
+    conda:
+        CFG["conda_envs"]["hotmaps"]
+    shell:
+        op.as_one_line("""
+        python {params.script} -m {input.mtc} -a {params.mupit_dir} -p {input.pdb} -r {params.radius} -q {params.q_value} -o {output.hotspots}
+        """)
+
+rule _hotmaps_find_structure:
+    input:
+        merged = str(rules._hotmaps_merge_hotspots.output.merged),
+        mtc = str(rules._hotmaps_multiple_test_correct.output.mtc),
+        pdb = str(rules._hotmaps_add_pdb_description.output.fully_described_pdb),
+        mupit_annotation = str(rules._hotmaps_prep_mupit_annotation.output.annotation),
+        significance = str(rules._hotmaps_multiple_test_correct.output.significance)
+    output:
+        structures = CFG["dirs"]["hotmaps"] + "{sample_set}/hotspot_regions_structure_.{q_value}.txt"
+    params:
+        script = CFG["dirs"]["inputs"] + "HotMAPS-master/find_hotspot_regions_struct.py",
+        mupit_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/mupit_annotations/",
+        radius = CFG["options"]["hotmaps"]["radius"],
+        q_value = lambda w: w.q_value
+    conda:
+        CFG["conda_envs"]["hotmaps"]
+    shell:
+        op.as_one_line("""
+        python {params.script} -i {input.merged} -a {params.mupit_dir} -p {input.pdb} -r {params.radius} -o {output.structures} -s {input.significance}
+        """)
+
+rule _hotmaps_get_detailed_hotspots:
+    input:
+        hotspots = str(rules._hotmaps_find_gene.output.hotspots),
+        mupit_annotation = str(rules._hotmaps_prep_mupit_annotation.output.annotation),
+        merged_output = str(rules._hotmaps_merge_hotspots.output.merged),
+        mtc_file = str(rules._hotmaps_multiple_test_correct.output.mtc),
+        pdb_info = str(rules._hotmaps_add_pdb_description.output.fully_described_pdb)
+    output:
+        hotspots = CFG["dirs"]["hotmaps"] + "{sample_set}/enriched_hotspot_regions_gene_.{q_value}.txt"
+    params:
+        script = CFG["options"]["enrich_hotmaps_script"],
+        radius = CFG["options"]["hotmaps"]["radius"],
+        q_value = lambda w: w.q_value
+    log:
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/get_detailed_hotspots_.{q_value}.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/get_detailed_hotspots.{q_value}.stderr.log"
+    conda:
+        CFG["conda_envs"]["hotmaps"]
+    shell:
+        op.as_one_line("""
+        {params.script} --hotspots {input.hotspots} --mupit-annotation {input.mupit_annotation} 
+        --output-merged {input.merged_output} --mtc-file {input.mtc_file} 
+        --q-value {params.q_value} --pdb-info {input.pdb_info} 
+        --angstroms {params.radius} --metadata-out {output.hotspots} > {log.stdout} 2> {log.stderr}
+        """)
+
+rule _hotmaps_get_hotspot_coordinates:
+    input:
+        hotspots = str(rules._hotmaps_find_gene.output.hotspots),
+        mupit_annotation = str(rules._hotmaps_prep_mupit_annotation.output.annotation),
+        merged_output = str(rules._hotmaps_merge_hotspots.output.merged),
+        mtc_file = str(rules._hotmaps_multiple_test_correct.output.mtc),
+        pdb_info = str(rules._hotmaps_add_pdb_description.output.fully_described_pdb)
+    output:
+        hotspots = CFG["dirs"]["hotmaps"] + "{sample_set}/genomic_coordinates_hotspot_regions_gene_.{q_value}.txt"
+    params:
+        script = CFG["options"]["enrich_hotmaps_script"],
+        radius = CFG["options"]["hotmaps"]["radius"],
+        q_value = lambda w: w.q_value
+    log:
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/get_hotspot_coordinates.{q_value}.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/get_hotspot_coordinates.{q_value}.stderr.log"
+    conda:
+        CFG["conda_envs"]["hotmaps"]
+    shell:
+        op.as_one_line("""
+        {params.script} --hotspots {input.hotspots} --mupit-annotation {input.mupit_annotation} 
+        --output-merged {input.merged_output} --mtc-file {input.mtc_file} 
+        --q-value {params.q_value} --pdb-info {input.pdb_info} 
+        --angstroms {params.radius} --metadata-out {output.hotspots} --maf-mode > {log.stdout} 2> {log.stderr}
+        """)
 
 
-## Example variant calling rule (multi-threaded; must be run on compute server/#cluster)
-## TODO: Replace example rule below with actual rule
-#rule _hotmaps_step_1:
-#    input:
-#        tumour_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}.maf",
-#        normal_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{normal_id}.maf",
-#        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
-#    output:
-#        txt = CFG["dirs"]["hotmaps"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.txt"
-#    log:
-#        stdout = CFG["logs"]["hotmaps"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-#        stderr = CFG["logs"]["hotmaps"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
-#    params:
-#        opts = CFG["options"]["step_1"]
-#    conda:
-#        CFG["conda_envs"]["samtools"]
-#    threads:
-#        CFG["threads"]["step_1"]
-#    resources:
-#        **CFG["resources"]["step_1"]
-#    group: 
-#        "input_and_step_1"
-#    shell:
-#        op.as_one_line("""
-#        <TODO> {params.opts} --tumour {input.tumour_maf} --normal {input.normal_maf}
-#        --ref-fasta {input.fasta} --output {output.txt} --threads {threads}
-#        > {log.stdout} 2> {log.stderr}
-#        """)
-
-
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-#rule _hotmaps_step_2:
-#    input:
-#        txt = str(rules._hotmaps_step_1.output.txt)
-#    output:
-#        txt = CFG["dirs"]["hotmaps"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.txt"
-#    log:
-#        stderr = CFG["logs"]["hotmaps"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
-#    params:
-#        opts = CFG["options"]["step_2"]
-#    shell:
-#        "grep {params.opts} {input.txt} > {output.txt} 2> {log.stderr}"
-
-
-## Symlinks the final output files into the module results directory (under #'99-outputs/')
-## TODO: If applicable, add an output rule for each file meant to be exposed to #the user
-#rule _hotmaps_output_txt:
-#    input:
-#        txt = str(rules._hotmaps_step_2.output.txt)
-#    output:
-#        txt = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.txt"
-#    run:
-#        op.relative_symlink(input.txt, output.txt, in_module= True)
+rule _hotmaps_symlink_output:
+    input:
+        hotspots = str(rules._hotmaps_find_gene.output.hotspots),
+        structures = str(rules._hotmaps_find_structure.output.structures),
+        enriched = str(rules._hotmaps_get_detailed_hotspots.output.hotspots),
+        coordinates = str(rules._hotmaps_get_hotspot_coordinates.output.hotspots)
+    output:
+        hotspots = CFG["dirs"]["outputs"] + "{sample_set}/hotspot_regions_gene_.{q_value}.txt",
+        structures = CFG["dirs"]["outputs"] + "{sample_set}/hotspot_regions_struct_.{q_value}.txt",
+        enriched = CFG["dirs"]["outputs"] + "{sample_set}/enriched_hotspot_regions_gene_.{q_value}.txt",
+        coordinates = CFG["dirs"]["outputs"] + "{sample_set}/genomic_coordinates_hotspot_regions_gene_.{q_value}.txt"
+    run:
+        op.relative_symlink(input.hotspots, output.hotspots, in_module=True)
+        op.relative_symlink(input.structures, output.structures, in_module=True)
+        op.relative_symlink(input.enriched, output.enriched, in_module = True)
+        op.relative_symlink(input.coordinates, output.coordinates, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _hotmaps_all:
     input:
         expand(
-            str(rules._hotmaps_merge_mafs.output.maf),
-            sample_set = CFG["maf_processing"]["sample_sets"]
+            [
+                str(rules._hotmaps_symlink_output.output.hotspots),
+                str(rules._hotmaps_symlink_output.output.structures),
+                str(rules._hotmaps_symlink_output.output.enriched),
+                str(rules._hotmaps_symlink_output.output.coordinates)
+            ],
+            sample_set = CFG["maf_processing"]["sample_sets"],
+            q_value = CFG["options"]["hotmaps"]["q_value"]
         )
 
 ##### CLEANUP #####

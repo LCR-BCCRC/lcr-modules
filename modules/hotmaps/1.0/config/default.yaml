@@ -42,8 +42,9 @@ lcr-modules:
                 hypermut_threshold:
                 group_func:
                 q_value:
-                num_sim:
+                num_sims:
                 radius:
+            enrich_hotmaps_script: "{MODSDIR}/etc/get_detailed_hotspot.py"
 
         scratch_subdirectories: []
 
@@ -54,10 +55,10 @@ lcr-modules:
             hotmaps: "{MODSDIR}/envs/hotmaps.yaml"
             
         threads:
-            step_1: 4
+            hotmaps: 4
 
         resources:
-            step_1: 
+            hotmaps: 
                 mem_mb: 2000
             
         pairing_config:
