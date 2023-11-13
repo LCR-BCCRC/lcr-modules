@@ -36,6 +36,8 @@ configfile: "../modules/sequenza/1.4/config/default.yaml"
 configfile: "../modules/bwa_mem/1.1/config/default.yaml"
 configfile: "../modules/controlfreec/1.2/config/default.yaml"
 configfile: "../modules/slms_3/1.0/config/default.yaml"
+configfile: "../modules/ichorcna/1.0/config/default.yaml"
+configfile: "../modules/gatk_rnaseq/1.0/config/default.yaml"
 configfile: "../modules/gridss/1.1/config/default.yaml"
 configfile: "../modules/liftover/1.2/config/default.yaml"
 configfile: "../modules/battenberg/1.2/config/default.yaml"
@@ -67,6 +69,13 @@ include: "../modules/bwa_mem/1.1/bwa_mem.smk"
 include: "../modules/controlfreec/1.2/controlfreec.smk"
 include: "../modules/slms_3/1.0/slms_3.smk"
 include: "../modules/gridss/1.1/gridss.smk"
+include: "../modules/bam2fastq/1.2/bam2fastq.smk"
+include: "../modules/controlfreec/1.1/controlfreec.smk"
+include: "../modules/lofreq/1.0/lofreq.smk"
+include: "../modules/starfish/2.0/starfish.smk"
+include: "../modules/sage/1.0/sage.smk"
+include: "../modules/ichorcna/1.0/ichorcna.smk"
+include: "../modules/gatk_rnaseq/1.0/gatk_rnaseq.smk"
 include: "../modules/liftover/1.2/liftover.smk"
 include: "../modules/battenberg/1.2/battenberg.smk"
 include: "../modules/pathseq/1.0/pathseq.smk"
@@ -83,6 +92,9 @@ rule all:
         rules._bwa_mem_all.input,
         rules._controlfreec_all.input,
         rules._slms_3_all.input,
+        rules._ichorcna_all.input,
+        rules._gatk_rnaseq_all.input
+        
         rules._gridss_all.input,
         rules._liftover_all.input,
         rules._battenberg_all.input,
