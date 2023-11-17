@@ -24,19 +24,40 @@ lcr-modules:
                 ichorCNA_normalPanel: 
                     "1000000": "inst/extdata/HD_ULP_PoN_{genome_build}_1Mb_median_normAutosome_median.rds"
                     "500000": "inst/extdata/HD_ULP_PoN_{genome_build}_500kb_median_normAutosome_median.rds"
+                # relative to ichorCNA directory (in 00-inputs/ichorCNA/)
+                ichorCNA_normalPanel_custom:
+                    grch37: ""
+                    hg19: ""
+                    grch38: ""
+                    hg38: ""
+                    hs37d5: ""
                 # must use gc wig file corresponding to same binSize (required)
                 ichorCNA_gcWig:
                     "1000000": "inst/extdata/gc_{genome_build}_1000kb.wig"
                     "500000": "inst/extdata/gc_{genome_build}_500kb.wig"
                     "50000": "inst/extdata/gc_{genome_build}_50kb.wig"
                     "10000": "inst/extdata/gc_{genome_build}_10kb.wig"
+                # relative to ichorCNA directory (in 00-inputs/ichorCNA/)
+                ichorCNA_gcWig_custom: # must create an empty one for each genome_build unless you have a
+                    grch37: ""
+                    hg19: ""
+                    grch38: ""
+                    hg38: ""
+                    hs37d5: ""
                 # must use map wig file corresponding to same binSize (required)
                 ichorCNA_mapWig:  
                     "1000000": "inst/extdata/map_{genome_build}_1000kb.wig"
                     "500000": "inst/extdata/map_{genome_build}_500kb.wig"
                     "50000": "inst/extdata/map_{genome_build}_50kb.wig"
                     "10000": "inst/extdata/map_{genome_build}_10kb.wig"
+                ichorCNA_mapWig_custom:
                 # use bed file if sample has targeted regions, eg. exome data (optional)
+                # relative to ichorCNA directory (in 00-inputs/ichorCNA/)
+                    grch37: ""
+                    hg19: ""
+                    grch38: ""
+                    hg38: ""
+                    hs37d5: ""
                 ichorCNA_exons:  NULL
                 ichorCNA_centromere:  
                     grch37: "inst/extdata/GRCh37.p13_centromere_UCSC-gapTable.txt"
