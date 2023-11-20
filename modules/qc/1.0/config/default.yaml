@@ -11,6 +11,7 @@ lcr-modules:
 
         options:
             samtools_stat: "" # can specify --remove-dups --remove-overlaps
+            samtools_coverage: "" # can specify a particular region of interest
             QualityScoreDistribution: "--VALIDATION_STRINGENCY LENIENT" # can specify --ALIGNED_READS_ONLY true
             CollectWgsMetrics: "--USE_FAST_ALGORITHM true --VALIDATION_STRINGENCY LENIENT"
             CollectHsMetrics: "--VALIDATION_STRINGENCY LENIENT"
@@ -24,12 +25,14 @@ lcr-modules:
                 _default: "https://www.bcgsc.ca/downloads/morinlab/reference/agilent_sureselect_v5_target_regions.hg38.bed"
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml" # This version is used because for some crams the version 10 has htslib issues on some CentOS servers
+            samtools_cov: "{MODSDIR}/envs/samtools-1.10.yaml" # This is needed because the coverage was introduced only in the version 10
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
             gatkR: "{MODSDIR}/envs/gatkR.yaml"
 
         threads:
             samtools_stat: 8
+            samtools_coverage: 8
             QualityScoreDistribution: 12
             CollectMetrics: 24
             collect: 2
@@ -39,6 +42,9 @@ lcr-modules:
             samtools_stat:
                 mem_mb: 20000
                 samtools_stat: 1
+            samtools_coverage:
+                mem_mb: 20000
+                samtools_coverage: 1
             QualityScoreDistribution:
                 mem_mb: 100000
                 base_qual: 1
@@ -47,6 +53,7 @@ lcr-modules:
                 collect_metrics: 1
             collect:
                 mem_mb: 4000
+                summary: 1
 
         pairing_config:
             genome:

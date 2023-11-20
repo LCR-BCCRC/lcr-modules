@@ -110,8 +110,12 @@ if (snakemake@wildcards$seq_type == "capture"){
       PCT_30X
     ) %>%
     mutate(
-      ProportionTargetsNoCoverage=NA, .after = MEAN_COVERAGE,
-      BAIT_SET = "whole-genome", .before = GENOME_TERRITORY,
+      ProportionTargetsNoCoverage=NA, .after = MEAN_COVERAGE
+    ) %>%
+    mutate(
+      BAIT_SET = "whole-genome", .before = GENOME_TERRITORY
+    ) %>%
+    mutate(
       FOLD_ENRICHMENT = NA, .after = PCT_30X
     )
 }
