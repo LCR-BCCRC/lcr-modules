@@ -11,7 +11,7 @@ lcr-modules:
 
         options:
             samtools_stat: "" # can specify --remove-dups --remove-overlaps
-            samtools_coverage: "" # can specify a particular region of interest
+            samtools_coverage: "" # with the flag -r can specify a particular region of interest in the format chr:start-end, for example -r chr1:1M-12M. Otherwise, coverage is calculated for all contigs in bam header (default).
             QualityScoreDistribution: "--VALIDATION_STRINGENCY LENIENT" # can specify --ALIGNED_READS_ONLY true
             CollectWgsMetrics: "--USE_FAST_ALGORITHM true --VALIDATION_STRINGENCY LENIENT"
             CollectHsMetrics: "--VALIDATION_STRINGENCY LENIENT"
