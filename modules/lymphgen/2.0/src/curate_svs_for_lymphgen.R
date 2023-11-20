@@ -26,7 +26,7 @@ if (!(str_detect(sv, "svar_master"))) { # manta
     as.data.frame()
 }
 
-all_fish <- fread(all_fish) %>% as.data.frame()
+all_fish <- read_tsv(all_fish) %>% as.data.frame()
 one_fish <- all_fish %>%
   filter(sample_id == snakemake@wildcards[["tumour_id"]])
 

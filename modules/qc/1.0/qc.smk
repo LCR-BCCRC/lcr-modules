@@ -109,6 +109,32 @@ rule _qc_samtools_stat:
         2>> {log.stderr}
         """)
 
+# Collect samtools per-chromosome coverage
+rule _qc_samtools_coverage:
+    input:
+        bam = ancient(str(rules._qc_input_bam.output.bam))
+    output:
+        samtools_coverage = CFG["dirs"]["samtools"] + "{seq_type}--{genome_build}/{sample_id}.{genome_build}.coverage"
+    log:
+        stderr = CFG["logs"]["samtools"] + "{seq_type}--{genome_build}/{sample_id}.run_samtools_coverage.stderr.log"
+    params:
+        opts = CFG["options"]["samtools_coverage"]
+    conda:
+        CFG["conda_envs"]["samtools_cov"]
+    threads:
+        CFG["threads"]["samtools_coverage"]
+    resources:
+        **CFG["resources"]["samtools_coverage"]
+    shell:
+        op.as_one_line("""
+        samtools coverage
+        {input.bam}
+        -o {output.samtools_coverage}
+        {params.opts}
+        2>> {log.stderr}
+        """)
+
+
 # Collecting GATK base quality metrics
 rule _qc_gatk_basequality:
     input:
@@ -396,14 +422,17 @@ rule _qc_symlink_output:
 rule _qc_output_tsv:
     input:
         stat = str(rules._qc_samtools_stat.output.samtools_stat),
+        coverage = str(rules._qc_samtools_coverage.output.samtools_coverage),
         base_qual = str(rules._qc_gatk_basequality.output.gatk_basequal),
         metrics = _qc_get_stats
     output:
         stat = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.stat.tsv",
+        coverage = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.coverage.tsv",
         base_qual = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.QualityScoreDistribution.tsv",
         metrics = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.CollectMetrics.tsv",
     run:
         op.relative_symlink(input.stat, output.stat, in_module= True)
+        op.relative_symlink(input.coverage, output.coverage, in_module= True)
         op.relative_symlink(input.base_qual, output.base_qual, in_module= True)
         op.relative_symlink(input.metrics, output.metrics, in_module= True)
 
@@ -414,6 +443,7 @@ rule _qc_all:
         expand(
             [
                 str(rules._qc_output_tsv.output.stat),
+                str(rules._qc_output_tsv.output.coverage),
                 str(rules._qc_output_tsv.output.base_qual),
                 str(rules._qc_output_tsv.output.metrics)
             ],
