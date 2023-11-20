@@ -29,12 +29,6 @@ lcr-modules:
             sample_fastq_2: "results/bam2fastq-1.2/01-fastq/{seq_type}/{sample_id}.read2.fastq.gz"
         scratch_subdirectories: []
 
-    controlfreec:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
-        scratch_subdirectories: [] # mpileup should be in scratch space
-
     slms_3:
         inputs:
             sample_bam: "data/{sample_id}.bam"
