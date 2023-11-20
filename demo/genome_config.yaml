@@ -79,3 +79,4 @@ lcr-modules:
     qc:
         inputs:
             sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
