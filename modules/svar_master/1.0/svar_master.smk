@@ -112,7 +112,7 @@ def get_manta_vcf(wildcards):
     if wildcards.pair_status in ["matched", "unmatched"]: 
         vcf_name = "somaticSV"
     elif wildcards.pair_status == "no_normal": 
-        vcf_name_ = "tumorSV"
+        vcf_name = "tumorSV"
     vcf = expand(
         str(rules._manta_output_vcf.output.vcf), vcf_name = vcf_name, allow_missing=True
     )
