@@ -211,7 +211,7 @@ rule _svar_master_touch_empty_file:
 
 
 config["lcr-modules"]["liftover"]["dirs"]["_parent"] = CFG_SV["dirs"]["_parent"] + "liftover-" + CFG_SV["module_versions"]["liftover"]
-config["lcr-modules"]["liftover"]["inputs"]["sample_file"] = CFG_SV["dirs"]["annotate_svs"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}.annotated.bedpe"
+config["lcr-modules"]["liftover"]["inputs"]["sample_file"] = CFG_SV["dirs"]["annotate_svs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.annotated.bedpe"
 
 include: "../../liftover/" + CFG_SV["module_versions"]["liftover"] + "/liftover.smk"
 
