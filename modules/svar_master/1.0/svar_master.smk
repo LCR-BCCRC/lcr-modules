@@ -112,7 +112,7 @@ def get_manta_vcf(wildcards):
     if wildcards.pair_status in ["matched", "unmatched"]: 
         vcf_name = "somaticSV"
     elif wildcards.pair_status == "no_normal": 
-        vcf_name = "tumorSV"
+        vcf_name_ = "tumorSV"
     vcf = expand(
         str(rules._manta_output_vcf.output.vcf), vcf_name = vcf_name, allow_missing=True
     )
@@ -211,7 +211,7 @@ rule _svar_master_touch_empty_file:
 
 
 config["lcr-modules"]["liftover"]["dirs"]["_parent"] = CFG_SV["dirs"]["_parent"] + "liftover-" + CFG_SV["module_versions"]["liftover"]
-config["lcr-modules"]["liftover"]["inputs"]["sample_file"] = CFG_SV["dirs"]["annotate_svs"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}.annotated.bedpe"
+config["lcr-modules"]["liftover"]["inputs"]["sample_file"] = CFG_SV["dirs"]["annotate_svs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.annotated.bedpe"
 
 include: "../../liftover/" + CFG_SV["module_versions"]["liftover"] + "/liftover.smk"
 
