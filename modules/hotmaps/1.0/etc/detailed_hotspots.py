@@ -36,15 +36,17 @@ def parse_arguments():
     parser.add_argument('-a','--angstroms',
                         type=float, required=True,
                         help='Radius used to find neighbor residues.')
-    parser.add_argument('-x', '--metadata-out',
-                        type=str, required=True,
+    parser.add_argument('-x', '--coordinates-out',
+                        type=str, required=False,
                         help='Directory to output results file.')
+    parser.add_argument('-e', '--enriched-out',
+                        type=str, required=True)
     parser.add_argument('-g', '--gene',
                         type=str, default=None,
                         help='Verbose output for selected gene')
-    parser.add_argument('-y','--maf-mode',
+    parser.add_argument('-w','--overwrite',
                         action='store_true',
-                        help='Write output format in MAF mode')
+                        help='Overwrite existing output files')
     args = parser.parse_args()
     args = vars(args)
     return args
@@ -399,7 +401,7 @@ def create_neighborhood_dict(pdb, hotspot_gene, residue, residue_neighbors, pdb_
    #print(neighborhood)
     return neighborhood
 
-def write_metadata(neighborhood_dict, metadata_output, verbose=False):
+def write_enriched(neighborhood_dict, metadata_output, verbose=False):
 
     #mupit_abs_file = os.path.abspath(mupit_mutations)
     #mupit_file = mupit_abs_file + "_detailed"
@@ -485,41 +487,37 @@ def write_metadata(neighborhood_dict, metadata_output, verbose=False):
                     #print('\t'.join(out_line))
                 writer.write('\t'.join(out_line) + "\n")
 
-def write_maf(neighborhood_dict, metadata_output, mupit_reverse_dict, maf_format, mupit_gene_pos_ix, mupit_chromosome_ix):
+def write_coordinates(neighborhood_dict, metadata_output, mupit_reverse_dict, mupit_gene_pos_ix, mupit_chromosome_ix):
 
-    #mupit_abs_file = os.path.abspath(mupit_mutations)
-    #mupit_file = mupit_abs_file + "_detailed"
-    #mupit_out = open(mupit_file, 'w')
-    if maf_format:
-        with open(metadata_output, 'a') as writer:
-            for gene, hotspots in neighborhood_dict.items():
-                for hotspot, residues in hotspots.items():
-                    #out_line = []
-                    #out_line.append(gene)
-                    #out_line.append(hotspot)
-                    hotspot_gene_combo = gene + "_" + hotspot
+    with open(metadata_output, 'a') as writer:
+        for gene, hotspots in neighborhood_dict.items():
+            for hotspot, residues in hotspots.items():
+                #out_line = []
+                #out_line.append(gene)
+                #out_line.append(hotspot)
+                hotspot_gene_combo = gene + "_" + hotspot
 
-                    hotmaps_residues = []
-                    gene_position_col = []
-                    
-                    for residue, description in residues.items():
-                        hotspot_pdb = description["pdb"]
-                        hotmaps_residue = residue
-                        for hotspot_residue, residue_info in description["mutated_residues"].items():
-                            residue_gene = residue_info["gene"]
-                            residue_position = str(hotspot_residue)
-                            residue_pdb = residue_info["pdb"]
-                            residue_chain_pos = residue_info["chain_pos"].split("_")[1]
-                            residue_chain = residue_info["chain_pos"].split("_")[0]
-                            mupit_key = (residue_pdb, residue_gene, residue_chain, residue_chain_pos)
-                            mupit_line = mupit_reverse_dict[mupit_key][1]
-                            mupit_chromosome = mupit_line[mupit_chromosome_ix]
-                            mupit_genomic_pos = mupit_line[mupit_gene_pos_ix]
+                hotmaps_residues = []
+                gene_position_col = []
+                
+                for residue, description in residues.items():
+                    hotspot_pdb = description["pdb"]
+                    hotmaps_residue = residue
+                    for hotspot_residue, residue_info in description["mutated_residues"].items():
+                        residue_gene = residue_info["gene"]
+                        residue_position = str(hotspot_residue)
+                        residue_pdb = residue_info["pdb"]
+                        residue_chain_pos = residue_info["chain_pos"].split("_")[1]
+                        residue_chain = residue_info["chain_pos"].split("_")[0]
+                        mupit_key = (residue_pdb, residue_gene, residue_chain, residue_chain_pos)
+                        mupit_line = mupit_reverse_dict[mupit_key][1]
+                        mupit_chromosome = mupit_line[mupit_chromosome_ix]
+                        mupit_genomic_pos = mupit_line[mupit_gene_pos_ix]
 
-                            mupit_genomic_position = mupit_genomic_pos.replace("b'", "").replace("'", "").split(",")
-                            for genomic_pos in mupit_genomic_position:
-                                out_line = [residue_gene, mupit_chromosome, genomic_pos, hotspot_gene_combo, residue_position, residue_pdb, residue_chain, residue_chain_pos, hotmaps_residue]
-                                writer.write('\t'.join(out_line) + "\n")
+                        mupit_genomic_position = mupit_genomic_pos.replace("b'", "").replace("'", "").split(",")
+                        for genomic_pos in mupit_genomic_position:
+                            out_line = [residue_gene, mupit_chromosome, genomic_pos, hotspot_gene_combo, residue_position, residue_pdb, residue_chain, residue_chain_pos, hotmaps_residue]
+                            writer.write('\t'.join(out_line) + "\n")
 
 
 def main(args):
@@ -559,23 +557,24 @@ def main(args):
     if args['gene'] != None:
         verbose = True
 
-    maf_metadata_out = os.path.abspath(args['metadata_out'])
-    exp_metadata_out = maf_metadata_out.replace("maf","expanded")
+    if not verbose:
+        genomic_coordinates_out = os.path.abspath(args['coordinates_out'])
+    enriched_out = os.path.absath(args['enriched_out'])
     
     if verbose == True:
-        verbose_metadata_out = maf_metadata_out.replace("maf",f"verbose_{args['gene']}")
+        verbose_metadata_out = enriched_out.replace(enriched_out.split(".")[len(enriched_out.split(".")) - 1], f"{args['gene']}_verbose.txt")
 
-    assert not os.path.exists(maf_metadata_out), f"{maf_metadata_out} file already exists. Exiting."
-    assert not os.path.exists(exp_metadata_out), f"{exp_metadata_out} file already exists. Exiting." 
+    if not args['overwrite']:
+        assert not os.path.exists(genomic_coordinates_out), f"{genomic_coordinates_out} file already exists. Exiting."
+        assert not os.path.exists(enriched_out), f"{enriched_out} file already exists. Exiting." 
 
     if not verbose:
-        with open(exp_metadata_out, 'w') as handle:
+        with open(enriched_out, 'w') as handle:
                 output_header = ['GENE', 'HOTSPOT_NUM', 'N_SAMPLES', 'ALL_GENES', 'HOTMAPS_RES', 'MUTATED_RES']
                 handle.write('\t'.join(output_header) + "\n")
-        if args['maf_mode']:
-            with open(maf_metadata_out, 'w') as handle:
-                    output_header = ['Hugo_Symbol', 'Chromosome', 'Start_Position', 'Hotspot_ID', 'Protein_Residue', 'PDB_Structure', 'PDB_Chain', 'PDB_Chain_Position', 'Central_Residue']
-                    handle.write('\t'.join(output_header) + "\n")
+        with open(genomic_coordinates_out, 'w') as handle:
+                output_header = ['Hugo_Symbol', 'Chromosome', 'Start_Position', 'Hotspot_ID', 'Protein_Residue', 'PDB_Structure', 'PDB_Chain', 'PDB_Chain_Position', 'Central_Residue']
+                handle.write('\t'.join(output_header) + "\n")
     # verbose version
     if verbose:
         print("Proceeding with verbose output...")
@@ -790,10 +789,8 @@ def main(args):
 
             hotspot_dict[hotspot_gene][hotspot_num][residue] = neighborhood_dict
 
-        if args['maf_mode']:
-            write_maf(hotspot_dict, maf_metadata_out, mupit_reverse_dict, args['maf_mode'], mupit_gen_pos_ix, mupit_chromosome_ix)
-        #if not args['maf_mode']:
-        write_metadata(hotspot_dict, exp_metadata_out, verbose)
+        write_enriched(hotspot_dict, enriched_out, verbose)
+        write_coordinates(hotspot_dict, genomic_coordinates_out, mupit_reverse_dict, mupit_gen_pos_ix, mupit_chromosome_ix)
 
 
 if __name__ == '__main__':
