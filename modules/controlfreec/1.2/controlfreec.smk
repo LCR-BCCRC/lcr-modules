@@ -186,14 +186,18 @@ if CFG["options"]["hard_masked"] == True:
 
 def _controlfreec_get_chr_fastas(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
-    chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
-    with open(chrs) as file:
-        chromosome = file.read().rstrip("\n").split("\n")
+    chrs = []
+    for i in range(1, 23):
+        chrs.append(str(i))
+    chrs.extend(["X", "Y"])
+    if str(wildcards.genome_build).startswith("hg"):
+        chrs = ["chr" + x for x in chrs]
     fastas = expand(
         CFG["dirs"]["inputs"] +  "references/{{genome_build}}/freec/chr/{chromosome}.fa",
-        chromosome = chromosome
+        chromosome = chrs
     )
     return(fastas)
+
 
 
 #generates file with chromomsome lengths from genome.fa.fai
@@ -258,15 +262,21 @@ rule _controlfreec_input_bam:
 
 #### set-up mpileups for BAF calling ####
 def _controlfreec_get_chr_mpileups(wildcards):
+    chrs = []
+    for i in range(1, 23):
+        chrs.append(str(i))
+    chrs.extend(["X", "Y"])
+    if str(wildcards.genome_build).startswith("hg"):
+        chrs = ["chr" + x for x in chrs]
+
     CFG = config["lcr-modules"]["controlfreec"]
-    chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
-    with open(chrs) as file:
-        chrs = file.read().rstrip("\n").split("\n")
+
     mpileups = expand(
         CFG["dirs"]["mpileup"] + "{{seq_type}}--{{genome_build}}/{{sample_id}}.{chrom}.minipileup.pileup.gz",
         chrom = chrs
     )
     return(mpileups)
+
 
 
 rule _controlfreec_mpileup_per_chrom:

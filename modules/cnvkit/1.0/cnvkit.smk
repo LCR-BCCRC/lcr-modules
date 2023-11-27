@@ -291,10 +291,15 @@ rule _cnvkit_dbsnp_to_bed:
 
 #### set-up mpileups for BAF calling ####
 def _cnvkit_get_chr_mpileups(wildcards):
+    chrs = []
+    for i in range(1, 23):
+        chrs.append(str(i))
+    chrs.extend(["X", "Y"])
+    if str(wildcards.genome_build).startswith("hg"):
+        chrs = ["chr" + x for x in chrs]
+
     CFG = config["lcr-modules"]["cnvkit"]
-    chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
-    with open(chrs) as file:
-        chrs = file.read().rstrip("\n").split("\n")
+
     mpileups = expand(
         CFG["dirs"]["SNPs"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}.{chrom}.vcf.gz", 
         chrom = chrs
@@ -302,10 +307,15 @@ def _cnvkit_get_chr_mpileups(wildcards):
     return(mpileups)
     
 def _cnvkit_get_chr_mpileups_tbi(wildcards):
+    chrs = []
+    for i in range(1, 23):
+        chrs.append(str(i))
+    chrs.extend(["X", "Y"])
+    if str(wildcards.genome_build).startswith("hg"):
+        chrs = ["chr" + x for x in chrs]
+
     CFG = config["lcr-modules"]["cnvkit"]
-    chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
-    with open(chrs) as file:
-        chrs = file.read().rstrip("\n").split("\n")
+
     mpileups = expand(
         CFG["dirs"]["SNPs"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}.{chrom}.vcf.gz.tbi", 
         chrom = chrs
