@@ -559,7 +559,7 @@ def main(args):
 
     if not verbose:
         genomic_coordinates_out = os.path.abspath(args['coordinates_out'])
-    enriched_out = os.path.absath(args['enriched_out'])
+    enriched_out = os.path.abspath(args['enriched_out'])
     
     if verbose == True:
         verbose_metadata_out = enriched_out.replace(enriched_out.split(".")[len(enriched_out.split(".")) - 1], f"{args['gene']}_verbose.txt")
