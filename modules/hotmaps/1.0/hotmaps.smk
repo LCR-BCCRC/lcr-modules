@@ -37,23 +37,47 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "hotmaps",
     version = "1.0",
-    subdirectories = ["inputs", "hotmaps", "outputs"],
+    subdirectories = ["inputs", "maf2vcf", "bcftools", "vcf2maf", "hotmaps", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
+    _install_hotmaps,
+    _hotmaps_update_config,
+    _hotmaps_get_pdb_info,
+    _hotmaps_add_pdb_path,
+    _hotmaps_add_pdb_description,
     _hotmaps_input_maf,
-    _hotmaps_step_2,
-    _hotmaps_output_txt,
+    _hotmaps_input_subsets,
+    _hotmaps_prep_input,
+    _hotmaps_deblacklist,
+    _hotmaps_split_dnps,
+    _hotmaps_maf2vcf,
+    _hotmaps_bcftools,
+    _hotmaps_vcf2maf,
+    _hotmaps_merge_mafs,
+    _hotmaps_input,
+    _hotmaps_prep_mutations,
+    _hotmaps_prep_mupit_annotation,
+    _hotmaps_filter_hypermutated,
+    _hotmaps_count_mutations,
+    _hotmaps_format_mutations,
+    _hotmaps_merge_mutations,
+    _hotmaps_load_mutations,
+    _hotmaps_get_mutations,
+    _hotmaps_split_pdbs,
+    _hotmaps_merge_hotspots,
+    _hotmaps_multiple_test_correct,
+    _hotmaps_detailed_hotspots,
+    _hotmaps_output,
     _hotmaps_all,
-
 
 ##### RULES #####
 
 rule _install_hotmaps:
     output:
-        complete = CFG["dirs"]["inputs"] + "hotmaps_installed.complete"
+        installed = CFG["dirs"]["inputs"] + "HotMAPS-master/hotmaps_installed.done",
+        config = CFG["dirs"]["inputs"] + "HotMAPS-master/config.txt"
     params:
         hotmaps_repo = CFG["hotmaps_repo"],
         output_dir = CFG["dirs"]["inputs"]
@@ -62,38 +86,38 @@ rule _install_hotmaps:
         wget -qcP {params.output_dir} {params.hotmaps_repo} &&
         unzip -d {params.output_dir} {params.output_dir}/master.zip &&
         rm {params.output_dir}/master.zip &&
-        touch {output.complete}
+        touch {output.installed}
         """)
 
 rule _hotmaps_update_config:
     input:
-        hotmaps_installed = str(rules._install_hotmaps.output.complete)
+        hotmaps_installed = str(rules._install_hotmaps.output.installed),
+        config = str(rules._install_hotmaps.output.config)
     output:
-        hotmaps_config_updated = CFG["dirs"]["inputs"] + "config_updated.complete"
+        config_updated = CFG["dirs"]["inputs"] + "HotMAPS-master/config_update.done"
     params:
         modbase_dir = "modbase_dir=" + CFG["pdb_structure_dirs"]["modbase_dir"],
         pdb_dir = "pdb_dir=" + CFG["pdb_structure_dirs"]["pdb_dir"],
         refseq_homology_dir = "refseq_homology: " + CFG["pdb_structure_dirs"]["refseq_homology_dir"],
         ensembl_homology_dir = "ensembl_homology: " + CFG["pdb_structure_dirs"]["ensembl_homology_dir"],
         biological_assembly_dir = "biological_assembly: " + CFG["pdb_structure_dirs"]["biological_assembly_dir"],
-        non_biological_assembly_dir = "non_biological_assembly: " + CFG["pdb_structure_dirs"]["non_biological_assembly_dir"],
-        config_file = CFG["dirs"]["inputs"] + "HotMAPS-master/config.txt"
+        non_biological_assembly_dir = "non_biological_assembly: " + CFG["pdb_structure_dirs"]["non_biological_assembly_dir"]
     shell:
         op.as_one_line("""
-        sed -E -i "s@(modbase_dir=).*@{params.modbase_dir}@" {params.config_file} &&
-        sed -E -i "s@(pdb_dir=).*@{params.pdb_dir}@" {params.config_file} &&
-        sed -E -i "s@(refseq_homology:).*@{params.refseq_homology_dir}@" {params.config_file} &&
-        sed -E -i "s@(ensembl_homology:).*@{params.ensembl_homology_dir}@" {params.config_file} &&
-        sed -E -i "s@(biological_assembly:).*@{params.biological_assembly_dir}@" {params.config_file} &&
-        sed -E -i "s@(non_biological_assembly:).*@{params.non_biological_assembly_dir}@" {params.config_file} &&
-        touch {output.hotmaps_config_updated}
+        sed -E -i "s@(modbase_dir=).*@{params.modbase_dir}@" {input.config} &&
+        sed -E -i "s@(pdb_dir=).*@{params.pdb_dir}@" {input.config} &&
+        sed -E -i "s@(refseq_homology:).*@{params.refseq_homology_dir}@" {input.config} &&
+        sed -E -i "s@(ensembl_homology:).*@{params.ensembl_homology_dir}@" {input.config} &&
+        sed -E -i "s@(biological_assembly:).*@{params.biological_assembly_dir}@" {input.config} &&
+        sed -E -i "s@(non_biological_assembly:).*@{params.non_biological_assembly_dir}@" {input.config} &&
+        touch {output.config_updated}
         """)
 
 rule _hotmaps_get_pdb_info:
     input:
-        hotmaps_installed = str(rules._install_hotmaps.output.complete)
+        hotmaps_installed = str(rules._install_hotmaps.output.installed)
     output:
-        pdb_info = CFG["dirs"]["inputs"] + "pdb/pdb_info.txt"
+        pdb_info = temp(CFG["dirs"]["inputs"] + "pdb/pdb_info.txt")
     params:
         mysql_user = CFG["options"]["mysql"]["mysql_user"],
         mysql_passwd = CFG["options"]["mysql"]["mysql_passwd"],
@@ -111,9 +135,9 @@ rule _hotmaps_get_pdb_info:
 rule _hotmaps_add_pdb_path:
     input:
         pdb_info = str(rules._hotmaps_get_pdb_info.output.pdb_info),
-        config = str(rules._hotmaps_update_config.output.hotmaps_config_updated)
+        config = str(rules._hotmaps_update_config.output.config_updated)
     output:
-        pdb_path = CFG["dirs"]["inputs"] + "pdb/pdb_info.path.txt"
+        pdb_path = temp(CFG["dirs"]["inputs"] + "pdb/pdb_info.path.txt")
     params:
         add_path_script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/add_path_info.py"
     conda:
@@ -138,7 +162,7 @@ rule _hotmaps_input_maf:
     input:
         maf = CFG["inputs"]["input_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/input.maf"
+        maf = CFG["dirs"]["inputs"] + "master_maf/{seq_type}/input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
 
@@ -154,16 +178,15 @@ rule _hotmaps_prep_input:
     input:
         maf = expand(
             str(rules._hotmaps_input_maf.output.maf),
-            allow_missing=True,
-            seq_type = CFG["maf_processing"]["seq_types"]
+            seq_type = CFG["maf_processing"]["seq_types"],
+            allow_missing = True
             ),
         sample_sets = ancient(str(rules._hotmaps_input_subsets.output.sample_subsets))
     output:
-        #maf_hotmaps = CFG["dirs"]["inputs"] + "maf/input.{sample_set}.maf",
         maf = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.maf"
     log:
-        stdout = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stdout.log",
-        stderr = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stderr.log"
+        stdout = CFG["logs"]["inputs"] + "_hotmaps_prep_input/{sample_set}/prepare_maf.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "_hotmaps_prep_input/{sample_set}/prepare_maf.stderr.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     params:
@@ -183,16 +206,19 @@ rule _hotmaps_prep_input:
 
 rule _hotmaps_split_dnps:
     input:
+        #maf = str(rules._hotmaps_deblacklist.output.maf)
         maf = str(rules._hotmaps_prep_input.output.maf)
     output:
-        dnps = CFG["dirs"]["inputs"] + "maf2vcf/{sample_set}/maf/{sample_set}.dnps.maf",
-        filtered_maf = CFG["dirs"]["inputs"] + "maf2vcf/{sample_set}/maf/{sample_set}.dnp_filtered.maf"
+        dnps = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.dnps.maf",
+        filtered_maf = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.dnp_filtered.maf"
     shell:
         op.as_one_line("""
         variant_type_col=$(head -n 1 {input.maf} | sed 's/\\t/\\n/g' | nl | grep "Variant_Type" | cut -f 1) &&
+        echo $variant_type_col &&
         protein_position_col=$(head -n 1 {input.maf} | sed 's/\\t/\\n/g' | nl | grep "Protein_position" | cut -f 1) &&
-        cat <( head -n 1 {input.maf} ) <( awk -v var_col="$variant_type_col" -v protein_col="$protein_position_col" ' {{ if ( $var_col=="DNP" && $protein_col ~ /[0-9?]+-[0-9?]+/) print $0 }} ' {input.maf} ) > {output.dnps} &&
-        awk -v var_col="$variant_type_col" -v protein_col="$protein_position_col" ' {{ if ( $var_col != "DNP" || $protein_col !~ /[0-9?]+-[0-9?]+/ ) print $0 }} ' {input.maf} > {output.filtered_maf}
+        echo $protein_position_col &&
+        cat <( head -n 1 {input.maf} ) <( awk -v var_col="$variant_type_col" -v protein_col="$protein_position_col" ' {{ if ( $var_col=="DNP" && $protein_col ~ /[0-9?]+[-][0-9?]+/) print $0 }} ' {input.maf} ) > {output.dnps} &&
+        awk -v var_col="$variant_type_col" -v protein_col="$protein_position_col" ' {{ if ( $var_col !~ "DNP" || $protein_col != /[0-9?]+-[0-9?]+/ ) print $0 }} ' {input.maf} > {output.filtered_maf}
         """)
 
 checkpoint _hotmaps_maf2vcf:
@@ -200,36 +226,45 @@ checkpoint _hotmaps_maf2vcf:
         dnps = str(rules._hotmaps_split_dnps.output.dnps),
         fasta = reference_files("genomes/grch37/genome_fasta/genome.fa")
     output:
-        vcf = CFG["dirs"]["inputs"] + "maf2vcf/{sample_set}/vcf/{sample_set}.dnps.vcf"
+        done = CFG["dirs"]["maf2vcf"] + "completed/{sample_set}.done"
     params:
-        vcf_dir = CFG["dirs"]["inputs"] + "maf2vcf/{sample_set}/vcf"
+        vcf = CFG["dirs"]["maf2vcf"] + "vcf/{sample_set}/{sample_set}.dnps.vcf",
+        vcf_dir = CFG["dirs"]["maf2vcf"] + "vcf/{sample_set}/"
     conda:
         CFG["conda_envs"]["bcftools"]
     log:
-        stdout = CFG["logs"]["inputs"] + "maf2vcf/{sample_set}/{sample_set}.maf2vcf.stdout.log",
-        stderr = CFG["logs"]["inputs"] + "maf2vcf/{sample_set}/{sample_set}.maf2vcf.stderr.log"
+        stdout = CFG["logs"]["maf2vcf"] + "_hotmaps_maf2vcf/{sample_set}/maf2vcf.stdout.log",
+        stderr = CFG["logs"]["maf2vcf"] + "_hotmaps_maf2vcf/{sample_set}/maf2vcf.stderr.log"
     shell:
         op.as_one_line("""
-        maf2vcf.pl 
-        --input-maf {input.dnps} 
-        --output-dir {params.vcf_dir} 
-        --output-vcf {output.vcf} 
-        --ref-fasta {input.fasta} 
-        --per-tn-vcfs 
-        > {log.stdout} 2> {log.stderr}
+        if [ $( wc -l < {input.dnps}) -gt 1 ] ;
+        then
+            echo "Proceeding with maf2vcf..." &&
+            mkdir -p {params.vcf_dir} &&
+            maf2vcf.pl 
+            --input-maf {input.dnps} 
+            --output-dir {params.vcf_dir} 
+            --output-vcf {params.vcf} 
+            --ref-fasta {input.fasta} 
+            --per-tn-vcfs 
+            > {log.stdout} 2> {log.stderr} ;
+        fi &&
+        touch {output.done}
         """)
 
 rule _hotmaps_bcftools:
     input:
-        vcf = CFG["dirs"]["inputs"] + "maf2vcf/{sample_set}/vcf/{tumour_id}_vs_{normal_sample_id}.vcf",
-        dnp_vcf = str(rules._hotmaps_maf2vcf.output.vcf)
+        vcf = CFG["dirs"]["maf2vcf"] + "vcf/{sample_set}/{tumour_id}_vs_{normal_sample_id}.vcf",
+        dnp_vcf = str(rules._hotmaps_maf2vcf.output.done)
     output:
-        vcf = CFG["dirs"]["inputs"] + "bcftools/{sample_set}/vcf/{tumour_id}_vs_{normal_sample_id}.annotate.vcf"
+        vcf = CFG["dirs"]["bcftools"] + "vcf/{sample_set}/{tumour_id}_vs_{normal_sample_id}.annotate.vcf"
+    params:
+        dnps = str(rules._hotmaps_split_dnps.output.dnps)
     conda:
         CFG["conda_envs"]["bcftools"] 
     log:
-        stdout = CFG["logs"]["inputs"] + "bcftools/{sample_set}/{tumour_id}_vs_{normal_sample_id}.annotate.log",
-        stderr = CFG["logs"]["inputs"] + "bcftools/{sample_set}/{tumour_id}_vs_{normal_sample_id}.annotate.log"
+        stdout = CFG["logs"]["bcftools"] + "_hotmaps_bcftools/{sample_set}/{tumour_id}_vs_{normal_sample_id}/bcftools_norm.stdout.log",
+        stderr = CFG["logs"]["bcftools"] + "_hotmaps_bcftools/{sample_set}/{tumour_id}_vs_{normal_sample_id}/bcftools_norm.stderr.log"
     shell:
         op.as_one_line("""
         bcftools norm --atomize 
@@ -244,15 +279,15 @@ rule _hotmaps_vcf2maf:
         fasta = reference_files("genomes/grch37/genome_fasta/genome.fa"),
         vep_cache = CFG["vcf2maf"]["vep_cache"]
     output:
-        maf = CFG["dirs"]["inputs"] + "vcf2maf/{sample_set}/maf/{tumour_id}_vs_{normal_sample_id}.maf",
-        vep = CFG["dirs"]["inputs"] + "bcftools/{sample_set}/vcf/{tumour_id}_vs_{normal_sample_id}.annotate.vep.vcf"
+        maf = CFG["dirs"]["vcf2maf"] + "maf/{sample_set}/{tumour_id}_vs_{normal_sample_id}.maf",
+        vep = CFG["dirs"]["bcftools"] + "vcf/{sample_set}/{tumour_id}_vs_{normal_sample_id}.annotate.vep.vcf"
     params:
         opts = CFG["vcf2maf"]["options"]
     conda:
         CFG["conda_envs"]["bcftools"]
     log:
-        stdout = CFG["logs"]["inputs"] + "vcf2maf/{sample_set}/{tumour_id}_vs_{normal_sample_id}.stdout.log",
-        stderr = CFG["logs"]["inputs"] + "vcf2maf/{sample_set}/{tumour_id}_vs_{normal_sample_id}.stderr.log"
+        stdout = CFG["logs"]["vcf2maf"] + "_hotmaps_vcf2maf/{sample_set}/{tumour_id}_vs_{normal_sample_id}.stdout.log",
+        stderr = CFG["logs"]["vcf2maf"] + "_hotmaps_vcf2maf/{sample_set}/{tumour_id}_vs_{normal_sample_id}.stderr.log"
     shell:
         op.as_one_line("""
         vepPATH=$(dirname $(which variant_effect_predictor.pl))/../share/variant-effect-predictor* ;
@@ -270,21 +305,16 @@ rule _hotmaps_vcf2maf:
         > {log.stdout} 2> {log.stderr}
         """) 
 
-def _get_annotated_mafs(wildcards):
+def _get_dnp_mafs(wildcards):
     CFG = config["lcr-modules"]["hotmaps"]
-    checkpoint_outputs = checkpoints._hotmaps_maf2vcf.get(**wildcards).output.vcf
+    checkpoint_outputs = checkpoints._hotmaps_maf2vcf.get(**wildcards).output.done
 
-    # Get rows of DNPs that were reannotated
-    dnps = expand(
-        str(rules._hotmaps_split_dnps.output.dnps),
-        sample_set = wildcards.sample_set
-    )
+    dnps = (str(rules._hotmaps_split_dnps.output.dnps)).format(**wildcards)
 
-    # Read in MAF as table
-    if os.path.exists(dnps[0]):
-        dnp_table = pd.read_table(dnps[0], comment="#", sep="\t")
-        sample_table = dnp_table[["Tumor_Sample_Barcode","Matched_Norm_Sample_Barcode"]].drop_duplicates()
-        return expand(
+    sample_table = pd.read_table(dnps, comment = "#", sep = "\t")
+    sample_table = sample_table[["Tumor_Sample_Barcode","Matched_Norm_Sample_Barcode"]].drop_duplicates()
+
+    return expand(
             expand(
                 str(rules._hotmaps_vcf2maf.output.maf),
                 zip,
@@ -292,35 +322,64 @@ def _get_annotated_mafs(wildcards):
                 normal_sample_id = sample_table["Matched_Norm_Sample_Barcode"],
                 allow_missing=True
             ),
-            sample_set = wildcards.sample_set
-        )
-    else:
-        return []
+        sample_set = wildcards.sample_set
+    )
 
 rule _hotmaps_merge_mafs:
     input:
-        maf_annotated = _get_annotated_mafs,
-        maf = str(rules._hotmaps_split_dnps.output.filtered_maf)
+        maf_annotated = _get_dnp_mafs,
+        maf = str(rules._hotmaps_split_dnps.output.filtered_maf)     
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{sample_set}/input.{sample_set}.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.reannotated.maf"
     run:
-        print(input.maf_annotated)
-        #annotated = (input.maf_annotated).split(" ")
+        import pandas as pd
         main_maf = pd.read_table(input.maf, comment = "#", sep="\t")
         for maf in input.maf_annotated:
-            print(maf)
             df = pd.read_table(maf, comment="#", sep="\t")
             main_maf = pd.concat([main_maf, df])
-        main_maf = main_maf[["Tumor_Sample_Barcode","Chromosome","Start_Position","End_Position","Reference_Allele","Tumor_Seq_Allele2","Hugo_Symbol","Variant_Classification","HGVSp_Short","Transcript_ID","Strand"]]
-        main_maf.to_csv(output.maf, sep="\t", index=False)
+        main_maf.to_csv(output.maf, sep="\t", na_rep="NA", index=False)
+
+rule _hotmaps_deblacklist:
+    input:
+        maf = str(rules._hotmaps_merge_mafs.output.maf),
+        blacklists = CFG["maf_processing"]["blacklists"]
+    output:
+        maf = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.reannotated.deblacklisted.maf"
+    run:
+        import pandas as pd
+        maf = pd.read_table(input.maf, comment="#", sep="\t")
+        for blacklist in input.blacklists:
+            blacklist_table = pd.read_table(blacklist, comment="#", sep="\t")
+            blacklist_table["Chromosome"] = blacklist_table.apply(lambda x: x["chrpos"].split(":")[0], axis=1)
+            blacklist_table["Start_Position"] = blacklist_table.apply(lambda x: int(x["chrpos"].split(":")[1]), axis=1)
+            # Create tuple of blacklist variants
+            blacklist_pos = set(map(tuple, blacklist_table[["Chromosome","Start_Position"]].values))
+            # Get T/F index of blacklist variants in MAF
+            variant_in_blacklist = maf[["Chromosome","Start_Position"]].apply(lambda x, blacklist_pos: tuple(x) in blacklist_pos, args=(blacklist_pos,), axis=1)
+            # Keep only those that are not in blacklist
+            maf = maf[variant_in_blacklist == False]
+        maf.to_csv(output.maf, sep="\t", na_rep="NA", index=False)
+
+rule _hotmaps_input:
+    input:
+        maf = str(rules._hotmaps_deblacklist.output.maf),
+        #maf = ancient(str(rules._hotmaps_merge_mafs.output.maf)),
+        original = str(rules._hotmaps_prep_input.output.maf)
+    output:
+        maf = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/input.{sample_set}.maf"
+    run:
+        import pandas as pd
+        maf = pd.read_table(input.maf, comment="#", sep="\t")
+        maf = maf[["Tumor_Sample_Barcode","Chromosome","Start_Position","End_Position","Reference_Allele","Tumor_Seq_Allele2","Hugo_Symbol","Variant_Classification","HGVSp_Short","Transcript_ID","Strand"]]
+        maf.to_csv(output.maf, sep="\t", na_rep="NA", index=False)
 
 rule _hotmaps_prep_mutations:
     input:
-        maf = CFG["inputs"]["custom_maf"],
+        maf = str(rules._hotmaps_input.output.maf)
     output:
         mupit_non_filtered = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/non_filtered_mupit.input.{sample_set}.maf"
     params:
-        mut_dir = lambda w: config["lcr-modules"]["hotmaps"]["dirs"]["hotmaps"] + f"/{w.sample_set}/mutations/",
+        mut_dir = lambda w: config["lcr-modules"]["hotmaps"]["dirs"]["hotmaps"] + f"{w.sample_set}/mutations/",
         mysql_host = CFG["options"]["mysql"]["mysql_host"],
         mysql_user = CFG["options"]["mysql"]["mysql_user"],
         mysql_pass = CFG["options"]["mysql"]["mysql_passwd"],
@@ -336,7 +395,8 @@ rule _hotmaps_prep_mutations:
 
 rule _hotmaps_prep_mupit_annotation:
     input:
-        maf = CFG["inputs"]["custom_maf"]
+        #maf = CFG["inputs"]["custom_maf"]
+        maf = str(rules._hotmaps_input.output.maf)
     output:
         annotation = CFG["dirs"]["hotmaps"] + "{sample_set}/mupit_annotations/mupit_mutations_{sample_set}"
     params:
@@ -358,7 +418,8 @@ rule _hotmaps_prep_mupit_annotation:
 
 rule _hotmaps_filter_hypermutated:
     input:
-        maf = CFG["inputs"]["custom_maf"],
+        #maf = CFG["inputs"]["custom_maf"],
+        maf = str(rules._hotmaps_input.output.maf),
         nf_mupit = str(rules._hotmaps_prep_mutations.output.mupit_non_filtered)
     output:
         hypermut = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/hypermutated.{sample_set}.txt",
@@ -374,7 +435,6 @@ rule _hotmaps_filter_hypermutated:
         op.as_one_line("""
         python {params.script} --raw-dir {params.mut_dir} --match-regex {params.mut_regex} {params.mut_threshold} --sample-col Tumor_Sample_Barcode --data-dir {params.mut_dir}
         """)
-
 
 rule _hotmaps_count_mutations:
     input:
@@ -486,7 +546,8 @@ rule _hotmaps_run_hotspot:
     resources:
         **CFG["resources"]["hotmaps"]
     log:
-        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/hotmaps_run_{split}.stdout.log"
+        stdout = CFG["logs"]["hotmaps"] + "_hotmaps_run/{sample_set}/run_hotspot_{split}.stdout.log"
+        #stdout = CFG["logs"]["hotmaps"] + "{sample_set}/hotmaps_run_{split}.stdout.log"
     shell:
         op.as_one_line("""
         python {params.script} --log-level=INFO -m {params.mutation} -a {params.pdb} -t EVERY -n {params.num_sims} 
@@ -517,8 +578,8 @@ rule _hotmaps_multiple_test_correct:
         merged = str(rules._hotmaps_merge_hotspots.output.merged),
         mupit_annotation = str(rules._hotmaps_prep_mupit_annotation.output.annotation)
     output:
-        mtc = CFG["dirs"]["hotmaps"] + "{sample_set}/mtc_output_min_.{q_value}.txt",
-        significance = CFG["dirs"]["hotmaps"] + "{sample_set}/significance_level_.{q_value}.txt"
+        mtc = CFG["dirs"]["hotmaps"] + "{sample_set}/mtc_output_min_{q_value}.txt",
+        significance = CFG["dirs"]["hotmaps"] + "{sample_set}/significance_level_{q_value}.txt"
     params:
         script = CFG["dirs"]["inputs"] + "HotMAPS-master/multiple_testing_correction.py",
         mupit_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/mupit_annotations/",
@@ -538,7 +599,7 @@ rule _hotmaps_find_gene:
         pdb = str(rules._hotmaps_add_pdb_description.output.fully_described_pdb),
         mupit_annotation = str(rules._hotmaps_prep_mupit_annotation.output.annotation)
     output:
-        hotspots = CFG["dirs"]["hotmaps"] + "{sample_set}/hotspot_regions_gene_.{q_value}.txt"
+        hotspots = CFG["dirs"]["hotmaps"] + "{sample_set}/hotspot_regions_gene_{q_value}.txt"
     params:
         script = CFG["dirs"]["inputs"] + "HotMAPS-master/find_hotspot_regions_gene.py",
         mupit_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/mupit_annotations/",
@@ -559,7 +620,7 @@ rule _hotmaps_find_structure:
         mupit_annotation = str(rules._hotmaps_prep_mupit_annotation.output.annotation),
         significance = str(rules._hotmaps_multiple_test_correct.output.significance)
     output:
-        structures = CFG["dirs"]["hotmaps"] + "{sample_set}/hotspot_regions_structure_.{q_value}.txt"
+        structures = CFG["dirs"]["hotmaps"] + "{sample_set}/hotspot_regions_structure_{q_value}.txt"
     params:
         script = CFG["dirs"]["inputs"] + "HotMAPS-master/find_hotspot_regions_struct.py",
         mupit_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/mupit_annotations/",
@@ -572,7 +633,7 @@ rule _hotmaps_find_structure:
         python {params.script} -i {input.merged} -a {params.mupit_dir} -p {input.pdb} -r {params.radius} -o {output.structures} -s {input.significance}
         """)
 
-rule _hotmaps_get_detailed_hotspots:
+rule _hotmaps_detailed_hotspots:
     input:
         hotspots = str(rules._hotmaps_find_gene.output.hotspots),
         mupit_annotation = str(rules._hotmaps_prep_mupit_annotation.output.annotation),
@@ -580,14 +641,17 @@ rule _hotmaps_get_detailed_hotspots:
         mtc_file = str(rules._hotmaps_multiple_test_correct.output.mtc),
         pdb_info = str(rules._hotmaps_add_pdb_description.output.fully_described_pdb)
     output:
-        hotspots = CFG["dirs"]["hotmaps"] + "{sample_set}/enriched_hotspot_regions_gene_.{q_value}.txt"
+        coordinates = CFG["dirs"]["hotmaps"] + "{sample_set}/genomic_coordinates_hotspot_regions_gene_{q_value}.txt",
+        enriched = CFG["dirs"]["hotmaps"] + "{sample_set}/enriched_hotspot_regions_gene_{q_value}.txt"
     params:
-        script = CFG["options"]["enrich_hotmaps_script"],
+        script = CFG["detailed_hotspots_script"],
         radius = CFG["options"]["hotmaps"]["radius"],
         q_value = lambda w: w.q_value
     log:
-        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/get_detailed_hotspots_.{q_value}.stdout.log",
-        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/get_detailed_hotspots.{q_value}.stderr.log"
+        stdout = CFG["logs"]["hotmaps"] + "_detailed_hotspots/{sample_set}/detailed_hotspots_{q_value}.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "_detailed_hotspots/{sample_set}/detailed_hotspots_{q_value}.stderr.log"
+        #stdout = CFG["logs"]["hotmaps"] + "{sample_set}/get_hotspot_coordinates_{q_value}.stdout.log",
+        #stderr = CFG["logs"]["hotmaps"] + "{sample_set}/get_hotspot_coordinates_{q_value}.stderr.log"
     conda:
         CFG["conda_envs"]["hotmaps"]
     shell:
@@ -595,47 +659,20 @@ rule _hotmaps_get_detailed_hotspots:
         {params.script} --hotspots {input.hotspots} --mupit-annotation {input.mupit_annotation} 
         --output-merged {input.merged_output} --mtc-file {input.mtc_file} 
         --q-value {params.q_value} --pdb-info {input.pdb_info} 
-        --angstroms {params.radius} --metadata-out {output.hotspots} > {log.stdout} 2> {log.stderr}
+        --angstroms {params.radius} --coordinates-out {output.coordinates} --enriched-out {output.enriched} --overwrite > {log.stdout} 2> {log.stderr}
         """)
 
-rule _hotmaps_get_hotspot_coordinates:
-    input:
-        hotspots = str(rules._hotmaps_find_gene.output.hotspots),
-        mupit_annotation = str(rules._hotmaps_prep_mupit_annotation.output.annotation),
-        merged_output = str(rules._hotmaps_merge_hotspots.output.merged),
-        mtc_file = str(rules._hotmaps_multiple_test_correct.output.mtc),
-        pdb_info = str(rules._hotmaps_add_pdb_description.output.fully_described_pdb)
-    output:
-        hotspots = CFG["dirs"]["hotmaps"] + "{sample_set}/genomic_coordinates_hotspot_regions_gene_.{q_value}.txt"
-    params:
-        script = CFG["options"]["enrich_hotmaps_script"],
-        radius = CFG["options"]["hotmaps"]["radius"],
-        q_value = lambda w: w.q_value
-    log:
-        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/get_hotspot_coordinates.{q_value}.stdout.log",
-        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/get_hotspot_coordinates.{q_value}.stderr.log"
-    conda:
-        CFG["conda_envs"]["hotmaps"]
-    shell:
-        op.as_one_line("""
-        {params.script} --hotspots {input.hotspots} --mupit-annotation {input.mupit_annotation} 
-        --output-merged {input.merged_output} --mtc-file {input.mtc_file} 
-        --q-value {params.q_value} --pdb-info {input.pdb_info} 
-        --angstroms {params.radius} --metadata-out {output.hotspots} --maf-mode > {log.stdout} 2> {log.stderr}
-        """)
-
-
-rule _hotmaps_symlink_output:
+rule _hotmaps_output:
     input:
         hotspots = str(rules._hotmaps_find_gene.output.hotspots),
         structures = str(rules._hotmaps_find_structure.output.structures),
-        enriched = str(rules._hotmaps_get_detailed_hotspots.output.hotspots),
-        coordinates = str(rules._hotmaps_get_hotspot_coordinates.output.hotspots)
+        enriched = str(rules._hotmaps_detailed_hotspots.output.coordinates),
+        coordinates = str(rules._hotmaps_detailed_hotspots.output.enriched)
     output:
-        hotspots = CFG["dirs"]["outputs"] + "{sample_set}/hotspot_regions_gene_.{q_value}.txt",
-        structures = CFG["dirs"]["outputs"] + "{sample_set}/hotspot_regions_struct_.{q_value}.txt",
-        enriched = CFG["dirs"]["outputs"] + "{sample_set}/enriched_hotspot_regions_gene_.{q_value}.txt",
-        coordinates = CFG["dirs"]["outputs"] + "{sample_set}/genomic_coordinates_hotspot_regions_gene_.{q_value}.txt"
+        hotspots = CFG["dirs"]["outputs"] + "{sample_set}/hotspot_regions_gene_{q_value}.txt",
+        structures = CFG["dirs"]["outputs"] + "{sample_set}/hotspot_regions_struct_{q_value}.txt",
+        enriched = CFG["dirs"]["outputs"] + "{sample_set}/enriched_hotspot_regions_gene_{q_value}.txt",
+        coordinates = CFG["dirs"]["outputs"] + "{sample_set}/genomic_coordinates_hotspot_regions_gene_{q_value}.txt"
     run:
         op.relative_symlink(input.hotspots, output.hotspots, in_module=True)
         op.relative_symlink(input.structures, output.structures, in_module=True)
@@ -648,10 +685,10 @@ rule _hotmaps_all:
     input:
         expand(
             [
-                str(rules._hotmaps_symlink_output.output.hotspots),
-                str(rules._hotmaps_symlink_output.output.structures),
-                str(rules._hotmaps_symlink_output.output.enriched),
-                str(rules._hotmaps_symlink_output.output.coordinates)
+                str(rules._hotmaps_output.output.hotspots),
+                str(rules._hotmaps_output.output.structures),
+                str(rules._hotmaps_output.output.enriched),
+                str(rules._hotmaps_output.output.coordinates)
             ],
             sample_set = CFG["maf_processing"]["sample_sets"],
             q_value = CFG["options"]["hotmaps"]["q_value"]
