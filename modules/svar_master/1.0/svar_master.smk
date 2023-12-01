@@ -217,14 +217,14 @@ include: "../../liftover/" + CFG_SV["module_versions"]["liftover"] + "/liftover.
 
 def _get_lifted_native(w): 
     with checkpoints._svar_master_annotate_combine.get(seq_type = w.seq_type, genome_build = w.genome_build, tumour_id = w.tumour_id, normal_id = w.normal_id, pair_status = w.pair_status).output.bedpe.open() as f: 
-        if len(f.readlines()) > 0: 
+        if len(f.readlines()) > 1: 
             return rules._liftover_input_file.output.another_tsv
         else: 
             return rules._svar_master_touch_empty_file.output.another_tsv
 
 def _get_lifted_output(w): 
     with checkpoints._svar_master_annotate_combine.get(seq_type = w.seq_type, genome_build = w.genome_build, tumour_id = w.tumour_id, normal_id = w.normal_id, pair_status = w.pair_status).output.bedpe.open() as f: 
-        if len(f.readlines()) > 0: 
+        if len(f.readlines()) > 1: 
             return rules._liftover_output.output
         else: 
             return rules._svar_master_touch_empty_file.output.another_tsv
