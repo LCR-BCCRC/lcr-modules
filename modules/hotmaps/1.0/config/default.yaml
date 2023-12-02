@@ -18,9 +18,6 @@ lcr-modules:
         vcf2maf:
             vep_cache: "__UPDATE__"
             options: ""
-            #matched_only: This is not an option in lcr-script SMG script
-            #filter_criteria: This is also not an option in lcr-script SMG script
-            #metadata: not needed in lcr script SMG script
 
         hotmaps_repo: "https://github.com/morinlab/HotMAPS/archive/refs/heads/master.zip"
 
@@ -34,16 +31,18 @@ lcr-modules:
 
         options:
             mysql:
-                mysql_host:
-                mysql_user:
-                mysql_db:
-                mysql_passwd:
+                mysql_host: "__UPDATE__"
+                mysql_user: "__UPDATE__"
+                mysql_db: "__UPDATE__"
+                mysql_passwd: "__UPDATE__"
             hotmaps:
-                hypermut_threshold:
-                group_func:
-                q_value:
-                num_sims:
-                radius:
+                hypermut_threshold: "500"
+                pdb_splits: 500
+                group_func: "min"
+                q_value: ".01"
+                num_sims: 10000
+                radius: 10
+                stop_criteria: 200
 
         detailed_hotspots_script: "{MODSDIR}/etc/detailed_hotspots.py"
 
