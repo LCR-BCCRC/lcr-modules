@@ -2,7 +2,6 @@ lcr-modules:
     
     hotmaps:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build}
             input_maf: "__UPDATE__"
