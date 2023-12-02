@@ -341,7 +341,8 @@ rule _hotmaps_merge_mafs:
 
 rule _hotmaps_deblacklist:
     input:
-        maf = str(rules._hotmaps_merge_mafs.output.maf),
+        maf = ancient(str(rules._hotmaps_merge_mafs.output.maf)),
+        original = str(rules._hotmaps_prep_input.output.maf),
         blacklists = CFG["maf_processing"]["blacklists"]
     output:
         maf = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.reannotated.deblacklisted.maf"
@@ -362,9 +363,7 @@ rule _hotmaps_deblacklist:
 
 rule _hotmaps_input:
     input:
-        maf = str(rules._hotmaps_deblacklist.output.maf),
-        #maf = ancient(str(rules._hotmaps_merge_mafs.output.maf)),
-        original = str(rules._hotmaps_prep_input.output.maf)
+        maf = str(rules._hotmaps_deblacklist.output.maf)
     output:
         maf = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/input.{sample_set}.maf"
     run:
@@ -490,7 +489,7 @@ rule _hotmaps_load_mutations:
         CFG["conda_envs"]["hotmaps"]
     shell:
         op.as_one_line("""
-        python {params.script} -m {input.mysql_mut} --host {params.mysql_host} --mysql-user {params.mysql_user} --mysql-passwd {params.mysql_pass} --db {params.mysql_db} &&
+        python {params.script} -m {input.mysql_mut} --update-table --host {params.mysql_host} --mysql-user {params.mysql_user} --mysql-passwd {params.mysql_pass} --db {params.mysql_db} &&
         touch {output.mysql_loaded}
         """)
 
@@ -537,8 +536,10 @@ rule _hotmaps_run_hotspot:
         script =  CFG["dirs"]["inputs"] + "HotMAPS-master/hotspot.py",
         mutation = CFG["dirs"]["hotmaps"] + "{sample_set}/split_pdbs/mut_info_split_{split}.txt",
         pdb = CFG["dirs"]["hotmaps"] + "{sample_set}/split_pdbs/pdb_info_split_{split}.txt",
+        ttype = lambda w: w.sample_set,
         num_sims = CFG["options"]["hotmaps"]["num_sims"],
         radius = CFG["options"]["hotmaps"]["radius"],
+        stop_criteria = CFG["options"]["hotmaps"]["stop_criteria"],
         error = CFG["dirs"]["hotmaps"] + "{sample_set}/hotspot/error/error_pdb_{split}.txt"
     conda: 
         CFG["conda_envs"]["hotmaps"]
@@ -550,8 +551,8 @@ rule _hotmaps_run_hotspot:
         #stdout = CFG["logs"]["hotmaps"] + "{sample_set}/hotmaps_run_{split}.stdout.log"
     shell:
         op.as_one_line("""
-        python {params.script} --log-level=INFO -m {params.mutation} -a {params.pdb} -t EVERY -n {params.num_sims} 
-        -r {params.radius} -o {output.hotspot} -e {params.error} --log {log.stdout}
+        python {params.script} --log-level=INFO -m {params.mutation} -a {params.pdb} -t {params.ttype} -n {params.num_sims} 
+        -r {params.radius} -sc {params.stop_criteria} -o {output.hotspot} -e {params.error} --log {log.stdout}
         """)
 
 def _get_splits(wildcards):
