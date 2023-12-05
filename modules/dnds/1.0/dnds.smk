@@ -13,6 +13,8 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+from datetime import datetime
+import numpy as np
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
