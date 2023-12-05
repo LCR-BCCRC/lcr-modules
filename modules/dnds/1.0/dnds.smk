@@ -74,22 +74,24 @@ rule _dnds_input_subsets:
     input:
         sample_sets = CFG["inputs"]["sample_sets"]
     output:
-        sample_sets = CFG["dirs"]["inputs"] + "sample_sets/sample_sets.tsv"
+        sample_sets = CFG["dirs"]["inputs"] + "sample_sets/subsetting_categories.tsv"
     run:
         op.absolute_symlink(input.sample_sets, output.sample_sets)
 
 
 # Prepare the maf file for the input to MutSig2CV
-checkpoint _dnds_prepare_maf:
+rule _dnds_prepare_maf:
     input:
         maf = expand(
                     str(rules._dnds_input_maf.output.maf),
                     allow_missing=True,
-                    seq_type=CFG["seq_types"]
+                    seq_type=CFG["samples"]["seq_type"].unique()
                     ),
-        sample_sets = ancient(str(rules._dnds_input_subsets.output.sample_sets))
+        sample_sets = str(rules._dnds_input_subsets.output.sample_sets)
     output:
-        CFG["dirs"]["inputs"] + "maf/{sample_set}--{launch_date}/done"
+        # CFG["dirs"]["inputs"] + "maf/{sample_set}--{launch_date}/done"
+        maf = temp(CFG["dirs"]["inputs"] + "maf/{sample_set}--{launch_date}.maf"),
+        contents = CFG["dirs"]["inputs"] + "maf/{sample_set}--{launch_date}.maf.content"
     log:
         CFG["logs"]["inputs"] + "{sample_set}--{launch_date}/prepare_maf.log"
     conda:
@@ -124,8 +126,10 @@ rule _dnds_run:
         dnds = ancient(str(CFG["dirs"]["inputs"] + "dnds_installed.success")),
         maf = str(rules._dnds_prepare_maf.output.maf)
     output:
-        dnds_sig_genes = CFG["dirs"]["dnds"] + "{sample_set}--{launch_date}/{md5sum}_sig_genes.tsv",
-        annotmuts = CFG["dirs"]["dnds"] + "{sample_set}--{launch_date}/{md5sum}_annotmuts.tsv"
+        # dnds_sig_genes = CFG["dirs"]["dnds"] + "{sample_set}--{launch_date}/{md5sum}_sig_genes.tsv",
+        # annotmuts = CFG["dirs"]["dnds"] + "{sample_set}--{launch_date}/{md5sum}_annotmuts.tsv"
+        dnds_sig_genes = CFG["dirs"]["dnds"] + "{sample_set}--{launch_date}/sig_genes.tsv",
+        annotmuts = CFG["dirs"]["dnds"] + "{sample_set}--{launch_date}/annotmuts.tsv"
     conda:
         CFG["conda_envs"]["dnds"]
     threads:
@@ -144,37 +148,39 @@ rule _dnds_output_tsv:
     input:
         tsv = str(rules._dnds_run.output.dnds_sig_genes)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{sample_set}--{launch_date}/{md5sum}.sig_genes.tsv"
+        # tsv = CFG["dirs"]["outputs"] + "tsv/{sample_set}--{launch_date}/{md5sum}.sig_genes.tsv"
+        tsv = CFG["dirs"]["outputs"] + "tsv/{sample_set}--{launch_date}/{sample_set}--{launch_date}.sig_genes.tsv"
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module= True)
 
-def _for_aggregate(wildcards):
-    CFG = config["lcr-modules"]["dnds"]
-    checkpoint_output = os.path.dirname(str(checkpoints._dnds_prepare_maf.get(**wildcards).output[0]))
-    SUMS, = glob_wildcards(checkpoint_output +"/{md5sum}.maf.content")
-    return expand(
-        [
-            CFG["dirs"]["outputs"] + "tsv/{{sample_set}}--{{launch_date}}/{md5sum}.sig_genes.tsv"
-        ],
-        md5sum = SUMS
-        )
+# def _for_aggregate(wildcards):
+#     CFG = config["lcr-modules"]["dnds"]
+#     checkpoint_output = os.path.dirname(str(checkpoints._dnds_prepare_maf.get(**wildcards).output[0]))
+#     SUMS, = glob_wildcards(checkpoint_output +"/{md5sum}.maf.content")
+#     return expand(
+#         [
+#             CFG["dirs"]["outputs"] + "tsv/{{sample_set}}--{{launch_date}}/{md5sum}.sig_genes.tsv"
+#         ],
+#         md5sum = SUMS
+#         )
 
-# aggregates outputs to remove md5sum from rule all
-rule _dnds_aggregate:
-    input:
-        _for_aggregate
-    output:
-        aggregate = CFG["dirs"]["outputs"] + "{sample_set}--{launch_date}.done"
-    shell:
-        op.as_one_line("""touch {output.aggregate}""")
+# # aggregates outputs to remove md5sum from rule all
+# rule _dnds_aggregate:
+#     input:
+#         _for_aggregate
+#     output:
+#         aggregate = CFG["dirs"]["outputs"] + "{sample_set}--{launch_date}.done"
+#     shell:
+#         op.as_one_line("""touch {output.aggregate}""")
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _dnds_all:
     input:
         expand(
             [
-                CFG["dirs"]["inputs"] + "{case_set}--{projection}--{launch_date}/done",
-                str(rules._dnds_aggregate.output.aggregate)
+                # CFG["dirs"]["inputs"] + "{case_set}--{projection}--{launch_date}/done",
+                # str(rules._dnds_aggregate.output.aggregate)
+                str(rules._dnds_output_tsv.output.tsv)
             ],
             sample_set=CFG["sample_set"],
             launch_date = launch_date)
