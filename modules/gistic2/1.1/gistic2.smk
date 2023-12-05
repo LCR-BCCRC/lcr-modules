@@ -90,7 +90,7 @@ rule _gistic2_download_ref:
         folder = CFG["dirs"]["inputs"] + "references"
     shell:
         op.as_one_line("""
-        wget -P {params.folder} {params.url} 
+        wget -P {params.folder} {params.url}
         """)
 
 # Merges capture and genome seg files if available, and subset to the case_set provided
@@ -121,13 +121,13 @@ rule _gistic2_make_markers:
         markers = CFG["dirs"]["markers"] + "markers--{case_set}--{projection}--{launch_date}--{md5sum}.txt"
     log:
         stderr = CFG["logs"]["markers"] + "{case_set}--{projection}--{launch_date}--{md5sum}--markers.stderr.log"
-    shell: 
+    shell:
         op.as_one_line("""
         sed '1d' {input.seg} | cut -f2,3 > {output.temp_markers}
             &&
         sed '1d' {input.seg} | cut -f2,4 >> {output.temp_markers}
             &&
-        sort -V -k1,1 -k2,2nr {output.temp_markers} | uniq | nl > {output.markers} 
+        sort -V -k1,1 -k2,2nr {output.temp_markers} | uniq | nl > {output.markers}
         2> {log.stderr}
         """)
 
@@ -157,7 +157,7 @@ rule _gistic2_run:
         **CFG["resources"]["gistic2_run"]
     shell:
         op.as_one_line("""
-        gistic2 -b {params.base_dir} -seg {input.seg} -mk {input.markers} -refgene {input.refgene_mat} 
+        gistic2 -b {params.base_dir} -seg {input.seg} -mk {input.markers} -refgene {input.refgene_mat}
         -genegistic 1 -broad 1 -savegene 1 -conf 0.{wildcards.conf} -v 30 -saveseg 0 -savedata 0
         {params.opts}
         > {log.stdout} 2> {log.stderr}
@@ -215,7 +215,7 @@ rule _gistic2_all:
             [
                 CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}/done",
                 str(rules._gistic2_aggregate.output.aggregate)
-            ],              
+            ],
             conf = CFG["options"]["conf_level"],
             projection = CFG["projections"],
             case_set = CFG["case_set"],
