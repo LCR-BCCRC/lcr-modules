@@ -21,7 +21,7 @@ Finally, the example config provided in the HotMAPS repo can help if you are con
 
 - HotMAPS depends on a MySQL database created by the Karchin Lab that maps genomic coordinates to PDB residues. This database must be downloaded before running HotMAPS and the database name, host, user, and password information must be specified in the config. More information here: https://github.com/KarchinLab/HotMAPS/wiki/MySQL-database
 
-- A rule has been added to modify the `mutations` table of the `mupit_modbase` MySQL database in order to support sample subsets up to 100 characters long
+- A rule has been added to modify the `mutations` table of the `mupit_modbase` MySQL database in order to support sample subsets up to 100 characters long.
 
 - The HotMAPS module relies on a grch37 "master maf" file that contains the mutation data for all samples, and an accompanying "sample_set" file that maps unique sample IDs listed in the first column to sample subsets using a binary approach. 
 
