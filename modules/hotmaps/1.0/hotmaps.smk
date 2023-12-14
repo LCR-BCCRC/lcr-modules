@@ -492,7 +492,7 @@ rule _hotmaps_merge_mutations:
 rule _hotmaps_load_mutations:
     input:
         mysql_mut = str(rules._hotmaps_merge_mutations.output.mysql_mut),
-        #table_updated = str(rules._hotmaps_update_mutations_tbl.output.tbl_updated)
+        table_updated = str(rules._hotmaps_update_mutations_tbl.output.tbl_updated)
     output:
         mysql_loaded = temp(CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/loaded.success")
     params:
@@ -505,7 +505,7 @@ rule _hotmaps_load_mutations:
         CFG["conda_envs"]["hotmaps"]
     shell:
         op.as_one_line("""
-        python {params.script} -m {input.mysql_mut} --host {params.mysql_host} --mysql-user {params.mysql_user} --mysql-passwd {params.mysql_pass} --db {params.mysql_db} &&
+        python {params.script} -m {input.mysql_mut} --update-table --host {params.mysql_host} --mysql-user {params.mysql_user} --mysql-passwd {params.mysql_pass} --db {params.mysql_db} &&
         touch {output.mysql_loaded}
         """)
 
@@ -556,7 +556,7 @@ rule _hotmaps_run_hotspot:
         script =  CFG["dirs"]["inputs"] + "HotMAPS-master/hotspot.py",
         mutation = CFG["dirs"]["hotmaps"] + "{sample_set}/split_pdbs/mut_info_split_{split}.txt",
         pdb = CFG["dirs"]["hotmaps"] + "{sample_set}/split_pdbs/pdb_info_split_{split}.txt",
-        ttype = lambda w: w.sample_set[:10],
+        ttype = lambda w: w.sample_set,
         num_sims = CFG["options"]["hotmaps"]["num_sims"],
         radius = CFG["options"]["hotmaps"]["radius"],
         stop_criteria = CFG["options"]["hotmaps"]["stop_criteria"],

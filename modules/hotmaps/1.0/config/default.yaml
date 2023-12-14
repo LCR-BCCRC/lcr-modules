@@ -43,6 +43,7 @@ lcr-modules:
                 radius: 10
                 stop_criteria: 200
 
+        update_mysql_tbl_script: "{MODSDIR}/etc/mysql_update_tbl.py"
         detailed_hotspots_script: "{MODSDIR}/etc/detailed_hotspots.py"
 
         scratch_subdirectories: []
