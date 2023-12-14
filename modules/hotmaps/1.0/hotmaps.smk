@@ -296,8 +296,6 @@ rule _hotmaps_vcf2maf:
     output:
         maf = CFG["dirs"]["vcf2maf"] + "maf/{sample_set}/{tumour_id}_vs_{normal_sample_id}.maf",
         vep = CFG["dirs"]["bcftools"] + "vcf/{sample_set}/{tumour_id}_vs_{normal_sample_id}.annotate.vep.vcf"
-    params:
-        opts = CFG["vcf2maf"]["options"]
     conda:
         CFG["conda_envs"]["bcftools"]
     log:

@@ -12,11 +12,10 @@ lcr-modules:
             seq_types: ["genome","capture"]
             include_non_coding: False
             prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
-            blacklists: ["/projects/rmorin_scratch/BL_DLBCL-BL-like_DLBCL_hotspot_analysis/blacklists/blacklist.grch37.tsv", "/projects/rmorin/projects/gambl-repos/gambl-mcruz/etc/curated_blacklist/candidateblacklist.schmitz.grch37.tsv"]
+            blacklists: []
         
         vcf2maf:
             vep_cache: "__UPDATE__"
-            options: ""
 
         hotmaps_repo: "https://github.com/morinlab/HotMAPS/archive/refs/heads/master.zip"
 
