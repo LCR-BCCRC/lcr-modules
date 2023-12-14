@@ -225,7 +225,7 @@ rule _hotmaps_split_dnps:
         maf = str(rules._hotmaps_prep_input.output.maf)
     output:
         dnps = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.dnps.maf",
-        filtered_maf = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.dnp_filtered.maf"
+        filtered_maf = temp(CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.dnp_filtered.maf")
     shell:
         op.as_one_line("""
         variant_type_col=$(head -n 1 {input.maf} | sed 's/\\t/\\n/g' | nl | grep "Variant_Type" | cut -f 1) &&
@@ -345,7 +345,7 @@ rule _hotmaps_merge_mafs:
         maf_annotated = _get_dnp_mafs,
         maf = str(rules._hotmaps_split_dnps.output.filtered_maf)     
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.reannotated.maf"
+        maf = temp(CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.reannotated.maf")
     run:
         import pandas as pd
         main_maf = pd.read_table(input.maf, comment = "#", sep="\t")
@@ -409,7 +409,6 @@ rule _hotmaps_prep_mutations:
 
 rule _hotmaps_prep_mupit_annotation:
     input:
-        #maf = CFG["inputs"]["custom_maf"]
         maf = str(rules._hotmaps_input.output.maf)
     output:
         annotation = CFG["dirs"]["hotmaps"] + "{sample_set}/mupit_annotations/mupit_mutations_{sample_set}"
@@ -432,7 +431,6 @@ rule _hotmaps_prep_mupit_annotation:
 
 rule _hotmaps_filter_hypermutated:
     input:
-        #maf = CFG["inputs"]["custom_maf"],
         maf = str(rules._hotmaps_input.output.maf),
         nf_mupit = str(rules._hotmaps_prep_mutations.output.mupit_non_filtered)
     output:
@@ -568,7 +566,6 @@ rule _hotmaps_run_hotspot:
         **CFG["resources"]["hotmaps"]
     log:
         stdout = CFG["logs"]["hotmaps"] + "_hotmaps_run/{sample_set}/run_hotspot_{split}.stdout.log"
-        #stdout = CFG["logs"]["hotmaps"] + "{sample_set}/hotmaps_run_{split}.stdout.log"
     shell:
         op.as_one_line("""
         python {params.script} --log-level=INFO -m {params.mutation} -a {params.pdb} -t {params.ttype} -n {params.num_sims} 
