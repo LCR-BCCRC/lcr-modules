@@ -9,13 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Manuela Cruz.
 
-- HotMAPS maps missense mutations to protein residues on PDB structures. Prior to running, PDB structures must be downloaded and their paths must specified in the config under ["lcr-modules"]["hotmaps"]["pdb_structure_dirs"]. More information on downloading PDB structures here: https://github.com/KarchinLab/HotMAPS/wiki/Tutorial-(Exome-scale). Please note that the `rsync` command provided at the link above will download <ins>ALL</ins> PDB structures, which will result in a huge directory. You can download only necessary structures (`biounit` and `structures` PDBs) using these paths:
-`rsync.rcsb.org::ftp_data/biounit/coordinates/all/`
-`rsync.rcsb.org::ftp_data/structures/all/pdb/`
-More information here:
-https://www.wwpdb.org/ftp/pdb-ftp-sites
-Take a look at the directory structure of the wwPDB database here:
-https://files.wwpdb.org/pub/pdb/data/.
+- HotMAPS maps missense mutations to protein residues on PDB structures. Prior to running, PDB structures must be downloaded and their paths must specified in the config under `["lcr-modules"]["hotmaps"]["pdb_structure_dirs"]`. More information on downloading PDB structures here: https://github.com/KarchinLab/HotMAPS/wiki/Tutorial-(Exome-scale) <br />
+Please note that the `rsync` command provided at the link above will download <ins>all</ins> PDB structures, which will result in a huge directory. You can download only the necessary structures (`biounit` and `structures` PDBs) using these paths:<br />
+`rsync.rcsb.org::ftp_data/biounit/coordinates/all/`<br />
+`rsync.rcsb.org::ftp_data/structures/all/pdb/`<br />
+More information here:<br />
+https://www.wwpdb.org/ftp/pdb-ftp-sites <br />
+Take a look at the directory structure of the wwPDB database here:<br />
+https://files.wwpdb.org/pub/pdb/data/ <br />
 Finally, the example config provided in the HotMAPS repo can help if you are confused about which PDB structures are required and how to specify their paths in the lcr-modules .yaml config file: https://github.com/KarchinLab/HotMAPS/blob/master/config.txt. The HotMAPS scripts have been updated such that PDB structures from either `ftp_data/structures/all/pdb/` and `ftp_data/structures/divided/pdb/` are accepted.
 
 - HotMAPS depends on a MySQL database created by the Karchin Lab that maps genomic coordinates to PDB residues. This database must be downloaded before running HotMAPS and the database name, host, user, and password information must be specified in the config. More information here: https://github.com/KarchinLab/HotMAPS/wiki/MySQL-database
