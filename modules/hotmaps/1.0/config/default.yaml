@@ -49,7 +49,6 @@ lcr-modules:
         scratch_subdirectories: []
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
             bcftools: "{MODSDIR}/envs/bcftools.yaml"
             hotmaps: "{MODSDIR}/envs/hotmaps.yaml"
