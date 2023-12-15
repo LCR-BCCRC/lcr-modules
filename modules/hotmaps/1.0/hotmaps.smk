@@ -225,7 +225,7 @@ rule _hotmaps_split_dnps:
         maf = str(rules._hotmaps_prep_input.output.maf)
     output:
         dnps = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.dnps.maf",
-        filtered_maf = temp(CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.dnp_filtered.maf")
+        filtered_maf = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.dnp_filtered.maf"
     shell:
         op.as_one_line("""
         variant_type_col=$(head -n 1 {input.maf} | sed 's/\\t/\\n/g' | nl | grep "Variant_Type" | cut -f 1) &&
@@ -341,9 +341,10 @@ def _get_dnp_mafs(wildcards):
 rule _hotmaps_merge_mafs:
     input:
         maf_annotated = _get_dnp_mafs,
+        dnps = str(rules._hotmaps_split_dnps.output.dnps),
         maf = str(rules._hotmaps_split_dnps.output.filtered_maf)     
     output:
-        maf = temp(CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.reannotated.maf")
+        maf = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.reannotated.maf"
     run:
         import pandas as pd
         main_maf = pd.read_table(input.maf, comment = "#", sep="\t")
