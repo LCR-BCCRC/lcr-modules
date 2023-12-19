@@ -35,7 +35,7 @@ lcr-modules:
                 mysql_passwd: "__UPDATE__"
             hotmaps:
                 hypermut_threshold: "500"
-                pdb_splits: 500
+                pdb_splits: 250
                 group_func: "min"
                 q_value: ".01"
                 num_sims: 10000
@@ -53,11 +53,11 @@ lcr-modules:
             hotmaps: "{MODSDIR}/envs/hotmaps.yaml"
             
         threads:
-            hotmaps: 4
+            hotmaps: 1
 
         resources:
             hotmaps: 
-                mem_mb: 2000
+                mem_mb: 5000
             
         pairing_config:
             genome:
