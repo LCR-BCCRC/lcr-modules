@@ -353,27 +353,24 @@ rule _hotmaps_merge_mafs:
             main_maf = pd.concat([main_maf, df])
         main_maf.to_csv(output.maf, sep="\t", na_rep="NA", index=False)
 
+assert all(os.path.isfile(blacklist) for blacklist in CFG["maf_processing"]["blacklists"]), "ERROR: Not all blacklist files could be found."
+
 rule _hotmaps_deblacklist:
     input:
         maf = ancient(str(rules._hotmaps_merge_mafs.output.maf)),
         original = str(rules._hotmaps_prep_input.output.maf),
-        blacklists = CFG["maf_processing"]["blacklists"]
+        blacklists = CFG["maf_processing"]["blacklists"],
+        deblacklist_script = CFG["deblacklist_script"]
     output:
         maf = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.reannotated.deblacklisted.maf"
-    run:
-        import pandas as pd
-        maf = pd.read_table(input.maf, comment="#", sep="\t")
-        for blacklist in input.blacklists:
-            blacklist_table = pd.read_table(blacklist, comment="#", sep="\t")
-            blacklist_table["Chromosome"] = blacklist_table.apply(lambda x: x["chrpos"].split(":")[0], axis=1)
-            blacklist_table["Start_Position"] = blacklist_table.apply(lambda x: int(x["chrpos"].split(":")[1]), axis=1)
-            # Create tuple of blacklist variants
-            blacklist_pos = set(map(tuple, blacklist_table[["Chromosome","Start_Position"]].values))
-            # Get T/F index of blacklist variants in MAF
-            variant_in_blacklist = maf[["Chromosome","Start_Position"]].apply(lambda x, blacklist_pos: tuple(x) in blacklist_pos, args=(blacklist_pos,), axis=1)
-            # Keep only those that are not in blacklist
-            maf = maf[variant_in_blacklist == False]
-        maf.to_csv(output.maf, sep="\t", na_rep="NA", index=False)
+    params:
+        drop_threshold = CFG["maf_processing"]["blacklist_drop_threshold"],
+        blacklists = CFG["maf_processing"]["blacklists"]
+    log:
+        stdout = CFG["logs"]["inputs"] + "_hotmaps_deblacklist/{sample_set}/deblacklist.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "_hotmaps_deblacklist/{sample_set}/deblacklist.stderr.log"
+    shell:
+        "{input.deblacklist_script} --input {input.maf} --output {output.maf} --drop-threshold {params.drop_threshold} --blacklists {params.blacklists} > {log.stdout} 2> {log.stderr}"
 
 rule _hotmaps_input:
     input:
