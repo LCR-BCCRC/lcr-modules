@@ -102,13 +102,6 @@ def get_maf(wildcards):
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-rule _igv_symlink_regions_file:
-    input:
-        regions_file = CFG["inputs"]["regions_file"]
-    output:
-        regions_file = CFG["dirs"]["inputs"] + "regions/regions_file.txt"
-    run:
-        op.absolute_symlink(input.regions_file, output.regions_file)
 
 rule _igv_symlink_bam:
     input:
@@ -256,12 +249,13 @@ rule _igv_merge_lifted_regions:
         merged_df = pd.DataFrame()
         for region in input.regions:
             try:
-                df = pd.read_table(region, comment = "#", sep = "\t")
+                df = pd.read_table(region, comment = "#", sep = "\t", header=None)
+                df.drop(df[df[0] == "chrom"].index, inplace = True)
                 merged_df = pd.concat([merged_df, df])
             except:
                 print(f"Lifted regions file is empty: {region}")
         merged_df = merged_df.drop_duplicates()
-        merged_df.to_csv(output.regions, sep="\t", index=False)
+        merged_df.to_csv(output.regions, sep="\t", index=False, header=False)
 
 # Filter MAF to lines containing positions of interest
 rule _igv_filter_maf:
@@ -499,7 +493,7 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
             failed_summary = CFG["dirs"]["outputs"] + "snapshot_estimates/failed_summary.txt",
             ready = temp(CFG["dirs"]["outputs"] + "snapshot_estimates/failed_summary.completed")
         run:
-            header = "\t".join(["sample_id","seq_type","genome_build","gene","chromosome","position","preset","snapshot_path"])
+            header = "\t".join(["sample_id","seq_type","genome_build","gene","chromosome","position","preset","status","snapshot_path"])
             with open(output.failed_summary, "w") as handle:
                 handle.write(header + "\n")
             ready = open(output.ready, "w")
@@ -519,7 +513,8 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
             server_number = "-n " + CFG["options"]["xvfb_parameters"]["server_number"] if CFG["options"]["xvfb_parameters"]["server_number"] is not None else "--auto-servernum",
             server_args = CFG["options"]["xvfb_parameters"]["server_args"],
             batch_temp = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{preset}/{chromosome}:{start_position}--{gene}--{tumour_id}" + SUFFIX + ".batch.temp",
-            failed_summary = str(rules._igv_track_failed.output.failed_summary)
+            failed_summary = str(rules._igv_track_failed.output.failed_summary),
+            thresholds = CFG["options"]["quality_control"]
         resources:
             **CFG["resources"]["_igv_quality_control"]
         log:
@@ -546,26 +541,58 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
             if is_corrupt == True:
                 os.system(f'echo "Snapshot may be corrupt." >> {log.stdout}')
                 success = False
-            if height in ["506","547","559"]:
+            # Check if truncated
+            if height in params.thresholds[wildcards.pair_status_directory]["truncated"]:
                 attempts = 0
                 os.system(f'sleep=$(grep "Sleep" {params.batch_script} | cut -d " " -f 2) && sed "s/setSleepInterval $sleep/setSleepInterval 5000/g" {params.batch_script} > {params.batch_temp} && echo "exit" >> {params.batch_temp}')
-                while height in ["506","547","559"] and attempts < 3:
+                while height in params.thresholds[wildcards.pair_status_directory]["truncated"] and attempts < 3:
                     os.system(f'echo "Snapshot may be truncated. Current snapshot height is {height}. Rerunning IGV batch script {params.batch_script} with increased sleep interval.\n" >> {log.stdout}')
                     attempts += 1
                     os.system(f'echo "IGV ATTEMPT #{attempts}:" >> {log.stdout}')
                     os.system(f'echo "IGV ATTEMPT #{attempts}:" >> {log.stderr}')
                     os.system(f'maxtime=$(($(wc -l < {params.batch_temp}) * 60 + 15)) ; timeout --foreground $maxtime xvfb-run -s "-screen 0 1980x1020x24" {params.server_number} {params.server_args} {params.igv} -b {params.batch_temp} >> {log.stdout} 2>> {log.stderr}')
                     height = str(subprocess.check_output(f"identify -format '%h' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
-                if height in ["547","559"]:
+            # Check if blank
+            possibly_blank = False
+            blank_heights = list(params.tresholds[wildcards.pair_status_directory]["blank"])
+            for height_threshold in blank_heights:
+                if any(symbol in height_threshold for symbol in ["<",">"]):
+                    if "<" in height_threshold:
+                        if float(height) < float(height_threshold.replace("<","")):
+                            possibly_blank = True
+                    if ">" in height_threshold:
+                        if float(height) > float(height_threshold.replace("<","")):
+                            possibly_blank = True
+                else:
+                    if height == height_threshold:
+                        possibly_blank = True
+                if possibly_blank == True:
+                    # Determine if snap is blank based on kurtosis and skewness values
+                    kurtosis_threshold = blank_heights[height_threshold]["kurtosis"]
+                    skewness_threshold = blank_heights[height_threshold]["skewness"]
                     kurtosis, skewness = [float(value.split(": ")[1]) for value in str(subprocess.check_output(f'identify -verbose {input.snapshot} | grep -E "kurtosis|skewness" | tail -n 2', shell=True)).replace("\\n'","").split("\\n      ")]
-                    blank_kurtosis = {"547": 18.5, "559": 18.2}
-                    blank_skew = -4
-                    if kurtosis > blank_kurtosis[height] and skewness < blank_skew:
-                        os.system(f'echo "Snapshot may be blank. Current values:\nHeight:{height}, kurtosis: {str(kurtosis)}, skewness: {str(skewness)}\nSnapshots with height of 547, kurtosis greater than 18.5, and skewness less than 4 are likely blank, snapshots with height of 559, kurtosis greater than 18.2, and skewness less than 4 may be blank. Blank snapshots may be due to errors reading BAM file headers, Java address bind errors or other errors occurring during IGV run." >> {log.stdout}')
+                    if kurtosis > kurtosis_threshold and skewness < skewness_threshold and attempts == 0:
+                        # Rerun if snapshot was not run during truncated check
+                        os.system(f'sleep=$(grep "Sleep" {params.batch_script} | cut -d " " -f 2) && sed "s/setSleepInterval $sleep/setSleepInterval 5000/g" {params.batch_script} > {params.batch_temp} && echo "exit" >> {params.batch_temp}')
+                        while kurtosis > kurtosis_threshold and skewness < skewness_threshold and new_height == height and attempts < 3:
+                            os.system(f'echo "Snapshot may be truncated. Current snapshot height is {height}. Rerunning IGV batch script {params.batch_script} with increased sleep interval.\n" >> {log.stdout}')
+                            attempts += 1
+                            os.system(f'echo "IGV ATTEMPT #{attempts}:" >> {log.stdout}')
+                            os.system(f'echo "IGV ATTEMPT #{attempts}:" >> {log.stderr}')
+                            os.system(f'maxtime=$(($(wc -l < {params.batch_temp}) * 60 + 15)) ; timeout --foreground $maxtime xvfb-run -s "-screen 0 1980x1020x24" {params.server_number} {params.server_args} {params.igv} -b {params.batch_temp} >> {log.stdout} 2>> {log.stderr}')
+                            new_height = str(subprocess.check_output(f"identify -format '%h' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
+                            kurtosis, skewness = [float(value.split(": ")[1]) for value in str(subprocess.check_output(f'identify -verbose {input.snapshot} | grep -E "kurtosis|skewness" | tail -n 2', shell=True)).replace("\\n'","").split("\\n      ")]
+                        if new_height != height:
+                            if height_range(new_height, height, symbol):
+                                do !kurtosis cchecks and stuff
+                    if kurtosis > kurtosis_threshold and skewness < skewness_threshold:
+                        os.system(f'echo "Snapshot may be blank. Current values:\nHeight:{height}, kurtosis: {str(kurtosis)}, skewness: {str(skewness)}\nSnapshots at this height with kurtosis values greater than {str(kurtosis_threshold)}, and skewness values less than {str(skewness_threshold)} may be blank. Blank snapshots may be due to errors reading BAM file headers, Java address bind errors or other errors occurring during IGV run." >> {log.stdout}')
                         success = False
-                if height == "506":
-                    os.system(f'echo "Snapshot height is {height} and may still be truncated or improperly loaded. Check snapshot {input.snapshot}" >> {log.stdout}')
-                    success = False
+                    break
+            # Check if height matches heights of failed snapshots
+            if height in params.thresholds[wildcards.pair_status_directory]["failed"]:
+                os.system(f'echo "Snapshot height is {height} and may still be truncated or improperly loaded. Check snapshot {input.snapshot}" >> {log.stdout}')
+                success = False
             if width == "640":
                 attempts = 0
                 os.system(f'echo "Snapshot appears to be in incorrect dimensions. Current width is {width} and might be due to xvfb-run unable to connect to current server {params.server_number} due to a server lock. Attempting to run on different server number..." >> {log.stdout}')
@@ -585,9 +612,58 @@ if CFG["estimate_only"] == False and CFG["identify_failed_snaps"]==False:
             if success == True:
                 os.system(f'touch {output.snapshot_qc}')
             if success == False:
-                outline = "\t".join([wildcards.tumour_id, wildcards.seq_type, wildcards.genome_build, wildcards.gene, wildcards.chromosome, wildcards.start_position, wildcards.preset, input.snapshot])
+                qc_status = "failed"
+                outline = "\t".join([wildcards.tumour_id, wildcards.seq_type, wildcards.genome_build, wildcards.gene, wildcards.chromosome, wildcards.start_position, wildcards.preset, qc_status, input.snapshot])
                 with open(params.failed_summary, "a") as handle:
                     handle.write(outline + "\n")
+            elif attempts == 3:
+                qc_status = "suspicious"
+                outline = "\t".join([wildcards.tumour_id, wildcards.seq_type, wildcards.genome_build, wildcards.gene, wildcards.chromosome, wildcards.start_position, wildcards.preset, qc_status, input.snapshot])
+                with open(params.failed_summary, "a") as handle:
+                    handle.write(outline + "\n")
+
+            #if height in ["506","545","547","559","570"]:
+            #    attempts = 0
+            #    os.system(f'sleep=$(grep "Sleep" {params.batch_script} | cut -d " " -f 2) && sed "s/setSleepInterval $sleep/setSleepInterval 5000/g" {params.batch_script} > {params.batch_temp} && echo "exit" >> {params.batch_temp}')
+            #    while height in ["506","545","547","559","570"] and attempts < 3:
+            #        os.system(f'echo "Snapshot may be truncated. Current snapshot height is {height}. Rerunning IGV batch script {params.batch_script} with increased sleep interval.\n" >> {log.stdout}')
+            #        attempts += 1
+            #        os.system(f'echo "IGV ATTEMPT #{attempts}:" >> {log.stdout}')
+            #        os.system(f'echo "IGV ATTEMPT #{attempts}:" >> {log.stderr}')
+            #        os.system(f'maxtime=$(($(wc -l < {params.batch_temp}) * 60 + 15)) ; timeout --foreground $maxtime xvfb-run -s "-screen 0 1980x1020x24" {params.server_number} {params.server_args} {params.igv} -b {params.batch_temp} >> {log.stdout} 2>> {log.stderr}')
+            #        height = str(subprocess.check_output(f"identify -format '%h' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
+            #    if height in ["547","559"]:
+            #        kurtosis, skewness = [float(value.split(": ")[1]) for value in str(subprocess.check_output(f'identify -verbose {input.snapshot} | grep -E "kurtosis|skewness" | tail -n 2', shell=True)).replace("\\n'","").split("\\n      ")]
+            #        blank_kurtosis = {"547": 18.5, "559": 18.2}
+            #        blank_skew = -4
+            #        if kurtosis > blank_kurtosis[height] and skewness < blank_skew:
+            #            os.system(f'echo "Snapshot may be blank. Current values:\nHeight:{height}, kurtosis: {str(kurtosis)}, skewness: {str(skewness)}\nSnapshots with height of 547, kurtosis greater than 18.5, and skewness less than 4 are likely blank, snapshots with height of 559, kurtosis greater than 18.2, and skewness less than 4 may be blank. Blank snapshots may be due to errors reading BAM file headers, Java address bind errors or other errors occurring during IGV run." >> {log.stdout}')
+            #            success = False
+            #    if height == "506":
+            #        os.system(f'echo "Snapshot height is {height} and may still be truncated or improperly loaded. Check snapshot {input.snapshot}" >> {log.stdout}')
+            #        success = False
+            #if width == "640":
+            #    attempts = 0
+            #    os.system(f'echo "Snapshot appears to be in incorrect dimensions. Current width is {width} and might be due to xvfb-run unable to connect to current server {params.server_number} due to a server lock. Attempting to run on different server number..." >> {log.stdout}')
+            #    if params.server_number == "--auto-servernum" or int(params.server_number.replace("-n ","")) >= 99:
+            #        new_server = 1
+            #    else:
+            #        new_server = int(params.server_number.replace("-n ","")) + 1
+            #    while width == "640" and attempts < 5:
+            #        os.system(f'echo "Attempting with server number {new_server}..." >> {log.stdout}')
+            #        os.system(f'echo "Attempting with server number {new_server}..." >> {log.stderr}')
+            #        os.system(f'maxtime=$(($(wc -l < {params.merged_batch}) * 60 + 15)) ; timeout --foreground $maxtime xvfb-run -s "-screen 0 1980x1020x24" -n {str(new_server)} {params.server_args} {params.igv} -b {params.merged_batch} >> {log.stdout} 2>> {log.stderr}')
+            #        width = str(subprocess.check_output(f"identify -format '%w' {input.snapshot}", shell=True)).split("'")[1].split("\\n")[0]
+            #        new_server += 1
+            #    if width == "640":
+            #        os.system(f'echo "Snapshot still appears to be in improper dimensions. Double check xvfb-run parameters." >> {log.stdout}')
+            #        success = False
+            #if success == True:
+            #    os.system(f'touch {output.snapshot_qc}')
+            #if success == False:
+            #    outline = "\t".join([wildcards.tumour_id, wildcards.seq_type, wildcards.genome_build, wildcards.gene, wildcards.chromosome, wildcards.start_position, wildcards.preset, input.snapshot])
+            #    with open(params.failed_summary, "a") as handle:
+            #        handle.write(outline + "\n")
 
     # Symlinks the final output files into the module results directory (under '99-outputs/')
     rule _igv_symlink_snapshot:

@@ -61,6 +61,25 @@ lcr-modules:
                 server_number: "99"
                 server_args: ""
 
+            quality_control:
+                tumour_only:
+                    truncated: ["506,545,547,559,570"]
+                    blank:
+                        "547":
+                            kurtosis: 18.5
+                            skewness: -4
+                        "559":
+                            kurtosis: 18.2
+                            skewness: -4
+                    failed: ["506"]
+                tumour_normal_pair:
+                    truncated: ["533","1226","1055"]
+                    blank:
+                        "<1000":
+                            kurtosis: 8
+                            skewness: -3
+                    failed: ["533"]
+
         scripts:
             format_regions: "etc/format_regions.py"
             filter_script: "etc/filter_maf.py"
