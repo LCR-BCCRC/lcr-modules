@@ -107,8 +107,8 @@ checkpoint _gistic2_prepare_seg:
     log:
         log = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}.log"
     params:
-        seq_type = CFG["samples"]["seq_type"].unique(),
-        metadata = CFG["samples"][["sample_id","seq_type","genome_build","cohort","pathology","unix_group","time_point"]].to_numpy(na_value='')
+        metadata_cols = CFG["samples"],
+        metadata = CFG["samples"].to_numpy(na_value='')
     script:
         PREPARE_SEG
 
