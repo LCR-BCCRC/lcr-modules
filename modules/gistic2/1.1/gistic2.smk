@@ -102,7 +102,6 @@ checkpoint _gistic2_prepare_seg:
                     ),
         subsetting_categories = str(rules._gistic2_input_subsetting_categories.output.subsetting_categories)
     output:
-        # directory(CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}"),
         CFG["dirs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}/done"
     log:
         log = CFG["logs"]["prepare_seg"] + "{case_set}--{projection}--{launch_date}.log"
