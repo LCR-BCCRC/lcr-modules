@@ -251,9 +251,9 @@ rule _qc_sort_baits:
     shell:
         op.as_one_line("""
         if [ -e {params.baits} ]; then
-            cat {params.baits} > {output.intermediate_baits};
+            cut -f 1-3 {params.baits} > {output.intermediate_baits};
         else
-            curl -L {params.baits} > {output.intermediate_baits};
+            curl -L {params.baits} | cut -f 1-3 > {output.intermediate_baits};
         fi
             &&
         QC_REF_PREFIXED==$(head -1 {input.fai} | cut -f 1)
