@@ -1,5 +1,5 @@
 lcr-modules:
-    
+
     cnvkit:
 
         # TODO: Update the list of available wildcards, if applicable
@@ -29,15 +29,18 @@ lcr-modules:
                 hg38:
                     agilent: ""
                     idt: ""
+                grch37:
+                    agilent: ""
+                    idt: ""
 
 
             cns:
                 method: "cbs " #segmentation methods (default)
                 # choices: cbs, flasso, haar, none, hmm, hmm-tumor, hmm-germline
- 
+
             # this is for bcftools calling across your dbSNP sites
             # note that bcftools call -mv is already used in the rule - it will annotate GT which is vital to cnvkit
-            SNPs: 
+            SNPs:
                 quality: 20 # minimum quality
                 opts: "--ignore-RG  --skip-indels  --count-orphans  --annotate DP,AD "
 
@@ -54,8 +57,8 @@ lcr-modules:
                 opts: "" # you can use additional options here, for example -y assumes a male reference
                 # if you set rescale as "threshold", you can include "-t=-1.1,-0.4,0.3,0.7" to rescale the copy number state to your thresholds you set here
             scatter:
-                min_depth: 20 # minimum depth to include 
-                ymax: 10 
+                min_depth: 20 # minimum depth to include
+                ymax: 10
                 ymin: -10
             diagram:
                 threshold: 0.6
@@ -96,7 +99,7 @@ lcr-modules:
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
             liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
-            
+
         threads:
             reference: 24
             cns: 24
@@ -104,7 +107,7 @@ lcr-modules:
 
 
         resources:
-            reference: 
+            reference:
                 mem_mb: 48000
             fix:
                 mem_mb: 12000
@@ -118,10 +121,10 @@ lcr-modules:
             plots:
                 mem_mb: 8000
             breaks:
-                mem_mb: 6000            
+                mem_mb: 6000
             geneMetrics:
                 mem_mb: 6000
-            seg: 
+            seg:
                 mem_mb: 6000
             outputs:
                 mem_mb: 6000

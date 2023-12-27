@@ -36,10 +36,8 @@ if(is.null(snakemake@params[[1]])){
     message("Subsetting Gene List for Protein Coding Gene Only...")
     genes = genes %Q% (gene_type == 'protein_coding') 
   }
-  
   fish = Fish(hypotheses = genes, 
-                    events = events, 
-                    eligible = eligible, 
+                    events = events,
                     idcol = 'Tumor_Sample_Barcode',
                     use_local_mut_density=TRUE)
 }else{
@@ -48,8 +46,7 @@ if(is.null(snakemake@params[[1]])){
   tiles = gr.tile(seqinfo(maf), snakemake@params[[1]])
   
   fish = Fish(hypotheses = tiles, 
-                    events = events, 
-                    eligible = eligible, 
+                    events = events,
                     idcol = 'Tumor_Sample_Barcode',
                     use_local_mut_density=TRUE)
 }
