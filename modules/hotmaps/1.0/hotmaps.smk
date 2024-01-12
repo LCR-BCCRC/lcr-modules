@@ -228,9 +228,7 @@ rule _hotmaps_split_dnps:
     shell:
         op.as_one_line("""
         variant_type_col=$(head -n 1 {input.maf} | sed 's/\\t/\\n/g' | nl | grep "Variant_Type" | cut -f 1) &&
-        echo $variant_type_col &&
         protein_position_col=$(head -n 1 {input.maf} | sed 's/\\t/\\n/g' | nl | grep "Protein_position" | cut -f 1) &&
-        echo $protein_position_col &&
         cat <( head -n 1 {input.maf} ) <( awk -v var_col="$variant_type_col" -v protein_col="$protein_position_col" ' {{ if ( $var_col=="DNP" && $protein_col ~ /[0-9?]+[-][0-9?]+/) print $0 }} ' {input.maf} ) > {output.dnps}
         """)
 
