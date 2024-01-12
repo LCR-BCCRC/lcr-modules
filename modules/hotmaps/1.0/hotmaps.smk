@@ -184,7 +184,7 @@ rule _hotmaps_input_maf:
 
 rule _hotmaps_input_subsets:
     input:
-        sample_subsets = CFG["inputs"]["sample_sets"]
+        sample_subsets = ancient(CFG["inputs"]["sample_sets"])
     output:
         sample_subsets = CFG["dirs"]["inputs"] + "sample_sets/sample_sets.tsv"
     run:
@@ -224,16 +224,14 @@ rule _hotmaps_split_dnps:
     input:
         maf = str(rules._hotmaps_prep_input.output.maf)
     output:
-        dnps = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.dnps.maf",
-        filtered_maf = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.dnp_filtered.maf"
+        dnps = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.dnps.maf"
     shell:
         op.as_one_line("""
         variant_type_col=$(head -n 1 {input.maf} | sed 's/\\t/\\n/g' | nl | grep "Variant_Type" | cut -f 1) &&
         echo $variant_type_col &&
         protein_position_col=$(head -n 1 {input.maf} | sed 's/\\t/\\n/g' | nl | grep "Protein_position" | cut -f 1) &&
         echo $protein_position_col &&
-        cat <( head -n 1 {input.maf} ) <( awk -v var_col="$variant_type_col" -v protein_col="$protein_position_col" ' {{ if ( $var_col=="DNP" && $protein_col ~ /[0-9?]+[-][0-9?]+/) print $0 }} ' {input.maf} ) > {output.dnps} &&
-        awk -v var_col="$variant_type_col" -v protein_col="$protein_position_col" ' {{ if ( $var_col !~ "DNP" || $protein_col != /[0-9?]+-[0-9?]+/ ) print $0 }} ' {input.maf} > {output.filtered_maf}
+        cat <( head -n 1 {input.maf} ) <( awk -v var_col="$variant_type_col" -v protein_col="$protein_position_col" ' {{ if ( $var_col=="DNP" && $protein_col ~ /[0-9?]+[-][0-9?]+/) print $0 }} ' {input.maf} ) > {output.dnps}
         """)
 
 checkpoint _hotmaps_maf2vcf:
@@ -319,11 +317,8 @@ rule _hotmaps_vcf2maf:
         """) 
 
 def _get_dnp_mafs(wildcards):
-    CFG = config["lcr-modules"]["hotmaps"]
     checkpoint_outputs = checkpoints._hotmaps_maf2vcf.get(**wildcards).output.done
-
     dnps = (str(rules._hotmaps_split_dnps.output.dnps)).format(**wildcards)
-
     sample_table = pd.read_table(dnps, comment = "#", sep = "\t")
     sample_table = sample_table[["Tumor_Sample_Barcode","Matched_Norm_Sample_Barcode"]].drop_duplicates()
 
@@ -341,13 +336,15 @@ def _get_dnp_mafs(wildcards):
 rule _hotmaps_merge_mafs:
     input:
         maf_annotated = _get_dnp_mafs,
+        maf2vcf = str(rules._hotmaps_maf2vcf.output.done),
         dnps = str(rules._hotmaps_split_dnps.output.dnps),
-        maf = str(rules._hotmaps_split_dnps.output.filtered_maf)     
+        maf = str(rules._hotmaps_prep_input.output.maf)
     output:
         maf = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.reannotated.maf"
     run:
         import pandas as pd
         main_maf = pd.read_table(input.maf, comment = "#", sep="\t")
+        main_maf = main_maf[~((main_maf["Variant_Type"]=="DNP") & (main_maf["Protein_position"].str.match(r'\d+-\d+|\?-\d+|\d+-\?')))]
         for maf in input.maf_annotated:
             df = pd.read_table(maf, comment="#", sep="\t")
             main_maf = pd.concat([main_maf, df])
@@ -358,7 +355,7 @@ assert all(os.path.isfile(blacklist) for blacklist in CFG["maf_processing"]["bla
 rule _hotmaps_deblacklist:
     input:
         maf = ancient(str(rules._hotmaps_merge_mafs.output.maf)),
-        original = str(rules._hotmaps_prep_input.output.maf),
+        dnps = str(rules._hotmaps_split_dnps.output.dnps),
         blacklists = CFG["maf_processing"]["blacklists"],
         deblacklist_script = CFG["deblacklist_script"]
     output:
