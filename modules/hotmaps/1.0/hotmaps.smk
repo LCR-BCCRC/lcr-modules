@@ -135,8 +135,11 @@ rule _hotmaps_get_pdb_info:
         CFG["conda_envs"]["hotmaps"]
     shell:
         op.as_one_line("""
-        mysql -u {params.mysql_user} -A -p{params.mysql_passwd} -h {params.mysql_host} {params.mysql_database} <
-        {params.mysql_db_script} > {output.pdb_info} 2> {log.stderr}
+        mysql -u {params.mysql_user} 
+        -A -p{params.mysql_passwd} 
+        -h {params.mysql_host} {params.mysql_database} 
+        < {params.mysql_db_script} > {output.pdb_info} 
+        2> {log.stderr}
         """)
 
 rule _hotmaps_add_pdb_path:
@@ -153,7 +156,12 @@ rule _hotmaps_add_pdb_path:
         stdout = CFG["logs"]["inputs"] + "add_pdb_path/add_pdb_path.stdout.log",
         stderr = CFG["logs"]["inputs"] + "add_pdb_path/add_pdb_path.stderr.log"
     shell:
-        "python {params.add_path_script} -p {input.pdb_info} -o {output.pdb_path} > {log.stdout} 2> {log.stderr}"
+        op.as_one_line("""
+        "python {params.add_path_script} 
+        -p {input.pdb_info} 
+        -o {output.pdb_path} 
+        > {log.stdout} 2> {log.stderr}"
+        """)
 
 rule _hotmaps_add_pdb_description:
     input:
@@ -168,7 +176,12 @@ rule _hotmaps_add_pdb_description:
         stdout = CFG["logs"]["inputs"] + "add_pdb_description/add_pdb_description.stdout.log",
         stderr = CFG["logs"]["inputs"] + "add_pdb_description/add_pdb_description.stderr.log"
     shell:
-        "python {params.describe_pdb_script} -i {input.pdb_info_path} -o {output.fully_described_pdb} > {log.stdout} 2> {log.stderr}"
+        op.as_one_line("""
+        "python {params.describe_pdb_script} 
+        -i {input.pdb_info_path} 
+        -o {output.fully_described_pdb} 
+        > {log.stdout} 2> {log.stderr}"
+        """)
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _hotmaps_input_maf:
@@ -359,7 +372,14 @@ rule _hotmaps_deblacklist:
         stdout = CFG["logs"]["inputs"] + "{sample_set}/deblacklist/deblacklist.stdout.log",
         stderr = CFG["logs"]["inputs"] + "{sample_set}/deblacklist/deblacklist.stderr.log"
     shell:
-        "{input.deblacklist_script} --input {input.maf} --output {output.maf} --drop-threshold {params.drop_threshold} --blacklists {params.blacklists} > {log.stdout} 2> {log.stderr}"
+        op.as_one_line("""
+        {input.deblacklist_script} 
+        --input {input.maf} 
+        --output {output.maf} 
+        --drop-threshold {params.drop_threshold} 
+        --blacklists {params.blacklists} 
+        > {log.stdout} 2> {log.stderr}"
+        """)
 
 rule _hotmaps_input:
     input:
@@ -393,7 +413,15 @@ rule _hotmaps_prep_mutations:
         stderr = CFG["logs"]["hotmaps"] + "{sample_set}/prep_mutations/prep_mutations.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} --data-dir {params.mut_dir} --match-regex {params.mut_regex} --host {params.mysql_host} --db {params.mysql_db} --mysql-user {params.mysql_user} --mysql-passwd {params.mysql_pass} --output-dir {params.mut_dir} > {log.stdout} 2> {log.stderr}
+        python {params.script} 
+        --data-dir {params.mut_dir} 
+        --match-regex {params.mut_regex} 
+        --host {params.mysql_host} 
+        --db {params.mysql_db} 
+        --mysql-user {params.mysql_user} 
+        --mysql-passwd {params.mysql_pass} 
+        --output-dir {params.mut_dir} 
+        > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_prep_mupit_annotation:
@@ -418,7 +446,17 @@ rule _hotmaps_prep_mupit_annotation:
         stderr = CFG["logs"]["hotmaps"] + "{sample_set}/prep_mupit_annotation/prep_mupit_annotation.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} --maf {input.maf} -mh {params.mysql_host} -mdb {params.mysql_db} --mysql-user {params.mysql_user} --mysql-passwd {params.mysql_pass} --tumor-type {params.tumor_type} --no-stratify {params.hypermut} -i {params.cov_dir} --output {output.annotation} > {log.stdout} 2> {log.stderr}
+        python {params.script} 
+        --maf {input.maf} 
+        -mh {params.mysql_host} 
+        -mdb {params.mysql_db} 
+        --mysql-user {params.mysql_user} 
+        --mysql-passwd {params.mysql_pass} 
+        --tumor-type {params.tumor_type} 
+        --no-stratify {params.hypermut} 
+        -i {params.cov_dir} 
+        --output {output.annotation} 
+        > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_filter_hypermutated:
@@ -440,7 +478,13 @@ rule _hotmaps_filter_hypermutated:
         stderr = CFG["logs"]["hotmaps"] + "{sample_set}/filter_hypermutated/filter_hypermutated.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} --raw-dir {params.mut_dir} --match-regex {params.mut_regex} {params.mut_threshold} --sample-col Tumor_Sample_Barcode --data-dir {params.mut_dir} > {log.stdout} 2> {log.stderr}
+        python {params.script} 
+        --raw-dir {params.mut_dir} 
+        --match-regex {params.mut_regex} 
+        {params.mut_threshold} 
+        --sample-col Tumor_Sample_Barcode 
+        --data-dir {params.mut_dir} 
+        > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_count_mutations:
@@ -456,7 +500,8 @@ rule _hotmaps_count_mutations:
         stderr = CFG["logs"]["hotmaps"] + "{sample_set}/count_mutations/count_mutations.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} --data-dir {params.data_dir} > {log.stdout} 2> {log.stderr}
+        python {params.script} --data-dir {params.data_dir} 
+        > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_format_mutations:
@@ -472,7 +517,8 @@ rule _hotmaps_format_mutations:
         stderr = CFG["logs"]["hotmaps"] + "{sample_set}/format_mutations/format_mutations.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} --data-dir {params.data_dir} > {log.stdout} 2> {log.stderr}
+        python {params.script} --data-dir {params.data_dir} 
+        > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_merge_mutations:
@@ -488,7 +534,8 @@ rule _hotmaps_merge_mutations:
         stderr = CFG["logs"]["hotmaps"] + "{sample_set}/merge_mutations/merge_mutations.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} {params.data_dir} > {log.stdout} 2> {log.stderr}
+        python {params.script} {params.data_dir} 
+        > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_get_mutations:
@@ -511,7 +558,8 @@ rule _hotmaps_get_mutations:
         op.as_one_line("""
         python {params.load_script} -m {input.mysql_mut} 
         --host {params.mysql_host} --mysql-user {params.mysql_user} 
-        --mysql-passwd {params.mysql_pass} --db {params.mysql_db} && 
+        --mysql-passwd {params.mysql_pass} --db {params.mysql_db} 
+        && 
         mysql -u {params.mysql_user} -A -p{params.mysql_pass} 
         -h {params.mysql_host} {params.mysql_db} < {params.get_script} > {output.mutations}
         """)
@@ -531,7 +579,12 @@ rule _hotmaps_split_pdbs:
         stderr = CFG["logs"]["hotmaps"] + "{sample_set}/split_pdbs/split_pdbs.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} -f {input.pdb} -m {input.mutations} -n {params.splits} --split-dir {params.split_dir} > {log.stdout} 2> {log.stderr} &&
+        python {params.script} 
+        -f {input.pdb} 
+        -m {input.mutations} 
+        -n {params.splits} 
+        --split-dir {params.split_dir} 
+        > {log.stdout} 2> {log.stderr} &&
         touch {output.done}
         """)
 
@@ -559,8 +612,17 @@ rule _hotmaps_run_hotspot:
         stderr = CFG["logs"]["hotmaps"] + "{sample_set}/run_hotspot/hotspot_{split}.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} --log-level=INFO -m {params.mutation} -a {params.pdb} -t {params.ttype} -n {params.num_sims} 
-        -r {params.radius} -o {output.hotspot} -e {params.error} --log {log.stdout} 2> {log.stderr}
+        python {params.script} 
+        --log-level=INFO 
+        -m {params.mutation} 
+        -a {params.pdb} 
+        -t {params.ttype} 
+        -n {params.num_sims} 
+        -r {params.radius} 
+        -o {output.hotspot} 
+        -e {params.error} 
+        --log {log.stdout} 
+        2> {log.stderr}
         """)
 
 def _get_splits(wildcards):
@@ -579,7 +641,9 @@ rule _hotmaps_merge_hotspots:
         output_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/hotspot/full_output/output_*"
     shell:
         op.as_one_line("""
-        cat {params.output_dir} | awk -F"\t" '/Structure/{{s++}}{{if(s==1){{print$0}}}}{{if(s>1 && $0 !~ "^Structure"){{print $0}}}}' > {output.merged}
+        cat {params.output_dir} | 
+        awk -F"\t" '/Structure/{{s++}}{{if(s==1){{print$0}}}}{{if(s>1 && $0 !~ "^Structure"){{print $0}}}}' 
+        > {output.merged}
         """)
 
 rule _hotmaps_multiple_test_correct:
@@ -602,7 +666,14 @@ rule _hotmaps_multiple_test_correct:
         stderr = CFG["logs"]["hotmaps"] + "{sample_set}/multiple_test_correct/mtc_output_{q_value}.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} -i {input.merged} -f {params.group_func} -m {params.mupit_dir} -q {params.q_value} -o {output.mtc} -s {output.significance} > {log.stdout} 2> {log.stderr}
+        python {params.script} 
+        -i {input.merged} 
+        -f {params.group_func} 
+        -m {params.mupit_dir} 
+        -q {params.q_value} 
+        -o {output.mtc} 
+        -s {output.significance} 
+        > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_find_gene:
@@ -624,7 +695,14 @@ rule _hotmaps_find_gene:
         stderr = CFG["logs"]["hotmaps"] + "{sample_set}/find_gene/find_gene_{q_value}.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} -m {input.mtc} -a {params.mupit_dir} -p {input.pdb} -r {params.radius} -q {params.q_value} -o {output.hotspots} > {log.stdout} 2> {log.stderr}
+        python {params.script} 
+        -m {input.mtc} 
+        -a {params.mupit_dir} 
+        -p {input.pdb} 
+        -r {params.radius} 
+        -q {params.q_value} 
+        -o {output.hotspots} 
+        > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_find_structure:
@@ -648,7 +726,14 @@ rule _hotmaps_find_structure:
         stderr = CFG["logs"]["hotmaps"] + "{sample_set}/find_structure/find_structure_{q_value}.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} -i {input.merged} -a {params.mupit_dir} -p {input.pdb} -r {params.radius} -o {output.structures} -s {input.significance} > {log.stdout} 2> {log.stderr}
+        python {params.script} 
+        -i {input.merged} 
+        -a {params.mupit_dir} 
+        -p {input.pdb} 
+        -r {params.radius} 
+        -o {output.structures} 
+        -s {input.significance} 
+        > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_detailed_hotspots:
@@ -675,10 +760,17 @@ rule _hotmaps_detailed_hotspots:
         CFG["conda_envs"]["hotmaps"]
     shell:
         op.as_one_line("""
-        {params.script} --hotspots {input.hotspots} --mupit-annotation {input.mupit_annotation} 
-        --output-merged {input.merged_output} --mtc-file {input.mtc_file} 
-        --q-value {params.q_value} --pdb-info {input.pdb_info} 
-        --angstroms {params.radius} --coordinates-out {output.coordinates} --enriched-out {output.enriched} --overwrite > {log.stdout} 2> {log.stderr}
+        {params.script} 
+        --hotspots {input.hotspots} 
+        --mupit-annotation {input.mupit_annotation} 
+        --output-merged {input.merged_output} 
+        --mtc-file {input.mtc_file} 
+        --q-value {params.q_value} 
+        --pdb-info {input.pdb_info} 
+        --angstroms {params.radius} 
+        --coordinates-out {output.coordinates} 
+        --enriched-out {output.enriched} 
+        --overwrite > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_output:
