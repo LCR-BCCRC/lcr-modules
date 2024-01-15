@@ -587,7 +587,7 @@ rule _hotmaps_multiple_test_correct:
         merged = str(rules._hotmaps_merge_hotspots.output.merged),
         mupit_annotation = str(rules._hotmaps_prep_mupit_annotation.output.annotation)
     output:
-        mtc = CFG["dirs"]["hotmaps"] + "{sample_set}/mtc_output_min_{q_value}.txt",
+        mtc = CFG["dirs"]["hotmaps"] + "{sample_set}/mtc_output_{q_value}.txt",
         significance = CFG["dirs"]["hotmaps"] + "{sample_set}/significance_level_{q_value}.txt"
     params:
         script = CFG["dirs"]["inputs"] + "HotMAPS-master/multiple_testing_correction.py",
@@ -598,8 +598,8 @@ rule _hotmaps_multiple_test_correct:
     conda:
         CFG["conda_envs"]["hotmaps"]
     log:
-        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/multiple_test_correct/mtc_output_min_{q_value}.stdout.log",
-        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/multiple_test_correct/mtc_output_min_{q_value}.stderr.log"
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/multiple_test_correct/mtc_output_{q_value}.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/multiple_test_correct/mtc_output_{q_value}.stderr.log"
     shell:
         op.as_one_line("""
         python {params.script} -i {input.merged} -f {params.group_func} -m {params.mupit_dir} -q {params.q_value} -o {output.mtc} -s {output.significance} > {log.stdout} 2> {log.stderr}
