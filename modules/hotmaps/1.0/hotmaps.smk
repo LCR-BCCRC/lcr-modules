@@ -40,6 +40,10 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "maf2vcf", "bcftools", "vcf2maf", "hotmaps", "outputs"],
 )
 
+if len(CFG["maf_processing"]["sample_sets"]) > 1:
+    subsets = CFG["maf_processing"]["sample_sets"]
+    assert("mysql" in list(vars(workflow)["global_resources"]) and vars(workflow)["global_resources"]["mysql"]==1), f"Please set `--resources mysql=1` when running multiple subsets at once. Currently {len(subsets)} subsets are specified: {subsets}"
+
 # Define rules to be run locally when using a compute cluster
 localrules:
     _install_hotmaps,
@@ -63,11 +67,12 @@ localrules:
     _hotmaps_count_mutations,
     _hotmaps_format_mutations,
     _hotmaps_merge_mutations,
-    _hotmaps_load_mutations,
     _hotmaps_get_mutations,
     _hotmaps_split_pdbs,
     _hotmaps_merge_hotspots,
     _hotmaps_multiple_test_correct,
+    _hotmaps_find_gene,
+    _hotmaps_find_structure,
     _hotmaps_detailed_hotspots,
     _hotmaps_output,
     _hotmaps_all,
@@ -112,22 +117,6 @@ rule _hotmaps_update_config:
         sed -E -i "s@(non_biological_assembly:).*@{params.non_biological_assembly_dir}@" {input.config} &&
         touch {output.config_updated}
         """)
-
-rule _hotmaps_update_mutations_tbl:
-    input:
-        hotmaps_installed = str(rules._install_hotmaps.output.installed)
-    output:
-        tbl_updated = CFG["dirs"]["inputs"] + "HotMAPS-master/table_update.done"
-    params:
-        script = CFG["update_mysql_tbl_script"],
-        mysql_host = CFG["options"]["mysql"]["mysql_host"],
-        mysql_user = CFG["options"]["mysql"]["mysql_user"],
-        mysql_passwd = CFG["options"]["mysql"]["mysql_passwd"],
-        mysql_database = CFG["options"]["mysql"]["mysql_db"]
-    conda:
-        CFG["conda_envs"]["hotmaps"]
-    shell:
-        "{params.script} --host {params.mysql_host} -u {params.mysql_user} -p {params.mysql_passwd} -d {params.mysql_database} -o {output.tbl_updated}"
 
 rule _hotmaps_get_pdb_info:
     input:
@@ -380,7 +369,8 @@ rule _hotmaps_input:
 
 rule _hotmaps_prep_mutations:
     input:
-        maf = str(rules._hotmaps_input.output.maf)
+        maf = str(rules._hotmaps_input.output.maf),
+        installed = str(rules._install_hotmaps.output.installed)
     output:
         mupit_non_filtered = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/non_filtered_mupit.input.{sample_set}.maf"
     params:
@@ -478,52 +468,35 @@ rule _hotmaps_merge_mutations:
         python {params.script} {params.data_dir}
         """)
 
-rule _hotmaps_load_mutations:
-    input:
-        mysql_mut = str(rules._hotmaps_merge_mutations.output.mysql_mut),
-        table_updated = str(rules._hotmaps_update_mutations_tbl.output.tbl_updated)
-    output:
-        mysql_loaded = temp(CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/loaded.success")
-    params:
-        script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/mupit/load_mutations_table.py",
-        mysql_db = CFG["options"]["mysql"]["mysql_db"],
-        mysql_host = CFG["options"]["mysql"]["mysql_host"],
-        mysql_user = CFG["options"]["mysql"]["mysql_user"],
-        mysql_pass = CFG["options"]["mysql"]["mysql_passwd"]
-    conda:
-        CFG["conda_envs"]["hotmaps"]
-    shell:
-        op.as_one_line("""
-        python {params.script} -m {input.mysql_mut} --update-table --host {params.mysql_host} --mysql-user {params.mysql_user} --mysql-passwd {params.mysql_pass} --db {params.mysql_db} &&
-        touch {output.mysql_loaded}
-        """)
-
 rule _hotmaps_get_mutations:
     input:
-        done = str(rules._hotmaps_load_mutations.output.mysql_loaded)
+        mysql_mut = str(rules._hotmaps_merge_mutations.output.mysql_mut)
     output:
-        mutations = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/mutations.txt",
-        mysql_retrieved = temp(CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/retrieved.success")
+        mutations = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/mutations.txt"
     params:
-        script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/sql/get_mutations.sql",
+        load_script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/mupit/load_mutations_table.py",
+        get_script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/sql/get_mutations.sql",
         mysql_db = CFG["options"]["mysql"]["mysql_db"],
         mysql_host = CFG["options"]["mysql"]["mysql_host"],
         mysql_user = CFG["options"]["mysql"]["mysql_user"],
         mysql_pass = CFG["options"]["mysql"]["mysql_passwd"]
     conda:
         CFG["conda_envs"]["hotmaps"]
+    resources:
+        **CFG["resources"]["get_mutations"]
     shell:
         op.as_one_line("""
-        mysql -u {params.mysql_user} -A -p{params.mysql_pass} -h {params.mysql_host} {params.mysql_db} < {params.script} > {output.mutations} &&
-        touch {output.mysql_retrieved}
+        python {params.load_script} -m {input.mysql_mut} 
+        --host {params.mysql_host} --mysql-user {params.mysql_user} 
+        --mysql-passwd {params.mysql_pass} --db {params.mysql_db} && 
+        mysql -u {params.mysql_user} -A -p{params.mysql_pass} 
+        -h {params.mysql_host} {params.mysql_db} < {params.get_script} > {output.mutations}
         """)
 
 rule _hotmaps_split_pdbs:
     input:
         mutations = str(rules._hotmaps_get_mutations.output.mutations),
-        pdb = str(rules._hotmaps_add_pdb_description.output.fully_described_pdb),
-        load_success = str(rules._hotmaps_load_mutations.output.mysql_loaded),
-        retrieve_success = str(rules._hotmaps_get_mutations.output.mysql_retrieved)
+        pdb = str(rules._hotmaps_add_pdb_description.output.fully_described_pdb)
     output:
         done = CFG["dirs"]["hotmaps"] + "{sample_set}/split_pdbs/split_pdbs.success"
     params:
@@ -556,11 +529,12 @@ rule _hotmaps_run_hotspot:
     resources:
         **CFG["resources"]["hotmaps"]
     log:
-        stdout = CFG["logs"]["hotmaps"] + "_hotmaps_run/{sample_set}/run_hotspot_{split}.stdout.log"
+        stdout = CFG["logs"]["hotmaps"] + "_hotmaps_run/{sample_set}/run_hotspot_{split}.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "_hotmaps_run/{sample_set}/run_hotspot_{split}.stderr.log"
     shell:
         op.as_one_line("""
         python {params.script} --log-level=INFO -m {params.mutation} -a {params.pdb} -t {params.ttype} -n {params.num_sims} 
-        -r {params.radius} -o {output.hotspot} -e {params.error} --log {log.stdout}
+        -r {params.radius} -o {output.hotspot} -e {params.error} --log {log.stdout} 2> {log.stderr}
         """)
 
 def _get_splits(wildcards):
@@ -597,9 +571,12 @@ rule _hotmaps_multiple_test_correct:
         q_value = lambda w: w.q_value,
     conda:
         CFG["conda_envs"]["hotmaps"]
+    log:
+        stdout = CFG["logs"]["hotmaps"] + "multiple_test_correction/{sample_set}/{sample_set}_mtc_output_min_{q_value}.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "multiple_test_correction/{sample_set}/{sample_set}_mtc_output_min_{q_value}.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} -i {input.merged} -f {params.group_func} -m {params.mupit_dir} -q {params.q_value} -o {output.mtc} -s {output.significance}
+        python {params.script} -i {input.merged} -f {params.group_func} -m {params.mupit_dir} -q {params.q_value} -o {output.mtc} -s {output.significance} > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_find_gene:
