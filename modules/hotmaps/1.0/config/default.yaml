@@ -60,6 +60,8 @@ lcr-modules:
         resources:
             hotmaps: 
                 mem_mb: 5000
+            get_mutations:
+                mysql: 1
             
         pairing_config:
             genome:
