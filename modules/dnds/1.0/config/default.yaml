@@ -6,7 +6,7 @@ lcr-modules:
             # Available wildcards: {seq_type}
             master_maf: "__UPDATE__"
             subsetting_categories: "__UPDATE__" # e.g. "data/metadata/level3_subsetting_categories.tsv"
-        "__UPDATE__" # E.g. ["DLBCL-only", "BL_DLBCL-BL-like_all"]
+        sample_set: "__UPDATE__" # E.g. ["DLBCL-only", "BL_DLBCL-BL-like_all"]
         include_non_coding: True
         prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
         src_dir: "{MODSDIR}/src/"
