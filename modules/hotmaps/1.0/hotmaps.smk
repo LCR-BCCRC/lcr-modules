@@ -40,6 +40,7 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "maf2vcf", "bcftools", "vcf2maf", "hotmaps", "outputs"],
 )
 
+# Assert statement for workflow-specific requirements
 if len(CFG["maf_processing"]["sample_sets"]) > 1:
     subsets = CFG["maf_processing"]["sample_sets"]
     assert("mysql" in list(vars(workflow)["global_resources"]) and vars(workflow)["global_resources"]["mysql"]==1), f"Please set `--resources mysql=1` when running multiple subsets at once. Currently {len(subsets)} subsets are specified: {subsets}"
@@ -73,7 +74,6 @@ localrules:
     _hotmaps_multiple_test_correct,
     _hotmaps_find_gene,
     _hotmaps_find_structure,
-    _hotmaps_detailed_hotspots,
     _hotmaps_output,
     _hotmaps_all,
 
@@ -129,12 +129,14 @@ rule _hotmaps_get_pdb_info:
         mysql_host = CFG["options"]["mysql"]["mysql_host"],
         mysql_database = CFG["options"]["mysql"]["mysql_db"],
         mysql_db_script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/sql/get_pdb_info.sql"
+    log:
+        stderr = CFG["logs"]["inputs"] + "get_pdb_info/get_pdb_info.stderr.log"
     conda:
         CFG["conda_envs"]["hotmaps"]
     shell:
         op.as_one_line("""
         mysql -u {params.mysql_user} -A -p{params.mysql_passwd} -h {params.mysql_host} {params.mysql_database} <
-        {params.mysql_db_script} > {output.pdb_info}
+        {params.mysql_db_script} > {output.pdb_info} 2> {log.stderr}
         """)
 
 rule _hotmaps_add_pdb_path:
@@ -147,8 +149,11 @@ rule _hotmaps_add_pdb_path:
         add_path_script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/add_path_info.py"
     conda:
         CFG["conda_envs"]["hotmaps"]
+    log:
+        stdout = CFG["logs"]["inputs"] + "add_pdb_path/add_pdb_path.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "add_pdb_path/add_pdb_path.stderr.log"
     shell:
-        "python {params.add_path_script} -p {input.pdb_info} -o {output.pdb_path}"
+        "python {params.add_path_script} -p {input.pdb_info} -o {output.pdb_path} > {log.stdout} 2> {log.stderr}"
 
 rule _hotmaps_add_pdb_description:
     input:
@@ -159,8 +164,11 @@ rule _hotmaps_add_pdb_description:
         describe_pdb_script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/chain_description.py"
     conda:
         CFG["conda_envs"]["hotmaps"]
+    log:
+        stdout = CFG["logs"]["inputs"] + "add_pdb_description/add_pdb_description.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "add_pdb_description/add_pdb_description.stderr.log"
     shell:
-        "python {params.describe_pdb_script} -i {input.pdb_info_path} -o {output.fully_described_pdb}"
+        "python {params.describe_pdb_script} -i {input.pdb_info_path} -o {output.fully_described_pdb} > {log.stdout} 2> {log.stderr}"
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _hotmaps_input_maf:
@@ -190,8 +198,8 @@ rule _hotmaps_prep_input:
     output:
         maf = CFG["dirs"]["inputs"] + "maf/{sample_set}/{sample_set}.maf"
     log:
-        stdout = CFG["logs"]["inputs"] + "_hotmaps_prep_input/{sample_set}/prepare_maf.stdout.log",
-        stderr = CFG["logs"]["inputs"] + "_hotmaps_prep_input/{sample_set}/prepare_maf.stderr.log"
+        stdout = CFG["logs"]["inputs"] + "{sample_set}/prep_input/prep_input_maf.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "{sample_set}/prep_input/prep_input_maf.stderr.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     params:
@@ -233,13 +241,12 @@ checkpoint _hotmaps_maf2vcf:
     conda:
         CFG["conda_envs"]["bcftools"]
     log:
-        stdout = CFG["logs"]["maf2vcf"] + "_hotmaps_maf2vcf/{sample_set}/maf2vcf.stdout.log",
-        stderr = CFG["logs"]["maf2vcf"] + "_hotmaps_maf2vcf/{sample_set}/maf2vcf.stderr.log"
+        stdout = CFG["logs"]["maf2vcf"] + "{sample_set}/maf2vcf.stdout.log",
+        stderr = CFG["logs"]["maf2vcf"] + "{sample_set}/maf2vcf.stderr.log"
     shell:
         op.as_one_line("""
         if [ $( wc -l < {input.dnps}) -gt 1 ] ;
         then
-            echo "Proceeding with maf2vcf..." &&
             mkdir -p {params.vcf_dir} &&
             maf2vcf.pl 
             --input-maf {input.dnps} 
@@ -263,8 +270,8 @@ rule _hotmaps_bcftools:
     conda:
         CFG["conda_envs"]["bcftools"] 
     log:
-        stdout = CFG["logs"]["bcftools"] + "_hotmaps_bcftools/{sample_set}/{tumour_id}_vs_{normal_sample_id}/bcftools_norm.stdout.log",
-        stderr = CFG["logs"]["bcftools"] + "_hotmaps_bcftools/{sample_set}/{tumour_id}_vs_{normal_sample_id}/bcftools_norm.stderr.log"
+        stdout = CFG["logs"]["bcftools"] + "{sample_set}/{tumour_id}_vs_{normal_sample_id}/bcftools_norm.stdout.log",
+        stderr = CFG["logs"]["bcftools"] + "{sample_set}/{tumour_id}_vs_{normal_sample_id}/bcftools_norm.stderr.log"
     shell:
         op.as_one_line("""
         bcftools norm --atomize 
@@ -284,8 +291,8 @@ rule _hotmaps_vcf2maf:
     conda:
         CFG["conda_envs"]["bcftools"]
     log:
-        stdout = CFG["logs"]["vcf2maf"] + "_hotmaps_vcf2maf/{sample_set}/{tumour_id}_vs_{normal_sample_id}.stdout.log",
-        stderr = CFG["logs"]["vcf2maf"] + "_hotmaps_vcf2maf/{sample_set}/{tumour_id}_vs_{normal_sample_id}.stderr.log"
+        stdout = CFG["logs"]["vcf2maf"] + "{sample_set}/{tumour_id}_vs_{normal_sample_id}.stdout.log",
+        stderr = CFG["logs"]["vcf2maf"] + "{sample_set}/{tumour_id}_vs_{normal_sample_id}.stderr.log"
     shell:
         op.as_one_line("""
         vepPATH=$(dirname $(which variant_effect_predictor.pl))/../share/variant-effect-predictor* ;
@@ -337,8 +344,6 @@ rule _hotmaps_merge_mafs:
             main_maf = pd.concat([main_maf, df])
         main_maf.to_csv(output.maf, sep="\t", na_rep="NA", index=False)
 
-assert all(os.path.isfile(blacklist) for blacklist in CFG["maf_processing"]["blacklists"]), "ERROR: Not all blacklist files could be found."
-
 rule _hotmaps_deblacklist:
     input:
         maf = ancient(str(rules._hotmaps_merge_mafs.output.maf)),
@@ -351,8 +356,8 @@ rule _hotmaps_deblacklist:
         drop_threshold = CFG["maf_processing"]["blacklist_drop_threshold"],
         blacklists = CFG["maf_processing"]["blacklists"]
     log:
-        stdout = CFG["logs"]["inputs"] + "_hotmaps_deblacklist/{sample_set}/deblacklist.stdout.log",
-        stderr = CFG["logs"]["inputs"] + "_hotmaps_deblacklist/{sample_set}/deblacklist.stderr.log"
+        stdout = CFG["logs"]["inputs"] + "{sample_set}/deblacklist/deblacklist.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "{sample_set}/deblacklist/deblacklist.stderr.log"
     shell:
         "{input.deblacklist_script} --input {input.maf} --output {output.maf} --drop-threshold {params.drop_threshold} --blacklists {params.blacklists} > {log.stdout} 2> {log.stderr}"
 
@@ -383,9 +388,12 @@ rule _hotmaps_prep_mutations:
         script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/mupit/map_maf_to_structure.py"
     conda:
         CFG["conda_envs"]["hotmaps"]
+    log:
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/prep_mutations/prep_mutations.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/prep_mutations/prep_mutations.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} --data-dir {params.mut_dir} --match-regex {params.mut_regex} --host {params.mysql_host} --db {params.mysql_db} --mysql-user {params.mysql_user} --mysql-passwd {params.mysql_pass} --output-dir {params.mut_dir}
+        python {params.script} --data-dir {params.mut_dir} --match-regex {params.mut_regex} --host {params.mysql_host} --db {params.mysql_db} --mysql-user {params.mysql_user} --mysql-passwd {params.mysql_pass} --output-dir {params.mut_dir} > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_prep_mupit_annotation:
@@ -405,9 +413,12 @@ rule _hotmaps_prep_mupit_annotation:
         script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/maf/convert_maf_to_mupit.py"
     conda:
         CFG["conda_envs"]["hotmaps"]
+    log:
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/prep_mupit_annotation/prep_mupit_annotation.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/prep_mupit_annotation/prep_mupit_annotation.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} --maf {input.maf} -mh {params.mysql_host} -mdb {params.mysql_db} --mysql-user {params.mysql_user} --mysql-passwd {params.mysql_pass} --tumor-type {params.tumor_type} --no-stratify {params.hypermut} -i {params.cov_dir} --output {output.annotation}
+        python {params.script} --maf {input.maf} -mh {params.mysql_host} -mdb {params.mysql_db} --mysql-user {params.mysql_user} --mysql-passwd {params.mysql_pass} --tumor-type {params.tumor_type} --no-stratify {params.hypermut} -i {params.cov_dir} --output {output.annotation} > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_filter_hypermutated:
@@ -424,9 +435,12 @@ rule _hotmaps_filter_hypermutated:
         mut_threshold = "--mut-threshold " + CFG["options"]["hotmaps"]["hypermut_threshold"] if CFG["options"]["hotmaps"]["hypermut_threshold"] is not None else "",
     conda:
         CFG["conda_envs"]["hotmaps"]
+    log:
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/filter_hypermutated/filter_hypermutated.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/filter_hypermutated/filter_hypermutated.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} --raw-dir {params.mut_dir} --match-regex {params.mut_regex} {params.mut_threshold} --sample-col Tumor_Sample_Barcode --data-dir {params.mut_dir}
+        python {params.script} --raw-dir {params.mut_dir} --match-regex {params.mut_regex} {params.mut_threshold} --sample-col Tumor_Sample_Barcode --data-dir {params.mut_dir} > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_count_mutations:
@@ -437,9 +451,12 @@ rule _hotmaps_count_mutations:
     params:
         script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/mupit/count_mutations.py",
         data_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/"
+    log:
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/count_mutations/count_mutations.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/count_mutations/count_mutations.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} --data-dir {params.data_dir}
+        python {params.script} --data-dir {params.data_dir} > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_format_mutations:
@@ -450,9 +467,12 @@ rule _hotmaps_format_mutations:
     params:
         script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/mupit/format_mutations_table.py",
         data_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/"
+    log:
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/format_mutations/format_mutations.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/format_mutations/format_mutations.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} --data-dir {params.data_dir}
+        python {params.script} --data-dir {params.data_dir} > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_merge_mutations:
@@ -463,9 +483,12 @@ rule _hotmaps_merge_mutations:
     params:
         script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/mupit/merge_mutations_table_data.py",
         data_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/mutations/"
+    log:
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/merge_mutations/merge_mutations.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/merge_mutations/merge_mutations.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} {params.data_dir}
+        python {params.script} {params.data_dir} > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_get_mutations:
@@ -503,9 +526,12 @@ rule _hotmaps_split_pdbs:
         splits = CFG["options"]["hotmaps"]["pdb_splits"],
         split_dir = CFG["dirs"]["hotmaps"] + "{sample_set}/split_pdbs/",
         script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/divide_pdb_info.py"
+    log:
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/split_pdbs/split_pdbs.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/split_pdbs/split_pdbs.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} -f {input.pdb} -m {input.mutations} -n {params.splits} --split-dir {params.split_dir} &&
+        python {params.script} -f {input.pdb} -m {input.mutations} -n {params.splits} --split-dir {params.split_dir} > {log.stdout} 2> {log.stderr} &&
         touch {output.done}
         """)
 
@@ -529,8 +555,8 @@ rule _hotmaps_run_hotspot:
     resources:
         **CFG["resources"]["hotmaps"]
     log:
-        stdout = CFG["logs"]["hotmaps"] + "_hotmaps_run/{sample_set}/run_hotspot_{split}.stdout.log",
-        stderr = CFG["logs"]["hotmaps"] + "_hotmaps_run/{sample_set}/run_hotspot_{split}.stderr.log"
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/run_hotspot/hotspot_{split}.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/run_hotspot/hotspot_{split}.stderr.log"
     shell:
         op.as_one_line("""
         python {params.script} --log-level=INFO -m {params.mutation} -a {params.pdb} -t {params.ttype} -n {params.num_sims} 
@@ -572,8 +598,8 @@ rule _hotmaps_multiple_test_correct:
     conda:
         CFG["conda_envs"]["hotmaps"]
     log:
-        stdout = CFG["logs"]["hotmaps"] + "multiple_test_correction/{sample_set}/{sample_set}_mtc_output_min_{q_value}.stdout.log",
-        stderr = CFG["logs"]["hotmaps"] + "multiple_test_correction/{sample_set}/{sample_set}_mtc_output_min_{q_value}.stderr.log"
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/multiple_test_correct/mtc_output_min_{q_value}.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/multiple_test_correct/mtc_output_min_{q_value}.stderr.log"
     shell:
         op.as_one_line("""
         python {params.script} -i {input.merged} -f {params.group_func} -m {params.mupit_dir} -q {params.q_value} -o {output.mtc} -s {output.significance} > {log.stdout} 2> {log.stderr}
@@ -593,12 +619,12 @@ rule _hotmaps_find_gene:
         q_value = lambda w: w.q_value
     conda:
         CFG["conda_envs"]["hotmaps"]
-    threads: CFG["threads"]["hotmaps"]
-    resources:
-        **CFG["resources"]["hotmaps"]
+    log:
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/find_gene/find_gene_{q_value}.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/find_gene/find_gene_{q_value}.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} -m {input.mtc} -a {params.mupit_dir} -p {input.pdb} -r {params.radius} -q {params.q_value} -o {output.hotspots}
+        python {params.script} -m {input.mtc} -a {params.mupit_dir} -p {input.pdb} -r {params.radius} -q {params.q_value} -o {output.hotspots} > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_find_structure:
@@ -617,12 +643,12 @@ rule _hotmaps_find_structure:
         q_value = lambda w: w.q_value
     conda:
         CFG["conda_envs"]["hotmaps"]
-    threads: CFG["threads"]["hotmaps"]
-    resources:
-        **CFG["resources"]["hotmaps"]
+    log:
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/find_structure/find_structure_{q_value}.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/find_structure/find_structure_{q_value}.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} -i {input.merged} -a {params.mupit_dir} -p {input.pdb} -r {params.radius} -o {output.structures} -s {input.significance}
+        python {params.script} -i {input.merged} -a {params.mupit_dir} -p {input.pdb} -r {params.radius} -o {output.structures} -s {input.significance} > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_detailed_hotspots:
@@ -640,8 +666,11 @@ rule _hotmaps_detailed_hotspots:
         radius = CFG["options"]["hotmaps"]["radius"],
         q_value = lambda w: w.q_value
     log:
-        stdout = CFG["logs"]["hotmaps"] + "_detailed_hotspots/{sample_set}/detailed_hotspots_{q_value}.stdout.log",
-        stderr = CFG["logs"]["hotmaps"] + "_detailed_hotspots/{sample_set}/detailed_hotspots_{q_value}.stderr.log"
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}/detailed_hotspots/detailed_hotspots_{q_value}.stdout.log",
+        stderr = CFG["logs"]["hotmaps"] + "{sample_set}/detailed_hotspots/detailed_hotspots_{q_value}.stderr.log"
+    threads: CFG["threads"]["hotmaps"]
+    resources:
+        **CFG["resources"]["hotmaps"]
     conda:
         CFG["conda_envs"]["hotmaps"]
     shell:
