@@ -3,7 +3,7 @@ lcr-modules:
     hotmaps:
 
         inputs:
-            # Available wildcards: {seq_type} {genome_build}
+            # Available wildcards: {seq_type}
             input_maf: "__UPDATE__"
             sample_sets: "__UPDATE__"
 
