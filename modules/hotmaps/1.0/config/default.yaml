@@ -35,7 +35,7 @@ lcr-modules:
                 mysql_db: "__UPDATE__"
                 mysql_passwd: "__UPDATE__"
             hotmaps:
-                hypermut_threshold: "500"
+                hypermut_threshold:
                 pdb_splits: 250
                 group_func: "min"
                 q_value: ".01"
