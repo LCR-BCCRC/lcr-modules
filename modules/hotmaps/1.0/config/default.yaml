@@ -44,7 +44,6 @@ lcr-modules:
                 stop_criteria: 200
 
         deblacklist_script: "{SCRIPTSDIR}/deblacklist_maf/1.0/deblacklist_maf.py"
-        update_mysql_tbl_script: "{MODSDIR}/etc/mysql_update_tbl.py"
         detailed_hotspots_script: "{MODSDIR}/etc/detailed_hotspots.py"
 
         scratch_subdirectories: []
