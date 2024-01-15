@@ -45,7 +45,7 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _dnds_input_maf,
-    _dnds_input_subsets,
+    _dnds_input_subsetting_categories,
     _dnds_prepare_maf,
     _install_dnds,
     _dnds_output_tsv,
@@ -90,7 +90,7 @@ checkpoint _dnds_prepare_maf:
                     allow_missing=True,
                     seq_type=CFG["samples"]["seq_type"].unique()
                     ),
-        subsetting_categories = str(rules._dnds_input_subsets.output.subsetting_categories)
+        subsetting_categories = str(rules._dnds_input_subsetting_categories.output.subsetting_categories)
     output:
         CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done"
     log:
