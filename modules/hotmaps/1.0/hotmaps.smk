@@ -304,8 +304,8 @@ rule _hotmaps_vcf2maf:
     conda:
         CFG["conda_envs"]["bcftools"]
     log:
-        stdout = CFG["logs"]["vcf2maf"] + "{sample_set}/{tumour_id}_vs_{normal_sample_id}.stdout.log",
-        stderr = CFG["logs"]["vcf2maf"] + "{sample_set}/{tumour_id}_vs_{normal_sample_id}.stderr.log"
+        stdout = CFG["logs"]["vcf2maf"] + "{sample_set}/{tumour_id}_vs_{normal_sample_id}/vcf2maf.stdout.log",
+        stderr = CFG["logs"]["vcf2maf"] + "{sample_set}/{tumour_id}_vs_{normal_sample_id}/vcf2maf.stderr.log"
     shell:
         op.as_one_line("""
         vepPATH=$(dirname $(which variant_effect_predictor.pl))/../share/variant-effect-predictor* ;
@@ -378,7 +378,7 @@ rule _hotmaps_deblacklist:
         --output {output.maf} 
         --drop-threshold {params.drop_threshold} 
         --blacklists {params.blacklists} 
-        > {log.stdout} 2> {log.stderr}"
+        > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_input:
