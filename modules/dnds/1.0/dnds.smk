@@ -73,13 +73,13 @@ rule _dnds_input_maf:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-rule _dnds_input_subsets:
+rule _dnds_input_subsetting_categories:
     input:
-        sample_sets = CFG["inputs"]["sample_sets"]
+        subsetting_categories = CFG["inputs"]["subsetting_categories"]
     output:
-        sample_sets = CFG["dirs"]["inputs"] + "sample_sets/subsetting_categories.tsv"
+        subsetting_categories = CFG["dirs"]["inputs"] + "sample_sets/subsetting_categories.tsv"
     run:
-        op.absolute_symlink(input.sample_sets, output.sample_sets)
+        op.absolute_symlink(input.subsetting_categories, output.subsetting_categories)
 
 
 # Prepare the maf file for the input to MutSig2CV
@@ -90,7 +90,7 @@ checkpoint _dnds_prepare_maf:
                     allow_missing=True,
                     seq_type=CFG["samples"]["seq_type"].unique()
                     ),
-        sample_sets = str(rules._dnds_input_subsets.output.sample_sets)
+        subsetting_categories = str(rules._dnds_input_subsets.output.subsetting_categories)
     output:
         CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done"
     log:
@@ -100,8 +100,8 @@ checkpoint _dnds_prepare_maf:
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         mode = "dNdS",
-        seq_type = CFG["samples"]["seq_type"].unique(),
-        metadata = CFG["samples"][["sample_id","seq_type","genome_build","cohort","pathology","unix_group","time_point"]].to_numpy(na_value='')
+        metadata_cols = CFG["samples"],
+        metadata = CFG["samples"].to_numpy(na_value='')
     script:
         PREPARE_MAFS
 
