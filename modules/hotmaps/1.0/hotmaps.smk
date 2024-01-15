@@ -769,7 +769,7 @@ rule _hotmaps_detailed_hotspots:
         --pdb-info {input.pdb_info} 
         --angstroms {params.radius} 
         --coordinates-out {output.coordinates} 
-        --enriched-out {output.enriched} 
+        --enriched-out {output.detailed} 
         --overwrite > {log.stdout} 2> {log.stderr}
         """)
 
