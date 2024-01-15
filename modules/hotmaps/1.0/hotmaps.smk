@@ -40,11 +40,6 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "maf2vcf", "bcftools", "vcf2maf", "hotmaps", "outputs"],
 )
 
-# Assert statement for workflow-specific requirements
-if len(CFG["maf_processing"]["sample_sets"]) > 1:
-    subsets = CFG["maf_processing"]["sample_sets"]
-    assert("mysql" in list(vars(workflow)["global_resources"]) and vars(workflow)["global_resources"]["mysql"]==1), f"Please set `--resources mysql=1` when running multiple subsets at once. Currently {len(subsets)} subsets are specified: {subsets}"
-
 # Define rules to be run locally when using a compute cluster
 localrules:
     _install_hotmaps,
@@ -157,10 +152,10 @@ rule _hotmaps_add_pdb_path:
         stderr = CFG["logs"]["inputs"] + "add_pdb_path/add_pdb_path.stderr.log"
     shell:
         op.as_one_line("""
-        "python {params.add_path_script} 
+        python {params.add_path_script} 
         -p {input.pdb_info} 
         -o {output.pdb_path} 
-        > {log.stdout} 2> {log.stderr}"
+        > {log.stdout} 2> {log.stderr}
         """)
 
 rule _hotmaps_add_pdb_description:
@@ -177,10 +172,10 @@ rule _hotmaps_add_pdb_description:
         stderr = CFG["logs"]["inputs"] + "add_pdb_description/add_pdb_description.stderr.log"
     shell:
         op.as_one_line("""
-        "python {params.describe_pdb_script} 
+        python {params.describe_pdb_script} 
         -i {input.pdb_info_path} 
         -o {output.fully_described_pdb} 
-        > {log.stdout} 2> {log.stderr}"
+        > {log.stdout} 2> {log.stderr}
         """)
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
