@@ -745,7 +745,7 @@ rule _hotmaps_detailed_hotspots:
         pdb_info = str(rules._hotmaps_add_pdb_description.output.fully_described_pdb)
     output:
         coordinates = CFG["dirs"]["hotmaps"] + "{sample_set}/genomic_coordinates_hotspot_regions_gene_{q_value}.txt",
-        enriched = CFG["dirs"]["hotmaps"] + "{sample_set}/enriched_hotspot_regions_gene_{q_value}.txt"
+        detailed = CFG["dirs"]["hotmaps"] + "{sample_set}/detailed_hotspot_regions_gene_{q_value}.txt"
     params:
         script = CFG["detailed_hotspots_script"],
         radius = CFG["options"]["hotmaps"]["radius"],
@@ -777,17 +777,17 @@ rule _hotmaps_output:
     input:
         hotspots = str(rules._hotmaps_find_gene.output.hotspots),
         structures = str(rules._hotmaps_find_structure.output.structures),
-        enriched = str(rules._hotmaps_detailed_hotspots.output.enriched),
+        detailed = str(rules._hotmaps_detailed_hotspots.output.detailed),
         coordinates = str(rules._hotmaps_detailed_hotspots.output.coordinates)
     output:
         hotspots = CFG["dirs"]["outputs"] + "{sample_set}/hotspot_regions_gene_{q_value}.txt",
         structures = CFG["dirs"]["outputs"] + "{sample_set}/hotspot_regions_struct_{q_value}.txt",
-        enriched = CFG["dirs"]["outputs"] + "{sample_set}/enriched_hotspot_regions_gene_{q_value}.txt",
+        detailed = CFG["dirs"]["outputs"] + "{sample_set}/detailed_hotspot_regions_gene_{q_value}.txt",
         coordinates = CFG["dirs"]["outputs"] + "{sample_set}/genomic_coordinates_hotspot_regions_gene_{q_value}.txt"
     run:
         op.relative_symlink(input.hotspots, output.hotspots, in_module=True)
         op.relative_symlink(input.structures, output.structures, in_module=True)
-        op.relative_symlink(input.enriched, output.enriched, in_module = True)
+        op.relative_symlink(input.detailed, output.detailed, in_module = True)
         op.relative_symlink(input.coordinates, output.coordinates, in_module = True)
 
 
@@ -798,7 +798,7 @@ rule _hotmaps_all:
             [
                 str(rules._hotmaps_output.output.hotspots),
                 str(rules._hotmaps_output.output.structures),
-                str(rules._hotmaps_output.output.enriched),
+                str(rules._hotmaps_output.output.detailed),
                 str(rules._hotmaps_output.output.coordinates)
             ],
             sample_set = CFG["maf_processing"]["sample_sets"],
