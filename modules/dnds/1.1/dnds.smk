@@ -13,6 +13,8 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+from datetime import datetime
+import numpy as np
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -43,15 +45,22 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _dnds_input_maf,
-    _dnds_input_subsets,
+    _dnds_input_subsetting_categories,
     _dnds_prepare_maf,
     _install_dnds,
     _dnds_output_tsv,
+    _dnds_aggregate,
     _dnds_all
 
 
 ##### RULES #####
+if "launch_date" in CFG:
+    launch_date = CFG['launch_date']
+else:
+    launch_date = datetime.today().strftime('%Y-%m')
 
+# Interpret the absolute path to this script so it doesn't get interpreted relative to the module snakefile later.
+PREPARE_MAFS =  os.path.abspath(config["lcr-modules"]["dnds"]["prepare_mafs"])
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _dnds_input_maf:
@@ -64,46 +73,37 @@ rule _dnds_input_maf:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-rule _dnds_input_subsets:
+rule _dnds_input_subsetting_categories:
     input:
-        sample_sets = CFG["inputs"]["sample_sets"]
+        subsetting_categories = CFG["inputs"]["subsetting_categories"]
     output:
-        sample_sets = CFG["dirs"]["inputs"] + "sample_sets/sample_sets.tsv"
+        subsetting_categories = CFG["dirs"]["inputs"] + "sample_sets/subsetting_categories.tsv"
     run:
-        op.absolute_symlink(input.sample_sets, output.sample_sets)
+        op.absolute_symlink(input.subsetting_categories, output.subsetting_categories)
 
 
 # Prepare the maf file for the input to MutSig2CV
-rule _dnds_prepare_maf:
+checkpoint _dnds_prepare_maf:
     input:
         maf = expand(
                     str(rules._dnds_input_maf.output.maf),
                     allow_missing=True,
-                    seq_type=CFG["seq_types"]
+                    seq_type=CFG["samples"]["seq_type"].unique()
                     ),
-        sample_sets = ancient(str(rules._dnds_input_subsets.output.sample_sets))
+        subsetting_categories = str(rules._dnds_input_subsetting_categories.output.subsetting_categories)
     output:
-        maf = temp(CFG["dirs"]["inputs"] + "maf/{sample_set}.maf"),
-        contents = CFG["dirs"]["inputs"] + "maf/{sample_set}.maf.content"
+        CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done"
     log:
-        stdout = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stdout.log",
-        stderr = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stderr.log"
+        CFG["logs"]["inputs"] + "{sample_set}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
-        script = CFG["prepare_mafs"]
-    shell:
-        op.as_one_line("""
-        Rscript {params.script}
-        {input.maf}
-        {input.sample_sets}
-        $(dirname {output.maf})/
-        {wildcards.sample_set}
-        dNdS
-        {params.include_non_coding}
-        > {log.stdout} 2> {log.stderr}
-        """)
+        mode = "dNdS",
+        metadata_cols = CFG["samples"],
+        metadata = CFG["samples"].to_numpy(na_value='')
+    script:
+        PREPARE_MAFS
 
 
 # Install dNdS
@@ -125,10 +125,11 @@ rule _install_dnds:
 rule _dnds_run:
     input:
         dnds = ancient(str(CFG["dirs"]["inputs"] + "dnds_installed.success")),
-        maf = str(rules._dnds_prepare_maf.output.maf)
+        maf = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf",
+        content = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf.content"
     output:
-        dnds_sig_genes = CFG["dirs"]["dnds"] + "{sample_set}/sig_genes.tsv",
-        annotmuts = CFG["dirs"]["dnds"] + "{sample_set}/annotmuts.tsv"
+        dnds_sig_genes = CFG["dirs"]["dnds"] + "{sample_set}--{launch_date}/{md5sum}_sig_genes.tsv",
+        annotmuts = CFG["dirs"]["dnds"] + "{sample_set}--{launch_date}/{md5sum}_annotmuts.tsv"
     conda:
         CFG["conda_envs"]["dnds"]
     threads:
@@ -147,19 +148,40 @@ rule _dnds_output_tsv:
     input:
         tsv = str(rules._dnds_run.output.dnds_sig_genes)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{sample_set}/{sample_set}.sig_genes.tsv"
+        tsv = CFG["dirs"]["outputs"] + "tsv/{sample_set}--{launch_date}/{md5sum}.sig_genes.tsv"
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module= True)
 
+def _for_aggregate(wildcards):
+    CFG = config["lcr-modules"]["dnds"]
+    checkpoint_output = os.path.dirname(str(checkpoints._dnds_prepare_maf.get(**wildcards).output[0]))
+    SUMS, = glob_wildcards(checkpoint_output +"/{md5sum}.maf.content")
+    return expand(
+        [
+            CFG["dirs"]["outputs"] + "tsv/{{sample_set}}--{{launch_date}}/{md5sum}.sig_genes.tsv"
+        ],
+        md5sum = SUMS
+        )
+
+# aggregates outputs to remove md5sum from rule all
+rule _dnds_aggregate:
+    input:
+        _for_aggregate
+    output:
+        aggregate = CFG["dirs"]["outputs"] + "{sample_set}--{launch_date}.done"
+    shell:
+        op.as_one_line("""touch {output.aggregate}""")
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _dnds_all:
     input:
         expand(
             [
-                str(rules._dnds_output_tsv.output.tsv),
+                CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done",
+                str(rules._dnds_aggregate.output.aggregate)
             ],
-            sample_set=CFG["sample_set"])
+            sample_set=CFG["sample_set"],
+            launch_date = launch_date)
 
 ##### CLEANUP #####
 

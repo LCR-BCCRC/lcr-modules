@@ -3,10 +3,10 @@ lcr-modules:
         inputs:
             # The seg files should be "filled", meaning missing segments should be replaced with a dummy segment with log2(CN)=0 and no LOH.
             # The cnv_master module outputs seg files in this filled format
-            # Available wildcards: {seq_type} {projection} {case_set}
+            # Available wildcards: {seq_type} {projection}
             seg: "__UPDATE__"
             subsetting_categories: "__UPDATE__" # e.g. "data/metadata/level3_subsetting_categories.tsv"
-        case_set: [__UPDATE__] # E.g. ["DLBCL-only", "BL_DLBCL-BL-like_all"]
+        sample_set: "__UPDATE__" # E.g. ["DLBCL-only", "BL_DLBCL-BL-like_all"]
         prepare_seg: "{SCRIPTSDIR}/generate_smr_inputs/1.0/generate_smr_inputs.R"
         projections: ["grch37", "hg38"]
         # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
@@ -26,14 +26,14 @@ lcr-modules:
 
         conda_envs:
             gistic2: "{MODSDIR}/envs/gistic2-2.0.23.yaml"
-            
+
         threads:
             gistic2_run: 4
 
         resources:
-            gistic2_run: 
+            gistic2_run:
                 mem_mb: 2000
-            
+
         pairing_config:
             genome:
                 run_paired_tumours: False
