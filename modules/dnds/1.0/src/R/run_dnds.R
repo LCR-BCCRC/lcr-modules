@@ -20,7 +20,7 @@ suppressPackageStartupMessages({
 
 # Read the maf file
 maf = read.table(
-    file = snakemake@input[["maf"]],
+    file = snakemake@input[[2]],
     sep = '\t',
     header = TRUE
 )
