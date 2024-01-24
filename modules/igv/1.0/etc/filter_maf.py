@@ -123,7 +123,7 @@ def maf_add_columns(maf, metadata, wildcards):
     return maf
 
 def write_output(maf, outfile):
-    maf.to_csv(outfile, sep="\t", index=False)
+    maf.to_csv(outfile, sep="\t", na_rep="NA", index=False)
 
 if __name__ == "__main__":
     logging.basicConfig(
