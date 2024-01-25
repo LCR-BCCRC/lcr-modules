@@ -38,9 +38,10 @@ def parse_arguments():
                         help='Radius used to find neighbor residues.')
     parser.add_argument('-x', '--coordinates-out',
                         type=str, required=False,
-                        help='Directory to output results file.')
+                        help='Output file path for hotspot genomic coordinates results.')
     parser.add_argument('-e', '--enriched-out',
-                        type=str, required=True)
+                        type=str, required=True,
+                        help='Output file path for detailed hotspot results.')
     parser.add_argument('-g', '--gene',
                         type=str, default=None,
                         help='Verbose output for selected gene')
@@ -134,13 +135,11 @@ def read_mupit_file(annotations):
     return (mupit_dict, mupit_reverse_dict, pdb_ix, chain_ix, residue_ix, sample_ix, gene_ix, ref_res_ix, reference_ix, ref_gen_ix, chromosome_ix)
 
 
-def read_merged_output(outmerged, sig_level):
+def read_merged_output(outdir, outmerged, sig_level):
     #long_output = [['Structure', 'Model', 'Chain', 'Residue Position', 'p-value']]
     # Make dictionary with format: {(residue, p-value): [all columns]}
     long_output = {}
-    input_path = os.path.abspath(outmerged)
-    output_dir = os.path.dirname(input_path)
-    output_file = output_dir + "/long_output_merged.txt"
+    output_file = outdir + "/long_output_merged.txt"
     outfile = open(output_file, 'w')
     header = ['Structure', 'Model', 'Chain', 'Structure Residue', 'Residue Mutation Count', 'Mutation Density', 'Hotspot P-value']
     outfile.write('\t'.join(header) + "\n")
@@ -407,7 +406,7 @@ def write_enriched(neighborhood_dict, metadata_output, verbose=False):
     #mupit_file = mupit_abs_file + "_detailed"
     #mupit_out = open(mupit_file, 'w')
 
-    with open(metadata_output, 'a') as writer:
+    with open(metadata_output, 'w') as writer:
         for gene, hotspots in neighborhood_dict.items():
             for hotspot, residues in hotspots.items():
                 out_line = []
@@ -459,7 +458,7 @@ def write_enriched(neighborhood_dict, metadata_output, verbose=False):
                         residue_samples = residue_info["samples"]
                         samples_counter.extend(residue_samples)
                         if verbose:
-                            point_samples_line = residue + ":" + residue_position + ":" + ','.join(residue_samples)
+                            point_samples_line = residue_gene + ":" + hotspot_pdb + ":" + residue + ":" + residue_position + ":" + ','.join(residue_samples)
                             point_samples.append(point_samples_line)
 
                 hotmaps_residues = ','.join(hotmaps_residues)
@@ -475,10 +474,12 @@ def write_enriched(neighborhood_dict, metadata_output, verbose=False):
                 #n_samples = str(len(samples_counter))
                 n_samples = str(len(list(set(samples_counter))))
 
+                
                 out_line.append(n_samples)
                 out_line.append(unique_genes_col)
-                out_line.append(hotmaps_residues)
-                out_line.append(gene_position_col)
+                if not verbose:
+                    out_line.append(hotmaps_residues)
+                    out_line.append(gene_position_col)
 
                 if verbose:
                     out_line.append(hotmaps_residue_v_col)
@@ -539,7 +540,8 @@ def main(args):
     # Returns long version of output merged as a dictionary, format :
     # {(residue, p-value) : [pdb, model, chain, res_pos, count, mut_density, p]}
     print("Loading output_merged file...")
-    long_output_dict = read_merged_output(args['output_merged'], args['q_value'])
+    long_out_dir = os.path.dirname(os.path.abspath(args["enriched_out"]))
+    long_output_dict = read_merged_output(long_out_dir, args['output_merged'], args['q_value'])
 
     # Returns multiple testing correction file as dictionary with format :
     # [(gene, transcript, residue): {"min_p": x, "q_val":y}]
@@ -561,11 +563,12 @@ def main(args):
         genomic_coordinates_out = os.path.abspath(args['coordinates_out'])
     enriched_out = os.path.abspath(args['enriched_out'])
     
-    if verbose == True:
-        verbose_metadata_out = enriched_out.replace(enriched_out.split(".")[len(enriched_out.split(".")) - 1], f"{args['gene']}_verbose.txt")
+    #if verbose == True:
+        #verbose_metadata_out = enriched_out.replace(enriched_out.split(".")[len(enriched_out.split(".")) - 1], f"{args['gene']}_verbose.txt")
 
     if not args['overwrite']:
-        assert not os.path.exists(genomic_coordinates_out), f"{genomic_coordinates_out} file already exists. Exiting."
+        if not verbose:
+            assert not os.path.exists(genomic_coordinates_out), f"{genomic_coordinates_out} file already exists. Exiting."
         assert not os.path.exists(enriched_out), f"{enriched_out} file already exists. Exiting." 
 
     if not verbose:
@@ -578,9 +581,9 @@ def main(args):
     # verbose version
     if verbose:
         print("Proceeding with verbose output...")
-        with open(verbose_metadata_out, 'w') as handle:
-                output_header = ['GENE', 'HOTSPOT_NUM', 'N_SAMPLES', 'ALL_GENES', 'HOTMAPS_RES', 'MUTATED_RES', 'HOTMAPS_RES_V', 'MUTATED_RES_V', 'SAMPLES_V']
-                handle.write('\t'.join(output_header) + "\n")
+        #with open(verbose_metadata_out, 'w') as handle:
+        #        output_header = ['GENE', 'HOTSPOT_NUM', 'N_SAMPLES', 'ALL_GENES', 'HOTMAPS_RES', 'MUTATED_RES', 'HOTMAPS_RES_V', 'MUTATED_RES_V', 'SAMPLES_V']
+        #        handle.write('\t'.join(output_header) + "\n")
 
     # Create a hotspot dict to keep track of origin and metadata of hotspot residues
     # hotspot_dict = {'gene': 
@@ -790,7 +793,8 @@ def main(args):
             hotspot_dict[hotspot_gene][hotspot_num][residue] = neighborhood_dict
 
         write_enriched(hotspot_dict, enriched_out, verbose)
-        write_coordinates(hotspot_dict, genomic_coordinates_out, mupit_reverse_dict, mupit_gen_pos_ix, mupit_chromosome_ix)
+        if not verbose:
+            write_coordinates(hotspot_dict, genomic_coordinates_out, mupit_reverse_dict, mupit_gen_pos_ix, mupit_chromosome_ix)
 
 
 if __name__ == '__main__':
