@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+"""
+This script reformats MAF, HotMAPS, OncodriveCLUSTL or GENOMIC_POSITION files into BED files
+"""
+
 import os
 import sys
 import pandas as pd
@@ -17,14 +21,13 @@ sys.excepthook = log_exceptions
 def main():
 
     with open(snakemake.log[0], "w") as stdout:
-        # Set up logging
         sys.stdout = stdout
 
         try:
-            regions_file = snakemake.input[0]
-            regions_format = snakemake.params[0]
+            regions_file = snakemake.input["regions"]
+            regions_format = snakemake.params["regions_format"]
 
-            output_file = snakemake.output[0]
+            output_file = snakemake.output["regions"]
 
             line_count = 0
             with open(regions_file, "r") as handle:
@@ -39,11 +42,11 @@ def main():
 
             if regions_format == "oncodriveclustl":
                 global CLUSTL_PARAMS
-                CLUSTL_PARAMS = snakemake.params[1]
+                CLUSTL_PARAMS = snakemake.params["oncodriveclustl_params"]
 
             if regions_format == "mutation_id":
                 global REGIONS_BUILD
-                REGIONS_BUILD = snakemake.params[2]
+                REGIONS_BUILD = snakemake.params["regions_build"]
                 REGIONS_BUILD = REGIONS_BUILD.lower()
 
             if regions_format == "bed":

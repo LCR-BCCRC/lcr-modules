@@ -46,15 +46,15 @@ CFG = op.setup_module(
 # Rename genome_build values in sample metadata to correlate with MAF values
 CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(CFG["options"]["genome_map"]["grch37"]), "grch37", inplace=True)
 CFG["runs"]["tumour_genome_build"].mask(CFG["runs"]["tumour_genome_build"].isin(CFG["options"]["genome_map"]["hg38"]), "hg38", inplace=True)
+CFG["runs"]["normal_genome_build"].mask(CFG["runs"]["normal_genome_build"].isin(CFG["options"]["genome_map"]["grch37"]), "grch37", inplace=True)
+CFG["runs"]["normal_genome_build"].mask(CFG["runs"]["normal_genome_build"].isin(CFG["options"]["genome_map"]["hg38"]), "hg38", inplace=True)
 
 # Setup variables 
-
 SUFFIX = ".pad" + str(CFG["options"]["generate_batch_script"]["padding"])
 if "launch_date" in CFG:
     LAUNCH_DATE = CFG["launch_date"]
 else:
     LAUNCH_DATE = datetime.today().strftime('%Y-%m-%d')
-
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -98,21 +98,15 @@ def get_maf(wildcards):
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-
-rule _igv_symlink_bam:
+rule _igv_symlink_bams:
     input:
-        bam = get_bam
-    output:
-        bam = CFG["dirs"]["inputs"] + "bams/{seq_type}/{sample_id}.bam"
-    run:
-        op.absolute_symlink(input.bam, output.bam)
-
-rule _igv_symlink_bai:
-    input:
+        bam = get_bam,
         bai = get_bai
     output:
+        bam = CFG["dirs"]["inputs"] + "bams/{seq_type}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bams/{seq_type}/{sample_id}.bam.bai"
     run:
+        op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
 
 rule _igv_symlink_maf:
@@ -282,8 +276,8 @@ def _get_maf(wildcards):
 
 checkpoint _igv_create_batch_script_per_variant:
     input:
-        bam_file = str(rules._igv_symlink_bam.output.bam),
-        bai_file = str(rules._igv_symlink_bai.output.bai),
+        bam_file = str(rules._igv_symlink_bams.output.bam),
+        bai_file = str(rules._igv_symlink_bams.output.bai),
         filter_maf = _get_maf
     output:
         finished = CFG["dirs"]["batch_scripts"] + "completed/{seq_type}--{genome_build}/{sample_id}.finished",
@@ -302,7 +296,6 @@ checkpoint _igv_create_batch_script_per_variant:
         stderr = CFG["logs"]["batch_scripts"] + "{seq_type}--{genome_build}/{sample_id}" + SUFFIX + ".stderr.log"
     script:
         config["lcr-modules"]["igv"]["scripts"]["batch_script_per_variant"]
-
  
 rule _igv_batches_to_merge:
     input:
@@ -448,7 +441,7 @@ checkpoint _igv_run:
 
 rule _igv_track_failed:
     output:
-        failed_summary = CFG["dirs"]["outputs"] + "snapshot_estimates/failed_summary_" + LAUNCH_DATE + ".txt"
+        failed_summary = CFG["dirs"]["outputs"] + "snapshot_summaries/quality_control/qc_summary_" + LAUNCH_DATE + ".txt"
     run:
         header = "\t".join(["sample_id","seq_type","genome_build","gene","chromosome","position","preset","status","snapshot_path"])
         with open(output.failed_summary, "w") as handle:
@@ -458,7 +451,7 @@ rule _igv_track_failed:
 
 rule _igv_quality_control:
     input:
-        igv = str(rules._igv_run.output.complete), #"completed/{seq_type}--{genome_build}/{preset}/{sample_id}.completed"
+        igv = str(rules._igv_run.output.complete),
         failed_summary = str(rules._igv_track_failed.output.failed_summary),
         snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{tissue_status}/{preset}/{chromosome}/{chromosome}:{start_position}--{gene}--{ref_allele}_{alt_allele}--{sample_id}" + SUFFIX + ".png"
     output:

@@ -35,11 +35,10 @@ def main():
             Bam files:\t{input_bam}\n\
             Bai files:\t{input_bai}\n\
             Filtered maf:\t{maf}\n\
-            Parameters:\t{snakemake.params[6]}\n\
             Batch options:\t{batch_options}")
 
             if not isinstance(maf, list):
-                maf = list(maf)
+                maf = [maf]
 
             empty_mafs = []
 
@@ -67,7 +66,7 @@ def main():
                         presets = snakemake.params["igv_presets"],
                         sample_id = snakemake.wildcards["sample_id"],
                         suffix = snakemake.params["suffix"],
-                        finished_file = snakemake.output["batches_finished"]
+                        finished_file = snakemake.output["finished"]
                     )
                     exit()
                 for e in empty_mafs:
@@ -194,8 +193,6 @@ def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_bui
             header = generate_igv_batch_header(bam=bam, index=bai, max_height=max_height, genome_build=genome_build)
             all_lines.extend(header)
 
-            child_directory = tissue_status
-
             seq_type_build = f"{seq_type}--{genome_build}"
             chrom_dir = row.chromosome
 
@@ -221,7 +218,7 @@ def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_bui
                 options = igv_options,
                 coordinates = row.snapshot_coordinates,
                 directory = snapshot_dir,
-                child_dir = child_directory,
+                child_dir = tissue_status,
                 seq_build = seq_type_build,
                 chrom_directory = chrom_dir,
                 snapshot_filename = snap_filename

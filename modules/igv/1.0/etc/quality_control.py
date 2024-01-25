@@ -2,6 +2,16 @@
 
 import subprocess
 import sys
+import os
+
+## Logging files
+global stdout
+global stderr
+global stdout_f
+global stderr_f
+
+stdout = snakemake.log["stdout"]
+stderr = snakemake.log["stderr"]
 
 def increaseSleepInterval(batch_file):
     """
@@ -10,8 +20,8 @@ def increaseSleepInterval(batch_file):
     os.system(f'sleep=$(grep "Sleep" {batch_file} | cut -d " " -f2) && new_sleep=$(($sleep + 5000)) && sed -i "s/setSleepInterval $sleep/setSleepInterval $new_sleep/g" {batch_file}')
 
 def runIGV(batch_file, igv, status, message, attempt):
-    os.system(f'echo "Snapshot may be {status}. {message}... Rerunning IGV... Attempt {str(attempt)}: >> {stdout} 2>> {stderr}')
-    os.system(f'maxtime=$(($(wc -l < {temp_file}) * 60 + 15)) && timeout --foreground $maxtime xvfb-run -s "-screen 0 1980x1020x24" {igv["server_num"]} {igv["server_args"]} {igv["igv"]} -b {temp_file} >> {stdout} 2>> {stderr}')
+    os.system(f'echo "Snapshot may be {status}. {message}... Rerunning IGV... Attempt {str(attempt)}:" >> {stdout} 2>> {stderr}')
+    os.system(f'maxtime=$(($(wc -l < {batch_file}) * 60 + 15)) && timeout --foreground $maxtime xvfb-run -s "-screen 0 1980x1020x24" {igv["server_num"]} {igv["server_args"]} {igv["igv"]} -b {batch_file} >> {stdout} 2>> {stderr}')
 
 def getImageQualities(snapshot, batch_file, igv, summary_file, attempts = 0):
     height = None
@@ -32,7 +42,7 @@ def getImageQualities(snapshot, batch_file, igv, summary_file, attempts = 0):
             if attempts < 3:
                 runIGV(batch_file, igv, status, message, attempts)
     if attempts == 4 and corrupt:
-         # Quit because snapshot is corrupt and can't run quality control
+        # Quit because snapshot is corrupt and can't run quality control
         qc_status = "failed"
         logFailedSnapshots(snapshot, summary_file, qc_status)
         sys.exit()
@@ -51,7 +61,7 @@ def handleIncorrectDimensions(snapshot, img_values, thresholds, batch_file, igv,
     attempts = 0
 
     # Increase sleep interval 
-    increaseSleepInterval()
+    increaseSleepInterval(batch_file)
 
     while float(img_values["width"]) == 640 and attempts < 5:
         attempts += 1
@@ -60,9 +70,9 @@ def handleIncorrectDimensions(snapshot, img_values, thresholds, batch_file, igv,
         if igv["server_num"] == "--auto-servernum" or int(igv["server_num"].replace("-n ","")) >= 99:
             new_server_arg = "-n 1"
         else:
-            new_server_arg = f'-n {str(float(igv["server_num"]) + 1)}
+            new_server_arg = f'-n {str(float(igv["server_num"]) + 1)}'
 
-        messsage = f'Current snapshot width is {img_values["width"]}, while 1020 is expected. This might occurr if xvfb-run is unable to connect to current server ({previous_server_arg}) due to a server lock. Switching server numbers... Attempting new server argument: {new_server_arg}'
+        messsage = f'Current snapshot width is {img_values["width"]}, but at least 1020px is expected. This might occurr if xvfb-run is unable to connect to current server ({previous_server_arg}) due to a server lock. Switching server numbers... Attempting new server argument: {new_server_arg}'
 
         igv["server_num"] = new_server_arg
 
@@ -79,14 +89,13 @@ def handleTruncated(snapshot, img_values, thresholds, batch_file, igv, dim_attem
     attempts = 0
 
     # Increase sleep interval
-    #os.system(f'sleep=$(grep "Sleep" {batch_file} | cut -d " " -f 2) && new_sleep=$(($sleep + 5000)) && sed -i "s/setSleepInterval $sleep/setSleepInterval $new_sleep/g" {batch_file}')
     if dim_attempts == 0:
-        increaseSleepInterval()
+        increaseSleepInterval(batch_file)
 
     # Rerun IGV until height is no longer truncated
-    while img_values["height"] in thresholds["truncated"] and attempts < 3:
+    while float(img_values["height"]) in thresholds["truncated"] and attempts < 3:
         attempts += 1
-        message = f"Current snapshot height is {img_values["height"]}."
+        message = f'Current snapshot height is {img_values["height"]}.'
 
         # Rerun IGV
         runIGV(batch_file, igv, status, message, attempts)
@@ -96,12 +105,13 @@ def handleTruncated(snapshot, img_values, thresholds, batch_file, igv, dim_attem
 
     return attempts, img_values
 
-def handleBlank(snapshot, img_values, thresholds, batch_file, igv, failed_summary, truncated_attempts, dim_attempts):
+def handleBlank(snapshot, img_values, thresholds, batch_file, igv, truncated_attempts, dim_attempts, failed_summary):
     status = "blank"
+    blank = True
     attempts = 0
 
-    if dim_attempts == 0 and truncated attempts == 0:
-        increaseSleepInterval()
+    if dim_attempts == 0 and truncated_attempts == 0:
+        increaseSleepInterval(batch_file)
     
     while blank and attempts < 3:
         attempts += 1
@@ -118,12 +128,11 @@ def handleBlank(snapshot, img_values, thresholds, batch_file, igv, failed_summar
     
     return attempts, img_values
 
-
 def is_blank(img_values, thresholds):
     blank_check = any(
         (
             (
-                float(img_values["height"] == float(height_threshold)) or
+                float(img_values["height"]) == float(height_threshold) or
                 ("<" in height_threshold and float(img_values["height"]) < float(height_threshold.replace("<",""))) or
                 (">" in height_threshold and float(img_values["height"]) > float(height_threshold.replace(">","")))
             ) and
@@ -149,7 +158,7 @@ def qualityControl(snapshot, batch_file, igv, img_values, thresholds, failed_sum
         dimension_attempts, img_values = handleIncorrectDimensions(snapshot, img_values, thresholds, batch_file, igv, failed_summary)
 
     # Handle truncated attempts
-    if img_values["height"] in thresholds["truncated"]:
+    if float(img_values["height"]) in thresholds["truncated"]:
         truncated_attempts, img_values = handleTruncated(snapshot, img_values, thresholds, batch_file, igv, dimension_attempts, failed_summary)
 
     # Check if blank
@@ -158,40 +167,24 @@ def qualityControl(snapshot, batch_file, igv, img_values, thresholds, failed_sum
     blank = is_blank(img_values, blank_thresholds)
 
     if blank:
-        blank_attempts, img_values = handleBlank(snapshot, img_values, thresholds, batch_file, igv, failed_summary, truncated_attempts)
-
-    #if blank:
-    #    status = "blank"
-    #    if truncated_attempts == 0:
-    #        # Increase sleep timer if it hasn't been increased before
-    #        os.system(f'sleep=$(grep "Sleep" {batch_file} | cut -d " " -f 2) && new_sleep=$(($sleep + 5000)) && sed -i "s/setSleepInterval $sleep/setSleepInterval $new_sleep/g" {batch_file}')
-    #    blank_attempts = 0
-    #    while blank and blank_attempts < 3:
-    #        blank_attempts += 1
-    #        message = f"Current snapshot values are: {img_values["height"]} height, {img_values["kurtosis"]}, and {img_values["skewness"]} skewness. Snapshots with these values may be blank. Blank snapshots may be due to errors reading BAM file headers, Java address bind erors, or other errors occurring during IGV run. Rerunning with increased sleep interval."
-    #        # Rerun IGV
-    #        runIGV(batch_file, igv, status, message, blank_attempts)
-    #        # Get updated values
-    #        img_values = getImageQualities(snapshot, batch_file, igv, failed_summary)
-    #        # Check if blank
-    #        blank = is_blank(img_values, blank_heights)
+        blank_attempts, img_values = handleBlank(snapshot, img_values, blank_thresholds, batch_file, igv, truncated_attempts, dimension_attempts, failed_summary)
 
     # Check final values and log failed/suspicious
     if float(img_values["width"]) == 640:
         os.system(f'echo "Snapshot width is {img_values["width"]}. Improper dimensions should be fixed and rerun. Check snapshot {snapshot}" >> {stdout}')
         qc_status = "fail"
 
-    if img_values["height"] in thresholds["failed"]:
-        os.system(f'echo "Snapshot height is {img_values["height"]} and may still be truncated or improperly loaded. Check snapshot {snapshot}"" >> {stdout}')
+    if float(img_values["height"]) in thresholds["failed"]:
+        os.system(f'echo "Snapshot height is {img_values["height"]} and may still be truncated or improperly loaded. Check snapshot {snapshot}" >> {stdout}')
         qc_status = "fail"
 
-    if qc_status == "pass" and any(dimension_attempts >= 5, truncated_attempts >= 3, blank_attempts >= 3):
+    if qc_status == "pass" and (dimension_attempts >= 5 or truncated_attempts >= 3 or blank_attempts >= 3):
         qc_status = "suspicious"
 
     return qc_status
 
 def logFailedSnapshots(snapshot, summary_file, qc_status):
-    outline = "\t".join([snakemake.wildcards["tumour_id"], 
+    outline = "\t".join([snakemake.wildcards["sample_id"], 
                         snakemake.wildcards["seq_type"],
                         snakemake.wildcards["genome_build"],
                         snakemake.wildcards["gene"],
@@ -200,16 +193,19 @@ def logFailedSnapshots(snapshot, summary_file, qc_status):
                         snakemake.wildcards["preset"],
                         qc_status,
                         snapshot])
-    with open(summary_file, "a" as handle:
-        handle.write(outline + "\n"))
+    with open(summary_file, "a") as handle:
+        handle.write(outline + "\n")
 
 def main():
+    stdout_f = open(snakemake.log["stdout"], "a")
+    stderr_f = open(snakemake.log["stderr"], "a")
+
     # Output file
     outfile = snakemake.output["snapshot_qc"]
 
     ## Quality control variables
     snapshot = snakemake.input["snapshot"]
-    qc_thresholds = snakemake.params["thresholds"][snakemake.wildcards["pair_status_directory"]]
+    qc_thresholds = snakemake.params["thresholds"]
 
     ## Batch scripts
 
@@ -217,35 +213,38 @@ def main():
     merged_batch = snakemake.params["merged_batch"]
     batch_temp = snakemake.params["batch_temp"]
     # Set up the temporary batch script file
-    os.system('cat {batch_script} > {batch_temp} && echo "exit" >> {batch_temp}')
+    os.system(f'cat {batch_script} > {batch_temp} && echo "exit" >> {batch_temp}')
 
     ## Variables for running IGV 
     igv_exec = {
         "igv": snakemake.params["igv"],
-        "server_num": snakemake.params["server_number"]
+        "server_num": snakemake.params["server_number"],
         "server_args": snakemake.params["server_args"]
     }
 
     ## Summary file to append failed snapshots to
-    f_summary = snakemake.params["failed_summary"]
-
-    ## Logging files
-    global stdout
-    global stderr
-
-    stdout = snakemake.log["stdout"]
-    stderr = snakemake.log["stderr"]
+    f_summary = snakemake.input["failed_summary"]
 
     # Get image qualities
     img_values = getImageQualities(snapshot, batch_temp, igv_exec, f_summary)
+
+    description_line = f'Initial image values are:\nHeight: {img_values["height"]}\nWidth: {img_values["width"]}\nKurtosis: {img_values["kurtosis"]}\nSkewness:{img_values["skewness"]}\n'
+    stdout_f.write(description_line)
 
     # Control the qualities
     results = qualityControl(snapshot, batch_temp, igv_exec, img_values, qc_thresholds, f_summary)
 
     if results != "pass":
         logFailedSnapshots(snapshot, f_summary, results)
+
     if results != "fail":
         os.system(f'touch {outfile}')
 
+    # Cleanup
+    os.remove(batch_temp)
+    stdout_f.close()
+    stderr_f.close()
 
+if __name__ == "__main__":
+    main()
     
