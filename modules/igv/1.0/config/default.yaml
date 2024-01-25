@@ -24,7 +24,6 @@ lcr-modules:
                 hg38: []
 
         estimate_only: False # Stop after MAF filtering step to estimate total number of snapshots
-        identify_failed_snaps: False
 
         options:
             filter_maf:
@@ -34,18 +33,18 @@ lcr-modules:
                     n_samples: 5 # Desired number of samples in OncodriveCLUSTL clusters
 
             genome_map: # Map builds between metadata and MAFs
-                grch37: ["grch37","hg19","hg19-clc","hg19-reddy","hs37d5"]
-                hg38: ["hg38","hg38-nci","hg38-panea","grch38"]
+                grch37: ["__UPDATE__"]
+                hg38: ["__UPDATE__"]
 
             liftover_regions:
                 reference_chain_file:
-                    grch37: "genomes/grch37/chains/grch37/hg19ToHg38.over.chain"
-                    hg38: "genomes/hg38/chains/grch38/hg38ToHg19.over.chain"
+                    grch37: "__UPDATE__"
+                    hg38: "__UPDATE__"
                 target_reference:
-                    grch37: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh37-lite/Sequence/WholeGenomeFasta/genome.fa"
-                    hg38: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh38/Sequence/WholeGenomeFasta/genome.fa"
+                    grch37: "__UPDATE__"
+                    hg38: "__UPDATE__"
 
-            igv_presets: ["default", "paired_reads"]
+            igv_presets: ["default"] #available options: default and paired_reads
 
             generate_batch_script:
                 padding: 100 # Base pairs upstream and downstream of variant position
@@ -55,37 +54,27 @@ lcr-modules:
                 igv_options: 
                     default: ["preference SAM.COLOR_BY READ_STRAND", "preference SAM.SHOW_CENTER_LINE TRUE", "preference SAM.SHADE_BASE_QUALITY true", "preference SAM.DOWNSAMPLE_READS FALSE", "preference SAM.ALLELE_THRESHOLD 0.05", "sort"]
                     paired_reads: ["viewaspairs", "preference SAM.COLOR_BY READ_STRAND", "preference SAM.SHOW_CENTER_LINE TRUE", "preference SAM.SHADE_BASE_QUALITY true", "preference SAM.DOWNSAMPLE_READS FALSE", "preference SAM.ALLELE_THRESHOLD 0.05", "sort QUALITY"]
-                view_as_pairs: False # Toggle pairwise orientation in IGV
 
             xvfb_parameters:
                 server_number: "99"
                 server_args: ""
 
             quality_control:
-                tumour_only:
-                    truncated: ["506","545","547","559",570"]
-                    blank:
-                        "547":
-                            kurtosis: 18.5
-                            skewness: -4
-                        "559":
-                            kurtosis: 18.2
-                            skewness: -4
-                    failed: ["506"]
-                tumour_normal_pair:
-                    truncated: ["533","1226","1055"]
-                    blank:
-                        "<1000":
-                            kurtosis: 8
-                            skewness: -3
-                    failed: ["533"]
+                truncated: [506,533,545,547,559,570]
+                blank:
+                    "547":
+                        kurtosis: 18.5
+                        skewness: -4
+                    "559":
+                        kurtosis: 18.2
+                        skewness: -4
+                failed: [506,533]
 
         scripts:
             format_regions: "etc/format_regions.py"
             filter_script: "etc/filter_maf.py"
             region_liftover_script: "{MODSDIR}/etc/liftover_regions.sh"
             batch_script_per_variant: "etc/generate_batch_script_per_variant.py"
-            batch_script: "etc/generate_batch_scripts.py"
             quality_control: "etc/quality_control.py"
 
         scratch_subdirectories: []
@@ -95,10 +84,6 @@ lcr-modules:
             wget: "{REPODIR}/envs/wget/wget-1.20.1.yaml"
 
         threads:
-            _igv_symlink_bam: 30
-            _igv_symlink_bai: 30
-            _igv_quality_control: 20
-            _igv_symlink_snapshot: 20
 
         resources:
             _igv_liftover_regions:
