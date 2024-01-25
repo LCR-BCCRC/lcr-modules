@@ -82,7 +82,7 @@ rule _dnds_input_subsetting_categories:
         op.absolute_symlink(input.subsetting_categories, output.subsetting_categories)
 
 
-# Prepare the maf file for the input to MutSig2CV
+# Prepare the maf file for the input to dNdS
 checkpoint _dnds_prepare_maf:
     input:
         maf = expand(
