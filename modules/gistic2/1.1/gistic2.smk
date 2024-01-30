@@ -107,8 +107,7 @@ checkpoint _gistic2_prepare_seg:
         log = CFG["logs"]["prepare_seg"] + "{sample_set}--{projection}--{launch_date}.log"
     params:
         metadata_cols = CFG["samples"],
-        metadata = CFG["samples"].to_numpy(na_value=''),
-        mode = "gistic2"
+        metadata = CFG["samples"].to_numpy(na_value='')
     script:
         PREPARE_SEG
 

@@ -7,7 +7,7 @@ lcr-modules:
             seg: "__UPDATE__"
             subsetting_categories: "__UPDATE__" # e.g. "data/metadata/level3_subsetting_categories.tsv"
         sample_set: "__UPDATE__" # E.g. ["DLBCL-only", "BL_DLBCL-BL-like_all"]
-        prepare_seg: "{SCRIPTSDIR}/generate_smg_inputs/1.1/generate_smg_inputs.R"
+        prepare_seg: "{SCRIPTSDIR}/generate_smr_inputs/1.0/generate_smr_inputs.R"
         projections: ["grch37", "hg38"]
         # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
         # launch_date: "2023-06"

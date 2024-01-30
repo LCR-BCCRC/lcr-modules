@@ -38,7 +38,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["dnds"]`
 CFG = op.setup_module(
     name = "dnds",
-    version = "1.1",
+    version = "1.0",
     subdirectories = ["inputs", "dnds", "outputs"],
 )
 
@@ -82,7 +82,7 @@ rule _dnds_input_subsetting_categories:
         op.absolute_symlink(input.subsetting_categories, output.subsetting_categories)
 
 
-# Prepare the maf file for the input to dNdS
+# Prepare the maf file for the input to MutSig2CV
 checkpoint _dnds_prepare_maf:
     input:
         maf = expand(
