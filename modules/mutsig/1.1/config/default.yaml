@@ -5,11 +5,13 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type}
             master_maf: "__UPDATE__"
-            sample_sets: "__UPDATE__"
+            subsetting_categories: "__UPDATE__" # e.g. "data/metadata/level3_subsetting_categories.tsv"
         sample_set: ["__UPDATE__"]
-        seq_types: ["genome", "capture"]
+        # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
+        # launch_date: ""
+
         include_non_coding: True
-        prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
+        prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.1/generate_smg_inputs.R"
         src_dir: "{MODSDIR}/src/"
 
         scratch_subdirectories: []
