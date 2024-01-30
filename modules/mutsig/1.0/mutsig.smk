@@ -93,7 +93,7 @@ checkpoint _mutsig_prepare_maf:
         maf = expand(
                     str(rules._mutsig_input_maf.output.maf),
                     allow_missing=True,
-                    seq_type=CFG["seq_types"]
+                    seq_type=CFG["samples"]["seq_type"].unique()
                     ),
         subsetting_categories = str(rules._mutsig_input_subsetting_categories.output.subsetting_categories)
     output:

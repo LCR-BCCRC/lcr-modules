@@ -7,7 +7,6 @@ lcr-modules:
             master_maf: "__UPDATE__"
             subsetting_categories: "__UPDATE__" # e.g. "data/metadata/level3_subsetting_categories.tsv"
         sample_set: ["__UPDATE__"]
-        seq_types: ["genome", "capture"]
         # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
         # launch_date: ""
 
