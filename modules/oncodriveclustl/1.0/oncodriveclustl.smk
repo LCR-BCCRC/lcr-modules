@@ -14,6 +14,8 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+import datetime
+import numpy as np
 
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["mixcr"]`
@@ -37,66 +39,127 @@ localrules:
     _oncodriveclustl_input_maf,
     _oncodriveclustl_sample_set,
     _oncodriveclustl_prep_input,
+    _oncodriveclustl_blacklist,
+    _oncodriveclustl_format_input,
     _oncodriveclustl_txt,
     _oncodriveclustl_all
 
 
 ##### RULES #####
+if "launch_date" in CFG:
+    launch_date = CFG["launch_date"]
+else:
+    launch_date = datetime.today().strftime('%Y-%m-%d')
+
+# Interpret the absolute path to this script so it doesn't get interpreted relative to the module snakefile later
+PREPARE_MAFS = os.path.abspath(config["lcr-modules"]["oncodriveclustl"]["maf_processing"]["prepare_mafs"])
 
 # Symlink master MAF to input directory, easier to extract files this way
 
 rule _oncodriveclustl_input_maf:
     input:
-        master_maf = CFG["inputs"]["master_maf"]
+        maf = CFG["inputs"]["input_maf"]
     output:
-        master_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/input.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/input.maf"
     run:
-        op.absolute_symlink(input.master_maf, output.master_maf)
+        op.absolute_symlink(input.maf, output.maf)
 
 rule _oncodriveclustl_sample_set:
     input:
-        sample_set = CFG["inputs"]["sample_sets"]
+        subsetting_categories = CFG["inputs"]["subsetting_categories"]
     output:
-        sample_set = CFG["dirs"]["inputs"] + "sample_sets/sample_sets.tsv"
+        subsetting_categories = CFG["dirs"]["inputs"] + "sample_sets/subsetting_categories.tsv"
     run:
-        op.absolute_symlink(input.sample_set, output.sample_set)
+        op.absolute_symlink(input.subsetting_categories, output.subsetting_categories)
 
-rule _oncodriveclustl_prep_input:
+checkpoint _oncodriveclustl_prep_input:
     input:
-        maf = expand(str(rules._oncodriveclustl_input_maf.output.master_maf), seq_type = CFG["seq_types"], allow_missing=True),
-        sample_set = str(rules._oncodriveclustl_sample_set.output.sample_set),
-        r_script = CFG["prepare_mafs"]
+        maf = expand(str(rules._oncodriveclustl_input_maf.output.maf), seq_type = CFG["samples"]["seq_type"].unique(), allow_missing=True),
+        sample_set = str(rules._oncodriveclustl_sample_set.output.subsetting_categories)
     output:
-        txt = temp(CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}/{sample_set}.maf")
+        CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/done"
     params:
-        non_coding = str(CFG["include_non_coding"]).upper()
+        include_non_coding = str(CFG["maf_processing"]["include_non_coding"]).upper(),
+        mode = "OncodriveCLUSTL",
+        metadata_cols = CFG["samples"],
+        metadata = CFG["samples"].to_numpy(na_value='')
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    script:
+        PREPARE_MAFS
+
+rule _oncodriveclustl_blacklist:
+    input:
+        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.maf",
+        blacklists = CFG["maf_processing"]["blacklists"],
+        deblacklist_script = CFG["deblacklist_script"]
+    output:
+        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.deblacklisted.maf"
+    params:
+        drop_threshold = CFG["maf_processing"]["blacklist_drop_threshold"]
+    log:
+        stdout = CFG["logs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stderr.log"
     shell:
         op.as_one_line("""
-        Rscript {input.r_script} 
-        {input.maf} {input.sample_set} 
-        "$(dirname $(realpath {output.txt}))"
-        {wildcards.sample_set} 
-        Oncodrive 
-        {params.non_coding}
+        {input.deblacklist_script}
+        --input {input.maf} 
+        --output {output.maf}
+        --drop-threshold {params.drop_threshold}
+        --blacklists {input.blacklists}
+        > {log.stdout} 2> {log.stderr}
         """)
+
+rule _oncodriveclustl_format_input:
+    input:
+        maf = str(rules._oncodriveclustl_blacklist.output.maf)
+    output:
+        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}_clustl_input.maf"
+    params:
+        columns = "5,6,11,13,16"
+    shell:
+        op.as_one_line("""
+        cut -f {params.columns} {input.maf} |
+        sed 's/Chromosome/CHROMOSOME/' | 
+        sed 's/Start_Position/POSITION/' |
+        sed 's/Reference_Allele/REF/' | 
+        sed 's/Tumor_Seq_Allele2/ALT/' |
+        sed 's/Tumor_Sample_Barcode/SAMPLE/' 
+        > {output.maf}
+        """)
+
+ONCODRIVE_BUILD_DICT = {
+    'hg38': 'hg38',
+    'grch37': 'hg19'
+}
+
+def _get_region(wildcards):
+    CFG = config["lcr-modules"]["oncodriveclustl"]
+    build_regions = CFG["regions_files"][wildcards.genome_build]
+    if wildcards.genome_build == "grch37":
+        regions_file = reference_files(build_regions[wildcards.region])
+    else:
+        # hg38 regions file for Oncodrive are not available in their bitbucket and haven't been downloaded through reference files workflow
+        regions_file = build_regions[wildcards.region]
+
+    return regions_file
 
 rule _oncodriveclustl_run:
     input:
-        txt = str(rules._oncodriveclustl_prep_input.output.txt)
+        maf = str(rules._oncodriveclustl_format_input.output.maf),
+        reference = reference_files("downloads/oncodrive/dataset/" + ONCODRIVE_BUILD_DICT[f'{genome_build}'] + ".master"),
+        region = _get_region
     output:
-        tsv = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}/clusters_results.tsv",
-        txt = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}/elements_results.txt",
-        png = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}/quantile_quantile_plot.png"
+        txt = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/elements_results.txt",
+        tsv = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/clusters_results.tsv",
+        png = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/quantile_quantile_plot.png"
     log:
-        stdout = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}/oncodriveclustl.stdout.log",
-        stderr = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}/oncodriveclustl.stderr.log"
+        stdout = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodriveclustl.stdout.log",
+        stderr = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodriveclustl.stderr.log"
     params:
         local_path = CFG["reference_files_directory"],
-        regions = lambda wildcards: config["lcr-modules"]["oncodriveclustl"]["regions_file"][(wildcards.genome_build).replace("grch37","hg19").replace("grch38","hg38")],
-        build = lambda wildcards: (wildcards.genome_build).replace("grch37","hg19").replace("grch38","hg38"),
-        opts = CFG["options"]["clustl"] if CFG["options"]["clustl"] is not None else ""
+        build = lambda w: (w.genome_build).replace("grch37","hg19").replace("grch38","hg38"),
+        command_line_options = CFG["options"]["clustl_options"] if CFG["options"]["clustl_options"] is not None else ""
     threads:
         CFG["threads"]["clustl"]
     resources:
@@ -105,37 +168,106 @@ rule _oncodriveclustl_run:
     shell:
         op.as_one_line("""
         export BGDATA_LOCAL={params.local_path} && 
-        oncodriveclustl -i {input.txt} -o "$(dirname $(realpath {output.txt}))" 
-        -r {params.regions} -g {params.build} 
-        --cores {threads} --qqplot {params.opts} 
+        oncodriveclustl 
+        -i {input.txt} 
+        -o "$(dirname $(realpath {output.txt}))" 
+        -r {input.region} 
+        -g {params.build} 
+        --cores {threads} 
+        --qqplot 
+        {params.command_line_options} 
         > {log.stdout} 2> {log.stderr}
         """)
 
-rule _oncodriveclustl_txt:
+rule _oncodriveclustl_out:
     input:
-        tsv = str(rules._oncodriveclustl_run.output.tsv),
         txt = str(rules._oncodriveclustl_run.output.txt),
+        tsv = str(rules._oncodriveclustl_run.output.tsv),
         png = str(rules._oncodriveclustl_run.output.png)
     output:
-        tsv = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}_clusters_results.tsv",
-        txt = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}_elements_results.txt",
-        png = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}_quantile_quantile_plot.png"
+        txt = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/elements_results.txt",
+        tsv = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/clusters_results.tsv",
+        png = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/quantile_quantile_plot.png"
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module=True)
         op.relative_symlink(input.txt, output.txt, in_module=True)
         op.relative_symlink(input.png, output.png, in_module=True)
+
+rule _oncodriveclustl_get_detailed_clusters:
+    input:
+        elements = str(rules._oncodriveclustl_run.output.txt),
+        clusters = str(rules._oncodriveclustl_run.output.tsv)
+    output:
+        tsv = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/genomic_coordinates_clusters_results_{q_value}.tsv"
+    params:
+        q_value = lambda w: w.q_value,
+        samples = CFG["detailed_clusters_options"]["minimum_samples"],
+        score = "--score " + CFG["detailed_clusters_options"]["minimum_score"] if CFG["detailed_clusters_options"]["minimum_score"] is not None else "",
+        script = CFG["detailed_clusters_script"]
+    shell:
+        op.as_one_line("""
+        {params.script}
+        -e {input.elements}
+        -c {input.clusters}
+        -q {params.q_value}
+        -n {params.samples}
+        -o {output.tsv}
+        {params.score}
+        """)
+        
+rule _oncodrive_genomic_coordinates_out:
+    input:
+        genomic_coordinates = str(rules._oncodriveclust_get_detailed_clusters.output.tsv)
+    output:
+        genomic_coordinates = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/genomic_coordinates_clusters_results_{q_value}.tsv"
+    run:
+        op.relative_symlink(input.genomic_coordinates, output.genomic_coordinates)
+
+def _get_oncodrive_outputs(wildcards):
+    CFG = config["lcr-modules"]["oncodriveclustl"]
+    checkpoint_output = os.path.dirname(str(checkpoints._oncodriveclustl_prep_input.get(**wildcards).output[0]))
+    SUMS, = glob_wildcards(checkpoint_output+"/{md5sum}.maf.content")
+
+    return expand(
+        [
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/elements_results.txt",
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/clusters_results.tsv",
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/quantile_quantile_plot.png",
+        ],
+        md5sum = SUMS
+    )
+
+def _get_oncodrive_coordinates(wildcards):
+    CFG = config["lcr-modules"]["oncodriveclustl"]
+    checkpoint_output = os.path.dirname(str(checkpoints._oncodriveclustl_prep_input.get(**wildcards).output[0]))
+    SUMS, = glob_wildcards(checkpoint_output+"/{md5sum}.maf.content")
+
+    return expand(
+        CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{region}/genomic_coordinates_clusters_results_{q_value}.tsv",
+        md5sum = SUMS,
+        region = CFG["regions"],
+        q_value = CFG["q_values"]
+    )
+
+rule _oncodrive_aggregate:
+    input:
+        oncodrive_outputs = _get_oncodrive_outputs,
+        coordinate_output = _get_oncodrive_coordinates
+    output:
+        aggregate = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/aggregate_outputs.done"
+    shell:
+        "touch {output.aggregate}"
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _oncodriveclustl_all:
     input:
         expand(
             [
-                str(rules._oncodriveclustl_txt.output.txt),
-                str(rules._oncodriveclustl_txt.output.tsv),
-                str(rules._oncodriveclustl_txt.output.png)
+                str(rules._oncodriveclustl_aggregate.output.aggregate)
             ],
-            genome_build=CFG["genome_build"],
-            sample_set=CFG["sample_set"]
+            genome_build=CFG["genome_builds"],
+            sample_set=CFG["maf_processing"]["sample_sets"],
+            launch_date = launch_date
         )
 
 ##### CLEANUP #####
