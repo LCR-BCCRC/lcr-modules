@@ -78,6 +78,8 @@ def reformat_clusters(clusters):
     clusters_expanded = expanded_coordinates.explode('COORDINATES')
     clusters_expanded.reset_index(drop=True, inplace=True)
 
+    clusters_expanded.columns = ["Hugo_Symbol","Chromosome","Start_Position","Hotspot_ID"]
+
     return clusters_expanded
 
 def main(args):
