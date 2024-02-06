@@ -42,6 +42,9 @@ localrules:
     _oncodriveclustl_blacklist,
     _oncodriveclustl_format_input,
     _oncodriveclustl_txt,
+    _oncodriveclustl_out,
+    _oncodriveclustl_genomic_coordinates_out,
+    _oncodriveclustl_aggregate,
     _oncodriveclustl_all
 
 
@@ -215,15 +218,17 @@ rule _oncodriveclustl_get_detailed_clusters:
         {params.score}
         """)
         
-rule _oncodrive_genomic_coordinates_out:
+rule _oncodriveclustl_genomic_coordinates_out:
     input:
         genomic_coordinates = str(rules._oncodriveclust_get_detailed_clusters.output.tsv)
     output:
         genomic_coordinates = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/genomic_coordinates_clusters_results_{q_value}.tsv"
+    conda:
+        CFG["conda_envs"]["clustl"]
     run:
         op.relative_symlink(input.genomic_coordinates, output.genomic_coordinates)
 
-def _get_oncodrive_outputs(wildcards):
+def _get_oncodriveclustl_outputs(wildcards):
     CFG = config["lcr-modules"]["oncodriveclustl"]
     checkpoint_output = os.path.dirname(str(checkpoints._oncodriveclustl_prep_input.get(**wildcards).output[0]))
     SUMS, = glob_wildcards(checkpoint_output+"/{md5sum}.maf.content")
@@ -237,7 +242,7 @@ def _get_oncodrive_outputs(wildcards):
         md5sum = SUMS
     )
 
-def _get_oncodrive_coordinates(wildcards):
+def _get_oncodriveclustl_coordinates(wildcards):
     CFG = config["lcr-modules"]["oncodriveclustl"]
     checkpoint_output = os.path.dirname(str(checkpoints._oncodriveclustl_prep_input.get(**wildcards).output[0]))
     SUMS, = glob_wildcards(checkpoint_output+"/{md5sum}.maf.content")
@@ -249,10 +254,10 @@ def _get_oncodrive_coordinates(wildcards):
         q_value = CFG["q_values"]
     )
 
-rule _oncodrive_aggregate:
+rule _oncodriveclustl_aggregate:
     input:
-        oncodrive_outputs = _get_oncodrive_outputs,
-        coordinate_output = _get_oncodrive_coordinates
+        oncodrive_outputs = _get_oncodriveclustl_outputs,
+        coordinate_output = _get_oncodriveclustl_coordinates
     output:
         aggregate = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/aggregate_outputs.done"
     shell:
