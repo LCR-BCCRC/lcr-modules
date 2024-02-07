@@ -40,8 +40,9 @@ lcr-modules:
             minimum_samples: 5
             minimum_score:
 
-        deblacklist_script: "{SCRIPTSDIR}/deblacklist_maf/1.0/deblacklist_maf.py"
-        detailed_clusters_script: "{MODSDIR}/etc/detailed_clusters.py"
+        scripts:
+            deblacklist_script: "{SCRIPTSDIR}/deblacklist_maf/1.0/deblacklist_maf.py"
+            detailed_clusters_script: "{MODSDIR}/etc/detailed_clusters.py"
 
         scratch_subdirectories: []
 

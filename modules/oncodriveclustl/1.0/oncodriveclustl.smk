@@ -14,7 +14,7 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
-import datetime
+from datetime import datetime
 import numpy as np
 
 # Setup module and store module-specific configuration in `CFG`
@@ -23,15 +23,6 @@ CFG = op.setup_module(
     name = "oncodriveclustl",
     version = "1.0",
     subdirectories = ["inputs", "oncodriveclustl", "outputs"],
-)
-
-assert type(CFG['include_non_coding'])==bool, (
-    "Config value for 'include_non_coding' must be set to Boolean value (True/False)"
-    "Default is True"
-)
-
-assert CFG['options']['clustl'] is not None, (
-    "Config value for OncodriveCLUSTL options cannot be None value, if no additional options are required leave as ''"
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -95,14 +86,14 @@ rule _oncodriveclustl_blacklist:
     input:
         maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.maf",
         blacklists = CFG["maf_processing"]["blacklists"],
-        deblacklist_script = CFG["deblacklist_script"]
+        deblacklist_script = CFG["scripts"]["deblacklist_script"]
     output:
         maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.deblacklisted.maf"
     params:
         drop_threshold = CFG["maf_processing"]["blacklist_drop_threshold"]
     log:
-        stdout = CFG["logs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stdout.log",
-        stderr = CFG["logs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stderr.log"
+        stdout = CFG["logs"]["inputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stderr.log"
     shell:
         op.as_one_line("""
         {input.deblacklist_script}
@@ -150,7 +141,7 @@ def _get_region(wildcards):
 rule _oncodriveclustl_run:
     input:
         maf = str(rules._oncodriveclustl_format_input.output.maf),
-        reference = reference_files("downloads/oncodrive/dataset/" + ONCODRIVE_BUILD_DICT[f'{genome_build}'] + ".master"),
+        reference = lambda w: reference_files("downloads/oncodrive/dataset/" + ONCODRIVE_BUILD_DICT[w.genome_build] + ".master"),
         region = _get_region
     output:
         txt = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/elements_results.txt",
@@ -206,7 +197,7 @@ rule _oncodriveclustl_get_detailed_clusters:
         q_value = lambda w: w.q_value,
         samples = CFG["detailed_clusters_options"]["minimum_samples"],
         score = "--score " + CFG["detailed_clusters_options"]["minimum_score"] if CFG["detailed_clusters_options"]["minimum_score"] is not None else "",
-        script = CFG["detailed_clusters_script"]
+        script = CFG["scripts"]["detailed_clusters_script"]
     shell:
         op.as_one_line("""
         {params.script}
@@ -220,11 +211,9 @@ rule _oncodriveclustl_get_detailed_clusters:
         
 rule _oncodriveclustl_genomic_coordinates_out:
     input:
-        genomic_coordinates = str(rules._oncodriveclust_get_detailed_clusters.output.tsv)
+        genomic_coordinates = str(rules._oncodriveclustl_get_detailed_clusters.output.tsv)
     output:
         genomic_coordinates = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/genomic_coordinates_clusters_results_{q_value}.tsv"
-    conda:
-        CFG["conda_envs"]["clustl"]
     run:
         op.relative_symlink(input.genomic_coordinates, output.genomic_coordinates)
 
