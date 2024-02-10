@@ -700,3 +700,74 @@ rule _imgt_db_success:
         txt = "genomes/no_build/igblast/database/imgt_database.success"
     shell:
         "touch {output.txt}"
+
+##### Oncodrive #####
+
+rule download_oncodrive_refs:
+    output:
+        refs = "downloads/oncodrive/datasets/genomereference/{oncodrive_build}.master",
+        stops = "downloads/oncodrive/datasets/genestops/{oncodrive_build}.master"
+    params:
+        outdir = "downloads/oncodrive/"
+    conda:
+        CONDA_ENVS["oncodriveclustl"]
+    shell:
+        op.as_one_line("""
+        export BGDATA_LOCAL={params.outdir} &&
+        bgdata get datasets/genomereference/{wildcards.oncodrive_build} &&
+        bgdata get datasets/genomereference/{wildcards.oncodrive_build} &&
+        bgdata get datasets/genestops/{wildcards.oncodrive_build} &&
+        bgdata get datasets/genestops/{wildcards.oncodrive_build}
+        """)
+
+def get_oncodrive_downloads(wildcards):
+    oncodrive_build = ''
+    if wildcards.genome_build in ['grch37','hg19','hs37d5']:
+        oncodrive_build = "hg19"
+    elif wildcards.genome_build in ['grch38','grch38-legacy','hg38','hg38-panea']:
+        oncodrive_build = "hg38"
+    return(["downloads/oncodrive/datasets/genomereference/" + oncodrive_build + ".master",
+            "downloads/oncodrive/datasets/genestops/" + oncodrive_build + ".master"])
+
+rule aggregate_oncodrive_downloads:
+    input:
+        downloads = get_oncodrive_downloads
+    output:
+        finished = "downloads/oncodrive/finished/{genome_build}.done"
+    shell:
+        "touch {output.finished}"
+
+rule download_oncodrive_hg19_regions:
+    output:
+        promoters = "downloads/oncodrive/regions/grch37/promoters_splice_sites_10bp.regions.gz",
+        lincrnas = "downloads/oncodrive/regions/grch37/lincrnas.regions.gz",
+        cds = "downloads/oncodrive/regions/grch37/cds.regions.gz",
+        utr_5 = "downloads/oncodrive/regions/grch37/5utr.regions.gz",
+        utr_3 = "downloads/oncodrive/regions/grch37/3utr.regions.gz"
+    params:
+        promoter_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_promoters_splice_sites_10bp.regions.gz",
+        lincrnas_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_lincrnas.regions.gz",
+        cds_url = "https://bitbucket.org/bbglab/oncodriveclustl/raw/2b3842ef45fef12f35b3615a0636ef62910f6350/example/cds.hg19.regions.gz",
+        utr_5_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_5utr.regions.gz",
+        utr_3_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_3utr.regions.gz"
+    shell:
+        op.as_one_line("""
+        wget -cO {output.promoters} {params.promoter_url} &&
+        wget -cO {output.lincrnas} {params.lincrnas_url} &&
+        wget -cO {output.cds} {params.cds_url} &&
+        wget -cO {output.utr_5} {params.utr_5_url} &&
+        wget -cO {output.utr_3} {params.utr_3_url}
+        """)
+
+rule oncodrive_hg19_regions_downloaded:
+    input:
+        promoters = str(rules.download_oncodrive_hg19_regions.output.promoters),
+        lincrnas = str(rules.download_oncodrive_hg19_regions.output.lincrnas),
+        cds = str(rules.download_oncodrive_hg19_regions.output.cds),
+        utr_5 = str(rules.download_oncodrive_hg19_regions.output.utr_5),
+        utr_3 = str(rules.download_oncodrive_hg19_regions.output.utr_3)
+    output:
+        finished = "downloads/oncodrive/finished/regions.done"
+    shell:
+        "touch {output.finished}"
+
