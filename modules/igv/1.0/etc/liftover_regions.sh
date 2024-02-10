@@ -29,12 +29,19 @@ echo "Target reference:         $target_ref"
 
 intermediate_output_file=$(echo $output_file)_int
 
+# Skip empty files
+lines=$(wc -l < $input_regions)
+if [ ! $lines -gt 0 ] ;
+then
+    touch $output_file
+fi
+
 # MAFs
 # Check genome build of incoming MAF file to determine what build it needs to be changed to
 if [ "$input_type" == "maf" ] ;
 then
     echo "Proceeding with MAF input..."
-    if [ $regions_build == $target_build ] ;
+    if [ $regions_build == $target_build ] && [ $lines -gt 0 ] ;
     then
         echo "WARNING: Input regions file $input_regions is already $target_build. Copying contents of $input_regions to $output_file";
         cut -f 1,5,6,7,9,10,11,13,16 $input_regions > $output_file 
@@ -48,7 +55,7 @@ then
     echo "Finished MAF block."
 fi
 
-if [ "$input_type" == "bed" ] ;
+if [ "$input_type" == "bed" ] && [ $lines -gt 0 ] ;
     then
         echo "Proceeding with BED input..."
         if [ $regions_build == $target_build ] ;

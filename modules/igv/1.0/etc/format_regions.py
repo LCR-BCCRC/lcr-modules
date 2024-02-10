@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+"""
+This script reformats MAF, HotMAPS, OncodriveCLUSTL or GENOMIC_POSITION files into BED files
+"""
+
 import os
 import sys
 import pandas as pd
@@ -17,25 +21,35 @@ sys.excepthook = log_exceptions
 def main():
 
     with open(snakemake.log[0], "w") as stdout:
-        # Set up logging
         sys.stdout = stdout
 
         try:
-            regions_file = snakemake.input[0]
-            regions_format = snakemake.params[0]
+            regions_file = snakemake.input["regions"]
+            regions_format = snakemake.params["regions_format"]
 
-            output_file = snakemake.output[0]
+            output_file = snakemake.output["regions"]
+
+            line_count = 0
+            with open(regions_file, "r") as handle:
+                for line in handle:
+                    line_count += 1
+                    if line_count > 1:
+                        break
+            if line_count < 2:
+                touch_output = open(output_file, "w")
+                touch_output.close()
+                exit()
 
             if regions_format == "oncodriveclustl":
                 global CLUSTL_PARAMS
-                CLUSTL_PARAMS = snakemake.params[1]
+                CLUSTL_PARAMS = snakemake.params["oncodriveclustl_params"]
 
             if regions_format == "mutation_id":
                 global REGIONS_BUILD
-                REGIONS_BUILD = snakemake.params[2]
+                REGIONS_BUILD = snakemake.params["regions_build"]
                 REGIONS_BUILD = REGIONS_BUILD.lower()
 
-            if regions_format == "bed" or regions_format == "maf":
+            if regions_format == "bed":
                 # Do not need to reformat for liftover
                 shutil.copy(regions_file, output_file)
                 exit()
@@ -122,22 +136,39 @@ def format_clustl(clustl_regions):
     clustl_regions = clustl_regions.explode("COORDINATES")
 
     # Create columnsn required for BED format
-    chr_str = "chr" + clustl_regions["CHROMOSOME"].map(str)
+    chr_std = "chr" + clustl_regions["CHROMOSOME"].map(str)
     clustl_reformatted = pd.DataFrame(
         {
-            "chrom": chr_str,
+            "chrom": chr_std,
             "start": clustl_regions["COORDINATES"],
             "end": clustl_regions["COORDINATES"]
         }
     )
     return clustl_reformatted
 
+def format_maf(maf):
+    # Read regions into dataframe
+    maf_regions = pd.read_table(maf, comment="#", sep="\t")
+
+    # Create dataframe in BED format
+    chr_std = "chr" + maf_regions["Chromosome"].map(str).replace("chr","")
+
+    maf_reformatted = pd.DataFrame(
+        {
+            "chrom": chr_std,
+            "start": maf_regions["Start_Position"],
+            "end": maf_regions["End_Position"]
+        }
+    )
+
+    return maf_reformatted
 
 def format_regions(regions, regions_format):
     format_functions = {
         "oncodriveclustl": format_clustl,
         "hotmaps": format_hotmaps,
-        "mutation_id": format_mutation_id
+        "mutation_id": format_mutation_id,
+        "maf": format_maf
     }
 
     return format_functions[regions_format](regions)

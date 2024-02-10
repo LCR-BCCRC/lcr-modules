@@ -27,11 +27,7 @@ def main():
             regions_file = snakemake.input[1]
             regions_format = snakemake.params[0]
 
-            metadata = snakemake.params[2]
-
-            if regions_format == "oncodriveclustl":
-                global CLUSTL_PARAMS
-                CLUSTL_PARAMS = snakemake.params[1]
+            metadata = snakemake.params[1]
 
             output_file = snakemake.output[0]
 
@@ -127,7 +123,7 @@ def maf_add_columns(maf, metadata, wildcards):
     return maf
 
 def write_output(maf, outfile):
-    maf.to_csv(outfile, sep="\t", index=False)
+    maf.to_csv(outfile, sep="\t", na_rep="NA", index=False)
 
 if __name__ == "__main__":
     logging.basicConfig(
