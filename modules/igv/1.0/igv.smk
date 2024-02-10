@@ -58,23 +58,27 @@ else:
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _igv_symlink_regions_file,
-    _igv_symlink_bam,
-    _igv_symlink_bai,
+    _igv_symlink_bams,
     _igv_symlink_maf,
     _igv_reduce_maf_cols,
-    _igv_format_regions_file,
+    _igv_merge_regions,
+    _igv_format_regions,
     _igv_liftover_regions,
+    _igv_merge_lifted_regions,
     _igv_filter_maf,
     _igv_create_batch_script_per_variant,
     _igv_batches_to_merge,
     _igv_download_igv,
     _igv_run,
+    _igv_track_failed,
+    _igv_quality_control,
     _igv_symlink_snapshot,
     _igv_check_snapshots,
+    _igv_check_samples,
     _igv_touch_summary,
+    _igv_setup_estimates,
     _igv_estimate_snapshots,
-    _igv_snapshot_estimate_finished
+    _igv_check_estimates
 
 
 ##### FUNCTIONS #####
@@ -305,7 +309,7 @@ rule _igv_batches_to_merge:
     params:
         merged_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{preset}/{sample_id}" + SUFFIX + ".batch",
         igv_options = lambda w: config["lcr-modules"]["igv"]["options"]["generate_batch_script"]["igv_options"][w.preset]
-    threads: (workflow.cores / 10)
+    threads: (workflow.cores / 30)
     run:
         batch_script_path = os.path.abspath(input.batch_script)
         output_file = os.path.abspath(params.merged_batch)
@@ -446,8 +450,6 @@ rule _igv_track_failed:
         header = "\t".join(["sample_id","seq_type","genome_build","gene","chromosome","position","preset","status","snapshot_path"])
         with open(output.failed_summary, "w") as handle:
             handle.write(header + "\n")
-        ready = open(output.ready, "w")
-        ready.close()
 
 rule _igv_quality_control:
     input:
@@ -455,7 +457,7 @@ rule _igv_quality_control:
         failed_summary = str(rules._igv_track_failed.output.failed_summary),
         snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{tissue_status}/{preset}/{chromosome}/{chromosome}:{start_position}--{gene}--{ref_allele}_{alt_allele}--{sample_id}" + SUFFIX + ".png"
     output:
-        snapshot_qc = temp(CFG["dirs"]["snapshots"] + "qc/{seq_type}--{genome_build}/{tissue_status}/{preset}/{chromosome}:{start_position}--{gene}--{ref_allele}_{alt_allele}--{sample_id}" + SUFFIX + ".qc")
+        snapshot_qc = CFG["dirs"]["snapshots"] + "qc/{seq_type}--{genome_build}/{tissue_status}/{preset}/{chromosome}:{start_position}--{gene}--{ref_allele}_{alt_allele}--{sample_id}" + SUFFIX + ".qc"
     params:
         batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{preset}/{chromosome}:{start_position}--{gene}--{sample_id}" + SUFFIX + ".batch",
         merged_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{preset}/{sample_id}" + SUFFIX + ".batch",
@@ -719,12 +721,12 @@ rule _igv_estimate_snapshots:
 
         for index, row in maf_table.iterrows():
             gene = row["Hugo_Symbol"]
-            chromosome = row["Chromosome"]
+            chromosome = row["chr_std"]
             start_position = str(row["Start_Position"])
 
             dispatch_path = CFG["dirs"]["batch_scripts"] + f"dispatched_batch_scripts/{seq_type}--{genome_build}/{preset}/{chromosome}:{start_position}--{gene}--{sample_id}" + SUFFIX + ".batch"
         
-            outline = "\t".join([sample_id, seq_type, genome_build, gene,chromosome, start_position, preset])
+            outline = "\t".join([sample_id, seq_type, genome_build, gene, chromosome, start_position, preset])
             snapshot_summary.write(outline + "\n")
 
             if not os.path.exists(dispatch_path):
