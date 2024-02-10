@@ -187,44 +187,74 @@ def generate_igv_batches(regions, bam, bai, output_dir, snapshot_dir, genome_bui
 
         merged_batch_suffix = snakemake.wildcards["sample_id"] + suffix + ".batch"
         
-        for _, row in regions.iterrows():
+        grouped_regions = regions.groupby("region")
+
+        # Group by genomic coordinate
+        for coordinate, variants in grouped_regions:
             all_lines = []
 
             header = generate_igv_batch_header(bam=bam, index=bai, max_height=max_height, genome_build=genome_build)
             all_lines.extend(header)
 
             seq_type_build = f"{seq_type}--{genome_build}"
-            chrom_dir = row.chromosome
+            chrom_dir = variants["chromosome"].unique()[0]
 
             filename = []
-            filename.append(row.region),
-            filename.append(row.region_name)
+            filename.append(variants["region"].unique()[0])
+            filename.append(variants["region_name"].unique()[0])
 
             batch_filename = filename.copy()
             batch_filename.append(snakemake.wildcards["sample_id"])
             batch_filename = "--".join(batch_filename) + suffix + ".batch"
-            
-            snap_filename = filename.copy()
+
             if tissue_status == "tumour":
-                snap_filename.append(f"{row.ref_allele}_{row.alt_allele}")
+                # Iterate over variants at same position so that instructions to create multiple snapshots 
+                # with different alleles in their filenames are added to the batch script.
+
+                for _, row in variants.iterrows():
+
+                    snap_filename = filename.copy()
+                    snap_filename.append(f"{row.ref_allele}_{row.alt_allele}")
+                    snap_filename.append(snakemake.wildcards["sample_id"])
+                    snap_filename = "--".join(snap_filename) + suffix + ".png"
+
+                    lines = generate_igv_batch_per_row(
+                        sleep_interval = sleep_timer,
+                        preset = preset,
+                        options = igv_options,
+                        coordinates = row.snapshot_coordinates,
+                        directory = snapshot_dir,
+                        child_dir = tissue_status,
+                        seq_build = seq_type_build,
+                        chrom_directory = chrom_dir,
+                        snapshot_filename = snap_filename
+                    )
+
+                    all_lines.extend(lines)
+
             elif tissue_status == "normal":
-                snap_filename.append(f"{row.ref_allele}_{row.ref_allele}")
-            snap_filename.append(snakemake.wildcards["sample_id"])
-            snap_filename = "--".join(snap_filename) + suffix + ".png"
 
-            lines = generate_igv_batch_per_row(
-                sleep_interval = sleep_timer,
-                preset = preset,
-                options = igv_options,
-                coordinates = row.snapshot_coordinates,
-                directory = snapshot_dir,
-                child_dir = tissue_status,
-                seq_build = seq_type_build,
-                chrom_directory = chrom_dir,
-                snapshot_filename = snap_filename
-            )
+                # Only need to create one snapshot since only one allele will be expected from the ref
 
-            all_lines.extend(lines)
+                snap_filename = filename.copy()
+                ref_allele = variants["ref_allele"].unique()[0]
+                snap_filename.append(f"{ref_allele}_{ref_allele}")
+                snap_filename.append(snakemake.wildcards["sample_id"])
+                snap_filename = "--".join(snap_filename) + suffix + ".png"
+
+                lines = generate_igv_batch_per_row(
+                    sleep_interval = sleep_timer,
+                    preset = preset,
+                    options = igv_options,
+                    coordinates = variants["snapshot_coordinates"].unique()[0],
+                    directory = snapshot_dir,
+                    child_dir = tissue_status,
+                    seq_build = seq_type_build,
+                    chrom_directory = chrom_dir,
+                    snapshot_filename = snap_filename
+                )
+
+                all_lines.extend(lines)
 
             # Make subdirectories if necessary because snakemake won't make them since rule is a checkpoint
             os.makedirs(os.path.join(output_dir, "single_batch_scripts", seq_type_build, preset), exist_ok=True)
