@@ -210,7 +210,7 @@ checkpoint _hotmaps_prep_input:
             str(rules._hotmaps_input_maf.output.maf),
             seq_type = CFG["samples"]["seq_type"].unique()
             ),
-        subsetting_categories = str(rules._hotmaps_input_subsetting_categories.output.subsetting_categories)
+        subsetting_categories = ancient(str(rules._hotmaps_input_subsetting_categories.output.subsetting_categories))
     output:
         CFG["dirs"]["inputs"] + "maf/{sample_set}--{launch_date}/done"
     log:
