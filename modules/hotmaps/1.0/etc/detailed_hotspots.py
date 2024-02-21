@@ -406,7 +406,7 @@ def write_enriched(neighborhood_dict, metadata_output, verbose=False):
     #mupit_file = mupit_abs_file + "_detailed"
     #mupit_out = open(mupit_file, 'w')
 
-    with open(metadata_output, 'w') as writer:
+    with open(metadata_output, 'a') as writer:
         for gene, hotspots in neighborhood_dict.items():
             for hotspot, residues in hotspots.items():
                 out_line = []
@@ -610,7 +610,7 @@ def main(args):
     #                       {'hotspot_2': ...}
     #                 }
 
-   #hotspot_dict = {}
+    #hotspot_dict = {}
 
     print("Initializing...")
     # Get q-values for hotspots
