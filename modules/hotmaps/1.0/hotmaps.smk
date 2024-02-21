@@ -409,7 +409,7 @@ rule _hotmaps_prep_mutations:
     conda:
         CFG["conda_envs"]["hotmaps"]
     log:
-        stdout = CFG["logs"]["hotmaps"] + "{sample_set}--{launch_date}/{md5sum}prep_mutations/prep_mutations.stdout.log",
+        stdout = CFG["logs"]["hotmaps"] + "{sample_set}--{launch_date}/{md5sum}/prep_mutations/prep_mutations.stdout.log",
         stderr = CFG["logs"]["hotmaps"] + "{sample_set}--{launch_date}/{md5sum}/prep_mutations/prep_mutations.stderr.log"
     shell:
         op.as_one_line("""
@@ -808,7 +808,7 @@ rule _hotmaps_aggregate:
     input:
         _for_aggregate
     output:
-        aggregate = CFG["dirs"]["outputs"] + "{sample_set}--{launch_date}--q{q_value}.done"
+        aggregate = CFG["dirs"]["outputs"] + "{sample_set}--{launch_date}/aggregate/{sample_set}--{launch_date}--q{q_value}.done"
     shell:
         "touch {output.aggregate}"
 
