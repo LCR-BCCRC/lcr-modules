@@ -32,7 +32,6 @@ localrules:
     _oncodriveclustl_prep_input,
     _oncodriveclustl_blacklist,
     _oncodriveclustl_format_input,
-    _oncodriveclustl_txt,
     _oncodriveclustl_out,
     _oncodriveclustl_genomic_coordinates_out,
     _oncodriveclustl_aggregate,
@@ -43,7 +42,7 @@ localrules:
 if "launch_date" in CFG:
     launch_date = CFG["launch_date"]
 else:
-    launch_date = datetime.today().strftime('%Y-%m-%d')
+    launch_date = datetime.today().strftime('%Y-%m')
 
 # Interpret the absolute path to this script so it doesn't get interpreted relative to the module snakefile later
 PREPARE_MAFS = os.path.abspath(config["lcr-modules"]["oncodriveclustl"]["maf_processing"]["prepare_mafs"])
@@ -54,7 +53,7 @@ rule _oncodriveclustl_input_maf:
     input:
         maf = CFG["inputs"]["input_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/input.maf"
+        maf = CFG["dirs"]["inputs"] + "master_maf/{seq_type}--{genome_build}/input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
 
@@ -252,7 +251,7 @@ rule _oncodriveclustl_aggregate:
         oncodrive_outputs = _get_oncodriveclustl_outputs,
         coordinate_output = _get_oncodriveclustl_coordinates
     output:
-        aggregate = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{region}/aggregate_outputs.done"
+        aggregate = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/aggregate/{sample_set}--{launch_date}--{region}.done"
     shell:
         "touch {output.aggregate}"
 
