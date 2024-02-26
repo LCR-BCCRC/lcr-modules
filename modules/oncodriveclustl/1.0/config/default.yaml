@@ -11,12 +11,12 @@ lcr-modules:
         # Available regions options: cds, lincrna, 3utr, 5utr, promoter_splice_sites
         regions: ["__UPDATE__"]
         q_values: ["__UPDATE__"] 
-        # Will only return genomic coordinates of clusters 
+        # Will only expand genomic coordinates of clusters 
         # within genes whose q-values are under specified thresholds
 
         maf_processing:
             sample_sets: ["__UPDATE__"]
-            prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
+            prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.1/generate_smg_inputs.R"
             include_non_coding: False # True or False
             blacklists: []
             blacklist_drop_threshold: 4
