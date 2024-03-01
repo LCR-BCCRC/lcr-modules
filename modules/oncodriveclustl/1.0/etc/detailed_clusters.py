@@ -98,6 +98,9 @@ def main(args):
     else:
         clusters_df = pd.read_csv(args['clusters'], sep='\t', comment='#')
 
+    # Print parameters
+    print(f"Parameters:\nq_value threshold: {args['q_value']}\nminimum samples: {args['samples']}\nminimum score: {args['score']}\n")
+
     # Filter elements and clusters by q-value and samples
     clusters_filtered = filter_results(elements=elements_df, clusters=clusters_df, q_val=args['q_value'], samples=args['samples'], score=args['score'])
 

@@ -202,6 +202,9 @@ rule _oncodriveclustl_get_detailed_clusters:
         samples = CFG["detailed_clusters_options"]["minimum_samples"],
         score = "--score " + CFG["detailed_clusters_options"]["minimum_score"] if CFG["detailed_clusters_options"]["minimum_score"] is not None else "",
         script = CFG["scripts"]["detailed_clusters_script"]
+    log:
+        stdout = CFG["logs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/detailed_clusters_{q_value}.stdout.log",
+        stderr = CFG["logs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/detailed_clusters_{q_value}.stderr.log"
     shell:
         op.as_one_line("""
         {params.script}
@@ -210,7 +213,8 @@ rule _oncodriveclustl_get_detailed_clusters:
         -q {params.q_value}
         -n {params.samples}
         -o {output.tsv}
-        {params.score}
+        {params.score} 
+        > {log.stdout} 2> {log.stderr}
         """)
         
 rule _oncodriveclustl_genomic_coordinates_out:
