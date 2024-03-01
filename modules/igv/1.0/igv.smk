@@ -75,7 +75,6 @@ localrules:
     _igv_symlink_snapshot,
     _igv_check_snapshots,
     _igv_check_samples,
-    _igv_touch_summary,
     _igv_setup_estimates,
     _igv_estimate_snapshots,
     _igv_check_estimates
