@@ -1,0 +1,70 @@
+lcr-modules:
+    
+    oncodrivefml:
+        
+        inputs:
+            # Available wildcards: {seq_type} {genome_build}
+            input_maf: "__UPDATE__"
+            subsetting_categories: "__UPDATE__"
+
+        genome_builds: ["__UPDATE__"]
+        # Available regions options: cds, lincrna, 3utr, 5utr, promoter_splice_sites
+        regions: ["__UPDATE__"]
+
+        maf_processing:
+            sample_sets: ["__UPDATE__"]
+            prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.1/generate_smg_inputs.R"
+            include_non_coding: False
+            blacklists: []
+            blacklist_drop_threshold: 4
+
+        reference_files_directory: "__UPDATE__"
+        regions_file:
+            grch37:
+                cds: "__UPDATE__"
+                lincrna:
+                3utr:
+                5utr:
+                promoter_splice_sites:
+            hg38:
+                cds: "{MODSDIR}/etc/hg38.cds.tsv.gz"
+                lincrna:
+                3utr:
+                5utr:
+                promoter_splice_sites:
+
+        scripts:
+            deblacklist_script: "{SCRIPTSDIR}/deblacklist_maf/1.0/deblacklist_maf.py"
+
+        scratch_subdirectories: []
+
+        options:
+            config_path: "config/oncodrivefml_preset.conf"
+            score_path: 
+            fml_options: ""
+
+        conda_envs:
+            prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
+            fml: "{MODSDIR}/envs/oncodrivefml-2.4.0.yaml"
+
+        threads:
+            fml: 4
+
+        resources:
+            fml:
+                mem_mb: 20000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:  
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+                
