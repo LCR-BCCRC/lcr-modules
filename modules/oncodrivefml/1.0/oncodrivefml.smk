@@ -110,7 +110,7 @@ rule _oncodrivefml_format_input:
     input:
         maf = str(rules._oncodrivefml_blacklist.output.maf)
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.clustl_input.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.fml_input.maf"
     params:
         columns = "5,6,11,13,16"
     shell:
