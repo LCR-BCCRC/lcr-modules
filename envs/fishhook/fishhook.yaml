@@ -1,5 +1,6 @@
 name: fishhook
 channels:
+  - bioconda
   - conda-forge
   - defaults
 dependencies:
@@ -9,6 +10,7 @@ dependencies:
   - _sysroot_linux-64_curr_repodata_hack=3=haa98f57_10
   - binutils_impl_linux-64=2.38=h2a08ee3_1
   - binutils_linux-64=2.38.0=hc2dff05_0
+  - bioconductor-complexheatmap
   - blas=1.0=openblas
   - bwidget=1.9.11=1
   - bzip2=1.0.8=h7b6447c_0
