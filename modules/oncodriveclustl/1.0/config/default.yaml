@@ -37,6 +37,7 @@ lcr-modules:
                 promoter_splice_sites:
 
         detailed_cluster_options:
+            p_value: 0.01
             minimum_samples: 5
             minimum_score:
 

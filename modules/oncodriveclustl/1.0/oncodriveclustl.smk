@@ -200,6 +200,7 @@ rule _oncodriveclustl_get_detailed_clusters:
     params:
         q_value = lambda w: w.q_value,
         samples = CFG["detailed_clusters_options"]["minimum_samples"],
+        p_value = CFG["detailed_clusters_options"]["p_value"],
         score = "--score " + CFG["detailed_clusters_options"]["minimum_score"] if CFG["detailed_clusters_options"]["minimum_score"] is not None else "",
         script = CFG["scripts"]["detailed_clusters_script"]
     log:
@@ -212,6 +213,7 @@ rule _oncodriveclustl_get_detailed_clusters:
         -c {input.clusters}
         -q {params.q_value}
         -n {params.samples}
+        -p {params.p_value}
         -o {output.tsv}
         {params.score} 
         > {log.stdout} 2> {log.stderr}

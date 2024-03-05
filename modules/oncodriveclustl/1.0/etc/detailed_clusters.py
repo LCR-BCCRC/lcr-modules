@@ -17,11 +17,14 @@ def parse_arguments():
                         type=str, required=True,
                         help='OncodriveCLUSTL clusters results file')
     parser.add_argument('-q', '--q_value',
-                        type=float, default=0.01,
+                        type=float, default=0.001,
                         help='Analytical q-value threshold for OncodriveCLUSTL elements (not clusters)')
     parser.add_argument('-n', '--samples',
                         type=int, default=5,
                         help='Minimum sample threshold for OncodriveCLUSTL clusters')
+    parser.add_argument('-p', '--p_value',
+                        type=float, default=0.01,
+                        help='P-value threshold for OncodriveCLUSTL clusters')
     parser.add_argument('-s', '--score',
                         type=int, required=False,
                         default=None,
@@ -34,7 +37,7 @@ def parse_arguments():
     args = vars(args)
     return args
 
-def filter_results(elements, clusters, q_val, samples, score=None):
+def filter_results(elements, clusters, q_val, samples, p_val, score=None):
     # Filter the files
     filtered_elements = elements[~elements['Q_ANALYTICAL'].isna()]
     filtered_elements = filtered_elements[filtered_elements['Q_ANALYTICAL'] <= q_val]
@@ -42,6 +45,7 @@ def filter_results(elements, clusters, q_val, samples, score=None):
     # Only include clusters from the filtered elements
     filtered_clusters = clusters[clusters['SYMBOL'].isin(filtered_elements['SYMBOL'])]
     filtered_clusters = filtered_clusters[filtered_clusters['N_SAMPLES'] >= samples]
+    filtered_clusters = filtered_clusters[filtered_clusters['P'] <= p_val]
 
     if score is not None:
         filtered_clusters = filtered_clusters[filtered_clusters['SCORE'] >= score]
@@ -102,7 +106,7 @@ def main(args):
     print(f"Parameters:\nq_value threshold: {args['q_value']}\nminimum samples: {args['samples']}\nminimum score: {args['score']}\n")
 
     # Filter elements and clusters by q-value and samples
-    clusters_filtered = filter_results(elements=elements_df, clusters=clusters_df, q_val=args['q_value'], samples=args['samples'], score=args['score'])
+    clusters_filtered = filter_results(elements=elements_df, clusters=clusters_df, q_val=args['q_value'], samples=args['samples'], p_val=args['p_value'], score=args['score'])
 
     # Convert clusters dataframe to genomic coordinates style
     clusters_expanded = reformat_clusters(clusters_filtered)
