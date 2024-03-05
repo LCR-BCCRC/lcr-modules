@@ -152,8 +152,8 @@ rule _oncodriveclustl_run:
         tsv = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/clusters_results.tsv",
         png = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/quantile_quantile_plot.png"
     log:
-        stdout = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodriveclustl.stdout.log",
-        stderr = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodriveclustl.stderr.log"
+        stdout = CFG["logs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodriveclustl.stdout.log",
+        stderr = CFG["logs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodriveclustl.stderr.log"
     params:
         local_path = CFG["reference_files_directory"],
         build = lambda w: (w.genome_build).replace("grch37","hg19").replace("grch38","hg38"),
