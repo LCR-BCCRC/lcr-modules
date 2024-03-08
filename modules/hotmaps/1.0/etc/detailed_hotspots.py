@@ -44,7 +44,7 @@ def parse_arguments():
                         help='Output file path for detailed hotspot results.')
     parser.add_argument('-g', '--gene',
                         type=str, default=None,
-                        help='Verbose output for selected gene')
+                        help='Verbose output for selected gene. Note if this option is selected, genomic coordinates will not be created so the coordinates-out parameter is not required.')
     parser.add_argument('-w','--overwrite',
                         action='store_true',
                         help='Overwrite existing output files')
@@ -492,6 +492,13 @@ def write_coordinates(neighborhood_dict, metadata_output, mupit_reverse_dict, mu
 
     with open(metadata_output, 'a') as writer:
         for gene, hotspots in neighborhood_dict.items():
+            samples_counter = []
+            for hotspot, residues in hotspots.items():
+                for residue, description in residues.items():
+                    for hotspot_residue, residue_info in description["mutated_residues"].items():
+                        residue_samples = residue_info["samples"]
+                        samples_counter.extend(residue_samples)
+
             for hotspot, residues in hotspots.items():
                 #out_line = []
                 #out_line.append(gene)
@@ -500,7 +507,7 @@ def write_coordinates(neighborhood_dict, metadata_output, mupit_reverse_dict, mu
 
                 hotmaps_residues = []
                 gene_position_col = []
-                
+
                 for residue, description in residues.items():
                     hotspot_pdb = description["pdb"]
                     hotmaps_residue = residue
@@ -514,10 +521,14 @@ def write_coordinates(neighborhood_dict, metadata_output, mupit_reverse_dict, mu
                         mupit_line = mupit_reverse_dict[mupit_key][1]
                         mupit_chromosome = mupit_line[mupit_chromosome_ix]
                         mupit_genomic_pos = mupit_line[mupit_gene_pos_ix]
+                        n_samples = str(len(list(set(samples_counter))))
+
+                        residue_samples = str(len(list(set(residue_info["samples"]))))
+                        print(f"gene:{residue_gene}\thotspot:{hotspot_gene_combo}\tposition:{residue_position}\tresidue samples:{residue_samples}\ttotal_samples:{n_samples}")
 
                         mupit_genomic_position = mupit_genomic_pos.replace("b'", "").replace("'", "").split(",")
                         for genomic_pos in mupit_genomic_position:
-                            out_line = [residue_gene, mupit_chromosome, genomic_pos, hotspot_gene_combo, residue_position, residue_pdb, residue_chain, residue_chain_pos, hotmaps_residue]
+                            out_line = [residue_gene, mupit_chromosome, genomic_pos, hotspot_gene_combo, n_samples, residue_position, residue_pdb, residue_chain, residue_chain_pos, hotmaps_residue]
                             writer.write('\t'.join(out_line) + "\n")
 
 
@@ -576,7 +587,7 @@ def main(args):
                 output_header = ['GENE', 'HOTSPOT_NUM', 'N_SAMPLES', 'ALL_GENES', 'HOTMAPS_RES', 'MUTATED_RES']
                 handle.write('\t'.join(output_header) + "\n")
         with open(genomic_coordinates_out, 'w') as handle:
-                output_header = ['Hugo_Symbol', 'Chromosome', 'Start_Position', 'Hotspot_ID', 'Protein_Residue', 'PDB_Structure', 'PDB_Chain', 'PDB_Chain_Position', 'Central_Residue']
+                output_header = ['Hugo_Symbol', 'Chromosome', 'Start_Position', 'Hotspot_ID', 'N_samples', 'Protein_Residue', 'PDB_Structure', 'PDB_Chain', 'PDB_Chain_Position', 'Central_Residue']
                 handle.write('\t'.join(output_header) + "\n")
     # verbose version
     if verbose:
