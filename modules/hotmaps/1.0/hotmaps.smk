@@ -198,7 +198,7 @@ rule _hotmaps_input_maf:
 
 rule _hotmaps_input_subsetting_categories:
     input:
-        subsetting_categories = CFG["inputs"]["subsetting_categories"]
+        subsetting_categories = ancient(CFG["inputs"]["subsetting_categories"])
     output:
         subsetting_categories = CFG["dirs"]["inputs"] + "sample_sets/subsetting_categories.tsv"
     run:
