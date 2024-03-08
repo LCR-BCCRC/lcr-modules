@@ -191,7 +191,7 @@ rule _oncodriveclustl_out:
         op.relative_symlink(input.txt, output.txt, in_module=True)
         op.relative_symlink(input.png, output.png, in_module=True)
 
-rule _oncodriveclustl_get_detailed_clusters:
+rule _oncodriveclustl_get_cluster_coordinates:
     input:
         elements = str(rules._oncodriveclustl_run.output.txt),
         clusters = str(rules._oncodriveclustl_run.output.tsv)
@@ -221,7 +221,7 @@ rule _oncodriveclustl_get_detailed_clusters:
         
 rule _oncodriveclustl_genomic_coordinates_out:
     input:
-        genomic_coordinates = str(rules._oncodriveclustl_get_detailed_clusters.output.tsv)
+        genomic_coordinates = str(rules._oncodriveclustl_get_cluster_coordinates.output.tsv)
     output:
         genomic_coordinates = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/genomic_coordinates_clusters_results_{q_value}.tsv"
     run:
