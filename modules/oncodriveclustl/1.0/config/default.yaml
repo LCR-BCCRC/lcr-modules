@@ -21,14 +21,14 @@ lcr-modules:
             blacklists: []
             blacklist_drop_threshold: 4
         
-        reference_files_directory: "__UPDATE__"
+        reference_files_directory: "ref/lcr-modules-references/downloads/oncodrive/"
         regions_file:
             grch37:
-                cds: "__UPDATE__"
-                lincrna:
-                3utr:
-                5utr:
-                promoter_splite_sites: 
+                cds: "downloads/oncodrive/regions/grch37/cds.regions.gz"
+                lincrna: "downloads/oncodrive/regions/grch37/lincrnas.regions.gz"
+                3utr: "downloads/oncodrive/regions/grch37/3utr.regions.gz"
+                5utr: "downloads/oncodrive/regions/grch37/5utr.regions.gz"
+                promoter_splite_sites: "downloads/oncodrive/regions/grch37/promoters_splice_sites_10bp.regions.gz"
             hg38:
                 cds: "{MODSDIR}/etc/hg38.cds.tsv.gz"
                 lincrna:
