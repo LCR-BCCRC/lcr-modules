@@ -53,7 +53,7 @@ def filter_results(elements, clusters, q_val, samples, p_val, score=None):
     return filtered_clusters
 
 def reformat_clusters(clusters):
-    clusters = clusters[["SYMBOL","CHROMOSOME","COORDINATES"]]
+    clusters = clusters[["SYMBOL","CHROMOSOME","COORDINATES","N_SAMPLES"]]
 
     # Number the clusters beforehand
     cluster_genes = {}
@@ -76,7 +76,7 @@ def reformat_clusters(clusters):
 
     # Merge back into original clusters df
     merged_clusters = pd.merge(clusters.drop(['COORDINATES'], axis=1), expanded_clusters, left_index=True, right_on='index')
-    merged_clusters = merged_clusters[['SYMBOL','CHROMOSOME','COORDINATES',"HOTSPOT_ID"]]
+    merged_clusters = merged_clusters[['SYMBOL','CHROMOSOME','COORDINATES',"HOTSPOT_ID","N_SAMPLES"]]
     merged_clusters.reset_index(drop=True, inplace=True)
 
     # Expand COORDINATES column to include all coordinates in the hotspot
@@ -86,7 +86,7 @@ def reformat_clusters(clusters):
     clusters_expanded = merged_clusters.explode('COORDINATES')
     clusters_expanded.reset_index(drop=True, inplace=True)
 
-    clusters_expanded.columns = ["Hugo_Symbol","Chromosome","Start_Position","Hotspot_ID"]
+    clusters_expanded.columns = ["Hugo_Symbol","Chromosome","Start_Position","Hotspot_ID","N_samples"]
 
     return clusters_expanded
 
