@@ -26,12 +26,6 @@ lcr-modules:
         estimate_only: False # Stop after MAF filtering step to estimate total number of snapshots
 
         options:
-            filter_maf:
-                oncodriveclustl_options: # These parameters will filter the OncodriveCLUSTL cluster results file.
-                    p_value: 0.001 # Maximum p-value of OncodriveCLUSTL clusters
-                    score: # Minimum score of OncodriveCLUSTL clusters
-                    n_samples: 5 # Desired number of samples in OncodriveCLUSTL clusters
-
             genome_map: # Map builds between metadata and MAFs
                 grch37: ["__UPDATE__"]
                 hg38: ["__UPDATE__"]

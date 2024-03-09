@@ -40,10 +40,6 @@ def main():
                 touch_output.close()
                 exit()
 
-            if regions_format == "oncodriveclustl":
-                global CLUSTL_PARAMS
-                CLUSTL_PARAMS = snakemake.params["oncodriveclustl_params"]
-
             if regions_format == "mutation_id":
                 global REGIONS_BUILD
                 REGIONS_BUILD = snakemake.params["regions_build"]
@@ -109,39 +105,13 @@ def format_clustl(clustl_regions):
     # Read regions into dataframe
     clustl_regions = pd.read_table(clustl_regions, comment="#", sep="\t")
 
-    p_filter = CLUSTL_PARAMS["p_value"]
-    score_filter = CLUSTL_PARAMS["score"]
-    n_samples_filter = CLUSTL_PARAMS["n_samples"]
-
-    for key, filter_value in {"P": p_filter, "SCORE": score_filter, "N_SAMPLES": n_samples_filter}.items():
-        if filter_value is not None:
-            if key != "P":
-                clustl_regions = clustl_regions[clustl_regions[key] >= float(filter_value)]
-            if key == "P":
-                clustl_regions = clustl_regions[clustl_regions[key] <= float(filter_value)]
-
-    # Reformat CLUSTL coordinates to handle clusters that cross introns (when CLUSTL concatenated mode is used)
-    clustl_regions = clustl_regions.assign(COORDINATES = clustl_regions.COORDINATES.str.split(";")).explode("COORDINATES")
-    
-    # Convert OncodriveCLUSTL cluster coordinates to BED format
-    clustl_regions["COORDINATES"] = clustl_regions.apply(
-        lambda x: list(
-            range(
-                int(str(x["COORDINATES"]).split(",")[0]), int(str(x["COORDINATES"]).split(",")[1]) + 1
-            )
-        )
-        if str(x["COORDINATES"]).split(",")[0] != str(x["COORDINATES"]).split(",")[1] else int(str(x["COORDINATES"]).split(",")[0]),
-        axis = 1
-    )
-    clustl_regions = clustl_regions.explode("COORDINATES")
-
-    # Create columnsn required for BED format
-    chr_std = "chr" + clustl_regions["CHROMOSOME"].map(str)
+    # Create columnns required for BED format
+    chr_std = "chr" + clustl_regions["Chromosome"].map(str)
     clustl_reformatted = pd.DataFrame(
         {
             "chrom": chr_std,
-            "start": clustl_regions["COORDINATES"],
-            "end": clustl_regions["COORDINATES"]
+            "start": clustl_regions["Start_Position"],
+            "end": clustl_regions["Start_Position"]
         }
     )
     return clustl_reformatted

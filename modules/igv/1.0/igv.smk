@@ -158,7 +158,6 @@ rule _igv_format_regions:
         regions = CFG["dirs"]["inputs"] + "regions/{tool_type}_formatted.{tool_build}.tsv"
     params:
         regions_format = lambda w: w.tool_type,
-        oncodriveclustl_params = CFG["options"]["filter_maf"]["oncodriveclustl_options"],
         regions_build = lambda w: w.tool_build
     log:
         stdout = CFG["logs"]["inputs"] + "regions/format_regions_{tool_type}.{tool_build}.stdout.log",
