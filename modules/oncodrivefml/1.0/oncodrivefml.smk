@@ -112,7 +112,8 @@ rule _oncodrivefml_format_input:
     output:
         maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.fml_input.maf"
     params:
-        columns = "5,6,11,13,16"
+        columns = CFG["format_fml_input"]["input_columns"],
+        additional_commands = CFG["format_fml_input"]["additional_commands"]
     shell:
         op.as_one_line("""
         cut -f {params.columns} {input.maf} |
@@ -121,6 +122,7 @@ rule _oncodrivefml_format_input:
         sed 's/Reference_Allele/REF/' |
         sed 's/Tumor_Seq_Allele2/ALT/' |
         sed 's/Tumor_Sample_Barcode/SAMPLE/'
+        {params.additional_commands}
         > {output.maf}
         """)
 
@@ -137,11 +139,12 @@ rule _oncodrivefml_get_hg19_scores:
         score_dir = CFG["dirs"]["cadd"] + "grch37/"
     shell:
         op.as_one_line("""
-        export BGDATA_LOCAL={score_path} &&
+        export BGDATA_LOCAL={params.score_dir} &&
         bgdata get genomicscores/caddpack/1.0
         """)
 
 def _get_score_path(wildcards):
+    # Use score path for a different genome build if available, otherwise use score provided by bbglab
     CFG = config["lcr-modules"]["oncodrivefml"]
     if ONCODRIVE_BUILD_DICT[wildcards.genome_build] == "hg19":
         score_path = str(rules._oncodrivefml_get_hg19_scores.output.scores)
@@ -153,8 +156,8 @@ def _get_score_path(wildcards):
 def _get_region(wildcards):
     CFG = config["lcr-modules"]["oncodrivefml"]
     build_regions = CFG["regions_files"][wildcards.genome_build]
-    if wildcards.genome_build == "grch37"
-        regions_files = reference_files(build_regions[wildcards.region])
+    if wildcards.genome_build == "grch37":
+        regions_file = reference_files(build_regions[wildcards.region])
     else:
         # hg38 regions file for Oncodrive are not available in their bitbucket and haven't been downloaded through reference files workflow
         regions_file = build_regions[wildcards.region]
@@ -202,9 +205,9 @@ rule _oncodrivefml_out:
         png = str(rules._oncodrivefml_run.output.png),
         html = str(rules._oncodrivefml_run.output.html)
     output:
-        tsv = CFG["dirs"]["outputs"] + "{genome_build}/{launch_date}--{sample_set}/{md5sum}/{region}/oncodrivefml.tsv",
-        png = CFG["dirs"]["outputs"] + "{genome_build}/{launch_date}--{sample_set}/{md5sum}/{region}/oncodrivefml.png",
-        html = CFG["dirs"]["outputs"] + "{genome_build}/{launch_date}--{sample_set}/{md5sum}/{region}/oncodrivefml.html"
+        tsv = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.tsv",
+        png = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.png",
+        html = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.html"
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module=True)
         op.relative_symlink(input.png, output.png, in_module=True)
@@ -216,9 +219,12 @@ def _get_oncodrivefml_outputs(wildcards):
     SUMS, = glob_wildcards(checkpoint_output+"/{md5sum}.maf.content")
 
     return expand(
-        CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.tsv",
-        CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.png",
-        CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.html"
+        [
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.tsv",
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.png",
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.html"
+        ],
+        md5sum = SUMS
     )
 
 rule _oncodrivefml_aggregate:
@@ -233,7 +239,7 @@ rule _oncodrivefml_all:
     input:
         expand(
             str(rules._oncodrivefml_aggregate.output.aggregate),
-            genome_build = CFG["genome_build"],
+            genome_build = CFG["genome_builds"],
             sample_set = CFG["maf_processing"]["sample_sets"],
             region = CFG["regions"],
             launch_date = launch_date
