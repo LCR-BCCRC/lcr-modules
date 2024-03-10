@@ -57,7 +57,9 @@ rule all:
                 rules.get_repeatmasker_download.output.bed, 
                 rules.get_mutect2_pon.output.vcf, 
                 rules.get_af_only_gnomad_vcf.output.vcf,
-                rules._imgt_db_success.output.txt
+                rules._imgt_db_success.output.txt,
+                rules.aggregate_oncodrive_downloads.output.finished,
+                rules.oncodrive_hg19_regions_downloaded.output.finished
             ],
             genome_build=config["genome_builds"].keys(),
             bwa_version=config["tools"]["bwa"]["version"],
