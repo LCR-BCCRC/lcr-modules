@@ -20,6 +20,10 @@ lcr-modules:
             include_non_coding: False # True or False
             blacklists: []
             blacklist_drop_threshold: 4
+
+        format_clustl_input:
+            input_columns: "5,6,11,13,16"
+            additional_commands: ""
         
         reference_files_directory: "ref/lcr-modules-references/downloads/oncodrive/"
         regions_file:

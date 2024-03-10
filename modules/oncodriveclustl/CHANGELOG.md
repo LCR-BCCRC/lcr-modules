@@ -11,7 +11,7 @@ This release was authored by Manuela Cruz.
 
 - Input MAFs for OncodriveCLUSTL are created by the lcr-scripts `generate_smg_inputs`. Desired cohorts, pathologies, genome builds, etc. can be defined and provided in the config at ["inputs]["subsetting_categories"]
 
-- Additional blacklists can be provided to filter mutations in ["maf_processing]["blacklists"]
+- Additional blacklists can be provided to filter mutations in ["maf_processing"]["blacklists"]
 
 - OncodriveCLUSTL depends on regions files. grch37 regions files are available through the `reference_files` workflow. Available regions are cds, lincrna, 5utr, 3utr and 5utr. The hg38 cds region file is available within the module at `etc/hg38.cds.tsv.gz`. The path to the reference_files directory must be provided within the config at ["reference_files_directory"] so that the global variable `BGDATA_LOCAL` can be set.
 

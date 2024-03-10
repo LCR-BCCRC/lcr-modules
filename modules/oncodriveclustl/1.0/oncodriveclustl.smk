@@ -114,7 +114,8 @@ rule _oncodriveclustl_format_input:
     output:
         maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.clustl_input.maf"
     params:
-        columns = "5,6,11,13,16"
+        columns = CFG["format_clustl_input"]["input_columns"],
+        additional_commands = CFG["format_clustl_input"]["additional_commands"]
     shell:
         op.as_one_line("""
         cut -f {params.columns} {input.maf} |
@@ -123,6 +124,7 @@ rule _oncodriveclustl_format_input:
         sed 's/Reference_Allele/REF/' | 
         sed 's/Tumor_Seq_Allele2/ALT/' |
         sed 's/Tumor_Sample_Barcode/SAMPLE/' 
+        {params.additional_commands}
         > {output.maf}
         """)
 
