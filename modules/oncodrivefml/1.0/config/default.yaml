@@ -29,7 +29,7 @@ lcr-modules:
                 lincrna: "downloads/oncodrive/regions/grch37/lincrnas.regions.gz"
                 3utr: "downloads/oncodrive/regions/grch37/3utr.regions.gz"
                 5utr: "downloads/oncodrive/regions/grch37/5utr.regions.gz"
-                promoter_splite_sites: "downloads/oncodrive/regions/grch37/promoters_splice_sites_10bp.regions.gz"
+                promoter_splice_sites: "downloads/oncodrive/regions/grch37/promoters_splice_sites_10bp.regions.gz"
             hg38:
                 cds: "{MODSDIR}/etc/hg38.cds.tsv.gz"
                 lincrna:
