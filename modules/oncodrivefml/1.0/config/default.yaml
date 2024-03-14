@@ -18,14 +18,18 @@ lcr-modules:
             blacklists: []
             blacklist_drop_threshold: 4
 
-        reference_files_directory: "__UPDATE__"
-        regions_file:
+        format_fml_input:
+            input_columns: "5,6,11,13,16"
+            additional_commands: ""
+
+        reference_files_directory: "ref/lcr-modules-references/downloads/oncodrive/"
+        regions_files:
             grch37:
-                cds: "__UPDATE__"
-                lincrna:
-                3utr:
-                5utr:
-                promoter_splice_sites:
+                cds: "downloads/oncodrive/regions/grch37/cds.regions.gz"
+                lincrna: "downloads/oncodrive/regions/grch37/lincrnas.regions.gz"
+                3utr: "downloads/oncodrive/regions/grch37/3utr.regions.gz"
+                5utr: "downloads/oncodrive/regions/grch37/5utr.regions.gz"
+                promoter_splite_sites: "downloads/oncodrive/regions/grch37/promoters_splice_sites_10bp.regions.gz"
             hg38:
                 cds: "{MODSDIR}/etc/hg38.cds.tsv.gz"
                 lincrna:
@@ -36,10 +40,10 @@ lcr-modules:
         scripts:
             deblacklist_script: "{SCRIPTSDIR}/deblacklist_maf/1.0/deblacklist_maf.py"
 
-        scratch_subdirectories: []
+        scratch_subdirectories: ["cadd"]
 
         options:
-            config_path: "config/oncodrivefml_preset.conf"
+            config_path: "{MODSDIR}/etc/oncodrivefml.conf"
             score_path: 
             fml_options: ""
 
