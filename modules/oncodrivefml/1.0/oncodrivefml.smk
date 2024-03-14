@@ -189,6 +189,7 @@ rule _oncodrivefml_run:
     shell:
         op.as_one_line("""
         export BGDATA_LOCAL={params.local_path} &&
+        export BGDATA_OFFLINE=TRUE &&
         oncodrivefml
         -i {input.maf}
         -o "$(dirname $(realpath {output.tsv}))"
