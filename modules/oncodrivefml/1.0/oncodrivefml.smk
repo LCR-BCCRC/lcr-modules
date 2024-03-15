@@ -137,6 +137,7 @@ rule _oncodrivefml_get_hg19_scores:
         index = CFG["dirs"]["cadd"] + "grch37/genomicscores/caddpack/1.0-20170217/whole_genome_SNVs.fml.idx"
     params:
         score_dir = CFG["dirs"]["cadd"] + "grch37/"
+    conda: CFG["conda_envs"]["fml"]
     shell:
         op.as_one_line("""
         export BGDATA_LOCAL={params.score_dir} &&
