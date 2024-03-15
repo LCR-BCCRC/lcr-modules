@@ -29,11 +29,11 @@ localrules:
     _oncodrivefml_input_maf,
     _oncodrivefml_sample_set,
     _oncodrivefml_prep_input,
-    _oncodrivefml_config,
-    _oncodrivefml_preserve_config,
-    _oncodrivefml_signature_maf,
-    _oncodrivefml_signature_freq,
-    _oncodrivefml_txt,
+    _oncodrivefml_blacklist,
+    _oncodrivefml_format_input,
+    _oncodrivefml_get_hg19_scores,
+    _oncodrivefml_out,
+    _oncodrivefml_aggregate,
     _oncodrivefml_all,
 
 
@@ -145,7 +145,7 @@ rule _oncodrivefml_get_hg19_scores:
         """)
 
 def _get_score_path(wildcards):
-    # Use score path for a different genome build if available, otherwise use score provided by bbglab
+    # Use score path provided in config if available, otherwise use score provided by bbglab (grch37 only)
     CFG = config["lcr-modules"]["oncodrivefml"]
     if CFG["options"]["score_path"] is not None:
         score_path = CFG["options"]["score_path"]
