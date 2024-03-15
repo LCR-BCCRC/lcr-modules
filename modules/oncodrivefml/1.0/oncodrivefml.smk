@@ -146,11 +146,10 @@ rule _oncodrivefml_get_hg19_scores:
 def _get_score_path(wildcards):
     # Use score path for a different genome build if available, otherwise use score provided by bbglab
     CFG = config["lcr-modules"]["oncodrivefml"]
-    if ONCODRIVE_BUILD_DICT[wildcards.genome_build] == "hg19":
-        score_path = str(rules._oncodrivefml_get_hg19_scores.output.scores)
-    if not ONCODRIVE_BUILD_DICT[wildcards.genome_build] == "hg19" and CFG["options"]["score_path"] is not None:
+    if CFG["options"]["score_path"] is not None:
         score_path = CFG["options"]["score_path"]
-    
+    elif ONCODRIVE_BUILD_DICT[wildcards.genome_build] == "hg19":
+        score_path = str(rules._oncodrivefml_get_hg19_scores.output.scores)
     return score_path
 
 def _get_region(wildcards):
@@ -161,7 +160,6 @@ def _get_region(wildcards):
     else:
         # hg38 regions file for Oncodrive are not available in their bitbucket and haven't been downloaded through reference files workflow
         regions_file = build_regions[wildcards.region]
-    
     return regions_file
 
 rule _oncodrivefml_run:
@@ -171,9 +169,9 @@ rule _oncodrivefml_run:
         scores = _get_score_path,
         region = _get_region
     output:
-        tsv = CFG["dirs"]["oncodrivefml"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.tsv",
-        png = CFG["dirs"]["oncodrivefml"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.png",
-        html = CFG["dirs"]["oncodrivefml"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.html"
+        tsv = CFG["dirs"]["oncodrivefml"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/{md5sum}-oncodrivefml.tsv.gz",
+        png = CFG["dirs"]["oncodrivefml"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/{md5sum}-oncodrivefml.png",
+        html = CFG["dirs"]["oncodrivefml"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/{md5sum}-oncodrivefml.html"
     log:
         stdout = CFG["logs"]["oncodrivefml"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.stdout.log",
         stderr = CFG["logs"]["oncodrivefml"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.stderr.log"
