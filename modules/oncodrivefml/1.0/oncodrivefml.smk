@@ -1,6 +1,5 @@
 #!/usr/bin/env snakemake
 
-#@import pandas
 
 ##### ATTRIBUTION #####
 
