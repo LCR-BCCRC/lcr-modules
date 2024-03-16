@@ -204,7 +204,7 @@ rule _oncodrivefml_out:
         png = str(rules._oncodrivefml_run.output.png),
         html = str(rules._oncodrivefml_run.output.html)
     output:
-        tsv = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.tsv",
+        tsv = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.tsv.gz",
         png = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.png",
         html = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.html"
     run:
@@ -219,7 +219,7 @@ def _get_oncodrivefml_outputs(wildcards):
 
     return expand(
         [
-            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.tsv",
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.tsv.gz",
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.png",
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.html"
         ],
