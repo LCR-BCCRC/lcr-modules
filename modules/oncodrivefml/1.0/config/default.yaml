@@ -8,7 +8,18 @@ lcr-modules:
             subsetting_categories: "__UPDATE__"
 
         genome_builds: ["__UPDATE__"]
-        # Available regions options: cds, lincrna, 3utr, 5utr, promoter_splice_sites
+
+        # Available regions options: cds, lincrna, 3utr, 5utr, promoter_splice_sites, custom
+        # You can specify more than one region at a time in list format, e.g ["cds","lincrna"]
+        # This will result in 2 sets of output files, one set containing genes in coding sequence regions
+        # And the other set containing long intergenic non-coding RNA results.
+        # cds: Coding sequence regions
+        # lincrna: Long intergenic non-coding RNA regions
+        # 3utr: 3' UTR regions
+        # 5utr: 5' UTR regions
+        # promoter_splice_sites: Promoter regions and splice site regions
+        # custom: Custom made regions file specified by user. More info for regions file format: 
+        # https://oncodrivefml.readthedocs.io/en/latest/files.html#regions-file-format
         regions: ["__UPDATE__"]
 
         maf_processing:
@@ -30,12 +41,14 @@ lcr-modules:
                 3utr: "downloads/oncodrive/regions/grch37/3utr.regions.gz"
                 5utr: "downloads/oncodrive/regions/grch37/5utr.regions.gz"
                 promoter_splice_sites: "downloads/oncodrive/regions/grch37/promoters_splice_sites_10bp.regions.gz"
+                custom: # Specify path if providing a custom regions file
             hg38:
                 cds: "{MODSDIR}/etc/hg38.cds.tsv.gz"
                 lincrna:
                 3utr:
                 5utr:
                 promoter_splice_sites:
+                custom: # Specify path if providing a custom regions file
 
         scripts:
             deblacklist_script: "{SCRIPTSDIR}/deblacklist_maf/1.0/deblacklist_maf.py"
@@ -67,4 +80,4 @@ lcr-modules:
                 run_paired_tumours: False
                 run_unpaired_tumours_with: "no_normal"
                 run_paired_tumours_as_unpaired: True
-                
+            
