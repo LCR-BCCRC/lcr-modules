@@ -30,7 +30,13 @@ lcr-modules:
             blacklist_drop_threshold: 4
 
         format_fml_input:
+            # String in input_columns is passed to the cut command to subset MAF columns to only include:
+            # Chromosome, Start_Position, Reference_Allele, Tumor_Seq_Allele2, Tumor_Sample_Barcode
+            # e.g "cut -f 5,6,11,13,16"
             input_columns: "5,6,11,13,16"
+            # If additional columns are incorporated, add additional commands here to change column names if necessary
+            # e.g additional_commands: "sed 's/Normal_Sample_Barcode/SIGNATURE/'"
+            # More info: https://oncodrivefml.readthedocs.io/en/latest/files.html#file-formats
             additional_commands: ""
 
         reference_files_directory: "ref/lcr-modules-references/downloads/oncodrive/"
