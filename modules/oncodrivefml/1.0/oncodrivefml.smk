@@ -155,10 +155,10 @@ def _get_score_path(wildcards):
 def _get_region(wildcards):
     CFG = config["lcr-modules"]["oncodrivefml"]
     build_regions = CFG["regions_files"][wildcards.genome_build]
-    if wildcards.genome_build == "grch37":
+    if wildcards.genome_build == "grch37" and wildcards.region != "custom":
         regions_file = reference_files(build_regions[wildcards.region])
     else:
-        # hg38 regions file for Oncodrive are not available in their bitbucket and haven't been downloaded through reference files workflow
+        # hg38 regions file / custom regions files for Oncodrive are not available in their bitbucket and haven't been downloaded through reference files workflow
         regions_file = build_regions[wildcards.region]
     return regions_file
 
