@@ -3,7 +3,9 @@ lcr-modules:
     hotmaps:
 
         inputs:
-            # Available wildcards: {seq_type} {genome_build}
+            # Available wildcards: {seq_type}
+            # No genome_build wildcard because only grch37 is compatible!
+            # Make sure input MAF paths are for grch37 only
             input_maf: "__UPDATE__"
             subsetting_categories: "__UPDATE__"
 
