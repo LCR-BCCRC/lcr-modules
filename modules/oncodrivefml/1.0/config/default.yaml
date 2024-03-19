@@ -1,0 +1,89 @@
+lcr-modules:
+    
+    oncodrivefml:
+        
+        inputs:
+            # Available wildcards: {seq_type} {genome_build}
+            input_maf: "__UPDATE__"
+            subsetting_categories: "__UPDATE__"
+
+        genome_builds: ["__UPDATE__"]
+
+        # Available regions options: cds, lincrna, 3utr, 5utr, promoter_splice_sites, custom
+        # You can specify more than one region at a time in list format, e.g ["cds","lincrna"]
+        # This will result in 2 sets of output files, one set containing genes in coding sequence regions
+        # And the other set containing long intergenic non-coding RNA results.
+        # cds: Coding sequence regions
+        # lincrna: Long intergenic non-coding RNA regions
+        # 3utr: 3' UTR regions
+        # 5utr: 5' UTR regions
+        # promoter_splice_sites: Promoter regions and splice site regions
+        # custom: Custom made regions file specified by user. More info for regions file format: 
+        # https://oncodrivefml.readthedocs.io/en/latest/files.html#regions-file-format
+        regions: ["__UPDATE__"]
+
+        maf_processing:
+            sample_sets: ["__UPDATE__"]
+            prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.1/generate_smg_inputs.R"
+            include_non_coding: False
+            blacklists: []
+            blacklist_drop_threshold: 4
+
+        format_fml_input:
+            # String in input_columns is passed to the cut command to subset MAF columns to only include:
+            # Chromosome, Start_Position, Reference_Allele, Tumor_Seq_Allele2, Tumor_Sample_Barcode
+            # e.g "cut -f 5,6,11,13,16"
+            input_columns: "5,6,11,13,16"
+            # If additional columns are incorporated, add additional commands here to change column names if necessary
+            # e.g additional_commands: "sed 's/Normal_Sample_Barcode/SIGNATURE/'"
+            # More info: https://oncodrivefml.readthedocs.io/en/latest/files.html#file-formats
+            additional_commands: ""
+
+        reference_files_directory: "ref/lcr-modules-references/downloads/oncodrive/"
+        regions_files:
+            grch37:
+                cds: "downloads/oncodrive/regions/grch37/cds.regions.gz"
+                lincrna: "downloads/oncodrive/regions/grch37/lincrnas.regions.gz"
+                3utr: "downloads/oncodrive/regions/grch37/3utr.regions.gz"
+                5utr: "downloads/oncodrive/regions/grch37/5utr.regions.gz"
+                promoter_splice_sites: "downloads/oncodrive/regions/grch37/promoters_splice_sites_10bp.regions.gz"
+                custom: # Specify path if providing a custom regions file
+            hg38:
+                cds: "{MODSDIR}/etc/hg38.cds.tsv.gz"
+                lincrna:
+                3utr:
+                5utr:
+                promoter_splice_sites:
+                custom: # Specify path if providing a custom regions file
+
+        scripts:
+            deblacklist_script: "{SCRIPTSDIR}/deblacklist_maf/1.0/deblacklist_maf.py"
+
+        scratch_subdirectories: ["cadd"]
+
+        options:
+            config_path: "{MODSDIR}/etc/oncodrivefml.conf"
+            score_path: 
+            fml_options: ""
+
+        conda_envs:
+            prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
+            fml: "{MODSDIR}/envs/oncodrivefml-2.4.0.yaml"
+
+        threads:
+            fml: 4
+
+        resources:
+            fml:
+                mem_mb: 20000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+
