@@ -18,6 +18,7 @@ lcr-modules:
             # Path pointing to VEP files for running vcf2maf e.g "ref/ensembl_vep_cache"
             vep_cache: "__UPDATE__"
 
+        # Path to HotMAPS repo containing updated scripts
         hotmaps_repo: "https://github.com/morinlab/HotMAPS/archive/refs/heads/master.zip"
 
         pdb_stucture_dirs:
@@ -73,6 +74,8 @@ lcr-modules:
         resources:
             hotmaps: 
                 mem_mb: 5000
+            # IMPORTANT: mysql is set to 1 so that only one _hotmaps_get_mutations rule runs at once
+            # IMPORTANT: Please make sure when running that you include "--resources mysql=1" in the snakemake flags
             get_mutations:
                 mysql: 1
             

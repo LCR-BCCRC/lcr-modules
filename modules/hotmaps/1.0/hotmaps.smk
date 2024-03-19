@@ -44,11 +44,6 @@ CFG = op.setup_module(
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _install_hotmaps,
-    _hotmaps_update_config,
-    _hotmaps_get_pdb_info,
-    _hotmaps_add_pdb_path,
-    _hotmaps_add_pdb_description,
     _hotmaps_input_maf,
     _hotmaps_input_subsetting_categories,
     _hotmaps_prep_input,
@@ -59,6 +54,11 @@ localrules:
     _hotmaps_merge_mafs,
     _hotmaps_deblacklist,
     _hotmaps_input,
+    _install_hotmaps,
+    _hotmaps_update_config,
+    _hotmaps_get_pdb_info,
+    _hotmaps_add_pdb_path,
+    _hotmaps_add_pdb_description,
     _hotmaps_prep_mutations,
     _hotmaps_prep_mupit_annotation,
     _hotmaps_filter_hypermutated,
@@ -72,9 +72,12 @@ localrules:
     _hotmaps_find_gene,
     _hotmaps_find_structure,
     _hotmaps_output,
+    _hotmaps_detailed_hotspots,
+    _hotmaps_aggregate,
     _hotmaps_all,
 
 ##### RULES #####
+
 if "launch_date" in CFG:
     launch_date = CFG["launch_date"]
 else:
@@ -82,110 +85,6 @@ else:
 
 # Interpret the absolute path to this script so it doesn't get interpreted relative to the module snakefile later.
 PREPARE_MAFS = os.path.abspath(config["lcr-modules"]["hotmaps"]["maf_processing"]["prepare_mafs"])
-
-rule _install_hotmaps:
-    output:
-        installed = CFG["dirs"]["inputs"] + "HotMAPS-master/hotmaps_installed.done",
-        config = CFG["dirs"]["inputs"] + "HotMAPS-master/config.txt"
-    params:
-        hotmaps_repo = CFG["hotmaps_repo"],
-        output_dir = CFG["dirs"]["inputs"]
-    shell:
-        op.as_one_line("""
-        wget -qcP {params.output_dir} {params.hotmaps_repo} &&
-        unzip -d {params.output_dir} {params.output_dir}/master.zip &&
-        rm {params.output_dir}/master.zip &&
-        touch {output.installed}
-        """)
-
-rule _hotmaps_update_config:
-    input:
-        hotmaps_installed = str(rules._install_hotmaps.output.installed),
-        config = str(rules._install_hotmaps.output.config)
-    output:
-        config_updated = CFG["dirs"]["inputs"] + "HotMAPS-master/config_update.done"
-    params:
-        modbase_dir = "modbase_dir=" + CFG["pdb_structure_dirs"]["modbase_dir"],
-        pdb_dir = "pdb_dir=" + CFG["pdb_structure_dirs"]["pdb_dir"],
-        refseq_homology_dir = "refseq_homology: " + CFG["pdb_structure_dirs"]["refseq_homology_dir"],
-        ensembl_homology_dir = "ensembl_homology: " + CFG["pdb_structure_dirs"]["ensembl_homology_dir"],
-        biological_assembly_dir = "biological_assembly: " + CFG["pdb_structure_dirs"]["biological_assembly_dir"],
-        non_biological_assembly_dir = "non_biological_assembly: " + CFG["pdb_structure_dirs"]["non_biological_assembly_dir"]
-    shell:
-        op.as_one_line("""
-        sed -E -i "s@(modbase_dir=).*@{params.modbase_dir}@" {input.config} &&
-        sed -E -i "s@(pdb_dir=).*@{params.pdb_dir}@" {input.config} &&
-        sed -E -i "s@(refseq_homology:).*@{params.refseq_homology_dir}@" {input.config} &&
-        sed -E -i "s@(ensembl_homology:).*@{params.ensembl_homology_dir}@" {input.config} &&
-        sed -E -i "s@(biological_assembly:).*@{params.biological_assembly_dir}@" {input.config} &&
-        sed -E -i "s@(non_biological_assembly:).*@{params.non_biological_assembly_dir}@" {input.config} &&
-        touch {output.config_updated}
-        """)
-
-rule _hotmaps_get_pdb_info:
-    input:
-        hotmaps_installed = str(rules._install_hotmaps.output.installed)
-    output:
-        pdb_info = temp(CFG["dirs"]["inputs"] + "pdb/pdb_info.txt")
-    params:
-        mysql_user = CFG["options"]["mysql"]["mysql_user"],
-        mysql_passwd = CFG["options"]["mysql"]["mysql_passwd"],
-        mysql_host = CFG["options"]["mysql"]["mysql_host"],
-        mysql_database = CFG["options"]["mysql"]["mysql_db"],
-        mysql_db_script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/sql/get_pdb_info.sql"
-    log:
-        stderr = CFG["logs"]["inputs"] + "get_pdb_info/get_pdb_info.stderr.log"
-    conda:
-        CFG["conda_envs"]["hotmaps"]
-    shell:
-        op.as_one_line("""
-        mysql -u {params.mysql_user} 
-        -A -p{params.mysql_passwd} 
-        -h {params.mysql_host} {params.mysql_database} 
-        < {params.mysql_db_script} > {output.pdb_info} 
-        2> {log.stderr}
-        """)
-
-rule _hotmaps_add_pdb_path:
-    input:
-        pdb_info = str(rules._hotmaps_get_pdb_info.output.pdb_info),
-        config = str(rules._hotmaps_update_config.output.config_updated)
-    output:
-        pdb_path = temp(CFG["dirs"]["inputs"] + "pdb/pdb_info.path.txt")
-    params:
-        add_path_script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/add_path_info.py"
-    conda:
-        CFG["conda_envs"]["hotmaps"]
-    log:
-        stdout = CFG["logs"]["inputs"] + "add_pdb_path/add_pdb_path.stdout.log",
-        stderr = CFG["logs"]["inputs"] + "add_pdb_path/add_pdb_path.stderr.log"
-    shell:
-        op.as_one_line("""
-        python {params.add_path_script} 
-        -p {input.pdb_info} 
-        -o {output.pdb_path} 
-        > {log.stdout} 2> {log.stderr}
-        """)
-
-rule _hotmaps_add_pdb_description:
-    input:
-        pdb_info_path = str(rules._hotmaps_add_pdb_path.output.pdb_path)
-    output:
-        fully_described_pdb = CFG["dirs"]["inputs"] + "pdb/fully_described_pdb_info.txt"
-    params:
-        describe_pdb_script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/chain_description.py"
-    conda:
-        CFG["conda_envs"]["hotmaps"]
-    log:
-        stdout = CFG["logs"]["inputs"] + "add_pdb_description/add_pdb_description.stdout.log",
-        stderr = CFG["logs"]["inputs"] + "add_pdb_description/add_pdb_description.stderr.log"
-    shell:
-        op.as_one_line("""
-        python {params.describe_pdb_script} 
-        -i {input.pdb_info_path} 
-        -o {output.fully_described_pdb} 
-        > {log.stdout} 2> {log.stderr}
-        """)
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _hotmaps_input_maf:
@@ -391,6 +290,111 @@ rule _hotmaps_input:
         maf = pd.read_table(input.maf, comment="#", sep="\t")
         maf = maf[["Tumor_Sample_Barcode","Chromosome","Start_Position","End_Position","Reference_Allele","Tumor_Seq_Allele2","Hugo_Symbol","Variant_Classification","HGVSp_Short","Transcript_ID","Strand"]]
         maf.to_csv(output.maf, sep="\t", na_rep="NA", index=False)
+
+rule _install_hotmaps:
+    output:
+        installed = CFG["dirs"]["inputs"] + "HotMAPS-master/hotmaps_installed.done",
+        config = CFG["dirs"]["inputs"] + "HotMAPS-master/config.txt"
+    params:
+        hotmaps_repo = CFG["hotmaps_repo"],
+        output_dir = CFG["dirs"]["inputs"]
+    shell:
+        op.as_one_line("""
+        wget -qcP {params.output_dir} {params.hotmaps_repo} &&
+        unzip -d {params.output_dir} {params.output_dir}/master.zip &&
+        rm {params.output_dir}/master.zip &&
+        touch {output.installed}
+        """)
+
+# This updates the config file read by hotmaps with the paths pointing to PDB structure locations
+rule _hotmaps_update_config:
+    input:
+        hotmaps_installed = str(rules._install_hotmaps.output.installed),
+        config = str(rules._install_hotmaps.output.config)
+    output:
+        config_updated = CFG["dirs"]["inputs"] + "HotMAPS-master/config_update.done"
+    params:
+        modbase_dir = "modbase_dir=" + CFG["pdb_structure_dirs"]["modbase_dir"],
+        pdb_dir = "pdb_dir=" + CFG["pdb_structure_dirs"]["pdb_dir"],
+        refseq_homology_dir = "refseq_homology: " + CFG["pdb_structure_dirs"]["refseq_homology_dir"],
+        ensembl_homology_dir = "ensembl_homology: " + CFG["pdb_structure_dirs"]["ensembl_homology_dir"],
+        biological_assembly_dir = "biological_assembly: " + CFG["pdb_structure_dirs"]["biological_assembly_dir"],
+        non_biological_assembly_dir = "non_biological_assembly: " + CFG["pdb_structure_dirs"]["non_biological_assembly_dir"]
+    shell:
+        op.as_one_line("""
+        sed -E -i "s@(modbase_dir=).*@{params.modbase_dir}@" {input.config} &&
+        sed -E -i "s@(pdb_dir=).*@{params.pdb_dir}@" {input.config} &&
+        sed -E -i "s@(refseq_homology:).*@{params.refseq_homology_dir}@" {input.config} &&
+        sed -E -i "s@(ensembl_homology:).*@{params.ensembl_homology_dir}@" {input.config} &&
+        sed -E -i "s@(biological_assembly:).*@{params.biological_assembly_dir}@" {input.config} &&
+        sed -E -i "s@(non_biological_assembly:).*@{params.non_biological_assembly_dir}@" {input.config} &&
+        touch {output.config_updated}
+        """)
+
+rule _hotmaps_get_pdb_info:
+    input:
+        hotmaps_installed = str(rules._install_hotmaps.output.installed)
+    output:
+        pdb_info = temp(CFG["dirs"]["inputs"] + "pdb/pdb_info.txt")
+    params:
+        mysql_user = CFG["options"]["mysql"]["mysql_user"],
+        mysql_passwd = CFG["options"]["mysql"]["mysql_passwd"],
+        mysql_host = CFG["options"]["mysql"]["mysql_host"],
+        mysql_database = CFG["options"]["mysql"]["mysql_db"],
+        mysql_db_script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/sql/get_pdb_info.sql"
+    log:
+        stderr = CFG["logs"]["inputs"] + "get_pdb_info/get_pdb_info.stderr.log"
+    conda:
+        CFG["conda_envs"]["hotmaps"]
+    shell:
+        op.as_one_line("""
+        mysql -u {params.mysql_user} 
+        -A -p{params.mysql_passwd} 
+        -h {params.mysql_host} {params.mysql_database} 
+        < {params.mysql_db_script} > {output.pdb_info} 
+        2> {log.stderr}
+        """)
+
+rule _hotmaps_add_pdb_path:
+    input:
+        pdb_info = str(rules._hotmaps_get_pdb_info.output.pdb_info),
+        config = str(rules._hotmaps_update_config.output.config_updated)
+    output:
+        pdb_path = temp(CFG["dirs"]["inputs"] + "pdb/pdb_info.path.txt")
+    params:
+        add_path_script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/add_path_info.py"
+    conda:
+        CFG["conda_envs"]["hotmaps"]
+    log:
+        stdout = CFG["logs"]["inputs"] + "add_pdb_path/add_pdb_path.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "add_pdb_path/add_pdb_path.stderr.log"
+    shell:
+        op.as_one_line("""
+        python {params.add_path_script} 
+        -p {input.pdb_info} 
+        -o {output.pdb_path} 
+        > {log.stdout} 2> {log.stderr}
+        """)
+
+rule _hotmaps_add_pdb_description:
+    input:
+        pdb_info_path = str(rules._hotmaps_add_pdb_path.output.pdb_path)
+    output:
+        fully_described_pdb = CFG["dirs"]["inputs"] + "pdb/fully_described_pdb_info.txt"
+    params:
+        describe_pdb_script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/chain_description.py"
+    conda:
+        CFG["conda_envs"]["hotmaps"]
+    log:
+        stdout = CFG["logs"]["inputs"] + "add_pdb_description/add_pdb_description.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "add_pdb_description/add_pdb_description.stderr.log"
+    shell:
+        op.as_one_line("""
+        python {params.describe_pdb_script} 
+        -i {input.pdb_info_path} 
+        -o {output.fully_described_pdb} 
+        > {log.stdout} 2> {log.stderr}
+        """)
 
 rule _hotmaps_prep_mutations:
     input:
