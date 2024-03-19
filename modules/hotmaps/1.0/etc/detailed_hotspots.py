@@ -75,15 +75,6 @@ def read_hotspot_file(hotspots,gene_filter=None):
                 hotspot = [gene, str(hotspots_count)]
                 residues_medium = rs.split(';')
                 for transcript_residue in residues_medium:
-                    #residue_pos = residue.split(':')[1]
-                    #transcript = residue.split(':')[0]
-                    #if not transcript in hotspot:
-                    #    if len(hotspot) == 2:
-                    #        hotspot.append(transcript)
-                    #    else if len(hotspot) > 2:
-                    #        old_transcript = hotspot[2]
-                    #        new_transcript = old_transcript + ":" + transcript
-                    #        hotspot[2] = new_transcript
                     hotspot.append(transcript_residue)
                 hotspot_results.append(hotspot)
 
@@ -154,6 +145,7 @@ def read_merged_output(outdir, outmerged, sig_level):
         count_ix = header.index('Residue Mutation Count')
         density_ix = header.index('Mutation Density')
         p_ix = header.index('Hotspot P-value')
+
         for line in myreader:
             if not line[p_ix]:
                 continue
@@ -164,19 +156,11 @@ def read_merged_output(outdir, outmerged, sig_level):
             res_pval = map(float, line[p_ix].split(','))
             count = line[count_ix].split(',')
             mut_density = line[density_ix].split(',')
-            #if structure=="1w72":
-                #print(f"Structure: {structure}")
-                #print(f"Number of chains: {len(chains)}")
-                #print(f"Number of residue positions: {len(res_pos)}")
-                #print(f"Residue positions: {res_pos}")
             for i, p in enumerate(res_pval):
                 if p <= 1.1:
                     out_key = (structure, chains[i], res_pos[i], p)
                     out_list = [line[pdb_ix], models[i], chains[i], res_pos[i], count[i], mut_density[i], p]
                     long_output[out_key] = out_list
-                    #if structure=="1w72":
-                        #print(out_key)
-                        #print(long_output[out_key])
                     out_file_list = [line[pdb_ix], models[i], chains[i], str(res_pos[i]), str(count[i]), str(mut_density[i]), str(p)]
                     outfile.write('\t'.join(out_file_list) + "\n")
     outfile.close()
@@ -194,6 +178,7 @@ def read_mtc_output(mtc):
         min_p_ix = header.index('Min p-value')
         q_ix = header.index('q-value')
         g_pos_ix = header.index('genomic position')
+
         for line in myreader:
             out_key = (line[gene_ix], line[transcript_ix], line[res_ix])
             if out_key not in output.keys():
@@ -201,8 +186,6 @@ def read_mtc_output(mtc):
             output[out_key]["min_p"] = str(line[min_p_ix])
             output[out_key]["q_val"] = str(line[q_ix])
             output[out_key]["genomic_position"] = line[g_pos_ix]
-            #outline = [line[gene_ix], line[transcript_ix], line[res_ix], line[min_p_ix], line[q_ix]]
-            #output.append(outline)
     return output
 
 
@@ -224,18 +207,11 @@ def read_pdb_info(pdb_file):
             gene2chain = {}
 
             # Get list of pdbids associated with different genes to help match values from mtc_output_min and merged_output
-            
-            #gene = lines[0][2]
-            #if not gene in pdb_gene_dict.keys():
-            #    pdb_gene_dict[gene] = []
-            #    pdb_gene_dict[gene].append(pdbid)
-            #else:
-            #    pdb_gene_dict[gene].append(pdbid)
-
             for chain_description, lines_subset in it.groupby(lines, lambda x: x[5]):
                 gene2chain[chain_description] = [l[1] for l in lines_subset]
             gene2chain['path'] = lines[0][4]
             pdb_dict[pdbid] = gene2chain
+
     with open(pdb_file) as handle:
         handle.readline()
         myreader = csv.reader(handle, delimiter='\t')
@@ -322,8 +298,6 @@ def get_neighbors(cog_dict, residue_id, angstroms):
         if tmp_dist <= angstroms:
             neighbors.append(residue_2)
     neighbors_dict[residue_id] = neighbors
-    #print("Neighbors are:")
-    #print(neighbors_dict)
     return neighbors_dict
 
 
@@ -335,11 +309,6 @@ def create_neighborhood_dict(pdb, hotspot_gene, residue, residue_neighbors, pdb_
     chain = residue_id[2]
     chain_pos = str(residue_id[3][1])
     pdb_pos = f"{chain}_{chain_pos}"
-
-    #neighborhood["pdb"] = [pdb]
-    #neighborhood["gene"] = [hotspot_gene]
-    #neighborhood["residue"] = [residue]
-    #neighborhood["chain_pos"] = [pdb_pos]
 
     # Create multi level dictionary
 
@@ -383,7 +352,6 @@ def create_neighborhood_dict(pdb, hotspot_gene, residue, residue_neighbors, pdb_
             neighborhood["mutated_residues"][neighbor_res]["gene"] = gene
             neighborhood["mutated_residues"][neighbor_res]["chain_pos"] = pdb_pos
         else:
-            #print(f"No mutations for neighbor residue: {mupit_reverse_key}") 
             continue
         
         # get neighbor samples
@@ -397,7 +365,6 @@ def create_neighborhood_dict(pdb, hotspot_gene, residue, residue_neighbors, pdb_
         if neighbor_samples != []:
             neighborhood["mutated_residues"][neighbor_res]["samples"] = neighbor_samples
     
-   #print(neighborhood)
     return neighborhood
 
 def write_enriched(neighborhood_dict, metadata_output, verbose=False):
@@ -500,9 +467,6 @@ def write_coordinates(neighborhood_dict, metadata_output, mupit_reverse_dict, mu
                         samples_counter.extend(residue_samples)
 
             for hotspot, residues in hotspots.items():
-                #out_line = []
-                #out_line.append(gene)
-                #out_line.append(hotspot)
                 hotspot_gene_combo = gene + "_" + hotspot
 
                 hotmaps_residues = []
@@ -573,9 +537,6 @@ def main(args):
     if not verbose:
         genomic_coordinates_out = os.path.abspath(args['coordinates_out'])
     enriched_out = os.path.abspath(args['enriched_out'])
-    
-    #if verbose == True:
-        #verbose_metadata_out = enriched_out.replace(enriched_out.split(".")[len(enriched_out.split(".")) - 1], f"{args['gene']}_verbose.txt")
 
     if not args['overwrite']:
         if not verbose:
@@ -592,9 +553,6 @@ def main(args):
     # verbose version
     if verbose:
         print("Proceeding with verbose output...")
-        #with open(verbose_metadata_out, 'w') as handle:
-        #        output_header = ['GENE', 'HOTSPOT_NUM', 'N_SAMPLES', 'ALL_GENES', 'HOTMAPS_RES', 'MUTATED_RES', 'HOTMAPS_RES_V', 'MUTATED_RES_V', 'SAMPLES_V']
-        #        handle.write('\t'.join(output_header) + "\n")
 
     # Create a hotspot dict to keep track of origin and metadata of hotspot residues
     # hotspot_dict = {'gene': 
@@ -621,8 +579,6 @@ def main(args):
     #                       {'hotspot_2': ...}
     #                 }
 
-    #hotspot_dict = {}
-
     print("Initializing...")
     # Get q-values for hotspots
     for hotspot in hotspot_results:
@@ -632,7 +588,6 @@ def main(args):
         #transcript_id = hotspot[2]
         hotspot_residues = hotspot[2:]
 
-        #if hotspot_gene == "IKZF3":
         print(f"---------*----*---*--*-*\nWORKING ON HOTSPOT:\nGENE:     {hotspot_gene}\nHOTSPOT:  {str(hotspot_num)}\nRESIDUES:  {','.join(hotspot_residues)}")
 
         # fill out dict
@@ -661,17 +616,6 @@ def main(args):
 
             print(f"...\nSearching for hotspot key {hotspot_key} in multiple test correction results... ")
 
-            #if ":" in transcript_id:
-            #    transcript_1 = transcript_id.split(":")[0]
-            #    transcript_2 = transcript_id.split(":")[1]
-            #    potential_hotspot_key_1 = (hotspot_gene, transcript_1, residue)
-            #    potential_hotspot_key_2 = (hotspot_gene, transcript_2, residue)
-            #    if potential_hotspot_key_1 in mtc_dict.keys():
-            #        hotspot_key = potential_hotspot_key_1
-            #    elif potential_hotspot_key_2 in mtc_dict.keys():
-            #        hotspot_key = potential_hotspot_key_2
-            #    else:
-            #        print(f"Could not find hotspot key for hotspot {gene}, {residue}")
             if hotspot_key in mtc_dict.keys():
 
                 print(f"Found hotspot key {hotspot_key} in multile test correction results! Value is:\n{mtc_dict[hotspot_key]}")
@@ -680,10 +624,6 @@ def main(args):
                 min_p = mtc_dict[hotspot_key]["min_p"]
                 q_val = mtc_dict[hotspot_key]["q_val"]
                 genomic_pos = mtc_dict[hotspot_key]["genomic_position"]
-                #for k in long_output_dict.keys():
-                #    if k[0] == '1w72':
-                #        print(k)
-                #        print(long_output_dict[k])
 
                 # get chain residue
                 #(pdb, gene, chain, ref_codon, position)
@@ -703,12 +643,8 @@ def main(args):
                         chain = chain[0]
                         mupit_chain_key = (pdbid, hotspot_gene, chain, residue, genomic_pos)
                         if mupit_chain_key in mupit_dict.keys():
-                            #print(f"Mupit Chain Key: {mupit_chain_key}")
-                            #print(f"Mupit results: {mupit_dict[mupit_chain_key]}")
 
-                            #chain_residue = (mupit_dict[mupit_chain_key][0][mupit_residue_ix])
-
-                            #### TO FIX THE ISSUE OF MULTIPLE ENTRIES HAVING SAME PROTEIN RESIDUE BUT DIFFERENT CHAIN RESIDUE VALUES
+                            # Handle cases where multiple entries have same protein residue but different chain residue values
                             possible_chain_residues = []
                             for mupit_line in mupit_dict[mupit_chain_key]:
                                 possible_chain_residue = mupit_line[mupit_residue_ix]
@@ -719,28 +655,12 @@ def main(args):
 
                             for pcr in possible_chain_residues:
                                 possible_res_p = (pdbid, chain, pcr, float(min_p))
-                                ###### THIS IS A TEMPORARY FIX TO THE DNP MUTATION ISSUE WHEN THE AMINO ACID CHANGE OCCURS DUE TO THE SECOND NUCLEOTIDE CHANGE (END POSITION COLUMN)
-                                #if hotspot_gene=="GRHPR" and residue=="41" and pdbid =="NP_036335.1_1":
-                                    #print(f"Manually overriding chain residue for GRHPR and pdbid {pdbid}")
-                                    #possible_res_p = (pdbid, chain, "40", float(min_p))
-
-                                #if hotspot_gene=="BTG2" and residue=="44" and pdbid=="3dju":
-                                    #print(f"Manually overriding chain residue for BTG2 and pdbid {pdbid}")
-                                    #possible_res_p = (pdbid, chain, "43", float(min_p))
-
-                                #if hotspot_gene=="BTG1" and residue=="43" and pdbid=="NP_001722.1_1":
-                                    #print(f"Manually overriding chain residue for BTG1 and pbdid {pdbid}")
-                                    #possible_res_p = (pdbid, chain, "44", float(min_p))
-
-                                #print(possible_res_p)
-                    #possibl    e_res_p = (pdbid, str(residue), float(min_p))
                                 if possible_res_p in long_output_dict.keys():
                                     chain_residue = pcr
                                     print(f"Found PDB match for {hotspot_gene}:{residue}:\tpdb: {pdbid} chain: {chain} chain_residue: {chain_residue} p_value: {min_p}")
                                     res_p = possible_res_p
                                     chain_winner = chain
                                     residue_winner = chain_residue
-                                    # added a break to reduce time since there are so many for loops now
                                     break
                         #else:
                             #print(f"Mupit chain key is NOT in mupit_dict: {mupit_chain_key}")
