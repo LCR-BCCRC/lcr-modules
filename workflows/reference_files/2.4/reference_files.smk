@@ -598,3 +598,176 @@ rule install_sigprofiler_genome:
         complete = "genomes/{genome_build}/sigprofiler_genomes/{genome_build}.installed"
     run:
         op.relative_symlink(input, output.complete)
+
+##### IGBLAST #####
+
+rule _extract_igblast_data:
+    output:
+        igblast_aux = "downloads/igblast/optional_file/human_gl.aux"
+    params:
+        tar = "downloads/igblast/igblast_executables.tar.gz",
+        aux = "ncbi-igblast-1.17.1/optional_file/human_gl.aux",
+        ftp = "ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/1.17.1/ncbi-igblast-1.17.1-x64-linux.tar.gz"
+    shell:
+        op.as_one_line("""
+        wget -cO {params.tar} {params.ftp} && 
+        tar -zx -C downloads/igblast/ -f {params.tar} {params.aux} --strip-components 1 && 
+        rm {params.tar}
+        """)
+
+rule _get_imgt_database:
+    input:
+        aux = rules._extract_igblast_data.output.igblast_aux
+    output:
+        vdj = temp("downloads/igblast/imgt_database/human/vdj/imgt_human_{subchain}.fasta")
+    conda: CONDA_ENVS["igblast"]
+    shell:
+        op.as_one_line("""
+        URL="http://www.imgt.org/genedb/GENElect?query=7.5+{wildcards.subchain}&species=Homo+sapiens" &&
+        outfile_temp="downloads/igblast/imgt_database/human/vdj/imgt_human_{wildcards.subchain}.html" && 
+        outfile_ttemp="downloads/igblast/imgt_database/human/vdj/imgt_human_{wildcards.subchain}.txt" && 
+        outfile="downloads/igblast/imgt_database/human/vdj/imgt_human_{wildcards.subchain}.fasta" && 
+        wget -cO $outfile_temp $URL && 
+        awk '/<pre>/{{i++}}/<\/pre>/{{j++}}{{if(i==2 && j==1 && $0 !~ "^<pre>" && $0 ~ "^>"){{print $0}}}}{{if(i==2 && j==1 && $0 !~ "^<pre>" && $0 !~ "^>"){{system("echo "$0" | tr '[:lower:]' '[:upper:]'")}}}}' $outfile_temp > $outfile_ttemp && 
+        rm $outfile_temp && 
+        edit_imgt_file.pl $outfile_ttemp > $outfile && 
+        rm $outfile_ttemp 
+        """)
+
+IMGT_CHAIN_KEY = {
+    "ig_v" : ["IGHV","IGLV","IGKV"],
+    "ig_d" : ["IGHD"],
+    "ig_j" : ["IGHJ","IGLJ","IGKJ"],
+    "tr_v" : ["TRAV","TRBV","TRDV","TRGV"],
+    "tr_d" : ["TRBD","TRDD"],
+    "tr_j" : ["TRAJ","TRBJ","TRDJ","TRGJ"]
+}
+
+rule _combine_imgt_files:
+    input:
+        lambda w: expand(rules._get_imgt_database.output.vdj, subchain = IMGT_CHAIN_KEY[w.chain])
+    output:
+        unfiltered = temp("genomes/no_build/igblast/fasta/imgt/imgt_human_{chain}.unfiltered")
+    shell:
+        op.as_one_line("""
+        cat {input} > {output}
+        """)
+
+rule _remove_imgt_dups:
+    input:
+        unfiltered = rules._combine_imgt_files.output.unfiltered
+    output:
+        filtered = "genomes/no_build/igblast/fasta/imgt_human_{chain}.fasta"
+    run:
+        fasta_file = input.unfiltered
+        output_file = output.filtered
+        if os.path.isfile(fasta_file):
+            with open(fasta_file, 'r') as handle:
+                out = open(output_file, 'w')
+                genes = []
+                keep = False
+                for line in handle:
+                    line = line.rstrip("\n")
+                    if line.startswith(">"):
+                        keep = False
+                        gene = line.lstrip(">")
+                        if gene not in genes:
+                            genes.append(gene)
+                            keep = True
+                            out.write(line + "\n")
+                    elif not line.startswith(">"):
+                        if keep:
+                            out.write(line + "\n")
+                out.close()
+
+rule _create_imgt_database:
+    input:
+        fasta = rules._remove_imgt_dups.output
+    output:
+        database = expand("genomes/no_build/igblast/database/imgt_human_{{chain}}.{ext}", ext = ['ndb','nhr','nin','nog','nos','not','nsq','ntf','nto'])
+    conda: CONDA_ENVS["igblast"]
+    shell:
+        op.as_one_line("""
+        fasta_file={input.fasta} && 
+        output_file="genomes/no_build/igblast/database/imgt_human_{wildcards.chain}" && 
+        makeblastdb -parse_seqids -dbtype nucl -in $fasta_file -out $output_file
+        """)
+
+rule _imgt_db_success:
+    input:
+        expand(rules._create_imgt_database.output, chain = IMGT_CHAIN_KEY.keys())
+    output:
+        txt = "genomes/no_build/igblast/database/imgt_database.success"
+    shell:
+        "touch {output.txt}"
+
+##### Oncodrive #####
+
+rule download_oncodrive_refs:
+    output:
+        refs = "downloads/oncodrive/datasets/genomereference/{oncodrive_build}.master",
+        stops = "downloads/oncodrive/datasets/genestops/{oncodrive_build}.master"
+    params:
+        outdir = "downloads/oncodrive/"
+    conda:
+        CONDA_ENVS["oncodriveclustl"]
+    shell:
+        op.as_one_line("""
+        export BGDATA_LOCAL={params.outdir} &&
+        bgdata get datasets/genomereference/{wildcards.oncodrive_build} &&
+        bgdata get datasets/genomereference/{wildcards.oncodrive_build} &&
+        bgdata get datasets/genestops/{wildcards.oncodrive_build} &&
+        bgdata get datasets/genestops/{wildcards.oncodrive_build}
+        """)
+
+def get_oncodrive_downloads(wildcards):
+    oncodrive_build = ''
+    if wildcards.genome_build in ['grch37','hg19','hs37d5']:
+        oncodrive_build = "hg19"
+    elif wildcards.genome_build in ['grch38','grch38-legacy','hg38','hg38-panea']:
+        oncodrive_build = "hg38"
+    return(["downloads/oncodrive/datasets/genomereference/" + oncodrive_build + ".master",
+            "downloads/oncodrive/datasets/genestops/" + oncodrive_build + ".master"])
+
+rule aggregate_oncodrive_downloads:
+    input:
+        downloads = get_oncodrive_downloads
+    output:
+        finished = "downloads/oncodrive/finished/{genome_build}.done"
+    shell:
+        "touch {output.finished}"
+
+rule download_oncodrive_hg19_regions:
+    output:
+        promoters = "downloads/oncodrive/regions/grch37/promoters_splice_sites_10bp.regions.gz",
+        lincrnas = "downloads/oncodrive/regions/grch37/lincrnas.regions.gz",
+        cds = "downloads/oncodrive/regions/grch37/cds.regions.gz",
+        utr_5 = "downloads/oncodrive/regions/grch37/5utr.regions.gz",
+        utr_3 = "downloads/oncodrive/regions/grch37/3utr.regions.gz"
+    params:
+        promoter_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_promoters_splice_sites_10bp.regions.gz",
+        lincrnas_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_lincrnas.regions.gz",
+        cds_url = "https://bitbucket.org/bbglab/oncodriveclustl/raw/2b3842ef45fef12f35b3615a0636ef62910f6350/example/cds.hg19.regions.gz",
+        utr_5_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_5utr.regions.gz",
+        utr_3_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_3utr.regions.gz"
+    shell:
+        op.as_one_line("""
+        wget -cO {output.promoters} {params.promoter_url} &&
+        wget -cO {output.lincrnas} {params.lincrnas_url} &&
+        wget -cO {output.cds} {params.cds_url} &&
+        wget -cO {output.utr_5} {params.utr_5_url} &&
+        wget -cO {output.utr_3} {params.utr_3_url}
+        """)
+
+rule oncodrive_hg19_regions_downloaded:
+    input:
+        promoters = str(rules.download_oncodrive_hg19_regions.output.promoters),
+        lincrnas = str(rules.download_oncodrive_hg19_regions.output.lincrnas),
+        cds = str(rules.download_oncodrive_hg19_regions.output.cds),
+        utr_5 = str(rules.download_oncodrive_hg19_regions.output.utr_5),
+        utr_3 = str(rules.download_oncodrive_hg19_regions.output.utr_3)
+    output:
+        finished = "downloads/oncodrive/finished/regions.done"
+    shell:
+        "touch {output.finished}"
+

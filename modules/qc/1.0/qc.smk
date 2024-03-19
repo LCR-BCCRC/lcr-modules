@@ -54,15 +54,16 @@ localrules:
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _qc_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        bam = ancient(CFG["inputs"]["sample_bam"]),
+        bai = ancient(CFG["inputs"]["sample_bai"])
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
         op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bam + ".bai", output.bai)
-        op.relative_symlink(input.bam + ".bai", output.crai)
+        op.relative_symlink(input.bai, output.bai)
+        op.relative_symlink(input.bai, output.crai)
 
 # symlink the reference files to ensure all index/dictionaries are available for GATK tools
 rule _qc_input_references:
@@ -85,7 +86,7 @@ rule _qc_input_references:
 # Collect samtools stats
 rule _qc_samtools_stat:
     input:
-        bam = str(rules._qc_input_bam.output.bam)
+        bam = ancient(str(rules._qc_input_bam.output.bam))
     output:
         samtools_stat = CFG["dirs"]["samtools"] + "{seq_type}--{genome_build}/{sample_id}.{genome_build}.stat"
     log:
@@ -108,10 +109,36 @@ rule _qc_samtools_stat:
         2>> {log.stderr}
         """)
 
+# Collect samtools per-chromosome coverage
+rule _qc_samtools_coverage:
+    input:
+        bam = ancient(str(rules._qc_input_bam.output.bam))
+    output:
+        samtools_coverage = CFG["dirs"]["samtools"] + "{seq_type}--{genome_build}/{sample_id}.{genome_build}.coverage"
+    log:
+        stderr = CFG["logs"]["samtools"] + "{seq_type}--{genome_build}/{sample_id}.run_samtools_coverage.stderr.log"
+    params:
+        opts = CFG["options"]["samtools_coverage"]
+    conda:
+        CFG["conda_envs"]["samtools_cov"]
+    threads:
+        CFG["threads"]["samtools_coverage"]
+    resources:
+        **CFG["resources"]["samtools_coverage"]
+    shell:
+        op.as_one_line("""
+        samtools coverage
+        {input.bam}
+        -o {output.samtools_coverage}
+        {params.opts}
+        2>> {log.stderr}
+        """)
+
+
 # Collecting GATK base quality metrics
 rule _qc_gatk_basequality:
     input:
-        bam = str(rules._qc_input_bam.output.bam),
+        bam = ancient(str(rules._qc_input_bam.output.bam)),
         fasta = str(rules._qc_input_references.output.genome_fa)
     output:
         gatk_basequal = CFG["dirs"]["gatk"] + "QualityScoreDistribution/{seq_type}--{genome_build}/{sample_id}.{genome_build}.QualityScoreDistribution.txt",
@@ -148,7 +175,7 @@ rule _qc_gatk_basequality:
 # Collect GATK QC metrics (separately for genomes/exomes)
 rule _qc_gatk_wgs:
     input:
-        bam = str(rules._qc_input_bam.output.bam),
+        bam = ancient(str(rules._qc_input_bam.output.bam)),
         fasta = str(rules._qc_input_references.output.genome_fa),
         samtools_stats = str(rules._qc_samtools_stat.output.samtools_stat)
     output:
@@ -224,9 +251,9 @@ rule _qc_sort_baits:
     shell:
         op.as_one_line("""
         if [ -e {params.baits} ]; then
-            cat {params.baits} > {output.intermediate_baits};
+            cut -f 1-3 {params.baits} > {output.intermediate_baits};
         else
-            curl -L {params.baits} > {output.intermediate_baits};
+            curl -L {params.baits} | cut -f 1-3 > {output.intermediate_baits};
         fi
             &&
         QC_REF_PREFIXED==$(head -1 {input.fai} | cut -f 1)
@@ -300,7 +327,7 @@ def _qc_get_intervals(wildcards):
 # Collect metrics on WES samples
 rule _qc_gatk_wes:
     input:
-        bam = str(rules._qc_input_bam.output.bam),
+        bam = ancient(str(rules._qc_input_bam.output.bam)),
         fasta = str(rules._qc_input_references.output.genome_fa),
         intervals = _qc_get_intervals
     output:
@@ -395,14 +422,17 @@ rule _qc_symlink_output:
 rule _qc_output_tsv:
     input:
         stat = str(rules._qc_samtools_stat.output.samtools_stat),
+        coverage = str(rules._qc_samtools_coverage.output.samtools_coverage),
         base_qual = str(rules._qc_gatk_basequality.output.gatk_basequal),
         metrics = _qc_get_stats
     output:
         stat = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.stat.tsv",
+        coverage = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.coverage.tsv",
         base_qual = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.QualityScoreDistribution.tsv",
         metrics = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.CollectMetrics.tsv",
     run:
         op.relative_symlink(input.stat, output.stat, in_module= True)
+        op.relative_symlink(input.coverage, output.coverage, in_module= True)
         op.relative_symlink(input.base_qual, output.base_qual, in_module= True)
         op.relative_symlink(input.metrics, output.metrics, in_module= True)
 
@@ -413,6 +443,7 @@ rule _qc_all:
         expand(
             [
                 str(rules._qc_output_tsv.output.stat),
+                str(rules._qc_output_tsv.output.coverage),
                 str(rules._qc_output_tsv.output.base_qual),
                 str(rules._qc_output_tsv.output.metrics)
             ],

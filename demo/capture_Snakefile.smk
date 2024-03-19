@@ -30,7 +30,6 @@ subworkflow reference_files:
 
 # Load module-specific configuration
 configfile: "../modules/slms_3/1.0/config/default.yaml"
-configfile: "../modules/picard_qc/1.0/config/default.yaml"
 configfile: "../modules/bam2fastq/1.2/config/default.yaml"
 configfile: "../modules/sequenza/1.4/config/default.yaml"
 configfile: "../modules/bwa_mem/1.1/config/default.yaml"
@@ -56,7 +55,6 @@ config["lcr-modules"]["_shared"]["samples"] = CAPTURE
 
 # Load module-specific snakefiles
 include: "../modules/slms_3/1.0/slms_3.smk"
-include: "../modules/picard_qc/1.0/picard_qc.smk"
 include: "../modules/bam2fastq/1.2/bam2fastq.smk"
 include: "../modules/sequenza/1.4/sequenza.smk"
 include: "../modules/bwa_mem/1.1/bwa_mem.smk"
@@ -72,7 +70,6 @@ include: "../modules/qc/1.0/qc.smk"
 rule all:
     input:
         rules._slms_3_all.input,
-        rules._picard_qc_all.input,
         rules._bam2fastq_all.input,
         rules._sequenza_all.input,
         rules._bwa_mem_all.input,
