@@ -6,7 +6,8 @@ lcr-modules:
             # Available wildcards: {seq_type} {tumour_sample_id} {normal_sample_id} {pair_status} {genome_build}
             maf: "__UPDATE__"
 
-        regions:
+        regions: 
+            # Provide regions files as lists in their respective genome builds so that liftover of coordinates occurs properly
             oncodriveclustl:
                 grch37: []
                 hg38: []
@@ -23,38 +24,44 @@ lcr-modules:
                 grch37: []
                 hg38: []
 
-        estimate_only: False # Stop after MAF filtering step to estimate total number of snapshots
+        # Stop snakefile after MAF filtering step to estimate total number of snapshots that will be taken without running IGV
+        estimate_only: False 
 
         options:
-            genome_map: # Map builds between metadata and MAFs
+            genome_map: 
+                # Map builds between metadata and sample_ids so that MAF file locations are determined properly
                 grch37: ["__UPDATE__"]
                 hg38: ["__UPDATE__"]
 
             liftover_regions:
                 reference_chain_file:
-                    grch37: "__UPDATE__"
-                    hg38: "__UPDATE__"
+                    grch37: "genomes/grch37/chains/grch37/hg19ToHg38.over.chain"
+                    hg38: "genomes/hg38/chains/grch38/hg38ToHg19.over.chain"
                 target_reference:
                     grch37: "__UPDATE__"
                     hg38: "__UPDATE__"
 
             generate_batch_script:
                 padding: 100 # Base pairs upstream and downstream of variant position
-                max_height: 1000
+                max_height: 1000 # Maximum height of snapshot
                 sleep_timer: 2000 # Batch scripts with more options may require longer sleep intervals
-                # Available igv options: https://github.com/igvteam/igv/wiki/Batch-commands
-                igv_options: 
+                igv_options:
+                    # Presets for IGV snapshots
+                    # Available igv options: https://github.com/igvteam/igv/wiki/Batch-commands
                     default: ["preference SAM.COLOR_BY READ_STRAND", "preference SAM.SHOW_CENTER_LINE TRUE", "preference SAM.SHADE_BASE_QUALITY true", "preference SAM.DOWNSAMPLE_READS FALSE", "preference SAM.ALLELE_THRESHOLD 0.05", "sort"]
                     pairs: ["viewaspairs", "preference SAM.COLOR_BY READ_STRAND", "preference SAM.SHOW_CENTER_LINE TRUE", "preference SAM.SHADE_BASE_QUALITY true", "preference SAM.DOWNSAMPLE_READS FALSE", "preference SAM.ALLELE_THRESHOLD 0.05", "sort QUALITY"]
 
-            igv_presets: ["default"] #available options: default and pairs
+            igv_presets: ["default"] # Available options: "default" "pairs"
 
             xvfb_parameters:
+                # Server options for running xvfb
                 server_number: "99"
                 server_args: ""
 
             quality_control:
+                # Truncated heights that have been previously observed for dimensions 1920x1080x24 
                 truncated: [506,533,545,547,559,570]
+                # Kurtosis and skewness values observed in blank snapshots at different height values
                 blank:
                     "547":
                         kurtosis: 18.5
@@ -62,6 +69,7 @@ lcr-modules:
                     "559":
                         kurtosis: 18.2
                         skewness: -4
+                # Previously observed heights of snapshots that fail IGV
                 failed: [506,533]
 
         scripts:
