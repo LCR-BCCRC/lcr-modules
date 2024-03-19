@@ -3,7 +3,7 @@ lcr-modules:
     hotmaps:
 
         inputs:
-            # Available wildcards: {seq_type}
+            # Available wildcards: {seq_type} {genome_build}
             input_maf: "__UPDATE__"
             subsetting_categories: "__UPDATE__"
 
@@ -15,16 +15,24 @@ lcr-modules:
             blacklist_drop_threshold: 4
         
         vcf2maf:
+            # Path pointing to VEP files for running vcf2maf e.g "ref/ensembl_vep_cache"
             vep_cache: "__UPDATE__"
 
         hotmaps_repo: "https://github.com/morinlab/HotMAPS/archive/refs/heads/master.zip"
 
         pdb_stucture_dirs:
+            # modbase_dir: set to the directory containing the ModBase theoretical protein structures 
             modbase_dir: "__UPDATE__"
+            # pdb_dir: set to the directory containing PDB structures downloaded from wwPDB database
             pdb_dir: "__UPDATE__"
+            # refseq_homology_dir: specify the path containing the ModBase RefSeq structures. 
+            # %(modbase_dir)s placeholder will be replaced with path set in modbase_dir above
             refseq_homology_dir: "%(modbase_dir)s/ModBase_H_sapiens_2013_refseq/models/model/"
+            # ensembl_homology_dir: specify path containing ModBase Ensembl structures
             ensembl_homology_dir: "%(modbase_dir)s/H_sapiens_2013/models/"
+            # biological_assembly_dir: specify path containing wwPDB biological structures
             biological_assembly_dir: "%(pdb_dir)s/biounit/coordinates/all/"
+            # non_biological_assembly_dir: specify the path containing wwPDB PDB structures
             non_biological_assembly_dir: "%(pdb_dir)s/structures/all/pdb/"
 
         options:
@@ -34,12 +42,19 @@ lcr-modules:
                 mysql_db: "__UPDATE__"
                 mysql_passwd: "__UPDATE__"
             hotmaps:
+                # Threshold of mutations per sample. Samples above specified mutation will not be used in analysis.
+                # If left blank, HotMAPS will run a script to determine the hypermutation threshold based on all samples provided.
                 hypermut_threshold:
+                # How many files to split the results into, AKA how many parallel jobs
                 pdb_splits: 250
+                # Available options: "min", "median", "max". How p-vals are "grouped" for identified hotspots
                 group_func: "min"
+                # Q value threshold
                 q_value: ".01"
                 num_sims: 10000
+                # Angstrom radius for identifying neighbouring mutations.
                 radius: 10
+                # Number of simulations that exceed maximum observed density before stopping simulations
                 stop_criteria: 200
 
         deblacklist_script: "{SCRIPTSDIR}/deblacklist_maf/1.0/deblacklist_maf.py"
