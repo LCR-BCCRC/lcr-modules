@@ -3,15 +3,13 @@ lcr-modules:
     hotmaps:
 
         inputs:
-            # Available wildcards: {seq_type}
-            # No genome_build wildcard because only grch37 is compatible!
-            # Make sure input MAF paths are for grch37 only
+            # Available wildcards: {seq_type} {genome_build}
             input_maf: "__UPDATE__"
             subsetting_categories: "__UPDATE__"
 
         maf_processing:
             sample_sets: ["__UPDATE__"]
-            prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
+            prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.1/generate_smg_inputs.R"
             include_non_coding: False
             blacklists: []
             blacklist_drop_threshold: 4
@@ -24,6 +22,9 @@ lcr-modules:
         hotmaps_repo: "https://github.com/morinlab/HotMAPS/archive/refs/heads/master.zip"
 
         pdb_stucture_dirs:
+            # For more information on downloading PDB structures and setting directories look at the CHANGELOG
+            # or check out: https://github.com/KarchinLab/HotMAPS_2016/wiki/Tutorial-(Exome-scale)
+
             # modbase_dir: set to the directory containing the ModBase theoretical protein structures 
             modbase_dir: "__UPDATE__"
             # pdb_dir: set to the directory containing PDB structures downloaded from wwPDB database
@@ -40,9 +41,9 @@ lcr-modules:
 
         options:
             mysql:
-                mysql_host: "__UPDATE__"
-                mysql_user: "__UPDATE__"
-                mysql_db: "__UPDATE__"
+                mysql_host: "__UPDATE__" # e.g if running on the GSC use "10.9.208.67" 
+                mysql_user: "__UPDATE__" # Set to your user if you have MySQL access, or use "mcruz"
+                mysql_db: "mupit_modbase"
                 mysql_passwd: "__UPDATE__"
             hotmaps:
                 # Threshold of mutations per sample. Samples above specified mutation will not be used in analysis.
