@@ -463,6 +463,7 @@ rule _hotmaps_prep_mupit_annotation:
         > {log.stdout} 2> {log.stderr}
         """)
 
+# Removes hypermutated samples from analysis to minimize effects of passenger mutations based on Kandoth et al. (2013) paper
 rule _hotmaps_filter_hypermutated:
     input:
         maf = str(rules._hotmaps_input.output.maf),
