@@ -554,31 +554,6 @@ def main(args):
     if verbose:
         print("Proceeding with verbose output...")
 
-    # Create a hotspot dict to keep track of origin and metadata of hotspot residues
-    # hotspot_dict = {'gene': 
-    #                       {'hotspot_1': 
-    #                           {83: 
-    #                               {"pdb": 'pdb', 
-    #                                "mutated_residues":
-    #                                           {residue:
-    #                                             {"pdb":pdb_res,
-    #                                              "gene":gene,
-    #                                              "chain_pos":
-    #                                              "samples":[samples]
-    #                                               },
-    #                                             {residue:
-        #                                          "pdb":pdb_res,
-    #                                              "gene":gene,
-    #                                              "chain_pos":
-    #                                              "samples":[samples]
-    #                                               }
-    #                                           }
-    #                                }
-    #                              }
-    #                         }, 
-    #                       {'hotspot_2': ...}
-    #                 }
-
     print("Initializing...")
     # Get q-values for hotspots
     for hotspot in hotspot_results:
@@ -662,13 +637,7 @@ def main(args):
                                     chain_winner = chain
                                     residue_winner = chain_residue
                                     break
-                        #else:
-                            #print(f"Mupit chain key is NOT in mupit_dict: {mupit_chain_key}")
-                            #print(f"{list(mupit_dict)[0]}")
-                            #print("Testing to see if key exists at all..")
-                            #test_key = ('1w72', 'B2M', 'B', '73', "b'45007770,45007771,45007772'")
-                            #print(test_key)
-                            #print(f"{mupit_dict[test_key]}")
+
                 if res_p is None:
                     print(f"ERROR: Could not find PDB structure match in output_merged for GENE: {hotspot_gene}\tP_VAL: {min_p}\tRESIDUE: {residue} in the structures:\n{pdb_gene_dict[hotspot_gene]}")
                     sys.exit()
