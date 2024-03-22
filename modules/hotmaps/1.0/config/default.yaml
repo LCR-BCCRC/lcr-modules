@@ -17,6 +17,9 @@ lcr-modules:
         vcf2maf:
             # Path pointing to VEP files for running vcf2maf e.g "ref/ensembl_vep_cache"
             vep_cache: "__UPDATE__"
+            options: ""
+            custom_enst:
+                grch37: "etc/custom_enst.grch37.txt"
 
         # Path to HotMAPS repo containing updated scripts
         hotmaps_repo: "https://github.com/morinlab/HotMAPS/archive/refs/heads/master.zip"
