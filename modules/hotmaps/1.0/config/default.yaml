@@ -13,13 +13,6 @@ lcr-modules:
             include_non_coding: False
             blacklists: []
             blacklist_drop_threshold: 4
-        
-        vcf2maf:
-            # Path pointing to VEP files for running vcf2maf e.g "ref/ensembl_vep_cache"
-            vep_cache: "__UPDATE__"
-            options: ""
-            custom_enst:
-                grch37: "etc/custom_enst.grch37.txt"
 
         # Path to HotMAPS repo containing updated scripts
         hotmaps_repo: "https://github.com/morinlab/HotMAPS/archive/refs/heads/master.zip"
@@ -43,6 +36,13 @@ lcr-modules:
             non_biological_assembly_dir: "%(pdb_dir)s/structures/all/pdb/"
 
         options:
+            vcf2maf:
+                src_dir: "{REPODIR}/modules/vcf2maf/1.3/src"
+                # Path pointing to VEP files for running vcf2maf e.g "ref/ensembl_vep_cache"
+                vep_cache: "__UPDATE__"
+                options: ""
+                custom_enst:
+                    grch37: "etc/custom_enst.grch37.txt"
             mysql:
                 mysql_host: "__UPDATE__" # e.g if running on the GSC use "10.9.208.67" 
                 mysql_user: "__UPDATE__" # Set to your user if you have MySQL access, or use "mcruz"
@@ -71,7 +71,8 @@ lcr-modules:
 
         conda_envs:
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
-            bcftools: "{MODSDIR}/envs/bcftools.yaml"
+            vcf2maf: "{REPODIR}/envs/vcf2maf/vcf2maf-1.6.18.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.17.yaml"
             hotmaps: "{MODSDIR}/envs/hotmaps.yaml"
             
         threads:

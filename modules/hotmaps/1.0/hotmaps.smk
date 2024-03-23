@@ -86,6 +86,9 @@ else:
 # Interpret the absolute path to this script so it doesn't get interpreted relative to the module snakefile later.
 PREPARE_MAFS = os.path.abspath(config["lcr-modules"]["hotmaps"]["maf_processing"]["prepare_mafs"])
 
+# Set path to vcf2maf script using config value
+VCF2MAF_SCRIPT_PATH = CFG["options"]["vcf2maf"]["src_dir"]
+
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _hotmaps_input_maf:
     input:
@@ -150,7 +153,7 @@ checkpoint _hotmaps_maf2vcf:
         vcf_dir = CFG["dirs"]["maf2vcf"] + "vcf/{genome_build}/{sample_set}--{launch_date}/{md5sum}/",
         dnps = str(rules._hotmaps_split_dnps.output.dnps)
     conda:
-        CFG["conda_envs"]["bcftools"]
+        CFG["conda_envs"]["vcf2maf"]
     log:
         stdout = CFG["logs"]["maf2vcf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}_maf2vcf.stdout.log",
         stderr = CFG["logs"]["maf2vcf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}_maf2vcf.stderr.log"
@@ -197,36 +200,63 @@ rule _hotmaps_vcf2maf:
     input:
         vcf = str(rules._hotmaps_bcftools.output.vcf),
         fasta = reference_files("genomes/grch37/genome_fasta/genome.fa"),
-        vep_cache = CFG["vcf2maf"]["vep_cache"]
+        vep_cache = CFG["options"]["vcf2maf"]["vep_cache"]
     output:
         maf = CFG["dirs"]["vcf2maf"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}.maf",
         vep = CFG["dirs"]["bcftools"] + "vcf/{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}.annotate.vep.vcf"
     params:
-        opts = CFG["vcf2maf"]["options"],
+        opts = CFG["options"]["vcf2maf"]["options"],
         build = lambda w: VCF2MAF_VERSION_MAP[w.genome_build],
-        custom_enst = lambda w: "--custom-enst " + str(config["lcr-modules"]["hotmaps"]["vcf2maf"]["custom_enst"][w.genome_build]) if config["lcr-modules"]["hotmaps"]["vcf2maf"]["custom_enst"][w.genome_build] is not None else ""
+        custom_enst = lambda w: "--custom-enst " + str(config["lcr-modules"]["hotmaps"]["options"]["vcf2maf"]["custom_enst"][w.genome_build]) if config["lcr-modules"]["hotmaps"]["options"]["vcf2maf"]["custom_enst"][w.genome_build] is not None else ""
     conda:
-        CFG["conda_envs"]["bcftools"]
+        CFG["conda_envs"]["vcf2maf"]
     log:
         stdout = CFG["logs"]["vcf2maf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}/vcf2maf.stdout.log",
         stderr = CFG["logs"]["vcf2maf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}/vcf2maf.stderr.log"
     shell:
         op.as_one_line("""
+        VCF2MAF_SCRIPT_PATH={VCF2MAF_SCRIPT_PATH};
+        PATH=$VCF2MAF_SCRIPT_PATH:$PATH;
+        VCF2MAF_SCRIPT="$VCF2MAF_SCRIPT_PATH/vcf2maf.pl";
         vepPATH=$(dirname $(which variant_effect_predictor.pl))/../share/variant-effect-predictor* ;
-        vcf2maf.pl 
-        --input-vcf {input.vcf} 
-        --output-maf {output.maf} 
-        --tumor-id {wildcards.tumour_id} 
-        --normal-id {wildcards.normal_sample_id} 
-        --vcf-tumor-id TUMOR 
-        --vcf-normal-id NORMAL 
-        --ncbi-build {params.build} 
-        --vep-path $vepPATH 
-        --vep-data {input.vep_cache}
-        --ref-fasta {input.fasta}
-        --retain-info gnomADg_AF,gnomADg_AF
-        {params.opts} {params.custom_enst}
-        > {log.stdout} 2> {log.stderr}
+        if [[ $(which vcf2maf.pl) =~ $(ls $VCF2MAF_SCRIPT) ]]; then
+            echo "using bundled patched script $VCF2MAF_SCRIPT";
+            echo "Using $VCF2MAF_SCRIPT to run {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
+            vcf2maf.pl 
+            --input-vcf {input.vcf} 
+            --output-maf {output.maf} 
+            --tumor-id {wildcards.tumour_id} 
+            --normal-id {wildcards.normal_sample_id} 
+            --vcf-tumor-id TUMOR 
+            --vcf-normal-id NORMAL 
+            --ncbi-build {params.build} 
+            --vep-path $vepPATH 
+            --vep-data {input.vep_cache}
+            --ref-fasta {input.fasta}
+            --retain-info gnomADg_AF,gnomADg_AF
+            {params.opts} {params.custom_enst}
+            >> {log.stdout} 2>> {log.stderr};
+            if [[ $(wc -l < {output.maf}) -eq 0 ]]; then
+                echo "vcf2maf failed for {wildcards.tumour_id}, running again" >> {log.stderr};
+                vcf2maf.pl
+                --input-vcf {input.vcf} 
+                --output-maf {output.maf}
+                --tumor-id {wildcards.tumour_id} 
+                --normal-id {wildcards.normal_sample_id} 
+                --vcf-tumor-id TUMOR 
+                --vcf-normal-id NORMAL 
+                --ncbi-build {params.build} 
+                --vep-path $vepPATH 
+                --ref-fasta {input.fasta} 
+                --retain-info gnomADg_AF,gnomADg_AF
+                {params.opts} {params.custom_enst}
+                >> {log.stdout} 2>> {log.stderr};
+            fi;
+            if [[ $(wc -l < {output.maf}) -eq 0 ]]; then
+                echo "Could not resolve error running {wildcards.tumour_id}" >> {log.stderr};
+                exit 1;
+            fi;
+        else echo "ERROR: PATH is not set properly, using $(which vcf2maf.pl) will result in error during execution. Please ensure $VCF2MAF_SCRIPT exists." > {log.stderr}; fi
         """) 
 
 def _get_dnp_mafs(wildcards):
@@ -235,6 +265,7 @@ def _get_dnp_mafs(wildcards):
 
     maf2vcf_output_dir = expand(
         CFG["dirs"]["maf2vcf"] + "vcf/{genome_build}/{sample_set}--{launch_date}/{md5sum}/", 
+        genome_build = "grch37",
         sample_set = wildcards.sample_set,
         launch_date = wildcards.launch_date,
         md5sum = wildcards.md5sum)
@@ -258,14 +289,24 @@ rule _hotmaps_merge_mafs:
         maf = temp(CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.reannotated.maf")
     params:
         maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.maf"
+    log:
+        stderr = CFG["logs"]["inputs"] + "merge/{genome_build}/{sample_set}--{launch_date}/{md5sum}.stderr.log"
     run:
         import pandas as pd
+        error_out = open(log.stderr, "w")
+        errors = 0
         main_maf = pd.read_table(params.maf, comment = "#", sep="\t")
         main_maf = main_maf[~((main_maf["Variant_Type"]=="DNP") & (main_maf["Protein_position"].str.match(r'\d+-\d+|\?-\d+|\d+-\?')))]
         for maf in input.maf_annotated:
-            df = pd.read_table(maf, comment="#", sep="\t")
-            main_maf = pd.concat([main_maf, df])
-        main_maf.to_csv(output.maf, sep="\t", na_rep="NA", index=False)
+            try:
+                df = pd.read_table(maf, comment="#", sep="\t")
+                main_maf = pd.concat([main_maf, df])
+            except:
+                error_out.write(f"Error reading MAF: {maf}\n")
+                errors += 1
+        if errors == 0:
+            main_maf.to_csv(output.maf, sep="\t", na_rep="NA", index=False)
+        error_out.close()
 
 rule _hotmaps_deblacklist:
     input:
@@ -295,7 +336,7 @@ rule _hotmaps_input:
     input:
         maf = str(rules._hotmaps_deblacklist.output.maf)
     output:
-        maf = CFG["dirs"]["hotmaps"] + "{sample_set}--{launch_date}/{md5sum}/mutations/input.{sample_set}.maf"
+        maf = CFG["dirs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/mutations/input.{sample_set}.maf"
     run:
         import pandas as pd
         maf = pd.read_table(input.maf, comment="#", sep="\t")
