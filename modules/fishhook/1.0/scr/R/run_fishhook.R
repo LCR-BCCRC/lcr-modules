@@ -6,7 +6,10 @@
 #   This script is intended for use with the snakefile for fishHook in LCR-modules.
 #   It uses the snakemake objects to find maf file.
 #   Additionaly, it can support the genes of targeted panel to restrict SMG search.
-#
+
+log <- file(snakemake@log[[1]], open="wt")
+sink(log ,type = "output")
+sink(log, type = "message")
 
 # Load packages -----------------------------------------------------------
 message("Loading packages...")
@@ -17,6 +20,7 @@ suppressWarnings(
     library(rtracklayer)
   })
 )
+
 #load maf and convert to GRange
 maf = gr.sub(dt2gr(fread(snakemake@input[[2]])))
 
@@ -24,19 +28,19 @@ if(!snakemake@params[[3]]){
   message("Excluding Silent Mutations ...")
   events = maf %Q% (Variant_Classification != 'Silent')
 }else{
-  events = maf 
+  events = maf
 }
 
 #Use tile mode or gene list mode
 if(is.null(snakemake@params[[1]])){
   message("Running FishHook with Gene List...")
   genes = gr.sub(import(snakemake@params[[4]]))
-  
+
   if(snakemake@params[[5]]){
     message("Subsetting Gene List for Protein Coding Gene Only...")
-    genes = genes %Q% (gene_type == 'protein_coding') 
+    genes = genes %Q% (gene_type == 'protein_coding')
   }
-  fish = Fish(hypotheses = genes, 
+  fish = Fish(hypotheses = genes,
                     events = events,
                     idcol = 'Tumor_Sample_Barcode',
                     use_local_mut_density=TRUE)
@@ -44,8 +48,8 @@ if(is.null(snakemake@params[[1]])){
   message("Running FishHook with Tiles...")
   #split maf to numerous tiles
   tiles = gr.tile(seqinfo(maf), snakemake@params[[1]])
-  
-  fish = Fish(hypotheses = tiles, 
+
+  fish = Fish(hypotheses = tiles,
                     events = events,
                     idcol = 'Tumor_Sample_Barcode',
                     use_local_mut_density=TRUE)
@@ -57,7 +61,7 @@ if(file.exists(snakemake@params[[2]])){
   covariates_data = gr.sub(import(snakemake@params[[2]]), 'chr', "") ## import from bed then gUtils::gr.sub to strip 'chr' identifier
   covariate = Cov(covariates_data, name = 'covariate')
   fish$covariates = c(covariate)
-  
+
 }else{
   message("Running FishHook without Covariates...")
 }
@@ -75,5 +79,5 @@ write.table(
   sep='\t',
   row.names = FALSE)
 
-
+sink()
 

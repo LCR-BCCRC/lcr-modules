@@ -116,8 +116,11 @@ rule _install_fishhook:
         input = CFG["logs"]["inputs"] + "install_fishhook.log"
     shell:
         """
-        R -q -e 'devtools::install_github(c("jokergoo/ComplexHeatmap","mskilab/gTrack", "mskilab/fishHook"))' >> {log.input} &&
-        touch {output.complete}"""
+        R -q -e 'devtools::install_github("mskilab/gUtils")' >> {log.input} &&
+        R -q -e 'devtools::install_github("mskilab/gTrack")' >> {log.input} &&
+        R -q -e 'devtools::install_github("mskilab/fishHook")' >> {log.input} &&
+        touch {output.complete}
+        """
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
@@ -129,10 +132,12 @@ rule _run_fishhook:
         tsv = CFG["dirs"]["fishhook"] + "{sample_set}/fishhook.output.tsv"
     conda:
         CFG["conda_envs"]["fishhook"]
+    log:
+        log = CFG["logs"]["fishhook"] + "{sample_set}_run_fishook.log"
     threads:
         CFG["threads"]["fishhook"]
     resources:
-        **CFG["resources"]["fishhook"]     
+        **CFG["resources"]["fishhook"]
     params:
         tiles_size = CFG["options"]["tiles_size"],
         coveriate = CFG["options"]["covariates"],
