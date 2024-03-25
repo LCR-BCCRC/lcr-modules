@@ -6,13 +6,15 @@
 
 # Original Author:  Jacky Yiu
 # Module Author:    Jacky Yiu
-# Contributors:     N/A
+# Contributors:     Sierra Gillis
 
 
 ##### SETUP #####
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+from datetime import datetime
+import numpy as np
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -43,16 +45,22 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _fishhook_input_maf,
-    _fishhook_input_subsets,
+    _fishhook_input_subsetting_categories,
     _fishhook_prepare_maf,
-    _install_fishhook,
-    _run_fishhook,
+    _fishhook_install,
     _fishhook_output_tsv,
+    _fishhook_aggregate,
     _fishhook_all,
 
 
 ##### RULES #####
+if "launch_date" in CFG:
+    launch_date = CFG['launch_date']
+else:
+    launch_date = datetime.today().strftime('%Y-%m')
 
+# Interpret the absolute path to this script so it doesn't get interpreted relative to the module snakefile later.
+PREPARE_MAFS =  os.path.abspath(config["lcr-modules"]["fishhook"]["prepare_mafs"])
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _fishhook_input_maf:
@@ -64,50 +72,41 @@ rule _fishhook_input_maf:
         op.absolute_symlink(input.maf, output.maf)
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-rule _fishhook_input_subsets:
+rule _fishhook_input_subsetting_categories:
     input:
-        sample_sets = CFG["inputs"]["sample_sets"]
+        subsetting_categories = CFG["inputs"]["subsetting_categories"]
     output:
-        sample_sets = CFG["dirs"]["inputs"] + "sample_sets/sample_sets.tsv"
+        subsetting_categories = CFG["dirs"]["inputs"] + "sample_sets/subsetting_categories.tsv"
     run:
-        op.absolute_symlink(input.sample_sets, output.sample_sets)
+        op.absolute_symlink(input.subsetting_categories, output.subsetting_categories)
 
-# Prepare the maf file for the input to Fishhook
-rule _fishhook_prepare_maf:
+# Prepare the maf file for the input to fishHook
+checkpoint _fishhook_prepare_maf:
     input:
         maf = expand(
                     str(rules._fishhook_input_maf.output.maf),
                     allow_missing=True,
-                    seq_type=CFG["seq_types"]
+                    seq_type=CFG["samples"]["seq_type"].unique()
                     ),
-        sample_sets = ancient(str(rules._fishhook_input_subsets.output.sample_sets))
+        subsetting_categories = str(rules._fishhook_input_subsetting_categories.output.subsetting_categories)
     output:
-        maf = temp(CFG["dirs"]["inputs"] + "maf/{sample_set}.maf"),
-        contents = CFG["dirs"]["inputs"] + "maf/{sample_set}.maf.content"
+        CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done"
     log:
-        stdout = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stdout.log",
-        stderr = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stderr.log"
+        CFG["logs"]["inputs"] + "{sample_set}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
-        script = CFG["prepare_mafs"]
-    shell:
-        op.as_one_line("""
-        Rscript {params.script}
-        {input.maf}
-        {input.sample_sets}
-        $(dirname {output.maf})/
-        {wildcards.sample_set}
-        FishHook
-        {params.include_non_coding}
-        > {log.stdout} 2> {log.stderr}
-        """)
+        mode = "fishHook",
+        metadata_cols = CFG["samples"],
+        metadata = CFG["samples"].to_numpy(na_value='')
+    script:
+        PREPARE_MAFS
 
 
-# Install fishhook
+# Install fishHook and required R pacakges
 # only available from github, not through conda/CRAN/Biocmanager
-rule _install_fishhook:
+rule _fishhook_install:
     output:
         complete = CFG["dirs"]["inputs"] + "fishhook_installed.success"
     conda:
@@ -121,19 +120,18 @@ rule _install_fishhook:
         R -q -e 'devtools::install_github("mskilab/fishHook")' >> {log.input} &&
         touch {output.complete}
         """
-
-
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-rule _run_fishhook:
+# Actual fishHook run
+rule _fishhook_run:
     input:
         fishhook = ancient(str(CFG["dirs"]["inputs"] + "fishhook_installed.success")),
-        maf = str(rules._fishhook_prepare_maf.output.maf)
+        maf = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf",
+        content = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf.content"
     output:
-        tsv = CFG["dirs"]["fishhook"] + "{sample_set}/fishhook.output.tsv"
+        tsv = CFG["dirs"]["fishhook"] + "{sample_set}--{launch_date}/{md5sum}.fishhook.tsv"
     conda:
         CFG["conda_envs"]["fishhook"]
     log:
-        log = CFG["logs"]["fishhook"] + "{sample_set}_run_fishook.log"
+        log = CFG["logs"]["fishhook"] + "{sample_set}--{launch_date}--{md5sum}_run_fishook.log"
     threads:
         CFG["threads"]["fishhook"]
     resources:
@@ -151,22 +149,42 @@ rule _run_fishhook:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _fishhook_output_tsv:
     input:
-        tsv = str(rules._run_fishhook.output.tsv)
+        tsv = str(rules._fishhook_run.output.tsv)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{sample_set}/{sample_set}.fishhook.tsv"
+        tsv = CFG["dirs"]["outputs"] + "tsv/{sample_set}--{launch_date}/{md5sum}.fishhook.tsv"
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module= True)
 
+def _for_aggregate(wildcards):
+    CFG = config["lcr-modules"]["fishhook"]
+    checkpoint_output = os.path.dirname(str(checkpoints._fishhook_prepare_maf.get(**wildcards).output[0]))
+    SUMS, = glob_wildcards(checkpoint_output +"/{md5sum}.maf.content")
+    return expand(
+        [
+            CFG["dirs"]["outputs"] + "tsv/{{sample_set}}--{{launch_date}}/{md5sum}.fishhook.tsv"
+        ],
+        md5sum = SUMS
+        )
+
+# Aggregates outputs to remove md5sum from rule all
+rule _fishhook_aggregate:
+    input:
+        _for_aggregate
+    output:
+        aggregate = CFG["dirs"]["outputs"] + "{sample_set}--{launch_date}.done"
+    shell:
+        op.as_one_line("""touch {output.aggregate}""")
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _fishhook_all:
     input:
         expand(
             [
-                str(rules._fishhook_output_tsv.output.tsv),
+                CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done",
+                str(rules._fishhook_aggregate.output.aggregate),
             ],
-            sample_set=CFG["sample_set"])
-
+            sample_set=CFG["sample_set"],
+            launch_date = launch_date)
 
 ##### CLEANUP #####
 
