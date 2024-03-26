@@ -94,7 +94,7 @@ rule _hotmaps_input_maf:
     input:
         maf = CFG["inputs"]["input_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "master_maf/{seq_type}/input.maf"
+        maf = CFG["dirs"]["inputs"] + "master_maf/{seq_type}--{genome_build}/input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
 
