@@ -35,7 +35,11 @@ localrules: download_genome_fasta,
             _combine_imgt_files,
             _remove_imgt_dups,
             _create_imgt_database,
-            _imgt_db_success
+            _imgt_db_success,
+            download_oncodrive_refs,
+            aggregate_oncodrive_downloads,
+            download_oncodrive_hg19_regions,
+            oncodrive_hg19_regions_downloaded
 
 
 # Check for genome builds

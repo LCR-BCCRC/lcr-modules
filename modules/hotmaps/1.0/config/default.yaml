@@ -2,25 +2,96 @@ lcr-modules:
     
     hotmaps:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_maf: "__UPDATE__"
+            # Available wildcards: {seq_type} {genome_build}
+            input_maf: "__UPDATE__"
+            subsetting_categories: "__UPDATE__"
+
+        maf_processing:
+            sample_sets: ["__UPDATE__"]
+            prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.1/generate_smg_inputs.R"
+            include_non_coding: False
+            blacklists: []
+            blacklist_drop_threshold: 4
+
+        # Path to HotMAPS repo containing updated scripts
+        hotmaps_repo: "https://github.com/morinlab/HotMAPS/archive/refs/heads/master.zip"
+
+        pdb_stucture_dirs:
+            # For more information on downloading PDB structures and setting directories look at the CHANGELOG
+            # or check out: https://github.com/KarchinLab/HotMAPS_2016/wiki/Tutorial-(Exome-scale)
+
+            # modbase_dir: set to the directory containing the ModBase theoretical protein structures 
+            modbase_dir: "__UPDATE__"
+            # pdb_dir: set to the directory containing PDB structures downloaded from wwPDB database
+            pdb_dir: "__UPDATE__"
+            # refseq_homology_dir: specify the path containing the ModBase RefSeq structures. 
+            # %(modbase_dir)s placeholder will be replaced with path set in modbase_dir above
+            refseq_homology_dir: "%(modbase_dir)s/ModBase_H_sapiens_2013_refseq/models/model/"
+            # ensembl_homology_dir: specify path containing ModBase Ensembl structures
+            ensembl_homology_dir: "%(modbase_dir)s/H_sapiens_2013/models/"
+            # biological_assembly_dir: specify path containing wwPDB biological structures
+            biological_assembly_dir: "%(pdb_dir)s/biounit/coordinates/all/"
+            # non_biological_assembly_dir: specify the path containing wwPDB PDB structures
+            non_biological_assembly_dir: "%(pdb_dir)s/structures/all/pdb/"
+
+        options:
+            vcf2maf:
+                src_dir: "{REPODIR}/modules/vcf2maf/1.3/src"
+                # Path pointing to VEP files for running vcf2maf e.g "ref/ensembl_vep_cache"
+                vep_cache: "__UPDATE__"
+                options: ""
+                custom_enst:
+                    grch37: "etc/custom_enst.grch37.txt"
+            mysql:
+                mysql_host: "__UPDATE__" # e.g if running on the GSC use "10.9.208.67" 
+                mysql_user: "__UPDATE__" # e.g If running on the GSC set to your user if you have access to the MySQL db, or use "mcruz"
+                mysql_db: "mupit_modbase"
+                mysql_passwd: "__UPDATE__"
+            hotmaps:
+                # Threshold of mutations per sample. Samples above specified mutation will not be used in analysis.
+                # If left blank, HotMAPS will run a script to determine the hypermutation threshold based on all samples provided.
+                hypermut_threshold:
+                # How many files to split the results into, AKA how many parallel jobs
+                pdb_splits: 250
+                # Available options: "min", "median", "max". How p-vals are "grouped" for identified hotspots
+                group_func: "min"
+                # Q value threshold
+                q_value: ".01"
+                num_sims: 10000
+                # Angstrom radius for identifying neighbouring mutations.
+                radius: 10
+                # Number of simulations that exceed maximum observed density before stopping simulations
+                stop_criteria: 200
+
+        deblacklist_script: "{SCRIPTSDIR}/deblacklist_maf/1.0/deblacklist_maf.py"
+        detailed_hotspots_script: "{MODSDIR}/etc/detailed_hotspots.py"
 
         scratch_subdirectories: []
 
-        options:
-            step_1: ""
-            step_2: ""
-
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
+            vcf2maf: "{REPODIR}/envs/vcf2maf/vcf2maf-1.6.18.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.17.yaml"
+            hotmaps: "{MODSDIR}/envs/hotmaps.yaml"
             
         threads:
-            step_1: 4
+            hotmaps: 1
 
         resources:
-            step_1: 
-                mem_mb: 2000
+            hotmaps: 
+                mem_mb: 5000
+            # IMPORTANT: mysql is set to 1 so that only one _hotmaps_get_mutations rule runs at once
+            # IMPORTANT: Please make sure when running that you include "--resources mysql=1" in the snakemake flags
+            get_mutations:
+                mysql: 1
             
         pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
