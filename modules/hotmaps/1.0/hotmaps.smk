@@ -455,7 +455,7 @@ rule _hotmaps_prep_mutations:
     output:
         mupit_non_filtered = CFG["dirs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/mutations/non_filtered_mupit.input.{sample_set}.maf"
     params:
-        mut_dir = lambda w: config["lcr-modules"]["hotmaps"]["dirs"]["hotmaps"] + f"{w.sample_set}--{w.launch_date}/{w.md5sum}/mutations/",
+        mut_dir = CFG["dirs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/mutations/",
         mysql_host = CFG["options"]["mysql"]["mysql_host"],
         mysql_user = CFG["options"]["mysql"]["mysql_user"],
         mysql_pass = CFG["options"]["mysql"]["mysql_passwd"],
@@ -492,7 +492,7 @@ rule _hotmaps_prep_mupit_annotation:
         mysql_host = CFG["options"]["mysql"]["mysql_host"],
         mysql_user = CFG["options"]["mysql"]["mysql_user"],
         mysql_pass = CFG["options"]["mysql"]["mysql_passwd"],
-        cov_dir = CFG["dirs"]["hotmaps"] + "{sample_set}--{launch_date}/{md5sum}/",
+        cov_dir = CFG["dirs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/",
         hypermut = "-mt " + CFG["options"]["hotmaps"]["hypermut_threshold"] if CFG["options"]["hotmaps"]["hypermut_threshold"] is not None else "",
         script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/maf/convert_maf_to_mupit.py"
     conda:
