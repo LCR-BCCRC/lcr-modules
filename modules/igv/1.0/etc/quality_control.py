@@ -115,7 +115,7 @@ def handleBlank(snapshot, img_values, thresholds, batch_file, igv, truncated_att
     
     while blank and attempts < 3:
         attempts += 1
-        message = f'Current snapshot values are: {img_values["height"]} height, {img_values["kurtosis"]} kurtosis, and {img_values["skewness"]} skewness. Snapshots with these values may be blank. Blank snapshots may be due to errors reading BAM file headers, Java address bind errors, or other errors during that occur during the IGV run. Rerunning with increased sleep interval.'
+        message = f'Current snapshot values are: {img_values["height"]} height, {img_values["kurtosis"]} kurtosis, and {img_values["skewness"]} skewness. Snapshots with these values may be blank. Blank snapshots may be due to errors reading BAM file headers, Java address bind errors, or other errors that occur during the IGV run. Rerunning with increased sleep interval.'
 
         # Rerun IGV
         runIGV(batch_file, igv, status, message, attempts)
