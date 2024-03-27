@@ -22,7 +22,6 @@ def main():
         sys.stdout = stdout
 
         try:
-            # Handle matched samples with matched normal BAMs
             input_bam = snakemake.input["bam_file"]
             input_bai = snakemake.input["bai_file"]
             
