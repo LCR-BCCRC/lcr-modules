@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This release was authored by Manuela Cruz.
 
 - This module requires four file types:
-    * Regions file containing desired regions to be snapshot in BED format, MAF format, mutation_id format in which mutations are in "{chromosome}:{start_position}:{end_position}" format or OncodriveCLUSTL / HotMAPS results files. HotMAPS and OncodriveCLUSTL results are preformatted using scripts that is executed in the last steps of their lcr-modules.
+    * Regions file containing desired regions to be snapshot in BED format, MAF format, mutation_id format in which mutations are in "{chromosome}:{start_position}:{end_position}" format or OncodriveCLUSTL / HotMAPS results files. HotMAPS and OncodriveCLUSTL results are preformatted using scripts that are executed in the last steps of their lcr-modules.
     * BAM and 
     * BAI files for each sample to generate IGV screenshots
     * MAF files for each sample to determine which variants are included in desired regions to be snapshot and extract the corresponding Chromosome, Start_Position and Hugo_Symbol values
@@ -29,7 +29,7 @@ Creation of IGV snapshots:
 
 - IGV is then run on each sample's merged batch script. This is also a checkpoint rule as the specific snapshots that will be created depend on the contents of the merged batch scripts.
 
-- IGV snapshot presets can be defined in the config at ["options"]["generate_batch_script"]["igv_options"] parameters. Two presets have already been defined, `default` and `pairs`. To specify which presets you want to create images for in the analysis, define them in list format in the config at ["options"]["igv_presets"]
+- IGV snapshot presets can be defined in the config at ["options"]["generate_batch_script"]["igv_options"] parameters. Two presets have already been defined, `default` and `pairs`. To specify which presets you want to create images for in the analysis, define them in list format in the config at ["options"]["igv_presets"]. More information on preset options here: https://github.com/igvteam/igv/wiki/Batch-commands
 
 Blank or truncated snapshots:
 
