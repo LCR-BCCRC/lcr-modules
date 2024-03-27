@@ -120,7 +120,7 @@ rule _igv_symlink_maf:
     run:
         op.absolute_symlink(input.maf, output.maf)
 
-# Reduce MAF columns to prevent parsing errors in Pandas
+# Reduce MAF columns to prevent parsing errors in Pandas and reduce file size
 rule _igv_reduce_maf_cols:
     input:
         maf = str(rules._igv_symlink_maf.output.maf)
@@ -186,7 +186,7 @@ rule _igv_liftover_regions:
         regions_build = lambda w: (w.tool_build).replace("grch37","GRCh37").replace("hg38","GRCh38"),
         target_build = lambda w: (w.genome_build).replace("grch37","GRCh37").replace("hg38","GRCh38")
     conda:
-        CFG["conda_envs"]["liftover_regions"]
+        CFG["conda_envs"]["crossmap"]
     resources:
         **CFG["resources"]["_igv_liftover_regions"]
     log:
@@ -423,7 +423,7 @@ checkpoint _igv_run:
         then
         echo 'exit' >> {params.merged_batch} ;
         fi ; 
-        maxtime=$(($(wc -l < {params.merged_batch}) * 60 + 15 + {params.sleep_time})) ;
+        maxtime=$(($(wc -l < {params.merged_batch}) * 10 + 15 + {params.sleep_time})) ;
         timeout $maxtime xvfb-run -s "-screen 0 1920x1080x24" {params.server_number} {params.server_args} {params.igv} -b {params.merged_batch} > {log.stdout} 2> {log.stderr} && touch {output.complete} ;
         exit=$? ;
         if [ $exit -ne 0 ] ;

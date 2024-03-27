@@ -3,7 +3,7 @@ lcr-modules:
     igv:
 
         inputs:
-            # Available wildcards: {seq_type} {tumour_sample_id} {normal_sample_id} {pair_status} {genome_build}
+            # Available wildcards: {unix_group} {seq_type} {tumour_sample_id} {normal_sample_id} {pair_status} {genome_build}
             maf: "__UPDATE__"
 
         regions: 
@@ -29,15 +29,16 @@ lcr-modules:
 
         options:
             genome_map: 
-                # Map builds between metadata and sample_ids so that MAF file locations are determined properly
-                grch37: ["__UPDATE__"]
-                hg38: ["__UPDATE__"]
+                # Map metadata builds to grch37 and hg38 so that MAF file locations are determined correctly
+                grch37: ["__UPDATE__"] # e.g ["grch37","hg19","hs37d5"]
+                hg38: ["__UPDATE__"] # e.g ["hg38","grch38"]
 
             liftover_regions:
                 reference_chain_file:
                     grch37: "genomes/grch37/chains/grch37/hg19ToHg38.over.chain"
                     hg38: "genomes/hg38/chains/grch38/hg38ToHg19.over.chain"
                 target_reference:
+                    # fasta of target build
                     grch37: "__UPDATE__"
                     hg38: "__UPDATE__"
 
@@ -82,10 +83,10 @@ lcr-modules:
         scratch_subdirectories: []
 
         conda_envs:
-            liftover_regions: "{MODSDIR}/envs/crossmap.yaml"
+            crossmap: "{MODSDIR}/envs/crossmap.yaml"
             wget: "{REPODIR}/envs/wget/wget-1.20.1.yaml"
 
-        threads:
+        threads: 4
 
         resources:
             _igv_liftover_regions:
