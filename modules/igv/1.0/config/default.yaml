@@ -3,13 +3,14 @@ lcr-modules:
     igv:
 
         inputs:
-            # Available wildcards: {unix_group} {seq_type} {tumour_sample_id} {normal_sample_id} {pair_status} {genome_build}
+            # Available wildcards: {seq_type} {tumour_sample_id} {normal_sample_id} {pair_status} {genome_build}
             maf: "__UPDATE__"
 
         regions: 
             # Provide regions files as lists in their respective genome builds so that liftover of coordinates occurs properly
+            # Please provide at least one regions file to filter MAF variants
             oncodriveclustl:
-                grch37: []
+                grch37: ["__UPDATE__"]
                 hg38: []
             hotmaps:
                 grch37: []
@@ -21,8 +22,9 @@ lcr-modules:
                 grch37: []
                 hg38: []
             mutation_id:
-                grch37: []
-                hg38: []
+                # mutation_id format: minimum requirements are header containing "mutation_id_{regions_build}" column and values in {chr}:{pos} format
+                grch37: [] # e.g at minimum requires column mutation_id_grch37
+                hg38: [] # e.g at minimum requires columm mutation_id_grch37
 
         # Stop snakefile after MAF filtering step to estimate total number of snapshots that will be taken without running IGV
         estimate_only: False 
@@ -30,17 +32,11 @@ lcr-modules:
         options:
             genome_map: 
                 # Map metadata builds to grch37 and hg38 so that MAF file locations are determined correctly
-                grch37: ["__UPDATE__"] # e.g ["grch37","hg19","hs37d5"]
-                hg38: ["__UPDATE__"] # e.g ["hg38","grch38"]
+                grch37: ["grch37","hg19","hs37d5"]
+                hg38: ["hg38","grch38"] 
 
             liftover_regions:
-                reference_chain_file:
-                    grch37: "genomes/grch37/chains/grch37/hg19ToHg38.over.chain"
-                    hg38: "genomes/hg38/chains/grch38/hg38ToHg19.over.chain"
-                target_reference:
-                    # fasta of target build
-                    grch37: "__UPDATE__"
-                    hg38: "__UPDATE__"
+                liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
 
             generate_batch_script:
                 padding: 100 # Base pairs upstream and downstream of variant position
@@ -76,14 +72,14 @@ lcr-modules:
         scripts:
             format_regions: "etc/format_regions.py"
             filter_script: "etc/filter_maf.py"
-            region_liftover_script: "{MODSDIR}/etc/liftover_regions.sh"
+            region_liftover_script: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
             batch_script_per_variant: "etc/generate_batch_script_per_variant.py"
             quality_control: "etc/quality_control.py"
 
         scratch_subdirectories: []
 
         conda_envs:
-            crossmap: "{MODSDIR}/envs/crossmap.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
             wget: "{REPODIR}/envs/wget/wget-1.20.1.yaml"
 
         threads: 4
@@ -106,13 +102,3 @@ lcr-modules:
                 run_unpaired_tumours_with: "unmatched_normal"
                 run_paired_tumours_as_unpaired: False
 
-    slms_3:
-        pairing_config:
-            genome:
-                run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
-                run_paired_tumours_as_unpaired: False
-            capture:
-                run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
-                run_paired_tumours_as_unpaired: False

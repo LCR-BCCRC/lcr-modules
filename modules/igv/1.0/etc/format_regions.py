@@ -52,6 +52,10 @@ def main():
 
             # Reformat for liftover based on regions format
             regions_formatted = format_regions(regions_file, regions_format)
+            regions_formatted = regions_formatted.drop_duplicates()
+
+            # Add empty column to end for liftover
+            regions_formatted.insert(3, '', '')
 
             # Output regions file
             regions_formatted.to_csv(output_file, sep="\t", index=False)
@@ -69,12 +73,13 @@ def format_mutation_id(mutation_id):
 
     for col, idx in {"chr_std": 0, "start": 1, "end": 2}.items():
         mutation_id[col] = mutation_id.apply(lambda x: str(x[genomic_pos_col]).split(":")[idx].replace("chr",""), axis=1)
+    end = mutation_id["end"].apply(lambda x: x + 1)
 
     mutation_id_reformatted = pd.DataFrame(
         {
             "chrom": "chr" + mutation_id["chr_std"],
             "start": mutation_id["start"],
-            "end": mutation_id["end"]
+            "end": end
         }
     )
 
@@ -91,12 +96,13 @@ def format_hotmaps(hotmaps_regions):
 
     hotmaps_regions["chr_std"] = hotmaps_regions.apply(lambda x: str(x["Chromosome"]).replace("chr",""), axis=1)
     chr_std = "chr" + hotmaps_regions["chr_std"].map(str)
+    end = hotmaps_regions["Start_Position"].apply(lambda x: x + 1)
 
     hotmaps_reformatted = pd.DataFrame(
         {
             "chrom": chr_std,
             "start": hotmaps_regions["Start_Position"],
-            "end": hotmaps_regions["Start_Position"]
+            "end": end
         }
     )
     return hotmaps_reformatted
@@ -107,11 +113,12 @@ def format_clustl(clustl_regions):
 
     # Create columnns required for BED format
     chr_std = "chr" + clustl_regions["Chromosome"].map(str)
+    end = clustl_regions["Start_Position"].apply(lambda x: x + 1)
     clustl_reformatted = pd.DataFrame(
         {
             "chrom": chr_std,
             "start": clustl_regions["Start_Position"],
-            "end": clustl_regions["Start_Position"]
+            "end": end
         }
     )
     return clustl_reformatted
@@ -122,12 +129,13 @@ def format_maf(maf):
 
     # Create dataframe in BED format
     chr_std = "chr" + maf_regions["Chromosome"].map(str).replace("chr","")
+    end = maf_regions["Start_Position"].apply(lambda x: x + 1)
 
     maf_reformatted = pd.DataFrame(
         {
             "chrom": chr_std,
             "start": maf_regions["Start_Position"],
-            "end": maf_regions["End_Position"]
+            "end": end
         }
     )
 

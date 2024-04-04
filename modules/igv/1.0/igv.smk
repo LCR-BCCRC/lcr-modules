@@ -91,11 +91,6 @@ def get_bai(wildcards):
     metadata = config["lcr-modules"]["igv"]["samples"]
     return expand("data/{{seq_type}}_bams/{{sample_id}}.{genome_build}.bam.bai", genome_build=metadata[(metadata.sample_id == wildcards.sample_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"])
 
-def get_maf(wildcards):
-    unix_group = config["unix_group"]
-    return expand(config["lcr-modules"]["igv"]["inputs"]["maf"], allow_missing=True, unix_group=unix_group)
-
-
 ##### RULES #####
 
 
@@ -114,7 +109,7 @@ rule _igv_symlink_bams:
 
 rule _igv_symlink_maf:
     input:
-        maf = get_maf
+        maf = CFG["inputs"]["maf"]
     output:
         maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_sample_id}--{pair_status}.maf"
     run:
@@ -173,31 +168,44 @@ REGIONS_FORMAT = {
     "mutation_id": "bed"
 }
 
+def _igv_get_chain(wildcards):
+    if "38" in str({wildcards.tool_build}):
+        return reference_files("genomes/{tool_build}/chains/grch38/hg38ToHg19.over.chain")
+    else:
+        return reference_files("genomes/{tool_build}/chains/grch37/hg19ToHg38.over.chain")
+
 rule _igv_liftover_regions:
     input:
         regions = str(rules._igv_format_regions.output.regions),
-        liftover_script = CFG["scripts"]["region_liftover_script"]
+        igv_chain = _igv_get_chain
     output:
-        regions = CFG["dirs"]["inputs"] + "regions/{tool_type}.{tool_build}To{genome_build}.crossmap.txt"
+        regions = CFG["dirs"]["inputs"] + "regions/{tool_type}.{tool_build}To{genome_build}.lifted.txt"
     params:
-        chain_file = lambda w: reference_files(config["lcr-modules"]["igv"]["options"]["liftover_regions"]["reference_chain_file"][w.tool_build]),
-        target_reference = lambda w: config["lcr-modules"]["igv"]["options"]["liftover_regions"]["target_reference"][w.genome_build],
-        regions_type = lambda w: REGIONS_FORMAT[(w.tool_type).lower()],
-        regions_build = lambda w: (w.tool_build).replace("grch37","GRCh37").replace("hg38","GRCh38"),
-        target_build = lambda w: (w.genome_build).replace("grch37","GRCh37").replace("hg38","GRCh38")
+        liftover_script = CFG["scripts"]["region_liftover_script"],
+        liftover_minmatch = CFG["options"]["liftover_regions"]["liftover_minMatch"]
     conda:
-        CFG["conda_envs"]["crossmap"]
+        CFG["conda_envs"]["liftover"]
     resources:
         **CFG["resources"]["_igv_liftover_regions"]
     log:
-        stdout = CFG["logs"]["inputs"] + "regions/liftover_regions_{tool_type}.{tool_build}To{genome_build}.stdout.log",
         stderr = CFG["logs"]["inputs"] + "regions/liftover_regions_{tool_type}.{tool_build}To{genome_build}.stderr.log"
     shell:
         op.as_one_line("""
-        {input.liftover_script}
-        {input.regions} {params.regions_type} {params.regions_build}
-        {params.target_build} {output.regions} {params.chain_file}
-        {params.target_reference} > {log.stdout} 2> {log.stderr}
+        echo "Running {rule} for {wildcards.tool_type} {wildcards.tool_build}" > {log.stderr} ;
+        if [ {wildcards.tool_build} == {wildcards.genome_build} ] ; then
+            echo "{wildcards.tool_type} build {wildcards.tool_build} is already target {wildcards.genome_build}. Nothing to be done, copying {input.regions} to {output.regions}..." >> {log.stderr} ;
+            cat {input.regions} > {output.regions} ;
+        else 
+            echo "Lifting over {wildcards.tool_type} {wildcards.tool_build} regions to {wildcards.genome_build}..." >> {log.stderr} ;
+            bash {params.liftover_script} 
+            BED 
+            {input.regions} 
+            {output.regions} 
+            {input.igv_chain} 
+            YES 
+            {params.liftover_minmatch}
+            2>> {log.stderr} ;
+        fi
         """)
 
 def _get_lifted_regions(wildcards):
@@ -218,7 +226,7 @@ rule _igv_merge_lifted_regions:
         merged_df = pd.DataFrame()
         for region in input.regions:
             try:
-                df = pd.read_table(region, comment = "#", sep = "\t", header=None)
+                df = pd.read_table(region, comment = "#", sep = "\t", header=None, usecols=[0,1,2])
                 df.drop(df[df[0] == "chrom"].index, inplace = True)
                 merged_df = pd.concat([merged_df, df])
             except:
@@ -307,7 +315,7 @@ rule _igv_batches_to_merge:
     params:
         merged_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{preset}/{sample_id}" + SUFFIX + ".batch",
         igv_options = lambda w: config["lcr-modules"]["igv"]["options"]["generate_batch_script"]["igv_options"][w.preset]
-    threads: (workflow.cores / 30)
+    threads: (workflow.cores / 10)
     run:
         batch_script_path = os.path.abspath(input.batch_script)
         output_file = os.path.abspath(params.merged_batch)
@@ -452,7 +460,7 @@ rule _igv_track_failed:
 rule _igv_quality_control:
     input:
         igv = str(rules._igv_run.output.complete),
-        failed_summary = str(rules._igv_track_failed.output.failed_summary),
+        failed_summary = ancient(str(rules._igv_track_failed.output.failed_summary)),
         snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{tissue_status}/{preset}/{chromosome}/{chromosome}:{start_position}--{gene}--{ref_allele}_{alt_allele}--{sample_id}" + SUFFIX + ".png"
     output:
         snapshot_qc = CFG["dirs"]["snapshots"] + "qc/{seq_type}--{genome_build}/{tissue_status}/{preset}/{chromosome}:{start_position}--{gene}--{ref_allele}_{alt_allele}--{sample_id}" + SUFFIX + ".qc"
@@ -478,7 +486,9 @@ rule _igv_symlink_snapshot:
         snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{tissue_status}/{preset}/{chromosome}/{chromosome}:{start_position}--{gene}--{ref_allele}_{alt_allele}--{sample_id}" + SUFFIX + ".png",
         snapshot_qc = str(rules._igv_quality_control.output.snapshot_qc)
     output:
-        snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tissue_status}/{preset}/{chromosome}/{chromosome}:{start_position}--{gene}--{ref_allele}_{alt_allele}--{sample_id}" + SUFFIX + ".png" 
+        snapshot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tissue_status}/{preset}/{chromosome}/{chromosome}:{start_position}--{gene}--{ref_allele}_{alt_allele}--{sample_id}" + SUFFIX + ".png"
+    resources:
+        **CFG["resources"]["_igv_symlink"]
     run:
         op.relative_symlink(input.snapshot, output.snapshot)
 
