@@ -1,34 +1,33 @@
 lcr-modules:
-
+    
     fishhook:
         inputs:
-            # Available wildcards: {seq_type} {projection}
-            master_maf: "__UPDATE__"
-            subsetting_categories: "__UPDATE__" # e.g. "data/metadata/level3_subsetting_categories.tsv"
-        sample_set: ["__UPDATE__"] # E.g. ["DLBCL-only", "BL_DLBCL-BL-like_all"]
-        # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
-        # launch_date: ""
+            # Available wildcards: {seq_type}
+            master_maf: "_UPDATE_"
+            sample_sets: "_UPDATE_"
 
+        sample_set: ["_UPDATE_"]
+        seq_types: ["genome", "capture"]
         include_non_coding: True
-        prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.1/generate_smg_inputs.R"
+        prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.0/generate_smg_inputs.R"
         src_dir: "{MODSDIR}/src/"
 
         options:
-            include_silent_mutation: False # Include silent mutations in maf file
-            tiles_size: 1000 # This is the size of tiles you want to split the genome into, leave blank if you want to use a gene list as hypothese
-            target_gene_list: "" # If you do not provide a tile size, please provide a gene list in gtf format (e.g GENCODE v19 genes for GRCH37: gencode.v19.genes.gtf) for fishHook to do a gene-centric analysis
-            target_gene_list_only_protein_coding: True # Only include protein coding genes in gene list
-            covariates: "" # Please supply a covariate file in bed format, leave it blank if you want to run fishHook without covariates
+            include_silent_mutation: False #Include silent mutations in maf file
+            tiles_size: 1000 #This is the size of tiles you want to split the genome into, leave blank if you want to use a gene list as hypothese
+            target_gene_list: "" #If you do not provide a tile size, please provide a gene list in gtf format (e.g GENCODE v19 genes for GRCH37: gencode.v19.genes.gtf) for Fishhook to do a gene-centric analysis
+            target_gene_list_only_protein_coding: True #Only include protein coding genes in gene list
+            covariates: "" #please supply a coveriate file in bed format, leave it blank if you want to run FishHook without covariates
 
         conda_envs:
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
             fishhook: "{MODSDIR}/envs/fishhook.yaml"
-
+            
         threads:
             fishhook: 1
 
         resources:
-            fishhook:
+            fishhook: 
                 mem_mb: 16000
 
         pairing_config:
@@ -39,4 +38,4 @@ lcr-modules:
             capture:
                 run_paired_tumours: True
                 run_unpaired_tumours_with: "unmatched_normal"
-                run_paired_tumours_as_unpaired: False
+                run_paired_tumours_as_unpaired: False           
