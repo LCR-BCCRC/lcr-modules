@@ -357,7 +357,7 @@ rule _lymphgen_install_GAMBLR:
 
 rule _lymphgen_input_sv:
     input:
-        fish = CFG["inputs"]["sample_sv_info"]["fish"],
+        fish = ancient(CFG["inputs"]["sample_sv_info"]["fish"]),
         sv = _find_best_sv,
         gamblr = ancient(rules._lymphgen_install_GAMBLR.output.installed)
     output:
