@@ -142,7 +142,7 @@ rule _run_sage:
         fasta = str(rules._input_references.output.genome_fa),
         hotspots = rules._download_sage_references.output.hotspots,
         high_conf_bed = str(rules._download_sage_references.output.high_conf_bed),
-        cache = str(rules._download_sage_references.output.cache),
+        cache = ancient(str(rules._download_sage_references.output.cache)),
         panel_bed = _sage_get_capspace,
         main_chromosomes = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
     output:
