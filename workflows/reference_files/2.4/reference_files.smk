@@ -705,10 +705,11 @@ rule _imgt_db_success:
 
 rule download_oncodrive_refs:
     output:
-        refs = "downloads/oncodrive/datasets/genomereference/{oncodrive_build}.master",
-        stops = "downloads/oncodrive/datasets/genestops/{oncodrive_build}.master"
+        refs = "downloads/oncodrive/{version}/datasets/genomereference/{oncodrive_build}.master",
+        stops = "downloads/oncodrive/{version}/datasets/genestops/{oncodrive_build}.master"
     params:
-        outdir = "downloads/oncodrive/"
+        outdir = "downloads/oncodrive/{version}/",
+        provider = lambda w: config["genome_builds"][w.version]["provider"]
     conda:
         CONDA_ENVS["oncodriveclustl"]
     shell:
@@ -739,17 +740,21 @@ rule aggregate_oncodrive_downloads:
 
 rule download_oncodrive_hg19_regions:
     output:
-        promoters = "downloads/oncodrive/regions/grch37/promoters_splice_sites_10bp.regions.gz",
-        lincrnas = "downloads/oncodrive/regions/grch37/lincrnas.regions.gz",
-        cds = "downloads/oncodrive/regions/grch37/cds.regions.gz",
-        utr_5 = "downloads/oncodrive/regions/grch37/5utr.regions.gz",
-        utr_3 = "downloads/oncodrive/regions/grch37/3utr.regions.gz"
+        promoters = "downloads/oncodrive/regions/{version}/promoters_splice_sites_10bp.regions.gz",
+        lincrnas = "downloads/oncodrive/regions/{version}/lincrnas.regions.gz",
+        cds = "downloads/oncodrive/regions/{version}/cds.regions.gz",
+        utr_5 = "downloads/oncodrive/regions/{version}/5utr.regions.gz",
+        utr_3 = "downloads/oncodrive/regions/{version}/3utr.regions.gz"
     params:
         promoter_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_promoters_splice_sites_10bp.regions.gz",
         lincrnas_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_lincrnas.regions.gz",
         cds_url = "https://bitbucket.org/bbglab/oncodriveclustl/raw/2b3842ef45fef12f35b3615a0636ef62910f6350/example/cds.hg19.regions.gz",
         utr_5_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_5utr.regions.gz",
-        utr_3_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_3utr.regions.gz"
+        utr_3_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_3utr.regions.gz",
+        provider = lambda w: config["genome_builds"][w.version]["provider"]
+    wildcard_constraints: 
+        genome_build = "grch37", 
+        version = "grch37"
     shell:
         op.as_one_line("""
         wget -cO {output.promoters} {params.promoter_url} &&
