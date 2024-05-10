@@ -330,11 +330,11 @@ rule _download_salmon_script:
 rule _create_transcriptome_fasta:
     input:
         fasta = rules.get_genome_fasta_download.output.fasta,
-        gtf = get_download_file("downloads/gencode-33/gencode.annotation.{version}.gtf")
+        gtf = get_download_file("downloads/gencode-{gencode_release}/gencode.annotation.{version}.gtf")
     output:
-        fasta = "genomes/{genome_build}/salmon_index/salmon-{salmon_version}/transcriptome.fa"
+        fasta = "genomes/{genome_build}/salmon_index/salmon-{salmon_version}/gencode-{gencode_release}/transcriptome.fa"
     log:
-        "genomes/{genome_build}/salmon_index/salmon-{salmon_version}/transcriptome.log"
+        "genomes/{genome_build}/salmon_index/salmon-{salmon_version}/gencode-{gencode_release}/transcriptome.log"
     conda: CONDA_ENVS["gffread"]
     threads: 4
     resources:
@@ -353,11 +353,11 @@ rule _create_transcriptome_fasta:
 rule create_salmon_index:
     input:
         fasta = rules._create_transcriptome_fasta.output.fasta,
-        gtf = get_download_file("downloads/gencode-33/gencode.annotation.{version}.gtf")
+        gtf = get_download_file("downloads/gencode-{gencode_release}/gencode.annotation.{version}.gtf")
     output:
-        index = directory("genomes/{genome_build}/salmon_index/salmon-{salmon_version}/index")
+        index = directory("genomes/{genome_build}/salmon_index/gencode-{gencode_release}/salmon-{salmon_version}/index")
     log:
-        "genomes/{genome_build}/salmon_index/salmon-{salmon_version}/log"
+        "genomes/{genome_build}/salmon_index/salmon-{salmon_version}/gencode-{gencode_release}/log"
     conda: CONDA_ENVS["salmon"]
     threads: 8
     resources:
