@@ -51,6 +51,7 @@ assert "genome_builds" in config and len(config["genome_builds"]) > 0, (
 VERSION_UPPER = {
     "grch37": "GRCh37",
     "grch38": "GRCh38",
+    "grcm38": "GRCm38"
 }
 
 GENOME_VERSION_GROUPS = {}
@@ -61,7 +62,7 @@ for genome_build in VERSION_UPPER.keys():
 # For Starfish SDF files
 SDF_VERSION_MAP = {}
 SDF_GENOME_BUILDS = []
-SDF_IGNORE = {"grch38", "grch38-legacy", "grch38_masked"}  # Ignore non-chr prefixed versions of hg38 since we don't use them
+SDF_IGNORE = {"grch38", "grch38-legacy", "grch38_masked", "mm10", "grcm38"}  # Ignore non-chr prefixed versions of hg38 since we don't use them
 sdf_genome_mappings = {
 "GRCh37": {"ensembl": "1000g_v37_phase2.sdf", "ucsc": "hg19.sdf"},
 "GRCh38": {"ucsc": "GRCh38.sdf"}
@@ -153,7 +154,7 @@ if not os.path.exists(CHROM_MAPPINGS_DIR):
 
 # Find chromosome mappings for human genome
 CHROM_MAPPINGS_FILES = os.listdir(CHROM_MAPPINGS_DIR)
-CHROM_MAPPINGS_FILES = [ f for f in CHROM_MAPPINGS_FILES if f.startswith("GRCh") ]
+CHROM_MAPPINGS_FILES = [ f for f in CHROM_MAPPINGS_FILES if f.startswith("GRC") ]
 
 TO_PROVIDERS = set()
 CHROM_MAPPINGS = defaultdict(lambda: defaultdict(set))
@@ -180,10 +181,18 @@ rule download_genome_fasta:
         path = lambda w: config["genome_builds"][w.genome_build]["genome_fasta_file"] if "genome_fasta_file" in config["genome_builds"][w.genome_build] else config["genome_builds"][w.genome_build]["genome_fasta_url"],
     shell:
         op.as_one_line("""
-        if [ -e {params.path} ]; then
-            cat {params.path} > {output.fasta} 2> {log};
+        if [[ -e {params.path} ]]; then
+            if [[ {params.path} == *.gz ]]; then
+                cat {params.path} | gzip -d > {output.fasta} 2> {log};
+            else
+                cat {params.path} > {output.fasta} 2> {log};
+            fi;
         else
-            curl -L {params.path} > {output.fasta} 2> {log};
+            if [[ {params.path} == *.gz ]]; then
+                curl -L {params.path} | gzip -d > {output.fasta} 2> {log};
+            else
+                curl -L {params.path} > {output.fasta} 2> {log};
+            fi;
         fi
         """)
 
@@ -241,27 +250,42 @@ rule download_gencode_annotation:
     params:
         provider = "ucsc"
     run:
-        url_parts = [
-            "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human",
-            f"release_{wildcards.gencode_release}"
-        ]
-        release_fmt = f"v{wildcards.gencode_release}"
-        if wildcards.version == "grch37":
-            url_parts.append("GRCh37_mapping")
-            release_fmt += "lift37"
-        url_parts.append(f"gencode.{release_fmt}.annotation.gtf.gz")
-        url = "/".join(url_parts)
-        urllib.request.urlretrieve(url, output.gtf + ".gz")
-        shell("gunzip {output.gtf}.gz")
+        # Check if it's a mouse reference being requested
+        if "M" in wildcards.gencode_release: 
+            url_parts = [
+                "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse",
+                f"release_{wildcards.gencode_release}"
+            ]
+            release_fmt = f"v{wildcards.gencode_release}"
+            if wildcards.version == "grcm38": 
+                url_parts.append("GRCm38_mapping")
+                release_fmt += "lift38"
+            url_parts.append(f"gencode.{release_fmt}.annotation.gtf.gz")
+            url = "/".join(url_parts)
+            urllib.request.urlretrieve(url, output.gtf + ".gz")
+            shell("gunzip {output.gtf}.gz")
+        else: 
+            url_parts = [
+                "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human",
+                f"release_{wildcards.gencode_release}"
+            ]
+            release_fmt = f"v{wildcards.gencode_release}"
+            if wildcards.version == "grch37":
+                url_parts.append("GRCh37_mapping")
+                release_fmt += "lift37"
+            url_parts.append(f"gencode.{release_fmt}.annotation.gtf.gz")
+            url = "/".join(url_parts)
+            urllib.request.urlretrieve(url, output.gtf + ".gz")
+            shell("gunzip {output.gtf}.gz")
 
 rule download_blacklist:
     output:
         bed = "downloads/encode_blacklist/blacklist.encode.{version}.bed"
     params:
-        file = lambda w: {"grch37": "ENCFF001TDO", "grch38": "ENCFF356LFX"}[w.version],
+        file = lambda w: {"grch37": "ENCFF001TDO", "grch38": "ENCFF356LFX", "grcm38": "ENCFF547MET"}[w.version],
         provider = "ucsc"
     wildcard_constraints:
-        version = "grch37|grch38"
+        version = "grch37|grch38|grcm38"
     shell:
         op.as_one_line("""
         wget -qO- https://www.encodeproject.org/files/{params.file}/@@download/{params.file}.bed.gz |
