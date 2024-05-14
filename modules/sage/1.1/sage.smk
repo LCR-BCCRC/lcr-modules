@@ -67,7 +67,10 @@ rule _sage_input_bam:
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
         op.absolute_symlink(input.bam, output.bam)
-        op.absolute_symlink(input.bam+ ".bai", output.bai)
+        if os.path.exists(input.bam+ ".bai"): 
+            op.absolute_symlink(input.bam+ ".bai", output.bai)
+        else: 
+            op.absolute_symlink(input.bam+ ".crai", output.bai)
 
 
 # Setup shared reference files. Symlinking these files to 00-inputs to ensure index and dictionary are present
