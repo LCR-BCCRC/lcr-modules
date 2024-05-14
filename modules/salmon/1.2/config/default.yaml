@@ -15,7 +15,7 @@ lcr-modules:
 
         transcriptome:
             # Specify the transcriptome build for quantification
-            quant_to: "__UPDATE__" # Example: "grch37", "hg38"
+            quant_to: "__UPDATE__" # Options: "hg19", "hg38", "mm10"
 
         conda_envs:
             salmon: "{MODSDIR}/envs/salmon-1.3.0.yaml"

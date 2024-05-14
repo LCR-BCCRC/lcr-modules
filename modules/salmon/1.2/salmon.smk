@@ -29,12 +29,12 @@ except ModuleNotFoundError:
 current_version = pkg_resources.get_distribution("oncopipe").version
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
-                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
-                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
-                )
+        '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+        "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+    )
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
-# End of dependency checking section 
+# End of dependency checking section
 
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["salmon"]`
@@ -43,6 +43,9 @@ CFG = op.setup_module(
     version = "1.1",
     subdirectories = ["inputs", "salmon", "outputs"]
 )
+
+gencode_version = {"hg38": "33", "hg19": "33", "mm10": "M29"}
+
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -66,14 +69,21 @@ rule _salmon_input_fastq:
         op.absolute_symlink(input.fastq_1, output.fastq_1)
         op.absolute_symlink(input.fastq_2, output.fastq_2)
 
+def get_salmon_index(wildcards):
+    quant_to = config["lcr-modules"]["salmon"]["transcriptome"]["quant_to"]
+    version = gencode_version[quant_to]
+    return reference_files(
+        f"genomes/{quant_to}/salmon_index/gencode-{version}/salmon-1.3.0/index"
+    )
+
 
 rule _salmon_quant:
     input:
-        fastq_1 = rules._salmon_input_fastq.output.fastq_1,
-        fastq_2 = rules._salmon_input_fastq.output.fastq_2,
-        fastq1_real = CFG["inputs"]["sample_fastq_1"], # Placeholders to prevent premature deletion of temp fastqs
-        fastq2_real = CFG["inputs"]["sample_fastq_2"],
-        index = reference_files(expand("genomes/{genome_build}/salmon_index/salmon-1.3.0/index", genome_build = CFG["transcriptome"]["quant_to"]))
+        fastq_1=rules._salmon_input_fastq.output.fastq_1,
+        fastq_2=rules._salmon_input_fastq.output.fastq_2,
+        fastq1_real=CFG["inputs"]["sample_fastq_1"],  # Placeholders to prevent premature deletion of temp fastqs
+        fastq2_real=CFG["inputs"]["sample_fastq_2"],
+        index=get_salmon_index
     output:
         quant = expand(CFG["dirs"]["salmon"] + "quant_to_{quant_to}/{{seq_type}}/{{sample_id}}/quant.sf", quant_to=CFG["transcriptome"]["quant_to"])
     log:
@@ -110,7 +120,7 @@ rule _salmon_output:
 
 
 rule export_sample_table:
-    input: 
+    input:
         quant = expand(rules._salmon_output.output.quant,
             zip,
             seq_type=CFG["samples"]["seq_type"],
@@ -122,10 +132,12 @@ rule export_sample_table:
         samples.to_csv(output.sample_table, sep='\t', header=True, index=False)
 
 def get_gtf(wildcards):
-    if config["lcr-modules"]["salmon"]["transcriptome"]["quant_to"] == "hg38":
-        return reference_files("downloads/gencode-33/gencode.annotation.grch38.gtf")
-    else:
-        return reference_files("downloads/gencode-33/gencode.annotation.grch37.gtf")
+    quant_to = config["lcr-modules"]["salmon"]["transcriptome"]["quant_to"]
+    version = gencode_version[quant_to]
+    return reference_files(
+        f"genomes/{quant_to}/annotations/gencode_annotation-{version}.gtf"
+    )
+
 
 rule build_counts_matrix:
     input:
