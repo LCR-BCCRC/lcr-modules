@@ -117,7 +117,7 @@ rule _install_dnds:
         input = CFG["logs"]["inputs"] + "install_dnds.log"
     shell:
         """
-        R -q -e 'devtools::install_github("im3sanger/dndscv")' >> {log.input} &&
+        R -q --vanilla -e 'devtools::install_github("im3sanger/dndscv")' >> {log.input} &&
         touch {output.complete}"""
 
 

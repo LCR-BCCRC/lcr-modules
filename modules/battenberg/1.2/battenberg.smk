@@ -135,8 +135,8 @@ rule _install_battenberg:
         input = CFG["logs"]["inputs"] + "input.log"
     shell:
         """
-        R -q -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' >> {log.input} && ##move some of this to config?
-        R -q -e 'devtools::install_github("morinlab/battenberg")' >> {log.input} &&              ##move some of this to config?
+        R -q --vanilla -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' >> {log.input} && ##move some of this to config?
+        R -q --vanilla -e 'devtools::install_github("morinlab/battenberg")' >> {log.input} &&              ##move some of this to config?
         touch {output.complete}"""
 
 # this process is very fast on bam files and painfully slow on cram files. 

@@ -352,7 +352,7 @@ rule _lymphgen_install_GAMBLR:
     shell:
         op.as_one_line("""
         wget -qO {output.config} {params.config_url} &&
-        R -q -e 'options(timeout=9999999); devtools::install_github("morinlab/GAMBLR"{params.branch})'
+        R --vanilla -q -e 'options(timeout=9999999); devtools::install_github("morinlab/GAMBLR"{params.branch})'
         """)
 
 rule _lymphgen_input_sv:

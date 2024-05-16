@@ -116,7 +116,7 @@ rule _install_fishhook:
         input = CFG["logs"]["inputs"] + "install_fishhook.log"
     shell:
         """
-        R -q -e 'devtools::install_github(c("jokergoo/ComplexHeatmap","mskilab/gTrack", "mskilab/fishHook"))' >> {log.input} &&
+        R -q --vanilla -e 'devtools::install_github(c("jokergoo/ComplexHeatmap","mskilab/gTrack", "mskilab/fishHook"))' >> {log.input} &&
         touch {output.complete}"""
 
 

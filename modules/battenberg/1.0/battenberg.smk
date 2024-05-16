@@ -80,8 +80,8 @@ rule _install_battenberg:
         CFG["conda_envs"]["battenberg"]
     shell:
         """
-        R -q -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' && ##move some of this to config?
-        R -q -e 'devtools::install_github("morinlab/battenberg")' &&              ##move some of this to config?
+        R -q --vanilla -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' && ##move some of this to config?
+        R -q --vanilla -e 'devtools::install_github("morinlab/battenberg")' &&              ##move some of this to config?
         touch {output.complete}"""
 
 
