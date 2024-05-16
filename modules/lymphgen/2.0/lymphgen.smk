@@ -503,7 +503,7 @@ rule _lymphgen_run_cnv_A53:
         A53_wc = "with_A53"
     shell:
         op.as_one_line("""
-        Rscript {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list} -c {input.cnv_flat}
+        Rscript --vanilla {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list} -c {input.cnv_flat}
         -a {input.cnv_arm} -o {output.result} > {log.stdout} 2> {log.stderr} """)
 
 # With CNVs, no A53
@@ -530,7 +530,7 @@ rule _lymphgen_run_cnv_noA53:
         A53_wc = "no_A53"
     shell:
         op.as_one_line("""
-        Rscript {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list} -c {input.cnv_flat}
+        Rscript --vanilla {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list} -c {input.cnv_flat}
         -a {input.cnv_arm} -o {output.result} --no_A53 > {log.stdout} 2> {log.stderr} """)
 
 # No CNVs
@@ -554,7 +554,7 @@ rule _lymphgen_run_no_cnv:
          cnvs_wc = "no_cnvs"
     shell:
         op.as_one_line("""
-        Rscript {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list}
+        Rscript --vanilla {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list}
         -o {output.result} > {log.stdout} 2> {log.stderr}""")
 
 # STEP 6. Flag samples that fall in the composite "Dead Zone"
