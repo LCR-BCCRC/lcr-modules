@@ -119,7 +119,7 @@ rule build_counts_matrix:
         mem_mb = CFG["mem_mb"]["matrix"]
     shell:
         op.as_one_line("""
-        Rscript {input.salmon2counts}
+        Rscript --vanilla {input.salmon2counts}
         {params.path}
         {input.gtf}
         {params.out_dir}

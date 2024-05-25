@@ -1,0 +1,40 @@
+lcr-modules:
+
+    cnv_master:
+        # each key here identified modules used to call CNV
+        # this order will also determine the preference which module's output will be used when multiple outputs are available
+        # the key value is a path to the location of seg files
+        # supported wildcards are seq_type, tumour_id, normal_id, pair_status, tool, projection
+        # example:
+        #    battenberg: "results/battenberg-1.2/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+        #    sequenza: "results/sequenza-1.4/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+        #    controlfreec: "results/controlfreec-1.2/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+        #    cnvkit: "results/cnvkit-1.0/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+
+        inputs:
+            battenberg: "__UPDATE__"
+        # requested projections of the merged files
+        projections: ["grch37", "hg38"]
+
+        scratch_subdirectories: []
+
+        conda_envs:
+            R: "{MODSDIR}/envs/readr-2.1.2.yaml"
+
+        threads:
+            cnv_master: 4
+
+        resources:
+            cnv_master:
+                mem_mb: 12000
+                disk_mb: 1000 # Will ensure at least this much space is left
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False

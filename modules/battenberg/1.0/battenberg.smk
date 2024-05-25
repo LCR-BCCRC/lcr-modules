@@ -15,6 +15,26 @@
 import oncopipe as op
 import glob
 
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+import pkg_resources
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_resources.get_distribution("oncopipe").version
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
+
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["battenberg"]`
 CFG = op.setup_module(
@@ -47,8 +67,8 @@ rule _battenberg_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bam + ".bai", output.bai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bam + ".bai", output.bai)
 
 # Installs the Battenberg R dependencies and associated software (impute2, alleleCounter)
 # Currently I think this rule has to be run twice for it to work properly because the conda environment is created here. 
@@ -60,8 +80,8 @@ rule _install_battenberg:
         CFG["conda_envs"]["battenberg"]
     shell:
         """
-        R -q -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' && ##move some of this to config?
-        R -q -e 'devtools::install_github("morinlab/battenberg")' &&              ##move some of this to config?
+        R -q --vanilla -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' && ##move some of this to config?
+        R -q --vanilla -e 'devtools::install_github("morinlab/battenberg")' &&              ##move some of this to config?
         touch {output.complete}"""
 
 
@@ -103,7 +123,7 @@ rule _run_battenberg:
         CFG["threads"]["battenberg"]
     shell:
         """sex=$({params.calc_sex_status} {input.normal_bam} {params.x_chrom} {params.y_chrom} | tail -1 | awk '{{if( $3/$2 > 0.1) print "male"; else print "female"}}') ;"""
-        "Rscript {params.script} -t {wildcards.tumour_id} "
+        "Rscript --vanilla {params.script} -t {wildcards.tumour_id} "
         "-n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam}  "
         "-o {params.out_dir} --sex $sex --reference {params.reference_path} {params.chr_prefixed} --cpu {threads} > {log.stdout} 2> {log.stderr} "
 
@@ -158,9 +178,9 @@ rule _battenberg_output_seg:
         plots = glob.glob(params.batt_dir + "/*.png")
         for png in plots:
             bn = os.path.basename(png)
-            op.relative_symlink(png, params.png_dir + "/" + bn)
-        op.relative_symlink(input.seg, output.seg)
-        op.relative_symlink(input.sub, output.sub)
+            op.relative_symlink(png, params.png_dir + "/" + bn, in_module = True)
+        op.relative_symlink(input.seg, output.seg, in_module = True)
+        op.relative_symlink(input.sub, output.sub, in_module = True)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _battenberg_all:

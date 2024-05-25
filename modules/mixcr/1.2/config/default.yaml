@@ -1,0 +1,61 @@
+lcr-modules:
+    
+    mixcr:
+
+        dirs:
+            _parent: "__UPDATE__"
+
+        inputs:
+            # Available wildcards: {seq_type} {sample_id}
+            sample_fastq_1: "__UPDATE__" 
+            sample_fastq_2: "__UPDATE__"
+            # Path to the directory where MIXCR should be installed
+            mixcr_exec: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        receptors: "__UPDATE__"
+        ###### Desired IG/TCR chains in list format or keyword:
+        ###### "ALL" = ['IGH', 'IGL', 'IGK', 'TRA', 'TRB', 'TRD', 'TRG']
+        ###### "BCR" = ['IGH', 'IGL', 'IGK']
+        ###### "TCR" = ['TRA', 'TRB', 'TRD', 'TRG']
+
+        igblastn: False
+        # Boolean
+        # Set to True to perform igblastn alignment to IMGT database
+
+        igblast_scripts:
+            mixcr2fasta: "{MODSDIR}/src/mixcr_to_fasta.py"
+            igblastn2mixcr: "{MODSDIR}/src/igblast_to_mixcr.py"
+
+        options:
+            mixcr_run: 
+                mrna:
+                    --starting-material rna
+                genome:
+                    --starting-material dna
+            igblast_run:
+                run_flags: ""
+                form: "qseq sseq"
+
+        conda_envs: 
+            java: "{MODSDIR}/envs/java-jdk-8.0.yaml"
+            igblast: "{MODSDIR}/envs/igblast.yaml"
+            
+        threads:
+            mixcr_run: 4
+
+        resources:
+            mixcr_run: 
+                mem_mb: 10000
+                fastq: 1
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
