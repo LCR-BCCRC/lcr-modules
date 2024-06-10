@@ -8,9 +8,9 @@ include: "reference_files_header.smk"
 
 
 rule get_genome_fasta_download:
-    input: 
+    input:
         fasta = rules.download_genome_fasta.output.fasta
-    output: 
+    output:
         fasta = "genomes/{genome_build}/genome_fasta/genome.fa"
     wildcard_constraints:
         genome_build = ".+(?<!masked)"
@@ -20,11 +20,11 @@ rule get_genome_fasta_download:
 
 
 rule index_genome_fasta:
-    input: 
+    input:
         fasta = rules.get_genome_fasta_download.output.fasta
-    output: 
+    output:
         fai = "genomes/{genome_build}/genome_fasta/genome.fa.fai"
-    log: 
+    log:
         "genomes/{genome_build}/genome_fasta/genome.fa.fai.log"
     wildcard_constraints:
         genome_build = ".+(?<!masked)"
@@ -34,11 +34,11 @@ rule index_genome_fasta:
 
 
 rule create_bwa_index:
-    input: 
+    input:
         fasta = rules.get_genome_fasta_download.output.fasta
-    output: 
+    output:
         prefix = touch("genomes/{genome_build}/bwa_index/bwa-{bwa_version}/genome.fa")
-    log: 
+    log:
         "genomes/{genome_build}/bwa_index/bwa-{bwa_version}/genome.fa.log"
     conda: CONDA_ENVS["bwa"]
     resources:
@@ -59,7 +59,7 @@ rule create_gatk_dict:
     resources:
         mem_mb = 20000
     shell:
-        op.as_one_line(""" 
+        op.as_one_line("""
         gatk CreateSequenceDictionary -R {input.fasta} -O {output.dict} > {log} 2>&1
         """)
 
@@ -68,9 +68,9 @@ rule create_star_index:
     input:
         fasta = rules.get_genome_fasta_download.output.fasta,
         gtf = get_download_file(rules.download_gencode_annotation.output.gtf)
-    output: 
+    output:
         index = directory("genomes/{genome_build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{star_overhang}")
-    log: 
+    log:
         "genomes/{genome_build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{star_overhang}.log"
     conda: CONDA_ENVS["star"]
     threads: 12
@@ -95,21 +95,21 @@ rule get_liftover_chains:
     shell:
         "ln -srf {input.chains} {output.chains}"
 
-rule get_sdf_refs: 
-    input: 
+rule get_sdf_refs:
+    input:
         sdf = ancient(rules.download_sdf.output.sdf)
-    output: 
+    output:
         sdf = directory("genomes/{genome_build}/sdf")
-    wildcard_constraints: 
+    wildcard_constraints:
         genome_build = "|".join(SDF_GENOME_BUILDS)
-    shell: 
+    shell:
         "ln -srfT {input.sdf} {output.sdf}"
 
 
 rule get_masked_genome_fasta_download:
-    input: 
+    input:
         fasta = rules.download_masked_genome_fasta.output.fasta
-    output: 
+    output:
         fasta = "genomes/{genome_build}/genome_fasta/genome.fa"
     wildcard_constraints:
         genome_build = ".+_masked"
@@ -119,11 +119,11 @@ rule get_masked_genome_fasta_download:
 
 
 rule index_masked_genome_fasta:
-    input: 
+    input:
         fasta = rules.get_masked_genome_fasta_download.output.fasta
-    output: 
+    output:
         fai = "genomes/{genome_build}/genome_fasta/genome.fa.fai"
-    log: 
+    log:
         "genomes/{genome_build}/genome_fasta/genome.fa.fai.log"
     wildcard_constraints:
         genome_build = ".+_masked"
@@ -136,13 +136,13 @@ rule index_masked_genome_fasta:
 
 
 rule store_genome_build_info:
-    output: 
+    output:
         version = "genomes/{genome_build}/version.txt",
         provider = "genomes/{genome_build}/provider.txt"
     params:
         version = lambda w: config["genome_builds"][w.genome_build]["version"],
         provider = lambda w: config["genome_builds"][w.genome_build]["provider"]
-    shell: 
+    shell:
         op.as_one_line("""
         echo "{params.version}" > {output.version}
             &&
@@ -151,17 +151,17 @@ rule store_genome_build_info:
 
 
 rule get_main_chromosomes_download:
-    input: 
+    input:
         txt = get_download_file(rules.download_main_chromosomes.output.txt),
         chrx = get_download_file(rules.download_chromosome_x.output.txt),
         fai = rules.index_genome_fasta.output.fai
-    output: 
+    output:
         txt = "genomes/{genome_build}/genome_fasta/main_chromosomes.txt",
         bed = "genomes/{genome_build}/genome_fasta/main_chromosomes.bed",
         chrx = "genomes/{genome_build}/genome_fasta/chromosome_x.txt",
         patterns = temp("genomes/{genome_build}/genome_fasta/main_chromosomes.patterns.txt")
     conda: CONDA_ENVS["coreutils"]
-    shell: 
+    shell:
         op.as_one_line("""
         sed 's/^/^/' {input.txt} > {output.patterns}
             &&
@@ -178,15 +178,15 @@ rule get_main_chromosomes_download:
 
 
 rule get_main_chromosomes_withY_download:
-    input: 
+    input:
         txt = get_download_file(rules.download_main_chromosomes_withY.output.txt),
         fai = rules.index_genome_fasta.output.fai
-    output: 
+    output:
         txt = "genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt",
         bed = "genomes/{genome_build}/genome_fasta/main_chromosomes_withY.bed",
         patterns = temp("genomes/{genome_build}/genome_fasta/main_chromosomes.patterns.txt")
     conda: CONDA_ENVS["coreutils"]
-    shell: 
+    shell:
         op.as_one_line("""
         sed 's/^/^/' {input.txt} > {output.patterns}
             &&
@@ -202,7 +202,7 @@ rule get_main_chromosomes_withY_download:
 ##### ANNOTATIONS #####
 
 
-rule get_gencode_download: 
+rule get_gencode_download:
     input:
         gtf = get_download_file(rules.download_gencode_annotation.output.gtf)
     output:
@@ -230,7 +230,7 @@ rule calc_gc_content:
 ##### VARIATION #####
 
 
-rule get_dbsnp_download: 
+rule get_dbsnp_download:
     input:
         vcf = get_download_file(rules.download_dbsnp_vcf.output.vcf),
         fai = str(rules.index_genome_fasta.output.fai),
@@ -251,9 +251,9 @@ rule get_dbsnp_download:
 rule create_rRNA_interval:
     input:
         gtf = rules.get_gencode_download.output.gtf
-    output: 
+    output:
         rrna_int = "genomes/{genome_build}/rrna_intervals/rRNA_int_gencode-{gencode_release}.txt"
-    log: 
+    log:
         "genomes/{genome_build}/rrna_intervals/rRNA_int_gencode-{gencode_release}.log"
     conda: CONDA_ENVS["picard"]
     shell:
@@ -264,7 +264,7 @@ rule create_rRNA_interval:
         perl -lane '
             /transcript_id "([^"]+)"/ or die "no transcript_id on $.";
             print join "\t", (@F[0,1,2,3], $1)
-        ' | 
+        ' |
         sort -k1V -k2n -k3n >> {output.rrna_int}
         &&
         chmod a-w {output.rrna_int}
@@ -283,18 +283,18 @@ rule create_refFlat:
         mem_mb = 6000
     shell:
         op.as_one_line("""
-        gtfToGenePred -genePredExt -geneNameAsName2 
-        {input.gtf} {output.txt}.tmp 
+        gtfToGenePred -genePredExt -geneNameAsName2
+        {input.gtf} {output.txt}.tmp
         2> {log} &&
         paste <(cut -f 12 {output.txt}.tmp) <(cut -f 1-10 {output.txt}.tmp) > {output.txt}
         """)
 
 ##### ENCODE #####
 
-rule get_blacklist_download: 
-    input: 
+rule get_blacklist_download:
+    input:
         bed = get_download_file(rules.download_blacklist.output.bed)
-    output: 
+    output:
         bed = "genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed"
     conda: CONDA_ENVS["coreutils"]
     shell:
@@ -303,21 +303,21 @@ rule get_blacklist_download:
 ##### REPEATMASKER #####
 
 rule get_repeatmasker_download:
-    input: 
+    input:
         bed = get_download_file(rules.download_repeatmasker.output.bed)
-    output: 
+    output:
         bed = "genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed"
     conda: CONDA_ENVS["coreutils"]
-    shell: 
+    shell:
         "ln -srf {input.bed} {output.bed}"
 
 # salmon index
 rule _download_salmon_script:
-    output: 
+    output:
         script = "downloads/scripts/salmon/generateDecoyTranscriptome.sh"
-    log: 
+    log:
         "downloads/scripts/salmon/log"
-    params: 
+    params:
         url = "https://github.com/COMBINE-lab/SalmonTools/blob/master/scripts/generateDecoyTranscriptome.sh"
     shell:
         op.as_one_line("""
@@ -331,9 +331,9 @@ rule _create_transcriptome_fasta:
     input:
         fasta = rules.get_genome_fasta_download.output.fasta,
         gtf = get_download_file("downloads/gencode-33/gencode.annotation.{version}.gtf")
-    output: 
+    output:
         fasta = "genomes/{genome_build}/salmon_index/salmon-{salmon_version}/transcriptome.fa"
-    log: 
+    log:
         "genomes/{genome_build}/salmon_index/salmon-{salmon_version}/transcriptome.log"
     conda: CONDA_ENVS["gffread"]
     threads: 4
@@ -354,9 +354,9 @@ rule create_salmon_index:
     input:
         fasta = rules._create_transcriptome_fasta.output.fasta,
         gtf = get_download_file("downloads/gencode-33/gencode.annotation.{version}.gtf")
-    output: 
+    output:
         index = directory("genomes/{genome_build}/salmon_index/salmon-{salmon_version}/index")
-    log: 
+    log:
         "genomes/{genome_build}/salmon_index/salmon-{salmon_version}/log"
     conda: CONDA_ENVS["salmon"]
     threads: 8
@@ -420,7 +420,7 @@ rule get_mutect2_pon:
     log:
         "genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.log"
     shell:
-        op.as_one_line(""" 
+        op.as_one_line("""
         zgrep -v '##contig' {input.vcf} > {output.tmpfile} &&
         bcftools reheader --fai {input.fai} {output.tmpfile} | bcftools view -T {input.bed} -O z -o {output.vcf} 2> {log} &&
         bcftools index -t {output.vcf}
@@ -438,7 +438,7 @@ rule get_mutect2_small_exac:
         "genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.log"
     conda: CONDA_ENVS["bcftools"]
     shell:
-        op.as_one_line(""" 
+        op.as_one_line("""
         zgrep -v '##contig' {input.vcf} > {output.tmpfile} &&
         bcftools reheader --fai {input.fai} {output.tmpfile} | bcftools view -T {input.bed} -O z -o {output.vcf} 2> {log} &&
         bcftools index -t {output.vcf}
@@ -465,7 +465,7 @@ def _check_capspace_provider(w):
 
     genome_provider = config["genome_builds"][w.genome_build]["provider"]
     bed_provider = config["capture_space"][capture_space]["provider"]
-    
+
     # If the providers match (i.e. they share the same prefix), just use the downloaded version
     if genome_provider == bed_provider:
         return {'bed': expand(rules.download_capspace_bed.output.capture_bed, capture_space=capture_space, genome_build=w.genome_build)}
@@ -482,7 +482,7 @@ rule get_capspace_bed_download:
         capture_bed = "genomes/{genome_build}/capture_space/{capture_space}.bed"
     conda: CONDA_ENVS["coreutils"]
     shell:
-        "ln -srf {input.bed} {output.capture_bed}"
+        "cut -f 1-3 {input.bed} > {output.capture_bed}"
 
 
 rule sort_and_pad_capspace:
@@ -598,3 +598,181 @@ rule install_sigprofiler_genome:
         complete = "genomes/{genome_build}/sigprofiler_genomes/{genome_build}.installed"
     run:
         op.relative_symlink(input, output.complete)
+
+##### IGBLAST #####
+
+rule _extract_igblast_data:
+    output:
+        igblast_aux = "downloads/igblast/optional_file/human_gl.aux"
+    params:
+        tar = "downloads/igblast/igblast_executables.tar.gz",
+        aux = "ncbi-igblast-1.17.1/optional_file/human_gl.aux",
+        ftp = "ftp://ftp.ncbi.nih.gov/blast/executables/igblast/release/1.17.1/ncbi-igblast-1.17.1-x64-linux.tar.gz"
+    shell:
+        op.as_one_line("""
+        wget -cO {params.tar} {params.ftp} &&
+        tar -zx -C downloads/igblast/ -f {params.tar} {params.aux} --strip-components 1 &&
+        rm {params.tar}
+        """)
+
+rule _get_imgt_database:
+    input:
+        aux = rules._extract_igblast_data.output.igblast_aux
+    output:
+        vdj = temp("downloads/igblast/imgt_database/human/vdj/imgt_human_{subchain}.fasta")
+    conda: CONDA_ENVS["igblast"]
+    shell:
+        op.as_one_line("""
+        URL="http://www.imgt.org/genedb/GENElect?query=7.5+{wildcards.subchain}&species=Homo+sapiens" &&
+        outfile_temp="downloads/igblast/imgt_database/human/vdj/imgt_human_{wildcards.subchain}.html" &&
+        outfile_ttemp="downloads/igblast/imgt_database/human/vdj/imgt_human_{wildcards.subchain}.txt" &&
+        outfile="downloads/igblast/imgt_database/human/vdj/imgt_human_{wildcards.subchain}.fasta" &&
+        wget -cO $outfile_temp $URL &&
+        awk '/<pre>/{{i++}}/<\/pre>/{{j++}}{{if(i==2 && j==1 && $0 !~ "^<pre>" && $0 ~ "^>"){{print $0}}}}{{if(i==2 && j==1 && $0 !~ "^<pre>" && $0 !~ "^>"){{system("echo "$0" | tr '[:lower:]' '[:upper:]'")}}}}' $outfile_temp > $outfile_ttemp &&
+        rm $outfile_temp &&
+        edit_imgt_file.pl $outfile_ttemp > $outfile &&
+        rm $outfile_ttemp
+        """)
+
+IMGT_CHAIN_KEY = {
+    "ig_v" : ["IGHV","IGLV","IGKV"],
+    "ig_d" : ["IGHD"],
+    "ig_j" : ["IGHJ","IGLJ","IGKJ"],
+    "tr_v" : ["TRAV","TRBV","TRDV","TRGV"],
+    "tr_d" : ["TRBD","TRDD"],
+    "tr_j" : ["TRAJ","TRBJ","TRDJ","TRGJ"]
+}
+
+rule _combine_imgt_files:
+    input:
+        lambda w: expand(rules._get_imgt_database.output.vdj, subchain = IMGT_CHAIN_KEY[w.chain])
+    output:
+        unfiltered = temp("genomes/no_build/igblast/fasta/imgt/imgt_human_{chain}.unfiltered")
+    shell:
+        op.as_one_line("""
+        cat {input} > {output}
+        """)
+
+rule _remove_imgt_dups:
+    input:
+        unfiltered = rules._combine_imgt_files.output.unfiltered
+    output:
+        filtered = "genomes/no_build/igblast/fasta/imgt_human_{chain}.fasta"
+    run:
+        fasta_file = input.unfiltered
+        output_file = output.filtered
+        if os.path.isfile(fasta_file):
+            with open(fasta_file, 'r') as handle:
+                out = open(output_file, 'w')
+                genes = []
+                keep = False
+                for line in handle:
+                    line = line.rstrip("\n")
+                    if line.startswith(">"):
+                        keep = False
+                        gene = line.lstrip(">")
+                        if gene not in genes:
+                            genes.append(gene)
+                            keep = True
+                            out.write(line + "\n")
+                    elif not line.startswith(">"):
+                        if keep:
+                            out.write(line + "\n")
+                out.close()
+
+rule _create_imgt_database:
+    input:
+        fasta = rules._remove_imgt_dups.output
+    output:
+        database = expand("genomes/no_build/igblast/database/imgt_human_{{chain}}.{ext}", ext = ['ndb','nhr','nin','nog','nos','not','nsq','ntf','nto'])
+    conda: CONDA_ENVS["igblast"]
+    shell:
+        op.as_one_line("""
+        fasta_file={input.fasta} &&
+        output_file="genomes/no_build/igblast/database/imgt_human_{wildcards.chain}" &&
+        makeblastdb -parse_seqids -dbtype nucl -in $fasta_file -out $output_file
+        """)
+
+rule _imgt_db_success:
+    input:
+        expand(rules._create_imgt_database.output, chain = IMGT_CHAIN_KEY.keys())
+    output:
+        txt = "genomes/no_build/igblast/database/imgt_database.success"
+    shell:
+        "touch {output.txt}"
+
+##### Oncodrive #####
+
+rule download_oncodrive_refs:
+    output:
+        refs = "downloads/oncodrive/{version}/datasets/genomereference/{oncodrive_build}.master",
+        stops = "downloads/oncodrive/{version}/datasets/genestops/{oncodrive_build}.master"
+    params:
+        outdir = "downloads/oncodrive/{version}/",
+        provider = lambda w: config["genome_builds"][w.version]["provider"]
+    conda:
+        CONDA_ENVS["oncodriveclustl"]
+    shell:
+        op.as_one_line("""
+        export BGDATA_LOCAL={params.outdir} &&
+        bgdata get datasets/genomereference/{wildcards.oncodrive_build} &&
+        bgdata get datasets/genomereference/{wildcards.oncodrive_build} &&
+        bgdata get datasets/genestops/{wildcards.oncodrive_build} &&
+        bgdata get datasets/genestops/{wildcards.oncodrive_build}
+        """)
+
+def get_oncodrive_downloads(wildcards):
+    oncodrive_build = ''
+    if wildcards.genome_build in ['grch37','hg19','hs37d5']:
+        oncodrive_build = "hg19"
+    elif wildcards.genome_build in ['grch38','grch38-legacy','hg38','hg38-panea']:
+        oncodrive_build = "hg38"
+    return(["downloads/oncodrive/datasets/genomereference/" + oncodrive_build + ".master",
+            "downloads/oncodrive/datasets/genestops/" + oncodrive_build + ".master"])
+
+rule aggregate_oncodrive_downloads:
+    input:
+        downloads = get_oncodrive_downloads
+    output:
+        finished = "downloads/oncodrive/finished/{genome_build}.done"
+    shell:
+        "touch {output.finished}"
+
+rule download_oncodrive_hg19_regions:
+    output:
+        promoters = "downloads/oncodrive/regions/{version}/promoters_splice_sites_10bp.regions.gz",
+        lincrnas = "downloads/oncodrive/regions/{version}/lincrnas.regions.gz",
+        cds = "downloads/oncodrive/regions/{version}/cds.regions.gz",
+        utr_5 = "downloads/oncodrive/regions/{version}/5utr.regions.gz",
+        utr_3 = "downloads/oncodrive/regions/{version}/3utr.regions.gz"
+    params:
+        promoter_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_promoters_splice_sites_10bp.regions.gz",
+        lincrnas_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_lincrnas.regions.gz",
+        cds_url = "https://bitbucket.org/bbglab/oncodriveclustl/raw/2b3842ef45fef12f35b3615a0636ef62910f6350/example/cds.hg19.regions.gz",
+        utr_5_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_5utr.regions.gz",
+        utr_3_url = "https://bitbucket.org/bbglab/oncodrivefml/downloads/02_3utr.regions.gz",
+        provider = lambda w: config["genome_builds"][w.version]["provider"]
+    wildcard_constraints: 
+        genome_build = "grch37", 
+        version = "grch37"
+    shell:
+        op.as_one_line("""
+        wget -cO {output.promoters} {params.promoter_url} &&
+        wget -cO {output.lincrnas} {params.lincrnas_url} &&
+        wget -cO {output.cds} {params.cds_url} &&
+        wget -cO {output.utr_5} {params.utr_5_url} &&
+        wget -cO {output.utr_3} {params.utr_3_url}
+        """)
+
+rule oncodrive_hg19_regions_downloaded:
+    input:
+        promoters = str(rules.download_oncodrive_hg19_regions.output.promoters),
+        lincrnas = str(rules.download_oncodrive_hg19_regions.output.lincrnas),
+        cds = str(rules.download_oncodrive_hg19_regions.output.cds),
+        utr_5 = str(rules.download_oncodrive_hg19_regions.output.utr_5),
+        utr_3 = str(rules.download_oncodrive_hg19_regions.output.utr_3)
+    output:
+        finished = "downloads/oncodrive/finished/regions.done"
+    shell:
+        "touch {output.finished}"
+

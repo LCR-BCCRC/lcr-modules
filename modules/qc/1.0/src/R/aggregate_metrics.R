@@ -91,25 +91,46 @@ CoverageMetrics = fread(cmd=command) %>%
 if (snakemake@wildcards$seq_type == "capture"){
   CoverageMetrics =
     CoverageMetrics %>%
-    select(MEAN_TARGET_COVERAGE,
-           ZERO_CVG_TARGETS_PCT,
-           PCT_TARGET_BASES_10X,
-           PCT_TARGET_BASES_30X)
+    select(
+      BAIT_SET,
+      BAIT_TERRITORY,
+      MEAN_TARGET_COVERAGE,
+      ZERO_CVG_TARGETS_PCT,
+      PCT_TARGET_BASES_10X,
+      PCT_TARGET_BASES_30X,
+      FOLD_ENRICHMENT
+    )
 } else {
   CoverageMetrics =
     CoverageMetrics %>%
-    select(MEAN_COVERAGE,
-           PCT_10X,
-           PCT_30X) %>%
-    mutate(ProportionTargetsNoCoverage=NA, .after = MEAN_COVERAGE)
+    select(
+      GENOME_TERRITORY,
+      MEAN_COVERAGE,
+      PCT_10X,
+      PCT_30X
+    ) %>%
+    mutate(
+      ProportionTargetsNoCoverage=NA, .after = MEAN_COVERAGE
+    ) %>%
+    mutate(
+      BAIT_SET = "whole-genome", .before = GENOME_TERRITORY
+    ) %>%
+    mutate(
+      FOLD_ENRICHMENT = NA, .after = PCT_30X
+    )
 }
 
 colnames(CoverageMetrics) = c(
+  "TargetSpace",
+  "Target_Territory",
   "MeanCorrectedCoverage",
   "ProportionTargetsNoCoverage",
   "ProportionCoverage10x",
-  "ProportionCoverage30x"
+  "ProportionCoverage30x",
+  "FoldEnrichment"
 )
+
+print(colnames(CoverageMetrics))
 
 outputMetrics = cbind(SamtoolsMetrics, CoverageMetrics, QualityScore) %>%
   relocate(AverageBaseQuality)

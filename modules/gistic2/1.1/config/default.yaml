@@ -1,0 +1,45 @@
+lcr-modules:
+    gistic2:
+        inputs:
+            # The seg files should be "filled", meaning missing segments should be replaced with a dummy segment with log2(CN)=0 and no LOH.
+            # The cnv_master module outputs seg files in this filled format
+            # Available wildcards: {seq_type} {projection}
+            seg: "__UPDATE__"
+            subsetting_categories: "__UPDATE__" # e.g. "data/metadata/level3_subsetting_categories.tsv"
+        sample_set: "__UPDATE__" # E.g. ["DLBCL-only", "BL_DLBCL-BL-like_all"]
+        prepare_seg: "{SCRIPTSDIR}/generate_smg_inputs/1.1/generate_smg_inputs.R"
+        projections: ["grch37", "hg38"]
+        # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
+        # launch_date: "2023-06"
+
+        scratch_subdirectories: []
+
+        options:
+            conf_level: ["90"] # Confidence level used to calculate the region containing a driver.
+            gistic2_run: "-gcm extreme -maxseg 5000 -brlen 0.5 -js 1 -qvt 0.5 -td 0.05"
+            # -gcm  gene_collapse_method    Method for reducing marker-level copy number data to the gene-level copy number data in the gene tables. Allowed values are mean, median, min, max or extreme.
+            # -maxseg   ziggs.max_segs_per_sample   Maximum number of segments allowed for a sample in the input data. Samples with more segments than this threshold are excluded from the analysis.
+            # -brlen    broad_len_cutoff    Threshold used to distinguish broad from focal events, given in units of fraction of chromosome arm.
+            # -js   join_segment_size   Smallest number of markers to allow in segments from the segmented data. Segments that contain fewer than this number of markers are joined to the neighboring segment that is closest in copy number.
+            # -qvt  qv_thresh   Significance threshold for q-values. Regions with q-values below this number are considered significant.
+            # -td   t_del   Threshold for copy number deletions. Regions with a copy number loss below the negative of this positive value are considered deletions. Regions with a smaller copy number loss are considered noise and set to 0.
+
+        conda_envs:
+            gistic2: "{MODSDIR}/envs/gistic2-2.0.23.yaml"
+
+        threads:
+            gistic2_run: 4
+
+        resources:
+            gistic2_run:
+                mem_mb: 2000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

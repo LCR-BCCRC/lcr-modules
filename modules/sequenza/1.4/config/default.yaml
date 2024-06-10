@@ -20,8 +20,8 @@ lcr-modules:
             cnv2igv: "--mode sequenza"
             liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
             liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
-            prefixed_projections: ["hg19", "hg38"] # List here the base names of chr-prefixed projections
-            non_prefixed_projections: ["grch37", "grch38", "hs37d5"] # List here the base names of non-prefixed projections
+            prefixed_projections: ["grch38", "hg38"] # List here the base names of chr-prefixed projections
+            non_prefixed_projections: ["grch37", "hg19", "hs37d5"] # List here the base names of non-prefixed projections
 
         conda_envs:
             sequenza-utils: "{MODSDIR}/envs/sequenza-utils-3.0.0.yaml"
@@ -36,6 +36,8 @@ lcr-modules:
             seg:
                 original: "results/sequenza-1.4/99-outputs/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
                 projection: "results/sequenza-1.4/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+            txt:
+                segments: "results/sequenza-1.4/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.txt"
             # specify in which projections you want the output files
             requested_projections: ["grch37", "hg38"]
 

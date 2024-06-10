@@ -61,17 +61,13 @@ localrules:
     _hmftools_all
 
 
-VERSION_MAP_HMFTOOLS = {
-    "grch37": "37",
-    "hs37d5": "37",
-    "hg38": "38"
-}
+VERSION_MAP_HMFTOOLS = CFG["options"]["version_map"]
 
-possible_genome_builds = VERSION_MAP_HMFTOOLS.keys()
+possible_genome_builds = ", ".join(list(VERSION_MAP_HMFTOOLS.keys()))
 for genome_build in CFG["runs"]["tumour_genome_build"]:
     assert genome_build in possible_genome_builds, (
-        "Samples table includes genome builds not yet compatible with this module. "
-        "This module is currently only compatible with {possible_genome_builds}. "
+        f"Samples table includes genome builds not yet compatible with this module. "
+        f"This module is currently only compatible with {possible_genome_builds}. "
     )
 
 
@@ -86,8 +82,8 @@ if CFG["options"]["use_masked_ref"]:
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _hmftools_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"], 
-        bai = CFG["inputs"]["sample_bai"], 
+        bam = ancient(CFG["inputs"]["sample_bam"]), 
+        bai = ancient(CFG["inputs"]["sample_bai"]), 
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam", 
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai", 
@@ -278,8 +274,8 @@ rule _hmftools_snpeff_vcf:
 # Run AMBER to calculate BAFs
 rule _hmftools_amber_matched: 
     input: 
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam", 
+        tumour_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam"),
+        normal_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam"), 
         snps = str(rules._hmftools_get_amber_snps.output.vcf), 
         fasta = str(rules._hmftools_input_references.output.genome_fa)
     output: 
@@ -311,8 +307,8 @@ rule _hmftools_amber_matched:
 
 rule _hmftools_amber_unmatched: 
     input: 
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam", 
+        tumour_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam"),
+        normal_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam"), 
         snps = str(rules._hmftools_get_amber_snps.output.vcf), 
         fasta = str(rules._hmftools_input_references.output.genome_fa)
     output: 
@@ -345,8 +341,8 @@ rule _hmftools_amber_unmatched:
 # Run COBALT to estimate depth across the genome
 rule _hmftools_cobalt: 
     input: 
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam", 
+        tumour_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam"),
+        normal_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam"), 
         gc_profile = str(rules._hmftools_get_cobalt_gc.output.gc), 
         fasta = str(rules._hmftools_input_references.output.genome_fa)
     output: 

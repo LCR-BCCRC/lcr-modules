@@ -71,7 +71,6 @@ def _find_best_seg(wildcards):
         f"No ouput was found for the sample {wildcards.tumour_id} in projection {wildcards.projection}. "
         f"Please ensure it exists at one of the paths specified through config."
     )
-    print(f"Will use file {possible_outputs[0]} for the sample {wildcards.tumour_id}.")
     return(possible_outputs[0])
 
 # symlink the input files into 00-inputs
@@ -169,6 +168,8 @@ rule _cnv_master_output_capture_merges:
 
 rule _cnv_master_all:
     input:
+        expand(_get_all_segs("genome"), projection = CFG["projections"]),
+        expand(_get_all_segs("capture"), projection = CFG["projections"]),
         expand(
             [
                 str(rules._cnv_master_output_genome_merges.output.genome_merge),

@@ -5,6 +5,10 @@ All notable changes to the `cnvkit` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [1.0] 2022-11-26
+
+Added in a metrics rule to track the quality of the segmentation. It will output the MAD, number of segments, and IQR. Higher MAD would indicate more noise. This will be used to compare with metrics of other CNV calling tools.
+
 # [1.0] - 2022-02-17
 
 Bundling does not scale well with large samples/new samples. Split up all the commands into their individual components.

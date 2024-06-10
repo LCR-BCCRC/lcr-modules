@@ -20,7 +20,7 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "cnvkit",
     version = "1.0",
-    subdirectories = ["inputs", "coverage", "fix", "cns", "SNPs", "BAF", "plots", "breaks", "geneMetrics", "seg", "convert_coordinates", "fill_regions", "normalize", "outputs"]
+    subdirectories = ["inputs", "coverage", "fix", "cns", "SNPs", "BAF", "plots", "breaks", "geneMetrics", "seg", "convert_coordinates", "fill_regions", "normalize", "metrics", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -291,10 +291,15 @@ rule _cnvkit_dbsnp_to_bed:
 
 #### set-up mpileups for BAF calling ####
 def _cnvkit_get_chr_mpileups(wildcards):
+    chrs = []
+    for i in range(1, 23):
+        chrs.append(str(i))
+    chrs.extend(["X", "Y"])
+    if str(wildcards.genome_build).startswith("hg"):
+        chrs = ["chr" + x for x in chrs]
+
     CFG = config["lcr-modules"]["cnvkit"]
-    chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
-    with open(chrs) as file:
-        chrs = file.read().rstrip("\n").split("\n")
+
     mpileups = expand(
         CFG["dirs"]["SNPs"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}.{chrom}.vcf.gz", 
         chrom = chrs
@@ -302,10 +307,15 @@ def _cnvkit_get_chr_mpileups(wildcards):
     return(mpileups)
     
 def _cnvkit_get_chr_mpileups_tbi(wildcards):
+    chrs = []
+    for i in range(1, 23):
+        chrs.append(str(i))
+    chrs.extend(["X", "Y"])
+    if str(wildcards.genome_build).startswith("hg"):
+        chrs = ["chr" + x for x in chrs]
+
     CFG = config["lcr-modules"]["cnvkit"]
-    chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
-    with open(chrs) as file:
-        chrs = file.read().rstrip("\n").split("\n")
+
     mpileups = expand(
         CFG["dirs"]["SNPs"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}.{chrom}.vcf.gz.tbi", 
         chrom = chrs
@@ -553,6 +563,20 @@ rule _cnvkit_infer_sex:
         """
 
 
+rule _cnvkit_metrics:
+    input:
+        cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr",
+        cns = CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cns"
+    output:
+        metrics = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.metrics.txt"
+    conda: CFG["conda_envs"]["cnvkit"]
+    resources:
+        **CFG["resources"]["geneMetrics"]
+    shell:
+        """
+            cnvkit.py metrics {input.cnr} -s {input.cns} > {output.metrics} 
+        """
+
 rule _cnvkit_to_seg:
     input:
         cns = str(rules._run_cnvkit_call_vcf.output.cns),
@@ -750,7 +774,8 @@ def _cnvkit_drop_capture_space_wc(wildcards):
     geneList = str(rules._cnvkit_trusted_genes_cna.output.trusted_genes).replace("{capture_space}", this_space[0])
     sex = str(rules._cnvkit_infer_sex.output.sex).replace("{capture_space}", this_space[0])
     seg = str(rules._cnvkit_to_seg.output.seg).replace("{capture_space}", this_space[0])
-
+    metrics = str(rules._cnvkit_metrics.output.metrics).replace("{capture_space}", this_space[0])
+    
     return{
         "call_cns": call_cns,
         "scatter": scatter,
@@ -759,7 +784,8 @@ def _cnvkit_drop_capture_space_wc(wildcards):
         "gene_seg": gene_seg,
         "geneList": geneList,
         "sex": sex,
-        "seg": seg
+        "seg": seg,
+        "metrics": metrics
     }
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
@@ -774,7 +800,8 @@ rule _cnvkit_output:
         gene_seg = CFG["output"]["txt"]["gene_seg"],
         geneList = CFG["output"]["txt"]["geneList"],
         sex = CFG["output"]["txt"]["sex"],
-        seg = CFG["output"]["seg"]["original"]
+        seg = CFG["output"]["seg"]["original"],
+        metrics = CFG["output"]["metrics"]["metrics"]
     group: "cnvkit_post_process"
     wildcard_constraints: 
         projection = "|".join(CFG["output"]["requested_projections"]), 
@@ -788,6 +815,7 @@ rule _cnvkit_output:
         op.relative_symlink(input.geneList, output.geneList, in_module = True)
         op.relative_symlink(input.sex, output.sex, in_module = True)
         op.relative_symlink(input.seg, output.seg, in_module = True)
+        op.relative_symlink(input.metrics, output.metrics, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -802,7 +830,8 @@ rule _cnvkit_all:
                 str(rules._cnvkit_output.output.gene_seg),
                 str(rules._cnvkit_output.output.geneList),                
                 str(rules._cnvkit_output.output.sex),
-                str(rules._cnvkit_output.output.seg)
+                str(rules._cnvkit_output.output.seg),
+                str(rules._cnvkit_output.output.metrics),
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],

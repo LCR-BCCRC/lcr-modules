@@ -34,3 +34,7 @@ This release was authored by Kostiantyn Dreval.
   parsed to the name of lifted files. Since bed file, unlike files in seg format, does not contain header,
   the header of each input file supplied for conversion by liftover is stored as a separate file, which can
   be made temporary in later versions of te module.
+
+## [1.0] - 2023-11-06
+This change was authored by Sierra Gillis.
+Small update to the step that converts the bed to bedpe. If the bedfile is empty, it will create an empty bedpe instead of erroring.

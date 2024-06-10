@@ -121,12 +121,12 @@ rule _sequenza_bam2seqz:
     threads:
         CFG["threads"]["bam2seqz"]
     resources:
-        **CFG["resources"]["bam2seqz"]    
+        **CFG["resources"]["bam2seqz"]
     shell:
         op.as_one_line("""
-        sequenza-utils bam2seqz {params.bam2seqz_opts} -gc {input.gc_wiggle} --fasta {input.genome} 
+        sequenza-utils bam2seqz {params.bam2seqz_opts} -gc {input.gc_wiggle} --fasta {input.genome}
         --normal {input.normal_bam} --tumor {input.tumour_bam} --chromosome {wildcards.chrom} 2>> {log.stderr}
-            | 
+            |
         sequenza-utils seqz_binning {params.seqz_binning_opts} --seqz - 2>> {log.stderr}
             |
         gzip > {output} 2>> {log.stderr}
@@ -138,7 +138,7 @@ def _sequenza_request_chrom_seqz_files(wildcards):
     with open(checkpoints._sequenza_input_chroms.get(**wildcards).output.txt) as f:
         mains_chroms = f.read().rstrip("\n").split("\n")
     seqz_files = expand(
-        CFG["dirs"]["seqz"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/chromosomes/{chrom}.binned.seqz.gz", 
+        CFG["dirs"]["seqz"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/chromosomes/{chrom}.binned.seqz.gz",
         chrom=mains_chroms
     )
     return seqz_files
@@ -155,12 +155,12 @@ rule _sequenza_merge_seqz:
         stderr = CFG["logs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_merge_seqz.stderr.log"
     threads:
         CFG["threads"]["merge_seqz"]
-    resources: 
-        **CFG["resources"]["merge_seqz"]  
+    resources:
+        **CFG["resources"]["merge_seqz"]
     shell:
         op.as_one_line("""
         bash {input.merge_seqz} {input.seqz} 2>> {log.stderr}
-            | 
+            |
         gzip > {output.seqz} 2>> {log.stderr}
         """)
 
@@ -177,10 +177,10 @@ rule _sequenza_filter_seqz:
         stderr = CFG["logs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_filter_seqz.stderr.log"
     conda:
         CFG["conda_envs"]["bedtools"]
-    threads: 
+    threads:
         CFG["threads"]["filter_seqz"]
-    resources: 
-        **CFG["resources"]["filter_seqz"] 
+    resources:
+        **CFG["resources"]["filter_seqz"]
     shell:
         op.as_one_line("""
         SEQZ_BLACKLIST_BED_FILES='{input.blacklist}'
@@ -206,12 +206,43 @@ rule _sequenza_run:
         CFG["conda_envs"]["r-sequenza"]
     threads:
         CFG["threads"]["sequenza"]
-    resources: 
-        **CFG["resources"]["sequenza"] 
+    resources:
+        **CFG["resources"]["sequenza"]
     shell:
         op.as_one_line("""
-        Rscript {input.run_sequenza} {input.seqz} {input.assembly} {input.chroms} {input.x_chrom} 
+        Rscript --vanilla {input.run_sequenza} {input.seqz} {input.assembly} {input.chroms} {input.x_chrom}
         $(dirname {output.segments}) {threads} > {log.stdout} 2> {log.stderr}
+        """)
+
+
+# Fill subclones-like output with empty regions for compatibility with downstream tools
+rule _sequenza_fill_txt:
+    input:
+        sub = str(rules._sequenza_run.output.segments)
+    output:
+        sub = CFG["dirs"]["sequenza"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{filter_status}/sequenza_segments_filled.txt"
+    log:
+        stderr = CFG["logs"]["sequenza"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_fill_txt.{filter_status}.stderr.log"
+    threads: 1
+    group: "sequenza_post_process"
+    params:
+        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/",
+        script = "fill_segments.sh",
+        arm_file = lambda w: "src/chromArm.hg38.bed" if "38" in str({w.genome_build}) else "src/chromArm.grch37.bed",
+        blacklist_file = lambda w: "src/blacklisted.hg38.bed" if "38" in str({w.genome_build}) else "src/blacklisted.grch37.bed"
+    conda:
+        CFG["conda_envs"]["bedtools"]
+    shell:
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
+        bash {params.path}{params.script}
+        {params.path}{params.arm_file}
+        {input.sub}
+        {params.path}{params.blacklist_file}
+        {output.sub}
+        {wildcards.tumour_id}
+        sequenza
+        2>> {log.stderr}
         """)
 
 
@@ -230,7 +261,7 @@ rule _sequenza_cnv2igv:
     group: "sequenza_post_process"
     shell:
         op.as_one_line("""
-        python {input.cnv2igv} {params.opts} --sample {wildcards.tumour_id} 
+        python {input.cnv2igv} {params.opts} --sample {wildcards.tumour_id}
         {input.segments} > {output} 2> {log.stderr}
         """)
 
@@ -405,13 +436,23 @@ rule _sequenza_output_seg:
     run:
         op.relative_symlink(input.seg, output.seg, in_module=True)
 
+# Symlinks the final output files into the module results directory (under '99-outputs/')
+rule _sequenza_output_sub:
+    input:
+        sub = str(rules._sequenza_fill_txt.output.sub).replace("{filter_status}", "filtered")
+    output:
+        sub = CFG["output"]["txt"]["segments"]
+    group: "sequenza_post_process"
+    run:
+        op.relative_symlink(input.sub, output.sub, in_module=True)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _sequenza_all:
     input:
         expand(
             [
-                str(rules._sequenza_output_seg.output.seg)
+                str(rules._sequenza_output_seg.output.seg),
+                str(rules._sequenza_output_sub.output.sub),
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
