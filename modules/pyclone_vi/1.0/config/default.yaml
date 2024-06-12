@@ -5,9 +5,9 @@ lcr-modules:
         # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
-            sample_maf: "__UPDATE__"
-            sample_subclones: "__UPDATE__"
-            sample_cellularity: "__UPDATE__"
+            sample_maf: "__UPDATE__" # slms_3-1.0_vcf2maf-1.3/99-outputs/deblacklisted/augmented_maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.maf
+            sample_subclones: "__UPDATE__" # battenberg/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt
+            sample_cellularity: "__UPDATE__" # battenberg/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt
             sample_sex: "__UPDATE__" # Only {normal_id} available
 
         scratch_subdirectories: []

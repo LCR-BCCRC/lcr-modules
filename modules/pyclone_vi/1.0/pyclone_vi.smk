@@ -26,7 +26,6 @@ CFG = op.setup_module(
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _pyclone_vi_write_results,
     _pyclone_vi_all
@@ -354,7 +353,7 @@ rule _pyclone_vi_output_tsv:
         tree = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{patient_id}.phyclone.tree.nwk",
         clusters = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{patient_id}.phyclone.clusters.tsv"
     run:
-        op.relative_symlink(input.pyclone, output.pyclone)
+        op.relative_symlink(input.pyclone, output.pyclone, in_module = TRUE)
         op.relative_symlink(input.phyclone, output.phyclone)
         op.relative_symlink(input.tree, output.tree)
         op.relative_symlink(input.clusters, output.clusters)
@@ -393,13 +392,6 @@ rule _pyclone_vi_all:
             seq_type=PATIENTS["tumour_seq_type"],
             genome_build=PATIENTS["tumour_genome_build"],
             patient_id=PATIENTS["tumour_patient_id"])
-        # expand(
-        #     str(rules._pyclone_run_analysis_pipeline.output.workdir),
-        #     zip,
-        #     seq_type=PATIENTS_CAPTURE["tumour_seq_type"],
-        #     genome_build=PATIENTS_CAPTURE["tumour_genome_build"],
-        #     patient_id=PATIENTS_CAPTURE["tumour_patient_id"]
-        # )
 
 
 ##### CLEANUP #####
