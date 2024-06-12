@@ -149,7 +149,6 @@ localrules:
     _lymphgen_run_cnv_noA53, 
     _lymphgen_run_no_cnv,
     _lymphgen_reformat_seg,
-    _lymphgen_flag_comp,
     _lymphgen_output_txt,
     _lymphgen_all,
 
@@ -557,32 +556,10 @@ rule _lymphgen_run_no_cnv:
         Rscript --vanilla {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list}
         -o {output.result} > {log.stdout} 2> {log.stderr}""")
 
-# STEP 6. Flag samples that fall in the composite "Dead Zone"
-rule _lymphgen_flag_comp:
-    input:
-        txt = str(rules._lymphgen_run_cnv_A53.output.result)
-    output:
-        txt = CFG["dirs"]["composite_other"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lymphgen_composite_other.{cnvs_wc}.{sv_wc}.{A53_wc}.tsv"
-    group:
-        "lymphgen"
-    run:
-        loaded_calls = pandas.read_csv(input.txt, sep="\t")
-
-        # Subset down to cases not classified by LymphGen (i.e. "Other")
-        othercases = loaded_calls.loc[loaded_calls["Subtype.Prediction"] == "Other"]
-
-        # Grab the confidence columns. These will change depending on which subgroups were included in the classification
-        confcols = list(x for x in othercases.columns if x.startswith("Confidence"))
-        confvalues = othercases[confcols] > 0.5
-        compother = othercases[confvalues.any(1)]
-        compother.to_csv(output.txt, sep = "\t")
-
-
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _lymphgen_output_txt:
     input:
-        txt = str(rules._lymphgen_run_cnv_A53.output.result),
-        comp = str(rules._lymphgen_flag_comp.output.txt)
+        txt = str(rules._lymphgen_run_cnv_A53.output.result)
     output:
         txt = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lymphgen_calls.{cnvs_wc}.{sv_wc}.{A53_wc}.tsv"
     group:
