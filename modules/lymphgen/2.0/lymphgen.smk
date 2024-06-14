@@ -41,11 +41,11 @@ CFG = op.setup_module(
 
 
 def _find_best_seg(wildcards):
-    this_tumor = op.filter_samples(RUNS, genome_build = wildcards.tumour_genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, seq_type = wildcards.tumour_seq_type)
+    this_tumor = op.filter_samples(RUNS, tumour_genome_build = wildcards.genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, tumour_seq_type = wildcards.seq_type)
     return this_tumor.cnv_path
 
 def _find_best_sv(wildcards):
-    this_tumor = op.filter_samples(RUNS, genome_build = wildcards.tumour_genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, seq_type = wildcards.tumour_seq_type)
+    this_tumor = op.filter_samples(RUNS, tumour_genome_build = wildcards.genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, tumour_seq_type = wildcards.seq_type)
     if this_tumor["has_sv"].bool() == False:
         return config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["other"]["empty_sv"]
     else:
