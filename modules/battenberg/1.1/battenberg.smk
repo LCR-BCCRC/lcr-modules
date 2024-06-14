@@ -69,20 +69,6 @@ rule _battenberg_input_bam:
         op.absolute_symlink(input.bam + ".bai", output.bai)
         op.absolute_symlink(input.bam + ".bai", output.crai)
 
-# Installs the Battenberg R dependencies and associated software (impute2, alleleCounter)
-# Currently I think this rule has to be run twice for it to work properly because the conda environment is created here. 
-# I am open to suggestions for how to get around this.
-rule _install_battenberg:
-    output:
-        complete = "config/envs/battenberg_dependencies_installed.success"
-    conda:
-        CFG["conda_envs"]["battenberg"]
-    shell:
-        """
-        R -q --vanilla -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' && ##move some of this to config?
-        R -q --vanilla -e 'devtools::install_github("morinlab/battenberg")' &&              ##move some of this to config?
-        touch {output.complete}"""
-
 # this process is very fast on bam files and painfully slow on cram files. 
 # The result of calc_sex_status.sh is stored in a file to avoid having to rerun it unnecessarily
 rule _infer_patient_sex:
@@ -114,7 +100,6 @@ rule _run_battenberg:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        installed = "config/envs/battenberg_dependencies_installed.success",
         sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
