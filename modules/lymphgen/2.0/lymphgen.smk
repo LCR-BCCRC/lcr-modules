@@ -143,6 +143,7 @@ localrules:
     _install_lgenic,
     _lymphgen_input_cnv,
     _lymphgen_input_no_cnv,
+    _lymphgen_gamblr_config,
     _lymphgen_add_sv,
     _lymphgen_add_sv_blank,
     _lymphgen_run_cnv_A53,
@@ -320,45 +321,24 @@ rule _lymphgen_input_no_cnv:
 
 # STEP 4: Add SV information (if availible)
 
-# Obtain the path to the GAMBLR conda environment
-md5hash = hashlib.md5()
-if workflow.conda_prefix:
-    conda_prefix = workflow.conda_prefix
-else:
-    conda_prefix = os.path.abspath(".snakemake/conda")
-
-md5hash.update(conda_prefix.encode())
-f = open(config["lcr-modules"]["lymphgen"]["conda_envs"]["gamblr"], 'rb')
-md5hash.update(f.read())
-f.close()
-h = md5hash.hexdigest()
-GAMBLR = glob.glob(conda_prefix + "/" + h[:8] + "*")
-for file in GAMBLR: 
-    if os.path.isdir(file): 
-        GAMBLR = file
-
-rule _lymphgen_install_GAMBLR:
+rule _lymphgen_gamblr_config:
     params:
-        branch = ", ref = \"" + CFG['inputs']['gamblr_branch'] + "\"" if CFG['inputs']['gamblr_branch'] != "" else "",
-        config_url = CFG["inputs"]["gamblr_config_url"]
+        config_url = CFG["inputs"]["gamblr_config_url"], 
     output:
-        installed = directory(GAMBLR + "/lib/R/library/GAMBLR"),
-        config = "gamblr.yaml"
+        config = "config.yml"
     group:
         "lymphgen"
-    conda:
-        CFG['conda_envs']['gamblr']
     shell:
         op.as_one_line("""
-        wget -qO {output.config} {params.config_url} &&
-        R --vanilla -q -e 'options(timeout=9999999); devtools::install_github("morinlab/GAMBLR"{params.branch})'
+        wget -qO {output.config} {params.config_url} 
         """)
+
 
 rule _lymphgen_input_sv:
     input:
         fish = ancient(CFG["inputs"]["sample_sv_info"]["fish"]),
         sv = _find_best_sv,
-        gamblr = ancient(rules._lymphgen_install_GAMBLR.output.installed)
+        gamblr = ancient(rules._lymphgen_gamblr_config.output.config)
     output:
         sv = CFG["dirs"]["inputs"] + "sv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.tsv"
     group:
