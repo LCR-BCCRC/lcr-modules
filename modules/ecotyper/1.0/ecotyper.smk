@@ -158,7 +158,7 @@ rule _ecotyper_run:
             &&
         cd $(dirname {input.ecotyper_script})
             &&
-        Rscript
+        Rscript --vanilla
         $(basename {input.ecotyper_script})
         -d Lymphoma
         -m $ECOTYPER_INPUT_MATRIX

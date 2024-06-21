@@ -115,9 +115,9 @@ rule _fishhook_install:
         input = CFG["logs"]["inputs"] + "install_fishhook.log"
     shell:
         """
-        R -q -e 'devtools::install_github("mskilab/gUtils")' >> {log.input} &&
-        R -q -e 'devtools::install_github("mskilab/gTrack")' >> {log.input} &&
-        R -q -e 'devtools::install_github("mskilab/fishHook")' >> {log.input} &&
+        R -q --vanilla -e 'devtools::install_github("mskilab/gUtils")' >> {log.input} &&
+        R -q --vanilla -e 'devtools::install_github("mskilab/gTrack")' >> {log.input} &&
+        R -q --vanilla -e 'devtools::install_github("mskilab/fishHook")' >> {log.input} &&
         touch {output.complete}
         """
 

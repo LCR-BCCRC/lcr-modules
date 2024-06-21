@@ -147,7 +147,7 @@ def _get_region(wildcards):
 rule _oncodriveclustl_run:
     input:
         maf = str(rules._oncodriveclustl_format_input.output.maf),
-        reference = lambda w: reference_files("downloads/oncodrive/datasets/genomereference/" + ONCODRIVE_BUILD_DICT[w.genome_build] + ".master"),
+        reference = lambda w: reference_files("downloads/oncodrive/{genome_build}/datasets/genomereference/" + ONCODRIVE_BUILD_DICT[w.genome_build] + ".master"),
         region = _get_region
     output:
         txt = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/elements_results.txt",
@@ -157,7 +157,7 @@ rule _oncodriveclustl_run:
         stdout = CFG["logs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodriveclustl.stdout.log",
         stderr = CFG["logs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodriveclustl.stderr.log"
     params:
-        local_path = CFG["reference_files_directory"],
+        local_path = CFG["reference_files_directory"] + "{genome_build}/",
         build = lambda w: (w.genome_build).replace("grch37","hg19").replace("grch38","hg38"),
         command_line_options = CFG["options"]["clustl_options"] if CFG["options"]["clustl_options"] is not None else ""
     threads:

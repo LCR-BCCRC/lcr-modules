@@ -178,7 +178,7 @@ rule _sequenza_run:
         mem_mb = CFG["mem_mb"]["sequenza"]
     shell:
         op.as_one_line("""
-        Rscript {input.run_sequenza} {input.seqz} {input.assembly} {input.chroms} {input.x_chrom} 
+        Rscript --vanilla {input.run_sequenza} {input.seqz} {input.assembly} {input.chroms} {input.x_chrom} 
         $(dirname {output.segments}) {threads} > {log.stdout} 2> {log.stderr}
         """)
 
