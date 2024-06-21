@@ -11,6 +11,8 @@ log <- file(snakemake@log[[1]], open="wt")
 sink(log ,type = "output")
 sink(log, type = "message")
 
+save(snakemake, file="/projects/rmorin_scratch/sgillis_temp/test_fishhook/fishhook_smk_obj.RData")
+
 # Load packages -----------------------------------------------------------
 message("Loading packages...")
 suppressWarnings(
@@ -24,7 +26,7 @@ suppressWarnings(
 # Read in maf and convert to GRange
 maf = gr.sub(dt2gr(fread(snakemake@input[[2]])))
 
-if(!snakemake@params[[3]]){
+if(!snakemake@params[[1]]){
   message("Excluding Silent Mutations ...")
   events = maf %Q% (Variant_Classification != 'Silent')
 }else{
@@ -32,9 +34,9 @@ if(!snakemake@params[[3]]){
 }
 
 # Use tile mode or gene list mode
-if(is.null(snakemake@params[[1]])){
+if((snakemake@params[[3]])){
   message("Running FishHook with Gene List...")
-  genes = gr.sub(import(snakemake@params[[4]]))
+  genes = gr.sub(import(snakemake@params[[3]]))
 
   if(snakemake@params[[5]]){
     message("Subsetting Gene List for Protein Coding Gene Only ...")
@@ -47,7 +49,7 @@ if(is.null(snakemake@params[[1]])){
 }else{
   message("Running FishHook with Tiles ...")
   # Split maf to tiles
-  tiles = gr.tile(seqinfo(maf), snakemake@params[[1]])
+  tiles = gr.tile(seqinfo(maf), snakemake@params[[2]])
 
   fish = Fish(hypotheses = tiles,
                     events = events,
@@ -55,12 +57,18 @@ if(is.null(snakemake@params[[1]])){
                     use_local_mut_density=TRUE)
 }
 
-# If user provide covariates file
-if(file.exists(snakemake@params[[2]])){
-  message("Running FishHook with Coveriate...")
-  covariates_data = gr.sub(import(snakemake@params[[2]]), 'chr', "") ## import from bed then gUtils::gr.sub to strip 'chr' identifier
-  covariate = Cov(covariates_data, name = 'covariate')
-  fish$covariates = c(covariate)
+# If user provided covariates files
+if(!is.null(snakemake@params[[5]])){
+  message("Running FishHook with the Following Covariates...")
+  message(paste0(names(snakemake@params[[5]]),"\n"))
+
+  covariates <- c()
+  for(cov_name in names(snakemake@params[[5]])){
+    cov_data <- gr.sub(import(snakemake@params[[5]][[cov_name]]))
+    cov <- Cov(cov_data, name = cov_name)
+    covariates <- append(covariates, cov)
+  }
+  fish$covariates = covariates
 
 }else{
   message("Running FishHook without Covariates...")

@@ -137,11 +137,11 @@ rule _fishhook_run:
     resources:
         **CFG["resources"]["fishhook"]
     params:
-        tiles_size = CFG["options"]["tiles_size"],
-        coveriate = CFG["options"]["covariates"],
         include_silent = CFG["options"]["include_silent_mutation"],
+        tiles_size = CFG["options"]["tiles_size"],
         target_gene_list = CFG["options"]["target_gene_list"],
-        target_gene_list_only_protein_coding = CFG["options"]["target_gene_list_only_protein_coding"]
+        target_gene_list_only_protein_coding = CFG["options"]["target_gene_list_only_protein_coding"],
+        covariates = CFG["options"]["covariates"]
     script:
         "scr/R/run_fishhook.R"
 
