@@ -15,8 +15,8 @@ lcr-modules:
 
         options:
             include_silent_mutation: False # Include silent mutations in maf file
-            tiles_size: 1000 # This is the size of tiles you want to split the genome into, leave as "" if you want to use a gene list as hypothese
-            target_gene_list: False # If you do not provide a tile size, please provide True here to used the mskilab provided file instead, gencode.v19.genes.gtf
+            tiles_size: 1000 # This is the size of tiles you want to split the genome into, if target_gene_list is set to False
+            target_gene_list: False # Set to True if you want to use a gene list instead of tiling
             target_gene_list_only_protein_coding: True # Only include protein coding genes in gene list
             covariates:
                 chrom_hmm: "/projects/dscott_prj/CCSRI_1500/exomes/ref/resources/E032_primaryBcells_fromPB_chromHMM_15state_segments.bed"

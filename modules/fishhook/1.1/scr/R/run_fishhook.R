@@ -11,8 +11,6 @@ log <- file(snakemake@log[[1]], open="wt")
 sink(log ,type = "output")
 sink(log, type = "message")
 
-save(snakemake, file="/projects/rmorin_scratch/sgillis_temp/test_fishhook/fishhook_smk_obj.RData")
-
 # Load packages -----------------------------------------------------------
 message("Loading packages...")
 suppressWarnings(
@@ -36,8 +34,8 @@ if(!snakemake@params[[1]]){
 # Use tile mode or gene list mode
 if((snakemake@params[[3]])){
   message("Running FishHook with Gene List...")
-  message(paste0("Gene List File: ", snakemake@inputs[[4]]))
-  genes = gr.sub(import(snakemake@inputs[[4]]))
+  message(paste0("Gene List File: ", snakemake@input[[4]]))
+  genes = gr.sub(import(snakemake@input[[4]]))
 
   if(snakemake@params[[4]]){
     message("Subsetting Gene List for Protein Coding Gene Only ...")
