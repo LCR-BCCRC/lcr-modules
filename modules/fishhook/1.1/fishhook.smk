@@ -120,12 +120,21 @@ rule _fishhook_install:
         R -q -e 'devtools::install_github("mskilab/fishHook")' >> {log.input} &&
         touch {output.complete}
         """
+
+# Get gene list input only if that method is specified in the yaml (instead of using tiles)
+def get_input_if_gene_mode(wildcards):
+    if config["lcr-modules"]["fishhook"]["options"]["target_gene_list"]:
+        return reference_files("downloads/gencode-33/gencode.annotation.grch37.gtf")
+    else:
+        return ""
+
 # Actual fishHook run
 rule _fishhook_run:
     input:
         fishhook = ancient(str(CFG["dirs"]["inputs"] + "fishhook_installed.success")),
         maf = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf",
-        content = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf.content"
+        content = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf.content",
+        gene_list = get_input_if_gene_mode
     output:
         tsv = CFG["dirs"]["fishhook"] + "{sample_set}--{launch_date}/{md5sum}.fishhook.tsv"
     conda:

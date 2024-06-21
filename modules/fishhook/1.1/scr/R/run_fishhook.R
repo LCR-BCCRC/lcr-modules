@@ -36,9 +36,10 @@ if(!snakemake@params[[1]]){
 # Use tile mode or gene list mode
 if((snakemake@params[[3]])){
   message("Running FishHook with Gene List...")
-  genes = gr.sub(import(snakemake@params[[3]]))
+  message(paste0("Gene List File: ", snakemake@inputs[[4]]))
+  genes = gr.sub(import(snakemake@inputs[[4]]))
 
-  if(snakemake@params[[5]]){
+  if(snakemake@params[[4]]){
     message("Subsetting Gene List for Protein Coding Gene Only ...")
     genes = genes %Q% (gene_type == 'protein_coding')
   }
@@ -60,7 +61,7 @@ if((snakemake@params[[3]])){
 # If user provided covariates files
 if(!is.null(snakemake@params[[5]])){
   message("Running FishHook with the Following Covariates...")
-  message(paste0(names(snakemake@params[[5]]),"\n"))
+  message(names(snakemake@params[[5]]))
 
   covariates <- c()
   for(cov_name in names(snakemake@params[[5]])){
