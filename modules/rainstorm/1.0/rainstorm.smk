@@ -158,7 +158,7 @@ rule _rainstorm_run_doppler:
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.cohort_name} on $(hostname) at $(date)" >> {log.stdout};
-        Rscript {input.peaks} {params.tsv}
+        Rscript --vanilla {input.peaks} {params.tsv}
         --stringSplit {params.str_split}
         --input_maf {input.maf}
         --output_base_file {params.out_name}

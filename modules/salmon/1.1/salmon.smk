@@ -147,7 +147,7 @@ rule build_counts_matrix:
         **CFG["resources"]["matrix"]
     shell:
         op.as_one_line("""
-        Rscript {input.salmon2counts}
+        Rscript --vanilla {input.salmon2counts}
         {params.path}
         {input.gtf}
         {params.out_dir}

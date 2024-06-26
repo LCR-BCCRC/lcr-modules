@@ -122,7 +122,7 @@ rule _gistic2_prepare_seg:
         seg_input_params = _get_seg_input_params
     shell:
         op.as_one_line("""
-        Rscript {params.script} 
+        Rscript --vanilla {params.script} 
         {params.seg_input_params} 
         --projection {wildcards.projection} 
         --output_dir $(dirname {output.seg})/ 

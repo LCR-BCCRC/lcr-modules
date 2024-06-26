@@ -121,7 +121,7 @@ rule _vcf2maf_run:
     input:
         vcf = str(rules._vcf2maf_annotate_gnomad.output.vcf),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        vep_cache = CFG["inputs"]["vep_cache"]
+        vep_cache = ancient(CFG["inputs"]["vep_cache"])
     output:
         maf = temp(CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.maf"),
         vep = temp(CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.annotated.vep.vcf")
@@ -218,7 +218,7 @@ rule _vcf2maf_install_GAMBLR:
     shell:
         op.as_one_line("""
         wget -qO {output.config} {params.config_url} &&
-        R -q -e 'options(timeout=9999999); devtools::install_github("morinlab/GAMBLR"{params.branch})'
+        R --vanilla -q -e 'options(timeout=9999999); devtools::install_github("morinlab/GAMBLR"{params.branch})'
         """)
 
 rule _vcf2maf_deblacklist_maf:
@@ -395,7 +395,7 @@ rule _vcf2maf_reannotate:
     input:
         maf = str(rules._vcf2maf_crossmap.output.maf),
         fasta = reference_files("genomes/{target_build}/genome_fasta/genome.fa"),
-        vep_cache = CFG["inputs"]["vep_cache"]
+        vep_cache = ancient(CFG["inputs"]["vep_cache"])
     output:
         maf = temp(CFG["dirs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.{filter}_reannotated.{maf}")
     log:

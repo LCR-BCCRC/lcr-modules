@@ -344,7 +344,7 @@ rule _run_ichorcna:
         stderr = CFG["logs"]["seg"] + "{seq_type}--{genome_build}/{binSize}/{tumour_id}--{normal_id}--{pair_status}.stderr.log"
     shell:
          op.as_one_line("""
-            Rscript {params.rscript} 
+            Rscript --vanilla {params.rscript} 
             --id {params.name} 
             --libdir {params.libdir} 
             --WIG {input.tum} 
