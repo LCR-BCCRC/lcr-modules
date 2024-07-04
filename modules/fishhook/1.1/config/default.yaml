@@ -20,8 +20,8 @@ lcr-modules:
             target_gene_list_only_protein_coding: True # Only include protein coding genes in gene list
             covariates:
             # comment out lines below if you do not want to use covariates
-                chrom_hmm: "/projects/dscott_prj/CCSRI_1500/exomes/ref/resources/E032_primaryBcells_fromPB_chromHMM_15state_segments.bed"
-                rep_timing: "/projects/dscott_prj/CCSRI_1500/exomes/ref/resources/RT_GM12878_Lymphocyte_Int90901931_hg19.bedgraph.gz"
+                chrom_hmm: "__UPDATE__"
+                rep_timing: "__UPDATE__"
 
         conda_envs:
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
