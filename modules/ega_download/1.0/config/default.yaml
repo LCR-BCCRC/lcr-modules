@@ -16,6 +16,7 @@ lcr-modules:
             # EGAN: sample ID from EGA
             # EGAD: dataset ID from EGA
             # EGAS: study ID from EGA
+            # For an example sample table please refer to the CHANGELOG file of this module.
             sample_csv: "__UPDATE__" # csv sample table containing columns described above.
         study_id: "__UPDATE__" # String with cohort name that helps you easily identify the downloaded samples. For example, "DLBCLs_from_EGA", or "FL_LSARP_Trios". This is meant to help you navigate between different samples from different studies downloaded to the same directory.
         credentials_file: "__UPDATE__" # path to .json file with EGA credentials. Must be accessible only by file owner or group. Required keys are 'username' and 'password'
