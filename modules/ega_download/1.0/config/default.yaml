@@ -34,8 +34,6 @@ lcr-modules:
 
         resources:
             ega_file_download:
-                # When specified like this, the module will restart EGA
-                # download in case of interrupted connection
                 mem_mb: 8000
                 download: 1
 

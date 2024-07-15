@@ -56,7 +56,7 @@ localrules:
 
 # Confirm the output file type is correctly specified.
 out_file_type = CFG["out_file_type"]
-possible_types = ["bam", "cram", "fastq"]
+possible_types = ["bam", "cram", "fastq", "fq.gz", "fastq.gz"]
 possible_type_string = ", ".join(possible_types)
 assert out_file_type in possible_types, (
     f"Unrecognized out_file_type {out_file_type}. \n"
