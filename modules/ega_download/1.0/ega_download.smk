@@ -15,10 +15,7 @@
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 import pandas as pd
-import json
-import snakemake.remote.EGA as EGA
 import os
-import stat
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -45,176 +42,130 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "ega_download",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "ega_download", "outputs"],
 )
 
-# Check if EGA credentials file is only accessible by user or user group. If someone outside user group can read/write this file, stop module from the execution
-permissions = (oct(stat.S_IMODE(os.lstat(CFG["credentials_file"]).st_mode)))[-1:]
-if (int(permissions) != 0):
-    sys.exit("The EGA credentials file is readable/writebale not only by the owner or user group. Please ensure that EGA credentials file can only be accessed by the owner or its user group.")
-
-# Opening JSON file with credentials
-EGA_CREDENTIALS_FILE = open(CFG["credentials_file"],)
-# Returns credentials as a dictionary
-EGA_CREDENTIALS = json.load(EGA_CREDENTIALS_FILE )
-# set env variables to connect to EGA
-os.environ["EGA_USERNAME"] = EGA_CREDENTIALS['username']
-os.environ["EGA_PASSWORD"] = EGA_CREDENTIALS['password']
-os.environ["EGA_CLIENT_SECRET"] = "AMenuDLjVdVo4BSwi0QD54LL6NeVDEZRzEQUJ7hJOM3g4imDZBHHX0hNfKHPeQIGkskhtCmqAJtt_jm7EKq-rWw"
-os.environ["EGA_CLIENT_ID"] = "f20cd2d3-682a-4568-a53e-4262ef54c8f4"
-# Closing file
-EGA_CREDENTIALS_FILE.close()
-
-
-# Defining global variables and doing global setup to connect to EGA
-ega = EGA.RemoteProvider()
-# The file listing samples
-EGA_TARGET_SAMPLES = pd.read_csv (str(CFG["inputs"]["sample_csv"]).replace("{study_id}", CFG["study_id"]))
-# The file with metadata
-EGA_TARGET_SAMPLES_METADATA = pd.read_csv (str(CFG["inputs"]["sample_metadata"]).replace("{study_id}", CFG["study_id"]))
-# Merge them together, making sure the sample table is sorted
-EGA_MASTER_SAMPLE_TABLE = EGA_TARGET_SAMPLES.merge(EGA_TARGET_SAMPLES_METADATA, on="file_id", how="right")
-EGA_MASTER_SAMPLE_TABLE = EGA_MASTER_SAMPLE_TABLE.sort_values(by=['file_id'], ascending=True)
-tbl = EGA_MASTER_SAMPLE_TABLE
-
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _ega_download_input_csv,
-    _ega_download_get_ega_file,
-    _ega_download_index_ega_file,
-    _ega_download_output_files,
-    _ega_download_export_sample_table,
-    _ega_download_all
+    _ega_input_csv,
+    _ega_output_files,
+    _ega_all
 
 
 ##### RULES #####
 
+# Confirm the output file type is correctly specified.
+out_file_type = CFG["out_file_type"]
+possible_types = ["bam", "cram", "fastq"]
+possible_type_string = ", ".join(possible_types)
+assert out_file_type in possible_types, (
+    f"Unrecognized out_file_type {out_file_type}. \n"
+    f"Please specify one of {possible_type_string}. "
+)
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-rule _ega_download_input_csv:
+rule _ega_input_csv:
     input:
-        csv = ancient(CFG["inputs"]["sample_csv"]),
-        metadata = ancient(CFG["inputs"]["sample_metadata"])
+        csv = ancient(CFG["inputs"]["sample_csv"])
     output:
-        csv = CFG["dirs"]["inputs"] + "csv/{seq_type}--{genome_build}/{study_id}.csv",
-        metadata = CFG["dirs"]["inputs"] + "metadata/{seq_type}--{genome_build}/{study_id}.metadata.csv",
+        csv = CFG["dirs"]["inputs"] + "{study_id}.csv"
     run:
         op.absolute_symlink(input.csv, output.csv)
-        op.absolute_symlink(input.metadata, output.metadata)
 
-
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-rule _ega_download_get_ega_file:
+# Download the file from EGA
+rule _ega_get_ega_file:
     input:
-        sample_table = str(rules._ega_download_input_csv.output.csv),
-        #ega_file = ega.remote(str("ega/{study_id}/{file_id}.{file_format}"))
-        ega_file = str("{study_id}/{file_id}.{file_format}")
+        sample_table = str(rules._ega_input_csv.output.csv)
     output:
-        ega_file = CFG["dirs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}.{file_format}"
+        ega_file = CFG["dirs"]["ega_download"] + "{seq_type}/{file_format}/{study_id}/{egaf}/{egas}--{egad}--{egan}--{egaf}--{file_name}.{file_format}"
     log:
-        stdout = CFG["logs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}_download.stdout.log",
-        stderr = CFG["logs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}_download.stderr.log"
+        stdout = CFG["logs"]["ega_download"] + "{seq_type}/{file_format}/{study_id}/{egaf}/{egas}--{egad}--{egan}--{egaf}--{file_name}.{file_format}_download.stdout.log",
+        stderr = CFG["logs"]["ega_download"] + "{seq_type}/{file_format}/{study_id}/{egaf}/{egas}--{egad}--{egan}--{egaf}--{file_name}.{file_format}_download.stderr.log"
+    params:
+        credentials = CFG["credentials_file"],
+        additional_args = CFG["options"]["additional_args"]
+    conda:
+        CFG["conda_envs"]["pyega3"]
     threads:
-        CFG["threads"]["ega_file_index"]
+        CFG["threads"]["ega_file_download"]
     resources:
         **CFG["resources"]["ega_file_download"]
-    shell:
-        "cp {input.ega_file} {output.ega_file} > {log.stdout} 2> {log.stderr}"
-
-
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-rule _ega_download_index_ega_file:
-    input:
-        ega_file = str(rules._ega_download_get_ega_file.output.ega_file)
-    output:
-        bai = CFG["dirs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}.{file_format}.bai"
-    log:
-        stdout = CFG["logs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}_index.stdout.log",
-        stderr = CFG["logs"]["ega_download"] + "{file_format}/{seq_type}--{genome_build}/{study_id}/{file_id}_index.stderr.log"
-    params:
-        opts = CFG["options"]["ega_file_index"]
-    conda:
-        CFG["conda_envs"]["samtools"]
-    threads:
-        CFG["threads"]["ega_file_index"]
-    resources:
-        **CFG["resources"]["ega_file_index"]
+    wildcard_constraints:
+        file_format = "|".join(CFG["samples"]["file_format"].tolist())
     shell:
         op.as_one_line("""
-        samtools index
-        {params.opts}
-        -@ {threads}
-        {input.ega_file}
+        pyega3
+        {params.additional_args}
+        -cf {params.credentials}
+        fetch {wildcards.egaf}
+        --output-dir $(dirname "$(dirname {output.ega_file})")
+        --max-retries -1
+        --retry-wait 30
         > {log.stdout}
         2> {log.stderr}
+        &&
+        mv $(dirname {output.ega_file})/{wildcards.file_name}.{wildcards.file_format} {output.ega_file}
         """)
 
-
-# function to get ega_file files that drops EGA ID from the name of the final ega_file
+# function to get ega_file files that drops EGA IDs from the name of the final
+# file and uses sample_id instead
 def get_ega_file (wildcards):
     CFG = config["lcr-modules"]["ega_download"]
-    file_id = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["file_id"]
-    return (expand(str(CFG["dirs"]["ega_download"] + "{{file_format}}/{{seq_type}}--{{genome_build}}/{{study_id}}/{file_id}.{{file_format}}"),
-                    file_id = file_id))
-
-# function to get ega_file files that drops EGA ID from the name of the index file
-def get_file_bai (wildcards):
-    CFG = config["lcr-modules"]["ega_download"]
-    file_id = tbl[(tbl.sample_id == wildcards.sample_id) & (tbl.seq_type == wildcards.seq_type)]["file_id"]
-    return (expand(str(CFG["dirs"]["ega_download"] + "{{file_format}}/{{seq_type}}--{{genome_build}}/{{study_id}}/{file_id}.{{file_format}}.bai"),
-                    file_id = file_id))
+    tbl = CFG["samples"]
+    this_sample = tbl[(tbl.seq_type == wildcards.seq_type) & (tbl.sample_id == wildcards.sample_id) & (tbl.file_format == wildcards.file_format)]
+    if (this_sample.shape[0]>0):
+        this_sample = this_sample.iloc[int(wildcards.read) - 1]
+    this_egas, this_egad, this_egan, this_egaf, this_name = this_sample['EGAS'], this_sample['EGAD'], this_sample['EGAN'], this_sample['EGAF'], this_sample['file_name']
+    this_file = expand(
+            str(
+                CFG["dirs"]["ega_download"] + "{{seq_type}}/{{file_format}}/{{study_id}}/{egaf}/{egas}--{egad}--{egan}--{egaf}--{{file_name}}.{{file_format}}"
+            ),
+            egas = this_egas,
+            egad = this_egad,
+            egan = this_egan,
+            egaf = this_egaf
+        )[0]
+    this_file = str(this_file).replace("{file_name}", this_name)
+    return(this_file)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _ega_download_output_files:
+rule _ega_output_files:
     input:
-        ega_file = get_ega_file,
-        bai = get_file_bai
+        ega_file = get_ega_file
     output:
-        ega_file = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{study_id}/{sample_id}.{file_format}",
-        bai = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{study_id}/{sample_id}.{file_format}.bai"
+        ega_file = CFG["dirs"]["outputs"] + "{seq_type}/{study_id}/{sample_id}{read}.{file_format}"
+    wildcard_constraints:
+        file_format = "|".join(CFG["samples"]["file_format"].tolist())
     run:
         op.relative_symlink(input.ega_file, output.ega_file, in_module=True)
-        op.relative_symlink(input.bai, output.bai, in_module=True)
-
-
-# Write associated sample table as one of the module's outputs
-rule _ega_download_export_sample_table:
-    input:
-        expand(
-            [
-                str(rules._ega_download_output_files.output.ega_file),
-                str(rules._ega_download_output_files.output.bai)
-            ],
-            zip,  # Run expand() with zip(), not product()
-            seq_type=EGA_MASTER_SAMPLE_TABLE["seq_type"],
-            genome_build=EGA_MASTER_SAMPLE_TABLE["genome_build"],
-            study_id=[CFG["study_id"]]*len(EGA_TARGET_SAMPLES["file_id"]),
-            sample_id=EGA_MASTER_SAMPLE_TABLE["sample_id"],
-            file_format=EGA_MASTER_SAMPLE_TABLE["file_format"])
-    output:
-        sample_table = CFG["dirs"]["outputs"] + "metadata/{study_id}/metadata.tsv",
-    run:
-        samples_metadata = EGA_MASTER_SAMPLE_TABLE.rename(columns={'file_format': 'compression'})
-        samples_metadata.insert(0, 'bam_available', 'TRUE')
-        samples_metadata.to_csv(output.sample_table, sep='\t', header=True, index=False, na_rep="NA")
-
 
 # Generates the target files for each run, which generate the symlinks
-rule _ega_download_all:
+rule _ega_all:
     input:
         expand(
             [
-                str(rules._ega_download_output_files.output.ega_file),
-                str(rules._ega_download_output_files.output.bai),
-                str(rules._ega_download_export_sample_table.output.sample_table)
+                str(rules._ega_output_files.output.ega_file)
             ],
             zip,  # Run expand() with zip(), not product()
-            seq_type=EGA_MASTER_SAMPLE_TABLE["seq_type"],
-            genome_build=EGA_MASTER_SAMPLE_TABLE["genome_build"],
-            study_id=[CFG["study_id"]]*len(EGA_TARGET_SAMPLES["file_id"]),
-            sample_id=EGA_MASTER_SAMPLE_TABLE["sample_id"],
-            file_format=EGA_MASTER_SAMPLE_TABLE["file_format"])
+            sample_id=CFG["samples"]["sample_id"],
+            file_format=CFG["samples"]["file_format"],
+            seq_type=CFG["samples"]["seq_type"],
+            study_id=[CFG["study_id"]]*len(CFG["samples"]["file_name"]),
+            read = [""]
+        ) if out_file_type in ["cram", "bam"] else expand(
+            expand(
+                [
+                    str(rules._ega_output_files.output.ega_file)
+                ],
+                zip,  # Run expand() with zip(), not product()
+                sample_id=CFG["samples"]["sample_id"],
+                file_format=CFG["samples"]["file_format"],
+                seq_type=CFG["samples"]["seq_type"],
+                study_id=[CFG["study_id"]]*len(CFG["samples"]["file_name"]),
+                allow_missing = True
+            ),
+        read = ["1", "2"]
+        )
 
 
 ##### CLEANUP #####

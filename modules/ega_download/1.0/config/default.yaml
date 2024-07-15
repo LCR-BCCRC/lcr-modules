@@ -1,33 +1,43 @@
 lcr-modules:
-    
+
     ega_download:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_csv: "__UPDATE__" # csv sample table downloaded from EGA
-            sample_metadata: "__UPDATE__" # basic metadata file. At the minimum, should contain EGA ID to sample_id mapping, seq_type of the sample, and genome_build.
-        study_id: "__UPDATE__" # EGA study ID
+          # the input file must contain the following columns:
+            # patient_id: unique id representing individual patient
+            # sample_id: unique sample id for each sample
+            # file_name: name of the file after EGA download.
+              # If you don't have this information, it can be returned
+              # in the output of pyega3 -cf </Path/To/CREDENTIALS_FILE> files EGAD<NUM>
+            # file_format: format of the files to be downloaded. For example: bam, cram, fq.gz, fastq.gz
+            # seq_type: seq type of the sample
+            # genome_build: genome build to which the samples are already aligned or will be aligned
+            # EGAF: file ID from EGA
+            # EGAN: sample ID from EGA
+            # EGAD: dataset ID from EGA
+            # EGAS: study ID from EGA
+            sample_csv: "__UPDATE__" # csv sample table containing columns described above.
+        study_id: "__UPDATE__" # String with cohort name that helps you easily identify the downloaded samples.
         credentials_file: "__UPDATE__" # path to .json file with EGA credentials. Must be accessible only by file owner or group. Required keys are 'username' and 'password'
+        out_file_type: "__UPDATE__" # this will be used to handle whether one row per sample is expected (case for bam/cram) or several rows for the same sample (in case of fastq)
 
         scratch_subdirectories: []
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            pyega3: "{MODSDIR}/envs/pyega3-4.0.3.yaml"
 
         options:
-            ega_file_index: "-b" # options for bam file indexing
+            additional_args: "-c 17" # number of connections to download single file
 
         threads:
             ega_file_download: 8
-            ega_file_index: 6
 
         resources:
             ega_file_download:
+                # When specified like this, the module will restart EGA
+                # download in case of interrupted connection
                 mem_mb: 8000
-                bam: 1
-            ega_file_index:
-                mem_mb: 4000
+                download: 1
 
         pairing_config:
             genome:
