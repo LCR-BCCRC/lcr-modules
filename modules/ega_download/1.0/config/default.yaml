@@ -17,7 +17,7 @@ lcr-modules:
             # EGAD: dataset ID from EGA
             # EGAS: study ID from EGA
             sample_csv: "__UPDATE__" # csv sample table containing columns described above.
-        study_id: "__UPDATE__" # String with cohort name that helps you easily identify the downloaded samples.
+        study_id: "__UPDATE__" # String with cohort name that helps you easily identify the downloaded samples. For example, "DLBCLs_from_EGA", or "FL_LSARP_Trios". This is meant to help you navigate between different samples from different studies downloaded to the same directory.
         credentials_file: "__UPDATE__" # path to .json file with EGA credentials. Must be accessible only by file owner or group. Required keys are 'username' and 'password'
         out_file_type: "__UPDATE__" # this will be used to handle whether one row per sample is expected (case for bam/cram) or several rows for the same sample (in case of fastq)
 
