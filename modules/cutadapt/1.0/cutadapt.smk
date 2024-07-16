@@ -41,7 +41,6 @@ CFG = op.setup_module(
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _cutadapt_input_fastq,
     _cutadapt_output_fastq,
@@ -65,6 +64,7 @@ rule _cutadapt_input_fastq:
         op.absolute_symlink(input.fastq_1, output.fastq_1)
         op.absolute_symlink(input.fastq_2, output.fastq_2)
 
+# Call fastqc before trimming to have reference point
 rule _cutadapt_fastqc_before:
     input:
         fastq_1 = str(rules._cutadapt_input_fastq.output.fastq_1),
@@ -98,7 +98,7 @@ rule _cutadapt_fastqc_before:
         2> {log.stderr}
         """)
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
+# Trim adapters
 rule _cutadapt_run:
     input:
         fastq_1 = str(rules._cutadapt_input_fastq.output.fastq_1),
@@ -138,7 +138,7 @@ rule _cutadapt_run:
         """)
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
+# Call fastqc after adapter trimming
 rule _cutadapt_fastqc_after:
     input:
         fastq_1 = str(rules._cutadapt_run.output.trimmed_1),
