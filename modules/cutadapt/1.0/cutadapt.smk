@@ -37,7 +37,6 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "cutadapt",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "fastqc_before", "cutadapt", "fastqc_after", "outputs"],
 )
 
@@ -54,8 +53,6 @@ sample_ids_cutadapt = list(CFG['samples']['sample_id'])
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
 rule _cutadapt_input_fastq:
     input:
         fastq_1 = CFG["inputs"]["sample_fastq_1"],
@@ -102,7 +99,6 @@ rule _cutadapt_fastqc_before:
         """)
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
 rule _cutadapt_run:
     input:
         fastq_1 = str(rules._cutadapt_input_fastq.output.fastq_1),
@@ -143,7 +139,6 @@ rule _cutadapt_run:
 
 
 # Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
 rule _cutadapt_fastqc_after:
     input:
         fastq_1 = str(rules._cutadapt_run.output.trimmed_1),
@@ -178,7 +173,6 @@ rule _cutadapt_fastqc_after:
         """)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _cutadapt_output_fastq:
     input:
         report_before_1 = str(rules._cutadapt_fastqc_before.output.report_1),
@@ -214,7 +208,6 @@ rule _cutadapt_all:
                 str(rules._cutadapt_output_fastq.output.report_before_2),
                 str(rules._cutadapt_output_fastq.output.trimmed_2),
                 str(rules._cutadapt_output_fastq.output.report_after_2)
-                # TODO: If applicable, add other output rules here
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],

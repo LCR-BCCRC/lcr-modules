@@ -2,7 +2,6 @@ lcr-modules:
 
     cutadapt:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {sample_id}
             sample_fastq_1: "__UPDATE__"
