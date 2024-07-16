@@ -9,6 +9,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Kostia Dreval.
 
-<!-- TODO: Explain each important module design decision below. -->
-
-- No module design decisions explained here yet.
+- This module is currently setup to trim adapters on paired reads only.
+- This module is currently only trims the illumina universal adapters.

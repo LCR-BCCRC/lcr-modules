@@ -12,7 +12,11 @@ lcr-modules:
         options:
             fastqc: ""
             cutadapt: ""
+            # Provide adapter sequences to trim below
+            # These default options are Illumina universal adapters
+            # This will be passed with -a option of cutadapt
             forward_a: "AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC"
+            # This will be passed with -A option of cutadapt
             reverse_a: "AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT"
 
         conda_envs:
