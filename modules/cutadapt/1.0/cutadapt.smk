@@ -45,9 +45,6 @@ CFG = op.setup_module(
 # TODO: Replace with actual rules once you change the rule names
 localrules:
     _cutadapt_input_fastq,
-    _cutadapt_fastqc_before,
-    _cutadapt_run,
-    _cutadapt_fastqc_after,
     _cutadapt_output_fastq,
     _cutadapt_all,
 
@@ -99,6 +96,7 @@ rule _cutadapt_fastqc_before:
         {input.fastq_2}
         -o $(dirname {output.report_1})/
         {params.opts}
+        -t {threads}
         > {log.stdout}
         2> {log.stderr}
         """)
@@ -131,11 +129,12 @@ rule _cutadapt_run:
     shell:
         op.as_one_line("""
         cutadapt
+        -j {threads}
         {params.opts}
         -a {params.forward_a}
         -A {params.reverse_a}
         -o {output.trimmed_1}
-        -p {output.timmed_2}
+        -p {output.trimmed_2}
         {input.fastq_1}
         {input.fastq_2}
         > {log.stdout}
@@ -173,6 +172,7 @@ rule _cutadapt_fastqc_after:
         {input.fastq_2}
         -o $(dirname {output.report_1})/
         {params.opts}
+        -t {threads}
         > {log.stdout}
         2> {log.stderr}
         """)
