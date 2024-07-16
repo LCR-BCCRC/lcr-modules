@@ -38,17 +38,20 @@ CFG = op.setup_module(
     name = "cutadapt",
     version = "1.0",
     # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "cutadapt", "outputs"],
+    subdirectories = ["inputs", "fastqc_before", "cutadapt", "fastqc_after", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
 # TODO: Replace with actual rules once you change the rule names
 localrules:
     _cutadapt_input_fastq,
-    _cutadapt_step_2,
+    _cutadapt_fastqc_before,
+    _cutadapt_run,
+    _cutadapt_fastqc_after,
     _cutadapt_output_fastq,
     _cutadapt_all,
 
+sample_ids_cutadapt = list(CFG['samples']['sample_id'])
 
 ##### RULES #####
 
@@ -58,65 +61,146 @@ localrules:
 # TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
 rule _cutadapt_input_fastq:
     input:
-        fastq = CFG["inputs"]["sample_fastq"]
+        fastq_1 = CFG["inputs"]["sample_fastq_1"],
+        fastq_2 = CFG["inputs"]["sample_fastq_2"],
     output:
-        fastq = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.fastq"
-    group: 
-        "input_and_step_1"
+        fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.R1.fastq.gz",
+        fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.R2.fastq.gz",
+    group: "cutadapt"
     run:
-        op.absolute_symlink(input.fastq, output.fastq)
+        op.absolute_symlink(input.fastq_1, output.fastq_1)
+        op.absolute_symlink(input.fastq_2, output.fastq_2)
 
+rule _cutadapt_fastqc_before:
+    input:
+        fastq_1 = str(rules._cutadapt_input_fastq.output.fastq_1),
+        fastq_2 = str(rules._cutadapt_input_fastq.output.fastq_2)
+    output:
+        report_1 = CFG["dirs"]["fastqc_before"] + "fastq/{seq_type}/{sample_id}.R1_fastqc.html",
+        report_2 = CFG["dirs"]["fastqc_before"] + "fastq/{seq_type}/{sample_id}.R2_fastqc.html"
+    log:
+        stdout = CFG["logs"]["fastqc_before"] + "{seq_type}/{sample_id}/fastqc_before.stdout.log",
+        stderr = CFG["logs"]["fastqc_before"] + "{seq_type}/{sample_id}/fastqc_before.stderr.log"
+    params:
+        opts = CFG["options"]["fastqc"]
+    conda:
+        CFG["conda_envs"]["cutadapt"]
+    threads:
+        CFG["threads"]["fastqc"]
+    resources:
+        **CFG["resources"]["fastqc"]
+    group: "cutadapt"
+    wildcard_constraints:
+        sample_id = "|".join(sample_ids_cutadapt)
+    shell:
+        op.as_one_line("""
+        fastqc
+        {input.fastq_1}
+        {input.fastq_2}
+        -o $(dirname {output.report_1})/
+        {params.opts}
+        > {log.stdout}
+        2> {log.stderr}
+        """)
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
 # TODO: Replace example rule below with actual rule
-rule _cutadapt_step_1:
+rule _cutadapt_run:
     input:
-        fastq = str(rules._cutadapt_input_fastq.output.fastq),
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        fastq_1 = str(rules._cutadapt_input_fastq.output.fastq_1),
+        fastq_2 = str(rules._cutadapt_input_fastq.output.fastq_2)
     output:
-        fastq = CFG["dirs"]["cutadapt"] + "{seq_type}--{genome_build}/{sample_id}/output.fastq"
+        trimmed_1 = CFG["dirs"]["cutadapt"] + "fastq/{seq_type}/{sample_id}_trimmed.R1.fastq.gz",
+        trimmed_2 = CFG["dirs"]["cutadapt"] + "fastq/{seq_type}/{sample_id}_trimmed.R2.fastq.gz"
     log:
-        stdout = CFG["logs"]["cutadapt"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stdout.log",
-        stderr = CFG["logs"]["cutadapt"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stderr.log"
+        stdout = CFG["logs"]["cutadapt"] + "{seq_type}/{sample_id}/cutadapt.stdout.log",
+        stderr = CFG["logs"]["cutadapt"] + "{seq_type}/{sample_id}/cutadapt.stderr.log"
     params:
-        opts = CFG["options"]["step_1"]
+        opts = CFG["options"]["cutadapt"],
+        forward_a = CFG["options"]["forward_a"],
+        reverse_a = CFG["options"]["reverse_a"]
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["cutadapt"]
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["cutadapt"]
     resources:
-        **CFG["resources"]["step_1"]    # All resources necessary can be included and referenced from the config files.
+        **CFG["resources"]["cutadapt"]
+    group: "cutadapt"
+    wildcard_constraints:
+        sample_id = "|".join(sample_ids_cutadapt)
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --input {input.fastq} --ref-fasta {input.fasta}
-        --output {output.fastq} --threads {threads} > {log.stdout} 2> {log.stderr}
+        cutadapt
+        {params.opts}
+        -a {params.forward_a}
+        -A {params.reverse_a}
+        -o {output.trimmed_1}
+        -p {output.timmed_2}
+        {input.fastq_1}
+        {input.fastq_2}
+        > {log.stdout}
+        2> {log.stderr}
         """)
 
 
 # Example variant filtering rule (single-threaded; can be run on cluster head node)
 # TODO: Replace example rule below with actual rule
-rule _cutadapt_step_2:
+rule _cutadapt_fastqc_after:
     input:
-        fastq = str(rules._cutadapt_step_1.output.fastq)
+        fastq_1 = str(rules._cutadapt_run.output.trimmed_1),
+        fastq_2 = str(rules._cutadapt_run.output.trimmed_2)
     output:
-        fastq = CFG["dirs"]["cutadapt"] + "{seq_type}--{genome_build}/{sample_id}/output.filt.fastq"
+        report_1 = CFG["dirs"]["fastqc_after"] + "fastq/{seq_type}/{sample_id}_trimmed.R1_fastqc.html",
+        report_2 = CFG["dirs"]["fastqc_after"] + "fastq/{seq_type}/{sample_id}_trimmed.R2_fastqc.html"
     log:
-        stderr = CFG["logs"]["cutadapt"] + "{seq_type}--{genome_build}/{sample_id}/step_2.stderr.log"
+        stdout = CFG["logs"]["fastqc_after"] + "{seq_type}/{sample_id}/fastqc_after.stdout.log",
+        stderr = CFG["logs"]["fastqc_after"] + "{seq_type}/{sample_id}/fastqc_after.stderr.log"
     params:
-        opts = CFG["options"]["step_2"]
+        opts = CFG["options"]["fastqc"]
+    conda:
+        CFG["conda_envs"]["cutadapt"]
+    threads:
+        CFG["threads"]["fastqc"]
+    resources:
+        **CFG["resources"]["fastqc"]
+    group: "cutadapt"
+    wildcard_constraints:
+        sample_id = "|".join(sample_ids_cutadapt)
     shell:
-        "grep {params.opts} {input.fastq} > {output.fastq} 2> {log.stderr}"
-
+        op.as_one_line("""
+        fastqc
+        {input.fastq_1}
+        {input.fastq_2}
+        -o $(dirname {output.report_1})/
+        {params.opts}
+        > {log.stdout}
+        2> {log.stderr}
+        """)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 # TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _cutadapt_output_fastq:
     input:
-        fastq = str(rules._cutadapt_step_2.output.fastq)
+        report_before_1 = str(rules._cutadapt_fastqc_before.output.report_1),
+        trimmed_1 = str(rules._cutadapt_run.output.trimmed_1),
+        report_after_1 = str(rules._cutadapt_fastqc_after.output.report_1),
+        report_before_2 = str(rules._cutadapt_fastqc_before.output.report_2),
+        trimmed_2 = str(rules._cutadapt_run.output.trimmed_2),
+        report_after_2 = str(rules._cutadapt_fastqc_after.output.report_2)
     output:
-        fastq = CFG["dirs"]["outputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.output.filt.fastq"
+        report_before_1 = CFG["dirs"]["outputs"] + "report/{seq_type}/{sample_id}.R1_fastqc_before.html",
+        trimmed_1 = CFG["dirs"]["outputs"] + "fastq/{seq_type}/{sample_id}_trimmed.R1.fastq.gz",
+        report_after_1 = CFG["dirs"]["outputs"] + "report/{seq_type}/{sample_id}.R1_fastqc_after.html",
+        report_before_2 = CFG["dirs"]["outputs"] + "report/{seq_type}/{sample_id}.R2_fastqc_before.html",
+        trimmed_2 = CFG["dirs"]["outputs"] + "fastq/{seq_type}/{sample_id}_trimmed.R2.fastq.gz",
+        report_after_2 = CFG["dirs"]["outputs"] + "report/{seq_type}/{sample_id}.R2_fastqc_after.html"
     run:
-        op.relative_symlink(input.fastq, output.fastq, in_module= True)
+        op.relative_symlink(input.report_before_1, output.report_before_1, in_module = True),
+        op.relative_symlink(input.trimmed_1, output.trimmed_1, in_module = True),
+        op.relative_symlink(input.report_after_1, output.report_after_1, in_module = True),
+        op.relative_symlink(input.report_before_2, output.report_before_2, in_module = True),
+        op.relative_symlink(input.trimmed_2, output.trimmed_2, in_module = True),
+        op.relative_symlink(input.report_after_2, output.report_after_2, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -124,13 +208,18 @@ rule _cutadapt_all:
     input:
         expand(
             [
-                str(rules._cutadapt_output_fastq.output.fastq),
+                str(rules._cutadapt_output_fastq.output.report_before_1),
+                str(rules._cutadapt_output_fastq.output.trimmed_1),
+                str(rules._cutadapt_output_fastq.output.report_after_1),
+                str(rules._cutadapt_output_fastq.output.report_before_2),
+                str(rules._cutadapt_output_fastq.output.trimmed_2),
+                str(rules._cutadapt_output_fastq.output.report_after_2)
                 # TODO: If applicable, add other output rules here
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
-            genome_build=CFG["samples"]["genome_build"],
-            sample_id=CFG["samples"]["sample_id"])
+            sample_id=CFG["samples"]["sample_id"]
+            )
 
 
 ##### CLEANUP #####
