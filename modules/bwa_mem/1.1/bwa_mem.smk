@@ -43,6 +43,7 @@ CFG = op.setup_module(
     version = "1.1",
     subdirectories = ["inputs", "bwa_mem",  "sort_bam", "mark_dups", "outputs"],
 )
+_UTILS = config["lcr-modules"]["utils"] # this is needed to infer whether output is compressed
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -156,49 +157,23 @@ rule _bwa_mem_symlink_sorted_bam:
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-if CFG["compress_to_cram"]:
-
-    rule _bwa_mem_compress_bam:
-        input:
-            bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".bam",
-            bai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".bam.bai",
-            fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
-        output:
-            cram = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".cram",
-            crai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".cram.bai"
-        params:
-            opts = CFG["options"]["samtools"]
-        conda:
-            CFG["conda_envs"]["samtools"]
-        threads:
-            CFG["threads"]["samtools"]
-        resources:
-            **CFG["resources"]["samtools"]
-        wildcard_constraints:
-            sample_id = "|".join(sample_ids_bwa_mem)
-        shell:
-            op.as_one_line("""
-            samtools view -C -T {input.fasta} -@ {threads} -o {output.cram} {input.bam}
-                &&
-            samtools index {output.cram} -@ {threads} {output.crai}
-                &&
-            rm {input.bam}
-                &&
-            rm {input.bai}
-            """)
+if _UTILS["compress_to_cram"]:
 
     rule _bwa_mem_output_bam:
         input:
-            cram = str(rules._bwa_mem_compress_bam.output.cram),
-            crai = str(rules._bwa_mem_compress_bam.output.crai)
+            cram = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".cram",
+            crai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".cram.crai",
+            sorted_bam = str(rules._bwa_mem_symlink_sorted_bam.input.bam)
         output:
-            bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.cram"
+            bam = CFG["dirs"]["outputs"] + "cram/{seq_type}--{genome_build}/{sample_id}.cram"
         wildcard_constraints:
             sample_id = "|".join(sample_ids_bwa_mem)
         run:
             op.relative_symlink(input.cram, output.bam, in_module=True)
             op.relative_symlink(input.crai, output.bam + ".crai", in_module=True)
-elif not CFG["compress_to_cram"]:
+            os.remove(input.sorted_bam)
+            shell("touch {input.sorted_bam}.deleted")
+elif not _UTILS["compress_to_cram"]:
     rule _bwa_mem_output_bam:
         input:
             bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".bam",
@@ -215,7 +190,7 @@ elif not CFG["compress_to_cram"]:
             shell("touch {input.sorted_bam}.deleted")
 
 else:
-    raise ValueError("CFG['temp_outputs'] must be set to a boolean value (True or False)")
+    raise ValueError("config['lcr-modules']['utils']['compress_to_cram'] must be set to a boolean value (True or False)")
 
 
 

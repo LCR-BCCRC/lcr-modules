@@ -4,11 +4,13 @@ lcr-modules:
             bed:
                 # add mor genome_build if running with multiple capture/exome kit
                 grch37: "__UPDATE__"
+        compress_to_cram: True
 
         options:
             bam_sort: ""
             bam_markdups: "--overflow-list-size 600000"
             bam_index: "-b"
+            bam_to_cram: ""
 ## Lines commented out with `#!` are required for the module to run
 ## Lines commented out with `#?` can optionally be user-configured
 ## Lines commented out with `##` act as regular comments
@@ -29,10 +31,11 @@ lcr-modules:
             bam_markdups: 24
             bam_index: 8
             interval: 2
+            bam_to_cram: 8
 
         mem_mb:
             bam_sort: 48000
             bam_markdups: 48000
             bam_index: 8000
             interval: 8000
-
+            bam_to_cram: 8000
