@@ -1,0 +1,53 @@
+lcr-modules:
+
+    ega_download:
+
+        inputs:
+          # the input file must contain the following columns:
+            # patient_id: unique id representing individual patient
+            # sample_id: unique sample id for each sample
+            # file_name: name of the file after EGA download.
+              # If you don't have this information, it can be returned
+              # in the output of pyega3 -cf </Path/To/CREDENTIALS_FILE> files EGAD<NUM>
+            # file_format: format of the files to be downloaded. For example: bam, cram, fq.gz, fastq.gz
+            # seq_type: seq type of the sample
+            # genome_build: genome build to which the samples are already aligned or will be aligned
+            # EGAF: file ID from EGA
+            # EGAN: sample ID from EGA
+            # EGAD: dataset ID from EGA
+            # EGAS: study ID from EGA
+            # For an example sample table please refer to the CHANGELOG file of this module.
+            sample_csv: "__UPDATE__" # csv sample table containing columns described above.
+        study_id: "__UPDATE__" # String with cohort name that helps you easily identify the downloaded samples. For example, "DLBCLs_from_EGA", or "FL_LSARP_Trios". This is meant to help you navigate between different samples from different studies downloaded to the same directory.
+        credentials_file: "__UPDATE__" # path to .json file with EGA credentials. Must be accessible only by file owner or group. Required keys are 'username' and 'password'
+        out_file_type: "__UPDATE__" # this will be used to handle whether one row per sample is expected (case for bam/cram) or several rows for the same sample (in case of fastq)
+
+        scratch_subdirectories: []
+
+        conda_envs:
+            pyega3: "{MODSDIR}/envs/pyega3-4.0.3.yaml"
+
+        options:
+            additional_args: "-c 17" # number of connections to download single file
+
+        threads:
+            ega_file_download: 8
+
+        resources:
+            ega_file_download:
+                mem_mb: 8000
+                download: 1
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
