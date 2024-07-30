@@ -40,15 +40,19 @@ Getting Started
 
 5. Create a :ref:`sample-table` as a tab-delimited file with these :ref:`required-columns`. The following sample table is an example taken from the `Demo Project`_ (``demo/data/samples.tsv``).
 
-   +---------------+----------+------------+---------------+--------------+
-   | sample_id     | seq_type | patient_id | tissue_status | genome_build |
-   +===============+==========+============+===============+==============+
-   | TCRBOA7-N-WEX | capture  | TCRBOA7    | normal        | grch37       |
-   +---------------+----------+------------+---------------+--------------+
-   | TCRBOA7-T-WEX | capture  | TCRBOA7    | tumour        | grch37       |
-   +---------------+----------+------------+---------------+--------------+
-   | TCRBOA7-T-RNA | mrna     | TCRBOA7    | tumour        | grch37       |
-   +---------------+----------+------------+---------------+--------------+
+   +---------------+----------+------------+---------------+--------------+----------+-------------+---------------+
+   | sample_id     | seq_type | patient_id | tissue_status | genome_build | strand   | read_length | capture_space |
+   +===============+==========+============+===============+==============+==========+=============+===============+
+   | TCRBOA7-N-WEX | capture  | TCRBOA7    | normal        | grch37       | positive | 100         | none          |
+   +---------------+----------+------------+---------------+--------------+----------+-------------+---------------+
+   | TCRBOA7-T-WEX | capture  | TCRBOA7    | tumour        | grch37       | positive | 100         | none          |
+   +---------------+----------+------------+---------------+--------------+----------+-------------+---------------+
+   | TCRBOA7-T-RNA | mrna     | TCRBOA7    | tumour        | grch37       | positive | 100         | none          |
+   +---------------+----------+------------+---------------+--------------+----------+-------------+---------------+
+   | TCRBOA7-N-WGS | genome   | TCRBOA7    | normal        | grch37       | positive | 100         | none          |
+   +---------------+----------+------------+---------------+--------------+----------+-------------+---------------+
+   | TCRBOA7-T-WGS | genome   | TCRBOA7    | tumour        | grch37       | positive | 100         | none          |
+   +---------------+----------+------------+---------------+--------------+----------+-------------+---------------+
 
 6. Add the :ref:`lcr-modules-configuration` to your project configuration YAML file (*e.g.* ``config.yaml``). If you have unpaired tumour samples, you will need to add a ``unmatched_normal_ids`` section. Check out :ref:`handling-unpaired-tumours` section for more information and :ref:`within-the-configuration-file` for an example of how this is done.
 
@@ -74,9 +78,9 @@ Getting Started
          workdir:
             "</path/to/reference_directory/>"
          snakefile:
-            "<path/to/lcr-modules/workflows/reference_files/1.0/reference_files.smk>"
+            "<path/to/lcr-modules/workflows/reference_files/2.5/reference_files.smk>"
          configfile:
-            "<path/to/lcr-modules/workflows/reference_files/1.0/config/default.yaml>"
+            "<path/to/lcr-modules/workflows/reference_files/2.5/config/default.yaml>"
    
    .. gap
 
@@ -121,6 +125,12 @@ Getting Started
    .. code:: bash
 
       nice snakemake --dry-run --use-conda --cores <cores> _<star>_all _<manta>_all
+
+Alternatively, use the convenient wrappers available with the demo setup. For example:
+
+   .. code:: bash
+
+      ./dry-run.sh genome_Snakefile.smk
 
 10. If you feel comfortable with the above steps, consider reading through the :ref:`advanced-usage`. For example, you can use :ref:`conditional-module-behaviour-user` to set different input file paths for different sequencing data types (*e.g.* ``genome`` and ``mrna``).
 
@@ -174,9 +184,9 @@ The snippet below needs to be added to your project snakefile before you include
 
    subworkflow reference_files:
          snakefile:
-            "<path/to/lcr-modules/workflows/reference_files/1.0/reference_files.smk>"
+            "<path/to/lcr-modules/workflows/reference_files/2.5/reference_files.smk>"
          configfile:
-            "<path/to/lcr-modules/workflows/reference_files/1.0/config/default.yaml>"
+            "<path/to/lcr-modules/workflows/reference_files/2.5/config/default.yaml>"
          workdir:
             "</path/to/reference_directory/>"
 
@@ -186,7 +196,7 @@ The ``workdir`` field specifies where the reference files will be created. Optio
 
 .. code:: bash
 
-   workflows/reference_files/1.0/prepare_reference_files.sh </path/to/reference_directory> <num_cores>
+   workflows/reference_files/2.5/prepare_reference_files.sh </path/to/reference_directory> <num_cores>
 
 One caveat with the ``reference_files`` workflow is that the rules therein don't have any names. This is due to a Snakemake limitation. Rule names had to be omitted because this workflow could be included in more than one module loaded by the user and Snakemake doesn't allow duplicate rule names. As a result, you will be numbered rules (*e.g.* ``1``, ``2``, etc.) in your snakemake logs, such as the example shown below:
 
@@ -430,19 +440,23 @@ If you want a simpler syntax, you can consider using the :ref:`convenience-set-f
 Sample Table
 ============
 
-+---------------+----------+------------+---------------+--------------+
-| sample_id     | seq_type | patient_id | tissue_status | genome_build |
-+===============+==========+============+===============+==============+
-| TCRBOA7-N-WEX | capture  | TCRBOA7    | normal        | grch37       |
-+---------------+----------+------------+---------------+--------------+
-| TCRBOA7-T-WEX | capture  | TCRBOA7    | tumour        | grch37       |
-+---------------+----------+------------+---------------+--------------+
-| TCRBOA7-T-RNA | mrna     | TCRBOA7    | tumour        | grch37       |
-+---------------+----------+------------+---------------+--------------+
+   +---------------+----------+------------+---------------+--------------+----------+-------------+---------------+
+   | sample_id     | seq_type | patient_id | tissue_status | genome_build | strand   | read_length | capture_space |
+   +===============+==========+============+===============+==============+==========+=============+===============+
+   | TCRBOA7-N-WEX | capture  | TCRBOA7    | normal        | grch37       | positive | 100         | none          |
+   +---------------+----------+------------+---------------+--------------+----------+-------------+---------------+
+   | TCRBOA7-T-WEX | capture  | TCRBOA7    | tumour        | grch37       | positive | 100         | none          |
+   +---------------+----------+------------+---------------+--------------+----------+-------------+---------------+
+   | TCRBOA7-T-RNA | mrna     | TCRBOA7    | tumour        | grch37       | positive | 100         | none          |
+   +---------------+----------+------------+---------------+--------------+----------+-------------+---------------+
+   | TCRBOA7-N-WGS | genome   | TCRBOA7    | normal        | grch37       | positive | 100         | none          |
+   +---------------+----------+------------+---------------+--------------+----------+-------------+---------------+
+   | TCRBOA7-T-WGS | genome   | TCRBOA7    | tumour        | grch37       | positive | 100         | none          |
+   +---------------+----------+------------+---------------+--------------+----------+-------------+---------------+
 
 One of the requirements for using lcr-modules is a sample table. This format was selected for its flexibility. Each sample can be annotated with any amount of metadata, but for the purposes of lcr-modules, there are only a few :ref:`required-columns`. These columns allow the modules to understand the relationship between the samples, especially for tumour-normal pairing. 
 
-These requirements are encoded in schemas, which are stored and versioned in ``schemas/``. These schemas are used in conjunction with `Snakemake Validation`_. If the sample table doesn't confirm to a schemas that is required by a module, the user will given an informative error message. For example, the list of :ref:`required-columns` below is encoded in the ``base-1.0.yaml`` schema (located in ``schemas/base/``). The list of schemas will grow as modules are added with specific metadata requirements (*e.g.* strandedness of an RNA-seq library for expression quantification). 
+These requirements are encoded in schemas, which are stored and versioned in ``schemas/``. These schemas are used in conjunction with `Snakemake Validation`_. If the sample table doesn't confirm to a schemas that is required by a module, the user will given an informative error message. For example, the list of :ref:`required-columns` below is encoded in the ``base-1.0.yaml`` schema (located in ``schemas/base/``). The list of schemas will grow as modules are added with specific metadata requirements. 
 
 The only format requirement for the sample table is that it is a `pandas DataFrame`_ (*i.e.* ``pandas.DataFrame``). Hence, the format of the file on disk doesn't matter. If you wish to use the :py:func:`oncopipe.load_samples` convenience function, note that it defaults to parsing tab-delimited files, but this can be overriden using the ``sep`` argument. The advantage of using :py:func:`oncopipe.load_samples` is that it offers a straightforward method for renaming your columns to comply with the schema(s). See :ref:`renaming-columns` for examples. 
 
@@ -486,6 +500,21 @@ This column groups samples that originate from the same patient, *i.e.* that sha
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This column is only required if you have alignment (*i.e.* samples) using different genome builds. Otherwise, ``lcr-modules`` will assume that the single set of reference data (*e.g.* ``lcr-modules/references/hg38.yaml``) that you load is the one to use.
+
+``strand`` – Strandness of the sequenced data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This column is only required if you have RNA-Seq data and specifies the strandedness of an RNA-seq library for expression quantification. Accepts string value and can be one of ``positive`` or ``negative``.
+
+``read_length`` – Read length of the sequenced data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This column accepts a numeric value that specifies the expected lenght of the reads in the sequenced data.
+
+``capture_space`` – The name of capture space of the data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This column is only required if you have whole exome or capture data. The accepted values are string with arbitrarily choosen name that links it to a value in the config of reference files and provides a bed file with coordinates for covered regions. The value ``none`` is also accepted and will result in default behaviour of choosing the Agilent V5 (no UTR) space.
 
 .. _renaming-columns:
 
