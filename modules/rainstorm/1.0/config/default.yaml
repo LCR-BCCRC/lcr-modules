@@ -1,37 +1,30 @@
 lcr-modules:
-
+    
     rainstorm:
 
         inputs:
-            # Available wildcards {genome_build} from options below.
-            master_maf: "__UPDATE__", # This module only runs on genome data
-            subsetting_categories: "__UPDATE__" # e.g. "data/metadata/level3_subsetting_categories.tsv"
-        sample_set: ["__UPDATE__"] # E.g. ["DLBCL-only", "BL_DLBCL-BL-like_all"]
-        # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
-        # launch_date: ""
+            # Available wildcards: {cohort_name}
+            sample_maf: "__UPDATE__" # path to the maf file containing all patients across cohort of interest
 
         scratch_subdirectories: []
 
-        include_non_coding: True
-        prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.1/generate_smg_inputs.R"
-
         options:
-            rainstorm_version: 0.4 # here the version tag for the rainstorm version can be specified.
-            genome_build: ["__UPDATE__"] # specify genome build of variants in maf file, e.g. for both: ["hg38", "grch37"]
+            cohort_name: "__UPDATE__" # this will be used as prefix to the output files
+            rainstorm_version: 0.3 # here the version tag for the rainstorm version can be specified. The default version used in the module is 0.3
+            genome_build: "__UPDATE__" # specify genome build of variants in maf file
             flags: "--max_mut 10000" # provide additional flags for rainstorm run. For example, the maximum number of mutations per sample here is set to 10000 as module default
 
         conda_envs:
-            prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
             rainstorm: "{MODSDIR}/envs/rainstorm-0.3.yaml"
-
+            
         threads:
             rainstorm: 24
             doppler: 8
 
         resources:
-            rainstorm:
+            rainstorm: 
                 mem_mb: 80000
-
+            
         pairing_config:
             genome:
                 run_paired_tumours: True
