@@ -705,7 +705,9 @@ Increasing the Module Version Number
 ----------------------------------
 
 The module always starts from the ``1.0`` version. Incrementally with bug fixes and new features the minor version goes up by 1. It is recommended to maintain the module version unless the proposed changes will make the output non-compatible with the previous setup. The examples such changes can be different filtering steps (variant callers), handling of input data (level 3 analyses), output file formats (bam vs. cram), additional post-processing (GAMBLR deblacklisting), handling of normal processing for unmatched samples (variant callers), pre-processing of capture space (variant callers) etc. In more rare cases, the major version of the module will be incremented.
+
 In addition, developers shoul add in-line comments explaining non-trivial and even what they might consider trivial changes with in-line comments. These could be deleted during a final set of commits but would help guide any reviewers to the rationale for changes that are not self-explanatory.
+
 In order to simplify the PR review process, if you are updating the module version, you should edit the existing version and then restore the previous version and make the version bump after the PR approval. This will allow the git difference only show actually meaningful changes without requiring the reviewer to compare difference among the new files. Once PR for the new version is approved, you can bump up the version and then ensure the previous version of the module is restored from master. Then a git commit will ensure that file is tracked on your branch again.
 Example:
 
@@ -718,6 +720,7 @@ Example:
          git checkout origin/master modules/strelka/1.1
          git commit -m "strelka version bump"
          git push
+
 
 Advanced Module Features
 ========================
