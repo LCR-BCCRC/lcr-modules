@@ -1,7 +1,7 @@
 #!/usr/bin/env snakemake
 
 '''
-This Snakefile is made to run all the modules compatible with Mrna workflow.
+This Snakefile is made to run all the modules compatible with mRNA workflow.
 Compatibility of a workflow can be checked by referring to the pairing_config parameter present in a default.yaml file of that module.
 '''
 ##### SETUP #####

@@ -164,7 +164,23 @@ You can download the test data and verify the checksums using the following comm
 
 At that point, you can technically run the `Demo Snakefile`_ by omitting the ``--dry-run`` option from the command in the :ref:`getting-started-user` instructions, but you might want to update the value set in ``demo/config.yaml`` under ``scratch_directory`` to an space where you can readily store large intermediate files (*e.g.* a directory without snapshots or backups). For more information check out the :ref:`common-shared-configuration-fields` section.
 
+.. note::
+
+   We recommend using the provided recipe for the conda environment as it will ensure all necessary dependencies and are installed with the correct versions. To do this, run the commands below:
+
+   .. code:: bash
+
+      cd lcr-modules/
+      conda env create -f demo/env.yaml
+      pip install -e oncopipe/
+
+
+
 If you are interested in learning how you can conditionally use the STAR BAM files for RNA-seq samples while using the BAM files in ``data/`` for other samples, check out the :ref:`conditional-module-behaviour-user` section.
+
+For your convenience and illustration purposes, the demo contains separate snakefiles for each supporting seq type. Each snakefile illustrates how to load the sample table and also how to use available functionality to subset the sample table to the supported seq type.
+Each snakefile includes the most relevant modules for that specific seq type and illustrates the essence of a "project snakefile", where the output of the module can be passed as input to the module of the next level. More individual snakefiles can be included to the project snakefile following the same logic as the demonstrated modules.
+In additoin, conveniet wrappers ``dry-run.sh``, ``run.sh``, and ``snakemake.slurm.sh`` are available to use with dry run, local run, and slurm schedulers respectively.
 
 .. _reference-files-workflow:
 
