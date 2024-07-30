@@ -402,7 +402,7 @@ An example rule that follows most of these principles is included below (taken f
       threads:
          CFG["threads"]["star"]
       resources:
-         mem_mb = CFG["mem_mb"]["star"]
+         **CFG["resources"]["star"]
       shell:
          op.as_one_line("""
          STAR {params.opts} --readFilesIn {input.fastq_1} {input.fastq_2} --genomeDir {input.index} 
@@ -700,6 +700,23 @@ Module Accessory Files and Scripts
 When you create a new module from the cookiecutter template, you will notice an empty ``etc/`` subdirectory in your module directory. This folder is meant to contain any additional file required to run your module. For example, the ``manta`` module requires configuration files, which are stored in ``etc/``. Scripts can also be stored in this directory. That said, if a script is generally useful, you might want to submit a pull request to the `lcr-scripts repository`_. The purpose of this separate repository is to avoid storing useful scripts in a nested directory within the `lcr-modules repository`_. Just as with lcr-modules, lcr-scripts are versioned and come with conda environment YAML files. For your convenience, there is a ``SCRIPTSDIR`` directory placeholder you can use in your default configuration file. 
 
 You can look at how the ``augment_manta_vcf.py`` script from lcr-scripts is used in the ``manta`` module version 2.0. 
+
+Increasing the Module Version Number
+----------------------------------
+
+The module always starts from the ``1.0`` version. Incrementally with bug fixes and new features the minor version goes up by 1. It is recommended to maintain the module version unless the proposed changes will make the output non-compatible with the previous setup. The examples such changes can be different filtering steps (variant callers), handling of input data (level 3 analyses), output file formats (bam vs. cram), additional post-processing (GAMBLR deblacklisting), handling of normal processing for unmatched samples (variant callers), pre-processing of capture space (variant callers) etc. In more rare cases, the major version of the module will be incremented.
+In addition, developers shoul add in-line comments explaining non-trivial and even what they might consider trivial changes with in-line comments. These could be deleted during a final set of commits but would help guide any reviewers to the rationale for changes that are not self-explanatory.
+In order to simplify the PR review process, if you are updating the module version, you should edit the existing version and then restore the previous version and make the version bump after the PR approval. This will allow the git difference only show actually meaningful changes without requiring the reviewer to compare difference among the new files. Once PR for the new version is approved, you can bump up the version and then ensure the previous version of the module is restored from master. Then a git commit will ensure that file is tracked on your branch again.
+Example:
+
+.. code:: bash
+    # Edit modules/strelka/1.1
+    # Submit PR with modules/strelka/1.1
+    # Wait for PR review and approval
+    mv modules/strelka/1.1 modules/strelka/1.2
+    git checkout origin/master modules/strelka/1.1
+    git commit -m "strelka version bump"
+    git push
 
 Advanced Module Features
 ========================
