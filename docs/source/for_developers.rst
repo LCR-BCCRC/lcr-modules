@@ -710,13 +710,14 @@ In order to simplify the PR review process, if you are updating the module versi
 Example:
 
 .. code:: bash
-    # Edit modules/strelka/1.1
-    # Submit PR with modules/strelka/1.1
-    # Wait for PR review and approval
-    mv modules/strelka/1.1 modules/strelka/1.2
-    git checkout origin/master modules/strelka/1.1
-    git commit -m "strelka version bump"
-    git push
+
+         # Edit modules/strelka/1.1
+         # Submit PR with modules/strelka/1.1
+         # Wait for PR review and approval
+         mv modules/strelka/1.1 modules/strelka/1.2
+         git checkout origin/master modules/strelka/1.1
+         git commit -m "strelka version bump"
+         git push
 
 Advanced Module Features
 ========================
