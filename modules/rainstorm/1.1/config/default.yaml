@@ -4,7 +4,7 @@ lcr-modules:
 
         inputs:
             # Available wildcards {genome_build} from options below.
-            master_maf: "__UPDATE__", # This module only runs on genome data
+            master_maf: "__UPDATE__" # This module only runs on genome data
             subsetting_categories: "__UPDATE__" # e.g. "data/metadata/level3_subsetting_categories.tsv"
         sample_set: ["__UPDATE__"] # E.g. ["DLBCL-only", "BL_DLBCL-BL-like_all"]
         # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
