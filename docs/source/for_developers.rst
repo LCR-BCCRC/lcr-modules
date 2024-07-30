@@ -617,11 +617,32 @@ Many users will be launching the modules on a high-performance computing cluster
             utils_bam_markdups: 12
             utils_bam_index: 6
 
-         mem_mb:
-            star: 40000
-            utils_bam_sort: 12000
-            utils_bam_markdups: 8000
-            utils_bam_index: 4000
+While the ``threads`` have the designated key in the module config, the resources can be specified more dinamically. This can be explained by the need to specify multiple different resources without modification of module snakefile. This is achieved by resouce unpacking. For example, the snakemake specification will look like this:
+
+.. code:: python
+        resources:
+            **CFG["resources"]["star"]
+
+The symbol ``**`` is the standard Python list unpacking operator. The associated config key will look like this:
+
+.. code:: yaml
+
+        resources:
+            star: 
+                mem_mb: 40000
+
+This way allows addition of additional resources without need for snakefile modification. For example, to throttle the number of concurrent rules running at the same time we can add resource ``bam`` and then provide additional resource on command line. For example, modifying the config to:
+
+.. code:: yaml
+
+        resources:
+            star: 
+                mem_mb: 40000
+                star_bam: 1
+
+And running the command line wrapper with command ``./dry-run.sh genome_Snakefile.smk "--resources star_bam=10"`` will ensure no more than 10 star rules are running at the same time.
+
+If you use the cookiecutter template, the above example already set up for you to use when creating the new module.
 
 .. _pairing-configuration:
 
