@@ -17,7 +17,7 @@ lcr-modules:
 
         options:
             rainstorm_version: 0.4 # here the version tag for the rainstorm version can be specified.
-            genome_build: "__UPDATE__" # specify genome build of variants in maf file, hg38 or grch37
+            genome_build: ["__UPDATE__"] # specify genome build of variants in maf file, e.g. for both: ["hg38", "grch37"]
             flags: "--max_mut 10000" # provide additional flags for rainstorm run. For example, the maximum number of mutations per sample here is set to 10000 as module default
 
         conda_envs:
