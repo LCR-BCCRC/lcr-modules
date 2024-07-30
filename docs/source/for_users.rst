@@ -126,11 +126,13 @@ Getting Started
 
       nice snakemake --dry-run --use-conda --cores <cores> _<star>_all _<manta>_all
 
-Alternatively, use the convenient wrappers available with the demo setup. For example:
+   .. gap
 
-   .. code:: bash
+    Alternatively, use the convenient wrappers available with the demo setup. For example:
 
-      ./dry-run.sh genome_Snakefile.smk
+    .. code:: bash
+
+        ./dry-run.sh genome_Snakefile.smk
 
 10. If you feel comfortable with the above steps, consider reading through the :ref:`advanced-usage`. For example, you can use :ref:`conditional-module-behaviour-user` to set different input file paths for different sequencing data types (*e.g.* ``genome`` and ``mrna``).
 
