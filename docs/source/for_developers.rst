@@ -20,7 +20,7 @@ Getting Started
       # Optional: Create a conda environment for lcr-modules development
       # conda create -n lcr-modules "python>=3.6"
       # conda activate lcr-modules
-      
+
       conda install -c conda-forge cookiecutter
 
 4. Clone the `lcr-modules repository`_ and the `lcr-scripts repository`_.
@@ -47,7 +47,7 @@ Getting Started
       git branch  # Confirm you're on the new branch (with the asterisk)
       git push -u origin "module/<module_name>/1.0"
 
-6. Create a new module based on the :ref:`module-template`. Check out the :ref:`module-template` section for details on the fields requested during module creation. 
+6. Create a new module based on the :ref:`module-template`. Check out the :ref:`module-template` section for details on the fields requested during module creation.
 
    .. code:: bash
 
@@ -68,31 +68,31 @@ Getting Started
 
       **Testing Your Module**
 
-      There are different methods testing your module. One approach would be to leverage the `Demo Project`_ and the associated test data. Adding to the `Demo Snakefile`_ should be self-explanatory. This method works if your module operates on the kind of samples included in the `Test Data`_. 
+      There are different methods testing your module. One approach would be to leverage the `Demo Project`_ and the associated test data. Adding to the `Demo Snakefile`_ should be self-explanatory. This method works if your module operates on the kind of samples included in the `Test Data`_.
 
       Another approach to consider is testing on your own data. This might be a good way to follow up on successful tests on the `Demo Project`_, which confirm that the syntax of the module works. Running it on a larger dataset will confirm that the commands work on a variety of samples and that the output is sensible.
 
 8. When you are done with your module, commit any remaining changes and merge the `master` branch into your module branch. You shouldn't have any merge conflicts since any new files should be under new versions.
 
    .. code:: bash
-   
+
       git merge master
       git push origin "module/<module_name>/1.0"
 
 9. Submit a pull request (PR) with your module branch. After pushing to GitHub, you should be able to see a green button to create a new pull request on the `lcr-modules repository`_ page pushing the merge commit. If not, you should be able to create one for your branch on the `lcr-modules active branches`_ page.
 
-10. Work through the checklist that will appear when you open the PR. Once this checklist is done, you can request someone to review your PR. They can test the module if they have time and/or provide feedback on its design. Finally, once the reviewer(s) are happy, the PR can be merged. Congratulations! 
+10. Work through the checklist that will appear when you open the PR. Once this checklist is done, you can request someone to review your PR. They can test the module if they have time and/or provide feedback on its design. Finally, once the reviewer(s) are happy, the PR can be merged. Congratulations!
 
 .. _module-template:
 
 Module Template
 ===============
 
-While it is technically possible to create a new module without using the module template, it's not recommended because using the template will ensure that you are following the latest best practices for lcr-modules. 
+While it is technically possible to create a new module without using the module template, it's not recommended because using the template will ensure that you are following the latest best practices for lcr-modules.
 
 When you run the command listed in the :ref:`getting-started-dev` instructions, you will be asked for the following information:
 
-- ``module_name``: This field specifies the short name for the module. The value provided here should match the value used for ``<module_name>`` in the branch name when following the :ref:`getting-started-dev` instructions. 
+- ``module_name``: This field specifies the short name for the module. The value provided here should match the value used for ``<module_name>`` in the branch name when following the :ref:`getting-started-dev` instructions.
 
    **Important:** This field should only consist of lowercase alphanumerical characters or underscores (*i.e.* no spaces).
 
@@ -100,7 +100,7 @@ When you run the command listed in the :ref:`getting-started-dev` instructions, 
 
 - ``original_author``: This field specifies the full name of the person who originally wrote the Snakefile or script that is being used to inform the module. If the module is being written from scratch, this field can be set to ``N/A``.
 
-- ``input_file_type`` and ``output_file_type``: These fields specify the file type of the input and output files, respectively. Generally, these values will be the file extensions (*e.g.* ``bam``, ``vcf``). 
+- ``input_file_type`` and ``output_file_type``: These fields specify the file type of the input and output files, respectively. Generally, these values will be the file extensions (*e.g.* ``bam``, ``vcf``).
 
    **Important**
 
@@ -116,9 +116,9 @@ When you run the command listed in the :ref:`getting-started-dev` instructions, 
 
    **Important**
 
-   - If you selected ``sample`` for ``module_run_per``, then you should use ``unpaired`` (or ``omit``) here. If this is a paired analysis, you should start over (cancel with Ctrl-C) and select ``tumour`` for ``module_run_per``. 
-   
-   - If you selected ``tumour`` for ``module_run_per``, you can select ``matched_only``, ``allow_unmatched``, or ``no_normal`` depending on whether the module is meant to be run on only matched tumour-normal pairs, on potentially unmatched tumour-normal pairs, or on tumours only. 
+   - If you selected ``sample`` for ``module_run_per``, then you should use ``unpaired`` (or ``omit``) here. If this is a paired analysis, you should start over (cancel with Ctrl-C) and select ``tumour`` for ``module_run_per``.
+
+   - If you selected ``tumour`` for ``module_run_per``, you can select ``matched_only``, ``allow_unmatched``, or ``no_normal`` depending on whether the module is meant to be run on only matched tumour-normal pairs, on potentially unmatched tumour-normal pairs, or on tumours only.
 
 Module Description
 ==================
@@ -148,7 +148,7 @@ When you create a new module using the :ref:`getting-started-user` instructions,
 
 -  ``envs/``: This folder contains symlinks to individual conda environment YAML files from the ``envs/`` directory, which is found in the root of the repository. These conda environment are generally tool-specific (*e.g.* ``samtools``, ``star``). Symlinks are used to keep the repository lightweight and promote reuse of conda environments between modules.
 
--  ``etc/``: This folder can contain any accessory files required to run the module, such as configuration files (see ``manta`` module version 2.0 for an example). For more details, check out the :ref:`module-accessory-files-and-scripts` section. 
+-  ``etc/``: This folder can contain any accessory files required to run the module, such as configuration files (see ``manta`` module version 2.0 for an example). For more details, check out the :ref:`module-accessory-files-and-scripts` section.
 
 -  ``schemas/``: This folder contains symlinks to individual schema YAML files from the ``schemas/`` directory in the root of the repository. These schemas determine the required columns in the samples table. Every module should have the ``base-1.0.yaml`` schema as a minimum requirement. For more information, check out the :ref:`required-sample-metadata` section below. Symlinks are used to keep the repository lightweight and promote reuse of schemas between modules.
 
@@ -334,11 +334,11 @@ An example rule that follows most of these principles is included below (taken f
 
        This guideline ensures that rules are modular and can easily be rearranged by the user. It also enables tool-specific conda environments (*e.g.* ``samtools``, ``star``) to be used, which is not possible is more than one tool is used in a rule.
 
-2.  For ``input`` files, use ``rules`` references to previous output (or input) files wherever possible. You should wrap any references to ``rules`` with ``str()``. 
+2.  For ``input`` files, use ``rules`` references to previous output (or input) files wherever possible. You should wrap any references to ``rules`` with ``str()``.
 
-       These ``rules`` references minimizes the risk that two files get out of sync, *e.g.* if you update an upstream output file and forget to update every downstream occurrence of that file. 
-       
-       The ``str()`` function ensures that the ``rules`` reference isn't considered as an explicit dependency on whatever rule is specified. Otherwise, users won't be able to provide an alternative rule to generate the input in question. 
+       These ``rules`` references minimizes the risk that two files get out of sync, *e.g.* if you update an upstream output file and forget to update every downstream occurrence of that file.
+
+       The ``str()`` function ensures that the ``rules`` reference isn't considered as an explicit dependency on whatever rule is specified. Otherwise, users won't be able to provide an alternative rule to generate the input in question.
 
 3.  Reference data should be provided as input files and ideally have rules in the ``reference_files`` workflow so they can be generated automatically. If a reference file has parameters, these can be exposed to the user under the ``reference_params`` section in the module configuration.
 
@@ -405,7 +405,7 @@ An example rule that follows most of these principles is included below (taken f
          **CFG["resources"]["star"]
       shell:
          op.as_one_line("""
-         STAR {params.opts} --readFilesIn {input.fastq_1} {input.fastq_2} --genomeDir {input.index} 
+         STAR {params.opts} --readFilesIn {input.fastq_1} {input.fastq_2} --genomeDir {input.index}
          --outFileNamePrefix {params.prefix} --runThreadN {threads} --sjdbGTFfile {input.gtf}
          --sjdbOverhang {params.star_overhang} > {log.stdout} 2> {log.stderr}
                &&
@@ -501,20 +501,20 @@ The ``options`` section specifies the command-line options for each tool used in
 
 Even if a tool has no command-line options beyond those already used in the Snakefile, it is useful to include an entry under ``options`` with an empty string in case options appear in future versions of the tool. For example, if the user wants to use a command-line option available in a later version of a tool, they can update the conda environment (see :ref:`configuring-conda-environments`) and replace the empty string under ``options`` with the new option, thus avoiding any editing of the underlying Snakefile.
 
-In the example below, you can see that any command-line options associated with a snakemake parameter (*e.g.* ``--sjdbOverhang``, ``--runThreadN``) or an input/output file (*e.g.* ``--readFilesIn``, ``--outFileNamePrefix``) are not included here. Instead, they reside in the ``star`` snakefile. 
+In the example below, you can see that any command-line options associated with a snakemake parameter (*e.g.* ``--sjdbOverhang``, ``--runThreadN``) or an input/output file (*e.g.* ``--readFilesIn``, ``--outFileNamePrefix``) are not included here. Instead, they reside in the ``star`` snakefile.
 
 .. code:: yaml
 
          options:
             star:
                --runMode alignReads
-               --twopassMode Basic 
-               --genomeLoad NoSharedMemory 
-               --readFilesCommand zcat 
+               --twopassMode Basic
+               --genomeLoad NoSharedMemory
+               --readFilesCommand zcat
                --outSAMtype BAM Unsorted
                --outSAMattrIHstart 0
                --chimOutType WithinBAM SoftClip
-               --chimSegmentMin 20 
+               --chimSegmentMin 20
             utils_bam_sort: ""
             utils_bam_markdups: ""
             utils_bam_index: "-b"
@@ -536,7 +536,7 @@ You will also notice the various ``utils_bam_*`` fields. These correspond to rul
       # ...
       shell:
          op.as_one_line("""
-         samtools index {params.opts} -@ {threads} 
+         samtools index {params.opts} -@ {threads}
          {input.bam} > {log.stdout} 2> {log.stderr}
          """)
 
@@ -561,7 +561,7 @@ Note that Snakemake expects the paths to be relative to the Snakefile. This is a
 Creating Conda Environments
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This is a suggested workflow for creating conda environments for your modules. The commands are based on the example of creating a conda environment for the STAR aligner. 
+This is a suggested workflow for creating conda environments for your modules. The commands are based on the example of creating a conda environment for the STAR aligner.
 
 1. Create a conda environment for the tool in question. For example, in the case of STAR, the following command would create a conda environment called ``test-star`` and install the latest version of the ``star`` package from the ``bioconda`` Anaconda channel along with its dependencies
 
@@ -582,13 +582,13 @@ This is a suggested workflow for creating conda environments for your modules. T
 
       mkdir envs/<star>/
 
-4. Determine the version of the tool that was installed by conda. You can usually achieve this by grepping the tool from the output of ``conda env export``. 
+4. Determine the version of the tool that was installed by conda. You can usually achieve this by grepping the tool from the output of ``conda env export``.
 
    .. code:: bash
 
       conda env export -n test-<star> --no-builds | grep <star>
 
-5. Output the conda environment specification into a file named after the tool and its version. Be sure to use the ``--no-builds`` command-line option to omit build ID, which tend to cause problems recreating environments later. 
+5. Output the conda environment specification into a file named after the tool and its version. Be sure to use the ``--no-builds`` command-line option to omit build ID, which tend to cause problems recreating environments later.
 
    .. code:: bash
 
@@ -628,7 +628,7 @@ The symbol ``**`` is the standard Python list unpacking operator. The associated
 .. code:: yaml
 
         resources:
-            star: 
+            star:
                 mem_mb: 40000
 
 This way allows addition of additional resources without need for snakefile modification. For example, to throttle the number of concurrent rules running at the same time we can add resource ``bam`` and then provide additional resource on command line. For example, modifying the config to:
@@ -636,7 +636,7 @@ This way allows addition of additional resources without need for snakefile modi
 .. code:: yaml
 
         resources:
-            star: 
+            star:
                 mem_mb: 40000
                 star_bam: 1
 
@@ -661,7 +661,7 @@ In this first example, we continue with the ``star`` module. Here, the pairing c
                run_unpaired_tumours_with: "no_normal"
                run_paired_tumours_as_unpaired: True
 
-This second example was taken from the ``manta`` module. As you can see, the module can handle ``genome``, ``capture``, and ``mrna`` data. It treats ``genome`` and ``capture`` data the same way, namely by allowing unpaired tumours to be analyzed using unmatched normals (as opposed to a truly unpaired analysis without a normal sample). Also, paired tumours are not unnecessarily run as unpaired. In contrast, ``mrna`` data is run specifically in an unpaired fashion without a normal sample because tumour RNA-seq alignments generally do not have matched normal RNA-seq data. 
+This second example was taken from the ``manta`` module. As you can see, the module can handle ``genome``, ``capture``, and ``mrna`` data. It treats ``genome`` and ``capture`` data the same way, namely by allowing unpaired tumours to be analyzed using unmatched normals (as opposed to a truly unpaired analysis without a normal sample). Also, paired tumours are not unnecessarily run as unpaired. In contrast, ``mrna`` data is run specifically in an unpaired fashion without a normal sample because tumour RNA-seq alignments generally do not have matched normal RNA-seq data.
 
 .. code:: yaml
 
@@ -697,18 +697,18 @@ Here's a brief description of each of the options that go into a ``pairing_confi
 Module Accessory Files and Scripts
 ----------------------------------
 
-When you create a new module from the cookiecutter template, you will notice an empty ``etc/`` subdirectory in your module directory. This folder is meant to contain any additional file required to run your module. For example, the ``manta`` module requires configuration files, which are stored in ``etc/``. Scripts can also be stored in this directory. That said, if a script is generally useful, you might want to submit a pull request to the `lcr-scripts repository`_. The purpose of this separate repository is to avoid storing useful scripts in a nested directory within the `lcr-modules repository`_. Just as with lcr-modules, lcr-scripts are versioned and come with conda environment YAML files. For your convenience, there is a ``SCRIPTSDIR`` directory placeholder you can use in your default configuration file. 
+When you create a new module from the cookiecutter template, you will notice an empty ``etc/`` subdirectory in your module directory. This folder is meant to contain any additional file required to run your module. For example, the ``manta`` module requires configuration files, which are stored in ``etc/``. Scripts can also be stored in this directory. That said, if a script is generally useful, you might want to submit a pull request to the `lcr-scripts repository`_. The purpose of this separate repository is to avoid storing useful scripts in a nested directory within the `lcr-modules repository`_. Just as with lcr-modules, lcr-scripts are versioned and come with conda environment YAML files. For your convenience, there is a ``SCRIPTSDIR`` directory placeholder you can use in your default configuration file.
 
-You can look at how the ``augment_manta_vcf.py`` script from lcr-scripts is used in the ``manta`` module version 2.0. 
+You can look at how the ``augment_manta_vcf.py`` script from lcr-scripts is used in the ``manta`` module version 2.0.
 
 Increasing the Module Version Number
 ----------------------------------
 
 The module always starts from the ``1.0`` version. Incrementally with bug fixes and new features the minor version goes up by 1. It is recommended to maintain the module version unless the proposed changes will make the output non-compatible with the previous setup. The examples such changes can be different filtering steps (variant callers), handling of input data (level 3 analyses), output file formats (bam vs. cram), additional post-processing (GAMBLR deblacklisting), handling of normal processing for unmatched samples (variant callers), pre-processing of capture space (variant callers) etc. In more rare cases, the major version of the module will be incremented.
 
-In addition, developers shoul add in-line comments explaining non-trivial and even what they might consider trivial changes with in-line comments. These could be deleted during a final set of commits but would help guide any reviewers to the rationale for changes that are not self-explanatory.
+In addition, developers should add in-line comments explaining non-trivial and even what they might consider trivial changes with in-line comments. These could be deleted during a final set of commits but would help guide any reviewers to the rationale for changes that are not self-explanatory.
 
-In order to simplify the PR review process, if you are updating the module version, you should edit the existing version and then restore the previous version and make the version bump after the PR approval. This will allow the git difference only show actually meaningful changes without requiring the reviewer to compare difference among the new files. Once PR for the new version is approved, you can bump up the version and then ensure the previous version of the module is restored from master. Then a git commit will ensure that file is tracked on your branch again.
+In order to simplify the PR review process, if you are updating the module version, you should edit the existing version and then restore the previous version and make the version bump after the PR approval. This will allow the git difference only show actually meaningful changes without requiring the reviewer to decipher differences among the listed by git as entirely new. Once PR for the new version is approved, you can bump up the version and then ensure the previous version of the module is restored from master. Then a git commit will ensure that file is tracked on your branch again.
 Example:
 
 .. code:: bash
