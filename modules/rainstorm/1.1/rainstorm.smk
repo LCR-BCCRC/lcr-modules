@@ -63,8 +63,7 @@ else:
 # Interpret the absolute path to this script so it doesn't get interpreted relative to the module snakefile later.
 PREPARE_MAFS =  os.path.abspath(config["lcr-modules"]["rainstorm"]["prepare_mafs"])
 
-# download rainstorm files from git repo without cloning the repo itself
-# decompress files into the 00-inputs
+# Download rainstorm files from git repo without cloning the repo itself, decompress files into the 00-inputs
 rule _rainstorm_install:
     output:
         rainstorm = CFG["dirs"]["inputs"] + "mutation_rainstorm-" + str(CFG["options"]["rainstorm_version"]) + "/rainstorm.py", # one of the files in the repo
@@ -88,7 +87,7 @@ rule _rainstorm_input_maf:
     run:
         op.absolute_symlink(input.maf, output.maf)
 
-# subset index to only standard chromosomes, so rainstorm will not look for mutations in the small non-standard contigs
+# Subset index to only standard chromosomes, so rainstorm will not look for mutations in the small non-standard contigs
 # currently, this excludes chromosome Y
 rule _rainstorm_subset_index:
     input:
@@ -129,7 +128,7 @@ checkpoint _rainstorm_prepare_maf:
     script:
         PREPARE_MAFS
 
-# main rule to run rainstorm analysis
+# Main rule to run rainstorm analysis
 rule _rainstorm_run:
     input:
         rainstorm = str(rules._rainstorm_install.output.rainstorm),
@@ -162,7 +161,7 @@ rule _rainstorm_run:
         touch {output.complete}
         """)
 
-# generate the list of chromosome files for doppler run
+# Generate the list of chromosome files for doppler run
 def _get_chrom_tsvs(wildcards):
     CFG = config["lcr-modules"]["rainstorm"]
 
@@ -252,7 +251,7 @@ def _for_aggregate(wildcards):
         md5sum = SUMS
         )
 
-# aggregates outputs to remove md5sum from rule all
+# Aggregates outputs to remove md5sum from rule all
 rule _rainstorm_aggregate:
     input:
         _for_aggregate
