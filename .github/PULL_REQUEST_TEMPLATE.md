@@ -8,7 +8,7 @@
 
 - [ ] I used the cookiecutter template and updated the placeholder rules.
 
-- [ ] The snakemake rules follow the [design guidelines](https://lcr-modules.readthedocs.io/en/latest/for_developers.html#module-rules). 
+- [ ] The snakemake rules follow the [design guidelines](https://lcr-modules.readthedocs.io/en/latest/for_developers.html#module-rules).
 
   - [ ] All references to the `rules` object (_e.g._ for input files) are wrapped with `str()`.
 
@@ -16,7 +16,7 @@
 
 - [ ] Input and output files are being symlinked into the `CFG["inputs"]` and `CFG["outputs"]` subdirectories, respectively.
 
-- [ ] I grouped the input symlinking rule to the next job that uses the input files. 
+- [ ] I grouped the input symlinking rule to the next job that uses the input files.
 
 - [ ] I updated the final target rule (`*_all`) to include every output rule.
 
@@ -26,7 +26,7 @@
 
 - [ ] I updated the `default.yaml` configuration file to provide default values for each rule in the module snakefile.
 
-- [ ] I did not set any global wildcard constraints. Any/all wildcard constraints are set on a per-rule basis. 
+- [ ] I did not set any global wildcard constraints. Any/all wildcard constraints are set on a per-rule basis.
 
 - [ ] I ensured that all symbolic links are relative and self-contained (_i.e._ do not point outside of the repository).
 
@@ -57,4 +57,13 @@ Example:
 ```
 mv modules/strelka/1.1 modules/strelka/1.2
 git checkout origin/master modules/strelka/1.1
+```
+
+Once moved to the new directory, change the version number in the `op.setup_module` section of the snakefile, .e.g
+```
+CFG = op.setup_module(
+    name = "strelka",
+    version = "1.2",
+    subdirectories = ["inputs", "chrom_bed", "strelka", "filtered", "outputs"]
+)
 ```
