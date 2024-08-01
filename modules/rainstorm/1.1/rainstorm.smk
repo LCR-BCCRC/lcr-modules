@@ -38,7 +38,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["rainstorm"]`
 CFG = op.setup_module(
     name = "rainstorm",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "rainstorm", "doppler", "outputs"],
 )
 
@@ -83,7 +83,7 @@ rule _rainstorm_input_maf:
     input:
         maf = CFG["inputs"]["master_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/input.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{sample_set}--{genome_build}--{launch_date}/input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
 

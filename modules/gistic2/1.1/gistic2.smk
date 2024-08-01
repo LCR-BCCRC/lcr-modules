@@ -69,7 +69,7 @@ rule _gistic2_input_seg:
     input:
         seg = CFG["inputs"]["seg"]
     output:
-        seg = CFG["dirs"]["inputs"] + "{seq_type}--projection/all--{projection}.seg"
+        seg = CFG["dirs"]["inputs"] + "seg/{seq_type}/{sample_set}--{projection}--{launch_date}/input.seg"
     run:
         op.absolute_symlink(input.seg, output.seg)
 

@@ -72,7 +72,7 @@ rule _mutsig_input_maf:
     input:
         maf = CFG["inputs"]["master_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/input.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/{sample_set}--{launch_date}/input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
 
