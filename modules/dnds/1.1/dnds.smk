@@ -72,7 +72,7 @@ rule _dnds_input_maf:
         op.absolute_symlink(input.maf, output.maf)
 
 
-# Symlinks the input files into the module results directory (under '00-inputs/')
+# Symlinks the subsetting categories input file into the module results directory (under '00-inputs/')
 rule _dnds_input_subsetting_categories:
     input:
         subsetting_categories = CFG["inputs"]["subsetting_categories"]
@@ -163,7 +163,7 @@ def _for_aggregate(wildcards):
         md5sum = SUMS
         )
 
-# aggregates outputs to remove md5sum from rule all
+# Aggregates outputs to remove md5sum from rule all
 rule _dnds_aggregate:
     input:
         _for_aggregate
