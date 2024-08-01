@@ -721,6 +721,16 @@ Example:
          git commit -m "strelka version bump"
          git push
 
+Another important step to keep in mind while bumping the version number is to also update it in the oncopipe setup of the module snakefile. Once moved to the new directory, change the version number in the ``op.setup_module`` section of the snakefile, .e.g
+
+.. code:: python
+
+         CFG = op.setup_module(
+             name = "strelka",
+             version = "1.2",
+             subdirectories = ["inputs", "chrom_bed", "strelka", "filtered", "outputs"]
+         )
+
 
 Advanced Module Features
 ========================
