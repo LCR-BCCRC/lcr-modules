@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "dnds",
     version = "1.1",
-    subdirectories = ["inputs", "dnds", "outputs"],
+    subdirectories = ["inputs", "prepare_maf", "dnds", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -92,9 +92,9 @@ checkpoint _dnds_prepare_maf:
                     ),
         subsetting_categories = str(rules._dnds_input_subsetting_categories.output.subsetting_categories)
     output:
-        CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done"
+        CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/done"
     log:
-        CFG["logs"]["inputs"] + "{sample_set}--{launch_date}/prepare_maf.log"
+        CFG["logs"]["prepare_maf"] + "{sample_set}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     params:
@@ -125,8 +125,8 @@ rule _install_dnds:
 rule _dnds_run:
     input:
         dnds = ancient(str(CFG["dirs"]["inputs"] + "dnds_installed.success")),
-        maf = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf",
-        content = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf.content"
+        maf = CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/{md5sum}.maf",
+        content = CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/{md5sum}.maf.content"
     output:
         dnds_sig_genes = CFG["dirs"]["dnds"] + "{sample_set}--{launch_date}/{md5sum}_sig_genes.tsv",
         annotmuts = CFG["dirs"]["dnds"] + "{sample_set}--{launch_date}/{md5sum}_annotmuts.tsv"
@@ -177,7 +177,7 @@ rule _dnds_all:
     input:
         expand(
             [
-                CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done",
+                CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/done",
                 str(rules._dnds_aggregate.output.aggregate)
             ],
             sample_set=CFG["sample_set"],

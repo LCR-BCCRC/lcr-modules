@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "fishhook",
     version = "1.1",
-    subdirectories = ["inputs", "fishhook", "outputs"],
+    subdirectories = ["inputs", "prepare_maf", "fishhook", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -90,9 +90,9 @@ checkpoint _fishhook_prepare_maf:
                     ),
         subsetting_categories = str(rules._fishhook_input_subsetting_categories.output.subsetting_categories)
     output:
-        CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done"
+        CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/done"
     log:
-        CFG["logs"]["inputs"] + "{sample_set}--{launch_date}/prepare_maf.log"
+        CFG["logs"]["prepare_maf"] + "{sample_set}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     params:
@@ -132,8 +132,8 @@ def get_input_if_gene_mode(wildcards):
 rule _fishhook_run:
     input:
         fishhook = ancient(str(CFG["dirs"]["inputs"] + "fishhook_installed.success")),
-        maf = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf",
-        content = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf.content",
+        maf = CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/{md5sum}.maf",
+        content = CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/{md5sum}.maf.content",
         gene_list = get_input_if_gene_mode
     output:
         tsv = CFG["dirs"]["fishhook"] + "{sample_set}--{launch_date}/{md5sum}.fishhook.tsv"
@@ -189,7 +189,7 @@ rule _fishhook_all:
     input:
         expand(
             [
-                CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done",
+                CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/done",
                 str(rules._fishhook_aggregate.output.aggregate),
             ],
             sample_set=CFG["sample_set"],
