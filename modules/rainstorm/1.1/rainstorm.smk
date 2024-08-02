@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "rainstorm",
     version = "1.1",
-    subdirectories = ["inputs", "rainstorm", "doppler", "outputs"],
+    subdirectories = ["inputs", "prepare_maf", "rainstorm", "doppler", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -115,9 +115,9 @@ checkpoint _rainstorm_prepare_maf:
         maf = str(rules._rainstorm_input_maf.output.maf),
         subsetting_categories = str(rules._rainstorm_input_subsetting_categories.output.subsetting_categories)
     output:
-        CFG["dirs"]["inputs"] + "{sample_set}--{genome_build}--{launch_date}/done"
+        CFG["dirs"]["prepare_maf"] + "{sample_set}--{genome_build}--{launch_date}/done"
     log:
-        CFG["logs"]["inputs"] + "{sample_set}--{genome_build}--{launch_date}/prepare_maf.log"
+        CFG["logs"]["prepare_maf"] + "{sample_set}--{genome_build}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     params:
@@ -132,8 +132,8 @@ checkpoint _rainstorm_prepare_maf:
 rule _rainstorm_run:
     input:
         rainstorm = str(rules._rainstorm_install.output.rainstorm),
-        maf = CFG["dirs"]["inputs"] + "{sample_set}--{genome_build}--{launch_date}/{md5sum}.maf",
-        content = CFG["dirs"]["inputs"] + "{sample_set}--{genome_build}--{launch_date}/{md5sum}.maf.content",
+        maf = CFG["dirs"]["prepare_maf"] + "{sample_set}--{genome_build}--{launch_date}/{md5sum}.maf",
+        content = CFG["dirs"]["prepare_maf"] + "{sample_set}--{genome_build}--{launch_date}/{md5sum}.maf.content",
         index_subset = str(rules._rainstorm_subset_index.output.index_subset)
     output:
         complete = CFG["dirs"]["rainstorm"] + "{genome_build}/{sample_set}--{launch_date}--{md5sum}/{sample_set}_out_background_100k_binned_density.tsv"
@@ -185,7 +185,7 @@ rule _rainstorm_run_doppler:
     input:
         peaks = str(rules._rainstorm_install.output.peaks),
         tsv = str(rules._rainstorm_run.output.complete),
-        maf = CFG["dirs"]["inputs"] + "{sample_set}--{genome_build}--{launch_date}/{md5sum}.maf"
+        maf = CFG["dirs"]["prepare_maf"] + "{sample_set}--{genome_build}--{launch_date}/{md5sum}.maf"
     output:
         tsv = CFG["dirs"]["doppler"] + "{genome_build}/{sample_set}--{launch_date}--{md5sum}/{sample_set}_mean_waveletSummary_withMaf.tsv"
     log:
@@ -265,7 +265,7 @@ rule _rainstorm_all:
     input:
         expand(
             [
-                CFG["dirs"]["inputs"] + "{sample_set}--{genome_build}--{launch_date}/done",
+                CFG["dirs"]["prepare_maf"] + "{sample_set}--{genome_build}--{launch_date}/done",
                 str(rules._rainstorm_aggregate.output.aggregate)
             ], # no "zip" so that genome builds are expanded correctly if multiple are given
             genome_build=CFG["options"]["genome_build"],
