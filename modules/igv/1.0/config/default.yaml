@@ -24,7 +24,7 @@ lcr-modules:
             mutation_id:
                 # mutation_id format: minimum requirements are header containing "mutation_id_{regions_build}" column and values in {chr}:{pos} format
                 grch37: [] # e.g at minimum requires column mutation_id_grch37
-                hg38: [] # e.g at minimum requires columm mutation_id_grch37
+                hg38: [] # e.g at minimum requires column mutation_id_hg38
 
         # Stop snakefile after MAF filtering step to estimate total number of snapshots that will be taken without running IGV
         estimate_only: False 
