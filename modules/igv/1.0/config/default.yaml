@@ -22,7 +22,10 @@ lcr-modules:
                 grch37: []
                 hg38: []
             mutation_id:
-                # mutation_id format: minimum requirements are header containing "mutation_id_{regions_build}" column and values in {chr}:{pos} format
+                # mutation_id format: minimum requirements are header containing "mutation_id_{regions_build}" column with values in {chr}:{pos} format
+                # e.g 
+                # mutation_id_grch37
+                # chr22:23230361
                 grch37: [] # e.g at minimum requires column mutation_id_grch37
                 hg38: [] # e.g at minimum requires column mutation_id_hg38
 
