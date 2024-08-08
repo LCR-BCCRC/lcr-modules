@@ -19,3 +19,10 @@ This update was authored by Sierra Gillis.
 
 - Preprocessing maf step was updated to be agnostic of the input metadata samples dataframe. The values to subset this metadata by in order to get the IDs of samples in the sample set will be done through the level3_subsetting_categories.tsv table.
 - The sample set outputs are tracked by launch-date of the snakemake and md5sum of the sample ids as well as sample set name. This implementation follows that in gistic2/1.1/
+
+## [1.1] - 2024-08-08
+This update was authored by Sierra Gillis.
+
+- Added an output directory for the prepare step
+- Added more wildcards to the input maf symlink path for better knowing which was used for which run
+- Added resoures to the `prepare_maf` checkpoint so that it runs faster

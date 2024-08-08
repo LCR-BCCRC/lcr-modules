@@ -6,7 +6,7 @@
 
 # Original Author:  Kostia Dreval
 # Module Author:    Kostia Dreval
-# Contributors:     N/A
+# Contributors:     Sierra Gillis
 
 
 ##### SETUP #####
@@ -46,7 +46,6 @@ CFG = op.setup_module(
 localrules:
     _dnds_input_maf,
     _dnds_input_subsetting_categories,
-    _dnds_prepare_maf,
     _install_dnds,
     _dnds_output_tsv,
     _dnds_aggregate,
@@ -97,6 +96,10 @@ checkpoint _dnds_prepare_maf:
         CFG["logs"]["prepare_maf"] + "{sample_set}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    threads:
+        CFG["threads"]["prepare"]
+    resources:
+        **CFG["resources"]["prepare"]
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         mode = "dNdS",
