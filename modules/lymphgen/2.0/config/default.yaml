@@ -28,7 +28,13 @@ lcr-modules:
                 # svar_master file path MUST contain "svar_master" and manta file path MUST NOT contain 
                     svar_master: "__UPDATE__"
                     manta: "__UPDATE__"
-                    empty_sv: "{MODSDIR}/etc/empty_svar_master.tsv"  
+                    empty_sv: "{MODSDIR}/etc/empty_svar_master.tsv" 
+            # # Provide the path to a file containing a list of genes covered by targeted sequencing panels
+            # One Hugo_Symbol or one Entrez ID per row. 
+            # If any of your samples are targeted, the file path should point to a list of genes for your targeted panel. 
+            # The capture_space wildcard should match the capture_space value in the samples table. 
+            # Leave blank if only exome/genome sequencing. 
+            gene_list: "__UPDATE__" # e.g. "data/bed/{capture_space}.gene_list.txt"
             # Path to the directory where LGenIC should be installed
             lgenic_exec: "__UPDATE__"
             # The URL below matches the sha of the version of GAMBLR installed by the post-deploy script. 
