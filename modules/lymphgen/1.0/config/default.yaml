@@ -7,6 +7,11 @@ lcr-modules:
             sample_maf: "__UPDATE__"
             sample_seg: "__UPDATE__"
             sample_sv_info: "__UPDATE__"
+            # Provide the path to a file containing a list of genes covered by targeted sequencing panels
+            # One Hugo_Symbol per row with the column name "Hugo_Symbol"
+            # If left blank, defaults to all genes used in LymphGen model. 
+            # Leave blank for exome/genome, and provide a file path for targeted sequencing. 
+            gene_list: ""
             # Path to the directory where LGenIC should be installed
             lgenic_exec: "__UPDATE__"
 
