@@ -88,10 +88,18 @@ rule _lymphgen_input_seg:
     input:
         seg = CFG["inputs"]["sample_seg"]
     output:
-        seg = CFG["dirs"]["inputs"] + "seg/input.seg"
+        seg = CFG["dirs"]["inputs"] + "seg/" + outprefix + ".seg"
     run:
         op.relative_symlink(input.seg, output.seg)
 
+rule _lymphgen_input_sv:
+    input:
+        sv = CFG["inputs"]["sample_sv_info"]
+    output:
+        sv = CFG["dirs"]["inputs"] + "sv/" + outprefix + "_sv.tsv"
+    run:
+        op.relative_symlink(input.sv, output.sv)
+        
 
 # STEP 2: REFORMAT SEG FILE
 # Make sure the SEG columns are consistent
@@ -202,7 +210,7 @@ rule _lymphgen_input_no_cnv:
 rule _lymphgen_add_sv:
     input:
         sample_annotation = str(rules._lymphgen_input_cnv.output.sample_annotation),
-        bcl2_bcl6_sv = CFG["inputs"]["sample_sv_info"]
+        bcl2_bcl6_sv = str(rules._lymphgen_input_sv.output.sv)
     output:
         sample_annotation = CFG["dirs"]["add_svs"] + "{outprefix}_sample_annotation.{cnvs_wc}.{sv_wc}.tsv"
     params:
@@ -297,16 +305,10 @@ rule _lymphgen_add_sv_blank:
 
 # STEP 5: RUN LYMPHGEN
 
-def _get_sample_annotation(wildcards):
-    if wildcards.sv_wc == "has_sv":
-        return str(rules._lymphgen_add_sv.output.sample_annotation)
-    else:
-        return str(rules._lymphgen_add_sv_blank.output.sample_annotation)
-
 # With CNVs, with A53
 rule _lymphgen_run_cnv_A53:
     input:
-        sample_annotation = _get_sample_annotation,
+        sample_annotation = str(rules._lymphgen_add_sv.output.sample_annotation),
         mutation_flat = str(rules._lymphgen_input_cnv.output.mutation_flat),
         gene_list = str(rules._lymphgen_input_cnv.output.gene_list),
         cnv_flat = str(rules._lymphgen_input_cnv.output.cnv_flat),
@@ -331,7 +333,7 @@ rule _lymphgen_run_cnv_A53:
 # With CNVs, no A53
 rule _lymphgen_run_cnv_noA53:
     input:
-        sample_annotation = _get_sample_annotation,
+        sample_annotation = str(rules._lymphgen_add_sv.output.sample_annotation),
         mutation_flat = str(rules._lymphgen_input_cnv.output.mutation_flat),
         gene_list = str(rules._lymphgen_input_cnv.output.gene_list),
         cnv_flat = str(rules._lymphgen_input_cnv.output.cnv_flat),
@@ -356,7 +358,7 @@ rule _lymphgen_run_cnv_noA53:
 # No CNVs
 rule _lymphgen_run_no_cnv:
     input:
-        sample_annotation = _get_sample_annotation,
+        sample_annotation = str(rules._lymphgen_add_sv.output.sample_annotation),
         mutation_flat = str(rules._lymphgen_input_no_cnv.output.mutation_flat),
         gene_list = str(rules._lymphgen_input_no_cnv.output.gene_list)
     output:
