@@ -1,5 +1,5 @@
 lcr-modules:
-    
+
     oncodriveclustl:
 
         inputs:
@@ -10,8 +10,8 @@ lcr-modules:
         genome_builds: ["__UPDATE__"]
         # Available regions options: cds, lincrna, 3utr, 5utr, promoter_splice_sites
         regions: ["__UPDATE__"]
-        q_values: ["__UPDATE__"] 
-        # Will only expand genomic coordinates of clusters 
+        q_values: ["__UPDATE__"]
+        # Will only expand genomic coordinates of clusters
         # within genes whose q-values are under specified thresholds
 
         maf_processing:
@@ -24,7 +24,7 @@ lcr-modules:
         format_clustl_input:
             input_columns: "5,6,11,13,16"
             additional_commands: ""
-        
+
         reference_files_directory: "ref/lcr-modules-references/downloads/oncodrive/"
         regions_files:
             grch37:
@@ -59,9 +59,12 @@ lcr-modules:
             clustl: "{MODSDIR}/envs/oncodriveclustl-1.1.3.yaml"
 
         threads:
+            prepare: 4
             clustl: 4
 
         resources:
+            prepare:
+                mem_mb: 50000
             clustl:
                 mem_mb: 20000
 

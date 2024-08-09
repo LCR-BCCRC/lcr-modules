@@ -1,5 +1,5 @@
 lcr-modules:
-    
+
     hotmaps:
 
         inputs:
@@ -21,11 +21,11 @@ lcr-modules:
             # For more information on downloading PDB structures and setting directories look at the CHANGELOG
             # or check out: https://github.com/KarchinLab/HotMAPS_2016/wiki/Tutorial-(Exome-scale)
 
-            # modbase_dir: set to the directory containing the ModBase theoretical protein structures 
+            # modbase_dir: set to the directory containing the ModBase theoretical protein structures
             modbase_dir: "__UPDATE__"
             # pdb_dir: set to the directory containing PDB structures downloaded from wwPDB database
             pdb_dir: "__UPDATE__"
-            # refseq_homology_dir: specify the path containing the ModBase RefSeq structures. 
+            # refseq_homology_dir: specify the path containing the ModBase RefSeq structures.
             # %(modbase_dir)s placeholder will be replaced with path set in modbase_dir above
             refseq_homology_dir: "%(modbase_dir)s/ModBase_H_sapiens_2013_refseq/models/model/"
             # ensembl_homology_dir: specify path containing ModBase Ensembl structures
@@ -44,7 +44,7 @@ lcr-modules:
                 custom_enst:
                     grch37: "etc/custom_enst.grch37.txt"
             mysql:
-                mysql_host: "__UPDATE__" # e.g if running on the GSC use "10.9.208.67" 
+                mysql_host: "__UPDATE__" # e.g if running on the GSC use "10.9.208.67"
                 mysql_user: "__UPDATE__" # e.g If running on the GSC set to your user if you have access to the MySQL db, or use "mcruz"
                 mysql_db: "mupit_modbase"
                 mysql_passwd: "__UPDATE__"
@@ -74,18 +74,21 @@ lcr-modules:
             vcf2maf: "{REPODIR}/envs/vcf2maf/vcf2maf-1.6.18.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.17.yaml"
             hotmaps: "{MODSDIR}/envs/hotmaps.yaml"
-            
+
         threads:
+            prepare: 4
             hotmaps: 1
 
         resources:
-            hotmaps: 
+            prepare:
+                mem_mb: 50000
+            hotmaps:
                 mem_mb: 5000
             # IMPORTANT: mysql is set to 1 so that only one _hotmaps_get_mutations rule runs at once
             # IMPORTANT: Please make sure when running that you include "--resources mysql=1" in the snakemake flags
             get_mutations:
                 mysql: 1
-            
+
         pairing_config:
             genome:
                 run_paired_tumours: True

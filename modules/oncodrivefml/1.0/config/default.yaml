@@ -1,7 +1,7 @@
 lcr-modules:
-    
+
     oncodrivefml:
-        
+
         inputs:
             # Available wildcards: {seq_type} {genome_build}
             input_maf: "__UPDATE__"
@@ -18,7 +18,7 @@ lcr-modules:
         # 3utr: 3' UTR regions
         # 5utr: 5' UTR regions
         # promoter_splice_sites: Promoter regions and splice site regions
-        # custom: Custom made regions file specified by user. More info for regions file format: 
+        # custom: Custom made regions file specified by user. More info for regions file format:
         # https://oncodrivefml.readthedocs.io/en/latest/files.html#regions-file-format
         regions: ["__UPDATE__"]
 
@@ -63,7 +63,7 @@ lcr-modules:
 
         options:
             config_path: "{MODSDIR}/etc/oncodrivefml.conf"
-            score_path: 
+            score_path:
             fml_options: ""
 
         conda_envs:
@@ -71,9 +71,12 @@ lcr-modules:
             fml: "{MODSDIR}/envs/oncodrivefml-2.4.0.yaml"
 
         threads:
+            prepare: 4
             fml: 4
 
         resources:
+            prepare:
+                mem_mb: 50000
             fml:
                 mem_mb: 20000
 
