@@ -137,6 +137,70 @@ rule _utils_bam_index:
         """)
 
 
+# run cram compression
+def determine_reference(wildcards):
+    this_genone_build = str(wildcards.prefix).split('--')[1]
+    this_reference = str("genomes/" + this_genone_build + "/genome_fasta/genome.fa")
+    this_fasta = reference_files(this_reference)
+    return this_fasta
+
+rule _utils_bam_to_cram:
+    input:
+        bam = "{out_dir}/{prefix}/{suffix}.mdups.bam",
+        fasta = determine_reference
+    output:
+        cram = "{out_dir}/{prefix}/{suffix}.mdups.cram"
+    log:
+        stdout = "{out_dir}" + LOG + "/{prefix}/{suffix}_bam_to_cram.stdout.log",
+        stderr = "{out_dir}" + LOG + "/{prefix}/{suffix}_bam_to_cram.stderr.log"
+    wildcard_constraints:
+        prefix = ".*(mark_dups).*"
+    params:
+        opts = _UTILS["options"]["bam_to_cram"]
+    conda:
+        _UTILS["conda_envs"]["samtools"]
+    threads:
+        _UTILS["threads"]["bam_to_cram"]
+    resources: 
+        mem_mb = _UTILS["mem_mb"]["bam_to_cram"]
+    shell:
+        op.as_one_line("""
+        samtools view -C -T {input.fasta} -@ {threads} -o {output.cram} {input.bam}
+            &&
+        rm {input.bam}
+            &&
+        touch {input.bam}.deleted
+        > {log.stdout}
+        2> {log.stderr}
+        """)
+
+
+rule _utils_cram_index:
+    input:
+        cram = "{out_dir}/{prefix}/{suffix}.cram"
+    output:
+        cram = "{out_dir}/{prefix}/{suffix}.cram.crai"
+    log:
+        stdout = "{out_dir}" + LOG + "/{prefix}/{suffix}_index.stdout.log",
+        stderr = "{out_dir}" + LOG + "/{prefix}/{suffix}_index.stderr.log"
+    params:
+        opts = _UTILS["options"]["bam_index"]
+    conda:
+        _UTILS["conda_envs"]["samtools"]
+    threads:
+        _UTILS["threads"]["bam_index"]
+    resources: 
+        mem_mb = _UTILS["mem_mb"]["bam_index"]
+    shell:
+        op.as_one_line("""
+        samtools index 
+        {params.opts} 
+        -@ {threads} 
+        {input.cram} 
+        > {log.stdout}
+        2> {log.stderr}
+        """)
+
 rule _utils_create_intervals: # create_interval_list from bed; default exomes
     input:
         bed = lambda w: _UTILS["inputs"]["bed"][w.genome_build],
