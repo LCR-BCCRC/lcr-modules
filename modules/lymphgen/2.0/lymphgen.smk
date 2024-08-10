@@ -177,7 +177,7 @@ rule _install_lgenic:
         "lymphgen"
     shell:
         '''
-        download_url=$(curl --silent "https://api.github.com/repos/LCR-BCCRC/LGenIC/releases/2.0" | grep 'tarball_url' | sed 's/.*:[ ]//' | sed 's/,$//' | sed 's/"//g');
+        download_url=$(curl --silent "https://api.github.com/repos/LCR-BCCRC/LGenIC/releases/2.0.1" | grep 'tarball_url' | sed 's/.*:[ ]//' | sed 's/,$//' | sed 's/"//g');
         mkdir -p {params.lgenic_dir};
 
         wget -cO - $download_url > {params.lgenic_dir}/LGenIC.tar.gz && tar -C {params.lgenic_dir} -xf {params.lgenic_dir}/LGenIC.tar.gz && rm {params.lgenic_dir}/LGenIC.tar.gz;
@@ -188,7 +188,7 @@ rule _install_lgenic:
 # STEP 1: INPUT SYMLINKS
 # Symlinks the input files into the module results directory (under '00-inputs/')
 
-rule _lymphgen_input_maf:
+checkpoint _lymphgen_input_maf:
     input:
         maf = CFG["inputs"]["sample_maf"] 
     output:
@@ -561,6 +561,10 @@ rule _lymphgen_output_txt:
         "lymphgen"
     run:
         op.relative_symlink(input.txt, output.txt)
+        
+rule _lymphgen_empty_output: 
+    output: 
+        txt = CFG["dirs"]["outputs"]
 
 
 # Generates the target sentinels for each run, which generate the symlinks
