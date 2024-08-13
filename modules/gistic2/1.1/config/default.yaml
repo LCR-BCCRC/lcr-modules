@@ -28,9 +28,12 @@ lcr-modules:
             gistic2: "{MODSDIR}/envs/gistic2-2.0.23.yaml"
 
         threads:
+            prepare: 4
             gistic2_run: 4
 
         resources:
+            prepare:
+                mem_mb: 50000
             gistic2_run:
                 mem_mb: 2000
 
