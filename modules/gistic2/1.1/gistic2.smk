@@ -105,6 +105,8 @@ checkpoint _gistic2_prepare_seg:
         CFG["dirs"]["prepare_seg"] + "{sample_set}--{projection}--{launch_date}/done"
     log:
         log = CFG["logs"]["prepare_seg"] + "{sample_set}--{projection}--{launch_date}.log"
+    conda:
+        CFG["conda_envs"]["prepare"]
     threads:
         CFG["threads"]["prepare"]
     resources:
