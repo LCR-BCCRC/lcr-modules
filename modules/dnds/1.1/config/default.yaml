@@ -28,12 +28,9 @@ lcr-modules:
             dnds: "{MODSDIR}/envs/dnds.yaml"
 
         threads:
-            prepare: 4
             dnds: 2
 
         resources:
-            prepare:
-                mem_mb: 50000
             dnds:
                 mem_mb: 36000
 
