@@ -46,6 +46,7 @@ CFG = op.setup_module(
 localrules:
     _hotmaps_input_maf,
     _hotmaps_input_subsetting_categories,
+    _hotmaps_prep_input,
     _hotmaps_split_dnps,
     _hotmaps_maf2vcf,
     _hotmaps_bcftools,
@@ -119,10 +120,6 @@ checkpoint _hotmaps_prep_input:
         stdout = CFG["logs"]["prepare_maf"] + "{genome_build}/{sample_set}--{launch_date}/prep_input/prep_input_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
-    threads:
-        CFG["threads"]["prepare"]
-    resources:
-        **CFG["resources"]["prepare"]
     params:
         include_non_coding = str(CFG["maf_processing"]["include_non_coding"]).upper(),
         mode = "HotMAPS",

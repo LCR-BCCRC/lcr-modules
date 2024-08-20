@@ -46,6 +46,7 @@ CFG = op.setup_module(
 localrules:
     _fishhook_input_maf,
     _fishhook_input_subsetting_categories,
+    _fishhook_prepare_maf,
     _fishhook_install,
     _fishhook_output_tsv,
     _fishhook_aggregate,
@@ -94,10 +95,6 @@ checkpoint _fishhook_prepare_maf:
         CFG["logs"]["prepare_maf"] + "{sample_set}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
-    threads:
-        CFG["threads"]["prepare"]
-    resources:
-        **CFG["resources"]["prepare"]
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         mode = "fishHook",

@@ -25,13 +25,10 @@ lcr-modules:
             rainstorm: "{MODSDIR}/envs/rainstorm-0.3.yaml"
 
         threads:
-            prepare: 4
             rainstorm: 24
             doppler: 8
 
         resources:
-            prepare:
-                mem_mb: 50000
             rainstorm:
                 mem_mb: 80000
 

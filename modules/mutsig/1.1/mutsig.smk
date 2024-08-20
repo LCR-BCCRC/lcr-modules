@@ -50,6 +50,7 @@ CFG = op.setup_module(
 localrules:
     _mutsig_input_maf,
     _mutsig_input_subsetting_categories,
+    _mutsig_prepare_maf,
     _mutsig_download_mutsig,
     _mutsig_download_mcr,
     _mutsig_configure_mcr,
@@ -101,10 +102,6 @@ checkpoint _mutsig_prepare_maf:
         CFG["logs"]["prepare_maf"] + "{sample_set}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
-    threads:
-        CFG["threads"]["prepare"]
-    resources:
-        **CFG["resources"]["prepare"]
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         mode = "MutSig2CV",

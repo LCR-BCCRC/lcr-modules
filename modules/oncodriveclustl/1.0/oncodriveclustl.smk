@@ -29,6 +29,7 @@ CFG = op.setup_module(
 localrules:
     _oncodriveclustl_input_maf,
     _oncodriveclustl_sample_set,
+    _oncodriveclustl_prep_input,
     _oncodriveclustl_blacklist,
     _oncodriveclustl_format_input,
     _oncodriveclustl_out,
@@ -77,10 +78,6 @@ checkpoint _oncodriveclustl_prep_input:
         stdout = CFG["logs"]["prepare_mafs"] + "{genome_build}/{sample_set}--{launch_date}/prep_input/prep_input_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
-    threads:
-        CFG["threads"]["prepare"]
-    resources:
-        **CFG["resources"]["prepare"]
     params:
         include_non_coding = str(CFG["maf_processing"]["include_non_coding"]).upper(),
         mode = "OncodriveCLUSTL",

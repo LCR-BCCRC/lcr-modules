@@ -71,12 +71,9 @@ lcr-modules:
             fml: "{MODSDIR}/envs/oncodrivefml-2.4.0.yaml"
 
         threads:
-            prepare: 4
             fml: 4
 
         resources:
-            prepare:
-                mem_mb: 50000
             fml:
                 mem_mb: 20000
 

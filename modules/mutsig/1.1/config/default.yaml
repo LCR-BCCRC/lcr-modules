@@ -22,12 +22,9 @@ lcr-modules:
             matlab: "{MODSDIR}/envs/matlab.yaml"
 
         threads:
-            prepare: 4
             mutsig: 2
 
         resources:
-            prepare:
-                mem_mb: 50000
             mutsig:
                 mem_mb: 250000
 

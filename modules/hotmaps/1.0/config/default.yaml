@@ -76,12 +76,9 @@ lcr-modules:
             hotmaps: "{MODSDIR}/envs/hotmaps.yaml"
 
         threads:
-            prepare: 4
             hotmaps: 1
 
         resources:
-            prepare:
-                mem_mb: 50000
             hotmaps:
                 mem_mb: 5000
             # IMPORTANT: mysql is set to 1 so that only one _hotmaps_get_mutations rule runs at once

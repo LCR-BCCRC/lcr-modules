@@ -27,6 +27,7 @@ CFG = op.setup_module(
 localrules:
     _oncodrivefml_input_maf,
     _oncodrivefml_sample_set,
+    _oncodrivefml_prep_input,
     _oncodrivefml_blacklist,
     _oncodrivefml_format_input,
     _oncodrivefml_get_hg19_scores,
@@ -74,10 +75,6 @@ checkpoint _oncodrivefml_prep_input:
         stdout = CFG["logs"]["prepare_mafs"] + "{genome_build}/{sample_set}--{launch_date}/prep_input/prep_input_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
-    threads:
-        CFG["threads"]["prepare"]
-    resources:
-        **CFG["resources"]["prepare"]
     params:
         include_non_coding = str(CFG["maf_processing"]["include_non_coding"]).upper(),
         mode = "OncodriveFML",
