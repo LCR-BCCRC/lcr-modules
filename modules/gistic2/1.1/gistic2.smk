@@ -47,6 +47,7 @@ CFG = op.setup_module(
 localrules:
     _gistic2_input_seg,
     _gistic2_input_subsetting_categories,
+    _gistic2_prepare_seg,
     _gistic2_make_markers,
     _gistic2_download_ref,
     _gistic2_output,
@@ -107,10 +108,6 @@ checkpoint _gistic2_prepare_seg:
         log = CFG["logs"]["prepare_seg"] + "{sample_set}--{projection}--{launch_date}.log"
     conda:
         CFG["conda_envs"]["prepare"]
-    threads:
-        CFG["threads"]["prepare"]
-    resources:
-        **CFG["resources"]["prepare"]
     params:
         metadata_cols = CFG["samples"],
         metadata = CFG["samples"].to_numpy(na_value=''),
