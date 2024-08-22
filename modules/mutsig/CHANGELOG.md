@@ -36,3 +36,11 @@ This update was authored by Sierra Gillis.
 - R Script in the preprocessing step no longer uses `argparase`, instead it uses snakemake objects. Particularly, the metadata for getting the sample IDs in the `case_set` is the dataframe stored in `CFG["samples"]` subset to the appropriate columns.
 - Launch date is also used in file names to make identifying runs for different samples *within* the same `case_set` easier at a glance. This way users do not need to only rely on the md5sum to identify their run. The sample IDs are also output to a file named with the md5sum so users can double check the correspondence between the two.
 - Preprocessing step was updated to be agnostic of the input metadata samples dataframe. The subsetting by seq_type is done through the level3_subsetting_categories.tsv and no longer on the command line at the run of the smk.
+
+## [1.2] - 2024-08-22
+
+This update was authored by Sierra Gillis.
+
+- Added an output directory for the prepare step
+- Added more wildcards to the input maf symlink path for better knowing which was used for which run
+- Was tested with an update made to `lcr-scripts/generate_smg_inputs` that uses threads to read in maf files faster

@@ -22,3 +22,11 @@ This update was authored by Sierra Gillis.
 - There is an aggregate rule to trigger the checkpoint and remove the wildcard before `rule all`.
 - Preprocessing step was updated to be agnostic of the input metadata samples dataframe. It will check the input file name and the subsetting categories to ensure that capture data is not used, as this module only runs on genome data.
 - The workflow was modified to run on genome builds with and without "chr" prefixes, and names files accordingly.
+
+## [1.2] - 2024-08-22
+
+This update was authored by Sierra Gillis.
+
+- Added an output directory for the prepare step
+- Added more wildcards to the input maf symlink path for better knowing which was used for which run
+- Was tested with an update made to `lcr-scripts/generate_smg_inputs` that uses threads to read in maf files faster
