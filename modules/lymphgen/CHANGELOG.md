@@ -20,3 +20,24 @@ with both CNVs and SNVs, as well as just with SNVs)
 Additional improvements, authored by Chris "scienceparrot" Rushton.
 
 Add an additional iteration of LymphGen, which excludes the A53 subgroup from classification
+
+
+## [1.1] - 2024-08-23
+
+This release was authored by Laura Hilton. 
+
+- Significant update that uses as user-provided gene list for LymphGen instead of inferring target space from the input maf file. 
+- Installs an updated version of [LGenIC](https://github.com/LCR-BCCRC/LGenIC/releases/tag/2.0.1) with a tagged release 2.0.1. 
+
+## [2.0] - 2023-06-19
+
+This release was authored by Faraneh Moayyed.
+
+Runs LymphGen on a per-sample basis, allowing the user to provide individual maf files per sample. 
+*Not recommended to be run in targeted mode because target space is inferred from the input maf file. This will create unexpected variation in the model across samples. Will also error out on empty maf files.*
+
+## [2.1] - 2024-08-23
+
+This release was authored by Laura Hilton. 
+
+Significant updates include changes to [LGenIC](https://github.com/LCR-BCCRC/LGenIC/releases/tag/2.0.1) to accept an input gene list for targeted sequencing experiments, providing consistent results across samples. Minor modifications to the LymphGen run script ensure that the same target gene list is used for both CNV and SNV models, and allows samples with empty maf files to pass without error. 
