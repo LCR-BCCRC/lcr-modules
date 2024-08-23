@@ -11,19 +11,22 @@ library(GAMBLR)
 all_fish <- snakemake@input[["fish"]]
 sv <- snakemake@input[["sv"]]
 
-if (!(str_detect(sv, "svar_master"))) { # manta
+if (str_detect(Sys.readlink(sv), "empty")) { # empty
+  print("empty")
+  sv <- fread(sv) %>%
+    as.data.frame()
+} else if (str_detect(Sys.readlink(sv), "svar_master")) { # svar_master
+  print("svar_master")
+  sv <- fread(sv) %>%
+    as.data.frame() %>%
+    select(CHROM_A, START_A, END_A, SCORE, STRAND_A, CHROM_B, START_B, END_B, STRAND_B, tumour_sample_id)
+} else { # manta
+  print("not svar_master")
   sv <- fread(sv, skip = "CHROM") %>% 
-    rename(CHROM_A = '#CHROM_A') %>% 
+    rename(CHROM_A = "#CHROM_A") %>%
     select(CHROM_A, START_A, END_A, QUAL, STRAND_A, CHROM_B, START_B, END_B, STRAND_B) %>% 
     rename(SCORE = QUAL) %>% 
     mutate(tumour_sample_id = snakemake@wildcards[["tumour_id"]])
-} else if (str_detect(sv, "svar_master")) { # svar_master
-  sv <- fread(sv) %>%  
-    as.data.frame() %>% 
-    select(CHROM_A, START_A, END_A, SCORE, STRAND_A, CHROM_B, START_B, END_B, STRAND_B, tumour_sample_id)
-} else { # empty
-  sv <- fread(sv) %>% 
-    as.data.frame()
 }
 
 all_fish <- read_tsv(all_fish) %>% as.data.frame()
