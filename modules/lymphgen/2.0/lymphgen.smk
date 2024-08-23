@@ -188,7 +188,7 @@ rule _install_lgenic:
 # STEP 1: INPUT SYMLINKS
 # Symlinks the input files into the module results directory (under '00-inputs/')
 
-checkpoint _lymphgen_input_maf:
+rule _lymphgen_input_maf:
     input:
         maf = CFG["inputs"]["sample_maf"] 
     output:
