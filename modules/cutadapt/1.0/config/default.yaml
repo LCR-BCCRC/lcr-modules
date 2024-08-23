@@ -1,0 +1,43 @@
+lcr-modules:
+
+    cutadapt:
+
+        inputs:
+            # Available wildcards: {seq_type} {sample_id}
+            sample_fastq_1: "__UPDATE__"
+            sample_fastq_2: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            fastqc: ""
+            cutadapt: ""
+            # Provide adapter sequences to trim below
+            # These default options are Illumina universal adapters
+            # This will be passed with -a option of cutadapt
+            forward_a: "AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC"
+            # This will be passed with -A option of cutadapt
+            reverse_a: "AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT"
+
+        conda_envs:
+            cutadapt: "{MODSDIR}/envs/cutadapt-4.9.yaml"
+
+        threads:
+            fastqc: 4
+            cutadapt: 4
+
+        resources:
+            fastqc:
+                mem_mb: 2000
+            cutadapt:
+                mem_mb: 2000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

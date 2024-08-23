@@ -403,18 +403,23 @@ rule _vcf2maf_reannotate:
         if [[ -e $(ls $MAF2MAF_SCRIPT) ]]; then
             echo "using bundled patched script $MAF2MAF_SCRIPT";
             echo "Running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
-            perl $MAF2MAF_SCRIPT
-            --input-maf {input.maf}
-            --ref-fasta {input.fasta}
-            --ncbi-build {params.build}
-            --vep-data {input.vep_cache}
-            --vep-path $vepPATH
-            {params.opts}
-            {params.custom_enst} |
-            cut -f 1-99,108-112,124-134 |
-            grep -v "$(date +"%Y-%m-%d")"
-            > {output.maf}
-            2>> {log.stderr};
+            if [[ $(wc -l < {input.maf}) -gt 1 ]]; then
+                perl $MAF2MAF_SCRIPT
+                --input-maf {input.maf}
+                --ref-fasta {input.fasta}
+                --ncbi-build {params.build}
+                --vep-data {input.vep_cache}
+                --vep-path $vepPATH
+                {params.opts}
+                {params.custom_enst} |
+                cut -f 1-99,108-112,124-134 |
+                grep -v "$(date +"%Y-%m-%d")"
+                > {output.maf}
+                2>> {log.stderr};
+            else
+                echo "The input MAF file has one line and is empty. Touched the output MAF file." >> {log.stderr};
+                head -n 1 {input.maf} > {output.maf};
+            fi
         else echo "ERROR: PATH is not set properly, using $(which maf2maf.pl) will result in error during execution. Please ensure $MAF2MAF_SCRIPT exists." > {log.stderr}; exit 1; fi
         """)
 
@@ -494,14 +499,19 @@ rule _vcf2maf_normalize_prefix:
             op.relative_symlink(input.maf, output.maf)
         else:
             maf_open = pd.read_csv(input.maf[0], sep = "\t")
-            print("Normalizing " + input.maf[0])
-            # To handle CrossMap weirdness, remove all chr-prefixes and add them back later
-            maf_open["Chromosome"] = maf_open["Chromosome"].astype(str).str.replace('chr', '')
-            if params.dest_chr:  # Will evaluate to True if the destination genome is chr-prefixed
-                # Add chr prefix
-                maf_open['Chromosome'] = 'chr' + maf_open['Chromosome'].astype(str)
-            print("Writing to " + output.maf)
-            maf_open.to_csv(output.maf, sep="\t", index=False)
+            # Check whether the input maf is empty
+            if maf_open.empty:
+                print(f"The incoming maf {input.maf[0]} is empty! Will symlink it instead of normalizing")
+                maf_open.to_csv(output.maf, sep="\t", index=False)
+            else:
+                print("Normalizing " + input.maf[0])
+                # To handle CrossMap weirdness, remove all chr-prefixes and add them back later
+                maf_open["Chromosome"] = maf_open["Chromosome"].astype(str).str.replace('chr', '')
+                if params.dest_chr:  # Will evaluate to True if the destination genome is chr-prefixed
+                    # Add chr prefix
+                    maf_open['Chromosome'] = 'chr' + maf_open['Chromosome'].astype(str)
+                print("Writing to " + output.maf)
+                maf_open.to_csv(output.maf, sep="\t", index=False)
 
 
 rule _vcf2maf_output_maf:

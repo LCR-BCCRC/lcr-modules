@@ -120,12 +120,21 @@ rule _fishhook_install:
         R -q --vanilla -e 'devtools::install_github("mskilab/fishHook")' >> {log.input} &&
         touch {output.complete}
         """
+
+# Get gene list input only if that method is specified in the yaml (instead of using tiles)
+def get_input_if_gene_mode(wildcards):
+    if config["lcr-modules"]["fishhook"]["options"]["target_gene_list"]:
+        return reference_files("downloads/gencode-33/gencode.annotation.grch37.gtf")
+    else:
+        return ""
+
 # Actual fishHook run
 rule _fishhook_run:
     input:
         fishhook = ancient(str(CFG["dirs"]["inputs"] + "fishhook_installed.success")),
         maf = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf",
-        content = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf.content"
+        content = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf.content",
+        gene_list = get_input_if_gene_mode
     output:
         tsv = CFG["dirs"]["fishhook"] + "{sample_set}--{launch_date}/{md5sum}.fishhook.tsv"
     conda:
@@ -137,11 +146,11 @@ rule _fishhook_run:
     resources:
         **CFG["resources"]["fishhook"]
     params:
-        tiles_size = CFG["options"]["tiles_size"],
-        coveriate = CFG["options"]["covariates"],
         include_silent = CFG["options"]["include_silent_mutation"],
+        tiles_size = CFG["options"]["tiles_size"],
         target_gene_list = CFG["options"]["target_gene_list"],
-        target_gene_list_only_protein_coding = CFG["options"]["target_gene_list_only_protein_coding"]
+        target_gene_list_only_protein_coding = CFG["options"]["target_gene_list_only_protein_coding"],
+        covariates = CFG["options"]["covariates"]
     script:
         "scr/R/run_fishhook.R"
 

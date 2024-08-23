@@ -1,38 +1,36 @@
 lcr-modules:
 
-    fishhook:
+    rainstorm:
+
         inputs:
-            # Available wildcards: {seq_type}
-            master_maf: "__UPDATE__"
+            # Available wildcards {genome_build} from options below.
+            master_maf: "__UPDATE__" # This module only runs on genome data
             subsetting_categories: "__UPDATE__" # e.g. "data/metadata/level3_subsetting_categories.tsv"
         sample_set: ["__UPDATE__"] # E.g. ["DLBCL-only", "BL_DLBCL-BL-like_all"]
         # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
         # launch_date: ""
 
+        scratch_subdirectories: []
+
         include_non_coding: True
         prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.1/generate_smg_inputs.R"
-        src_dir: "{MODSDIR}/src/"
 
         options:
-            include_silent_mutation: False # Include silent mutations in maf file
-            tiles_size: 1000 # This is the size of tiles you want to split the genome into, if target_gene_list is set to False
-            target_gene_list: False # Set to True if you want to use a gene list instead of tiling
-            target_gene_list_only_protein_coding: True # Only include protein coding genes in gene list
-            covariates:
-            # comment out lines below if you do not want to use covariates
-                chrom_hmm: "__UPDATE__"
-                rep_timing: "__UPDATE__"
+            rainstorm_version: 0.4 # here the version tag for the rainstorm version can be specified.
+            genome_build: ["__UPDATE__"] # specify genome build of variants in maf file, e.g. for both: ["hg38", "grch37"]
+            flags: "--max_mut 10000" # provide additional flags for rainstorm run. For example, the maximum number of mutations per sample here is set to 10000 as module default
 
         conda_envs:
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
-            fishhook: "{MODSDIR}/envs/fishhook.yaml"
+            rainstorm: "{MODSDIR}/envs/rainstorm-0.3.yaml"
 
         threads:
-            fishhook: 1
+            rainstorm: 24
+            doppler: 8
 
         resources:
-            fishhook:
-                mem_mb: 16000
+            rainstorm:
+                mem_mb: 80000
 
         pairing_config:
             genome:
