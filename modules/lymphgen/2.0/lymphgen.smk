@@ -264,15 +264,15 @@ rule _lymphgen_reformat_seg:
 
 def _get_gene_list(w): 
     CFG = config["lcr-modules"]["lymphgen"]
-    this_tumor = op.filter_samples(RUNS, tumour_genome_build = wildcards.genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, tumour_seq_type = wildcards.seq_type)
-    capture_space = this_tumor["capture_space"]
-    capture_path = expand(CFG["inputs"]["gene_list"], capture_space = capture_space)
-    if os.path.isfile(capture_path): 
+    this_tumor = op.filter_samples(RUNS, tumour_genome_build = w.genome_build, tumour_sample_id = w.tumour_id, normal_sample_id = w.normal_id, pair_status = w.pair_status, tumour_seq_type = w.seq_type)
+    capture_space = this_tumor["tumour_capture_space"]
+    capture_path = expand(CFG["inputs"]["gene_list"], capture_space = capture_space)[0]
+    if os.path.exists(capture_path): 
         logger.info(f"Using {capture_path} as the input gene list for {w.tumour_id}. ")
         return str(capture_path)
     else: 
         logger.info(f"Using the default LymphGen gene list for {w.tumour_id}. ")
-        return str(rules._lymphgen_input_gene_list.output.genes)
+        return str(rules._install_lgenic.output.lymphgen_genes)
 
 
 # With CNVs
@@ -298,7 +298,6 @@ rule _lymphgen_input_cnv:
     group:
         "lymphgen"
     params:
-        seq_type = CFG["options"]["lymphgen_input"]["seq_type"],
         outprefix = "{tumour_id}--{normal_id}--{pair_status}.{cnvs_wc}",
         logratio = "--log2" if CFG["options"]["lymphgen_input"]["use_log_ratio"].lower() == "true" else ""
     conda:
@@ -330,7 +329,6 @@ rule _lymphgen_input_no_cnv:
     group:
         "lymphgen"
     params:
-        seq_type = CFG["options"]["lymphgen_input"]["seq_type"],
         outprefix = "{tumour_id}--{normal_id}--{pair_status}.{cnvs_wc}"
     conda:
         CFG['conda_envs']['sorted_containers']
@@ -410,53 +408,58 @@ rule _lymphgen_add_sv:
             raise AttributeError("Unable to locate column \'%s\' in \'%s\'" % (params.bcl6colname,  input.bcl2_bcl6_sv))
         elif not params.sampleIDcolname in loaded_sv.columns:
             raise AttributeError("Unable to locate column \'%s\' in \'%s\'" % (params.sampleIDcolname, input.bcl2_bcl6_sv))
-
+        
+        # Get the current sample ID
+        sampleID = wildcards.tumour_id
+        # Find the matching SampleID in the SV annotation file
+        sampleEntry = loaded_sv.loc[loaded_sv[params.sampleIDcolname] == sampleID]
+        
         # Add SV info to sample annotation file
         with open(input.sample_annotation) as f, open(output.sample_annotation, "w") as o:
-            for line in f:
-                line = line.rstrip("\n").rstrip("\r")  # Handle line endings
-                if line.startswith("Sample.ID\tCopy.Number"):  # Header line
-                    o.write(line)
-                    o.write(os.linesep)
-                    continue
-
-                cols = line.split("\t")
+            content = f.readlines()
+            # write header
+            header = content[0].rstrip("\n").rstrip("\r")  # Handle line endings
+            o.write(header)
+            o.write(os.linesep)
+            
+            if len(content) > 1: 
+                cols = content[1].split("\t")
                 try:
-                    sampleID = cols[0]
                     copynum = cols[1]
                 except IndexError as e:
-                    raise AttributeError("Input sample annotaion file \'%s\' appears to be malformed" % input.sample_annotation) from e
-                # Find the matching SampleID in the SV annotation file
-                sampleEntry = loaded_sv.loc[loaded_sv[params.sampleIDcolname] == sampleID]
-                # BCL2
-                try:
-                    bcl2status = sampleEntry[params.bcl2colname].tolist()[0]
-                    # Check to see if BCL2 is translocated or not
-                    if bcl2status in params.bcl2true:
-                        bcl2trans = "1"
-                    elif bcl2status in params.bcl2false:
-                        bcl2trans = "0"
-                    else:
-                        bcl2trans = "NA"
-                except IndexError:  # i.e. This sample isn't in the annotation file. set it as NA
+                    raise AttributeError("Input sample annotation file \'%s\' appears to be malformed" % input.sample_annotation) from e
+            else: 
+                copynum = "0"
+                
+            # BCL2
+            try:
+                bcl2status = sampleEntry[params.bcl2colname].tolist()[0]
+                # Check to see if BCL2 is translocated or not
+                if bcl2status in params.bcl2true:
+                    bcl2trans = "1"
+                elif bcl2status in params.bcl2false:
+                    bcl2trans = "0"
+                else:
                     bcl2trans = "NA"
-                # BCL6
-                try:
-                    bcl6status = sampleEntry[params.bcl6colname].tolist()[0]
-                    # Check if BCL6 is translocated
-                    if bcl6status in params.bcl6true:
-                        bcl6trans = "1"
-                    elif bcl6status in params.bcl6false:
-                        bcl6trans = "0"
-                    else:
-                        bcl6trans = "NA"
-                except IndexError:  # This sample isn't in the annotation file
+            except IndexError:  # i.e. This sample isn't in the annotation file. set it as NA
+                bcl2trans = "NA"
+            # BCL6
+            try:
+                bcl6status = sampleEntry[params.bcl6colname].tolist()[0]
+                # Check if BCL6 is translocated
+                if bcl6status in params.bcl6true:
+                    bcl6trans = "1"
+                elif bcl6status in params.bcl6false:
+                    bcl6trans = "0"
+                else:
                     bcl6trans = "NA"
+            except IndexError:  # This sample isn't in the annotation file
+                bcl6trans = "NA"
 
-                # Write the revised sample annotation entry
-                outline = [sampleID, copynum, bcl2trans, bcl6trans]
-                o.write("\t".join(outline))
-                o.write(os.linesep)
+            # Write the revised sample annotation entry
+            outline = [sampleID, copynum, bcl2trans, bcl6trans]
+            o.write("\t".join(outline))
+            o.write(os.linesep)
 
 
 # Since we don't have any SV info, just symlink sample annotation file
@@ -476,9 +479,9 @@ rule _lymphgen_add_sv_blank:
  # With CNVs, with A53
 rule _lymphgen_run_cnv_A53:
     input:
-        sample_annotation = _get_sample_annotation,
+        sample_annotation = str(rules._lymphgen_add_sv.output.sample_annotation),
         mutation_flat = str(rules._lymphgen_input_cnv.output.mutation_flat),
-        gene_list = str(rules._lymphgen_add_sv.output.sample_annotation),
+        gene_list = str(rules._lymphgen_input_cnv.output.gene_list),
         cnv_flat = str(rules._lymphgen_input_cnv.output.cnv_flat),
         cnv_arm = str(rules._lymphgen_input_cnv.output.cnv_arm)
     output:
@@ -503,7 +506,7 @@ rule _lymphgen_run_cnv_A53:
 # With CNVs, no A53
 rule _lymphgen_run_cnv_noA53:
     input:
-        sample_annotation = _get_sample_annotation,
+        sample_annotation = str(rules._lymphgen_add_sv.output.sample_annotation),
         mutation_flat = str(rules._lymphgen_input_cnv.output.mutation_flat),
         gene_list = str(rules._lymphgen_input_cnv.output.gene_list),
         cnv_flat = str(rules._lymphgen_input_cnv.output.cnv_flat),
@@ -530,9 +533,9 @@ rule _lymphgen_run_cnv_noA53:
 # No CNVs
 rule _lymphgen_run_no_cnv:
     input:
-        sample_annotation = _get_sample_annotation,
+        sample_annotation = str(rules._lymphgen_add_sv.output.sample_annotation),
         mutation_flat = str(rules._lymphgen_input_no_cnv.output.mutation_flat),
-        gene_list = str(rules._lymphgen_input_no_cnv.output.gene_list)
+        gene_list = str(rules._lymphgen_input_cnv.output.gene_list)
     output:
         result = CFG["dirs"]["lymphgen_run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.results.{cnvs_wc}.{sv_wc}.{A53_wc}.tsv"
     log:
