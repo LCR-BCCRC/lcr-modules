@@ -28,4 +28,4 @@ This update was authored by Sierra Gillis.
 This update was authored by Sierra Gillis.
 
 - Added more wildcards to the input maf symlink path for better knowing which was used for which run
-- Was tested with an update made to `lcr-scripts/generate_smg_inputs` that uses threads to read in maf files faster
+- Was tested with an update made to `lcr-scripts/generate_smg_inputs` that uses threads to read in seg files faster

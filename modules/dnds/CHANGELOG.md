@@ -14,7 +14,7 @@ This release was authored by Kostia Dreval.
 - The snakefiles relies on the lcr-script `generate_smg_inputs` to produce the input maf.
 - The implementation is similar to the other SMG lcr-modules, e.g. mutsig.
 
-## [1.1] - 2024-01-
+## [1.1] - 2024-01-19
 
 This update was authored by Sierra Gillis.
 
