@@ -34,7 +34,7 @@ lcr-modules:
 
         options:
             genome_map: 
-                # Map metadata builds to grch37 and hg38 so that MAF file locations are determined correctly
+                # Maps metadata builds to either grch37 or hg38 so that MAF file locations are determined correctly. Additional genome builds can be added as necessary.
                 grch37: ["grch37","hg19","hs37d5"]
                 hg38: ["hg38","grch38"] 
 
@@ -83,7 +83,7 @@ lcr-modules:
 
         conda_envs:
             liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
-            wget: "{REPODIR}/envs/wget/wget-1.20.1.yaml"
+            wget: "{MODSDIR}/envs/wget/wget-1.20.1.yaml"
 
         threads: 4
 
