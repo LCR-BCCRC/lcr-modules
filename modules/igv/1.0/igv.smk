@@ -160,14 +160,6 @@ rule _igv_format_regions:
     script:
         config["lcr-modules"]["igv"]["scripts"]["format_regions"]
 
-REGIONS_FORMAT = {
-    "bed": "bed",
-    "maf": "bed",
-    "oncodriveclustl": "bed",
-    "hotmaps": "bed",
-    "mutation_id": "bed"
-}
-
 def _igv_get_chain(wildcards):
     if "38" in str({wildcards.tool_build}):
         return reference_files("genomes/{tool_build}/chains/grch38/hg38ToHg19.over.chain")
