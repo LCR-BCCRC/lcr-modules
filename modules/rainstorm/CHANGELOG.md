@@ -11,7 +11,7 @@ This release was authored by Kostiantyn Dreval.
 
 - At the first implementation, the module runs both rainstorm and doppler analyses on a cohort-wide maf file.
 - Installation of github repo is achieved through download of tar file with specific version tag, rather than
-repo cloning to ensure tool version consistency.
+  repo cloning to ensure tool version consistency.
 
 ## [1.1] - 2024-07-30
 
@@ -29,4 +29,4 @@ This update was authored by Sierra Gillis.
 
 - Added an output directory for the prepare step
 - Added more wildcards to the input maf symlink path for better knowing which was used for which run
-- Was tested with an update made to `lcr-scripts/generate_smg_inputs` that uses threads to read in maf files faster
+- Was tested with an update made to `lcr-scripts/generate_smg_inputs` that uses threads to read in maf files faster, and only reads in relevant columns

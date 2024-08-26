@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This release was authored by Sierra Gillis.
 
 - All preprocess of the seg file is performed by one step.
-Includes keeping genomic data over capture data where available, filtering out overlapping
-segments, filtering out data for non-canonical chromosomes
+  Includes keeping genomic data over capture data where available, filtering out overlapping
+  segments, filtering out data for non-canonical chromosomes
 
 ## [1.1] - 2024-01-19
 
@@ -28,4 +28,4 @@ This update was authored by Sierra Gillis.
 This update was authored by Sierra Gillis.
 
 - Added more wildcards to the input maf symlink path for better knowing which was used for which run
-- Was tested with an update made to `lcr-scripts/generate_smg_inputs` that uses threads to read in seg files faster
+- Was tested with an update made to `lcr-scripts/generate_smg_inputs` that uses threads to read in seg files faster, and only reads in relevant columns
