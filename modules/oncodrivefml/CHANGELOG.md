@@ -22,3 +22,12 @@ This release was authored by Manuela Cruz.
 - OncodriveFML depends on CADD scores to score the deleteriousness of each mutation. The grch37 CADD 1.0 fml-formatted scores are provided by the `bgdata` package. This download will occur in the `01-cadd` scratch directory as the file is 19G. If you wish to use scores for a different build, you can provide a path to the score file in the config at ["options"]["score_path"]. The directory path must also be provided in a separate config file, detailed in the next bullet point. More information on CADD and downloading score packs here: https://cadd.gs.washington.edu/
 
 - OncodriveFML depends on an additional config file to change analysis behaviour. The default configuration file is provided in the module directory at `etc/oncodrivefml.conf`. You must provide the path to the directory of the scores file at the `file =` option. More information on OncodriveFML config parameters here: https://oncodrivefml.readthedocs.io/en/latest/configuration.html
+
+
+## [1.1] - 2024-08-22
+
+This update was authored by Sierra Gillis.
+
+- Added an output directory for the prepare step
+- Was tested with an update made to `lcr-scripts/generate_smg_inputs` that uses threads to read in maf files faster, and only reads in relevant columns
+- Changed column numbers for cut command in default.config to match new output of generate_smg_inputs
