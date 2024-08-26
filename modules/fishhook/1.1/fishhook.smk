@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "fishhook",
     version = "1.1",
-    subdirectories = ["inputs", "prepare_maf", "fishhook", "outputs"],
+    subdirectories = ["inputs", "fishhook", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -67,11 +67,11 @@ rule _fishhook_input_maf:
     input:
         maf = CFG["inputs"]["master_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/{sample_set}--{launch_date}/input.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
 
-# Symlinks the subsetting categories input file into the module results directory (under '00-inputs/')
+# Symlinks the input files into the module results directory (under '00-inputs/')
 rule _fishhook_input_subsetting_categories:
     input:
         subsetting_categories = CFG["inputs"]["subsetting_categories"]
@@ -90,9 +90,9 @@ checkpoint _fishhook_prepare_maf:
                     ),
         subsetting_categories = str(rules._fishhook_input_subsetting_categories.output.subsetting_categories)
     output:
-        CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/done"
+        CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done"
     log:
-        CFG["logs"]["prepare_maf"] + "{sample_set}--{launch_date}/prepare_maf.log"
+        CFG["logs"]["inputs"] + "{sample_set}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     params:
@@ -131,9 +131,10 @@ def get_input_if_gene_mode(wildcards):
 # Actual fishHook run
 rule _fishhook_run:
     input:
-        fishhook = ancient(str(rules._fishhook_install.output.complete)),
-        maf = CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/{md5sum}.maf",
-        content = CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/{md5sum}.maf.content"
+        fishhook = ancient(str(CFG["dirs"]["inputs"] + "fishhook_installed.success")),
+        maf = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf",
+        content = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf.content",
+        gene_list = get_input_if_gene_mode
     output:
         tsv = CFG["dirs"]["fishhook"] + "{sample_set}--{launch_date}/{md5sum}.fishhook.tsv"
     conda:
@@ -148,7 +149,6 @@ rule _fishhook_run:
         include_silent = CFG["options"]["include_silent_mutation"],
         tiles_size = CFG["options"]["tiles_size"],
         target_gene_list = CFG["options"]["target_gene_list"],
-        gene_list = get_input_if_gene_mode,
         target_gene_list_only_protein_coding = CFG["options"]["target_gene_list_only_protein_coding"],
         covariates = CFG["options"]["covariates"]
     script:
@@ -189,7 +189,7 @@ rule _fishhook_all:
     input:
         expand(
             [
-                CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/done",
+                CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done",
                 str(rules._fishhook_aggregate.output.aggregate),
             ],
             sample_set=CFG["sample_set"],

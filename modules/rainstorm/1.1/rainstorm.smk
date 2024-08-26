@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "rainstorm",
     version = "1.1",
-    subdirectories = ["inputs", "prepare_maf", "rainstorm", "doppler", "outputs"],
+    subdirectories = ["inputs", "rainstorm", "doppler", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -63,7 +63,8 @@ else:
 # Interpret the absolute path to this script so it doesn't get interpreted relative to the module snakefile later.
 PREPARE_MAFS =  os.path.abspath(config["lcr-modules"]["rainstorm"]["prepare_mafs"])
 
-# Download rainstorm files from git repo without cloning the repo itself, decompress files into the 00-inputs
+# download rainstorm files from git repo without cloning the repo itself
+# decompress files into the 00-inputs
 rule _rainstorm_install:
     output:
         rainstorm = CFG["dirs"]["inputs"] + "mutation_rainstorm-" + str(CFG["options"]["rainstorm_version"]) + "/rainstorm.py", # one of the files in the repo
@@ -83,11 +84,11 @@ rule _rainstorm_input_maf:
     input:
         maf = CFG["inputs"]["master_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{sample_set}--{genome_build}--{launch_date}/input.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
 
-# Subset index to only standard chromosomes, so rainstorm will not look for mutations in the small non-standard contigs
+# subset index to only standard chromosomes, so rainstorm will not look for mutations in the small non-standard contigs
 # currently, this excludes chromosome Y
 rule _rainstorm_subset_index:
     input:
@@ -115,9 +116,9 @@ checkpoint _rainstorm_prepare_maf:
         maf = str(rules._rainstorm_input_maf.output.maf),
         subsetting_categories = str(rules._rainstorm_input_subsetting_categories.output.subsetting_categories)
     output:
-        CFG["dirs"]["prepare_maf"] + "{sample_set}--{genome_build}--{launch_date}/done"
+        CFG["dirs"]["inputs"] + "{sample_set}--{genome_build}--{launch_date}/done"
     log:
-        CFG["logs"]["prepare_maf"] + "{sample_set}--{genome_build}--{launch_date}/prepare_maf.log"
+        CFG["logs"]["inputs"] + "{sample_set}--{genome_build}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     params:
@@ -128,12 +129,12 @@ checkpoint _rainstorm_prepare_maf:
     script:
         PREPARE_MAFS
 
-# Main rule to run rainstorm analysis
+# main rule to run rainstorm analysis
 rule _rainstorm_run:
     input:
         rainstorm = str(rules._rainstorm_install.output.rainstorm),
-        maf = CFG["dirs"]["prepare_maf"] + "{sample_set}--{genome_build}--{launch_date}/{md5sum}.maf",
-        content = CFG["dirs"]["prepare_maf"] + "{sample_set}--{genome_build}--{launch_date}/{md5sum}.maf.content",
+        maf = CFG["dirs"]["inputs"] + "{sample_set}--{genome_build}--{launch_date}/{md5sum}.maf",
+        content = CFG["dirs"]["inputs"] + "{sample_set}--{genome_build}--{launch_date}/{md5sum}.maf.content",
         index_subset = str(rules._rainstorm_subset_index.output.index_subset)
     output:
         complete = CFG["dirs"]["rainstorm"] + "{genome_build}/{sample_set}--{launch_date}--{md5sum}/{sample_set}_out_background_100k_binned_density.tsv"
@@ -161,7 +162,7 @@ rule _rainstorm_run:
         touch {output.complete}
         """)
 
-# Generate the list of chromosome files for doppler run
+# generate the list of chromosome files for doppler run
 def _get_chrom_tsvs(wildcards):
     CFG = config["lcr-modules"]["rainstorm"]
 
@@ -185,7 +186,7 @@ rule _rainstorm_run_doppler:
     input:
         peaks = str(rules._rainstorm_install.output.peaks),
         tsv = str(rules._rainstorm_run.output.complete),
-        maf = CFG["dirs"]["prepare_maf"] + "{sample_set}--{genome_build}--{launch_date}/{md5sum}.maf"
+        maf = CFG["dirs"]["inputs"] + "{sample_set}--{genome_build}--{launch_date}/{md5sum}.maf"
     output:
         tsv = CFG["dirs"]["doppler"] + "{genome_build}/{sample_set}--{launch_date}--{md5sum}/{sample_set}_mean_waveletSummary_withMaf.tsv"
     log:
@@ -251,7 +252,7 @@ def _for_aggregate(wildcards):
         md5sum = SUMS
         )
 
-# Aggregates outputs to remove md5sum from rule all
+# aggregates outputs to remove md5sum from rule all
 rule _rainstorm_aggregate:
     input:
         _for_aggregate
@@ -265,7 +266,7 @@ rule _rainstorm_all:
     input:
         expand(
             [
-                CFG["dirs"]["prepare_maf"] + "{sample_set}--{genome_build}--{launch_date}/done",
+                CFG["dirs"]["inputs"] + "{sample_set}--{genome_build}--{launch_date}/done",
                 str(rules._rainstorm_aggregate.output.aggregate)
             ], # no "zip" so that genome builds are expanded correctly if multiple are given
             genome_build=CFG["options"]["genome_build"],

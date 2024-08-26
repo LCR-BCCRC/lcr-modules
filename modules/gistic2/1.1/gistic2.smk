@@ -69,11 +69,10 @@ rule _gistic2_input_seg:
     input:
         seg = CFG["inputs"]["seg"]
     output:
-        seg = CFG["dirs"]["inputs"] + "seg/{seq_type}/{sample_set}--{projection}--{launch_date}/input.seg"
+        seg = CFG["dirs"]["inputs"] + "{seq_type}--projection/all--{projection}.seg"
     run:
         op.absolute_symlink(input.seg, output.seg)
 
-# Symlinks the subsetting categories input file into the module results directory (under '00-inputs/')
 rule _gistic2_input_subsetting_categories:
     input:
         subsetting_categories = CFG["inputs"]["subsetting_categories"]
@@ -106,8 +105,6 @@ checkpoint _gistic2_prepare_seg:
         CFG["dirs"]["prepare_seg"] + "{sample_set}--{projection}--{launch_date}/done"
     log:
         log = CFG["logs"]["prepare_seg"] + "{sample_set}--{projection}--{launch_date}.log"
-    conda:
-        CFG["conda_envs"]["prepare"]
     params:
         metadata_cols = CFG["samples"],
         metadata = CFG["samples"].to_numpy(na_value=''),
@@ -203,7 +200,6 @@ def _for_aggregate(wildcards):
         md5sum = SUMS
         )
 
-# Aggregates outputs to remove md5sum from rule all
 rule _gistic2_aggregate:
     input:
         _for_aggregate

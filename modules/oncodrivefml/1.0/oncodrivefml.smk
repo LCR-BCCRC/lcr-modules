@@ -20,7 +20,7 @@ import numpy as np
 CFG = op.setup_module(
     name = "oncodrivefml",
     version = "1.0",
-    subdirectories = ["inputs", "prepare_mafs", "cadd", "oncodrivefml", "outputs"],
+    subdirectories = ["inputs", "cadd", "oncodrivefml", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -70,9 +70,9 @@ checkpoint _oncodrivefml_prep_input:
             allow_missing=True),
         subsetting_categories = ancient(str(rules._oncodrivefml_sample_set.output.subsetting_categories))
     output:
-        CFG["dirs"]["prepare_mafs"] + "maf/{genome_build}/{sample_set}--{launch_date}/done"
+        CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/done"
     log:
-        stdout = CFG["logs"]["prepare_mafs"] + "{genome_build}/{sample_set}--{launch_date}/prep_input/prep_input_maf.log"
+        stdout = CFG["logs"]["inputs"] + "{genome_build}/{sample_set}--{launch_date}/prep_input/prep_input_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     params:
@@ -82,19 +82,19 @@ checkpoint _oncodrivefml_prep_input:
         metadata = CFG["samples"].to_numpy(na_value='')
     script:
         PREPARE_MAFS
-
+    
 rule _oncodrivefml_blacklist:
     input:
-        maf = CFG["dirs"]["prepare_mafs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.maf",
+        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.maf",
         blacklists = CFG["maf_processing"]["blacklists"],
         deblacklist_script = CFG["scripts"]["deblacklist_script"]
     output:
-        maf = CFG["dirs"]["prepare_mafs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.deblacklisted.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.deblacklisted.maf"
     params:
         drop_threshold = CFG["maf_processing"]["blacklist_drop_threshold"]
     log:
-        stdout = CFG["logs"]["prepare_mafs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stdout.log",
-        stderr = CFG["logs"]["prepare_mafs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stderr.log"
+        stdout = CFG["logs"]["inputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stderr.log"
     shell:
         op.as_one_line("""
         {input.deblacklist_script}
@@ -109,7 +109,7 @@ rule _oncodrivefml_format_input:
     input:
         maf = str(rules._oncodrivefml_blacklist.output.maf)
     output:
-        maf = CFG["dirs"]["prepare_mafs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.fml_input.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.fml_input.maf"
     params:
         columns = CFG["format_fml_input"]["input_columns"],
         additional_commands = CFG["format_fml_input"]["additional_commands"]

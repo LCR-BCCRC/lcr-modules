@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "hotmaps",
     version = "1.0",
-    subdirectories = ["inputs", "prepare_maf", "maf2vcf", "bcftools", "vcf2maf", "hotmaps", "outputs"],
+    subdirectories = ["inputs", "maf2vcf", "bcftools", "vcf2maf", "hotmaps", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -115,9 +115,9 @@ checkpoint _hotmaps_prep_input:
             ),
         subsetting_categories = ancient(str(rules._hotmaps_input_subsetting_categories.output.subsetting_categories))
     output:
-        CFG["dirs"]["prepare_maf"] + "maf/{genome_build}/{sample_set}--{launch_date}/done"
+        CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/done"
     log:
-        stdout = CFG["logs"]["prepare_maf"] + "{genome_build}/{sample_set}--{launch_date}/prep_input/prep_input_maf.log"
+        stdout = CFG["logs"]["inputs"] + "{genome_build}/{sample_set}--{launch_date}/prep_input/prep_input_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     params:
@@ -130,10 +130,10 @@ checkpoint _hotmaps_prep_input:
 
 rule _hotmaps_split_dnps:
     input:
-        maf = CFG["dirs"]["prepare_maf"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.maf"
     output:
-        dnps = temp(CFG["dirs"]["prepare_maf"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.dnps.maf"),
-        completed = CFG["dirs"]["prepare_maf"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}_split_dnps.complete"
+        dnps = temp(CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.dnps.maf"),
+        completed = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}_split_dnps.complete"
     shell:
         op.as_one_line("""
         variant_type_col=$(head -n 1 {input.maf} | sed 's/\\t/\\n/g' | nl | grep "Variant_Type" | cut -f 1) &&
@@ -162,12 +162,12 @@ checkpoint _hotmaps_maf2vcf:
         if [ $( wc -l < {params.dnps}) -gt 1 ] ;
         then
             mkdir -p {params.vcf_dir} &&
-            maf2vcf.pl
-            --input-maf {params.dnps}
-            --output-dir {params.vcf_dir}
-            --output-vcf {params.vcf}
-            --ref-fasta {input.fasta}
-            --per-tn-vcfs
+            maf2vcf.pl 
+            --input-maf {params.dnps} 
+            --output-dir {params.vcf_dir} 
+            --output-vcf {params.vcf} 
+            --ref-fasta {input.fasta} 
+            --per-tn-vcfs 
             > {log.stdout} 2> {log.stderr} ;
         fi &&
         touch {output.done}
@@ -180,15 +180,15 @@ rule _hotmaps_bcftools:
     output:
         vcf = CFG["dirs"]["bcftools"] + "vcf/{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}.annotate.vcf"
     conda:
-        CFG["conda_envs"]["bcftools"]
+        CFG["conda_envs"]["bcftools"] 
     log:
         stdout = CFG["logs"]["bcftools"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}/bcftools_norm.stdout.log",
         stderr = CFG["logs"]["bcftools"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}/bcftools_norm.stderr.log"
     shell:
         op.as_one_line("""
-        bcftools norm --atomize
-        --output {output.vcf}
-        --output-type v {input.vcf}
+        bcftools norm --atomize 
+        --output {output.vcf} 
+        --output-type v {input.vcf} 
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -222,15 +222,15 @@ rule _hotmaps_vcf2maf:
         if [[ $(which vcf2maf.pl) =~ $(ls $VCF2MAF_SCRIPT) ]]; then
             echo "using bundled patched script $VCF2MAF_SCRIPT";
             echo "Using $VCF2MAF_SCRIPT to run {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
-            vcf2maf.pl
-            --input-vcf {input.vcf}
-            --output-maf {output.maf}
-            --tumor-id {wildcards.tumour_id}
-            --normal-id {wildcards.normal_sample_id}
-            --vcf-tumor-id TUMOR
-            --vcf-normal-id NORMAL
-            --ncbi-build {params.build}
-            --vep-path $vepPATH
+            vcf2maf.pl 
+            --input-vcf {input.vcf} 
+            --output-maf {output.maf} 
+            --tumor-id {wildcards.tumour_id} 
+            --normal-id {wildcards.normal_sample_id} 
+            --vcf-tumor-id TUMOR 
+            --vcf-normal-id NORMAL 
+            --ncbi-build {params.build} 
+            --vep-path $vepPATH 
             --vep-data {input.vep_cache}
             --ref-fasta {input.fasta}
             --retain-info gnomADg_AF,gnomADg_AF
@@ -239,15 +239,15 @@ rule _hotmaps_vcf2maf:
             if [[ $(wc -l < {output.maf}) -eq 0 ]]; then
                 echo "vcf2maf failed for {wildcards.tumour_id}, running again" >> {log.stderr};
                 vcf2maf.pl
-                --input-vcf {input.vcf}
+                --input-vcf {input.vcf} 
                 --output-maf {output.maf}
-                --tumor-id {wildcards.tumour_id}
-                --normal-id {wildcards.normal_sample_id}
-                --vcf-tumor-id TUMOR
-                --vcf-normal-id NORMAL
-                --ncbi-build {params.build}
-                --vep-path $vepPATH
-                --ref-fasta {input.fasta}
+                --tumor-id {wildcards.tumour_id} 
+                --normal-id {wildcards.normal_sample_id} 
+                --vcf-tumor-id TUMOR 
+                --vcf-normal-id NORMAL 
+                --ncbi-build {params.build} 
+                --vep-path $vepPATH 
+                --ref-fasta {input.fasta} 
                 --retain-info gnomADg_AF,gnomADg_AF
                 {params.opts} {params.custom_enst}
                 >> {log.stdout} 2>> {log.stderr};
@@ -257,19 +257,19 @@ rule _hotmaps_vcf2maf:
                 exit 1;
             fi;
         else echo "ERROR: PATH is not set properly, using $(which vcf2maf.pl) will result in error during execution. Please ensure $VCF2MAF_SCRIPT exists." > {log.stderr}; fi
-        """)
+        """) 
 
 def _get_dnp_mafs(wildcards):
     CFG = config["lcr-modules"]["hotmaps"]
     checkpoint_outputs = checkpoints._hotmaps_maf2vcf.get(**wildcards).output.done
 
     maf2vcf_output_dir = expand(
-        CFG["dirs"]["maf2vcf"] + "vcf/{genome_build}/{sample_set}--{launch_date}/{md5sum}/",
+        CFG["dirs"]["maf2vcf"] + "vcf/{genome_build}/{sample_set}--{launch_date}/{md5sum}/", 
         genome_build = "grch37",
         sample_set = wildcards.sample_set,
         launch_date = wildcards.launch_date,
         md5sum = wildcards.md5sum)
-
+    
     TUMOUR_IDS, NORMAL_IDS = glob_wildcards(maf2vcf_output_dir[0] + "{tumour_id}_vs_{normal_sample_id}.vcf")
 
     return expand(
@@ -286,11 +286,11 @@ rule _hotmaps_merge_mafs:
         maf2vcf = str(rules._hotmaps_maf2vcf.output.done),
         maf_created = str(rules._hotmaps_prep_input.output)
     output:
-        maf = temp(CFG["dirs"]["prepare_maf"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.reannotated.maf")
+        maf = temp(CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.reannotated.maf")
     params:
-        maf = CFG["dirs"]["prepare_maf"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.maf"
     log:
-        stderr = CFG["logs"]["prepare_maf"] + "merge/{genome_build}/{sample_set}--{launch_date}/{md5sum}.stderr.log"
+        stderr = CFG["logs"]["inputs"] + "merge/{genome_build}/{sample_set}--{launch_date}/{md5sum}.stderr.log"
     run:
         import pandas as pd
         error_out = open(log.stderr, "w")
@@ -315,20 +315,20 @@ rule _hotmaps_deblacklist:
         blacklists = CFG["maf_processing"]["blacklists"],
         deblacklist_script = CFG["deblacklist_script"]
     output:
-        maf = CFG["dirs"]["prepare_maf"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.reannotated.deblacklisted.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.reannotated.deblacklisted.maf"
     params:
         drop_threshold = CFG["maf_processing"]["blacklist_drop_threshold"],
         blacklists = CFG["maf_processing"]["blacklists"]
     log:
-        stdout = CFG["logs"]["prepare_maf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stdout.log",
-        stderr = CFG["logs"]["prepare_maf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stderr.log"
+        stdout = CFG["logs"]["inputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stderr.log"
     shell:
         op.as_one_line("""
-        {input.deblacklist_script}
-        --input {input.maf}
-        --output {output.maf}
-        --drop-threshold {params.drop_threshold}
-        --blacklists {params.blacklists}
+        {input.deblacklist_script} 
+        --input {input.maf} 
+        --output {output.maf} 
+        --drop-threshold {params.drop_threshold} 
+        --blacklists {params.blacklists} 
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -400,10 +400,10 @@ rule _hotmaps_get_pdb_info:
         CFG["conda_envs"]["hotmaps"]
     shell:
         op.as_one_line("""
-        mysql -u {params.mysql_user}
-        -A -p{params.mysql_passwd}
-        -h {params.mysql_host} {params.mysql_database}
-        < {params.mysql_db_script} > {output.pdb_info}
+        mysql -u {params.mysql_user} 
+        -A -p{params.mysql_passwd} 
+        -h {params.mysql_host} {params.mysql_database} 
+        < {params.mysql_db_script} > {output.pdb_info} 
         2> {log.stderr}
         """)
 
@@ -422,9 +422,9 @@ rule _hotmaps_add_pdb_path:
         stderr = CFG["logs"]["inputs"] + "add_pdb_path/add_pdb_path.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.add_path_script}
-        -p {input.pdb_info}
-        -o {output.pdb_path}
+        python {params.add_path_script} 
+        -p {input.pdb_info} 
+        -o {output.pdb_path} 
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -442,9 +442,9 @@ rule _hotmaps_add_pdb_description:
         stderr = CFG["logs"]["inputs"] + "add_pdb_description/add_pdb_description.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.describe_pdb_script}
-        -i {input.pdb_info_path}
-        -o {output.fully_described_pdb}
+        python {params.describe_pdb_script} 
+        -i {input.pdb_info_path} 
+        -o {output.fully_described_pdb} 
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -469,14 +469,14 @@ rule _hotmaps_prep_mutations:
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/prep_mutations/prep_mutations.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script}
-        --data-dir {params.mut_dir}
-        --match-regex {params.mut_regex}
-        --host {params.mysql_host}
-        --db {params.mysql_db}
-        --mysql-user {params.mysql_user}
-        --mysql-passwd {params.mysql_pass}
-        --output-dir {params.mut_dir}
+        python {params.script} 
+        --data-dir {params.mut_dir} 
+        --match-regex {params.mut_regex} 
+        --host {params.mysql_host} 
+        --db {params.mysql_db} 
+        --mysql-user {params.mysql_user} 
+        --mysql-passwd {params.mysql_pass} 
+        --output-dir {params.mut_dir} 
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -502,16 +502,16 @@ rule _hotmaps_prep_mupit_annotation:
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/prep_mupit_annotation/prep_mupit_annotation.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script}
-        --maf {input.maf}
-        -mh {params.mysql_host}
-        -mdb {params.mysql_db}
-        --mysql-user {params.mysql_user}
-        --mysql-passwd {params.mysql_pass}
-        --tumor-type {params.tumor_type}
-        --no-stratify {params.hypermut}
-        -i {params.cov_dir}
-        --output {output.annotation}
+        python {params.script} 
+        --maf {input.maf} 
+        -mh {params.mysql_host} 
+        -mdb {params.mysql_db} 
+        --mysql-user {params.mysql_user} 
+        --mysql-passwd {params.mysql_pass} 
+        --tumor-type {params.tumor_type} 
+        --no-stratify {params.hypermut} 
+        -i {params.cov_dir} 
+        --output {output.annotation} 
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -535,12 +535,12 @@ rule _hotmaps_filter_hypermutated:
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/filter_hypermutated/filter_hypermutated.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script}
-        --raw-dir {params.mut_dir}
-        --match-regex {params.mut_regex}
-        {params.mut_threshold}
-        --sample-col Tumor_Sample_Barcode
-        --data-dir {params.mut_dir}
+        python {params.script} 
+        --raw-dir {params.mut_dir} 
+        --match-regex {params.mut_regex} 
+        {params.mut_threshold} 
+        --sample-col Tumor_Sample_Barcode 
+        --data-dir {params.mut_dir} 
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -557,7 +557,7 @@ rule _hotmaps_count_mutations:
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/count_mutations/count_mutations.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} --data-dir {params.data_dir}
+        python {params.script} --data-dir {params.data_dir} 
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -574,7 +574,7 @@ rule _hotmaps_format_mutations:
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/format_mutations/format_mutations.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} --data-dir {params.data_dir}
+        python {params.script} --data-dir {params.data_dir} 
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -591,7 +591,7 @@ rule _hotmaps_merge_mutations:
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/merge_mutations/merge_mutations.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script} {params.data_dir}
+        python {params.script} {params.data_dir} 
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -613,11 +613,11 @@ rule _hotmaps_get_mutations:
         **CFG["resources"]["get_mutations"]
     shell:
         op.as_one_line("""
-        python {params.load_script} -m {input.mysql_mut}
-        --host {params.mysql_host} --mysql-user {params.mysql_user}
-        --mysql-passwd {params.mysql_pass} --db {params.mysql_db}
-        &&
-        mysql -u {params.mysql_user} -A -p{params.mysql_pass}
+        python {params.load_script} -m {input.mysql_mut} 
+        --host {params.mysql_host} --mysql-user {params.mysql_user} 
+        --mysql-passwd {params.mysql_pass} --db {params.mysql_db} 
+        && 
+        mysql -u {params.mysql_user} -A -p{params.mysql_pass} 
         -h {params.mysql_host} {params.mysql_db} < {params.get_script} > {output.mutations}
         """)
 
@@ -636,11 +636,11 @@ rule _hotmaps_split_pdbs:
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/split_pdbs/split_pdbs.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script}
-        -f {input.pdb}
-        -m {input.mutations}
-        -n {params.splits}
-        --split-dir {params.split_dir}
+        python {params.script} 
+        -f {input.pdb} 
+        -m {input.mutations} 
+        -n {params.splits} 
+        --split-dir {params.split_dir} 
         > {log.stdout} 2> {log.stderr} &&
         touch {output.done}
         """)
@@ -659,7 +659,7 @@ rule _hotmaps_run_hotspot:
         radius = CFG["options"]["hotmaps"]["radius"],
         stop_criteria = CFG["options"]["hotmaps"]["stop_criteria"],
         error = CFG["dirs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/hotspot/error/error_pdb_{split}.txt"
-    conda:
+    conda: 
         CFG["conda_envs"]["hotmaps"]
     threads: CFG["threads"]["hotmaps"]
     resources:
@@ -669,16 +669,16 @@ rule _hotmaps_run_hotspot:
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/run_hotspot/hotspot_{split}.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script}
-        --log-level=INFO
-        -m {params.mutation}
-        -a {params.pdb}
-        -t {params.ttype}
-        -n {params.num_sims}
-        -r {params.radius}
-        -o {output.hotspot}
-        -e {params.error}
-        --log {log.stdout}
+        python {params.script} 
+        --log-level=INFO 
+        -m {params.mutation} 
+        -a {params.pdb} 
+        -t {params.ttype} 
+        -n {params.num_sims} 
+        -r {params.radius} 
+        -o {output.hotspot} 
+        -e {params.error} 
+        --log {log.stdout} 
         2> {log.stderr}
         """)
 
@@ -698,8 +698,8 @@ rule _hotmaps_merge_hotspots:
         output_dir = CFG["dirs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/hotspot/full_output/output_*"
     shell:
         op.as_one_line("""
-        cat {params.output_dir} |
-        awk -F"\t" '/Structure/{{s++}}{{if(s==1){{print$0}}}}{{if(s>1 && $0 !~ "^Structure"){{print $0}}}}'
+        cat {params.output_dir} | 
+        awk -F"\t" '/Structure/{{s++}}{{if(s==1){{print$0}}}}{{if(s>1 && $0 !~ "^Structure"){{print $0}}}}' 
         > {output.merged}
         """)
 
@@ -723,13 +723,13 @@ rule _hotmaps_multiple_test_correct:
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/multiple_test_correct/mtc_output_{q_value}.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script}
-        -i {input.merged}
-        -f {params.group_func}
-        -m {params.mupit_dir}
-        -q {params.q_value}
-        -o {output.mtc}
-        -s {output.significance}
+        python {params.script} 
+        -i {input.merged} 
+        -f {params.group_func} 
+        -m {params.mupit_dir} 
+        -q {params.q_value} 
+        -o {output.mtc} 
+        -s {output.significance} 
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -752,13 +752,13 @@ rule _hotmaps_find_gene:
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/find_gene/find_gene_{q_value}.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script}
-        -m {input.mtc}
-        -a {params.mupit_dir}
-        -p {input.pdb}
-        -r {params.radius}
-        -q {params.q_value}
-        -o {output.hotspots}
+        python {params.script} 
+        -m {input.mtc} 
+        -a {params.mupit_dir} 
+        -p {input.pdb} 
+        -r {params.radius} 
+        -q {params.q_value} 
+        -o {output.hotspots} 
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -783,13 +783,13 @@ rule _hotmaps_find_structure:
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/find_structure/find_structure_{q_value}.stderr.log"
     shell:
         op.as_one_line("""
-        python {params.script}
-        -i {input.merged}
-        -a {params.mupit_dir}
-        -p {input.pdb}
-        -r {params.radius}
-        -o {output.structures}
-        -s {input.significance}
+        python {params.script} 
+        -i {input.merged} 
+        -a {params.mupit_dir} 
+        -p {input.pdb} 
+        -r {params.radius} 
+        -o {output.structures} 
+        -s {input.significance} 
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -817,16 +817,16 @@ rule _hotmaps_detailed_hotspots:
         CFG["conda_envs"]["hotmaps"]
     shell:
         op.as_one_line("""
-        {params.script}
-        --hotspots {input.hotspots}
-        --mupit-annotation {input.mupit_annotation}
-        --output-merged {input.merged_output}
-        --mtc-file {input.mtc_file}
-        --q-value {params.q_value}
-        --pdb-info {input.pdb_info}
-        --angstroms {params.radius}
-        --coordinates-out {output.coordinates}
-        --enriched-out {output.detailed}
+        {params.script} 
+        --hotspots {input.hotspots} 
+        --mupit-annotation {input.mupit_annotation} 
+        --output-merged {input.merged_output} 
+        --mtc-file {input.mtc_file} 
+        --q-value {params.q_value} 
+        --pdb-info {input.pdb_info} 
+        --angstroms {params.radius} 
+        --coordinates-out {output.coordinates} 
+        --enriched-out {output.detailed} 
         --overwrite > {log.stdout} 2> {log.stderr}
         """)
 
@@ -874,7 +874,7 @@ rule _hotmaps_all:
     input:
         expand(
             [
-                CFG["dirs"]["prepare_maf"] + "maf/{genome_build}/{sample_set}--{launch_date}/done",
+                CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/done",
                 str(rules._hotmaps_aggregate.output.aggregate)
             ],
             genome_build = "grch37",

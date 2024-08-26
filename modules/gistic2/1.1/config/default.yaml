@@ -25,7 +25,6 @@ lcr-modules:
             # -td   t_del   Threshold for copy number deletions. Regions with a copy number loss below the negative of this positive value are considered deletions. Regions with a smaller copy number loss are considered noise and set to 0.
 
         conda_envs:
-            prepare: "{REPODIR}/envs/gatk/gatkR.yaml"
             gistic2: "{MODSDIR}/envs/gistic2-2.0.23.yaml"
 
         threads:

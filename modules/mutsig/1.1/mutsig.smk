@@ -43,7 +43,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "mutsig",
     version = "1.1",
-    subdirectories = ["inputs", "prepare_maf","mcr", "mutsig", "outputs"],
+    subdirectories = ["inputs", "mcr", "mutsig", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -72,12 +72,12 @@ rule _mutsig_input_maf:
     input:
         maf = CFG["inputs"]["master_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/{sample_set}--{launch_date}/input.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
 
 
-# Symlinks the subsetting categories input file into the module results directory (under '00-inputs/')
+# Symlinks the input files into the module results directory (under '00-inputs/')
 rule _mutsig_input_subsetting_categories:
     input:
         subsetting_categories = CFG["inputs"]["subsetting_categories"]
@@ -97,9 +97,9 @@ checkpoint _mutsig_prepare_maf:
                     ),
         subsetting_categories = str(rules._mutsig_input_subsetting_categories.output.subsetting_categories)
     output:
-        CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/done"
+        CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done"
     log:
-        CFG["logs"]["prepare_maf"] + "{sample_set}--{launch_date}/prepare_maf.log"
+        CFG["logs"]["inputs"] + "{sample_set}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     params:
@@ -239,8 +239,8 @@ rule _mutsig_run:
         mcr_installed = ancient(str(rules._mutsig_install_mcr.output.local_mcr)),
         mcr_configured = ancient(str(rules._mutsig_configure_mcr.output.local_mcr)),
         mutsig = ancient(str(rules._mutsig_download_mutsig.output.mutsig)),
-        maf = CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/{md5sum}.maf",
-        content = CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/{md5sum}.maf.content"
+        maf = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf",
+        content = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf.content"
     output:
         mutsig_maf = temp(CFG["dirs"]["mutsig"] + "{sample_set}--{launch_date}--{md5sum}/final_analysis_set.maf"),
         mutsig_sig_genes = CFG["dirs"]["mutsig"] + "{sample_set}--{launch_date}--{md5sum}/sig_genes.txt",
@@ -259,11 +259,11 @@ rule _mutsig_run:
             &&
         ./run_MutSig2CV.sh
         local_mcr/v81
-        ../01-prepare_maf/{wildcards.sample_set}--{wildcards.launch_date}/{wildcards.md5sum}.maf
-        ../03-mutsig/{wildcards.sample_set}--{wildcards.launch_date}--{wildcards.md5sum}/
-        > ../03-mutsig/{wildcards.sample_set}--{wildcards.launch_date}--{wildcards.md5sum}/log
+        ../00-inputs/{wildcards.sample_set}--{wildcards.launch_date}/{wildcards.md5sum}.maf
+        ../02-mutsig/{wildcards.sample_set}--{wildcards.launch_date}--{wildcards.md5sum}/
+        > ../02-mutsig/{wildcards.sample_set}--{wildcards.launch_date}--{wildcards.md5sum}/log
             &&
-        touch ../03-mutsig/{wildcards.sample_set}--{wildcards.launch_date}--{wildcards.md5sum}/mutsig.success
+        touch ../02-mutsig/{wildcards.sample_set}--{wildcards.launch_date}--{wildcards.md5sum}/mutsig.success
         """)
 
 
@@ -302,7 +302,7 @@ rule _mutsig_all:
     input:
         expand(
             [
-                CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/done",
+                CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done",
                 str(rules._mutsig_aggregate.output.aggregate),
             ],
             sample_set=CFG["sample_set"],

@@ -22,7 +22,7 @@ import numpy as np
 CFG = op.setup_module(
     name = "oncodriveclustl",
     version = "1.0",
-    subdirectories = ["inputs", "prepare_mafs", "oncodriveclustl", "outputs"],
+    subdirectories = ["inputs", "oncodriveclustl", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -68,14 +68,14 @@ rule _oncodriveclustl_sample_set:
 checkpoint _oncodriveclustl_prep_input:
     input:
         maf = expand(
-            str(rules._oncodriveclustl_input_maf.output.maf),
-            seq_type = CFG["samples"]["seq_type"].unique(),
+            str(rules._oncodriveclustl_input_maf.output.maf), 
+            seq_type = CFG["samples"]["seq_type"].unique(), 
             allow_missing=True),
         subsetting_categories = ancient(str(rules._oncodriveclustl_sample_set.output.subsetting_categories))
     output:
-        CFG["dirs"]["prepare_mafs"] + "maf/{genome_build}/{sample_set}--{launch_date}/done"
+        CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/done"
     log:
-        stdout = CFG["logs"]["prepare_mafs"] + "{genome_build}/{sample_set}--{launch_date}/prep_input/prep_input_maf.log"
+        stdout = CFG["logs"]["inputs"] + "{genome_build}/{sample_set}--{launch_date}/prep_input/prep_input_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     params:
@@ -88,20 +88,20 @@ checkpoint _oncodriveclustl_prep_input:
 
 rule _oncodriveclustl_blacklist:
     input:
-        maf = CFG["dirs"]["prepare_mafs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.maf",
+        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.maf",
         blacklists = CFG["maf_processing"]["blacklists"],
         deblacklist_script = CFG["scripts"]["deblacklist_script"]
     output:
-        maf = CFG["dirs"]["prepare_mafs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.deblacklisted.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.deblacklisted.maf"
     params:
         drop_threshold = CFG["maf_processing"]["blacklist_drop_threshold"]
     log:
-        stdout = CFG["logs"]["prepare_mafs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stdout.log",
-        stderr = CFG["logs"]["prepare_mafs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stderr.log"
+        stdout = CFG["logs"]["inputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stderr.log"
     shell:
         op.as_one_line("""
         {input.deblacklist_script}
-        --input {input.maf}
+        --input {input.maf} 
         --output {output.maf}
         --drop-threshold {params.drop_threshold}
         --blacklists {input.blacklists}
@@ -112,18 +112,18 @@ rule _oncodriveclustl_format_input:
     input:
         maf = str(rules._oncodriveclustl_blacklist.output.maf)
     output:
-        maf = CFG["dirs"]["prepare_mafs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.clustl_input.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.clustl_input.maf"
     params:
         columns = CFG["format_clustl_input"]["input_columns"],
         additional_commands = CFG["format_clustl_input"]["additional_commands"]
     shell:
         op.as_one_line("""
         cut -f {params.columns} {input.maf} |
-        sed 's/Chromosome/CHROMOSOME/' |
+        sed 's/Chromosome/CHROMOSOME/' | 
         sed 's/Start_Position/POSITION/' |
-        sed 's/Reference_Allele/REF/' |
+        sed 's/Reference_Allele/REF/' | 
         sed 's/Tumor_Seq_Allele2/ALT/' |
-        sed 's/Tumor_Sample_Barcode/SAMPLE/'
+        sed 's/Tumor_Sample_Barcode/SAMPLE/' 
         {params.additional_commands}
         > {output.maf}
         """)
@@ -167,15 +167,15 @@ rule _oncodriveclustl_run:
     conda: CFG["conda_envs"]["clustl"]
     shell:
         op.as_one_line("""
-        export BGDATA_LOCAL={params.local_path} &&
-        oncodriveclustl
-        -i {input.maf}
-        -o "$(dirname $(realpath {output.txt}))"
-        -r {input.region}
-        -g {params.build}
-        --cores {threads}
-        --qqplot
-        {params.command_line_options}
+        export BGDATA_LOCAL={params.local_path} && 
+        oncodriveclustl 
+        -i {input.maf} 
+        -o "$(dirname $(realpath {output.txt}))" 
+        -r {input.region} 
+        -g {params.build} 
+        --cores {threads} 
+        --qqplot 
+        {params.command_line_options} 
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -217,10 +217,10 @@ rule _oncodriveclustl_get_cluster_coordinates:
         -n {params.samples}
         -p {params.p_value}
         -o {output.tsv}
-        {params.score}
+        {params.score} 
         > {log.stdout} 2> {log.stderr}
         """)
-
+        
 rule _oncodriveclustl_genomic_coordinates_out:
     input:
         genomic_coordinates = str(rules._oncodriveclustl_get_cluster_coordinates.output.tsv)

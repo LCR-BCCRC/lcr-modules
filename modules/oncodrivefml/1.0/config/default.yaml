@@ -1,7 +1,7 @@
 lcr-modules:
-
+    
     oncodrivefml:
-
+        
         inputs:
             # Available wildcards: {seq_type} {genome_build}
             input_maf: "__UPDATE__"
@@ -18,7 +18,7 @@ lcr-modules:
         # 3utr: 3' UTR regions
         # 5utr: 5' UTR regions
         # promoter_splice_sites: Promoter regions and splice site regions
-        # custom: Custom made regions file specified by user. More info for regions file format:
+        # custom: Custom made regions file specified by user. More info for regions file format: 
         # https://oncodrivefml.readthedocs.io/en/latest/files.html#regions-file-format
         regions: ["__UPDATE__"]
 
@@ -32,8 +32,8 @@ lcr-modules:
         format_fml_input:
             # String in input_columns is passed to the cut command to subset MAF columns to only include:
             # Chromosome, Start_Position, Reference_Allele, Tumor_Seq_Allele2, Tumor_Sample_Barcode
-            # e.g "cut -f 2,4,5,10,11"
-            input_columns: "2,4,5,10,11"
+            # e.g "cut -f 5,6,11,13,16"
+            input_columns: "5,6,11,13,16"
             # If additional columns are incorporated, add additional commands here to change column names if necessary
             # e.g additional_commands: "sed 's/Normal_Sample_Barcode/SIGNATURE/'"
             # More info: https://oncodrivefml.readthedocs.io/en/latest/files.html#file-formats
@@ -63,7 +63,7 @@ lcr-modules:
 
         options:
             config_path: "{MODSDIR}/etc/oncodrivefml.conf"
-            score_path:
+            score_path: 
             fml_options: ""
 
         conda_envs:

@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "dnds",
     version = "1.1",
-    subdirectories = ["inputs", "prepare_maf", "dnds", "outputs"],
+    subdirectories = ["inputs", "dnds", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -67,12 +67,12 @@ rule _dnds_input_maf:
     input:
         maf = CFG["inputs"]["master_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/{sample_set}--{launch_date}/input.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
 
 
-# Symlinks the subsetting categories input file into the module results directory (under '00-inputs/')
+# Symlinks the input files into the module results directory (under '00-inputs/')
 rule _dnds_input_subsetting_categories:
     input:
         subsetting_categories = CFG["inputs"]["subsetting_categories"]
@@ -92,9 +92,9 @@ checkpoint _dnds_prepare_maf:
                     ),
         subsetting_categories = str(rules._dnds_input_subsetting_categories.output.subsetting_categories)
     output:
-        CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/done"
+        CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done"
     log:
-        CFG["logs"]["prepare_maf"] + "{sample_set}--{launch_date}/prepare_maf.log"
+        CFG["logs"]["inputs"] + "{sample_set}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     params:
@@ -125,8 +125,8 @@ rule _install_dnds:
 rule _dnds_run:
     input:
         dnds = ancient(str(CFG["dirs"]["inputs"] + "dnds_installed.success")),
-        maf = CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/{md5sum}.maf",
-        content = CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/{md5sum}.maf.content"
+        maf = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf",
+        content = CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/{md5sum}.maf.content"
     output:
         dnds_sig_genes = CFG["dirs"]["dnds"] + "{sample_set}--{launch_date}/{md5sum}_sig_genes.tsv",
         annotmuts = CFG["dirs"]["dnds"] + "{sample_set}--{launch_date}/{md5sum}_annotmuts.tsv"
@@ -163,7 +163,7 @@ def _for_aggregate(wildcards):
         md5sum = SUMS
         )
 
-# Aggregates outputs to remove md5sum from rule all
+# aggregates outputs to remove md5sum from rule all
 rule _dnds_aggregate:
     input:
         _for_aggregate
@@ -177,7 +177,7 @@ rule _dnds_all:
     input:
         expand(
             [
-                CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/done",
+                CFG["dirs"]["inputs"] + "{sample_set}--{launch_date}/done",
                 str(rules._dnds_aggregate.output.aggregate)
             ],
             sample_set=CFG["sample_set"],
