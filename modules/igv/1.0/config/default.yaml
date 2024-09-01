@@ -33,6 +33,9 @@ lcr-modules:
         estimate_only: False 
 
         options:
+
+            igv_version: "https://data.broadinstitute.org/igv/projects/downloads/2.7/IGV_Linux_2.7.2.zip"
+
             genome_map: 
                 # Maps metadata builds to either grch37 or hg38 so that MAF file locations are determined correctly. Additional genome builds can be added as necessary.
                 grch37: ["grch37","hg19","hs37d5"]

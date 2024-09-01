@@ -379,32 +379,37 @@ def _evaluate_batches(wildcards):
             allow_missing = True
         )
 
+IGV_VERSION = CFG["options"]["igv_download_path"]
+IGV_VERSION = IGV_VERSION.split("/")[-1].replace(".zip","")
+
 rule _igv_download_igv:
     output:
-        igv_zip = CFG["dirs"]["igv"] + "IGV_2.7.2.zip",
-        igv_installed = CFG["dirs"]["igv"] + "igv_2.7.2.installed"
+        igv_zip = CFG["dirs"]["igv"] + IGV_VERSION + ".zip",
+        igv_installed = CFG["dirs"]["igv"] + IGV_VERSION + ".installed"
+    params:
+        igv = CFG["options"]["igv_download_path"]
     conda:
         CFG["conda_envs"]["wget"]
     log:
-        stdout = CFG["logs"]["igv"] + "download/igv_download.stdout.log",
-        stderr = CFG["logs"]["igv"] + "download/igv_download.stderr.log"
+        stdout = CFG["logs"]["igv"] + "download/igv_" + IGV_VERSION + "_download.stdout.log",
+        stderr = CFG["logs"]["igv"] + "download/igv_" + IGV_VERSION + "_download.stderr.log"
     shell:
         op.as_one_line("""
-        wget -O {output.igv_zip} https://data.broadinstitute.org/igv/projects/downloads/2.7/IGV_Linux_2.7.2.zip &&
+        wget -O {output.igv_zip} {params.igv} &&
         unzip {output.igv_zip} -d $(dirname {output.igv_zip}) > {log.stdout} 2> {log.stderr} &&
         touch {output.igv_installed}
         """)
 
 checkpoint _igv_run:
     input:
-        igv = str(rules._igv_download_igv.output.igv_installed),
+        igv = ancient(str(rules._igv_download_igv.output.igv_installed)),
         finished_batches = str(rules._igv_create_batch_script_per_variant.output.finished),
         batch_script = _evaluate_batches
     output:
         complete = CFG["dirs"]["snapshots"] + "completed/{seq_type}--{genome_build}/{preset}/{sample_id}.completed"
     params:
         merged_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{preset}/{sample_id}" + SUFFIX + ".batch",
-        igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh",
+        igv = CFG["dirs"]["igv"] + IGV_VERSION + "/igv.sh",
         sleep_time = CFG["options"]["generate_batch_script"]["sleep_timer"],
         server_number = "-n " + CFG["options"]["xvfb_parameters"]["server_number"] if CFG["options"]["xvfb_parameters"]["server_number"] is not None else "--auto-servernum",
         server_args = CFG["options"]["xvfb_parameters"]["server_args"]
