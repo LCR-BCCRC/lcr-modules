@@ -3,7 +3,7 @@ lcr-modules:
     igv:
 
         inputs:
-            # Available wildcards: {seq_type} {tumour_sample_id} {normal_sample_id} {pair_status} {genome_build}
+            # Available wildcards: {seq_type} {tumour_id} {normal_sample_id} {pair_status} {genome_build}
             maf: "__UPDATE__"
 
         regions: 
