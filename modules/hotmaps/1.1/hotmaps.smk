@@ -38,7 +38,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["hotmaps"]`
 CFG = op.setup_module(
     name = "hotmaps",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "prepare_maf", "maf2vcf", "bcftools", "vcf2maf", "hotmaps", "outputs"],
 )
 

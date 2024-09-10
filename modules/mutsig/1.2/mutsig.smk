@@ -42,7 +42,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["mutsig"]`
 CFG = op.setup_module(
     name = "mutsig",
-    version = "1.1",
+    version = "1.2",
     subdirectories = ["inputs", "prepare_maf","mcr", "mutsig", "outputs"],
 )
 
