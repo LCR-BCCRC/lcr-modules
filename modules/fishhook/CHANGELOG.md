@@ -36,3 +36,11 @@ covariates:
     #chrom_hmm: "/projects/dscott_prj/CCSRI_1500/exomes/ref/resources/E032_primaryBcells_fromPB_chromHMM_15state_segments.bed"
     #rep_timing: "/projects/dscott_prj/CCSRI_1500/exomes/ref/resources/RT_GM12878_Lymphocyte_Int90901931_hg19.bedgraph.gz"
 ```
+
+## [1.2] - 2024-08-22
+
+This update was authored by Sierra Gillis.
+
+- Added an output directory for the prepare step
+- Added more wildcards to the input maf symlink path for better knowing which was used for which run
+- Was tested with an update made to `lcr-scripts/generate_smg_inputs` that uses threads to read in maf files faster, and only reads in relevant columns

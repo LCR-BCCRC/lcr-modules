@@ -15,7 +15,16 @@ This release was authored by Kostia Dreval.
 - The implementation is similar to the other SMG lcr-modules, e.g. mutsig.
 
 ## [1.1] - 2024-01-19
+
 This update was authored by Sierra Gillis.
 
 - Preprocessing maf step was updated to be agnostic of the input metadata samples dataframe. The values to subset this metadata by in order to get the IDs of samples in the sample set will be done through the level3_subsetting_categories.tsv table.
 - The sample set outputs are tracked by launch-date of the snakemake and md5sum of the sample ids as well as sample set name. This implementation follows that in gistic2/1.1/
+
+## [1.2] - 2024-08-22
+
+This update was authored by Sierra Gillis.
+
+- Added an output directory for the prepare step
+- Added more wildcards to the input maf symlink path for better knowing which was used for which run
+- Was tested with an update made to `lcr-scripts/generate_smg_inputs` that uses threads to read in maf files faster, and only reads in relevant columns
