@@ -19,7 +19,7 @@ import numpy as np
 # `CFG` is a shortcut to `config["lcr-modules"]["oncodrivefml"]`
 CFG = op.setup_module(
     name = "oncodrivefml",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "prepare_mafs", "cadd", "oncodrivefml", "outputs"],
 )
 

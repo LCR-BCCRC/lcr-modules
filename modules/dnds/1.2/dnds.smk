@@ -38,7 +38,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["dnds"]`
 CFG = op.setup_module(
     name = "dnds",
-    version = "1.1",
+    version = "1.2",
     subdirectories = ["inputs", "prepare_maf", "dnds", "outputs"],
 )
 

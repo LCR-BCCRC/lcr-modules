@@ -21,7 +21,7 @@ import numpy as np
 # `CFG` is a shortcut to `config["lcr-modules"]["mixcr"]`
 CFG = op.setup_module(
     name = "oncodriveclustl",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "prepare_mafs", "oncodriveclustl", "outputs"],
 )
 

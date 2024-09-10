@@ -38,7 +38,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["fishhook"]`
 CFG = op.setup_module(
     name = "fishhook",
-    version = "1.1",
+    version = "1.2",
     subdirectories = ["inputs", "prepare_maf", "fishhook", "outputs"],
 )
 
