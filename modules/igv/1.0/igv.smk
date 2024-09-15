@@ -84,12 +84,28 @@ localrules:
 
 
 def get_bam(wildcards):
-    metadata = config["lcr-modules"]["igv"]["samples"]
-    return expand("data/{{seq_type}}_bams/{{sample_id}}.{genome_build}.bam", genome_build=metadata[(metadata.sample_id == wildcards.sample_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"])
+    CFG = config["lcr-modules"]["igv"]
+    metadata = CFG["samples"]
+    genome_build = metadata[(metadata.sample_id == wildcards.sample_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"]
+
+    return expand(
+        CFG["inputs"]["bam_path"],
+        seq_type = wildcards.seq_type,
+        sample_id = wildcards.sample_id,
+        genome_build = genome_build
+    )
 
 def get_bai(wildcards):
-    metadata = config["lcr-modules"]["igv"]["samples"]
-    return expand("data/{{seq_type}}_bams/{{sample_id}}.{genome_build}.bam.bai", genome_build=metadata[(metadata.sample_id == wildcards.sample_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"])
+    CFG = config["lcr-modules"]["igv"]
+    metadata = CFG["samples"]
+    genome_build = metadata[(metadata.sample_id == wildcards.sample_id) & (metadata.seq_type == wildcards.seq_type)]["genome_build"]
+
+    return expand(
+        CFG["inputs"]["bai_path"],
+        seq_type = wildcards.seq_type,
+        sample_id = wildcards.sample_id,
+        genome_build = genome_build
+    )
 
 ##### RULES #####
 

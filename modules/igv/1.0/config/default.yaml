@@ -6,6 +6,11 @@ lcr-modules:
             # Available wildcards: {seq_type} {tumour_id} {normal_sample_id} {pair_status} {genome_build}
             maf: "__UPDATE__"
 
+            # Available wildcards: {seq_type} {sample_id} {genome_build}
+            bam_path: "__UPDATE__"
+            bai_path: "__UPDATE__"
+
+
         regions: 
             # Provide regions files as lists in their respective genome builds so that liftover of coordinates occurs properly
             # Please provide at least one regions file to filter MAF variants
