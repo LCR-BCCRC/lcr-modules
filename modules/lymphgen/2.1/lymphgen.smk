@@ -35,17 +35,17 @@ assert (config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["other"]["
 # `CFG` is a shortcut to `config["lcr-modules"]["lymphgen"]`
 CFG = op.setup_module(
     name = "lymphgen",
-    version = "2.0",
-    subdirectories = ["inputs", "reformat_seg", "lymphgen_input", "add_svs", "lymphgen_run", "composite_other", "outputs"],
+    version = "2.1",
+    subdirectories = ["inputs", "reformat_seg", "lymphgen_input", "lymphgen_run", "composite_other", "outputs"],
 )
 
 
 def _find_best_seg(wildcards):
-    this_tumor = op.filter_samples(RUNS, genome_build = wildcards.tumour_genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, seq_type = wildcards.tumour_seq_type)
+    this_tumor = op.filter_samples(RUNS, tumour_genome_build = wildcards.genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, tumour_seq_type = wildcards.seq_type)
     return this_tumor.cnv_path
 
 def _find_best_sv(wildcards):
-    this_tumor = op.filter_samples(RUNS, genome_build = wildcards.tumour_genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, seq_type = wildcards.tumour_seq_type)
+    this_tumor = op.filter_samples(RUNS, tumour_genome_build = wildcards.genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, tumour_seq_type = wildcards.seq_type)
     if this_tumor["has_sv"].bool() == False:
         return config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["other"]["empty_sv"]
     else:
@@ -143,13 +143,13 @@ localrules:
     _install_lgenic,
     _lymphgen_input_cnv,
     _lymphgen_input_no_cnv,
+    _lymphgen_gamblr_config,
     _lymphgen_add_sv,
     _lymphgen_add_sv_blank,
     _lymphgen_run_cnv_A53,
     _lymphgen_run_cnv_noA53, 
     _lymphgen_run_no_cnv,
     _lymphgen_reformat_seg,
-    _lymphgen_flag_comp,
     _lymphgen_output_txt,
     _lymphgen_all,
 
@@ -177,7 +177,7 @@ rule _install_lgenic:
         "lymphgen"
     shell:
         '''
-        download_url=$(curl --silent "https://api.github.com/repos/ckrushton/LGenIC/releases/latest" | grep 'tarball_url' | sed 's/.*:[ ]//' | sed 's/,$//' | sed 's/"//g');
+        download_url=$(curl --silent "https://api.github.com/repos/LCR-BCCRC/LGenIC/releases/2.0.1" | grep 'tarball_url' | sed 's/.*:[ ]//' | sed 's/,$//' | sed 's/"//g');
         mkdir -p {params.lgenic_dir};
 
         wget -cO - $download_url > {params.lgenic_dir}/LGenIC.tar.gz && tar -C {params.lgenic_dir} -xf {params.lgenic_dir}/LGenIC.tar.gz && rm {params.lgenic_dir}/LGenIC.tar.gz;
@@ -207,6 +207,16 @@ rule _lymphgen_input_seg:
         "lymphgen"
     run:
         op.relative_symlink(input.seg, output.seg)
+        
+rule _lymphgen_input_sv: 
+    input: 
+        sv = _find_best_sv
+    output: 
+        sv = CFG["dirs"]["inputs"] + "sv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.bedpe"
+    group: 
+        "lymphgen"
+    run: 
+        op.relative_symlink(input.sv, output.sv)
 
 
 # STEP 2: REFORMAT SEG FILE
@@ -252,6 +262,22 @@ rule _lymphgen_reformat_seg:
 # STEP 3: REFORMAT INPUT TO RUN LYMPHGEN
 # Reformats MAF/SEG SNV/CNV calls for LymphGen using my LGenIC script
 
+def _get_gene_list(w): 
+    CFG = config["lcr-modules"]["lymphgen"]
+    this_tumor = op.filter_samples(RUNS, tumour_genome_build = w.genome_build, tumour_sample_id = w.tumour_id, normal_sample_id = w.normal_id, pair_status = w.pair_status, tumour_seq_type = w.seq_type)
+    if "tumour_capture_space" in this_tumor.columns: 
+        capture_space = this_tumor["tumour_capture_space"]
+        capture_path = expand(CFG["inputs"]["gene_list"], capture_space = capture_space)[0]
+    else: 
+        capture_path = CFG["inputs"]["gene_list"]
+    if os.path.exists(capture_path): 
+        logger.info(f"Using {capture_path} as the input gene list for {w.tumour_id}. ")
+        return str(capture_path)
+    else: 
+        logger.info(f"Using the default LymphGen gene list for {w.tumour_id}. ")
+        return str(rules._install_lgenic.output.lymphgen_genes)
+
+
 # With CNVs
 rule _lymphgen_input_cnv:
     input:
@@ -259,7 +285,7 @@ rule _lymphgen_input_cnv:
         seg = str(rules._lymphgen_reformat_seg.output.seg),
         # Software and resource dependencies from LGenIC
         lgenic_script = str(rules._install_lgenic.output.lgenic_script),
-        lymphgen_genes = str(rules._install_lgenic.output.lymphgen_genes),
+        lymphgen_genes = _get_gene_list,
         hugo2entrez = str(rules._install_lgenic.output.hugo2entrez),
         gene_coords = str(rules._install_lgenic.output.gene_coords),
         arm_coords = str(rules._install_lgenic.output.arm_coords),
@@ -275,7 +301,6 @@ rule _lymphgen_input_cnv:
     group:
         "lymphgen"
     params:
-        seq_type = CFG["options"]["lymphgen_input"]["seq_type"],
         outprefix = "{tumour_id}--{normal_id}--{pair_status}.{cnvs_wc}",
         logratio = "--log2" if CFG["options"]["lymphgen_input"]["use_log_ratio"].lower() == "true" else ""
     conda:
@@ -284,7 +309,7 @@ rule _lymphgen_input_cnv:
         cnvs_wc = "with_cnvs"
     shell:
         op.as_one_line("""
-        python {input.lgenic_script} --lymphgen_genes {input.lymphgen_genes} --sequencing_type {params.seq_type} --outdir $(dirname {output.sample_annotation})
+        python {input.lgenic_script} --lymphgen_genes {input.lymphgen_genes} --outdir $(dirname {output.sample_annotation})
         --outprefix {params.outprefix} -v INFO --maf {input.maf} --entrez_ids {input.hugo2entrez} --cnvs {input.seg} {params.logratio} --genes {input.gene_coords} --arms {input.arm_coords}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -295,7 +320,7 @@ rule _lymphgen_input_no_cnv:
         maf = str(rules._lymphgen_input_maf.output.maf),
         # Software and resource dependencies from LGenIC
         lgenic_script = str(rules._install_lgenic.output.lgenic_script),
-        lymphgen_genes = str(rules._install_lgenic.output.lymphgen_genes),
+        lymphgen_genes = _get_gene_list,
         hugo2entrez = str(rules._install_lgenic.output.hugo2entrez),
     output:
         sample_annotation = CFG["dirs"]["lymphgen_input"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{cnvs_wc}_sample_annotation.tsv",
@@ -307,7 +332,6 @@ rule _lymphgen_input_no_cnv:
     group:
         "lymphgen"
     params:
-        seq_type = CFG["options"]["lymphgen_input"]["seq_type"],
         outprefix = "{tumour_id}--{normal_id}--{pair_status}.{cnvs_wc}"
     conda:
         CFG['conda_envs']['sorted_containers']
@@ -315,51 +339,30 @@ rule _lymphgen_input_no_cnv:
         cnvs_wc = "no_cnvs"
     shell:
         op.as_one_line("""
-        python {input.lgenic_script} --lymphgen_genes {input.lymphgen_genes} --sequencing_type {params.seq_type} --outdir $(dirname {output.sample_annotation})
+        python {input.lgenic_script} --lymphgen_genes {input.lymphgen_genes} --outdir $(dirname {output.sample_annotation})
         --outprefix {params.outprefix} -v INFO --maf {input.maf} --entrez_ids {input.hugo2entrez} > {log.stdout} 2> {log.stderr}
         """)
 
 # STEP 4: Add SV information (if availible)
 
-# Obtain the path to the GAMBLR conda environment
-md5hash = hashlib.md5()
-if workflow.conda_prefix:
-    conda_prefix = workflow.conda_prefix
-else:
-    conda_prefix = os.path.abspath(".snakemake/conda")
-
-md5hash.update(conda_prefix.encode())
-f = open(config["lcr-modules"]["lymphgen"]["conda_envs"]["gamblr"], 'rb')
-md5hash.update(f.read())
-f.close()
-h = md5hash.hexdigest()
-GAMBLR = glob.glob(conda_prefix + "/" + h[:8] + "*")
-for file in GAMBLR: 
-    if os.path.isdir(file): 
-        GAMBLR = file
-
-rule _lymphgen_install_GAMBLR:
+rule _lymphgen_gamblr_config:
     params:
-        branch = ", ref = \"" + CFG['inputs']['gamblr_branch'] + "\"" if CFG['inputs']['gamblr_branch'] != "" else "",
-        config_url = CFG["inputs"]["gamblr_config_url"]
+        config_url = CFG["inputs"]["gamblr_config_url"], 
     output:
-        installed = directory(GAMBLR + "/lib/R/library/GAMBLR"),
-        config = "gamblr.yaml"
+        config = "config.yml"
     group:
         "lymphgen"
-    conda:
-        CFG['conda_envs']['gamblr']
     shell:
         op.as_one_line("""
-        wget -qO {output.config} {params.config_url} &&
-        R --vanilla -q -e 'options(timeout=9999999); devtools::install_github("morinlab/GAMBLR"{params.branch})'
+        wget -qO {output.config} {params.config_url} 
         """)
 
-rule _lymphgen_input_sv:
+
+rule _lymphgen_process_sv:
     input:
         fish = ancient(CFG["inputs"]["sample_sv_info"]["fish"]),
-        sv = _find_best_sv,
-        gamblr = ancient(rules._lymphgen_install_GAMBLR.output.installed)
+        sv = str(rules._lymphgen_input_sv.output.sv),
+        gamblr = ancient(rules._lymphgen_gamblr_config.output.config)
     output:
         sv = CFG["dirs"]["inputs"] + "sv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.tsv"
     group:
@@ -374,9 +377,9 @@ rule _lymphgen_input_sv:
 rule _lymphgen_add_sv:
     input:
         sample_annotation = str(rules._lymphgen_input_cnv.output.sample_annotation),
-        bcl2_bcl6_sv = str(rules._lymphgen_input_sv.output.sv)
+        bcl2_bcl6_sv = str(rules._lymphgen_process_sv.output.sv)
     output:
-        sample_annotation = CFG["dirs"]["add_svs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_sample_annotation.{cnvs_wc}.{sv_wc}.tsv"
+        sample_annotation = CFG["dirs"]["lymphgen_input"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_sample_annotation.{cnvs_wc}.{sv_wc}.tsv"
     params:
         sampleIDcolname = CFG["options"]["add_svs"]["samplecol"],
         bcl2colname = CFG["options"]["add_svs"]["bcl2col"],
@@ -408,53 +411,58 @@ rule _lymphgen_add_sv:
             raise AttributeError("Unable to locate column \'%s\' in \'%s\'" % (params.bcl6colname,  input.bcl2_bcl6_sv))
         elif not params.sampleIDcolname in loaded_sv.columns:
             raise AttributeError("Unable to locate column \'%s\' in \'%s\'" % (params.sampleIDcolname, input.bcl2_bcl6_sv))
-
+        
+        # Get the current sample ID
+        sampleID = wildcards.tumour_id
+        # Find the matching SampleID in the SV annotation file
+        sampleEntry = loaded_sv.loc[loaded_sv[params.sampleIDcolname] == sampleID]
+        
         # Add SV info to sample annotation file
         with open(input.sample_annotation) as f, open(output.sample_annotation, "w") as o:
-            for line in f:
-                line = line.rstrip("\n").rstrip("\r")  # Handle line endings
-                if line.startswith("Sample.ID\tCopy.Number"):  # Header line
-                    o.write(line)
-                    o.write(os.linesep)
-                    continue
-
-                cols = line.split("\t")
+            content = f.readlines()
+            # write header
+            header = content[0].rstrip("\n").rstrip("\r")  # Handle line endings
+            o.write(header)
+            o.write(os.linesep)
+            
+            if len(content) > 1: 
+                cols = content[1].split("\t")
                 try:
-                    sampleID = cols[0]
                     copynum = cols[1]
                 except IndexError as e:
-                    raise AttributeError("Input sample annotaion file \'%s\' appears to be malformed" % input.sample_annotation) from e
-                # Find the matching SampleID in the SV annotation file
-                sampleEntry = loaded_sv.loc[loaded_sv[params.sampleIDcolname] == sampleID]
-                # BCL2
-                try:
-                    bcl2status = sampleEntry[params.bcl2colname].tolist()[0]
-                    # Check to see if BCL2 is translocated or not
-                    if bcl2status in params.bcl2true:
-                        bcl2trans = "1"
-                    elif bcl2status in params.bcl2false:
-                        bcl2trans = "0"
-                    else:
-                        bcl2trans = "NA"
-                except IndexError:  # i.e. This sample isn't in the annotation file. set it as NA
+                    raise AttributeError("Input sample annotation file \'%s\' appears to be malformed" % input.sample_annotation) from e
+            else: 
+                copynum = "0"
+                
+            # BCL2
+            try:
+                bcl2status = sampleEntry[params.bcl2colname].tolist()[0]
+                # Check to see if BCL2 is translocated or not
+                if bcl2status in params.bcl2true:
+                    bcl2trans = "1"
+                elif bcl2status in params.bcl2false:
+                    bcl2trans = "0"
+                else:
                     bcl2trans = "NA"
-                # BCL6
-                try:
-                    bcl6status = sampleEntry[params.bcl6colname].tolist()[0]
-                    # Check if BCL6 is translocated
-                    if bcl6status in params.bcl6true:
-                        bcl6trans = "1"
-                    elif bcl6status in params.bcl6false:
-                        bcl6trans = "0"
-                    else:
-                        bcl6trans = "NA"
-                except IndexError:  # This sample isn't in the annotation file
+            except IndexError:  # i.e. This sample isn't in the annotation file. set it as NA
+                bcl2trans = "NA"
+            # BCL6
+            try:
+                bcl6status = sampleEntry[params.bcl6colname].tolist()[0]
+                # Check if BCL6 is translocated
+                if bcl6status in params.bcl6true:
+                    bcl6trans = "1"
+                elif bcl6status in params.bcl6false:
+                    bcl6trans = "0"
+                else:
                     bcl6trans = "NA"
+            except IndexError:  # This sample isn't in the annotation file
+                bcl6trans = "NA"
 
-                # Write the revised sample annotation entry
-                outline = [sampleID, copynum, bcl2trans, bcl6trans]
-                o.write("\t".join(outline))
-                o.write(os.linesep)
+            # Write the revised sample annotation entry
+            outline = [sampleID, copynum, bcl2trans, bcl6trans]
+            o.write("\t".join(outline))
+            o.write(os.linesep)
 
 
 # Since we don't have any SV info, just symlink sample annotation file
@@ -462,27 +470,19 @@ rule _lymphgen_add_sv_blank:
     input:
         sample_annotation = str(rules._lymphgen_input_cnv.output.sample_annotation)
     output:
-        sample_annotation = CFG["dirs"]["add_svs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_sample_annotation.{cnvs_wc}.{sv_wc}.tsv"
+        sample_annotation = CFG["dirs"]["lymphgen_input"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_sample_annotation.{cnvs_wc}.{sv_wc}.tsv"
     group:
         "lymphgen"
     wildcard_constraints:
         sv_wc = "no_sv"
     run:
-        op.relative_symlink(input.sample_annotation, output.sample_annotation, in_module = True)
-
-
+        op.relative_symlink(input.sample_annotation, output.sample_annotation, in_module = True)    
+        
 # STEP 5: RUN LYMPHGEN
-
-def _get_sample_annotation(wildcards):
-    if wildcards.sv_wc == "has_sv":
-        return str(rules._lymphgen_add_sv.output.sample_annotation)
-    else:
-        return str(rules._lymphgen_add_sv_blank.output.sample_annotation)
-
-# With CNVs, with A53
+ # With CNVs, with A53
 rule _lymphgen_run_cnv_A53:
     input:
-        sample_annotation = _get_sample_annotation,
+        sample_annotation = str(rules._lymphgen_add_sv.output.sample_annotation),
         mutation_flat = str(rules._lymphgen_input_cnv.output.mutation_flat),
         gene_list = str(rules._lymphgen_input_cnv.output.gene_list),
         cnv_flat = str(rules._lymphgen_input_cnv.output.cnv_flat),
@@ -509,7 +509,7 @@ rule _lymphgen_run_cnv_A53:
 # With CNVs, no A53
 rule _lymphgen_run_cnv_noA53:
     input:
-        sample_annotation = _get_sample_annotation,
+        sample_annotation = str(rules._lymphgen_add_sv.output.sample_annotation),
         mutation_flat = str(rules._lymphgen_input_cnv.output.mutation_flat),
         gene_list = str(rules._lymphgen_input_cnv.output.gene_list),
         cnv_flat = str(rules._lymphgen_input_cnv.output.cnv_flat),
@@ -536,9 +536,9 @@ rule _lymphgen_run_cnv_noA53:
 # No CNVs
 rule _lymphgen_run_no_cnv:
     input:
-        sample_annotation = _get_sample_annotation,
+        sample_annotation = str(rules._lymphgen_add_sv.output.sample_annotation),
         mutation_flat = str(rules._lymphgen_input_no_cnv.output.mutation_flat),
-        gene_list = str(rules._lymphgen_input_no_cnv.output.gene_list)
+        gene_list = str(rules._lymphgen_input_cnv.output.gene_list)
     output:
         result = CFG["dirs"]["lymphgen_run"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.results.{cnvs_wc}.{sv_wc}.{A53_wc}.tsv"
     log:
@@ -551,44 +551,26 @@ rule _lymphgen_run_no_cnv:
     conda:
         CFG['conda_envs']['optparse']
     wildcard_constraints:
-         cnvs_wc = "no_cnvs"
+        cnvs_wc = "no_cnvs"
     shell:
         op.as_one_line("""
         Rscript --vanilla {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list}
         -o {output.result} > {log.stdout} 2> {log.stderr}""")
 
-# STEP 6. Flag samples that fall in the composite "Dead Zone"
-rule _lymphgen_flag_comp:
-    input:
-        txt = str(rules._lymphgen_run_cnv_A53.output.result)
-    output:
-        txt = CFG["dirs"]["composite_other"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lymphgen_composite_other.{cnvs_wc}.{sv_wc}.{A53_wc}.tsv"
-    group:
-        "lymphgen"
-    run:
-        loaded_calls = pandas.read_csv(input.txt, sep="\t")
-
-        # Subset down to cases not classified by LymphGen (i.e. "Other")
-        othercases = loaded_calls.loc[loaded_calls["Subtype.Prediction"] == "Other"]
-
-        # Grab the confidence columns. These will change depending on which subgroups were included in the classification
-        confcols = list(x for x in othercases.columns if x.startswith("Confidence"))
-        confvalues = othercases[confcols] > 0.5
-        compother = othercases[confvalues.any(1)]
-        compother.to_csv(output.txt, sep = "\t")
-
-
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _lymphgen_output_txt:
     input:
-        txt = str(rules._lymphgen_run_cnv_A53.output.result),
-        comp = str(rules._lymphgen_flag_comp.output.txt)
+        txt = str(rules._lymphgen_run_cnv_A53.output.result)
     output:
         txt = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lymphgen_calls.{cnvs_wc}.{sv_wc}.{A53_wc}.tsv"
     group:
         "lymphgen"
     run:
         op.relative_symlink(input.txt, output.txt, in_module = True)
+        
+rule _lymphgen_empty_output: 
+    output: 
+        txt = CFG["dirs"]["outputs"]
 
 
 # Generates the target sentinels for each run, which generate the symlinks

@@ -11,19 +11,22 @@ library(GAMBLR)
 all_fish <- snakemake@input[["fish"]]
 sv <- snakemake@input[["sv"]]
 
-if (!(str_detect(sv, "svar_master"))) { # manta
-  sv <- fread(sv, skip = "CHROM") %>% 
-    rename(CHROM_A = '#CHROM_A') %>% 
-    select(CHROM_A, START_A, END_A, QUAL, STRAND_A, CHROM_B, START_B, END_B, STRAND_B) %>% 
-    rename(SCORE = QUAL) %>% 
-    mutate(tumour_sample_id = snakemake@wildcards[["tumour_id"]])
-} else if (str_detect(sv, "svar_master")) { # svar_master
-  sv <- fread(sv) %>%  
-    as.data.frame() %>% 
-    select(CHROM_A, START_A, END_A, SCORE, STRAND_A, CHROM_B, START_B, END_B, STRAND_B, tumour_sample_id)
-} else { # empty
-  sv <- fread(sv) %>% 
+if (str_detect(Sys.readlink(sv), "empty")) { # empty
+  print("empty")
+  sv <- fread(sv) %>%
     as.data.frame()
+} else if (str_detect(Sys.readlink(sv), "svar_master")) { # svar_master
+  print("svar_master")
+  sv <- fread(sv) %>%
+    as.data.frame() %>%
+    select(CHROM_A, START_A, END_A, SCORE, STRAND_A, CHROM_B, START_B, END_B, STRAND_B, tumour_sample_id)
+} else { # manta
+  print("not svar_master")
+  sv <- fread(sv, skip = "CHROM") %>%
+    rename(CHROM_A = "#CHROM_A") %>%
+    select(CHROM_A, START_A, END_A, QUAL, STRAND_A, CHROM_B, START_B, END_B, STRAND_B) %>%
+    rename(SCORE = QUAL) %>%
+    mutate(tumour_sample_id = snakemake@wildcards[["tumour_id"]])
 }
 
 all_fish <- read_tsv(all_fish) %>% as.data.frame()
@@ -61,10 +64,16 @@ real_bcl2 <- svar_master_annotated %>%
 
 if (nrow(one_fish) == 0) {
   final_sv <- one_fish %>%
-    add_row(sample_id = snakemake@wildcards[["tumour_id"]],
-            BCL2_BA_consensus = case_when(!(is_empty(real_bcl2)) ~ "POS",
-      TRUE ~ "NEG"), BCL6_BA_consensus = case_when(!(is_empty(real_bcl6)) ~ "POS",
-        TRUE ~ "NEG"))
+    add_row(
+      sample_id = snakemake@wildcards[["tumour_id"]],
+      BCL2_BA_consensus = case_when(
+        !(is_empty(real_bcl2)) ~ "POS",
+        TRUE ~ "NEG"
+      ), BCL6_BA_consensus = case_when(
+        !(is_empty(real_bcl6)) ~ "POS",
+        TRUE ~ "NEG"
+      )
+    )
 } else {
   final_sv <- one_fish %>%
     mutate(BCL2_BA_consensus = case_when(

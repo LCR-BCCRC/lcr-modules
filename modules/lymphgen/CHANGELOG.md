@@ -26,7 +26,7 @@ Add an additional iteration of LymphGen, which excludes the A53 subgroup from cl
 
 This release was authored by Laura Hilton. 
 
-- Significant update that uses as user-provided gene list for LymphGen instead of inferring target space from the input maf file. 
+- Significant update that uses a user-provided gene list for LymphGen instead of inferring target space from the input maf file. 
 - Installs an updated version of [LGenIC](https://github.com/LCR-BCCRC/LGenIC/releases/tag/2.0.1) with a tagged release 2.0.1. 
 
 ## [2.0] - 2023-06-19

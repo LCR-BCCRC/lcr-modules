@@ -24,8 +24,8 @@ import oncopipe as op
 # `CFG` is a shortcut to `config["lcr-modules"]["lymphgen"]`
 CFG = op.setup_module(
     name = "lymphgen",
-    version = "1.0",
-    subdirectories = ["inputs", "reformat_seg", "lymphgen_input", "add_svs", "lymphgen_run", "composite_other", "outputs"],
+    version = "1.1",
+    subdirectories = ["inputs", "reformat_seg", "lymphgen_input", "lymphgen_run", "composite_other", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -50,7 +50,6 @@ lgenic_path = CFG["inputs"]["lgenic_exec"]
 if not lgenic_path.endswith(os.sep) and lgenic_path != "":
     CFG["inputs"]["lgenic_exec"] = CFG["inputs"]["lgenic_exec"] + os.sep
 
-
 ##### RULES #####
 
 outprefix = CFG["options"]["outprefix"]
@@ -67,7 +66,7 @@ rule _install_lgenic:
         arm_coords = CFG["inputs"]["lgenic_exec"] + "resources" + os.sep + "chrom_arm.hg19.tsv"
     shell:
         '''
-        download_url=$(curl --silent "https://api.github.com/repos/ckrushton/LGenIC/releases/latest" | grep 'tarball_url' | sed 's/.*:[ ]//' | sed 's/,$//' | sed 's/"//g');
+        download_url=$(curl --silent "https://api.github.com/repos/LCR-BCCRC/LGenIC/releases/2.0.1" | grep 'tarball_url' | sed 's/.*:[ ]//' | sed 's/,$//' | sed 's/"//g');
         mkdir -p {params.lgenic_dir};
 
         wget -cO - $download_url > {params.lgenic_dir}/LGenIC.tar.gz && tar -C {params.lgenic_dir} -xf {params.lgenic_dir}/LGenIC.tar.gz && rm {params.lgenic_dir}/LGenIC.tar.gz;
@@ -88,10 +87,25 @@ rule _lymphgen_input_seg:
     input:
         seg = CFG["inputs"]["sample_seg"]
     output:
-        seg = CFG["dirs"]["inputs"] + "seg/input.seg"
+        seg = CFG["dirs"]["inputs"] + "seg/" + outprefix + ".seg"
     run:
         op.relative_symlink(input.seg, output.seg)
 
+rule _lymphgen_input_sv:
+    input:
+        sv = CFG["inputs"]["sample_sv_info"]
+    output:
+        sv = CFG["dirs"]["inputs"] + "sv/" + outprefix + "_sv.tsv"
+    run:
+        op.relative_symlink(input.sv, output.sv)
+        
+rule _lymphgen_input_gene_list: 
+    input: 
+        genes = CFG["inputs"]["gene_list"]
+    output: 
+        genes = CFG["dirs"]["inputs"] + "gene_list/" + outprefix + "gene_list.tsv"
+    run: 
+        op.relative_symlink(input.genes, output.genes)
 
 # STEP 2: REFORMAT SEG FILE
 # Make sure the SEG columns are consistent
@@ -134,6 +148,13 @@ rule _lymphgen_reformat_seg:
 # STEP 3: REFORMAT INPUT TO RUN LYMPHGEN
 # Reformats MAF/SEG SNV/CNV calls for LymphGen using my LGenIC script
 
+def _get_gene_list(wildcards): 
+    CFG = config["lcr-modules"]["lymphgen"]
+    if CFG["inputs"]["gene_list"] == "": 
+        return str(rules._install_lgenic.output.lymphgen_genes)
+    else: 
+        return str(rules._lymphgen_input_gene_list.output.genes)
+
 # With CNVs
 rule _lymphgen_input_cnv:
     input:
@@ -141,7 +162,7 @@ rule _lymphgen_input_cnv:
         seg = str(rules._lymphgen_reformat_seg.output.seg),
         # Software and resource dependencies from LGenIC
         lgenic_script = str(rules._install_lgenic.output.lgenic_script),
-        lymphgen_genes = str(rules._install_lgenic.output.lymphgen_genes),
+        lymphgen_genes = _get_gene_list,
         hugo2entrez = str(rules._install_lgenic.output.hugo2entrez),
         gene_coords = str(rules._install_lgenic.output.gene_coords),
         arm_coords = str(rules._install_lgenic.output.arm_coords),
@@ -155,7 +176,6 @@ rule _lymphgen_input_cnv:
         stdout = CFG["logs"]["lymphgen_input"] + "{outprefix}.{cnvs_wc}.LGenIC.stdout.log",
         stderr = CFG["logs"]["lymphgen_input"] + "{outprefix}.{cnvs_wc}.LGenIC.stderr.log"
     params:
-        seq_type = CFG["options"]["lymphgen_input"]["seq_type"],
         outprefix = "{outprefix}.{cnvs_wc}",
         logratio = "--log2" if CFG["options"]["lymphgen_input"]["use_log_ratio"].lower() == "true" else ""
     conda:
@@ -164,7 +184,7 @@ rule _lymphgen_input_cnv:
         cnvs_wc = "with_cnvs"
     shell:
         op.as_one_line("""
-        python {input.lgenic_script} --lymphgen_genes {input.lymphgen_genes} --sequencing_type {params.seq_type} --outdir $(dirname {output.sample_annotation})
+        python {input.lgenic_script} --lymphgen_genes {input.lymphgen_genes} --outdir $(dirname {output.sample_annotation})
         --outprefix {params.outprefix} -v INFO --maf {input.maf} --entrez_ids {input.hugo2entrez} --cnvs {input.seg} {params.logratio} --genes {input.gene_coords} --arms {input.arm_coords}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -175,7 +195,7 @@ rule _lymphgen_input_no_cnv:
         maf = str(rules._lymphgen_input_maf.output.maf),
         # Software and resource dependencies from LGenIC
         lgenic_script = str(rules._install_lgenic.output.lgenic_script),
-        lymphgen_genes = str(rules._install_lgenic.output.lymphgen_genes),
+        lymphgen_genes = _get_gene_list,
         hugo2entrez = str(rules._install_lgenic.output.hugo2entrez),
     output:
         sample_annotation = CFG["dirs"]["lymphgen_input"] + "{outprefix}.{cnvs_wc}_sample_annotation.tsv",
@@ -185,7 +205,6 @@ rule _lymphgen_input_no_cnv:
         stdout = CFG["logs"]["lymphgen_input"] + "{outprefix}.{cnvs_wc}.LGenIC.stdout.log",
         stderr = CFG["logs"]["lymphgen_input"] + "{outprefix}.{cnvs_wc}.LGenIC.stderr.log"
     params:
-        seq_type = CFG["options"]["lymphgen_input"]["seq_type"],
         outprefix = "{outprefix}.{cnvs_wc}"
     conda:
         CFG['conda_envs']['sorted_containers']
@@ -193,7 +212,7 @@ rule _lymphgen_input_no_cnv:
         cnvs_wc = "no_cnvs"
     shell:
         op.as_one_line("""
-        python {input.lgenic_script} --lymphgen_genes {input.lymphgen_genes} --sequencing_type {params.seq_type} --outdir $(dirname {output.sample_annotation})
+        python {input.lgenic_script} --lymphgen_genes {input.lymphgen_genes} --outdir $(dirname {output.sample_annotation})
         --outprefix {params.outprefix} -v INFO --maf {input.maf} --entrez_ids {input.hugo2entrez} > {log.stdout} 2> {log.stderr}
         """)
 
@@ -202,9 +221,9 @@ rule _lymphgen_input_no_cnv:
 rule _lymphgen_add_sv:
     input:
         sample_annotation = str(rules._lymphgen_input_cnv.output.sample_annotation),
-        bcl2_bcl6_sv = CFG["inputs"]["sample_sv_info"]
+        bcl2_bcl6_sv = str(rules._lymphgen_input_sv.output.sv)
     output:
-        sample_annotation = CFG["dirs"]["add_svs"] + "{outprefix}_sample_annotation.{cnvs_wc}.{sv_wc}.tsv"
+        sample_annotation = CFG["dirs"]["lymphgen_input"] + "{outprefix}_sample_annotation.{cnvs_wc}.{sv_wc}.tsv"
     params:
         sampleIDcolname = CFG["options"]["add_svs"]["samplecol"],
         bcl2colname = CFG["options"]["add_svs"]["bcl2col"],
@@ -288,7 +307,7 @@ rule _lymphgen_add_sv_blank:
     input:
         sample_annotation = str(rules._lymphgen_input_cnv.output.sample_annotation)
     output:
-        sample_annotation = CFG["dirs"]["add_svs"] + "{outprefix}_sample_annotation.{cnvs_wc}.{sv_wc}.tsv"
+        sample_annotation = CFG["dirs"]["lymphgen_input"] + "{outprefix}_sample_annotation.{cnvs_wc}.{sv_wc}.tsv"
     wildcard_constraints:
         sv_wc = "no_sv"
     run:
@@ -297,16 +316,10 @@ rule _lymphgen_add_sv_blank:
 
 # STEP 5: RUN LYMPHGEN
 
-def _get_sample_annotation(wildcards):
-    if wildcards.sv_wc == "has_sv":
-        return str(rules._lymphgen_add_sv.output.sample_annotation)
-    else:
-        return str(rules._lymphgen_add_sv_blank.output.sample_annotation)
-
 # With CNVs, with A53
 rule _lymphgen_run_cnv_A53:
     input:
-        sample_annotation = _get_sample_annotation,
+        sample_annotation = str(rules._lymphgen_add_sv.output.sample_annotation),
         mutation_flat = str(rules._lymphgen_input_cnv.output.mutation_flat),
         gene_list = str(rules._lymphgen_input_cnv.output.gene_list),
         cnv_flat = str(rules._lymphgen_input_cnv.output.cnv_flat),
@@ -331,7 +344,7 @@ rule _lymphgen_run_cnv_A53:
 # With CNVs, no A53
 rule _lymphgen_run_cnv_noA53:
     input:
-        sample_annotation = _get_sample_annotation,
+        sample_annotation = str(rules._lymphgen_add_sv.output.sample_annotation),
         mutation_flat = str(rules._lymphgen_input_cnv.output.mutation_flat),
         gene_list = str(rules._lymphgen_input_cnv.output.gene_list),
         cnv_flat = str(rules._lymphgen_input_cnv.output.cnv_flat),
@@ -356,7 +369,7 @@ rule _lymphgen_run_cnv_noA53:
 # No CNVs
 rule _lymphgen_run_no_cnv:
     input:
-        sample_annotation = _get_sample_annotation,
+        sample_annotation = str(rules._lymphgen_add_sv.output.sample_annotation),
         mutation_flat = str(rules._lymphgen_input_no_cnv.output.mutation_flat),
         gene_list = str(rules._lymphgen_input_no_cnv.output.gene_list)
     output:
@@ -369,7 +382,7 @@ rule _lymphgen_run_no_cnv:
     conda:
         CFG['conda_envs']['optparse']
     wildcard_constraints:
-         cnvs_wc = "no_cnvs"
+        cnvs_wc = "no_cnvs"
     shell:
         op.as_one_line("""
         Rscript --vanilla {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list}
@@ -424,6 +437,22 @@ if "sample_seg" in CFG["inputs"] and CFG["inputs"]["sample_seg"] != "" and CFG["
     a53_wc = ["with_A53", "no_A53"]
 else:
     a53_wc = ["no_A53"]
+
+
+# Use this as the target rule if you don't have access to LymphGen source code
+# Files generated by this rule can be uploaded to the LymphGen webtool. 
+rule _lymphgen_generate_input: 
+    input: 
+        expand(
+            [
+                CFG["dirs"]["lymphgen_input"] + "{outprefix}_sample_annotation.{cnvs_wc}.{sv_wc}.tsv",
+                CFG["dirs"]["lymphgen_input"] + "{outprefix}.{cnvs_wc}_mutation_flat.tsv"
+            ], 
+            outprefix = outprefix,
+            cnvs_wc = cnvs_wc,
+            sv_wc = sv_wc,
+            A53_wc = a53_wc
+        )
 
 rule _lymphgen_all:
     input:
