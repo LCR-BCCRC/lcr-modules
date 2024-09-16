@@ -311,7 +311,7 @@ rule _lymphgen_add_sv_blank:
     wildcard_constraints:
         sv_wc = "no_sv"
     run:
-        op.relative_symlink(input.sample_annotation, output.sample_annotation)
+        op.relative_symlink(input.sample_annotation, output.sample_annotation, in_module = True)
 
 
 # STEP 5: RUN LYMPHGEN
@@ -415,7 +415,7 @@ rule _lymphgen_output_txt:
     output:
         txt = CFG["dirs"]["outputs"] + "{outprefix}.lymphgen_calls.{cnvs_wc}.{sv_wc}.{A53_wc}.tsv"
     run:
-        op.relative_symlink(input.txt, output.txt)
+        op.relative_symlink(input.txt, output.txt, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks

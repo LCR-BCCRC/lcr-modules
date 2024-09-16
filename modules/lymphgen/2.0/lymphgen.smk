@@ -476,7 +476,7 @@ rule _lymphgen_add_sv_blank:
     wildcard_constraints:
         sv_wc = "no_sv"
     run:
-        op.relative_symlink(input.sample_annotation, output.sample_annotation)    
+        op.relative_symlink(input.sample_annotation, output.sample_annotation, in_module = True)    
         
 # STEP 5: RUN LYMPHGEN
  # With CNVs, with A53
@@ -566,7 +566,7 @@ rule _lymphgen_output_txt:
     group:
         "lymphgen"
     run:
-        op.relative_symlink(input.txt, output.txt)
+        op.relative_symlink(input.txt, output.txt, in_module = True)
         
 rule _lymphgen_empty_output: 
     output: 
