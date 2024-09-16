@@ -50,7 +50,7 @@ rule _starfish_input_vcf:
         vcf2 = CFG["inputs"]["sample_vcf"][1]
     output:
         vcf1 = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}." + tool1 + ".vcf.gz",
-        vcf2 = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}." + tool2 + ".vcf.gz" 
+        vcf2 = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}." + tool2 + ".vcf.gz"
     run:
         op.relative_symlink(input.vcf1, output.vcf1),
         op.relative_symlink(input.vcf2, output.vcf2),
@@ -88,7 +88,7 @@ rule _starfish_run:
     shell:
        op.as_one_line("""
         {input.starfish_script} --sdf {input.reference} -O {params.vcf_dir}
-        --names {params.tool1} {params.tool2} 
+        --names {params.tool1} {params.tool2}
         --sample ALT --squash-ploidy --vennout {output.venn}
         -V {input.vcf1} {input.vcf2} > {log.stdout} 2> {log.stderr} && touch {output.completed}
         """)
@@ -107,13 +107,13 @@ rule _starfish_output_vcf:
         isec = output_base_vcf + tool1 + "-and-" + tool2 + ".vcf.gz",
         completed = output_base_vcf + "starfish_complete"
     run:
-        op.relative_symlink(input.tool1_only, output.t1),
-        op.relative_symlink(input.tool1_only + ".tbi", output.t1 + ".tbi"),
-        op.relative_symlink(input.tool2_only, output.t2),
-        op.relative_symlink(input.tool2_only + ".tbi", output.t2 + ".tbi"),
-        op.relative_symlink(input.intersect, output.isec),
-        op.relative_symlink(input.intersect + ".tbi", output.isec + ".tbi"),
-        op.relative_symlink(input.completed, output.completed),
+        op.relative_symlink(input.tool1_only, output.t1, in_module = True),
+        op.relative_symlink(input.tool1_only + ".tbi", output.t1 + ".tbi", in_module = True),
+        op.relative_symlink(input.tool2_only, output.t2, in_module = True),
+        op.relative_symlink(input.tool2_only + ".tbi", output.t2 + ".tbi", in_module = True),
+        op.relative_symlink(input.intersect, output.isec, in_module = True),
+        op.relative_symlink(input.intersect + ".tbi", output.isec + ".tbi", in_module = True),
+        op.relative_symlink(input.completed, output.completed, in_module = True),
 
 #should generalize for all VCFs to avoid redundancy. Note the need for the Strelka indels so there are additional outputs here.
 #This rule keeps all indels from both tools (i.e not just Strelka)
@@ -123,8 +123,8 @@ rule _starfish_vcf_to_bed:
         tool2_only = str(rules._starfish_run.output.tool2_only),
         intersect = str(rules._starfish_run.output.intersect),
         completed = str(rules._starfish_run.output.completed),
-        vcf1 = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}." + tool1 + ".vcf.gz", 
-        vcf2 = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}." + tool2 + ".vcf.gz" 
+        vcf1 = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}." + tool1 + ".vcf.gz",
+        vcf2 = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}." + tool2 + ".vcf.gz"
     output:
         tool1_only = vcf_to_bed_base + "A.bed",
         tool2_only = vcf_to_bed_base + "B.bed",

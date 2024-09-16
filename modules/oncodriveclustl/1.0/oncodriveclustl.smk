@@ -68,8 +68,8 @@ rule _oncodriveclustl_sample_set:
 checkpoint _oncodriveclustl_prep_input:
     input:
         maf = expand(
-            str(rules._oncodriveclustl_input_maf.output.maf), 
-            seq_type = CFG["samples"]["seq_type"].unique(), 
+            str(rules._oncodriveclustl_input_maf.output.maf),
+            seq_type = CFG["samples"]["seq_type"].unique(),
             allow_missing=True),
         subsetting_categories = ancient(str(rules._oncodriveclustl_sample_set.output.subsetting_categories))
     output:
@@ -101,7 +101,7 @@ rule _oncodriveclustl_blacklist:
     shell:
         op.as_one_line("""
         {input.deblacklist_script}
-        --input {input.maf} 
+        --input {input.maf}
         --output {output.maf}
         --drop-threshold {params.drop_threshold}
         --blacklists {input.blacklists}
@@ -119,11 +119,11 @@ rule _oncodriveclustl_format_input:
     shell:
         op.as_one_line("""
         cut -f {params.columns} {input.maf} |
-        sed 's/Chromosome/CHROMOSOME/' | 
+        sed 's/Chromosome/CHROMOSOME/' |
         sed 's/Start_Position/POSITION/' |
-        sed 's/Reference_Allele/REF/' | 
+        sed 's/Reference_Allele/REF/' |
         sed 's/Tumor_Seq_Allele2/ALT/' |
-        sed 's/Tumor_Sample_Barcode/SAMPLE/' 
+        sed 's/Tumor_Sample_Barcode/SAMPLE/'
         {params.additional_commands}
         > {output.maf}
         """)
@@ -167,15 +167,15 @@ rule _oncodriveclustl_run:
     conda: CFG["conda_envs"]["clustl"]
     shell:
         op.as_one_line("""
-        export BGDATA_LOCAL={params.local_path} && 
-        oncodriveclustl 
-        -i {input.maf} 
-        -o "$(dirname $(realpath {output.txt}))" 
-        -r {input.region} 
-        -g {params.build} 
-        --cores {threads} 
-        --qqplot 
-        {params.command_line_options} 
+        export BGDATA_LOCAL={params.local_path} &&
+        oncodriveclustl
+        -i {input.maf}
+        -o "$(dirname $(realpath {output.txt}))"
+        -r {input.region}
+        -g {params.build}
+        --cores {threads}
+        --qqplot
+        {params.command_line_options}
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -217,17 +217,17 @@ rule _oncodriveclustl_get_cluster_coordinates:
         -n {params.samples}
         -p {params.p_value}
         -o {output.tsv}
-        {params.score} 
+        {params.score}
         > {log.stdout} 2> {log.stderr}
         """)
-        
+
 rule _oncodriveclustl_genomic_coordinates_out:
     input:
         genomic_coordinates = str(rules._oncodriveclustl_get_cluster_coordinates.output.tsv)
     output:
         genomic_coordinates = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/genomic_coordinates_clusters_results_{q_value}.tsv"
     run:
-        op.relative_symlink(input.genomic_coordinates, output.genomic_coordinates)
+        op.relative_symlink(input.genomic_coordinates, output.genomic_coordinates, in_module = True)
 
 def _get_oncodriveclustl_outputs(wildcards):
     CFG = config["lcr-modules"]["oncodriveclustl"]
