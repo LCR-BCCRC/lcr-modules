@@ -22,10 +22,11 @@ lcr-modules:
             sample_sv_info: 
             # All the SV files will be merged with a final SV file created for each sample so the order of keys don't matter 
             # If there is no fish sv file put "{MODSDIR}/etc/empty_sv_fish.tsv" in key fish 
-            # Always keep all three keys with real file paths 
+            # The fish and empty_sv keys below must point to real files 
                 fish: "__UPDATE__"
                 other:
                 # svar_master file path MUST contain "svar_master" and manta file path MUST NOT contain 
+                # Comment out svar_master and manta if these files don't exist for your project. 
                     svar_master: "__UPDATE__"
                     manta: "__UPDATE__"
                     empty_sv: "{MODSDIR}/etc/empty_svar_master.tsv" 
