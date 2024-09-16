@@ -34,7 +34,6 @@ lcr-modules:
                 bcl6truevalues: "__UPDATE__"  # Can use a list
                 bcl6falsevalues: "__UPDATE__"
             lymphgen_input:
-                seq_type: "genome"  # Availible options: exome/genome (they do the same thing) and targeted (for panels)
                 use_log_ratio: "__UPDATE__"
             lymphgen_run:
                 lymphgen_path: "/projects/rmorin/software/lcr-scripts/LymphGen/Run_Lymphgen.R"

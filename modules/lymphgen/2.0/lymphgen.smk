@@ -265,8 +265,11 @@ rule _lymphgen_reformat_seg:
 def _get_gene_list(w): 
     CFG = config["lcr-modules"]["lymphgen"]
     this_tumor = op.filter_samples(RUNS, tumour_genome_build = w.genome_build, tumour_sample_id = w.tumour_id, normal_sample_id = w.normal_id, pair_status = w.pair_status, tumour_seq_type = w.seq_type)
-    capture_space = this_tumor["tumour_capture_space"]
-    capture_path = expand(CFG["inputs"]["gene_list"], capture_space = capture_space)[0]
+    if "tumour_capture_space" in this_tumor.columns: 
+        capture_space = this_tumor["tumour_capture_space"]
+        capture_path = expand(CFG["inputs"]["gene_list"], capture_space = capture_space)[0]
+    else: 
+        capture_path = CFG["inputs"]["gene_list"]
     if os.path.exists(capture_path): 
         logger.info(f"Using {capture_path} as the input gene list for {w.tumour_id}. ")
         return str(capture_path)

@@ -33,6 +33,8 @@ lcr-modules:
             # One Hugo_Symbol or one Entrez ID per row. 
             # If any of your samples are targeted, the file path should point to a list of genes for your targeted panel. 
             # The capture_space wildcard should match the capture_space value in the samples table. 
+            # Alternatively, if all samples use the same capture space, you can omit the capture_space column and 
+            # specify one path to a gene_list without the capture_space wildcard. 
             # Leave blank if only exome/genome sequencing. 
             gene_list: "__UPDATE__" # e.g. "data/bed/{capture_space}.gene_list.txt"
             # Path to the directory where LGenIC should be installed
@@ -68,7 +70,6 @@ lcr-modules:
                 bcl6truevalues: "__UPDATE__"  # Can use a list
                 bcl6falsevalues: "__UPDATE__"
             lymphgen_input:
-                seq_type: "__UPDATE__"  # Availible options: exome/genome (they do the same thing) and targeted (for panels)
                 use_log_ratio: "True"
             lymphgen_run:
                 lymphgen_path: "__UPDATE__"
