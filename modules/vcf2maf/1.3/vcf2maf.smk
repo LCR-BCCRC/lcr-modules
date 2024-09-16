@@ -31,7 +31,7 @@ localrules:
     _vcf2maf_input_vcf,
     _vcf2maf_input_bam,
     _vcf2maf_output_maf,
-    _vcf2maf_install_GAMBLR,
+    _vcf2maf_gamblr_config,
     _vcf2maf_output_original,
     _vcf2maf_normalize_prefix,
     _vcf2maf_all
@@ -188,43 +188,21 @@ rule _vcf2maf_gnomad_filter_maf:
             &&
         touch {output.dropped_maf}
         """)
-
-# Obtain the path to the GAMBLR conda environment
-md5hash = hashlib.md5()
-if workflow.conda_prefix:
-    conda_prefix = workflow.conda_prefix
-else:
-    conda_prefix = os.path.abspath(".snakemake/conda")
-
-md5hash.update(conda_prefix.encode())
-f = open("config/envs/GAMBLR.yaml", 'rb')
-md5hash.update(f.read())
-f.close()
-h = md5hash.hexdigest()
-GAMBLR = glob.glob(conda_prefix + "/" + h[:8] + "*")
-for file in GAMBLR:
-    if os.path.isdir(file):
-        GAMBLR = file
-
-rule _vcf2maf_install_GAMBLR:
+        
+rule _vcf2maf_gamblr_config:
     params:
-        branch = ", ref = \"" + CFG['inputs']['gamblr_branch'] + "\"" if CFG['inputs']['gamblr_branch'] != "" else "",
-        config_url = CFG["inputs"]["gamblr_config_url"]
+        config_url = CFG["inputs"]["gamblr_config_url"], 
     output:
-        installed = directory(GAMBLR + "/lib/R/library/GAMBLR"),
-        config = "gamblr.yaml"
-    conda:
-        CFG['conda_envs']['gamblr']
+        config = "config.yml"
     shell:
         op.as_one_line("""
-        wget -qO {output.config} {params.config_url} &&
-        R --vanilla -q -e 'options(timeout=9999999); devtools::install_github("morinlab/GAMBLR"{params.branch})'
+        wget -qO {output.config} {params.config_url} 
         """)
 
 rule _vcf2maf_deblacklist_maf:
     input:
         maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.raw.maf",
-        gamblr = ancient(rules._vcf2maf_install_GAMBLR.output.installed)
+        gamblr = ancient(rules.gamblr_config.output.config)
     output:
         maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.deblacklisted.maf"
     log:
