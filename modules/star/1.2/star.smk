@@ -79,7 +79,7 @@ rule _star_run:
         mem_mb = CFG["mem_mb"]["star"]
     shell:
         op.as_one_line("""
-        STAR {params.opts} --readFilesIn {input.fastq_1} {input.fastq_2} --genomeDir {input.index} 
+        STAR {params.opts} --readFilesIn {input.fastq_1} {input.fastq_2} --genomeDir {input.index}
         --outFileNamePrefix {params.prefix} --runThreadN {threads} --sjdbGTFfile {input.gtf}
         --sjdbOverhang {params.star_overhang} > {log.stdout} 2> {log.stderr}
             &&
@@ -123,8 +123,8 @@ rule _star_output_bam:
     output:
         bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bam + ".bai")
+        op.relative_symlink(input.bam, output.bam, in_module = True)
+        op.relative_symlink(input.bai, output.bam + ".bai", in_module = True)
         os.remove(input.sorted_bam)
         shell("touch {input.sorted_bam}.deleted")
 
