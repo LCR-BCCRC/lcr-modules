@@ -177,7 +177,7 @@ rule _install_lgenic:
         "lymphgen"
     shell:
         '''
-        download_url=$(curl --silent "https://api.github.com/repos/LCR-BCCRC/LGenIC/releases/2.0.1" | grep 'tarball_url' | sed 's/.*:[ ]//' | sed 's/,$//' | sed 's/"//g');
+        download_url=$(curl --silent "https://api.github.com/repos/LCR-BCCRC/LGenIC/releases/169598665" | grep 'tarball_url' | sed 's/.*:[ ]//' | sed 's/,$//' | sed 's/"//g');
         mkdir -p {params.lgenic_dir};
 
         wget -cO - $download_url > {params.lgenic_dir}/LGenIC.tar.gz && tar -C {params.lgenic_dir} -xf {params.lgenic_dir}/LGenIC.tar.gz && rm {params.lgenic_dir}/LGenIC.tar.gz;
@@ -271,10 +271,8 @@ def _get_gene_list(w):
     else: 
         capture_path = CFG["inputs"]["gene_list"]
     if os.path.exists(capture_path): 
-        logger.info(f"Using {capture_path} as the input gene list for {w.tumour_id}. ")
         return str(capture_path)
     else: 
-        logger.info(f"Using the default LymphGen gene list for {w.tumour_id}. ")
         return str(rules._install_lgenic.output.lymphgen_genes)
 
 
