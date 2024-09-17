@@ -271,10 +271,8 @@ def _get_gene_list(w):
     else: 
         capture_path = CFG["inputs"]["gene_list"]
     if os.path.exists(capture_path): 
-        logger.info(f"Using {capture_path} as the input gene list for {w.tumour_id}. ")
         return str(capture_path)
     else: 
-        logger.info(f"Using the default LymphGen gene list for {w.tumour_id}. ")
         return str(rules._install_lgenic.output.lymphgen_genes)
 
 
