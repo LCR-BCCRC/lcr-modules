@@ -35,10 +35,6 @@ lcr-modules:
         scratch_subdirectories: []
 
     utils:
-        inputs:
-            bed:
-                grch37: "data/exome_bed/hg19/target_regions.nochr.bed" # make sure this corresponds with config["lcr-modules"]["picard_qc"]["inputs"]["intervals"]
-                # if testing on GSC, use this file: "/projects/dscott_prj/CCSRI_1500/exomes/ref/agilent/hg19/target_regions.nochr.bed"
         mem_mb:
             bam_sort: 48000
         threads:
@@ -48,15 +44,6 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "data/{sample_id}.bam"
-
-    pathseq:
-        inputs:
-            sample_bam: "data/{sample_id}.bam"
-            sample_bai: "data/{sample_id}.bam.bai"
-
-        options:
-            min_read_length: 49
-            ebv_cutoff: [0.00004, 0.00008]
 
     cnvkit:
         inputs:
