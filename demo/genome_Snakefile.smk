@@ -29,16 +29,12 @@ subworkflow reference_files:
 
 
 # Load module-specific configuration
-
-configfile: "../modules/bam2fastq/1.2/config/default.yaml"
-configfile: "../modules/sequenza/1.4/config/default.yaml"
-configfile: "../modules/bwa_mem/1.1/config/default.yaml"
-configfile: "../modules/slms_3/1.0/config/default.yaml"
-configfile: "../modules/gridss/1.1/config/default.yaml"
-configfile: "../modules/battenberg/1.2/config/default.yaml"
-configfile: "../modules/pathseq/1.0/config/default.yaml"
-configfile: "../modules/utils/2.1/config/default.yaml"
 configfile: "../modules/qc/1.0/config/default.yaml"
+configfile: "../modules/slms_3/1.0/config/default.yaml"
+configfile: "../modules/battenberg/1.2/config/default.yaml"
+configfile: "../modules/sequenza/1.4/config/default.yaml"
+configfile: "../modules/controlfreec/1.2/config/default.yaml"
+configfile: "../modules/gridss/1.1/config/default.yaml"
 
 
 # Load project-specific config, which includes the shared
@@ -56,26 +52,20 @@ config["lcr-modules"]["_shared"]["samples"] = GENOME
 
 
 # Load module-specific snakefiles
-
-include: "../modules/bam2fastq/1.2/bam2fastq.smk"
-include: "../modules/sequenza/1.4/sequenza.smk"
-include: "../modules/bwa_mem/1.1/bwa_mem.smk"
-include: "../modules/slms_3/1.0/slms_3.smk"
-include: "../modules/gridss/1.1/gridss.smk"
-include: "../modules/battenberg/1.2/battenberg.smk"
-include: "../modules/pathseq/1.0/pathseq.smk"
-include: "../modules/utils/2.1/utils.smk"
 include: "../modules/qc/1.0/qc.smk"
+include: "../modules/slms_3/1.0/slms_3.smk"
+include: "../modules/battenberg/1.2/battenberg.smk"
+include: "../modules/sequenza/1.4/sequenza.smk"
+include: "../modules/controlfreec/1.2/controlfreec.smk"
+include: "../modules/gridss/1.1/gridss.smk"
 
 ##### TARGETS ######
 
 rule all:
     input:
-        rules._bam2fastq_all.input,
-        rules._sequenza_all.input,
-        rules._bwa_mem_all.input,
+        rules._qc_all.input,
         rules._slms_3_all.input,
-        rules._gridss_all.input,
         rules._battenberg_all.input,
-        rules._pathseq_all.input,
-        rules._qc_all.input
+        rules._sequenza_all.input,
+        rules._controlfreec_all.input,
+        rules._gridss_all.input
