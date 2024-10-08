@@ -71,14 +71,13 @@ rule _freebayes_input_bam:
 # TODO: Replace example rule below with actual rule
 rule _freebayes_step_1:
     input:
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
+        bam = str(rules._freebayes_input_bam.output.bam),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        vcf = CFG["dirs"]["freebayes"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf"
+        vcf = CFG["dirs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/output.vcf"
     log:
-        stdout = CFG["logs"]["freebayes"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-        stderr = CFG["logs"]["freebayes"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
+        stdout = CFG["logs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stdout.log",
+        stderr = CFG["logs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stderr.log"
     params:
         opts = CFG["options"]["step_1"]
     conda:
@@ -86,14 +85,11 @@ rule _freebayes_step_1:
     threads:
         CFG["threads"]["step_1"]
     resources:
-        **CFG["resources"]["step_1"]
-    group: 
-        "input_and_step_1"
+        **CFG["resources"]["step_1"]    # All resources necessary can be included and referenced from the config files.
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --tumour {input.tumour_bam} --normal {input.normal_bam}
-        --ref-fasta {input.fasta} --output {output.vcf} --threads {threads}
-        > {log.stdout} 2> {log.stderr}
+        <TODO> {params.opts} --input {input.bam} --ref-fasta {input.fasta}
+        --output {output.vcf} --threads {threads} > {log.stdout} 2> {log.stderr}
         """)
 
 
@@ -103,9 +99,9 @@ rule _freebayes_step_2:
     input:
         vcf = str(rules._freebayes_step_1.output.vcf)
     output:
-        vcf = CFG["dirs"]["freebayes"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.vcf"
+        vcf = CFG["dirs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/output.filt.vcf"
     log:
-        stderr = CFG["logs"]["freebayes"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
+        stderr = CFG["logs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/step_2.stderr.log"
     params:
         opts = CFG["options"]["step_2"]
     shell:
@@ -118,7 +114,7 @@ rule _freebayes_output_vcf:
     input:
         vcf = str(rules._freebayes_step_2.output.vcf)
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.vcf"
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.output.filt.vcf"
     run:
         op.relative_symlink(input.vcf, output.vcf, in_module= True)
 
@@ -132,11 +128,9 @@ rule _freebayes_all:
                 # TODO: If applicable, add other output rules here
             ],
             zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            genome_build=CFG["runs"]["tumour_genome_build"],
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            seq_type=CFG["samples"]["seq_type"],
+            genome_build=CFG["samples"]["genome_build"],
+            sample_id=CFG["samples"]["sample_id"])
 
 
 ##### CLEANUP #####
