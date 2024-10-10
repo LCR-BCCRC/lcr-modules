@@ -37,86 +37,77 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "freebayes",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "freebayes", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _freebayes_input_bam,
-    _freebayes_step_2,
     _freebayes_output_vcf,
     _freebayes_all,
 
+##### CROSSMAP FUNCTIONS #####
 
 ##### RULES #####
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
 rule _freebayes_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        bam = CFG["inputs"]["sample_bam"], 
+        bai = CFG["inputs"]["sample_bai"]
     output:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
+        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam", 
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai", 
+        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.crai"
     group: 
-        "input_and_step_1"
+        "input_and_run"
     run:
         op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _freebayes_step_1:
+rule _freebayes_run:
     input:
         bam = str(rules._freebayes_input_bam.output.bam),
+        bai = str(rules._freebayes_input_bam.output.bai), 
+        crai = str(rules._freebayes_input_bam.output.crai),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        vcf = CFG["dirs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/output.vcf"
+        vcf = CFG["dirs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/output.vcf.gz", 
+        tbi = CFG["dirs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/output.vcf.gz.tbi"
     log:
-        stdout = CFG["logs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stdout.log",
-        stderr = CFG["logs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stderr.log"
+        stderr = CFG["logs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/freebayes.stderr.log"
     params:
-        opts = CFG["options"]["step_1"]
+        opts = CFG["options"]["freebayes"]
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["freebayes"]
+    group: 
+        "input_and_run"
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["freebayes"]
     resources:
-        **CFG["resources"]["step_1"]    # All resources necessary can be included and referenced from the config files.
+        **CFG["resources"]["freebayes"]    # All resources necessary can be included and referenced from the config files.
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --input {input.bam} --ref-fasta {input.fasta}
-        --output {output.vcf} --threads {threads} > {log.stdout} 2> {log.stderr}
+            freebayes-parallel <(fasta_generate_regions.py {input.fasta}.fai 100000) {threads} -f {input.fasta} {input.bam} | bgzip -o {output.vcf} 2>> {log.stderr} &&
+            tabix -p vcf {output.vcf} 2>> {log.stderr}
         """)
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _freebayes_step_2:
-    input:
-        vcf = str(rules._freebayes_step_1.output.vcf)
-    output:
-        vcf = CFG["dirs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/output.filt.vcf"
-    log:
-        stderr = CFG["logs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.vcf} > {output.vcf} 2> {log.stderr}"
-
-
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _freebayes_output_vcf:
     input:
-        vcf = str(rules._freebayes_step_2.output.vcf)
+        vcf = str(rules._freebayes_run.output.vcf), 
+        tbi = str(rules._freebayes_run.output.tbi)
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.output.filt.vcf"
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.freebayes.vcf.gz", 
+        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.freebayes.vcf.gz.tbi"
     run:
         op.relative_symlink(input.vcf, output.vcf, in_module= True)
+        op.relative_symlink(input.tbi, output.tbi, in_module= True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -125,7 +116,6 @@ rule _freebayes_all:
         expand(
             [
                 str(rules._freebayes_output_vcf.output.vcf),
-                # TODO: If applicable, add other output rules here
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
