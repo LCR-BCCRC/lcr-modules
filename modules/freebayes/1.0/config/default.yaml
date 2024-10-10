@@ -2,26 +2,36 @@ lcr-modules:
     
     freebayes:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            reference_config: "__UPDATE__"
 
         scratch_subdirectories: []
 
         options:
-            step_1: ""
-            step_2: ""
+            freebayes: ""
+            target_builds: ["hg38", "grch37"]
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            freebayes: "{MODSDIR}/envs/freebayes-1.3.8.yaml"
+            crossmap: "{MODSDIR}/envs/crossmap-0.7.0.yaml"
             
         threads:
-            step_1: 4
+            freebayes: 24
+            crossmap: 1
+            gzip: 8
 
         resources:
-            step_1: 
-                mem_mb: 2000
+            freebayes: 
+                mem_mb: 25000
+                bam: 1
+            crossmap: 
+                mem_mb: 25000
+            gzip: 
+                mem_mb: 25000
+            
             
         pairing_config:
             genome:
