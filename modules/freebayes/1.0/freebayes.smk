@@ -107,7 +107,7 @@ rule _freebayes_run:
         crai = str(rules._freebayes_input_bam.output.crai),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        vcf = temp(CFG["dirs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/freebayes.vcf")
+        vcf = CFG["dirs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/freebayes.vcf"
     log:
         stderr = CFG["logs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/freebayes.stderr.log"
     params:
@@ -172,7 +172,7 @@ rule _freebayes_crossmap:
         unpack(crossmap_input), 
         fasta = reference_files("genomes/{target_build}/genome_fasta/genome.fa")
     output:
-        vcf = temp(CFG["dirs"]["crossmap"] + "{seq_type}--{target_build}/{sample_id}/freebayes.vcf")
+        vcf = CFG["dirs"]["crossmap"] + "{seq_type}--{target_build}/{sample_id}/freebayes.vcf"
     log:
         stdout = CFG["logs"]["crossmap"] + "{seq_type}--{target_build}/{sample_id}/freebayes.vcf.crossmap.stdout.log",
         stderr = CFG["logs"]["crossmap"] + "{seq_type}--{target_build}/{sample_id}/freebayes.vcf.crossmap.stderr.log"
@@ -255,19 +255,27 @@ rule _freebayes_normalize_prefix:
     wildcard_constraints:
         target_build = "|".join(CFG["options"]["target_builds"])
     run:
+        logger.info("Handling " + str(wildcards.sample_id) + " for " + str(wildcards.target_build) + ":\nparams.dest_chr: " + str(params.dest_chr) + "\ntodo: " + str(params.todo))
         if params.todo == "symlink":
             op.relative_symlink(input.vcf, output.vcf, in_module = True)
         else:
-            print("Normalizing " + input.vcf[0] + " with params.dest_chr=" + str(params.dest_chr))
-            with open(input.vcf[0], "r") as f, open(output.vcf, "w") as o:
+            logger.info("Normalizing " + input.vcf[0] + " with params.dest_chr=" + str(params.dest_chr))
+            with open(input.vcf[0]) as f, open(output.vcf, "w") as o:
                 for line in f: 
                     line = line.rstrip("\n").rstrip("\r")
                     # To handle CrossMap weirdness, remove all chr-prefixes and add them back later
                     if line.startswith("chr"): # only modify the text if it starts with the prefix
                         line = line.replace("chr", "", 1)
+    
+                    if line.startswith("##contig=<ID="): # Remove chr prefixes from header contig lines
+                        line = line.replace("chr", "", 1)
+                            
                     if params.dest_chr and not line.startswith("#"): # Will evaluate to True if the destination genome is chr-prefixed
                         # Add chr prefix
                         line = "chr" + str(line)
+
+                    if params.dest_chr and line.startswith("##contig=<ID="): # Fix chr prefixing of header contig lines
+                        line = line.replace("##contig=<ID=", "##contig=<ID=chr", 1)
                     o.write(line)
                     o.write(os.linesep)
 
@@ -287,7 +295,7 @@ rule _freebayes_gzip_vcf:
     group: "normalize_and_bgzip"
     shell: 
         op.as_one_line("""
-            bcftools sort -Oz -o {output.vcf} {input.vcf} && 
+            bcftools sort -Oz -o {output.vcf} {input.invcf} && 
             tabix -p vcf {output.vcf}
         """)
 
