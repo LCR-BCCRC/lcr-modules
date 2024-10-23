@@ -311,8 +311,8 @@ rule _whatshap_phase_bam:
         regions = str(rules._whatshap_input_regions.output.regions),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        bam = CFG["dirs"]["phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.{regions_bed}.phased.bam",
-        bai = CFG["dirs"]["phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.{regions_bed}.phased.bam.bai", 
+        bam = temp(CFG["dirs"]["phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.{regions_bed}.phased.bam"),
+        bai = temp(CFG["dirs"]["phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.{regions_bed}.phased.bam.bai"), 
         haptag = CFG["dirs"]["phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.{regions_bed}.haplotag.txt"
     conda:
         CFG["conda_envs"]["whatshap"]
@@ -339,6 +339,7 @@ rule _whatshap_phase_bam:
 rule _whatshap_cram_phased: 
     input: 
         bam = rules._whatshap_phase_bam.output.bam,
+        bai = rules._whatshap_phase_bam.output.bai,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output: 
         cram = CFG["dirs"]["phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.{regions_bed}.phased.cram",
