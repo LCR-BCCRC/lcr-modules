@@ -240,7 +240,7 @@ rule _whatshap_phase_vcf:
             tabix -p vcf {output.vcf}
         """)
 
-def _whatshap_get_chr(wildcards):
+def _whatshap_get_chr_vcf(wildcards):
     CFG = config["lcr-modules"]["whatshap"]
     chrs = checkpoints._whatshap_input_chrs.get(**wildcards).output.chrs
     with open(chrs) as file:
@@ -250,11 +250,27 @@ def _whatshap_get_chr(wildcards):
         chrom = chrs, 
         allow_missing = True
     )
-    return {"vcfs": vcfs, "tbis": [f"{vcf}.tbi" for vcf in vcfs]}
+    return vcfs
+
+# Have to make redundant functions for this because 
+# unpacking the input function doesn't work if the 
+# checkpoint rule hasn't run yet.
+def _whatshap_get_chr_tbi(wildcards):
+    CFG = config["lcr-modules"]["whatshap"]
+    chrs = checkpoints._whatshap_input_chrs.get(**wildcards).output.chrs
+    with open(chrs) as file:
+        chrs = file.read().rstrip("\n").split("\n")
+    tbis = expand(
+        rules._whatshap_phase_vcf.output.index,
+        chrom = chrs, 
+        allow_missing = True
+    )
+    return tbis
 
 rule _whatshap_merge_vcf: 
     input: 
-        unpack(_whatshap_get_chr)
+        vcfs = _whatshap_get_chr_vcf, 
+        tbis = _whatshap_get_chr_tbi
     output: 
         vcf = CFG["dirs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}.phased.vcf.gz",
         index = CFG["dirs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}.phased.vcf.gz.tbi"
