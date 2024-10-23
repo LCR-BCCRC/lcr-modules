@@ -212,8 +212,8 @@ rule _whatshap_phase_vcf:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        vcf = CFG["dirs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/{chrom}.phased.vcf.gz",
-        index = CFG["dirs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/{chrom}.phased.vcf.gz.tbi"
+        vcf = temp(CFG["dirs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/{chrom}.phased.vcf.gz"),
+        index = temp(CFG["dirs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/{chrom}.phased.vcf.gz.tbi")
     params: 
         options = CFG["options"]["phase_vcf"]
     conda:
