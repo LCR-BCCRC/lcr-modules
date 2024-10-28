@@ -18,7 +18,9 @@ lcr-modules:
                 # --MD: outputs the MD tag
                 # -Y: use soft clipping for supplementary alignments
                 # -R: SAM read group line in specified format
-                promethION: '-ax map-ont -L --MD -Y -R "@RG\tID:{sample_id}\tLB:{sample_id}\tPL:ONT\tSM:{sample_id}"'
+                # secondary
+                # -2: Use two I/O threads during mapping. One for input, and another for output.
+                promethION: '-ax map-ont -L --MD -Y -2 -R "@RG\tID:{sample_id}\tLB:{sample_id}\tPL:ONT\tSM:{sample_id}"' 
                 genome: '-ax sr -L --MD -Y -R "@RG\tID:{sample_id}\tLB:{sample_id}\tPL:Illumina\tSM:{sample_id}"'
             samtools: '-bhS'
 
