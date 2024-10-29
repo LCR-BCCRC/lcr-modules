@@ -60,8 +60,10 @@ CFG = op.setup_module(
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _promethion_input,
-    _nanomethphase,
+    _nanomethphase_input_promethion,
+    _nanomethphase_input_methylation, 
+    _nanomethphase_input_vcf,
+    _nanomethphase_output_bam,
     _nanomethphase_all
 
 
