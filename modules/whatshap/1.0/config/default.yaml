@@ -7,10 +7,10 @@ lcr-modules:
             sample_bai: "__UPDATE__"
             sample_vcf: "__UPDATE__" # Update path to bgzipped vcf, usually the output of freebayes from a short-read genome
             sample_vcf_tbi: "__UPDATE__" # Update path to phased vcf index
-            regions_bed: {}
-                # sv_capture: "{MODSDIR}/etc/sv_regions.{genome_build}.bed" # One of these must be specified. 
-                # whole_genome: ""  # Uncomment if the whole long-read bam is to be phased (requires large data footprint). 
-                                    # Value will be set in Snakefile
+            regions_bed: {} # If no custom regions are provided, the whole genome main chromosomes will be used
+                # whole_genome: "" # Include this as an empty string if you want both whole_genome and a subset of regions
+                # sv_capture: "{MODSDIR}/etc/sv_regions.{genome_build}.bed" # Example to specify a custom regions bed file - 
+                                                                            # the key name will be used as a wildcard to distinguish different regions bed files
 
         scratch_subdirectories: []
 
