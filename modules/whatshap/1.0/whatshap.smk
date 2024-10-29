@@ -148,10 +148,8 @@ rule _whatshap_input_regions:
                     chrom = cols[0]
                     start = int(cols[1])
                     end = int(cols[2])
-                except IndexError as e:
-                    raise AttributeError("Input bed file \'%s\' appears to be malformed" % input.bed) from e
-                except ValueError as e: 
-                    raise AttributeError("Input bed file \'%s\' appears to be malformed" % input.bed) from e
+                except (IndexError, ValueError) as e:
+                    raise AttributeError("Input bed file '%s' appears to be malformed" % input.bed) from e
                 region = f"{chrom}:{max(0, start - params.padding)}-{end + params.padding}"
                 regions_list.append(region)
             o.write(" ".join(regions_list))
