@@ -125,18 +125,18 @@ rule _whatshap_input_vcf:
 
 # Populate the whole_genome key with the path to the genome bed file if no other region is specified        
 if "whole_genome" in CFG["inputs"]["regions_bed"].keys() or not CFG["inputs"]["regions_bed"]: 
-    CFG["inputs"]["regions_bed"]["whole_genome"] = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed")
+    CFG["inputs"]["regions_bed"]["whole_genome"] = str(reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed"))
 
 rule _whatshap_input_regions: 
     input: 
-        bed = lambda w: expand(config["lcr-modules"]["whatshap"]["inputs"]["regions_bed"][w.regions_bed], genome_build = w.genome_build)
+        bed = lambda w: str(config["lcr-modules"]["whatshap"]["inputs"]["regions_bed"][w.regions_bed])
     output: 
         regions = CFG["dirs"]["inputs"] + "regions_bed/{regions_bed}.{genome_build}.regions.txt"
     params: 
         padding = CFG["options"]["region_padding"]
     run: 
         regions_list = []
-        with open(input.bed[0]) as f, open(output.regions, "w") as o:
+        with open(input.bed) as f, open(output.regions, "w") as o:
             for line in f:
                 line = line.rstrip("\n").rstrip("\r")  # Handle line endings
                 # Split by tab delimiter
@@ -150,7 +150,7 @@ rule _whatshap_input_regions:
                     end = int(cols[2])
                 except (IndexError, ValueError) as e:
                     raise AttributeError("Input bed file '%s' appears to be malformed" % input.bed) from e
-                region = f"{chrom}:{max(0, start - params.padding)}-{end + params.padding}"
+                region = f"{chrom}:{max(1, start - params.padding)}-{end + params.padding}"
                 regions_list.append(region)
             o.write(" ".join(regions_list))
     
