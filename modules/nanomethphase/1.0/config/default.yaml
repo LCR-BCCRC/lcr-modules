@@ -3,23 +3,36 @@ lcr-modules:
     nanomethphase:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bam: "__UPDATE__"
+            sample_bam: "__UPDATE__" # N.B. nanomethphase does not work on cram files because of a pysam error - can use temp outputs of the _whatshap_phase_bam rule
             sample_bai: "__UPDATE__"
             meth_calls: "__UPDATE__" #Update to path of nanopolish meth calls
             vcf: "__UPDATE__" #Update to path of bgzipped phased vcf
             index: "__UPDATE__" #Update to path phased vcf index 
         
         scratch_subdirectories: []
+        
+        options: 
+            nanomethphase: ""
+            dma: "" # See DSS package documentation for more options https://www.bioconductor.org/packages/release/bioc/html/DSS.html
 
         conda_envs:
             nanomethphase: "{MODSDIR}/envs/nanomethphase.yaml"
 
         threads:
             methyl_call: 20
-            nanomethphase: 50
+            nanomethphase: 24
+            cram: 8
+            dma: 1
             
-        mem_mb:
-            methyl_call: 25000 
+        resources:
+            methyl_call: 
+                mem_mb: 25000 
+            nanomethphase: 
+                mem_mb: 10000
+            cram: 
+                mem_mb: 5000
+            dma: 
+                mem_mb: 10000
             
         pairing_config:
             promethION:
