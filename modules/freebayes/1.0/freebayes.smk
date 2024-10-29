@@ -160,7 +160,7 @@ def crossmap_input(wildcards):
     return {
         "vcf":
             expand(
-                rules._freebayes_run.output.vcf,
+                str(rules._freebayes_run.output.vcf),
                 **wildcards,
                 genome_build = original_genome_build
             ),
@@ -231,7 +231,7 @@ def get_normalize_input(wildcards, todo_only = False):
         # Source doesn't match. CrossMap and normalization necessary.
         target_build = "hg38" if new_genome_version == "grch38" else "hg19"
         vcf = expand(
-            rules._freebayes_crossmap.output.vcf,
+            str(rules._freebayes_crossmap.output.vcf),
             target_build = target_build,
             allow_missing = True
         )

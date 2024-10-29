@@ -64,6 +64,7 @@ localrules:
     _nanomethphase_input_methylation, 
     _nanomethphase_input_vcf,
     _nanomethphase_output_bam,
+    _nanomethphase_output_dma,
     _nanomethphase_all
 
 
@@ -120,11 +121,11 @@ rule _nanomethphase_methyl_call:
 
 rule _nanomethphase_run:
     input:  
-        bam = rules._nanomethphase_input_promethion.output.bam,
-        bai = rules._nanomethphase_input_promethion.output.bai,
+        bam = str(rules._nanomethphase_input_promethion.output.bam),
+        bai = str(rules._nanomethphase_input_promethion.output.bai),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        vcf = rules._nanomethphase_input_vcf.output.vcf,
-        tbi = rules._nanomethphase_input_vcf.output.index,
+        vcf = str(rules._nanomethphase_input_vcf.output.vcf),
+        tbi = str(rules._nanomethphase_input_vcf.output.index),
         mc = str(rules._nanomethphase_methyl_call.output.bed), 
         realbam =CFG["inputs"]["sample_bam"], # Enables this module to make use of temp bam files
         realbai = CFG["inputs"]["sample_bai"]
@@ -152,7 +153,7 @@ rule _nanomethphase_run:
 rule _nanomethphase_cram: 
     input: 
         bam = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP{haplotype}_Converted2Bisulfite.bam",
-        # bai = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP{haplotype}_Converted2Bisulfite.bam.bai", 
+        bai = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP{haplotype}_Converted2Bisulfite.bam.bai", 
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         cram = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP{haplotype}_Converted2Bisulfite.cram",
