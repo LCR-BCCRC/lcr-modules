@@ -126,13 +126,9 @@ rule _clair3_run:
         dir = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}",
         platform = CFG["options"]["platform"], 
         options = CFG["options"]["clair3"]
-    conda:
-        CFG["conda_envs"]["clair3"]  
-    threads:
-        CFG["resources"]["clair3"]["threads"]    
-    resources: 
-        bam = 1,
-        mem_mb = CFG["resources"]["clair3"]["mem_mb"]    
+    conda: CFG["conda_envs"]["clair3"]  
+    threads: CFG["threads"]["clair3"]    
+    resources: **CFG["resources"]["clair3"]    
     log:
         stderr = CFG["logs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/clair3.log"    
     output:
@@ -152,11 +148,9 @@ rule _clair3_filter:
     output: 
         filtered = CFG["dirs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}.filtered_phased_merged.vcf.gz",
         index = CFG["dirs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}.filtered_phased_merged.vcf.gz.tbi"
-    conda:
-        CFG["conda_envs"]["clair3"]
-    resources: 
-        mem_mb = CFG["resources"]["filter"]["mem_mb"]
-    threads: CFG["resources"]["filter"]["threads"]
+    conda: CFG["conda_envs"]["clair3"]
+    resources: **CFG["resources"]["filter"]
+    threads: CFG["threads"]["filter"]
     log:
         stderr = CFG["logs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}/filter_clair3.stderr.log"      
     shell:
