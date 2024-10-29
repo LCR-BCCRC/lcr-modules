@@ -216,8 +216,7 @@ rule _whatshap_phase_vcf:
         options = CFG["options"]["phase_vcf"]
     conda:
         CFG["conda_envs"]["whatshap"] 
-    resources: 
-        **CFG["resources"]["phase_vcf"] 
+    resources: **CFG["resources"]["phase_vcf"] 
     threads: CFG["threads"]["phase_vcf"]       
     wildcard_constraints: 
         sample_id = "|".join(BAM_SAMPLES["sample_id"].unique())
@@ -244,7 +243,7 @@ def _whatshap_get_chr_vcf(wildcards):
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     vcfs = expand(
-        rules._whatshap_phase_vcf.output.vcf,
+        str(rules._whatshap_phase_vcf.output.vcf),
         chrom = chrs, 
         allow_missing = True
     )
@@ -352,16 +351,15 @@ rule _whatshap_phase_bam:
         
 rule _whatshap_cram_phased: 
     input: 
-        bam = rules._whatshap_phase_bam.output.bam,
-        bai = rules._whatshap_phase_bam.output.bai,
+        bam = str(rules._whatshap_phase_bam.output.bam),
+        bai = str(rules._whatshap_phase_bam.output.bai),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output: 
         cram = CFG["dirs"]["phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.{regions_bed}.phased.cram",
         crai = CFG["dirs"]["phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.{regions_bed}.phased.cram.crai"
     conda: 
         CFG["conda_envs"]["whatshap"]
-    resources: 
-        **CFG["resources"]["cram"]
+    resources: **CFG["resources"]["cram"]
     threads: CFG["threads"]["cram"]
     shell: 
         op.as_one_line("""
@@ -482,6 +480,7 @@ rule _whatshap_vcf_all:
             sample_id=BAM_SAMPLES["sample_id"]
         )
 
+# Use this target rule to obtain phased/split bam files
 rule _whatshap_all:
     input:
         rules._whatshap_vcf_all.input, 
