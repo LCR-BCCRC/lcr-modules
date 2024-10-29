@@ -69,23 +69,33 @@ localrules:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-rule _promethion_input:
+rule _nanomethphase_input_promethion:
     input:
         bam = CFG["inputs"]["sample_bam"],
-        bai = CFG["inputs"]["sample_bai"],
-        mc = CFG["inputs"]["meth_calls"],
-        vcf = CFG["inputs"]["vcf"],
-        index = CFG["inputs"]["index"]
+        bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
-        mc = CFG["dirs"]["inputs"] + "meth_calls/{seq_type}--{genome_build}/{sample_id}.calls.tsv.gz",
-        vcf = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.vcf.gz",
-        index = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.vcf.gz.tbi"
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
+        
+rule _nanomethphase_input_methylation: 
+    input:
+        mc = CFG["inputs"]["meth_calls"]
+    output:
+        mc = CFG["dirs"]["inputs"] + "meth_calls/{seq_type}--{genome_build}/{sample_id}.calls.tsv.gz"
+    run:
         op.absolute_symlink(input.mc, output.mc)
+
+rule _nanomethphase_input_vcf: 
+    input:
+        vcf = CFG["inputs"]["vcf"],
+        index = CFG["inputs"]["index"]
+    output:
+        vcf = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.vcf.gz",
+        index = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.vcf.gz.tbi"
+    run:
         op.absolute_symlink(input.vcf, output.vcf)
         op.absolute_symlink(input.index, output.index)
 
