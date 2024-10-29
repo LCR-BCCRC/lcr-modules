@@ -125,7 +125,7 @@ rule _whatshap_input_vcf:
 
 # Populate the whole_genome key with the path to the genome bed file if no other region is specified        
 if "whole_genome" in CFG["inputs"]["regions_bed"].keys() or not CFG["inputs"]["regions_bed"]: 
-    CFG["regions_bed"]["whole_genome"] = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed")
+    CFG["inputs"]["regions_bed"]["whole_genome"] = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed")
 
 rule _whatshap_input_regions: 
     input: 
