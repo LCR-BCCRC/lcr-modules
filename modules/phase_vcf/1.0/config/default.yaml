@@ -1,33 +1,43 @@
 lcr-modules:
     
-    phase_variants:
+    clair3:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
-            vcf: "__UPDATE__" #Update path to vcfs to use variant calls from short-reads or leave blank to run clair3 and use long-read variant calls
-                              #needs to be a vcf with variant calls from single sample
-                              # ie if variant calls are from tumour-normal pairs vcf should contain only calls from tumour  
-        
+            
         scratch_subdirectories: []
+        
+        options: 
+            platform: "__UPDATE__" #Update sequencing platform select from {ont,hifi,ilmn} 
+            clair3: "" # See clair3 documentation for options, e.g. --ctg_name=chrX to run on a single chromosome
+            model: # Dictionary giving the basecalling model used. 
+                    # See https://github.com/epi2me-labs/wf-human-variation/blob/prerelease/data/clair3_models.tsv
+                    # Key values must be in the samples table in a column called "basecalling_model"
+                dna_r10.4.1_e8.2_400bps_sup: "r1041_e82_400bps_sup_g615"
+                dna_r10.4.1_e8.2_400bps_sup@v4.2.0: "r1041_e82_400bps_sup_v420"
+                dna_r9.4.1_450bps_hac_prom: "r941_prom_sup_g5014"
+                dna_r9.4.1_450bps_sup_prom: "r941_prom_sup_g5014"
+            filter: "20" #Update to set variant quality cut off for filtering to select high confidence variants for phasing recommended cut off of 20 
+
 
         conda_envs:
-            clair3: "{MODSDIR}/envs/clair3.yaml"
-            whatshap: "{MODSDIR}/envs/whatshap.yaml"
-
-        threads:
-            clair3: 50
-            whatshap: 50
-
-        mem_mb:
-            clair3: 25000
-            whatshap: 25000
+            clair3: "{MODSDIR}/envs/clair3-1.0.10.yaml"
+            samtools: "{MODSDIR}/envs/samtools-1.10.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml" 
             
-        clair3:
-            platform: "__UPDATE__" #Update sequencing platform select from {ont,hifi,ilmn} 
-            model: "__UPDATE__" #Update to select appropriate model from {r941_prom_sup_g5014,r941_prom_hac_g360+g422,hifi,ilmn} recommended r941_prom_hac_g360+g422 for GSC bams for more info see https://github.com/HKU-BAL/Clair3    
-            filter: "__UPDATE__" #Update to set variant quality cut off for filtering to select high confidence variants for phasing recommended cut off of 20 
+        threads: 
+            clair3: 24
+            filter: 1
 
+        resources:
+            clair3: 
+                mem_mb: 25000
+                bam: 1
+            filter: 
+                mem_mb: 5000
+                vcf: 1
+                        
         pairing_config:
             promethION:
                 run_paired_tumours: False

@@ -55,112 +55,126 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["phase_vcf"]`
 CFG = op.setup_module(
-    name = "phase_vcf",
+    name = "clair3",
     version = "1.0",
-    subdirectories = ["inputs", "clair3", "filter_clair3", "whatshap_phase_vcf","outputs"]
+    subdirectories = ["inputs", "clair3", "filter_clair3", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _promethion_input,
-    _filter_clair3,
-    _phase_vcf_all
+    _clair3_input,
+    _clair3_get_models,
+    _clair3_output,
+    _clair3_all
 
 
 ##### RULES #####
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-rule _promethion_input:
+rule _clair3_input:
     input:
         bam = CFG["inputs"]["sample_bam"],
         bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai", 
+        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
-rule _clair3:
+# Download the models trained for clair3 variant calling
+rule _clair3_get_models: 
+    output: 
+        model = directory(CFG["dirs"]["inputs"] + "clair3_models/{model}")
+    params: 
+        url = "https://cdn.oxfordnanoportal.com/software/analysis/models/clair3/{model}.tar.gz" 
+    log: 
+        stderr = CFG["logs"]["inputs"] + "{model}.log"
+    conda: 
+        CFG["conda_envs"]["wget"]
+    shell: 
+        op.as_one_line("""
+            wget -qO- {params.url} | tar -xvzf - -C $(dirname {output.model}) 2> {log.stderr}
+        """)
+    
+def _clair3_which_model(wildcards): 
+    CFG = config["lcr-modules"]["clair3"]
+    this_sample = op.filter_samples(
+        CFG["samples"], 
+        sample_id = wildcards.sample_id, 
+        seq_type = wildcards.seq_type, 
+        genome_build = wildcards.genome_build
+        )
+    clair3_model = CFG["options"]["model"][this_sample["basecalling_model"].tolist()[0]]
+    model = expand(
+        CFG["dirs"]["inputs"] + "clair3_models/{model}", 
+        model = clair3_model
+    )
+    return model
+
+rule _clair3_run:
     input:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        bam = str(rules._clair3_input.output.bam),
+        bai = str(rules._clair3_input.output.bai),
+        cram = str(rules._clair3_input.output.crai), 
+        model = _clair3_which_model,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     params: 
-        model = "/bin/models/" + CFG["clair3"]["model"],
         dir = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}",
-        platform = CFG["clair3"]["platform"]
-    conda :
-        CFG["conda_envs"]["clair3"]  
-    threads:
-        CFG["threads"]["clair3"]    
-    resources: 
-        mem_mb = CFG["mem_mb"]["clair3"]     
+        platform = CFG["options"]["platform"], 
+        options = CFG["options"]["clair3"]
+    conda: CFG["conda_envs"]["clair3"]  
+    threads: CFG["threads"]["clair3"]    
+    resources: **CFG["resources"]["clair3"]    
     log:
-        stderr = CFG["logs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/clair3.stderr.log"    
+        stderr = CFG["logs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/clair3.log"    
     output:
         vcf = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}/phased_merge_output.vcf.gz"          
     shell:
-         op.as_one_line("""run_clair3.sh  
+        op.as_one_line("""run_clair3.sh  
             -b {input.bam} -f {input.fasta} -t {threads} -p {params.platform}
-            -m ${{CONDA_PREFIX}}{params.model} -o {params.dir}
+            -m {input.model} -o {params.dir} {params.options}
             --remove_intermediate_dir --enable_phasing
-            2> {log.stderr} """)
+            2>&1 {log} """)
 
-rule _filter_clair3:
+rule _clair3_filter:
     input:
-        vcf = str(rules._clair3.output.vcf)
+        vcf = str(rules._clair3_run.output.vcf)
     params:
-        filter = CFG["clair3"]["filter"]
+        filter = CFG["options"]["filter"]
     output: 
         filtered = CFG["dirs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}.filtered_phased_merged.vcf.gz",
         index = CFG["dirs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}.filtered_phased_merged.vcf.gz.tbi"
-    conda :
-        CFG["conda_envs"]["clair3"]
+    conda: CFG["conda_envs"]["clair3"]
+    resources: **CFG["resources"]["filter"]
+    threads: CFG["threads"]["filter"]
     log:
         stderr = CFG["logs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}/filter_clair3.stderr.log"      
-    shell :
+    shell:
         "zcat {input.vcf} | awk '$6 > {params.filter} || $1 ~ /^#/' | bgzip > {output.filtered} && tabix -p vcf {output.filtered}  2> {log.stderr}"       
 
-rule _whatshap_phase_vcf:
+
+rule _clair3_output:
     input:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        vcf = CFG["inputs"]["vcf"] 
-    conda :
-        CFG["conda_envs"]["whatshap"] 
-    resources: 
-        mem_mb = CFG["mem_mb"]["whatshap"]        
-    log:
-        stderr = CFG["logs"]["whatshap_phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/whatshap_phase_vcf.stderr.log"    
+        vcf = str(rules._clair3_filter.output.filtered),
+        index = str(rules._clair3_filter.output.index)
     output:
-        vcf = temp(CFG["dirs"]["whatshap_phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}.phased.vcf"),
-        vcf_gz = CFG["dirs"]["whatshap_phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}.phased.vcf.gz",
-        index = CFG["dirs"]["whatshap_phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}.phased.vcf.gz.tbi"
-    shell:
-        op.as_one_line(""" whatshap phase -o {output.vcf} --ignore-read-groups --reference={input.fasta} {input.vcf} {input.bam} 
-            && bgzip -c {output.vcf} > {output.vcf_gz} && tabix -p vcf {output.vcf_gz} 2> {log.stderr} """)
-
-
-rule _phase_vcf_output:
-    input:
-        vcf = str(rules._filter_clair3.output.filtered) if not CFG["inputs"]["vcf"] else str(rules._whatshap_phase_vcf.output.vcf_gz),
-        index = str(rules._filter_clair3.output.index) if not CFG["inputs"]["vcf"] else str(rules._whatshap_phase_vcf.output.index)
-
-    output:
-        vcf = CFG["dirs"]["outputs"] + "phased_long_read_variants/{seq_type}--{genome_build}/{sample_id}.phased.vcf.gz" if not CFG["inputs"]["vcf"] else CFG["dirs"]["outputs"] + "phased_short_read_variants/{seq_type}--{genome_build}/{sample_id}.phased.vcf.gz",
-        index = CFG["dirs"]["outputs"] + "phased_long_read_variants/{seq_type}--{genome_build}/{sample_id}.phased.vcf.gz.tbi" if not CFG["inputs"]["vcf"] else CFG["dirs"]["outputs"] + "phased_short_read_variants/{seq_type}--{genome_build}/{sample_id}.phased.vcf.gz.tbi"
+        vcf = CFG["dirs"]["outputs"] + "phased_long_read_variants/{seq_type}--{genome_build}/{sample_id}.phased.vcf.gz",
+        index = CFG["dirs"]["outputs"] + "phased_long_read_variants/{seq_type}--{genome_build}/{sample_id}.phased.vcf.gz.tbi"
     run:
         op.relative_symlink(input.vcf, output.vcf, in_module= True),
         op.relative_symlink(input.index, output.index, in_module= True)        
 
 # Generates the target sentinels for each run, which generate the symlinks
-rule _phase_vcf_all:
+rule _clair3_all:
     input:
         expand(
             [
-                str(rules._phase_vcf_output.output.vcf),
-                str(rules._phase_vcf_output.output.index)
+                str(rules._clair3_output.output.vcf),
+                str(rules._clair3_output.output.index)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
