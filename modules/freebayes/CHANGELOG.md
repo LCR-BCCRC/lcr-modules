@@ -9,6 +9,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Laura Hilton.
 
-<!-- TODO: Explain each important module design decision below. -->
-
-- No module design decisions explained here yet.
+- This tool generates combined germline/somatic variant calls from short-read sequencing.
+- Intended to provide high-quality variant calls for phasing with matching long-read data with the WhatsHap module. 

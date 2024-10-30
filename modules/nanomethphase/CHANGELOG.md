@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Nicole Thomas.
 
-<!-- TODO: Explain each important module design decision below. -->
+## [1.1] - 2024-10-30
 
-- No module design decisions explained here yet.
+This release was authored by Laura Hilton. 
+
+- Standardized rule names. 
+- Enabled differential methylation analyses of the two haplotypes. 
+
