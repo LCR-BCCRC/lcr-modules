@@ -54,7 +54,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["nanomethphase"]`
 CFG = op.setup_module(
     name = "nanomethphase",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "methyl_call", "nanomethphase", "dma", "outputs"]
 )
 

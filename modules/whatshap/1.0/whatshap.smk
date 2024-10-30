@@ -54,7 +54,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["whatshap"]`
 CFG = op.setup_module(
     name = "whatshap",
-    version = "1.0",
+    version = "2.0",
     subdirectories = ["inputs", "phase_vcf" , "phase_bam", "split_bam", "outputs"]
 )
 
