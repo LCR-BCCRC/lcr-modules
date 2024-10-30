@@ -63,7 +63,7 @@ localrules:
     _nanomethphase_input_promethion,
     _nanomethphase_input_methylation, 
     _nanomethphase_input_vcf,
-    _nanomethphase_output_bam,
+    _nanomethphase_output_cram,
     _nanomethphase_output_dma,
     _nanomethphase_all
 
@@ -88,6 +88,7 @@ rule _nanomethphase_input_methylation:
         mc = CFG["inputs"]["meth_calls"]
     output:
         mc = CFG["dirs"]["inputs"] + "meth_calls/{seq_type}--{genome_build}/{sample_id}.calls.tsv.gz"
+    group: "input_and_meth_call"
     run:
         op.absolute_symlink(input.mc, output.mc)
 
@@ -112,7 +113,8 @@ rule _nanomethphase_methyl_call:
     conda:
         CFG["conda_envs"]["nanomethphase"] 
     resources: **CFG["resources"]["methyl_call"]        
-    log: CFG["logs"]["methyl_call"] + "{seq_type}--{genome_build}/{sample_id}/methyl_call_processor.stderr.log"             
+    log: CFG["logs"]["methyl_call"] + "{seq_type}--{genome_build}/{sample_id}/methyl_call_processor.stderr.log"   
+    group: "input_and_meth_call"          
     shell:
         op.as_one_line("""
         nanomethphase methyl_call_processor -mc {input.calls} --threads {threads} | 
@@ -129,6 +131,11 @@ rule _nanomethphase_run:
         mc = str(rules._nanomethphase_methyl_call.output.bed), 
         realbam =CFG["inputs"]["sample_bam"], # Enables this module to make use of temp bam files
         realbai = CFG["inputs"]["sample_bai"]
+    output:
+        HP1_bis_bam = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP1_Converted2Bisulfite.bam",
+        HP2_bis_bam = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP2_Converted2Bisulfite.bam",
+        HP1_freq = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP1_MethylFrequency.tsv",
+        HP2_freq = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP2_MethylFrequency.tsv"
     threads:
         CFG["threads"]["nanomethphase"]
     resources: **CFG["resources"]["nanomethphase"]
@@ -137,12 +144,7 @@ rule _nanomethphase_run:
         options = CFG["options"]["nanomethphase"]
     conda:
         CFG["conda_envs"]["nanomethphase"] 
-    log: CFG["logs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/nanomethphase.log"         
-    output:
-        HP1_bis_bam = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP1_Converted2Bisulfite.bam",
-        HP2_bis_bam = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP2_Converted2Bisulfite.bam",
-        HP1_freq = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP1_MethylFrequency.tsv",
-        HP2_freq = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP2_MethylFrequency.tsv"
+    log: CFG["logs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/nanomethphase.log" 
     shell:
         op.as_one_line("""
         nanomethphase phase -mc {input.mc} -of methylcall,bam2bis -o {params.prefix} 

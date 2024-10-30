@@ -107,7 +107,7 @@ rule _freebayes_run:
         crai = str(rules._freebayes_input_bam.output.crai),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        vcf = CFG["dirs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/freebayes.vcf"
+        vcf = temp(CFG["dirs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/freebayes.vcf")
     log:
         stderr = CFG["logs"]["freebayes"] + "{seq_type}--{genome_build}/{sample_id}/freebayes.stderr.log"
     params:
@@ -172,7 +172,7 @@ rule _freebayes_crossmap:
         unpack(crossmap_input), 
         fasta = reference_files("genomes/{target_build}/genome_fasta/genome.fa")
     output:
-        vcf = CFG["dirs"]["crossmap"] + "{seq_type}--{target_build}/{sample_id}/freebayes.vcf"
+        vcf = temp(CFG["dirs"]["crossmap"] + "{seq_type}--{target_build}/{sample_id}/freebayes.vcf")
     log:
         stdout = CFG["logs"]["crossmap"] + "{seq_type}--{target_build}/{sample_id}/freebayes.vcf.crossmap.stdout.log",
         stderr = CFG["logs"]["crossmap"] + "{seq_type}--{target_build}/{sample_id}/freebayes.vcf.crossmap.stderr.log"

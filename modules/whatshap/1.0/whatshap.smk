@@ -107,6 +107,7 @@ rule _whatshap_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
+    group: "input_and_run"
     run:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
@@ -160,6 +161,7 @@ checkpoint _whatshap_input_chrs:
         chrs = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
     output:
         chrs = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
+    group: "split_and_phase"
     run:
         op.absolute_symlink(input.chrs, output.chrs)
         
@@ -176,7 +178,8 @@ rule _whatshap_split_vcf:
     log:
         stderr = CFG["logs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/{chrom}.split_vcf.stderr.log"
     wildcard_constraints: 
-        sample_id = "|".join(VCF_SAMPLES["sample_id"].unique())
+        sample_id = "|".join(VCF_SAMPLES["sample_id"].unique()), 
+        chrom = "|".join(["chr" + str(i) for i in range(1, 22)] + ["chrX", "chrY"] + [str(i) for i in range(1, 22)] + ["X", "Y"])
     group: "split_and_phase"
     shell:
         op.as_one_line("""
@@ -219,7 +222,8 @@ rule _whatshap_phase_vcf:
     resources: **CFG["resources"]["phase_vcf"] 
     threads: CFG["threads"]["phase_vcf"]       
     wildcard_constraints: 
-        sample_id = "|".join(BAM_SAMPLES["sample_id"].unique())
+        sample_id = "|".join(BAM_SAMPLES["sample_id"].unique()), 
+        chrom = "|".join(["chr" + str(i) for i in range(1, 22)] + ["chrX", "chrY"] + [str(i) for i in range(1, 22)] + ["X", "Y"])
     group: "split_and_phase"
     log:
         CFG["logs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/{chrom}.phase_vcf.stderr.log"    
@@ -335,6 +339,7 @@ rule _whatshap_phase_bam:
         CFG["threads"]["phase_bam"]           
     log:
         stderr = CFG["logs"]["phase_bam"] + "{seq_type}--{genome_build}/{sample_id}/{regions_bed}.whatshap_phase_bam.stderr.log"  
+    group: "input_and_run"
     shell:
         op.as_one_line(""" 
             whatshap haplotag 
