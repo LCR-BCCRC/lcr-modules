@@ -1,8 +1,0 @@
-name: clair3-1.0.10
-channels:
-  - conda-forge
-  - bioconda
-  - nodefaults
-dependencies:
-  - clair3=1.0.10
-prefix: /home/lhilton/miniforge3/envs/clair3-1.0.10

@@ -202,7 +202,7 @@ rule _vcf2maf_gamblr_config:
 rule _vcf2maf_deblacklist_maf:
     input:
         maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.raw.maf",
-        gamblr = ancient(rules._vcf2maf_gamblr_config.output.config)
+        gamblr = ancient(rules.gamblr_config.output.config)
     output:
         maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.deblacklisted.maf"
     log:
