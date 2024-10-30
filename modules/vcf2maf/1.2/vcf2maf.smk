@@ -54,8 +54,7 @@ localrules:
 VCF2MAF_GENOME_VERSION_MAP = {
     "grch37": "GRCh37",
     "hg38": "GRCh38",
-    "hs37d5": "GRCh37", 
-    "mm10": "GRCm38"
+    "hs37d5": "GRCh37"
 }
 
 ##### RULES #####
