@@ -13,6 +13,6 @@ snakefile=$1
 TARGETS=${2:-all}
 snakemake_flags=$3
 
-snakemake --dryrun --cores 24 $snakemake_flags -s $snakefile --printshellcmds --reason --use-conda $TARGETS
+snakemake --dryrun --cores 32 $snakemake_flags -s $snakefile --printshellcmds --reason --use-conda --conda-frontend conda $TARGETS
 
 
