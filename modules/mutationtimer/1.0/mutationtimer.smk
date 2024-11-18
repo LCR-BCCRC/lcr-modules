@@ -98,7 +98,7 @@ def get_chain(wildcards):
     if "38" in str({wildcards.genome_build}):
         return reference_files("genomes/{genome_build}/chains/grch38/hg38ToHg19.over.chain")
     else:
-        return reference_files("genomes/{genome_build}/chains/grch38/hg19ToHg38.over.chain")
+        return reference_files("genomes/{genome_build}/chains/grch37/hg19ToHg38.over.chain")
 
 rule _mutationtimer_liftover:
     input:
