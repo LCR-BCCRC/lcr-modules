@@ -4,7 +4,8 @@ lcr-modules:
 
         # TODO: Update the list of available wildcards, if applicable
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            # Available wildcards: {genome_build} {tumour_id} {normal_id}
+            # Use non-filled battenberg files: results/gambl/battenberg-1.1/02-battenberg/genome--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.txt
             battenberg_txt: "__UPDATE__"
             cellularity_txt: "__UPDATE__"
             gamblr_config_url: "https://raw.githubusercontent.com/morinlab/GAMBLR.results/f92c22ac286822178415a3b6a818251effc56890/config.yml"
