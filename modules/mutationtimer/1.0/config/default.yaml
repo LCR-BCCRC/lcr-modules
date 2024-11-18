@@ -2,7 +2,6 @@ lcr-modules:
 
     mutationtimer:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {genome_build} {tumour_id} {normal_id}
             # Use non-filled battenberg files: results/gambl/battenberg-1.1/02-battenberg/genome--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.txt
