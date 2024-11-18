@@ -180,7 +180,7 @@ rule  _mutationtimer_run:
         {params.n_bootstrap}
         {output.timed_ssm}
         {output.timed_cna}
-        {wildcards.tumour_sample_id}
+        {wildcards.tumour_id}
         {wildcards.projection}
         {log}
         """)
