@@ -4,8 +4,8 @@
 ##### ATTRIBUTION #####
 
 
-# Original Author:  sierra gillis
-# Module Author:    sierra gillis
+# Original Author:  Sierra Gillis
+# Module Author:    Sierra Gillis
 # Contributors:     N/A
 
 
@@ -37,107 +37,190 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "mutationtimer",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "mutationtimer", "outputs"],
+    subdirectories = ["inputs", "convert2bed", "liftover", "mutationtimer", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
-    _mutationtimer_input_txt,
-    _mutationtimer_step_2,
-    _mutationtimer_output_tsv,
+    _mutationtimer_input_bb,
+    _mutationtimer_convert2bed,
+    _mutationtimer_liftover,
+    _mutationtimer_output_tsvs,
     _mutationtimer_all,
 
 
 ##### RULES #####
 
-
-# Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
-rule _mutationtimer_input_txt:
-    input:
-        txt = CFG["inputs"]["sample_txt"]
-    output:
-        txt = CFG["dirs"]["inputs"] + "txt/{seq_type}--{genome_build}/{sample_id}.txt"
-    group: 
-        "input_and_step_1"
-    run:
-        op.absolute_symlink(input.txt, output.txt)
-
-
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _mutationtimer_step_1:
-    input:
-        tumour_txt = CFG["dirs"]["inputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}.txt",
-        normal_txt = CFG["dirs"]["inputs"] + "txt/{seq_type}--{genome_build}/{normal_id}.txt",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
-    output:
-        tsv = CFG["dirs"]["mutationtimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.tsv"
-    log:
-        stdout = CFG["logs"]["mutationtimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-        stderr = CFG["logs"]["mutationtimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
+# Get GAMBLR config into run dir
+rule _mutationtimer_gamblr_config:
     params:
-        opts = CFG["options"]["step_1"]
-    conda:
-        CFG["conda_envs"]["samtools"]
-    threads:
-        CFG["threads"]["step_1"]
-    resources:
-        **CFG["resources"]["step_1"]
-    group: 
-        "input_and_step_1"
+        config_url = CFG["inputs"]["gamblr_config_url"],
+    output:
+        config = "config.yml"
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --tumour {input.tumour_txt} --normal {input.normal_txt}
-        --ref-fasta {input.fasta} --output {output.tsv} --threads {threads}
-        > {log.stdout} 2> {log.stderr}
+        wget -qO {output.config} {params.config_url}
         """)
 
-
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _mutationtimer_step_2:
+# Symlinks the input files into the module results directory (under '00-inputs/')
+rule _mutationtimer_input_bb:
     input:
-        tsv = str(rules._mutationtimer_step_1.output.tsv)
+        bb = CFG["inputs"]["battenberg_txt"]
     output:
-        tsv = CFG["dirs"]["mutationtimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.tsv"
-    log:
-        stderr = CFG["logs"]["mutationtimer"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.tsv} > {output.tsv} 2> {log.stderr}"
+        bb = CFG["dirs"]["inputs"] + "battenberg--{genome_build}/{tumour_id}--{normal_id}_subclones.txt"
+    run:
+        op.absolute_symlink(input.bb, output.bb)
 
+rule _mutationtimer_input_cellularity:
+    input:
+        cellularity = CFG["inputs"]["cellularity_txt"]
+    output:
+        cellularity = CFG["dirs"]["inputs"] + "battenberg--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
+    run:
+        op.absolute_symlink(input.cellularity, output.cellularity)
+
+
+# Subsets subclones.txt input to only necessary cols and outputs as bed for liftover
+rule _mutationtimer_convert2bed:
+    input:
+        bb = str(rules._mutationtimer_input_bb.output.bb)
+    output:
+        bed = CFG["dirs"]["convert2bed"] + "battenberg--{genome_build}/{tumour_id}--{normal_id}_subclones.bed"
+    log:
+        stderr = CFG["logs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{genome_build}/convert2bed.stderr.log"
+    shell:
+        op.as_one_line("""
+        awk -F"\t" -v OFS="\t" '{{print $1,$2,$3,$8,$9,$10,$11,$12,$13}}' {input.bb} >> {output.bed} 2> {log.stderr}
+        """)
+
+# Get chain for liftover based on genome build
+def get_chain(wildcards):
+    if "38" in str({wildcards.genome_build}):
+        return reference_files("genomes/{genome_build}/chains/grch38/hg38ToHg19.over.chain")
+    else:
+        return reference_files("genomes/{genome_build}/chains/grch38/hg19ToHg38.over.chain")
+
+rule _mutationtimer_liftover:
+    input:
+        bed = str(rules._mutationtimer_convert2bed.output.bed),
+        chain = get_chain
+    output:
+        lifted = CFG["dirs"]["liftover"] + "from--{genome_build}/{tumour_id}--{normal_id}_lifted_{chain}.bed",
+        unampped = CFG["dirs"]["liftover"] + "from--{genome_build}/{tumour_id}--{normal_id}_lifted_{chain}.unmapped.bed"
+    log:
+        stderr = CFG["logs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{genome_build}/liftover.stderr.log"
+    params:
+        liftover_script = CFG["options"]["liftover_script_path"],
+        minmatch = CFG["options"]["liftover_minMatch"]
+    conda:
+        config["conda_envs"]["liftover"]
+    wildcard_constraints:
+        chain = "hg38ToHg19|hg19ToHg38"
+    shell:
+        op.as_one_line("""
+        bash {params.liftover_script}  BED {input.bed}
+        {output.lifted} {input.chain}
+        YES {params.minmatch}
+        2> {log.stderr}
+        """)
+
+# Ensures the correct subclones file, naive or lifted, is used as input
+def _prepare_mt_inputs(wildcards):
+    if "19" in wildcards.projection:
+        genome_list = ["hg19", "grch37", "hs37d5"]
+    else:
+        genome_list = ["hg38"]
+
+    CFG = config["lcr-modules"]["mutationtimer"]
+    tbl = CFG["runs"]
+    tumor_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.normal_sample_id == wildcards.normal_id) & (tbl.seq_type == "genome")]["tumour_genome_build"].tolist()
+
+    # build and projection "match"
+    if str(tumor_genome_build[0]) in genome_list:
+        cellularity = str(rules._mutationtimer_input_cellularity.output.cellularity).replace("{genome_build}", tumor_genome_build[0])
+        bb = str(rules._mutationtimer_convert2bed.output.bed).replace("{genome_build}", tumor_genome_build[0])
+    # build and projection differ, and projection is hg19, means build was hg38
+    elif "19" in wildcards.projection:
+        cellularity = str(rules._mutationtimer_input_cellularity.output.cellularity).replace("{genome_build}", tumor_genome_build[0])
+        bb = str(rules._mutationtimer_liftover.output.lifted).replace("{genome_build}", tumor_genome_build[0]).replace("{chain}", "hg38ToHg19")
+    # build and projection differ, and projection is not hg19, means build was hg19
+    else:
+        cellularity = str(rules._mutationtimer_input_cellularity.output.cellularity).replace("{genome_build}", tumor_genome_build[0])
+        bb = str(rules._mutationtimer_liftover.output.lifted).replace("{genome_build}", tumor_genome_build[0]).replace("{chain}", "hg19ToHg38")
+
+    return{
+        "bb": bb,
+        "cellularity": cellularity
+    }
+
+
+rule  _mutationtimer_run:
+    input:
+        unpack(_prepare_mt_inputs),
+        gamblr = ancient(rules._mutationtimer_gamblr_config.output.config)
+    output:
+        timed_ssm = CFG["dirs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{tumour_id}_timed_ssm.{projection}.tsv",
+        timed_cna = CFG["dirs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{tumour_id}_timed_cna.{projection}.tsv"
+    log:
+        stderr = CFG["logs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{projection}/mutationtimer.stderr.log"
+    params:
+        script = config["options"]["mutationtimer_script"],
+        n_bootstrap = config["options"]["n_bootstrap"]
+    conda:
+        config["conda_envs"]["mutationtimer"]
+    threads:
+        CFG["threads"]["mutationtimer"]
+    resources:
+        **CFG["resources"]["mutationtimer"]
+    shell:
+        op.as_one_line("""
+        Rscript --vanilla {params.script}
+        {input.bb}
+        {input.cellularity}
+        {params.n_bootstrap}
+        {output.timed_ssm}
+        {output.timed_cna}
+        {wildcards.tumour_sample_id}
+        {wildcards.projection}
+        {log}
+        """)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _mutationtimer_output_tsv:
     input:
-        tsv = str(rules._mutationtimer_step_2.output.tsv)
+        timed_ssm = str(rules._mutationtimer_run.output.timed_ssm),
+        timed_cna = str(rules._mutationtimer_run.output.timed_cna)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.tsv"
+        timed_ssm = CFG["dirs"]["outputs"] + "timed_ssm/{projection}/{tumour_id}--{normal_id}_timed_ssm.{projection}.tsv",
+        timed_cna = CFG["dirs"]["outputs"] + "timed_cna/{projection}/{tumour_id}--{normal_id}_timed_cna.{projection}.tsv"
     run:
-        op.relative_symlink(input.tsv, output.tsv, in_module= True)
+        op.relative_symlink(input.timed_ssm, output.timed_ssm, in_module= True)
+        op.relative_symlink(input.timed_cna, output.timed_cna, in_module= True)
+
 
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _mutationtimer_all:
     input:
-        expand(
-            [
-                str(rules._mutationtimer_output_tsv.output.tsv),
-                # TODO: If applicable, add other output rules here
-            ],
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["runs"]["tumour_seq_type"],
+        expand([str(rules._mutationtimer_liftover.output.lifted)],
+            zip,
             genome_build=CFG["runs"]["tumour_genome_build"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
-
+            chain=["hg38ToHg19" if "38" in str(x) else "hg19ToHg38" for x in CFG["runs"]["tumour_genome_build"]]
+        ),
+        expand(
+            expand(
+            [
+                str(rules._mutationtimer_output_tsv.output.timed_ssm),
+                str(rules._mutationtimer_output_tsv.output.timed_cna)
+            ],
+            zip,
+            tumour_id=CFG["runs"]["tumour_sample_id"],
+            normal_id=CFG["runs"]["normal_sample_id"],
+            allow_missing=True),
+            projection=["hg19", "hg38"]
+        )
 
 ##### CLEANUP #####
 

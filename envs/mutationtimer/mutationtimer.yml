@@ -1,0 +1,39 @@
+name: mutationtimer
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - r-base=4.1.3
+  - r-nloptr=1.2.2.3
+  - r-tidyverse=1.3.2
+  - ca-certificates
+  - openssl
+  - bioconductor-complexheatmap
+  - r-cowplot
+  - r-data.table
+  - r-dbi
+  - r-ggbeeswarm
+  - r-ggpubr
+  - r-ggrepel
+  - r-ggthemes
+  - bioconductor-maftools
+  - r-plotly
+  - r-rcircos
+  - bioconductor-rtracklayer
+  - bioconductor-sradb
+  - r-workflowr
+  - r-knitr
+  - r-rmarkdown
+  - r-testthat
+  - r-biomartr
+  - r-config
+  - r-rmariadb
+  - r-wordcloud
+  - r-devtools
+  - bioconductor-variantannotation
+  - bioconductor-bsgenome
+  - r-ssh
+  - bioconductor-genomicdistributions
+  - r-msigdbr
+  - bioconductor-org.hs.eg.db

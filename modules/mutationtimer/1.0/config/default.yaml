@@ -1,28 +1,33 @@
 lcr-modules:
-    
+
     mutationtimer:
 
         # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_txt: "__UPDATE__"
+            battenberg_txt: "__UPDATE__"
+            cellularity_txt: "__UPDATE__"
+            gamblr_config_url: "https://raw.githubusercontent.com/morinlab/GAMBLR.results/f92c22ac286822178415a3b6a818251effc56890/config.yml"
 
         scratch_subdirectories: []
 
         options:
-            step_1: ""
-            step_2: ""
+            liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
+            liftover_minMatch: 0.95
+            mutationtimer_script: "{MODSDIR}/src/MutationTimeR.R"
+            n_bootstrap: 200
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            
+            liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
+            mutationtimer: "{MODSDIR}/envs/MutationTimeR.yml"
+
         threads:
-            step_1: 4
+            mutationtimer: 4
 
         resources:
-            step_1: 
-                mem_mb: 2000
-            
+            mutationtimer:
+                mem_mb: 5000
+
         pairing_config:
             genome:
                 run_paired_tumours: True
