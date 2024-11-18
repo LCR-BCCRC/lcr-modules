@@ -19,7 +19,7 @@ lcr-modules:
 
         conda_envs:
             liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
-            mutationtimer: "{MODSDIR}/envs/MutationTimeR.yml"
+            mutationtimer: "{MODSDIR}/envs/mutationtimer.yml"
 
         threads:
             mutationtimer: 4
