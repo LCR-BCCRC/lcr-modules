@@ -108,12 +108,12 @@ rule _mutationtimer_liftover:
         lifted = CFG["dirs"]["liftover"] + "from--{genome_build}/{tumour_id}--{normal_id}_lifted_{chain}.bed",
         unampped = CFG["dirs"]["liftover"] + "from--{genome_build}/{tumour_id}--{normal_id}_lifted_{chain}.unmapped.bed"
     log:
-        stderr = CFG["logs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{genome_build}/liftover.stderr.log"
+        stderr = CFG["logs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{genome_build}/liftover_{chain}.stderr.log"
     params:
         liftover_script = CFG["options"]["liftover_script_path"],
         minmatch = CFG["options"]["liftover_minMatch"]
     conda:
-        config["conda_envs"]["liftover"]
+        CFG["conda_envs"]["liftover"]
     wildcard_constraints:
         chain = "hg38ToHg19|hg19ToHg38"
     shell:
@@ -133,7 +133,7 @@ def _prepare_mt_inputs(wildcards):
 
     CFG = config["lcr-modules"]["mutationtimer"]
     tbl = CFG["runs"]
-    tumor_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.normal_sample_id == wildcards.normal_id) & (tbl.seq_type == "genome")]["tumour_genome_build"].tolist()
+    tumor_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.normal_sample_id == wildcards.normal_id)]["tumour_genome_build"].tolist()
 
     # build and projection "match"
     if str(tumor_genome_build[0]) in genome_list:
@@ -164,10 +164,10 @@ rule  _mutationtimer_run:
     log:
         stderr = CFG["logs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{projection}/mutationtimer.stderr.log"
     params:
-        script = config["options"]["mutationtimer_script"],
-        n_bootstrap = config["options"]["n_bootstrap"]
+        script = CFG["options"]["mutationtimer_script"],
+        n_bootstrap = CFG["options"]["n_bootstrap"]
     conda:
-        config["conda_envs"]["mutationtimer"]
+        CFG["conda_envs"]["mutationtimer"]
     threads:
         CFG["threads"]["mutationtimer"]
     resources:
@@ -186,7 +186,7 @@ rule  _mutationtimer_run:
         """)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _mutationtimer_output_tsv:
+rule _mutationtimer_output_tsvs:
     input:
         timed_ssm = str(rules._mutationtimer_run.output.timed_ssm),
         timed_cna = str(rules._mutationtimer_run.output.timed_cna)
@@ -212,8 +212,8 @@ rule _mutationtimer_all:
         expand(
             expand(
             [
-                str(rules._mutationtimer_output_tsv.output.timed_ssm),
-                str(rules._mutationtimer_output_tsv.output.timed_cna)
+                str(rules._mutationtimer_output_tsvs.output.timed_ssm),
+                str(rules._mutationtimer_output_tsvs.output.timed_cna)
             ],
             zip,
             tumour_id=CFG["runs"]["tumour_sample_id"],
