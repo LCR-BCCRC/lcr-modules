@@ -60,11 +60,18 @@ this_projection <- ifelse(args$projection %in% "hg38", "hg38", "grch37")
 cat("Getting augmented SSM data from GAMBLR...\n")
 this_sample_meta <- get_gambl_metadata(seq_type_filter = "genome") %>%
   filter(sample_id %in% this_sample)
+
+# Check if this sample has metadata in GAMBLR
+if(dim(this_sample_meta)[1] == 0) stop(paste("Tumour sample", this_sample, "is not in GAMBLR metadata\n"))
+
 this_sample_ssm <- GAMBLR.results::get_ssm_by_samples(these_samples_metadata = this_sample_meta, projection = this_projection, subset_from_merge=FALSE) %>%
   select(Hugo_Symbol, Entrez_Gene_Id, NCBI_Build, Chromosome, Start_Position, End_Position, Strand, t_depth, t_ref_count, t_alt_count,
     n_depth, n_ref_count, n_alt_count, Variant_Classification, Variant_Type, Reference_Allele, Tumor_Seq_Allele1, Tumor_Seq_Allele2,
     Tumor_Sample_Barcode, Matched_Norm_Sample_Barcode, Match_Norm_Seq_Allele1, Match_Norm_Seq_Allele2, Tumor_Validation_Allele1,
     Tumor_Validation_Allele2, Match_Norm_Validation_Allele1, Match_Norm_Validation_Allele2)
+
+# Check if this sample has SSM data in GAMBLR
+if(dim(this_sample_ssm)[1] == 0) stop(paste("Tumour sample", this_sample, "does not have SSM data in GAMBLR\n"))
 
 # Turn SSMs into VCF-class object
 # -----------------------------------------------------
@@ -112,7 +119,7 @@ bb_final <- bind_rows(bb_clonal, bb_subclonal) %>% arrange(seqnames, start) %>% 
 
 # Run MutationTimeR -----------------------------------------------------
 cat("Running MutationTimeR...\n")
-mt <-  mutationTime(this_sample_vcf, bb_final, n.boot=n_bootstrap)
+mt <-  mutationTime(this_sample_vcf, bb_final, n.boot=200)
 
 this_sample_vcf <- addMutTime(this_sample_vcf, mt$V)
 mcols(bb_final) <- cbind(mcols(bb_final), mt$T)
