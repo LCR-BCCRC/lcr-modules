@@ -119,7 +119,7 @@ bb_final <- bind_rows(bb_clonal, bb_subclonal) %>% arrange(seqnames, start) %>% 
 
 # Run MutationTimeR -----------------------------------------------------
 cat("Running MutationTimeR...\n")
-mt <-  mutationTime(this_sample_vcf, bb_final, n.boot=200)
+mt <-  mutationTime(this_sample_vcf, bb_final, n.boot=n_bootstrap)
 
 this_sample_vcf <- addMutTime(this_sample_vcf, mt$V)
 mcols(bb_final) <- cbind(mcols(bb_final), mt$T)
