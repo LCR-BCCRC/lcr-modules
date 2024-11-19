@@ -88,6 +88,7 @@ rule _mutationtimer_convert2bed:
         bed = CFG["dirs"]["convert2bed"] + "battenberg--{genome_build}/{tumour_id}--{normal_id}_subclones.bed"
     log:
         stderr = CFG["logs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{genome_build}/convert2bed.stderr.log"
+    threads: 1
     shell:
         op.as_one_line("""
         awk -F"\t" -v OFS="\t" '{{print $1,$2,$3,$8,$9,$10,$11,$12,$13}}' {input.bb} >> {output.bed} 2> {log.stderr}
@@ -109,6 +110,7 @@ rule _mutationtimer_liftover:
         unampped = CFG["dirs"]["liftover"] + "from--{genome_build}/{tumour_id}--{normal_id}_lifted_{chain}.unmapped.bed"
     log:
         stderr = CFG["logs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{genome_build}/liftover_{chain}.stderr.log"
+    threads: 1
     params:
         liftover_script = CFG["options"]["liftover_script_path"],
         minmatch = CFG["options"]["liftover_minMatch"]
