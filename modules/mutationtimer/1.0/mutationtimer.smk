@@ -37,7 +37,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "mutationtimer",
     version = "1.0",
-    subdirectories = ["inputs", "convert2bed", "liftover", "mutationtimer", "outputs"],
+    subdirectories = ["inputs", "convert2bed", "liftover", "resolve_overlaps", "mutationtimer", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -45,6 +45,7 @@ localrules:
     _mutationtimer_input_bb,
     _mutationtimer_convert2bed,
     _mutationtimer_liftover,
+    _mutationtimer_resolve_overlaps,
     _mutationtimer_output_tsvs,
     _mutationtimer_all,
 
@@ -91,7 +92,7 @@ rule _mutationtimer_convert2bed:
     threads: 1
     shell:
         op.as_one_line("""
-        awk -F"\t" -v OFS="\t" '{{print $1,$2,$3,$8,$9,$10,$11,$12,$13}}' {input.bb} >> {output.bed} 2> {log.stderr}
+        awk -F"\t" -v OFS="\t" '{{print $1,$2,$3,$8,$9,$10,$11,$12,$13}}' {input.bb} > {output.bed} 2> {log.stderr}
         """)
 
 # Get chain for liftover based on genome build
@@ -112,7 +113,7 @@ rule _mutationtimer_liftover:
         stderr = CFG["logs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{genome_build}/liftover_{chain}.stderr.log"
     threads: 1
     params:
-        liftover_script = CFG["options"]["liftover_script_path"],
+        liftover_script = CFG["options"]["liftover_script"],
         minmatch = CFG["options"]["liftover_minMatch"]
     conda:
         CFG["conda_envs"]["liftover"]
@@ -125,6 +126,30 @@ rule _mutationtimer_liftover:
         YES {params.minmatch}
         2> {log.stderr}
         """)
+
+rule _mutationtimer_resolve_overlaps:
+    input:
+        bed = str(rules._mutationtimer_liftover.output.lifted),
+    output:
+        bed = CFG["dirs"]["resolve_overlaps"] + "from--{genome_build}/{tumour_id}--{normal_id}_lifted_{chain}_resolved.bed",
+        removed_in_ties = CFG["dirs"]["resolve_overlaps"] + "from--{genome_build}/{tumour_id}--{normal_id}_lifted_{chain}_resolved_removed_in_ties.bed"
+    log:
+        log = CFG["logs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{genome_build}/liftover_{chain}_resolve_overlaps.stderr.log"
+    threads: 1
+    params:
+        script = CFG["options"]["resolve_overlaps_script"]
+    conda:
+        CFG["conda_envs"]["mutationtimer"]
+    wildcard_constraints:
+        chain = "hg38ToHg19|hg19ToHg38"
+    shell:
+        op.as_one_line("""
+        Rscript --vanilla {params.script}
+        {input.bed}
+        {output.bed}
+        {log.log}
+        """)
+
 
 # Ensures the correct subclones file, naive or lifted, is used as input
 def _prepare_mt_inputs(wildcards):
@@ -144,11 +169,11 @@ def _prepare_mt_inputs(wildcards):
     # build and projection differ, and projection is hg19, means build was hg38
     elif "19" in wildcards.projection:
         cellularity = str(rules._mutationtimer_input_cellularity.output.cellularity).replace("{genome_build}", tumor_genome_build[0])
-        bb = str(rules._mutationtimer_liftover.output.lifted).replace("{genome_build}", tumor_genome_build[0]).replace("{chain}", "hg38ToHg19")
+        bb = str(rules._mutationtimer_resolve_overlaps.output.bed).replace("{genome_build}", tumor_genome_build[0]).replace("{chain}", "hg38ToHg19")
     # build and projection differ, and projection is not hg19, means build was hg19
     else:
         cellularity = str(rules._mutationtimer_input_cellularity.output.cellularity).replace("{genome_build}", tumor_genome_build[0])
-        bb = str(rules._mutationtimer_liftover.output.lifted).replace("{genome_build}", tumor_genome_build[0]).replace("{chain}", "hg19ToHg38")
+        bb = str(rules._mutationtimer_resolve_overlaps.output.bed).replace("{genome_build}", tumor_genome_build[0]).replace("{chain}", "hg19ToHg38")
 
     return{
         "bb": bb,
@@ -164,7 +189,7 @@ rule  _mutationtimer_run:
         timed_ssm = CFG["dirs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{tumour_id}_timed_ssm.{projection}.tsv",
         timed_cna = CFG["dirs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{tumour_id}_timed_cna.{projection}.tsv"
     log:
-        stderr = CFG["logs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{projection}/mutationtimer.stderr.log"
+        log = CFG["logs"]["mutationtimer"] + "{tumour_id}--{normal_id}/projection--{projection}/mutationtimer.stderr.log"
     params:
         script = CFG["options"]["mutationtimer_script"],
         n_bootstrap = CFG["options"]["n_bootstrap"]
@@ -184,7 +209,7 @@ rule  _mutationtimer_run:
         {output.timed_cna}
         {wildcards.tumour_id}
         {wildcards.projection}
-        {log}
+        {log.log}
         """)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')

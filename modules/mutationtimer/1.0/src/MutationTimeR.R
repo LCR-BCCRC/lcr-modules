@@ -12,7 +12,7 @@
 cat("Loading packages...\n")
 suppressWarnings(
 suppressPackageStartupMessages({
-    library(tidyverse  )
+    library(tidyverse)
     library(MutationTimeR)
     library(GAMBLR.results)
 })
@@ -35,7 +35,7 @@ sink(log, type = "message")
 # Print args for de-bugging -----------------------------------------------------------
 cat(paste("bb_path:", args$bb_path, "\n"))
 cat(paste("cellularity_path:", args$cellularity_path, "\n"))
-cat(paste("n_bootstrap:", args$cellularity_path, "\n"))
+cat(paste("n_bootstrap:", args$n_bootstrap, "\n"))
 cat(paste("output_ssm_path:", args$output_ssm_path, "\n"))
 cat(paste("output_cna_path:", args$output_cna_path, "\n"))
 cat(paste("tumour_sample_id:", args$tumour_sample_id, "\n"))
@@ -46,7 +46,7 @@ cat(paste("log_path:", args$log_path, "\n"))
 bb_file <- args$bb_path
 cellularity_file <- args$cellularity_path
 
-n_bootstrap <- args$n_bootstrap
+n_bootstrap <- as.numeric(args$n_bootstrap)
 
 output_ssm <- args$output_ssm_path
 output_cna <- args$output_cna_path
@@ -72,6 +72,9 @@ this_sample_ssm <- GAMBLR.results::get_ssm_by_samples(these_samples_metadata = t
 
 # Check if this sample has SSM data in GAMBLR
 if(dim(this_sample_ssm)[1] == 0) stop(paste("Tumour sample", this_sample, "does not have SSM data in GAMBLR\n"))
+
+# chr prefix in the SSM data will be used to modify the CNA input so it matches
+prefix_status <- ifelse(str_detect(this_sample_ssm$Chromosome[1], "chr"), TRUE, FALSE)
 
 # Turn SSMs into VCF-class object
 # -----------------------------------------------------
@@ -103,6 +106,21 @@ purity <- read_tsv(cellularity_file, show_col_types=FALSE) %>% pull(cellularity)
 
 bb <- read_tsv(bb_file, show_col_types=FALSE, na="NA") %>%
   dplyr::select(chr, startpos, endpos, nMaj1_A, nMin1_A, frac1_A, nMaj2_A, nMin2_A, frac2_A)
+
+# If it has not been through the liftover and overlap resolving, we need to fix the filled segments
+# and make sure the chr prefix matches the SSM data
+bb <- bb %>%
+  mutate(chr = case_when(
+    prefix_status==TRUE & str_detect(chr, "chr") ~ chr, # both prefixed already, no changes needed
+    prefix_status==FALSE & !str_detect(chr, "chr") ~ chr, # both not prefixed, no changes needed
+    prefix_status==TRUE & !str_detect(chr, "chr") ~ paste0("chr", chr), # SSM prefixed, bb not, needs to be added
+    prefix_status==FALSE & str_detect(chr, "chr") ~ gsub("chr", "", chr), # SSM not prefixed, bb is, needs to be removed
+  )) %>%
+  mutate(
+    nMaj2_A = ifelse(frac1_A == 1 & frac2_A == 1, NA, nMaj2_A),
+    nMin2_A = ifelse(frac1_A == 1 & frac2_A == 1, NA, nMin2_A),
+    frac2_A = ifelse(frac1_A == 1 & frac2_A == 1, NA, frac2_A)
+  )
 
 bb_clonal <- bb %>%
   mutate(clonal_frequency = frac1_A*purity) %>%
