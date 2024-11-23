@@ -61,9 +61,13 @@ this_projection <- args$projection
 # Read in augmented maf data and convert to VCF-class
 # -----------------------------------------------------
 cat("Getting augmented maf SSM data...\n")
-cat("Subsetting to those with min read support at least 3...\n")
 grep_cmd <- paste("grep -e Tumor_Sample_Barcode -e", tumour_id, maf_file)
-maf <- fread(cmd = grep_cmd, verbose = F) %>% as_tibble() %>%
+maf <- fread(cmd = grep_cmd, verbose = F) %>% as_tibble()
+
+if(dim(maf)[1] == 0) stop(paste("Tumour sample", tumour_id, "is not in the input maf\n"))
+
+cat("Subsetting to those with min read support at least 3...\n")
+maf <- maf %>%
   filter(t_alt_count >= 3)
 
 # chr prefix in the SSM data will be used to modify the CNA input so that they match
