@@ -43,6 +43,8 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _mutationtimer_input_bb,
+    _mutationtimer_input_cellularity,
+    _mutationtimer_input_augmented_maf,
     _mutationtimer_convert2bed,
     _mutationtimer_liftover,
     _mutationtimer_resolve_overlaps,
@@ -51,17 +53,6 @@ localrules:
 
 
 ##### RULES #####
-
-# Get GAMBLR config into run dir
-rule _mutationtimer_gamblr_config:
-    params:
-        config_url = CFG["inputs"]["gamblr_config_url"],
-    output:
-        config = "config.yml"
-    shell:
-        op.as_one_line("""
-        wget -qO {output.config} {params.config_url}
-        """)
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _mutationtimer_input_bb:
@@ -79,6 +70,14 @@ rule _mutationtimer_input_cellularity:
         cellularity = CFG["dirs"]["inputs"] + "battenberg--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
     run:
         op.absolute_symlink(input.cellularity, output.cellularity)
+
+rule _mutationtimer_input_augmented_maf:
+    input:
+        maf = CFG["inputs"]["augmented_maf"]
+    output:
+        maf = CFG["dirs"]["inputs"] + "augmented_maf/all_slms-3--{projection}.maf"
+    run:
+        op.absolute_symlink(input.maf, output.maf)
 
 
 # Subsets subclones.txt input to only necessary cols and outputs as bed for liftover
@@ -153,10 +152,10 @@ rule _mutationtimer_resolve_overlaps:
 
 # Ensures the correct subclones file, naive or lifted, is used as input
 def _prepare_mt_inputs(wildcards):
-    if "19" in wildcards.projection:
-        genome_list = ["hg19", "grch37", "hs37d5"]
+    if "38" in wildcards.projection:
+        genome_list = ["hg38", "grch38"]
     else:
-        genome_list = ["hg38"]
+        genome_list = ["hg19", "grch37", "hs37d5"]
 
     CFG = config["lcr-modules"]["mutationtimer"]
     tbl = CFG["runs"]
@@ -166,14 +165,14 @@ def _prepare_mt_inputs(wildcards):
     if str(tumor_genome_build[0]) in genome_list:
         cellularity = str(rules._mutationtimer_input_cellularity.output.cellularity).replace("{genome_build}", tumor_genome_build[0])
         bb = str(rules._mutationtimer_convert2bed.output.bed).replace("{genome_build}", tumor_genome_build[0])
-    # build and projection differ, and projection is hg19, means build was hg38
-    elif "19" in wildcards.projection:
-        cellularity = str(rules._mutationtimer_input_cellularity.output.cellularity).replace("{genome_build}", tumor_genome_build[0])
-        bb = str(rules._mutationtimer_resolve_overlaps.output.bed).replace("{genome_build}", tumor_genome_build[0]).replace("{chain}", "hg38ToHg19")
-    # build and projection differ, and projection is not hg19, means build was hg19
-    else:
+    # build and projection differ, and projection is hg38, means build was hg19/grch37/hs37d5
+    elif "38" in wildcards.projection:
         cellularity = str(rules._mutationtimer_input_cellularity.output.cellularity).replace("{genome_build}", tumor_genome_build[0])
         bb = str(rules._mutationtimer_resolve_overlaps.output.bed).replace("{genome_build}", tumor_genome_build[0]).replace("{chain}", "hg19ToHg38")
+    # build and projection differ, and projection is not hg38, means build was hg38/grch38
+    else:
+        cellularity = str(rules._mutationtimer_input_cellularity.output.cellularity).replace("{genome_build}", tumor_genome_build[0])
+        bb = str(rules._mutationtimer_resolve_overlaps.output.bed).replace("{genome_build}", tumor_genome_build[0]).replace("{chain}", "hg38ToHg19")
 
     return{
         "bb": bb,
@@ -184,7 +183,7 @@ def _prepare_mt_inputs(wildcards):
 rule  _mutationtimer_run:
     input:
         unpack(_prepare_mt_inputs),
-        gamblr = ancient(rules._mutationtimer_gamblr_config.output.config)
+        maf = str(rules._mutationtimer_input_augmented_maf.output.maf)
     output:
         timed_ssm = CFG["dirs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{tumour_id}_timed_ssm.{projection}.tsv",
         timed_cna = CFG["dirs"]["mutationtimer"] + "{tumour_id}--{normal_id}/{tumour_id}_timed_cna.{projection}.tsv"
@@ -204,6 +203,7 @@ rule  _mutationtimer_run:
         Rscript --vanilla {params.script}
         {input.bb}
         {input.cellularity}
+        {input.maf}
         {params.n_bootstrap}
         {output.timed_ssm}
         {output.timed_cna}
@@ -246,7 +246,7 @@ rule _mutationtimer_all:
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
             allow_missing=True),
-            projection=["hg19", "hg38"]
+            projection=["grch37", "hg38"]
         )
 
 ##### CLEANUP #####

@@ -7,7 +7,9 @@ lcr-modules:
             # Use battenberg files: results/gambl/battenberg-1.1/99-outputs/txt/genome--{genome_build}/{tumour_id}--{normal_id}_subclones.txt
             battenberg_txt: "__UPDATE__"
             cellularity_txt: "__UPDATE__"
-            gamblr_config_url: "https://raw.githubusercontent.com/morinlab/GAMBLR.results/f92c22ac286822178415a3b6a818251effc56890/config.yml"
+            # Available wildcards: {projection} {tumour_id} {normal_id}
+            # Use SLMS-3 vcf2maf merged augmented mafs: results/all_the_things/slms_3-1.0_vcf2maf-1.3/genome--projection/deblacklisted/augmented_maf/all_slms-3--{projection}.maf
+            augmented_maf: "__UPDATE__"
 
         scratch_subdirectories: []
 
