@@ -25,7 +25,7 @@ lcr-modules:
             mutationtimer: "{MODSDIR}/envs/mutationtimer.yml"
 
         threads:
-            mutationtimer: 4
+            mutationtimer: 4 # coded as 4 in src/MutationTimeR.R
 
         resources:
             mutationtimer:

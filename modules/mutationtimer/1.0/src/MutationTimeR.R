@@ -62,7 +62,7 @@ this_projection <- args$projection
 # -----------------------------------------------------
 cat("Getting augmented maf SSM data...\n")
 grep_cmd <- paste("grep -e Tumor_Sample_Barcode -e", tumour_id, maf_file)
-maf <- fread(cmd = grep_cmd, verbose = F) %>% as_tibble()
+maf <- fread(cmd = grep_cmd, verbose = F, nThread=4) %>% as_tibble()
 
 if(dim(maf)[1] == 0) stop(paste("Tumour sample", tumour_id, "is not in the input maf\n"))
 
