@@ -14,7 +14,7 @@ cat("Loading packages...\n")
 suppressWarnings(
 suppressPackageStartupMessages({
     library(tidyverse)
-    library(vroom)
+    library(data.table)
     library(MutationTimeR)
 })
 )

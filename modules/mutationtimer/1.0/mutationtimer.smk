@@ -48,7 +48,7 @@ localrules:
     _mutationtimer_convert2bed,
     _mutationtimer_liftover,
     _mutationtimer_resolve_overlaps,
-    _mutationtimer_output_tsvs,
+    _mutationtimer_symlink_output_tsvs,
     _mutationtimer_all,
 
 
@@ -213,7 +213,7 @@ rule  _mutationtimer_run:
         """)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _mutationtimer_output_tsvs:
+rule _mutationtimer_symlink_output_tsvs:
     input:
         timed_ssm = str(rules._mutationtimer_run.output.timed_ssm),
         timed_cna = str(rules._mutationtimer_run.output.timed_cna)
@@ -239,8 +239,8 @@ rule _mutationtimer_all:
         expand(
             expand(
             [
-                str(rules._mutationtimer_output_tsvs.output.timed_ssm),
-                str(rules._mutationtimer_output_tsvs.output.timed_cna)
+                str(rules._mutationtimer_symlink_output_tsvs.output.timed_ssm),
+                str(rules._mutationtimer_symlink_output_tsvs.output.timed_cna)
             ],
             zip,
             tumour_id=CFG["runs"]["tumour_sample_id"],

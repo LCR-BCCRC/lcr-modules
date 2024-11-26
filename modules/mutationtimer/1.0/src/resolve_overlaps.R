@@ -73,7 +73,7 @@ check_overlap <- function(bed) {
     overlap <- c()
     for (i in 1:nrow(bed)) {
         if (i>1 && bed$chrom[i] == bed$chrom[i-1]) {
-            if (bed$start[i] >= highest_end) {
+            if (bed$start[i] > highest_end) {
                 overlap[i] = "NOToverlap"
             }else{
                 overlap[i] = "overlap"
@@ -108,7 +108,7 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
         } else if (is.na(bed$frac2_A[i-1]) & bed$nMaj1_A[i-1]==1 & bed$nMin1_A[i-1]==1){ # i isn't normal but i-1 is
           new_row1 <- data.frame(chrom = bed$chrom[i],
                               start = bed$start[i-1],
-                              end = bed$start[i],
+                              end = bed$start[i]-1,
                               nMaj1_A = bed$nMaj1_A[i-1],
                               nMin1_A = bed$nMin1_A[i-1],
                               frac1_A = bed$frac1_A[i-1],
@@ -117,7 +117,7 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
                               frac2_A = bed$frac2_A[i-1],
                               overlap_status = "NOToverlap")
           new_row2 <- data.frame(chrom = bed$chrom[i],
-                              start = bed$end[i],
+                              start = bed$end[i]+1,
                               end = bed$end[i-1],
                               nMaj1_A = bed$nMaj1_A[i-1],
                               nMin1_A = bed$nMin1_A[i-1],
@@ -126,7 +126,7 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
                               nMin2_A = bed$nMin2_A[i-1],
                               frac2_A = bed$frac2_A[i-1],
                               overlap_status = "NOToverlap")
-          if(new_row1$start == new_row1$end){ # i and i-1 had the same start, new_row1 is size 0, don't keep it
+          if(new_row1$start > new_row1$end){ # i and i-1 had the same start, don't keep it that segment
             bed$overlap_status[i] <- "NOToverlap" # keeping i so change it's status
             bed <- bed[-c(i-1),]
             bed <- bind_rows(bed, new_row2)
@@ -145,7 +145,7 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
           bed <- bed[-c(i-1),]
         } else if (is.na(bed$frac2_A[i]) & bed$nMaj1_A[i]==1 & bed$nMin1_A[i]==1){ # i is normal but i-1 is not
           new_row1 <- data.frame(chrom = bed$chrom[i],
-                                    start = bed$end[i-1],
+                                    start = bed$end[i-1]+1,
                                     end = bed$end[i],
                                     nMaj1_A = bed$nMaj1_A[i],
                                     nMin1_A = bed$nMin1_A[i],
@@ -180,7 +180,7 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
             # keep i and unique part of i-1
             new_row1 <- data.frame(chrom = bed$chrom[i],
                                       start = bed$start[i-1],
-                                      end = bed$start[i],
+                                      end = bed$start[i]-1,
                                       nMaj1_A = bed$nMaj1_A[i-1],
                                       nMin1_A = bed$nMin1_A[i-1],
                                       frac1_A = bed$frac1_A[i-1],
@@ -194,7 +194,7 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
           } else if(is.na(bed$frac2_A[i]) & bed$nMaj1_A[i]==1 & bed$nMin1_A[i]==1){ # i-1 must not be
             # keep i-1 and unqiue part of i, unless they had same ends
             new_row1 <- data.frame(chrom = bed$chrom[i],
-                                      start = bed$end[i-1],
+                                      start = bed$end[i-1]+1,
                                       end = bed$end[i],
                                       nMaj1_A = bed$nMaj1_A[i],
                                       nMin1_A = bed$nMin1_A[i],
@@ -204,7 +204,7 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
                                       frac2_A = bed$frac2_A[i],
                                       overlap_status = "NOToverlap")
             bed <- bed[-c(i),]
-            if(new_row1$start != new_row1$end){
+            if(new_row1$start <= new_row1$end){
               bed <- bind_rows(bed, new_row1)
             }
           } else { # both have info
@@ -212,7 +212,7 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
               # keep i and unique part of i-1, write out intersection's i-1 info
               new_row1 <- data.frame(chrom = bed$chrom[i],
                                       start = bed$start[i-1],
-                                      end = bed$start[i],
+                                      end = bed$start[i]-1,
                                       nMaj1_A = bed$nMaj1_A[i-1],
                                       nMin1_A = bed$nMin1_A[i-1],
                                       frac1_A = bed$frac1_A[i-1],
@@ -237,7 +237,7 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
             } else {
               # keep i-1 and unique part of i (unless they had the same end), write out intersection's i info
               new_row1 <- data.frame(chrom = bed$chrom[i],
-                                      start = bed$end[i-1],
+                                      start = bed$end[i-1]+1,
                                       end = bed$end[i],
                                       nMaj1_A = bed$nMaj1_A[i],
                                       nMin1_A = bed$nMin1_A[i],
@@ -247,7 +247,7 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
                                       frac2_A = bed$frac2_A[i],
                                       overlap_status = "NOToverlap")
               bed <- bed[-c(i),]
-              if(new_row1$start != new_row1$end){
+              if(new_row1$start <= new_row1$end){
                 bed <- bind_rows(bed, new_row1)
               }
               intersection <- data.frame(chrom = bed$chrom[i],
@@ -296,26 +296,41 @@ cols <- colnames(bb_bed_fixed_checked)
 removed_in_ties <- data.frame(matrix(nrow=0, ncol=length(cols)))
 colnames(removed_in_ties) <- cols
 
-cat("Resolving overlaps (if any)...\n")
-solve_overlaps_list <- solve_overlap(bb_bed_fixed_checked, removed_in_ties)
-bb_bed_fixed_resolved <- solve_overlaps_list[[1]]
-removed_in_ties <- solve_overlaps_list[[2]]
+# Only send through solve function if there are overlaps
+if (sum(bb_bed_fixed_checked$overlap_status == "overlap") == 0){
+  cat("No overlaps detected, writing outputs...\n")
+  # Check if output dir extists, create if not
+  output_dir <- dirname(args$output_bed)
+  if(!dir.exists(file.path(output_dir))){
+    dir.create(file.path(output_dir), recursive=TRUE)
+  }
 
-# Actual resolving overlaps -----------------------------------------------------------
-cat("Writing outputs...\n")
+  bb_bed_fixed_resolved <- bb_bed_fixed %>%
+      dplyr::rename(chr=chrom, startpos=start, endpos=end)
 
-# Check if output dir extists, create if not
-output_dir <- dirname(args$output_bed)
-if(!dir.exists(file.path(output_dir))){
-  dir.create(file.path(output_dir), recursive=TRUE)
+  write_tsv(bb_bed_fixed_resolved, file=args$output_bed)
+
+  write_tsv(removed_in_ties, file=removed_bed)
+} else {
+  cat("Resolving overlaps (if any)...\n")
+  solve_overlaps_list <- solve_overlap(bb_bed_fixed_checked, removed_in_ties)
+  bb_bed_fixed_resolved <- solve_overlaps_list[[1]]
+  removed_in_ties <- solve_overlaps_list[[2]]
+
+  cat("Writing outputs...\n")
+  # Check if output dir extists, create if not
+  output_dir <- dirname(args$output_bed)
+  if(!dir.exists(file.path(output_dir))){
+    dir.create(file.path(output_dir), recursive=TRUE)
+  }
+
+  bb_bed_fixed_resolved <- bb_bed_fixed_resolved %>%
+      dplyr::rename(chr=chrom, startpos=start, endpos=end)
+
+  write_tsv(bb_bed_fixed_resolved, file=args$output_bed)
+
+  write_tsv(removed_in_ties, file=removed_bed)
 }
-
-bb_bed_fixed_resolved <- bb_bed_fixed_resolved %>%
-    dplyr::rename(chr=chrom, startpos=start, endpos=end)
-
-write_tsv(bb_bed_fixed_resolved, file=args$output_bed)
-
-write_tsv(removed_in_ties, file=removed_bed)
 
 cat("DONE!")
 sink()
