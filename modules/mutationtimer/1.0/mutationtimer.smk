@@ -153,9 +153,9 @@ rule _mutationtimer_resolve_overlaps:
 # Ensures the correct subclones file, naive or lifted, is used as input
 def _prepare_mt_inputs(wildcards):
     if "38" in wildcards.projection:
-        genome_list = ["hg38", "grch38"]
+        genome_list = ["hg38", "grch38", "hg38-nci", "hg38-panea"]
     else:
-        genome_list = ["hg19", "grch37", "hs37d5"]
+        genome_list = ["hg19", "grch37", "hs37d5", "grch37-noalt", "hg19-clc", "hg19-reddy"]
 
     CFG = config["lcr-modules"]["mutationtimer"]
     tbl = CFG["runs"]
