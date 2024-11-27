@@ -45,7 +45,7 @@ cat(paste("log_file:", args$log_file, "\n"))
 # Since it comes from lcr-scripts/liftover.sh, it should have a header
 
 cat("Reading in and formatting input bed...\n")
-bb_bed <- read_tsv(args$input_bed, show_col_types=FALSE)
+bb_bed <- read_tsv(args$input_bed, show_col_types=FALSE, na="NA")
 
 if (str_detect(bb_bed$chr[1], "chr")){
     chr_order <- c(paste0("chr",1:22),"chrX","chrY","chrM")
@@ -266,23 +266,19 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
         }
       }
     }
-    bed <- bed %>%
-      arrange(chrom,start,end)
-  }
-  bed <- bed %>%
-    arrange(chrom,start,end)
-  bed <- check_overlap(bed)
-  while("overlap" %in% bed$overlap_status){
-    bed <- check_overlap(solve_overlap(bed))
-  }
 
   bed <- bind_rows(bed, non_overlap) %>%
-    arrange(chrom,start,end) %>%
-    select(-overlap_status)
+    arrange(chrom,start,end)
 
   nonnormal_removed_in_ties <- nonnormal_removed_in_ties %>%
-    arrange(chrom,start,end) %>%
-    select(-overlap_status)
+    arrange(chrom,start,end)
+
+  bed <- check_overlap(bed)
+  while("overlap" %in% bed$overlap_status){
+    solve_list <- solve_overlap(bed, nonnormal_removed_in_ties)
+    bed <- solve_list[[1]]
+    nonnormal_removed_in_ties <- solve_list[[2]]
+  }
 
   return(list(bed, nonnormal_removed_in_ties))
 }
@@ -312,7 +308,7 @@ if (sum(bb_bed_fixed_checked$overlap_status == "overlap") == 0){
 
   write_tsv(removed_in_ties, file=removed_bed)
 } else {
-  cat("Resolving overlaps (if any)...\n")
+  cat("Resolving overlaps...\n")
   solve_overlaps_list <- solve_overlap(bb_bed_fixed_checked, removed_in_ties)
   bb_bed_fixed_resolved <- solve_overlaps_list[[1]]
   removed_in_ties <- solve_overlaps_list[[2]]
