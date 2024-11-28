@@ -12,7 +12,6 @@
 # Rscript <input.bed> <output.bed> <log.txt>
 
 # Load packages -----------------------------------------------------------
-cat("Loading packages...\n")
 suppressWarnings(
 suppressPackageStartupMessages({
     library(tidyverse)
@@ -47,6 +46,7 @@ cat(paste("log_file:", args$log_file, "\n"))
 cat("Reading in and formatting input bed...\n")
 bb_bed <- read_tsv(args$input_bed, show_col_types=FALSE, na="NA")
 
+
 if (str_detect(bb_bed$chr[1], "chr")){
     chr_order <- c(paste0("chr",1:22),"chrX","chrY","chrM")
 } else {
@@ -55,11 +55,14 @@ if (str_detect(bb_bed$chr[1], "chr")){
 
 bb_bed$chr <- factor(bb_bed$chr, levels=chr_order)
 
+cat("Filtering non-canonical chromosomes...\n")
 bb_bed <- bb_bed %>%
     dplyr::rename(chrom=chr,start=startpos, end=endpos) %>%
+    filter(!is.na(chrom)) %>% 
     arrange(chrom,start,end)
 
 # Fix the filled segments -----------------------------------------------------------
+cat("Fixing the filled segment subclonal info...\n")
 bb_bed_fixed <- bb_bed %>%
     mutate(
         nMaj2_A = ifelse(frac1_A == 1 & frac2_A == 1, NA, nMaj2_A),
@@ -266,6 +269,9 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
         }
       }
     }
+    bed <- bed %>%
+      arrange(chrom,start,end)
+  }
 
   bed <- bind_rows(bed, non_overlap) %>%
     arrange(chrom,start,end)
