@@ -5,7 +5,7 @@ lcr-modules:
             # Available wildcards: {seq_type}
             master_maf: "__UPDATE__"
             subsetting_categories: "__UPDATE__" # e.g. "data/metadata/level3_subsetting_categories.tsv"
-        sample_set: ["__UPDATE__"] # E.g. ["DLBCL-only", "BL_DLBCL-BL-like_all"]
+        sample_set: "__UPDATE__"
         # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
         # launch_date: ""
 
@@ -28,6 +28,7 @@ lcr-modules:
             fishhook: "{MODSDIR}/envs/fishhook.yaml"
 
         threads:
+            prepare_maf: 4
             fishhook: 1
 
         resources:
