@@ -71,9 +71,9 @@ def format_mutation_id(mutation_id):
     # Create columns required for liftover in BED format
     genomic_pos_col = f"mutation_id_{REGIONS_BUILD}"
 
-    for col, idx in {"chr_std": 0, "start": 1, "end": 2}.items():
+    for col, idx in {"chr_std": 0, "start": 1, "end": 1}.items():
         mutation_id[col] = mutation_id.apply(lambda x: str(x[genomic_pos_col]).split(":")[idx].replace("chr",""), axis=1)
-    end = mutation_id["end"].apply(lambda x: x + 1)
+    end = mutation_id["end"].apply(lambda x: int(x) + 1)
 
     mutation_id_reformatted = pd.DataFrame(
         {
