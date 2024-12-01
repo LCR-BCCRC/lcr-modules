@@ -169,8 +169,8 @@ rule _whatshap_split_vcf:
     input:
         vcf = str(rules._whatshap_input_vcf.output.vcf)
     output:
-        vcf = temp(CFG["dirs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/{chrom}.vcf.gz"),
-        tbi = temp(CFG["dirs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/{chrom}.vcf.gz.tbi")
+        vcf = temp(CFG["dirs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/{chrom}.split.vcf.gz"),
+        tbi = temp(CFG["dirs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/{chrom}.split.vcf.gz.tbi")
     conda:
         CFG["conda_envs"]["bcftools"]
     threads: CFG["threads"]["split_vcf"]
@@ -179,7 +179,7 @@ rule _whatshap_split_vcf:
         stderr = CFG["logs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/{chrom}.split_vcf.stderr.log"
     wildcard_constraints: 
         sample_id = "|".join(VCF_SAMPLES["sample_id"].unique()), 
-        chrom = "|".join(["chr" + str(i) for i in range(1, 22)] + ["chrX", "chrY"] + [str(i) for i in range(1, 22)] + ["X", "Y"])
+        chrom = "|".join(["chr" + str(i) for i in range(1, 23)] + ["chrX", "chrY"] + [str(i) for i in range(1, 23)] + ["X", "Y"])
     group: "split_and_phase"
     shell:
         op.as_one_line("""
@@ -223,7 +223,7 @@ rule _whatshap_phase_vcf:
     threads: CFG["threads"]["phase_vcf"]       
     wildcard_constraints: 
         sample_id = "|".join(BAM_SAMPLES["sample_id"].unique()), 
-        chrom = "|".join(["chr" + str(i) for i in range(1, 22)] + ["chrX", "chrY"] + [str(i) for i in range(1, 22)] + ["X", "Y"])
+        chrom = "|".join(["chr" + str(i) for i in range(1, 23)] + ["chrX", "chrY"] + [str(i) for i in range(1, 23)] + ["X", "Y"])
     group: "split_and_phase"
     log:
         CFG["logs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/{chrom}.phase_vcf.stderr.log"    
