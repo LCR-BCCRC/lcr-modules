@@ -7,6 +7,7 @@
 # If both segments have CNA info, the larger segment's info gets assigned to the overlapping region
 #  the info from the smaller segment is written to another bed file, for the overlapping region
 #  This bed file is named the same as the output_bed but with "_removed_in_ties.bed"
+# Filters out regions in non-canonical chrs and where nMaj and nMin are clonally NA
 
 #  Usage:
 # Rscript <input.bed> <output.bed> <log.txt>
@@ -58,8 +59,12 @@ bb_bed$chr <- factor(bb_bed$chr, levels=chr_order)
 cat("Filtering non-canonical chromosomes...\n")
 bb_bed <- bb_bed %>%
     dplyr::rename(chrom=chr,start=startpos, end=endpos) %>%
-    filter(!is.na(chrom)) %>% 
+    filter(!is.na(chrom)) %>%
     arrange(chrom,start,end)
+
+# Filtering regions with nMaj1_A NA and nMin1_A NA
+bb_bed <- bb_bed %>%
+  filter(!(is.na(nMaj1_A) & is.na(nMin1_A)))
 
 # Fix the filled segments -----------------------------------------------------------
 cat("Fixing the filled segment subclonal info...\n")
