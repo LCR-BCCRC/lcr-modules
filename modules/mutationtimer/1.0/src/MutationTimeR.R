@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 # Script to run MutationTimeR on one sample, inteded to be used in /projects/rmorin/projects/tumor-timing/src/MutationTimeR.smk
-# Right now it assumes the sample has been run through Battenberg. It uses the filled subclones.txt (naive or lifted) and
+# Right now it assumes the sample has been run through Battenberg. It uses the filled subclones.txt (native or lifted) and
 #   the cellularity_ploidy.txt for the purity estimate
 # It assumes the tumour sample's data is in the merged, augmented, deblacklisted maf and uses the tumour_id to subset it on input
 
@@ -61,7 +61,7 @@ this_projection <- args$projection
 # Read in augmented maf data and convert to VCF-class
 # -----------------------------------------------------
 cat("Getting augmented maf SSM data...\n")
-grep_cmd <- paste("grep -e Tumor_Sample_Barcode -e", tumour_id, maf_file)
+grep_cmd <- paste0('egrep "Tumor_Sample_Barcode|', tumour_id,'" ', maf_file, '| cut -f1-45')
 maf <- fread(cmd = grep_cmd, verbose = F, nThread=4) %>% as_tibble()
 
 if(dim(maf)[1] == 0) stop(paste("Tumour sample", tumour_id, "is not in the input maf\n"))
@@ -107,6 +107,7 @@ bb <- read_tsv(bb_file, show_col_types=FALSE, na="NA") %>%
 # If it has not been through the liftover and overlap resolving, we need to fix the filled segments
 # and make sure the chr prefix matches the SSM data
 bb <- bb %>%
+  filter(!(is.na(nMaj1_A) & is.na(nMin1_A))) %>%
   mutate(chr = case_when(
     prefix_status==TRUE & str_detect(chr, "chr") ~ chr, # both prefixed already, no changes needed
     prefix_status==FALSE & !str_detect(chr, "chr") ~ chr, # both not prefixed, no changes needed
