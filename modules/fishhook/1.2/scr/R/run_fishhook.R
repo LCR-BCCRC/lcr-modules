@@ -22,9 +22,9 @@ suppressWarnings(
 )
 
 # Read in maf and convert to GRange
-maf = gr.sub(dt2gr(fread(snakemake@input[[2]])))
+maf = gr.sub(dt2gr(fread(snakemake@input[["maf"]])))
 
-if(!snakemake@params[[1]]){
+if(!snakemake@params[["include_silent"]]){
   message("Excluding Silent Mutations ...")
   events = maf %Q% (Variant_Classification != 'Silent')
 }else{
@@ -32,12 +32,12 @@ if(!snakemake@params[[1]]){
 }
 
 # Use tile mode or gene list mode
-if((snakemake@params[[3]])){
+if((snakemake@params[["target_gene_list"]])){
   message("Running FishHook with Gene List...")
-  message(paste0("Gene List File: ", snakemake@params[[4]]))
-  genes = gr.sub(import(snakemake@params[[4]]))
+  message(paste0("Gene List File: ", snakemake@params[["gene_list"]]))
+  genes = gr.sub(import(snakemake@params[["gene_list"]]))
 
-  if(snakemake@params[[5]]){
+  if(snakemake@params[["target_gene_list_only_protein_coding"]]){
     message("Subsetting Gene List for Protein Coding Gene Only ...")
     genes = genes %Q% (gene_type == 'protein_coding')
   }
@@ -48,7 +48,7 @@ if((snakemake@params[[3]])){
 }else{
   message("Running FishHook with Tiles ...")
   # Split maf to tiles
-  tiles = gr.tile(seqinfo(maf), snakemake@params[[2]])
+  tiles = gr.tile(seqinfo(maf), snakemake@params[["tiles_size"]])
 
   fish = Fish(hypotheses = tiles,
                     events = events,
@@ -57,13 +57,13 @@ if((snakemake@params[[3]])){
 }
 
 # If user provided covariates files
-if(!is.null(snakemake@params[[6]])){
+if(!is.null(snakemake@params[["covariates"]])){
   message("Running FishHook with the Following Covariates...")
-  message(names(snakemake@params[[6]]))
+  message(names(snakemake@params[["covariates"]]))
 
   covariates <- c()
-  for(cov_name in names(snakemake@params[[6]])){
-    cov_data <- gr.sub(import(snakemake@params[[6]][[cov_name]]))
+  for(cov_name in names(snakemake@params[["covariates"]])){
+    cov_data <- gr.sub(import(snakemake@params[["covariates"]][[cov_name]]))
     cov <- Cov(cov_data, name = cov_name)
     covariates <- append(covariates, cov)
   }
@@ -81,7 +81,7 @@ df.result = gr2dt(result)
 
 write.table(
   df.result,
-  file=snakemake@output[[1]],
+  file=snakemake@output[["tsv"]],
   quote=FALSE,
   sep='\t',
   row.names = FALSE)
