@@ -70,6 +70,9 @@ cat("Subsetting to those with min read support at least 3...\n")
 maf <- maf %>%
   filter(t_alt_count >= 3)
 
+# TO DO: remove this filter when the vcf2maf deblacklist step has been fixed
+maf <- unique(maf)
+
 # chr prefix in the SSM data will be used to modify the CNA input so that they match
 prefix_status <- ifelse(str_detect(maf$Chromosome[1], "chr"), TRUE, FALSE)
 
