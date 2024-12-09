@@ -82,6 +82,7 @@ checkpoint _oncodriveclustl_prep_input:
         include_non_coding = str(CFG["maf_processing"]["include_non_coding"]).upper(),
         mode = "OncodriveCLUSTL",
         metadata_cols = CFG["samples"],
+        metadata_dim = CFG["samples"].shape,
         metadata = CFG["samples"].to_numpy(na_value='')
     script:
         PREPARE_MAFS

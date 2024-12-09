@@ -1,0 +1,1 @@
+../../../../envs/fishhook/fishhook.post-deploy.sh

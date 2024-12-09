@@ -106,6 +106,7 @@ checkpoint _mutsig_prepare_maf:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         mode = "MutSig2CV",
         metadata_cols = CFG["samples"],
+        metadata_dim = CFG["samples"].shape,
         metadata = CFG["samples"].to_numpy(na_value='')
     script:
         PREPARE_MAFS

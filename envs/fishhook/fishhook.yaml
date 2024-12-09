@@ -2,7 +2,7 @@ name: fishhook
 channels:
   - bioconda
   - conda-forge
-  - defaults
+  - r
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
@@ -274,4 +274,3 @@ dependencies:
   - yq=3.2.3=pyhd8ed1ab_0
   - zlib=1.2.13=hd590300_5
   - zstd=1.5.5=hfc55251_0
-prefix: /home/sgillis/miniconda3/envs/fishhook
