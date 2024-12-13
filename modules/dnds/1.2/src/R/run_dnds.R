@@ -27,7 +27,7 @@ maf = read.table(
 
 maf = as.data.frame(maf)
 
-if (grepl("38", subset_input$NCBI_Build[1])) {
+if (grepl("38", maf$NCBI_Build[1])) {
     cat("Will run using the hg38 reference.\n")
     load(snakemake@params[[3]]) # This will load the RefCDS from the path at config
     use_this_reference <- RefCDS
