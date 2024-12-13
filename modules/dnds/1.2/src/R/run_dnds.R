@@ -27,6 +27,15 @@ maf = read.table(
 
 maf = as.data.frame(maf)
 
+if (grepl("38", subset_input$NCBI_Build[1])) {
+    cat("Will run using the hg38 reference.\n")
+    load(snakemake@params[[3]]) # This will load the RefCDS from the path at config
+    use_this_reference <- RefCDS
+}else{
+    cat("Will run using the default reference.\n")
+    use_this_reference <- "hg19"
+}
+
 # Run the dNdS
 # should we restrict to target genes?
 if(file.exists(snakemake@params[[1]])){
@@ -40,12 +49,14 @@ if(file.exists(snakemake@params[[1]])){
     dndsout = dndscv(
         maf,
         gene_list=target_genes$V1,
-        max_muts_per_gene_per_sample=snakemake@params[[2]]
+        max_muts_per_gene_per_sample=snakemake@params[[2]],
+        refdb = use_this_reference
     )
 }else{
     dndsout = dndscv(
         maf,
-        max_muts_per_gene_per_sample=snakemake@params[[2]]
+        max_muts_per_gene_per_sample=snakemake@params[[2]],
+        refdb = use_this_reference
     )
 }
 
