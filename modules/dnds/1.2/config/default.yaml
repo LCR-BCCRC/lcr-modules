@@ -16,7 +16,8 @@ lcr-modules:
 
 
         options:
-            hg38_reference: "{MODSDIR}/src/R/hg38_refcds.rda"
+            hg38_reference: "{MODSDIR}/src/R/covariates_hg19_hg38_epigenome_pcawg.rda"
+            hg38_covariates: "{MODSDIR}/src/R/hg38_refcds.rda"
             target_genes: "" # optionally, specify path to the genes of interest if this is a targeted sequencing
                             # this will restrict SMG search to only these genes
                             # this is a tsv file that contain one gene symbol/row and is expected to be without header

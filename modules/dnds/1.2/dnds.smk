@@ -140,7 +140,8 @@ rule _dnds_run:
     params:
         target_genes = CFG["options"]["target_genes"],
         max_muts_per_gene_per_sample = CFG["options"]["max_muts_per_gene_per_sample"],
-        hg38_reference = CFG["options"]["hg38_reference"]
+        hg38_reference = CFG["options"]["hg38_reference"],
+        hg38_covariates = CFG["options"]["hg38_covariates"]
     script:
         "src/R/run_dnds.R"
 
