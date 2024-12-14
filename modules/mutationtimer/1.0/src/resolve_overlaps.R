@@ -51,7 +51,7 @@ bb_bed <- read_tsv(args$input_bed, show_col_types=FALSE, na="NA")
 if (str_detect(bb_bed$chr[1], "chr")){
     chr_order <- c(paste0("chr",1:22),"chrX","chrY","chrM")
 } else {
-    chr_order <- c(1:22,"X","Y","M")
+    chr_order <- c(1:22,"X","Y","MT")
 }
 
 bb_bed$chr <- factor(bb_bed$chr, levels=chr_order)
