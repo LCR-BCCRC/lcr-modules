@@ -110,7 +110,7 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
       break
     }
     if (bed$overlap_status[i] == "overlap") {
-      if (bed$end[i] < bed$end[i-1]) {  # i is either entirely within i-1 or they have the same start but i is shorter
+      if (bed$end[i] < bed$end[i-1]) {  # because of the sort,i is either entirely within i-1
         if (is.na(bed$frac2_A[i]) & bed$nMaj1_A[i]==1 & bed$nMin1_A[i]==1){ # i is normal, can be removed
           bed <- bed[-c(i), ]
         } else if (is.na(bed$frac2_A[i-1]) & bed$nMaj1_A[i-1]==1 & bed$nMin1_A[i-1]==1){ # i isn't normal but i-1 is
