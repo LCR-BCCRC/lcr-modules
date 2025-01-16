@@ -57,22 +57,26 @@ cat(paste("log_file:", args$log_file, "\n"))
 cat("Reading in and formatting input bed...\n")
 bb_bed <- read_tsv(args$input_bed, show_col_types=FALSE, na="NA")
 
+# Remove non-canonical chroms and chrY -----------------------------------------------------------
+# Battenberg only reports on chrX, not chrY, so any chrY rows are due to the fill and are not meaningful
+cat("Filtering non-canonical chromosomes and chrY...\n")
 
 if (str_detect(bb_bed$chr[1], "chr")){
-    chr_order <- c(paste0("chr",1:22),"chrX","chrY","chrM")
+    chr_order <- c(paste0("chr",1:22),"chrX")
 } else {
-    chr_order <- c(1:22,"X","Y","MT")
+    chr_order <- c(1:22,"X")
 }
 
 bb_bed$chr <- factor(bb_bed$chr, levels=chr_order)
 
-cat("Filtering non-canonical chromosomes...\n")
 bb_bed <- bb_bed %>%
     dplyr::rename(chrom=chr,start=startpos, end=endpos) %>%
-    filter(!is.na(chrom)) %>%
+    filter(!is.na(chrom)) %>% # filters non-canon and Y
     arrange(chrom,start,end)
 
-# Filtering regions with nMaj1_A NA and nMin1_A NA
+
+# Filtering regions with nMaj1_A NA and nMin1_A NA -----------------------------------------------------------
+# These are due to an oddity in the battenberg results, root cause has not been found yet
 bb_bed <- bb_bed %>%
   filter(!(is.na(nMaj1_A) & is.na(nMin1_A)))
 
