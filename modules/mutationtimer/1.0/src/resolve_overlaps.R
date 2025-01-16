@@ -12,6 +12,16 @@
 #  Usage:
 # Rscript <input.bed> <output.bed> <log.txt>
 
+# Interactive:
+log_file <- "/projects/rmorin/projects/tumor-timing/test_withsameCNA.txt" # just as a placeholder, don't run the log related code interactively
+input_bed <- "/projects/rmorin/projects/tumor-timing/overlapping_withsameCNAs.bed"
+output_bed <- "/projects/rmorin/projects/tumor-timing/script_resolved_withsameCNAs.bed"
+args <- list(input_bed, output_bed, log_file)
+arg_names <- c("input_bed", "output_bed", "log_file")
+args <- setNames(args, arg_names[1:length(args)])
+
+
+
 # Load packages -----------------------------------------------------------
 suppressWarnings(
 suppressPackageStartupMessages({
@@ -91,7 +101,7 @@ check_overlap <- function(bed) {
             }
         } else {
             highest_end = bed$end[i]
-            overlap[i] = "NA"
+            overlap[i] = "NOToverlap"
         }
     }
     bed <- bed %>%
@@ -110,10 +120,10 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
       break
     }
     if (bed$overlap_status[i] == "overlap") {
-      if (bed$end[i] < bed$end[i-1]) {  # because of the sort,i is either entirely within i-1
+      if (bed$end[i] < bed$end[i-1]) {  # because of the sort,i is entirely within i-1
         if (is.na(bed$frac2_A[i]) & bed$nMaj1_A[i]==1 & bed$nMin1_A[i]==1){ # i is normal, can be removed
           bed <- bed[-c(i), ]
-        } else if (is.na(bed$frac2_A[i-1]) & bed$nMaj1_A[i-1]==1 & bed$nMin1_A[i-1]==1){ # i isn't normal but i-1 is
+        } else if (is.na(bed$frac2_A[i-1]) & bed$nMaj1_A[i-1]==1 & bed$nMin1_A[i-1]==1){ # i is non-normal,  i-1 normal, split up i-1
           new_row1 <- data.frame(chrom = bed$chrom[i],
                               start = bed$start[i-1],
                               end = bed$start[i]-1,
@@ -134,24 +144,20 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
                               nMin2_A = bed$nMin2_A[i-1],
                               frac2_A = bed$frac2_A[i-1],
                               overlap_status = "NOToverlap")
-          if(new_row1$start > new_row1$end){ # i and i-1 had the same start, don't keep it that segment
-            bed$overlap_status[i] <- "NOToverlap" # keeping i so change it's status
-            bed <- bed[-c(i-1),]
-            bed <- bind_rows(bed, new_row2)
-          }else{
-            bed$overlap_status[i] <- "NOToverlap" # keeping i so change it's status
-            bed <- bed[-c(i-1),]
-            bed <- bind_rows(bed, new_row1, new_row2)
-          }
-        } else { # both are not normal, keep i-1 bc it's bigger, but record i
-          bed <- bed[-c(i),]
+          bed$overlap_status[i] <- "NOToverlap" # keeping i so change it's status
+          bed <- bed[-c(i-1),]
+          bed <- bind_rows(bed, new_row1, new_row2)
+        } else if (identical(bed$nMaj1_A[i-1], bed$nMaj1_A[i]) & identical(bed$nMin1_A[i-1], bed$nMin1_A[i]) & identical(bed$nMaj2_A[i-1], bed$nMaj2_A[i]) & identical(bed$nMin2_A[i-1], bed$nMin2_A[i])){ # both are not normal, but the same, drop i
+          bed <- bed[-c(i), ]
+        } else { # both are not normal, not the same, remove i and record it
           nonnormal_removed_in_ties <- rbind(nonnormal_removed_in_ties, bed[c(i),])
+          bed <- bed[-c(i),]
         }
-      } else if (bed$start[i] == bed$start[i-1]){ # bc of the sort, i is the larger segment here
+      } else if (bed$start[i] == bed$start[i-1]){ # same start, bc of the sort, i is the larger segment here
         if(is.na(bed$frac2_A[i-1]) & bed$nMaj1_A[i-1]==1 & bed$nMin1_A[i-1]==1){ # i-1 is normal, can be removed
           bed$overlap_status[i] <- "NOToverlap"# keeping i so change it's status
           bed <- bed[-c(i-1),]
-        } else if (is.na(bed$frac2_A[i]) & bed$nMaj1_A[i]==1 & bed$nMin1_A[i]==1){ # i is normal but i-1 is not
+        } else if (is.na(bed$frac2_A[i]) & bed$nMaj1_A[i]==1 & bed$nMin1_A[i]==1){ # i is normal but i-1 is not, split i
           new_row1 <- data.frame(chrom = bed$chrom[i],
                                     start = bed$end[i-1]+1,
                                     end = bed$end[i],
@@ -164,10 +170,13 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
                                     overlap_status = "NOToverlap")
           bed <- bed[-c(i),]
           bed <- bind_rows(bed, new_row1)
-        } else { # both have info, keep i bc it's bigger, record i-1
+        } else if (identical(bed$nMaj1_A[i-1], bed$nMaj1_A[i]) & identical(bed$nMin1_A[i-1], bed$nMin1_A[i]) & identical(bed$nMaj2_A[i-1], bed$nMaj2_A[i]) & identical(bed$nMin2_A[i-1], bed$nMin2_A[i])){ # both non-normal, but the same, drop i-1
           bed$overlap_status[i] <- "NOToverlap"# keeping i so change it's status
           bed <- bed[-c(i-1),]
+        } else { # both are non-normal but not the same, drop i-1 but record it
           nonnormal_removed_in_ties <- rbind(nonnormal_removed_in_ties, bed[c(i-1),])
+          bed$overlap_status[i] <- "NOToverlap"# keeping i so change it's status
+          bed <- bed[-c(i-1),]
         }
       } else { # same end so segment i is smaller, or both have unique parts
         if ((is.na(bed$frac2_A[i]) & bed$nMaj1_A[i]==1 & bed$nMin1_A[i]==1) & (is.na(bed$frac2_A[i-1]) & bed$nMaj1_A[i-1]==1 & bed$nMin1_A[i-1]==1)){ # both are normal, merge into one section
@@ -183,12 +192,68 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
                                       overlap_status = "NOToverlap")
           bed <- bed[-c(i-1, i),]
           bed <- bind_rows(bed, new_row1)
-        } else { # one or both are not normal
-          if(is.na(bed$frac2_A[i-1]) & bed$nMaj1_A[i-1]==1 & bed$nMin1_A[i-1]==1){ # i must not be bc of first test
-            # keep i and unique part of i-1
+        } else if (is.na(bed$frac2_A[i-1]) & bed$nMaj1_A[i-1]==1 & bed$nMin1_A[i-1]==1){ # i must not be bc of first test
+          # keep i and unique part of i-1
+          new_row1 <- data.frame(chrom = bed$chrom[i],
+                                    start = bed$start[i-1],
+                                    end = bed$start[i]-1,
+                                    nMaj1_A = bed$nMaj1_A[i-1],
+                                    nMin1_A = bed$nMin1_A[i-1],
+                                    frac1_A = bed$frac1_A[i-1],
+                                    nMaj2_A = bed$nMaj2_A[i-1],
+                                    nMin2_A = bed$nMin2_A[i-1],
+                                    frac2_A = bed$frac2_A[i-1],
+                                    overlap_status = "NOToverlap")
+          bed$overlap_status[i] <- "NOToverlap"
+          bed <- bed[-c(i-1),]
+          bed <- bind_rows(bed, new_row1)
+        } else if(is.na(bed$frac2_A[i]) & bed$nMaj1_A[i]==1 & bed$nMin1_A[i]==1){ # i-1 must not be
+          # keep i-1 and unqiue part of i, unless they had same ends
+          new_row1 <- data.frame(chrom = bed$chrom[i],
+                                    start = bed$end[i-1]+1,
+                                    end = bed$end[i],
+                                    nMaj1_A = bed$nMaj1_A[i],
+                                    nMin1_A = bed$nMin1_A[i],
+                                    frac1_A = bed$frac1_A[i],
+                                    nMaj2_A = bed$nMaj2_A[i],
+                                    nMin2_A = bed$nMin2_A[i],
+                                    frac2_A = bed$frac2_A[i],
+                                    overlap_status = "NOToverlap")
+          if(bed$end[i] == bed$end[i-1]){
+            bed <- bed[-c(i),]
+          } else {
+            bed <- bed[-c(i),]
+            bed <- bind_rows(bed, new_row1)
+          }
+        } else if (identical(bed$nMaj1_A[i-1], bed$nMaj1_A[i]) & identical(bed$nMin1_A[i-1], bed$nMin1_A[i]) & identical(bed$nMaj2_A[i-1], bed$nMaj2_A[i]) & identical(bed$nMin2_A[i-1], bed$nMin2_A[i])){ # both non-normal, but the same, merge into one
+          new_row1 <- data.frame(chrom = bed$chrom[i],
+                                    start = bed$start[i-1],
+                                    end = bed$end[i],
+                                    nMaj1_A = bed$nMaj1_A[i],
+                                    nMin1_A = bed$nMin1_A[i],
+                                    frac1_A = bed$frac1_A[i],
+                                    nMaj2_A = bed$nMaj2_A[i],
+                                    nMin2_A = bed$nMin2_A[i],
+                                    frac2_A = bed$frac2_A[i],
+                                    overlap_status = "NOToverlap")
+          bed <- bed[-c(i-1, i),]
+          bed <- bind_rows(bed, new_row1)
+        } else { # both have info but not the same
+          if((bed$end[i]-bed$start[i]) > (bed$end[i-1]-bed$start[i-1])){
+            # keep i and unique part of i-1, write out intersection's i-1 info
             new_row1 <- data.frame(chrom = bed$chrom[i],
-                                      start = bed$start[i-1],
-                                      end = bed$start[i]-1,
+                                    start = bed$start[i-1],
+                                    end = bed$start[i]-1,
+                                    nMaj1_A = bed$nMaj1_A[i-1],
+                                    nMin1_A = bed$nMin1_A[i-1],
+                                    frac1_A = bed$frac1_A[i-1],
+                                    nMaj2_A = bed$nMaj2_A[i-1],
+                                    nMin2_A = bed$nMin2_A[i-1],
+                                    frac2_A = bed$frac2_A[i-1],
+                                    overlap_status = "NOToverlap")
+            intersection <- data.frame(chrom = bed$chrom[i],
+                                      start = bed$start[i],
+                                      end = bed$end[i-1],
                                       nMaj1_A = bed$nMaj1_A[i-1],
                                       nMin1_A = bed$nMin1_A[i-1],
                                       frac1_A = bed$frac1_A[i-1],
@@ -196,14 +261,25 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
                                       nMin2_A = bed$nMin2_A[i-1],
                                       frac2_A = bed$frac2_A[i-1],
                                       overlap_status = "NOToverlap")
+            nonnormal_removed_in_ties <- rbind(nonnormal_removed_in_ties, intersection)
             bed$overlap_status[i] <- "NOToverlap"
             bed <- bed[-c(i-1),]
             bed <- bind_rows(bed, new_row1)
-          } else if(is.na(bed$frac2_A[i]) & bed$nMaj1_A[i]==1 & bed$nMin1_A[i]==1){ # i-1 must not be
-            # keep i-1 and unqiue part of i, unless they had same ends
+          } else {
+            # keep i-1 and unique part of i (unless they had the same end), write out intersection's i info
             new_row1 <- data.frame(chrom = bed$chrom[i],
-                                      start = bed$end[i-1]+1,
-                                      end = bed$end[i],
+                                    start = bed$end[i-1]+1,
+                                    end = bed$end[i],
+                                    nMaj1_A = bed$nMaj1_A[i],
+                                    nMin1_A = bed$nMin1_A[i],
+                                    frac1_A = bed$frac1_A[i],
+                                    nMaj2_A = bed$nMaj2_A[i],
+                                    nMin2_A = bed$nMin2_A[i],
+                                    frac2_A = bed$frac2_A[i],
+                                    overlap_status = "NOToverlap")
+            intersection <- data.frame(chrom = bed$chrom[i],
+                                      start = bed$start[i],
+                                      end = bed$end[i-1],
                                       nMaj1_A = bed$nMaj1_A[i],
                                       nMin1_A = bed$nMin1_A[i],
                                       frac1_A = bed$frac1_A[i],
@@ -211,64 +287,12 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
                                       nMin2_A = bed$nMin2_A[i],
                                       frac2_A = bed$frac2_A[i],
                                       overlap_status = "NOToverlap")
-            bed <- bed[-c(i),]
-            if(new_row1$start <= new_row1$end){
-              bed <- bind_rows(bed, new_row1)
-            }
-          } else { # both have info
-            if((bed$end[i]-bed$start[i]) > (bed$end[i-1]-bed$start[i-1])){
-              # keep i and unique part of i-1, write out intersection's i-1 info
-              new_row1 <- data.frame(chrom = bed$chrom[i],
-                                      start = bed$start[i-1],
-                                      end = bed$start[i]-1,
-                                      nMaj1_A = bed$nMaj1_A[i-1],
-                                      nMin1_A = bed$nMin1_A[i-1],
-                                      frac1_A = bed$frac1_A[i-1],
-                                      nMaj2_A = bed$nMaj2_A[i-1],
-                                      nMin2_A = bed$nMin2_A[i-1],
-                                      frac2_A = bed$frac2_A[i-1],
-                                      overlap_status = "NOToverlap")
-              bed$overlap_status[i] <- "NOToverlap"
-              bed <- bed[-c(i-1),]
-              bed <- bind_rows(bed, new_row1)
-              intersection <- data.frame(chrom = bed$chrom[i],
-                                        start = bed$start[i],
-                                        end = bed$start[i-1],
-                                        nMaj1_A = bed$nMaj1_A[i-1],
-                                        nMin1_A = bed$nMin1_A[i-1],
-                                        frac1_A = bed$frac1_A[i-1],
-                                        nMaj2_A = bed$nMaj2_A[i-1],
-                                        nMin2_A = bed$nMin2_A[i-1],
-                                        frac2_A = bed$frac2_A[i-1],
-                                        overlap_status = "NOToverlap")
-              nonnormal_removed_in_ties <- rbind(nonnormal_removed_in_ties, intersection)
-            } else {
-              # keep i-1 and unique part of i (unless they had the same end), write out intersection's i info
-              new_row1 <- data.frame(chrom = bed$chrom[i],
-                                      start = bed$end[i-1]+1,
-                                      end = bed$end[i],
-                                      nMaj1_A = bed$nMaj1_A[i],
-                                      nMin1_A = bed$nMin1_A[i],
-                                      frac1_A = bed$frac1_A[i],
-                                      nMaj2_A = bed$nMaj2_A[i],
-                                      nMin2_A = bed$nMin2_A[i],
-                                      frac2_A = bed$frac2_A[i],
-                                      overlap_status = "NOToverlap")
+            nonnormal_removed_in_ties <- rbind(nonnormal_removed_in_ties, intersection)
+            if(bed$end[i] == bed$end[i-1]){
               bed <- bed[-c(i),]
-              if(new_row1$start <= new_row1$end){
-                bed <- bind_rows(bed, new_row1)
-              }
-              intersection <- data.frame(chrom = bed$chrom[i],
-                                        start = bed$start[i],
-                                        end = bed$start[i-1],
-                                        nMaj1_A = bed$nMaj1_A[i],
-                                        nMin1_A = bed$nMin1_A[i],
-                                        frac1_A = bed$frac1_A[i],
-                                        nMaj2_A = bed$nMaj2_A[i],
-                                        nMin2_A = bed$nMin2_A[i],
-                                        frac2_A = bed$frac2_A[i],
-                                        overlap_status = "NOToverlap")
-              nonnormal_removed_in_ties <- rbind(nonnormal_removed_in_ties, intersection)
+            } else {
+              bed <- bed[-c(i),]
+              bed <- bind_rows(bed, new_row1)
             }
           }
         }
@@ -336,7 +360,7 @@ if (sum(bb_bed_fixed_checked$overlap_status == "overlap") == 0){
 
   write_tsv(bb_bed_fixed_resolved, file=args$output_bed)
 
-  write_tsv(removed_in_ties, file=removed_bed)
+  write_tsv(removed_in_ties %>% select(-overlap_status), file=removed_bed)
 }
 
 cat("DONE!")
