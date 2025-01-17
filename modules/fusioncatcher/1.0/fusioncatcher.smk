@@ -44,9 +44,8 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 # TODO: Replace with actual rules once you change the rule names
 localrules:
-    _fusioncatcher_input_bam,
-    _fusioncatcher_step_2,
-    _fusioncatcher_output_tsv,
+    _fusioncatcher_input_fastq,
+    _fusioncatcher_output_all,
     _fusioncatcher_all,
 
 
@@ -54,73 +53,82 @@ localrules:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
-rule _fusioncatcher_input_bam:
+rule _fusioncatcher_input_fastq:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        fastq_1 = CFG["inputs"]["sample_fastq_1"],
+        fastq_2 = CFG["inputs"]["sample_fastq_2"],
     output:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
-    group: 
-        "input_and_step_1"
+        fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.R1.fastq.gz",
+        fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.R2.fastq.gz",
     run:
-        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.fastq_1, output.fastq_1)
+        op.absolute_symlink(input.fastq_2, output.fastq_2)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _fusioncatcher_step_1:
+
+rule _fusioncatcher_run:
     input:
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        fastq_1 = str(rules._fusioncatcher_input_fastq.output.fastq_1),
+        fastq_2 = str(rules._fusioncatcher_input_fastq.output.fastq_2),
+        fastq_1_real = CFG["inputs"]["sample_fastq_1"], # Prevent premature deletion of fastqs marked as temp
+        fastq_2_real = CFG["inputs"]["sample_fastq_2"],
+        ref_path = "/projects/rmorin/projects/gambl-repos/gambl-rmorin/fusioncatcher/fusioncatcher/data/human_v102/"
     output:
-        tsv = CFG["dirs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.tsv"
+        complete = CFG["dirs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{sample_id}/fusioncatcher.complete",
+        summary = CFG["dirs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{sample_id}/summary_candidate_fusions.txt",
+        junk = CFG["dirs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{sample_id}/junk-chimeras.txt",
+        hg19 = CFG["dirs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{sample_id}/final-list_candidate-fusion-genes.hg19.txt",
+        hg38 = CFG["dirs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{sample_id}/final-list_candidate-fusion-genes.txt",
+        markdown = CFG["dirs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{sample_id}/final-list_candidate-fusion-genes.caption.md.txt",
+        virus = CFG["dirs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{sample_id}/viruses_bacteria_phages.txt"
     log:
-        stdout = CFG["logs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-        stderr = CFG["logs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
-    params:
-        opts = CFG["options"]["step_1"]
+        stdout = CFG["logs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{sample_id}/fusioncatcher_run.stdout.log",
+        stderr = CFG["logs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{sample_id}/fusioncatcher_run.stderr.log"
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["fusioncatcher"]
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["fusioncatcher_run"]
     resources:
-        **CFG["resources"]["step_1"]
-    group: 
-        "input_and_step_1"
+        **CFG["resources"]["fusioncatcher_run"]
+    params:
+        reference = CFG["options"]["reference_path"],
+        out_dir = CFG["dirs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{sample_id}/"
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --tumour {input.tumour_bam} --normal {input.normal_bam}
-        --ref-fasta {input.fasta} --output {output.tsv} --threads {threads}
-        > {log.stdout} 2> {log.stderr}
+        fusioncatcher --no-update-check -d {params.reference} -i {input.fastq_1},{input.fastq_2}
+        -o {params.out_dir} > {log.stdout} 2> {log.stderr} &&
+        touch {output.complete}
         """)
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _fusioncatcher_step_2:
-    input:
-        tsv = str(rules._fusioncatcher_step_1.output.tsv)
-    output:
-        tsv = CFG["dirs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.tsv"
-    log:
-        stderr = CFG["logs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.tsv} > {output.tsv} 2> {log.stderr}"
-
-
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
-rule _fusioncatcher_output_tsv:
+
+rule _fusioncatcher_output_all:
     input:
-        tsv = str(rules._fusioncatcher_step_2.output.tsv)
+        complete = str(rules._fusioncatcher_run.output.complete),
+        summary = str(rules._fusioncatcher_run.output.summary),
+        junk = str(rules._fusioncatcher_run.output.junk),
+        hg19 = str(rules._fusioncatcher_run.output.hg19),
+        hg38 = str(rules._fusioncatcher_run.output.hg38),
+        markdown = str(rules._fusioncatcher_run.output.markdown),
+        virus = str(rules._fusioncatcher_run.output.virus)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.tsv"
+        complete = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.complete",
+        summary = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.summary.txt",
+        junk = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.junk-chimeras.txt",
+        hg19 = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.final-list_candidate-fusion-genes.hg19.txt",
+        hg38 = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.final-list_candidate-fusion-genes.hg38.txt",
+        markdown = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.final-list_column_explanation.md",
+        virus = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.viruses_bacteria_phages.txt"
     run:
-        op.relative_symlink(input.tsv, output.tsv, in_module= True)
+        op.relative_symlink(input.complete, output.complete, in_module= True)
+        op.relative_symlink(input.summary, output.summary, in_module= True)
+        op.relative_symlink(input.junk, output.junk, in_module= True)
+        op.relative_symlink(input.hg19, output.hg19, in_module= True)
+        op.relative_symlink(input.hg38, output.hg38, in_module= True)
+        op.relative_symlink(input.virus, output.virus, in_module= True)
+        op.relative_symlink(input.markdown, output.markdown, in_module= True)
+
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -128,15 +136,12 @@ rule _fusioncatcher_all:
     input:
         expand(
             [
-                str(rules._fusioncatcher_output_tsv.output.tsv),
-                # TODO: If applicable, add other output rules here
+                str(rules._fusioncatcher_output_all.output.complete)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            sample_id=CFG["runs"]["tumour_sample_id"])
 
 
 ##### CLEANUP #####
