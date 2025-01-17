@@ -77,6 +77,9 @@ lcr-modules:
                     "559":
                         kurtosis: 18.2
                         skewness: -4
+                    "708":
+                        kurtosis: 26
+                        skewness: -5
                 # Previously observed heights of snapshots that fail IGV
                 failed: [506,533]
 
@@ -102,6 +105,8 @@ lcr-modules:
                 mem_mb: 2500
             _igv_quality_control:
                 mem_mb: 2500
+            _igv_symlink:
+                symlink: 1
             
         pairing_config:
             genome:
