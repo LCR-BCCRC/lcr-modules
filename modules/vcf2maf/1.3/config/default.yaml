@@ -13,8 +13,8 @@ lcr-modules:
       convert_coord: "{SCRIPTSDIR}/crossmap/1.1/convert_maf_coords.sh"
       augment_ssm: "{SCRIPTSDIR}/augment_ssm/1.0/augment_ssm.py"
       deblacklisting: "src/deblacklist_ssm.R"
-      gamblr_branch: "" # Leave blank unless you need to install from a specific branch from the GAMBLR repo (expert users only)
-      gamblr_config_url: "https://raw.githubusercontent.com/morinlab/GAMBLR/master/config.yml"
+      # The URL below matches the sha of the version of GAMBLR installed by the post-deploy script. 
+      gamblr_config_url: "https://raw.githubusercontent.com/morinlab/GAMBLR/d8d643face5b67bdfe850aabcbfe26f82254a825/config.yml"
       src_dir: "{MODSDIR}/src"
     vcf_base_name: "__UPDATE__" #put the consistent portion of the file name here. For Strelka, this is "combined.passed"
     options:

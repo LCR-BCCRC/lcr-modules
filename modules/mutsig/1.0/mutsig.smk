@@ -101,7 +101,7 @@ rule _mutsig_prepare_maf:
         script = CFG["prepare_mafs"]
     shell:
         op.as_one_line("""
-        Rscript {params.script}
+        Rscript --vanilla {params.script}
         {input.maf}
         {input.sample_sets}
         $(dirname {output.maf})/

@@ -34,7 +34,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
                 )
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
-# End of dependency checking section 
+# End of dependency checking section
 
 
 # Setup module and store module-specific configuration in `CFG`
@@ -70,7 +70,7 @@ rule _liftover_input_seg:
         tool = CFG["tool"]
     run:
         op.relative_symlink(input.seg, output.seg)
-        op.relative_symlink(input.seg, output.another_seg)
+        op.relative_symlink(input.seg, output.another_seg, in_module = True)
 
 
 # Convert initial seg file into bed format
@@ -91,11 +91,11 @@ rule _liftover_seg_2_bed:
         CFG["conda_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
-        python {params.opts} 
-        --input {input.seg} 
-        --output {output.bed} 
-        --chromColnum {params.chr_colNum} 
-        --startColnum {params.start_colNum} 
+        python {params.opts}
+        --input {input.seg}
+        --output {output.bed}
+        --chromColnum {params.chr_colNum}
+        --startColnum {params.start_colNum}
         --endColnum {params.end_colNum}
         2> {log.stderr}
         """)
@@ -127,7 +127,7 @@ rule _run_liftover:
     shell:
         op.as_one_line("""
         liftOver -minMatch={params.mismatch}
-        {input.native} {input.chains} 
+        {input.native} {input.chains}
         {output.lifted} {output.unmapped}
         2> {log.stderr}
         """)
@@ -165,10 +165,10 @@ rule _liftover_bed_2_seg:
         CFG["conda_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
-        python {params.opts} 
+        python {params.opts}
         --input {input.lifted_sorted}
         --column-header {input.headers}
-        --output {output.seg_lifted} 
+        --output {output.seg_lifted}
         2> {log.stderr}
         """)
 
@@ -226,8 +226,8 @@ rule _liftover_all:
             tool=[CFG["tool"]] * len(CFG["runs"]["tumour_sample_id"]),
             chain=["hg38ToHg19" if "38" in str(x) else "hg19ToHg38" for x in CFG["runs"]["tumour_genome_build"]]
             )
-            
-            
+
+
 
 ##### CLEANUP #####
 

@@ -6,10 +6,16 @@ This project aims to become a collection of standard analytical modules for geno
 
 **License:** [LICENSE](LICENSE)
 
-## Installing oncopipe
+## Installing compatible Snakemake and Oncopipe
 
+Run the following command using `conda` or `mamba` to create the `opv12` environment. 
 ```bash
-pip install oncopipe
+conda env create -f demo/env.yaml
+```
+
+Always activate this environment before running any pipelines that use LCR-modules. 
+```bash
+conda activate opv12
 ```
 
 ## Modules

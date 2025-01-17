@@ -4,6 +4,7 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_fastq_1: "__UPDATE__"
             sample_fastq_2: "__UPDATE__"
+        compress_to_cram: True
 
         scratch_subdirectories: []
 
@@ -18,19 +19,19 @@ lcr-modules:
         conda_envs:
             bwa: "{MODSDIR}/envs/bwa-0.7.17.yaml"
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            
+
         threads:
-            bwa_mem: 4
-            samtools: 1
+            bwa_mem: 24
+            samtools: 8
 
         resources:
-            bwa_mem: 
-                mem_mb: 5000
-            samtools: 
-                mem_mb: 5000
-        
-        group: 
-            bwa_mem: "bwa_mem" # Change to match bam2fastq group param for efficient temp fastq deletion. 
+            bwa_mem:
+                mem_mb: 48000
+            samtools:
+                mem_mb: 48000
+
+        group:
+            bwa_mem: "bwa_mem" # Change to match bam2fastq group param for efficient temp fastq deletion.
 
         pairing_config:
             genome:

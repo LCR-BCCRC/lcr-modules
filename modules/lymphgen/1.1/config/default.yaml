@@ -1,0 +1,43 @@
+lcr-modules:
+    
+    lymphgen:
+
+        inputs:
+            # Available wildcards: None (specify your merged input MAF/SEG manually)
+            sample_maf: "__UPDATE__"
+            sample_seg: "__UPDATE__"
+            sample_sv_info: "__UPDATE__"
+            # Provide the path to a file containing a list of genes covered by targeted sequencing panels
+            # One Hugo_Symbol per row with the column name "Hugo_Symbol"
+            # If left blank, defaults to all genes used in LymphGen model. 
+            # Leave blank for exome/genome, and provide a file path for targeted sequencing. 
+            gene_list: ""
+            # Path to the directory where LGenIC should be installed
+            lgenic_exec: "__UPDATE__"
+
+        options:
+            outprefix: "my_cohort"
+            reformat_seg:  #  Default columns for Battenberg output
+                Tumor_Sample_Barcode: "ID"
+                chromosome: "chrom"
+                start: "start"
+                end: "end"
+                CN: "log.ratio"
+            add_svs:  # Use "" if N/A (you are not providing SVs)
+                samplecol: "__UPDATE__"
+                bcl2col: "__UPDATE__"
+                # Note any field value not present in either true/false is considered NA
+                bcl2truevalues: "__UPDATE__" # Can use a list here
+                bcl2falsevalues: "__UPDATE__"
+                bcl6col: "__UPDATE__"
+                # Note any field value not present in either true/false is considered NA
+                bcl6truevalues: "__UPDATE__"  # Can use a list
+                bcl6falsevalues: "__UPDATE__"
+            lymphgen_input:
+                use_log_ratio: "__UPDATE__"
+            lymphgen_run:
+                lymphgen_path: "/projects/rmorin/software/lcr-scripts/LymphGen/Run_Lymphgen.R"
+
+        conda_envs:
+            optparse: "{MODSDIR}/envs/r-optparse-1.6.yaml"
+            sorted_containers: "{MODSDIR}/envs/sortedcontainers-2.4.0.yaml"

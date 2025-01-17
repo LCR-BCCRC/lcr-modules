@@ -41,11 +41,11 @@ CFG = op.setup_module(
 
 
 def _find_best_seg(wildcards):
-    this_tumor = op.filter_samples(RUNS, genome_build = wildcards.genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, seq_type = wildcards.seq_type)
+    this_tumor = op.filter_samples(RUNS, genome_build = wildcards.tumour_genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, seq_type = wildcards.tumour_seq_type)
     return this_tumor.cnv_path
 
 def _find_best_sv(wildcards):
-    this_tumor = op.filter_samples(RUNS, genome_build = wildcards.genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, seq_type = wildcards.seq_type)
+    this_tumor = op.filter_samples(RUNS, genome_build = wildcards.tumour_genome_build, tumour_sample_id = wildcards.tumour_id, normal_sample_id = wildcards.normal_id, pair_status = wildcards.pair_status, seq_type = wildcards.tumour_seq_type)
     if this_tumor["has_sv"].bool() == False:
         return config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["other"]["empty_sv"]
     else:
@@ -352,12 +352,12 @@ rule _lymphgen_install_GAMBLR:
     shell:
         op.as_one_line("""
         wget -qO {output.config} {params.config_url} &&
-        R -q -e 'options(timeout=9999999); devtools::install_github("morinlab/GAMBLR"{params.branch})'
+        R --vanilla -q -e 'options(timeout=9999999); devtools::install_github("morinlab/GAMBLR"{params.branch})'
         """)
 
 rule _lymphgen_input_sv:
     input:
-        fish = CFG["inputs"]["sample_sv_info"]["fish"],
+        fish = ancient(CFG["inputs"]["sample_sv_info"]["fish"]),
         sv = _find_best_sv,
         gamblr = ancient(rules._lymphgen_install_GAMBLR.output.installed)
     output:
@@ -468,7 +468,7 @@ rule _lymphgen_add_sv_blank:
     wildcard_constraints:
         sv_wc = "no_sv"
     run:
-        op.relative_symlink(input.sample_annotation, output.sample_annotation)
+        op.relative_symlink(input.sample_annotation, output.sample_annotation, in_module = True)
 
 
 # STEP 5: RUN LYMPHGEN
@@ -503,7 +503,7 @@ rule _lymphgen_run_cnv_A53:
         A53_wc = "with_A53"
     shell:
         op.as_one_line("""
-        Rscript {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list} -c {input.cnv_flat}
+        Rscript --vanilla {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list} -c {input.cnv_flat}
         -a {input.cnv_arm} -o {output.result} > {log.stdout} 2> {log.stderr} """)
 
 # With CNVs, no A53
@@ -530,7 +530,7 @@ rule _lymphgen_run_cnv_noA53:
         A53_wc = "no_A53"
     shell:
         op.as_one_line("""
-        Rscript {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list} -c {input.cnv_flat}
+        Rscript --vanilla {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list} -c {input.cnv_flat}
         -a {input.cnv_arm} -o {output.result} --no_A53 > {log.stdout} 2> {log.stderr} """)
 
 # No CNVs
@@ -554,7 +554,7 @@ rule _lymphgen_run_no_cnv:
          cnvs_wc = "no_cnvs"
     shell:
         op.as_one_line("""
-        Rscript {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list}
+        Rscript --vanilla {params.lymphgen_path} -m {input.mutation_flat} -s {input.sample_annotation} -g {input.gene_list}
         -o {output.result} > {log.stdout} 2> {log.stderr}""")
 
 # STEP 6. Flag samples that fall in the composite "Dead Zone"
@@ -588,7 +588,7 @@ rule _lymphgen_output_txt:
     group:
         "lymphgen"
     run:
-        op.relative_symlink(input.txt, output.txt)
+        op.relative_symlink(input.txt, output.txt, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
