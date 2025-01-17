@@ -223,7 +223,7 @@ def main():
     }
 
     ## Summary file to append failed snapshots to
-    f_summary = snakemake.input["failed_summary"]
+    f_summary = snakemake.params["failed_summary"]
 
     # Get image qualities
     img_values = getImageQualities(snapshot, batch_temp, igv_exec, f_summary)
