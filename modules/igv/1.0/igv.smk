@@ -66,7 +66,6 @@ localrules:
     _igv_liftover_regions,
     _igv_merge_lifted_regions,
     _igv_filter_maf,
-    _igv_create_batch_script_per_variant,
     _igv_batches_to_merge,
     _igv_download_igv,
     _igv_run,
@@ -119,6 +118,8 @@ rule _igv_symlink_bams:
     output:
         bam = CFG["dirs"]["inputs"] + "bams/{seq_type}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bams/{seq_type}/{sample_id}.bam.bai"
+    resources:
+        **CFG["resources"]["_igv_symlink"]
     run:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
@@ -128,6 +129,8 @@ rule _igv_symlink_maf:
         maf = CFG["inputs"]["maf"]
     output:
         maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_sample_id}--{pair_status}.maf"
+    resources:
+        **CFG["resources"]["_igv_symlink"]
     run:
         op.absolute_symlink(input.maf, output.maf)
 
@@ -462,22 +465,23 @@ checkpoint _igv_run:
         fi
         """)
 
-rule _igv_track_failed:
-    output:
-        failed_summary = CFG["dirs"]["outputs"] + "snapshot_summaries/quality_control/qc_summary_" + LAUNCH_DATE + ".txt"
-    run:
+if not CFG["estimate_only"]:
+    if not os.path.exists(CFG["dirs"]["outputs"] + "snapshot_summaries/quality_control/"):
+        os.makedirs(CFG["dirs"]["outputs"] + "snapshot_summaries/quality_control/", exist_ok = True)
+    failed_summary = CFG["dirs"]["outputs"] + "snapshot_summaries/quality_control/qc_summary_" + LAUNCH_DATE + ".txt"
+    if not os.path.exists(failed_summary):
         header = "\t".join(["sample_id","seq_type","genome_build","gene","chromosome","position","preset","status","snapshot_path"])
-        with open(output.failed_summary, "w") as handle:
+        with open(failed_summary, "w") as handle:
             handle.write(header + "\n")
 
 rule _igv_quality_control:
     input:
-        igv = str(rules._igv_run.output.complete),
-        failed_summary = ancient(str(rules._igv_track_failed.output.failed_summary)),
+        igv = ancient(str(rules._igv_run.output.complete)),
         snapshot = CFG["dirs"]["snapshots"] + "{seq_type}--{genome_build}/{tissue_status}/{preset}/{chromosome}/{chromosome}:{start_position}--{gene}--{ref_allele}_{alt_allele}--{sample_id}" + SUFFIX + ".png"
     output:
         snapshot_qc = CFG["dirs"]["snapshots"] + "qc/{seq_type}--{genome_build}/{tissue_status}/{preset}/{chromosome}:{start_position}--{gene}--{ref_allele}_{alt_allele}--{sample_id}" + SUFFIX + ".qc"
     params:
+        failed_summary = CFG["dirs"]["outputs"] + "snapshot_summaries/quality_control/qc_summary_" + LAUNCH_DATE + ".txt",
         batch_script = CFG["dirs"]["batch_scripts"] + "single_batch_scripts/{seq_type}--{genome_build}/{preset}/{chromosome}:{start_position}--{gene}--{sample_id}" + SUFFIX + ".batch",
         merged_batch = CFG["dirs"]["batch_scripts"] + "merged_batch_scripts/{seq_type}--{genome_build}/{preset}/{sample_id}" + SUFFIX + ".batch",
         igv = CFG["dirs"]["igv"] + "IGV_Linux_2.7.2/igv.sh",
