@@ -5,26 +5,28 @@ lcr-modules:
         # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bam: "__UPDATE__"
+            sample_fastq_1: "__UPDATE__"
+            sample_fastq_2: "__UPDATE__"
 
         scratch_subdirectories: []
 
         options:
-            step_1: ""
-            step_2: ""
+            reference_path: "__UPDATE__" #the path to fusioncatcher's reference files
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            fusioncatcher: "{MODSDIR}/envs/fusioncatcher_nobuilds.yaml"
             
         threads:
-            step_1: 4
+            fusioncatcher_run: 16
 
         resources:
-            step_1: 
-                mem_mb: 2000
+            fusioncatcher_run: 
+                mem_mb: 10000
+                fastq: 1
+                scratch_gb: 30 #peak on-disk temp data footprint anticipated per job
             
         pairing_config:
             mrna:
-                run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
-                run_paired_tumours_as_unpaired: False
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
