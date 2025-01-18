@@ -37,12 +37,10 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "fusioncatcher",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "fusioncatcher", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _fusioncatcher_input_fastq,
     _fusioncatcher_output_all,
