@@ -23,7 +23,7 @@ lcr-modules:
             fusioncatcher_run: 
                 mem_mb: 10000
                 fastq: 1
-                scratch_gb: 30 #peak on-disk temp data footprint anticipated per job
+                scratch_gb: 55 #peak on-disk temp data footprint anticipated per job
             
         pairing_config:
             mrna:
