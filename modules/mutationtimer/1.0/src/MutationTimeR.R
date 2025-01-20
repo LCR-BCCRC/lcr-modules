@@ -62,7 +62,7 @@ this_projection <- args$projection
 # -----------------------------------------------------
 cat("Getting augmented maf SSM data...\n")
 grep_cmd <- paste0('egrep "Tumor_Sample_Barcode|', tumour_id,'" ', maf_file, '| cut -f1-45')
-maf <- fread(cmd = grep_cmd, verbose = F, nThread=4) %>% as_tibble()
+maf <- fread(cmd = grep_cmd, verbose = F, nThread=4) %>% as_tibble() %>% mutate(Chromosome = as.character(Chromosome))
 
 if(dim(maf)[1] == 0) stop(paste("Tumour sample", tumour_id, "is not in the input maf\n"))
 
@@ -169,6 +169,7 @@ mt_vcf_tibble_final <- as_tibble(mt_vcf_rowRanges) %>%
   dplyr::rename(Chromosome=seqnames, Start_Position=start, End_Position=end, Strand=strand, CLS_time_label=CLS) %>%
   select(-width, -REF, -ALT, -QUAL, -FILTER) %>%
   relocate(CLS_time_label, .after = last_col())
+
 # Join back to GAMBLR SSM data
 mt_vcf_tibble_final_full <- inner_join(maf, mt_vcf_tibble_final, relationship = "one-to-one")
 
