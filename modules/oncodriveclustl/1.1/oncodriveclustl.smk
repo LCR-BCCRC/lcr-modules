@@ -130,7 +130,7 @@ rule _oncodriveclustl_format_input:
         """)
 
 ONCODRIVE_BUILD_DICT = {
-    'hg38': 'hg38',
+    'grch38': 'hg38',
     'grch37': 'hg19'
 }
 
