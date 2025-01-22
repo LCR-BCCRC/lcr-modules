@@ -47,11 +47,13 @@ Getting Started
       git branch  # Confirm you're on the new branch (with the asterisk)
       git push -u origin "module/<module_name>/1.0"
 
-6. Create a new module based on the :ref:`module-template`. Check out the :ref:`module-template` section for details on the fields requested during module creation.
+6. Create a new module based on the :ref:`module-template` or . Check out the :ref:`module-template` section for details on the fields requested during module creation.
 
    .. code:: bash
 
       cookiecutter "template/" --output-dir 'modules/'
+      # For level3 modules, instead run the below
+      # cookiecutter "template-level3/" --output-dir 'modules/'
       git add modules/<module_name>/1.0/
       git commit -m "Add initial draft of <module_name> version 1.0"
       git push origin "module/<module_name>/1.0"
@@ -108,9 +110,9 @@ When you run the command listed in the :ref:`getting-started-dev` instructions, 
 
    - Each of these should only consist of lowercase alphanumerical characters or underscores (*i.e.* no spaces).
 
-- ``module_run_per``: Possible values are ``tumour`` and ``sample``. This field determines whether the module is intended to be run once per tumour (*e.g.* variant calling modules) or once per sample regardless of tissue status (*e.g.* BAM alignment and processing).
+   - **level3-template** will ask for either ``maf`` or ``seg``, as these are the current two files types used for sample set level analyses (see :ref:`what-are-modules` for more details). 
 
-   Additional options will be added later, such as ``tumour_cohort`` and ``sample_cohort`` for level-3 modules (see :ref:`what-are-modules` for more details).
+- ``module_run_per``: Possible values are ``tumour`` and ``sample``. This field determines whether the module is intended to be run once per tumour (*e.g.* variant calling modules) or once per sample regardless of tissue status (*e.g.* BAM alignment and processing)
 
 -  ``seq_type.genome``, ``seq_type.capture``, and ``seq_type.mrna``: Possible values are ``omit``,``unpaired``, ``matched_only``, ``allow_unmatched``, and ``no_normal``, . These fields determine which sequencing data types (``seq_type``) are intended as input for the module and whether each ``seq_type`` is intended to be run in paired or unpaired mode, and if in paired mode, whether to allow unmatched pairs. Select ``omit`` if a ``seq_type`` is not applicable for the module or ``unpaired`` if you are running the module once per sample. For more information on the last three modes, check out the documentation for the :py:func:`oncopipe.generate_pairs` function.  The fields correspond to whole genome, hybrid capture-based, and RNA sequencing, respectively.
 
