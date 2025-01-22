@@ -111,7 +111,6 @@ rule _fusioncatcher_output_all:
         markdown = str(rules._fusioncatcher_run.output.markdown),
         virus = str(rules._fusioncatcher_run.output.virus)
     output:
-        complete = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.complete",
         summary = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.summary.txt",
         junk = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.junk-chimeras.txt",
         hg19 = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.final-list_candidate-fusion-genes.hg19.txt",
@@ -119,7 +118,6 @@ rule _fusioncatcher_output_all:
         markdown = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.final-list_column_explanation.md",
         virus = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.viruses_bacteria_phages.txt"
     run:
-        op.relative_symlink(input.complete, output.complete, in_module= True)
         op.relative_symlink(input.summary, output.summary, in_module= True)
         op.relative_symlink(input.junk, output.junk, in_module= True)
         op.relative_symlink(input.hg19, output.hg19, in_module= True)
@@ -134,7 +132,7 @@ rule _fusioncatcher_all:
     input:
         expand(
             [
-                str(rules._fusioncatcher_output_all.output.complete)
+                str(rules._fusioncatcher_output_all.output.summary)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
