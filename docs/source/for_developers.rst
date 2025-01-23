@@ -47,7 +47,7 @@ Getting Started
       git branch  # Confirm you're on the new branch (with the asterisk)
       git push -u origin "module/<module_name>/1.0"
 
-6. Create a new module based on the :ref:`module-template` or . Check out the :ref:`module-template` section for details on the fields requested during module creation.
+6. Create a new module based on the :ref:`module-template`. Check out the :ref:`module-template` section for details on the fields requested during module creation.
 
    .. code:: bash
 
@@ -110,7 +110,7 @@ When you run the command listed in the :ref:`getting-started-dev` instructions, 
 
    - Each of these should only consist of lowercase alphanumerical characters or underscores (*i.e.* no spaces).
 
-   - **level3-template** will ask for either ``maf`` or ``seg``, as these are the current two files types used for sample set level analyses (see :ref:`what-are-modules` for more details). 
+   - **level3-template** will ask for either ``maf`` or ``seg``, as these are the current two files types used for sample set level analyses (see :ref:`what-are-modules` for more details).
 
 - ``module_run_per``: Possible values are ``tumour`` and ``sample``. This field determines whether the module is intended to be run once per tumour (*e.g.* variant calling modules) or once per sample regardless of tissue status (*e.g.* BAM alignment and processing)
 

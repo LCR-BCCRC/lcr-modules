@@ -8,7 +8,7 @@ module_name = "{{ cookiecutter.module_name }}"
 module_author = "{{ cookiecutter.module_author }}"
 original_author = "{{ cookiecutter.original_author }}"
 input_file_type = "{{ cookiecutter.input_file_type }}"
-output_file_type = "{{ cookiecutter.input_file_type }}"
+output_file_type = "{{ cookiecutter.output_file_type }}"
 
 # Ensure that module name conforms to requirements
 assert re.fullmatch(r"[a-z0-9_]+", module_name), (

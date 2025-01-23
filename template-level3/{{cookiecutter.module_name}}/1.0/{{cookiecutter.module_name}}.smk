@@ -110,10 +110,10 @@ checkpoint _{{cookiecutter.module_name}}_prepare_{{cookiecutter.input_file_type}
         metadata = CFG["samples"].to_numpy(na_value='')
     script:
         PREPARE_SCRIPT
-  
 
-# Run {{cookiecutter.module_name}} 
-# TODO: Add all expected output files below 
+
+# Run {{cookiecutter.module_name}}
+# TODO: Add all expected output files below
 rule _{{cookiecutter.module_name}}_run:
     input:
         {{cookiecutter.input_file_type}} = CFG["dirs"]["prepare_{{cookiecutter.input_file_type}}"] + "{sample_set}--{projection}--{launch_date}/{md5sum}.{{cookiecutter.input_file_type}}"
@@ -153,7 +153,7 @@ def _for_aggregate(wildcards):
     return expand(
         [
             CFG["dirs"]["outputs"] + "{{ "{{" }}sample_set{{ "}}" }}--{{ "{{" }}projection{{ "}}" }}/{{ "{{" }}launch_date{{ "}}" }}--{md5sum}/<TODO>.{{cookiecutter.output_file_type}}",
-            
+
         ],
         md5sum = SUMS
         )
@@ -186,3 +186,4 @@ rule _{{cookiecutter.module_name}}_all:
 # Perform some clean-up tasks, including storing the module-specific
 # configuration on disk and deleting the `CFG` variable
 op.cleanup_module(CFG)
+
