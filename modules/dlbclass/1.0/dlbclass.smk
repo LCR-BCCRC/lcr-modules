@@ -6,13 +6,17 @@
 
 # Original Author:  Laura Hilton
 # Module Author:    Laura Hilton
-# Contributors:     N/A
+# Contributors:     Sierra Gillis
 
 
 ##### SETUP #####
 
 # Import package with useful functions for developing analysis modules
+import sys, os
+from os.path import join
+import glob
 import oncopipe as op
+from datetime import datetime
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -37,90 +41,310 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "dlbclass",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "dlbclass", "outputs"],
+    subdirectories = ["inputs", "prepare_inputs", "dlbclass", "outputs"],
 )
 
-# Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
+# All rules should be run locally
 localrules:
-    _dlbclass_input_maf,
-    _dlbclass_step_2,
-    _dlbclass_output_tsv,
-    _dlbclass_all,
+    _dlbclass_input_variants,
+    _dlbclass_input_subsetting_categories,
+    _dlbclass_download_dlbclass,
+    _dlbclass_download_refs,
+    _dlbclass_maf_to_gsm, 
+    _dlbclass_seg_to_gsm, 
+    _dlbclass_sv_to_gsm,
+    _dlbclass_combine_gsm,
+    _dlbclass_run, 
+    _dlbclass_output,
+    _dlbclass_all
 
 
 ##### RULES #####
+if "launch_date" in CFG:
+    launch_date = CFG['launch_date']
+else:
+    launch_date = datetime.today().strftime('%Y-%m')
 
+# Interpret the absolute path to this script so it doesn't get interpreted relative to the module snakefile later.
+PREPARE_MAFS =  os.path.abspath(config["lcr-modules"]["dlbclass"]["scripts"]["prepare_mafs"])
+PREPARE_SVS =  os.path.abspath(config["lcr-modules"]["dlbclass"]["scripts"]["prepare_svs"])
+
+# Get date as used in DLBCLass output files
+TODAY = datetime.now().strftime("%d%b%Y")
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
-rule _dlbclass_input_maf:
+rule _dlbclass_input_variants:
     input:
-        maf = CFG["inputs"]["sample_maf"]
+        maf = CFG["inputs"]["master_maf"], 
+        seg = CFG["inputs"]["master_seg"], 
+        sv = CFG["inputs"]["master_sv"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{sample_id}.maf"
-    group: 
-        "input_and_step_1"
+        maf = CFG["dirs"]["inputs"] + "variants/{sample_set}--{launch_date}/{seq_type}.input.maf", 
+        seg = CFG["dirs"]["inputs"] + "variants/{sample_set}--{launch_date}/{seq_type}.input.seg", 
+        sv = CFG["dirs"]["inputs"] + "variants/{sample_set}--{launch_date}/{seq_type}.input.sv"
     run:
         op.absolute_symlink(input.maf, output.maf)
+        op.absolute_symlink(input.seg, output.seg)
+        op.absolute_symlink(input.sv, output.sv)
 
-
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _dlbclass_step_1:
+# Symlinks the subsetting categories input file into the module results directory (under '00-inputs/')
+rule _dlbclass_input_subsetting_categories:
     input:
-        tumour_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}.maf",
-        normal_maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{normal_id}.maf",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+        subsetting_categories = CFG["inputs"]["subsetting_categories"]
     output:
-        tsv = CFG["dirs"]["dlbclass"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.tsv"
-    log:
-        stdout = CFG["logs"]["dlbclass"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stdout.log",
-        stderr = CFG["logs"]["dlbclass"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_1.stderr.log"
-    params:
-        opts = CFG["options"]["step_1"]
+        subsetting_categories = CFG["dirs"]["inputs"] + "sample_sets/subsetting_categories.tsv"
+    run:
+        op.absolute_symlink(input.subsetting_categories, output.subsetting_categories)
+
+# Download the dlbclass
+rule _dlbclass_download_dlbclass:
+    output:
+        dlbclass_compressed = temp(CFG["dirs"]["inputs"] + "DLBclass-tool.tar.gz"),
+        dlbclass = CFG["dirs"]["inputs"] + "DLBclass-tool/dlbclass.py", 
+        seg2gsm = CFG["dirs"]["inputs"] + "DLBclass-tool/src/seg2gsm.py", 
+        maf2gsm = CFG["dirs"]["inputs"] + "DLBclass-tool/src/maf2gsm.py", 
+        combine2gsm = CFG["dirs"]["inputs"] + "DLBclass-tool/src/combine2gsm.py",
+        feature_order = CFG["dirs"]["inputs"] + "DLBclass-tool/gsm/feature_order.19Aug2024.txt",
+    params: 
+        dlbclass_release = CFG["inputs"]["dlbclass_release"]
     conda:
-        CFG["conda_envs"]["samtools"]
-    threads:
-        CFG["threads"]["step_1"]
-    resources:
-        **CFG["resources"]["step_1"]
-    group: 
-        "input_and_step_1"
+        CFG["conda_envs"]["wget"]
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --tumour {input.tumour_maf} --normal {input.normal_maf}
-        --ref-fasta {input.fasta} --output {output.tsv} --threads {threads}
-        > {log.stdout} 2> {log.stderr}
+        wget -cO - {params.dlbclass_release} > {output.dlbclass_compressed} && tar -C $(dirname {output.dlbclass}) -xf {output.dlbclass_compressed};
+        mv $(dirname {output.dlbclass})/DLBclass-tool-*/* $(dirname {output.dlbclass})/ && rm -r $(dirname {output.dlbclass})/DLBclass-tool-*;
+        """)
+
+# Download the reference files
+rule _dlbclass_download_refs:
+    params: 
+        focal_cnv = CFG["inputs"]["focal_cnv"],
+        arm_cnv = CFG["inputs"]["arm_cnv"],
+        blacklist_cnv = CFG["inputs"]["blacklist_cnv"]
+    output:
+        focal_cnv = CFG["dirs"]["inputs"] + "refs/" + CFG["inputs"]["focal_cnv"].split("/")[-1],
+        arm_cnv = CFG["dirs"]["inputs"] + "refs/" + CFG["inputs"]["arm_cnv"].split("/")[-1],
+        blacklist_cnv = CFG["dirs"]["inputs"] + "refs/" + CFG["inputs"]["blacklist_cnv"].split("/")[-1]
+    conda:
+        CFG["conda_envs"]["wget"] 
+    shell:
+        op.as_one_line("""
+        wget
+        -O {output.focal_cnv}
+        {params.focal_cnv}
+            &&
+        wget
+        -O {output.arm_cnv}
+        {params.arm_cnv}
+        &&
+        wget
+        -O {output.blacklist_cnv}
+        {params.blacklist_cnv}
         """)
 
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _dlbclass_step_2:
+# Prepare the maf file for the input to dlbclass
+checkpoint _dlbclass_prepare_maf:
     input:
-        tsv = str(rules._dlbclass_step_1.output.tsv)
+        maf = expand(
+                    str(rules._dlbclass_input_variants.output.maf),
+                    allow_missing=True,
+                    seq_type=CFG["samples"]["seq_type"].unique()
+                    ),
+        subsetting_categories = str(rules._dlbclass_input_subsetting_categories.output.subsetting_categories)
     output:
-        tsv = CFG["dirs"]["dlbclass"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.filt.tsv"
+        CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/maf.done"
     log:
-        stderr = CFG["logs"]["dlbclass"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/step_2.stderr.log"
+        CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/prepare_maf.log"
+    conda:
+        CFG["conda_envs"]["prepare_mafs"]
     params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.tsv} > {output.tsv} 2> {log.stderr}"
+        include_non_coding = str(CFG["include_non_coding"]).upper(),
+        mode = "dlbclass",
+        metadata_cols = CFG["samples"],
+        metadata_dim = CFG["samples"].shape,
+        metadata = CFG["samples"].to_numpy(na_value='')
+    script:
+        PREPARE_MAFS
 
+# Prepare the seg file for the input to dlbclass        
+checkpoint _dlbclass_prepare_seg:
+    input:
+        seg = expand(
+                    str(rules._dlbclass_input_variants.output.seg),
+                    allow_missing=True,
+                    seq_type=CFG["samples"]["seq_type"].unique()
+                    ),
+        subsetting_categories = str(rules._dlbclass_input_subsetting_categories.output.subsetting_categories)
+    output:
+        CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/seg.done"
+    log:
+        CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/prepare_seg.log"
+    conda:
+        CFG["conda_envs"]["prepare_mafs"]
+    params:
+        include_non_coding = str(CFG["include_non_coding"]).upper(),
+        mode = "dlbclass",
+        metadata_cols = CFG["samples"],
+        metadata_dim = CFG["samples"].shape,
+        metadata = CFG["samples"].to_numpy(na_value='')
+    script:
+        PREPARE_MAFS
+
+# Prepare MAF GSM file
+def _get_input_maf(wildcards):
+    CFG = config["lcr-modules"]["dlbclass"]
+    checkpoint_output = os.path.dirname(str(checkpoints._dlbclass_prepare_maf.get(**wildcards).output[0]))
+    SUMS, = glob_wildcards(checkpoint_output +"/{md5sum_maf}.maf")
+    inputs = expand(
+        [
+            CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{md5sum_maf}.maf",
+            CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{md5sum_maf}.maf.content"
+        ],
+        md5sum_maf = SUMS, 
+        allow_missing = True
+        )
+    return inputs
+
+rule _dlbclass_maf_to_gsm:
+    input:
+        _get_input_maf, 
+        script = str(rules._dlbclass_download_dlbclass.output.maf2gsm)
+    output:
+        maf_gsm = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{sample_set}." + TODAY + ".MAF.GSM.tsv"
+    log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/maf2gsm.log"
+    conda:
+        CFG["conda_envs"]["dlbclass"]
+    shell:
+        op.as_one_line("""
+        python3 {input.script}   
+            --id {wildcards.sample_set} 
+            -s {input[1]} 
+            -m {input[0]}
+            -o $(dirname {output.maf_gsm}) 
+            > {log} 2>&1 
+        """)
+
+# Prepare CNV GSM file
+def _get_input_seg(wildcards):
+    CFG = config["lcr-modules"]["dlbclass"]
+    checkpoint_output = os.path.dirname(str(checkpoints._dlbclass_prepare_seg.get(**wildcards).output[0]))
+    SUMS, = glob_wildcards(checkpoint_output +"/{md5sum_seg}.seg")
+    inputs = expand(
+        [
+            CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{md5sum_seg}.seg",
+            CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{md5sum_seg}_sample_ids.txt"
+        ],
+        md5sum_seg = SUMS, 
+        allow_missing = True
+        )
+    return inputs
+
+rule _dlbclass_seg_to_gsm:
+    input:
+        _get_input_seg,
+        arm_cnv = str(rules._dlbclass_download_refs.output.arm_cnv), 
+        focal_cnv = str(rules._dlbclass_download_refs.output.focal_cnv), 
+        blacklist_cnv = str(rules._dlbclass_download_refs.output.blacklist_cnv),
+        script = str(rules._dlbclass_download_dlbclass.output.seg2gsm)
+    output:
+        cnv_gsm = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{sample_set}." + TODAY + ".CNV.GSM.tsv"
+    log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/seg2gsm.log"
+    conda:
+        CFG["conda_envs"]["dlbclass"]
+    shell:
+        op.as_one_line("""
+        python3 {input.script} 
+            -i {wildcards.sample_set} 
+            -s {input[1]} 
+            -v {input[0]}
+            -x {input.blacklist_cnv}
+            -a {input.arm_cnv}
+            -f {input.focal_cnv}
+            -o $(dirname {output.cnv_gsm}) 
+            -g hg19
+            > {log} 2>&1
+        """)
+
+rule _dlbclass_sv_to_gsm:
+    input:
+        _get_input_maf, 
+        sv = expand(
+                    str(rules._dlbclass_input_variants.output.sv),
+                    allow_missing=True,
+                    seq_type=CFG["samples"]["seq_type"].unique()
+                    )
+    output:
+        sv_gsm = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{sample_set}." + TODAY + ".SV.GSM.tsv"
+    params: 
+        pos_value = CFG["options"]["sv2gsm"]["POS_value"],
+        neg_value = CFG["options"]["sv2gsm"]["NEG_value"]
+    log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/sv2gsm.log"
+    conda:
+        CFG["conda_envs"]["dlbclass"]
+    script:
+        PREPARE_SVS
+        
+# TODO: Work out how to run with or without SVs or CNVs
+
+# Actual dlbclass run
+rule _dlbclass_combine_gsm:
+    input:
+        sv_gsm = str(rules._dlbclass_sv_to_gsm.output.sv_gsm),
+        cnv_gsm = str(rules._dlbclass_seg_to_gsm.output.cnv_gsm),
+        maf_gsm = str(rules._dlbclass_maf_to_gsm.output.maf_gsm), 
+        feature_order = str(rules._dlbclass_download_dlbclass.output.feature_order), 
+        script = str(rules._dlbclass_download_dlbclass.output.combine2gsm)
+    output:
+        gsm = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{sample_set}." + TODAY + ".GSM.tsv"
+    log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/combine2gsm.log"
+    conda:
+        CFG["conda_envs"]["dlbclass"]
+    threads:
+        CFG["threads"]["dlbclass"]
+    resources:
+        **CFG["resources"]["dlbclass"]
+    shell:
+        op.as_one_line("""
+        python3 {input.script} 
+        -i {wildcards.sample_set} 
+        -v {input.sv_gsm} 
+        -m {input.maf_gsm} 
+        -c {input.cnv_gsm} 
+        -f {input.feature_order}
+        -o $(dirname {output.gsm})
+        > {log} 2>&1
+        """)
+
+rule _dlbclass_run:
+    input:
+        gsm = str(rules._dlbclass_combine_gsm.output.gsm), 
+        script = str(rules._dlbclass_download_dlbclass.output.dlbclass)
+    output:
+        dlbclass = CFG["dirs"]["dlbclass"] + "{sample_set}--{launch_date}/{sample_set}_classified_samples.tsv",
+    conda:
+        CFG["conda_envs"]["dlbclass"]
+    threads:
+        CFG["threads"]["dlbclass"]
+    resources:
+        **CFG["resources"]["dlbclass"]
+    shell:
+        op.as_one_line("""
+        python3 {input.script}
+        -i {wildcards.sample_set} 
+        -g {input.gsm} 
+        -o $(dirname {output.dlbclass})
+        """)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
-rule _dlbclass_output_tsv:
+rule _dlbclass_output:
     input:
-        tsv = str(rules._dlbclass_step_2.output.tsv)
+        tsv = str(rules._dlbclass_run.output.dlbclass)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.tsv"
+        tsv = CFG["dirs"]["outputs"] + "txt/{sample_set}--{launch_date}/{sample_set}.dlbclass.tsv"
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module= True)
+
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -128,15 +352,12 @@ rule _dlbclass_all:
     input:
         expand(
             [
-                str(rules._dlbclass_output_tsv.output.tsv),
-                # TODO: If applicable, add other output rules here
+                CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/maf.done",
+                CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/seg.done",
+                str(rules._dlbclass_output.output.tsv),
             ],
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            genome_build=CFG["runs"]["tumour_genome_build"],
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"])
+            sample_set=CFG["sample_set"],
+            launch_date = launch_date)
 
 
 ##### CLEANUP #####
