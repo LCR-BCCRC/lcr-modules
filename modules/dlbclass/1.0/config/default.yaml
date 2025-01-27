@@ -1,28 +1,47 @@
 lcr-modules:
-    
+
     dlbclass:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_maf: "__UPDATE__"
+            # Available wildcards: {seq_type}
+            master_maf: "__UPDATE__"
+            master_seg: "__UPDATE__"
+            master_sv: "__UPDATE__"
+            subsetting_categories: "__UPDATE__" # e.g. "data/metadata/level3_subsetting_categories.tsv"
+            dlbclass_release: "https://github.com/lkhilton/DLBclass-tool/archive/refs/tags/v0.1.tar.gz"
+            focal_cnv: "https://raw.githubusercontent.com/getzlab/DLBCL-Classifier/refs/heads/master/data_tables/additional_gsm_inputs/all_significant_focal_peaks_with_cohort.txt" 
+            arm_cnv: "https://raw.githubusercontent.com/getzlab/DLBCL-Classifier/refs/heads/master/data_tables/additional_gsm_inputs/DLBCL_cHL_PMBL_broad_significance.txt"
+            blacklist_cnv: "https://raw.githubusercontent.com/getzlab/DLBCL-Classifier/refs/heads/master/data_tables/additional_gsm_inputs/CNV.hg19.bypos.111213.CR1_event_added.bed"
+        sample_set: ["__UPDATE__"]
+        # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
+        # launch_date: ""
+        
+        options: 
+            sv2gsm: 
+                POS_value: "POS"
+                NEG_value: "NEG"
+        
+        include_non_coding: True
+        
+        scripts: 
+            prepare_svs: "{MODSDIR}/src/sv2gsm.R"
+            prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.1/generate_smg_inputs.R"
+        
 
         scratch_subdirectories: []
 
-        options:
-            step_1: ""
-            step_2: ""
-
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            
+            prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+            dlbclass: "{MODSDIR}/envs/dlbclass.yaml"
+
         threads:
-            step_1: 4
+            dlbclass: 2
 
         resources:
-            step_1: 
-                mem_mb: 2000
-            
+            dlbclass:
+                mem_mb: 250000
+
         pairing_config:
             genome:
                 run_paired_tumours: True
