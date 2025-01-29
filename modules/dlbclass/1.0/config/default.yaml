@@ -10,7 +10,7 @@ lcr-modules:
             empty_seg: "{MODSDIR}/etc/empty.seg"
             empty_sv: "{MODSDIR}/etc/empty.sv"
             subsetting_categories: "__UPDATE__" # e.g. "data/metadata/level3_subsetting_categories.tsv"
-            dlbclass_release: "https://github.com/lkhilton/DLBclass-tool/archive/refs/tags/v0.1.tar.gz"
+            dlbclass_release: "https://github.com/lkhilton/DLBclass-tool/archive/refs/tags/v0.1.1.tar.gz"
             focal_cnv: "https://raw.githubusercontent.com/getzlab/DLBCL-Classifier/refs/heads/master/data_tables/additional_gsm_inputs/all_significant_focal_peaks_with_cohort.txt" 
             arm_cnv: "https://raw.githubusercontent.com/getzlab/DLBCL-Classifier/refs/heads/master/data_tables/additional_gsm_inputs/DLBCL_cHL_PMBL_broad_significance.txt"
             blacklist_cnv: "https://raw.githubusercontent.com/getzlab/DLBCL-Classifier/refs/heads/master/data_tables/additional_gsm_inputs/CNV.hg19.bypos.111213.CR1_event_added.bed"
