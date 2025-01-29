@@ -105,6 +105,7 @@ rule _dlbclass_download_dlbclass:
         maf2gsm = CFG["dirs"]["inputs"] + "DLBclass-tool/src/maf2gsm.py", 
         combine2gsm = CFG["dirs"]["inputs"] + "DLBclass-tool/src/combine2gsm.py",
         feature_order = CFG["dirs"]["inputs"] + "DLBclass-tool/gsm/feature_order.19Aug2024.txt",
+        pub_gsm = CFG["dirs"]["inputs"] + "DLBclass-tool/gsm/DLBclass_published.GSM.tsv"
     params: 
         dlbclass_release = CFG["inputs"]["dlbclass_release"]
     conda:
@@ -130,13 +131,14 @@ rule _dlbclass_download_refs:
     shell:
         op.as_one_line("""
         wget
-        -O {output.focal_cnv}
-        {params.focal_cnv}
+        -O - {params.focal_cnv} | 
+        grep -v "19q13.32_2:DEL" | 
+        sed 's/19q13.32_1:DEL/19q13.32:DEL/g' > {output.focal_cnv}
             &&
         wget
         -O {output.arm_cnv}
         {params.arm_cnv}
-        &&
+            &&
         wget
         -O {output.blacklist_cnv}
         {params.blacklist_cnv}
@@ -232,25 +234,15 @@ def _get_input_seg(wildcards):
     SEG_SUMS, = glob_wildcards(seg_output +"/{md5sum_seg}.seg")
     maf_output = os.path.dirname(str(checkpoints._dlbclass_prepare_maf.get(**wildcards).output[0]))
     MAF_SUMS, = glob_wildcards(maf_output +"/{md5sum_maf}.maf")
-    if wildcards.cnv_wc == "with_cnv": 
-        inputs = expand(
-            [
-                CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{md5sum_seg}.seg",
-                CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{md5sum_maf}.maf.content"
-            ],
-            md5sum_seg = SEG_SUMS, 
-            md5sum_maf = MAF_SUMS,
-            allow_missing = True
-            )
-    else: 
-        inputs = expand(
-            [
-                CFG["inputs"]["empty_seg"],
-                CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{md5sum_maf}.maf.content"
-            ],
-            md5sum_maf = MAF_SUMS, 
-            allow_missing = True
-            )
+    inputs = expand(
+        [
+            CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{md5sum_seg}.seg",
+            CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{md5sum_maf}.maf.content"
+        ],
+        md5sum_seg = SEG_SUMS, 
+        md5sum_maf = MAF_SUMS,
+        allow_missing = True
+        )
     return inputs
 
 rule _dlbclass_seg_to_gsm:
@@ -262,14 +254,14 @@ rule _dlbclass_seg_to_gsm:
         blacklist_cnv = str(rules._dlbclass_download_refs.output.blacklist_cnv),
         script = str(rules._dlbclass_download_dlbclass.output.seg2gsm)
     output:
-        cnv_gsm = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{sample_set}--{cnv_wc}." + TODAY + ".CNV.GSM.tsv"
-    log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/seg2gsm.{cnv_wc}.log"
+        cnv_gsm = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{sample_set}." + TODAY + ".CNV.GSM.tsv"
+    log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/seg2gsm.log"
     conda:
         CFG["conda_envs"]["dlbclass"]
     shell:
         op.as_one_line("""
         python3 {input.script} 
-            -i {wildcards.sample_set}--{wildcards.cnv_wc} 
+            -i {wildcards.sample_set} 
             -s {input[3]} 
             -v {input[0]}
             -x {input.blacklist_cnv}
@@ -280,45 +272,68 @@ rule _dlbclass_seg_to_gsm:
             > {log} 2>&1
         """)
 
-def _get_input_sv(wildcards): 
-    CFG = config["lcr-modules"]["dlbclass"]
-    if wildcards.sv_wc == "with_sv": 
-        sv = expand(
-                    str(rules._dlbclass_input_variants.output.sv),
-                    allow_missing=True,
-                    seq_type=CFG["samples"]["seq_type"].unique()
-                    )
-    else: 
-        sv = CFG["inputs"]["empty_sv"]
-    return {"sv": sv}
-
 rule _dlbclass_sv_to_gsm:
     input:
         _get_input_maf, 
-        unpack(_get_input_sv)        
+        sv = expand(
+                str(rules._dlbclass_input_variants.output.sv),
+                allow_missing=True,
+                seq_type=CFG["samples"]["seq_type"].unique()
+                )       
     output:
-        sv_gsm = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{sample_set}--{sv_wc}." + TODAY + ".SV.GSM.tsv"
+        sv_gsm = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{sample_set}." + TODAY + ".SV.GSM.tsv"
     params: 
         pos_value = CFG["options"]["sv2gsm"]["POS_value"],
         neg_value = CFG["options"]["sv2gsm"]["NEG_value"]
-    log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/sv2gsm.{sv_wc}.log"
+    log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/sv2gsm.log"
     conda:
         CFG["conda_envs"]["dlbclass"]
     script:
         PREPARE_SVS
         
-# TODO: Work out how to run with or without SVs or CNVs
+
+def get_combine_param(wildcards):
+    CFG = config["lcr-modules"]["dlbclass"]
+    if(wildcards.sv_wc == "with_sv"):
+        sv_param = "-v " + str(expand(rules._dlbclass_sv_to_gsm.output.sv_gsm, **wildcards, allow_missing = True)[0])
+    else:
+        sv_param = ""
+        
+    if(wildcards.cnv_wc == "with_cnv"):
+        cnv_param = "-c " + str(expand(rules._dlbclass_seg_to_gsm.output.cnv_gsm, **wildcards, allow_missing = True)[0])
+    else:
+        cnv_param = ""
+        
+    return cnv_param + " " + sv_param
+
+
+# def get_combine_input(wildcards):
+#     CFG = config["lcr-modules"]["dlbclass"]
+#     if(wildcards.sv_wc == "with_sv"):
+#         sv_param = "-v " + str(rules._dlbclass_sv_to_gsm.output.sv_gsm)
+#     else:
+#         sv_param = ""
+        
+#     if(wildcards.cnv_wc == "with_cnv"):
+#         cnv_param = "-c " + str(rules._dlbclass_seg_to_gsm.output.cnv_gsm)
+#     else:
+#         cnv_param = ""
+        
+#     return cnv_param + " " + sv_param
 
 # Actual dlbclass run
 rule _dlbclass_combine_gsm:
     input:
-        sv_gsm = str(rules._dlbclass_sv_to_gsm.output.sv_gsm),
-        cnv_gsm = str(rules._dlbclass_seg_to_gsm.output.cnv_gsm),
+        sv = lambda w: str(rules._dlbclass_sv_to_gsm.output.sv_gsm) if w.sv_wc == "with_sv" else config["lcr-modules"]["dlbclass"]["inputs"]["empty_sv"],
+        seg = lambda w: str(rules._dlbclass_seg_to_gsm.output.cnv_gsm) if w.cnv_wc == "with_cnv" else config["lcr-modules"]["dlbclass"]["inputs"]["empty_seg"],
         maf_gsm = str(rules._dlbclass_maf_to_gsm.output.maf_gsm), 
         feature_order = str(rules._dlbclass_download_dlbclass.output.feature_order), 
-        script = str(rules._dlbclass_download_dlbclass.output.combine2gsm)
+        script = str(rules._dlbclass_download_dlbclass.output.combine2gsm), 
+        pub_gsm = str(rules._dlbclass_download_dlbclass.output.pub_gsm)
     output:
         gsm = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{sample_set}--{sv_wc}--{cnv_wc}." + TODAY + ".GSM.tsv"
+    params: 
+        get_combine_param
     log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/combine2gsm.{sv_wc}--{cnv_wc}.log"
     conda:
         CFG["conda_envs"]["dlbclass"]
@@ -330,10 +345,10 @@ rule _dlbclass_combine_gsm:
         op.as_one_line("""
         python3 {input.script} 
         -i {wildcards.sample_set}--{wildcards.sv_wc}--{wildcards.cnv_wc} 
-        -v {input.sv_gsm} 
         -m {input.maf_gsm} 
-        -c {input.cnv_gsm} 
         -f {input.feature_order}
+        -p {input.pub_gsm}
+        {params[0]}
         -o $(dirname {output.gsm})
         > {log} 2>&1
         """)
