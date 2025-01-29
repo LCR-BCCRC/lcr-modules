@@ -174,7 +174,7 @@ rule _fishhook_all:
                 CFG["dirs"]["prepare_maf"] + "{sample_set}--{projection}--{launch_date}/done",
                 str(rules._fishhook_aggregate.output.aggregate),
             ],
-            projection=CFG["inputs"]["projections"],
+            projection=CFG["inputs"]["projection"],
             sample_set=CFG["sample_set"],
             launch_date = launch_date)
 
