@@ -46,7 +46,9 @@ CFG = op.setup_module(
 
 # All rules should be run locally
 localrules:
-    _dlbclass_input_variants,
+    _dlbclass_input_maf,
+    _dlbclass_input_seg,
+    _dlbclass_input_sv,
     _dlbclass_input_subsetting_categories,
     _dlbclass_download_dlbclass,
     _dlbclass_download_refs,
@@ -73,18 +75,28 @@ PREPARE_SVS =  os.path.abspath(config["lcr-modules"]["dlbclass"]["scripts"]["pre
 TODAY = datetime.now().strftime("%d%b%Y")
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-rule _dlbclass_input_variants:
+rule _dlbclass_input_maf:
     input:
-        maf = CFG["inputs"]["master_maf"], 
-        seg = CFG["inputs"]["master_seg"], 
-        sv = CFG["inputs"]["master_sv"]
+        maf = CFG["inputs"]["master_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "variants/{sample_set}--{launch_date}/{seq_type}.input.maf", 
-        seg = CFG["dirs"]["inputs"] + "variants/{sample_set}--{launch_date}/{seq_type}.input.seg", 
-        sv = CFG["dirs"]["inputs"] + "variants/{sample_set}--{launch_date}/{seq_type}.input.sv"
+        maf = CFG["dirs"]["inputs"] + "variants/{sample_set}--{launch_date}/{seq_type}.input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
+        
+rule _dlbclass_input_seg:
+    input:
+        seg = CFG["inputs"]["master_seg"] if CFG["inputs"]["master_seg"] != "" else CFG["inputs"]["empty_seg"]
+    output:
+        seg = CFG["dirs"]["inputs"] + "variants/{sample_set}--{launch_date}/{seq_type}.input.seg", 
+    run:
         op.absolute_symlink(input.seg, output.seg)
+        
+rule _dlbclass_input_sv:
+    input:
+        sv = CFG["inputs"]["master_sv"] if CFG["inputs"]["master_sv"] != "" else CFG["inputs"]["empty_sv"]
+    output:
+        sv = CFG["dirs"]["inputs"] + "variants/{sample_set}--{launch_date}/{seq_type}.input.sv"
+    run:
         op.absolute_symlink(input.sv, output.sv)
 
 # Symlinks the subsetting categories input file into the module results directory (under '00-inputs/')
@@ -149,7 +161,7 @@ rule _dlbclass_download_refs:
 checkpoint _dlbclass_prepare_maf:
     input:
         maf = expand(
-                    str(rules._dlbclass_input_variants.output.maf),
+                    str(rules._dlbclass_input_maf.output.maf),
                     allow_missing=True,
                     seq_type=CFG["samples"]["seq_type"].unique()
                     ),
@@ -173,7 +185,7 @@ checkpoint _dlbclass_prepare_maf:
 checkpoint _dlbclass_prepare_seg:
     input:
         seg = expand(
-                    str(rules._dlbclass_input_variants.output.seg),
+                    str(rules._dlbclass_input_seg.output.seg),
                     allow_missing=True,
                     seq_type=CFG["samples"]["seq_type"].unique()
                     ),
@@ -276,7 +288,7 @@ rule _dlbclass_sv_to_gsm:
     input:
         _get_input_maf, 
         sv = expand(
-                str(rules._dlbclass_input_variants.output.sv),
+                str(rules._dlbclass_input_sv.output.sv),
                 allow_missing=True,
                 seq_type=CFG["samples"]["seq_type"].unique()
                 )       
@@ -391,7 +403,6 @@ rule _dlbclass_all:
         expand(
             [
                 CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/maf.done",
-                CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/seg.done",
                 str(rules._dlbclass_output.output.tsv),
             ],
             sample_set=CFG["sample_set"],
