@@ -2,10 +2,11 @@ lcr-modules:
 
     fishhook:
         inputs:
-            # Available wildcards: {seq_type}
+            # Available wildcards: {seq_type} {projection}
             master_maf: "__UPDATE__"
             subsetting_categories: "__UPDATE__" # e.g. "data/metadata/level3_subsetting_categories.tsv"
         sample_set: "__UPDATE__"
+        projections: ["grch37", "hg38"] # used to fill in {projection} wildcard in master_maf above
         # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
         # launch_date: ""
 
