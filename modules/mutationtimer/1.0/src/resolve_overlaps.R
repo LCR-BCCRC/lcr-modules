@@ -13,12 +13,12 @@
 # Rscript <input.bed> <output.bed> <log.txt>
 
 # Interactive:
-log_file <- "/projects/rmorin/projects/tumor-timing/test_withsameCNA.txt" # just as a placeholder, don't run the log related code interactively
-input_bed <- "/projects/rmorin/projects/tumor-timing/overlapping_withsameCNAs.bed"
-output_bed <- "/projects/rmorin/projects/tumor-timing/script_resolved_withsameCNAs.bed"
-args <- list(input_bed, output_bed, log_file)
-arg_names <- c("input_bed", "output_bed", "log_file")
-args <- setNames(args, arg_names[1:length(args)])
+# log_file <- "/projects/rmorin/projects/tumor-timing/test_withsameCNA.txt" # just as a placeholder, don't run the log related code interactively
+# input_bed <- "/projects/rmorin/projects/tumor-timing/overlapping_withsameCNAs.bed"
+# output_bed <- "/projects/rmorin/projects/tumor-timing/script_resolved_withsameCNAs.bed"
+# args <- list(input_bed, output_bed, log_file)
+# arg_names <- c("input_bed", "output_bed", "log_file")
+# args <- setNames(args, arg_names[1:length(args)])
 
 
 
@@ -40,7 +40,7 @@ args <- setNames(args, arg_names[1:length(args)])
 
 # Log both the stdout and stderr
 log <- file(args$log_file, open="wt")
-sink(log ,type = "output")
+sink(log, type = "output")
 sink(log, type = "message")
 
 # Print args for de-bugging -----------------------------------------------------------
@@ -70,9 +70,9 @@ if (str_detect(bb_bed$chr[1], "chr")){
 bb_bed$chr <- factor(bb_bed$chr, levels=chr_order)
 
 bb_bed <- bb_bed %>%
-    dplyr::rename(chrom=chr,start=startpos, end=endpos) %>%
+    dplyr::rename(chrom=chr, start=startpos, end=endpos) %>%
     filter(!is.na(chrom)) %>% # filters non-canon and Y
-    arrange(chrom,start,end)
+    arrange(chrom, start, end)
 
 
 # Filtering regions with nMaj1_A NA and nMin1_A NA -----------------------------------------------------------
