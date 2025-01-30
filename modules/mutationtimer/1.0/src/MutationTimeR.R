@@ -30,7 +30,7 @@ args <- setNames(args, arg_names[1:length(args)])
 
 # Log both the stdout and stderr
 log <- file(args$log_path, open="wt")
-sink(log ,type = "output")
+sink(log, type = "output")
 sink(log, type = "message")
 
 # Print args for de-bugging -----------------------------------------------------------
@@ -61,8 +61,16 @@ this_projection <- args$projection
 # Read in augmented maf data and convert to VCF-class
 # -----------------------------------------------------
 cat("Getting augmented maf SSM data...\n")
+relevant_maf_columns <- c("Hugo_Symbol", "Entrez_Gene_Id", "NCBI_Build", "Chromosome", "Start_Position", "End_Position", "Strand",
+                          "Variant_Classification", "Variant_Type", "Reference_Allele", "Tumor_Seq_Allele1", "Tumor_Seq_Allele2",
+                          "Tumor_Sample_Barcode", "Matched_Norm_Sample_Barcode", "Match_Norm_Seq_Allele1", "Match_Norm_Seq_Allele2",  
+                          "Transcript_ID", "Exon_Number", "t_depth", "t_ref_count", "t_alt_count","n_depth", "n_ref_count", "n_alt_count")
+
 grep_cmd <- paste0('egrep "Tumor_Sample_Barcode|', tumour_id,'" ', maf_file, '| cut -f1-45')
-maf <- fread(cmd = grep_cmd, verbose = F, nThread=4) %>% as_tibble() %>% mutate(Chromosome = as.character(Chromosome))
+maf <- fread(cmd = grep_cmd, verbose = F, nThread=4) %>% 
+  as_tibble() %>% 
+  select(relevant_maf_columns) %>%
+  mutate(Chromosome = as.character(Chromosome)) 
 
 if(dim(maf)[1] == 0) stop(paste("Tumour sample", tumour_id, "is not in the input maf\n"))
 
