@@ -165,7 +165,7 @@ checkpoint _dlbclass_prepare_maf:
                     allow_missing=True,
                     seq_type=CFG["samples"]["seq_type"].unique()
                     ),
-        subsetting_categories = str(rules._dlbclass_input_subsetting_categories.output.subsetting_categories)
+        subsetting_categories = ancient(str(rules._dlbclass_input_subsetting_categories.output.subsetting_categories))
     output:
         CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/maf.done"
     log:
@@ -189,7 +189,7 @@ checkpoint _dlbclass_prepare_seg:
                     allow_missing=True,
                     seq_type=CFG["samples"]["seq_type"].unique()
                     ),
-        subsetting_categories = str(rules._dlbclass_input_subsetting_categories.output.subsetting_categories)
+        subsetting_categories = ancient(str(rules._dlbclass_input_subsetting_categories.output.subsetting_categories))
     output:
         CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/seg.done"
     log:
@@ -223,7 +223,7 @@ def _get_input_maf(wildcards):
 rule _dlbclass_maf_to_gsm:
     input:
         _get_input_maf, 
-        script = str(rules._dlbclass_download_dlbclass.output.maf2gsm)
+        script = ancient(str(rules._dlbclass_download_dlbclass.output.maf2gsm))
     output:
         maf_gsm = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{sample_set}." + TODAY + ".MAF.GSM.tsv"
     log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/maf2gsm.log"
@@ -264,7 +264,7 @@ rule _dlbclass_seg_to_gsm:
         arm_cnv = str(rules._dlbclass_download_refs.output.arm_cnv), 
         focal_cnv = str(rules._dlbclass_download_refs.output.focal_cnv), 
         blacklist_cnv = str(rules._dlbclass_download_refs.output.blacklist_cnv),
-        script = str(rules._dlbclass_download_dlbclass.output.seg2gsm)
+        script = ancient(str(rules._dlbclass_download_dlbclass.output.seg2gsm))
     output:
         cnv_gsm = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{sample_set}." + TODAY + ".CNV.GSM.tsv"
     log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/seg2gsm.log"
