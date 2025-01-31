@@ -283,13 +283,13 @@ cat("Making full plot...\n")
 plot_full <- plot_all(timed_ssm, timed_cna, all_ssm = TRUE, all_chrom = TRUE, genome_build = projection,
     title = "All SSM and CN timing", sample_ids = paste0(tumour_id, "--", normal_id))
 
-ggsave(filename = output_full, plot = plot_full, device = cairo_pdf)
+ggsave(filename = output_full, plot = plot_full, device = cairo_pdf, width = 12, height = 12)
 
 cat("Making minimum plot...\n")
 plot_min <- plot_all(timed_ssm, timed_cna, all_ssm = FALSE, all_chrom = FALSE, genome_build = projection,
     title ="SSM and CN timing in CNA regions only", sample_ids = paste0(tumour_id, "--", normal_id))
 
-ggsave(filename = output_min, plot = plot_min, device = cairo_pdf)
+ggsave(filename = output_min, plot = plot_min, device = cairo_pdf, width = 12, height = 12)
 
 cat("DONE!")
 sink()
