@@ -169,6 +169,7 @@ rule _mutationtimer_resolve_overlaps:
         script = CFG["options"]["resolve_overlaps_script"]
     conda:
         CFG["conda_envs"]["mutationtimer"]
+    threads: 1
     group:
         "input_lift_resolve"
     shell:
@@ -223,6 +224,8 @@ rule  _mutationtimer_run:
         CFG["threads"]["mutationtimer"]
     resources:
         **CFG["resources"]["mutationtimer"]
+    group:
+        "run_and_plot"
     shell:
         op.as_one_line("""
         Rscript --vanilla {params.script}
@@ -251,6 +254,8 @@ rule  _mutationtimer_plot:
         script = CFG["options"]["plot_mutationtimer_script"]
     conda:
         CFG["conda_envs"]["plot_mutationtimer"]
+    group:
+        "run_and_plot"
     shell:
         op.as_one_line("""
         Rscript --vanilla {params.script}
@@ -275,8 +280,8 @@ rule _mutationtimer_symlink_output_tsvs:
     output:
         timed_ssm = CFG["dirs"]["outputs"] + "timed_ssm/{projection}/{tumour_id}--{normal_id}_timed_ssm.{projection}.tsv",
         timed_cna = CFG["dirs"]["outputs"] + "timed_cna/{projection}/{tumour_id}--{normal_id}_timed_cna.{projection}.tsv",
-        full_plot = CFG["dirs"]["outputs"] + "plots/{projection}/{tumour_id}--{normal_id}.{projection}.full.png",
-        min_plot = CFG["dirs"]["outputs"] + "plots/{projection}/{tumour_id}--{normal_id}.{projection}.min.png"
+        full_plot = CFG["dirs"]["outputs"] + "plots/{projection}/{tumour_id}--{normal_id}.{projection}.full.pdf",
+        min_plot = CFG["dirs"]["outputs"] + "plots/{projection}/{tumour_id}--{normal_id}.{projection}.min.pdf"
     run:
         op.relative_symlink(input.timed_ssm, output.timed_ssm, in_module= True)
         op.relative_symlink(input.timed_cna, output.timed_cna, in_module= True)

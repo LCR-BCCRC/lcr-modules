@@ -11,6 +11,8 @@
 suppressWarnings(
 suppressPackageStartupMessages({
     library(BSgenome)
+	library(BSgenome.Hsapiens.UCSC.hg19)
+	library(BSgenome.Hsapiens.UCSC.hg38)
     library(tidyverse)
     library(GAMBLR.helpers)
     library(data.table)
@@ -67,12 +69,12 @@ plot_timed_SSM <- function(timed_ssm,
                     base_size = 12,
                     point_size = 0.5){
   if(genome_build %in% "grch37"){
-    bs_genome <- BSgenome::getBSgenome("BSgenome.Hsapiens.UCSC.hg19")
+    bs_genome <- BSgenome.Hsapiens.UCSC.hg19
     #need to remove chr prefix for grch37
     chrom_lengths <- seqlengths(bs_genome)[c(1:23)] # only canonical and X
     names(chrom_lengths) <- str_remove(names(chrom_lengths), "chr")
   }else if(genome_build == "hg38"){
-    bs_genome <- BSgenome::getBSgenome("BSgenome.Hsapiens.UCSC.hg38")
+    bs_genome <- BSgenome.Hsapiens.UCSC.hg38
     chrom_lengths <- seqlengths(bs_genome)[c(1:23)] # only canonical and X
   }
   else{
@@ -132,12 +134,12 @@ plot_timed_cna <- function(timed_cna,
                           all_chrom = FALSE){
   if (any(!is.na(timed_cna$time))) {
     if(genome_build %in% "grch37"){
-        bs_genome <- BSgenome::getBSgenome("BSgenome.Hsapiens.UCSC.hg19")
+        bs_genome <-BSgenome.Hsapiens.UCSC.hg19
         #need to remove chr prefix for grch37
         chrom_lengths <- seqlengths(bs_genome)[c(1:23)] # only canonical and X
         names(chrom_lengths) <- str_remove(names(chrom_lengths), "chr")
     }else if(genome_build == "hg38"){
-        bs_genome <- BSgenome::getBSgenome("BSgenome.Hsapiens.UCSC.hg38")
+        bs_genome <- BSgenome.Hsapiens.UCSC.hg38
         chrom_lengths <- seqlengths(bs_genome)[c(1:23)] # only canonical and X
     }
     else{
@@ -191,12 +193,12 @@ plot_total_CN <- function(timed_cna,
                           all_chrom = FALSE) {
   if (any(!is.na(timed_cna$time))) {
     if(genome_build %in% "grch37"){
-        bs_genome <- BSgenome::getBSgenome("BSgenome.Hsapiens.UCSC.hg19")
+        bs_genome <- BSgenome.Hsapiens.UCSC.hg19
         #need to remove chr prefix for grch37
         chrom_lengths <- seqlengths(bs_genome)[c(1:23)] # only canonical and X
         names(chrom_lengths) <- str_remove(names(chrom_lengths), "chr")
     }else if(genome_build == "hg38"){
-        bs_genome <- BSgenome::getBSgenome("BSgenome.Hsapiens.UCSC.hg38")
+        bs_genome <- BSgenome.Hsapiens.UCSC.hg38
         chrom_lengths <- seqlengths(bs_genome)[c(1:23)] # only canonical and X
     }
     else{

@@ -11,4 +11,6 @@ dependencies:
   - r-xml
   - bioconductor-variantannotation
   - bioconductor-bsgenome
+  - bioconductor-bsgenome.hsapiens.ucsc.hg38
+  - bioconductor-bsgenome.hsapiens.ucsc.hg19
   - r-ggpubr
