@@ -10,13 +10,13 @@
 
 suppressWarnings(
 suppressPackageStartupMessages({
-    library(BSgenome)
+  library(BSgenome)
   library(BSgenome.Hsapiens.UCSC.hg19)
   library(BSgenome.Hsapiens.UCSC.hg38)
-    library(tidyverse)
-    library(GAMBLR.helpers)
-    library(data.table)
-    library(ggpubr)
+  library(tidyverse)
+  library(GAMBLR.helpers)
+  library(data.table)
+  library(ggpubr)
 })
 )
 
@@ -64,7 +64,7 @@ timed_cna <- read_tsv(input_cna, show_col_types = FALSE)
 # -----------------------------------------------------
 cat("Checking for CNAs with time info...\n")
 if(dim(timed_cna %>% filter(!is.na(time)))[1] == 0){
-  cat("No timed CNAs found. Min plot will be empty")
+  cat("No timed CNAs found. Min plot will be empty.\n")
 }else {
   cat("Time info for CNAs found.\n")
 }
@@ -158,16 +158,21 @@ plot_timed_cna <- function(timed_cna,
   cn_bounds$chr <- factor(cn_bounds$chr, levels=s)
 
   if(all_chrom){
-    p <- ggplot(timed_cna) +
-      geom_segment(aes(y=time, yend=time, x=startpos, xend=endpos), colour="red")   +
-      geom_rect(aes(xmin=endpos, xmax=startpos, ymin=time.lo, ymax=time.up), alpha=0.2) +
-      geom_point(data=cn_bounds, aes(x=start,y=1), colour="white") +
-      geom_point(data=cn_bounds, aes(x=end,y=1), colour="white") +
-      ylim(c(0,1)) +
-      facet_wrap(~chr, scales="free_x" ,nrow=1) +
-      theme_Morons(base_size = base_size) +
-      theme(axis.text.x=element_blank(), axis.title.x=element_blank(), axis.ticks.x=element_blank()) +
-      ylab("Time")
+    if( dim(timed_cna %>% filter(!is.na(time)))[1] == 0){
+      p <- ggplot() +
+        ggtitle("No CNAs were timed")
+    }else{
+      p <- ggplot(timed_cna) +
+        geom_segment(aes(y=time, yend=time, x=startpos, xend=endpos), colour="red")   +
+        geom_rect(aes(xmin=endpos, xmax=startpos, ymin=time.lo, ymax=time.up), alpha=0.2) +
+        geom_point(data=cn_bounds, aes(x=start,y=1), colour="white") +
+        geom_point(data=cn_bounds, aes(x=end,y=1), colour="white") +
+        ylim(c(0,1)) +
+        facet_wrap(~chr, scales="free_x" ,nrow=1) +
+        theme_Morons(base_size = base_size) +
+        theme(axis.text.x=element_blank(), axis.title.x=element_blank(), axis.ticks.x=element_blank()) +
+        ylab("Time")
+    }
   }else{
     just_timed <- timed_cna %>% filter(!is.na(time))
     cn_bounds <- cn_bounds %>% filter(chr %in% just_timed$chr)
