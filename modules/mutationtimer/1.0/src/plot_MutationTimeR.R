@@ -11,8 +11,8 @@
 suppressWarnings(
 suppressPackageStartupMessages({
     library(BSgenome)
-	library(BSgenome.Hsapiens.UCSC.hg19)
-	library(BSgenome.Hsapiens.UCSC.hg38)
+  library(BSgenome.Hsapiens.UCSC.hg19)
+  library(BSgenome.Hsapiens.UCSC.hg38)
     library(tidyverse)
     library(GAMBLR.helpers)
     library(data.table)
@@ -60,6 +60,15 @@ timed_ssm <- read_tsv(input_ssm, show_col_types = FALSE)
 cat("Reading in timed CNA data...\n")
 timed_cna <- read_tsv(input_cna, show_col_types = FALSE)
 
+# Check for CNAs with time info
+# -----------------------------------------------------
+cat("Checking for CNAs with time info...\n")
+if(dim(timed_cna %>% filter(!is.na(time)))[1] == 0){
+  cat("No timed CNAs found. Min plot will be empty")
+}else {
+  cat("Time info for CNAs found.\n")
+}
+
 # Plotting Functions
 # -----------------------------------------------------
 plot_timed_SSM <- function(timed_ssm,
@@ -76,8 +85,7 @@ plot_timed_SSM <- function(timed_ssm,
   }else if(genome_build == "hg38"){
     bs_genome <- BSgenome.Hsapiens.UCSC.hg38
     chrom_lengths <- seqlengths(bs_genome)[c(1:23)] # only canonical and X
-  }
-  else{
+  }else{
     stop("Unknown genome specified")
   }
   s <- names(chrom_lengths)
@@ -99,19 +107,18 @@ plot_timed_SSM <- function(timed_ssm,
       ylab("VAF") +
       scale_colour_manual(values = c("clonal [early]"="#C77CFF", "clonal [late]"="#7CAE00", "clonal [NA]"="#00BFC4",  "subclonal"="#F8766D"),
       drop = FALSE)
-  } else {
+  }else{
     just_timed <- timed_cna %>%
-        filter(!is.na(time)) %>%
-        mutate(start=startpos, end=endpos)
-
+      filter(!is.na(time)) %>%
+      mutate(start=startpos, end=endpos)
     x <- data.table(timed_ssm)
     y <- data.table(just_timed)
 
     setkey(y, chr, start, end)
 
     kept_ssm <- foverlaps(x, y, type="within") %>%
-        dplyr::filter(!is.na(startpos)) %>%
-        as.data.frame()
+      dplyr::filter(!is.na(startpos)) %>%
+      as.data.frame()
 
     p <- ggplot(data = kept_ssm, aes(x=Start_Position, y=VAF, color=cls)) +
       geom_point(alpha=0.7, size=point_size, show.legend=TRUE) +
@@ -132,57 +139,52 @@ plot_timed_cna <- function(timed_cna,
                           genome_build = "hg38",
                           base_size = 12,
                           all_chrom = FALSE){
-  if (any(!is.na(timed_cna$time))) {
-    if(genome_build %in% "grch37"){
-        bs_genome <-BSgenome.Hsapiens.UCSC.hg19
-        #need to remove chr prefix for grch37
-        chrom_lengths <- seqlengths(bs_genome)[c(1:23)] # only canonical and X
-        names(chrom_lengths) <- str_remove(names(chrom_lengths), "chr")
-    }else if(genome_build == "hg38"){
-        bs_genome <- BSgenome.Hsapiens.UCSC.hg38
-        chrom_lengths <- seqlengths(bs_genome)[c(1:23)] # only canonical and X
-    }
-    else{
+  if(genome_build %in% "grch37"){
+    bs_genome <- BSgenome.Hsapiens.UCSC.hg19
+    #need to remove chr prefix for grch37
+    chrom_lengths <- seqlengths(bs_genome)[c(1:23)] # only canonical and X
+    names(chrom_lengths) <- str_remove(names(chrom_lengths), "chr")
+  }else if(genome_build == "hg38"){
+    bs_genome <- BSgenome.Hsapiens.UCSC.hg38
+    chrom_lengths <- seqlengths(bs_genome)[c(1:23)] # only canonical and X
+  }else{
       stop("Unknown genome specified")
-    }
-    s <- names(chrom_lengths)
-    l <- as.numeric(chrom_lengths)
-    cn_bounds <- data.frame(chr = s, start=1, end=l)
-
-    timed_cna$chr <- factor(timed_cna$chr, levels=s)
-    cn_bounds$chr <- factor(cn_bounds$chr, levels=s)
-    # So it only plots chrs with CN info
-    cn_bounds <- cn_bounds %>% filter(chr %in% timed_cna$chr)
-
-    if(all_chrom){
-      p = ggplot(timed_cna) +
-        geom_segment(aes(y=time, yend=time, x=startpos, xend=endpos), colour="red")   +
-        geom_rect(aes(xmin=endpos, xmax=startpos, ymin=time.lo, ymax=time.up), alpha=0.2) +
-        geom_point(data=cn_bounds, aes(x=start,y=1), colour="white") +
-        geom_point(data=cn_bounds, aes(x=end,y=1), colour="white") +
-        ylim(c(0,1)) +
-        facet_wrap(~chr, scales="free_x" ,nrow=1) +
-        theme_Morons(base_size = base_size) +
-        theme(axis.text.x=element_blank(), axis.title.x=element_blank(), axis.ticks.x=element_blank()) +
-        ylab("Time")
-    } else {
-      just_timed <- timed_cna %>% filter(!is.na(time))
-      cn_bounds <- cn_bounds %>% filter(chr %in% just_timed$chr)
-
-      p <- ggplot(just_timed) +
-        geom_segment(aes(y=time, yend=time, x=startpos, xend=endpos), colour="red") +
-        geom_rect(aes(xmin=endpos, xmax=startpos, ymin=time.lo, ymax=time.up), alpha=0.2) +
-        geom_point(data=cn_bounds, aes(x=start, y=1), colour="white") +
-        geom_point(data=cn_bounds, aes(x=end, y=1), colour="white") +
-        ylim(c(0,1)) +
-        facet_wrap(~chr, scales="free_x", nrow=1) +
-        theme_Morons(base_size = base_size) +
-        theme(axis.text.x=element_blank(), axis.title.x=element_blank(), axis.ticks.x=element_blank()) +
-        ylab("Time")
-    }
-
-    return(p)
   }
+  s <- names(chrom_lengths)
+  l <- as.numeric(chrom_lengths)
+  cn_bounds <- data.frame(chr = s, start=1, end=l)
+
+  timed_cna$chr <- factor(timed_cna$chr, levels=s)
+  cn_bounds$chr <- factor(cn_bounds$chr, levels=s)
+
+  if(all_chrom){
+    p <- ggplot(timed_cna) +
+      geom_segment(aes(y=time, yend=time, x=startpos, xend=endpos), colour="red")   +
+      geom_rect(aes(xmin=endpos, xmax=startpos, ymin=time.lo, ymax=time.up), alpha=0.2) +
+      geom_point(data=cn_bounds, aes(x=start,y=1), colour="white") +
+      geom_point(data=cn_bounds, aes(x=end,y=1), colour="white") +
+      ylim(c(0,1)) +
+      facet_wrap(~chr, scales="free_x" ,nrow=1) +
+      theme_Morons(base_size = base_size) +
+      theme(axis.text.x=element_blank(), axis.title.x=element_blank(), axis.ticks.x=element_blank()) +
+      ylab("Time")
+  }else{
+    just_timed <- timed_cna %>% filter(!is.na(time))
+    cn_bounds <- cn_bounds %>% filter(chr %in% just_timed$chr)
+
+    p <- ggplot(just_timed) +
+      geom_segment(aes(y=time, yend=time, x=startpos, xend=endpos), colour="red") +
+      geom_rect(aes(xmin=endpos, xmax=startpos, ymin=time.lo, ymax=time.up), alpha=0.2) +
+      geom_point(data=cn_bounds, aes(x=start, y=1), colour="white") +
+      geom_point(data=cn_bounds, aes(x=end, y=1), colour="white") +
+      ylim(c(0,1)) +
+      facet_wrap(~chr, scales="free_x", nrow=1) +
+      theme_Morons(base_size = base_size) +
+      theme(axis.text.x=element_blank(), axis.title.x=element_blank(), axis.ticks.x=element_blank()) +
+      ylab("Time")
+  }
+
+  return(p)
 }
 
 
@@ -190,60 +192,59 @@ plot_timed_cna <- function(timed_cna,
 plot_total_CN <- function(timed_cna,
                           genome_build = "hg38",
                           base_size = 12,
-                          all_chrom = FALSE) {
-  if (any(!is.na(timed_cna$time))) {
-    if(genome_build %in% "grch37"){
-        bs_genome <- BSgenome.Hsapiens.UCSC.hg19
-        #need to remove chr prefix for grch37
-        chrom_lengths <- seqlengths(bs_genome)[c(1:23)] # only canonical and X
-        names(chrom_lengths) <- str_remove(names(chrom_lengths), "chr")
-    }else if(genome_build == "hg38"){
-        bs_genome <- BSgenome.Hsapiens.UCSC.hg38
-        chrom_lengths <- seqlengths(bs_genome)[c(1:23)] # only canonical and X
-    }
-    else{
-      stop("Unknown genome specified")
-    }
-    s <- names(chrom_lengths)
-    l <- as.numeric(chrom_lengths)
+                          all_chrom = FALSE){
+  if(genome_build %in% "grch37"){
+    bs_genome <- BSgenome.Hsapiens.UCSC.hg19
+    #need to remove chr prefix for grch37
+    chrom_lengths <- seqlengths(bs_genome)[c(1:23)] # only canonical and X
+    names(chrom_lengths) <- str_remove(names(chrom_lengths), "chr")
+  }else if(genome_build == "hg38"){
+    bs_genome <- BSgenome.Hsapiens.UCSC.hg38
+    chrom_lengths <- seqlengths(bs_genome)[c(1:23)] # only canonical and X
+  }else{
+    stop("Unknown genome specified")
+  }
+  s <- names(chrom_lengths)
+  l <- as.numeric(chrom_lengths)
 
-    timed_cna$chr <- factor(timed_cna$chr, levels=s)
+  timed_cna$chr <- factor(timed_cna$chr, levels=s)
 
-    timed_cna_total <- timed_cna %>%
-        mutate(size = endpos-startpos+1) %>%
-        mutate(centre = startpos+size/2) %>%
-        mutate(CN = major_cn+0.1, CN2 = minor_cn-0.1)
-    just_timed_chrom <- timed_cna_total %>%
-        filter(!is.na(time)) %>%
-        pull(chr)
-    just_timed <- timed_cna_total %>%
-        filter(chr %in% just_timed_chrom)
+  timed_cna_total <- timed_cna %>%
+      mutate(size = endpos-startpos+1) %>%
+      mutate(centre = startpos+size/2) %>%
+      mutate(CN = major_cn+0.1, CN2 = minor_cn-0.1)
 
-    if(all_chrom){
-      p <- ggplot(timed_cna_total) +
-        geom_tile(aes(x=centre, y=CN, width=size, height=0.2, alpha=clonal_frequency), fill="lightblue") +
-        geom_tile(aes(x=centre, y=CN2, width=size, height=0.2, alpha=clonal_frequency), fill="orange") +
-        facet_wrap(~chr, scales="free_x", nrow=1) +
-        ylim(c(-1,4)) +
-        theme_Morons(base_size = base_size) +
-        theme(axis.text.x=element_blank(), axis.title.x=element_blank(),
-            axis.ticks.x=element_blank(), axis.title.y=element_text(margin = margin(l=16)))
-    }else{
-      p <- ggplot(just_timed) +
-        geom_tile(aes(x=centre, y=CN, width=size, height=0.2, alpha=clonal_frequency), fill="lightblue") +
-        geom_tile(aes(x=centre, y=CN2, width=size, height=0.2, alpha=clonal_frequency), fill="orange") +
-        facet_wrap(~chr, scales="free_x", nrow=1) +
-        ylim(c(-1,4)) +
-        theme_Morons(base_size = base_size) +
-        theme(axis.text.x=element_blank() ,axis.title.x=element_blank(),
-            axis.ticks.x=element_blank(), axis.title.y=element_text(margin = margin(l=16)))
-    }
+  just_timed_chrom <- timed_cna_total %>%
+      filter(!is.na(time)) %>%
+      pull(chr)
+  just_timed <- timed_cna_total %>%
+      filter(chr %in% just_timed_chrom)
+
+  if(all_chrom){
+    p <- ggplot(timed_cna_total) +
+      geom_tile(aes(x=centre, y=CN, width=size, height=0.2, alpha=clonal_frequency), fill="lightblue") +
+      geom_tile(aes(x=centre, y=CN2, width=size, height=0.2, alpha=clonal_frequency), fill="orange") +
+      facet_wrap(~chr, scales="free_x", nrow=1) +
+      ylim(c(-1,4)) +
+      theme_Morons(base_size = base_size) +
+      theme(axis.text.x=element_blank(), axis.title.x=element_blank(),
+          axis.ticks.x=element_blank(), axis.title.y=element_text(margin = margin(l=16)))
+  }else{
+    p <- ggplot(just_timed) +
+      geom_tile(aes(x=centre, y=CN, width=size, height=0.2, alpha=clonal_frequency), fill="lightblue") +
+      geom_tile(aes(x=centre, y=CN2, width=size, height=0.2, alpha=clonal_frequency), fill="orange") +
+      facet_wrap(~chr, scales="free_x", nrow=1) +
+      ylim(c(-1,4)) +
+      theme_Morons(base_size = base_size) +
+      theme(axis.text.x=element_blank() ,axis.title.x=element_blank(),
+          axis.ticks.x=element_blank(), axis.title.y=element_text(margin = margin(l=16)))
+  }
 
     return(p)
-  }
 }
 
-plot_all = function(timed_ssm,
+
+plot_all <- function(timed_ssm,
                     timed_cna,
                     genome_build = "hg38",
                     sample_ids = "",
@@ -254,25 +255,24 @@ plot_all = function(timed_ssm,
                     all_chrom = FALSE){
 
   if(all_ssm & all_chrom){
-  CN_total <- plot_total_CN(timed_cna, genome_build = genome_build, base_size = base_size, all_chrom=TRUE)
-
-  CN_timing <- plot_timed_cna(timed_cna, genome_build = genome_build, base_size = base_size, all_chrom=TRUE)
-
-  SSM_timing <- plot_timed_SSM(timed_ssm, timed_cna, all_ssm = TRUE, point_size = point_size, genome_build = genome_build, base_size = base_size)
-
+    CN_total <- plot_total_CN(timed_cna, genome_build = genome_build, base_size = base_size, all_chrom=TRUE)
+    CN_timing <- plot_timed_cna(timed_cna, genome_build = genome_build, base_size = base_size, all_chrom=TRUE)
+    SSM_timing <- plot_timed_SSM(timed_ssm, timed_cna, all_ssm = TRUE, point_size = point_size, genome_build = genome_build, base_size = base_size)
+    p <- ggarrange(SSM_timing, CN_timing, CN_total, ncol=1) %>%
+      annotate_figure(., top = text_grob(title, face = "bold", size = 12), fig.lab = sample_ids, fig.lab.pos = "top.left")
   }else if(all_ssm != all_chrom){
     stop("all_ssm and all_chrom are not the same. Set both to either FALSE or TRUE.")
-
-  } else {
+  }else if(dim(timed_cna %>% filter(!is.na(time)))[1] == 0){
+    title <- "No CNAs were timed"
+    p <- ggarrange(ggplot()) %>%
+      annotate_figure(., top = text_grob(title, face = "bold", size = 12), fig.lab = sample_ids, fig.lab.pos = "top.left")
+  }else{
     CN_total <- plot_total_CN(timed_cna, genome_build = genome_build, base_size = base_size, all_chrom = FALSE)
-
     CN_timing <- plot_timed_cna(timed_cna, genome_build = genome_build, base_size = base_size, all_chrom = FALSE)
-
     SSM_timing <- plot_timed_SSM(timed_ssm, timed_cna, all_ssm = FALSE, point_size = point_size, genome_build = genome_build, base_size = base_size)
+    p <- ggarrange(SSM_timing, CN_timing, CN_total, ncol=1) %>%
+        annotate_figure(., top = text_grob(title, face = "bold", size = 12), fig.lab = sample_ids, fig.lab.pos = "top.left")
   }
-
-  p <- ggarrange(SSM_timing, CN_timing, CN_total, ncol=1) %>%
-    annotate_figure(., top = text_grob(title, face = "bold", size = 12), fig.lab = sample_ids, fig.lab.pos = "top.left")
 
   return(p)
 }
@@ -281,13 +281,13 @@ plot_all = function(timed_ssm,
 # -----------------------------------------------------
 cat("Making full plot...\n")
 plot_full <- plot_all(timed_ssm, timed_cna, all_ssm = TRUE, all_chrom = TRUE, genome_build = projection,
-    title = "All SSM and CN timing", sample_ids = paste0(tumour_id, "--", normal_id))
+  title = "All SSM and Copy Number States", sample_ids = paste0(tumour_id, "--", normal_id))
 
 ggsave(filename = output_full, plot = plot_full, device = cairo_pdf, width = 12, height = 12)
 
 cat("Making minimum plot...\n")
 plot_min <- plot_all(timed_ssm, timed_cna, all_ssm = FALSE, all_chrom = FALSE, genome_build = projection,
-    title ="SSM and CN timing in CNA regions only", sample_ids = paste0(tumour_id, "--", normal_id))
+  title ="SSM and Copy Number in Timed CNA Regions", sample_ids = paste0(tumour_id, "--", normal_id))
 
 ggsave(filename = output_min, plot = plot_min, device = cairo_pdf, width = 12, height = 12)
 

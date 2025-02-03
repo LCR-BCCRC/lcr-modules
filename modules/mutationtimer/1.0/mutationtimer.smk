@@ -246,8 +246,8 @@ rule  _mutationtimer_plot:
         timed_ssm = str(rules._mutationtimer_run.output.timed_ssm),
         timed_cna = str(rules._mutationtimer_run.output.timed_cna),
     output:
-        full_plot = CFG["dirs"]["plot"] + "{projection}/{tumour_id}--{normal_id}/{tumour_id}--{normal_id}.{projection}.full.png",
-        min_plot = CFG["dirs"]["plot"] + "{projection}/{tumour_id}--{normal_id}/{tumour_id}--{normal_id}.{projection}.min.png"
+        full_plot = CFG["dirs"]["plot"] + "{projection}/{tumour_id}--{normal_id}/{tumour_id}--{normal_id}.{projection}.full.pdf",
+        min_plot = CFG["dirs"]["plot"] + "{projection}/{tumour_id}--{normal_id}/{tumour_id}--{normal_id}.{projection}.min.pdf"
     log:
         log = CFG["logs"]["plot"] + "{projection}/{tumour_id}--{normal_id}/plot_mutationtimer.stderr.log"
     params:
