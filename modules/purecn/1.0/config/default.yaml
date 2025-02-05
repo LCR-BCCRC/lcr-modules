@@ -39,8 +39,11 @@ lcr-modules:
 
 
             # Normal panel settings: ----------------------------------------------------------------------- #
-            mutect_normal: ""
-
+            mutect2_norm: 
+                mutect2_opts: ""
+                mutect2_filter: ""
+                mutect2_filter_for: "-f '.,PASS,germline' "
+                mutect2_filter_out: "FILTER~'weak_evidence' | FILTER~'contamination'"
             normals:
                 omit_list: "" # path to list (.txt) of normal vcfs (paths) to omit from the panel of normals
             
@@ -48,7 +51,12 @@ lcr-modules:
                 omit_list: "" # path to list (.loess.txt) of normal coverage (paths) to omit from the panel of normals
 
             # Tumour settings: ----------------------------------------------------------------------- #
-            mutect: ""
+            mutect2: 
+                mutect2_opts: ""
+                mutect2_filter: ""
+                mutect2_filter_for: "-f '.,PASS,germline' "
+                mutect2_filter_out: "FILTER~'weak_evidence' | FILTER~'contamination'"
+                depth_coverage: ""
 
             coverage:
                 force: "--force"
@@ -129,6 +137,7 @@ lcr-modules:
             setinterval: 3
             coverage: 3
             pureCN: 4
+            mutect2: 4
 
         resources:
             gem:

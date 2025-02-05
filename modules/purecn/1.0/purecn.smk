@@ -317,16 +317,18 @@ rule _purecn_mutect2_germline:
         gnomad = ancient(reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"))
     output:
         vcf = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.{chrom}.vcf.gz"),
-        tbi = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.{chrom}.vcf.gz.tbi")
+        tbi = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.{chrom}.vcf.gz.tbi"),
+        stats = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.{chrom}.vcf.gz.stats"),
+        f1r2 = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.{chrom}.f1r2.tar.gz"),
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
-        opts = CFG["options"]["mutect_normal"]
+        opts = CFG["options"]["mutect2_norm"]["mutect2_opts"]
     log: CFG["logs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{chrom}.log"
     conda: CFG["conda_envs"]["mutect"]
     resources: **CFG["resources"]["mutect"]
     shell:
         """
-            gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" {params.opts} --genotype-germline-sites true --genotype-pon-sites true --interval-padding 50 --max-mnp-distance 0 --germline-resource {input.gnomad} -R {input.fasta} -L {wildcards.chrom} -I {input.bam} -O {output.vcf} > {log} 2>&1
+            gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" {params.opts} --genotype-germline-sites true --genotype-pon-sites true --interval-padding 50 --max-mnp-distance 0 --germline-resource {input.gnomad} -R {input.fasta} -L {wildcards.chrom} -I {input.bam} -O {output.vcf} --f1r2-tar-gz {output.f1r2} > {log} 2>&1
         """
 
 #### set-up mpileups for BAF calling ####
@@ -359,8 +361,8 @@ rule _purecn_mutect2_concatenate_vcf:
         vcf = _mutect2_normal_get_chr_vcf,
         tbi = _mutect2_normal_get_chr_vcf_tbi,
     output: 
-        vcf = CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.vcf.gz",
-        tbi = CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.vcf.gz.tbi"
+        vcf = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.vcf.gz"),
+        tbi = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.vcf.gz.tbi")
     resources: 
         **CFG["resources"]["concatenate_vcf"]
     conda:
@@ -370,6 +372,175 @@ rule _purecn_mutect2_concatenate_vcf:
             bcftools concat {input.vcf} -Oz -o {output.vcf} && 
             tabix -p vcf {output.vcf}
         """
+
+def _purecn_mutect2_normal_get_chr_stats(wildcards):
+    CFG = config["lcr-modules"]["purecn"]
+    chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
+    with open(chrs) as file:
+        chrs = file.read().rstrip("\n").split("\n")
+    stats = expand(
+        CFG["dirs"]["normals"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{normal_id}}/{{normal_id}}.{chrom}.vcf.gz.stats", 
+        chrom = chrs
+    )
+    return(stats)
+
+
+# Merge chromosome mutect2 stats for FilterMutectCalls rule
+rule _purecn_mutect2_normal_merge_stats:
+    input:
+        stats = _purecn_mutect2_normal_get_chr_stats
+    output:
+        stats = CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.stats"
+    log:
+        CFG["logs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/stats.log"
+    conda: CFG["conda_envs"]["mutect"]
+    resources: **CFG["resources"]["mutect"]
+    shell:
+        op.as_one_line("""
+        gatk MergeMutectStats $(for i in {input.stats}; do echo -n "-stats $i "; done)
+        -O {output.stats} > {log} 2>&1
+        """)
+
+# Get pileup summaries
+rule _purecn_mutect2_normal_pileup_summaries: 
+    input: 
+        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam", 
+        snps = reference_files("genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz"), 
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+    output: 
+        pileup = CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/pileupSummary.table"
+    log: 
+        CFG["logs"]["normals"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{normal_id}/pileupSummary.log"
+    params: 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    conda: CFG["conda_envs"]["mutect"]
+    resources: **CFG["resources"]["mutect"]
+    threads: CFG["threads"]["mutect2"]
+    shell: 
+        op.as_one_line("""
+        gatk GetPileupSummaries 
+            --java-options "-Xmx{params.mem_mb}m"
+            -I {input.normal_bam}
+            -R {input.fasta} 
+            -V {input.snps}
+            -L {input.snps}
+            -O {output.pileup}
+            > {log} 2>&1
+        """)
+
+# Calculate contamination  
+rule _purecn_mutect2_normal_calc_contamination: 
+    input: 
+        pileup = str(rules._purecn_mutect2_normal_pileup_summaries.output.pileup)
+    output: 
+        segments =  CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/segments.table", 
+        contamination =  CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/contamination.table"
+    log: 
+        CFG["logs"]["normals"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{normal_id}/contam.log"
+    params: 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    conda: CFG["conda_envs"]["mutect"]
+    resources: **CFG["resources"]["mutect"]
+    threads: CFG["threads"]["mutect2"]
+    shell: 
+        op.as_one_line("""
+        gatk CalculateContamination 
+            --java-options "-Xmx{params.mem_mb}m"
+            -I {input.pileup}
+            -tumor-segmentation {output.segments}
+            -O {output.contamination}
+            > {log} 2>&1
+        """)
+    
+# Learn read orientation model
+def _purecn_mutect2_normal_get_chr_f1r2(wildcards):
+    CFG = config["lcr-modules"]["purecn"]
+    chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
+    with open(chrs) as file:
+        chrs = file.read().rstrip("\n").split("\n")
+    f1r2 = expand(
+        CFG["dirs"]["normals"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{normal_id}}/{{normal_id}}.{chrom}.f1r2.tar.gz", 
+        chrom = chrs
+    )
+    return(f1r2)
+
+rule _purecn_mutect2_normal_learn_orient_model: 
+    input: 
+        f1r2 = _purecn_mutect2_normal_get_chr_f1r2
+    output:
+        model =  CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/read-orientation-model.tar.gz"
+    log: 
+        stdout = CFG["logs"]["normals"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{normal_id}/read-orientation-model.stdout.log",
+        stderr = CFG["logs"]["normals"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{normal_id}/read-orientation-model.stderr.log"
+    params: 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    conda: CFG["conda_envs"]["mutect"]
+    resources: **CFG["resources"]["mutect"]
+    threads: CFG["threads"]["mutect2"]
+    shell: 
+        op.as_one_line("""
+        inputs=$(for input in {input.f1r2}; do printf -- "-I $input "; done);
+        gatk LearnReadOrientationModel 
+        --java-options "-Xmx{params.mem_mb}m" 
+        $inputs -O {output.model}
+        > {log.stdout} 2> {log.stderr}
+        """)
+    
+
+# Marks variants filtered or PASS annotations
+rule _purecn_mutect2_normal_filter:
+    input:
+        vcf = str(rules._purecn_mutect2_concatenate_vcf.output.vcf),
+        tbi = str(rules._purecn_mutect2_concatenate_vcf.output.tbi),
+        stat = str(rules._purecn_mutect2_normal_merge_stats.output.stats),
+        segments = str(rules._purecn_mutect2_normal_calc_contamination.output.segments), 
+        contamination = str(rules._purecn_mutect2_normal_calc_contamination.output.contamination), 
+        model = str(rules._purecn_mutect2_normal_learn_orient_model.output.model),
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+    output:
+        vcf = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/output.unfilt.vcf.gz")
+    log:
+        CFG["logs"]["normals"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{normal_id}/mutect2_filter.log",
+    params: 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        opts = CFG["options"]["mutect2_norm"]["mutect2_filter"]
+    conda: CFG["conda_envs"]["mutect"]
+    resources: **CFG["resources"]["mutect"]
+    shell:
+        op.as_one_line("""
+        gatk FilterMutectCalls --java-options "-Xmx{params.mem_mb}m" 
+            {params.opts} 
+            -V {input.vcf} 
+            -R {input.fasta}
+            --tumor-segmentation {input.segments}
+            --contamination-table {input.contamination}
+            --ob-priors {input.model}
+            -O {output.vcf} 
+            > {log} 2>&1
+        """)
+
+
+# Filters for PASS and germline variants
+# This will only take somatic ones if filtering just for PASSED (need to still maintain germline ones)
+rule _purecn_mutect2_normal_filter_passed:
+    input:
+        vcf = str(rules._purecn_mutect2_normal_filter.output.vcf)
+    output:
+        vcf = CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}_passed.vcf.gz",
+        tbi = CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}_passed.vcf.gz.tbi"
+    params:
+        filter_for_opts = CFG["options"]["mutect2_norm"]["mutect2_filter_for"],
+        filter_out_opts = CFG["options"]["mutect2_norm"]["mutect2_filter_out"],
+    log:
+        stderr = CFG["logs"]["normals"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{normal_id}/mutect2_passed.log"
+    conda: CFG["conda_envs"]["mutect"]
+    resources: **CFG["resources"]["mutect"]
+    shell:
+        op.as_one_line(""" 
+        bcftools view "{params.filter_for_opts}" -e "{params.filter_out_opts}" -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
+            &&
+        tabix -p vcf {output.vcf} 2>> {log.stderr}
+        """)
 
 
 # Creating a panel of normals vcf
@@ -383,7 +554,7 @@ def _get_normals_vcfs(wildcards):
     capture_space = capture_space[capture_space["normal_genome_build"].isin([wildcards.genome_build])]
     capture_space = capture_space[capture_space["normal_seq_type"].isin([wildcards.seq_type])]
     normals = expand(
-        CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.vcf.gz", 
+        CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}_passed.vcf.gz", 
         zip,
         seq_type = capture_space["normal_seq_type"],
         genome_build = capture_space["normal_genome_build"],
@@ -403,7 +574,7 @@ def _get_normals_tbi(wildcards):
     capture_space = capture_space[capture_space["normal_genome_build"].isin([wildcards.genome_build])]
     capture_space = capture_space[capture_space["normal_seq_type"].isin([wildcards.seq_type])]
     normals = expand(
-        CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.vcf.gz.tbi", zip,
+        CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}_passed.vcf.gz.tbi", zip,
         seq_type = capture_space["normal_seq_type"],
         genome_build = capture_space["normal_genome_build"],
         normal_id = capture_space["normal_sample_id"], 
@@ -533,7 +704,7 @@ rule _purecn_gatk_depthOfCoverage:
         statistics = temp(CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.sample_interval_statistics")
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
-        opts = CFG["options"]["mutect"],
+        opts = CFG["options"]["mutect2"]["depth_coverage"],
         genome_fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         base_name = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}"
     log: 
@@ -664,15 +835,16 @@ rule _purecn_mutect2_tumour_germline:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.vcf.gz.tbi"),
         stats = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.vcf.gz.stats"),
+        f1r2 = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.f1r2.tar.gz"),
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
-        opts = CFG["options"]["mutect"]
+        opts = CFG["options"]["mutect2"]["mutect2_opts"]
     log: CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2_germline/{capture_space}/{tumour_id}/{chrom}.log"
     conda: CFG["conda_envs"]["mutect"]
     resources: **CFG["resources"]["mutect"]
     shell:
         """
-            gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" {params.opts} --genotype-germline-sites true --genotype-pon-sites true --interval-padding 50 --germline-resource {input.gnomad} -R {input.fasta} -L {wildcards.chrom} -pon {input.pon} -I {input.bam} -O {output.vcf} > {log} 2>&1
+            gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" {params.opts} --genotype-germline-sites true --genotype-pon-sites true --interval-padding 50 --germline-resource {input.gnomad} -R {input.fasta} -L {wildcards.chrom} -pon {input.pon} -I {input.bam} -O {output.vcf} --f1r2-tar-gz {output.f1r2} > {log} 2>&1
         """
         
         
@@ -706,8 +878,8 @@ rule _purecn_mutect2_tumour_concatenate_vcf:
         vcf = _mutect2_tumour_get_chr_vcf,
         tbi = _mutect2_tumour_get_chr_vcf_tbi,
     output: 
-        vcf = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.vcf.gz",
-        tbi = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.vcf.gz.tbi",
+        vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.vcf.gz"),
+        tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.vcf.gz.tbi"),
     resources: 
         **CFG["resources"]["concatenate_vcf"]
     conda:
@@ -719,7 +891,7 @@ rule _purecn_mutect2_tumour_concatenate_vcf:
         """
 
 
-def _mutect2_get_chr_stats(wildcards):
+def _purecn_mutect2_get_chr_stats(wildcards):
     CFG = config["lcr-modules"]["purecn"]
     chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
     with open(chrs) as file:
@@ -734,7 +906,7 @@ def _mutect2_get_chr_stats(wildcards):
 # Merge chromosome mutect2 stats for FilterMutectCalls rule
 rule _purecn_mutect2_merge_stats:
     input:
-        stats = _mutect2_get_chr_stats
+        stats = _purecn_mutect2_get_chr_stats
     output:
         stats = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.stats"
     log:
@@ -747,6 +919,146 @@ rule _purecn_mutect2_merge_stats:
         -O {output.stats} > {log} 2>&1
         """)
 
+# Get pileup summaries
+rule _purecn_mutect2_pileup_summaries: 
+    input: 
+        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam", 
+        snps = reference_files("genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz"), 
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+    output: 
+        pileup = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/pileupSummary.table"
+    log: 
+        CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{tumour_id}/pileupSummary.log"
+    params: 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    conda: CFG["conda_envs"]["mutect"]
+    resources: **CFG["resources"]["mutect"]
+    threads: CFG["threads"]["mutect2"]
+    shell: 
+        op.as_one_line("""
+        gatk GetPileupSummaries 
+            --java-options "-Xmx{params.mem_mb}m"
+            -I {input.tumour_bam}
+            -R {input.fasta} 
+            -V {input.snps}
+            -L {input.snps}
+            -O {output.pileup}
+            > {log} 2>&1
+        """)
+
+# Calculate contamination  
+rule _purecn_mutect2_calc_contamination: 
+    input: 
+        pileup = str(rules._purecn_mutect2_pileup_summaries.output.pileup)
+    output: 
+        segments =  CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/segments.table", 
+        contamination =  CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/contamination.table"
+    log: 
+        CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{tumour_id}/contam.log"
+    params: 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    conda: CFG["conda_envs"]["mutect"]
+    resources: **CFG["resources"]["mutect"]
+    threads: CFG["threads"]["mutect2"]
+    shell: 
+        op.as_one_line("""
+        gatk CalculateContamination 
+            --java-options "-Xmx{params.mem_mb}m"
+            -I {input.pileup}
+            -tumor-segmentation {output.segments}
+            -O {output.contamination}
+            > {log} 2>&1
+        """)
+    
+# Learn read orientation model
+def _purecn_mutect2_get_chr_f1r2(wildcards):
+    CFG = config["lcr-modules"]["purecn"]
+    chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
+    with open(chrs) as file:
+        chrs = file.read().rstrip("\n").split("\n")
+    f1r2 = expand(
+        CFG["dirs"]["mutect2"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{tumour_id}}/{{tumour_id}}.{chrom}.f1r2.tar.gz", 
+        chrom = chrs
+    )
+    return(f1r2)
+
+rule _purecn_mutect2_learn_orient_model: 
+    input: 
+        f1r2 = _purecn_mutect2_get_chr_f1r2
+    output:
+        model =  CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/read-orientation-model.tar.gz"
+    log: 
+        stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{tumour_id}/read-orientation-model.stdout.log",
+        stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{tumour_id}/read-orientation-model.stderr.log"
+    params: 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    conda: CFG["conda_envs"]["mutect"]
+    resources: **CFG["resources"]["mutect"]
+    threads: CFG["threads"]["mutect2"]
+    shell: 
+        op.as_one_line("""
+        inputs=$(for input in {input.f1r2}; do printf -- "-I $input "; done);
+        gatk LearnReadOrientationModel 
+        --java-options "-Xmx{params.mem_mb}m" 
+        $inputs -O {output.model}
+        > {log.stdout} 2> {log.stderr}
+        """)
+    
+
+# Marks variants filtered or PASS annotations
+rule _purecn_mutect2_filter:
+    input:
+        vcf = str(rules._purecn_mutect2_tumour_concatenate_vcf.output.vcf),
+        tbi = str(rules._purecn_mutect2_tumour_concatenate_vcf.output.tbi),
+        stat = str(rules._purecn_mutect2_merge_stats.output.stats),
+        segments = str(rules._purecn_mutect2_calc_contamination.output.segments), 
+        contamination = str(rules._purecn_mutect2_calc_contamination.output.contamination), 
+        model = str(rules._purecn_mutect2_learn_orient_model.output.model),
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+    output:
+        vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/output.unfilt.vcf.gz")
+    log:
+        CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{tumour_id}/mutect2_filter.log",
+    params: 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        opts = CFG["options"]["mutect2"]["mutect2_filter"]
+    conda: CFG["conda_envs"]["mutect"]
+    resources: **CFG["resources"]["mutect"]
+    shell:
+        op.as_one_line("""
+        gatk FilterMutectCalls --java-options "-Xmx{params.mem_mb}m" 
+            {params.opts} 
+            -V {input.vcf} 
+            -R {input.fasta}
+            --tumor-segmentation {input.segments}
+            --contamination-table {input.contamination}
+            --ob-priors {input.model}
+            -O {output.vcf} 
+            > {log} 2>&1
+        """)
+
+
+# Filters for PASS variants
+# This will only take somatic ones if filtering for PASSED (need to still maintain germline ones)
+rule _purecn_mutect2_filter_passed:
+    input:
+        vcf = str(rules._purecn_mutect2_filter.output.vcf)
+    output:
+        vcf = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_passed.vcf.gz",
+        tbi = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_passed.vcf.gz.tbi"
+    params:
+        filter_for_opts = CFG["options"]["mutect2"]["mutect2_filter_for"],
+        filter_out_opts = CFG["options"]["mutect2"]["mutect2_filter_out"],
+    log:
+        stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{tumour_id}/mutect2_passed.log"
+    conda: CFG["conda_envs"]["mutect"]
+    resources: **CFG["resources"]["mutect"]
+    shell:
+        op.as_one_line(""" 
+        bcftools view "{params.filter_for_opts}" -e "{params.filter_out_opts}" -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
+            &&
+        tabix -p vcf {output.vcf} 2>> {log.stderr}
+        """)
 
 # -------------------------------------------------------------------------------------------------- #
 # Part IV  - run pureCN
@@ -805,7 +1117,7 @@ if CFG["cnvkit_seg"] == True:
         input:
             cnr = str(rules._purecn_symlink_cnvkit_cnr.output.cnr),
             seg = str(rules._purecn_symlink_cnvkit_seg.output.seg),
-            vcf = str(rules._purecn_mutect2_tumour_concatenate_vcf.output.vcf),
+            vcf = str(rules._purecn_mutect2_filter_passed.output.vcf),
             normal_db = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/purecn_cnvkit_normal/mapping_bias_{capture_space}_{genome_build}.rds",
             stats = str(rules._purecn_mutect2_merge_stats.output.stats),
             blacklist = str(rules._purecn_setup_blacklist_bed.output.blacklist)
@@ -929,7 +1241,7 @@ def _adjust_segMethod_denovo(wildcards):
 rule _purecn_denovo_run:
     input:
         cnr = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_coverage_loess.txt.gz",
-        vcf = str(rules._purecn_mutect2_tumour_concatenate_vcf.output.vcf),
+        vcf = str(rules._purecn_mutect2_filter_passed.output.vcf),
         normal_db = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/purecn_denovo_normal/mapping_bias_{capture_space}_{genome_build}.rds",
         normals = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/purecn_denovo_normal/normalDB_{capture_space}_{genome_build}.rds",
         stats = str(rules._purecn_mutect2_merge_stats.output.stats),
@@ -1314,20 +1626,21 @@ rule _purecn_denovo_normalize_projection:
             seg_open.to_csv(output.projection, sep="\t", index=False)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _purecn_cnvkit_output_projection:
-    input:
-        projection = str(rules._purecn_normalize_projection.output.projection)
-    output:
-        projection = CFG["output"]["cnvkit_seg"]["projection"]
-    threads: 1
-    group: "cnvkit_post_process"
-    wildcard_constraints: 
-        projection = "|".join(CFG["output"]["requested_projections"]), 
-        pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
-        purecn_version = "|".join(CFG["output"]["purecn_versions"]),
-        tool = "purecn"
-    run:
-        op.relative_symlink(input.projection, output.projection, in_module = True)
+if CFG["cnvkit_seg"] == True:
+    rule _purecn_cnvkit_output_projection:
+        input:
+            projection = str(rules._purecn_normalize_projection.output.projection)
+        output:
+            projection = CFG["output"]["cnvkit_seg"]["projection"]
+        threads: 1
+        group: "cnvkit_post_process"
+        wildcard_constraints: 
+            projection = "|".join(CFG["output"]["requested_projections"]), 
+            pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
+            purecn_version = "|".join(CFG["output"]["purecn_versions"]),
+            tool = "purecn"
+        run:
+            op.relative_symlink(input.projection, output.projection, in_module = True)
 
 rule _purecn_denovo_output_projection:
     input:
@@ -1373,22 +1686,23 @@ def _purecn_denovo_drop_capture_space_wc(wildcards):
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _purecn_cnvkit_output_files:
-    input:
-        unpack(_purecn_cnvkit_drop_capture_space_wc)
-    output:
-        cnvkit_ploidy = CFG["output"]["cnvkit_ploidy"]["info"],
-        cnvkit_gene_cn = CFG["output"]["cnvkit_gene_cn"]["cnvkit_gene_cn"],
-        cnvkit_loh = CFG["output"]["cnvkit_loh"]["cnvkit_loh"]
-    group: "cnvkit_post_process"
-    wildcard_constraints: 
-        projection = "|".join(CFG["output"]["requested_projections"]), 
-        pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
-        purecn_version = "|".join(CFG["output"]["purecn_versions"])
-    run:
-        op.relative_symlink(input.cnvkit_ploidy, output.cnvkit_ploidy, in_module = True)
-        op.relative_symlink(input.cnvkit_gene_cn, output.cnvkit_gene_cn, in_module = True)
-        op.relative_symlink(input.cnvkit_loh, output.cnvkit_loh, in_module = True)
+if CFG["cnvkit_seg"] == True:
+    rule _purecn_cnvkit_output_files:
+        input:
+            unpack(_purecn_cnvkit_drop_capture_space_wc)
+        output:
+            cnvkit_ploidy = CFG["output"]["cnvkit_ploidy"]["info"],
+            cnvkit_gene_cn = CFG["output"]["cnvkit_gene_cn"]["cnvkit_gene_cn"],
+            cnvkit_loh = CFG["output"]["cnvkit_loh"]["cnvkit_loh"]
+        group: "cnvkit_post_process"
+        wildcard_constraints: 
+            projection = "|".join(CFG["output"]["requested_projections"]), 
+            pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
+            purecn_version = "|".join(CFG["output"]["purecn_versions"])
+        run:
+            op.relative_symlink(input.cnvkit_ploidy, output.cnvkit_ploidy, in_module = True)
+            op.relative_symlink(input.cnvkit_gene_cn, output.cnvkit_gene_cn, in_module = True)
+            op.relative_symlink(input.cnvkit_loh, output.cnvkit_loh, in_module = True)
         
 rule _purecn_denovo_output_files:
     input:
@@ -1427,19 +1741,20 @@ def _purecn_denovo_drop_capture_space_wc_seg(wildcards):
     return{
         "denovo_seg": denovo_seg
     }
-
-rule _purecn_cnvkit_output_seg:
-    input:
-        unpack(_purecn_cnvkit_drop_capture_space_wc_seg)
-    output:
-        cnvkit_seg = CFG["output"]["cnvkit_seg"]["original"]
-    group: "cnvkit_post_process"
-    wildcard_constraints: 
-        projection = "|".join(CFG["output"]["requested_projections"]), 
-        pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
-        purecn_version = "|".join(CFG["output"]["purecn_versions"])
-    run:
-        op.relative_symlink(input.cnvkit_seg, output.cnvkit_seg, in_module = True)
+    
+if CFG["cnvkit_seg"] == True:
+    rule _purecn_cnvkit_output_seg:
+        input:
+            unpack(_purecn_cnvkit_drop_capture_space_wc_seg)
+        output:
+            cnvkit_seg = CFG["output"]["cnvkit_seg"]["original"]
+        group: "cnvkit_post_process"
+        wildcard_constraints: 
+            projection = "|".join(CFG["output"]["requested_projections"]), 
+            pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
+            purecn_version = "|".join(CFG["output"]["purecn_versions"])
+        run:
+            op.relative_symlink(input.cnvkit_seg, output.cnvkit_seg, in_module = True)
 
 rule _purecn_denovo_output_seg:
     input:
@@ -1553,54 +1868,100 @@ rule _purecn_best_seg:
         op.relative_symlink(input.best_seg, output.best_seg, in_module = True)
 
 # Generates the target sentinels for each run, which generate the symlinks
-rule _purecn_all:
-    input:
-        expand(
-            [
-                str(rules._purecn_cnvkit_output_seg.output.cnvkit_seg),
-                str(rules._purecn_cnvkit_output_files.output.cnvkit_ploidy),
-                str(rules._purecn_cnvkit_output_files.output.cnvkit_gene_cn),
-                str(rules._purecn_cnvkit_output_files.output.cnvkit_loh),
-                str(rules._purecn_denovo_output_seg.output.denovo_seg),
-                str(rules._purecn_denovo_output_files.output.denovo_ploidy),
-                str(rules._purecn_denovo_output_files.output.denovo_loh)
-            ],
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            genome_build=CFG["runs"]["tumour_genome_build"],
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"]
-        ),
-        expand(
+if CFG["cnvkit_seg"] == True:
+    rule _purecn_all:
+        input:
             expand(
-            [
-                str(rules._purecn_cnvkit_output_projection.output.projection),
-                str(rules._purecn_denovo_output_projection.output.projection_denovo)
-            ],
-            zip,  # Run expand() with zip(), not product()
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            pair_status=CFG["runs"]["pair_status"],
-            allow_missing=True),
-            tool = "purecn",
-            projection=CFG["output"]["requested_projections"],
-            purecn_version=CFG["output"]["purecn_versions"]
-        ),
-        expand(
+                [
+                    str(rules._purecn_cnvkit_output_seg.output.cnvkit_seg),
+                    str(rules._purecn_cnvkit_output_files.output.cnvkit_ploidy),
+                    str(rules._purecn_cnvkit_output_files.output.cnvkit_gene_cn),
+                    str(rules._purecn_cnvkit_output_files.output.cnvkit_loh),
+                    str(rules._purecn_denovo_output_seg.output.denovo_seg),
+                    str(rules._purecn_denovo_output_files.output.denovo_ploidy),
+                    str(rules._purecn_denovo_output_files.output.denovo_loh)
+                ],
+                zip,  # Run expand() with zip(), not product()
+                seq_type=CFG["runs"]["tumour_seq_type"],
+                genome_build=CFG["runs"]["tumour_genome_build"],
+                tumour_id=CFG["runs"]["tumour_sample_id"],
+                normal_id=CFG["runs"]["normal_sample_id"],
+                pair_status=CFG["runs"]["pair_status"]
+            ),
             expand(
-            [
-                str(rules._purecn_best_seg.output.best_seg)
-            ],
-            zip,  # Run expand() with zip(), not product()
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            pair_status=CFG["runs"]["pair_status"],
-            allow_missing=True),
-            tool = "purecn",
-            projection=CFG["output"]["requested_projections"])
+                expand(
+                [
+                    str(rules._purecn_cnvkit_output_projection.output.projection),
+                    str(rules._purecn_denovo_output_projection.output.projection_denovo)
+                ],
+                zip,  # Run expand() with zip(), not product()
+                tumour_id=CFG["runs"]["tumour_sample_id"],
+                normal_id=CFG["runs"]["normal_sample_id"],
+                seq_type=CFG["runs"]["tumour_seq_type"],
+                pair_status=CFG["runs"]["pair_status"],
+                allow_missing=True),
+                tool = "purecn",
+                projection=CFG["output"]["requested_projections"],
+                purecn_version=CFG["output"]["purecn_versions"]
+            ),
+            expand(
+                expand(
+                [
+                    str(rules._purecn_best_seg.output.best_seg)
+                ],
+                zip,  # Run expand() with zip(), not product()
+                tumour_id=CFG["runs"]["tumour_sample_id"],
+                normal_id=CFG["runs"]["normal_sample_id"],
+                seq_type=CFG["runs"]["tumour_seq_type"],
+                pair_status=CFG["runs"]["pair_status"],
+                allow_missing=True),
+                tool = "purecn",
+                projection=CFG["output"]["requested_projections"])
+
+if CFG["cnvkit_seg"] == False:
+    rule _purecn_denovo_all:
+        input:
+            expand(
+                [
+                    str(rules._purecn_denovo_output_seg.output.denovo_seg),
+                    str(rules._purecn_denovo_output_files.output.denovo_ploidy),
+                    str(rules._purecn_denovo_output_files.output.denovo_loh)
+                ],
+                zip,  # Run expand() with zip(), not product()
+                seq_type=CFG["runs"]["tumour_seq_type"],
+                genome_build=CFG["runs"]["tumour_genome_build"],
+                tumour_id=CFG["runs"]["tumour_sample_id"],
+                normal_id=CFG["runs"]["normal_sample_id"],
+                pair_status=CFG["runs"]["pair_status"]
+            ),
+            expand(
+                expand(
+                [
+                    str(rules._purecn_denovo_output_projection.output.projection_denovo)
+                ],
+                zip,  # Run expand() with zip(), not product()
+                tumour_id=CFG["runs"]["tumour_sample_id"],
+                normal_id=CFG["runs"]["normal_sample_id"],
+                seq_type=CFG["runs"]["tumour_seq_type"],
+                pair_status=CFG["runs"]["pair_status"],
+                allow_missing=True),
+                tool = "purecn",
+                projection=CFG["output"]["requested_projections"],
+                purecn_version=CFG["output"]["purecn_versions"]
+            ),
+            expand(
+                expand(
+                [
+                    str(rules._purecn_best_seg.output.best_seg)
+                ],
+                zip,  # Run expand() with zip(), not product()
+                tumour_id=CFG["runs"]["tumour_sample_id"],
+                normal_id=CFG["runs"]["normal_sample_id"],
+                seq_type=CFG["runs"]["tumour_seq_type"],
+                pair_status=CFG["runs"]["pair_status"],
+                allow_missing=True),
+                tool = "purecn",
+                projection=CFG["output"]["requested_projections"])
 
 
 ##### CLEANUP #####
