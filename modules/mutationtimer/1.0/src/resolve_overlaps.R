@@ -80,15 +80,6 @@ bb_bed <- bb_bed %>%
 bb_bed <- bb_bed %>%
   filter(!(is.na(nMaj1_A) & is.na(nMin1_A)))
 
-# Fix the filled segments -----------------------------------------------------------
-cat("Fixing the filled segment subclonal info...\n")
-bb_bed_fixed <- bb_bed %>%
-    mutate(
-        nMaj2_A = ifelse(frac1_A == 1 & frac2_A == 1, NA, nMaj2_A),
-        nMin2_A = ifelse(frac1_A == 1 & frac2_A == 1, NA, nMin2_A),
-        frac2_A = ifelse(frac1_A == 1 & frac2_A == 1, NA, frac2_A)
-    )
-
 # Functions for resolving overlaps -----------------------------------------------------------
 check_overlap <- function(bed) {
     highest_end = 0

@@ -134,7 +134,7 @@ rule _mutationtimer_liftover:
         2> {log.stderr}
         """)
 
-# Ensures the correct subclones file, naive or lifted, is used as input
+# Ensures the correct subclones file, native or lifted, is used as input
 def _prepare_resolve_inputs(wildcards):
     if "38" in wildcards.projection:
         genome_list = ["hg38", "grch38", "hg38-nci", "hg38-panea"]
@@ -181,7 +181,7 @@ rule _mutationtimer_resolve_overlaps:
         """)
 
 
-# Ensures the correct subclones file, naive or lifted, is used as input
+# Ensures the correct subclones file, native or lifted, is used as input
 def _prepare_mt_inputs(wildcards):
     if "38" in wildcards.projection:
         genome_list = ["hg38", "grch38", "hg38-nci", "hg38-panea"]
