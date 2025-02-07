@@ -27,3 +27,5 @@ sample_id: must be unique
 patient_id: must be the same as other samples from the same patient
 tissue_status: tumor or normal
 matched_normal: the sample_id of the matched normal sample. OR a value of "unpaired" if using the unmatched sample workflow.
+genome_build
+seq_type: capture or genome (for lymphgen)
