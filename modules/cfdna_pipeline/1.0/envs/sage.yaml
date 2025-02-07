@@ -1,0 +1,7 @@
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - hmftools-sage = 3.4.4
+  - r-base > 4
