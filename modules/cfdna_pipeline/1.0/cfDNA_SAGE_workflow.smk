@@ -12,7 +12,7 @@ sys.path.append(MODULE_PATH) # add local module to path
 
 # generate paths for file locations
 BAM_OUTDIR = os.path.join(config["lcr-modules"]["__shared"]["root_output_dir"], "bam_pipeline")
-UTILSDIR = os.path.join(config["lcr-modules"]["__shared"]["lcr-modules"], "/modules/cfdna_pipeline/1.0/utils")
+UTILSDIR = os.path.join(MODULE_PATH, "/utils")
 SAGE_OUTDIR = os.path.join(config["lcr-modules"]["__shared"]["root_output_dir"], "sage_pipeline")
 
 all_samples = config["lcr-modules"]["_shared"]["samples"]
