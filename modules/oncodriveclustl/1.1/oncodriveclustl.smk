@@ -94,8 +94,6 @@ rule _oncodriveclustl_blacklist:
         deblacklist_script = CFG["scripts"]["deblacklist_script"]
     output:
         maf = CFG["dirs"]["prepare_mafs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.deblacklisted.maf"
-    params:
-        drop_threshold = CFG["maf_processing"]["blacklist_drop_threshold"]
     log:
         stdout = CFG["logs"]["prepare_mafs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stdout.log",
         stderr = CFG["logs"]["prepare_mafs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stderr.log"
@@ -104,7 +102,6 @@ rule _oncodriveclustl_blacklist:
         {input.deblacklist_script}
         --input {input.maf}
         --output {output.maf}
-        --drop-threshold {params.drop_threshold}
         --blacklists {input.blacklists}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -131,13 +128,22 @@ rule _oncodriveclustl_format_input:
 
 ONCODRIVE_BUILD_DICT = {
     'grch38': 'hg38',
-    'grch37': 'hg19'
+    'grch37': 'hg19',
+    'hg38': 'hg38',
+    'hg19': 'hg19'
+}
+
+REFERENCE_FILES_VERSION_DICT = {
+    'hg38': 'grch38',
+    'grch38': 'grch38',
+    'grch37': 'grch37',
+    'hg19': 'grch37'
 }
 
 def _get_region(wildcards):
     CFG = config["lcr-modules"]["oncodriveclustl"]
-    build_regions = CFG["regions_files"][wildcards.genome_build]
-    if wildcards.genome_build == "grch37":
+    build_regions = CFG["regions_files"][REFERENCE_FILES_VERSION_DICT[wildcards.genome_build]]
+    if wildcards.genome_build in ["grch37","hg19"]:
         regions_file = reference_files(build_regions[wildcards.region])
     else:
         # hg38 regions file for Oncodrive are not available in their bitbucket and haven't been downloaded through reference files workflow
@@ -148,7 +154,7 @@ def _get_region(wildcards):
 rule _oncodriveclustl_run:
     input:
         maf = str(rules._oncodriveclustl_format_input.output.maf),
-        reference = lambda w: reference_files("downloads/oncodrive/{genome_build}/datasets/genomereference/" + ONCODRIVE_BUILD_DICT[w.genome_build] + ".master"),
+        reference = lambda w: reference_files("downloads/oncodrive/" + REFERENCE_FILES_VERSION_DICT[w.genome_build] + "/datasets/genomereference/" + ONCODRIVE_BUILD_DICT[w.genome_build] + ".master"),
         region = _get_region
     output:
         txt = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/elements_results.txt",
@@ -158,8 +164,8 @@ rule _oncodriveclustl_run:
         stdout = CFG["logs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodriveclustl.stdout.log",
         stderr = CFG["logs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodriveclustl.stderr.log"
     params:
-        local_path = CFG["reference_files_directory"] + "{genome_build}/",
-        build = lambda w: (w.genome_build).replace("grch37","hg19").replace("grch38","hg38"),
+        local_path = lambda w: config["lcr-modules"]["oncodriveclustl"]["reference_files_directory"] + REFERENCE_FILES_VERSION_DICT[w.genome_build] + "/",
+        build = lambda w: ONCODRIVE_BUILD_DICT[w.genome_build],
         command_line_options = CFG["options"]["clustl_options"] if CFG["options"]["clustl_options"] is not None else ""
     threads:
         CFG["threads"]["clustl"]
@@ -193,6 +199,17 @@ rule _oncodriveclustl_out:
         op.relative_symlink(input.tsv, output.tsv, in_module=True)
         op.relative_symlink(input.txt, output.txt, in_module=True)
         op.relative_symlink(input.png, output.png, in_module=True)
+
+rule _oncodriveclustl_symlink_content:
+    input:
+        content = CFG["dirs"]["prepare_mafs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.maf.content",
+        txt = str(rules._oncodriveclustl_run.output.txt),
+        tsv = str(rules._oncodriveclustl_run.output.tsv),
+        png = str(rules._oncodriveclustl_run.output.png)
+    output:
+        content = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/{md5sum}.maf.content"
+    run:
+        op.relative_symlink(input.content, output.content, in_module=True)
 
 rule _oncodriveclustl_get_cluster_coordinates:
     input:
@@ -240,6 +257,7 @@ def _get_oncodriveclustl_outputs(wildcards):
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/elements_results.txt",
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/clusters_results.tsv",
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/quantile_quantile_plot.png",
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/{md5sum}.maf.content"
         ],
         md5sum = SUMS
     )
