@@ -91,8 +91,6 @@ rule _oncodrivefml_blacklist:
         deblacklist_script = CFG["scripts"]["deblacklist_script"]
     output:
         maf = CFG["dirs"]["prepare_mafs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.deblacklisted.maf"
-    params:
-        drop_threshold = CFG["maf_processing"]["blacklist_drop_threshold"]
     log:
         stdout = CFG["logs"]["prepare_mafs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stdout.log",
         stderr = CFG["logs"]["prepare_mafs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stderr.log"
@@ -101,7 +99,6 @@ rule _oncodrivefml_blacklist:
         {input.deblacklist_script}
         --input {input.maf}
         --output {output.maf}
-        --drop-threshold {params.drop_threshold}
         --blacklists {input.blacklists}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -127,8 +124,17 @@ rule _oncodrivefml_format_input:
         """)
 
 ONCODRIVE_BUILD_DICT = {
+    'grch38': 'hg38',
+    'grch37': 'hg19',
     'hg38': 'hg38',
-    'grch37': 'hg19'
+    'hg19': 'hg19'
+}
+
+REFERENCE_FILES_VERSION_DICT = {
+    'hg38': 'grch38',
+    'grch38': 'grch38',
+    'grch37': 'grch37',
+    'hg19': 'grch37'
 }
 
 rule _oncodrivefml_get_hg19_scores:
@@ -155,7 +161,7 @@ def _get_score_path(wildcards):
 
 def _get_region(wildcards):
     CFG = config["lcr-modules"]["oncodrivefml"]
-    build_regions = CFG["regions_files"][wildcards.genome_build]
+    build_regions = CFG["regions_files"][REFERENCE_FILES_VERSION_DICT[wildcards.genome_build]]
     if wildcards.genome_build == "grch37" and wildcards.region != "custom":
         regions_file = reference_files(build_regions[wildcards.region])
     else:
@@ -167,6 +173,7 @@ rule _oncodrivefml_run:
     input:
         maf = str(rules._oncodrivefml_format_input.output.maf),
         config = CFG["options"]["config_path"],
+        reference = lambda w: reference_files("downloads/oncodrive/" + REFERENCE_FILES_VERSION_DICT[w.genome_build] + "/datasets/genomereference/" + ONCODRIVE_BUILD_DICT[w.genome_build] + ".master"),
         scores = _get_score_path,
         region = _get_region
     output:
@@ -177,8 +184,7 @@ rule _oncodrivefml_run:
         stdout = CFG["logs"]["oncodrivefml"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.stdout.log",
         stderr = CFG["logs"]["oncodrivefml"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.stderr.log"
     params:
-        local_path = CFG["reference_files_directory"],
-        build = lambda w: ONCODRIVE_BUILD_DICT[w.genome_build],
+        local_path = lambda w: config["lcr-modules"]["oncodrivefml"]["reference_files_directory"] + REFERENCE_FILES_VERSION_DICT[w.genome_build] + "/",
         command_line_options = CFG["options"]["fml_options"] if CFG["options"]["fml_options"] is not None else ""
     threads:
         CFG["threads"]["fml"]
@@ -213,6 +219,14 @@ rule _oncodrivefml_out:
         op.relative_symlink(input.png, output.png, in_module=True)
         op.relative_symlink(input.html, output.html, in_module=True)
 
+rule _oncodrivefml_samples_out:
+    input:
+        content = CFG["dirs"]["prepare_mafs"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.maf.content"
+    output:
+        content = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{md5sum}.maf.content"
+    run:
+        op.relative_symlink(input.content, output.content, in_module=True)
+
 def _get_oncodrivefml_outputs(wildcards):
     CFG = config["lcr-modules"]["oncodrivefml"]
     checkpoint_output = os.path.dirname(str(checkpoints._oncodrivefml_prep_input.get(**wildcards).output[0]))
@@ -222,7 +236,8 @@ def _get_oncodrivefml_outputs(wildcards):
         [
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.tsv.gz",
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.png",
-            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.html"
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.html",
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{md5sum}.maf.content"
         ],
         md5sum = SUMS
     )
