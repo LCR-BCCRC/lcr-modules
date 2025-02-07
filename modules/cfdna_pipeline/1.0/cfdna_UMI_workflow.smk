@@ -5,12 +5,12 @@ import sys
 import glob
 import pandas as pd
 
-sys.path.append(os.path.join(config["lcr-modules"]["__shared"]["lcr-modules"], "/modules/cfdna_pipeline/1.0/")) # add local module to path
+sys.path.append(os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "/modules/cfdna_pipeline/1.0/")) # add local module to path
 import utils.fastq_utils as fu
 
 # generate paths for file locations
-BAM_OUTDIR = os.path.join(config["lcr-modules"]["__shared"]["root_output_dir"], "bam_pipeline")
-UTILSDIR = os.path.join(config["lcr-modules"]["__shared"]["lcr-modules"], "/modules/cfdna_pipeline/1.0/utils")
+BAM_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "bam_pipeline")
+UTILSDIR = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "/modules/cfdna_pipeline/1.0/utils")
 
 SAMPLESHEET = config["lcr-modules"]["_shared"]["samples"]
 
@@ -25,14 +25,14 @@ rule trim_umi:
     UMIs while fastp uses a "_" so)
     """
     input:
-        r1 = config["cappseq_umi_workflow"]["fastq_r1_path"],
-        r2 = config["cappseq_umi_workflow"]["fastq_r2_path"]
+        r1 = config["lcr-modules"]["cfDNA_umi_workflow"]["fastq_r1_path"],
+        r2 = config["lcr-modules"]["cfDNA_umi_workflow"]["fastq_r2_path"]
     output:
         r1 = temp(os.path.join(BAM_OUTDIR, "01-trimmedfastqs", "{sample}.R1.trimmed.fastq.gz")),
         r2 = temp(os.path.join(BAM_OUTDIR, "01-trimmedfastqs", "{sample}.R2.trimmed.fastq.gz")),
         fastp_report = os.path.join(BAM_OUTDIR, "01-trimmedfastqs", "{sample}.fastp.json")
     params:
-        barcodelength = config["cappseq_umi_workflow"]["barcodelength"],
+        barcodelength = config["lcr-modules"]["cfDNA_umi_workflow"]["barcodelength"],
         outdir = os.path.join(BAM_OUTDIR, "01-trimmedfastqs")
     threads: 4
     resources:
@@ -49,19 +49,18 @@ fastp --overrepresentation_analysis --detect_adapter_for_pe --trim_front1 {param
 --qualified_quality_phred 20 2> {log}
 """
 
-
 rule bwa_align_unsorted:
     input:
         r1 = rules.trim_umi.output.r1,
         r2 = rules.trim_umi.output.r2,
-        r1bam = config["cappseq_umi_workflow"]["fastq_r1_path"],
-        refgenome = config["cappseq_umi_workflow"]["refgenome"]
+        r1bam = config["lcr-modules"]["cfDNA_umi_workflow"]["fastq_r1_path"],
+        refgenome = config["lcr-modules"]["cfDNA_umi_workflow"]["refgenome"]
     output:
         bam = temp(os.path.join(BAM_OUTDIR , "02-BWA" , "{sample}.bwa.unsort.bam"))
     params:
         readgroup = lambda w, input: fu.generate_read_group(input.r1bam, w.sample, config),
     threads:
-        config["cappseq_umi_workflow"]["bwa_threads"]
+        config["lcr-modules"]["cfDNA_umi_workflow"]["bwa_threads"]
     resources:
         mem_mb = 10000
     group: "process_umis"
@@ -84,12 +83,12 @@ def ann_umi_mem(wildcards, attempt, input):
 rule fgbio_annotate_umis:
     input:
         bam = rules.bwa_align_unsorted.output.bam,
-        r1 = config["cappseq_umi_workflow"]["fastq_r1_path"],
-        r2 = config["cappseq_umi_workflow"]["fastq_r2_path"]
+        r1 = config["lcr-modules"]["cfDNA_umi_workflow"]["fastq_r1_path"],
+        r2 = config["lcr-modules"]["cfDNA_umi_workflow"]["fastq_r2_path"]
     output:
         bam = temp(os.path.join(BAM_OUTDIR , "03-withumis" , "{sample}.bwa.umi.namesort.bam"))
     params:
-        umiloc = config["cappseq_umi_workflow"]["barcodelocation"]
+        umiloc = config["lcr-modules"]["cfDNA_umi_workflow"]["barcodelocation"]
     conda:
         "envs/bwa_picard_fgbio.yaml"
     log:
@@ -104,20 +103,20 @@ rule fgbio_annotate_umis:
 rule fgbio_group_umis:
     input:
         bam = rules.fgbio_annotate_umis.output.bam,
-        refgenome = config["cappseq_umi_workflow"]["refgenome"]
+        refgenome = config["lcr-modules"]["cfDNA_umi_workflow"]["refgenome"]
     output:
         bam = os.path.join(BAM_OUTDIR, "04-umigrouped", "{sample}.umigrouped.sort.bam"),
         txt = os.path.join(BAM_OUTDIR , "04-umigrouped" , "{sample}.umigrouped.famsize.txt")
     threads:
-        config["cappseq_umi_workflow"]["samtools_sort_threads"]
+        config["lcr-modules"]["cfDNA_umi_workflow"]["samtools_sort_threads"]
     resources:
-        mem_mb = config["cappseq_umi_workflow"]["grp_umi_mem"]
+        mem_mb = config["lcr-modules"]["cfDNA_umi_workflow"]["grp_umi_mem"]
         # mem_mb = mem_mb=lambda wc, input: max(2.5 * input.size_mb, 300)
     group: "process_umis"
     params:
-        maxedits = config["cappseq_umi_workflow"]["umiedits"],
+        maxedits = config["lcr-modules"]["cfDNA_umi_workflow"]["umiedits"],
         outdir = os.path.join(BAM_OUTDIR ,"04-umigrouped"),
-        mem_per_t = int(config["cappseq_umi_workflow"]["grp_umi_mem"] / config["cappseq_umi_workflow"]["samtools_sort_threads"])
+        mem_per_t = int(config["lcr-modules"]["cfDNA_umi_workflow"]["grp_umi_mem"] / config["lcr-modules"]["cfDNA_umi_workflow"]["samtools_sort_threads"])
     conda:
         "envs/bwa_picard_fgbio.yaml"
     log:
@@ -134,10 +133,10 @@ rule fgbio_duplex_consensus:
     output:
         bam = temp(os.path.join(BAM_OUTDIR , "05-duplexconsensus" , "{sample}.consensus.unmapped.bam"))
     params:
-        minreads = config["cappseq_umi_workflow"]["minreads"],
+        minreads = config["lcr-modules"]["cfDNA_umi_workflow"]["minreads"],
         sampleid = "{sample}"
     threads:
-        config["cappseq_umi_workflow"]["duplexconsensus_threads"]
+        config["lcr-modules"]["cfDNA_umi_workflow"]["duplexconsensus_threads"]
     resources:
         mem_mb = 10000
     group: "process_umis"
@@ -158,14 +157,14 @@ rule sanitize_bam:
     output:
         bam = temp(os.path.join(BAM_OUTDIR , "06-sanitizebam" , "{sample}.consensus.unmapped.capqual.bam"))
     params:
-        max_base_qual = int(config["cappseq_umi_workflow"]["max_base_qual"]),  # Bases with quality scores above this are capped at this
-        tagstoremove = config["cappseq_umi_workflow"]["tags_to_remove"],
-        min_base_qual = int(config["cappseq_umi_workflow"]["min_base_qual"])  # Bases with quality scores below this are masked
+        max_base_qual = int(config["lcr-modules"]["cfDNA_umi_workflow"]["max_base_qual"]),  # Bases with quality scores above this are capped at this
+        tagstoremove = config["lcr-modules"]["cfDNA_umi_workflow"]["tags_to_remove"],
+        min_base_qual = int(config["lcr-modules"]["cfDNA_umi_workflow"]["min_base_qual"])  # Bases with quality scores below this are masked
     conda:
         "envs/pysam.yaml"
     group: "process_umis"
     threads:
-        config["cappseq_umi_workflow"]["basequal_threads"]
+        config["lcr-modules"]["cfDNA_umi_workflow"]["basequal_threads"]
     resources:
         mem_mb = 5000
     log:
@@ -179,12 +178,12 @@ rule sanitize_bam:
 rule bwa_realign_bam:
     input:
         bam = rules.sanitize_bam.output.bam,
-        r1bam = config["cappseq_umi_workflow"]["fastq_r1_path"],
-        refgenome = config["cappseq_umi_workflow"]["refgenome"]
+        r1bam = config["lcr-modules"]["cfDNA_umi_workflow"]["fastq_r1_path"],
+        refgenome = config["lcr-modules"]["cfDNA_umi_workflow"]["refgenome"]
     output:
         bam = temp(os.path.join(BAM_OUTDIR, "07-consensus_aligned", "{sample}.consensus.mapped.namesort.bam"))
     threads:
-        config["cappseq_umi_workflow"]["bwa_threads"]
+        config["lcr-modules"]["cfDNA_umi_workflow"]["bwa_threads"]
     resources:
         mem_mb = 15000
     group: "process_umis"
@@ -213,7 +212,7 @@ rule picard_annotate_bam:
     input:
         unaligned_bam = rules.sanitize_bam.output.bam,
         aligned_bam = rules.bwa_realign_bam.output.bam,
-        refgenome = config["cappseq_umi_workflow"]["picard_refgenome"]
+        refgenome = config["lcr-modules"]["cfDNA_umi_workflow"]["picard_refgenome"]
     output:
         bam = os.path.join(BAM_OUTDIR, "99-final", "{sample}.consensus.mapped.annot.bam")
     conda:
@@ -235,7 +234,7 @@ rule picard_annotate_bam:
 rule picard_validate_sam:
     input:
         bam = rules.picard_annotate_bam.output.bam,
-        refgenome = config["cappseq_umi_workflow"]["refgenome"]
+        refgenome = config["lcr-modules"]["cfDNA_umi_workflow"]["refgenome"]
     output:
         txt = os.path.join(BAM_OUTDIR , "09-validoutput" , "{sample}.consensus.mapped.ValidateSamFile.is_valid")
     params:
@@ -278,12 +277,12 @@ rule qc_fastqc:
 rule qc_picard_hsmetrics:
     input:
         bam = rules.picard_annotate_bam.output.bam,
-        refgenome = config["cappseq_umi_workflow"]["refgenome"]
+        refgenome = config["lcr-modules"]["cfDNA_umi_workflow"]["refgenome"]
     output:
         hsmet = os.path.join(BAM_OUTDIR , "Q2-hs_metrics" , "{sample}.hs_metrics.txt"),
         tarcov = os.path.join(BAM_OUTDIR , "Q2-hs_metrics" , "{sample}.target_coverage.txt")
     params:
-        capture_reg_il = config["captureregionsil"],
+        capture_reg_il = config["lcr-modules"]["_shared"]["captureregionsil"],
         outdir = os.path.join(BAM_OUTDIR , "Q2-hs_metrics"),
         max_ram_records = "5000000",
         cov_cap_sens = "20000"
@@ -301,7 +300,7 @@ rule qc_picard_hsmetrics:
 rule qc_picard_oxog:
     input:
         bam = rules.picard_annotate_bam.output.bam,
-        refgenome = config["cappseq_umi_workflow"]["picard_refgenome"]
+        refgenome = config["lcr-modules"]["cfDNA_umi_workflow"]["picard_refgenome"]
     output:
         txt = os.path.join(BAM_OUTDIR, "Q3-oxog_metrics", "{sample}.oxoG_metrics.txt")
     params:
@@ -339,14 +338,14 @@ rule qc_picard_insertsize:
 rule qc_fgbio_errorrate:
     input:
         bam = rules.picard_annotate_bam.output.bam,
-        refgenome = config["cappseq_umi_workflow"]["picard_refgenome"]
+        refgenome = config["lcr-modules"]["cfDNA_umi_workflow"]["picard_refgenome"]
     output:
         txt = os.path.join(BAM_OUTDIR , "Q5-error_rate" , "{sample}.error_rate_by_read_position.txt")
     params:
         outprefix = os.path.join(BAM_OUTDIR, "Q5-error_rate" , "{sample}"),
         outdir = os.path.join(BAM_OUTDIR , "Q5-error_rate"),
-        capture_reg_il = config["captureregionsil"],
-        dbsnpvcf = config["cappseq_umi_workflow"]["dbsnpvcf"]
+        capture_reg_il = config["lcr-modules"]["_shared"]["captureregionsil"],
+        dbsnpvcf = config["lcr-modules"]["cfDNA_umi_workflow"]["dbsnpvcf"]
     conda:
         "envs/bwa_picard_fgbio.yaml"
     resources:
@@ -380,7 +379,7 @@ rule qc_calc_dupl:
 rule qc_validate_sam:
     input:
         bam = rules.picard_annotate_bam.output.bam,
-        refgenome = config["cappseq_umi_workflow"]["refgenome"]
+        refgenome = config["lcr-modules"]["cfDNA_umi_workflow"]["refgenome"]
     output:
         txt = os.path.join(BAM_OUTDIR , "Q7-validatesam" , "{sample}.consensus.mapped.ValidateSamFile.is_valid")
     params:
@@ -416,7 +415,7 @@ checkpoint qc_multiqc:
         outname = lambda w: "multiqc_report." + w.runid + ".html",
         ignoresamples = lambda w: "\' --ignore-samples \'".join(x for x in SAMPLELIST if sample_to_runid[x] != w.runid),
         modules = "-m picard -m fastqc -m fgbio -m fastp",  # Should start with -m flag
-        config = os.path.join(config["repo_path"], "configs/multiqc_config.yaml"),
+        config = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "config/multiqc_config.yaml"),
         dupl_dir = rules.qc_calc_dupl.params.outdir,
         errorrate_dir = rules.qc_fgbio_errorrate.params.outdir,
         insertsize_dir = rules.qc_picard_insertsize.params.outdir,

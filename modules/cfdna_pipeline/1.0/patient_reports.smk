@@ -2,18 +2,20 @@ import pandas as pd
 import os
 import datetime
 import sys
-MODULE_PATH = os.path.join(config["lcr-modules"]["__shared"]["lcr-modules"], "/modules/cfdna_pipeline/1.0/")
+MODULE_PATH = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules/cfdna_pipeline/1.0/")
 sys.path.append(MODULE_PATH) # add local module to path
 
 
 TODAY = datetime.datetime.now().strftime("%m/%d/%Y")
-BAM_OUTDIR = os.path.join(config["lcr-modules"]["__shared"]["root_output_dir"], "bam_pipeline")
+BAM_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "bam_pipeline")
 UTILSDIR = os.path.join(MODULE_PATH, "/utils")
-SAGE_OUTDIR = os.path.join(config["lcr-modules"]["__shared"]["root_output_dir"], "sage_pipeline")
+SAGE_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "sage_pipeline")
 
 COMPILE_REPORT_SCRIPT = os.path.join(MODULE_PATH, "patient_reports/compile_report.py")
 REPORT_TEMP = os.path.join(config["lcr-modules"]["cfDNA_patient_reports"]["report_template"])
-REPORTS_DIR = os.path.join(config["lcr-modules"]["__shared"]["root_output_dir"], "reports")
+REPORTS_DIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "reports")
+SAMPLESHEET_ALL_PATIENTS = config["lcr-modules"]["_shared"]["samples"]
+
 
 localrules:
     record_sample_completion
@@ -68,7 +70,7 @@ def lymphgen_outputs(wildcards):
 # but not having an input requirment protcts it from getting re-made
 rule record_sample_completion:
     output:
-        os.path.join(config["root_output_dir"], "completion", "{sample}.completion.txt")
+        os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "completion", "{sample}.completion.txt")
     shell:
         f"""
         echo "{TODAY}" > {{output}}
@@ -95,7 +97,7 @@ rule compile_report:
         os.path.join(REPORTS_DIR, "/logs" , "cmp_rep_{patient}.log")
     shell:
         f"""python {COMPILE_REPORT_SCRIPT} --in_notebook {REPORT_TEMP} --out_notebook {{output.compiled_nb}} --completion_files {{input.sample_comp}} \
-        --maf_files {{input.sage_calls}} --samplesheet_path {{params.samplesheet_path}} --repo_path {config["repo_path"]} --lymphgen_output {{input.lg_status}} \
+        --maf_files {{input.sage_calls}} --samplesheet_path {{params.samplesheet_path}} --repo_path {config["lcr-modules"]["_shared"]["lcr-modules"]} --lymphgen_output {{input.lg_status}} \
         --patient_id {{wildcards.patient}} --hs_metrics {{input.hs_metrics}} --targ_cov {{input.targ_cov}} &> {{log}}"""
 
 rule convert_report_to_html:
@@ -111,7 +113,7 @@ rule convert_report_to_html:
     group: "compile_report"
     shell:
         f"""
-        cd {reports_dir}/{{wildcards.patient}}
+        cd {REPORTS_DIR}/{{wildcards.patient}}
         quarto render {{wildcards.patient}}_report.ipynb -o {{wildcards.patient}}_report.html --to html --quiet
         """
 
@@ -122,10 +124,10 @@ rule _vcf2maf_crossmap:
         convert_coord = config['lcr-modules']["lymphgen"]["convert_coord"],
         chains = config["lcr-modules"]["lymphgen"]["hg38_chainfile"]
     output:
-        maf = "pipeline_outputs/sage_pipeline/99-final/{tumour_id}.grch37.processed.maf",
-        bed = os.path.join(SAGE_OUTDIR, "99-final/{tumour_id}.grch37.processed.unmapped.bed")
+        maf = os.path.join(SAGE_OUTDIR, "99-final/{tumour_id}.grch37.processed.maf"),
+        bed = temp(os.path.join(SAGE_OUTDIR, "99-final/{tumour_id}.grch37.processed.unmapped.bed"))
     log:
-        os.path.join(config["lcr-modules"]["__shared"]["root_output_dir"], "crossmap/logs" , "crossmap_{tumour_id}.log")
+        os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "crossmap/logs" , "crossmap_{tumour_id}.log")
     conda:
         "envs/crossmap.yaml"
     threads:
@@ -143,3 +145,7 @@ rule _vcf2maf_crossmap:
         crossmap &> {log}
         """
 
+# add rule all to call outputs
+rule make_reports:
+    input:
+        expand(str(rules.convert_report_to_html.output.html_report), patient = SAMPLESHEET_ALL_PATIENTS["patient_id"].unique().tolist())

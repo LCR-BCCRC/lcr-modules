@@ -24,10 +24,10 @@ def generate_read_group(fastq, sample, config):
     barcode = cols[-1]
 
     # From the config (generic and should be consistent between runs)
-    description = config["cappseq_umi_workflow"]["readgroup"]["description"]
-    centre = config["cappseq_umi_workflow"]["readgroup"]["centre"]
-    platform = config["cappseq_umi_workflow"]["readgroup"]["platformunit"]
-    platformmodel = config["cappseq_umi_workflow"]["readgroup"]["platformmodel"]
+    description = config["lcr-modules"]["cfDNA_umi_workflow"]["readgroup"]["description"]
+    centre = config["lcr-modules"]["cfDNA_umi_workflow"]["readgroup"]["centre"]
+    platform = config["lcr-modules"]["cfDNA_umi_workflow"]["readgroup"]["platformunit"]
+    platformmodel = config["lcr-modules"]["cfDNA_umi_workflow"]["readgroup"]["platformmodel"]
 
     # Get the date this sample was generated.
     # This isn't perfect, but it should be relatively close to the sequencing date.

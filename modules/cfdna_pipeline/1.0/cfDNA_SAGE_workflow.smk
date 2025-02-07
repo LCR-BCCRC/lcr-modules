@@ -7,13 +7,13 @@ import glob
 snakemake.utils.min_version("7")
 
 import sys
-MODULE_PATH = os.path.join(config["lcr-modules"]["__shared"]["lcr-modules"], "/modules/cfdna_pipeline/1.0/")
+MODULE_PATH = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "/modules/cfdna_pipeline/1.0/")
 sys.path.append(MODULE_PATH) # add local module to path
 
 # generate paths for file locations
-BAM_OUTDIR = os.path.join(config["lcr-modules"]["__shared"]["root_output_dir"], "bam_pipeline")
+BAM_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "bam_pipeline")
 UTILSDIR = os.path.join(MODULE_PATH, "/utils")
-SAGE_OUTDIR = os.path.join(config["lcr-modules"]["__shared"]["root_output_dir"], "sage_pipeline")
+SAGE_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "sage_pipeline")
 
 all_samples = config["lcr-modules"]["_shared"]["samples"]
 # make sure no unmatched samples are fed into workflow
@@ -62,20 +62,20 @@ rule run_sage:
     output:
         vcf = os.path.join(SAGE_OUTDIR, "01-SAGE/{sample}/{sample}.sage.vcf")
     params:
-        ref_genome = config["ref_genome"],
-        ref_genome_version = "38" if config["ref_genome_ver"] == "GRCh38" else "37",
+        ref_genome = config["lcr-modules"]["_shared"]["ref_genome"],
+        ref_genome_version = "38" if config["lcr-modules"]["_shared"]["ref_genome_ver"] == "GRCh38" else "37",
         # Panel regions and hotspots
-        hotspots_vcf = config["cappseq_snv_pipeline"]["sage_hotspots"],
-        panel_regions = config["captureregions"],
-        ensembl = config['cappseq_snv_pipeline']['ensembl'],
+        hotspots_vcf = config["lcr-modules"]["cfDNA_SAGE_workflow"]["sage_hotspots"],
+        panel_regions = config["lcr-modules"]["_shared"]["captureregions"],
+        ensembl = config["lcr-modules"]["cfDNA_SAGE_workflow"]['ensembl'],
         # Miscellaneous
         normal_name = get_normal_name,
-        max_depth = config["cappseq_snv_pipeline"]["max_depth"],
-        min_map = config["cappseq_snv_pipeline"]["min_map_qual"],
-        hard_vaf_cutoff = config["cappseq_snv_pipeline"]["tumor_min_vaf"],
-        soft_vaf_cutoff = config["cappseq_snv_pipeline"]["tumor_soft_min_vaf"],
+        max_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_depth"],
+        min_map = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_map_qual"],
+        hard_vaf_cutoff = config["lcr-modules"]["cfDNA_SAGE_workflow"]["tumor_min_vaf"],
+        soft_vaf_cutoff = config["lcr-modules"]["cfDNA_SAGE_workflow"]["tumor_soft_min_vaf"],
         min_norm_depth = 7,
-        alt_support = config["cappseq_snv_pipeline"]["min_alt_depth"]
+        alt_support = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"]
     resources:
         mem_mb = 10000,
         runtime_min = 60
@@ -114,7 +114,7 @@ rule filter_sage:
     threads: 1
     group: "filter_sage"
     params:
-        notlist = config["cappseq_snv_pipeline"]["notlist"]
+        notlist = config["lcr-modules"]["cfDNA_SAGE_workflow"]["notlist"]
     shell:
         """
         bcftools view -T ^{params.notlist} -f PASS {input.vcf} -O vcf -o {output.vcf}
@@ -129,9 +129,9 @@ rule flag_masked_pos:
         bed = os.path.join(SAGE_OUTDIR, "03-masked_pos/{sample}.maskedpos.bed.gz")
     params:
         script = os.path.join(UTILSDIR, "mask_n_sites.py"),
-        n_threshold = config["cappseq_snv_pipeline"]["mask_threshold"],
-        min_count = config["cappseq_snv_pipeline"]["mask_count"],
-        panel_regions = config["captureregions"]
+        n_threshold = config["lcr-modules"]["cfDNA_SAGE_workflow"]["mask_threshold"],
+        min_count = config["lcr-modules"]["cfDNA_SAGE_workflow"]["mask_count"],
+        panel_regions = config["lcr-modules"]["_shared"]["captureregions"]
     conda:
         "envs/bcftools.yaml"
     resources:
@@ -154,7 +154,7 @@ rule restrict_to_capture:
     output:
         vcf = os.path.join(SAGE_OUTDIR, "04-capturespace/{sample}.capspace.vcf")
     params:
-        panel_regions = config["captureregions"]
+        panel_regions = config["lcr-modules"]["_shared"]["captureregions"]
     conda:
         "envs/bcftools.yaml"
     resources:
@@ -182,7 +182,7 @@ rule review_consensus_reads:
     threads: 2
     group: "filter_sage"
     params:
-        ref_genome = config["ref_genome"],
+        ref_genome = config["lcr-modules"]["_shared"]["ref_genome"],
         outdir = os.path.join(SAGE_OUTDIR, "06-supportingreads/{sample}/")
     conda:
         "envs/fgbio.yaml"
@@ -202,12 +202,12 @@ rule vcf2maf_annotate:
         vep_vcf = temp(os.path.join(SAGE_OUTDIR, "04-capturespace/{sample}.capspace.vep.vcf")),
         maf = os.path.join(SAGE_OUTDIR, "05-MAFs/{sample}.sage.maf")
     params:
-        custom_enst = os.path.join(config["repo_path"], "resources/custom_enst.hg38.txt"),
-        vep_data = config["cappseq_snv_pipeline"]["vep_data"],
-        centre = config["cappseq_snv_pipeline"]["centre"],
+        custom_enst = config["lcr-modules"]["cfDNA_SAGE_workflow"]["custom_enst"],
+        vep_data = config["lcr-modules"]["cfDNA_SAGE_workflow"]["vep_data"],
+        centre = config["lcr-modules"]["cfDNA_SAGE_workflow"]["centre"],
         normal_name = get_normal_name,
-        ref_fasta = config["ref_genome"],
-        ref_ver = config["ref_genome_ver"]
+        ref_fasta = config["lcr-modules"]["_shared"]["ref_genome"],
+        ref_ver = config["lcr-modules"]["_shared"]["ref_genome_ver"]
     group: "filter_sage"
     resources:
         mem_mb = 5000
@@ -243,7 +243,7 @@ rule augment_ssm_ChrisIndels:
     group: "filter_sage"
     params:
         script = os.path.join(UTILSDIR, "augment_ssm_ChrisIndels.py"),
-        ref_genome_version = config["ref_genome_ver"],
+        ref_genome_version = config["lcr-modules"]["_shared"]["ref_genome_ver"],
     shell: """
     python {params.script} \
     --bam {input.tbam} \
@@ -263,7 +263,7 @@ rule filter_repetitive_seq:
         maf = temp(os.path.join(SAGE_OUTDIR, "10-filter_repeat/{sample}.sage.repeat_filt.maf"))
     params:
         max_repeat_len = 6,
-        ref_fasta = config["ref_genome"]
+        ref_fasta = config["lcr-modules"]["_shared"]["ref_genome"]
     conda:
         "envs/fastp.yaml"
     resources:
@@ -300,12 +300,12 @@ rule custom_filters:
     output:
         maf = temp(os.path.join(SAGE_OUTDIR, "12-filtered/{sample}.sage.filtered.maf"))
     params:
-        exac_freq = float(config["cappseq_snv_pipeline"]["exac_max_freq"]),
+        exac_freq = float(config["lcr-modules"]["cfDNA_SAGE_workflow"]["exac_max_freq"]),
         script = os.path.join(UTILSDIR, "custom_filters.py"),
-        hotspot_txt = config["hotspot_manifest"],
-        blacklist_txt = config["blacklist_manifest"],
-        min_germline_depth = config["cappseq_snv_pipeline"]["min_germline_depth"],
-        min_alt_depth = config["cappseq_snv_pipeline"]["min_alt_depth"]
+        hotspot_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hotspot_manifest"],
+        blacklist_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["blacklist_manifest"],
+        min_germline_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_germline_depth"],
+        min_alt_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"]
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.custom_filters.log")
     conda:
@@ -329,8 +329,8 @@ rule augment_maf:
         maf = os.path.join(SAGE_OUTDIR, "99-final/{sample}.processed.maf")
     params:
         script = os.path.join(UTILSDIR, "augmentMAF.py"),
-        ref_genome_version = config["ref_genome_ver"],
-        alt_support = config["cappseq_snv_pipeline"]["min_alt_depth"]
+        ref_genome_version = config["lcr-modules"]["_shared"]["ref_genome_ver"],
+        alt_support = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"]
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.augment_maf.log")
     conda:
@@ -353,9 +353,9 @@ rule igv_screenshot_variants:
     output:
         html = os.path.join(SAGE_OUTDIR, "07-IGV/{sample}_report.html")
     params:
-        refgenome = config["ref_genome"],
-        cytoband = config["cappseq_snv_pipeline"]["cytoband"],
-        genes = config["cappseq_snv_pipeline"]["genetrack"],
+        refgenome = config["lcr-modules"]["_shared"]["ref_genome"],
+        cytoband = config["lcr-modules"]["cfDNA_SAGE_workflow"]["cytoband"],
+        genes = config["lcr-modules"]["cfDNA_SAGE_workflow"]["genetrack"],
         sample_name = lambda w: w.sample
     conda:
         "envs/igv.yaml"
