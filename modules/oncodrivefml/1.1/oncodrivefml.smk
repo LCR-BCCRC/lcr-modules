@@ -228,7 +228,7 @@ rule _oncodrivefml_symlink_content:
     output:
         content = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/{md5sum}.maf.content"
     run:
-        op.symlink(input.content, output.content, in_module=True)
+        op.relative_symlink(input.content, output.content, in_module=True)
 
 def _get_oncodrivefml_outputs(wildcards):
     CFG = config["lcr-modules"]["oncodrivefml"]
