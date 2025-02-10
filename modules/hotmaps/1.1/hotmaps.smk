@@ -318,7 +318,6 @@ rule _hotmaps_deblacklist:
     output:
         maf = CFG["dirs"]["prepare_maf"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.reannotated.deblacklisted.maf"
     params:
-        drop_threshold = CFG["maf_processing"]["blacklist_drop_threshold"],
         blacklists = CFG["maf_processing"]["blacklists"]
     log:
         stdout = CFG["logs"]["prepare_maf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stdout.log",
@@ -328,7 +327,6 @@ rule _hotmaps_deblacklist:
         {input.deblacklist_script}
         --input {input.maf}
         --output {output.maf}
-        --drop-threshold {params.drop_threshold}
         --blacklists {params.blacklists}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -848,6 +846,22 @@ rule _hotmaps_output:
         op.relative_symlink(input.detailed, output.detailed, in_module = True)
         op.relative_symlink(input.coordinates, output.coordinates, in_module = True)
 
+rule _hotmaps_symlink_content:
+    input:
+        content = CFG["dirs"]["prepare_maf"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.maf.content",
+        outputs = expand(
+            [
+                str(rules._hotmaps_output.output.hotspots),
+                str(rules._hotmaps_output.output.structures)
+            ],
+            q_value = CFG["options"]["hotmaps"]["q_value"],
+            allow_missing=True,
+        )
+    output:
+        content = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{md5sum}.maf.content"
+    run:
+        op.relative_symlink(input.content, output.content, in_module=True)
+
 def _for_aggregate(wildcards):
     CFG = config["lcr-modules"]["hotmaps"]
     checkpoint_output = os.path.dirname(str(checkpoints._hotmaps_prep_input.get(**wildcards).output[0]))
@@ -857,7 +871,8 @@ def _for_aggregate(wildcards):
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/hotspot_regions_gene_{{q_value}}.txt",
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/hotspot_regions_struct_{{q_value}}.txt",
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/detailed_hotspot_regions_gene_{{q_value}}.txt",
-            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/genomic_coordinates_hotspot_regions_gene_{{q_value}}.txt"
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/genomic_coordinates_hotspot_regions_gene_{{q_value}}.txt",
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{md5sum}.maf.content"
         ],
         md5sum = SUMS
     )
