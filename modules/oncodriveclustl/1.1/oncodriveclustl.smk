@@ -239,13 +239,36 @@ rule _oncodriveclustl_get_cluster_coordinates:
         > {log.stdout} 2> {log.stderr}
         """)
 
+rule _oncodriveclustl_hotspot_bed:
+    input:
+        coordinates = str(rules._oncodriveclustl_get_cluster_coordinates.output.tsv)
+    output:
+        bed = CFG["dirs"]["oncodriveclustl"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodriveclustl_hotspots_{q_value}.{genome_build}.bed"
+    run:
+        import pandas as pd
+        cluster_coordinates = pd.read_table(input.coordinates, sep="\t", comment="#")
+        cluster_coordinates["chrom"] = cluster_coordinates["Chromosome"].apply(lambda x: "chr" + str(x))
+        cluster_coordinates = cluster_coordinates[["Hotspot_ID","chrom","Start_Position"]].sort_values(by=["chrom","Start_Position","Hotspot_ID"]).drop_duplicates()
+        cluster_coordinates = cluster_coordinates.reset_index(drop=True)
+        # Identify sequential chunks based on differences between Start_Position values compared to previous row and count number of intervals via number of "True"s
+        cluster_coordinates["intervals"] = ( cluster_coordinates["Start_Position"].diff() != 1 ).cumsum()
+        cluster_coordinates = cluster_coordinates.groupby(["chrom","intervals","Hotspot_ID"]).agg(
+            start = ("Start_Position", "min"),
+            end = ("Start_Position", "max")
+        ).reset_index().drop(columns=["intervals"])
+        cluster_coordinates = cluster_coordinates[["chrom","start","end","Hotspot_ID"]]
+        cluster_coordinates.to_csv(output.bed, sep="\t", index=False)
+
 rule _oncodriveclustl_genomic_coordinates_out:
     input:
-        genomic_coordinates = str(rules._oncodriveclustl_get_cluster_coordinates.output.tsv)
+        genomic_coordinates = str(rules._oncodriveclustl_get_cluster_coordinates.output.tsv),
+        bed = str(rules._oncodriveclustl_hotspot_bed.output.bed)
     output:
-        genomic_coordinates = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/genomic_coordinates_clusters_results_{q_value}.tsv"
+        genomic_coordinates = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/genomic_coordinates_clusters_results_{q_value}.tsv",
+        bed = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodriveclustl_hotspots_{q_value}.{genome_build}.bed"
     run:
         op.relative_symlink(input.genomic_coordinates, output.genomic_coordinates)
+        op.relative_symlink(input.bed, output.bed)
 
 def _get_oncodriveclustl_outputs(wildcards):
     CFG = config["lcr-modules"]["oncodriveclustl"]
@@ -268,7 +291,10 @@ def _get_oncodriveclustl_coordinates(wildcards):
     SUMS, = glob_wildcards(checkpoint_output+"/{md5sum}.maf.content")
 
     return expand(
-        CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/genomic_coordinates_clusters_results_{q_value}.tsv",
+        [
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/genomic_coordinates_clusters_results_{q_value}.tsv",
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodriveclustl_hotspots_{q_value}.{{genome_build}}.bed"
+        ],
         md5sum = SUMS,
         q_value = CFG["q_values"]
     )
