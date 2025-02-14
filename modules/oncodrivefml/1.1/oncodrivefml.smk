@@ -205,19 +205,30 @@ rule _oncodrivefml_run:
         > {log.stdout} 2> {log.stderr}
         """)
 
+rule _oncodrivefml_unzip_output:
+    input:
+        tsv = str(rules._oncodrivefml_run.output.tsv)
+    output:
+        tsv = CFG["dirs"]["oncodrivefml"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/{md5sum}--oncodrivefml.tsv"
+    shell:
+        "zcat {input.tsv} > {output.tsv}"
+
 rule _oncodrivefml_out:
     input:
-        tsv = str(rules._oncodrivefml_run.output.tsv),
+        gz = str(rules._oncodrivefml_run.output.tsv),
         png = str(rules._oncodrivefml_run.output.png),
-        html = str(rules._oncodrivefml_run.output.html)
+        html = str(rules._oncodrivefml_run.output.html),
+        tsv = str(rules._oncodrivefml_unzip_output.output.tsv)
     output:
-        tsv = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.tsv.gz",
+        gz = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.tsv.gz",
         png = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.png",
-        html = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.html"
+        html = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.html",
+        tsv = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodrivefml.tsv"
     run:
-        op.relative_symlink(input.tsv, output.tsv, in_module=True)
+        op.relative_symlink(input.gz, output.gz, in_module=True)
         op.relative_symlink(input.png, output.png, in_module=True)
         op.relative_symlink(input.html, output.html, in_module=True)
+        op.relative_symlink(input.tsv, output.tsv, in_module=True)
 
 rule _oncodrivefml_symlink_content:
     input:
@@ -240,6 +251,7 @@ def _get_oncodrivefml_outputs(wildcards):
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.tsv.gz",
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.png",
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.html",
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/oncodrivefml.tsv",
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{{region}}/{md5sum}.maf.content"
         ],
         md5sum = SUMS
