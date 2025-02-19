@@ -315,15 +315,15 @@ solve_overlap <- function(bed, nonnormal_removed_in_ties) {
 
 # Actual resolving overlaps -----------------------------------------------------------
 cat("Checking for overlaps...\n")
-bb_bed_fixed_checked <- check_overlap(bb_bed_fixed)
+bb_bed_checked <- check_overlap(bb_bed)
 
 # df to save the removed non-normal segments that lost ties
-cols <- colnames(bb_bed_fixed_checked)
+cols <- colnames(bb_bed_checked)
 removed_in_ties <- data.frame(matrix(nrow=0, ncol=length(cols)))
 colnames(removed_in_ties) <- cols
 
 # Only send through solve function if there are overlaps
-if (sum(bb_bed_fixed_checked$overlap_status == "overlap") == 0){
+if (sum(bb_bed_checked$overlap_status == "overlap") == 0){
   cat("No overlaps detected, writing outputs...\n")
   # Check if output dir extists, create if not
   output_dir <- dirname(args$output_bed)
@@ -331,16 +331,16 @@ if (sum(bb_bed_fixed_checked$overlap_status == "overlap") == 0){
     dir.create(file.path(output_dir), recursive=TRUE)
   }
 
-  bb_bed_fixed_resolved <- bb_bed_fixed %>%
+  bb_bed_resolved <- bb_bed %>%
       dplyr::rename(chr=chrom, startpos=start, endpos=end)
 
-  write_tsv(bb_bed_fixed_resolved, file=args$output_bed)
+  write_tsv(bb_bed_resolved, file=args$output_bed)
 
   write_tsv(removed_in_ties, file=removed_bed)
 } else {
   cat("Resolving overlaps...\n")
-  solve_overlaps_list <- solve_overlap(bb_bed_fixed_checked, removed_in_ties)
-  bb_bed_fixed_resolved <- solve_overlaps_list[[1]]
+  solve_overlaps_list <- solve_overlap(bb_bed_checked, removed_in_ties)
+  bb_bed_resolved <- solve_overlaps_list[[1]]
   removed_in_ties <- solve_overlaps_list[[2]]
 
   cat("Writing outputs...\n")
@@ -350,10 +350,10 @@ if (sum(bb_bed_fixed_checked$overlap_status == "overlap") == 0){
     dir.create(file.path(output_dir), recursive=TRUE)
   }
 
-  bb_bed_fixed_resolved <- bb_bed_fixed_resolved %>%
+  bb_bed_resolved <- bb_bed_resolved %>%
       dplyr::rename(chr=chrom, startpos=start, endpos=end)
 
-  write_tsv(bb_bed_fixed_resolved, file=args$output_bed)
+  write_tsv(bb_bed_resolved, file=args$output_bed)
 
   write_tsv(removed_in_ties %>% select(-overlap_status), file=removed_bed)
 }
