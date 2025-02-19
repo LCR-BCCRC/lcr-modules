@@ -69,7 +69,7 @@ relevant_maf_columns <- c("Hugo_Symbol", "Entrez_Gene_Id", "NCBI_Build", "Chromo
 grep_cmd <- paste0('egrep "Tumor_Sample_Barcode|', tumour_id,'" ', maf_file, '| cut -f1-45')
 maf <- fread(cmd = grep_cmd, verbose = F, nThread=4) %>%
   as_tibble() %>%
-  select(relevant_maf_columns) %>%
+  select(all_of(relevant_maf_columns)) %>%
   mutate(Chromosome = as.character(Chromosome))
 
 if(dim(maf)[1] == 0) stop(paste("Tumour sample", tumour_id, "is not in the input maf\n"))
