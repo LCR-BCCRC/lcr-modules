@@ -10,7 +10,6 @@
 #   Rscript MutationTimeR.R <path/to/battenberg/subclones.txt> <path/to/battenberg/cellularity.txt> <path/to/augmented.maf> <path/to/output/SSM.tsv> <path/to/output/CNA.tsv> <tumour_sample_id> <projection> <path/for/log>
 
 # Load packages -----------------------------------------------------------
-cat("Loading packages...\n")
 suppressWarnings(
 suppressPackageStartupMessages({
     library(tidyverse)
