@@ -84,7 +84,7 @@ bb_bed <- bb_bed %>%
 # Fix the filled segments subclonal states -----------------------------------------------------------
 # This is temporary until the battenberg results are regenerated
 cat("Fixing the filled segment subclonal info...\n")
-bb_bed_fixed <- bb_bed %>%
+bb_bed <- bb_bed %>%
     mutate(
         nMaj2_A = ifelse(frac1_A == 1 & frac2_A == 1, NA, nMaj2_A),
         nMin2_A = ifelse(frac1_A == 1 & frac2_A == 1, NA, nMin2_A),
