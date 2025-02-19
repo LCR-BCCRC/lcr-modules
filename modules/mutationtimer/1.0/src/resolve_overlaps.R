@@ -77,8 +77,19 @@ bb_bed <- bb_bed %>%
 
 # Filtering regions with nMaj1_A NA and nMin1_A NA -----------------------------------------------------------
 # These are due to an oddity in the battenberg results, root cause has not been found yet
+cat("Removing regions with clonal CN states of NA...\n")
 bb_bed <- bb_bed %>%
   filter(!(is.na(nMaj1_A) & is.na(nMin1_A)))
+
+# Fix the filled segments subclonal states -----------------------------------------------------------
+# This is temporary until the battenberg results are regenerated
+cat("Fixing the filled segment subclonal info...\n")
+bb_bed_fixed <- bb_bed %>%
+    mutate(
+        nMaj2_A = ifelse(frac1_A == 1 & frac2_A == 1, NA, nMaj2_A),
+        nMin2_A = ifelse(frac1_A == 1 & frac2_A == 1, NA, nMin2_A),
+        frac2_A = ifelse(frac1_A == 1 & frac2_A == 1, NA, frac2_A)
+    )
 
 # Functions for resolving overlaps -----------------------------------------------------------
 check_overlap <- function(bed) {
