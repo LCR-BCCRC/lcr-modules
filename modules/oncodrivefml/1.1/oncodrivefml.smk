@@ -31,7 +31,9 @@ localrules:
     _oncodrivefml_blacklist,
     _oncodrivefml_format_input,
     _oncodrivefml_get_hg19_scores,
+    _oncodrivefml_unzip_output,
     _oncodrivefml_out,
+    _oncodrivefml_symlink_content,
     _oncodrivefml_aggregate,
     _oncodrivefml_all,
 
