@@ -13,6 +13,7 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+import pandas as pd
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -37,17 +38,11 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "mutationtimer",
     version = "1.0",
-    subdirectories = ["inputs", "convert2bed", "liftover", "resolve_overlaps", "mutationtimer", "plot", "outputs"],
+    subdirectories = ["inputs", "convert2bed", "liftover", "resolve_overlaps", "mutationtimer", "normalize", "plot", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _mutationtimer_input_bb,
-    _mutationtimer_input_cellularity,
-    _mutationtimer_input_augmented_maf,
-    _mutationtimer_convert2bed,
-    _mutationtimer_liftover,
-    _mutationtimer_resolve_overlaps,
     _mutationtimer_symlink_output_tsvs,
     _mutationtimer_all,
 
@@ -164,7 +159,7 @@ rule _mutationtimer_resolve_overlaps:
         bed = CFG["dirs"]["resolve_overlaps"] + "{projection}/{tumour_id}--{normal_id}_resolved.bed",
         removed_in_ties = CFG["dirs"]["resolve_overlaps"] + "{projection}/{tumour_id}--{normal_id}_resolved_removed_in_ties.bed"
     log:
-        log = CFG["logs"]["mutationtimer"] + "{projection}/{tumour_id}--{normal_id}/resolve_overlaps.stderr.log"
+        log = CFG["logs"]["mutationtimer"] + "{projection}/{tumour_id}--{normal_id}/resolve_overlaps.log"
     params:
         script = CFG["options"]["resolve_overlaps_script"]
     conda:
@@ -181,7 +176,7 @@ rule _mutationtimer_resolve_overlaps:
         """)
 
 
-# Ensures the correct subclones file, native or lifted, is used as input
+# Ensures the correct celluarlity file is used as input
 def _prepare_mt_inputs(wildcards):
     if "38" in wildcards.projection:
         genome_list = ["hg38", "grch38", "hg38-nci", "hg38-panea"]
@@ -204,7 +199,6 @@ def _prepare_mt_inputs(wildcards):
     return cellularity
 
 
-
 rule  _mutationtimer_run:
     input:
         maf = str(rules._mutationtimer_input_augmented_maf.output.maf),
@@ -214,7 +208,7 @@ rule  _mutationtimer_run:
         timed_ssm = CFG["dirs"]["mutationtimer"] + "{projection}/{tumour_id}--{normal_id}/{tumour_id}_timed_ssm.{projection}.tsv",
         timed_cna = CFG["dirs"]["mutationtimer"] + "{projection}/{tumour_id}--{normal_id}/{tumour_id}_timed_cna.{projection}.tsv"
     log:
-        log = CFG["logs"]["mutationtimer"] + "{projection}/{tumour_id}--{normal_id}/mutationtimer.stderr.log"
+        log = CFG["logs"]["mutationtimer"] + "{projection}/{tumour_id}--{normal_id}/mutationtimer.log"
     params:
         script = CFG["options"]["mutationtimer_script"],
         n_bootstrap = CFG["options"]["n_bootstrap"]
@@ -225,7 +219,7 @@ rule  _mutationtimer_run:
     resources:
         **CFG["resources"]["mutationtimer"]
     group:
-        "run_and_plot"
+        "run_normalize_plot"
     shell:
         op.as_one_line("""
         Rscript --vanilla {params.script}
@@ -240,22 +234,82 @@ rule  _mutationtimer_run:
         {log.log}
         """)
 
+# Normalize chr prefix to corresponding projection
+rule _mutationtimer_normalize_prefix_ssm:
+    input:
+        timed_ssm = str(rules._mutationtimer_run.output.timed_ssm),
+        chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
+    output:
+        timed_ssm = CFG["dirs"]["normalize"] + "{projection}/{tumour_id}--{normal_id}/{tumour_id}_timed_ssm.{projection}.tsv"
+    threads:
+        1
+    group:
+        "run_normalize_plot"
+    run:
+        # read the main chromosomes file of the projection
+        chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
+        # handle chr prefix
+        if "chr" in chromosomes["chromosome"][0]:
+            timed = pd.read_csv(input.timed_ssm, sep = "\t")
+            chrom = list(timed['Chromosome'])
+            # avoid cases of chrchr1 if the prefix already there
+            for i in range(len(chrom)):
+                if 'chr' not in str(chrom[i]):
+                    chrom[i]='chr'+str(chrom[i])
+            timed.loc[:, 'Chromosome']=chrom
+            timed.to_csv(output.timed_ssm, sep="\t", index=False)
+        else:
+            # remove chr prefix
+            timed = pd.read_csv(input.timed_ssm, sep = "\t")
+            timed["Chromosome"] = timed["Chromosome"].astype(str).str.replace('chr', '')
+            timed.to_csv(output.timed_ssm, sep="\t", index=False)
+
+rule _mutationtimer_normalize_prefix_cna:
+    input:
+        timed_cna = str(rules._mutationtimer_run.output.timed_cna),
+        chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
+    output:
+        timed_cna = CFG["dirs"]["normalize"] + "{projection}/{tumour_id}--{normal_id}/{tumour_id}_timed_cna.{projection}.tsv"
+    threads:
+        1
+    group:
+        "run_normalize_plot"
+    run:
+        # read the main chromosomes file of the projection
+        chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
+        # handle chr prefix
+        if "chr" in chromosomes["chromosome"][0]:
+            timed = pd.read_csv(input.timed_cna, sep = "\t")
+            chrom = list(timed['chr'])
+            # avoid cases of chrchr1 if the prefix already there
+            for i in range(len(chrom)):
+                if 'chr' not in str(chrom[i]):
+                    chrom[i]='chr'+str(chrom[i])
+            timed.loc[:, 'chr']=chrom
+            timed.to_csv(output.timed_cna, sep="\t", index=False)
+        else:
+            # remove chr prefix
+            timed = pd.read_csv(input.timed_cna, sep = "\t")
+            timed["chr"] = timed["chr"].astype(str).str.replace('chr', '')
+            timed.to_csv(output.timed_cna, sep="\t", index=False)
+
+
 # Creates plots of timed data
 rule  _mutationtimer_plot:
     input:
-        timed_ssm = str(rules._mutationtimer_run.output.timed_ssm),
-        timed_cna = str(rules._mutationtimer_run.output.timed_cna),
+        timed_ssm = str(rules._mutationtimer_normalize_prefix_ssm.output.timed_ssm),
+        timed_cna = str(rules._mutationtimer_normalize_prefix_cna.output.timed_cna),
     output:
         full_plot = CFG["dirs"]["plot"] + "{projection}/{tumour_id}--{normal_id}/{tumour_id}--{normal_id}.{projection}.full.pdf",
         min_plot = CFG["dirs"]["plot"] + "{projection}/{tumour_id}--{normal_id}/{tumour_id}--{normal_id}.{projection}.min.pdf"
     log:
-        log = CFG["logs"]["plot"] + "{projection}/{tumour_id}--{normal_id}/plot_mutationtimer.stderr.log"
+        log = CFG["logs"]["plot"] + "{projection}/{tumour_id}--{normal_id}/plot_mutationtimer.log"
     params:
         script = CFG["options"]["plot_mutationtimer_script"]
     conda:
         CFG["conda_envs"]["plot_mutationtimer"]
     group:
-        "run_and_plot"
+        "run_normalize_plot"
     shell:
         op.as_one_line("""
         Rscript --vanilla {params.script}
@@ -273,8 +327,8 @@ rule  _mutationtimer_plot:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _mutationtimer_symlink_output_tsvs:
     input:
-        timed_ssm = str(rules._mutationtimer_run.output.timed_ssm),
-        timed_cna = str(rules._mutationtimer_run.output.timed_cna),
+        timed_ssm = str(rules._mutationtimer_normalize_prefix_ssm.output.timed_ssm),
+        timed_cna = str(rules._mutationtimer_normalize_prefix_cna.output.timed_cna),
         full_plot = str(rules._mutationtimer_plot.output.full_plot),
         min_plot = str(rules._mutationtimer_plot.output.min_plot)
     output:
