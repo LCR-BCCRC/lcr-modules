@@ -33,6 +33,8 @@ localrules:
     _oncodriveclustl_blacklist,
     _oncodriveclustl_format_input,
     _oncodriveclustl_out,
+    _oncodriveclustl_symlink_content,
+    _oncodriveclustl_hotspot_bed,
     _oncodriveclustl_genomic_coordinates_out,
     _oncodriveclustl_aggregate,
     _oncodriveclustl_all
