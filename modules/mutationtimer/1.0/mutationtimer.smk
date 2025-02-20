@@ -218,8 +218,6 @@ rule  _mutationtimer_run:
         CFG["threads"]["mutationtimer"]
     resources:
         **CFG["resources"]["mutationtimer"]
-    group:
-        "run_normalize_plot"
     shell:
         op.as_one_line("""
         Rscript --vanilla {params.script}
@@ -244,7 +242,7 @@ rule _mutationtimer_normalize_prefix_ssm:
     threads:
         1
     group:
-        "run_normalize_plot"
+        "normalize_plot"
     run:
         # read the main chromosomes file of the projection
         chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
@@ -273,7 +271,7 @@ rule _mutationtimer_normalize_prefix_cna:
     threads:
         1
     group:
-        "run_normalize_plot"
+        "normalize_plot"
     run:
         # read the main chromosomes file of the projection
         chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
@@ -309,7 +307,7 @@ rule  _mutationtimer_plot:
     conda:
         CFG["conda_envs"]["plot_mutationtimer"]
     group:
-        "run_normalize_plot"
+        "normalize_plot"
     shell:
         op.as_one_line("""
         Rscript --vanilla {params.script}
