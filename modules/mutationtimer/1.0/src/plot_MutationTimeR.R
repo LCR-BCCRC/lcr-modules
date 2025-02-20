@@ -56,7 +56,7 @@ projection <- args$projection
 # Read in timed data
 # -----------------------------------------------------
 cat("Reading in timed SSM data...\n")
-timed_ssm <- read_tsv(input_ssm, show_col_types = FALSE)
+timed_ssm <- read_tsv(input_ssm, show_col_types = FALSE, guess_max = 3000)
 cat("Reading in timed CNA data...\n")
 timed_cna <- read_tsv(input_cna, show_col_types = FALSE)
 
@@ -280,6 +280,13 @@ plot_all <- function(timed_ssm,
   }
 
   return(p)
+}
+
+# Write out results -----------------------------------------------------
+# Check if output dir extists, create if not
+output_dir <- dirname(output_full)
+if(!dir.exists(file.path(output_dir))){
+  dir.create(file.path(output_dir), recursive=TRUE)
 }
 
 # Creating and saving the plotting functions
