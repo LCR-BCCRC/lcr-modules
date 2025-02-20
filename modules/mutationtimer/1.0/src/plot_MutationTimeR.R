@@ -284,7 +284,9 @@ plot_all <- function(timed_ssm,
 
 # Write out results -----------------------------------------------------
 # Check if output dir extists, create if not
+cat("Making output dir if does not exist...\n")
 output_dir <- dirname(output_full)
+paste("Writing to:", output_dir, "\n")
 if(!dir.exists(file.path(output_dir))){
   dir.create(file.path(output_dir), recursive=TRUE)
 }
