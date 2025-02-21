@@ -6,18 +6,20 @@ lcr-modules:
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
 
-        scratch_subdirectories: []
+        scratch_subdirectories: ["/projects/nhl_meta_analysis_scratch/"]
 
-        options:
-            step_1: ""
-            step_2: ""
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            modkit: "{MODSDIR}/envs/modkit-0.4.2.yaml"
             
         threads:
-            step_1: 4
+            pileup: 8
+
+        options:
+            header: "chrom\tstart\tend\tmodified_base_code\tscore\tstrand\tstart_position\tend_position\tcolor\tNvalid_cov\tpercent_modified\tNmod\tNcanonical\tNother_mod\tNdelete\tNfail\tNdiff\tNnocall"
 
         resources:
             step_1: 

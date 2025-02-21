@@ -37,15 +37,12 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "modkit",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "modkit", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
     _modkit_input_bam,
-    _modkit_step_2,
     _modkit_output_tsv,
     _modkit_all,
 
@@ -54,69 +51,55 @@ localrules:
 
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
 rule _modkit_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        sample_bam = CFG["inputs"]["sample_bam"],
+        sample_bai = CFG["inputs"]["sample_bai"]
     output:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
-    group: 
-        "input_and_step_1"
+        sample_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        sample_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
+        sample_crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
-        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.sample_bam, output.sample_bam)
+        op.absolute_symlink(input.sample_bai, output.sample_bai)
+        op.absolute_symlink(input.sample_bai, output.sample_crai)
 
 
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _modkit_step_1:
+rule _modkit_pileup:
     input:
-        bam = str(rules._modkit_input_bam.output.bam),
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+       bam = str(rules._modkit_input_bam.output.sample_bam),
+       ref = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        tsv = CFG["dirs"]["modkit"] + "{seq_type}--{genome_build}/{sample_id}/output.tsv"
+        meth = temp(CFG["dirs"]["modkit"] + "{seq_type}--{genome_build}/{sample_id}_methylation.tsv"),
+        meth_gz = CFG["dirs"]["modkit"] + "{seq_type}--{genome_build}/{sample_id}_methylation.tsv.gz"
     log:
-        stdout = CFG["logs"]["modkit"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stdout.log",
-        stderr = CFG["logs"]["modkit"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stderr.log"
+        stdout = CFG["logs"]["modkit"] + "{seq_type}--{genome_build}/{sample_id}/pileup.stdout.log",
+        stderr = CFG["logs"]["modkit"] + "{seq_type}--{genome_build}/{sample_id}/pileup.stderr.log"
+    conda: 
+        CFG["conda_envs"]["modkit"]
     params:
-        opts = CFG["options"]["step_1"]
-    conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["options"]["header"]
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["modkit"]
     resources:
-        **CFG["resources"]["step_1"]    # All resources necessary can be included and referenced from the config files.
+        **CFG["resources"]["modkit"]    # All resources necessary can be included and referenced from the config files.
     shell:
-        op.as_one_line("""
-        <TODO> {params.opts} --input {input.bam} --ref-fasta {input.fasta}
-        --output {output.tsv} --threads {threads} > {log.stdout} 2> {log.stderr}
-        """)
-
-
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _modkit_step_2:
-    input:
-        tsv = str(rules._modkit_step_1.output.tsv)
-    output:
-        tsv = CFG["dirs"]["modkit"] + "{seq_type}--{genome_build}/{sample_id}/output.filt.tsv"
-    log:
-        stderr = CFG["logs"]["modkit"] + "{seq_type}--{genome_build}/{sample_id}/step_2.stderr.log"
-    params:
-        opts = CFG["options"]["step_2"]
-    shell:
-        "grep {params.opts} {input.tsv} > {output.tsv} 2> {log.stderr}"
-
+        """
+        # Run modkit pileup and generate output
+        modkit pileup {input.bam} {output.meth} --cpg -t {threads} --ref {input.ref} > {log.stdout} 2> {log.stderr}
+        
+        # Add header and compress the final output
+        (echo -e "chrom\tstart\tend\tmodified_base_code\tscore\tstrand\tstart_position\tend_position\tcolor\tNvalid_cov\tpercent_modified\tNmod\tNcanonical\tNother_mod\tNdelete\tNfail\tNdiff\tNnocall"; cat {output.meth}) | gzip > {output.meth_gz}
+        """
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
 rule _modkit_output_tsv:
     input:
-        tsv = str(rules._modkit_step_2.output.tsv)
+        tsv_gz = str(rules._modkit_pileup.output.meth_gz)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{sample_id}.output.filt.tsv"
+        tsv_gz = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{sample_id}.output.tsv.gz"
     run:
-        op.relative_symlink(input.tsv, output.tsv, in_module= True)
+        op.relative_symlink(input.tsv_gz, output.tsv_gz, in_module= True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -124,8 +107,7 @@ rule _modkit_all:
     input:
         expand(
             [
-                str(rules._modkit_output_tsv.output.tsv),
-                # TODO: If applicable, add other output rules here
+                str(rules._modkit_output_tsv.output.tsv_gz),
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
