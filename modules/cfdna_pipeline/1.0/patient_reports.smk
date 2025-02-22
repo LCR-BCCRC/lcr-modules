@@ -8,11 +8,11 @@ sys.path.append(MODULE_PATH) # add local module to path
 
 TODAY = datetime.datetime.now().strftime("%m/%d/%Y")
 BAM_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "bam_pipeline")
-UTILSDIR = os.path.join(MODULE_PATH, "/utils")
+UTILSDIR = os.path.join(MODULE_PATH, "utils")
 SAGE_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "sage_pipeline")
 
 COMPILE_REPORT_SCRIPT = os.path.join(MODULE_PATH, "patient_reports/compile_report.py")
-REPORT_TEMP = os.path.join(config["lcr-modules"]["cfDNA_patient_reports"]["report_template"])
+REPORT_TEMP = config["lcr-modules"]["cfDNA_patient_reports"]["report_template"]
 REPORTS_DIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "reports")
 SAMPLESHEET_ALL_PATIENTS = config["lcr-modules"]["_shared"]["samples"]
 
@@ -28,7 +28,7 @@ def find_sage_outputs(wildcards):
 
 def find_completion_time(wildcards):
     patient_samples = SAMPLESHEET[(SAMPLESHEET["patient_id"] == wildcards.patient) & (SAMPLESHEET['timepoint'] != 'normal' )]["sample_id"].tolist()
-    return expand(os.path.join(config["root_output_dir"], "completion", "{sample}.completion.txt"), sample=patient_samples )
+    return expand(os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "completion", "{sample}.completion.txt"), sample=patient_samples )
 
 def find_hsmetrics(wildcards):
     patient_samples = SAMPLESHEET[SAMPLESHEET["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
@@ -94,10 +94,10 @@ rule compile_report:
     conda:
         "envs/quarto.yaml"
     log:
-        os.path.join(REPORTS_DIR, "/logs" , "cmp_rep_{patient}.log")
+        os.path.join(REPORTS_DIR, "logs" , "cmp_rep_{patient}.log")
     shell:
         f"""python {COMPILE_REPORT_SCRIPT} --in_notebook {REPORT_TEMP} --out_notebook {{output.compiled_nb}} --completion_files {{input.sample_comp}} \
-        --maf_files {{input.sage_calls}} --samplesheet_path {{params.samplesheet_path}} --repo_path {config["lcr-modules"]["_shared"]["lcr-modules"]} --lymphgen_output {{input.lg_status}} \
+        --maf_files {{input.sage_calls}} --samplesheet_path {{params.samplesheet_path}} --repo_path {MODULE_PATH} --lymphgen_output {{input.lg_status}} \
         --patient_id {{wildcards.patient}} --hs_metrics {{input.hs_metrics}} --targ_cov {{input.targ_cov}} &> {{log}}"""
 
 rule convert_report_to_html:

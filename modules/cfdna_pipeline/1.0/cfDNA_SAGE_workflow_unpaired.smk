@@ -7,12 +7,12 @@ import glob
 snakemake.utils.min_version("7")
 
 import sys
-MODULE_PATH = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "/modules/cfdna_pipeline/1.0/")
+MODULE_PATH = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules/cfdna_pipeline/1.0/")
 sys.path.append(MODULE_PATH) # add local module to path
 
 # generate paths for file locations
 BAM_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "bam_pipeline")
-UTILSDIR = os.path.join(MODULE_PATH, "/utils")
+UTILSDIR = os.path.join(MODULE_PATH, "utils")
 SAGE_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "sage_pipeline")
 
 all_samples = config["lcr-modules"]["_shared"]["samples"].copy()
