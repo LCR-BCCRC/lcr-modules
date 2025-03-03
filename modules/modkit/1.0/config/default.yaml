@@ -2,7 +2,6 @@ lcr-modules:
     
     modkit:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
@@ -22,7 +21,7 @@ lcr-modules:
             header: "chrom\tstart\tend\tmodified_base_code\tscore\tstrand\tstart_position\tend_position\tcolor\tNvalid_cov\tpercent_modified\tNmod\tNcanonical\tNother_mod\tNdelete\tNfail\tNdiff\tNnocall"
 
         resources:
-            step_1: 
+            modkit: 
                 mem_mb: 2000
             
         pairing_config:
