@@ -17,9 +17,6 @@ lcr-modules:
         threads:
             pileup: 8
 
-        options:
-            header: "chrom\tstart\tend\tmodified_base_code\tscore\tstrand\tstart_position\tend_position\tcolor\tNvalid_cov\tpercent_modified\tNmod\tNcanonical\tNother_mod\tNdelete\tNfail\tNdiff\tNnocall"
-
         resources:
             modkit: 
                 mem_mb: 2000
