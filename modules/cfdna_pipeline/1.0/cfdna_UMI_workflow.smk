@@ -37,7 +37,6 @@ rule trim_umi:
     threads: 4
     resources:
         mem_mb = 10000
-    group: "process_umis"
     conda:
         "envs/fastp.yaml"
     log:
@@ -63,7 +62,6 @@ rule bwa_align_unsorted:
         config["lcr-modules"]["cfDNA_umi_workflow"]["bwa_threads"]
     resources:
         mem_mb = 10000
-    group: "process_umis"
     conda:
         "envs/bwa_picard_fgbio.yaml"
     log:
@@ -112,7 +110,6 @@ rule fgbio_group_umis:
     resources:
         mem_mb = config["lcr-modules"]["cfDNA_umi_workflow"]["grp_umi_mem"]
         # mem_mb = mem_mb=lambda wc, input: max(2.5 * input.size_mb, 300)
-    group: "process_umis"
     params:
         maxedits = config["lcr-modules"]["cfDNA_umi_workflow"]["umiedits"],
         outdir = os.path.join(BAM_OUTDIR ,"04-umigrouped"),
@@ -139,7 +136,6 @@ rule fgbio_duplex_consensus:
         config["lcr-modules"]["cfDNA_umi_workflow"]["duplexconsensus_threads"]
     resources:
         mem_mb = 10000
-    group: "process_umis"
     conda:
         "envs/bwa_picard_fgbio.yaml"
     log:
@@ -162,7 +158,6 @@ rule sanitize_bam:
         min_base_qual = int(config["lcr-modules"]["cfDNA_umi_workflow"]["min_base_qual"])  # Bases with quality scores below this are masked
     conda:
         "envs/pysam.yaml"
-    group: "process_umis"
     threads:
         config["lcr-modules"]["cfDNA_umi_workflow"]["basequal_threads"]
     resources:
@@ -186,7 +181,6 @@ rule bwa_realign_bam:
         config["lcr-modules"]["cfDNA_umi_workflow"]["bwa_threads"]
     resources:
         mem_mb = 15000
-    group: "process_umis"
     params:
         readgroup = lambda w, input: fu.generate_read_group(input.r1bam, w.sample, config)
     conda:
@@ -224,7 +218,6 @@ rule picard_annotate_bam:
         # mem_mb= lambda wc,input, attempt: pic_ann_mem(wc, input,attempt)
         mem_mb = pic_ann_mem
     threads: 4
-    group: "process_umis"
     shell:
         """picard -Xms500m -Xmx{resources.mem_mb}m SortSam -I {input.unaligned_bam} -O /dev/stdout -SO queryname --REFERENCE_SEQUENCE {input.refgenome} |
            picard -Xms500m -Xmx10g MergeBamAlignment --ALIGNED_BAM {input.aligned_bam} --UNMAPPED_BAM /dev/stdin --REFERENCE_SEQUENCE {input.refgenome} -O {output.bam} &> {log} && 
@@ -244,7 +237,6 @@ rule picard_validate_sam:
     resources:
         mem_mb = 5000
     threads: 1
-    group: "process_umis"
     log:
         os.path.join(BAM_OUTDIR, "logs" , "{sample}.picardvalidatesam.log")
     shell:

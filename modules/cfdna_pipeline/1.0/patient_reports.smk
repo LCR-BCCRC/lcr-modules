@@ -18,62 +18,72 @@ SAMPLESHEET_ALL_PATIENTS = config["lcr-modules"]["_shared"]["samples"]
 
 
 localrules:
-    record_sample_completion
+    record_sample_completion,
+    _vcf2maf_crossmap
 
 # input functions
 def find_sage_outputs(wildcards):
     # make list of all sample names belonging to patient 
-    patient_samples = SAMPLESHEET[(SAMPLESHEET["patient_id"] == wildcards.patient) & (SAMPLESHEET['timepoint'] != 'normal' )]["sample_id"].tolist()
+    patient_samples = SAMPLESHEET_ALL_PATIENTS[(SAMPLESHEET_ALL_PATIENTS["patient_id"] == wildcards.patient) & (SAMPLESHEET_ALL_PATIENTS['timepoint'] != 'normal' )]["sample_id"].tolist()
     return expand(os.path.join(SAGE_OUTDIR,"99-final/{sample}.processed.maf"), sample=patient_samples)
 
 def find_completion_time(wildcards):
-    patient_samples = SAMPLESHEET[(SAMPLESHEET["patient_id"] == wildcards.patient) & (SAMPLESHEET['timepoint'] != 'normal' )]["sample_id"].tolist()
+    patient_samples = SAMPLESHEET_ALL_PATIENTS[(SAMPLESHEET_ALL_PATIENTS["patient_id"] == wildcards.patient) & (SAMPLESHEET_ALL_PATIENTS['timepoint'] != 'normal' )]["sample_id"].tolist()
     return expand(os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "completion", "{sample}.completion.txt"), sample=patient_samples )
 
 def find_hsmetrics(wildcards):
-    patient_samples = SAMPLESHEET[SAMPLESHEET["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
+    patient_samples = SAMPLESHEET_ALL_PATIENTS[SAMPLESHEET_ALL_PATIENTS["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
     return expand(os.path.join(BAM_OUTDIR, "Q2-hs_metrics/{sample}.hs_metrics.txt"), sample=patient_samples)
 
 def find_targ_cov(wildcards):
     # make list of all sample names belonging to patient
-    patient_samples = SAMPLESHEET[SAMPLESHEET["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
+    patient_samples = SAMPLESHEET_ALL_PATIENTS[SAMPLESHEET_ALL_PATIENTS["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
     return expand(os.path.join(BAM_OUTDIR , "Q2-hs_metrics" , "{sample}.target_coverage.txt"), sample=patient_samples)
 
 def find_igv_report(wildcards):
-    patient_samples = SAMPLESHEET[SAMPLESHEET["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
+    patient_samples = SAMPLESHEET_ALL_PATIENTS[SAMPLESHEET_ALL_PATIENTS["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
     return expand(os.path.join(SAGE_OUTDIR, "07-IGV/{sample}_report.html"), sample=patient_samples)
 
 def find_insert_length(wildcards):
-    patient_samples = SAMPLESHEET[SAMPLESHEET["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
+    patient_samples = SAMPLESHEET_ALL_PATIENTS[SAMPLESHEET_ALL_PATIENTS["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
     return expand(os.path.join(BAM_OUTDIR, "Q4-insert_size", "{sample}.insert_size_metrics.txt"), sample=patient_samples)
 
 def lymphgen_outputs(wildcards):
     """input function for lymphgen module, calls the outpts
     for _lymphgen_output_txt rule"""
-    patient_samples = SAMPLESHEET[(SAMPLESHEET["patient_id"] == wildcards.patient) & (SAMPLESHEET_LYMPHGEN["tissue_status"] != "normal")]["sample_id"].unique().tolist()
+    patient_samples = SAMPLESHEET_ALL_PATIENTS[(SAMPLESHEET_ALL_PATIENTS["patient_id"] == wildcards.patient) & (SAMPLESHEET_ALL_PATIENTS["tissue_status"] != "normal")]["sample_id"].unique().tolist()
 
-    #patient_samples = SAMPLESHEET_LYMPHGEN.loc[SAMPLESHEET_LYMPHGEN["tissue_status"] != "normal"]["sample_id"].unique().tolist()
-    # return patient_samples that have variants in the maf file
-    # patient_samples = [sample for sample in patient_samples if check_for_vars(sample, os.path.join(SAGE_OUTDIR,"99-final/"))]
+    # if lymphgen rule is in workflow, then return the expand of hte files
+    if config["lcr-modules"]["cfDNA_patient_reports"]["include_lymphgen"]:
+        return expand(expand(str(rules._lymphgen_output_txt.output),zip,
+                    seq_type="capture",
+                    genome_build="hg38",
+                    normal_id="None",
+                    pair_status="no_normal",
+                    cnvs_wc="no_cnvs",
+                    sv_wc="no_sv",
+                    A53_wc="no_A53", allow_missing=True),
+                    tumour_id= patient_samples,)
+    else:
+        # make empty dumby file to return to rule
+        empty_file = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "empty_lymphen.txt")
+        with open(empty_file, "w") as f:
+            f.write("empty")
+        return empty_file
 
-    return expand(expand(str(rules._lymphgen_output_txt.output),zip,
-                seq_type="capture",
-                genome_build="hg38",
-                normal_id="None",
-                pair_status="no_normal",
-                cnvs_wc="no_cnvs",
-                sv_wc="no_sv",
-                A53_wc="no_A53", allow_missing=True),
-                tumour_id= patient_samples,)
+        
 
-# a bug is that this runs even if the sample doesnt finish the rest of the pipeline
-# but not having an input requirment protcts it from getting re-made
 rule record_sample_completion:
     output:
         os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "completion", "{sample}.completion.txt")
     shell:
         f"""
-        echo "{TODAY}" > {{output}}
+        # if file exists, touch it, so it is never overwritten
+        if [ ! -f {{output}} ]; then
+            echo "{TODAY}" > {{output}}
+        else
+            touch {{output}}
+        fi
         """
 
 rule compile_report:
@@ -86,11 +96,10 @@ rule compile_report:
     output:
         compiled_nb = os.path.join(REPORTS_DIR, "{patient}", "{patient}_report.ipynb")
     params:
-        samplesheet_path = SAMPLESHEET_PATH
+        samplesheet_path = config["lcr-modules"]["_shared"]["samplesheet"]
     resources:
         mem_mb = 5000
     threads: 1
-    group: "compile_report"
     conda:
         "envs/quarto.yaml"
     log:
@@ -104,13 +113,12 @@ rule convert_report_to_html:
     input:
         rules.compile_report.output.compiled_nb
     output:
-        html_report = os.path.join(REPORTS_DIR, f"{{patient}}/{{patient}}_report.html")
+        html_report = os.path.join(REPORTS_DIR, "{patient}/{patient}_report.html")
     conda:
         "envs/quarto.yaml"
     resources:
         mem_mb = 5000
     threads: 1
-    group: "compile_report"
     shell:
         f"""
         cd {REPORTS_DIR}/{{wildcards.patient}}
@@ -130,12 +138,9 @@ rule _vcf2maf_crossmap:
         os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "crossmap/logs" , "crossmap_{tumour_id}.log")
     conda:
         "envs/crossmap.yaml"
-    threads:
-        12
+    threads: 1
     resources:
-        mem_mb= 12000
-    group:
-        "lymphgen"
+        mem_mb= 8000
     shell:
         """
         {input.convert_coord} \
@@ -146,6 +151,6 @@ rule _vcf2maf_crossmap:
         """
 
 # add rule all to call outputs
-rule make_reports:
+rule make_all_reports:
     input:
         expand(str(rules.convert_report_to_html.output.html_report), patient = SAMPLESHEET_ALL_PATIENTS["patient_id"].unique().tolist())

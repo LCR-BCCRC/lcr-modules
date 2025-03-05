@@ -54,6 +54,13 @@ def older_sample_mafs(wildcards):
 
 
 ########################################################### Run variant calling
+
+localrules:
+    filter_sage,
+    flag_masked_pos,
+    custom_filters
+
+
 rule run_sage:
     input:
         tbam = os.path.join(BAM_OUTDIR, "99-final", "{sample}.consensus.mapped.annot.bam"),
@@ -111,7 +118,6 @@ rule filter_sage:
     resources:
         mem_mb = 5000
     threads: 1
-    group: "filter_sage"
     params:
         notlist = config["lcr-modules"]["cfDNA_SAGE_workflow"]["notlist"]
     shell:
@@ -136,7 +142,6 @@ rule flag_masked_pos:
     resources:
         mem_mb = 10000
     threads: 1
-    group: "filter_sage"
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.maskpos.log")
     shell:
@@ -158,8 +163,7 @@ rule restrict_to_capture:
         "envs/bcftools.yaml"
     resources:
         mem_mb = 10000
-    threads: 2
-    group: "filter_sage"
+    threads: 1
     shell:
         """
         bedtools intersect -a {input.vcf} -header -b {params.panel_regions} | bedtools intersect -a - -header -b {input.bed} -v | awk -F '\\t' '$4 !~ /N/ && $5 !~ /N/' | bcftools norm -m +any -O vcf -o {output.vcf}
@@ -178,7 +182,7 @@ rule review_consensus_reads:
         grouped_bam = os.path.join(SAGE_OUTDIR, "06-supportingreads/{sample}/{sample}.grouped.bam")
     resources:
         mem_mb = 10000
-    threads: 2
+    threads: 1
     group: "filter_sage"
     params:
         ref_genome = config["lcr-modules"]["_shared"]["ref_genome"],
@@ -207,7 +211,6 @@ rule vcf2maf_annotate:
         normal_name = get_normal_name,
         ref_fasta = config["lcr-modules"]["_shared"]["ref_genome"],
         ref_ver = config["lcr-modules"]["_shared"]["ref_genome_ver"]
-    group: "filter_sage"
     resources:
         mem_mb = 5000
     threads: 2
@@ -239,7 +242,6 @@ rule augment_ssm_ChrisIndels:
     threads: 4
     conda:
         "envs/augment_ssm.yaml"
-    group: "filter_sage"
     params:
         script = os.path.join(UTILSDIR, "augment_ssm_ChrisIndels.py"),
         ref_genome_version = config["lcr-modules"]["_shared"]["ref_genome_ver"],
@@ -268,7 +270,6 @@ rule filter_repetitive_seq:
     resources:
         mem_mb = 5000
     threads: 1
-    group: "filter_sage"
     shell:
         f"""python {os.path.join(UTILSDIR, "filter_rep_seq.py")} \
         --in_maf {{input.maf}} --out_maf {{output.maf}} --reference_genome {{params.ref_fasta}} --max_repeat_len {{params.max_repeat_len}}
@@ -286,7 +287,6 @@ rule add_UMI_support:
     resources:
         mem_mb = 5000
     threads: 1
-    group: "filter_sage"
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.add_UMI_support.log")
     shell:
@@ -312,7 +312,6 @@ rule custom_filters:
     resources:
         mem_mb = 5000
     threads: 1
-    group: "filter_sage"
     shell:
         f"""python {{params.script}} --input_maf {{input.maf}} --output_maf {{output.maf}} \
         --min_alt_depth_tum {{params.min_alt_depth}} --min_germline_depth {{params.min_germline_depth}} \
