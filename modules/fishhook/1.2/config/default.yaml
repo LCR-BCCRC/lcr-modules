@@ -29,9 +29,12 @@ lcr-modules:
             fishhook: "{MODSDIR}/envs/fishhook.yaml"
 
         threads:
+            prepare_maf: 4
             fishhook: 1
 
         resources:
+            prepare_maf:
+                mem_mb: 40000
             fishhook:
                 mem_mb: 16000
 
