@@ -73,9 +73,9 @@ def ann_umi_mem(wildcards, attempt, input):
     if attempt == 1:
         return max(35000, 6 * input.size_mb)
     elif attempt == 2:
-        return (input.size_mb + 30000)
+        return (input.size_mb + 35000)
     elif attempt == 3:
-        return (input.size_mb + 60000)
+        return (input.size_mb + 65000)
 
 # Add UMI tag, mem hungry step
 rule fgbio_annotate_umis:
@@ -108,8 +108,7 @@ rule fgbio_group_umis:
     threads:
         config["lcr-modules"]["cfDNA_umi_workflow"]["samtools_sort_threads"]
     resources:
-        mem_mb = config["lcr-modules"]["cfDNA_umi_workflow"]["grp_umi_mem"]
-        # mem_mb = mem_mb=lambda wc, input: max(2.5 * input.size_mb, 300)
+        mem_mb = ann_umi_mem
     params:
         maxedits = config["lcr-modules"]["cfDNA_umi_workflow"]["umiedits"],
         outdir = os.path.join(BAM_OUTDIR ,"04-umigrouped"),

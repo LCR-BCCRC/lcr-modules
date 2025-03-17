@@ -26,6 +26,7 @@ def get_args():
     parser.add_argument('--gnomad_threshold',required=True,type=float,help='')
     parser.add_argument('--min_alt_depth_tum',required=True,type=int,help='')
     parser.add_argument('--min_germline_depth',required=True,type=int,help='')
+    parser.add_argument('--min_tumour_vaf',required=True,type=float,default=0.01,help='')
     return parser.parse_args()
 
 def read_maf(maf_file: str) -> pd.DataFrame:
@@ -92,7 +93,7 @@ def recalculate_af(df:pd.DataFrame) -> pd.DataFrame:
     df["AF"] = df["t_alt_count"] / df["t_depth"]
     return df.copy()
 
-def filter_vaf_and_phase(indf: pd.DataFrame) -> pd.DataFrame:
+def filter_vaf_and_phase(indf: pd.DataFrame, min_vaf: float) -> pd.DataFrame:
     """Filter variants that are below 0.1 VAF unless they
     are a part of a phase set of variants that also made it
     this far in the filtering process.
@@ -110,7 +111,7 @@ def filter_vaf_and_phase(indf: pd.DataFrame) -> pd.DataFrame:
     phase_sets_to_keep = phase_set_counts[(phase_set_counts["count"] > 1)].copy()
     print(f"Phase sets to keep: {phase_sets_to_keep}")
 
-    outdf = indf.loc[indf["LPS"].isin(phase_sets_to_keep["LPS"]) | (indf["AF"] >= 0.01) | (indf["hotspot"] == True)].reset_index(drop=True).copy()
+    outdf = indf.loc[indf["LPS"].isin(phase_sets_to_keep["LPS"]) | (indf["AF"] >= min_vaf) | (indf["hotspot"] == True)].reset_index(drop=True).copy()
 
     # label variant_source and create column
     if outdf.shape[0] > 0:
@@ -202,7 +203,7 @@ def main():
     # remove all blacklisted vars, blacklist is from shiny app
     inmaf = inmaf.loc[inmaf["blacklist"]== False].copy()
     # filter vaf and phase
-    outmaf = filter_vaf_and_phase(inmaf)
+    outmaf = filter_vaf_and_phase(inmaf, args.min_tumour_vaf)
     # filter min UMI_max
     outmaf = min_UMI_max(outmaf, 3)
     # write output maf

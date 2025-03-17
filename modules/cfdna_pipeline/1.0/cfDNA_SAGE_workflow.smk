@@ -110,7 +110,8 @@ rule run_sage:
 # remove variants that are not PASS from SAGE filtering
 rule filter_sage:
     input:
-        vcf = rules.run_sage.output.vcf
+        vcf = rules.run_sage.output.vcf,
+        notlist = config["lcr-modules"]["cfDNA_SAGE_workflow"]["notlist"]
     output:
         vcf = os.path.join(SAGE_OUTDIR, "02-vcfs/{sample}.sage.passed.vcf")
     conda:
@@ -122,7 +123,7 @@ rule filter_sage:
         notlist = config["lcr-modules"]["cfDNA_SAGE_workflow"]["notlist"]
     shell:
         """
-        bcftools view -T ^{params.notlist} -f PASS {input.vcf} -O vcf -o {output.vcf}
+        bcftools view -T ^{input.notlist} -f PASS {input.vcf} -O vcf -o {output.vcf}
         """
 
 # Flag positions with a high incidence of masked bases
@@ -304,7 +305,8 @@ rule custom_filters:
         hotspot_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hotspot_manifest"],
         blacklist_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["blacklist_manifest"],
         min_germline_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_germline_depth"],
-        min_alt_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"]
+        min_alt_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"],
+        min_tum_VAF = config["lcr-modules"]["cfDNA_SAGE_workflow"]["tumor_soft_min_vaf"]
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.custom_filters.log")
     conda:
@@ -313,9 +315,9 @@ rule custom_filters:
         mem_mb = 5000
     threads: 1
     shell:
-        f"""python {{params.script}} --input_maf {{input.maf}} --output_maf {{output.maf}} \
-        --min_alt_depth_tum {{params.min_alt_depth}} --min_germline_depth {{params.min_germline_depth}} \
-        --blacklist {{params.blacklist_txt}} --hotspots {{params.hotspot_txt}} --gnomad_threshold {{params.exac_freq}} &> {{log}}
+        """python {params.script} --input_maf {input.maf} --output_maf {output.maf} --min_tumour_vaf {params.min_tum_VAF} \
+        --min_alt_depth_tum {params.min_alt_depth} --min_germline_depth {params.min_germline_depth} \
+        --blacklist {params.blacklist_txt} --hotspots {params.hotspot_txt} --gnomad_threshold {params.exac_freq} &> {log}
         """
 
 rule augment_maf:

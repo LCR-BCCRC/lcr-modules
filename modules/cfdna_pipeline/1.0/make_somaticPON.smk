@@ -224,13 +224,14 @@ rule somaticPON:
     resources: **config["lcr-modules"]["make_pon"]["resources"]["mutect"]
     params:
         ref_fasta = config["lcr-modules"]["make_pon"]["ref_fasta"],
-        pon_path = "gendb://" + os.path.join(WORKDIR, "03-GDB", "{seq_type}/{capture_space}--{genome_build}/{pon}/somaticdb/")
+        pon_path = "gendb://" + os.path.join(WORKDIR, "03-GDB", "{seq_type}/{capture_space}--{genome_build}/{pon}/somaticdb/"),
+        min_sample_count = config["lcr-modules"]["make_pon"]["min_sample_count"]
     log:
         os.path.join(LOGSDIR, "somaticPON", "{seq_type}/{capture_space}--{genome_build}/{pon}/somaticPON.log")
     threads: 1
     shell:
         """
-        gatk CreateSomaticPanelOfNormals -V {params.pon_path} -R {params.ref_fasta} -O {output.pon}  -OVI TRUE > {log} 2>&1
+        gatk CreateSomaticPanelOfNormals -V {params.pon_path} -R {params.ref_fasta} -O {output.pon} --min-sample-count {params.min_sample_count} -OVI TRUE > {log} 2>&1
         """
 
 rule decompress_vcf:
