@@ -5,6 +5,7 @@ The UMI family sizes for each read will be added to the maf file as two new colu
 
 UMI_mean: the mean UMI family size of the variant reads
 UMI_max: the maximum UMI family size of the variant reads
+UMI_3_count: the number of reads with a UMI family size of 3 or greater, useful for low VAF variants where each read really matters.
 STR: the proportion of reads that are have a short tandem repeat region near the variant site
     in the reference genome.
 
@@ -314,10 +315,14 @@ def add_umi_support(inmaf:pd.DataFrame, bamfile:str) -> pd.DataFrame:
         if len(umi_depths) == 0 or (len(umi_depths) >= (0.6 * t_depth) and str_score > 0.6):
             inmaf.at[index, "UMI_mean"] = 0
             inmaf.at[index, "UMI_max"] = 0
+            inmaf.at[index, "UMI_3_count"] = 0
             inmaf.at[index, "STR"] = str_score
             continue
+        # add UMI family metrics
         inmaf.at[index, "UMI_mean"] = sum(umi_depths) / len(umi_depths)
         inmaf.at[index, "UMI_max"] = max(umi_depths)
+        # add number of reads with UMI family size of >= 3
+        inmaf.at[index, "UMI_3_count"] = len([x for x in umi_depths if x >= 3])
         inmaf.at[index, "STR"] = str_score
         
 
