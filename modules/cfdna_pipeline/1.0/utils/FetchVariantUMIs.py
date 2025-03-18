@@ -37,6 +37,7 @@ import pysam
 import pandas as pd
 import argparse
 import re
+import numpy as np
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -82,7 +83,7 @@ def UMI_Fam_size(bamfile:str, chrom:str, start:int, end:int, allele: str, ref_al
         
     """
     umi_depths = []
-    UMs = []
+    processed_UMIs = set()
     STR = []
     var_type = __determine_var_type(allele, ref_allele)
 
@@ -92,11 +93,18 @@ def UMI_Fam_size(bamfile:str, chrom:str, start:int, end:int, allele: str, ref_al
 
     with pysam.AlignmentFile(bamfile, "rb") as bam:
         for read in bam.fetch(chrom, start-1, end):
-            # if mate has already been processed, skip
-            um = read.get_tag("MI")
-            if um in UMs:
+
+            try:
+                # check UMI tag to see if mate has been processed
+                um = read.get_tag("MI")
+                if um in processed_UMIs:
+                    continue
+                else:
+                    processed_UMIs.add(um)
+
+            except KeyError: # skip read if no UMI tag
                 continue
-            UMs.append(read.get_tag("MI"))
+
             cig = read.cigarstring
             if cig is None:
                 continue
@@ -202,51 +210,75 @@ def __determine_var_type(alt_allele:str, ref_alele: str)-> str:
         print(f"Variant type not recognized: {ref_alele} -> {alt_allele}, sorry about it")
         return "OTHER"
 
-
-def determine_STR_status(start: int, allele: str, seq:str)-> bool:
+def determine_STR_status(start: int, allele: str, seq: str) -> bool:
     """Determine if a variant occurs in a short tandem repeat.
 
     If the variant is in a short tandem repeat, the variant is likely to be a false positive.
+    Only considers consecutive repeating patterns as STRs.
 
     Args:
         start (int): start position of the variant.
         allele (str): variant sequence
-        seq (str): full reference sequence where
-                    the read aligns to.
+        seq (str): full reference sequence where the read aligns to.
 
     Returns:
         bool: is the variant in a short tandem repeat?
     """
-    # create window around var to look for repeats
-    start_buffed = start-len(allele)*2
-    end_buffed = start+len(allele)*2
-
+    # Handle empty allele case
+    if not allele:
+        return False
+    
+    # Check for special regex characters and skip with warning
+    symbols = ['+', '*', '?', '.']
+    if any(sym in seq for sym in symbols):
+        print(f"Warning: Skipping STR check for seq with special characters: '{seq}'")
+        return np.nan
+    
+    # Use a larger window for better detection
+    window_size = max(10, len(allele) * 4)  # Larger window for better context
+    start_buffed = max(0, start - window_size)
+    end_buffed = min(len(seq), start + window_size)  # Prevent index errors
+    
     ref_allele = seq[start:start+len(allele)]
-
-    if start_buffed < 0: # cant be less than 0!
-        start_buffed = 0
-
-    seq_by_var = seq[start_buffed:end_buffed]
-    seq_by_var = seq_by_var.upper()
-    # if the allele is SNV, or single bp insertion
+    seq_by_var = seq[start_buffed:end_buffed].upper()
+    
+    # If single base, check for runs of 3+ of the same base
     if len(ref_allele) == 1:
-        if ref_allele*3 in seq_by_var:
+        pattern = re.compile(f"{ref_allele}{{{3},}}")
+        if pattern.search(seq_by_var):
             return True
-        else:
-            return False
+        return False
 
-    # longer indels
-    # if the allele appears upstream or downstream of the variant location
-    if seq_by_var.count(ref_allele) > 1:
+    # Special homopolymer check - detect cases like "AAAAAA" in "GCGCAAAAAAAAGCGC"
+    # if allele is homopolymer longer than 3 bases, return True
+    # that means it must appear in the ref sequence, so need to check it
+    if len(set(allele)) == 1 and len(allele) >= 3:
         return True
-    # if the allele is an even number of bases, divide it in half and check if both halves are in the sequence
-    if len(ref_allele) > 2 and len(ref_allele) % 2 == 0:
-        half = len(ref_allele) // 2
-        if seq_by_var.count(ref_allele[:half]) > 2 or seq_by_var.count(ref_allele[half:]) > 2:
+
+    # Check if the allele appears consecutively in the window
+    if len(ref_allele) >= 2:
+        pattern = re.compile(f"({re.escape(ref_allele)}){{{2},}}")
+        if pattern.search(seq_by_var):
             return True
-
+    
+    # Check for consecutive repeats of half patterns
+    if len(ref_allele) > 2:
+        half = len(ref_allele) // 2
+        first_half = ref_allele[:half]
+        second_half = ref_allele[half:]
+        
+        # Must have 3+ consecutive repeats of the half
+        if len(first_half) > 0:
+            pattern = re.compile(f"({re.escape(first_half)}){{{3},}}")
+            if pattern.search(seq_by_var):
+                return True
+        
+        if len(second_half) > 0:
+            pattern = re.compile(f"({re.escape(second_half)}){{{3},}}")
+            if pattern.search(seq_by_var):
+                return True
+    
     return False
-
 
 def add_umi_support(inmaf:pd.DataFrame, bamfile:str) -> pd.DataFrame:
     """Get the UMI family sizes for each variant in the maf file.
