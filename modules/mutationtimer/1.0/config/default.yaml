@@ -4,8 +4,9 @@ lcr-modules:
 
         inputs:
             # Available wildcards: {genome_build} {tumour_id} {normal_id}
-            # Use battenberg files: results/gambl/battenberg-1.1/99-outputs/txt/genome--{genome_build}/{tumour_id}--{normal_id}_subclones.txt
+            # Use battenberg UNFILLED files: results/gambl/battenberg-1.1/02-battenberg/genome--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.txt
             battenberg_txt: "__UPDATE__"
+            # Use the battenberg outputs: results/gambl/battenberg-1.1/99-outputs/txt/genome--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt
             cellularity_txt: "__UPDATE__"
             # Available wildcards: {projection} {tumour_id} {normal_id}
             # Use SLMS-3 vcf2maf merged augmented mafs: results/all_the_things/slms_3-1.0_vcf2maf-1.3/genome--projection/deblacklisted/augmented_maf/all_slms-3--{projection}.maf

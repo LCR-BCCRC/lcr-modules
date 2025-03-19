@@ -112,36 +112,28 @@ cat("Reading in Battenberg files and formatting...\n")
 purity <- read_tsv(cellularity_file, show_col_types=FALSE) %>% pull(cellularity)
 
 bb <- read_tsv(bb_file, show_col_types=FALSE, na="NA") %>%
-  dplyr::select(chr, startpos, endpos, nMaj1_A, nMin1_A, frac1_A, nMaj2_A, nMin2_A, frac2_A)
+  select(chr, startpos, endpos, nMaj1_A, nMin1_A, frac1_A, nMaj2_A, nMin2_A, frac2_A) %>%
+  mutate(chr = as.character(chr))
 
-# Filtering regions with nMaj1_A NA and nMin1_A NA -----------------------------------------------------------
-# These are due to an oddity in the battenberg results, root cause has not been found yet
 # Fixing chromosome prefixes to match maf -----------------------------------------------------------
-# Fix the filled segments subclonal states -----------------------------------------------------------
-# This is temporary until the battenberg results are regenerated
 bb <- bb %>%
-  filter(!(is.na(nMaj1_A) & is.na(nMin1_A))) %>%
   mutate(chr = case_when(
     prefix_status==TRUE & str_detect(chr, "chr") ~ chr, # both prefixed already, no changes needed
     prefix_status==FALSE & !str_detect(chr, "chr") ~ chr, # both not prefixed, no changes needed
     prefix_status==TRUE & !str_detect(chr, "chr") ~ paste0("chr", chr), # SSM prefixed, bb not, needs to be added
     prefix_status==FALSE & str_detect(chr, "chr") ~ gsub("chr", "", chr), # SSM not prefixed, bb is, needs to be removed
-  )) %>%
-  mutate(
-    nMaj2_A = ifelse(frac1_A == 1 & frac2_A == 1, NA, nMaj2_A),
-    nMin2_A = ifelse(frac1_A == 1 & frac2_A == 1, NA, nMin2_A),
-    frac2_A = ifelse(frac1_A == 1 & frac2_A == 1, NA, frac2_A)
-  )
+  )) 
 
+# Formatting for MutationTimeR -----------------------------------------------------------
 bb_clonal <- bb %>%
   mutate(clonal_frequency = frac1_A*purity) %>%
-  dplyr::select(chr, startpos, endpos, nMaj1_A, nMin1_A, clonal_frequency) %>%
+  select(chr, startpos, endpos, nMaj1_A, nMin1_A, clonal_frequency) %>%
   dplyr::rename(seqnames=chr, start=startpos, end=endpos, major_cn=nMaj1_A, minor_cn=nMin1_A)
 
 bb_subclonal <- bb %>%
   filter(!is.na(frac2_A)) %>%
   mutate(clonal_frequency = frac2_A*purity) %>%
-  dplyr::select(chr, startpos, endpos, nMaj2_A, nMin2_A, clonal_frequency) %>%
+  select(chr, startpos, endpos, nMaj2_A, nMin2_A, clonal_frequency) %>%
   dplyr::rename(seqnames=chr, start=startpos, end=endpos, major_cn=nMaj2_A, minor_cn=nMin2_A)
 
 bb_final <- bind_rows(bb_clonal, bb_subclonal) %>% arrange(seqnames, start) %>% GRanges()
