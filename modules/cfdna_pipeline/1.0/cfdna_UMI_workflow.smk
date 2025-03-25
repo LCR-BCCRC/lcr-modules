@@ -12,7 +12,24 @@ import utils.fastq_utils as fu
 BAM_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "bam_pipeline")
 UTILSDIR = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "/modules/cfdna_pipeline/1.0/utils")
 
-SAMPLESHEET = config["lcr-modules"]["_shared"]["samples"]
+UMI_SAMPLESHEET = config["lcr-modules"]["_shared"]["samples"].copy()
+
+# Helper function to get capture regions for a sample
+def get_capture_regions(wildcards):
+    """Get the capture regions file path for a sample from the sample sheet and config"""
+    capture_space = UMI_SAMPLESHEET.loc[UMI_SAMPLESHEET["sample_id"] == wildcards.sample, "capture_space"]
+    
+    # check if capture space is found in sample sheet
+    if capture_space.empty:
+        raise ValueError(f"Capture space not found for {wildcards.sample}")
+    
+    capture_space_value = capture_space.values[0]
+    
+    # check if capture space is found in config
+    if capture_space_value not in config["lcr-modules"]["_shared"]["captureregionsil"]:
+        raise ValueError(f"Capture space '{capture_space_value}' not found in config")
+        
+    return config["lcr-modules"]["_shared"]["captureregionsil"][capture_space_value]
 
 rule trim_umi:
     """
@@ -273,7 +290,7 @@ rule qc_picard_hsmetrics:
         hsmet = os.path.join(BAM_OUTDIR , "Q2-hs_metrics" , "{sample}.hs_metrics.txt"),
         tarcov = os.path.join(BAM_OUTDIR , "Q2-hs_metrics" , "{sample}.target_coverage.txt")
     params:
-        capture_reg_il = config["lcr-modules"]["_shared"]["captureregionsil"],
+        capture_reg_il = lambda wildcards: get_capture_regions(wildcards),
         outdir = os.path.join(BAM_OUTDIR , "Q2-hs_metrics"),
         max_ram_records = "5000000",
         cov_cap_sens = "20000"
@@ -335,7 +352,7 @@ rule qc_fgbio_errorrate:
     params:
         outprefix = os.path.join(BAM_OUTDIR, "Q5-error_rate" , "{sample}"),
         outdir = os.path.join(BAM_OUTDIR , "Q5-error_rate"),
-        capture_reg_il = config["lcr-modules"]["_shared"]["captureregionsil"],
+        capture_reg_il = lambda wildcards: get_capture_regions(wildcards),
         dbsnpvcf = config["lcr-modules"]["cfDNA_umi_workflow"]["dbsnpvcf"]
     conda:
         "envs/bwa_picard_fgbio.yaml"
@@ -431,11 +448,11 @@ checkpoint qc_multiqc:
 
 rule all_bams:
     input:
-        expand(str(rules.qc_calc_dupl.output.txt), sample=SAMPLESHEET["sample_id"]),
-        expand(str(rules.qc_fgbio_errorrate.output.txt), sample=SAMPLESHEET["sample_id"]),
-        expand(str(rules.qc_picard_insertsize.output.txt), sample=SAMPLESHEET["sample_id"]),
-        expand(str(rules.qc_picard_oxog.output.txt), sample=SAMPLESHEET["sample_id"]),
-        expand(str(rules.qc_picard_hsmetrics.output.hsmet), sample=SAMPLESHEET["sample_id"]),
-        expand(str(rules.qc_fastqc.output.qc), sample=SAMPLESHEET["sample_id"]),
-        expand(str(rules.qc_validate_sam.output.txt), sample=SAMPLESHEET["sample_id"]),
-        expand(str(rules.fgbio_group_umis.output.txt), sample=SAMPLESHEET["sample_id"])
+        expand(str(rules.qc_calc_dupl.output.txt), sample=UMI_SAMPLESHEET["sample_id"]),
+        expand(str(rules.qc_fgbio_errorrate.output.txt), sample=UMI_SAMPLESHEET["sample_id"]),
+        expand(str(rules.qc_picard_insertsize.output.txt), sample=UMI_SAMPLESHEET["sample_id"]),
+        expand(str(rules.qc_picard_oxog.output.txt), sample=UMI_SAMPLESHEET["sample_id"]),
+        expand(str(rules.qc_picard_hsmetrics.output.hsmet), sample=UMI_SAMPLESHEET["sample_id"]),
+        expand(str(rules.qc_fastqc.output.qc), sample=UMI_SAMPLESHEET["sample_id"]),
+        expand(str(rules.qc_validate_sam.output.txt), sample=UMI_SAMPLESHEET["sample_id"]),
+        expand(str(rules.fgbio_group_umis.output.txt), sample=UMI_SAMPLESHEET["sample_id"])

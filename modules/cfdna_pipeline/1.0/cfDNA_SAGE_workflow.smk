@@ -16,7 +16,7 @@ SAGE_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], 
 
 all_samples = config["lcr-modules"]["_shared"]["samples"]
 # make sure no unmatched samples are fed into workflow
-SAMPLESHEET = all_samples.loc[all_samples["matched_normal"] != "unpaired"]
+SAMPLESHEET = all_samples.loc[all_samples["matched_normal"] != "unmatched"]
 
 ##################### input functions ############################
 def get_normal_bam(wildcards):
@@ -30,6 +30,7 @@ def get_normal_bam(wildcards):
 
     # check if normal sample is found
     if normal_sample.empty:
+        print(f"############# Normal sample for {wildcards.sample} is {normal_sample}")
         raise ValueError(f"Normal sample not found for {wildcards.sample}")
     else:
         normal_sample = normal_sample.values[0]
@@ -52,6 +53,22 @@ def older_sample_mafs(wildcards):
 
     return expand(os.path.join(SAGE_OUTDIR, "12-filtered/{sample}.sage.filtered.maf"), sample=patient_samples)
 
+def get_capture_space(wildcards):
+    """Get the capture regions file path for a sample from the sample sheet and config"""
+    capture_space = SAMPLESHEET.loc[SAMPLESHEET["sample_id"] == wildcards.sample, "capture_space"]
+    
+    # check if capture space is found in sample sheet
+    if capture_space.empty:
+        raise ValueError(f"Capture space not found for {wildcards.sample}")
+    
+    capture_space_value = capture_space.values[0]
+    
+    # check if capture space is found in config
+    if capture_space_value not in config["lcr-modules"]["_shared"]["captureregions"]:
+        raise ValueError(f"Capture space '{capture_space_value}' not found in config")
+        
+    return config["lcr-modules"]["_shared"]["captureregions"][capture_space_value]
+
 
 ########################################################### Run variant calling
 
@@ -72,7 +89,7 @@ rule run_sage:
         ref_genome_version = "38" if config["lcr-modules"]["_shared"]["ref_genome_ver"] == "GRCh38" else "37",
         # Panel regions and hotspots
         hotspots_vcf = config["lcr-modules"]["cfDNA_SAGE_workflow"]["sage_hotspots"],
-        panel_regions = config["lcr-modules"]["_shared"]["captureregions"],
+        panel_regions = lambda wildcards: get_capture_space(wildcards),
         ensembl = config["lcr-modules"]["cfDNA_SAGE_workflow"]['ensembl'],
         # Miscellaneous
         normal_name = get_normal_name,
@@ -137,7 +154,7 @@ rule flag_masked_pos:
         script = os.path.join(UTILSDIR, "mask_n_sites.py"),
         n_threshold = config["lcr-modules"]["cfDNA_SAGE_workflow"]["mask_threshold"],
         min_count = config["lcr-modules"]["cfDNA_SAGE_workflow"]["mask_count"],
-        panel_regions = config["lcr-modules"]["_shared"]["captureregions"]
+        panel_regions = lambda wildcards: get_capture_space(wildcards),
     conda:
         "envs/bcftools.yaml"
     resources:
@@ -159,7 +176,7 @@ rule restrict_to_capture:
     output:
         vcf = os.path.join(SAGE_OUTDIR, "04-capturespace/{sample}.capspace.vcf")
     params:
-        panel_regions = config["lcr-modules"]["_shared"]["captureregions"]
+        panel_regions = lambda wildcards: get_capture_space(wildcards)
     conda:
         "envs/bcftools.yaml"
     resources:

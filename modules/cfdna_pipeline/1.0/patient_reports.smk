@@ -14,8 +14,8 @@ SAGE_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], 
 COMPILE_REPORT_SCRIPT = os.path.join(MODULE_PATH, "patient_reports/compile_report.py")
 REPORT_TEMP = config["lcr-modules"]["cfDNA_patient_reports"]["report_template"]
 REPORTS_DIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "reports")
-SAMPLESHEET_ALL_PATIENTS = config["lcr-modules"]["_shared"]["samples"]
-
+all_samples = config["lcr-modules"]["_shared"]["samples"].copy()
+REP_SAMPLESHEET = all_samples.loc[all_samples["matched_normal"] != "unmatched"].copy()
 
 localrules:
     record_sample_completion,
@@ -24,34 +24,34 @@ localrules:
 # input functions
 def find_sage_outputs(wildcards):
     # make list of all sample names belonging to patient 
-    patient_samples = SAMPLESHEET_ALL_PATIENTS[(SAMPLESHEET_ALL_PATIENTS["patient_id"] == wildcards.patient) & (SAMPLESHEET_ALL_PATIENTS['timepoint'] != 'normal' )]["sample_id"].tolist()
+    patient_samples = REP_SAMPLESHEET[(REP_SAMPLESHEET["patient_id"] == wildcards.patient) & (REP_SAMPLESHEET['timepoint'] != 'normal' )]["sample_id"].tolist()
     return expand(os.path.join(SAGE_OUTDIR,"99-final/{sample}.processed.maf"), sample=patient_samples)
 
 def find_completion_time(wildcards):
-    patient_samples = SAMPLESHEET_ALL_PATIENTS[(SAMPLESHEET_ALL_PATIENTS["patient_id"] == wildcards.patient) & (SAMPLESHEET_ALL_PATIENTS['timepoint'] != 'normal' )]["sample_id"].tolist()
+    patient_samples = REP_SAMPLESHEET[(REP_SAMPLESHEET["patient_id"] == wildcards.patient) & (REP_SAMPLESHEET['timepoint'] != 'normal' )]["sample_id"].tolist()
     return expand(os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "completion", "{sample}.completion.txt"), sample=patient_samples )
 
 def find_hsmetrics(wildcards):
-    patient_samples = SAMPLESHEET_ALL_PATIENTS[SAMPLESHEET_ALL_PATIENTS["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
+    patient_samples = REP_SAMPLESHEET[REP_SAMPLESHEET["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
     return expand(os.path.join(BAM_OUTDIR, "Q2-hs_metrics/{sample}.hs_metrics.txt"), sample=patient_samples)
 
 def find_targ_cov(wildcards):
     # make list of all sample names belonging to patient
-    patient_samples = SAMPLESHEET_ALL_PATIENTS[SAMPLESHEET_ALL_PATIENTS["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
+    patient_samples = REP_SAMPLESHEET[REP_SAMPLESHEET["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
     return expand(os.path.join(BAM_OUTDIR , "Q2-hs_metrics" , "{sample}.target_coverage.txt"), sample=patient_samples)
 
 def find_igv_report(wildcards):
-    patient_samples = SAMPLESHEET_ALL_PATIENTS[SAMPLESHEET_ALL_PATIENTS["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
+    patient_samples = REP_SAMPLESHEET[REP_SAMPLESHEET["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
     return expand(os.path.join(SAGE_OUTDIR, "07-IGV/{sample}_report.html"), sample=patient_samples)
 
 def find_insert_length(wildcards):
-    patient_samples = SAMPLESHEET_ALL_PATIENTS[SAMPLESHEET_ALL_PATIENTS["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
+    patient_samples = REP_SAMPLESHEET[REP_SAMPLESHEET["patient_id"] == wildcards.patient]["sample_id"].unique().tolist()
     return expand(os.path.join(BAM_OUTDIR, "Q4-insert_size", "{sample}.insert_size_metrics.txt"), sample=patient_samples)
 
 def lymphgen_outputs(wildcards):
     """input function for lymphgen module, calls the outpts
     for _lymphgen_output_txt rule"""
-    patient_samples = SAMPLESHEET_ALL_PATIENTS[(SAMPLESHEET_ALL_PATIENTS["patient_id"] == wildcards.patient) & (SAMPLESHEET_ALL_PATIENTS["tissue_status"] != "normal")]["sample_id"].unique().tolist()
+    patient_samples = REP_SAMPLESHEET[(REP_SAMPLESHEET["patient_id"] == wildcards.patient) & (REP_SAMPLESHEET["tissue_status"] != "normal")]["sample_id"].unique().tolist()
 
     # if lymphgen rule is in workflow, then return the expand of hte files
     if config["lcr-modules"]["cfDNA_patient_reports"]["include_lymphgen"]:
@@ -153,4 +153,4 @@ rule _vcf2maf_crossmap:
 # add rule all to call outputs
 rule make_all_reports:
     input:
-        expand(str(rules.convert_report_to_html.output.html_report), patient = SAMPLESHEET_ALL_PATIENTS["patient_id"].unique().tolist())
+        expand(str(rules.convert_report_to_html.output.html_report), patient = REP_SAMPLESHEET["patient_id"].unique().tolist())

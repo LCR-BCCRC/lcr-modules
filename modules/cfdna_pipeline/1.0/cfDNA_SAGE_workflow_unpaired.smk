@@ -15,8 +15,9 @@ BAM_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "
 UTILSDIR = os.path.join(MODULE_PATH, "utils")
 SAGE_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "sage_pipeline")
 
-all_samples = config["lcr-modules"]["_shared"]["samples"].copy()
-SAMPLESHEET_UN = all_samples.loc[(all_samples["tissue_status"] == "tumor") & (all_samples["matched_normal"] == "unpaired")].copy()
+all_samples = config["lcr-modules"]["_shared"]["samples"]
+# make sure no unmatched samples are fed into workflow
+SAMPLESHEET_UN = all_samples.loc[all_samples["matched_normal"] == "unmatched"].copy()
 
 ####################################### input functions
 
@@ -24,9 +25,9 @@ def older_sample_mafs(wildcards):
     """ Return a list of older sample mafs for augmenting the current maf file.
     """
     # get patient_id
-    patient_id = unmatched_samplesheet.loc[unmatched_samplesheet["sample_id"] == wildcards.sample, "patient_id"].values[0]
+    patient_id = SAMPLESHEET_UN.loc[SAMPLESHEET_UN["sample_id"] == wildcards.sample, "patient_id"].values[0]
     # get all samples for this patient
-    patient_samples = unmatched_samplesheet.loc[(unmatched_samplesheet["patient_id"] == patient_id) & (unmatched_samplesheet['timepoint'] != 'normal' )]["sample_id"].tolist()
+    patient_samples = SAMPLESHEET_UN.loc[(SAMPLESHEET_UN["patient_id"] == patient_id) & (SAMPLESHEET_UN['timepoint'] != 'normal' )]["sample_id"].tolist()
     patient_samples = [s for s in patient_samples if s != wildcards.sample]
 
     return expand(os.path.join(SAGE_OUTDIR, "12-filtered_unmatched/{sample}.sage.filtered.unmatched.maf"), sample=patient_samples)
