@@ -16,6 +16,8 @@ REPORT_TEMP = config["lcr-modules"]["cfDNA_patient_reports"]["report_template"]
 REPORTS_DIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "reports")
 all_samples = config["lcr-modules"]["_shared"]["samples"].copy()
 REP_SAMPLESHEET = all_samples.loc[all_samples["matched_normal"] != "unmatched"].copy()
+# get list of patient_ids for patients who have a tumor sample
+PATS_TO_REPORT = REP_SAMPLESHEET[REP_SAMPLESHEET["tissue_status"]== "tumor"]["patient_id"].unique().tolist()
 
 localrules:
     record_sample_completion,
@@ -153,4 +155,4 @@ rule _vcf2maf_crossmap:
 # add rule all to call outputs
 rule make_all_reports:
     input:
-        expand(str(rules.convert_report_to_html.output.html_report), patient = REP_SAMPLESHEET["patient_id"].unique().tolist())
+        expand(str(rules.convert_report_to_html.output.html_report), patient =PATS_TO_REPORT)
