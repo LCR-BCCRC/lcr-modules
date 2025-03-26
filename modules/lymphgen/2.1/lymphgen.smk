@@ -133,6 +133,43 @@ def best_seg_sv(mod_config):
 
     return(all)
 
+def check_and_remove_broken_symlinks():
+    """Check for broken symlinks in lymphgen input directories and remove them.
+    
+    Snakemake will skip the rules making symlinks if that file already exists,
+    even if it exists as a broken symlink. This function checks for broken
+    symlinks in the input directories and removes them to ensure that
+    Snakemake can create new symlinks to the correct files.
+
+    """
+    
+    # Define directories to check
+    input_dirs = [
+        os.path.join(CFG["dirs"]["inputs"], "maf"),
+        os.path.join(CFG["dirs"]["inputs"], "seg"),
+        os.path.join(CFG["dirs"]["inputs"], "sv")
+    ]
+
+    # Process each directory
+    for directory in input_dirs:
+        if not os.path.exists(directory):
+            continue
+            
+        # Get all files in directory
+        for filename in os.listdir(directory):
+            filepath = os.path.join(directory, filename)
+            
+            # Skip if not a symlink
+            if not os.path.islink(filepath):
+                continue
+                
+            # Check if symlinked file exists
+            target = os.path.realpath(filepath)
+            if not os.path.exists(target):
+                os.unlink(filepath)
+
+# Run the check before processing the workflow
+check_and_remove_broken_symlinks()
 
 RUNS = best_seg_sv(CFG)
 
