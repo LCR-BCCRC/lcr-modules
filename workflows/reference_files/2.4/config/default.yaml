@@ -152,6 +152,9 @@ tools:
     igblast:
         conda_env: "envs/igblast-1.17.1.yaml"
         version: "1.17.1"
+    oncodriveclustl:
+        conda_env: "envs/oncodriveclustl-1.1.3.yaml"
+        version: "1.1.3"
 
 cvbio_config:
     gtf: 

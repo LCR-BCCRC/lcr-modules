@@ -98,13 +98,13 @@ rule _mutect2_run_matched_unmatched:
         CFG["threads"]["mutect2_run"]
     resources:
         **CFG["resources"]["mutect2_run"]
-    wildcard_constraints: 
+    wildcard_constraints:
         pair_status = "matched|unmatched"
     shell:
         op.as_one_line("""
         gatk Mutect2 {params.opts} -I {input.tumour_bam} -I {input.normal_bam}
         -R {input.fasta} -normal $(cat {input.normal_sm}) -O {output.vcf}
-        --germline-resource {input.gnomad} -L {wildcards.chrom} 
+        --germline-resource {input.gnomad} -L {wildcards.chrom}
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -131,11 +131,11 @@ rule _mutect2_run_no_normal:
         CFG["threads"]["mutect2_run"]
     resources:
         **CFG["resources"]["mutect2_run"]
-    wildcard_constraints: 
+    wildcard_constraints:
         pair_status = "no_normal"
     shell:
         op.as_one_line("""
-        gatk Mutect2 {params.opts} -I {input.tumour_bam} -R {input.fasta} 
+        gatk Mutect2 {params.opts} -I {input.tumour_bam} -R {input.fasta}
         -O {output.vcf} --germline-resource {input.gnomad} -L {wildcards.chrom}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -185,7 +185,7 @@ rule _mutect2_merge_vcfs:
         op.as_one_line("""
         bcftools concat --threads {threads} -a -O z {input.vcf} 2> {log.stderr}
             |
-        bcftools sort -O z -o {output.vcf} 2>> {log.stderr} 
+        bcftools sort -O z -o {output.vcf} 2>> {log.stderr}
             &&
         bcftools index -t --threads {threads} {output.vcf} 2>> {log.stderr}
         """)
@@ -264,7 +264,7 @@ rule _mutect2_filter_passed:
     resources:
         **CFG["resources"]["mutect2_passed"]
     shell:
-        op.as_one_line(""" 
+        op.as_one_line("""
         bcftools view -f '.,PASS' -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
             &&
         tabix -p vcf {output.vcf} 2>> {log.stderr}
@@ -280,8 +280,8 @@ rule _mutect2_output_vcf:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.passed.vcf.gz",
         tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.passed.vcf.gz.tbi"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(input.tbi, output.tbi)
+        op.relative_symlink(input.vcf, output.vcf, in_module = True)
+        op.relative_symlink(input.tbi, output.tbi, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks

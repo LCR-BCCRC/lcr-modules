@@ -67,11 +67,11 @@ rule _salmon_quant:
         mem_mb = CFG["mem_mb"]["quant"]
     shell:
         op.as_one_line("""
-        salmon quant -p {threads} 
-        {params.opts} 
+        salmon quant -p {threads}
+        {params.opts}
         -i {input.index}
         -o $(dirname {output.quant})
-        -1 {input.fastq_1} -2 {input.fastq_2} 
+        -1 {input.fastq_1} -2 {input.fastq_2}
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -83,7 +83,7 @@ rule _salmon_output:
     output:
         quant = CFG["dirs"]["outputs"] + "quant_to_" + CFG["transcriptome"]["quant_to"] + "/{seq_type}/{sample_id}.quant.sf"
     run:
-        op.relative_symlink(input.quant, output.quant)
+        op.relative_symlink(input.quant, output.quant, in_module = True)
 
 
 rule export_sample_table:
@@ -119,7 +119,7 @@ rule build_counts_matrix:
         mem_mb = CFG["mem_mb"]["matrix"]
     shell:
         op.as_one_line("""
-        Rscript {input.salmon2counts}
+        Rscript --vanilla {input.salmon2counts}
         {params.path}
         {input.gtf}
         {params.out_dir}

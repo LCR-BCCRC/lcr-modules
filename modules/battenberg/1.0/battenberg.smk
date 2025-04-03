@@ -80,8 +80,8 @@ rule _install_battenberg:
         CFG["conda_envs"]["battenberg"]
     shell:
         """
-        R -q -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' && ##move some of this to config?
-        R -q -e 'devtools::install_github("morinlab/battenberg")' &&              ##move some of this to config?
+        R -q --vanilla -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' && ##move some of this to config?
+        R -q --vanilla -e 'devtools::install_github("morinlab/battenberg")' &&              ##move some of this to config?
         touch {output.complete}"""
 
 
@@ -123,7 +123,7 @@ rule _run_battenberg:
         CFG["threads"]["battenberg"]
     shell:
         """sex=$({params.calc_sex_status} {input.normal_bam} {params.x_chrom} {params.y_chrom} | tail -1 | awk '{{if( $3/$2 > 0.1) print "male"; else print "female"}}') ;"""
-        "Rscript {params.script} -t {wildcards.tumour_id} "
+        "Rscript --vanilla {params.script} -t {wildcards.tumour_id} "
         "-n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam}  "
         "-o {params.out_dir} --sex $sex --reference {params.reference_path} {params.chr_prefixed} --cpu {threads} > {log.stdout} 2> {log.stderr} "
 

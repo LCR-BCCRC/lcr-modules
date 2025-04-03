@@ -77,7 +77,7 @@ if CFG["temp_outputs"] == True:
         shell:
             op.as_one_line("""
             picard -Xmx{resources.mem_mb}m SamToFastq {params.opts}
-            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2}) 
+            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2})
             REFERENCE_SEQUENCE={input.genome}
             > {log.stdout} &> {log.stderr}
             """)
@@ -105,7 +105,7 @@ elif CFG["temp_outputs"] == False:
         shell:
             op.as_one_line("""
             picard -Xmx{resources.mem_mb}m SamToFastq {params.opts}
-            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2}) 
+            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2})
             REFERENCE_SEQUENCE={input.genome}
             > {log.stdout} &> {log.stderr}
             """)
@@ -121,8 +121,8 @@ rule _bam2fastq_output:
         fastq_1 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read1.fastq.gz",
         fastq_2 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read2.fastq.gz"
     run:
-        op.relative_symlink(input.fastq_1, output.fastq_1)
-        op.relative_symlink(input.fastq_2, output.fastq_2)
+        op.relative_symlink(input.fastq_1, output.fastq_1, in_module = True)
+        op.relative_symlink(input.fastq_2, output.fastq_2, in_module = True)
 
 
 rule _bam2fastq_all:

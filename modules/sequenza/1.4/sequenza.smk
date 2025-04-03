@@ -210,7 +210,7 @@ rule _sequenza_run:
         **CFG["resources"]["sequenza"]
     shell:
         op.as_one_line("""
-        Rscript {input.run_sequenza} {input.seqz} {input.assembly} {input.chroms} {input.x_chrom}
+        Rscript --vanilla {input.run_sequenza} {input.seqz} {input.assembly} {input.chroms} {input.x_chrom}
         $(dirname {output.segments}) {threads} > {log.stdout} 2> {log.stderr}
         """)
 
@@ -226,7 +226,7 @@ rule _sequenza_fill_txt:
     threads: 1
     group: "sequenza_post_process"
     params:
-        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/",
+        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"],
         script = "fill_segments.sh",
         arm_file = lambda w: "src/chromArm.hg38.bed" if "38" in str({w.genome_build}) else "src/chromArm.grch37.bed",
         blacklist_file = lambda w: "src/blacklisted.hg38.bed" if "38" in str({w.genome_build}) else "src/blacklisted.grch37.bed"
@@ -348,7 +348,7 @@ rule _sequenza_fill_segments:
         stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}_fill_segments.stderr.log"
     threads: 1
     params:
-        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/"
+        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
     conda:
         CFG["conda_envs"]["bedtools"]
     group: "sequenza_post_process"

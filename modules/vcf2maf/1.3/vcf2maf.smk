@@ -31,7 +31,7 @@ localrules:
     _vcf2maf_input_vcf,
     _vcf2maf_input_bam,
     _vcf2maf_output_maf,
-    _vcf2maf_install_GAMBLR,
+    _vcf2maf_gamblr_config,
     _vcf2maf_output_original,
     _vcf2maf_normalize_prefix,
     _vcf2maf_all
@@ -121,7 +121,7 @@ rule _vcf2maf_run:
     input:
         vcf = str(rules._vcf2maf_annotate_gnomad.output.vcf),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        vep_cache = CFG["inputs"]["vep_cache"]
+        vep_cache = ancient(CFG["inputs"]["vep_cache"])
     output:
         maf = temp(CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.maf"),
         vep = temp(CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.annotated.vep.vcf")
@@ -188,43 +188,21 @@ rule _vcf2maf_gnomad_filter_maf:
             &&
         touch {output.dropped_maf}
         """)
-
-# Obtain the path to the GAMBLR conda environment
-md5hash = hashlib.md5()
-if workflow.conda_prefix:
-    conda_prefix = workflow.conda_prefix
-else:
-    conda_prefix = os.path.abspath(".snakemake/conda")
-
-md5hash.update(conda_prefix.encode())
-f = open("config/envs/GAMBLR.yaml", 'rb')
-md5hash.update(f.read())
-f.close()
-h = md5hash.hexdigest()
-GAMBLR = glob.glob(conda_prefix + "/" + h[:8] + "*")
-for file in GAMBLR: 
-    if os.path.isdir(file): 
-        GAMBLR = file
-
-rule _vcf2maf_install_GAMBLR:
+        
+rule _vcf2maf_gamblr_config:
     params:
-        branch = ", ref = \"" + CFG['inputs']['gamblr_branch'] + "\"" if CFG['inputs']['gamblr_branch'] != "" else "",
-        config_url = CFG["inputs"]["gamblr_config_url"]
+        config_url = CFG["inputs"]["gamblr_config_url"], 
     output:
-        installed = directory(GAMBLR + "/lib/R/library/GAMBLR"),
-        config = "gamblr.yaml"
-    conda:
-        CFG['conda_envs']['gamblr']
+        config = "config.yml"
     shell:
         op.as_one_line("""
-        wget -qO {output.config} {params.config_url} &&
-        R -q -e 'options(timeout=9999999); devtools::install_github("morinlab/GAMBLR"{params.branch})'
+        wget -qO {output.config} {params.config_url} 
         """)
 
 rule _vcf2maf_deblacklist_maf:
     input:
         maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.raw.maf",
-        gamblr = ancient(rules._vcf2maf_install_GAMBLR.output.installed)
+        gamblr = ancient(rules._vcf2maf_gamblr_config.output.config)
     output:
         maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.deblacklisted.maf"
     log:
@@ -395,7 +373,7 @@ rule _vcf2maf_reannotate:
     input:
         maf = str(rules._vcf2maf_crossmap.output.maf),
         fasta = reference_files("genomes/{target_build}/genome_fasta/genome.fa"),
-        vep_cache = CFG["inputs"]["vep_cache"]
+        vep_cache = ancient(CFG["inputs"]["vep_cache"])
     output:
         maf = temp(CFG["dirs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.{filter}_reannotated.{maf}")
     log:
@@ -425,18 +403,23 @@ rule _vcf2maf_reannotate:
         if [[ -e $(ls $MAF2MAF_SCRIPT) ]]; then
             echo "using bundled patched script $MAF2MAF_SCRIPT";
             echo "Running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
-            perl $MAF2MAF_SCRIPT
-            --input-maf {input.maf}
-            --ref-fasta {input.fasta}
-            --ncbi-build {params.build}
-            --vep-data {input.vep_cache}
-            --vep-path $vepPATH
-            {params.opts}
-            {params.custom_enst} |
-            cut -f 1-99,108-112,124-134 |
-            grep -v "$(date +"%Y-%m-%d")"
-            > {output.maf}
-            2>> {log.stderr};
+            if [[ $(wc -l < {input.maf}) -gt 1 ]]; then
+                perl $MAF2MAF_SCRIPT
+                --input-maf {input.maf}
+                --ref-fasta {input.fasta}
+                --ncbi-build {params.build}
+                --vep-data {input.vep_cache}
+                --vep-path $vepPATH
+                {params.opts}
+                {params.custom_enst} |
+                cut -f 1-99,108-112,124-134 |
+                grep -v "$(date +"%Y-%m-%d")"
+                > {output.maf}
+                2>> {log.stderr};
+            else
+                echo "The input MAF file has one line and is empty. Touched the output MAF file." >> {log.stderr};
+                head -n 1 {input.maf} > {output.maf};
+            fi
         else echo "ERROR: PATH is not set properly, using $(which maf2maf.pl) will result in error during execution. Please ensure $MAF2MAF_SCRIPT exists." > {log.stderr}; exit 1; fi
         """)
 
@@ -516,14 +499,19 @@ rule _vcf2maf_normalize_prefix:
             op.relative_symlink(input.maf, output.maf)
         else:
             maf_open = pd.read_csv(input.maf[0], sep = "\t")
-            print("Normalizing " + input.maf[0])
-            # To handle CrossMap weirdness, remove all chr-prefixes and add them back later
-            maf_open["Chromosome"] = maf_open["Chromosome"].astype(str).str.replace('chr', '')
-            if params.dest_chr:  # Will evaluate to True if the destination genome is chr-prefixed
-                # Add chr prefix
-                maf_open['Chromosome'] = 'chr' + maf_open['Chromosome'].astype(str)
-            print("Writing to " + output.maf)
-            maf_open.to_csv(output.maf, sep="\t", index=False)
+            # Check whether the input maf is empty
+            if maf_open.empty:
+                print(f"The incoming maf {input.maf[0]} is empty! Will symlink it instead of normalizing")
+                maf_open.to_csv(output.maf, sep="\t", index=False)
+            else:
+                print("Normalizing " + input.maf[0])
+                # To handle CrossMap weirdness, remove all chr-prefixes and add them back later
+                maf_open["Chromosome"] = maf_open["Chromosome"].astype(str).str.replace('chr', '')
+                if params.dest_chr:  # Will evaluate to True if the destination genome is chr-prefixed
+                    # Add chr prefix
+                    maf_open['Chromosome'] = 'chr' + maf_open['Chromosome'].astype(str)
+                print("Writing to " + output.maf)
+                maf_open.to_csv(output.maf, sep="\t", index=False)
 
 
 rule _vcf2maf_output_maf:

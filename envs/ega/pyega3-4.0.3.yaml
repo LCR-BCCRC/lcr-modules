@@ -1,0 +1,41 @@
+name: pyega3
+channels:
+  - bioconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1
+  - _openmp_mutex=5.1
+  - brotli-python=1.0.9
+  - bzip2=1.0.8
+  - ca-certificates=2024.3.11
+  - certifi=2024.2.2
+  - charset-normalizer=2.0.4
+  - expat=2.6.2
+  - humanize=3.10.0
+  - idna=3.7
+  - ld_impl_linux-64=2.38
+  - libffi=3.4.4
+  - libgcc-ng=11.2.0
+  - libgomp=11.2.0
+  - libstdcxx-ng=11.2.0
+  - libuuid=1.41.5
+  - ncurses=6.4
+  - openssl=3.0.13
+  - pip=24.0
+  - psutil=5.9.0
+  - pyega3=5.2.0
+  - pysocks=1.7.1
+  - python=3.12.3
+  - python-htsget=0.2.6
+  - readline=8.2
+  - requests=2.32.2
+  - setuptools=69.5.1
+  - six=1.16.0
+  - sqlite=3.45.3
+  - tk=8.6.14
+  - tqdm=4.66.4
+  - tzdata=2024a
+  - urllib3=2.2.1
+  - wheel=0.43.0
+  - xz=5.4.6
+  - zlib=1.2.13
