@@ -9,6 +9,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Laura Hilton.
 
-<!-- TODO: Explain each important module design decision below. -->
-
-- No module design decisions explained here yet.
+- The user must provide a cohort maf file. CNVs and SVs are optional. 
+- Uses the same maf subsetting functionality as other level 3 modules (sigprofiler, dnds)
