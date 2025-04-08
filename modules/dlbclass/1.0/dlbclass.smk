@@ -102,7 +102,7 @@ rule _dlbclass_input_sv:
 # Symlinks the subsetting categories input file into the module results directory (under '00-inputs/')
 rule _dlbclass_input_subsetting_categories:
     input:
-        subsetting_categories = CFG["inputs"]["subsetting_categories"]
+        subsetting_categories = ancient(CFG["inputs"]["subsetting_categories"])
     output:
         subsetting_categories = CFG["dirs"]["inputs"] + "sample_sets/subsetting_categories.tsv"
     run:
@@ -112,12 +112,12 @@ rule _dlbclass_input_subsetting_categories:
 rule _dlbclass_download_dlbclass:
     output:
         dlbclass_compressed = temp(CFG["dirs"]["inputs"] + "DLBclass-tool.tar.gz"),
-        dlbclass = CFG["dirs"]["inputs"] + "DLBclass-tool/dlbclass.py", 
-        seg2gsm = CFG["dirs"]["inputs"] + "DLBclass-tool/src/seg2gsm.py", 
-        maf2gsm = CFG["dirs"]["inputs"] + "DLBclass-tool/src/maf2gsm.py", 
-        combine2gsm = CFG["dirs"]["inputs"] + "DLBclass-tool/src/combine2gsm.py",
-        feature_order = CFG["dirs"]["inputs"] + "DLBclass-tool/gsm/feature_order.19Aug2024.txt",
-        pub_gsm = CFG["dirs"]["inputs"] + "DLBclass-tool/gsm/DLBclass_published.GSM.tsv"
+        dlbclass = CFG["dlbclass_path"] + "DLBclass-tool/dlbclass.py", 
+        seg2gsm = CFG["dlbclass_path"] + "DLBclass-tool/src/seg2gsm.py", 
+        maf2gsm = CFG["dlbclass_path"] + "DLBclass-tool/src/maf2gsm.py", 
+        combine2gsm = CFG["dlbclass_path"] + "DLBclass-tool/src/combine2gsm.py",
+        feature_order = CFG["dlbclass_path"] + "DLBclass-tool/gsm/feature_order.19Aug2024.txt",
+        pub_gsm = CFG["dlbclass_path"] + "DLBclass-tool/gsm/DLBclass_published.GSM.tsv"
     params: 
         dlbclass_release = CFG["inputs"]["dlbclass_release"]
     conda:
@@ -143,9 +143,8 @@ rule _dlbclass_download_refs:
     shell:
         op.as_one_line("""
         wget
-        -O - {params.focal_cnv} | 
-        grep -v "19q13.32_2:DEL" | 
-        sed 's/19q13.32_1:DEL/19q13.32:DEL/g' > {output.focal_cnv}
+        -O {output.focal_cnv} 
+        {params.focal_cnv}  
             &&
         wget
         -O {output.arm_cnv}
