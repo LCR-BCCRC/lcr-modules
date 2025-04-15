@@ -16,21 +16,21 @@ assert "CFG" not in locals(), "`CFG` is a reserved variable for lcr-modules."
 
 # Setup module and store module-specific configuration in `CFG`.
 CFG = md.setup_module(
-    config = config, 
-    name = "manta", 
+    config = config,
+    name = "manta",
     version = "1.0",
     subdirs = ["inputs", "chrom_bed", "manta", "bedpe", "outputs"],
     req_references = ["genome_fasta", "genome_fasta_index", "main_chroms"]
 )
 
 # Define rules to be run locally when using a compute cluster.
-localrules: 
+localrules:
     _manta_input_bam,
     _manta_generate_bed,
     _manta_index_bed,
     _manta_configure,
     _manta_output_bedpe,
-    _manta_output_vcf, 
+    _manta_output_vcf,
     _manta_all_dispatch,
     _manta_all
 
@@ -136,7 +136,7 @@ checkpoint _manta_run:
         CFG["conda_envs"].get("manta") or "envs/manta-1.6.0.yaml"
     threads:
         CFG["threads"].get("manta") or 1
-    resources: 
+    resources:
         mem_mb = CFG["mem_mb"].get("manta") or 1000
     shell:
         md.as_one_line("""
@@ -146,7 +146,7 @@ checkpoint _manta_run:
         """)
 
 
-# Fixes sample IDs in VCF header for compatibility with svtools vcftobedpe Otherwise, 
+# Fixes sample IDs in VCF header for compatibility with svtools vcftobedpe Otherwise,
 # manta uses the sample name from the BAM read groups, which may not be useful.
 rule _manta_fix_vcf_ids:
     input:
@@ -196,7 +196,7 @@ rule _manta_vcf_to_bedpe:
         CFG["conda_envs"].get("svtools") or "envs/svtools-0.5.1.yaml"
     threads:
         CFG["threads"].get("vcf_to_bedpe") or 1
-    resources: 
+    resources:
         mem_mb = CFG["mem_mb"].get("vcf_to_bedpe") or 1000
     shell:
         "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log.stderr}"
@@ -209,7 +209,7 @@ rule _manta_output_vcf:
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf.gz"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.vcf, output.vcf, in_module = True)
 
 
 # Symlinks the final BEDPE files
@@ -224,7 +224,7 @@ rule _manta_output_bedpe:
 
 def _get_manta_files(wildcards):
     """Request symlinks for all Manta VCF/BEDPE files.
-    
+
     This function is required in conjunction with a Snakemake
     checkpoint because Manta produces different files based
     on whether it's run in paired mode or not and based on
@@ -238,7 +238,7 @@ def _get_manta_files(wildcards):
     all_files = os.listdir(variants_dir)
     vcf_files = [f for f in all_files if f.endswith(".vcf.gz")]
     vcf_names = [f.replace(".vcf.gz", "") for f in vcf_files]
-    
+
     # Remove any empty VCF files from bedpe_targets
     vcf_filepaths = [os.path.join(variants_dir, f) for f in vcf_files]
     for vcf_name, vcf_filepath in zip(vcf_names, vcf_filepaths):
@@ -246,11 +246,11 @@ def _get_manta_files(wildcards):
             content = [l for l in vcf.readlines() if not l.startswith("#")]
             if len(content) == 0:
                 no_bedpe.append(vcf_name)
-    
+
     vcf_targets = expand(rules._manta_output_vcf.output.vcf,
                          vcf_name=vcf_names, **wildcards)
     bedpe_targets = expand(rules._manta_output_bedpe.output.bedpe,
-                           vcf_name=(set(vcf_names) - set(no_bedpe)), 
+                           vcf_name=(set(vcf_names) - set(no_bedpe)),
                            **wildcards)
     return vcf_targets + bedpe_targets
 
@@ -266,7 +266,7 @@ rule _manta_all_dispatch:
 # Generates the target sentinels for each run, which generate the symlinks
 rule _manta_all:
     input:
-        expand(rules._manta_all_dispatch.output, 
+        expand(rules._manta_all_dispatch.output,
                zip,  # Run expand() with zip(), not product()
                seq_type=CFG["runs"]["tumour_seq_type"],
                genome_build=CFG["runs"]["tumour_genome_build"],

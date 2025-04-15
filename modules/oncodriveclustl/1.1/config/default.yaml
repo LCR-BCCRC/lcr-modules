@@ -1,0 +1,76 @@
+lcr-modules:
+
+    oncodriveclustl:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build}
+            input_maf: "__UPDATE__"
+            subsetting_categories: "__UPDATE__"
+
+        genome_builds: ["__UPDATE__"]
+        # Available regions options: cds, lincrna, 3utr, 5utr, promoter_splice_sites
+        regions: ["__UPDATE__"]
+        q_values: ["__UPDATE__"]
+        # Will only expand genomic coordinates of clusters
+        # within genes whose q-values are under specified thresholds
+
+        maf_processing:
+            sample_sets: ["__UPDATE__"]
+            prepare_mafs: "{SCRIPTSDIR}/generate_smg_inputs/1.1/generate_smg_inputs.R"
+            include_non_coding: False # True or False
+            blacklists: []
+
+        format_clustl_input:
+            input_columns: "2,4,5,10,11"
+            additional_commands: ""
+
+        reference_files_directory: "ref/lcr-modules-references/downloads/oncodrive/"
+        regions_files:
+            grch37:
+                cds: "downloads/oncodrive/regions/grch37/cds.regions.gz"
+                lincrna: "downloads/oncodrive/regions/grch37/lincrnas.regions.gz"
+                3utr: "downloads/oncodrive/regions/grch37/3utr.regions.gz"
+                5utr: "downloads/oncodrive/regions/grch37/5utr.regions.gz"
+                promoter_splice_sites: "downloads/oncodrive/regions/grch37/promoters_splice_sites_10bp.regions.gz"
+            grch38:
+                cds: "{MODSDIR}/etc/hg38.cds.tsv.gz"
+                lincrna:
+                3utr:
+                5utr:
+                promoter_splice_sites:
+
+        detailed_clusters_options:
+            p_value: 0.01
+            minimum_samples: 5
+            minimum_score:
+
+        scripts:
+            deblacklist_script: "{SCRIPTSDIR}/deblacklist_maf/1.0/deblacklist_maf.py"
+            detailed_clusters_script: "{MODSDIR}/etc/detailed_clusters.py"
+
+        scratch_subdirectories: []
+
+        options:
+            clustl_options: "__UPDATE__"
+
+        conda_envs:
+            prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
+            clustl: "{MODSDIR}/envs/oncodriveclustl-1.1.3.yaml"
+
+        threads:
+            clustl: 4
+
+        resources:
+            clustl:
+                mem_mb: 20000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+

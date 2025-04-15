@@ -86,6 +86,7 @@ rule _battenberg_get_reference:
         **CFG["resources"]["reference"]
     threads:
         CFG["threads"]["reference"]
+    conda: CFG["conda"]["wget"]
     shell:
         op.as_one_line("""
         wget -qO-  {params.url}/battenberg_impute_{params.alt_build}.tar.gz  |
@@ -123,22 +124,6 @@ rule _battenberg_input_bam:
         op.absolute_symlink(input.bam + ".bai", output.bai)
         op.absolute_symlink(input.bam + ".bai", output.crai)
 
-# Installs the Battenberg R dependencies and associated software (impute2, alleleCounter)
-# Currently I think this rule has to be run twice for it to work properly because the conda environment is created here. 
-# I am open to suggestions for how to get around this.
-rule _install_battenberg:
-    output:
-        complete = CFG["dirs"]["inputs"] + "battenberg_dependencies_installed.success"
-    conda:
-        CFG["conda_envs"]["battenberg"]
-    log:
-        input = CFG["logs"]["inputs"] + "input.log"
-    shell:
-        """
-        R -q -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' >> {log.input} && ##move some of this to config?
-        R -q -e 'devtools::install_github("morinlab/battenberg")' >> {log.input} &&              ##move some of this to config?
-        touch {output.complete}"""
-
 # this process is very fast on bam files and painfully slow on cram files. 
 # The result of calc_sex_status.sh is stored in a file to avoid having to rerun it unnecessarily
 rule _infer_patient_sex:
@@ -169,7 +154,6 @@ rule _run_battenberg:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
-        installed = CFG["dirs"]["inputs"] + "battenberg_dependencies_installed.success",
         sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         impute_info = str(rules._battenberg_get_reference.output.impute_info)
@@ -205,7 +189,7 @@ rule _run_battenberg:
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stdout};
         sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
         echo "setting sex as $sex";
-        Rscript {params.script} -t {wildcards.tumour_id} 
+        Rscript --vanilla {params.script} -t {wildcards.tumour_id} 
         -n {wildcards.normal_id} --tb $(readlink -f {input.tumour_bam}) --nb $(readlink -f {input.normal_bam}) -f {input.fasta} --reference $(readlink -f {params.ref})
         -o {params.out_dir} --chr_prefixed_genome $chr_prefixed --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" >> {log.stdout}; 
@@ -242,7 +226,7 @@ rule _battenberg_fill_subclones:
     threads: 1
     group: "battenberg_post_process"
     params:
-        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/",
+        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"],
         script = "fill_segments.sh",
         arm_file = lambda w: "src/chromArm.hg38.bed" if "38" in str({w.genome_build}) else "src/chromArm.grch37.bed",
         blacklist_file = lambda w: "src/blacklisted.hg38.bed" if "38" in str({w.genome_build}) else "src/blacklisted.grch37.bed"
@@ -362,7 +346,7 @@ rule _battenberg_fill_segments:
     threads: 1
     group: "battenberg_post_process"
     params:
-        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/"
+        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
     conda:
         CFG["conda_envs"]["bedtools"]
     shell:

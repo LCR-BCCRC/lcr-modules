@@ -94,7 +94,7 @@ rule _fishhook_prepare_maf:
         script = CFG["prepare_mafs"]
     shell:
         op.as_one_line("""
-        Rscript {params.script}
+        Rscript --vanilla {params.script}
         {input.maf}
         {input.sample_sets}
         $(dirname {output.maf})/
@@ -116,7 +116,7 @@ rule _install_fishhook:
         input = CFG["logs"]["inputs"] + "install_fishhook.log"
     shell:
         """
-        R -q -e 'devtools::install_github(c("jokergoo/ComplexHeatmap","mskilab/gTrack", "mskilab/fishHook"))' >> {log.input} &&
+        R -q --vanilla -e 'devtools::install_github(c("jokergoo/ComplexHeatmap","mskilab/gTrack", "mskilab/fishHook"))' >> {log.input} &&
         touch {output.complete}"""
 
 

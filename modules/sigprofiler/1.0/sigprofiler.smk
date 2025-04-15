@@ -115,9 +115,9 @@ rule _sigprofiler_run_generator:
         stderr = CFG["logs"]["inputs"] + "{seq_type}--{genome_build}/{sample_set}/generator.stderr.log"
     params:
         ref = lambda w: config['lcr-modules']['sigprofiler']["sigpro_genomes"][w.genome_build]
-    conda: 
+    conda:
         CFG["conda_envs"]["sigprofiler"]
-    threads: 
+    threads:
         CFG["threads"]["generator"]
     resources:
         mem_mb = CFG["mem_mb"]["generator"]
@@ -147,8 +147,8 @@ rule _sigprofiler_run_estimate:
         mem_mb = CFG["mem_mb"]["estimate"]
     shell:
         op.as_one_line("""
-        python {input.script} {params.opts} {input.mat} {params.outpath} 
-        {params.ref} {params.context_type} {params.exome} 
+        python {input.script} {params.opts} {input.mat} {params.outpath}
+        {params.ref} {params.context_type} {params.exome}
         {params.min_sig} {params.max_sig} {threads} > {log.stdout} 2> {log.stderr}
         """)
 
@@ -176,7 +176,7 @@ rule _sigprofiler_run_extract:
         mem_mb = CFG["mem_mb"]["extract"]
     shell:
         op.as_one_line("""
-        python {input.script} {params.opts} {input.mat} {params.outpath} 
+        python {input.script} {params.opts} {input.mat} {params.outpath}
         {params.ref} {params.context_type} {params.exome}
         $(awk 'BEGIN {{OFS=FS=","}} $1 ~ "*" {{S=substr($1,1,length($1)-1); if (S-{params.rad}<1) {{print 1}} else {{print S-{params.rad}}}}}' {input.stat})
         $(awk 'BEGIN {{OFS=FS=","}} $1 ~ "*" {{S=substr($1,1,length($1)-1); print S+{params.rad}}}' {input.stat})
@@ -221,9 +221,9 @@ rule _sigprofiler_output_tsv:
     input:
         decomp = str(rules._sigprofiler_run_extract.output.decomp),
     output:
-        decomp = CFG["dirs"]["outputs"] + "cosmic_sigs/{seq_type}--{genome_build}/{sample_set}.COSMIC_{type}.De_Novo_map_to_COSMIC_{type}.csv" 
+        decomp = CFG["dirs"]["outputs"] + "cosmic_sigs/{seq_type}--{genome_build}/{sample_set}.COSMIC_{type}.De_Novo_map_to_COSMIC_{type}.csv"
     run:
-        op.relative_symlink(input.decomp, output.decomp)
+        op.relative_symlink(input.decomp, output.decomp, in_module = True)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _sigprofiler_all:
