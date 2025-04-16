@@ -550,16 +550,17 @@ omit_normals_list =  CFG["options"]["normals"]["omit_list"]
 
 def _get_normals_vcfs(wildcards):
     CFG = config["lcr-modules"]["purecn"]
-    capture_space = CFG["runs"][CFG["runs"]['normal_capture_space'].isin([wildcards.capture_space])]
-    capture_space = capture_space[capture_space["normal_genome_build"].isin([wildcards.genome_build])]
-    capture_space = capture_space[capture_space["normal_seq_type"].isin([wildcards.seq_type])]
+    capture_space = CFG["samples"][CFG["samples"]['capture_space'].isin([wildcards.capture_space])]
+    capture_space = capture_space[capture_space["genome_build"].isin([wildcards.genome_build])]
+    capture_space = capture_space[capture_space["seq_type"].isin([wildcards.seq_type])]
+    capture_space = op.filter_samples(capture_space, tissue_status = "normal")
     normals = expand(
         CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}_passed.vcf.gz", 
         zip,
-        seq_type = capture_space["normal_seq_type"],
-        genome_build = capture_space["normal_genome_build"],
-        normal_id = capture_space["normal_sample_id"], 
-        capture_space = capture_space["normal_capture_space"])
+        seq_type = capture_space["seq_type"],
+        genome_build = capture_space["genome_build"],
+        normal_id = capture_space["sample_id"], 
+        capture_space = capture_space["capture_space"])
     normals = list(dict.fromkeys(normals))
     omit_normals_list =  CFG["options"]["normals"]["omit_list"]
     if os.path.exists(omit_normals_list):
@@ -1948,20 +1949,20 @@ if CFG["cnvkit_seg"] == False:
                 tool = "purecn",
                 projection=CFG["output"]["requested_projections"],
                 purecn_version=CFG["output"]["purecn_versions"]
-            ),
-            expand(
-                expand(
-                [
-                    str(rules._purecn_best_seg.output.best_seg)
-                ],
-                zip,  # Run expand() with zip(), not product()
-                tumour_id=CFG["runs"]["tumour_sample_id"],
-                normal_id=CFG["runs"]["normal_sample_id"],
-                seq_type=CFG["runs"]["tumour_seq_type"],
-                pair_status=CFG["runs"]["pair_status"],
-                allow_missing=True),
-                tool = "purecn",
-                projection=CFG["output"]["requested_projections"])
+            )
+            # expand(
+            #     expand(
+            #     [
+            #         str(rules._purecn_best_seg.output.best_seg)
+            #     ],
+            #     zip,  # Run expand() with zip(), not product()
+            #     tumour_id=CFG["runs"]["tumour_sample_id"],
+            #     normal_id=CFG["runs"]["normal_sample_id"],
+            #     seq_type=CFG["runs"]["tumour_seq_type"],
+            #     pair_status=CFG["runs"]["pair_status"],
+            #     allow_missing=True),
+            #     tool = "purecn",
+            #     projection=CFG["output"]["requested_projections"])
 
 
 ##### CLEANUP #####
