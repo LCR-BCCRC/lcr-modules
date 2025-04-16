@@ -1,4 +1,4 @@
-name: /projects/rmorin_scratch/conda_environments/6a3c7732a45598078e92669f72ddd441_
+name: /projects/rmorin_scratch/conda_environments/a4c1d5bb36e6033b24e7961678b2c4dd_
 channels:
   - conda-forge
   - bioconda
@@ -39,13 +39,15 @@ dependencies:
   - bioconductor-rtracklayer=1.54.0
   - bioconductor-s4vectors=0.32.0
   - bioconductor-summarizedexperiment=1.24.0
+  - bioconductor-txdb.hsapiens.ucsc.hg19.knowngene=3.2.2
+  - bioconductor-txdb.hsapiens.ucsc.hg38.knowngene=3.14.0
   - bioconductor-variantannotation=1.40.0
   - bioconductor-xvector=0.34.0
   - bioconductor-zlibbioc=1.40.0
   - bwidget=1.9.14
   - bzip2=1.0.8
   - c-ares=1.18.1
-  - ca-certificates=2022.9.24
+  - ca-certificates=2025.1.31
   - cairo=1.16.0
   - curl=7.80.0
   - font-ttf-dejavu-sans-mono=2.37
@@ -107,7 +109,7 @@ dependencies:
   - lz4-c=1.9.3
   - make=4.3
   - ncurses=6.2
-  - openssl=1.1.1n
+  - openssl=1.1.1o
   - pango=1.48.10
   - pcre=8.45
   - pcre2=10.37
@@ -242,4 +244,4 @@ dependencies:
   - xz=5.2.5
   - zlib=1.2.11
   - zstd=1.5.0
-prefix: /projects/rmorin_scratch/conda_environments/6a3c7732a45598078e92669f72ddd441_
+prefix: /projects/rmorin_scratch/conda_environments/a4c1d5bb36e6033b24e7961678b2c4dd_

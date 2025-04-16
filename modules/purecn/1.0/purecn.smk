@@ -283,6 +283,7 @@ rule _purecn_setinterval:
         genome = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         genome_build = _get_genome_build_db,
         intervalfile_script = CFG["software"]["intervalfile_script"],
+        outdir =  CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/",
         bed = _purecn_get_capspace,
         force = CFG["options"]["setinterval"]["force"],
         opts = CFG["options"]["setinterval"]["opts"]
@@ -296,6 +297,7 @@ rule _purecn_setinterval:
         """
             PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/ ;
             echo -e "Using {params.intervalfile_script} instead of default $PURECN/IntervalFile.R..."
+            mkdir -p {params.outdir} ;
             Rscript {params.intervalfile_script} --in-file {params.bed} \
             --fasta {params.genome} --out-file {output.intervals} \
             --genome {params.genome_build} \
@@ -390,7 +392,7 @@ rule _purecn_mutect2_normal_merge_stats:
     input:
         stats = _purecn_mutect2_normal_get_chr_stats
     output:
-        stats = CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.stats"
+        stats = CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.vcf.gz.stats"
     log:
         CFG["logs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/stats.log"
     conda: CFG["conda_envs"]["mutect"]
@@ -533,8 +535,8 @@ rule _purecn_mutect2_normal_filter_passed:
         filter_out_opts = CFG["options"]["mutect2_norm"]["mutect2_filter_out"],
     log:
         stderr = CFG["logs"]["normals"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{normal_id}/mutect2_passed.log"
-    conda: CFG["conda_envs"]["mutect"]
-    resources: **CFG["resources"]["mutect"]
+    conda: CFG["conda_envs"]["bcftools"]
+    resources: **CFG["resources"]["concatenate_vcf"]
     shell:
         op.as_one_line(""" 
         bcftools view "{params.filter_for_opts}" -e "{params.filter_out_opts}" -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
@@ -909,7 +911,7 @@ rule _purecn_mutect2_merge_stats:
     input:
         stats = _purecn_mutect2_get_chr_stats
     output:
-        stats = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.stats"
+        stats = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.vcf.gz.stats"
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{tumour_id}/stats.log"
     conda: CFG["conda_envs"]["mutect"]
@@ -1052,8 +1054,8 @@ rule _purecn_mutect2_filter_passed:
         filter_out_opts = CFG["options"]["mutect2"]["mutect2_filter_out"],
     log:
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{tumour_id}/mutect2_passed.log"
-    conda: CFG["conda_envs"]["mutect"]
-    resources: **CFG["resources"]["mutect"]
+    conda: CFG["conda_envs"]["bcftools"]
+    resources: **CFG["resources"]["concatenate_vcf"]
     shell:
         op.as_one_line(""" 
         bcftools view "{params.filter_for_opts}" -e "{params.filter_out_opts}" -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
@@ -1439,7 +1441,7 @@ if CFG["cnvkit_seg"] == True:
             stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/purecn_cnvkit/{tumour_id}--{normal_id}--{pair_status}.{tool}_fill_segments.stderr.log"
         threads: 1
         params:
-            path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/"
+            path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
         conda:
             CFG["conda_envs"]["bedtools"]
         group: "cnvkit_post_process"
@@ -1512,7 +1514,7 @@ rule _purecn_denovo_fill_segments:
         stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/purecn_denovo/{tumour_id}--{normal_id}--{pair_status}.{tool}_fill_segments.stderr.log"
     threads: 1
     params:
-        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/"
+        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
     conda:
         CFG["conda_envs"]["bedtools"]
     group: "purecn_post_process"
