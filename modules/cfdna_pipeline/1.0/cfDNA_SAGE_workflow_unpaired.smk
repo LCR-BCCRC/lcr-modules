@@ -27,10 +27,26 @@ def older_sample_mafs(wildcards):
     # get patient_id
     patient_id = SAMPLESHEET_UN.loc[SAMPLESHEET_UN["sample_id"] == wildcards.sample, "patient_id"].values[0]
     # get all samples for this patient
-    patient_samples = SAMPLESHEET_UN.loc[(SAMPLESHEET_UN["patient_id"] == patient_id) & (SAMPLESHEET_UN['timepoint'] != 'normal' )]["sample_id"].tolist()
+    patient_samples = SAMPLESHEET_UN.loc[(SAMPLESHEET_UN["patient_id"] == patient_id) & (SAMPLESHEET_UN['tissue_status'] != 'normal' )]["sample_id"].tolist()
     patient_samples = [s for s in patient_samples if s != wildcards.sample]
 
     return expand(os.path.join(SAGE_OUTDIR, "12-filtered_unmatched/{sample}.sage.filtered.unmatched.maf"), sample=patient_samples)
+
+def get_capture_space(wildcards):
+    """Get the capture regions file path for a sample from the sample sheet and config"""
+    capture_space = SAMPLESHEET.loc[SAMPLESHEET["sample_id"] == wildcards.sample, "capture_space"]
+    
+    # check if capture space is found in sample sheet
+    if capture_space.empty:
+        raise ValueError(f"Capture space not found for {wildcards.sample}")
+    
+    capture_space_value = capture_space.values[0]
+    
+    # check if capture space is found in config
+    if capture_space_value not in config["lcr-modules"]["_shared"]["captureregions"]:
+        raise ValueError(f"Capture space '{capture_space_value}' not found in config")
+        
+    return config["lcr-modules"]["_shared"]["captureregions"][capture_space_value]
 
 ########################################################### Run variant calling
 rule run_sage_un:
@@ -43,7 +59,7 @@ rule run_sage_un:
         ref_genome_version = "38" if config["lcr-modules"]["_shared"]["ref_genome_ver"] == "GRCh38" else "37",
         # Panel regions and hotspots
         hotspots_vcf = config["lcr-modules"]["cfDNA_SAGE_workflow"]["sage_hotspots"],
-        panel_regions = config["lcr-modules"]["_shared"]["captureregions"],
+        panel_regions = lambda wildcards: get_capture_space(wildcards),
         ensembl = config["lcr-modules"]["cfDNA_SAGE_workflow"]['ensembl'],
         # Miscellaneous
         max_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_depth"],
