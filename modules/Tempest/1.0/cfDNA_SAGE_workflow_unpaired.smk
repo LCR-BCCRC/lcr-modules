@@ -70,7 +70,6 @@ rule run_sage_un:
         # Panel regions and hotspots and inputs
         hotspots_vcf = config["lcr-modules"]["cfDNA_SAGE_workflow"]["sage_hotspots"],
         panel_regions = lambda wildcards: get_capture_space(wildcards),
-        high_conf_bed = config["lcr-modules"]["cfDNA_SAGE_workflow"]["high_conf_bed"],
         ensembl = config["lcr-modules"]["cfDNA_SAGE_workflow"]['ensembl'],
         # soft filters
         panel_vaf_threshold = config["lcr-modules"]["cfDNA_SAGE_workflow"]["tumor_panel_min_vaf"],
