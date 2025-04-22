@@ -70,7 +70,6 @@ def best_seg_sv(mod_config):
     
     # Assign CNV paths
     samples_df = assign_cnv_paths(samples_df, mod_config)
-    print(f"columns after CNV assignment: {samples_df.columns}")
     
     # Assign SV paths
     samples_df = assign_sv_paths(samples_df, mod_config)
