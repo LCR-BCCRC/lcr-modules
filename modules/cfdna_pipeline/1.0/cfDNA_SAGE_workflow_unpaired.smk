@@ -119,7 +119,7 @@ rule flag_masked_pos_un:
         script = os.path.join(UTILSDIR, "mask_n_sites.py"),
         n_threshold = config["lcr-modules"]["cfDNA_SAGE_workflow"]["mask_threshold"],
         min_count = config["lcr-modules"]["cfDNA_SAGE_workflow"]["mask_count"],
-        panel_regions = config["lcr-modules"]["_shared"]["captureregions"]
+        panel_regions = lambda wildcards: get_capture_space(wildcards),
     conda:
         "envs/bcftools.yaml"
     resources:
@@ -141,7 +141,7 @@ rule restrict_to_capture_un:
     output:
         vcf = os.path.join(SAGE_OUTDIR, "04-capturespace/{sample}.capspace.unmatched.vcf")
     params:
-        panel_regions = config["lcr-modules"]["_shared"]["captureregions"]
+        panel_regions = lambda wildcards: get_capture_space(wildcards),
     conda:
         "envs/bcftools.yaml"
     resources:
