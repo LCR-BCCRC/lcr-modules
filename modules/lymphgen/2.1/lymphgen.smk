@@ -1,6 +1,6 @@
 #!/usr/bin/env snakemake
 import os
-import pandas
+import pandas as pd
 import glob as glob
 
 ##### ATTRIBUTION #####
@@ -51,87 +51,193 @@ def _find_best_sv(wildcards):
     else:
         return this_tumor.sv_path
 
-def has_fish(mod_config):
-    fish = CFG["inputs"]["sample_sv_info"]["fish"]
-    fish = pandas.read_csv(fish, sep='\t')
-    fish_sample_ids = fish['sample_id'].to_numpy()
-    mod_config['has_fish'] = False
-    for i, row in mod_config.iterrows():
-        if row['tumour_sample_id'] in fish_sample_ids:
-            mod_config['has_fish'] = True
-        else:
-            mod_config['has_fish'] = False
-
 def best_seg_sv(mod_config):
-    # set the cnv_path to be used for each sample based on sample_seg keys in the config 
-    callers_seg = list(mod_config["inputs"]["sample_seg"].keys())
-    callers_seg = [caller.lower() for caller in callers_seg]
-    dfm = mod_config["runs"]
-    df = dfm.to_dict('index')
-    for index in df.keys():
-        possible_outputs = []
+    """Determine optimal segmentation and SV files for each sample.
+    
+    This function processes each sample in the config and determines the 
+    best segmentation (CNV) and structural variant (SV) files to use.
+    It also evaluates whether each sample should be processed with the SV pipeline.
+    
+    Args:
+        mod_config: Configuration dictionary with sample info and file paths
+        
+    Returns:
+        pandas.DataFrame: Updated sample dataframe with cnv_path, sv_path, has_sv, 
+                          and has_fish columns added
+    """
+    # Get sample dataframe
+    samples_df = mod_config["runs"]
+    
+    # Assign CNV paths
+    samples_df = assign_cnv_paths(samples_df, mod_config)
+    print(f"columns after CNV assignment: {samples_df.columns}")
+    
+    # Assign SV paths
+    samples_df = assign_sv_paths(samples_df, mod_config)
+    
+    # Determine which samples should use SV analysis
+    samples_df = determine_sv_eligibility(samples_df, mod_config)
+    
+    # Add FISH data information
+    samples_df = add_fish_data(samples_df)
+    
+    return samples_df
+
+
+def assign_cnv_paths(samples_df, mod_config):
+    """Assign the best available CNV file path for each sample.
+    
+    For each sample, checks for segmentation files from different callers
+    in order of preference and assigns the first found file.
+    
+    Args:
+        samples_df: DataFrame containing sample information
+        mod_config: Module configuration with file path templates
+        
+    Returns:
+        pandas.DataFrame: Updated samples dataframe with cnv_path column
+    """
+    # Get list of available segmentation callers from config
+    callers_seg = [caller.lower() for caller in mod_config["inputs"]["sample_seg"].keys()]
+    
+    # Create a copy to avoid modifying the original dataframe
+    df = samples_df.copy()
+    
+    # Initialize the cnv_path column with empty paths
+    df["cnv_path"] = mod_config["inputs"]["sample_seg"]["empty"]
+    
+    # Process each sample
+    for idx, row in df.iterrows():
+        # Find the first available segmentation file
         for caller in callers_seg:
             if caller == "empty":
-                possible_output = [mod_config["inputs"]["sample_seg"][caller]]
-            else:
-                possible_output = (expand(mod_config["inputs"]["sample_seg"][caller], zip,
-                                        tumour_id=df[index]["tumour_sample_id"],
-                                        normal_id=df[index]["normal_sample_id"],
-                                        pair_status=df[index]["pair_status"],
-                                        genome_build=df[index]["tumour_genome_build"],
-                                        seq_type=df[index]["tumour_seq_type"]))
-        
-            if os.path.exists(possible_output[0]):
-                possible_outputs += possible_output
+                # Skip empty placeholder when searching for real files
+                continue
+                
+            # Use actual path with sample parameters
+            path = expand(mod_config["inputs"]["sample_seg"][caller], 
+                          tumour_id=row["tumour_sample_id"],
+                          normal_id=row["normal_sample_id"],
+                          pair_status=row["pair_status"],
+                          genome_build=row["tumour_genome_build"],
+                          seq_type=row["tumour_seq_type"])[0]
             
-        df[index]["cnv_path"] = possible_outputs[0]
-        
-        mod_config["runs"].at[index, "cnv_path"] = df[index]["cnv_path"]
+            # Check if file exists
+            if os.path.exists(path):
+                df.at[idx, "cnv_path"] = path
+                break
+    
+    return df
 
-    # set the sv_path to be used for each sample based on ["sample_sv_info"]["other"] keys 
-    callers_sv = list(mod_config["inputs"]["sample_sv_info"]["other"].keys())
-    callers_sv = [caller.lower() for caller in callers_sv]
-    dfm = mod_config["runs"]
-    df = dfm.to_dict('index')
-    for index in df.keys():
-        possible_outputs = []
+
+def assign_sv_paths(samples_df, mod_config):
+    """Assign the best available SV file path for each sample.
+    
+    For each sample, checks for SV files from different callers
+    in order of preference and assigns the first found file.
+    
+    Args:
+        samples_df: DataFrame containing sample information
+        mod_config: Module configuration with file path templates
+        
+    Returns:
+        pandas.DataFrame: Updated samples dataframe with sv_path column
+    """
+    # Get list of available SV callers from config
+    callers_sv = [caller.lower() for caller in mod_config["inputs"]["sample_sv_info"]["other"].keys()]
+    
+    # Create a copy to avoid modifying the original dataframe
+    df = samples_df.copy()
+    empty_sv_path = mod_config["inputs"]["sample_sv_info"]["other"]["empty_sv"]
+    
+    # Process each sample
+    for idx, row in df.iterrows():
+        found_sv_file = False
+        
+        # Find the first available SV file
         for caller in callers_sv:
             if caller == "empty_sv":
-                possible_output = [mod_config["inputs"]["sample_sv_info"]["other"][caller]]
+                path = empty_sv_path
             else:
-                possible_output = (expand(mod_config["inputs"]["sample_sv_info"]["other"][caller], zip,
-                                        tumour_id=df[index]["tumour_sample_id"],
-                                        normal_id=df[index]["normal_sample_id"],
-                                        pair_status=df[index]["pair_status"],
-                                        genome_build=df[index]["tumour_genome_build"],
-                                        seq_type=df[index]["tumour_seq_type"]))
+                path = expand(mod_config["inputs"]["sample_sv_info"]["other"][caller], 
+                              tumour_id=row["tumour_sample_id"],
+                              normal_id=row["normal_sample_id"],
+                              pair_status=row["pair_status"],
+                              genome_build=row["tumour_genome_build"],
+                              seq_type=row["tumour_seq_type"])[0]
+            
+            # Check if file exists
+            if os.path.exists(path):
+                df.at[idx, "sv_path"] = path
+                found_sv_file = True
+                break
+                
+        # Ensure every sample has a path (use empty if nothing found)
+        if not found_sv_file:
+            df.at[idx, "sv_path"] = empty_sv_path
+    
+    return df
 
-            if os.path.exists(possible_output[0]):
-                possible_outputs += possible_output
 
-        df[index]["sv_path"] = possible_outputs[0]
+def determine_sv_eligibility(samples_df, mod_config):
+    """Determine which samples should be analyzed with the SV pipeline.
+    
+    Sets the 'has_sv' flag based on sample type and SV data availability:
+    - Genome samples with SV data are eligible
+    - Capture samples with SV data are not eligible (due to artifacts)
+    
+    Args:
+        samples_df: DataFrame with samples and their SV paths
+        mod_config: Module configuration
+        
+    Returns:
+        pandas.DataFrame: Updated dataframe with has_sv column added
+    """
+    # Create a copy to avoid modifying the original dataframe
+    df = samples_df.copy()
+    empty_sv_path = mod_config["inputs"]["sample_sv_info"]["other"]["empty_sv"]
+    
+    # Initialize has_sv column
+    df['has_sv'] = False
+    
+    # Set has_sv flag for each sample
+    for idx, row in df.iterrows():
+        # Genome samples can use SV data from sequencing
+        # Capture samples are NOT eligible for SV analysis due to artifacts
+        if (row['tumour_seq_type'] == "genome" and 
+            row['sv_path'] != empty_sv_path):
+            df.at[idx, 'has_sv'] = True
+    
+    return df
 
-        mod_config["runs"].at[index, "sv_path"] = df[index]["sv_path"]
 
-    all = mod_config["runs"]
-
-    # creates a column in the RUNS table for having sv 
-    # if a sample is capture, it should only go through the with_sv pipeline if it has FISH
-    #       this is because detecting SVs using short read sequencing often resembles common #       sequencing and alignment artifacts. 
-    # if a sample is genome, it should go through with_sv whether it has FISH OR svar_master OR # manta outputs
-    all['has_sv'] = False
-    for i, row in all.iterrows():
-        # if the sample is genome and it doesn't have an empty SV path for manta or svar_master 
-        if (row['tumour_seq_type'] == "genome") & (row['sv_path'] != config["lcr-modules"]["lymphgen"]["inputs"]["sample_sv_info"]["other"]["empty_sv"]):
-            all.at[i, 'has_sv'] = True
-        else:
-            all.at[i, 'has_sv'] = False
-
-    # this function creates a column 'has_fish' based on whether there is FISH data for the 
-    # sample in the input FISH table 
-    has_fish(all)
-
-    return(all)
+def add_fish_data(samples_df):
+    """Add FISH data availability flag to samples.
+    
+    Identifies which samples have FISH data available by checking 
+    against the FISH data table.
+    
+    Args:
+        samples_df: DataFrame with sample information
+        
+    Returns:
+        pandas.DataFrame: Updated dataframe with has_fish column added
+    """
+    # Create a copy to avoid modifying the original dataframe
+    df = samples_df.copy()
+    
+    # Read FISH data table
+    fish = pd.read_csv(CFG["inputs"]["sample_sv_info"]["fish"], sep='\t')
+    fish_sample_ids = set(fish['sample_id'])
+    
+    # Initialize has_fish column
+    df['has_fish'] = False
+    
+    # Set has_fish flag for each sample
+    for idx, row in df.iterrows():
+        df.at[idx, 'has_fish'] = row['tumour_sample_id'] in fish_sample_ids
+    
+    return df
 
 def check_and_remove_broken_symlinks():
     """Check for broken symlinks in lymphgen input directories and remove them.
@@ -273,7 +379,7 @@ rule _lymphgen_reformat_seg:
         "lymphgen"
     run:
 
-        loaded_seg = pandas.read_csv(input.seg, sep="\t")
+        loaded_seg = pd.read_csv(input.seg, sep="\t")
         seg_header = list(loaded_seg.columns)
         # Rename relevant columns
         new_cols = {
@@ -438,7 +544,7 @@ rule _lymphgen_add_sv:
         params.bcl6false = set([params.bcl6false] if isinstance(params.bcl6false, str) else params.bcl6false)
 
         # Open the SV info file, and load the required columns
-        loaded_sv = pandas.read_csv(input.bcl2_bcl6_sv, sep="\t")  # Pandas claims to auto-detect the file seperator, but in my experience it doesn't work
+        loaded_sv = pd.read_csv(input.bcl2_bcl6_sv, sep="\t")  # Pandas claims to auto-detect the file seperator, but in my experience it doesn't work
         # Check that the required columns exist
         if not params.bcl2colname in loaded_sv.columns:
             raise AttributeError("Unable to locate column \'%s\' in \'%s\'" % (params.bcl2colname, input.bcl2_bcl6_sv))
