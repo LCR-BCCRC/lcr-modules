@@ -102,30 +102,29 @@ def assign_cnv_paths(samples_df, mod_config):
     # Create a copy to avoid modifying the original dataframe
     df = samples_df.copy()
     
+    # Initialize the cnv_path column with empty paths
+    df["cnv_path"] = mod_config["inputs"]["sample_seg"]["empty"]
+    
     # Process each sample
     for idx, row in df.iterrows():
         # Find the first available segmentation file
         for caller in callers_seg:
             if caller == "empty":
-                # Use empty placeholder
-                path = mod_config["inputs"]["sample_seg"][caller]
-            else:
-                # Use actual path with sample parameters
-                path = expand(mod_config["inputs"]["sample_seg"][caller], 
-                              tumour_id=row["tumour_sample_id"],
-                              normal_id=row["normal_sample_id"],
-                              pair_status=row["pair_status"],
-                              genome_build=row["tumour_genome_build"],
-                              seq_type=row["tumour_seq_type"])[0]
+                # Skip empty placeholder when searching for real files
+                continue
+                
+            # Use actual path with sample parameters
+            path = expand(mod_config["inputs"]["sample_seg"][caller], 
+                          tumour_id=row["tumour_sample_id"],
+                          normal_id=row["normal_sample_id"],
+                          pair_status=row["pair_status"],
+                          genome_build=row["tumour_genome_build"],
+                          seq_type=row["tumour_seq_type"])[0]
             
             # Check if file exists
             if os.path.exists(path):
                 df.at[idx, "cnv_path"] = path
                 break
-                
-        # Ensure every sample has a path (use empty if nothing found)
-        if "cnv_path" not in df.columns or pd.isna(df.at[idx, "cnv_path"]):
-            df.at[idx, "cnv_path"] = mod_config["inputs"]["sample_seg"]["empty"]
     
     return df
 
