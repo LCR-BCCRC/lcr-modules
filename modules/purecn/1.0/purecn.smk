@@ -157,28 +157,28 @@ def get_genome_fasta(wildcards):
 rule _purecn_generate_gem_index:
     input:
         software = CFG["dirs"]["inputs"] + "references/GEM/.done",
-        reference = get_genome_fasta
+        reference = get_genome_fasta,
+        idxpref = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index"
     output:
         index = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index.gem"
     params:
-        gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin",
-        idxpref = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index"
+        gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin"
     threads: CFG["threads"]["gem"]
     resources: **CFG["resources"]["gem"]
     log: CFG["logs"]["inputs"] + "gem/{genome_build}/gem_index.stderr.log"
     shell:
-        "PATH=$PATH:{params.gemDir}; {params.gemDir}/gem-indexer -T {threads} -c dna -i {input.reference} -o {params.idxpref} > {log} 2>&1 "
+        "PATH=$PATH:{params.gemDir}; {params.gemDir}/gem-indexer -T {threads} -c dna -i {input.reference} -o {input.idxpref} > {log} 2>&1 "
 
 
 rule _purecn_generate_mappability:
     input:
         software = CFG["dirs"]["inputs"] + "references/GEM/.done",
-        index = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index.gem"
+        index = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index.gem",
+        pref =  CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem"
     output:
         mappability = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.mappability"
     params:
         gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin",
-        pref =  CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem",
         kmer = CFG["options"]["kmer"],
         mismatch = CFG["options"]["mismatch"],
         maxEditDistance = CFG["options"]["maxEditDistance"],
@@ -188,7 +188,7 @@ rule _purecn_generate_mappability:
     resources: **CFG["resources"]["gem"]
     log: CFG["logs"]["inputs"] + "gem/{genome_build}/gem_map.stderr.log"
     shell:
-        "PATH=$PATH:{params.gemDir}; {params.gemDir}/gem-mappability -T {threads} -I {input.index} -l {params.kmer} -m {params.mismatch} -t disable --mismatch-alphabet ACGNT -e {params.maxEditDistance} --max-big-indel-length {params.maxBigIndel} -s {params.strata} -o {params.pref} > {log} 2>&1 "
+        "PATH=$PATH:{params.gemDir}; {params.gemDir}/gem-mappability -T {threads} -I {input.index} -l {params.kmer} -m {params.mismatch} -t disable --mismatch-alphabet ACGNT -e {params.maxEditDistance} --max-big-indel-length {params.maxBigIndel} -s {params.strata} -o {input.pref} > {log} 2>&1 "
 
 
 rule _purecn_symlink_map:
@@ -204,24 +204,25 @@ rule _purecn_symlink_map:
 rule _purecn_set_mappability:
     input:
         index = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index.gem",
-        mappability = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/out100m2_{genome_build}.gem"
+        mappability = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/out100m2_{genome_build}.gem",
+        pref =  CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem"
     output:
         wig = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.wig",
         size = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.sizes"
     params:
-        gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin",
-        pref =  CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem",
+        gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin"
     threads: CFG["threads"]["gem"]
     resources: **CFG["resources"]["gem"]
     shell:
         """
             PATH=$PATH:{params.gemDir}; 
-            {params.gemDir}/gem-2-wig -I {input.index} -i {input.mappability} -o {params.pref} 
+            {params.gemDir}/gem-2-wig -I {input.index} -i {input.mappability} -o {input.pref} 
         """
 
 rule _purecn_gem_wig2bw:
     input:
         wig = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.wig",
+        sizes = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.sizes"
     output:
         bw = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.bw",
     params:
@@ -231,7 +232,7 @@ rule _purecn_gem_wig2bw:
     resources: **CFG["resources"]["gem"]
     shell:
         """
-            wigToBigWig {input.wig} {params.sizes} {output.bw}
+            wigToBigWig {input.wig} {input.sizes} {output.bw}
         """
 
 # set up intervals for coverage calculations (used for de novo pureCN CNV calling)
@@ -274,6 +275,7 @@ rule _purecn_input_bed:
 
 rule _purecn_setinterval:
     input:
+        genome = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         bed = str(rules._purecn_input_bed.output.bed),
         bw = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.bw",
     output:
@@ -297,12 +299,11 @@ rule _purecn_setinterval:
             PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/ ;
             echo -e "Using {params.intervalfile_script} instead of default $PURECN/IntervalFile.R..."
             mkdir -p {params.outdir} ;
-            Rscript {params.intervalfile_script} --in-file {params.bed} \
-            --fasta {params.genome} --out-file {output.intervals} \
+            Rscript --vanilla {params.intervalfile_script} --in-file {input.bed} \
+            --fasta {input.genome} --out-file {output.intervals} \
             --genome {params.genome_build} \
             --mappability {input.bw} {params.force} {params.opts} > {log} 2>&1
         """
-
 
 # -------------------------------------------------------------------------------------------------- #
 # Part II - Set up normals 
@@ -636,13 +637,12 @@ target_regions = str(rules._purecn_input_bed.output.bed),
             touch(CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/genomicsdb/{capture_space}_database.done")
         params:
             mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
-            target_regions = _purecn_get_capspace,
             pon_path = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/genomicsdb/{capture_space}_database/"
         conda: CFG["conda_envs"]["mutect"]
         resources: **CFG["resources"]["mutect"]
         shell:
             """
-                gatk GenomicsDBImport --java-options "-Xmx{params.mem_mb}m" -L {params.target_regions} \
+                gatk GenomicsDBImport --java-options "-Xmx{params.mem_mb}m" -L {input.target_regions} \
                 --sample-name-map {input.map_sample} \
                 --genomicsdb-workspace-path {params.pon_path} --lenient --merge-input-intervals TRUE \
                 --overwrite-existing-genomicsdb-workspace TRUE 
@@ -651,13 +651,13 @@ target_regions = str(rules._purecn_input_bed.output.bed),
 if CFG['options']['new_normals'] == True:
     rule _purecn_mutect2_create_pon:
         input:
-            CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/genomicsdb/{capture_space}_database.done"
+            CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/genomicsdb/{capture_space}_database.done",
+            fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
         output:
             pon = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/{capture_space}_mutect2_pon.vcf.gz"
         params:
             mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
-            opts = "gendb://" + CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/genomicsdb/{capture_space}_database/",
-            fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+            opts = "gendb://" + CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/genomicsdb/{capture_space}_database/"
         conda: CFG["conda_envs"]["mutect"]
         resources: **CFG["resources"]["mutect"]
         shell:
