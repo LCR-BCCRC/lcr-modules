@@ -688,10 +688,21 @@ rule _purecn_gatk_interval_list_chrom:
         gatk_intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals_gatk.list"
     output:
         chrom_int = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_{chrom}.intervals_gatk.list"
+    log:
+        CFG["logs"]["inputs"] + "purecn_gatk_intervals/{genome_build}--{capture_space}/baits_{genome_build}_{chrom}.log"
     shell:
+        op.as_one_line(
         """
-            egrep -i '^{wildcards.chrom}:.*-.*' {input.gatk_intervals} > {output.chrom_int}
+            num_intervals=$( {{ egrep -i '^{wildcards.chrom}:.*-.*' {input.gatk_intervals} || true; }} | wc -l );
+            if [[ $num_intervals -eq 0 ]]; then
+                echo "No intervals found for chromosome {wildcards.chrom} in {input.gatk_intervals}" | tee {log}; 
+                echo "{wildcards.chrom}:1-100" > {output.chrom_int}; 
+            else
+                echo "Found $num_intervals intervals for chromosome {wildcards.chrom} in {input.gatk_intervals}" | tee {log}; 
+                egrep -i '^{wildcards.chrom}:.*-.*' {input.gatk_intervals} > {output.chrom_int}; 
+            fi
         """
+        )
 
 rule _purecn_gatk_depthOfCoverage:
     input:
