@@ -25,6 +25,14 @@ lcr-modules:
                 hg38:
                     agilent: ""
                     idt: ""
+                    
+            genome_builds: 
+                grch37: "hg19"
+                hg19: "hg19"
+                hs37d5: "hg19"
+                grch38: "hg38"
+                hg38: "hg38"
+                hg38-nci: "hg38"
 
 
             # Reference file settings: ----------------------------------------------------------------------- #
