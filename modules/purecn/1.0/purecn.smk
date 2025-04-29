@@ -53,6 +53,7 @@ localrules:
     _purecn_denovo_output_seg,
     _purecn_cnvkit_output_files,
     _purecn_denovo_output_files,
+    coverage_list_normals,
     _purecn_all,
 
 
