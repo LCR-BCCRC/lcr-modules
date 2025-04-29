@@ -627,13 +627,13 @@ if CFG['options']['new_normals'] == True:
         input:
             normal = _get_normals_vcfs,
             normal_tbi = _get_normals_tbi,
-            map_sample = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/map/{capture_space}_samples_map.txt",
-target_regions = str(rules._purecn_input_bed.output.bed),
+            map_sample = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/map/{capture_space}_samples_map.txt", 
+            target_regions = str(rules._purecn_input_bed.output.bed),
             done = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/map/.{capture_space}_samples_map.done"
         output:
             touch(CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/genomicsdb/{capture_space}_database.done")
         params:
-            mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
+            mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
             pon_path = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/genomicsdb/{capture_space}_database/"
         conda: CFG["conda_envs"]["mutect"]
         resources: **CFG["resources"]["mutect"]
