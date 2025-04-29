@@ -225,8 +225,6 @@ rule _purecn_gem_wig2bw:
         sizes = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.sizes"
     output:
         bw = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.bw",
-    params:
-        sizes = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.sizes"
     conda: CFG["conda_envs"]["ucsc_bigwigtowig"]
     threads: CFG["threads"]["gem"]
     resources: **CFG["resources"]["gem"]
