@@ -1643,7 +1643,7 @@ if CFG["cnvkit_seg"] == True:
         input:
             projection = str(rules._purecn_normalize_projection.output.projection)
         output:
-            projection = CFG["output"]["cnvkit_seg"]["projection"]
+            projection = CFG["dirs"]["outputs"] +  CFG["output"]["cnvkit_seg"]["projection"]
         threads: 1
         group: "cnvkit_post_process"
         wildcard_constraints: 
@@ -1658,7 +1658,7 @@ rule _purecn_denovo_output_projection:
     input:
         projection_denovo = str(rules._purecn_denovo_normalize_projection.output.projection),
     output:
-        projection_denovo = CFG["output"]["denovo_seg"]["projection"]
+        projection_denovo = CFG["dirs"]["outputs"] + CFG["output"]["denovo_seg"]["projection"]
     threads: 1
     group: "purecn_post_process"
     wildcard_constraints: 
@@ -1703,9 +1703,9 @@ if CFG["cnvkit_seg"] == True:
         input:
             unpack(_purecn_cnvkit_drop_capture_space_wc)
         output:
-            cnvkit_ploidy = CFG["output"]["cnvkit_ploidy"]["info"],
-            cnvkit_gene_cn = CFG["output"]["cnvkit_gene_cn"]["cnvkit_gene_cn"],
-            cnvkit_loh = CFG["output"]["cnvkit_loh"]["cnvkit_loh"]
+            cnvkit_ploidy = CFG["dirs"]["outputs"] + CFG["output"]["cnvkit_ploidy"]["info"],
+            cnvkit_gene_cn = CFG["dirs"]["outputs"] + CFG["output"]["cnvkit_gene_cn"]["cnvkit_gene_cn"],
+            cnvkit_loh = CFG["dirs"]["outputs"] + CFG["output"]["cnvkit_loh"]["cnvkit_loh"]
         group: "cnvkit_post_process"
         wildcard_constraints: 
             projection = "|".join(CFG["output"]["requested_projections"]), 
@@ -1720,8 +1720,8 @@ rule _purecn_denovo_output_files:
     input:
         unpack(_purecn_denovo_drop_capture_space_wc)
     output:
-        denovo_ploidy = CFG["output"]["denovo_ploidy"]["info"],
-        denovo_loh = CFG["output"]["denovo_loh"]["denovo_loh"]
+        denovo_ploidy = CFG["dirs"]["outputs"] + CFG["output"]["denovo_ploidy"]["info"],
+        denovo_loh = CFG["dirs"]["outputs"] + CFG["output"]["denovo_loh"]["denovo_loh"]
     group: "purecn_post_process"
     wildcard_constraints: 
         projection = "|".join(CFG["output"]["requested_projections"]), 
@@ -1759,7 +1759,7 @@ if CFG["cnvkit_seg"] == True:
         input:
             unpack(_purecn_cnvkit_drop_capture_space_wc_seg)
         output:
-            cnvkit_seg = CFG["output"]["cnvkit_seg"]["original"]
+            cnvkit_seg = CFG["dirs"]["outputs"] + CFG["output"]["cnvkit_seg"]["original"]
         group: "cnvkit_post_process"
         wildcard_constraints: 
             projection = "|".join(CFG["output"]["requested_projections"]), 
@@ -1772,7 +1772,7 @@ rule _purecn_denovo_output_seg:
     input:
         unpack(_purecn_denovo_drop_capture_space_wc_seg)
     output:
-        denovo_seg = CFG["output"]["denovo_seg"]["original"],
+        denovo_seg = CFG["dirs"]["outputs"] + CFG["output"]["denovo_seg"]["original"],
     group: "purecn_post_process"
     wildcard_constraints: 
         projection = "|".join(CFG["output"]["requested_projections"]), 
@@ -1871,7 +1871,7 @@ rule _purecn_best_seg:
     input:
         unpack(_purecn_take_lowest_MAD)
     output:
-        best_seg = CFG["output"]["best_seg"]
+        best_seg = CFG["dirs"]["outputs"] + CFG["output"]["best_seg"]
     wildcard_constraints:
         projection = "|".join(CFG["output"]["requested_projections"]), 
         pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
