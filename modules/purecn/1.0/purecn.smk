@@ -197,8 +197,8 @@ rule _purecn_symlink_map:
     output:
         mappability = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/out100m2_{genome_build}.gem"
     resources: **CFG["resources"]["gem"]
-    shell:
-        "ln -srf {input.mappability} {output.mappability} "
+    run:
+        op.relative_symlink(input.mappability, output.mappability)
             
             
 rule _purecn_set_mappability:
