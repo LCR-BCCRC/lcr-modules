@@ -262,7 +262,6 @@ def _purecn_get_capspace(wildcards):
         bed = default_bed
     return bed
 
-# the intervalsfile will automatically annotate gene information given either hg19 or hg38 for humans
 rule _purecn_input_bed: 
     input:
         bed = _purecn_get_capspace
@@ -279,11 +278,9 @@ rule _purecn_setinterval:
     output:
         intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals.txt"
     params:
-        genome = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        genome_build = _get_genome_build_db,
+        genome_build = lambda w: config["lcr-modules"]["purecn"]["options"]["genome_builds"][w.genome_build],
         intervalfile_script = CFG["software"]["intervalfile_script"],
         outdir =  CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/",
-        bed = _purecn_get_capspace,
         force = CFG["options"]["setinterval"]["force"],
         opts = CFG["options"]["setinterval"]["opts"]
     conda: CFG["conda_envs"]["purecn"]
