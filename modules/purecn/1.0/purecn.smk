@@ -568,15 +568,17 @@ def _get_normals_vcfs(wildcards):
     
 def _get_normals_tbi(wildcards):
     CFG = config["lcr-modules"]["purecn"]
-    capture_space = CFG["runs"][CFG["runs"]['normal_capture_space'].isin([wildcards.capture_space])]
-    capture_space = capture_space[capture_space["normal_genome_build"].isin([wildcards.genome_build])]
-    capture_space = capture_space[capture_space["normal_seq_type"].isin([wildcards.seq_type])]
+    capture_space = CFG["samples"][CFG["samples"]['capture_space'].isin([wildcards.capture_space])]
+    capture_space = capture_space[capture_space["genome_build"].isin([wildcards.genome_build])]
+    capture_space = capture_space[capture_space["seq_type"].isin([wildcards.seq_type])]
+    capture_space = op.filter_samples(capture_space, tissue_status = "normal")
     normals = expand(
-        CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}_passed.vcf.gz.tbi", zip,
-        seq_type = capture_space["normal_seq_type"],
-        genome_build = capture_space["normal_genome_build"],
-        normal_id = capture_space["normal_sample_id"], 
-        capture_space = capture_space["normal_capture_space"])
+        CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}_passed.vcf.gz.tbi", 
+        zip,
+        seq_type = capture_space["seq_type"],
+        genome_build = capture_space["genome_build"],
+        normal_id = capture_space["sample_id"], 
+        capture_space = capture_space["capture_space"])
     normals = list(dict.fromkeys(normals))
     omit_normals_list =  CFG["options"]["normals"]["omit_list"]
     if os.path.exists(omit_normals_list):
@@ -792,16 +794,17 @@ rule _purecn_coverage:
 
 def _get_normals_coverage(wildcards):
     CFG = config["lcr-modules"]["purecn"]
-    capture_space = CFG["runs"][CFG["runs"]['normal_capture_space'].isin([wildcards.capture_space])]
-    capture_space = capture_space[capture_space["normal_genome_build"].isin([wildcards.genome_build])]
-    capture_space = capture_space[capture_space["normal_seq_type"].isin([wildcards.seq_type])]
+    capture_space = CFG["samples"][CFG["samples"]['capture_space'].isin([wildcards.capture_space])]
+    capture_space = capture_space[capture_space["genome_build"].isin([wildcards.genome_build])]
+    capture_space = capture_space[capture_space["seq_type"].isin([wildcards.seq_type])]
+    capture_space = op.filter_samples(capture_space, tissue_status = "normal")
     normals = expand(
         CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}_coverage_loess.txt.gz", 
         zip,
-        seq_type = capture_space["normal_seq_type"],
-        genome_build = capture_space["normal_genome_build"],
-        normal_id = capture_space["normal_sample_id"], 
-        capture_space = capture_space["normal_capture_space"])
+        seq_type = capture_space["seq_type"],
+        genome_build = capture_space["genome_build"],
+        normal_id = capture_space["sample_id"], 
+        capture_space = capture_space["capture_space"])
     omit_normals_list =  CFG["options"]["normals_coverage_loess"]["omit_list"]
     if os.path.exists(omit_normals_list):
         with open(omit_normals_list) as file:
