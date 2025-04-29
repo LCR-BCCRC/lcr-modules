@@ -264,19 +264,17 @@ def _purecn_get_capspace(wildcards):
     return bed
 
 # the intervalsfile will automatically annotate gene information given either hg19 or hg38 for humans
-def _get_genome_build_db(wildcards):
-    CFG = config["lcr-modules"]["purecn"]
-    if any(builds in str({wildcards.genome_build}) for builds in ['grch38', 'hg38']):
-        return "hg38"
-    if "38" in str({wildcards.genome_build}):
-        return "hg38"
-    if any(builds in str({wildcards.genome_build}) for builds in ['grch37', 'hg19', 'hs37d5']):
-        return "hg19"
-    if "19" in str({wildcards.genome_build}):
-        return "hg19"
+rule _purecn_input_bed: 
+    input:
+        bed = _purecn_get_capspace
+    output:
+        bed = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}.bed"
+    run:
+        op.absolute_symlink(input.bed, output.bed)
 
 rule _purecn_setinterval:
     input:
+        bed = str(rules._purecn_input_bed.output.bed),
         bw = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.bw",
     output:
         intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals.txt"
@@ -632,6 +630,7 @@ if CFG['options']['new_normals'] == True:
             normal = _get_normals_vcfs,
             normal_tbi = _get_normals_tbi,
             map_sample = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/map/{capture_space}_samples_map.txt",
+target_regions = str(rules._purecn_input_bed.output.bed),
             done = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/map/.{capture_space}_samples_map.done"
         output:
             touch(CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/genomicsdb/{capture_space}_database.done")
