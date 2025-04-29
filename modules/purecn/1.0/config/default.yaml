@@ -16,6 +16,8 @@ lcr-modules:
             # Remake normals
             new_normals: True
             # Target sites
+            # N.B. pureCN prefers to use the bait files, not the target files, if available. 
+            # The bed file regions should not be padded. 
             target_bed:
                 hg19:
                     agilent: ""
