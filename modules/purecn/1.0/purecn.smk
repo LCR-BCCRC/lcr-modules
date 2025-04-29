@@ -787,7 +787,7 @@ rule _purecn_coverage:
         """
             PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/ ;
             echo -e "Using {params.coverage_script} instead of default $PURECN/Coverage.R..."
-            Rscript {params.coverage_script}  --out-dir {params.outdir} \
+            Rscript --vanilla {params.coverage_script}  --out-dir {params.outdir} \
             --bam {input.bam} \
             --name {params.name} \
             --reference {params.genome_fasta} \
@@ -1091,7 +1091,7 @@ if CFG['options']['new_normals'] == True:
                 echo $CONDA_DEFAULT_ENV ;
                 PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/ ;
                 mkdir -p {params.dirOut} ;
-                Rscript $PURECN/NormalDB.R --out-dir {params.dirOut} --normal-panel {input.normal_panel} \
+                Rscript --vanilla $PURECN/NormalDB.R --out-dir {params.dirOut} --normal-panel {input.normal_panel} \
                 --assay {params.capture_space} --genome {params.genome} --force > {log} 2>&1 || true
             """
 
@@ -1151,7 +1151,7 @@ if CFG["cnvkit_seg"] == True:
             """
                 echo $CONDA_DEFAULT_ENV ;
                 PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/
-                Rscript $PURECN/PureCN.R --out {params.outdir}  \
+                Rscript --vanilla $PURECN/PureCN.R --out {params.outdir}  \
                     --sampleid {params.sample_id} \
                     --tumor {input.cnr} \
                     --seg-file {input.seg} \
@@ -1226,7 +1226,7 @@ if CFG['options']['new_normals'] == True:
                 echo $CONDA_DEFAULT_ENV ;
                 PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/ ;
                 mkdir -p {params.dirOut} ;
-                Rscript $PURECN/NormalDB.R --out-dir {params.dirOut} --normal-panel {input.normal_panel} \
+                Rscript --vanilla $PURECN/NormalDB.R --out-dir {params.dirOut} --normal-panel {input.normal_panel} \
                 --coverage-files {input.cov_list} \
                 --assay {params.platform} --genome {params.genome} --force > {log} 2>&1 || true
             """
@@ -1276,7 +1276,7 @@ rule _purecn_denovo_run:
         """
             echo $CONDA_DEFAULT_ENV ;
             PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/
-            Rscript $PURECN/PureCN.R --out {params.outdir}  \
+            Rscript --vanilla $PURECN/PureCN.R --out {params.outdir}  \
                 --sampleid {params.sample_id} \
                 --tumor {input.cnr} \
                 --stats-file {input.stats} \
