@@ -87,18 +87,22 @@ rule run_sage:
     params:
         ref_genome = config["lcr-modules"]["_shared"]["ref_genome"],
         ref_genome_version = "38" if config["lcr-modules"]["_shared"]["ref_genome_ver"] == "GRCh38" else "37",
-        # Panel regions and hotspots
+        # Panel regions and hotspots and inputs
         hotspots_vcf = config["lcr-modules"]["cfDNA_SAGE_workflow"]["sage_hotspots"],
         panel_regions = lambda wildcards: get_capture_space(wildcards),
+        high_conf_bed = config["lcr-modules"]["cfDNA_SAGE_workflow"]["high_conf_bed"],
         ensembl = config["lcr-modules"]["cfDNA_SAGE_workflow"]['ensembl'],
-        # Miscellaneous
         normal_name = get_normal_name,
-        max_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_depth"],
+        # soft filters
+        panel_vaf_threshold = config["lcr-modules"]["cfDNA_SAGE_workflow"]["tumor_panel_min_vaf"],
+        min_norm_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_germline_depth"],
+        pan_max_germ_rel_raw_bq = config["lcr-modules"]["cfDNA_SAGE_workflow"]["panel_max_germ_rel_raw_bq"],
+        hotspot_max_germ_rel_raw_bq = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hotspot_max_germ_rel_raw_bq"],
+        # hard filters
+        hard_vaf_cutoff = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hard_min_vaf"],
+        max_alt_norm_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_normal_alt_depth"],
         min_map = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_map_qual"],
-        hard_vaf_cutoff = config["lcr-modules"]["cfDNA_SAGE_workflow"]["tumor_min_vaf"],
-        soft_vaf_cutoff = config["lcr-modules"]["cfDNA_SAGE_workflow"]["tumor_soft_min_vaf"],
-        min_norm_depth = 7,
-        alt_support = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"]
+        max_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_depth"],
     resources:
         mem_mb = 10000,
         runtime_min = 60
@@ -111,16 +115,25 @@ rule run_sage:
         """sage -tumor {wildcards.sample} -tumor_bam {input.tbam} \
         -output_vcf {output.vcf} -ref_genome {params.ref_genome} \
         -ref_genome_version {params.ref_genome_version} \
-        -hotspots {params.hotspots_vcf} -panel_bed {params.panel_regions} \
-        -high_confidence_bed {params.panel_regions} \
+        -reference {params.normal_name} \
+        -reference_bam {input.nbam} \
         -ensembl_data_dir {params.ensembl} \
-        -reference_bam {input.nbam} -reference {params.normal_name} \
-        -max_read_depth {params.max_depth} -min_map_quality {params.min_map} \
-        -hard_min_tumor_vaf {params.hard_vaf_cutoff} -hard_min_tumor_raw_alt_support {params.alt_support} \
-        -panel_min_tumor_vaf {params.soft_vaf_cutoff} -panel_min_germline_depth {params.min_norm_depth} \
+        -hotspots {params.hotspots_vcf} \
+        -panel_bed {params.panel_regions} \
+        -high_confidence_bed {params.high_conf_bed} \
+        -panel_min_tumor_vaf {params.panel_vaf_threshold} \
+        -hotspot_min_tumor_vaf {params.panel_vaf_threshold} \
+        -panel_min_germline_depth {params.min_norm_depth} \
         -hotspot_min_germline_depth {params.min_norm_depth} \
-        -high_confidence_min_tumor_vaf {params.soft_vaf_cutoff} \
-        -bqr_min_map_qual {params.min_map} -threads {threads} &> {log}
+        -panel_max_germline_rel_qual {params.pan_max_germ_rel_raw_bq} \
+        -hotspot_max_germline_rel_qual {params.hotspot_max_germ_rel_raw_bq} \
+        -min_map_quality {params.min_map} \
+        -hard_min_tumor_vaf {params.hard_vaf_cutoff} \
+        -filtered_max_germline_alt_support {params.max_alt_norm_depth} \
+        -max_read_depth {params.max_depth} \
+        -bqr_min_map_qual {params.min_map} \
+        -skip_msi_jitter \
+        -threads {threads} &> {log}
         """
 
 # remove variants that are in the blacklist made from PON
@@ -323,7 +336,7 @@ rule custom_filters:
         blacklist_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["blacklist_manifest"],
         min_germline_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_germline_depth"],
         min_alt_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"],
-        min_tum_VAF = config["lcr-modules"]["cfDNA_SAGE_workflow"]["tumor_soft_min_vaf"]
+        min_tum_VAF = config["lcr-modules"]["cfDNA_SAGE_workflow"]["tumor_panel_min_vaf"]
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.custom_filters.log")
     conda:

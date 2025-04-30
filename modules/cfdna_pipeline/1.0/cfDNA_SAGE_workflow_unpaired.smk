@@ -53,21 +53,22 @@ rule run_sage_un:
     input:
         tbam = os.path.join(BAM_OUTDIR, "99-final", "{sample}.consensus.mapped.annot.bam"),
     output:
-        vcf = os.path.join(SAGE_OUTDIR, "01-SAGE/{sample}/{sample}.unmatched.sage.vcf")
+        vcf = os.path.join(SAGE_OUTDIR, "01-SAGE/{sample}/{sample}.sage.vcf")
     params:
         ref_genome = config["lcr-modules"]["_shared"]["ref_genome"],
         ref_genome_version = "38" if config["lcr-modules"]["_shared"]["ref_genome_ver"] == "GRCh38" else "37",
-        # Panel regions and hotspots
+        # Panel regions and hotspots and inputs
         hotspots_vcf = config["lcr-modules"]["cfDNA_SAGE_workflow"]["sage_hotspots"],
         panel_regions = lambda wildcards: get_capture_space(wildcards),
+        high_conf_bed = config["lcr-modules"]["cfDNA_SAGE_workflow"]["high_conf_bed"],
         ensembl = config["lcr-modules"]["cfDNA_SAGE_workflow"]['ensembl'],
-        # Miscellaneous
-        max_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_depth"],
+        # soft filters
+        panel_vaf_threshold = config["lcr-modules"]["cfDNA_SAGE_workflow"]["tumor_panel_min_vaf"],
+        # hard filters
+        hard_vaf_cutoff = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hard_min_vaf"],
         min_map = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_map_qual"],
-        hard_vaf_cutoff = config["lcr-modules"]["cfDNA_SAGE_workflow"]["tumor_min_vaf"],
-        soft_vaf_cutoff = config["lcr-modules"]["cfDNA_SAGE_workflow"]["tumor_soft_min_vaf"],
-        min_norm_depth = 7,
-        alt_support = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"]
+        max_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_depth"],
+
     resources:
         mem_mb = 10000,
         runtime_min = 60
@@ -80,14 +81,18 @@ rule run_sage_un:
         """sage -tumor {wildcards.sample} -tumor_bam {input.tbam} \
         -output_vcf {output.vcf} -ref_genome {params.ref_genome} \
         -ref_genome_version {params.ref_genome_version} \
-        -hotspots {params.hotspots_vcf} -panel_bed {params.panel_regions} \
-        -high_confidence_bed {params.panel_regions} \
         -ensembl_data_dir {params.ensembl} \
-        -max_read_depth {params.max_depth} -min_map_quality {params.min_map} \
-        -hard_min_tumor_vaf {params.hard_vaf_cutoff} -hard_min_tumor_raw_alt_support {params.alt_support} \
-        -panel_min_tumor_vaf {params.soft_vaf_cutoff} \
-        -high_confidence_min_tumor_vaf {params.soft_vaf_cutoff} \
-        -bqr_min_map_qual {params.min_map} -threads {threads} &> {log}
+        -hotspots {params.hotspots_vcf} \
+        -panel_bed {params.panel_regions} \
+        -high_confidence_bed {params.high_conf_bed} \
+        -panel_min_tumor_vaf {params.panel_vaf_threshold} \
+        -hotspot_min_tumor_vaf {params.panel_vaf_threshold} \
+        -min_map_quality {params.min_map} \
+        -hard_min_tumor_vaf {params.hard_vaf_cutoff} \
+       -max_read_depth {params.max_depth} \
+       -bqr_min_map_qual {params.min_map} \
+        -skip_msi_jitter \
+        -threads {threads} &> {log}
         """
 
 rule filter_sage_un:

@@ -152,7 +152,7 @@ def mark_potential_chip(indf: pd.DataFrame) -> pd.DataFrame:
     for variant in indf.itertuples():
         if variant.Hugo_Symbol not in chip_genes:
             try:
-                if (variant.VAF_normal / variant.AF) > 3 or variant.n_alt_count >= 5:
+                if (variant.VAF_normal / variant.AF) > 3 or variant.VAF_normal > 0.02:
                     indf.at[variant.Index, "CHIP"] = True
                 else:
                     indf.at[variant.Index, "CHIP"] = False
@@ -161,7 +161,7 @@ def mark_potential_chip(indf: pd.DataFrame) -> pd.DataFrame:
         # be more strict with common CHIP genes
         else:
             try:
-                if (variant.VAF_normal / variant.AF) > 2 or variant.n_alt_count >=2:
+                if (variant.VAF_normal / variant.AF) > 2 or variant.VAF_normal > 0.02:
                     indf.at[variant.Index, "CHIP"] = True
                 else:
                     indf.at[variant.Index, "CHIP"] = False
