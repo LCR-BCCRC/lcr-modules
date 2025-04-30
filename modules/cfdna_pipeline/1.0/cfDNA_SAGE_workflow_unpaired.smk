@@ -68,7 +68,8 @@ rule run_sage_un:
         hard_vaf_cutoff = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hard_min_vaf"],
         min_map = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_map_qual"],
         max_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_depth"],
-
+        pan_max_germ_rel_raw_bq = config["lcr-modules"]["cfDNA_SAGE_workflow"]["panel_max_germ_rel_raw_bq"],
+        hotspot_max_germ_rel_raw_bq = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hotspot_max_germ_rel_raw_bq"],
     resources:
         mem_mb = 10000,
         runtime_min = 60
@@ -91,6 +92,8 @@ rule run_sage_un:
         -hard_min_tumor_vaf {params.hard_vaf_cutoff} \
        -max_read_depth {params.max_depth} \
        -bqr_min_map_qual {params.min_map} \
+        -panel_max_germline_rel_qual {params.pan_max_germ_rel_raw_bq} \
+        -hotspot_max_germline_rel_qual {params.hotspot_max_germ_rel_raw_bq} \
         -skip_msi_jitter \
         -threads {threads} &> {log}
         """
