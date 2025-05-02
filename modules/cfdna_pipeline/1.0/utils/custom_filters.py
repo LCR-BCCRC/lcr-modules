@@ -94,7 +94,7 @@ def recalculate_af(df:pd.DataFrame) -> pd.DataFrame:
     return df.copy()
 
 def filter_vaf_and_phase(indf: pd.DataFrame, min_vaf: float) -> pd.DataFrame:
-    """Filter variants that are below 0.1 VAF unless they
+    """Filter variants that are below 0.1% VAF unless they
     are a part of a phase set of variants that also made it
     this far in the filtering process.
 
@@ -178,10 +178,14 @@ def min_alt_support(indf: pd.DataFrame, min_alt_tum: int, min_germline_depth: in
     """
     return indf[(indf["t_alt_count"] >= min_alt_tum) & (indf["n_depth"] >= min_germline_depth)].copy()
 
-def min_UMI_max(indf: pd.DataFrame, min_UMI: int,) -> pd.DataFrame:
-    """Filter variants for a min UMI_max value, if the column exists"""
-    if "UMI_max" in indf.columns:
-        return indf[indf["UMI_max"] >= min_UMI].copy()
+def min_UMI_support(indf: pd.DataFrame, min_UMI: int,) -> pd.DataFrame:
+    """Filter variants for a min UMI_3_count value, if the column exists
+    
+    It is a count of the numer of reads that have a UMI family of 3 or more.
+    """
+
+    if "UMI_3_count" in indf.columns:
+        return indf[indf["UMI_3_count"] >= min_UMI].copy()
     else:
         return indf.copy()
 
@@ -205,7 +209,7 @@ def main():
     # filter vaf and phase
     outmaf = filter_vaf_and_phase(inmaf, args.min_tumour_vaf)
     # filter min UMI_max
-    outmaf = min_UMI_max(outmaf, 3)
+    outmaf = min_UMI_support(outmaf, 3)
     # write output maf
     outmaf.to_csv(args.output_maf, sep="\t", index=False)
 
