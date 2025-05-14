@@ -30,6 +30,7 @@ def get_args():
     parser.add_argument('--hotspots',required=True,type=str,help='')
     parser.add_argument('--gnomad_threshold',required=True,type=float,help='')
     parser.add_argument('--min_alt_depth_tum',required=True,type=int,help='')
+    parser.add_argument('--min_t_depth',required=False,type=int,default=200,help='')
     return parser.parse_args()
 
 def read_maf(maf_file: str) -> pd.DataFrame:
@@ -44,7 +45,7 @@ def read_maf(maf_file: str) -> pd.DataFrame:
     """
 
     indf= pd.read_csv(maf_file, sep="\t")
-    indf["variant_key"] = indf["Chromosome"] + ":" + indf["Start_Position"].astype(str)
+    indf["variant_key"] = indf["Chromosome"].astype(str) + ":" + indf["Start_Position"].astype(str)
     return indf.copy()
 
 def mark_blacklist_hotspot(df: pd.DataFrame, blacklist: str, hotspots: str) -> pd.DataFrame:
@@ -183,6 +184,20 @@ def min_UMI_max(indf: pd.DataFrame, min_UMI: int,) -> pd.DataFrame:
     else:
         return indf.copy()
 
+def min_t_depth(indf: pd.DataFrame, min_t_depth: int) -> pd.DataFrame:
+    """Filter variants for a min t_depth value, if the column exists
+
+    Args:
+        indf (pd.DataFrame): DataFrame of variants.
+        min_t_depth (int): The minimum t_depth to filter variants by.
+    Returns:
+        pd.DataFrame: DataFrame of variants that have a t_depth greater than or equal to min_t_depth.
+    """
+    if "t_depth" in indf.columns:
+        return indf[indf["t_depth"] >= min_t_depth].copy()
+    else:
+        return indf.copy()
+
 def main():
     args = get_args()
     # read input maf
@@ -195,6 +210,8 @@ def main():
     inmaf = mark_potential_chip(inmaf)
     # min alt support
     inmaf = min_alt_support(inmaf, args.min_alt_depth_tum)
+    # min t depth
+    inmaf = min_t_depth(inmaf, args.min_t_depth)
     # mark blacklist and hotspot
     inmaf = mark_blacklist_hotspot(inmaf, args.blacklist, args.hotspots)
     # remove all blacklisted vars

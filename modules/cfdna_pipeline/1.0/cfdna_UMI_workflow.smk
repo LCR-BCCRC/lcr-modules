@@ -103,7 +103,8 @@ rule fgbio_annotate_umis:
     output:
         bam = temp(os.path.join(BAM_OUTDIR , "03-withumis" , "{sample}.bwa.umi.namesort.bam"))
     params:
-        umiloc = config["lcr-modules"]["cfDNA_umi_workflow"]["barcodelocation"]
+        umiloc = config["lcr-modules"]["cfDNA_umi_workflow"]["barcodelocation"],
+        java_temp = config["lcr-modules"]["cfDNA_umi_workflow"]["java_temp_dir"],
     conda:
         "envs/bwa_picard_fgbio.yaml"
     log:
@@ -112,7 +113,7 @@ rule fgbio_annotate_umis:
         mem_mb = ann_umi_mem
     threads: 12
     shell:
-        "fgbio -Xms500m -Xmx{resources.mem_mb}m -Djava.io.tmpdir=/projects/rmorin_scratch/kurts_tmp AnnotateBamWithUmis --input {input.bam} --fastq {input.r1} --fastq {input.r2} --read-structure {params.umiloc} --output {output.bam} &> {log}"
+        "fgbio -Xms500m -Xmx{resources.mem_mb}m -Djava.io.tmpdir={params.java_temp} AnnotateBamWithUmis --input {input.bam} --fastq {input.r1} --fastq {input.r2} --read-structure {params.umiloc} --output {output.bam} &> {log}"
 
 # Group reads by UMI into families
 rule fgbio_group_umis:
@@ -129,15 +130,16 @@ rule fgbio_group_umis:
     params:
         maxedits = config["lcr-modules"]["cfDNA_umi_workflow"]["umiedits"],
         outdir = os.path.join(BAM_OUTDIR ,"04-umigrouped"),
-        mem_per_t = int(config["lcr-modules"]["cfDNA_umi_workflow"]["grp_umi_mem"] / config["lcr-modules"]["cfDNA_umi_workflow"]["samtools_sort_threads"])
+        mem_per_t = int(config["lcr-modules"]["cfDNA_umi_workflow"]["grp_umi_mem"] / config["lcr-modules"]["cfDNA_umi_workflow"]["samtools_sort_threads"]),
+        java_temp = config["lcr-modules"]["cfDNA_umi_workflow"]["java_temp_dir"],
     conda:
         "envs/bwa_picard_fgbio.yaml"
     log:
         os.path.join(BAM_OUTDIR , "logs", "{sample}.groupumis.log")
     shell:
         """samtools sort -m {params.mem_per_t}M -@ {threads} -n {input.bam} | 
-        fgbio -Djava.io.tmpdir=/projects/rmorin_scratch/kurts_tmp SetMateInformation --ref {input.refgenome} 2> {log} | 
-        fgbio -Djava.io.tmpdir=/projects/rmorin_scratch/kurts_tmp GroupReadsByUmi --edits {params.maxedits} --family-size-histogram {output.txt} --strategy paired > {output.bam} 2>> {log}"""
+        fgbio -Djava.io.tmpdir={params.java_temp} SetMateInformation --ref {input.refgenome} 2> {log} | 
+        fgbio -Djava.io.tmpdir={params.java_temp} GroupReadsByUmi --edits {params.maxedits} --family-size-histogram {output.txt} --strategy paired > {output.bam} 2>> {log}"""
 
 # Generate a consensus of these families
 rule fgbio_duplex_consensus:

@@ -27,6 +27,7 @@ def get_args():
     parser.add_argument('--min_alt_depth_tum',required=True,type=int,help='')
     parser.add_argument('--min_germline_depth',required=True,type=int,help='')
     parser.add_argument('--min_tumour_vaf',required=True,type=float,default=0.01,help='')
+    parser.add_argument('--min_t_depth',required=False,type=int,default=200,help='')
     return parser.parse_args()
 
 def read_maf(maf_file: str) -> pd.DataFrame:
@@ -181,14 +182,28 @@ def min_alt_support(indf: pd.DataFrame, min_alt_tum: int, min_germline_depth: in
 def min_UMI_support(indf: pd.DataFrame, min_UMI: int,) -> pd.DataFrame:
     """Filter variants for a min UMI_3_count value, if the column exists
     
+    or UMI_max
     It is a count of the numer of reads that have a UMI family of 3 or more.
     """
 
-    if "UMI_3_count" in indf.columns:
-        return indf[indf["UMI_3_count"] >= min_UMI].copy()
+    if "UMI_max" in indf.columns:
+        return indf[indf["UMI_max"] >= min_UMI].copy()
     else:
         return indf.copy()
 
+def min_t_depth(indf: pd.DataFrame, min_t_depth: int) -> pd.DataFrame:
+    """Filter variants for a min t_depth value, if the column exists
+
+    Args:
+        indf (pd.DataFrame): DataFrame of variants.
+        min_t_depth (int): The minimum t_depth to filter variants by.
+    Returns:
+        pd.DataFrame: DataFrame of variants that have a t_depth greater than or equal to min_t_depth.
+    """
+    if "t_depth" in indf.columns:
+        return indf[indf["t_depth"] >= min_t_depth].copy()
+    else:
+        return indf.copy()
 
 def main():
     args = get_args()
@@ -202,6 +217,8 @@ def main():
     inmaf = mark_potential_chip(inmaf)
     # min alt support
     inmaf = min_alt_support(inmaf, args.min_alt_depth_tum, args.min_germline_depth)
+    # min t depth
+    inmaf = min_t_depth(inmaf, args.min_t_depth)
     # mark blacklist and hotspot
     inmaf = mark_blacklist_hotspot(inmaf, args.blacklist, args.hotspots)
     # remove all blacklisted vars, blacklist is from shiny app

@@ -49,6 +49,14 @@ def get_capture_space(wildcards):
     return config["lcr-modules"]["_shared"]["captureregions"][capture_space_value]
 
 ########################################################### Run variant calling
+def sage_dynamic_mem(wildcards, attempt, input):
+    if attempt == 1:
+        return max(10000, (2 * input.size_mb + 2000))
+    elif attempt == 2:
+        return (input.size_mb * 3 + 5000)
+    elif attempt == 3:
+        return (input.size_mb * 4)
+
 rule run_sage_un:
     input:
         tbam = os.path.join(BAM_OUTDIR, "99-final", "{sample}.consensus.mapped.annot.bam"),
@@ -68,10 +76,8 @@ rule run_sage_un:
         hard_vaf_cutoff = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hard_min_vaf"],
         min_map = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_map_qual"],
         max_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_depth"],
-        pan_max_germ_rel_raw_bq = config["lcr-modules"]["cfDNA_SAGE_workflow"]["panel_max_germ_rel_raw_bq"],
-        hotspot_max_germ_rel_raw_bq = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hotspot_max_germ_rel_raw_bq"],
     resources:
-        mem_mb = 10000,
+        mem_mb = sage_dynamic_mem,
         runtime_min = 60
     threads: 12
     log:
@@ -90,10 +96,8 @@ rule run_sage_un:
         -hotspot_min_tumor_vaf {params.panel_vaf_threshold} \
         -min_map_quality {params.min_map} \
         -hard_min_tumor_vaf {params.hard_vaf_cutoff} \
-       -max_read_depth {params.max_depth} \
-       -bqr_min_map_qual {params.min_map} \
-        -panel_max_germline_rel_qual {params.pan_max_germ_rel_raw_bq} \
-        -hotspot_max_germline_rel_qual {params.hotspot_max_germ_rel_raw_bq} \
+        -max_read_depth {params.max_depth} \
+        -bqr_min_map_qual {params.min_map} \
         -skip_msi_jitter \
         -threads {threads} &> {log}
         """
@@ -297,7 +301,8 @@ rule custom_filters_un:
         script = os.path.join(UTILSDIR, "unmatched_filters.py"),
         hotspot_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hotspot_manifest"],
         blacklist_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["blacklist_manifest"],
-        min_alt_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"]
+        min_alt_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"],
+        min_t_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_t_depth"],
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.custom_filters.log")
     conda:
@@ -307,9 +312,9 @@ rule custom_filters_un:
     threads: 1
     group: "filter_sage"
     shell:
-        f"""python {{params.script}} --input_maf {{input.maf}} --output_maf {{output.maf}} \
-        --min_alt_depth_tum {{params.min_alt_depth}} \
-        --blacklist {{params.blacklist_txt}} --hotspots {{params.hotspot_txt}} --gnomad_threshold {{params.exac_freq}} &> {{log}}
+        """python {params.script} --input_maf {input.maf} --output_maf {output.maf} \
+        --min_alt_depth_tum {params.min_alt_depth} --min_t_depth {params.min_t_depth} \
+        --blacklist {params.blacklist_txt} --hotspots {params.hotspot_txt} --gnomad_threshold {params.exac_freq} &> {log}
         """
 
 rule augment_maf_un:

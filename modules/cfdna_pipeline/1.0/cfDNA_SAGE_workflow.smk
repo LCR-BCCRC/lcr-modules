@@ -77,6 +77,21 @@ localrules:
     flag_masked_pos,
     custom_filters
 
+def sage_dynamic_mem(wildcards, attempt, input):
+    if attempt == 1:
+        return max(10000, (2 * input.size_mb + 2000))
+    elif attempt == 2:
+        return (input.size_mb * 3 + 5000)
+    elif attempt == 3:
+        return (input.size_mb * 4)
+
+def sage_java_mem(wildcards, attempt, input):
+    if attempt == 1:
+        return max(10000, (2 * input.size_mb + 2000))
+    elif attempt == 2:
+        return (input.size_mb * 3 + 5000) -2000
+    elif attempt == 3:
+        return (input.size_mb * 4) - 2000
 
 rule run_sage:
     input:
@@ -104,7 +119,8 @@ rule run_sage:
         min_map = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_map_qual"],
         max_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_depth"],
     resources:
-        mem_mb = 10000,
+        mem_mb = sage_dynamic_mem,
+        java_mem = sage_java_mem,
         runtime_min = 60
     threads: 12
     log:
@@ -112,7 +128,7 @@ rule run_sage:
     conda:
         "envs/sage.yaml"
     shell:
-        """sage -tumor {wildcards.sample} -tumor_bam {input.tbam} \
+        """sage -Xmx{resources.java_mem}m -tumor {wildcards.sample} -tumor_bam {input.tbam} \
         -output_vcf {output.vcf} -ref_genome {params.ref_genome} \
         -ref_genome_version {params.ref_genome_version} \
         -reference {params.normal_name} \
@@ -336,7 +352,8 @@ rule custom_filters:
         blacklist_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["blacklist_manifest"],
         min_germline_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_germline_depth"],
         min_alt_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"],
-        min_tum_VAF = config["lcr-modules"]["cfDNA_SAGE_workflow"]["tumor_panel_min_vaf"]
+        min_tum_VAF = config["lcr-modules"]["cfDNA_SAGE_workflow"]["novel_vaf"],
+        min_t_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_t_depth"],
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.custom_filters.log")
     conda:
@@ -346,7 +363,7 @@ rule custom_filters:
     threads: 1
     shell:
         """python {params.script} --input_maf {input.maf} --output_maf {output.maf} --min_tumour_vaf {params.min_tum_VAF} \
-        --min_alt_depth_tum {params.min_alt_depth} --min_germline_depth {params.min_germline_depth} \
+        --min_alt_depth_tum {params.min_alt_depth} --min_germline_depth {params.min_germline_depth} --min_t_depth {params.min_t_depth} \
         --blacklist {params.blacklist_txt} --hotspots {params.hotspot_txt} --gnomad_threshold {params.exac_freq} &> {log}
         """
 
