@@ -282,14 +282,6 @@ plot_all <- function(timed_ssm,
   return(p)
 }
 
-# Write out results -----------------------------------------------------
-# Check if output dir extists, create if not
-cat("Making output dir if does not exist...\n")
-output_dir <- dirname(output_full)
-paste("Writing to:", output_dir, "\n")
-if(!dir.exists(file.path(output_dir))){
-  dir.create(file.path(output_dir), recursive=TRUE)
-}
 
 # Creating and saving the plotting functions
 # -----------------------------------------------------
@@ -297,13 +289,13 @@ cat("Making full plot...\n")
 plot_full <- plot_all(timed_ssm, timed_cna, all_ssm = TRUE, all_chrom = TRUE, genome_build = projection,
   title = "All SSM and Copy Number States", sample_ids = paste0(tumour_id, "--", normal_id))
 
-ggsave(filename = output_full, plot = plot_full, device = cairo_pdf, width = 12, height = 12)
+ggsave(filename = output_full, plot = plot_full, device = cairo_pdf, width = 12, height = 12, create.dir = TRUE)
 
 cat("Making minimum plot...\n")
 plot_min <- plot_all(timed_ssm, timed_cna, all_ssm = FALSE, all_chrom = FALSE, genome_build = projection,
   title ="SSM and Copy Number in Timed CNA Regions", sample_ids = paste0(tumour_id, "--", normal_id))
 
-ggsave(filename = output_min, plot = plot_min, device = cairo_pdf, width = 12, height = 12)
+ggsave(filename = output_min, plot = plot_min, device = cairo_pdf, width = 12, height = 12, create.dir = TRUE)
 
 cat("DONE!")
 sink()
