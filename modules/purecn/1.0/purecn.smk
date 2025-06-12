@@ -299,6 +299,29 @@ rule _purecn_setinterval:
             --genome {params.genome_build} \
             --mappability {input.bw} {params.force} {params.opts} > {log} 2>&1
         """
+        
+
+# Calculates coverage in intervals using GATK
+rule _purecn_gatk_interval_list:
+    input:
+        intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals.txt"
+    output:
+        gatk_intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals_gatk.list"
+    shell:
+        """
+            egrep -i  '^.*:.*-.*' {input.intervals} | awk '{{print $1}}' > {output.gatk_intervals}
+        """
+
+# Drop off-target regions for MuTect2
+rule _purecn_gatk_interval_list_targets:
+    input:
+        intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals.txt"
+    output:
+        gatk_intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals_gatk_targets.list"
+    shell:
+        """
+            egrep -i  '^.*:.*-.*' {input.intervals} | egrep "TRUE" | awk '{{print $1}}' > {output.gatk_intervals}
+        """
 
 # -------------------------------------------------------------------------------------------------- #
 # Part II - Set up normals 
@@ -671,45 +694,12 @@ if CFG['options']['new_normals'] == True:
 # PureCN - by extension rsamtools does not have CRAM compatibility if R version is less than 4.2
 # Work around is to use GATK to also calculate coverage and then feed it into pureCN for GC normalization
 
-# Calculates coverage in intervals using GATK
-rule _purecn_gatk_interval_list:
-    input:
-        intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals.txt"
-    output:
-        gatk_intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals_gatk.list"
-    shell:
-        """
-            egrep -i  '^.*:.*-.*' {input.intervals} | awk '{{print $1}}' > {output.gatk_intervals}
-        """
-
-
-rule _purecn_gatk_interval_list_chrom:
-    input:
-        gatk_intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals_gatk.list"
-    output:
-        chrom_int = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_{chrom}.intervals_gatk.list"
-    log:
-        CFG["logs"]["inputs"] + "purecn_gatk_intervals/{genome_build}--{capture_space}/baits_{genome_build}_{chrom}.log"
-    shell:
-        op.as_one_line(
-        """
-            num_intervals=$( {{ egrep -i '^{wildcards.chrom}:.*-.*' {input.gatk_intervals} || true; }} | wc -l );
-            if [[ $num_intervals -eq 0 ]]; then
-                echo "No intervals found for chromosome {wildcards.chrom} in {input.gatk_intervals}" | tee {log}; 
-                echo "{wildcards.chrom}:1-100" > {output.chrom_int}; 
-            else
-                echo "Found $num_intervals intervals for chromosome {wildcards.chrom} in {input.gatk_intervals}" | tee {log}; 
-                egrep -i '^{wildcards.chrom}:.*-.*' {input.gatk_intervals} > {output.chrom_int}; 
-            fi
-        """
-        )
-
 rule _purecn_gatk_depthOfCoverage:
     input:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.crai",
-        intervals =  CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_{chrom}.intervals_gatk.list"
+        intervals =  CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals_gatk.list"
     output:
         coverage = temp(CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.sample_interval_summary"),
         statistics = temp(CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.sample_interval_statistics")
@@ -723,9 +713,25 @@ rule _purecn_gatk_depthOfCoverage:
     conda: CFG["conda_envs"]["mutect"]
     resources: **CFG["resources"]["mutect"]
     shell:
+        op.as_one_line(
         """
-            gatk DepthOfCoverage --java-options "-Xmx{params.mem_mb}m" {params.opts} --omit-depth-output-at-each-base --omit-locus-table --omit-per-sample-statistics --interval-merging-rule OVERLAPPING_ONLY -R {params.genome_fasta} -I {input.bam} -O {params.base_name} --intervals {input.intervals} > {log} 2>&1
+            gatk DepthOfCoverage 
+            --java-options "-Xmx{params.mem_mb}m" 
+            {params.opts} 
+            --omit-depth-output-at-each-base 
+            --omit-locus-table 
+            --omit-per-sample-statistics 
+            --interval-merging-rule OVERLAPPING_ONLY 
+            --interval-set-rule INTERSECTION
+            -R {params.genome_fasta} 
+            -I {input.bam} 
+            -O {params.base_name} 
+            -L {input.intervals} 
+            -L {wildcards.chrom}
+            > {log} 2>&1
         """
+        )
+        
 
 def _purecn_gatk_coverage_get_chr_depth(wildcards):
     CFG = config["lcr-modules"]["purecn"]
