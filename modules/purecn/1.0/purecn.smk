@@ -751,6 +751,22 @@ rule _purecn_gatk_depthOfCoverage:
     shell:
         op.as_one_line(
         """
+            if [[ $(egrep "^{wildcards.chrom}:" {input.target_regions} | wc -l) -eq 0 ]]; then
+                echo "No intervals found for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
+                gatk DepthOfCoverage 
+                    --java-options "-Xmx{params.mem_mb}m" 
+                    {params.opts} 
+                    --omit-depth-output-at-each-base 
+                    --omit-locus-table 
+                    --omit-per-sample-statistics 
+                    --interval-merging-rule OVERLAPPING_ONLY 
+                    -R {params.genome_fasta} 
+                    -I {input.bam} 
+                    -O {params.base_name} 
+                    -L {wildcards.chrom}
+                    > {log} 2>&1;
+            else
+                echo "Found intervals for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
             gatk DepthOfCoverage 
             --java-options "-Xmx{params.mem_mb}m" 
             {params.opts} 
@@ -764,7 +780,8 @@ rule _purecn_gatk_depthOfCoverage:
             -O {params.base_name} 
             -L {input.intervals} 
             -L {wildcards.chrom}
-            > {log} 2>&1
+                    > {log} 2>&1;
+            fi
         """
         )
         
