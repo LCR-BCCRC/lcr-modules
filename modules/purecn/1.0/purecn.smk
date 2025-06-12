@@ -157,28 +157,28 @@ def get_genome_fasta(wildcards):
 rule _purecn_generate_gem_index:
     input:
         software = CFG["dirs"]["inputs"] + "references/GEM/.done",
-        reference = get_genome_fasta,
-        idxpref = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index"
+        reference = get_genome_fasta
     output:
         index = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index.gem"
     params:
-        gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin"
+        gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin",
+        idxpref = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index"
     threads: CFG["threads"]["gem"]
     resources: **CFG["resources"]["gem"]
     log: CFG["logs"]["inputs"] + "gem/{genome_build}/gem_index.stderr.log"
     shell:
-        "PATH=$PATH:{params.gemDir}; {params.gemDir}/gem-indexer -T {threads} -c dna -i {input.reference} -o {input.idxpref} > {log} 2>&1 "
+        "PATH=$PATH:{params.gemDir}; {params.gemDir}/gem-indexer -T {threads} -c dna -i {input.reference} -o {params.idxpref} > {log} 2>&1 "
 
 
 rule _purecn_generate_mappability:
     input:
         software = CFG["dirs"]["inputs"] + "references/GEM/.done",
-        index = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index.gem",
-        pref =  CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem"
+        index = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index.gem"
     output:
         mappability = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.mappability"
     params:
         gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin",
+pref =  CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem",
         kmer = CFG["options"]["kmer"],
         mismatch = CFG["options"]["mismatch"],
         maxEditDistance = CFG["options"]["maxEditDistance"],
@@ -188,7 +188,7 @@ rule _purecn_generate_mappability:
     resources: **CFG["resources"]["gem"]
     log: CFG["logs"]["inputs"] + "gem/{genome_build}/gem_map.stderr.log"
     shell:
-        "PATH=$PATH:{params.gemDir}; {params.gemDir}/gem-mappability -T {threads} -I {input.index} -l {params.kmer} -m {params.mismatch} -t disable --mismatch-alphabet ACGNT -e {params.maxEditDistance} --max-big-indel-length {params.maxBigIndel} -s {params.strata} -o {input.pref} > {log} 2>&1 "
+        "PATH=$PATH:{params.gemDir}; {params.gemDir}/gem-mappability -T {threads} -I {input.index} -l {params.kmer} -m {params.mismatch} -t disable --mismatch-alphabet ACGNT -e {params.maxEditDistance} --max-big-indel-length {params.maxBigIndel} -s {params.strata} -o {params.pref} > {log} 2>&1 "
 
 
 rule _purecn_symlink_map:
@@ -204,19 +204,19 @@ rule _purecn_symlink_map:
 rule _purecn_set_mappability:
     input:
         index = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index.gem",
-        mappability = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/out100m2_{genome_build}.gem",
-        pref =  CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem"
+        mappability = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/out100m2_{genome_build}.gem"
     output:
         wig = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.wig",
         size = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.sizes"
     params:
-        gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin"
+        gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin",
+        pref =  CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem"
     threads: CFG["threads"]["gem"]
     resources: **CFG["resources"]["gem"]
     shell:
         """
             PATH=$PATH:{params.gemDir}; 
-            {params.gemDir}/gem-2-wig -I {input.index} -i {input.mappability} -o {input.pref} 
+            {params.gemDir}/gem-2-wig -I {input.index} -i {input.mappability} -o {params.pref} 
         """
 
 rule _purecn_gem_wig2bw:
