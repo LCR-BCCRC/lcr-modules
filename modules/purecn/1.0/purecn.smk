@@ -856,6 +856,7 @@ rule _purecn_mutect2_tumour_germline:
         f1r2 = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.f1r2.tar.gz"),
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
+        padding = CFG["options"]["mutect2"]["padding"],
         opts = CFG["options"]["mutect2"]["mutect2_opts"]
     log: CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2_germline/{capture_space}/{tumour_id}/{chrom}.log"
     conda: CFG["conda_envs"]["mutect"]

@@ -62,6 +62,7 @@ lcr-modules:
 
             # Tumour settings: ----------------------------------------------------------------------- #
             mutect2: 
+                padding: 50 # Typical for exomes. May increase to 200 for very high coverage targeted capture. Applies to normal and tumour mutect2 calling. 
                 mutect2_opts: ""
                 mutect2_filter: ""
                 mutect2_filter_for: "-f '.,PASS,germline' "
