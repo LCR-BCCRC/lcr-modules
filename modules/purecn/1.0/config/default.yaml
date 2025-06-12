@@ -45,7 +45,7 @@ lcr-modules:
 
             setinterval:
                 force: "--force" # set to force remake the files; otherwise, it will not overwrite
-                opts: ""
+                opts: "" # Optional: "--off-target --off-target-seqlevels all for smaller targeted capture panels"
 
 
             # Normal panel settings: ----------------------------------------------------------------------- #

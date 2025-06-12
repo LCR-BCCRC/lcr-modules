@@ -334,7 +334,8 @@ rule _purecn_mutect2_germline:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         dbsnp = ancient(reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")),
         fasta = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.fa")),
-        gnomad = ancient(reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"))
+        gnomad = ancient(reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")), 
+        target_regions = str(rules._purecn_gatk_interval_list_targets.output.gatk_intervals)
     output:
         vcf = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.{chrom}.vcf.gz"),
         tbi = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.{chrom}.vcf.gz.tbi"),
@@ -342,14 +343,49 @@ rule _purecn_mutect2_germline:
         f1r2 = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.{chrom}.f1r2.tar.gz"),
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
+        padding = CFG["options"]["mutect2"]["padding"], 
         opts = CFG["options"]["mutect2_norm"]["mutect2_opts"]
     log: CFG["logs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{chrom}.log"
     conda: CFG["conda_envs"]["mutect"]
     resources: **CFG["resources"]["mutect"]
     shell:
+        op.as_one_line(
         """
-            gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" {params.opts} --genotype-germline-sites true --genotype-pon-sites true --interval-padding 50 --max-mnp-distance 0 --germline-resource {input.gnomad} -R {input.fasta} -L {wildcards.chrom} -I {input.bam} -O {output.vcf} --f1r2-tar-gz {output.f1r2} > {log} 2>&1
+            if [[ $(egrep "^{wildcards.chrom}:" {input.target_regions} | wc -l) -eq 0 ]]; then
+                echo "No intervals found for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
+                gatk Mutect2 
+                --java-options "-Xmx{params.mem_mb}m" {params.opts} 
+                --genotype-germline-sites true 
+                --genotype-pon-sites true 
+                --interval-padding {params.padding} 
+                --max-mnp-distance 0 
+                --germline-resource {input.gnomad} 
+                -R {input.fasta} 
+                -L {wildcards.chrom}:1-100 
+                -I {input.bam} 
+                -O {output.vcf} 
+                --f1r2-tar-gz {output.f1r2} 
+                > {log} 2>&1;
+            else
+                echo "Found intervals for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
+                gatk Mutect2 
+                --java-options "-Xmx{params.mem_mb}m" {params.opts} 
+                --genotype-germline-sites true 
+                --genotype-pon-sites true 
+                --interval-padding {params.padding} 
+                --max-mnp-distance 0 
+                --germline-resource {input.gnomad} 
+                -R {input.fasta} 
+                -L {wildcards.chrom} 
+                -L {input.target_regions} 
+                -isr INTERSECTION
+                -I {input.bam} 
+                -O {output.vcf} 
+                --f1r2-tar-gz {output.f1r2} 
+                > {log} 2>&1;
+            fi
         """
+        )        
 
 #### set-up mpileups for BAF calling ####
 def _mutect2_normal_get_chr_vcf(wildcards):
@@ -848,7 +884,8 @@ rule _purecn_mutect2_tumour_germline:
         dbsnp = ancient(reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")),
         fasta = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.fa")),
         gnomad = ancient(reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")),
-        pon = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/{capture_space}_mutect2_pon.vcf.gz"
+        pon = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/{capture_space}_mutect2_pon.vcf.gz", 
+        target_regions = str(rules._purecn_gatk_interval_list_targets.output.gatk_intervals)        
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.vcf.gz.tbi"),
@@ -862,9 +899,43 @@ rule _purecn_mutect2_tumour_germline:
     conda: CFG["conda_envs"]["mutect"]
     resources: **CFG["resources"]["mutect"]
     shell:
+        op.as_one_line(
         """
-            gatk Mutect2 --java-options "-Xmx{params.mem_mb}m" {params.opts} --genotype-germline-sites true --genotype-pon-sites true --interval-padding 50 --germline-resource {input.gnomad} -R {input.fasta} -L {wildcards.chrom} -pon {input.pon} -I {input.bam} -O {output.vcf} --f1r2-tar-gz {output.f1r2} > {log} 2>&1
+            if [[ $(egrep "^{wildcards.chrom}:" {input.target_regions} | wc -l) -eq 0 ]]; then
+                echo "No intervals found for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
+                gatk Mutect2 
+                    --java-options "-Xmx{params.mem_mb}m" {params.opts} 
+                    --genotype-germline-sites true 
+                    --genotype-pon-sites true 
+                    --interval-padding {params.padding} 
+                    --germline-resource {input.gnomad} 
+                    -R {input.fasta} 
+                    -L {wildcards.chrom}:1-100 
+                    -pon {input.pon} 
+                    -I {input.bam} 
+                    -O {output.vcf} 
+                    --f1r2-tar-gz {output.f1r2} 
+                    > {log} 2>&1;
+            else
+                echo "Found intervals for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
+                gatk Mutect2 
+                    --java-options "-Xmx{params.mem_mb}m" {params.opts} 
+                    --genotype-germline-sites true 
+                    --genotype-pon-sites true 
+                    --interval-padding {params.padding} 
+                    --germline-resource {input.gnomad} 
+                    -R {input.fasta} 
+                    -L {wildcards.chrom} 
+                    -L {input.target_regions}
+                    -isr INTERSECTION
+                    -pon {input.pon} 
+                    -I {input.bam} 
+                    -O {output.vcf} 
+                    --f1r2-tar-gz {output.f1r2} 
+                    > {log} 2>&1;
+            fi
         """
+        )      
         
         
 def _mutect2_tumour_get_chr_vcf(wildcards):
