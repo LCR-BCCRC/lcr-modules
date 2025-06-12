@@ -178,7 +178,7 @@ rule _purecn_generate_mappability:
         mappability = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.mappability"
     params:
         gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin",
-pref =  CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem",
+        pref =  CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem",
         kmer = CFG["options"]["kmer"],
         mismatch = CFG["options"]["mismatch"],
         maxEditDistance = CFG["options"]["maxEditDistance"],
