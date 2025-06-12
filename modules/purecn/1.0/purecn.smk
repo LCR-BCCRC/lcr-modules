@@ -718,7 +718,7 @@ if CFG['options']['new_normals'] == True:
         resources: **CFG["resources"]["mutect"]
         shell:
             """
-                gatk CreateSomaticPanelOfNormals --java-options "-Xmx{params.mem_mb}m" --reference {params.fasta} --variant {params.opts} -O {output.pon}
+                gatk CreateSomaticPanelOfNormals --java-options "-Xmx{params.mem_mb}m" --reference {input.fasta} --variant {params.opts} -O {output.pon}
             """
 
 
