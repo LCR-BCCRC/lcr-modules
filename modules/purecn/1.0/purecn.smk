@@ -311,6 +311,27 @@ rule _purecn_gatk_interval_list:
         """
             egrep -i  '^.*:.*-.*' {input.intervals} | awk '{{print $1}}' > {output.gatk_intervals}
         """
+        
+rule _purecn_gatk_interval_list_chrom:
+    input:
+        gatk_intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals_gatk.list"
+    output:
+        chrom_int = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_{chrom}.intervals_gatk.list"
+    log:
+        CFG["logs"]["inputs"] + "purecn_gatk_intervals/{genome_build}--{capture_space}/baits_{genome_build}_{chrom}.log"
+    shell:
+        op.as_one_line(
+        """
+            num_intervals=$( {{ egrep -i '^{wildcards.chrom}:.*-.*' {input.gatk_intervals} || true; }} | wc -l );
+            if [[ $num_intervals -eq 0 ]]; then
+                echo "No intervals found for chromosome {wildcards.chrom} in {input.gatk_intervals}" | tee {log}; 
+                echo "{wildcards.chrom}" > {output.chrom_int}; 
+            else
+                echo "Found $num_intervals intervals for chromosome {wildcards.chrom} in {input.gatk_intervals}" | tee {log}; 
+                egrep -i '^{wildcards.chrom}:.*-.*' {input.gatk_intervals} > {output.chrom_int}; 
+            fi
+        """
+        )
 
 # Drop off-target regions for MuTect2
 rule _purecn_gatk_interval_list_targets:
@@ -735,9 +756,9 @@ rule _purecn_gatk_depthOfCoverage:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.crai",
-        intervals =  CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals_gatk.list"
+        intervals =  CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_{chrom}.intervals_gatk.list"
     output:
-        coverage = temp(CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.sample_interval_summary"),
+        coverage = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.sample_interval_summary",
         statistics = temp(CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.sample_interval_statistics")
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
@@ -751,37 +772,18 @@ rule _purecn_gatk_depthOfCoverage:
     shell:
         op.as_one_line(
         """
-            if [[ $(egrep "^{wildcards.chrom}:" {input.target_regions} | wc -l) -eq 0 ]]; then
-                echo "No intervals found for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
-                gatk DepthOfCoverage 
-                    --java-options "-Xmx{params.mem_mb}m" 
-                    {params.opts} 
-                    --omit-depth-output-at-each-base 
-                    --omit-locus-table 
-                    --omit-per-sample-statistics 
-                    --interval-merging-rule OVERLAPPING_ONLY 
-                    -R {params.genome_fasta} 
-                    -I {input.bam} 
-                    -O {params.base_name} 
-                    -L {wildcards.chrom}
-                    > {log} 2>&1;
-            else
-                echo "Found intervals for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
-            gatk DepthOfCoverage 
+        gatk DepthOfCoverage 
             --java-options "-Xmx{params.mem_mb}m" 
             {params.opts} 
             --omit-depth-output-at-each-base 
             --omit-locus-table 
             --omit-per-sample-statistics 
             --interval-merging-rule OVERLAPPING_ONLY 
-            --interval-set-rule INTERSECTION
             -R {params.genome_fasta} 
             -I {input.bam} 
             -O {params.base_name} 
             -L {input.intervals} 
-            -L {wildcards.chrom}
-                    > {log} 2>&1;
-            fi
+            > {log} 2>&1
         """
         )
         
