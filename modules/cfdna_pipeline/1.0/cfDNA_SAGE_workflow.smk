@@ -74,7 +74,6 @@ def get_capture_space(wildcards):
 
 localrules:
     filter_sage,
-    flag_masked_pos,
     custom_filters
 
 def sage_dynamic_mem(wildcards, attempt, input):
@@ -188,7 +187,7 @@ rule flag_masked_pos:
         "envs/bcftools.yaml"
     resources:
         mem_mb = 10000
-    threads: 1
+    threads: 2
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.maskpos.log")
     shell:
@@ -230,7 +229,6 @@ rule review_consensus_reads:
     resources:
         mem_mb = 10000
     threads: 1
-    group: "filter_sage"
     params:
         ref_genome = config["lcr-modules"]["_shared"]["ref_genome"],
         outdir = os.path.join(SAGE_OUTDIR, "06-supportingreads/{sample}/")

@@ -13,6 +13,8 @@ Arguments:
     --in_maf: Path to the variants maf file.
     --out_maf: Path to the output maf file.
 
+tier list must have the columns "Gene" and "Tier"
+
 """
 import pandas as pd
 import argparse
