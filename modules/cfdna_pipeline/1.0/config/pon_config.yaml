@@ -1,0 +1,28 @@
+lcr-modules:
+  _shared:
+    lcr-modules: ""
+    lcr-scripts: ""
+
+  make_pon:
+    pon_name: "rrDLBCL_ctDNA"
+    repo_path: "...ctDNA_Pro_Pipeline"
+    samplesheet: ""
+    bam_dir: ""
+    workdir: ""
+    target_bed: ""
+    genome_build: "GRCh38"
+    # mutect2
+    gnomad: ".../af-only-gnomad.normalized.hg38.vcf.gz"
+    ref_fasta: ".../GRCh38_no_alt.fa"
+    # vcf2maf
+    vep_data: ".../ensembl_vep_cache/"
+    centre: "morin_lab"
+
+    gatk_env: "envs/gatk.yaml"
+    bcftools_env: "envs/bcftools.yaml"
+
+    resources:
+      mutect:
+        mem_mb: 16000
+      concatenate_vcf:
+        mem_mb: 16000
