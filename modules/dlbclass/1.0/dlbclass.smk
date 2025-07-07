@@ -52,6 +52,7 @@ localrules:
     _dlbclass_input_subsetting_categories,
     _dlbclass_download_dlbclass,
     _dlbclass_download_refs,
+    _dlbclass_prepare_maf,
     _dlbclass_maf_to_gsm, 
     _dlbclass_seg_to_gsm, 
     _dlbclass_sv_to_gsm,
@@ -317,20 +318,6 @@ def get_combine_param(wildcards):
         
     return cnv_param + " " + sv_param
 
-
-# def get_combine_input(wildcards):
-#     CFG = config["lcr-modules"]["dlbclass"]
-#     if(wildcards.sv_wc == "with_sv"):
-#         sv_param = "-v " + str(rules._dlbclass_sv_to_gsm.output.sv_gsm)
-#     else:
-#         sv_param = ""
-        
-#     if(wildcards.cnv_wc == "with_cnv"):
-#         cnv_param = "-c " + str(rules._dlbclass_seg_to_gsm.output.cnv_gsm)
-#     else:
-#         cnv_param = ""
-        
-#     return cnv_param + " " + sv_param
 
 # Actual dlbclass run
 rule _dlbclass_combine_gsm:
