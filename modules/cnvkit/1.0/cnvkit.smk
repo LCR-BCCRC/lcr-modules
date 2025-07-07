@@ -32,6 +32,9 @@ localrules:
 
 ##### RULES #####
 
+if CFG["options"]["new_normals"] == False: 
+    logger.warning("New normals will not be generated. The pipeline will error if a PON has not already been created.\nSet `new_normals: True` in the config file to generate a new PON from the normal samples in the metadata.")
+
 # cnvkit reference files
 # gene annotation files
 rule _get_refFlat:
@@ -97,15 +100,16 @@ rule _cnvkit_filter_main_chrs:
 
 def _cnvkit_get_normals(wildcards):
     CFG = config["lcr-modules"]["cnvkit"]
-    capture_space = CFG["runs"][CFG["runs"]["normal_capture_space"].isin([wildcards.capture_space])]
-    capture_space = capture_space[capture_space["normal_genome_build"].isin([wildcards.genome_build])]
-    capture_space = capture_space[capture_space["normal_seq_type"].isin([wildcards.seq_type])]
+    capture_space = CFG["samples"][CFG["samples"]["capture_space"].isin([wildcards.capture_space])]
+    capture_space = capture_space[capture_space["genome_build"].isin([wildcards.genome_build])]
+    capture_space = capture_space[capture_space["seq_type"].isin([wildcards.seq_type])]
+    capture_space = capture_space[capture_space["tissue_status"].isin(["normal"])]
     normals = expand(CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}.bam", 
                     zip,
-                    capture_space = capture_space["normal_capture_space"],
-                    seq_type = capture_space["normal_seq_type"],
-                    genome_build = capture_space["normal_genome_build"],
-                    normal_id = capture_space["normal_sample_id"])
+                    capture_space = capture_space["capture_space"],
+                    seq_type = capture_space["seq_type"],
+                    genome_build = capture_space["genome_build"],
+                    normal_id = capture_space["sample_id"])
     normals = list(dict.fromkeys(normals))
     return normals
 
@@ -193,34 +197,39 @@ rule _coverage_antitarget:
 # For NORMALS
 def get_normals_target(wildcards):
     CFG = config["lcr-modules"]["cnvkit"]
-    runs = CFG["runs"]
-    platform = runs[runs['tumour_capture_space'].isin([wildcards.capture_space])]
-    platform = platform[platform['tumour_genome_build'].isin([wildcards.genome_build])]
+    samples = CFG["samples"]
+    platform = samples[samples['capture_space'].isin([wildcards.capture_space])]
+    platform = platform[platform['genome_build'].isin([wildcards.genome_build])]
+    platform = platform[platform['tissue_status'].isin(["normal"])]
+    assert(len(platform['sample_id'].unique()) > 0), "No normal samples returned from get_normals_target(). "
     normals = expand(CFG["dirs"]["coverage"] +  "target/{seq_type}--{genome_build}/{capture_space}/{normal_id}.targetcoverage.cnn", 
                         zip,
-                        seq_type = platform['tumour_seq_type'],
-                        genome_build = platform['tumour_genome_build'],
-                        normal_id = platform["normal_sample_id"],
-                        capture_space=platform["tumour_capture_space"])
+                        seq_type = platform['seq_type'],
+                        genome_build = platform['genome_build'],
+                        normal_id = platform["sample_id"],
+                        capture_space=platform["capture_space"])
     normals = list(dict.fromkeys(normals))
     return normals
 
 def get_normals_anti(wildcards):
     CFG = config["lcr-modules"]["cnvkit"]
-    runs = CFG["runs"]
-    platform = runs[runs['tumour_capture_space'].isin([wildcards.capture_space])]
-    platform = platform[platform['tumour_genome_build'].isin([wildcards.genome_build])]
+    samples = CFG["samples"]
+    platform = samples[samples['capture_space'].isin([wildcards.capture_space])]
+    platform = platform[platform['genome_build'].isin([wildcards.genome_build])]
+    platform = platform[platform['tissue_status'].isin(["normal"])]
+    assert(len(platform['sample_id'].unique()) > 0), "No normal samples returned from get_normals_anti(). "
     normals = expand(CFG["dirs"]["coverage"] +  "antitarget/{seq_type}--{genome_build}/{capture_space}/{normal_id}.antitargetcoverage.cnn", 
                         zip,
-                        seq_type = platform['tumour_seq_type'],
-                        genome_build = platform['tumour_genome_build'],
-                        normal_id = platform["normal_sample_id"],
-                        capture_space=platform["tumour_capture_space"])
+                        seq_type = platform['seq_type'],
+                        genome_build = platform['genome_build'],
+                        normal_id = platform["sample_id"],
+                        capture_space=platform["capture_space"])
     normals = list(dict.fromkeys(normals))
     return normals
 
 
 if CFG["options"]["new_normals"] == True:
+    logger.warning("A new PON will be generated.")
     rule _create_pon_reference:
         input:
             control_target = get_normals_target,
@@ -750,7 +759,7 @@ rule _cnvkit_output_projection:
     input:
         projection = str(rules._cnvkit_normalize_projection.output.projection)
     output:
-        projection = CFG["output"]["seg"]["projection"]
+        projection = CFG["dirs"]["outputs"] +  CFG["output"]["seg"]["projection"]
     threads: 1
     group: "cnvkit_post_process"
     wildcard_constraints: 
