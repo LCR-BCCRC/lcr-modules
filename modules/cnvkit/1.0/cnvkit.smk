@@ -793,15 +793,15 @@ rule _cnvkit_output:
     input:
         unpack(_cnvkit_drop_capture_space_wc)
     output:
-        call_cns = CFG["output"]["cns"]["call"],
-        scatter = CFG["output"]["png"]["scatter"],
-        diagram = CFG["output"]["pdf"]["diagram"],
-        breaks = CFG["output"]["txt"]["breaks"],
-        gene_seg = CFG["output"]["txt"]["gene_seg"],
-        geneList = CFG["output"]["txt"]["geneList"],
-        sex = CFG["output"]["txt"]["sex"],
-        seg = CFG["output"]["seg"]["original"],
-        metrics = CFG["output"]["metrics"]["metrics"]
+        call_cns = CFG["dirs"]["outputs"] +  CFG["output"]["cns"]["call"],
+        scatter = CFG["dirs"]["outputs"] +  CFG["output"]["png"]["scatter"],
+        diagram = CFG["dirs"]["outputs"] +  CFG["output"]["pdf"]["diagram"],
+        breaks = CFG["dirs"]["outputs"] +  CFG["output"]["txt"]["breaks"],
+        gene_seg = CFG["dirs"]["outputs"] +  CFG["output"]["txt"]["gene_seg"],
+        geneList = CFG["dirs"]["outputs"] +  CFG["output"]["txt"]["geneList"],
+        sex = CFG["dirs"]["outputs"] +  CFG["output"]["txt"]["sex"],
+        seg = CFG["dirs"]["outputs"] +  CFG["output"]["seg"]["original"],
+        metrics = CFG["dirs"]["outputs"] +  CFG["output"]["metrics"]["metrics"]
     group: "cnvkit_post_process"
     wildcard_constraints: 
         projection = "|".join(CFG["output"]["requested_projections"]), 

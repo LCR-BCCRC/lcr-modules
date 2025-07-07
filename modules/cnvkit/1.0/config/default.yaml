@@ -76,22 +76,23 @@ lcr-modules:
         output: # specify the naming convention for the output files under 99-outputs/
                 # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
                 # other wildcards are not supported in the naming scheme of output files
+                # The CFG["dirs"]["output"] directory is the base directory for all output files
             seg:
-                original: "results/cnvkit-1.0/99-outputs/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
-                projection: "results/cnvkit-1.0/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+                original: "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
+                projection: "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
             pdf:
-                diagram: "results/cnvkit-1.0/99-outputs/plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.diagram.pdf"
+                diagram: "plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.diagram.pdf"
             png:
-                scatter: "results/cnvkit-1.0/99-outputs/plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.scatter.png"
+                scatter: "plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.scatter.png"
             cns:
-                call: "results/cnvkit-1.0/99-outputs/cns/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.cns"
+                call: "cns/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.cns"
             txt:
-                breaks: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneBreaks.txt"
-                gene_seg: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneSeg.txt"
-                geneList: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneList.txt"
-                sex: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sex.txt"
+                breaks: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneBreaks.txt"
+                gene_seg: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneSeg.txt"
+                geneList: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneList.txt"
+                sex: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sex.txt"
             metrics:
-                metrics: "results/cnvkit-1.0/99-outputs/metrics/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.metrics.txt"
+                metrics: "metrics/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.metrics.txt"
             # specify in which projections you want the output files
             requested_projections: ["grch37", "hg38"]
 
