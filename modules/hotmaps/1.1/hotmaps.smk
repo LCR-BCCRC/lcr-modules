@@ -73,6 +73,8 @@ localrules:
     _hotmaps_find_structure,
     _hotmaps_output,
     _hotmaps_detailed_hotspots,
+    _hotmaps_hotspot_bed,
+    _hotmaps_symlink_content,
     _hotmaps_aggregate,
     _hotmaps_all,
 
@@ -318,7 +320,6 @@ rule _hotmaps_deblacklist:
     output:
         maf = CFG["dirs"]["prepare_maf"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.reannotated.deblacklisted.maf"
     params:
-        drop_threshold = CFG["maf_processing"]["blacklist_drop_threshold"],
         blacklists = CFG["maf_processing"]["blacklists"]
     log:
         stdout = CFG["logs"]["prepare_maf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/deblacklist/deblacklist.stdout.log",
@@ -328,7 +329,6 @@ rule _hotmaps_deblacklist:
         {input.deblacklist_script}
         --input {input.maf}
         --output {output.maf}
-        --drop-threshold {params.drop_threshold}
         --blacklists {params.blacklists}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -831,22 +831,61 @@ rule _hotmaps_detailed_hotspots:
         --overwrite > {log.stdout} 2> {log.stderr}
         """)
 
+rule _hotmaps_hotspot_bed:
+    input:
+        coordinates = str(rules._hotmaps_detailed_hotspots.output.coordinates)
+    output:
+        bed = CFG["dirs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/hotmaps_hotspots_{q_value}.{genome_build}.bed"
+    run:
+        import pandas as pd
+        coordinates = pd.read_table(input.coordinates, sep = "\t", comment="#")
+        coordinates = coordinates[["Hotspot_ID","Chromosome","Start_Position"]].sort_values(by=["Chromosome","Start_Position","Hotspot_ID"]).drop_duplicates()
+        coordinates = coordinates.reset_index(drop=True)
+        # Identify sequential chunks based on differences between Start_Position values compared to previous row and count number of intervals via number of "True"s
+        coordinates["intervals"] = ( coordinates["Start_Position"].diff() != 1 ).cumsum()
+        coordinates = coordinates.groupby(["Chromosome","intervals","Hotspot_ID"]).agg(
+            start = ("Start_Position", "min"),
+            end = ("Start_Position", "max")
+        ).reset_index().drop(columns=["intervals"])
+        coordinates["chrom"] = coordinates["Chromosome"]
+        coordinates = coordinates[["chrom","start","end","Hotspot_ID"]]
+        coordinates.to_csv(output.bed, sep="\t", index=False)
+
 rule _hotmaps_output:
     input:
         hotspots = str(rules._hotmaps_find_gene.output.hotspots),
         structures = str(rules._hotmaps_find_structure.output.structures),
         detailed = str(rules._hotmaps_detailed_hotspots.output.detailed),
-        coordinates = str(rules._hotmaps_detailed_hotspots.output.coordinates)
+        coordinates = str(rules._hotmaps_detailed_hotspots.output.coordinates),
+        bed = str(rules._hotmaps_hotspot_bed.output.bed)
     output:
         hotspots = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/hotspot_regions_gene_{q_value}.txt",
         structures = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/hotspot_regions_struct_{q_value}.txt",
         detailed = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/detailed_hotspot_regions_gene_{q_value}.txt",
-        coordinates = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/genomic_coordinates_hotspot_regions_gene_{q_value}.txt"
+        coordinates = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/genomic_coordinates_hotspot_regions_gene_{q_value}.txt",
+        bed = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/hotmaps_hotspots_{q_value}.{genome_build}.bed"
     run:
         op.relative_symlink(input.hotspots, output.hotspots, in_module=True)
         op.relative_symlink(input.structures, output.structures, in_module=True)
         op.relative_symlink(input.detailed, output.detailed, in_module = True)
-        op.relative_symlink(input.coordinates, output.coordinates, in_module = True)
+        op.relative_symlink(input.coordinates, output.coordinates, in_module = True),
+        op.relative_symlink(input.bed, output.bed, in_module=True)
+
+rule _hotmaps_symlink_content:
+    input:
+        content = CFG["dirs"]["prepare_maf"] + "maf/{genome_build}/{sample_set}--{launch_date}/{md5sum}.maf.content",
+        outputs = expand(
+            [
+                str(rules._hotmaps_output.output.hotspots),
+                str(rules._hotmaps_output.output.structures)
+            ],
+            q_value = CFG["options"]["hotmaps"]["q_value"],
+            allow_missing=True,
+        )
+    output:
+        content = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{md5sum}.maf.content"
+    run:
+        op.relative_symlink(input.content, output.content, in_module=True)
 
 def _for_aggregate(wildcards):
     CFG = config["lcr-modules"]["hotmaps"]
@@ -857,7 +896,9 @@ def _for_aggregate(wildcards):
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/hotspot_regions_gene_{{q_value}}.txt",
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/hotspot_regions_struct_{{q_value}}.txt",
             CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/detailed_hotspot_regions_gene_{{q_value}}.txt",
-            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/genomic_coordinates_hotspot_regions_gene_{{q_value}}.txt"
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/genomic_coordinates_hotspot_regions_gene_{{q_value}}.txt",
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/hotmaps_hotspots_{{q_value}}.{{genome_build}}.bed",
+            CFG["dirs"]["outputs"] + "{{genome_build}}/{{sample_set}}--{{launch_date}}/{md5sum}/{md5sum}.maf.content"
         ],
         md5sum = SUMS
     )

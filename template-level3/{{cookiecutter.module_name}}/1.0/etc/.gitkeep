@@ -1,0 +1,4 @@
+This file exists just to make the `etc/` directory visible to Git.
+This file will get deleted automatically by cookiecutter after the
+new module is created. If you don't have accessory files to add to
+`etc/`, you can delete the directory. 
