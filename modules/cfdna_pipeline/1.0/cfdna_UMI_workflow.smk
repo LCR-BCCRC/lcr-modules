@@ -278,7 +278,6 @@ rule qc_fastqc:
     resources:
         mem_mb = 5000
     threads: 1
-    group: "calc_qc"
     log:
         os.path.join(BAM_OUTDIR , "logs" , "{sample}.fastqc.log")
     shell:
@@ -301,7 +300,6 @@ rule qc_picard_hsmetrics:
     resources:
         mem_mb = 5000
     threads: 4
-    group: "calc_qc"
     log:
         os.path.join(BAM_OUTDIR , "logs" , "{sample}.picard_hsmet.log")
     shell:
@@ -320,7 +318,6 @@ rule qc_picard_oxog:
     resources:
         mem_mb = 5000
     threads: 1
-    group: "calc_qc"
     log:
         os.path.join(BAM_OUTDIR , "logs", "{sample}.picard_oxoG.log")
     shell:
@@ -339,7 +336,6 @@ rule qc_picard_insertsize:
     resources:
         mem_mb = 5000
     threads: 1
-    group: "calc_qc"
     log:
         os.path.join(BAM_OUTDIR , "logs" , "{sample}.picard_insertsize.log")
     shell:
@@ -361,7 +357,6 @@ rule qc_fgbio_errorrate:
     resources:
         mem_mb = 5000
     threads: 1
-    group: "calc_qc"
     log:
         os.path.join(BAM_OUTDIR , "logs" , "{sample}.error_rate_by_position.log")
     shell:
@@ -380,7 +375,6 @@ rule qc_calc_dupl:
     resources:
         mem_mb = 5000
     threads: 1
-    group: "calc_qc"
     shell:
         f"""python {os.path.join(UTILSDIR, "qc_calc_dupl.py")} --collapsed_bam {{input.collapsed_bam}} --all_reads_bam {{input.all_reads_bam}} \
         --output {{output.txt}} --sample {{wildcards.sample}}"""
@@ -399,7 +393,6 @@ rule qc_validate_sam:
     resources:
         mem_mb = 5000
     threads: 1
-    group: "calc_qc"
     log:
         os.path.join(BAM_OUTDIR , "logs" , "{sample}.picardvalidatesam.log")
     shell:
