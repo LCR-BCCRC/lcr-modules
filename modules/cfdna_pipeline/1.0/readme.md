@@ -16,8 +16,8 @@ The pipeline uses snakemake (v. 8.10.8) and conda.
 ## SAGE
 https://github.com/hartwigmedical/hmftools/blob/master/sage/README.md
 
-If you need to download resources for SAGE try downloading the prepackaged set of them that they provide from:
-https://console.cloud.google.com/storage/browser/hmf-public/HMFtools-Resources/dna_pipeline/
+If you need to download resources for SAGE check their downloads page:
+https://github.com/hartwigmedical/hmftools/blob/master/pipeline/README_RESOURCES.md#variants
 
 
 # Samplesheet requirements
