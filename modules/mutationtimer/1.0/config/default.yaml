@@ -4,7 +4,7 @@ lcr-modules:
 
         inputs:
             # Available wildcards: {genome_build} {tumour_id} {normal_id}
-            # Use battenberg UNFILLED files: results/gambl/battenberg-1.1/02-battenberg/genome--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.txt
+            # Use battenberg filled files: results/gambl/battenberg-1.1/99-outputs/txt/genome--{genome_build}/{tumour_id}--{normal_id}_subclones.txt
             battenberg_txt: "__UPDATE__"
             # Use the battenberg outputs: results/gambl/battenberg-1.1/99-outputs/txt/genome--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt
             cellularity_txt: "__UPDATE__"
