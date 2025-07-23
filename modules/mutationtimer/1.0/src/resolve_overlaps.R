@@ -52,7 +52,7 @@ cat(paste("log_file:", args$log_file, "\n"))
 
 
 # Read in input and sort -----------------------------------------------------------
-# Since it comes from lcr-scripts/liftover.sh, it should have a header
+# Since it comes from lcr-scripts/liftover.sh or convert2bed rule, it should have a header
 
 cat("Reading in and formatting input bed...\n")
 bb_bed <- read_tsv(args$input_bed, show_col_types=FALSE, na="NA")
@@ -76,7 +76,8 @@ bb_bed <- bb_bed %>%
 
 
 # Filtering regions with nMaj1_A NA and nMin1_A NA -----------------------------------------------------------
-# These are due to an oddity in the battenberg results, root cause has not been found yet
+# If the battenberg workflow had been modified to remove these, then this code isn't needed
+# but shouldn't cause any problems if left in
 cat("Removing regions with clonal CN states of NA...\n")
 num_clonal <- dim(bb_bed %>% filter(is.na(nMaj1_A) & is.na(nMin1_A)))[1]
 cat(paste0("This many segments had clonal NAs and will be removed: ", num_clonal, "\n"))
