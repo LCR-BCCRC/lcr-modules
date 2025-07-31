@@ -13,10 +13,13 @@ suppressPackageStartupMessages({
   library(BSgenome)
   library(BSgenome.Hsapiens.UCSC.hg19)
   library(BSgenome.Hsapiens.UCSC.hg38)
-  library(tidyverse)
   library(GAMBLR.helpers)
   library(data.table)
   library(ggpubr)
+  library(readr)
+  library(stringr)
+  library(dplyr)
+  library(ggplot2)
 })
 )
 
@@ -56,9 +59,11 @@ projection <- args$projection
 # Read in timed data
 # -----------------------------------------------------
 cat("Reading in timed SSM data...\n")
-timed_ssm <- read_tsv(input_ssm, show_col_types = FALSE, guess_max = 3000)
+timed_ssm <- read_tsv(input_ssm, show_col_types = FALSE, guess_max = 3000) %>%
+  mutate(Chromosome = as.character(Chromosome)) # otherwise non-prefixed ones get assigned as numeric when X is not present
 cat("Reading in timed CNA data...\n")
-timed_cna <- read_tsv(input_cna, show_col_types = FALSE)
+timed_cna <- read_tsv(input_cna, show_col_types = FALSE) %>%
+  mutate(chr = as.character(chr))
 
 # Check for CNAs with time info
 # -----------------------------------------------------
