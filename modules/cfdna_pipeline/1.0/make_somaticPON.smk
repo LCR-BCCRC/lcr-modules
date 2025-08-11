@@ -70,7 +70,8 @@ else:
 ####### RULES
 localrules:
     symlink_inputs,
-    generate_samples_map
+    generate_samples_map,
+    format_hotspot_exclusions
 
 
 def find_norm_bam(wildcards):
@@ -214,11 +215,21 @@ rule create_genomedb:
         --sample-name-map {input.sample_map} --overwrite-existing-genomicsdb-workspace TRUE -L {params.target_bed} --interval-padding 150 > {log} 2>&1
         """
 
+rule format_hotspot_exclusions:
+    input:
+        hotspots = config["lcr-modules"]["make_pon"]["hotspot_manifest"]
+    output:
+        intervals = os.path.join(WORKDIR, "00-inputs/exclusions", "hotspot_exclusions.intervals")
+    shell:
+        """
+         cat {input.hotspots} > {output.intervals}
+        """
+
 rule somaticPON:
     input:
-        db_done = rules.create_genomedb.output.done
+        db_done = rules.create_genomedb.output.done,
     output:
-        pon = os.path.join(WORKDIR, "99-PON", "{seq_type}/{capture_space}--{genome_build}/{pon}/somaticvcf/{capture_space}_pon.vcf.gz"),
+        raw_pon = os.path.join(WORKDIR, "99-PON", "{seq_type}/{capture_space}--{genome_build}/{pon}/somaticvcf/{capture_space}_raw_pon.vcf.gz"),
     conda:
         config["lcr-modules"]["make_pon"]["gatk_env"]
     resources: **config["lcr-modules"]["make_pon"]["resources"]["mutect"]
@@ -231,14 +242,30 @@ rule somaticPON:
     threads: 1
     shell:
         """
-        gatk CreateSomaticPanelOfNormals -V {params.pon_path} -R {params.ref_fasta} -O {output.pon} --min-sample-count {params.min_sample_count} -OVI TRUE > {log} 2>&1
+        gatk CreateSomaticPanelOfNormals -V {params.pon_path} -R {params.ref_fasta} -O {output.raw_pon} \
+        --min-sample-count {params.min_sample_count} -OVI TRUE > {log} 2>&1
+        """
+
+rule filter_pon_hotspots:
+    input:
+        pon_raw = rules.somaticPON.output.raw_pon,
+        exclusions = rules.format_hotspot_exclusions.output.intervals
+    output:
+        pon = os.path.join(WORKDIR, "99-PON", "{seq_type}/{capture_space}--{genome_build}/{pon}/somaticvcf/{capture_space}_pon_filtered.vcf.gz"),
+    conda:
+        config["lcr-modules"]["make_pon"]["gatk_env"]
+    log:
+        os.path.join(LOGSDIR, "filter_pon_hotspots", "{seq_type}/{capture_space}--{genome_build}/{pon}/filter_hotspots.log")
+    shell:
+        """
+        gatk SelectVariants -V {input.pon_raw} -O {output.pon} -XL {input.exclusions} > {log} 2>&1
         """
 
 rule decompress_vcf:
     input:
-        vcf = rules.somaticPON.output.pon
+        vcf = rules.filter_pon_hotspots.output.pon
     output:
-        vcf = os.path.join(WORKDIR, "99-PON", "{seq_type}/{capture_space}--{genome_build}/{pon}/somaticvcf/{capture_space}_pon.vcf"),
+        vcf = os.path.join(WORKDIR, "99-PON", "{seq_type}/{capture_space}--{genome_build}/{pon}/somaticvcf/{capture_space}_pon_filtered.vcf"),
     shell:
         "gzip -d {input.vcf}"
 
@@ -247,10 +274,10 @@ rule vcf2maf_annotate:
     input:
         vcf = rules.decompress_vcf.output.vcf
     output:
-        vep_vcf = temp(os.path.join(WORKDIR, "99-PON", "{seq_type}/{capture_space}--{genome_build}/{pon}/somaticvcf/{capture_space}_pon.vep.vcf")),
-        maf = os.path.join(WORKDIR, "99-PON", "{seq_type}/{capture_space}--{genome_build}/{pon}/somaticvcf/{capture_space}_pon.maf"),
+        vep_vcf = temp(os.path.join(WORKDIR, "99-PON", "{seq_type}/{capture_space}--{genome_build}/{pon}/somaticvcf/{capture_space}_pon_filtered.vep.vcf")),
+        maf = os.path.join(WORKDIR, "99-PON", "{seq_type}/{capture_space}--{genome_build}/{pon}/somaticvcf/{capture_space}_pon_filtered.maf"),
     params:
-        custom_enst = os.path.join(config["lcr-modules"]["make_pon"]["repo_path"], "resources/custom_enst.hg38.txt"),
+        custom_enst = config["lcr-modules"]["make_pon"]["custom_ents"],
         vep_data = config["lcr-modules"]["make_pon"]["vep_data"],
         centre = config["lcr-modules"]["make_pon"]["centre"],
         ref_fasta = config["lcr-modules"]["make_pon"]["ref_fasta"],

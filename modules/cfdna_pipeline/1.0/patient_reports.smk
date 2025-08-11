@@ -4,7 +4,7 @@ import datetime
 import sys
 MODULE_PATH = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules/cfdna_pipeline/1.0/")
 sys.path.append(MODULE_PATH) # add local module to path
-
+f
 
 TODAY = datetime.datetime.now().strftime("%m/%d/%Y")
 BAM_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "bam_pipeline")
@@ -25,7 +25,7 @@ localrules:
 
 # input functions
 def find_sage_outputs(wildcards):
-    # make list of all sample names belonging to patient 
+    # make list of all sample names belonging to patient
     patient_samples = REP_SAMPLESHEET[(REP_SAMPLESHEET["patient_id"] == wildcards.patient) & (REP_SAMPLESHEET['timepoint'] != 'normal' )]["sample_id"].tolist()
     return expand(os.path.join(SAGE_OUTDIR,"99-final/{sample}.processed.maf"), sample=patient_samples)
 
@@ -73,7 +73,7 @@ def lymphgen_outputs(wildcards):
             f.write("empty")
         return empty_file
 
-        
+
 
 rule record_sample_completion:
     output:
