@@ -48,7 +48,8 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _ega_input_csv,
-    _ega_output_files,
+    _ega_output_fastq_files,
+    _ega_output_bam_files,
     _ega_all
 
 
@@ -91,7 +92,8 @@ rule _ega_get_ega_file:
     resources:
         **CFG["resources"]["ega_file_download"]
     wildcard_constraints:
-        file_format = "|".join(CFG["samples"]["file_format"].tolist())
+        file_format = "|".join(CFG["samples"]["file_format"].tolist()),
+        sample_id = "|".join(CFG["samples"]["sample_id"].tolist()),
     shell:
         op.as_one_line("""
         pyega3
@@ -114,7 +116,11 @@ def get_ega_file (wildcards):
     tbl = CFG["samples"]
     this_sample = tbl[(tbl.seq_type == wildcards.seq_type) & (tbl.sample_id == wildcards.sample_id) & (tbl.file_format == wildcards.file_format)]
     if (this_sample.shape[0]>0):
-        this_sample = this_sample.iloc[int(wildcards.read) - 1]
+        if (wildcards.file_format in ["cram", "bam"]):
+            this_position = 1
+        else:
+            this_position = int(wildcards.read)
+        this_sample = this_sample.iloc[0]
     this_egas, this_egad, this_egan, this_egaf, this_name = this_sample['EGAS'], this_sample['EGAD'], this_sample['EGAN'], this_sample['EGAF'], this_sample['file_name']
     this_file = expand(
             str(
@@ -126,14 +132,27 @@ def get_ega_file (wildcards):
             egaf = this_egaf
         )[0]
     this_file = str(this_file).replace("{file_name}", this_name)
+    if wildcards.file_format in ["cram", "bam"]:
+        this_file = str(this_file).replace("{read}", this_name)
     return(this_file)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _ega_output_files:
+rule _ega_output_fastq_files:
     input:
         ega_file = get_ega_file
     output:
         ega_file = CFG["dirs"]["outputs"] + "{seq_type}/{study_id}/{sample_id}{read}.{file_format}"
+    wildcard_constraints:
+        file_format = "|".join(CFG["samples"]["file_format"].tolist()),
+        read = ["1", "2"]
+    run:
+        op.relative_symlink(input.ega_file, output.ega_file, in_module=True)
+
+rule _ega_output_bam_files:
+    input:
+        ega_file = get_ega_file
+    output:
+        ega_file = CFG["dirs"]["outputs"] + "{seq_type}/{study_id}/{sample_id}.{file_format}"
     wildcard_constraints:
         file_format = "|".join(CFG["samples"]["file_format"].tolist())
     run:
@@ -144,18 +163,17 @@ rule _ega_all:
     input:
         expand(
             [
-                str(rules._ega_output_files.output.ega_file)
+                str(rules._ega_output_bam_files.output.ega_file)
             ],
             zip,  # Run expand() with zip(), not product()
             sample_id=CFG["samples"]["sample_id"],
             file_format=CFG["samples"]["file_format"],
             seq_type=CFG["samples"]["seq_type"],
-            study_id=[CFG["study_id"]]*len(CFG["samples"]["file_name"]),
-            read = [""]
+            study_id=[CFG["study_id"]]*len(CFG["samples"]["file_name"])
         ) if out_file_type in ["cram", "bam"] else expand(
             expand(
                 [
-                    str(rules._ega_output_files.output.ega_file)
+                    str(rules._ega_output_fastq_files.output.ega_file)
                 ],
                 zip,  # Run expand() with zip(), not product()
                 sample_id=CFG["samples"]["sample_id"],
