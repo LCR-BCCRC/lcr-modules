@@ -1,15 +1,20 @@
-"""Variants are filtered.
+"""Variants are filtered through multiple steps:
 
-1) gnomAD_AF is filtered by a threshold.
-2) Variants are marked if they are in a blacklisted position or a hotspot.
-    Blacklisted vars are removed.
-3) Variants are filtered out if they have a VAF < 0.01 unless they are part of 
-    a phase set, or in a hotspot.
-4) Variants are marked as CHIP if they have a VAF in the tumour that is 3x that in the normal
-    or if they have more than 5 reads of alt support in the normal.
-5) Variants are filtered out if they have less than min_alt_tum in the tumour or less than min_germline_depth in the germline.
-6) A new column is added to the maf file that is the source of the variant.
-    The source can be: phase_group, high_vaf, hotspot. Or a combination of these.
+1) Allele frequency is recalculated based on t_alt_count/t_depth.
+2) gnomAD_AF is filtered by a threshold across all population columns.
+3) Variants are marked as potential CHIP if they have VAF in normal >2% or 
+   normal VAF is >2x (or >3x for non-CHIP genes) of tumor VAF.
+4) Variants are filtered out if they have less than min_alt_tum in the tumour 
+   or less than min_germline_depth in the germline.
+5) Additional filter removes variants with low normal depth (<=100) and high AF (>0.3).
+6) Minimum tumor depth filter is applied.
+7) Variants are marked if they are in a blacklisted position or a hotspot.
+   Blacklisted variants are removed.
+8) Variants are filtered out if they have VAF < min_tumour_vaf unless they are 
+   part of a phase set (>1 variant) or in a hotspot.
+9) Minimum UMI support filter is applied (UMI_max => 3).
+10) A variant_source column is added indicating: phase_group, high_vaf, hotspot, 
+    or combinations thereof.
 """
 import pandas as pd
 import argparse
@@ -159,10 +164,10 @@ def mark_potential_chip(indf: pd.DataFrame) -> pd.DataFrame:
                     indf.at[variant.Index, "CHIP"] = False
             except ZeroDivisionError:
                 print(f"Error in calculating CHIP for {variant.Index} in {indf}")
-        # be more strict with common CHIP genes
+        # be more strict with common CHIP genes, if 1 read in normal then mark as CHIP
         else:
             try:
-                if (variant.VAF_normal / variant.AF) > 2 or variant.VAF_normal > 0.02:
+                if (variant.VAF_normal / variant.AF) > 3 or (variant.VAF_normal > 0.02) or (variant.n_alt_count > 1):
                     indf.at[variant.Index, "CHIP"] = True
                 else:
                     indf.at[variant.Index, "CHIP"] = False
@@ -172,12 +177,18 @@ def mark_potential_chip(indf: pd.DataFrame) -> pd.DataFrame:
     return indf.copy()
 
 
-def min_alt_support(indf: pd.DataFrame, min_alt_tum: int, min_germline_depth: int) -> pd.DataFrame:
+def min_read_support(indf: pd.DataFrame, min_alt_tum: int, min_germline_depth: int) -> pd.DataFrame:
     """
     Filter variants that have less than min_alt_tum in the 
     tumour or less than min_germline_depth in the germline.
     """
-    return indf[(indf["t_alt_count"] >= min_alt_tum) & (indf["n_depth"] >= min_germline_depth)].copy()
+    outdf = indf[(indf["t_alt_count"] >= min_alt_tum) & (indf["n_depth"] >= min_germline_depth)].copy()
+
+    # but in cases with low n_depth be stricter on AF, in case any germlines werent properly filtered
+    # due to low cov in the matched normal
+    outdf = outdf[~((outdf["n_depth"] <= 100) & (outdf["AF"] > 0.3))].copy()
+
+    return outdf
 
 def min_UMI_support(indf: pd.DataFrame, min_UMI: int,) -> pd.DataFrame:
     """Filter variants for a min UMI_3_count value, if the column exists
@@ -207,8 +218,11 @@ def min_t_depth(indf: pd.DataFrame, min_t_depth: int) -> pd.DataFrame:
 
 def main():
     args = get_args()
+    print("Starting custom filtering")
+
     # read input maf
     inmaf = read_maf(args.input_maf)
+    print('\033[94m' + f"Input maf: {args.input_maf} with {inmaf.shape[0]} variants")
     # recalculate AF
     inmaf = recalculate_af(inmaf)
     # filter gnomad
@@ -216,17 +230,18 @@ def main():
     # filter chip mutations
     inmaf = mark_potential_chip(inmaf)
     # min alt support
-    inmaf = min_alt_support(inmaf, args.min_alt_depth_tum, args.min_germline_depth)
+    inmaf = min_read_support(inmaf, args.min_alt_depth_tum, args.min_germline_depth)
     # min t depth
     inmaf = min_t_depth(inmaf, args.min_t_depth)
     # mark blacklist and hotspot
     inmaf = mark_blacklist_hotspot(inmaf, args.blacklist, args.hotspots)
-    # remove all blacklisted vars, blacklist is from shiny app
+    # remove all blacklisted vars
     inmaf = inmaf.loc[inmaf["blacklist"]== False].copy()
     # filter vaf and phase
     outmaf = filter_vaf_and_phase(inmaf, args.min_tumour_vaf)
     # filter min UMI_max
     outmaf = min_UMI_support(outmaf, 3)
+    print(f"Finished custom filtering, {outmaf.shape[0]} variants remain")
     # write output maf
     outmaf.to_csv(args.output_maf, sep="\t", index=False)
 
