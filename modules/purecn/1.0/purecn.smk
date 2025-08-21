@@ -274,7 +274,7 @@ rule _purecn_setinterval:
     input:
         genome = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         bed = str(rules._purecn_input_bed.output.bed),
-        bw = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.bw",
+        bw = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.bw"
     output:
         intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals.txt"
     params:
@@ -659,7 +659,7 @@ if CFG['options']['new_normals'] == True:
         resources: **CFG["resources"]["mutect"]
         shell:
             """
-                gatk CreateSomaticPanelOfNormals --java-options "-Xmx{params.mem_mb}m" --reference {params.fasta} --variant {params.opts} -O {output.pon}
+                gatk CreateSomaticPanelOfNormals --java-options "-Xmx{params.mem_mb}m" --reference {input.fasta} --variant {params.opts} -O {output.pon}
             """
 
 
@@ -794,6 +794,7 @@ rule _purecn_coverage:
     shell:
         """
             PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/ ;
+            export R_LIBS=$CONDA_DEFAULT_ENV/lib/R/library/ ;
             echo -e "Using {params.coverage_script} instead of default $PURECN/Coverage.R..."
             Rscript --vanilla {params.coverage_script}  --out-dir {params.outdir} \
             --bam {input.bam} \
@@ -1099,6 +1100,7 @@ if CFG['options']['new_normals'] == True:
             """
                 echo $CONDA_DEFAULT_ENV ;
                 PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/ ;
+                export R_LIBS=$CONDA_DEFAULT_ENV/lib/R/library/ ;
                 mkdir -p {params.dirOut} ;
                 Rscript --vanilla $PURECN/NormalDB.R --out-dir {params.dirOut} --normal-panel {input.normal_panel} \
                 --assay {params.capture_space} --genome {params.genome} --force > {log} 2>&1 || true
@@ -1160,6 +1162,7 @@ if CFG["cnvkit_seg"] == True:
             """
                 echo $CONDA_DEFAULT_ENV ;
                 PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/
+                export R_LIBS=$CONDA_DEFAULT_ENV/lib/R/library/ ;
                 Rscript --vanilla $PURECN/PureCN.R --out {params.outdir}  \
                     --sampleid {params.sample_id} \
                     --tumor {input.cnr} \
@@ -1234,6 +1237,7 @@ if CFG['options']['new_normals'] == True:
             """
                 echo $CONDA_DEFAULT_ENV ;
                 PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/ ;
+                export R_LIBS=$CONDA_DEFAULT_ENV/lib/R/library/ ;
                 mkdir -p {params.dirOut} ;
                 Rscript --vanilla $PURECN/NormalDB.R --out-dir {params.dirOut} --normal-panel {input.normal_panel} \
                 --coverage-files {input.cov_list} \
@@ -1285,6 +1289,7 @@ rule _purecn_denovo_run:
         """
             echo $CONDA_DEFAULT_ENV ;
             PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/
+            export R_LIBS=$CONDA_DEFAULT_ENV/lib/R/library/ ;
             Rscript --vanilla $PURECN/PureCN.R --out {params.outdir}  \
                 --sampleid {params.sample_id} \
                 --tumor {input.cnr} \
