@@ -30,6 +30,7 @@ dependencies:
   - bioconductor-iranges=2.28.0
   - bioconductor-keggrest=1.34.0
   - bioconductor-matrixgenerics=1.6.0
+  - bioconductor-org.hs.eg.db
   - bioconductor-purecn=2.0.1
   - bioconductor-rhdf5=2.38.0
   - bioconductor-rhdf5filters=1.6.0
