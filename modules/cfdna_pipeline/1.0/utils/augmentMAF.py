@@ -1,19 +1,17 @@
 """
-This script is used to add variants complete with read depths found in additional mafs to an index maf.
+This script is used to add variants complete with read depths found in additional mafs to an index (original) maf.
 
 The code looks for variants in using start position, chromosome, and alt allele that are found in a list of
 additional maf files but not in the index maf file. If found, the script will update the index maf
 file with the new variants with allele counts > 0 from the index bam file. If no new variants are found
 it will return the index maf file as is.
 
-The original script is augment_ssm by many authors. So here is a simplified version that is more
-readable and maintainable. Also easier to incorporate into pipelines with the CLI, or import into your
-own python scripts and use the class AugmentMAF. The core logic on what the script does is the same, just
-in some prettier syntax and more documentation.
+This script is a derivitive of the "augment_ssm" by the Morin Lab. 
+Key features added here are CLI support, and packaing of the code into a class that
+has been refactored for readability and maintainability.
 
-todo:
-    I did not touch the "_get_read_support" function, didn't want to break it. But it could use a review
-    and maybe some refactoring.
+The core logic on what the script does is the same, just
+in some prettier syntax and more documentation.
 
 Author: Kurt Yakimovich et al.
 """
@@ -259,137 +257,185 @@ class AugmentMAF(object):
     def _get_read_support(self, chrom: str, start: int, end: int, ref_base: str, alt_base: str, 
                         bamfile: str, mut_class: str, min_base_qual=10, min_mapping_qual=1,
                         padding: int = 100) -> dict:
-        """Get read support for a variant in a bam file.
-
-        generate a pileup and get the ref and alt read count for each variant (row) in the missing
-        rows add some padding to each region.
-
-        Deletions are handled in a somewhat loosey-goosey way. Basically, the count is the maximum number 
-        of reads supporting a deletion at any site within the region start-end. This is because there were
-        some examples of a few less reads supporting the deletion near the end (likely the gap in the alignment
-        was shifted). DNPs are handled in a super lazy way that should be fine most of the time.
-        The allele is only checked for matching at the first base in the DNP.
-
-
-        Args:
-            chrom (str): chromosome of variant
-            start (int): start position of variant
-            end (int): end position of variant
-            ref_base (str): reference allele
-            alt_base (str): alt allele
-            bamfile (str): path to bam file
-            mut_class (str): mutation class (SNP, DNP, INS, DEL)
-            min_base_qual (int): minimum base quality
-            min_mapping_qual (int): minimum mapping quality
-            padding (int): padding around the start location of the variant.
-
-        Returns:
-            dict: dictionary with read support values, tumor_depth, tumor_ref_count, tumor_alt_count.
-        """
-
-        original_start = start
-        actual_start = start - 1 # because of zero vs 1-based indexing
-        actual_end = end
-        del_positions=[]
-        if mut_class == "DEL":
-            del_length = len(ref_base)
-            del_positions = list(range(actual_start,end))
-        if mut_class == "DNP":
-            alt_base = alt_base[0]
-            ref_base = ref_base[0]
-        start = int(start) - padding
-        end = int(end) + padding 
-        chrom = str(chrom)
-        ref_count = 0
-        alt_count = 0
-        total_depth = 0
-        #handle the case in which the bam file is a cram file. This information must be provided by the calling function
-        #realname = os.readlink(bamfile)
-        realname = str(Path(bamfile).resolve())
-        #print(realname)
-        if realname.endswith("cram"):
-            samfile = pysam.AlignmentFile(realname,'rc')
+        """Main coordinator function for getting read support for a variant."""
+        
+        # Setup common parameters
+        setup_params = self._setup_variant_params(start, end, ref_base, mut_class, padding)
+        
+        # Open BAM file
+        samfile = self._open_bam_file(bamfile)
+        
+        # Process variant based on type
+        if mut_class == "INS":
+            ref_count, alt_count, total_depth = self._process_insertion(
+                samfile, chrom, setup_params, min_base_qual, min_mapping_qual)
+        elif mut_class == "DEL":
+            ref_count, alt_count, total_depth = self._process_deletion(
+                samfile, chrom, setup_params, ref_base, min_base_qual, min_mapping_qual)
+        elif mut_class in ["SNP", "DNP"]:
+            ref_count, alt_count, total_depth = self._process_snp_dnp(
+                samfile, chrom, setup_params, ref_base, alt_base, mut_class, 
+                min_base_qual, min_mapping_qual)
         else:
-            samfile = pysam.AlignmentFile(bamfile,'rb')
-        read_bases = {}
-        del_support = {}
-        max_depth = 0
+            raise ValueError(f"Unsupported mutation class: {mut_class}")
+        
+        samfile.close()
+        
+        return self._format_results(ref_count, alt_count, total_depth)
 
-        for pos in del_positions:
-            del_support[pos]=0
-        #print(f"{chrom} {start} {end}")
-        for pileupcolumn in samfile.pileup(chrom, start, end, ignore_overlaps=False, 
-                                                            min_base_quality=min_base_qual,
-                                                            min_mapping_quality=min_mapping_qual,
-                                                            truncate=True):
-            if mut_class == "INS":
-                #I think this is double-counting overlapping reads but at least it does it consistently
-                if pileupcolumn.pos == actual_start:
-                    seqs = pileupcolumn.get_query_sequences(add_indels=True)
-                    for base in seqs:
-                        if "+" in base:
-                            alt_count+=1
-                        else:
-                            ref_count+=1
-                        total_depth+=1
-            elif mut_class == "DEL":
-                if pileupcolumn.pos in del_positions:
-                    seqs = pileupcolumn.get_query_sequences(add_indels=True)
-                    ref_count = 0
-                    if len(seqs)>max_depth:
-                        max_depth = len(seqs)
-                    for base in seqs:
-                        if base == "*":
-                            del_support[pileupcolumn.pos]+=1
-                        else:
-                            ref_count+=1
-
-            elif pileupcolumn.pos == actual_start:
-                #print ("\ncoverage at base %s = %s" % (pileupcolumn.pos, pileupcolumn.n))
-                for pileupread in pileupcolumn.pileups:
-                    if mut_class == "SNP" or mut_class == "DNP":
-                        if not pileupread.is_del and not pileupread.is_refskip:
-                            # query position is None if is_del or is_refskip is set.
-                            
-                            thisname = pileupread.alignment.query_name
-                            this_base = pileupread.alignment.query_sequence[pileupread.query_position]
-                            this_qual = pileupread.alignment.query_qualities[pileupread.query_position]
-                            if thisname in read_bases:
-                                read_bases[thisname].append(this_base)
-                            else:
-                                read_bases[thisname] = [this_base]
-        #now count up bases and deal with disagreement between read 1 and 2 from the same fragment
+    def _setup_variant_params(self, start: int, end: int, ref_base: str, mut_class: str, padding: int) -> dict:
+        """Setup common parameters for variant processing."""
+        actual_start = start - 1  # Convert to 0-based indexing
+        actual_end = end
+        
+        # Calculate padded region
+        padded_start = start - padding
+        padded_end = end + padding
+        
+        params = {
+            'original_start': start,
+            'actual_start': actual_start,
+            'actual_end': actual_end,
+            'padded_start': padded_start,
+            'padded_end': padded_end,
+            'variant_length': len(ref_base)
+        }
+        
         if mut_class == "DEL":
-            for position in del_support:
-                if del_support[position] > alt_count:
-                    alt_count = del_support[position] 
-            ref_count = max_depth - alt_count
-            total_depth = max_depth
-        if mut_class == "SNP" or mut_class == "DNP":
-            for readname in read_bases:
-                bases = read_bases[readname]
-                #at most there should be two from the same read (fragment/pair etc)
-                if len(bases)==1:
-                    total_depth+=1
-                    if bases[0] == ref_base:
-                        ref_count+=1
-                    elif bases[0] == alt_base:
-                        alt_count+=1
-                elif bases[0] == bases[1]:
-                    total_depth+=1
-                    if bases[0] == ref_base:
-                        ref_count+=1
-                    elif bases[0] == alt_base:
-                        alt_count+=1
-                else:
-                    total_depth+=1
-                    if bases[0] == ref_base or bases[1] == ref_base:
-                        ref_count+=1
-                    elif bases[0] == alt_base and bases[1] == alt_base:
-                        alt_count+=1
+            params['del_positions'] = list(range(actual_start, end))
+        
+        return params
 
-        #return as strings to prevent pandas from turning them into floats and breaking the MAF in the process
-        return {'tumor_depth':str(total_depth),'tumor_ref_count':str(ref_count),'tumor_alt_count':str(alt_count)}
+    def _open_bam_file(self, bamfile: str):
+        """Open BAM or CRAM file."""
+        realname = str(Path(bamfile).resolve())
+        if realname.endswith("cram"):
+            return pysam.AlignmentFile(realname, 'rc')
+        else:
+            return pysam.AlignmentFile(bamfile, 'rb')
+
+    def _process_insertion(self, samfile, chrom: str, params: dict, min_base_qual: int, min_mapping_qual: int) -> tuple:
+        """Process insertion variants."""
+        ref_count = alt_count = total_depth = 0
+        
+        for pileupcolumn in samfile.pileup(chrom, params['padded_start'], params['padded_end'], 
+                                        ignore_overlaps=False, min_base_quality=min_base_qual,
+                                        min_mapping_quality=min_mapping_qual, truncate=True):
+            if pileupcolumn.pos == params['actual_start']:
+                seqs = pileupcolumn.get_query_sequences(add_indels=True)
+                for base in seqs:
+                    if "+" in base:
+                        alt_count += 1
+                    else:
+                        ref_count += 1
+                    total_depth += 1
+        
+        return ref_count, alt_count, total_depth
+
+    def _process_deletion(self, samfile, chrom: str, params: dict, ref_base: str, 
+                        min_base_qual: int, min_mapping_qual: int) -> tuple:
+        """Process deletion variants."""
+        del_support = {pos: 0 for pos in params['del_positions']}
+        max_depth = alt_count = 0
+        
+        for pileupcolumn in samfile.pileup(chrom, params['padded_start'], params['padded_end'],
+                                        ignore_overlaps=False, min_base_quality=min_base_qual,
+                                        min_mapping_quality=min_mapping_qual, truncate=True):
+            if pileupcolumn.pos in params['del_positions']:
+                seqs = pileupcolumn.get_query_sequences(add_indels=True)
+                if len(seqs) > max_depth:
+                    max_depth = len(seqs)
+                for base in seqs:
+                    if base == "*":
+                        del_support[pileupcolumn.pos] += 1
+        
+        # Get maximum deletion support across all positions
+        for position in del_support:
+            if del_support[position] > alt_count:
+                alt_count = del_support[position]
+        
+        ref_count = max_depth - alt_count
+        total_depth = max_depth
+        
+        return ref_count, alt_count, total_depth
+
+    def _process_snp_dnp(self, samfile, chrom: str, params: dict, ref_base: str, alt_base: str, 
+                        mut_class: str, min_base_qual: int, min_mapping_qual: int) -> tuple:
+        """Process SNP and DNP variants."""
+        read_bases = {}
+        
+        for pileupcolumn in samfile.pileup(chrom, params['padded_start'], params['padded_end'],
+                                        ignore_overlaps=False, min_base_quality=min_base_qual,
+                                        min_mapping_quality=min_mapping_qual, truncate=True):
+            if pileupcolumn.pos == params['actual_start']:
+                for pileupread in pileupcolumn.pileups:
+                    if not pileupread.is_del and not pileupread.is_refskip:
+                        read_name = pileupread.alignment.query_name
+                        sequence = self._extract_variant_sequence(pileupread, mut_class, params['variant_length'])
+                        
+                        if sequence:  # Only add if we successfully extracted sequence
+                            if read_name in read_bases:
+                                read_bases[read_name].append(sequence)
+                            else:
+                                read_bases[read_name] = [sequence]
+        
+        return self._count_read_support(read_bases, ref_base, alt_base)
+
+    def _extract_variant_sequence(self, pileupread, mut_class: str, variant_length: int) -> str:
+        """Extract the appropriate sequence from a read based on variant type."""
+        query_pos = pileupread.query_position
+        query_sequence = pileupread.alignment.query_sequence
+        
+        if mut_class == "SNP":
+            return query_sequence[query_pos]
+        elif mut_class == "DNP":
+            # Extract full DNP sequence
+            if query_pos + variant_length <= len(query_sequence):
+                return query_sequence[query_pos:query_pos + variant_length]
+            else:
+                return None  # Can't extract full sequence
+        else:
+            return None
+
+    def _count_read_support(self, read_bases: dict, ref_base: str, alt_base: str) -> tuple:
+        """Count read support from collected read bases."""
+        ref_count = alt_count = total_depth = 0
+        
+        for read_name in read_bases:
+            bases = read_bases[read_name]
+            
+            # Handle cases where we have 1 or 2 observations from the same fragment
+            if len(bases) == 1:
+                total_depth += 1
+                if bases[0] == ref_base:
+                    ref_count += 1
+                elif bases[0] == alt_base:
+                    alt_count += 1
+            elif bases[0] == bases[1]:
+                # Both reads from pair agree
+                total_depth += 1
+                if bases[0] == ref_base:
+                    ref_count += 1
+                elif bases[0] == alt_base:
+                    alt_count += 1
+            else:
+                # Reads from pair disagree
+                total_depth += 1
+                if bases[0] == ref_base or bases[1] == ref_base:
+                    ref_count += 1
+                elif bases[0] == alt_base and bases[1] == alt_base:
+                    alt_count += 1
+        
+        return ref_count, alt_count, total_depth
+
+    def _format_results(self, ref_count: int, alt_count: int, total_depth: int) -> dict:
+        """Format results as strings to prevent pandas float conversion."""
+        return {
+            'tumor_depth': str(total_depth),
+            'tumor_ref_count': str(ref_count),
+            'tumor_alt_count': str(alt_count)
+        }
+
 
 def main():
     args = get_args()
