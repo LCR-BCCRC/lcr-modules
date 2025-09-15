@@ -122,7 +122,7 @@ def which_genome_fasta(wildcards):
         return reference_files("genomes/grch38_masked/genome_fasta/genome.fa")
     else:
         return reference_files("genomes/grch37_masked/genome_fasta/genome.fa")
-    
+
 
 rule _set_up_grch_genomes:
     input:
@@ -152,8 +152,8 @@ def get_genome_fasta(wildcards):
             return reference_files("genomes/hg19_masked/genome_fasta/genome.fa")
         else:
             raise AttributeError(f"The specified genome build is not available for use.")
-        
-        
+
+
 rule _purecn_generate_gem_index:
     input:
         software = CFG["dirs"]["inputs"] + "references/GEM/.done",
@@ -199,8 +199,8 @@ rule _purecn_symlink_map:
     resources: **CFG["resources"]["gem"]
     run:
         op.relative_symlink(input.mappability, output.mappability)
-            
-            
+
+
 rule _purecn_set_mappability:
     input:
         index = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index.gem",
@@ -215,8 +215,8 @@ rule _purecn_set_mappability:
     resources: **CFG["resources"]["gem"]
     shell:
         """
-            PATH=$PATH:{params.gemDir}; 
-            {params.gemDir}/gem-2-wig -I {input.index} -i {input.mappability} -o {params.pref} 
+            PATH=$PATH:{params.gemDir};
+            {params.gemDir}/gem-2-wig -I {input.index} -i {input.mappability} -o {params.pref}
         """
 
 rule _purecn_gem_wig2bw:
@@ -262,7 +262,7 @@ def _purecn_get_capspace(wildcards):
         bed = default_bed
     return bed
 
-rule _purecn_input_bed: 
+rule _purecn_input_bed:
     input:
         bed = _purecn_get_capspace
     output:
@@ -299,7 +299,7 @@ rule _purecn_setinterval:
             --genome {params.genome_build} \
             --mappability {input.bw} {params.force} {params.opts} > {log} 2>&1
         """
-        
+
 
 # Calculates coverage in intervals using GATK
 rule _purecn_gatk_interval_list:
@@ -311,7 +311,7 @@ rule _purecn_gatk_interval_list:
         """
             egrep -i  '^.*:.*-.*' {input.intervals} | awk '{{print $1}}' > {output.gatk_intervals}
         """
-        
+
 rule _purecn_gatk_interval_list_chrom:
     input:
         gatk_intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals_gatk.list"
@@ -324,11 +324,11 @@ rule _purecn_gatk_interval_list_chrom:
         """
             num_intervals=$( {{ egrep -i '^{wildcards.chrom}:.*-.*' {input.gatk_intervals} || true; }} | wc -l );
             if [[ $num_intervals -eq 0 ]]; then
-                echo "No intervals found for chromosome {wildcards.chrom} in {input.gatk_intervals}" | tee {log}; 
-                echo "{wildcards.chrom}" > {output.chrom_int}; 
+                echo "No intervals found for chromosome {wildcards.chrom} in {input.gatk_intervals}" | tee {log};
+                echo "{wildcards.chrom}" > {output.chrom_int};
             else
-                echo "Found $num_intervals intervals for chromosome {wildcards.chrom} in {input.gatk_intervals}" | tee {log}; 
-                egrep -i '^{wildcards.chrom}:.*-.*' {input.gatk_intervals} > {output.chrom_int}; 
+                echo "Found $num_intervals intervals for chromosome {wildcards.chrom} in {input.gatk_intervals}" | tee {log};
+                egrep -i '^{wildcards.chrom}:.*-.*' {input.gatk_intervals} > {output.chrom_int};
             fi
         """
         )
@@ -345,7 +345,7 @@ rule _purecn_gatk_interval_list_targets:
         """
 
 # -------------------------------------------------------------------------------------------------- #
-# Part II - Set up normals 
+# Part II - Set up normals
 # -------------------------------------------------------------------------------------------------- #
 
 # Run Mutect2
@@ -355,7 +355,7 @@ rule _purecn_mutect2_germline:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         dbsnp = ancient(reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")),
         fasta = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.fa")),
-        gnomad = ancient(reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")), 
+        gnomad = ancient(reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")),
         target_regions = str(rules._purecn_gatk_interval_list_targets.output.gatk_intervals)
     output:
         vcf = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.{chrom}.vcf.gz"),
@@ -363,8 +363,8 @@ rule _purecn_mutect2_germline:
         stats = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.{chrom}.vcf.gz.stats"),
         f1r2 = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.{chrom}.f1r2.tar.gz"),
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
-        padding = CFG["options"]["mutect2"]["padding"], 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        padding = CFG["options"]["mutect2"]["padding"],
         opts = CFG["options"]["mutect2_norm"]["mutect2_opts"]
     log: CFG["logs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{chrom}.log"
     conda: CFG["conda_envs"]["mutect"]
@@ -374,39 +374,39 @@ rule _purecn_mutect2_germline:
         """
             if [[ $(egrep "^{wildcards.chrom}:" {input.target_regions} | wc -l) -eq 0 ]]; then
                 echo "No intervals found for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
-                gatk Mutect2 
-                --java-options "-Xmx{params.mem_mb}m" {params.opts} 
-                --genotype-germline-sites true 
-                --genotype-pon-sites true 
-                --interval-padding {params.padding} 
-                --max-mnp-distance 0 
-                --germline-resource {input.gnomad} 
-                -R {input.fasta} 
-                -L {wildcards.chrom}:1-100 
-                -I {input.bam} 
-                -O {output.vcf} 
-                --f1r2-tar-gz {output.f1r2} 
+                gatk Mutect2
+                --java-options "-Xmx{params.mem_mb}m" {params.opts}
+                --genotype-germline-sites true
+                --genotype-pon-sites true
+                --interval-padding {params.padding}
+                --max-mnp-distance 0
+                --germline-resource {input.gnomad}
+                -R {input.fasta}
+                -L {wildcards.chrom}:1-100
+                -I {input.bam}
+                -O {output.vcf}
+                --f1r2-tar-gz {output.f1r2}
                 > {log} 2>&1;
             else
                 echo "Found intervals for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
-                gatk Mutect2 
-                --java-options "-Xmx{params.mem_mb}m" {params.opts} 
-                --genotype-germline-sites true 
-                --genotype-pon-sites true 
-                --interval-padding {params.padding} 
-                --max-mnp-distance 0 
-                --germline-resource {input.gnomad} 
-                -R {input.fasta} 
-                -L {wildcards.chrom} 
-                -L {input.target_regions} 
+                gatk Mutect2
+                --java-options "-Xmx{params.mem_mb}m" {params.opts}
+                --genotype-germline-sites true
+                --genotype-pon-sites true
+                --interval-padding {params.padding}
+                --max-mnp-distance 0
+                --germline-resource {input.gnomad}
+                -R {input.fasta}
+                -L {wildcards.chrom}
+                -L {input.target_regions}
                 -isr INTERSECTION
-                -I {input.bam} 
-                -O {output.vcf} 
-                --f1r2-tar-gz {output.f1r2} 
+                -I {input.bam}
+                -O {output.vcf}
+                --f1r2-tar-gz {output.f1r2}
                 > {log} 2>&1;
             fi
         """
-        )        
+        )
 
 #### set-up mpileups for BAF calling ####
 def _mutect2_normal_get_chr_vcf(wildcards):
@@ -415,38 +415,38 @@ def _mutect2_normal_get_chr_vcf(wildcards):
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     mpileups = expand(
-        CFG["dirs"]["normals"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{normal_id}}/{{normal_id}}.{chrom}.vcf.gz", 
+        CFG["dirs"]["normals"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{normal_id}}/{{normal_id}}.{chrom}.vcf.gz",
         chrom = chrs
     )
     return(mpileups)
-    
-    
+
+
 def _mutect2_normal_get_chr_vcf_tbi(wildcards):
     CFG = config["lcr-modules"]["purecn"]
     chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     mpileups = expand(
-        CFG["dirs"]["normals"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{normal_id}}/{{normal_id}}.{chrom}.vcf.gz.tbi", 
+        CFG["dirs"]["normals"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{normal_id}}/{{normal_id}}.{chrom}.vcf.gz.tbi",
         chrom = chrs
     )
     return(mpileups)
-    
+
 
 rule _purecn_mutect2_concatenate_vcf:
-    input: 
+    input:
         vcf = _mutect2_normal_get_chr_vcf,
         tbi = _mutect2_normal_get_chr_vcf_tbi,
-    output: 
+    output:
         vcf = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.vcf.gz"),
         tbi = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}.vcf.gz.tbi")
-    resources: 
+    resources:
         **CFG["resources"]["concatenate_vcf"]
     conda:
         CFG["conda_envs"]["bcftools"]
-    shell: 
+    shell:
         """
-            bcftools concat {input.vcf} -Oz -o {output.vcf} && 
+            bcftools concat {input.vcf} -Oz -o {output.vcf} &&
             tabix -p vcf {output.vcf}
         """
 
@@ -456,7 +456,7 @@ def _purecn_mutect2_normal_get_chr_stats(wildcards):
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     stats = expand(
-        CFG["dirs"]["normals"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{normal_id}}/{{normal_id}}.{chrom}.vcf.gz.stats", 
+        CFG["dirs"]["normals"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{normal_id}}/{{normal_id}}.{chrom}.vcf.gz.stats",
         chrom = chrs
     )
     return(stats)
@@ -479,56 +479,56 @@ rule _purecn_mutect2_normal_merge_stats:
         """)
 
 # Get pileup summaries
-rule _purecn_mutect2_normal_pileup_summaries: 
-    input: 
-        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam", 
-        snps = reference_files("genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz"), 
+rule _purecn_mutect2_normal_pileup_summaries:
+    input:
+        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
+        snps = reference_files("genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz"),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
-    output: 
+    output:
         pileup = CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/pileupSummary.table"
-    log: 
+    log:
         CFG["logs"]["normals"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{normal_id}/pileupSummary.log"
-    params: 
+    params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda: CFG["conda_envs"]["mutect"]
     resources: **CFG["resources"]["mutect"]
     threads: CFG["threads"]["mutect2"]
-    shell: 
+    shell:
         op.as_one_line("""
-        gatk GetPileupSummaries 
+        gatk GetPileupSummaries
             --java-options "-Xmx{params.mem_mb}m"
             -I {input.normal_bam}
-            -R {input.fasta} 
+            -R {input.fasta}
             -V {input.snps}
             -L {input.snps}
             -O {output.pileup}
             > {log} 2>&1
         """)
 
-# Calculate contamination  
-rule _purecn_mutect2_normal_calc_contamination: 
-    input: 
+# Calculate contamination
+rule _purecn_mutect2_normal_calc_contamination:
+    input:
         pileup = str(rules._purecn_mutect2_normal_pileup_summaries.output.pileup)
-    output: 
-        segments =  CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/segments.table", 
+    output:
+        segments =  CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/segments.table",
         contamination =  CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/contamination.table"
-    log: 
+    log:
         CFG["logs"]["normals"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{normal_id}/contam.log"
-    params: 
+    params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda: CFG["conda_envs"]["mutect"]
     resources: **CFG["resources"]["mutect"]
     threads: CFG["threads"]["mutect2"]
-    shell: 
+    shell:
         op.as_one_line("""
-        gatk CalculateContamination 
+        gatk CalculateContamination
             --java-options "-Xmx{params.mem_mb}m"
             -I {input.pileup}
             -tumor-segmentation {output.segments}
             -O {output.contamination}
             > {log} 2>&1
         """)
-    
+
 # Learn read orientation model
 def _purecn_mutect2_normal_get_chr_f1r2(wildcards):
     CFG = config["lcr-modules"]["purecn"]
@@ -536,33 +536,33 @@ def _purecn_mutect2_normal_get_chr_f1r2(wildcards):
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     f1r2 = expand(
-        CFG["dirs"]["normals"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{normal_id}}/{{normal_id}}.{chrom}.f1r2.tar.gz", 
+        CFG["dirs"]["normals"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{normal_id}}/{{normal_id}}.{chrom}.f1r2.tar.gz",
         chrom = chrs
     )
     return(f1r2)
 
-rule _purecn_mutect2_normal_learn_orient_model: 
-    input: 
+rule _purecn_mutect2_normal_learn_orient_model:
+    input:
         f1r2 = _purecn_mutect2_normal_get_chr_f1r2
     output:
         model =  CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/read-orientation-model.tar.gz"
-    log: 
+    log:
         stdout = CFG["logs"]["normals"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{normal_id}/read-orientation-model.stdout.log",
         stderr = CFG["logs"]["normals"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{normal_id}/read-orientation-model.stderr.log"
-    params: 
+    params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda: CFG["conda_envs"]["mutect"]
     resources: **CFG["resources"]["mutect"]
     threads: CFG["threads"]["mutect2"]
-    shell: 
+    shell:
         op.as_one_line("""
         inputs=$(for input in {input.f1r2}; do printf -- "-I $input "; done);
-        gatk LearnReadOrientationModel 
-        --java-options "-Xmx{params.mem_mb}m" 
+        gatk LearnReadOrientationModel
+        --java-options "-Xmx{params.mem_mb}m"
         $inputs -O {output.model}
         > {log.stdout} 2> {log.stderr}
         """)
-    
+
 
 # Marks variants filtered or PASS annotations
 rule _purecn_mutect2_normal_filter:
@@ -570,29 +570,29 @@ rule _purecn_mutect2_normal_filter:
         vcf = str(rules._purecn_mutect2_concatenate_vcf.output.vcf),
         tbi = str(rules._purecn_mutect2_concatenate_vcf.output.tbi),
         stat = str(rules._purecn_mutect2_normal_merge_stats.output.stats),
-        segments = str(rules._purecn_mutect2_normal_calc_contamination.output.segments), 
-        contamination = str(rules._purecn_mutect2_normal_calc_contamination.output.contamination), 
+        segments = str(rules._purecn_mutect2_normal_calc_contamination.output.segments),
+        contamination = str(rules._purecn_mutect2_normal_calc_contamination.output.contamination),
         model = str(rules._purecn_mutect2_normal_learn_orient_model.output.model),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         vcf = temp(CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/output.unfilt.vcf.gz")
     log:
         CFG["logs"]["normals"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{normal_id}/mutect2_filter.log",
-    params: 
+    params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["mutect2_norm"]["mutect2_filter"]
     conda: CFG["conda_envs"]["mutect"]
     resources: **CFG["resources"]["mutect"]
     shell:
         op.as_one_line("""
-        gatk FilterMutectCalls --java-options "-Xmx{params.mem_mb}m" 
-            {params.opts} 
-            -V {input.vcf} 
+        gatk FilterMutectCalls --java-options "-Xmx{params.mem_mb}m"
+            {params.opts}
+            -V {input.vcf}
             -R {input.fasta}
             --tumor-segmentation {input.segments}
             --contamination-table {input.contamination}
             --ob-priors {input.model}
-            -O {output.vcf} 
+            -O {output.vcf}
             > {log} 2>&1
         """)
 
@@ -613,7 +613,7 @@ rule _purecn_mutect2_normal_filter_passed:
     conda: CFG["conda_envs"]["bcftools"]
     resources: **CFG["resources"]["concatenate_vcf"]
     shell:
-        op.as_one_line(""" 
+        op.as_one_line("""
         bcftools view "{params.filter_for_opts}" -e "{params.filter_out_opts}" -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
             &&
         tabix -p vcf {output.vcf} 2>> {log.stderr}
@@ -632,11 +632,11 @@ def _get_normals_vcfs(wildcards):
     capture_space = capture_space[capture_space["seq_type"].isin([wildcards.seq_type])]
     capture_space = op.filter_samples(capture_space, tissue_status = "normal")
     normals = expand(
-        CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}_passed.vcf.gz", 
+        CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}_passed.vcf.gz",
         zip,
         seq_type = capture_space["seq_type"],
         genome_build = capture_space["genome_build"],
-        normal_id = capture_space["sample_id"], 
+        normal_id = capture_space["sample_id"],
         capture_space = capture_space["capture_space"])
     normals = list(dict.fromkeys(normals))
     omit_normals_list =  CFG["options"]["normals"]["omit_list"]
@@ -645,7 +645,7 @@ def _get_normals_vcfs(wildcards):
             remove = file.read().rstrip("\n").split("\n")
             normals = [e for e in normals if e not in remove]
     return normals
-    
+
 def _get_normals_tbi(wildcards):
     CFG = config["lcr-modules"]["purecn"]
     capture_space = CFG["samples"][CFG["samples"]['capture_space'].isin([wildcards.capture_space])]
@@ -653,11 +653,11 @@ def _get_normals_tbi(wildcards):
     capture_space = capture_space[capture_space["seq_type"].isin([wildcards.seq_type])]
     capture_space = op.filter_samples(capture_space, tissue_status = "normal")
     normals = expand(
-        CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}_passed.vcf.gz.tbi", 
+        CFG["dirs"]["normals"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}_passed.vcf.gz.tbi",
         zip,
         seq_type = capture_space["seq_type"],
         genome_build = capture_space["genome_build"],
-        normal_id = capture_space["sample_id"], 
+        normal_id = capture_space["sample_id"],
         capture_space = capture_space["capture_space"])
     normals = list(dict.fromkeys(normals))
     omit_normals_list =  CFG["options"]["normals"]["omit_list"]
@@ -679,7 +679,7 @@ rule _purecn_merge_normal_vcfs:
     conda: CFG["conda_envs"]["bcftools"]
     shell:
         """
-            bcftools merge {input.normal} -Oz -o {output.normal_panel} --force-samples && 
+            bcftools merge {input.normal} -Oz -o {output.normal_panel} --force-samples &&
             tabix -p vcf {output.normal_panel}
         """
 
@@ -707,7 +707,7 @@ if CFG['options']['new_normals'] == True:
         input:
             normal = _get_normals_vcfs,
             normal_tbi = _get_normals_tbi,
-            map_sample = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/map/{capture_space}_samples_map.txt", 
+            map_sample = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/map/{capture_space}_samples_map.txt",
             target_regions = str(rules._purecn_input_bed.output.bed),
             done = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/map/.{capture_space}_samples_map.done"
         output:
@@ -722,7 +722,7 @@ if CFG['options']['new_normals'] == True:
                 gatk GenomicsDBImport --java-options "-Xmx{params.mem_mb}m" -L {input.target_regions} \
                 --sample-name-map {input.map_sample} \
                 --genomicsdb-workspace-path {params.pon_path} --lenient --merge-input-intervals TRUE \
-                --overwrite-existing-genomicsdb-workspace TRUE 
+                --overwrite-existing-genomicsdb-workspace TRUE
             """
 
 if CFG['options']['new_normals'] == True:
@@ -733,7 +733,7 @@ if CFG['options']['new_normals'] == True:
         output:
             pon = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/{capture_space}_mutect2_pon.vcf.gz"
         params:
-            mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
+            mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
             opts = "gendb://" + CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/genomicsdb/{capture_space}_database/"
         conda: CFG["conda_envs"]["mutect"]
         resources: **CFG["resources"]["mutect"]
@@ -761,32 +761,32 @@ rule _purecn_gatk_depthOfCoverage:
         coverage = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.sample_interval_summary",
         statistics = temp(CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.sample_interval_statistics")
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["mutect2"]["depth_coverage"],
         genome_fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         base_name = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}"
-    log: 
+    log:
         CFG["logs"]["coverage"] + "gatk_coverage/{seq_type}--{genome_build}/{capture_space}/{sample_id}.{chrom}.log"
     conda: CFG["conda_envs"]["mutect"]
     resources: **CFG["resources"]["mutect"]
     shell:
         op.as_one_line(
         """
-        gatk DepthOfCoverage 
-            --java-options "-Xmx{params.mem_mb}m" 
-            {params.opts} 
-            --omit-depth-output-at-each-base 
-            --omit-locus-table 
-            --omit-per-sample-statistics 
-            --interval-merging-rule OVERLAPPING_ONLY 
-            -R {params.genome_fasta} 
-            -I {input.bam} 
-            -O {params.base_name} 
-            -L {input.intervals} 
+        gatk DepthOfCoverage
+            --java-options "-Xmx{params.mem_mb}m"
+            {params.opts}
+            --omit-depth-output-at-each-base
+            --omit-locus-table
+            --omit-per-sample-statistics
+            --interval-merging-rule OVERLAPPING_ONLY
+            -R {params.genome_fasta}
+            -I {input.bam}
+            -O {params.base_name}
+            -L {input.intervals}
             > {log} 2>&1
         """
         )
-        
+
 
 def _purecn_gatk_coverage_get_chr_depth(wildcards):
     CFG = config["lcr-modules"]["purecn"]
@@ -794,35 +794,35 @@ def _purecn_gatk_coverage_get_chr_depth(wildcards):
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     coverage = expand(
-        CFG["dirs"]["coverage"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}/{{sample_id}}.{chrom}.sample_interval_summary", 
+        CFG["dirs"]["coverage"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}/{{sample_id}}.{chrom}.sample_interval_summary",
         chrom = chrs
     )
     return(coverage)
-    
+
 def _purecn_gatk_coverage_get_chr_statistics(wildcards):
     CFG = config["lcr-modules"]["purecn"]
     chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     statistics = expand(
-        CFG["dirs"]["coverage"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}/{{sample_id}}.{chrom}.sample_interval_statistics", 
+        CFG["dirs"]["coverage"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}/{{sample_id}}.{chrom}.sample_interval_statistics",
         chrom = chrs
     )
     return(statistics)
 
 rule _purecn_gatk_coverage_concatenate_depths:
-    input: 
+    input:
         depth = _purecn_gatk_coverage_get_chr_depth,
         statistics = _purecn_gatk_coverage_get_chr_statistics,
-    output: 
+    output:
         depth = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.sample_interval_summary.gz"
     resources: **CFG["resources"]["concatenate_vcf"]
-    shell: 
+    shell:
         op.as_one_line(
             """
             file1=$(echo {input.depth} | cut -d " " -f1 ) ;
-            head -n 1 $file1 | gzip > {output.depth} ; 
-            for sample in {input.depth};            
+            head -n 1 $file1 | gzip > {output.depth} ;
+            for sample in {input.depth};
             do
                 awk '(NR > 1)' $sample | gzip >> {output.depth} ;
             done
@@ -862,7 +862,7 @@ rule _purecn_coverage:
             --name {params.name} \
             --reference {params.genome_fasta} \
             --coverage {input.coverage} \
-            --intervals {input.intervals} {params.force} {params.opt} > {log} 2>&1 
+            --intervals {input.intervals} {params.force} {params.opt} > {log} 2>&1
         """
 
 def _get_normals_coverage(wildcards):
@@ -872,11 +872,11 @@ def _get_normals_coverage(wildcards):
     capture_space = capture_space[capture_space["seq_type"].isin([wildcards.seq_type])]
     capture_space = op.filter_samples(capture_space, tissue_status = "normal")
     normals = expand(
-        CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}_coverage_loess.txt.gz", 
+        CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}/{normal_id}_coverage_loess.txt.gz",
         zip,
         seq_type = capture_space["seq_type"],
         genome_build = capture_space["genome_build"],
-        normal_id = capture_space["sample_id"], 
+        normal_id = capture_space["sample_id"],
         capture_space = capture_space["capture_space"])
     omit_normals_list =  CFG["options"]["normals_coverage_loess"]["omit_list"]
     if os.path.exists(omit_normals_list):
@@ -884,8 +884,8 @@ def _get_normals_coverage(wildcards):
             remove = file.read().rstrip("\n").split("\n")
             normals = [e for e in normals if e not in remove]
     return normals
-    
-    
+
+
 rule coverage_list_normals:
     input:
         coverage = _get_normals_coverage
@@ -893,10 +893,10 @@ rule coverage_list_normals:
         cov_list = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/cov_list.txt"
     shell:
         """
-            ls -a {input.coverage} | cat > {output.cov_list} 
+            ls -a {input.coverage} | cat > {output.cov_list}
         """
 
-# Run Mutect2 
+# Run Mutect2
 # Tumour samples
 rule _purecn_mutect2_tumour_germline:
     input:
@@ -904,15 +904,15 @@ rule _purecn_mutect2_tumour_germline:
         dbsnp = ancient(reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")),
         fasta = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.fa")),
         gnomad = ancient(reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")),
-        pon = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/{capture_space}_mutect2_pon.vcf.gz", 
-        target_regions = str(rules._purecn_gatk_interval_list_targets.output.gatk_intervals)        
+        pon = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/{capture_space}_mutect2_pon.vcf.gz",
+        target_regions = str(rules._purecn_gatk_interval_list_targets.output.gatk_intervals)
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.vcf.gz.tbi"),
         stats = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.vcf.gz.stats"),
         f1r2 = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.f1r2.tar.gz"),
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         padding = CFG["options"]["mutect2"]["padding"],
         opts = CFG["options"]["mutect2"]["mutect2_opts"]
     log: CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2_germline/{capture_space}/{tumour_id}/{chrom}.log"
@@ -923,80 +923,80 @@ rule _purecn_mutect2_tumour_germline:
         """
             if [[ $(egrep "^{wildcards.chrom}:" {input.target_regions} | wc -l) -eq 0 ]]; then
                 echo "No intervals found for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
-                gatk Mutect2 
-                    --java-options "-Xmx{params.mem_mb}m" {params.opts} 
-                    --genotype-germline-sites true 
-                    --genotype-pon-sites true 
-                    --interval-padding {params.padding} 
-                    --germline-resource {input.gnomad} 
-                    -R {input.fasta} 
-                    -L {wildcards.chrom}:1-100 
-                    -pon {input.pon} 
-                    -I {input.bam} 
-                    -O {output.vcf} 
-                    --f1r2-tar-gz {output.f1r2} 
+                gatk Mutect2
+                    --java-options "-Xmx{params.mem_mb}m" {params.opts}
+                    --genotype-germline-sites true
+                    --genotype-pon-sites true
+                    --interval-padding {params.padding}
+                    --germline-resource {input.gnomad}
+                    -R {input.fasta}
+                    -L {wildcards.chrom}:1-100
+                    -pon {input.pon}
+                    -I {input.bam}
+                    -O {output.vcf}
+                    --f1r2-tar-gz {output.f1r2}
                     > {log} 2>&1;
             else
                 echo "Found intervals for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
-                gatk Mutect2 
-                    --java-options "-Xmx{params.mem_mb}m" {params.opts} 
-                    --genotype-germline-sites true 
-                    --genotype-pon-sites true 
-                    --interval-padding {params.padding} 
-                    --germline-resource {input.gnomad} 
-                    -R {input.fasta} 
-                    -L {wildcards.chrom} 
+                gatk Mutect2
+                    --java-options "-Xmx{params.mem_mb}m" {params.opts}
+                    --genotype-germline-sites true
+                    --genotype-pon-sites true
+                    --interval-padding {params.padding}
+                    --germline-resource {input.gnomad}
+                    -R {input.fasta}
+                    -L {wildcards.chrom}
                     -L {input.target_regions}
                     -isr INTERSECTION
-                    -pon {input.pon} 
-                    -I {input.bam} 
-                    -O {output.vcf} 
-                    --f1r2-tar-gz {output.f1r2} 
+                    -pon {input.pon}
+                    -I {input.bam}
+                    -O {output.vcf}
+                    --f1r2-tar-gz {output.f1r2}
                     > {log} 2>&1;
             fi
         """
-        )      
-        
-        
+        )
+
+
 def _mutect2_tumour_get_chr_vcf(wildcards):
     CFG = config["lcr-modules"]["purecn"]
     chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     mpileups = expand(
-        CFG["dirs"]["mutect2"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{tumour_id}}/{{tumour_id}}.{chrom}.vcf.gz", 
+        CFG["dirs"]["mutect2"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{tumour_id}}/{{tumour_id}}.{chrom}.vcf.gz",
         chrom = chrs
     )
     return(mpileups)
-    
+
 def _mutect2_tumour_get_chr_vcf_tbi(wildcards):
     CFG = config["lcr-modules"]["purecn"]
     chrs = reference_files("genomes/" + wildcards.genome_build + "/genome_fasta/main_chromosomes_withY.txt")
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     mpileups = expand(
-        CFG["dirs"]["mutect2"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{tumour_id}}/{{tumour_id}}.{chrom}.vcf.gz.tbi", 
+        CFG["dirs"]["mutect2"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{tumour_id}}/{{tumour_id}}.{chrom}.vcf.gz.tbi",
         chrom = chrs
     )
     return(mpileups)
-    
+
 
 
 # Merge chromosome mutect2 vcfs
 rule _purecn_mutect2_tumour_concatenate_vcf:
-    input: 
+    input:
         vcf = _mutect2_tumour_get_chr_vcf,
         tbi = _mutect2_tumour_get_chr_vcf_tbi,
-    output: 
+    output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.vcf.gz"),
         tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.vcf.gz.tbi"),
-    resources: 
+    resources:
         **CFG["resources"]["concatenate_vcf"]
     conda:
         CFG["conda_envs"]["bcftools"]
-    shell: 
+    shell:
         """
-            bcftools concat {input.vcf} -Oz -o {output.vcf} && 
+            bcftools concat {input.vcf} -Oz -o {output.vcf} &&
             tabix -p vcf {output.vcf}
         """
 
@@ -1007,7 +1007,7 @@ def _purecn_mutect2_get_chr_stats(wildcards):
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     stats = expand(
-        CFG["dirs"]["mutect2"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{tumour_id}}/{{tumour_id}}.{chrom}.vcf.gz.stats", 
+        CFG["dirs"]["mutect2"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{tumour_id}}/{{tumour_id}}.{chrom}.vcf.gz.stats",
         chrom = chrs
     )
     return(stats)
@@ -1030,56 +1030,56 @@ rule _purecn_mutect2_merge_stats:
         """)
 
 # Get pileup summaries
-rule _purecn_mutect2_pileup_summaries: 
-    input: 
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam", 
-        snps = reference_files("genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz"), 
+rule _purecn_mutect2_pileup_summaries:
+    input:
+        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
+        snps = reference_files("genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz"),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
-    output: 
+    output:
         pileup = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/pileupSummary.table"
-    log: 
+    log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{tumour_id}/pileupSummary.log"
-    params: 
+    params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda: CFG["conda_envs"]["mutect"]
     resources: **CFG["resources"]["mutect"]
     threads: CFG["threads"]["mutect2"]
-    shell: 
+    shell:
         op.as_one_line("""
-        gatk GetPileupSummaries 
+        gatk GetPileupSummaries
             --java-options "-Xmx{params.mem_mb}m"
             -I {input.tumour_bam}
-            -R {input.fasta} 
+            -R {input.fasta}
             -V {input.snps}
             -L {input.snps}
             -O {output.pileup}
             > {log} 2>&1
         """)
 
-# Calculate contamination  
-rule _purecn_mutect2_calc_contamination: 
-    input: 
+# Calculate contamination
+rule _purecn_mutect2_calc_contamination:
+    input:
         pileup = str(rules._purecn_mutect2_pileup_summaries.output.pileup)
-    output: 
-        segments =  CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/segments.table", 
+    output:
+        segments =  CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/segments.table",
         contamination =  CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/contamination.table"
-    log: 
+    log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{tumour_id}/contam.log"
-    params: 
+    params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda: CFG["conda_envs"]["mutect"]
     resources: **CFG["resources"]["mutect"]
     threads: CFG["threads"]["mutect2"]
-    shell: 
+    shell:
         op.as_one_line("""
-        gatk CalculateContamination 
+        gatk CalculateContamination
             --java-options "-Xmx{params.mem_mb}m"
             -I {input.pileup}
             -tumor-segmentation {output.segments}
             -O {output.contamination}
             > {log} 2>&1
         """)
-    
+
 # Learn read orientation model
 def _purecn_mutect2_get_chr_f1r2(wildcards):
     CFG = config["lcr-modules"]["purecn"]
@@ -1087,33 +1087,33 @@ def _purecn_mutect2_get_chr_f1r2(wildcards):
     with open(chrs) as file:
         chrs = file.read().rstrip("\n").split("\n")
     f1r2 = expand(
-        CFG["dirs"]["mutect2"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{tumour_id}}/{{tumour_id}}.{chrom}.f1r2.tar.gz", 
+        CFG["dirs"]["mutect2"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{tumour_id}}/{{tumour_id}}.{chrom}.f1r2.tar.gz",
         chrom = chrs
     )
     return(f1r2)
 
-rule _purecn_mutect2_learn_orient_model: 
-    input: 
+rule _purecn_mutect2_learn_orient_model:
+    input:
         f1r2 = _purecn_mutect2_get_chr_f1r2
     output:
         model =  CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/read-orientation-model.tar.gz"
-    log: 
+    log:
         stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{tumour_id}/read-orientation-model.stdout.log",
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{tumour_id}/read-orientation-model.stderr.log"
-    params: 
+    params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda: CFG["conda_envs"]["mutect"]
     resources: **CFG["resources"]["mutect"]
     threads: CFG["threads"]["mutect2"]
-    shell: 
+    shell:
         op.as_one_line("""
         inputs=$(for input in {input.f1r2}; do printf -- "-I $input "; done);
-        gatk LearnReadOrientationModel 
-        --java-options "-Xmx{params.mem_mb}m" 
+        gatk LearnReadOrientationModel
+        --java-options "-Xmx{params.mem_mb}m"
         $inputs -O {output.model}
         > {log.stdout} 2> {log.stderr}
         """)
-    
+
 
 # Marks variants filtered or PASS annotations
 rule _purecn_mutect2_filter:
@@ -1121,29 +1121,29 @@ rule _purecn_mutect2_filter:
         vcf = str(rules._purecn_mutect2_tumour_concatenate_vcf.output.vcf),
         tbi = str(rules._purecn_mutect2_tumour_concatenate_vcf.output.tbi),
         stat = str(rules._purecn_mutect2_merge_stats.output.stats),
-        segments = str(rules._purecn_mutect2_calc_contamination.output.segments), 
-        contamination = str(rules._purecn_mutect2_calc_contamination.output.contamination), 
+        segments = str(rules._purecn_mutect2_calc_contamination.output.segments),
+        contamination = str(rules._purecn_mutect2_calc_contamination.output.contamination),
         model = str(rules._purecn_mutect2_learn_orient_model.output.model),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/output.unfilt.vcf.gz")
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/mutect2/{capture_space}/{tumour_id}/mutect2_filter.log",
-    params: 
+    params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["mutect2"]["mutect2_filter"]
     conda: CFG["conda_envs"]["mutect"]
     resources: **CFG["resources"]["mutect"]
     shell:
         op.as_one_line("""
-        gatk FilterMutectCalls --java-options "-Xmx{params.mem_mb}m" 
-            {params.opts} 
-            -V {input.vcf} 
+        gatk FilterMutectCalls --java-options "-Xmx{params.mem_mb}m"
+            {params.opts}
+            -V {input.vcf}
             -R {input.fasta}
             --tumor-segmentation {input.segments}
             --contamination-table {input.contamination}
             --ob-priors {input.model}
-            -O {output.vcf} 
+            -O {output.vcf}
             > {log} 2>&1
         """)
 
@@ -1164,7 +1164,7 @@ rule _purecn_mutect2_filter_passed:
     conda: CFG["conda_envs"]["bcftools"]
     resources: **CFG["resources"]["concatenate_vcf"]
     shell:
-        op.as_one_line(""" 
+        op.as_one_line("""
         bcftools view "{params.filter_for_opts}" -e "{params.filter_out_opts}" -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
             &&
         tabix -p vcf {output.vcf} 2>> {log.stderr}
@@ -1275,7 +1275,7 @@ if CFG["cnvkit_seg"] == True:
                     --alpha {params.alpha} \
                     --model {params.model} \
                     --cores {threads} \
-                    {params.opts}  > {log} 2>&1 
+                    {params.opts}  > {log} 2>&1
             """
 
 if CFG["cnvkit_seg"] == True:
@@ -1307,7 +1307,23 @@ if CFG["cnvkit_seg"] == True:
             """
                 {params.tidy_pureCN_script} -i {input.purecn_native} -o {output.purecn_converted_seg} -s {params.sample_id}
             """
- 
+if CFG["cnvkit_seg"] == True:
+    rule _purecn_cnv2igv_seg:
+        input:
+            fixed_seg = str(rules._purecn_fix_seg.output.purecn_converted_seg),
+            cnv2igv =  ancient(CFG["inputs"]["cnv2igv"])
+        output:
+            seg = CFG["dirs"]["convert_coordinates"] + "purecn_cnvkit/cnv2igv_seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg"
+        log:
+            stderr = CFG["logs"]["convert_coordinates"] + "purecn_cnvkit/cnv2igv_seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_seg2igv.stderr.log"
+        threads: 1
+        group: "purecn_post_process"
+        shell:
+            op.as_one_line("""
+            echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
+            python {input.cnv2igv} --mode purecn_cnvkit --preserve_log_ratio --sample {wildcards.tumour_id}
+            {input.fixed_seg} > {output.seg} 2>> {log.stderr}
+            """)
 
 # -------------------------------------------------------------------------------------------------- #
 # For pureCN de novo PSCBS seg method using its own coverage files
@@ -1403,7 +1419,7 @@ rule _purecn_denovo_run:
                 --alpha {params.alpha} \
                 --model betabin \
                 --cores {threads} \
-                {params.opts} > {log} 2>&1 
+                {params.opts} > {log} 2>&1
         """
 
 rule _purecn_denovo_cleanup_xs:
@@ -1433,7 +1449,24 @@ rule _purecn_denovo_fix_seg:
         """
             {params.tidy_pureCN_script} -i {input.purecn_native} -o {output.purecn_converted_seg} -s {params.sample_id}
         """
-        
+
+rule _purecn_denovo_cnv2igv_seg:
+    input:
+        fixed_seg = str(rules._purecn_denovo_fix_seg.output.purecn_converted_seg),
+        cnv2igv =  ancient(CFG["inputs"]["cnv2igv"])
+    output:
+        seg = CFG["dirs"]["convert_coordinates"] + "purecn_denovo/cnv2igv_seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg"
+    log:
+        stderr = CFG["logs"]["convert_coordinates"] + "purecn_denovo/cnv2igv_seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_seg2igv.stderr.log"
+    threads: 1
+    group: "purecn_post_process"
+    shell:
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
+        python {input.cnv2igv} --mode purecn --preserve_log_ratio --sample {wildcards.tumour_id}
+        {input.fixed_seg} > {output.seg} 2>> {log.stderr}
+        """)
+
 # -------------------------------------------------------------------------------------------------- #
 # Part V  - Project to other genome builds and remove capture_space wildcard
 # -------------------------------------------------------------------------------------------------- #
@@ -1449,7 +1482,7 @@ def _purecn_get_chain(wildcards):
 if CFG["cnvkit_seg"] == True:
     rule _purecn_convert_coordinates:
         input:
-            purecn_native = str(rules._purecn_fix_seg.output.purecn_converted_seg),
+            purecn_native = str(rules._purecn_cnv2igv_seg.output.seg),
             purecn_chain = _purecn_get_chain
         output:
             purecn_lifted = CFG["dirs"]["convert_coordinates"] + "purecn_cnvkit/from--{seq_type}--{genome_build}/{capture_space}/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.seg"
@@ -1478,7 +1511,7 @@ if CFG["cnvkit_seg"] == True:
 # de novo pureCN
 rule _purecn_denovo_convert_coordinates:
     input:
-        purecn_native = str(rules._purecn_denovo_fix_seg.output.purecn_converted_seg),
+        purecn_native = str(rules._purecn_denovo_cnv2igv_seg.output.seg),
         purecn_chain = _purecn_get_chain
     output:
         purecn_lifted = CFG["dirs"]["convert_coordinates"] + "purecn_denovo/from--{seq_type}--{genome_build}/{capture_space}/purecn_cnvkit_seg/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.seg"
@@ -1515,7 +1548,7 @@ def _purecn_prepare_projection(wildcards):
     non_prefixed_projections = CFG["options"]["non_prefixed_projections"]
 
     if any(substring in this_genome_build[0] for substring in prefixed_projections):
-        hg38_projection = str(rules._purecn_fix_seg.output.purecn_converted_seg).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
+        hg38_projection = str(rules._purecn_cnv2igv_seg.output.seg).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
         grch37_projection = str(rules._purecn_convert_coordinates.output.purecn_lifted).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
         # handle the hg19 (prefixed) separately
         if "38" in str(this_genome_build[0]):
@@ -1524,7 +1557,7 @@ def _purecn_prepare_projection(wildcards):
             grch37_projection = grch37_projection.replace("{chain}", "hg19ToHg38")
 
     elif any(substring in this_genome_build[0] for substring in non_prefixed_projections):
-        grch37_projection = str(rules._purecn_fix_seg.output.purecn_converted_seg).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
+        grch37_projection = str(rules._purecn_cnv2igv_seg.output.seg).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
         hg38_projection = str(rules._purecn_convert_coordinates.output.purecn_lifted).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
         # handle the grch38 (non-prefixed) separately
         if "38" in str(this_genome_build[0]):
@@ -1533,13 +1566,13 @@ def _purecn_prepare_projection(wildcards):
             hg38_projection = hg38_projection.replace("{chain}", "hg19ToHg38")
     else:
         raise AttributeError(f"The specified genome build {this_genome_build[0]} is not specified in the config under options to indicate its chr prefixing.")
-    
+
     return{
         "grch37_projection": grch37_projection,
         "hg38_projection": hg38_projection
     }
-    
-    
+
+
 # Fill the missing segments of seg files with neutral regions to complete the genome coverage
 if CFG["cnvkit_seg"] == True:
     rule _purecn_fill_segments:
@@ -1590,7 +1623,7 @@ def _purecn_denovo_prepare_projection(wildcards):
     non_prefixed_projections = CFG["options"]["non_prefixed_projections"]
 
     if any(substring in this_genome_build[0] for substring in prefixed_projections):
-        hg38_denovo_projection = str(rules._purecn_denovo_fix_seg.output.purecn_converted_seg).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
+        hg38_denovo_projection = str(rules._purecn_denovo_cnv2igv_seg.output.seg).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
         grch37_denovo_projection = str(rules._purecn_denovo_convert_coordinates.output.purecn_lifted).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
         # handle the hg19 (prefixed) separately
         if "38" in str(this_genome_build[0]):
@@ -1599,7 +1632,7 @@ def _purecn_denovo_prepare_projection(wildcards):
             grch37_denovo_projection = grch37_denovo_projection.replace("{chain}", "hg19ToHg38")
 
     elif any(substring in this_genome_build[0] for substring in non_prefixed_projections):
-        grch37_denovo_projection = str(rules._purecn_denovo_fix_seg.output.purecn_converted_seg).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
+        grch37_denovo_projection = str(rules._purecn_denovo_cnv2igv_seg.output.seg).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
         hg38_denovo_projection = str(rules._purecn_denovo_convert_coordinates.output.purecn_lifted).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
         # handle the grch38 (non-prefixed) separately
         if "38" in str(this_genome_build[0]):
@@ -1683,7 +1716,7 @@ if CFG["cnvkit_seg"] == True:
             **CFG["resources"]["post_purecn"]
         threads: 1
         group: "cnvkit_post_process"
-        wildcard_constraints: 
+        wildcard_constraints:
             projection = "|".join(CFG["output"]["requested_projections"]),
             # purecn_version = "|".join(CFG["output"]["purecn_versions"]),
             tool = "purecn"
@@ -1716,7 +1749,7 @@ rule _purecn_denovo_normalize_projection:
         **CFG["resources"]["post_purecn"]
     threads: 1
     group: "purecn_post_process"
-    wildcard_constraints: 
+    wildcard_constraints:
         projection = "|".join(CFG["output"]["requested_projections"]),
         # purecn_version = "|".join(CFG["output"]["purecn_versions"]),
         tool = "purecn"
@@ -1745,11 +1778,11 @@ if CFG["cnvkit_seg"] == True:
         input:
             projection = str(rules._purecn_normalize_projection.output.projection)
         output:
-            projection = CFG["dirs"]["outputs"] +  CFG["output"]["cnvkit_seg"]["projection"]
+            projection = CFG["dirs"]["outputs"] + "purecn_cnvkit/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
         threads: 1
         group: "cnvkit_post_process"
-        wildcard_constraints: 
-            projection = "|".join(CFG["output"]["requested_projections"]), 
+        wildcard_constraints:
+            projection = "|".join(CFG["output"]["requested_projections"]),
             pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
             purecn_version = "|".join(CFG["output"]["purecn_versions"]),
             tool = "purecn"
@@ -1760,11 +1793,11 @@ rule _purecn_denovo_output_projection:
     input:
         projection_denovo = str(rules._purecn_denovo_normalize_projection.output.projection),
     output:
-        projection_denovo = CFG["dirs"]["outputs"] + CFG["output"]["denovo_seg"]["projection"]
+        projection_denovo = CFG["dirs"]["outputs"] + "purecn_denovo/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
     threads: 1
     group: "purecn_post_process"
-    wildcard_constraints: 
-        projection = "|".join(CFG["output"]["requested_projections"]), 
+    wildcard_constraints:
+        projection = "|".join(CFG["output"]["requested_projections"]),
         pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
         purecn_version = "|".join(CFG["output"]["purecn_versions"]),
         tool = "purecn"
@@ -1805,28 +1838,28 @@ if CFG["cnvkit_seg"] == True:
         input:
             unpack(_purecn_cnvkit_drop_capture_space_wc)
         output:
-            cnvkit_ploidy = CFG["dirs"]["outputs"] + CFG["output"]["cnvkit_ploidy"]["info"],
-            cnvkit_gene_cn = CFG["dirs"]["outputs"] + CFG["output"]["cnvkit_gene_cn"]["cnvkit_gene_cn"],
-            cnvkit_loh = CFG["dirs"]["outputs"] + CFG["output"]["cnvkit_loh"]["cnvkit_loh"]
+            cnvkit_ploidy = CFG["dirs"]["outputs"] + "purecn_cnvkit/info/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.info.csv",
+            cnvkit_gene_cn = CFG["dirs"]["outputs"] + "purecn_cnvkit/gene_cn/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gene_cn.csv",
+            cnvkit_loh = CFG["dirs"]["outputs"] + "purecn_cnvkit/loh/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.loh.csv"
         group: "cnvkit_post_process"
-        wildcard_constraints: 
-            projection = "|".join(CFG["output"]["requested_projections"]), 
+        wildcard_constraints:
+            projection = "|".join(CFG["output"]["requested_projections"]),
             pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
             purecn_version = "|".join(CFG["output"]["purecn_versions"])
         run:
             op.relative_symlink(input.cnvkit_ploidy, output.cnvkit_ploidy, in_module = True)
             op.relative_symlink(input.cnvkit_gene_cn, output.cnvkit_gene_cn, in_module = True)
             op.relative_symlink(input.cnvkit_loh, output.cnvkit_loh, in_module = True)
-        
+
 rule _purecn_denovo_output_files:
     input:
         unpack(_purecn_denovo_drop_capture_space_wc)
     output:
-        denovo_ploidy = CFG["dirs"]["outputs"] + CFG["output"]["denovo_ploidy"]["info"],
-        denovo_loh = CFG["dirs"]["outputs"] + CFG["output"]["denovo_loh"]["denovo_loh"]
+        denovo_ploidy = CFG["dirs"]["outputs"] + "purecn_denovo/info/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.info.csv",
+        denovo_loh = CFG["dirs"]["outputs"] + "purecn_denovo/loh/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.loh.csv"
     group: "purecn_post_process"
-    wildcard_constraints: 
-        projection = "|".join(CFG["output"]["requested_projections"]), 
+    wildcard_constraints:
+        projection = "|".join(CFG["output"]["requested_projections"]),
         pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
         purecn_version = "|".join(CFG["output"]["purecn_versions"])
     run:
@@ -1839,7 +1872,7 @@ def _purecn_cnvkit_drop_capture_space_wc_seg(wildcards):
     tbl = CFG["runs"]
     this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
 
-    cnvkit_seg = str(rules._purecn_fix_seg.output.purecn_converted_seg).replace("{capture_space}", this_space[0])
+    cnvkit_seg = str(rules._purecn_cnv2igv_seg.output.seg).replace("{capture_space}", this_space[0])
 
     return{
         "cnvkit_seg": cnvkit_seg
@@ -1850,21 +1883,21 @@ def _purecn_denovo_drop_capture_space_wc_seg(wildcards):
     tbl = CFG["runs"]
     this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
 
-    denovo_seg = str(rules._purecn_denovo_fix_seg.output.purecn_converted_seg).replace("{capture_space}", this_space[0])
+    denovo_seg = str(rules._purecn_denovo_cnv2igv_seg.output.seg).replace("{capture_space}", this_space[0])
 
     return{
         "denovo_seg": denovo_seg
     }
-    
+
 if CFG["cnvkit_seg"] == True:
     rule _purecn_cnvkit_output_seg:
         input:
             unpack(_purecn_cnvkit_drop_capture_space_wc_seg)
         output:
-            cnvkit_seg = CFG["dirs"]["outputs"] + CFG["output"]["cnvkit_seg"]["original"]
+            cnvkit_seg = CFG["dirs"]["outputs"] + "purecn_cnvkit/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
         group: "cnvkit_post_process"
-        wildcard_constraints: 
-            projection = "|".join(CFG["output"]["requested_projections"]), 
+        wildcard_constraints:
+            projection = "|".join(CFG["output"]["requested_projections"]),
             pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
             purecn_version = "|".join(CFG["output"]["purecn_versions"])
         run:
@@ -1874,10 +1907,10 @@ rule _purecn_denovo_output_seg:
     input:
         unpack(_purecn_denovo_drop_capture_space_wc_seg)
     output:
-        denovo_seg = CFG["dirs"]["outputs"] + CFG["output"]["denovo_seg"]["original"],
+        denovo_seg = CFG["dirs"]["outputs"] + "purecn_denovo/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg",
     group: "purecn_post_process"
-    wildcard_constraints: 
-        projection = "|".join(CFG["output"]["requested_projections"]), 
+    wildcard_constraints:
+        projection = "|".join(CFG["output"]["requested_projections"]),
         pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
         purecn_version = "|".join(CFG["output"]["purecn_versions"])
     run:
@@ -1892,29 +1925,29 @@ def _purecn_take_lowest_MAD(wildcards):
     this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
 
     cnvkit_seg = CFG["dirs"]["outputs"] + "purecn_cnvkit/seg/" + wildcards.seq_type + "--projection/" + wildcards.tumour_id + "--" + wildcards.normal_id + "--" + wildcards.pair_status + "." + wildcards.tool + "." + wildcards.projection + ".seg"
-    
+
     denovo_seg = CFG["dirs"]["outputs"] + "purecn_denovo/seg/" + wildcards.seq_type + "--projection/" + wildcards.tumour_id + "--" + wildcards.normal_id + "--" + wildcards.pair_status + "." + wildcards.tool + "." + wildcards.projection + ".seg"
-    
-    
+
+
     cnvkit_dir = glob.glob(CFG["dirs"]["pureCN_cnvkit"] + wildcards.seq_type + "--*/*/" + wildcards.tumour_id)
     denovo_dir = glob.glob(CFG["dirs"]["pureCN"] + wildcards.seq_type + "--*/*/" + wildcards.tumour_id)
-    
+
     if any(sample in str({wildcards.tumour_id}) for sample in CFG["output"]["best_seg_manual"]["purecn_denovo"]):
         if os.path.isfile(str(denovo_seg)):
             best_seg = denovo_seg
-            
+
     elif any(sample in str({wildcards.tumour_id}) for sample in CFG["output"]["best_seg_manual"]["purecn_cnvkit"]):
         if os.path.isfile(str(cnvkit_seg)):
             best_seg = cnvkit_seg
-    
+
     if os.path.isfile(str(cnvkit_seg)) and os.path.isfile(str(denovo_seg)):
-        
+
         cnvkit_mapd = list()
         with open(cnvkit_dir[0] + "/" + wildcards.tumour_id + ".log") as file:
             for line in file.readlines():
                 if 'Mean standard deviation of log-ratios' in line:
                     cnvkit_mapd.append(str(line))
-        
+
         # Take the 8th element - representing the MAD score
         cnvkit_mapd_value = float(cnvkit_mapd[len(cnvkit_mapd)-1].split()[8])
 
@@ -1923,10 +1956,10 @@ def _purecn_take_lowest_MAD(wildcards):
             for line in file.readlines():
                 if 'Mean standard deviation of log-ratios' in line:
                     denovo_mapd.append(str(line))
-                    
+
         # Take the 8th element - representing the MAD score
         denovo_mapd_value = float(denovo_mapd[len(denovo_mapd)-1].split()[8])
-        
+
         if (denovo_mapd_value < cnvkit_mapd_value):
             # Account for seg files that are over-segmented but have a lower MAD
             count_denovo = []
@@ -1938,7 +1971,7 @@ def _purecn_take_lowest_MAD(wildcards):
                     if (float(cols[5]) > 0.5 or float(cols[5]) <-0.5 ):
                         count_denovo.append(line)
             count_denovo = len(count_denovo)
-            
+
             count_cnvkit = []
             with open(cnvkit_seg) as file:
                 next(file)
@@ -1957,13 +1990,13 @@ def _purecn_take_lowest_MAD(wildcards):
                 best_seg = str(denovo_seg)
         else:
             best_seg = str(cnvkit_seg)
-        
+
     elif os.path.isfile(str(cnvkit_seg)):
         best_seg = cnvkit_seg
-        
+
     else:
         best_seg = denovo_seg
-        
+
     return{
         "best_seg": best_seg
     }
@@ -1973,9 +2006,9 @@ rule _purecn_best_seg:
     input:
         unpack(_purecn_take_lowest_MAD)
     output:
-        best_seg = CFG["dirs"]["outputs"] + CFG["output"]["best_seg"]
+        best_seg = CFG["dirs"]["outputs"] + "best_seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
     wildcard_constraints:
-        projection = "|".join(CFG["output"]["requested_projections"]), 
+        projection = "|".join(CFG["output"]["requested_projections"]),
         pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
         purecn_version = "|".join(CFG["output"]["purecn_versions"])
     run:
@@ -2063,19 +2096,6 @@ if CFG["cnvkit_seg"] == False:
                 projection=CFG["output"]["requested_projections"],
                 purecn_version=CFG["output"]["purecn_versions"]
             )
-            # expand(
-            #     expand(
-            #     [
-            #         str(rules._purecn_best_seg.output.best_seg)
-            #     ],
-            #     zip,  # Run expand() with zip(), not product()
-            #     tumour_id=CFG["runs"]["tumour_sample_id"],
-            #     normal_id=CFG["runs"]["normal_sample_id"],
-            #     seq_type=CFG["runs"]["tumour_seq_type"],
-            #     pair_status=CFG["runs"]["pair_status"],
-            #     allow_missing=True),
-            #     tool = "purecn",
-            #     projection=CFG["output"]["requested_projections"])
 
 
 ##### CLEANUP #####
