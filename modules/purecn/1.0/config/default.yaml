@@ -1,11 +1,12 @@
 lcr-modules:
-    
+
     purecn:
 
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/cnv2igv.py"
 
         cnvkit_seg: True
         cnvkit_directory: "__UPDATE__" # set to cnvkit base directory if using lcr-modules
@@ -16,8 +17,8 @@ lcr-modules:
             # Remake normals
             new_normals: True
             # Target sites
-            # N.B. pureCN prefers to use the bait files, not the target files, if available. 
-            # The bed file regions should not be padded. 
+            # N.B. pureCN prefers to use the bait files, not the target files, if available.
+            # The bed file regions should not be padded.
             target_bed:
                 hg19:
                     agilent: ""
@@ -25,8 +26,8 @@ lcr-modules:
                 hg38:
                     agilent: ""
                     idt: ""
-                    
-            genome_builds: 
+
+            genome_builds:
                 grch37: "hg19"
                 hg19: "hg19"
                 hs37d5: "hg19"
@@ -49,20 +50,20 @@ lcr-modules:
 
 
             # Normal panel settings: ----------------------------------------------------------------------- #
-            mutect2_norm: 
+            mutect2_norm:
                 mutect2_opts: ""
                 mutect2_filter: ""
                 mutect2_filter_for: "-f '.,PASS,germline' "
                 mutect2_filter_out: "FILTER~'weak_evidence' | FILTER~'contamination'"
             normals:
                 omit_list: "" # path to list (.txt) of normal vcfs (paths) to omit from the panel of normals
-            
+
             normals_coverage_loess:
                 omit_list: "" # path to list (.loess.txt) of normal coverage (paths) to omit from the panel of normals
 
             # Tumour settings: ----------------------------------------------------------------------- #
-            mutect2: 
-                padding: 50 # Typical for exomes. May increase to 200 for very high coverage targeted capture. Applies to normal and tumour mutect2 calling. 
+            mutect2:
+                padding: 50 # Typical for exomes. May increase to 200 for very high coverage targeted capture. Applies to normal and tumour mutect2 calling.
                 mutect2_opts: ""
                 mutect2_filter: ""
                 mutect2_filter_for: "-f '.,PASS,germline' "
@@ -72,7 +73,7 @@ lcr-modules:
             coverage:
                 force: "--force"
                 opts: ""
-            
+
 
             # this is using cnvkit seg/ratio files as input
             pureCN:
@@ -81,7 +82,7 @@ lcr-modules:
                 model: "betabin"
                 min_offtarget: "0.05"
                 opts: "--force --post-optimize --seed 123 "
-            
+
             # the default segmentation method is PSCBS, which leverages vcf info to determine bins
             purecn_cnvkit:
                 flagged_samples: [] # populate with sample names that you want to convert to using the standard Hclust method, which is the standard pureCN to cnvkit call. Noisy segmentation will remain noisy however.
@@ -91,39 +92,38 @@ lcr-modules:
                 failed_samples: [] # populate with sample names that have failed both methods. It will use "none" as the segmentation method. Note, that if the sample fails this and also failed de novo pureCN calling, then the sample may just be problematic. Should omit the sample entirely.
 
             # liftOver options to convert between genomic builds
-            liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
+            liftover_script_path: "{SCRIPTSDIR}/liftover/2.0/liftover.sh"
             liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
             prefixed_projections: ["grch38", "hg38"] # List here the base names of chr-prefixed projections
             non_prefixed_projections: ["hg19", "grch37",  "hs37d5"] # List here the base names of non-prefixed projections
-
-            fill_segments_version: "1.1/"
+            fill_segments_version: "1.2/"
 
         software:
             intervalfile_script: "{MODSDIR}/etc/IntervalFile.R"
             coverage_script: "{MODSDIR}/etc/Coverage.R"
             tidy_pureCN_script: "{MODSDIR}/etc/Tidy_pureCN_seg.sh"
 
-        output: # specify the naming convention for the output files under 99-outputs/
-                # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
-                # other wildcards are not supported in the naming scheme of output files
-                # The CFG["dirs"]["output"] directory is the base directory for all output files
-            cnvkit_seg:
-                original: "purecn_cnvkit/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
-                projection: "purecn_cnvkit/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
-            denovo_seg:
-                original: "purecn_denovo/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
-                projection: "purecn_denovo/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
-            cnvkit_ploidy:
-                info: "purecn_cnvkit/info/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.info.csv"
-            cnvkit_gene_cn:
-                cnvkit_gene_cn: "purecn_cnvkit/gene_cn/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gene_cn.csv"
-            cnvkit_loh:
-                cnvkit_loh: "purecn_cnvkit/loh/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.loh.csv"
-            denovo_ploidy:
-                info: "purecn_denovo/info/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.info.csv"
-            denovo_loh:
-                denovo_loh: "purecn_denovo/loh/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.loh.csv"
-            best_seg: "best_seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+        # output: # specify the naming convention for the output files under 99-outputs/
+        #         # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
+        #         # other wildcards are not supported in the naming scheme of output files
+        #         # The CFG["dirs"]["output"] directory is the base directory for all output files
+        #     cnvkit_seg:
+        #         original: "purecn_cnvkit/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
+        #         projection: "purecn_cnvkit/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+        #     denovo_seg:
+        #         original: "purecn_denovo/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
+        #         projection: "purecn_denovo/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+        #     cnvkit_ploidy:
+        #         info: "purecn_cnvkit/info/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.info.csv"
+        #     cnvkit_gene_cn:
+        #         cnvkit_gene_cn: "purecn_cnvkit/gene_cn/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gene_cn.csv"
+        #     cnvkit_loh:
+        #         cnvkit_loh: "purecn_cnvkit/loh/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.loh.csv"
+        #     denovo_ploidy:
+        #         info: "purecn_denovo/info/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.info.csv"
+        #     denovo_loh:
+        #         denovo_loh: "purecn_denovo/loh/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.loh.csv"
+        #     best_seg: "best_seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
 
             # specify in which projections you want the output files
             requested_projections: ["grch37", "hg38"]
@@ -142,7 +142,7 @@ lcr-modules:
             purecn: "{MODSDIR}/envs/purecn-2.0.1.yaml"
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
             liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
-            
+
         threads:
             gem: 4
             setinterval: 3
@@ -153,7 +153,7 @@ lcr-modules:
         resources:
             gem:
                 mem_mb: 16000
-            setinterval: 
+            setinterval:
                 mem_mb: 6000
             mutect:
                 mem_mb: 12000
@@ -167,7 +167,7 @@ lcr-modules:
             post_purecn:
                 mem_mb: 2000
                 bam: 1
-            
+
         pairing_config:
             capture:
                 run_paired_tumours: True
