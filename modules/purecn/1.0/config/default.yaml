@@ -103,28 +103,6 @@ lcr-modules:
             coverage_script: "{MODSDIR}/etc/Coverage.R"
             tidy_pureCN_script: "{MODSDIR}/etc/Tidy_pureCN_seg.sh"
 
-        # output: # specify the naming convention for the output files under 99-outputs/
-        #         # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
-        #         # other wildcards are not supported in the naming scheme of output files
-        #         # The CFG["dirs"]["output"] directory is the base directory for all output files
-        #     cnvkit_seg:
-        #         original: "purecn_cnvkit/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
-        #         projection: "purecn_cnvkit/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
-        #     denovo_seg:
-        #         original: "purecn_denovo/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
-        #         projection: "purecn_denovo/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
-        #     cnvkit_ploidy:
-        #         info: "purecn_cnvkit/info/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.info.csv"
-        #     cnvkit_gene_cn:
-        #         cnvkit_gene_cn: "purecn_cnvkit/gene_cn/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gene_cn.csv"
-        #     cnvkit_loh:
-        #         cnvkit_loh: "purecn_cnvkit/loh/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.loh.csv"
-        #     denovo_ploidy:
-        #         info: "purecn_denovo/info/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.info.csv"
-        #     denovo_loh:
-        #         denovo_loh: "purecn_denovo/loh/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.loh.csv"
-        #     best_seg: "best_seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
-
             # specify in which projections you want the output files
             requested_projections: ["grch37", "hg38"]
             purecn_versions: ["purecn_cnvkit", "purecn_denovo"]
