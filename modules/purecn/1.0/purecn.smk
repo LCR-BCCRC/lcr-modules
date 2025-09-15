@@ -1717,8 +1717,7 @@ if CFG["cnvkit_seg"] == True:
         threads: 1
         group: "cnvkit_post_process"
         wildcard_constraints:
-            projection = "|".join(CFG["output"]["requested_projections"]),
-            # purecn_version = "|".join(CFG["output"]["purecn_versions"]),
+            projection = "|".join(CFG["requested_projections"]),
             tool = "purecn"
         run:
             # read the main chromosomes file of the projection
@@ -1750,8 +1749,7 @@ rule _purecn_denovo_normalize_projection:
     threads: 1
     group: "purecn_post_process"
     wildcard_constraints:
-        projection = "|".join(CFG["output"]["requested_projections"]),
-        # purecn_version = "|".join(CFG["output"]["purecn_versions"]),
+        projection = "|".join(CFG["requested_projections"]),
         tool = "purecn"
     run:
         # read the main chromosomes file of the projection
@@ -1782,9 +1780,9 @@ if CFG["cnvkit_seg"] == True:
         threads: 1
         group: "cnvkit_post_process"
         wildcard_constraints:
-            projection = "|".join(CFG["output"]["requested_projections"]),
+            projection = "|".join(CFG["requested_projections"]),
             pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
-            purecn_version = "|".join(CFG["output"]["purecn_versions"]),
+            purecn_version = "|".join(CFG["purecn_versions"]),
             tool = "purecn"
         run:
             op.relative_symlink(input.projection, output.projection, in_module = True)
@@ -1797,9 +1795,9 @@ rule _purecn_denovo_output_projection:
     threads: 1
     group: "purecn_post_process"
     wildcard_constraints:
-        projection = "|".join(CFG["output"]["requested_projections"]),
+        projection = "|".join(CFG["requested_projections"]),
         pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
-        purecn_version = "|".join(CFG["output"]["purecn_versions"]),
+        purecn_version = "|".join(CFG["purecn_versions"]),
         tool = "purecn"
     run:
         op.relative_symlink(input.projection_denovo, output.projection_denovo, in_module = True)
@@ -1843,9 +1841,9 @@ if CFG["cnvkit_seg"] == True:
             cnvkit_loh = CFG["dirs"]["outputs"] + "purecn_cnvkit/loh/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.loh.csv"
         group: "cnvkit_post_process"
         wildcard_constraints:
-            projection = "|".join(CFG["output"]["requested_projections"]),
+            projection = "|".join(CFG["requested_projections"]),
             pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
-            purecn_version = "|".join(CFG["output"]["purecn_versions"])
+            purecn_version = "|".join(CFG["purecn_versions"])
         run:
             op.relative_symlink(input.cnvkit_ploidy, output.cnvkit_ploidy, in_module = True)
             op.relative_symlink(input.cnvkit_gene_cn, output.cnvkit_gene_cn, in_module = True)
@@ -1859,9 +1857,9 @@ rule _purecn_denovo_output_files:
         denovo_loh = CFG["dirs"]["outputs"] + "purecn_denovo/loh/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.loh.csv"
     group: "purecn_post_process"
     wildcard_constraints:
-        projection = "|".join(CFG["output"]["requested_projections"]),
+        projection = "|".join(CFG["requested_projections"]),
         pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
-        purecn_version = "|".join(CFG["output"]["purecn_versions"])
+        purecn_version = "|".join(CFG["purecn_versions"])
     run:
         op.relative_symlink(input.denovo_ploidy, output.denovo_ploidy, in_module = True)
         op.relative_symlink(input.denovo_loh, output.denovo_loh, in_module = True)
@@ -1897,9 +1895,9 @@ if CFG["cnvkit_seg"] == True:
             cnvkit_seg = CFG["dirs"]["outputs"] + "purecn_cnvkit/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
         group: "cnvkit_post_process"
         wildcard_constraints:
-            projection = "|".join(CFG["output"]["requested_projections"]),
+            projection = "|".join(CFG["requested_projections"]),
             pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
-            purecn_version = "|".join(CFG["output"]["purecn_versions"])
+            purecn_version = "|".join(CFG["purecn_versions"])
         run:
             op.relative_symlink(input.cnvkit_seg, output.cnvkit_seg, in_module = True)
 
@@ -1910,9 +1908,9 @@ rule _purecn_denovo_output_seg:
         denovo_seg = CFG["dirs"]["outputs"] + "purecn_denovo/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg",
     group: "purecn_post_process"
     wildcard_constraints:
-        projection = "|".join(CFG["output"]["requested_projections"]),
+        projection = "|".join(CFG["requested_projections"]),
         pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
-        purecn_version = "|".join(CFG["output"]["purecn_versions"])
+        purecn_version = "|".join(CFG["purecn_versions"])
     run:
         op.relative_symlink(input.denovo_seg, output.denovo_seg, in_module = True)
 
@@ -1920,7 +1918,7 @@ rule _purecn_denovo_output_seg:
 def _purecn_take_lowest_MAD(wildcards):
     CFG = config["lcr-modules"]["purecn"]
     tbl = CFG["runs"]
-    projection = CFG["output"]["requested_projections"]
+    projection = CFG["requested_projections"]
 
     this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
 
@@ -2008,9 +2006,9 @@ rule _purecn_best_seg:
     output:
         best_seg = CFG["dirs"]["outputs"] + "best_seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
     wildcard_constraints:
-        projection = "|".join(CFG["output"]["requested_projections"]),
+        projection = "|".join(CFG["requested_projections"]),
         pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist())),
-        purecn_version = "|".join(CFG["output"]["purecn_versions"])
+        purecn_version = "|".join(CFG["purecn_versions"])
     run:
         op.relative_symlink(input.best_seg, output.best_seg, in_module = True)
 
@@ -2048,8 +2046,8 @@ if CFG["cnvkit_seg"] == True:
                 pair_status=CFG["runs"]["pair_status"],
                 allow_missing=True),
                 tool = "purecn",
-                projection=CFG["output"]["requested_projections"],
-                purecn_version=CFG["output"]["purecn_versions"]
+                projection=CFG["requested_projections"],
+                purecn_version=CFG["purecn_versions"]
             ),
             expand(
                 expand(
@@ -2063,7 +2061,7 @@ if CFG["cnvkit_seg"] == True:
                 pair_status=CFG["runs"]["pair_status"],
                 allow_missing=True),
                 tool = "purecn",
-                projection=CFG["output"]["requested_projections"])
+                projection=CFG["requested_projections"])
 
 if CFG["cnvkit_seg"] == False:
     rule _purecn_denovo_all:
@@ -2093,8 +2091,8 @@ if CFG["cnvkit_seg"] == False:
                 pair_status=CFG["runs"]["pair_status"],
                 allow_missing=True),
                 tool = "purecn",
-                projection=CFG["output"]["requested_projections"],
-                purecn_version=CFG["output"]["purecn_versions"]
+                projection=CFG["requested_projections"],
+                purecn_version=CFG["purecn_versions"]
             )
 
 

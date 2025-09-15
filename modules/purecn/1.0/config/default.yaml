@@ -11,6 +11,10 @@ lcr-modules:
         cnvkit_seg: True
         cnvkit_directory: "__UPDATE__" # set to cnvkit base directory if using lcr-modules
 
+        # specify in which projections you want the output files
+        requested_projections: ["grch37", "hg38"]
+        purecn_versions: ["purecn_cnvkit", "purecn_denovo"]
+
         scratch_subdirectories: []
 
         options:
@@ -103,10 +107,8 @@ lcr-modules:
             coverage_script: "{MODSDIR}/etc/Coverage.R"
             tidy_pureCN_script: "{MODSDIR}/etc/Tidy_pureCN_seg.sh"
 
-            # specify in which projections you want the output files
-            requested_projections: ["grch37", "hg38"]
-            purecn_versions: ["purecn_cnvkit", "purecn_denovo"]
-
+        output:
+            # should be sample_id list
             best_seg_manual:
                 purecn_denovo: []
                 purecn_cnvkit: []
