@@ -1316,6 +1316,8 @@ if CFG["cnvkit_seg"] == True:
             seg = CFG["dirs"]["convert_coordinates"] + "purecn_cnvkit/cnv2igv_seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg"
         log:
             stderr = CFG["logs"]["convert_coordinates"] + "purecn_cnvkit/cnv2igv_seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_seg2igv.stderr.log"
+        conda:
+            CFG["conda_envs"]["cnv2igv"]
         threads: 1
         group: "purecn_post_process"
         shell:
@@ -1458,6 +1460,8 @@ rule _purecn_denovo_cnv2igv_seg:
         seg = CFG["dirs"]["convert_coordinates"] + "purecn_denovo/cnv2igv_seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg"
     log:
         stderr = CFG["logs"]["convert_coordinates"] + "purecn_denovo/cnv2igv_seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_seg2igv.stderr.log"
+    conda:
+        CFG["conda_envs"]["cnv2igv"]
     threads: 1
     group: "purecn_post_process"
     shell:

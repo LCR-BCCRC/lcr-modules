@@ -121,7 +121,8 @@ lcr-modules:
             ucsc_bigwigtowig: "{MODSDIR}/envs/ucsc-bigwigtowig.yaml"
             purecn: "{MODSDIR}/envs/purecn-2.0.1.yaml"
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
-            liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/python-3.8.3.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/2.0/liftover.yaml"
 
         threads:
             gem: 4
