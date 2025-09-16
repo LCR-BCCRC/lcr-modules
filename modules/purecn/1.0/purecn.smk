@@ -1380,8 +1380,8 @@ rule _purecn_denovo_run:
         ploidy = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.csv",
         seg = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg",
         loh = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_loh.csv",
-        rds = temp(CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.rds"),
-        pdf = temp(CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf"),
+        # rds = temp(CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.rds"),
+        # pdf = temp(CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf"),
     params:
         outdir = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/",
         sample_id = "{tumour_id}",
@@ -1422,23 +1422,23 @@ rule _purecn_denovo_run:
                 {params.opts} > {log} 2>&1
         """
 
-rule _purecn_denovo_cleanup_xs:
-    input:
-        rds = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.rds",
-        pdf = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf",
-    output:
-        rds_removed = touch(CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.done")
-    group: "purecn_post_process"
-    shell:
-        """
-            rm {input.rds} ;
-            rm {input.pdf}
-        """
+# rule _purecn_denovo_cleanup_xs:
+#     input:
+#         rds = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.rds",
+#         pdf = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf",
+#     output:
+#         rds_removed = touch(CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.done")
+#     group: "purecn_post_process"
+#     shell:
+#         """
+#             rm {input.rds} ;
+#             rm {input.pdf}
+#         """
 
 rule _purecn_denovo_fix_seg:
     input:
         purecn_native = str(rules._purecn_denovo_run.output.seg),
-        rds_removed = str(rules._purecn_denovo_cleanup_xs.output.rds_removed)
+        # rds_removed = str(rules._purecn_denovo_cleanup_xs.output.rds_removed)
     output:
         purecn_converted_seg = CFG["dirs"]["convert_coordinates"] + "purecn_denovo/fixed_seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg"
     params:
@@ -1462,7 +1462,7 @@ rule _purecn_denovo_cnv2igv_seg:
     group: "purecn_post_process"
     shell:
         op.as_one_line("""
-        echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
+        echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
         python {input.cnv2igv} --mode purecn --preserve_log_ratio --sample {wildcards.tumour_id}
         {input.fixed_seg} > {output.seg} 2>> {log.stderr}
         """)
