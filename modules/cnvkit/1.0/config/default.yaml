@@ -7,9 +7,11 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/cnv2igv.py"
+
+        requested_projections: ["grch37", "hg38"]
 
         scratch_subdirectories: []
-
 
         options:
 
@@ -67,40 +69,18 @@ lcr-modules:
                 min_segments: 3 # minimum number of segments/bins that need to be consistently called
 
             # liftOver options to convert between genomic builds
-            liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
+            liftover_script_path: "{SCRIPTSDIR}/liftover/2.0/liftover.sh"
             liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
             prefixed_projections: ["hg38"] # List here the base names of chr-prefixed projections
             non_prefixed_projections: ["hg19", "grch37", "grch38", "hs37d5"] # List here the base names of non-prefixed projections
-            fill_segments_version: "1.1/"
-
-        output: # specify the naming convention for the output files under 99-outputs/
-                # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
-                # other wildcards are not supported in the naming scheme of output files
-                # The CFG["dirs"]["output"] directory is the base directory for all output files
-            seg:
-                original: "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
-                projection: "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
-            pdf:
-                diagram: "plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.diagram.pdf"
-            png:
-                scatter: "plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.scatter.png"
-            cns:
-                call: "cns/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.cns"
-            txt:
-                breaks: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneBreaks.txt"
-                gene_seg: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneSeg.txt"
-                geneList: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneList.txt"
-                sex: "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sex.txt"
-            metrics:
-                metrics: "metrics/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.metrics.txt"
-            # specify in which projections you want the output files
-            requested_projections: ["grch37", "hg38"]
+            fill_segments_version: "1.2/"
 
         conda_envs:
             cnvkit: "{MODSDIR}/envs/cnvkit-0.9.9.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
-            liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/python-3.8.3.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/2.0/liftover.yaml"
 
         threads:
             reference: 24
@@ -125,8 +105,6 @@ lcr-modules:
             breaks:
                 mem_mb: 6000
             geneMetrics:
-                mem_mb: 6000
-            seg:
                 mem_mb: 6000
             outputs:
                 mem_mb: 6000
