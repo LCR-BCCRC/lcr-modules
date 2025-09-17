@@ -1382,8 +1382,8 @@ rule _purecn_denovo_run:
         ploidy = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.csv",
         seg = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg",
         loh = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_loh.csv",
-        # rds = temp(CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.rds"),
-        # pdf = temp(CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf"),
+        rds = temp(CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.rds"),
+        pdf = temp(CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.pdf"),
     params:
         outdir = CFG["dirs"]["pureCN"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/",
         sample_id = "{tumour_id}",
