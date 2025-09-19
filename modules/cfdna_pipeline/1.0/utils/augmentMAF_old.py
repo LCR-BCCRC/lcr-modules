@@ -13,10 +13,7 @@ has been refactored for readability and maintainability.
 The core logic on what the script does is the same, just
 in some prettier syntax and more documentation.
 
-Refactor notes:
-- UMI collection is optional (enabled with --compute_umi_metrics).
-- Variant-type helpers remain, and insertions/deletions are single-pass loops that collect UMI tags inline.
-- UMI family size tag is cD; UMI/group identifier tag is MI (fallback to read name if MI missing).
+Author: Kurt Yakimovich et al.
 """
 
 import pandas as pd
@@ -37,10 +34,6 @@ def get_args():
     parser.add_argument('--genome_build',required=True,type=str,help='genome build')
     parser.add_argument('--alt_count_min',required=True,type=int,help='minimum alt count reads needed to keep variant')
     parser.add_argument('--output',required=True,type=str,help='output file')
-
-    # Optional: compute UMI metrics (MI and cD tags)
-    parser.add_argument('--compute_umi_metrics', action='store_true',
-                        help='If set, compute UMI_mean, UMI_max, UMI_3_count for alt-supporting reads (uses MI and cD tags)')
     return parser.parse_args()
 
 
@@ -49,24 +42,42 @@ class AugmentMAF(object):
 
     Useful if you have multiple samples from the same patient and want to see if there is supporting
     reads for a variant in one sample that is not called in another sample.
+
+    Attributes:
+        sample_id (str): sample id
+        index_maf (pd.DataFrame): index maf file
+        index_bam (str): index bam file
+        add_maf_files (list): list of additional maf files
+        genome_build (str): genome build
+        output (str): output file
+    
+    Methods:
+        read_maf: read a maf file
+        get_genome_chromosomes: get a list of chromosomes for the genome build
+        write_output: write the augmented maf to a file
+        augment_maf: loop through each chromosome in parallel and check for variants in the index bam from
+                    the add maf files. If found, update the index maf file with the new variant information.
+        filter_augmented_vars: filter variants in the augmented maf based on the minimum alt depth and alt frequency
+        _get_missing_maf_rows: compare other maf to index maf and return rows that are missing from the index maf
+                            based on chromosome and start position of variants.
+        _subset_and_run: subset variants per chr and find support in index sample bam file. 
+        _get_read_support: get read support for a variant in a bam file.
+
     """
 
     def __init__(self, sample_id: str, index_maf:str,
                         index_bam: str, add_maf_files: list, genome_build: str,
-                        output: str , threads: int = 6, min_alt_count: int= 3,
-                        compute_umi_metrics: bool = False):
+                        output: str , threads: int = 6, min_alt_count: int= 3):
         super(AugmentMAF, self).__init__()
         # user provided inputs
         self.sample_id = sample_id
         self.threads = threads
         self.index_maf = self.read_maf(index_maf)
         self.index_bam = index_bam
-        self.add_maf_files = add_maf_files or []
+        self.add_maf_files = add_maf_files
         self.genome_build = genome_build
         self.output = output
         self.min_alt_count = min_alt_count
-        self.compute_umi_metrics = compute_umi_metrics  # optional UMI collection
-
         # computed variables
         self.chromosomes = self.get_genome_chromosomes()
         self.master_maf = self.run_or_not()
@@ -104,6 +115,8 @@ class AugmentMAF(object):
         and check for variants in the index bam from
         the add maf files. If found, update the index
         maf file with the new variant information.
+
+
         """
         # test if master_maf is a df or not
         if self.master_maf is None:
@@ -123,10 +136,11 @@ class AugmentMAF(object):
             print(f"Found {new_vars} new variants to add to index maf ...")
 
         # run in parallel for all chromosomes
+        # run in parallel
         cool_pool = multiprocessing.Pool(processes = self.threads)
         results = cool_pool.starmap(self._subset_and_run, [[chrm] for chrm in self.chromosomes])
         cool_pool.close()
-        cool_pool.join()
+        cool_pool.join() # Keeping Chris' variable naming
 
         # concatenate mafs and write them out to a file
         augmented_maf_merged = pd.concat(results)
@@ -140,10 +154,11 @@ class AugmentMAF(object):
         if "key" in full_augmented_maf_merged.columns:
             full_augmented_maf_merged.drop(columns=["key"], inplace=True)
         # recalculate AF
+        # droop any rows with NA in Hugo_Symbol or t_alt_count, t_depth
         full_augmented_maf_merged = full_augmented_maf_merged.dropna(subset=["Hugo_Symbol","t_alt_count","t_depth"]).copy()
         full_augmented_maf_merged["AF"] = full_augmented_maf_merged["t_alt_count"].astype(int) / full_augmented_maf_merged["t_depth"].astype(int)
         # insert AF column at 43 column
-        full_augmented_maf_merged.insert(43, "AF", full_augmented_maf_merged.pop("AF"))
+        full_augmented_maf_merged.insert(43, "AF", full_augmented_maf_merged.pop("AF")) # make it easier to find goodness sake
 
         return full_augmented_maf_merged
 
@@ -151,7 +166,9 @@ class AugmentMAF(object):
         """Compare other maf to index maf and 
         return rows that are missing from the index maf
         based on chromosome and start position of variants.
+
         """
+
         additional_mafs = []
         for maf in self.add_maf_files:
             other_maf = self.read_maf(maf)
@@ -178,22 +195,47 @@ class AugmentMAF(object):
             return None
 
     def mark_origin(self, add_mafs: pd.DataFrame) -> pd.DataFrame:
-        """Mark the origin sample(s) of each variant if it is from an additional maf file."""
+        """Mark the origin sample(s) of each variant
+        if it is form an additional maf file. 
+
+        Args:
+            add_mafs (pd.DataFrame): additional maf files dataframe
+
+        Returns:
+            add_mafs (pd.DataFrame): additional maf files dataframe with origin samples column
+        """
+        # add variant key
         add_mafs["variant_key"] = add_mafs["Chromosome"] + "_" + add_mafs["Start_Position"].astype(str) + "_" + add_mafs["Tumor_Seq_Allele2"].astype(str)
+        # create dict with variant_key as key and a comma separated list of samples it was found in as value
         variant_key_dict = add_mafs.groupby("variant_key")["Tumor_Sample_Barcode"].agg(lambda x: ",".join(list(x))).to_dict()
+        # create a new column with the origin samples
         add_mafs["origin_samples"] = add_mafs["variant_key"].map(variant_key_dict)
+
         return add_mafs
 
+
     def _subset_and_run(self, this_chromosome: str) -> pd.DataFrame:
-        """Subset variants per chr and find support in index sample bam file."""
+        """Subset variants per chr and find support in index sample bam file.
+
+        Args:
+            this_chromosome (str): chromosome to work on
+
+        Returns:
+            missing_maf (pd.DataFrame): maf with updated read counts for
+                                        variants not in index but in additional
+                                        maf files.
+        """
+        # subset the maf to only the chromosome we are working on
         print(f"Working on chromosome {this_chromosome} ...")
         missing_maf = self.master_maf[self.master_maf["Chromosome"] == this_chromosome].copy()
         # find only rows with the source "additional_maf" aka were not called in the index maf
         missing_maf = missing_maf[missing_maf["variant_source"] == "additional_maf"].copy()
 
         print(f"Found these variants to augment: {missing_maf}")
+        # loop through variants in missing vaf and get support
 
         for var in missing_maf.itertuples():
+            # get read support
             read_counts = self._get_read_support(chrom=var.Chromosome,
                             start= int(var.Start_Position),
                             end=int(var.End_Position),
@@ -201,22 +243,16 @@ class AugmentMAF(object):
                             alt_base=var.Tumor_Seq_Allele2,
                             bamfile=self.index_bam,
                             mut_class=var.Variant_Type)
-
-            # write counts (as strings)
+            # take values from returned read_counts dict and update missing maf
             missing_maf.at[var.Index, "t_depth"] = read_counts["tumor_depth"]
             missing_maf.at[var.Index, "t_ref_count"] = read_counts["tumor_ref_count"]
             missing_maf.at[var.Index, "t_alt_count"] = read_counts["tumor_alt_count"]
 
-            # optional UMI columns
-            if self.compute_umi_metrics:
-                missing_maf.at[var.Index, "UMI_mean"] = read_counts.get("UMI_mean", "")
-                missing_maf.at[var.Index, "UMI_max"] = read_counts.get("UMI_max", "")
-                missing_maf.at[var.Index, "UMI_3_count"] = read_counts.get("UMI_3_count", "")
-
         print(f"Finished working on chromosome {this_chromosome} ...")
-        # only return variants with a t_alt_count > min_alt_count and depth > min_alt_count
+        # only return variants with a t_alt_count > min_alt_count
         missing_maf = missing_maf[(missing_maf["t_alt_count"].astype(int) > self.min_alt_count) & (missing_maf["t_depth"].astype(int) > self.min_alt_count)].copy()
         return missing_maf
+
 
     def _get_read_support(self, chrom: str, start: int, end: int, ref_base: str, alt_base: str, 
                         bamfile: str, mut_class: str, min_base_qual=10, min_mapping_qual=1,
@@ -224,38 +260,28 @@ class AugmentMAF(object):
         """Main coordinator function for getting read support for a variant."""
         
         # Setup common parameters
-        params = self._setup_variant_params(start, end, ref_base, mut_class, padding)
+        setup_params = self._setup_variant_params(start, end, ref_base, mut_class, padding)
         
         # Open BAM file
         samfile = self._open_bam_file(bamfile)
         
         # Process variant based on type
         if mut_class == "INS":
-            ref_count, alt_count, total_depth, umi_sizes = self._process_insertion(
-                samfile, chrom, params, min_base_qual, min_mapping_qual, self.compute_umi_metrics)
+            ref_count, alt_count, total_depth = self._process_insertion(
+                samfile, chrom, setup_params, min_base_qual, min_mapping_qual)
         elif mut_class == "DEL":
-            ref_count, alt_count, total_depth, umi_sizes = self._process_deletion(
-                samfile, chrom, params, ref_base, min_base_qual, min_mapping_qual, self.compute_umi_metrics)
+            ref_count, alt_count, total_depth = self._process_deletion(
+                samfile, chrom, setup_params, ref_base, min_base_qual, min_mapping_qual)
         elif mut_class in ["SNP", "DNP"]:
-            ref_count, alt_count, total_depth, umi_sizes = self._process_snp_dnp(
-                samfile, chrom, params, ref_base, alt_base, mut_class, 
-                min_base_qual, min_mapping_qual, self.compute_umi_metrics)
+            ref_count, alt_count, total_depth = self._process_snp_dnp(
+                samfile, chrom, setup_params, ref_base, alt_base, mut_class, 
+                min_base_qual, min_mapping_qual)
         else:
-            samfile.close()
             raise ValueError(f"Unsupported mutation class: {mut_class}")
         
         samfile.close()
         
-        result = self._format_results(ref_count, alt_count, total_depth)
-
-        # Optional UMI summaries (as strings to match your existing string outputs)
-        if self.compute_umi_metrics:
-            umi_mean, umi_max, umi_ge3 = self._compute_umi_metrics(umi_sizes)
-            result["UMI_mean"] = "" if umi_mean is None else f"{umi_mean:.3f}"
-            result["UMI_max"] = "" if umi_max is None else str(umi_max)
-            result["UMI_3_count"] = "" if umi_ge3 is None else str(umi_ge3)
-
-        return result
+        return self._format_results(ref_count, alt_count, total_depth)
 
     def _setup_variant_params(self, start: int, end: int, ref_base: str, mut_class: str, padding: int) -> dict:
         """Setup common parameters for variant processing."""
@@ -288,214 +314,91 @@ class AugmentMAF(object):
         else:
             return pysam.AlignmentFile(bamfile, 'rb')
 
-    # ---------- Refactored helpers with optional UMI collection ----------
-
-    def _process_insertion(self, samfile, chrom: str, params: dict, min_base_qual: int, min_mapping_qual: int,
-                           collect_umi: bool) -> tuple:
-        """Process insertion variants at the anchor column in a single pass.
-        Counting semantics identical to your prior approach; UMI collection is optional.
-        """
+    def _process_insertion(self, samfile, chrom: str, params: dict, min_base_qual: int, min_mapping_qual: int) -> tuple:
+        """Process insertion variants."""
         ref_count = alt_count = total_depth = 0
-        umi_sizes = []
-        seen = set()  # MI/readname dedup
-
-        for col in samfile.pileup(
-            chrom, params['padded_start'], params['padded_end'],
-            ignore_overlaps=False, min_base_quality=min_base_qual,
-            min_mapping_quality=min_mapping_qual, truncate=True
-        ):
-            if col.pos != params['actual_start']:
-                continue
-
-            for pu in col.pileups:
-                if pu.is_refskip:
-                    continue
-                total_depth += 1
-                if pu.indel and pu.indel > 0:  # insertion starts here
-                    alt_count += 1
-                    if collect_umi:
-                        key, size = self._umi_key_and_size(pu.alignment)
-                        if size is not None and key not in seen:
-                            seen.add(key)
-                            umi_sizes.append(size)
-                else:
-                    ref_count += 1
-
-        return ref_count, alt_count, total_depth, umi_sizes
+        
+        for pileupcolumn in samfile.pileup(chrom, params['padded_start'], params['padded_end'], 
+                                        ignore_overlaps=False, min_base_quality=min_base_qual,
+                                        min_mapping_quality=min_mapping_qual, truncate=True):
+            if pileupcolumn.pos == params['actual_start']:
+                seqs = pileupcolumn.get_query_sequences(add_indels=True)
+                for base in seqs:
+                    if "+" in base:
+                        alt_count += 1
+                    else:
+                        ref_count += 1
+                    total_depth += 1
+        
+        return ref_count, alt_count, total_depth
 
     def _process_deletion(self, samfile, chrom: str, params: dict, ref_base: str, 
-                          min_base_qual: int, min_mapping_qual: int, collect_umi: bool) -> tuple:
-        """Process deletion variants across the span in a single pass.
-        - alt_count is the maximum number of deletion-supporting reads ('is_del') across the span.
-        - total_depth is the maximum column depth across the span.
-        - UMI sizes are taken from the column that determines alt_count (to mirror your counting).
-        """
-        max_depth = 0
-        max_alt = 0
-        umi_at_max_alt = []
-
-        del_start = params['del_positions'][0] if params.get('del_positions') else params['actual_start']
-        del_end = params['del_positions'][-1] + 1 if params.get('del_positions') else params['actual_end']
-
-        for col in samfile.pileup(
-            chrom, del_start, del_end,
-            ignore_overlaps=False, min_base_quality=min_base_qual,
-            min_mapping_quality=min_mapping_qual, truncate=True
-        ):
-            if not (del_start <= col.pos < del_end):
-                continue
-
-            col_depth = 0
-            col_alt = 0
-            col_seen = set()
-            col_umis = []
-
-            for pu in col.pileups:
-                if pu.is_refskip:
-                    continue
-                col_depth += 1
-                if pu.is_del:
-                    col_alt += 1
-                    if collect_umi:
-                        key, size = self._umi_key_and_size(pu.alignment)
-                        if size is not None and key not in col_seen:
-                            col_seen.add(key)
-                            col_umis.append(size)
-
-            if col_depth > max_depth:
-                max_depth = col_depth
-            if col_alt > max_alt:
-                max_alt = col_alt
-                umi_at_max_alt = col_umis  # align UMIs with the column that set alt_count
-
-        ref_count = max_depth - max_alt
-        alt_count = max_alt
+                        min_base_qual: int, min_mapping_qual: int) -> tuple:
+        """Process deletion variants."""
+        del_support = {pos: 0 for pos in params['del_positions']}
+        max_depth = alt_count = 0
+        
+        for pileupcolumn in samfile.pileup(chrom, params['padded_start'], params['padded_end'],
+                                        ignore_overlaps=False, min_base_quality=min_base_qual,
+                                        min_mapping_quality=min_mapping_qual, truncate=True):
+            if pileupcolumn.pos in params['del_positions']:
+                seqs = pileupcolumn.get_query_sequences(add_indels=True)
+                if len(seqs) > max_depth:
+                    max_depth = len(seqs)
+                for base in seqs:
+                    if base == "*":
+                        del_support[pileupcolumn.pos] += 1
+        
+        # Get maximum deletion support across all positions
+        for position in del_support:
+            if del_support[position] > alt_count:
+                alt_count = del_support[position]
+        
+        ref_count = max_depth - alt_count
         total_depth = max_depth
-
-        return ref_count, alt_count, total_depth, umi_at_max_alt
+        
+        return ref_count, alt_count, total_depth
 
     def _process_snp_dnp(self, samfile, chrom: str, params: dict, ref_base: str, alt_base: str, 
-                        mut_class: str, min_base_qual: int, min_mapping_qual: int,
-                        collect_umi: bool) -> tuple:
-        """
-         SNP/DNP processing:
-        - One pileup pass to collect per-fragment observations (up to 2) and remember an alt-bearing alignment.
-        - One small finalize pass to apply fragment-level counting semantics and collect UMIs for alt fragments.
-        """
-        per_read = {}  # read_name -> {"bases": [base1, base2], "alt_aln": AlignedSegment | None}
-
-        for pileupcolumn in samfile.pileup(
-            chrom, params['padded_start'], params['padded_end'],
-            ignore_overlaps=False, min_base_quality=min_base_qual,
-            min_mapping_quality=min_mapping_qual, truncate=True
-        ):
-            if pileupcolumn.pos != params['actual_start']:
-                continue
-
-            for pu in pileupcolumn.pileups:
-                if pu.is_del or pu.is_refskip:
-                    continue
-
-                base = self._extract_variant_sequence(pu, mut_class, params['variant_length'])
-                if not base:
-                    continue
-
-                read_name = pu.alignment.query_name
-                rec = per_read.get(read_name)
-                if rec is None:
-                    rec = {"bases": [], "alt_aln": None}
-                    per_read[read_name] = rec
-
-                if len(rec["bases"]) < 2:
-                    rec["bases"].append(base)
-
-                if collect_umi and base == alt_base and rec["alt_aln"] is None:
-                    rec["alt_aln"] = pu.alignment
-
-        # Finalize counts and collect UMI sizes only for alt fragments
-        ref_count = alt_count = total_depth = 0
-        umi_sizes = []
-        seen_keys = set()
-
-        for read_name, rec in per_read.items():
-            bases = rec["bases"]
-            total_depth += 1
-
-            if len(bases) == 1:
-                b = bases[0]
-                if b == ref_base:
-                    ref_count += 1
-                elif b == alt_base:
-                    alt_count += 1
-                    if collect_umi and rec["alt_aln"] is not None:
-                        key, size = self._umi_key_and_size(rec["alt_aln"])
-                        if size is not None and key not in seen_keys:
-                            seen_keys.add(key)
-                            umi_sizes.append(size)
-
-            else:
-                # Two observations
-                if bases[0] == bases[1]:
-                    b = bases[0]
-                    if b == ref_base:
-                        ref_count += 1
-                    elif b == alt_base:
-                        alt_count += 1
-                        if collect_umi and rec["alt_aln"] is not None:
-                            key, size = self._umi_key_and_size(rec["alt_aln"])
-                            if size is not None and key not in seen_keys:
-                                seen_keys.add(key)
-                                umi_sizes.append(size)
-                else:
-                    # Disagree: count as ref if any base is ref; never alt (matches your logic)
-                    if ref_base in bases:
-                        ref_count += 1
-                    # else: neither
-
-        return ref_count, alt_count, total_depth, umi_sizes
-
-    def _umi_key_and_size(self, aln):
-        """Return (dedup_key, family_size) where key is MI tag if present else read name; family size from cD."""
-        try:
-            key = aln.get_tag("MI")
-        except KeyError:
-            key = aln.query_name
-        try:
-            size = int(aln.get_tag("cD"))
-        except KeyError:
-            size = None
-        return key, size
-
-    def _compute_umi_metrics(self, sizes):
-        if not sizes:
-            return None, None, None
-        mean_v = sum(sizes) / len(sizes)
-        max_v = max(sizes)
-        ge3 = sum(1 for x in sizes if x >= 3)
-        return mean_v, max_v, ge3
+                        mut_class: str, min_base_qual: int, min_mapping_qual: int) -> tuple:
+        """Process SNP and DNP variants."""
+        read_bases = {}
+        
+        for pileupcolumn in samfile.pileup(chrom, params['padded_start'], params['padded_end'],
+                                        ignore_overlaps=False, min_base_quality=min_base_qual,
+                                        min_mapping_quality=min_mapping_qual, truncate=True):
+            if pileupcolumn.pos == params['actual_start']:
+                for pileupread in pileupcolumn.pileups:
+                    if not pileupread.is_del and not pileupread.is_refskip:
+                        read_name = pileupread.alignment.query_name
+                        sequence = self._extract_variant_sequence(pileupread, mut_class, params['variant_length'])
+                        
+                        if sequence:  # Only add if we successfully extracted sequence
+                            if read_name in read_bases:
+                                read_bases[read_name].append(sequence)
+                            else:
+                                read_bases[read_name] = [sequence]
+        
+        return self._count_read_support(read_bases, ref_base, alt_base)
 
     def _extract_variant_sequence(self, pileupread, mut_class: str, variant_length: int) -> str:
         """Extract the appropriate sequence from a read based on variant type."""
         query_pos = pileupread.query_position
         query_sequence = pileupread.alignment.query_sequence
         
-        if query_pos is None:
-            return None
-
         if mut_class == "SNP":
-            if 0 <= query_pos < len(query_sequence):
-                return query_sequence[query_pos]
-            return None
+            return query_sequence[query_pos]
         elif mut_class == "DNP":
+            # Extract full DNP sequence
             if query_pos + variant_length <= len(query_sequence):
                 return query_sequence[query_pos:query_pos + variant_length]
             else:
-                return None
+                return None  # Can't extract full sequence
         else:
             return None
 
     def _count_read_support(self, read_bases: dict, ref_base: str, alt_base: str) -> tuple:
-        """Count read support from collected read bases (fragment-level aggregation)."""
+        """Count read support from collected read bases."""
         ref_count = alt_count = total_depth = 0
         
         for read_name in read_bases:
@@ -536,12 +439,12 @@ class AugmentMAF(object):
 
 def main():
     args = get_args()
-    augment_maf = AugmentMAF(
-        args.sample_id, args.index_maf, args.index_bam, 
-        args.add_maf_files, args.genome_build, args.output, 
-        threads=args.threads, min_alt_count=args.alt_count_min,
-        compute_umi_metrics=args.compute_umi_metrics
-    )
+    # if no additional maf files are provided, print warning and do nothing
+    # initialize the class
+    augment_maf = AugmentMAF(args.sample_id, args.index_maf, args.index_bam, 
+                            args.add_maf_files, args.genome_build, args.output, 
+                            threads=args.threads, min_alt_count=args.alt_count_min)
+    # write the output
     augment_maf.write_output()
 
 if __name__ == '__main__':

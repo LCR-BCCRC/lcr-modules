@@ -387,7 +387,7 @@ rule augment_maf:
     shell:
         f"""python {{params.script}} --sample_id {{wildcards.sample}} --index_maf {{input.index_maf}} --index_bam {{input.index_bam}} \
             --add_maf_files {{input.additional_mafs}} --genome_build {{params.ref_genome_version}} --threads {{threads}} \
-        --alt_count_min {{params.alt_support}} --output {{output.maf}} &> {{log}}
+        --alt_count_min {{params.alt_support}} --compute_umi_metrics --output {{output.maf}} &> {{log}}
         """
 
 # Generate IGV screenshots of these variants
