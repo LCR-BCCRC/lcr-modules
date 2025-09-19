@@ -327,6 +327,7 @@ rule add_UMI_support:
         omaf = os.path.join(SAGE_OUTDIR, "11-umi/{sample}.umi_support.maf")
     params:
         script = os.path.join(UTILSDIR, "FetchVariantUMIs.py"),
+        min_map_qual = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_map_qual"]
     conda:
         "envs/augment_ssm.yaml"
     resources:
@@ -335,7 +336,7 @@ rule add_UMI_support:
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.add_UMI_support.log")
     shell:
-        f"""python {{params.script}} --input_maf {{input.maf}} --input_bam {{input.umi_bam}} --output_maf {{output.omaf}} &> {{log}}
+        """python {params.script} --input_maf {input.maf} --input_bam {input.umi_bam} --output_maf {output.omaf} --min_map_quality {params.min_map_qual} &> {log}
         """
 
 rule custom_filters:

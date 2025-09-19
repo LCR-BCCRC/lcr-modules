@@ -42,9 +42,13 @@ import numpy as np
 
 def get_args():
     parser = argparse.ArgumentParser()
+    # io
     parser.add_argument('--input_maf',required=True,type=str,help='')
     parser.add_argument('--input_bam',required=True,type=str,help='')
     parser.add_argument('--output_maf',required=True,type=str,help='')
+
+    # filtering
+    parser.add_argument("--min_map_quality", type=int, default=40, help="Minimum mapping quality of reads to consider. Map score is based on bwa-mem's method.")
     return parser.parse_args()
 
 def recalculate_af(df:pd.DataFrame) -> pd.DataFrame:
@@ -62,7 +66,9 @@ def recalculate_af(df:pd.DataFrame) -> pd.DataFrame:
     df["AF"] = df["t_alt_count"] / df["t_depth"]
     return df.copy()
 
-def UMI_Fam_size(bamfile:str, chrom:str, start:int, end:int, allele: str, ref_allele: str) -> tuple:
+def UMI_Fam_size(bamfile:str, chrom:str, start:int, end:int, 
+                allele: str, ref_allele: str,
+                min_map_qual: int) -> tuple:
     """Get the UMI tags of reads that overlap with the variant region.
 
     Use get_aligned_pairs to get the position of the variant in the read.
@@ -94,6 +100,12 @@ def UMI_Fam_size(bamfile:str, chrom:str, start:int, end:int, allele: str, ref_al
 
     with pysam.AlignmentFile(bamfile, "rb") as bam:
         for read in bam.fetch(chrom, start-1, end):
+            # filter low quality reads
+            if read.mapping_quality < min_map_qual:
+                continue
+            # filter unmapped reads
+            if read.is_unmapped:
+                continue
 
             try:
                 # check UMI tag to see if mate has been processed
@@ -281,7 +293,7 @@ def determine_STR_status(start: int, allele: str, seq: str) -> bool:
     
     return False
 
-def add_umi_support(inmaf:pd.DataFrame, bamfile:str) -> pd.DataFrame:
+def add_umi_support(inmaf:pd.DataFrame, bamfile:str, min_map_qual: int) -> pd.DataFrame:
     """Get the UMI family sizes for each variant in the maf file.
 
     Args:
@@ -308,7 +320,7 @@ def add_umi_support(inmaf:pd.DataFrame, bamfile:str) -> pd.DataFrame:
         print(f"Chrom: {chrom}, Start: {start}, End: {end}, Ref: {ref_allele}, Alt: {allele}")
         var_count += 1
 
-        umi_depths, str_score = UMI_Fam_size(bamfile, chrom, start, end, allele, ref_allele)
+        umi_depths, str_score = UMI_Fam_size(bamfile, chrom, start, end, allele, ref_allele, min_map_qual)
 
         # no UMI support found
         # or variant was in repeat region, so coudlnt determine what reads had the variant
@@ -365,7 +377,7 @@ def main():
     # recalc AF
     inmaf = recalculate_af(inmaf)
     # add UMI support
-    inmaf = add_umi_support(inmaf, args.input_bam)
+    inmaf = add_umi_support(inmaf, args.input_bam, args.min_map_quality)
     inmaf.to_csv(args.output_maf, sep='\t', index=False)
 
 if __name__ == '__main__':
