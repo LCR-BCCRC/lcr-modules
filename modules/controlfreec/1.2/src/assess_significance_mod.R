@@ -13,7 +13,7 @@ cnvs<- data.frame(dataTable)
 ratio$Ratio[which(ratio$Ratio==-1)]=NA
 
 cnvs.bed=GRanges(cnvs[,1],IRanges(cnvs[,2],cnvs[,3]))
-ratio.bed=GRanges(ratio$Chromosome,IRanges(ratio$Start,ratio$Start),score=ratio$Ratio)
+ratio.bed=GRanges(ratio$Chromosome,IRanges(ratio$Start,ratio$Start),score=ratio$Ratio,median_ratio=ratio$MedianRatio)
 
 overlaps <- subsetByOverlaps(ratio.bed,cnvs.bed)
 normals <- setdiff(ratio.bed,cnvs.bed)
@@ -65,10 +65,10 @@ if (numberOfCol==5) {
   names(cnvs)=c("chr","start","end","copy number","status","WilcoxonRankSumTestPvalue","KolmogorovSmirnovPvalue", "log2_median_ratio")
 }
 if (numberOfCol==7) {
-  names(cnvs)=c("chr","start","end","copy number","status","genotype","uncertainty","WilcoxonRankSumTestPvalue","KolmogorovSmirnovPvalue" "log2_median_ratio")
+  names(cnvs)=c("chr","start","end","copy number","status","genotype","uncertainty","WilcoxonRankSumTestPvalue","KolmogorovSmirnovPvalue", "log2_median_ratio")
 }
 if (numberOfCol==9) {
-  names(cnvs)=c("chr","start","end","copy number","status","genotype","uncertainty","somatic/germline","precentageOfGermline","WilcoxonRankSumTestPvalue","KolmogorovSmirnovPvalue" "log2_median_ratio")
+  names(cnvs)=c("chr","start","end","copy number","status","genotype","uncertainty","somatic/germline","precentageOfGermline","WilcoxonRankSumTestPvalue","KolmogorovSmirnovPvalue", "log2_median_ratio")
 }
 write.table(cnvs, file=paste(args[4],".p.value.txt",sep=""),sep="\t",quote=F,row.names=F)
 
