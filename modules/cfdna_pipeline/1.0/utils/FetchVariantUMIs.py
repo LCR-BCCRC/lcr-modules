@@ -305,6 +305,14 @@ def add_umi_support(inmaf:pd.DataFrame, bamfile:str, min_map_qual: int) -> pd.Da
     var_count = 1
     var_total = inmaf.shape[0]
 
+    if var_total == 0:
+        # add umi column headers, but no values
+        inmaf["UMI_mean"] = []
+        inmaf["UMI_max"] = []
+        inmaf["UMI_3_count"] = []
+        inmaf["STR"] = []
+        return inmaf.copy()
+
     for index, row in inmaf.iterrows():
         chrom = str(row["Chromosome"])
         start = row["Start_Position"]

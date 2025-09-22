@@ -349,10 +349,14 @@ rule custom_filters:
         script = os.path.join(UTILSDIR, "custom_filters.py"),
         hotspot_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hotspot_manifest"],
         blacklist_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["blacklist_manifest"],
-        min_germline_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_germline_depth"],
-        min_alt_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"],
-        min_tum_VAF = config["lcr-modules"]["cfDNA_SAGE_workflow"]["novel_vaf"],
-        min_t_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_t_depth"],
+        min_germline_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_germline_depth"]),
+        min_alt_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"]),
+        min_tum_VAF = float(config["lcr-modules"]["cfDNA_SAGE_workflow"]["novel_vaf"]),
+        min_t_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_t_depth"]),
+        # umi filters
+        min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_UMI_3_count"]),
+        low_alt_thresh = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["low_alt_thresh"]),
+        low_alt_min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["low_alt_min_UMI_3_count"])
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.custom_filters.log")
     conda:
@@ -363,7 +367,8 @@ rule custom_filters:
     shell:
         """python {params.script} --input_maf {input.maf} --output_maf {output.maf} --min_tumour_vaf {params.min_tum_VAF} \
         --min_alt_depth_tum {params.min_alt_depth} --min_germline_depth {params.min_germline_depth} --min_t_depth {params.min_t_depth} \
-        --blacklist {params.blacklist_txt} --hotspots {params.hotspot_txt} --gnomad_threshold {params.exac_freq} &> {log}
+        --blacklist {params.blacklist_txt} --hotspots {params.hotspot_txt} --gnomad_threshold {params.exac_freq} \
+        --min_UMI_3_count {params.min_UMI_3_count} --low_alt_thresh {params.low_alt_thresh} --low_alt_min_UMI_3_count {params.low_alt_min_UMI_3_count} &> {log}
         """
 
 rule augment_maf:
