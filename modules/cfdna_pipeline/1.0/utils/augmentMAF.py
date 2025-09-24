@@ -41,6 +41,8 @@ def get_args():
     # Optional: compute UMI metrics (MI and cD tags)
     parser.add_argument('--compute_umi_metrics', action='store_true',
                         help='If set, compute UMI_mean, UMI_max, UMI_3_count for alt-supporting reads (uses MI and cD tags)')
+    parser.add_argument("--min_UMI_3_count", type=int, default=1,
+                        help="Filters UMI_3_count metric. Which is a count of the number of reads that have UMI family sizes of at least 3.")
     return parser.parse_args()
 
 
@@ -54,7 +56,8 @@ class AugmentMAF(object):
     def __init__(self, sample_id: str, index_maf:str,
                         index_bam: str, add_maf_files: list, genome_build: str,
                         output: str , threads: int = 6, min_alt_count: int= 3,
-                        compute_umi_metrics: bool = False):
+                        compute_umi_metrics: bool = False,
+                        min_UMI_3_count: int = None):
         super(AugmentMAF, self).__init__()
         # user provided inputs
         self.sample_id = sample_id
@@ -66,6 +69,7 @@ class AugmentMAF(object):
         self.output = output
         self.min_alt_count = min_alt_count
         self.compute_umi_metrics = compute_umi_metrics  # optional UMI collection
+        self.min_UMI_3_count = min_UMI_3_count 
 
         # computed variables
         self.chromosomes = self.get_genome_chromosomes()
@@ -97,6 +101,10 @@ class AugmentMAF(object):
             out_name = self.output
         else:
             raise print("No output file name provided ...")
+
+        if self.min_UMI_3_count and self.augmented_vaf.shape[0] > 0:
+            self.augmented_vaf = self.augmented_vaf[self.augmented_vaf["UMI_3_count"].astype(int) >= self.min_UMI_3_count].copy()
+
         self.augmented_vaf.to_csv(out_name, sep="\t", index=False)
 
     def augment_maf(self):
@@ -540,7 +548,8 @@ def main():
         args.sample_id, args.index_maf, args.index_bam, 
         args.add_maf_files, args.genome_build, args.output, 
         threads=args.threads, min_alt_count=args.alt_count_min,
-        compute_umi_metrics=args.compute_umi_metrics
+        compute_umi_metrics=args.compute_umi_metrics,
+        min_UMI_3_count=args.min_UMI_3_count
     )
     augment_maf.write_output()
 

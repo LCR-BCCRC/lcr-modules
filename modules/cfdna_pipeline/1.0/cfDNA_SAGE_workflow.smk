@@ -381,7 +381,8 @@ rule augment_maf:
     params:
         script = os.path.join(UTILSDIR, "augmentMAF.py"),
         ref_genome_version = config["lcr-modules"]["_shared"]["ref_genome_ver"],
-        alt_support = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"]
+        alt_support = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"],
+        min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_UMI_3_count"])
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.augment_maf.log")
     conda:
