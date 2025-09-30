@@ -88,22 +88,32 @@ lcr-modules:
 
       # SAGE filters
       # VAF
-      hard_min_vaf: "0.002" # should be <= than tier specific cutoffs
+      hard_min_vaf: "0.002" # should be <= than tier specific cutoffs, allows for quicker processing (VAF FLOOR)
       tumor_panel_min_vaf: "0.005" # first pass filter on panel positions
+      novel_vaf: "0.01" # VAF for novel variants, only hotspots and phased variants are allowed to be lower
 
       # controls the proportion of good quality alt reads allowed in the normal vs the tumor, based on cumulative BQ scores
       panel_max_germ_rel_raw_bq: 0.08 # default is 0.04
-      hotspot_max_germ_rel_raw_bq: 0.25 # default is 0.25
+      hotspot_max_germ_rel_raw_bq: 0.08 # default is 0.25
 
-      min_germline_depth: 8
+      min_germline_depth: 50
       max_normal_alt_depth: 10 # hard filter not applied to hotspot positions
       min_map_qual: "40"
 
-      # Post-filtering
-      min_alt_depth: 3
+      # Post-filtering of index variants (ie those called in a sample)
+      min_alt_depth: 5
+      min_t_depth: 100 # minimum depth in tumor, especially important for unpaired workflows
       exac_max_freq: 0.01
-      # blacklist: "resources/capture-hg38.clean_blacklist.txt"
-      tumor_af_diff: 3  # VAF must be at least this much higher in the tumor than the normal
+
+      # UMI filters
+      min_UMI_3_count: 2 # all variants with t_alt_count > low_alt_thresh
+      low_alt_thresh: 50 # be stricter with these lower alt count variants
+      low_alt_min_UMI_3_count: 3
+
+      # augment maf filter criteria
+      aug_min_UMI_3_count: 1
+      phase_id_col: "LPS"
+      phased_min_t_alt: 3
 
       # IGV screenshot annotation sources.
       cytoband: ".../resources/cytoband.hg38.txt"

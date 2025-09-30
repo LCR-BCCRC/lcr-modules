@@ -14,6 +14,7 @@ def get_args():
     parser.add_argument('--repo_path',required=True,type=str,help='path to local pipeline repo'),
     parser.add_argument('--completion_files',required=False,type=str,nargs='+',help='paths to files containing completion times for each sample'),
     parser.add_argument('--lymphgen_output',required=False,type=str,nargs='+',help='output from lymphgen'),
+    parser.add_argument('--ctDNA_VAF_threshold',required=False,type=float,default=0.01,help='VAF threshold to consider a mutation as detected in ctDNA calcuations, default 0.01'),
 
     return parser.parse_args()
 

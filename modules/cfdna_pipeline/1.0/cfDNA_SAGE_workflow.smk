@@ -275,7 +275,6 @@ rule vcf2maf_annotate:
         --maf-center {params.centre} 2> {log} >> {log}
         """
 
-
 rule augment_ssm_ChrisIndels:
     input:
         maf = rules.vcf2maf_annotate.output.maf,
@@ -382,7 +381,9 @@ rule augment_maf:
         script = os.path.join(UTILSDIR, "augmentMAF.py"),
         ref_genome_version = config["lcr-modules"]["_shared"]["ref_genome_ver"],
         alt_support = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"],
-        min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_UMI_3_count"])
+        min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["aug_min_UMI_3_count"]),
+        phase_ID_col = config["lcr-modules"]["cfDNA_SAGE_workflow"]["phase_id_col"],
+        phased_min_t_alt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["phased_min_t_alt"]
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.augment_maf.log")
     conda:
@@ -391,9 +392,12 @@ rule augment_maf:
         mem_mb = 20000
     threads: 3
     shell:
-        f"""python {{params.script}} --sample_id {{wildcards.sample}} --index_maf {{input.index_maf}} --index_bam {{input.index_bam}} \
-            --add_maf_files {{input.additional_mafs}} --genome_build {{params.ref_genome_version}} --threads {{threads}} \
-        --alt_count_min {{params.alt_support}} --compute_umi_metrics --output {{output.maf}} &> {{log}}
+        """python {params.script} --sample_id {wildcards.sample} --index_maf {input.index_maf} --index_bam {input.index_bam} \
+        --add_maf_files {input.additional_mafs} --genome_build {params.ref_genome_version} --threads {threads} \
+        --min_alt_count {params.alt_support} \
+        --phase_ID_col {params.phase_ID_col} --phased_min_t_alt_count {params.phased_min_t_alt} \
+        --compute_umi_metrics --min_UMI_3_count {params.min_UMI_3_count} \
+        --output {output.maf} &> {log}
         """
 
 # Generate IGV screenshots of these variants

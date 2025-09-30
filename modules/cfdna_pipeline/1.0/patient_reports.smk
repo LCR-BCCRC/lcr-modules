@@ -98,7 +98,8 @@ rule compile_report:
     output:
         compiled_nb = os.path.join(REPORTS_DIR, "{patient}", "{patient}_report.ipynb")
     params:
-        samplesheet_path = config["lcr-modules"]["_shared"]["samplesheet"]
+        samplesheet_path = config["lcr-modules"]["_shared"]["samplesheet"],
+        ctdna_VAF_thresh = config["lcr-modules"]["cfDNA_patient_reports"]["ctDNA_VAF_threshold"]
     resources:
         mem_mb = 5000
     threads: 1
@@ -109,7 +110,7 @@ rule compile_report:
     shell:
         f"""python {COMPILE_REPORT_SCRIPT} --in_notebook {REPORT_TEMP} --out_notebook {{output.compiled_nb}} --completion_files {{input.sample_comp}} \
         --maf_files {{input.sage_calls}} --samplesheet_path {{params.samplesheet_path}} --repo_path {MODULE_PATH} --lymphgen_output {{input.lg_status}} \
-        --patient_id {{wildcards.patient}} --hs_metrics {{input.hs_metrics}} --targ_cov {{input.targ_cov}} &> {{log}}"""
+        --patient_id {{wildcards.patient}} --hs_metrics {{input.hs_metrics}} --targ_cov {{input.targ_cov}} --ctDNA_VAF_threshold {{params.ctdna_VAF_thresh}} &> {{log}}"""
 
 rule convert_report_to_html:
     input:
