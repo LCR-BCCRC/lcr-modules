@@ -7,6 +7,7 @@ import argparse
 import shutil
 from dataclasses import dataclass
 import math
+import numpy as np
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -204,6 +205,9 @@ class AugmentMAF(object):
         """
         phased_sets = self._fetch_phase_var_sets()
         if not phased_sets:
+            # has empty phase cols, with NaN values
+            maf["phase_set_index"] = pd.NA
+            maf["phase_set_size"] = 0
             return maf
 
         # create variant key
