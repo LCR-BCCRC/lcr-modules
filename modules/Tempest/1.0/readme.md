@@ -15,6 +15,7 @@ The pipeline uses snakemake (v. 8.10.8) and conda.
 
 # Table of Contents
 - [Pipeline Overview](#pipeline-overview)
+- [Variant Filtering Overview](#variant-filtering-overview)
 - [Resources](#resources)
 - [Samplesheet requirements](#samplesheet-requirements)
 - [Example Usage](#example-project-snakemake-workflow)
@@ -25,6 +26,11 @@ The pipeline uses snakemake (v. 8.10.8) and conda.
 
 # Pipeline Overview
 
+<img alt="TEMPEST pipeline" src="https://github.com/user-attachments/assets/ee7a4e1d-88e1-451f-ad79-c3849d350a2e" height="800" />
+
+## Variant Filtering Overview
+
+<img alt="Variant Filtering" src="https://github.com/user-attachments/assets/046d1def-6052-4eaf-92ab-365b62b8ecd9" height="600" />
 
 # Resources 
 
