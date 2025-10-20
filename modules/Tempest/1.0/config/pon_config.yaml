@@ -14,6 +14,7 @@ lcr-modules:
     # mutect2
     gnomad: ".../af-only-gnomad.normalized.hg38.vcf.gz"
     ref_fasta: ".../GRCh38_no_alt.fa"
+    min_sample_count: 2 # min number of samples a var has to be called in to be included in the PON
     # vcf2maf
     vep_data: ".../ensembl_vep_cache/"
     centre: "morin_lab"

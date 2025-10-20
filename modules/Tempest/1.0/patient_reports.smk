@@ -2,7 +2,7 @@ import pandas as pd
 import os
 import datetime
 import sys
-MODULE_PATH = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules/cfdna_pipeline/1.0/")
+MODULE_PATH = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules/Tempest/1.0/")
 sys.path.append(MODULE_PATH) # add local module to path
 
 

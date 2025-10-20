@@ -3,7 +3,7 @@ lcr-modules:
     # lcr modules config
     lcr-modules: ".../lcr-modules/"
     lcr-scripts: ".../lcr-scripts/"
-    root_output_dir: ".../pipeline_outputs/"
+    root_output_dir: ".../pipeline_outputs/" # where to write all the outputs
     pairing_config:
       genome:
           run_paired_tumours: True
@@ -80,7 +80,6 @@ lcr-modules:
       vep_data: "..../ensembl_vep_cache/"
       centre: "morin_lab"
 
-
       # Mask positions with a high incidence of N bases
       # mask_script: "src/mask_n_sites.py"
       mask_threshold: "0.05"  # Fraction of N bases at a position to mask it
@@ -93,8 +92,8 @@ lcr-modules:
       novel_vaf: "0.01" # VAF for novel variants, only hotspots and phased variants are allowed to be lower
 
       # controls the proportion of good quality alt reads allowed in the normal vs the tumor, based on cumulative BQ scores
-      panel_max_germ_rel_raw_bq: 0.08 # default is 0.04
-      hotspot_max_germ_rel_raw_bq: 0.08 # default is 0.25
+      panel_max_germ_rel_raw_bq: 0.08 # default is 0.04, a SAGE argument
+      hotspot_max_germ_rel_raw_bq: 0.08 # default is 0.25, a SAGE argument
 
       min_germline_depth: 50
       max_normal_alt_depth: 10 # hard filter not applied to hotspot positions
@@ -112,7 +111,7 @@ lcr-modules:
 
       # augment maf filter criteria
       aug_min_UMI_3_count: 1
-      phase_id_col: "LPS"
+      phase_id_col: "LPS" # sage column name
       phased_min_t_alt: 3
 
       # IGV screenshot annotation sources.
