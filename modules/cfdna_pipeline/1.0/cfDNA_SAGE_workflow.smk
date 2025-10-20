@@ -8,6 +8,7 @@ snakemake.utils.min_version("7")
 import sys
 MODULE_PATH = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules/cfdna_pipeline/1.0/")
 sys.path.append(MODULE_PATH) # add local module to path
+from _version import __version__ as pv # get pipeline version
 
 # generate paths for file locations
 BAM_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "bam_pipeline")

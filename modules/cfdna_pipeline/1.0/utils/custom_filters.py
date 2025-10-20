@@ -82,15 +82,20 @@ class VariantFilterPipeline:
         self.cfg = cfg
 
     def filter_variants(self) -> pd.DataFrame:
-        """Run the full pipeline in order and return the filtered variants."""
+        """Run the full variant filtering pipeline.
+
+        This method dictates the order that everyhing happens.
+        
+        """
         df = self.read_maf(self.cfg.input_maf)
         # if no variants skip rest of pipeline
         if df.empty:
             return df
         df = self.recalculate_af(df)
-        df = self.filter_gnomad(df, self.cfg.gnomad_threshold)
         df = self.mark_potential_chip(df)
         df = self.mark_blacklist_hotspot(df, self.cfg.blacklist, self.cfg.hotspots)
+        # filters
+        df = self.filter_gnomad(df, self.cfg.gnomad_threshold)
         df = self.remove_blacklisted(df)
         df = self.filter_vaf_and_phase(df, self.cfg.min_tumour_vaf)
         df = self.filter_by_read_support(
@@ -120,11 +125,18 @@ class VariantFilterPipeline:
         return out
 
     def filter_gnomad(self, df: pd.DataFrame, threshold: float) -> pd.DataFrame:
-        """Keep rows where all available gnomAD population AF columns are < threshold or NaN."""
+        """Keep rows where all available gnomAD population AF columns are < threshold or NaN.
+        
+        Unless the variant is in a hotspot, then skip filter.
+        """
         cols = [c for c in GNOMAD_COLS if c in df.columns]
         if not cols:
             return df.copy()
-        keep = ((df[cols] < threshold) | df[cols].isna()).all(axis=1)
+        # Compute row-wise pass across gnomAD columns, then OR with hotspot
+        gnomad_ok = (df[cols].lt(threshold) | df[cols].isna()).all(axis=1)
+        keep = gnomad_ok | df['hotspot']
+        keep = gnomad_ok | hotspot_mask # keep hotspots and things that pass gnomaD filter
+
         return df.loc[keep].copy()
 
     def mark_blacklist_hotspot(self, df: pd.DataFrame, blacklist: str, hotspots: str) -> pd.DataFrame:

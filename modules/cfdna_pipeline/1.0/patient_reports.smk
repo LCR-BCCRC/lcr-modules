@@ -4,7 +4,7 @@ import datetime
 import sys
 MODULE_PATH = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules/cfdna_pipeline/1.0/")
 sys.path.append(MODULE_PATH) # add local module to path
-f
+
 
 TODAY = datetime.datetime.now().strftime("%m/%d/%Y")
 BAM_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "bam_pipeline")
