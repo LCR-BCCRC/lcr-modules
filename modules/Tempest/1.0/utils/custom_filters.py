@@ -135,7 +135,6 @@ class VariantFilterPipeline:
         # Compute row-wise pass across gnomAD columns, then OR with hotspot
         gnomad_ok = (df[cols].lt(threshold) | df[cols].isna()).all(axis=1)
         keep = gnomad_ok | df['hotspot']
-        keep = gnomad_ok | hotspot_mask # keep hotspots and things that pass gnomaD filter
 
         return df.loc[keep].copy()
 

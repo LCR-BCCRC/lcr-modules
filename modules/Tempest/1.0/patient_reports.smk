@@ -4,7 +4,7 @@ import datetime
 import sys
 MODULE_PATH = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules/Tempest/1.0/")
 sys.path.append(MODULE_PATH) # add local module to path
-
+from _version import __version__ as pv # get pipeline version
 
 TODAY = datetime.datetime.now().strftime("%m/%d/%Y")
 BAM_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "bam_pipeline")
@@ -22,12 +22,12 @@ PATS_TO_REPORT = REP_SAMPLESHEET[REP_SAMPLESHEET["tissue_status"]== "tumor"]["pa
 localrules:
     record_sample_completion,
     _vcf2maf_crossmap
-
+ 
 # input functions
 def find_sage_outputs(wildcards):
     # make list of all sample names belonging to patient
     patient_samples = REP_SAMPLESHEET[(REP_SAMPLESHEET["patient_id"] == wildcards.patient) & (REP_SAMPLESHEET['timepoint'] != 'normal' )]["sample_id"].tolist()
-    return expand(os.path.join(SAGE_OUTDIR,"99-final/{sample}.processed.maf"), sample=patient_samples)
+    return expand(os.path.join(SAGE_OUTDIR, f"99-final/{{sample}}.v{pv}.tempest.maf"), sample=patient_samples)
 
 def find_completion_time(wildcards):
     patient_samples = REP_SAMPLESHEET[(REP_SAMPLESHEET["patient_id"] == wildcards.patient) & (REP_SAMPLESHEET['timepoint'] != 'normal' )]["sample_id"].tolist()
@@ -131,12 +131,12 @@ rule convert_report_to_html:
 # need to include cause lymphgen runs on grch37
 rule _vcf2maf_crossmap:
     input:
-        maf = os.path.join(SAGE_OUTDIR, "99-final/{tumour_id}.processed.maf"),
+        maf = os.path.join(SAGE_OUTDIR, f"99-final/{{tumour_id}}.v{pv}.tempest.maf"),
         convert_coord = config['lcr-modules']["lymphgen"]["convert_coord"],
         chains = config["lcr-modules"]["lymphgen"]["hg38_chainfile"]
     output:
-        maf = os.path.join(SAGE_OUTDIR, "99-final/{tumour_id}.grch37.processed.maf"),
-        bed = temp(os.path.join(SAGE_OUTDIR, "99-final/{tumour_id}.grch37.processed.unmapped.bed"))
+        maf = os.path.join(SAGE_OUTDIR, f"99-final/{{tumour_id}}.v{pv}.tempest.grch37.maf"),
+        bed = temp(os.path.join(SAGE_OUTDIR, f"99-final/{{tumour_id}}.v{pv}.tempest.grch37.unmapped.bed"))
     log:
         os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "crossmap/logs" , "crossmap_{tumour_id}.log")
     conda:
@@ -156,4 +156,4 @@ rule _vcf2maf_crossmap:
 # add rule all to call outputs
 rule make_all_reports:
     input:
-        expand(str(rules.convert_report_to_html.output.html_report), patient =PATS_TO_REPORT)
+        expand(str(rules.convert_report_to_html.output.html_report), patient = PATS_TO_REPORT)

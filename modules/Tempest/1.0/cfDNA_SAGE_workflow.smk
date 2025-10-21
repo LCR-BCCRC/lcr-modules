@@ -428,5 +428,5 @@ rule igv_screenshot_variants:
 
 rule all_sage:
     input:
-        expand(os.path.join(SAGE_OUTDIR, "99-final/{sample}.processed.maf"), sample=SAMPLESHEET.loc[SAMPLESHEET["tissue_status"]=="tumor"]["sample_id"]),
+        expand(os.path.join(SAGE_OUTDIR, f"99-final/{{sample}}.v{pv}.tempest.maf"), sample=SAMPLESHEET.loc[SAMPLESHEET["tissue_status"]=="tumor"]["sample_id"]),
         expand(str(rules.igv_screenshot_variants.output.html), sample = SAMPLESHEET.loc[SAMPLESHEET["tissue_status"]=="tumor"]["sample_id"])
