@@ -118,6 +118,9 @@ class AugmentMAF(object):
             full_augmented_maf_merged.drop(columns=["key"], inplace=True)
 
         full_augmented_maf_merged = full_augmented_maf_merged.dropna(subset=["Hugo_Symbol","t_alt_count","t_depth"]).copy()
+
+        # no alt reads, drop variant
+        full_augmented_maf_merged = full_augmented_maf_merged[full_augmented_maf_merged["t_alt_count"].astype(int) > 0].copy()
         full_augmented_maf_merged["AF"] = (
             full_augmented_maf_merged["t_alt_count"].astype(int) /
             full_augmented_maf_merged["t_depth"].astype(int)
