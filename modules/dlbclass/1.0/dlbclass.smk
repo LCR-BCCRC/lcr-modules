@@ -267,6 +267,8 @@ rule _dlbclass_seg_to_gsm:
         script = ancient(str(rules._dlbclass_download_dlbclass.output.seg2gsm))
     output:
         cnv_gsm = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/{sample_set}." + TODAY + ".CNV.GSM.tsv"
+    params: 
+        thresholds = CFG["options"]["seg2gsm"]["thresholds"]
     log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/seg2gsm.log"
     conda:
         CFG["conda_envs"]["dlbclass"]
@@ -280,6 +282,7 @@ rule _dlbclass_seg_to_gsm:
             -a {input.arm_cnv}
             -f {input.focal_cnv}
             -o $(dirname {output.cnv_gsm}) 
+            -t {params.thresholds}
             -g hg19
             > {log} 2>&1
         """)
