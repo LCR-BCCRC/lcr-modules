@@ -14,8 +14,6 @@ sv_files <- snakemake@input[["sv"]]
 # pos_value <- "POS"
 # neg_value <- "NEG"
 
-save.image("/projects/rmorin/projects/gambl-repos/gambl-lhilton/results/all_the_things/dlbclass-1.0/01-prepare_inputs/gambl-all--2025-10/seg2gsm.RData")
-
 # Load sample set file
 samples <- read.delim(samples, sep = "\t")
 samples <- samples[[1]]
