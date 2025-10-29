@@ -46,6 +46,3 @@ demo/scratch_archive
 /docs/build
 /docs/source/_build
 demo/run_clc.sh
-
-# Ignore resources, these must be downloaded by the user
-/modules/cfdna_pipeline/1.0/resources

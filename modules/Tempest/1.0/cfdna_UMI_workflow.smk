@@ -130,7 +130,7 @@ rule fgbio_group_umis:
     params:
         maxedits = config["lcr-modules"]["cfDNA_umi_workflow"]["umiedits"],
         outdir = os.path.join(BAM_OUTDIR ,"04-umigrouped"),
-        mem_per_t = int(config["lcr-modules"]["cfDNA_umi_workflow"]["grp_umi_mem"] / config["lcr-modules"]["cfDNA_umi_workflow"]["samtools_sort_threads"]),
+        mem_per_t =  lambda wildcards, threads, resources: int(resources.mem_mb // threads),
         java_temp = config["lcr-modules"]["cfDNA_umi_workflow"]["java_temp_dir"],
     conda:
         "envs/bwa_picard_fgbio.yaml"

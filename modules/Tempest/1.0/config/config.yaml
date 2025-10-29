@@ -48,9 +48,6 @@ lcr-modules:
     duplexconsensus_threads: 8
     samtools_sort_threads: 4
     basequal_threads: 2
-    # memory (mb)
-    ann_umi_mem: 35000
-    grp_umi_mem: 35000
 
     # Barcode an duplex information
     barcodelength: "8"

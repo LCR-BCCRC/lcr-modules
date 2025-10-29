@@ -276,7 +276,7 @@ rule vcf2maf_annotate:
         --maf-center {params.centre} 2> {log} >> {log}
         """
 
-rule augment_ssm_ChrisIndels:
+rule recount_alleles:
     input:
         maf = rules.vcf2maf_annotate.output.maf,
         tbam = os.path.join(BAM_OUTDIR, "99-final", "{sample}.consensus.mapped.annot.bam")
@@ -288,7 +288,7 @@ rule augment_ssm_ChrisIndels:
     conda:
         "envs/augment_ssm.yaml"
     params:
-        script = os.path.join(UTILSDIR, "augment_ssm_ChrisIndels.py"),
+        script = os.path.join(UTILSDIR, "recount_alleles.py"),
         ref_genome_version = config["lcr-modules"]["_shared"]["ref_genome_ver"],
     shell: """
     python {params.script} \
@@ -304,7 +304,7 @@ rule filter_repetitive_seq:
     Remove mutations which are adjacent to a repetitive sequence.
     """
     input:
-        maf = rules.augment_ssm_ChrisIndels.output.maf
+        maf = rules.recount_alleles.output.maf
     output:
         maf = temp(os.path.join(SAGE_OUTDIR, "10-filter_repeat/{sample}.sage.repeat_filt.maf"))
     params:

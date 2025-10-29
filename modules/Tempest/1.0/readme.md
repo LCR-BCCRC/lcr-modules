@@ -6,16 +6,20 @@ for serial sampling of the same patient and track variants across time points. T
 step using UMIs.
 
 The pipeline consists of two main workflows: one aligning FASTQs and deduplicating reads using UMIs,
-and then variant calling and filtering using SAGE (https://github.com/hartwigmedical/hmftools/blob/master/sage/README.md) as a caller.
+and then variant calling and filtering using SAGE (https://github.com/hartwigmedical/hmftools/blob/master/sage/README.md) as the caller.
 
 There is an optional workflow to compile per-patient summary reports. The example code given here is a rough template, and will likely require
 the creation of a custom Jupyter notebook template for your project.
 
-The pipeline uses Snakemake (v8.10.8) and Conda.
+The pipeline requires Conda and Snakemake, and was built using Snakemake v8.10.8.
 
-# Table of Contents
+## Table of Contents
 - [Pipeline Overview](#pipeline-overview)
-- [Variant Filtering Overview](#variant-filtering-overview)
+- [Read Support Filters](#read-support-filters)
+    - [Hotspot and Notspot Lists](#hotspot-and-notspot-lists)
+    - [Phase Sets](#phase-sets)
+    - [UMI Support](#umi-support)
+    - [augmentMAF](#augmentmaf)
 - [Resources](#resources)
 - [Samplesheet requirements](#samplesheet-requirements)
 - [Example Usage](#example-project-snakemake-workflow)
@@ -25,12 +29,62 @@ The pipeline uses Snakemake (v8.10.8) and Conda.
 - [DLBCL Panel Hotspot and Notspot Lists](#dlbcl-panel-hotspot-and-notspot-lists)
 
 # Pipeline Overview
+TEMPEST is designed to take raw FASTQ files and produce QC and variant call files. The primary workflow for variant calling is designed
+to utilize matched normal samples from a patient, using the workflow `.../cfDNA_SAGE_workflow.smk`, and filtering has been optimized for
+using this workflow. However, unpaired samples can have variants called by using `.../cfDNA_SAGE_workflow_unpaired.smk`. However, besides
+using gnomAD frequencies and a PON for filtering, no other steps attempt to remove germline mutations.
 
 <img alt="TEMPEST pipeline" src="https://github.com/user-attachments/assets/ee7a4e1d-88e1-451f-ad79-c3849d350a2e" height="800" />
 
-## Variant Filtering Overview
+## Read Support Filters
+Final variant filtering is carried out by `.../utils/custom_filters.py`. To help determine why variants were included in the final output, a
+`variant_source` column is added to the final .maf, which lists the reasons a variant passed filtering, possible values are: high_vaf, 
+additional_maf (added by augmentMAF) or phase_group. 
 
+It should be noted that part of TEMPEST's approach to filtering variants is built on the premise that there can be some contamination of tumour
+DNA in the matched normal. Hypothetically, this could occur as a result of poor fractionation of a plasma sample or from circulating tumour cells
+being included with PBMCs. Regardless of the mechanism, when developing TEMPEST on lymphoma patient samples it was repeatedly found that read support 
+can be found in matched normal samples for tumour variants, including known hotspot variants. Therefore, some flexibility for alt reads in the matched
+normal was built into TEMPEST. This can be adjusted in the config.
+
+Values shown are defaults which can be specified in the config. 
 <img alt="Variant Filtering" src="https://github.com/user-attachments/assets/046d1def-6052-4eaf-92ab-365b62b8ecd9" height="600" />
+
+### Hotspot and Notspot Lists
+While SAGE can use a tiered system for filtering variants, including if variants fall within a hotspot, TEMPEST uses custom hotspot
+and notspot (aka blacklist) positions in conjunction with other read support parameters in a custom script. Therefore, user-provided lists
+are integral to enhancing performance of filtering. The lists should be provided as a txt file with no header, with each line being a single
+position, formatted like: `chr:position`.
+
+### Phase Sets
+When calling variants SAGE assigns variants with overlapping read evidence to local phase sets, and this information is preserved and used
+by TEMPEST for downstream filtering. One or more variants from a phase set need to be present for TEMPEST to consider
+phase set information while filtering.
+
+### UMI Support
+Using a custom script `.../utils/FetchVariantUMIs.py`, TEMPEST annotates variant calls in each .maf file with metrics related to the UMI family
+sizes (aka how many raw reads were duplicates of each other and had the same UMIs) of reads containing alt alleles.
+
+- **UMI_mean**: the mean UMI family size for all alt allele reads
+- **UMI_max**: the maximum UMI family size amongst all alt allele reads
+- **UMI_3_count**: How many alt allele reads have a UMI family size of ≥ 3 (ie had some error correction)
+
+For filtering UMI_3_count is used to add requirements for error correction on reads that support alt alleles.
+
+### augmentMAF
+
+TEMPEST uses a script called `.../utils/augmentMAF.py` to augment final variant calls in a given sample with still detectable, but uncalled due to poor support, variants found in other samples from the same patient. These augmented variants provide increased sensitivity using TEMPEST by leveraging multiple sample from patients, such as when tracking variants temporally.
+
+As variants being augmented have already passed filtering in their origin sample, criteria for their inclusion in a sample's final .maf are less strict. However, augmentMAF.py does track UMI family sizes and phasing, which allows for some minimal, and adjustable, filtering criteria. 
+
+For augmented variants, their originating sample(s) are listed in the `origin_samples` column added to the final output .mafs.
+
+### CHIP Variants
+TEMPEST flags, but does not remove, variants that could be a result of clonal hematopoiesis of intermediate potential (CHIP) with a boolean column `CHIP` in the final .maf.
+
+Variants are flagged if: 1) the alt allele VAF is ≥ 2% in the matched normal or 2) the alt allele vaf is x3 larger in the matched normal than in the tumour sample. 
+
+However, TEMPEST is more strict with variants in commonly reported genes that accumulate age-related CHIP mutations: "DNMT3A","TET2","ASXL1","PPM1D","TP53","JAK2","SF3B1","SRSF2", and flags any variant in these genes with an alt_read_count > 0 in the matched normal.
 
 # Resources
 
@@ -75,7 +129,6 @@ include: .../lcr-modules/modules/Tempest/1.0/cfdna_UMI_workflow.smk
 include: .../lcr-modules/modules/Tempest/1.0/cfDNA_SAGE_workflow.smk
 
 # specify your rule all
-
 rule all:
     input:
         rules.all_bams.input,
@@ -83,8 +136,9 @@ rule all:
     threads: 1
     resources:
         mem_mb = 500
-
 ```
+
+The workflows include functions for dynamically setting memory requirements when submitting jobs to a compute cluster.
 
 # Config parameters
 
@@ -98,7 +152,7 @@ Config Option                | Description                                      
 | mask_threshold              | Minimum fraction of uncalled (N) bases at a position to remove it                                            | 0.05    |
 | mask_count                  | Minimum number of N bases required to mask a position                                                         | 8       |
 | hard_min_vaf                | Hard minimum VAF floor; should be ≤ SAGE's tier-specific cutoffs to speed processing                          | 0.002   |
-| tumor_panel_min_vaf         | First-pass VAF threshold given to SAFE for panel positions                                                     | 0.005   |
+| tumor_panel_min_vaf         | First-pass VAF threshold given to SAGE for panel positions                                                     | 0.005   |
 | novel_vaf                   | VAF threshold for novel variants; only hotspots and phased variants may be lower                            | 0.01    |
 | panel_max_germ_rel_raw_bq   | Max proportion of good-quality alt reads allowed in normal vs tumor (cumulative BQ); SAGE arg (SAGE default 0.04) | 0.08    |
 | hotspot_max_germ_rel_raw_bq | Max proportion for hotspot positions (cumulative BQ); SAGE arg (SAGE default 0.25)                          | 0.08    |
@@ -107,7 +161,7 @@ Config Option                | Description                                      
 | min_map_qual                | Minimum mapping quality                                                                                    | 40      |
 | min_alt_depth               | Minimum alt read count                                                                                      | 5       |
 | min_t_depth                 | Minimum tumor depth                                                                                          | 100     |
-| exac_max_freq               | Maximum population frequency in gnomaD to retain a variant                                                    | 0.01    |
+| exac_max_freq               | Maximum population frequency in gnomAD to retain a variant                                                    | 0.01    |
 | min_UMI_3_count             | Minimum UMI_3 count for variants with t_alt_count > low_alt_thresh                                          | 2       |
 | low_alt_thresh              | Alt-count threshold below which stricter UMI_3 rules apply                                                  | 50      |
 | low_alt_min_UMI_3_count     | Minimum UMI_3 count for low-alt-count variants (t_alt_count ≤ low_alt_thresh)                               | 3       |
@@ -118,8 +172,8 @@ Config Option                | Description                                      
 
 # Note about patient reports
 
-Due to the uniqueness of the required analyses of different projects the `patient_reports.smk`  is not a one-click solution
-for all projects. Therefore the workflow and code here will likely need to be adapted for your usage. Also included here is
+Due to the uniqueness of the required analyses of different projects `patient_reports.smk` is not a one-click solution
+for all projects. Therefore, the workflow and code here will likely need to be adapted for your usage. Also included here is
 an example templated Jupyter notebook that will be used to compile a report `report_template.ipynb`, and the accompanying 
 python script `compile_report.py` that completes the report creation.
 
@@ -138,18 +192,18 @@ cfDNA_patient_reports:
     include_lymphgen: true # boolean
 
 ```
-As this code was developed on lymphoma patient samples, it can integrate the LymphGen classifier `lcr-modules` outputs. You can simply
+As this code was developed on lymphoma patient samples, it can integrate the LymphGen classifier outputs as implemented in`lcr-modules`. You can simply
 set that to `false` in the config if you do not need it.
 
 # Panel of Normals
 
-To help exclude technical artifacts unique to a hybrid capture panel, it is recommended you sequence some cfDNA
-from "healthy" individuals, and use their data to create a panel of normals. That VCF is required by the pipeline for filtering,
+To help exclude technical artifacts unique to a hybrid capture panel, it is recommended that you sequence some cfDNA
+from "healthy" individuals and use their data to create a panel of normals. That VCF is required by the pipeline for filtering,
 but if you don't have one you can provide an empty dummy file.
 
 To assist in the creation of a PON, a workflow using GATK is included in this module: `make_somaticPON.smk`
 
 # DLBCL Panel Hotspot and Notspot Lists
 
-This pipeline was designed during a project using [DLBCL-STORM](https://github.com/morinlab/DLBCL-STORM "DLBCL-STORM GitHub repo"),
-which has its own custom hybrid capture panel and hotspot/notspot lists.
+This pipeline was designed using the [DLBCL-STORM](https://github.com/morinlab/DLBCL-STORM "DLBCL-STORM GitHub repo") hybrid capture panel,
+which has its own custom hotspot/notspot lists.
