@@ -23,6 +23,8 @@ lcr-modules:
             sv2gsm: 
                 POS_value: "POS"
                 NEG_value: "NEG"
+            seg2gsm: 
+                thresholds: "lenient" # Options: "lenient" (matches original), "stringent"
         
         include_non_coding: True
         

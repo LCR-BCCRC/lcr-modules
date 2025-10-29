@@ -70,7 +70,7 @@ rule _install_lgenic:
         mkdir -p {params.lgenic_dir};
 
         wget -cO - $download_url > {params.lgenic_dir}/LGenIC.tar.gz && tar -C {params.lgenic_dir} -xf {params.lgenic_dir}/LGenIC.tar.gz && rm {params.lgenic_dir}/LGenIC.tar.gz;
-        mv {params.lgenic_dir}/ckrushton-LGenIC-*/* {params.lgenic_dir}/ && rm -r {params.lgenic_dir}/ckrushton-LGenIC-*/;
+        mv {params.lgenic_dir}/LCR-BCCRC-LGenIC-*/* {params.lgenic_dir}/ && rm -r {params.lgenic_dir}/LCR-BCCRC-LGenIC-*/;
         '''
 
 # STEP 1: INPUT SYMLINKS
