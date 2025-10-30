@@ -614,7 +614,8 @@ rule _purecn_mutect2_normal_filter_passed:
     resources: **CFG["resources"]["concatenate_vcf"]
     shell:
         op.as_one_line(""" 
-        bcftools view "{params.filter_for_opts}" -e "{params.filter_out_opts}" -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
+        bcftools view {params.filter_for_opts} -e "{params.filter_out_opts}" {input.vcf} | 
+            bcftools annotate -x INFO -Oz -o {output.vcf} 2> {log.stderr}
             &&
         tabix -p vcf {output.vcf} 2>> {log.stderr}
         """)
@@ -1165,7 +1166,8 @@ rule _purecn_mutect2_filter_passed:
     resources: **CFG["resources"]["concatenate_vcf"]
     shell:
         op.as_one_line(""" 
-        bcftools view "{params.filter_for_opts}" -e "{params.filter_out_opts}" -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
+        bcftools view {params.filter_for_opts} -e "{params.filter_out_opts}" {input.vcf} | 
+            bcftools annotate -x INFO -Oz -o {output.vcf} 2> {log.stderr}
             &&
         tabix -p vcf {output.vcf} 2>> {log.stderr}
         """)

@@ -52,7 +52,7 @@ lcr-modules:
             mutect2_norm: 
                 mutect2_opts: ""
                 mutect2_filter: ""
-                mutect2_filter_for: "-f '.,PASS,germline' "
+                mutect2_filter_for: -f 'PASS,germline' # Do not wrap in double quotes!
                 mutect2_filter_out: "FILTER~'weak_evidence' | FILTER~'contamination'"
             normals:
                 omit_list: "" # path to list (.txt) of normal vcfs (paths) to omit from the panel of normals
@@ -65,7 +65,7 @@ lcr-modules:
                 padding: 50 # Typical for exomes. May increase to 200 for very high coverage targeted capture. Applies to normal and tumour mutect2 calling. 
                 mutect2_opts: ""
                 mutect2_filter: ""
-                mutect2_filter_for: "-f '.,PASS,germline' "
+                mutect2_filter_for: -f '.,PASS,germline' 
                 mutect2_filter_out: "FILTER~'weak_evidence' | FILTER~'contamination'"
                 depth_coverage: ""
 
