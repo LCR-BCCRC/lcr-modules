@@ -47,6 +47,7 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _purecn_input_bam,
+    _purecn_get_mappability,
     _purecn_symlink_cnvkit_seg,
     _purecn_symlink_cnvkit_cnr,
     _purecn_cnvkit_output_seg,
@@ -100,33 +101,10 @@ if CFG["cnvkit_seg"] == True:
 # -------------------------------------------------------------------------------------------------- #
 # Part I - Set up reference files
 # -------------------------------------------------------------------------------------------------- #
-rule _download_GEM:
-    output:
-        touch(CFG["dirs"]["inputs"] + "references/GEM/.done")
-    params:
-        dirOut = CFG["dirs"]["inputs"] + "references/GEM/"
-    conda:
-        CFG["conda_envs"]["wget"]
-    resources: **CFG["resources"]["gem"]
-    shell:
-        """
-            wget https://sourceforge.net/projects/gemlibrary/files/gem-library/Binary%20pre-release%203/GEM-binaries-Linux-x86_64-core_i3-20130406-045632.tbz2/download -O {params.dirOut}/GEM-lib.tbz2 && bzip2 -dc {params.dirOut}/GEM-lib.tbz2 | tar -xvf - -C {params.dirOut}/
-        """
 
+# Download PureCN-recommended mappability files
 
-# Generate mappability files
-# grch37 and grch38 from ensembl have additional information in header - need to remove
-def which_genome_fasta(wildcards):
-    CFG = config["lcr-modules"]["purecn"]
-    if  "38" in str({wildcards.genome_build}):
-        return reference_files("genomes/grch38_masked/genome_fasta/genome.fa")
-    else:
-        return reference_files("genomes/grch37_masked/genome_fasta/genome.fa")
-
-
-rule _set_up_grch_genomes:
-    input:
-        reference = which_genome_fasta
+rule _purecn_get_mappability:
     output:
         reference = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/genome_header.fa"
     resources: **CFG["resources"]["gem"]
@@ -215,22 +193,7 @@ rule _purecn_set_mappability:
     resources: **CFG["resources"]["gem"]
     shell:
         """
-            PATH=$PATH:{params.gemDir};
-            {params.gemDir}/gem-2-wig -I {input.index} -i {input.mappability} -o {params.pref}
-        """
-
-rule _purecn_gem_wig2bw:
-    input:
-        wig = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.wig",
-        sizes = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.sizes"
-    output:
-        bw = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.bw",
-    conda: CFG["conda_envs"]["ucsc_bigwigtowig"]
-    threads: CFG["threads"]["gem"]
-    resources: **CFG["resources"]["gem"]
-    shell:
-        """
-            wigToBigWig {input.wig} {input.sizes} {output.bw}
+            wget {params.url} -O {output.bw}
         """
 
 # set up intervals for coverage calculations (used for de novo pureCN CNV calling)
@@ -274,7 +237,7 @@ rule _purecn_setinterval:
     input:
         genome = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         bed = str(rules._purecn_input_bed.output.bed),
-        bw = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.bw"
+        bw = str(rules._purecn_get_mappability.output.bw)
     output:
         intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals.txt"
     params:
@@ -614,7 +577,8 @@ rule _purecn_mutect2_normal_filter_passed:
     resources: **CFG["resources"]["concatenate_vcf"]
     shell:
         op.as_one_line("""
-        bcftools view "{params.filter_for_opts}" -e "{params.filter_out_opts}" -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
+        bcftools view {params.filter_for_opts} -e "{params.filter_out_opts}" {input.vcf} |
+            bcftools annotate -x INFO -Oz -o {output.vcf} 2> {log.stderr}
             &&
         tabix -p vcf {output.vcf} 2>> {log.stderr}
         """)
@@ -1165,7 +1129,8 @@ rule _purecn_mutect2_filter_passed:
     resources: **CFG["resources"]["concatenate_vcf"]
     shell:
         op.as_one_line("""
-        bcftools view "{params.filter_for_opts}" -e "{params.filter_out_opts}" -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
+        bcftools view {params.filter_for_opts} -e "{params.filter_out_opts}" {input.vcf} |
+            bcftools annotate -x INFO -Oz -o {output.vcf} 2> {log.stderr}
             &&
         tabix -p vcf {output.vcf} 2>> {log.stderr}
         """)
