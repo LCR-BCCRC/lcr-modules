@@ -47,6 +47,7 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _purecn_input_bam,
+    _purecn_get_mappability,
     _purecn_symlink_cnvkit_seg,
     _purecn_symlink_cnvkit_cnr,
     _purecn_cnvkit_output_seg,
@@ -100,137 +101,21 @@ if CFG["cnvkit_seg"] == True:
 # -------------------------------------------------------------------------------------------------- #
 # Part I - Set up reference files
 # -------------------------------------------------------------------------------------------------- #
-rule _download_GEM:
+
+# Download PureCN-recommended mappability files
+
+rule _purecn_get_mappability:
     output:
-        touch(CFG["dirs"]["inputs"] + "references/GEM/.done")
-    params:
-        dirOut = CFG["dirs"]["inputs"] + "references/GEM/"
-    conda:
-        CFG["conda_envs"]["wget"]
-    resources: **CFG["resources"]["gem"]
+        bw = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.ucsc.bw"
+    params: 
+        url = lambda w: {
+            "hg19": "https://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeMapability/wgEncodeCrgMapabilityAlign100mer.bigWig",
+            "hg38": "https://s3.amazonaws.com/purecn/GCA_000001405.15_GRCh38_no_alt_analysis_set_100.bw"
+        }[config["lcr-modules"]["purecn"]["options"]["genome_builds"].get(w.genome_build, w.genome_build)]
+    conda: CFG["conda_envs"]["wget"]
     shell:
         """
-            wget https://sourceforge.net/projects/gemlibrary/files/gem-library/Binary%20pre-release%203/GEM-binaries-Linux-x86_64-core_i3-20130406-045632.tbz2/download -O {params.dirOut}/GEM-lib.tbz2 && bzip2 -dc {params.dirOut}/GEM-lib.tbz2 | tar -xvf - -C {params.dirOut}/
-        """
-
-
-# Generate mappability files
-# grch37 and grch38 from ensembl have additional information in header - need to remove
-def which_genome_fasta(wildcards):
-    CFG = config["lcr-modules"]["purecn"]
-    if  "38" in str({wildcards.genome_build}):
-        return reference_files("genomes/grch38_masked/genome_fasta/genome.fa")
-    else:
-        return reference_files("genomes/grch37_masked/genome_fasta/genome.fa")
-    
-
-rule _set_up_grch_genomes:
-    input:
-        reference = which_genome_fasta
-    output:
-        reference = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/genome_header.fa"
-    resources: **CFG["resources"]["gem"]
-    shell:
-        "cat {input.reference} | perl -ne 's/(^\>\S+).+/$1/;print;' > {output.reference} "
-
-
-def get_genome_fasta(wildcards):
-    CFG = config["lcr-modules"]["purecn"]
-    if  "grch" in str({wildcards.genome_build}):
-        if "38" in str({wildcards.genome_build}):
-            return  CFG["dirs"]["inputs"] + "references/grch38_masked/freec/genome_header.fa"
-        elif "37" in str({wildcards.genome_build}):
-            return CFG["dirs"]["inputs"] + "references/grch37_masked/freec/genome_header.fa"
-        else:
-            raise AttributeError(f"The specified grch genome build is not available for use.")
-    elif "hs37d5" in str({wildcards.genome_build}):
-        return CFG["dirs"]["inputs"] + "references/grch37_masked/freec/genome_header.fa"
-    else:
-        if "38" in str({wildcards.genome_build}):
-            return reference_files("genomes/hg38_masked/genome_fasta/genome.fa")
-        elif "19" in str({wildcards.genome_build}):
-            return reference_files("genomes/hg19_masked/genome_fasta/genome.fa")
-        else:
-            raise AttributeError(f"The specified genome build is not available for use.")
-        
-        
-rule _purecn_generate_gem_index:
-    input:
-        software = CFG["dirs"]["inputs"] + "references/GEM/.done",
-        reference = get_genome_fasta
-    output:
-        index = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index.gem"
-    params:
-        gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin",
-        idxpref = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index"
-    threads: CFG["threads"]["gem"]
-    resources: **CFG["resources"]["gem"]
-    log: CFG["logs"]["inputs"] + "gem/{genome_build}/gem_index.stderr.log"
-    shell:
-        "PATH=$PATH:{params.gemDir}; {params.gemDir}/gem-indexer -T {threads} -c dna -i {input.reference} -o {params.idxpref} > {log} 2>&1 "
-
-
-rule _purecn_generate_mappability:
-    input:
-        software = CFG["dirs"]["inputs"] + "references/GEM/.done",
-        index = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index.gem"
-    output:
-        mappability = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.mappability"
-    params:
-        gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin",
-        pref =  CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem",
-        kmer = CFG["options"]["kmer"],
-        mismatch = CFG["options"]["mismatch"],
-        maxEditDistance = CFG["options"]["maxEditDistance"],
-        maxBigIndel = CFG["options"]["maxBigIndel"],
-        strata = CFG["options"]["strata"]
-    threads: CFG["threads"]["gem"]
-    resources: **CFG["resources"]["gem"]
-    log: CFG["logs"]["inputs"] + "gem/{genome_build}/gem_map.stderr.log"
-    shell:
-        "PATH=$PATH:{params.gemDir}; {params.gemDir}/gem-mappability -T {threads} -I {input.index} -l {params.kmer} -m {params.mismatch} -t disable --mismatch-alphabet ACGNT -e {params.maxEditDistance} --max-big-indel-length {params.maxBigIndel} -s {params.strata} -o {params.pref} > {log} 2>&1 "
-
-
-rule _purecn_symlink_map:
-    input:
-        mappability = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.mappability"
-    output:
-        mappability = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/out100m2_{genome_build}.gem"
-    resources: **CFG["resources"]["gem"]
-    run:
-        op.relative_symlink(input.mappability, output.mappability)
-            
-            
-rule _purecn_set_mappability:
-    input:
-        index = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all_index.gem",
-        mappability = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/out100m2_{genome_build}.gem"
-    output:
-        wig = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.wig",
-        size = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.sizes"
-    params:
-        gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin",
-        pref =  CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem"
-    threads: CFG["threads"]["gem"]
-    resources: **CFG["resources"]["gem"]
-    shell:
-        """
-            PATH=$PATH:{params.gemDir}; 
-            {params.gemDir}/gem-2-wig -I {input.index} -i {input.mappability} -o {params.pref} 
-        """
-
-rule _purecn_gem_wig2bw:
-    input:
-        wig = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.wig",
-        sizes = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.sizes"
-    output:
-        bw = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.bw",
-    conda: CFG["conda_envs"]["ucsc_bigwigtowig"]
-    threads: CFG["threads"]["gem"]
-    resources: **CFG["resources"]["gem"]
-    shell:
-        """
-            wigToBigWig {input.wig} {input.sizes} {output.bw}
+            wget {params.url} -O {output.bw}
         """
 
 # set up intervals for coverage calculations (used for de novo pureCN CNV calling)
@@ -274,7 +159,7 @@ rule _purecn_setinterval:
     input:
         genome = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         bed = str(rules._purecn_input_bed.output.bed),
-        bw = CFG["dirs"]["inputs"] + "references/{genome_build}_masked/freec/{genome_build}.hardmask.all.gem.bw"
+        bw = str(rules._purecn_get_mappability.output.bw)
     output:
         intervals = CFG["dirs"]["inputs"] + "references/{genome_build}/{capture_space}/baits_{genome_build}_intervals.txt"
     params:
