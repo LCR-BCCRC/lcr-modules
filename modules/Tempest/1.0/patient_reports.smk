@@ -135,7 +135,7 @@ rule _vcf2maf_crossmap:
         convert_coord = config['lcr-modules']["lymphgen"]["convert_coord"],
         chains = config["lcr-modules"]["lymphgen"]["hg38_chainfile"]
     output:
-        maf = os.path.join(SAGE_OUTDIR, f"99-final/{{tumour_id}}.v{pv}.tempest.grch37.maf"),
+        maf = temp(os.path.join(SAGE_OUTDIR, f"99-final/{{tumour_id}}.v{pv}.tempest.grch37.maf")),
         bed = temp(os.path.join(SAGE_OUTDIR, f"99-final/{{tumour_id}}.v{pv}.tempest.grch37.unmapped.bed"))
     log:
         os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "crossmap/logs" , "crossmap_{tumour_id}.log")
