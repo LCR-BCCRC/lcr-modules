@@ -1,11 +1,9 @@
-# CNVkit module (oncopipe)
+# CNVkit module
 
 A lightweight CNV calling module built around **CNVkit** with optional B‑allele fraction (BAF) integration. It builds capture‑aware bins, normalizes with a panel of normals (PoN), segments, calls copy number, and emits plots, gene‑level summaries, and SEG files—optionally projected to hg19/GRCh37 or hg38/GRCh38.
 
 **Module author:** Jasper Wong  
 **Version:** 1.0  
-**Changelog style:** Keep a Changelog (Semantic Versioning)
-
 ---
 
 ## Is this the right tool for you?
@@ -21,7 +19,8 @@ You may want a different tool if you need whole‑genome read‑depth CNV caller
 ---
 
 ## What it produces
-Per tumour sample (symlinked in `99-outputs/`):
+Per tumour sample 
+
 - `*.cns` (BAF‑aware **called** segments)
 - `*_scatter.png` and `*_diagram.pdf`
 - `*.genebreaks.txt`, `segment.gene_cn.txt`, `trusted_genes.txt`, `inferred_sex.txt`
@@ -30,11 +29,7 @@ Per tumour sample (symlinked in `99-outputs/`):
 
 ---
 
-## Quick start
-```bash
-# Build everything for the runs defined in config
-snakemake -s Snakefile -j 16 _cnvkit_all
-```
+## Overview
 
 Essential inputs:
 - BAM/BAI per sample (tumour ± normal)
