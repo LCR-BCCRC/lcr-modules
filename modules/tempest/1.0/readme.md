@@ -47,7 +47,7 @@ being included with PBMCs. Regardless of the mechanism, when developing TEMPEST 
 can be found in matched normal samples for tumour variants, including known hotspot variants. Therefore, some flexibility for alt reads in the matched
 normal was built into TEMPEST. This can be adjusted in the config.
 
-Values shown are defaults which can be specified in the config. 
+Values shown are defaults which can be specified in the config. <br>
 <img alt="Variant Filtering" src="https://github.com/user-attachments/assets/046d1def-6052-4eaf-92ab-365b62b8ecd9" height="600" />
 
 ### Hotspot and Notspot Lists
