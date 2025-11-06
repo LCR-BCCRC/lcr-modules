@@ -48,7 +48,8 @@ can be found in matched normal samples for tumour variants, including known hots
 normal was built into TEMPEST. This can be adjusted in the config.
 
 Values shown are defaults which can be specified in the config. <br>
-<img alt="Variant Filtering" src="https://github.com/user-attachments/assets/046d1def-6052-4eaf-92ab-365b62b8ecd9" height="600" />
+<img width="1316" height="2175" alt="Variant Filtering (1)" src="https://github.com/user-attachments/assets/9a0e1ab8-c7d0-42ad-bec8-6cf39a830474" />
+
 
 ### Hotspot and Notspot Lists
 While SAGE can use a tiered system for filtering variants, including if variants fall within a hotspot, TEMPEST uses custom hotspot
