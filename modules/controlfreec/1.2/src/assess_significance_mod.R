@@ -47,9 +47,8 @@ for (i in c(1:length(cnvs[,1]))) {
   cnvs[i,numberOfCol+1]=W(values,normals)$p.value
   cnvs[i,numberOfCol+2]=KS(values,normals)$p.value
 
-  # added to record log2 median ratios and num markers, as downstream tools like gistic2 expect it
+  # added to record log2 median ratios, as downstream tools like gistic2 expect it
   med_ratio=unique(mcols(subsetByOverlaps(ratio.bed,cnvs.bed[i]))$median_ratio)
-  num_markers=length(mcols(subsetByOverlaps(ratio.bed,cnvs.bed[i]))$median_ratio)
   if (length(med_ratio) > 1){
     print(paste0("more than one median ratio for segment: ", i, " only saving the first one"))
     print(cnvs.bed[i])
@@ -58,20 +57,18 @@ for (i in c(1:length(cnvs[,1]))) {
     print(paste0("no median ratio for segment: ", i))
     print(cnvs.bed[i])
     med_ratio=NA
-    num_markers=0
   }
-  cnvs[i,numberOfCol+3]=num_markers
-  cnvs[i,numberOfCol+4]=log2(med_ratio)
+  cnvs[i,numberOfCol+3]=log2(med_ratio)
   }
 
 if (numberOfCol==5) {
-  names(cnvs)=c("chr","start","end","copy number","status","WilcoxonRankSumTestPvalue","KolmogorovSmirnovPvalue", "num_markers", "log2_median_ratio")
+  names(cnvs)=c("chr","start","end","copy number","status","WilcoxonRankSumTestPvalue","KolmogorovSmirnovPvalue", "log2_median_ratio")
 }
 if (numberOfCol==7) {
-  names(cnvs)=c("chr","start","end","copy number","status","genotype","uncertainty","WilcoxonRankSumTestPvalue","KolmogorovSmirnovPvalue", "num_markers", "log2_median_ratio")
+  names(cnvs)=c("chr","start","end","copy number","status","genotype","uncertainty","WilcoxonRankSumTestPvalue","KolmogorovSmirnovPvalue", "log2_median_ratio")
 }
 if (numberOfCol==9) {
-  names(cnvs)=c("chr","start","end","copy number","status","genotype","uncertainty","somatic/germline","precentageOfGermline","WilcoxonRankSumTestPvalue","KolmogorovSmirnovPvalue", "num_markers", "log2_median_ratio")
+  names(cnvs)=c("chr","start","end","copy number","status","genotype","uncertainty","somatic/germline","precentageOfGermline","WilcoxonRankSumTestPvalue","KolmogorovSmirnovPvalue", "log2_median_ratio")
 }
 write.table(cnvs, file=paste(args[4],".p.value.txt",sep=""),sep="\t",quote=F,row.names=F)
 
