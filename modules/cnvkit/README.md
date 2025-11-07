@@ -2,8 +2,6 @@
 
 A lightweight CNV calling module built around **CNVkit** with optional B‑allele fraction (BAF) integration. It builds capture‑aware bins, normalizes with a panel of normals (PoN), segments, calls copy number, and emits plots, gene‑level summaries, and SEG files—optionally projected to hg19/GRCh37 or hg38/GRCh38.
 
-**Module author:** Jasper Wong  
-**Version:** 1.0  
 ---
 
 ## Is this the right tool for you?
@@ -82,4 +80,4 @@ lcr-modules:
 
 ## Attribution & licenses
 - **CNVkit** and **bcftools** retain their respective licenses.
-- This module is part of the oncopipe ecosystem; module authored by **Jasper Wong**.
+- This module is part of the LCR-modules ecosystem; module authored by **Jasper Wong**.
