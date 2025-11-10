@@ -347,20 +347,23 @@ class AugmentMAF(object):
         return missing_maf
 
     def _get_read_support(self, chrom: str, start: int, end: int, ref_base: str, alt_base: str, 
-                          bamfile: str, mut_class: str, min_base_qual=10, min_mapping_qual=1,
+                          bamfile: str, mut_class: str, min_base_qual=10, min_mapping_qual=40,
                           padding: int = 100) -> dict:
         params = self._setup_variant_params(start, end, ref_base, mut_class, padding)
         samfile = self._open_bam_file(bamfile)
 
         if mut_class == "INS":
             ref_count, alt_count, total_depth, umi_sizes = self._process_insertion(
-                samfile, chrom, params, min_base_qual, min_mapping_qual, self.cfg.compute_umi_metrics)
+                samfile, chrom, params, alt_base,
+                min_base_qual, min_mapping_qual, self.cfg.compute_umi_metrics)
         elif mut_class == "DEL":
             ref_count, alt_count, total_depth, umi_sizes = self._process_deletion(
-                samfile, chrom, params, ref_base, min_base_qual, min_mapping_qual, self.cfg.compute_umi_metrics)
+                samfile, chrom, params, ref_base,
+                min_base_qual, min_mapping_qual, self.cfg.compute_umi_metrics)
         elif mut_class in ["SNP", "DNP"]:
+            # unchanged
             ref_count, alt_count, total_depth, umi_sizes = self._process_snp_dnp(
-                samfile, chrom, params, ref_base, alt_base, mut_class, 
+                samfile, chrom, params, ref_base, alt_base, mut_class,
                 min_base_qual, min_mapping_qual, self.cfg.compute_umi_metrics)
         else:
             samfile.close()
@@ -377,7 +380,6 @@ class AugmentMAF(object):
 
         return result
 
-    # (All helper methods below unchanged except for using self.cfg where needed) 
     def _setup_variant_params(self, start: int, end: int, ref_base: str, mut_class: str, padding: int) -> dict:
         actual_start = start - 1
         actual_end = end
@@ -401,72 +403,6 @@ class AugmentMAF(object):
             return pysam.AlignmentFile(realname, 'rc')
         else:
             return pysam.AlignmentFile(bamfile, 'rb')
-
-    def _process_insertion(self, samfile, chrom: str, params: dict, min_base_qual: int, min_mapping_qual: int,
-                           collect_umi: bool) -> tuple:
-        ref_count = alt_count = total_depth = 0
-        umi_sizes = []
-        seen = set()
-        for col in samfile.pileup(
-            chrom, params['padded_start'], params['padded_end'],
-            ignore_overlaps=False, min_base_quality=min_base_qual,
-            min_mapping_quality=min_mapping_qual, truncate=True
-        ):
-            if col.pos != params['actual_start']:
-                continue
-            for pu in col.pileups:
-                if pu.is_refskip:
-                    continue
-                total_depth += 1
-                if pu.indel and pu.indel > 0:
-                    alt_count += 1
-                    if collect_umi:
-                        key, size = self._umi_key_and_size(pu.alignment)
-                        if size is not None and key not in seen:
-                            seen.add(key)
-                            umi_sizes.append(size)
-                else:
-                    ref_count += 1
-        return ref_count, alt_count, total_depth, umi_sizes
-
-    def _process_deletion(self, samfile, chrom: str, params: dict, ref_base: str, 
-                          min_base_qual: int, min_mapping_qual: int, collect_umi: bool) -> tuple:
-        max_depth = 0
-        max_alt = 0
-        umi_at_max_alt = []
-        del_start = params['del_positions'][0] if params.get('del_positions') else params['actual_start']
-        del_end = params['del_positions'][-1] + 1 if params.get('del_positions') else params['actual_end']
-        for col in samfile.pileup(
-            chrom, del_start, del_end,
-            ignore_overlaps=False, min_base_quality=min_base_qual,
-            min_mapping_quality=min_mapping_qual, truncate=True
-        ):
-            if not (del_start <= col.pos < del_end):
-                continue
-            col_depth = 0
-            col_alt = 0
-            col_seen = set()
-            col_umis = []
-            for pu in col.pileups:
-                if pu.is_refskip:
-                    continue
-                col_depth += 1
-                if pu.is_del:
-                    col_alt += 1
-                    if collect_umi:
-                        key, size = self._umi_key_and_size(pu.alignment)
-                        if size is not None and key not in col_seen:
-                            col_seen.add(key)
-                            col_umis.append(size)
-            if col_depth > max_depth:
-                max_depth = col_depth
-            if col_alt > max_alt:
-                max_alt = col_alt
-                umi_at_max_alt = col_umis
-        ref_count = max_depth - max_alt
-        alt_count = max_alt
-        total_depth = max_depth
-        return ref_count, alt_count, total_depth, umi_at_max_alt
 
     def _process_snp_dnp(self, samfile, chrom: str, params: dict, ref_base: str, alt_base: str, 
                          mut_class: str, min_base_qual: int, min_mapping_qual: int,
@@ -527,6 +463,223 @@ class AugmentMAF(object):
                 else:
                     if ref_base in bases:
                         ref_count += 1
+        return ref_count, alt_count, total_depth, umi_sizes
+
+    def _process_insertion(self, samfile, chrom: str, params: dict,
+                        alt_base: str,
+                        min_base_qual: int, min_mapping_qual: int,
+                        collect_umi: bool) -> tuple:
+        """
+        Strict insertion support (REF == '-', ALT = inserted sequence).
+        Depth counts reads that:
+        - Cover anchor (left base) with base quality >= min_base_qual
+        - Cover right flank (reference base immediately after anchor)
+        ALT-supporting read must additionally:
+        - Contain a single CIGAR I op of length == len(ALT) occurring immediately after anchor
+        - Inserted sequence exactly matches ALT
+        Right flank bridging ensures the read spans across the insertion context.
+        """
+        start_1 = params['original_start']          # 1-based position where insertion occurs AFTER this base
+        anchor_pos = start_1 - 1                    # 0-based anchor base
+        inserted_seq = alt_base or ""
+        ins_len = len(inserted_seq)
+        if ins_len == 0:
+            return 0, 0, 0, []
+
+        # Right flank = next reference position after anchor
+        right_flank_pos = anchor_pos + 1
+
+        # Fetch small padded region
+        fetch_start = max(anchor_pos - 10, 0)
+        fetch_end = right_flank_pos + 10
+
+        total_depth = 0
+        alt_count = 0
+        umi_sizes = []
+        seen_umi = set()
+
+        for read in samfile.fetch(chrom, fetch_start, fetch_end):
+            if read.is_unmapped or read.is_secondary or read.is_supplementary:
+                continue
+            if read.mapping_quality < min_mapping_qual:
+                continue
+
+            cig = read.cigartuples or []
+            # Pre-screen: any insertion of required length?
+            has_req_len_ins = any(op == 1 and length == ins_len for op, length in cig)
+
+            ref_positions = read.get_reference_positions()
+            # Must bridge anchor and right flank to be counted in depth
+            if anchor_pos not in ref_positions or right_flank_pos not in ref_positions:
+                continue
+
+            # Anchor base quality
+            anchor_qpos = None
+            for qpos, rpos in read.get_aligned_pairs(matches_only=True):
+                if rpos == anchor_pos:
+                    anchor_qpos = qpos
+                    break
+            if anchor_qpos is None:
+                continue
+            if read.query_qualities and read.query_qualities[anchor_qpos] < min_base_qual:
+                continue
+
+            # Read contributes to depth now
+            total_depth += 1
+
+            if not has_req_len_ins:
+                # No insertion of correct length => ref-supporting read
+                continue
+
+            # Walk CIGAR to confirm exact insertion position & sequence
+            ref_cursor = read.reference_start
+            read_cursor = 0
+            alt_supported = False
+
+            for op, length in cig:
+                # 0=M,7==,8=X consume ref & read
+                if op in (0, 7, 8):
+                    ref_cursor += length
+                    read_cursor += length
+                elif op == 1:  # insertion consumes read only
+                    # Insertion occurs between ref_cursor - 1 and ref_cursor
+                    if ref_cursor - 1 == anchor_pos and length == ins_len:
+                        ins_seq_read = read.query_sequence[read_cursor: read_cursor + length]
+                        if ins_seq_read == inserted_seq:
+                            alt_supported = True
+                            break
+                    read_cursor += length
+                elif op == 2:  # deletion consumes ref
+                    ref_cursor += length
+                elif op == 3:  # N consumes ref
+                    ref_cursor += length
+                elif op == 4:  # soft clip consumes read
+                    read_cursor += length
+                elif op == 5:  # hard clip consumes neither
+                    pass
+                else:
+                    # Other ops (P, etc.) ignore
+                    pass
+
+            if alt_supported:
+                alt_count += 1
+                if collect_umi:
+                    key, size = self._umi_key_and_size(read)
+                    if size is not None and key not in seen_umi:
+                        seen_umi.add(key)
+                        umi_sizes.append(size)
+
+        ref_count = total_depth - alt_count
+        return ref_count, alt_count, total_depth, umi_sizes
+
+    def _process_deletion(self, samfile, chrom: str, params: dict,
+                        ref_base: str,
+                        min_base_qual: int, min_mapping_qual: int,
+                        collect_umi: bool) -> tuple:
+        """
+        Strict deletion support (REF = exactly deleted bases, ALT='-').
+
+        A read contributes to depth if:
+        - It covers the left anchor (base before the deletion) with base quality >= min_base_qual, and
+        - It covers the right flank (base immediately after the deleted span).
+        A read is ALT if, in addition:
+        - It contains a CIGAR 'D' that starts exactly at deletion_start_0 (0-based)
+            and has length == len(REF).
+
+        No additional span-membership check is performed (trust CIGAR).
+        """
+        # Variant geometry
+        start_1 = params['original_start']          # 1-based first deleted base
+        deletion_start_0 = start_1 - 1              # 0-based
+        del_len = len(ref_base)                     # strict allele length
+        if del_len <= 0:
+            return 0, 0, 0, []
+
+        deletion_end_0 = deletion_start_0 + del_len - 1
+        anchor_pos = deletion_start_0 - 1
+        right_flank_pos = deletion_end_0 + 1
+
+        # Small padding for fetch robustness
+        fetch_start = max(anchor_pos - 10, 0)
+        fetch_end = right_flank_pos + 10
+
+        total_depth = 0
+        alt_count = 0
+        umi_sizes = []
+        seen_umi = set()
+
+        for read in samfile.fetch(chrom, fetch_start, fetch_end):
+            # Primary, mapped, MAPQ gate
+            if read.is_unmapped or read.is_secondary or read.is_supplementary:
+                continue
+            if read.mapping_quality < min_mapping_qual:
+                continue
+
+            cig = read.cigartuples or []
+
+            # Fast pre-screen: any deletion of the required length?
+            if not any(op == 2 and length == del_len for op, length in cig):
+                # Still may contribute to depth if it bridges
+                ref_positions = read.get_reference_positions()
+                if anchor_pos in ref_positions and right_flank_pos in ref_positions:
+                    # Anchor base quality
+                    anchor_qpos = None
+                    for qpos, rpos in read.get_aligned_pairs(matches_only=True):
+                        if rpos == anchor_pos:
+                            anchor_qpos = qpos
+                            break
+                    if anchor_qpos is not None and (not read.query_qualities or read.query_qualities[anchor_qpos] >= min_base_qual):
+                        total_depth += 1
+                continue
+
+            # Must bridge anchor and right flank
+            ref_positions = read.get_reference_positions()
+            if anchor_pos not in ref_positions or right_flank_pos not in ref_positions:
+                continue
+
+            # Anchor base quality
+            anchor_qpos = None
+            for qpos, rpos in read.get_aligned_pairs(matches_only=True):
+                if rpos == anchor_pos:
+                    anchor_qpos = qpos
+                    break
+            if anchor_qpos is None:
+                continue
+            if read.query_qualities and read.query_qualities[anchor_qpos] < min_base_qual:
+                continue
+
+            total_depth += 1
+
+            # Confirm exact deletion start and length via CIGAR walk
+            ref_cursor = read.reference_start
+            exact_d_found = False
+            for op, length in cig:
+                if op in (0, 7, 8):  # M, =, X consume ref
+                    ref_cursor += length
+                elif op == 2:        # D consumes ref
+                    if ref_cursor == deletion_start_0 and length == del_len:
+                        exact_d_found = True
+                        break
+                    ref_cursor += length
+                elif op == 3:        # N consumes ref
+                    ref_cursor += length
+                # I/S/H do not advance ref
+                else:
+                    pass
+
+            if not exact_d_found:
+                # counts as REF
+                continue
+
+            # ALT-supporting read
+            alt_count += 1
+            if collect_umi:
+                key, size = self._umi_key_and_size(read)
+                if size is not None and key not in seen_umi:
+                    seen_umi.add(key)
+                    umi_sizes.append(size)
+
+        ref_count = total_depth - alt_count
         return ref_count, alt_count, total_depth, umi_sizes
 
     def _umi_key_and_size(self, aln):
