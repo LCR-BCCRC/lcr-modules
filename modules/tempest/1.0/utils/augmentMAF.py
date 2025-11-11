@@ -1,5 +1,5 @@
 import pandas as pd
-from pathlib import Path 
+from pathlib import Path
 import pysam
 import os
 import multiprocessing
@@ -8,19 +8,22 @@ import shutil
 from dataclasses import dataclass
 import math
 import numpy as np
+from collections import defaultdict
+from typing import Dict, Set, Tuple, List
+
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--sample_id',required=True,type=str,help='tumour sample id')
-    parser.add_argument('--threads',required=False,type=int,default=24,help='number of threads to use, default is 24')
-    parser.add_argument('--index_maf',required=True,type=str,help='index maf file')
-    parser.add_argument('--index_bam',required=True,type=str,help='index bam file')
-    parser.add_argument('--add_maf_files',required=False,nargs='*',type=str,help='additional maf files')
-    parser.add_argument('--genome_build',required=True,type=str,help='genome build')
-    parser.add_argument('--min_alt_count',required=True,type=int,help='minimum alt count reads needed to keep variant')
-    parser.add_argument('--min_t_depth',required=False,type=int,default=50,help='minimum depth needed to keep variant, default is 50')
-    parser.add_argument('--min_VAF',required=False,type=float, help='minimum VAF needed to keep variant, default is 0.01')
-    parser.add_argument('--output',required=True,type=str,help='output file')
+    parser.add_argument('--sample_id', required=True, type=str, help='tumour sample id')
+    parser.add_argument('--threads', required=False, type=int, default=24, help='number of threads to use, default is 24')
+    parser.add_argument('--index_maf', required=True, type=str, help='index maf file')
+    parser.add_argument('--index_bam', required=True, type=str, help='index bam file')
+    parser.add_argument('--add_maf_files', required=False, nargs='*', type=str, help='additional maf files')
+    parser.add_argument('--genome_build', required=True, type=str, help='genome build')
+    parser.add_argument('--min_alt_count', required=True, type=int, help='minimum alt count reads needed to keep variant')
+    parser.add_argument('--min_t_depth', required=False, type=int, default=50, help='minimum depth needed to keep variant, default is 50')
+    parser.add_argument('--min_VAF', required=False, type=float, help='minimum VAF needed to keep variant, default is 0.01')
+    parser.add_argument('--output', required=True, type=str, help='output file')
 
     # Optional: compute UMI metrics (MI and cD tags)
     parser.add_argument('--compute_umi_metrics', action='store_true',
@@ -28,11 +31,12 @@ def get_args():
     parser.add_argument("--min_UMI_3_count", type=int, default=1,
                         help="Filters UMI_3_count metric. Which is a count of the number of reads that have UMI family sizes of at least 3.")
 
-    # phased vars arguments 
-    parser.add_argument("--phase_ID_col",required=False, type=str, help="""Column from input mafs that contains the IDs for the phase sets if a given variant is apart of any,
+    # phased vars arguments
+    parser.add_argument("--phase_ID_col", required=False, type=str, help="""Column from input mafs that contains the IDs for the phase sets if a given variant is apart of any,
                                                                             comma delimited if multiple. Empty if none. If not specified the script wont filter by phase sets.""")
-    parser.add_argument("--phased_min_t_alt_count",required=False, type=int, default=3, help="Minimum alt count for a variant to be considered for phasing. Default is 3")
+    parser.add_argument("--phased_min_t_alt_count", required=False, type=int, default=3, help="Minimum alt count for a variant to be considered for phasing. Default is 3")
     return parser.parse_args()
+
 
 @dataclass(frozen=True)
 class AugmnentMAFArgs:
@@ -51,6 +55,7 @@ class AugmnentMAFArgs:
     phased_min_t_alt_count: int = 3
     min_VAF: float = None
 
+
 class AugmentMAF(object):
     """Add variants complete with read depths found in additional mafs to an index maf."""
 
@@ -60,6 +65,19 @@ class AugmentMAF(object):
 
         # Load index maf once as DataFrame
         self.index_maf_df = self.read_maf(self.cfg.index_maf)
+
+        # Phase-sets and helpers (computed once)
+        self._phase_sets: List[Set[str]] = self._fetch_phase_var_sets()  # list[set[variant_key]]
+        self._phase_group_variant_keys: Set[str] = set().union(*self._phase_sets) if self._phase_sets else set()
+        self._var_to_set_index: Dict[str, int] = {}
+        for i, s in enumerate(self._phase_sets or []):
+            for vk in s:
+                self._var_to_set_index[vk] = i
+
+        # This will be populated after workers finish (variant_key -> set[qnames])
+        self._alt_support_qnames: Dict[str, Set[str]] = defaultdict(set)
+        # Fixed: phased evidence requires >=1 fragment
+        self._min_phased_fragments_for_phased_label: int = 1
 
         # Precompute
         self.chromosomes = self.get_genome_chromosomes()
@@ -71,12 +89,13 @@ class AugmentMAF(object):
             maf_file,
             sep="\t",
             comment='#',
-            dtype={'Chromosome':'string','t_ref_count':'string','t_alt_count':'string','t_depth':'string', "Tumor_Sample_Barcode":"string"},
+            dtype={'Chromosome': 'string', 't_ref_count': 'string', 't_alt_count': 'string', 't_depth': 'string',
+                   "Tumor_Sample_Barcode": "string"},
             low_memory=False
         )
 
-    def get_genome_chromosomes(self)-> list:
-        if self.cfg.genome_build.lower() in ["hg38","hg19-reddy", "grch38"]:
+    def get_genome_chromosomes(self) -> list:
+        if self.cfg.genome_build.lower() in ["hg38", "hg19-reddy", "grch38"]:
             return [f"chr{i}" for i in range(1, 23)] + ["chrX", "chrY"]
         else:
             return [str(i) for i in range(1, 23)] + ["X", "Y"]
@@ -90,43 +109,84 @@ class AugmentMAF(object):
             raise RuntimeError("No output file name provided.")
         self.augmented_vaf.to_csv(out_name, sep="\t", index=False)
 
-    def augment_maf(self):
+    def augment_maf(self) -> pd.DataFrame:
         if self.master_maf is None:
             print("No additional maf files provided ... returning index maf")
-            self.index_maf_df["origin_samples"] = ""
-            return self.index_maf_df
+            out_df = self.index_maf_df.copy()
+            out_df["origin_samples"] = ""
+            # Ensure variant_source is set for consistency
+            out_df["variant_source"] = "index_maf"
+            return out_df
 
         new_vars = self.master_maf.loc[self.master_maf["variant_source"] == "additional_maf"].shape[0]
         if new_vars == 0:
             print("No new variants to add to index maf ... returning index maf")
-            self.index_maf_df["origin_samples"] = ""
-            return self.index_maf_df
+            out_df = self.index_maf_df.copy()
+            out_df["origin_samples"] = ""
+            out_df["variant_source"] = "index_maf"
+            return out_df
         elif new_vars > 0:
             print(f"Found {new_vars} new variants to add to index maf ...")
 
-        pool = multiprocessing.Pool(processes=self.cfg.threads)
-        results = pool.starmap(self._subset_and_run, [[chrm] for chrm in self.chromosomes])
-        pool.close()
-        pool.join()
+        # Multiprocessing across chromosomes.
+        # Each worker returns (augmented_maf_subset_df, qname_dict_for_that_chrom)
+        with multiprocessing.Pool(processes=self.cfg.threads) as pool:
+            results = pool.starmap(self._subset_and_run, [[chrm] for chrm in self.chromosomes])
 
-        augmented_maf_merged = pd.concat(results)
-        full_augmented_maf_merged = pd.concat([self.index_maf_df, augmented_maf_merged])
+        # Aggregate augmented subsets
+        augmented_maf_merged = pd.concat([r[0] for r in results]) if results else pd.DataFrame()
+
+        # Aggregate qname dicts from all workers
+        global_qname_dict: Dict[str, Set[str]] = defaultdict(set)
+        for _, qd in results:
+            for vk, names in qd.items():
+                if not names:
+                    continue
+                if isinstance(names, set):
+                    global_qname_dict[vk].update(names)
+                else:
+                    global_qname_dict[vk].update(set(names))
+        # Store globally for phasing computation
+        self._alt_support_qnames = global_qname_dict
+
+        # Combine with index MAF, keep all index rows, filter only augmented later
+        dfs = [self.index_maf_df.copy()]
+        if not augmented_maf_merged.empty:
+            # Ensure we don’t introduce all-NA columns that confuse dtype inference
+            dfs.append(augmented_maf_merged)
+        full_augmented_maf_merged = pd.concat(dfs, ignore_index=True)
+        # Label variant_source
+        if "variant_source" not in full_augmented_maf_merged.columns:
+            full_augmented_maf_merged["variant_source"] = pd.NA
+        full_augmented_maf_merged["variant_source"] = full_augmented_maf_merged["variant_source"].fillna("index_maf")
+        full_augmented_maf_merged.loc[
+            full_augmented_maf_merged.index[-len(augmented_maf_merged):] if len(augmented_maf_merged) else [],
+            "variant_source"
+        ] = "additional_maf"
+
+        # Standardize sample id
         full_augmented_maf_merged["Tumor_Sample_Barcode"] = self.cfg.sample_id
-        full_augmented_maf_merged = full_augmented_maf_merged.drop_duplicates().reset_index(drop=True)
 
-        if "key" in full_augmented_maf_merged.columns:
-            full_augmented_maf_merged.drop(columns=["key"], inplace=True)
-
-        full_augmented_maf_merged = full_augmented_maf_merged.dropna(subset=["Hugo_Symbol","t_alt_count","t_depth"]).copy()
-
-        # no alt reads, drop variant
-        full_augmented_maf_merged = full_augmented_maf_merged[full_augmented_maf_merged["t_alt_count"].astype(int) > 0].copy()
-        full_augmented_maf_merged["AF"] = (
-            full_augmented_maf_merged["t_alt_count"].astype(int) /
-            full_augmented_maf_merged["t_depth"].astype(int)
+        # Drop duplicate variants based on variant_key
+        full_augmented_maf_merged["variant_key"] = (
+            full_augmented_maf_merged["Chromosome"].astype(str) + "_" +
+            full_augmented_maf_merged["Start_Position"].astype(str) + "_" +
+            full_augmented_maf_merged["Tumor_Seq_Allele2"].astype(str)
         )
-        full_augmented_maf_merged.insert(43, "AF", full_augmented_maf_merged.pop("AF"))
+        full_augmented_maf_merged = full_augmented_maf_merged.drop_duplicates(subset="variant_key", keep="first").copy()
 
+        # Compute AF for all rows where counts exist
+        # Do NOT drop index variants; filtering will only apply to augmented subset.
+        numeric_ok = (
+            full_augmented_maf_merged["t_alt_count"].notna() &
+            full_augmented_maf_merged["t_depth"].notna()
+        )
+        full_augmented_maf_merged.loc[numeric_ok, "AF"] = (
+            full_augmented_maf_merged.loc[numeric_ok, "t_alt_count"].astype(int) /
+            full_augmented_maf_merged.loc[numeric_ok, "t_depth"].astype(int)
+        )
+
+        # Apply filtering (phasing computed inside)
         return self._filter_augmented_variants(full_augmented_maf_merged)
 
     def _merge_overlapping_sets(self, sets):
@@ -142,7 +202,6 @@ class AugmentMAF(object):
                 if work[i] & work[j]:  # they overlap
                     work[i] |= work[j]  # in-place union
                     work.pop(j)         # remove merged set
-                    # do not advance j; new work[i] might intersect the next one now at index j
                 else:
                     j += 1
             i += 1
@@ -154,7 +213,6 @@ class AugmentMAF(object):
         Returns:
             List of sets, where each set contains variant keys (chr_pos_alt) that are phased together.
         """
-
         phase_col = getattr(self.cfg, "phase_ID_col", None)
         add_mafs = getattr(self.cfg, "add_maf_files", None)
         index_maf = getattr(self.cfg, "index_maf", None)
@@ -173,7 +231,7 @@ class AugmentMAF(object):
             # drop rows with empty phase ID col
             if inmaf[phase_col].isnull().all():
                 continue
-            # only keep rows with IDs  in phase col
+            # only keep rows with IDs in phase col
             inmaf = inmaf[~inmaf[phase_col].isnull()].copy()
 
             # create variant key
@@ -184,7 +242,7 @@ class AugmentMAF(object):
             # skip if none found
             if not all_phase_ids:
                 continue
-                
+
             # populate pid dict
             local_sets = {pid: set() for pid in all_phase_ids}
             # fill sets
@@ -202,183 +260,209 @@ class AugmentMAF(object):
 
         return final_phase_sets
 
-    def _mark_phased_vars(self, maf: pd.DataFrame) -> pd.DataFrame:
-        """take input maf, and mark variants that are present with more
-        than one of the variants in the same phase set.
+    def _subset_and_run(self, this_chromosome: str) -> Tuple[pd.DataFrame, Dict[str, Set[str]]]:
         """
-        phased_sets = self._fetch_phase_var_sets()
-        if not phased_sets:
-            # has empty phase cols, with NaN values
-            maf["phase_set_index"] = pd.NA
-            maf["phase_set_size"] = 0
-            return maf
+        Process a single chromosome:
+          - Compute counts for augmented (additional_maf) variants on this chromosome, collecting qnames.
+          - Collect qnames-only for relevant index variants in phase sets overlapping augmented variants on this chromosome.
+          - Return (augmented_subset_with_counts, qname_dict)
+        """
+        print(f"Working on chromosome {this_chromosome} ...")
 
-        # create variant key
+        # Subset additional variants for this chromosome
+        missing_maf = self.master_maf[self.master_maf["Chromosome"] == this_chromosome].copy()
+        missing_maf = missing_maf[missing_maf["variant_source"] == "additional_maf"].copy()
+
+        # Local qname sink for this worker
+        qname_sink: Dict[str, Set[str]] = defaultdict(set)
+
+        # 1) Process augmented variants: compute strict counts and collect qnames
+        if not missing_maf.empty:
+            for var in missing_maf.itertuples():
+                variant_key = f"{var.Chromosome}_{int(var.Start_Position)}_{var.Tumor_Seq_Allele2}"
+                read_counts = self._get_read_support(
+                    chrom=var.Chromosome,
+                    start=int(var.Start_Position),
+                    end=int(var.End_Position),
+                    ref_base=var.Reference_Allele,
+                    alt_base=var.Tumor_Seq_Allele2,
+                    bamfile=self.cfg.index_bam,
+                    mut_class=var.Variant_Type,
+                    variant_key=variant_key,
+                    alt_qname_sink=qname_sink
+                )
+
+                missing_maf.at[var.Index, "t_depth"] = read_counts["tumor_depth"]
+                missing_maf.at[var.Index, "t_ref_count"] = read_counts["tumor_ref_count"]
+                missing_maf.at[var.Index, "t_alt_count"] = read_counts["tumor_alt_count"]
+
+                if self.cfg.compute_umi_metrics:
+                    umi_mean = read_counts.get("UMI_mean")
+                    umi_max = read_counts.get("UMI_max")
+                    umi_3 = read_counts.get("UMI_3_count")
+                    missing_maf.at[var.Index, "UMI_mean"] = float(umi_mean) if umi_mean is not None else math.nan
+                    missing_maf.at[var.Index, "UMI_max"] = int(umi_max) if umi_max is not None else math.nan
+                    missing_maf.at[var.Index, "UMI_3_count"] = int(umi_3) if umi_3 is not None else math.nan
+
+        # 2) Collect qnames for relevant index variants in the same phase sets as augmented variants (this chromosome)
+        relevant_index_rows = pd.DataFrame()
+        if not missing_maf.empty and self._phase_sets:
+            # Build augmented variant_key set for this chromosome
+            missing_maf["variant_key"] = (
+                missing_maf["Chromosome"].astype(str) + "_" +
+                missing_maf["Start_Position"].astype(int).astype(str) + "_" +
+                missing_maf["Tumor_Seq_Allele2"].astype(str)
+            )
+            augmented_keys = set(missing_maf["variant_key"].tolist())
+            augmented_set_idxs = {self._var_to_set_index[vk] for vk in augmented_keys if vk in self._var_to_set_index}
+
+            if augmented_set_idxs:
+                # From index_maf_df, select rows on this chromosome that are members of any of these set indices
+                idx_df = self.index_maf_df[self.index_maf_df["Chromosome"] == this_chromosome].copy()
+                if not idx_df.empty:
+                    idx_df["variant_key"] = (
+                        idx_df["Chromosome"].astype(str) + "_" +
+                        idx_df["Start_Position"].astype(int).astype(str) + "_" +
+                        idx_df["Tumor_Seq_Allele2"].astype(str)
+                    )
+                    idx_df["set_idx"] = idx_df["variant_key"].map(self._var_to_set_index)
+                    relevant_index_rows = idx_df[idx_df["set_idx"].isin(augmented_set_idxs)].copy()
+
+        if not relevant_index_rows.empty:
+            # For each relevant index variant, collect alt-supporting qnames ONLY (do not recompute counts)
+            for row in relevant_index_rows.itertuples():
+                variant_key = f"{row.Chromosome}_{int(row.Start_Position)}_{row.Tumor_Seq_Allele2}"
+                # Only collect if this variant is part of a phase set
+                track_alt = (variant_key in self._phase_group_variant_keys)
+                if not track_alt:
+                    continue
+                # Invoke scanning using the same strict allele logic, but we ignore counts and only capture qnames
+                _ = self._get_read_support(
+                    chrom=row.Chromosome,
+                    start=int(row.Start_Position),
+                    end=int(row.End_Position),
+                    ref_base=row.Reference_Allele,
+                    alt_base=row.Tumor_Seq_Allele2,
+                    bamfile=self.cfg.index_bam,
+                    mut_class=row.Variant_Type,
+                    variant_key=variant_key,
+                    alt_qname_sink=qname_sink
+                )
+
+        print(f"Finished working on chromosome {this_chromosome} ...")
+        return missing_maf, qname_sink
+
+    def _filter_augmented_variants(self, inmaf: pd.DataFrame) -> pd.DataFrame:
+        """
+        Apply filtering criteria to augmented variants only.
+        Index variants pass through unchanged (but may carry phase metadata).
+        """
+        maf = inmaf.copy()
+
+        # Compute phasing annotations using observed co-occurrence
+        maf = self._mark_phased_vars(maf)
+
+        # Split augmented vs index
+        is_aug = maf["variant_source"] == "additional_maf"
+        maf_aug = maf[is_aug].copy()
+        maf_idx = maf[~is_aug].copy()
+
+        # Drop augmented rows with missing counts
+        if not maf_aug.empty:
+            maf_aug = maf_aug.dropna(subset=["t_alt_count", "t_depth"]).copy()
+            # Drop augmented rows with zero alt (do NOT touch index rows)
+            maf_aug = maf_aug[maf_aug["t_alt_count"].astype(int) > 0].copy()
+
+            # Recompute AF for augmented safely
+            maf_aug["AF"] = (maf_aug["t_alt_count"].astype(int) / maf_aug["t_depth"].astype(int))
+
+        # Apply phased/unphased thresholds to augmented only
+        phased_aug = maf_aug[maf_aug["is_phased"]].copy()
+        unphased_aug = maf_aug[~maf_aug["is_phased"]].copy()
+
+        if not phased_aug.empty:
+            phased_aug = phased_aug[
+                phased_aug["t_alt_count"].astype(int) >= self.cfg.phased_min_t_alt_count
+            ].copy()
+
+        if not unphased_aug.empty:
+            unphased_aug = unphased_aug[
+                (unphased_aug["t_alt_count"].astype(int) >= self.cfg.min_alt_count) &
+                (unphased_aug["t_depth"].astype(int) > self.cfg.min_t_depth)
+            ].copy()
+
+        # UMI filter (augmented only, if metrics exist)
+        if self.cfg.compute_umi_metrics and self.cfg.min_UMI_3_count:
+            if "UMI_3_count" in phased_aug.columns and not phased_aug.empty:
+                phased_aug = phased_aug[phased_aug["UMI_3_count"].astype(int) >= self.cfg.min_UMI_3_count].copy()
+            if "UMI_3_count" in unphased_aug.columns and not unphased_aug.empty:
+                unphased_aug = unphased_aug[unphased_aug["UMI_3_count"].astype(int) >= self.cfg.min_UMI_3_count].copy()
+
+        # Apply VAF threshold only to augmented rows if requested
+        if self.cfg.min_VAF is not None:
+            if not phased_aug.empty:
+                phased_aug = phased_aug[phased_aug["AF"] >= self.cfg.min_VAF].copy()
+            if not unphased_aug.empty:
+                unphased_aug = unphased_aug[unphased_aug["AF"] >= self.cfg.min_VAF].copy()
+
+        # Combine back: keep all index rows unfiltered
+        outmaf = pd.concat([maf_idx, unphased_aug, phased_aug], ignore_index=True)
+
+        # Clean up helper columns if desired (keep for QC)
+        # Ensure Tumor_Sample_Barcode is set
+        outmaf["Tumor_Sample_Barcode"] = self.cfg.sample_id
+
+        return outmaf
+
+    def _mark_phased_vars(self, maf: pd.DataFrame) -> pd.DataFrame:
+        """
+        Adds:
+          - phase_set_index, phase_set_size (from pre-established sets)
+          - phased_fragment_count (observed co-occurrence fragments via qname)
+          - is_phased (phased_fragment_count >= 1)
+        """
+        maf = maf.copy()
         maf["variant_key"] = (
             maf["Chromosome"].astype(str) + "_" +
             maf["Start_Position"].astype(str) + "_" +
             maf["Tumor_Seq_Allele2"].astype(str)
         )
 
-        # create map of variant_key to phase set index
-        var_to_set = {}
-        for i, pset in enumerate(phased_sets):
-            for var in pset:
-                var_to_set[var] = i
-
-        maf["phase_set_index"] = maf["variant_key"].map(var_to_set)
-        index_counts = maf["phase_set_index"].value_counts().to_dict()
+        # phase_set_index and size
+        maf["phase_set_index"] = maf["variant_key"].map(self._var_to_set_index)
+        index_counts = maf["phase_set_index"].value_counts(dropna=True).to_dict()
         maf["phase_set_size"] = maf["phase_set_index"].map(index_counts).fillna(0).astype(int)
-        # mark as phased if part of a set with more than one variant
-        maf["is_phased"] = maf["phase_set_size"] > 1
+
+        # observed phased fragments
+        phased_fragment_counts = self._compute_phased_fragment_counts()
+        maf["phased_fragment_count"] = maf["variant_key"].map(phased_fragment_counts).fillna(0).astype(int)
+
+        # label is_phased based on observed evidence (>= 1 fragment)
+        maf["is_phased"] = maf["phased_fragment_count"] >= self._min_phased_fragments_for_phased_label
 
         return maf
 
-    def _filter_augmented_variants(self, inmaf: pd.DataFrame) -> pd.DataFrame:
-        """Apply filtering criteria to augmented maf.
-        
-        Filters based on min read support and UMI family support.
-        If any variant in a phased set (phase_set_size > 1) meets the relaxed
-        phased threshold, all variants in that set are kept (regardless of
-        their individual t_alt_count). Non-phased variants (and phased sets
-        with no member passing) are filtered by the standard thresholds.
+    def _compute_phased_fragment_counts(self) -> Dict[str, int]:
         """
-        maf = inmaf.copy()
-        maf = self._mark_phased_vars(maf)
+        Using self._phase_sets and self._alt_support_qnames, compute:
+          dict[variant_key] -> phased_fragment_count
+        A phased fragment is a query_name that contains >=2 members of the same phase set.
+        """
+        if not self._phase_sets:
+            return {}
+        counts = {vk: 0 for vk in self._phase_group_variant_keys}
+        for pset in self._phase_sets:
+            frags_to_vars = defaultdict(list)  # qname -> [variant_keys in this set]
+            for vk in pset:
+                for qn in self._alt_support_qnames.get(vk, ()):
+                    frags_to_vars[qn].append(vk)
+            for qn, members in frags_to_vars.items():
+                if len(members) >= 2:
+                    for vk in members:
+                        counts[vk] += 1
+        return counts
 
-        # Split phased vs non-phased
-        phased_vars = maf[maf["phase_set_size"] > 1].copy()
-        maf_nonphased = maf[maf["phase_set_size"] <= 1].copy()
-
-        # Keep whole phase sets if ANY member meets relaxed threshold
-        if not phased_vars.empty:
-            keeper_phase_indices = phased_vars.loc[
-                phased_vars["t_alt_count"].astype(int) >= self.cfg.phased_min_t_alt_count,
-                "phase_set_index"
-            ].unique()
-            phased_vars = phased_vars[phased_vars["phase_set_index"].isin(keeper_phase_indices)]
-
-        # Standard filtering for non-phased (and phased sets that didn't trigger)
-        maf_nonphased = maf_nonphased[
-            (maf_nonphased["t_alt_count"].astype(int) >= self.cfg.min_alt_count) &
-            (maf_nonphased["t_depth"].astype(int) > self.cfg.min_t_depth)
-        ].copy()
-
-        if self.cfg.min_UMI_3_count and maf_nonphased.shape[0] > 0:
-            maf_nonphased = maf_nonphased[
-                maf_nonphased["UMI_3_count"].astype(int) >= self.cfg.min_UMI_3_count
-            ].copy()
-
-        outmaf = pd.concat([maf_nonphased, phased_vars], ignore_index=True)
-
-        # if VAF threshold set, apply it now
-        if self.cfg.min_VAF is not None and outmaf.shape[0] > 0:
-            outmaf = outmaf[outmaf["AF"] >= self.cfg.min_VAF].copy()
-
-        return outmaf
-
-
-    def _get_missing_maf_rows(self):
-        additional_mafs = []
-        for maf in (self.cfg.add_maf_files or []):
-            other_maf = self.read_maf(maf)
-            other_maf["variant_source"] = "additional_maf"
-            additional_mafs.append(other_maf)
-
-        additional_vars = self.mark_origin(pd.concat(additional_mafs))
-        all_mafs = pd.concat([self.index_maf_df, additional_vars]).reset_index(drop=True).copy()
-        all_mafs["variant_key"] = (
-            all_mafs["Chromosome"] + "_" +
-            all_mafs["Start_Position"].astype(str) + "_" +
-            all_mafs["Tumor_Seq_Allele2"].astype(str)
-        )
-        all_mafs = all_mafs.drop_duplicates(subset="variant_key", keep="first").copy()
-        all_mafs.drop(columns=["variant_key"], inplace=True)
-        return all_mafs
-
-    def run_or_not(self):
-        if self.cfg.add_maf_files and len(self.cfg.add_maf_files) > 0:
-            return self._get_missing_maf_rows()
-        else:
-            return None
-
-    def mark_origin(self, add_mafs: pd.DataFrame) -> pd.DataFrame:
-        add_mafs["variant_key"] = (
-            add_mafs["Chromosome"] + "_" +
-            add_mafs["Start_Position"].astype(str) + "_" +
-            add_mafs["Tumor_Seq_Allele2"].astype(str)
-        )
-        variant_key_dict = add_mafs.groupby("variant_key")["Tumor_Sample_Barcode"].agg(
-            lambda x: ",".join(list(x))
-        ).to_dict()
-        add_mafs["origin_samples"] = add_mafs["variant_key"].map(variant_key_dict)
-        return add_mafs
-
-    def _subset_and_run(self, this_chromosome: str) -> pd.DataFrame:
-        print(f"Working on chromosome {this_chromosome} ...")
-        missing_maf = self.master_maf[self.master_maf["Chromosome"] == this_chromosome].copy()
-        missing_maf = missing_maf[missing_maf["variant_source"] == "additional_maf"].copy()
-        print(f"Found these variants to augment: {missing_maf}")
-
-        for var in missing_maf.itertuples():
-            read_counts = self._get_read_support(
-                chrom=var.Chromosome,
-                start=int(var.Start_Position),
-                end=int(var.End_Position),
-                ref_base=var.Reference_Allele,
-                alt_base=var.Tumor_Seq_Allele2,
-                bamfile=self.cfg.index_bam,
-                mut_class=var.Variant_Type
-            )
-
-            missing_maf.at[var.Index, "t_depth"] = read_counts["tumor_depth"]
-            missing_maf.at[var.Index, "t_ref_count"] = read_counts["tumor_ref_count"]
-            missing_maf.at[var.Index, "t_alt_count"] = read_counts["tumor_alt_count"]
-
-            if self.cfg.compute_umi_metrics:
-                umi_mean = read_counts.get("UMI_mean")
-                umi_max = read_counts.get("UMI_max")
-                umi_3 = read_counts.get("UMI_3_count")
-                missing_maf.at[var.Index, "UMI_mean"] = float(umi_mean) if umi_mean is not None else math.nan
-                missing_maf.at[var.Index, "UMI_max"] = int(umi_max) if umi_max is not None else math.nan
-                missing_maf.at[var.Index, "UMI_3_count"] = int(umi_3) if umi_3 is not None else math.nan
-
-        print(f"Finished working on chromosome {this_chromosome} ...")
-        return missing_maf
-
-    def _get_read_support(self, chrom: str, start: int, end: int, ref_base: str, alt_base: str, 
-                          bamfile: str, mut_class: str, min_base_qual=10, min_mapping_qual=40,
-                          padding: int = 100) -> dict:
-        params = self._setup_variant_params(start, end, ref_base, mut_class, padding)
-        samfile = self._open_bam_file(bamfile)
-
-        if mut_class == "INS":
-            ref_count, alt_count, total_depth, umi_sizes = self._process_insertion(
-                samfile, chrom, params, alt_base,
-                min_base_qual, min_mapping_qual, self.cfg.compute_umi_metrics)
-        elif mut_class == "DEL":
-            ref_count, alt_count, total_depth, umi_sizes = self._process_deletion(
-                samfile, chrom, params, ref_base,
-                min_base_qual, min_mapping_qual, self.cfg.compute_umi_metrics)
-        elif mut_class in ["SNP", "DNP"]:
-            # unchanged
-            ref_count, alt_count, total_depth, umi_sizes = self._process_snp_dnp(
-                samfile, chrom, params, ref_base, alt_base, mut_class,
-                min_base_qual, min_mapping_qual, self.cfg.compute_umi_metrics)
-        else:
-            samfile.close()
-            raise ValueError(f"Unsupported mutation class: {mut_class}")
-
-        samfile.close()
-        result = self._format_results(ref_count, alt_count, total_depth)
-
-        if self.cfg.compute_umi_metrics:
-            umi_mean, umi_max, umi_ge3 = self._compute_umi_metrics(umi_sizes)
-            result["UMI_mean"] = umi_mean
-            result["UMI_max"] = umi_max
-            result["UMI_3_count"] = umi_ge3
-
-        return result
+    # ---------- BAM processing and allele support ----------
 
     def _setup_variant_params(self, start: int, end: int, ref_base: str, mut_class: str, padding: int) -> dict:
         actual_start = start - 1
@@ -404,9 +488,57 @@ class AugmentMAF(object):
         else:
             return pysam.AlignmentFile(bamfile, 'rb')
 
-    def _process_snp_dnp(self, samfile, chrom: str, params: dict, ref_base: str, alt_base: str, 
+    def _get_read_support(self, chrom: str, start: int, end: int, ref_base: str, alt_base: str,
+                          bamfile: str, mut_class: str, min_base_qual=10, min_mapping_qual=40,
+                          padding: int = 100, variant_key: str = None,
+                          alt_qname_sink: Dict[str, Set[str]] = None) -> dict:
+        """
+        Compute strict ref/alt counts and (optionally) collect alt-supporting qnames into alt_qname_sink.
+        """
+        params = self._setup_variant_params(start, end, ref_base, mut_class, padding)
+        samfile = self._open_bam_file(bamfile)
+
+        if variant_key is None:
+            variant_key = f"{chrom}_{start}_{alt_base}"
+        track_alt = (variant_key in self._phase_group_variant_keys)
+
+        if mut_class == "INS":
+            ref_count, alt_count, total_depth, umi_sizes = self._process_insertion(
+                samfile, chrom, params, alt_base,
+                min_base_qual, min_mapping_qual, self.cfg.compute_umi_metrics,
+                track_alt, variant_key, alt_qname_sink
+            )
+        elif mut_class == "DEL":
+            ref_count, alt_count, total_depth, umi_sizes = self._process_deletion(
+                samfile, chrom, params, ref_base,
+                min_base_qual, min_mapping_qual, self.cfg.compute_umi_metrics,
+                track_alt, variant_key, alt_qname_sink
+            )
+        elif mut_class in ["SNP", "DNP"]:
+            ref_count, alt_count, total_depth, umi_sizes = self._process_snp_dnp(
+                samfile, chrom, params, ref_base, alt_base, mut_class,
+                min_base_qual, min_mapping_qual, self.cfg.compute_umi_metrics,
+                track_alt, variant_key, alt_qname_sink
+            )
+        else:
+            samfile.close()
+            raise ValueError(f"Unsupported mutation class: {mut_class}")
+
+        samfile.close()
+        result = self._format_results(ref_count, alt_count, total_depth)
+
+        if self.cfg.compute_umi_metrics:
+            umi_mean, umi_max, umi_ge3 = self._compute_umi_metrics(umi_sizes)
+            result["UMI_mean"] = umi_mean
+            result["UMI_max"] = umi_max
+            result["UMI_3_count"] = umi_ge3
+
+        return result
+
+    def _process_snp_dnp(self, samfile, chrom: str, params: dict, ref_base: str, alt_base: str,
                          mut_class: str, min_base_qual: int, min_mapping_qual: int,
-                         collect_umi: bool) -> tuple:
+                         collect_umi: bool, track_alt: bool, variant_key: str,
+                         alt_qname_sink: Dict[str, Set[str]] = None) -> tuple:
         per_read = {}
         for pileupcolumn in samfile.pileup(
             chrom, params['padded_start'], params['padded_end'],
@@ -434,6 +566,14 @@ class AugmentMAF(object):
         ref_count = alt_count = total_depth = 0
         umi_sizes = []
         seen_keys = set()
+
+        def record_umi(aln):
+            if collect_umi and aln is not None:
+                key, size = self._umi_key_and_size(aln)
+                if size is not None and key not in seen_keys:
+                    seen_keys.add(key)
+                    umi_sizes.append(size)
+
         for read_name, rec in per_read.items():
             bases = rec["bases"]
             total_depth += 1
@@ -443,11 +583,9 @@ class AugmentMAF(object):
                     ref_count += 1
                 elif b == alt_base:
                     alt_count += 1
-                    if collect_umi and rec["alt_aln"] is not None:
-                        key, size = self._umi_key_and_size(rec["alt_aln"])
-                        if size is not None and key not in seen_keys:
-                            seen_keys.add(key)
-                            umi_sizes.append(size)
+                    record_umi(rec["alt_aln"])
+                    if track_alt and alt_qname_sink is not None:
+                        alt_qname_sink[variant_key].add(read_name)
             else:
                 if bases[0] == bases[1]:
                     b = bases[0]
@@ -455,20 +593,20 @@ class AugmentMAF(object):
                         ref_count += 1
                     elif b == alt_base:
                         alt_count += 1
-                        if collect_umi and rec["alt_aln"] is not None:
-                            key, size = self._umi_key_and_size(rec["alt_aln"])
-                            if size is not None and key not in seen_keys:
-                                seen_keys.add(key)
-                                umi_sizes.append(size)
+                        record_umi(rec["alt_aln"])
+                        if track_alt and alt_qname_sink is not None:
+                            alt_qname_sink[variant_key].add(read_name)
                 else:
                     if ref_base in bases:
                         ref_count += 1
+                    # Mixed non-concordant alt bases are not counted as strict alt support.
         return ref_count, alt_count, total_depth, umi_sizes
 
     def _process_insertion(self, samfile, chrom: str, params: dict,
-                        alt_base: str,
-                        min_base_qual: int, min_mapping_qual: int,
-                        collect_umi: bool) -> tuple:
+                           alt_base: str,
+                           min_base_qual: int, min_mapping_qual: int,
+                           collect_umi: bool, track_alt: bool, variant_key: str,
+                           alt_qname_sink: Dict[str, Set[str]] = None) -> tuple:
         """
         Strict insertion support (REF == '-', ALT = inserted sequence).
         Depth counts reads that:
@@ -563,6 +701,8 @@ class AugmentMAF(object):
 
             if alt_supported:
                 alt_count += 1
+                if track_alt and alt_qname_sink is not None:
+                    alt_qname_sink[variant_key].add(read.query_name)
                 if collect_umi:
                     key, size = self._umi_key_and_size(read)
                     if size is not None and key not in seen_umi:
@@ -573,9 +713,10 @@ class AugmentMAF(object):
         return ref_count, alt_count, total_depth, umi_sizes
 
     def _process_deletion(self, samfile, chrom: str, params: dict,
-                        ref_base: str,
-                        min_base_qual: int, min_mapping_qual: int,
-                        collect_umi: bool) -> tuple:
+                          ref_base: str,
+                          min_base_qual: int, min_mapping_qual: int,
+                          collect_umi: bool, track_alt: bool, variant_key: str,
+                          alt_qname_sink: Dict[str, Set[str]] = None) -> tuple:
         """
         Strict deletion support (REF = exactly deleted bases, ALT='-').
 
@@ -585,8 +726,6 @@ class AugmentMAF(object):
         A read is ALT if, in addition:
         - It contains a CIGAR 'D' that starts exactly at deletion_start_0 (0-based)
             and has length == len(REF).
-
-        No additional span-membership check is performed (trust CIGAR).
         """
         # Variant geometry
         start_1 = params['original_start']          # 1-based first deleted base
@@ -673,6 +812,8 @@ class AugmentMAF(object):
 
             # ALT-supporting read
             alt_count += 1
+            if track_alt and alt_qname_sink is not None:
+                alt_qname_sink[variant_key].add(read.query_name)
             if collect_umi:
                 key, size = self._umi_key_and_size(read)
                 if size is not None and key not in seen_umi:
@@ -681,6 +822,8 @@ class AugmentMAF(object):
 
         ref_count = total_depth - alt_count
         return ref_count, alt_count, total_depth, umi_sizes
+
+    # ---------- UMI helpers ----------
 
     def _umi_key_and_size(self, aln):
         try:
@@ -701,6 +844,8 @@ class AugmentMAF(object):
         ge3 = sum(1 for x in sizes if x >= 3)
         return mean_v, max_v, ge3
 
+    # ---------- SNP/DNP helpers ----------
+
     def _extract_variant_sequence(self, pileupread, mut_class: str, variant_length: int) -> str:
         query_pos = pileupread.query_position
         query_sequence = pileupread.alignment.query_sequence
@@ -718,29 +863,7 @@ class AugmentMAF(object):
         else:
             return None
 
-    def _count_read_support(self, read_bases: dict, ref_base: str, alt_base: str) -> tuple:
-        ref_count = alt_count = total_depth = 0
-        for read_name in read_bases:
-            bases = read_bases[read_name]
-            if len(bases) == 1:
-                total_depth += 1
-                if bases[0] == ref_base:
-                    ref_count += 1
-                elif bases[0] == alt_base:
-                    alt_count += 1
-            elif bases[0] == bases[1]:
-                total_depth += 1
-                if bases[0] == ref_base:
-                    ref_count += 1
-                elif bases[0] == alt_base:
-                    alt_count += 1
-            else:
-                total_depth += 1
-                if bases[0] == ref_base or bases[1] == ref_base:
-                    ref_count += 1
-                elif bases[0] == alt_base and bases[1] == alt_base:
-                    alt_count += 1
-        return ref_count, alt_count, total_depth
+    # ---------- Formatting ----------
 
     def _format_results(self, ref_count: int, alt_count: int, total_depth: int) -> dict:
         return {
@@ -749,11 +872,51 @@ class AugmentMAF(object):
             'tumor_alt_count': str(alt_count)
         }
 
+    # ---------- Additional maf helpers ----------
+
+    def _get_missing_maf_rows(self):
+        additional_mafs = []
+        for maf in (self.cfg.add_maf_files or []):
+            other_maf = self.read_maf(maf)
+            other_maf["variant_source"] = "additional_maf"
+            additional_mafs.append(other_maf)
+
+        additional_vars = self.mark_origin(pd.concat(additional_mafs))
+        all_mafs = pd.concat([self.index_maf_df, additional_vars]).reset_index(drop=True).copy()
+        all_mafs["variant_key"] = (
+            all_mafs["Chromosome"].astype(str) + "_" +
+            all_mafs["Start_Position"].astype(str) + "_" +
+            all_mafs["Tumor_Seq_Allele2"].astype(str)
+        )
+        all_mafs = all_mafs.drop_duplicates(subset="variant_key", keep="first").copy()
+        all_mafs.drop(columns=["variant_key"], inplace=True)
+        return all_mafs
+
+    def run_or_not(self):
+        if self.cfg.add_maf_files and len(self.cfg.add_maf_files) > 0:
+            return self._get_missing_maf_rows()
+        else:
+            return None
+
+    def mark_origin(self, add_mafs: pd.DataFrame) -> pd.DataFrame:
+        add_mafs["variant_key"] = (
+            add_mafs["Chromosome"].astype(str) + "_" +
+            add_mafs["Start_Position"].astype(str) + "_" +
+            add_mafs["Tumor_Seq_Allele2"].astype(str)
+        )
+        variant_key_dict = add_mafs.groupby("variant_key")["Tumor_Sample_Barcode"].agg(
+            lambda x: ",".join(list(x))
+        ).to_dict()
+        add_mafs["origin_samples"] = add_mafs["variant_key"].map(variant_key_dict)
+        return add_mafs
+
+
 def main():
     args = get_args()
     cfg = AugmnentMAFArgs(**vars(args))
     augment_maf_runner = AugmentMAF(cfg)
     augment_maf_runner.write_output()
+
 
 if __name__ == '__main__':
     main()

@@ -2,7 +2,7 @@ import pandas as pd
 import os
 import datetime
 import sys
-MODULE_PATH = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules/Tempest/1.0/")
+MODULE_PATH = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules/tempest/1.0/")
 sys.path.append(MODULE_PATH) # add local module to path
 from _version import __version__ as pv # get pipeline version
 
