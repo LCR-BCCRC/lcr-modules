@@ -600,9 +600,7 @@ rule _cnvkit_to_seg:
     group: "cnvkit_post_process"
     shell:
         op.as_one_line("""
-        echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
-        python {input.cnv2igv} --mode cnvkit --sample {wildcards.tumour_id}
-        {input.cns} > {output.seg} 2>> {log.stderr}
+        python3 {params.script} --mode cnvkit --sample {wildcards.sample_id} {input.cns} > {output.seg} 2> {log.stderr}
         """)
 
 
@@ -744,19 +742,19 @@ rule _cnvkit_normalize_projection:
         chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
         # handle chr prefix
         if "chr" in chromosomes["chromosome"][0]:
-            seg_open = pd.read_csv(input.filled, sep = "\t")
+            seg_open = pd.read_csv(input.filled, sep = "\t", dtype='str')
             chrom = list(seg_open['chrom'])
             # avoid cases of chrchr1 if the prefix already there
             for i in range(len(chrom)):
                 if 'chr' not in str(chrom[i]):
                     chrom[i]='chr'+str(chrom[i])
             seg_open.loc[:, 'chrom']=chrom
-            seg_open.to_csv(output.projection, sep="\t", index=False)
+            seg_open.to_csv(output.projection, sep="\t", index=False, na_rep='NA')
         else:
             # remove chr prefix
             seg_open = pd.read_csv(input.filled, sep = "\t")
             seg_open["chrom"] = seg_open["chrom"].astype(str).str.replace('chr', '')
-            seg_open.to_csv(output.projection, sep="\t", index=False)
+            seg_open.to_csv(output.projection, sep="\t", index=False, na_rep='NA')
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _cnvkit_output_projection:
