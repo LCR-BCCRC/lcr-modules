@@ -22,7 +22,7 @@ def get_args():
     parser.add_argument('--genome_build', required=True, type=str, help='genome build')
     parser.add_argument('--min_alt_count', required=True, type=int, help='minimum alt count reads needed to keep variant')
     parser.add_argument('--min_t_depth', required=False, type=int, default=50, help='minimum depth needed to keep variant, default is 50')
-    parser.add_argument('--min_VAF', required=False, type=float, help='minimum VAF needed to keep variant, default is 0.01')
+    parser.add_argument('--min_VAF', required=False, type=float, help='minimum VAF needed to keep variant, default is None (no filter)')
     parser.add_argument('--output', required=True, type=str, help='output file')
 
     # Optional: compute UMI metrics (MI and cD tags)
@@ -114,8 +114,6 @@ class AugmentMAF(object):
             print("No additional maf files provided ... returning index maf")
             out_df = self.index_maf_df.copy()
             out_df["origin_samples"] = ""
-            # Ensure variant_source is set for consistency
-            out_df["variant_source"] = "index_maf"
             return out_df
 
         new_vars = self.master_maf.loc[self.master_maf["variant_source"] == "additional_maf"].shape[0]
@@ -123,7 +121,6 @@ class AugmentMAF(object):
             print("No new variants to add to index maf ... returning index maf")
             out_df = self.index_maf_df.copy()
             out_df["origin_samples"] = ""
-            out_df["variant_source"] = "index_maf"
             return out_df
         elif new_vars > 0:
             print(f"Found {new_vars} new variants to add to index maf ...")
