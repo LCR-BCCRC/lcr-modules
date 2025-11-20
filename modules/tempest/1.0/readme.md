@@ -34,12 +34,12 @@ to utilize matched normal samples from a patient, using the workflow `.../cfDNA_
 using this workflow. However, unpaired samples can have variants called by using `.../cfDNA_SAGE_workflow_unpaired.smk`. However, besides
 using gnomAD frequencies and a PON for filtering, no other steps attempt to remove germline mutations.
 
-<img alt="TEMPEST pipeline" src="https://github.com/user-attachments/assets/ee7a4e1d-88e1-451f-ad79-c3849d350a2e" height="800" />
+<p align="center"><img height="800" alt="TEMPEST pipeline (1)" src="https://github.com/user-attachments/assets/9e6a9502-bd5b-4475-b1ad-00a524827132" />
 
 ## Read Support Filters
 Final variant filtering is carried out by `.../utils/custom_filters.py`. To help determine why variants were included in the final output, a
-`variant_source` column is added to the final .maf, which lists the reasons a variant passed filtering, possible values are: high_vaf, 
-additional_maf (added by augmentMAF) or phase_group. 
+`variant_source` column is added to the final .maf, which lists the reasons a variant passed filtering, possible values are: high_vaf, hotspot,
+additional_maf or phase_group. 
 
 It should be noted that part of TEMPEST's approach to filtering variants is built on the premise that there can be some contamination of tumour
 DNA in the matched normal. Hypothetically, this could occur as a result of poor fractionation of a plasma sample or from circulating tumour cells
@@ -48,23 +48,31 @@ can be found in matched normal samples for tumour variants, including known hots
 normal was built into TEMPEST. This can be adjusted in the config.
 
 Values shown are defaults which can be specified in the config. <br>
-<img height="600" alt="Variant Filtering (1)" src="https://github.com/user-attachments/assets/9a0e1ab8-c7d0-42ad-bec8-6cf39a830474" />
+<p align="center"><img height="600" alt="Variant Filtering" src="https://github.com/user-attachments/assets/e6d99ac0-d297-4d0f-bbaa-8288afad7b15" />
 
+### augmentMAF
+
+TEMPEST uses a script called `.../utils/augmentMAF.py` to augment final variant calls in a given sample with still detectable, but uncalled, variants found in other samples from the same patient. It does this by searching for read support for variants from all available samples from a patient, in the given index sample .bam file. These augmented variants provide increased sensitivity, particularly when tracking variants temporally.
+
+As variants being augmented have already passed filtering in their origin sample, criteria for their augmentation is less strict. Included in this augmentation process, is the tracking of phased variants. The augmentMAF script combines intersecting phased variant sets from all input samples (index and additional), then determines if these variants are phased in the given sample. Variants that were found to be phased are given a value of TRUE in the column `is_phased` added to the final output .maf.
+
+For augmented variants, their originating sample(s) are listed in the `origin_samples` column added to the final output .mafs.
 
 ### Hotspot and Notspot Lists
-While SAGE can use a tiered system for filtering variants, including if variants fall within a hotspot, TEMPEST uses custom hotspot
-and notspot (aka blacklist) positions in conjunction with other read support parameters in a custom script. Therefore, user-provided lists
-are integral to enhancing performance of filtering. The lists should be provided as a txt file with no header, with each line being a single
-position, formatted like: `chr:position`.
+
+TEMPEST uses custom hotspot and notspot (aka blacklist) positions in conjunction with other read support parameters in a custom script. Therefore, user-provided lists are integral to enhancing performance of filtering. The lists should be provided as a txt file with no header, with each line being a single position, formatted like: `chr:position`.
 
 ### Phase Sets
+
+Phasing information is used in two places in the pipeline: in the the read support filtering and when augmenting the final variant set (described above).
+
 When calling variants SAGE assigns variants with overlapping read evidence to local phase sets, and this information is preserved and used
-by TEMPEST for downstream filtering. One or more variants from a phase set need to be present for TEMPEST to consider
-phase set information while filtering.
+by TEMPEST when doing its own read support filtering (diagram above). One or more variants from a phase set need to be present for TEMPEST to consider
+variants phased.
 
 ### UMI Support
 Using a custom script `.../utils/FetchVariantUMIs.py`, TEMPEST annotates variant calls in each .maf file with metrics related to the UMI family
-sizes (aka how many raw reads were duplicates of each other and had the same UMIs) of reads containing alt alleles.
+sizes of reads containing alt alleles.
 
 - **UMI_mean**: the mean UMI family size for all alt allele reads
 - **UMI_max**: the maximum UMI family size amongst all alt allele reads
@@ -72,15 +80,8 @@ sizes (aka how many raw reads were duplicates of each other and had the same UMI
 
 For filtering UMI_3_count is used to add requirements for error correction on reads that support alt alleles.
 
-### augmentMAF
-
-TEMPEST uses a script called `.../utils/augmentMAF.py` to augment final variant calls in a given sample with still detectable, but uncalled due to poor support, variants found in other samples from the same patient. These augmented variants provide increased sensitivity using TEMPEST by leveraging multiple sample from patients, such as when tracking variants temporally.
-
-As variants being augmented have already passed filtering in their origin sample, criteria for their inclusion in a sample's final .maf are less strict. However, augmentMAF.py does track UMI family sizes and phasing, which allows for some minimal, and adjustable, filtering criteria. 
-
-For augmented variants, their originating sample(s) are listed in the `origin_samples` column added to the final output .mafs.
-
 ### CHIP Variants
+
 TEMPEST flags, but does not remove, variants that could be a result of clonal hematopoiesis of intermediate potential (CHIP) with a boolean column `CHIP` in the final .maf.
 
 Variants are flagged if: 1) the alt allele VAF is ≥ 2% in the matched normal or 2) the alt allele vaf is x3 larger in the matched normal than in the tumour sample. 
