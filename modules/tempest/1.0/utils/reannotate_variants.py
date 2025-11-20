@@ -18,6 +18,26 @@ tier list must have the columns "Gene" and "Tier"
 """
 import pandas as pd
 import argparse
+import re
+
+# Precompile the pattern for performance.
+# You can extend DESCRIPTORS if new annotation types appear.
+DESCRIPTORS = [
+    "TSS",
+    "intron", "intronic",
+    "promoter", "enhancer",
+    "utr", "UTR",
+    "distal", "intergenic",
+    "flank", "Flank",
+    "upstream", "downstream",
+]
+
+# Build the alternation part dynamically from DESCRIPTORS (escape if needed).
+_descriptor_alt = "|".join(DESCRIPTORS)
+
+# Regex: match a delimiter + descriptor, then any trailing tokens, at end of string.
+_SUFFIX_PATTERN = re.compile(
+    rf"[-_]({_descriptor_alt})(?:[-_0-9A-Za-z]+)*$")
 
 
 def parse_args():
@@ -84,11 +104,32 @@ def reannotate_variants(maf_df: pd.DataFrame, panel_df: pd.DataFrame) -> pd.Data
             continue
     return indf
 
+def cleanup_hugo_symbols(in_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Remove trailing region/context annotation segments from Hugo_Symbol.
+
+    Examples:
+      PAX5-TSS-2 -> PAX5
+      IGLL5-TSS -> IGLL5
+      RFTN1_TSS_active_promoter-strong_enhancer -> RFTN1
+      LTB-intron-1 -> LTB
+      HLA-A -> HLA-A (unchanged; 'A' is part of gene symbol, not a descriptor)
+    """
+    df = in_df.copy()
+    # Ensure string dtype to avoid errors on non-str entries (e.g. NaN).
+    df["Hugo_Symbol"] = (
+        df["Hugo_Symbol"]
+        .astype(str)
+        .str.replace(_SUFFIX_PATTERN, "", regex=True)
+    )
+    return df
+
 def main():
     args = parse_args()
     panel_df = read_panel_bed(args.panel_bed)
     maf_df = read_maf(args.in_maf)
     maf_df = reannotate_variants(maf_df, panel_df)
+    maf_df = cleanup_hugo_symbols(maf_df)
     maf_df.to_csv(args.out_maf, sep="\t", index=False)
 
 
