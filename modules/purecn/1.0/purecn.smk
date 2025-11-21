@@ -1281,16 +1281,18 @@ if CFG["cnvkit_seg"] == True:
             seg = CFG["dirs"]["convert_coordinates"] + "purecn_cnvkit/cnv2igv_seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg"
         log:
             stderr = CFG["logs"]["convert_coordinates"] + "purecn_cnvkit/cnv2igv_seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_seg2igv.stderr.log"
+        params:
+            opts = CFG["options"]["preserve"]
         conda:
             CFG["conda_envs"]["cnv2igv"]
         threads: 1
         group: "purecn_post_process"
         shell:
-            op.as_one_line("""
-            echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
-            python {input.cnv2igv} --mode purecn_cnvkit --preserve_log_ratio --sample {wildcards.tumour_id}
-            {input.fixed_seg} > {output.seg} 2>> {log.stderr}
-            """)
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
+        python {input.cnv2igv} --mode purecn {params.opts} --sample {wildcards.tumour_id}
+        {input.fixed_seg} > {output.seg} 2>> {log.stderr}
+        """)
 
 # -------------------------------------------------------------------------------------------------- #
 # For pureCN de novo PSCBS seg method using its own coverage files
@@ -1425,6 +1427,8 @@ rule _purecn_denovo_cnv2igv_seg:
         seg = CFG["dirs"]["convert_coordinates"] + "purecn_denovo/cnv2igv_seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg"
     log:
         stderr = CFG["logs"]["convert_coordinates"] + "purecn_denovo/cnv2igv_seg/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_seg2igv.stderr.log"
+    params:
+        opts = CFG["options"]["preserve"]
     conda:
         CFG["conda_envs"]["cnv2igv"]
     threads: 1
@@ -1432,7 +1436,7 @@ rule _purecn_denovo_cnv2igv_seg:
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
-        python {input.cnv2igv} --mode purecn --preserve_log_ratio --sample {wildcards.tumour_id}
+        python {input.cnv2igv} --mode purecn {params.opts} --sample {wildcards.tumour_id}
         {input.fixed_seg} > {output.seg} 2>> {log.stderr}
         """)
 
@@ -1700,12 +1704,12 @@ if CFG["cnvkit_seg"] == True:
                     if 'chr' not in str(chrom[i]):
                         chrom[i]='chr'+str(chrom[i])
                 seg_open.loc[:, 'chrom']=chrom
-                seg_open.to_csv(output.projection, sep="\t", index=False)
+                seg_open.to_csv(output.projection, sep="\t", index=False, na_rep='NA')
             else:
                 # remove chr prefix
                 seg_open = pd.read_csv(input.filled, sep = "\t")
                 seg_open["chrom"] = seg_open["chrom"].astype(str).str.replace('chr', '')
-                seg_open.to_csv(output.projection, sep="\t", index=False)
+                seg_open.to_csv(output.projection, sep="\t", index=False, na_rep='NA')
 
 rule _purecn_denovo_normalize_projection:
     input:
@@ -1732,12 +1736,12 @@ rule _purecn_denovo_normalize_projection:
                 if 'chr' not in str(chrom[i]):
                     chrom[i]='chr'+str(chrom[i])
             seg_open.loc[:, 'chrom']=chrom
-            seg_open.to_csv(output.projection, sep="\t", index=False)
+            seg_open.to_csv(output.projection, sep="\t", index=False, na_rep='NA')
         else:
             # remove chr prefix
             seg_open = pd.read_csv(input.filled, sep = "\t")
             seg_open["chrom"] = seg_open["chrom"].astype(str).str.replace('chr', '')
-            seg_open.to_csv(output.projection, sep="\t", index=False)
+            seg_open.to_csv(output.projection, sep="\t", index=False, na_rep='NA')
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 if CFG["cnvkit_seg"] == True:

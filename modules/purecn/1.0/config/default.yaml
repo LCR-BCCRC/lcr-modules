@@ -95,6 +95,8 @@ lcr-modules:
                 flagged_samples: [] # populate with sample names that you want to convert to using the standard CBS method, which is the standard pureCN to cnvkit call. Noisy segmentation will remain noisy however.
                 failed_samples: [] # populate with sample names that have failed both methods. It will use "none" as the segmentation method. Note, that if the sample fails this and also failed de novo pureCN calling, then the sample may just be problematic. Should omit the sample entirely.
 
+            # cnv2igv preserve log.ratio or change this to "" to calculate it from the absolute CN
+            preserve: "--preserve_log_ratio"
             # liftOver options to convert between genomic builds
             liftover_script_path: "{SCRIPTSDIR}/liftover/2.0/liftover.sh"
             liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build

@@ -592,6 +592,8 @@ rule _cnvkit_to_seg:
         cnv2igv =  ancient(CFG["inputs"]["cnv2igv"])
     output:
         seg = CFG["dirs"]["seg"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.seg"
+    params:
+        opts = CFG["options"]["preserve"]
     log:
         stderr = CFG["logs"]["seg"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_seg2igv.stderr.log"
     conda:
@@ -600,7 +602,9 @@ rule _cnvkit_to_seg:
     group: "cnvkit_post_process"
     shell:
         op.as_one_line("""
-        python3 {params.script} --mode cnvkit --sample {wildcards.sample_id} {input.cns} > {output.seg} 2> {log.stderr}
+        echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
+        python {input.cnv2igv} --mode cnvkit {params.opts} --sample {wildcards.tumour_id}
+        {input.fixed_seg} > {output.seg} 2>> {log.stderr}
         """)
 
 

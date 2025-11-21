@@ -259,6 +259,22 @@ rule _controlfreec_input_bam:
         op.absolute_symlink(input.bai, output.bai)
         op.absolute_symlink(input.bai, output.crai)
 
+rule _controlfreec_mpileup_per_chrom:
+    input:
+        bam = str(rules._controlfreec_input_bam.output.bam),
+        fastaFile = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        bed = str(rules._controlfreec_dbsnp_to_bed.output.bed)
+    output: # creates a temporary file for mpileup
+        pileup = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.{chrom}.minipileup.pileup.gz")
+    conda:
+        CFG["conda_envs"]["controlfreec"]
+    resources:
+        **CFG["resources"]["mpileup"]
+    group: "controlfreec"
+    log:
+        stderr = CFG["logs"]["inputs"] + "mpileup/{seq_type}--{genome_build}/{sample_id}.{chrom}.mpileup.stderr.log",
+    shell:
+        "samtools mpileup -l {input.bed} -r {wildcards.chrom} -Q 20 -f {input.fastaFile} {input.bam} | gzip -c > {output.pileup} 2> {log.stderr}"
 
 #### set-up mpileups for BAF calling ####
 def _controlfreec_get_chr_mpileups(wildcards):
@@ -276,25 +292,6 @@ def _controlfreec_get_chr_mpileups(wildcards):
         chrom = chrs
     )
     return(mpileups)
-
-
-
-rule _controlfreec_mpileup_per_chrom:
-    input:
-        bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bam",
-        fastaFile = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        bed = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/dbsnp.common_all-151.bed"
-    output: # creates a temporary file for mpileup
-        pileup = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.{chrom}.minipileup.pileup.gz")
-    conda:
-        CFG["conda_envs"]["controlfreec"]
-    resources:
-        **CFG["resources"]["mpileup"]
-    group: "controlfreec"
-    log:
-        stderr = CFG["logs"]["inputs"] + "mpileup/{seq_type}--{genome_build}/{sample_id}.{chrom}.mpileup.stderr.log",
-    shell:
-        "samtools mpileup -l {input.bed} -r {wildcards.chrom} -Q 20 -f {input.fastaFile} {input.bam} | gzip -c > {output.pileup} 2> {log.stderr}"
 
 rule _controlfreec_concatenate_pileups:
     input:
@@ -321,7 +318,7 @@ rule _controlfreec_config:
         chrLen = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/{genome_build}.len",
         done = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/chr/.all_done"
     output:
-        CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/config_WGS.txt"
+        config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/config_WGS.txt"
     conda:
         CFG["conda_envs"]["controlfreec"]
     params:
@@ -393,12 +390,12 @@ rule _controlfreec_config:
         "sed \"s|uniqBoo|{params.uniqBoo}|g\" | "
         "sed \"s|naBoo|{params.naBoo}|g\" | "
         "sed \"s|numThreads|{params.threads}|g\" | "
-        "sed \"s|referenceFile|{input.reference}|g\" > {output}"
+        "sed \"s|referenceFile|{input.reference}|g\" > {output.config}"
 
 
 rule _controlfreec_run:
     input:
-        config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/config_WGS.txt",
+        config = str(rules._controlfreec_config.output.config),
         tumour_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.bam_minipileup.pileup.gz",
         normal_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.bam_minipileup.pileup.gz",
     output:
@@ -418,8 +415,8 @@ rule _controlfreec_run:
 
 rule _controlfreec_calc_sig:
     input:
-        CNVs = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
-        ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
+        CNVs = str(rules._controlfreec_run.output.CNV),
+        ratios = str(rules._controlfreec_run.output.ratio)
     output:
         txt = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs.p.value.txt"
     params:
@@ -436,9 +433,9 @@ rule _controlfreec_calc_sig:
 
 rule _controlfreec_plot:
     input:
-        ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
-        BAF = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt",
-        info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_info.txt"
+        ratios = str(rules._controlfreec_run.output.ratio),
+        BAF = str(rules._controlfreec_run.output.BAF),
+        info = str(rules._controlfreec_run.output.info)
     output:
         plot = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt.png",
         log2plot = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt.log2.png",
@@ -457,8 +454,8 @@ rule _controlfreec_plot:
 
 rule _controlfreec_freec2bed:
     input:
-        ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
-        info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_info.txt"
+        ratios = str(rules._controlfreec_run.output.ratio),
+        info = str(rules._controlfreec_run.output.info)
     output:
         bed = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bed"
     params:
@@ -475,8 +472,8 @@ rule _controlfreec_freec2bed:
 
 rule _controlfreec_freec2circos:
     input:
-        ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
-        info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_info.txt"
+        ratios = str(rules._controlfreec_run.output.ratio),
+        info = str(rules._controlfreec_run.output.info)
     output:
         circos = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.circos.bed"
     params:
@@ -493,20 +490,24 @@ rule _controlfreec_freec2circos:
 
 rule _controlfreec_cnv2igv:
     input:
-        cnv = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs.p.value.txt"
+        cnv = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs.p.value.txt",
+        cnv2igv = ancient(CFG["inputs"]["cnv2igv"])
     output:
         seg = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.CNVs.seg"
     params:
-        tumour_id = "{tumour_id}",
-        cnv2igv = CFG["software"]["cnv2igv"]
-    threads: CFG["threads"]["cnv2igv"]
-    resources: **CFG["resources"]["cnv2igv"]
-    conda: CFG["conda_envs"]["controlfreec"]
+        opts = CFG["options"]["preserve"]
+    conda:
+        CFG["conda_envs"]["cnv2igv"]
+    threads: 1
     log:
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/cnv2igv.stderr.log"
     group: "controlfreec_post_process"
     shell:
-        "python3 {params.cnv2igv} --mode controlfreec --sample {params.tumour_id} {input.cnv} > {output.seg} 2> {log.stderr} "
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
+        python {input.cnv2igv} --mode controlfeec {params.opts} --sample {wildcards.tumour_id}
+        {input.fixed_seg} > {output.seg} 2>> {log.stderr}
+        """)
 
 
 def _controlfreec_get_chain(wildcards):
@@ -518,7 +519,7 @@ def _controlfreec_get_chain(wildcards):
 # Convert the coordinates of seg file to a different genome build
 rule _controlfreec_convert_coordinates:
     input:
-        controlfreec_native = str(rules._controlfreec_cnv2igv.output.seg).replace("{filter_status}", "filtered"),
+        controlfreec_native = str(rules._controlfreec_cnv2igv.output.seg),
         controlfreec_chain = _controlfreec_get_chain
     output:
         controlfreec_lifted = CFG["dirs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.seg"
@@ -651,12 +652,12 @@ rule _controlfreec_normalize_projection:
                 if 'chr' not in str(chrom[i]):
                     chrom[i]='chr'+str(chrom[i])
             seg_open.loc[:, 'chrom']=chrom
-            seg_open.to_csv(output.projection, sep="\t", index=False)
+            seg_open.to_csv(output.projection, sep="\t", index=False, na_rep='NA')
         else:
             # remove chr prefix
             seg_open = pd.read_csv(input.filled, sep = "\t")
             seg_open["chrom"] = seg_open["chrom"].astype(str).str.replace('chr', '')
-            seg_open.to_csv(output.projection, sep="\t", index=False)
+            seg_open.to_csv(output.projection, sep="\t", index=False, na_rep='NA')
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
@@ -664,7 +665,7 @@ rule _controlfreec_output_projection:
     input:
         projection = str(rules._controlfreec_normalize_projection.output.projection)
     output:
-        projection = CFG["output"]["seg"]["projection"]
+        projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
     threads: 1
     group: "controlfreec_post_process"
     run:
@@ -683,14 +684,14 @@ rule _controlfreec_output:
         circos = str(rules._controlfreec_freec2circos.output.circos),
         igv = str(rules._controlfreec_cnv2igv.output.seg)
     output:
-        plot = CFG["output"]["png"]["ratio"],
-        log2plot = CFG["output"]["png"]["log2"],
-        CNV = CFG["output"]["txt"]["cnv"],
-        bed = CFG["output"]["bed"]["bed"],
-        BAFgraph = CFG["output"]["png"]["baf"],
-        ratio = CFG["output"]["txt"]["ratio"],
-        circos = CFG["output"]["bed"]["circos"],
-        igv = CFG["output"]["seg"]["original"]
+        plot = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.png",
+        log2plot = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.log2.png",
+        CNV = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.txt",
+        bed = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.bed",
+        BAFgraph = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.png",
+        ratio = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.txt",
+        circos = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.circos.bed",
+        igv = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.seg"
     group: "controlfreec_post_process"
     run:
         op.relative_symlink(input.plot, output.plot, in_module = True)
@@ -734,10 +735,9 @@ rule _controlfreec_all:
             normal_id=CFG["runs"]["normal_sample_id"],
             seq_type=CFG["runs"]["tumour_seq_type"],
             pair_status=CFG["runs"]["pair_status"],
-            #repeat the tool name N times in expand so each pair in run is used
-            tool=["controlfreec"] * len(CFG["runs"]["tumour_sample_id"]),
             allow_missing=True),
-            projection=CFG["output"]["requested_projections"])
+            tool="controlfreec",
+            projection=["requested_projections"])
 
 
 

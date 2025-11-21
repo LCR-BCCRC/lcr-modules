@@ -255,14 +255,15 @@ rule _sequenza_cnv2igv:
     log:
         stderr = CFG["logs"]["igv_seg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/cnv2igv.{filter_status}.stderr.log"
     params:
-        opts = CFG["options"]["cnv2igv"]
+        opts = CFG["options"]["preserve"]
     conda:
         CFG["conda_envs"]["cnv2igv"]
     group: "sequenza_post_process"
     shell:
         op.as_one_line("""
-        python {input.cnv2igv} {params.opts} --sample {wildcards.tumour_id}
-        {input.segments} > {output} 2> {log.stderr}
+        echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
+        python {input.cnv2igv} --mode sequenza {params.opts} --sample {wildcards.tumour_id}
+        {input.fixed_seg} > {output.seg} 2>> {log.stderr}
         """)
 
 
@@ -407,12 +408,12 @@ rule _sequenza_normalize_projection:
                 if 'chr' not in str(chrom[i]):
                     chrom[i]='chr'+str(chrom[i])
             seg_open.loc[:, 'chrom']=chrom
-            seg_open.to_csv(output.projection, sep="\t", index=False)
+            seg_open.to_csv(output.projection, sep="\t", index=False, na_rep='NA')
         else:
             # remove chr prefix
             seg_open = pd.read_csv(input.filled, sep = "\t")
             seg_open["chrom"] = seg_open["chrom"].astype(str).str.replace('chr', '')
-            seg_open.to_csv(output.projection, sep="\t", index=False)
+            seg_open.to_csv(output.projection, sep="\t", index=False, na_rep='NA')
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
@@ -420,7 +421,7 @@ rule _sequenza_output_projection:
     input:
         projection = str(rules._sequenza_normalize_projection.output.projection)
     output:
-        projection = CFG["output"]["seg"]["projection"]
+        projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
     threads: 1
     group: "sequenza_post_process"
     run:
@@ -431,7 +432,7 @@ rule _sequenza_output_seg:
     input:
         seg = str(rules._sequenza_cnv2igv.output.igv).replace("{filter_status}", "filtered")
     output:
-        seg = CFG["dirs"]["outputs"] + CFG["output"]["seg"]["original"]
+        seg = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
     group: "sequenza_post_process"
     run:
         op.relative_symlink(input.seg, output.seg, in_module=True)
@@ -441,7 +442,7 @@ rule _sequenza_output_sub:
     input:
         sub = str(rules._sequenza_fill_txt.output.sub).replace("{filter_status}", "filtered")
     output:
-        sub = CFG["output"]["txt"]["segments"]
+        sub = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.txt"
     group: "sequenza_post_process"
     run:
         op.relative_symlink(input.sub, output.sub, in_module=True)
@@ -470,10 +471,9 @@ rule _sequenza_all:
             normal_id=CFG["runs"]["normal_sample_id"],
             seq_type=CFG["runs"]["tumour_seq_type"],
             pair_status=CFG["runs"]["pair_status"],
-            #repeat the tool name N times in expand so each pair in run is used
-            tool=["sequenza"] * len(CFG["runs"]["tumour_sample_id"]),
             allow_missing=True),
-            projection=CFG["output"]["requested_projections"])
+            tool="sequenza",
+            projection=CFG["requested_projections"])
 
 
 ##### CLEANUP #####

@@ -68,6 +68,8 @@ lcr-modules:
                 threshold: 0.15 # 0.2 will report single-copy gains/losses in a completely pure tumour sample or germline. A lower threshold would be necessary if significant normal cell contamination is present.
                 min_segments: 3 # minimum number of segments/bins that need to be consistently called
 
+            # cnv2igv preserve log.ratio or change this to "" to calculate it from the absolute CN
+            preserve: "--preserve_log_ratio"
             # liftOver options to convert between genomic builds
             liftover_script_path: "{SCRIPTSDIR}/liftover/2.0/liftover.sh"
             liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
