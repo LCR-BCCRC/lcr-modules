@@ -87,8 +87,6 @@ lcr-modules:
         threads:
             reference: 24
             cns: 24
-            seg: 8
-
 
         resources:
             reference:

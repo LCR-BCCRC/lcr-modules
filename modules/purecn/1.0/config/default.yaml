@@ -127,12 +127,15 @@ lcr-modules:
             liftover: "{SCRIPTSDIR}/liftover/2.0/liftover.yaml"
 
         threads:
+            gem: 4
             setinterval: 3
             coverage: 3
             pureCN: 4
             mutect2: 4
 
         resources:
+            gem:
+                mem_mb: 16000
             setinterval:
                 mem_mb: 6000
             mutect:
