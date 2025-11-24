@@ -506,7 +506,7 @@ rule _controlfreec_cnv2igv:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
         python {input.cnv2igv} --mode controlfeec {params.opts} --sample {wildcards.tumour_id}
-        {input.fixed_seg} > {output.seg} 2>> {log.stderr}
+        {input.cnv} > {output.seg} 2>> {log.stderr}
         """)
 
 

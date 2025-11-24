@@ -158,7 +158,7 @@ rule _battenberg_to_igv_seg:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
         python {input.cnv2igv} --mode battenberg {params.opts} --sample {wildcards.tumour_id}
-        {input.fixed_seg} > {output.seg} 2>> {log.stderr}
+        {input.sub} > {output.seg} 2>> {log.stderr}
         """)
 
 
