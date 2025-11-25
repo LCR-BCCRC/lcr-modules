@@ -197,6 +197,7 @@ rule _qc_gatk_wgs:
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
+        max_read_length=$(grep ^SN {input.samtools_stats} | cut -f 2- | grep "maximum length:" | cut -f 2); 
         gatk
         --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
         CollectWgsMetrics
@@ -204,7 +205,7 @@ rule _qc_gatk_wgs:
         -I {input.bam}
         -O {output.gatk_wgs}
         -R {input.fasta}
-        --READ_LENGTH $(grep ^SN {input.samtools_stats} | cut -f 2- | grep "average length:" | cut -f 2)
+        --READ_LENGTH $((max_read_length + 5)) 
         >> {log.stdout}
         2>> {log.stderr} &&
         echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
