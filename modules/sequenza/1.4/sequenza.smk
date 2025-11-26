@@ -50,9 +50,10 @@ localrules:
     _sequenza_input_bam,
     _sequenza_input_chroms,
     _sequenza_input_dbsnp_pos,
-    _sequenza_cnv2igv,
     _sequenza_output_seg,
-    _sequenza_all,
+    _sequenza_output_projection,
+    _sequenza_output_sub,
+    _sequenza_all
 
 
 ##### RULES #####
@@ -74,16 +75,16 @@ rule _sequenza_input_bam:
 
 
 # Pulls in list of chromosomes for the genome builds
-checkpoint _sequenza_input_chroms:
+rule _sequenza_input_chroms:
     input:
-        txt = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
+        txt = ancient(reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt"))
     output:
         txt = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
     run:
         op.absolute_symlink(input.txt, output.txt)
 
 
-# Pulls in list of chromosomes for the genome builds
+
 rule _sequenza_input_dbsnp_pos:
     input:
         vcf = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")
@@ -422,7 +423,9 @@ rule _sequenza_output_projection:
         projection = str(rules._sequenza_normalize_projection.output.projection)
     output:
         projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
-    threads: 1
+    wildcard_constraints:
+        projection = "|".join(CFG["requested_projections"]),
+        pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist()))
     group: "sequenza_post_process"
     run:
         op.relative_symlink(input.projection, output.projection, in_module = True)
@@ -433,6 +436,9 @@ rule _sequenza_output_seg:
         seg = str(rules._sequenza_cnv2igv.output.igv).replace("{filter_status}", "filtered")
     output:
         seg = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
+    wildcard_constraints:
+        projection = "|".join(CFG["requested_projections"]),
+        pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist()))
     group: "sequenza_post_process"
     run:
         op.relative_symlink(input.seg, output.seg, in_module=True)

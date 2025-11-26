@@ -40,9 +40,9 @@ lcr-modules:
             vcf_sort:
                 mem_mb: 2000
             bam2seqz:
-                mem_mb: 10000
+                mem_mb: 50000
                 bam: 1
-                disk_mb: 10000
+                disk_mb: 50000
             merge_seqz:
                 mem_mb: 10000
             filter_seqz:
@@ -55,7 +55,7 @@ lcr-modules:
                 bam: 1
 
         threads:
-            bam2seqz: 3
+            bam2seqz: 24
             merge_seqz: 1
             filter_seqz: 1
             sequenza: 8
