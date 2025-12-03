@@ -2,12 +2,12 @@
 
 library(rtracklayer)
 
-args <- commandArgs()
+args <- commandArgs(trailingOnly = TRUE)
 
-dataTable <-read.table(args[5], header=TRUE);
+dataTable <-read.table(args[2], header=TRUE);
 ratio<-data.frame(dataTable)
 
-dataTable <- read.table(args[4], header=FALSE)
+dataTable <- read.table(args[1], header=FALSE)
 cnvs<- data.frame(dataTable)
 
 ratio$Ratio[which(ratio$Ratio==-1)]=NA
@@ -70,6 +70,6 @@ if (numberOfCol==7) {
 if (numberOfCol==9) {
   names(cnvs)=c("chr","start","end","copy number","status","genotype","uncertainty","somatic/germline","precentageOfGermline","WilcoxonRankSumTestPvalue","KolmogorovSmirnovPvalue", "log2_median_ratio")
 }
-write.table(cnvs, file=paste(args[4],".p.value.txt",sep=""),sep="\t",quote=F,row.names=F)
+write.table(cnvs, file=paste(args[1],".p.value.txt",sep=""),sep="\t",quote=F,row.names=F)
 
 

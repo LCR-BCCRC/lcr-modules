@@ -12,7 +12,7 @@ lcr-modules:
         requested_projections: ["grch37", "hg38"]
 
         scratch_subdirectories: []
-        # rules _controlfreec_mpileup_per_chrom and _controlfreec_concatenate_pileups would require scratch space
+        # grouped rules _controlfreec_mpileup_per_chrom and _controlfreec_concatenate_pileups require scratch space
 
         conda_envs:
             controlfreec: "{MODSDIR}/envs/controlfreec.env.yaml"
@@ -34,8 +34,8 @@ lcr-modules:
                 # 2: make a separate fragment of the unknown region and attach to left/right, ploidy has priority
                 # 3: make a separate fragment of the unknown region and attach to left/right, choosing the longer one, BUT known region should make at least half size of the unknown region
                 # 4: make a separate fragment of the unknown region and do not assign any copy number to this region at all
-            coefficientOfVariation: 0.062 # coefficient used to evaluate window size - the lower, the more windows
-            contaminationAdjustment: TRUE # if "contamination" value is not provided, it will automaticaly evaluate. For bugs where contamination detection is stalled, just set contaminationAdjustment to FALSE.
+            coefficientOfVariation: 0.062 # coefficient used to evaluate window size - the lower, the more windows; wil be overruled if optional options step and window are non-empty!!
+            contaminationAdjustment: TRUE # Will be changed to FALSE for samples not in the optional option "contaminationAdjust_FALSE_samples" list below; the optional option of the a priori contamination value below is not used unless this is FALSE
             degree: '3\&4' # degree of polynomial - 3&4 for WGS (GC-based normalization); 1 for WES (control-read-count-based normalization). You can comment out degree to let control-freec choose.
             forceGCcontentNormalization: 1 #0 for WGS; 1 for WES # 0 forces control-base normalization, 1 forces GC
             intercept: 1 # 0 for control-based (paired) ; 1 for GC-content (unpaired)
@@ -49,13 +49,15 @@ lcr-modules:
             telocentromeric: 50000 # size of pre-telomeric and pre-centromeric regions to exclude
             uniqueMatch: FALSE # uses mappability profile to correct read counts
 
-            #optional options: (uncomment these options in config_WGS.txt to implement them)
-            #if implemented, contamination will overrule contaminationAdjustment
-            #step and window will overrule coefficientOfVariation
-            contamination: 0 # a priori known value of tumor sample contamination by normals
+            # optional options
+            # will overrule contaminationAdjustment above
+            contaminationAdjust_FALSE_samples: [] # list samples that should be ran with contaminationAdjustment FALSE, using the a priori contamination value below
+            contamination: 0 # a priori known value of tumor sample contamination by normals, only used when contaminationAdjustment FALSE, I.e. for contaminationAdjust_FALSE_samples
+            # step and window will overrule coefficientOfVariation value above if they are not ""
+            step: "" # e.g. 20000, only if window is specified; do not use for WES
+            window: "" # e.g. 100000
+            # the below isn't actually added to the config
             sex: XX or XY # sex=XX will exclude chrY and sex=XY will not annotate one copy of X and Y as a loss
-            step: 20000 # only if window is specified; do not use for WES
-            window: 100000 # window size
 
             #BAF options:
             minimalCoveragePerPosition: 10 # for BAF: minimum position coverage default is 0
@@ -90,9 +92,8 @@ lcr-modules:
             gem: 24
             controlfreec_run: 24
             calc_sig: 1
-            plot: 1
             freec2bed: 1
-            freec2circos: 11
+            freec2circos: 1
 
         resources:
             gem:
@@ -106,8 +107,6 @@ lcr-modules:
                 mem_mb: 48000
                 pileup: 1
             calc_sig:
-                mem_mb: 1000
-            plot:
                 mem_mb: 1000
             freec2bed:
                 mem_mb: 1000

@@ -49,6 +49,7 @@ CFG = op.setup_module(
 localrules:
     _controlfreec_input_bam,
     _controlfreec_config,
+    _controlfreec_plot,
     _controlfreec_output,
     _controlfreec_all
 
@@ -268,6 +269,7 @@ rule _controlfreec_mpileup_per_chrom:
         pileup = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.{chrom}.minipileup.pileup.gz")
     conda:
         CFG["conda_envs"]["controlfreec"]
+    threads: 1
     resources:
         **CFG["resources"]["mpileup"]
     group: "controlfreec"
@@ -428,7 +430,7 @@ rule _controlfreec_calc_sig:
         stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/calc_sig.stdout.log",
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/calc_sig.stderr.log"
     shell:
-        "cat {params.calc_sig} | R --slave --args {input.CNVs} {input.ratios} > {log.stdout} 2> {log.stderr}"
+        "Rscript --vanilla {params.calc_sig} {input.CNVs} {input.ratios} > {log.stdout} 2> {log.stderr}"
 
 
 rule _controlfreec_plot:
@@ -442,14 +444,14 @@ rule _controlfreec_plot:
         bafplot = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt.png"
     params:
         plot = CFG["software"]["FREEC_graph"]
-    threads: CFG["threads"]["plot"]
-    resources: **CFG["resources"]["plot"]
+    resources:
+        bam = 1
     conda: CFG["conda_envs"]["controlfreec"]
     log:
         stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/plot.stdout.log",
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/plot.stderr.log"
     shell:
-        "cat {params.plot} | R --slave --args `grep \"Output_Ploidy\" {input.info} | cut -f 2` {input.ratios} {input.BAF} > {log.stdout} 2> {log.stderr} "
+        "Rscript --vanilla {params.plot} `grep \"Output_Ploidy\" {input.info} | cut -f 2` {input.ratios} {input.BAF} > {log.stdout} 2> {log.stderr} "
 
 
 rule _controlfreec_freec2bed:
@@ -505,7 +507,7 @@ rule _controlfreec_cnv2igv:
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
-        python {input.cnv2igv} --mode controlfeec {params.opts} --sample {wildcards.tumour_id}
+        python {input.cnv2igv} --mode controlfreec {params.opts} --sample {wildcards.tumour_id}
         {input.cnv} > {output.seg} 2>> {log.stderr}
         """)
 
@@ -737,7 +739,7 @@ rule _controlfreec_all:
             pair_status=CFG["runs"]["pair_status"],
             allow_missing=True),
             tool="controlfreec",
-            projection=["requested_projections"])
+            projection=CFG["requested_projections"])
 
 
 
