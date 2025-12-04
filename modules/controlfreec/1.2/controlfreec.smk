@@ -312,6 +312,39 @@ rule _controlfreec_concatenate_pileups:
 #### Run control-FREEC ####
 
 # set-up controlfreec
+# these have to be each their own function, bc `params:` can't handle dicts or use unpack()
+def _controlfreec_get_contamAdjust_Boo(wildcards):
+    CFG = config["lcr-modules"]["controlfreec"]
+    if any(sample in str({wildcards.tumour_id}) for sample in CFG["options"]["contaminationAdjust_FALSE_samples"]):
+        cfg_booCon = "FALSE"
+    else:
+        cfg_booCon = CFG["options"]["contaminationAdjustment"]
+    return(cfg_booCon)
+
+def _controlfreec_get_contamAdjust_Num(wildcards):
+    CFG = config["lcr-modules"]["controlfreec"]
+    if any(sample in str({wildcards.tumour_id}) for sample in CFG["options"]["contaminationAdjust_FALSE_samples"]):
+        cfg_numCon = "contamination = " + str(CFG["options"]["contamination"]) # will replace the entire line, so it's no longer commented out
+    else:
+        cfg_numCon = "#contamination = " + str(CFG["options"]["contamination"]) # will stay commented out, won't be used, just needed for the code below
+    return(cfg_numCon)
+
+def _controlfreec_get_optional_step(wildcards):
+    CFG = config["lcr-modules"]["controlfreec"]
+    if CFG["options"]["step"] != "":
+        cfg_step = "step = " + str(CFG["options"]["step"]) # will replace the entire line, so it's no longer commented out
+    else:
+        cfg_step = "#step = " + str(CFG["options"]["step"]) # will stay commented out, won't be used, just needed for the code below
+    return(cfg_step)
+
+def _controlfreec_get_optional_window(wildcards):
+    CFG = config["lcr-modules"]["controlfreec"]
+    if CFG["options"]["window"] != "":
+        cfg_window = "window = " + str(CFG["options"]["window"]) # will replace the entire line, so it's no longer commented out
+    else:
+        cfg_window = "#window = " + str(CFG["options"]["window"]) # will stay commented out, won't be used, just needed for the code below
+    return(cfg_window)
+
 rule _controlfreec_config:
     input:
         tumour_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.bam_minipileup.pileup.gz",
@@ -324,34 +357,34 @@ rule _controlfreec_config:
     conda:
         CFG["conda_envs"]["controlfreec"]
     params:
+        booCon = _controlfreec_get_contamAdjust_Boo,
+        numCon = _controlfreec_get_contamAdjust_Num,
+        window = _controlfreec_get_optional_window,
+        step = _controlfreec_get_optional_step,
         config = CFG["options"]["configFile"],
-        dbSNP = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"),
-        shiftInQuality = CFG["options"]["shiftInQuality"],
-        outdir = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/",
-        window = CFG["options"]["window"],
-        ploidy = CFG["options"]["ploidy"],
+        bedGraphOutput = CFG["options"]["BedGraphOutput"],
         breakPointValue = CFG["options"]["breakPointThreshold"],
         breakPointType = CFG["options"]["breakPointType"],
         coefVar = CFG["options"]["coefficientOfVariation"],
-        numCon = CFG["options"]["contamination"],
-        booCon = CFG["options"]["contaminationAdjustment"],
-        bedGraphOutput = CFG["options"]["BedGraphOutput"],
         degree = CFG["options"]["degree"],
         forceGC = CFG["options"]["forceGCcontentNormalization"],
-        chrFiles = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/chr/",
         intercept = CFG["options"]["intercept"],
         minCNAlength = CFG["options"]["minCNAlength"],
-        minimalCoveragePerPosition = CFG["options"]["minimalCoveragePerPosition"],
-        minimalQualityPerPosition = CFG["options"]["minQualityPerPosition"],
         minMapPerWindow = CFG["options"]["minMappabilityPerWindow"],
         minimumSubclonePresence = CFG["options"]["minimalSubclonePresence"],
-        naBoo = CFG["options"]["printNA"],
         noisyData = CFG["options"]["noisyData"],
         readCountThreshold = CFG["options"]["readCountThreshold"],
-        step = CFG["options"]["step"],
+        ploidy = CFG["options"]["ploidy"],
+        naBoo = CFG["options"]["printNA"],
         telocentromeric = CFG["options"]["telocentromeric"],
+        uniqBoo = CFG["options"]["uniqueMatch"],
+        minimalCoveragePerPosition = CFG["options"]["minimalCoveragePerPosition"],
+        minimalQualityPerPosition = CFG["options"]["minQualityPerPosition"],
+        shiftInQuality = CFG["options"]["shiftInQuality"],
         threads = CFG["threads"]["controlfreec_run"],
-        uniqBoo = CFG["options"]["uniqueMatch"]
+        dbSNP = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"),
+        outdir = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/",
+        chrFiles = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/chr/"
     shell:
         "samtoolspath=$(which samtools ) ; "
         "samtoolsPathName=$(echo $samtoolspath) ; "
@@ -364,7 +397,6 @@ rule _controlfreec_config:
         "sed \"s|OUTDIR|{params.outdir}|g\" | "
         "sed \"s|DBsnpFile|{params.dbSNP}|g\" | "
         "sed \"s|phredQuality|{params.shiftInQuality}|g\" | "
-        "sed \"s|windowSize|{params.window}|g\" | "
         "sed \"s|ploidyInput|{params.ploidy}|g\" | "
         "sed \"s|chrLenFileInput|{input.chrLen}|g\" | "
         "sed \"s|chrFilesPath|{params.chrFiles}|g\" | "
@@ -375,8 +407,10 @@ rule _controlfreec_config:
         "sed \"s|breakPointTypeBe|{params.breakPointType}|g\" | "
         "sed \"s|bedgraphBoo|{params.bedGraphOutput}|g\" | "
         "sed \"s|coefVar|{params.coefVar}|g\" | "
-        "sed \"s|numCon|{params.numCon}|g\" | "
+        "sed \"s|#step = stepValue|{params.step}|g\" | "
+        "sed \"s|#window = windowSize|{params.window}|g\" | "
         "sed \"s|booCon|{params.booCon}|g\" | "
+        "sed \"s|#contamination = numCon|{params.numCon}|g\" | "
         "sed \"s|forceGCvalue|{params.forceGC}|g\" | "
         "sed \"s|interPoly|{params.intercept}|g\" | "
         "sed \"s|numDegree|{params.degree}|g\" | "
@@ -386,7 +420,6 @@ rule _controlfreec_config:
         "sed \"s|minCovPerPos|{params.minimalCoveragePerPosition}|g\" | "
         "sed \"s|minQualPerPos|{params.minimalQualityPerPosition}|g\" | "
         "sed \"s|booNoise|{params.noisyData}|g\" | "
-        "sed \"s|stepValue|{params.step}|g\" | "
         "sed \"s|rcCountThresold|{params.readCountThreshold}|g\" | "
         "sed \"s|teloValue|{params.telocentromeric}|g\" | "
         "sed \"s|uniqBoo|{params.uniqBoo}|g\" | "
