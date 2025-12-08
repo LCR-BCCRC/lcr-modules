@@ -249,8 +249,8 @@ rule _controlfreec_dbsnp_to_bed:
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _controlfreec_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"],
-        bai = CFG["inputs"]["sample_bai"]
+        bam = ancient(CFG["inputs"]["sample_bam"]),
+        bai = ancient(CFG["inputs"]["sample_bai"])
     output:
         bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bai",
