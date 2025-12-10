@@ -29,10 +29,8 @@ except ModuleNotFoundError:
 
 current_version = pkg_resources.get_distribution("oncopipe").version
 if version.parse(current_version) < version.parse(min_oncopipe_version):
-    logger.warning(
-                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
-                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
-                )
+    print(f"ERROR: oncopipe version installed: {current_version}")
+    print(f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment")
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
 # End of dependency checking section    
@@ -41,30 +39,16 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["battenberg"]`
 CFG = op.setup_module(
     name = "battenberg",
-    version = "1.2",
+    version = "1.1",
     subdirectories = ["inputs", "infer_sex", "battenberg", "convert_coordinates", "fill_regions", "normalize", "outputs"],
 )
 
 #set variable for prepending to PATH based on config
-BATTENBERG_SCRIPT_PATH = CFG['inputs']['src_dir']
+SCRIPT_PATH = CFG['inputs']['src_dir']
 #this is used in place of the shell.prefix() because that was not working consistently. This is not ideal. 
 
 #this preserves the variable when using lambda functions
-#_battenberg_CFG = CFG
-
-# Define rules to be run locally when using a compute cluster
-localrules:
-    _battenberg_all
-
-BATTENBERG_VERSION_MAP = {
-    "hg19": "grch37",
-    "grch37": "grch37",
-    "hs37d5": "grch37",
-    "hg38": "hg38",
-    "grch38": "hg38",
-    "grch38-legacy": "hg38"
-
-}
+_battenberg_CFG = CFG
 
 # Return the canonical ploidy (first entry in config ploidy_runs) or a sensible default
 def _canonical_ploidy():
@@ -74,50 +58,12 @@ def _canonical_ploidy():
         return "1.6-4.8"
     return pr[0]
 
+# Define rules to be run locally when using a compute cluster
+localrules:
+    _battenberg_all
+
+
 ##### RULES #####
-
-# Downloads the reference files into the module results directory (under '00-inputs/') from https://www.bcgsc.ca/downloads/morinlab/reference/ . 
-rule _battenberg_get_reference:
-    output:
-        battenberg_impute =  directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_impute_v3"),
-        impute_info = CFG["dirs"]["inputs"] + "reference/{genome_build}/impute_info.txt",
-        probloci =  CFG["dirs"]["inputs"] + "reference/{genome_build}/probloci.txt.gz",
-        battenberg_wgs_replic_correction = directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_wgs_replic_correction_1000g_v3"),
-        battenberg_gc_correction = directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_wgs_gc_correction_1000g_v3"),  
-        genomesloci = directory(CFG["dirs"]["inputs"] + "reference/{genome_build}/battenberg_1000genomesloci2012_v3")
-    params:
-        url = "https://www.bcgsc.ca/downloads/morinlab/reference",
-        alt_build = lambda w: BATTENBERG_VERSION_MAP[w.genome_build],
-        folder = CFG["dirs"]["inputs"] + "reference/{genome_build}",
-        build = "{genome_build}",
-        battenberg_path = CFG['inputs']['src_dir']
-    resources:
-        **CFG["resources"]["reference"]
-    threads:
-        CFG["threads"]["reference"]
-    conda: CFG["conda"]["wget"]
-    shell:
-        op.as_one_line("""
-        wget -qO-  {params.url}/battenberg_impute_{params.alt_build}.tar.gz  |
-        tar -xvz > {output.battenberg_impute} -C {params.folder}
-        &&
-        wget -qO- {params.url}/battenberg_{params.alt_build}_gc_correction.tar.gz  |
-        tar -xvz > {output.battenberg_gc_correction} -C {params.folder}
-        &&
-        wget -qO- {params.url}/battenberg_1000genomesloci_{params.alt_build}.tar.gz | 
-        tar -xvz > {output.genomesloci} -C {params.folder}
-        &&
-        wget -O {output.impute_info} {params.url}/impute_info_{params.alt_build}.txt
-        &&
-        python {params.battenberg_path}/reference_correction.py {params.build} $(dirname $(readlink -f {output.impute_info}))
-        &&
-        wget -qO-  {params.url}/battenberg_{params.alt_build}_replic_correction.tar.gz |
-        tar -xvz > {output.battenberg_wgs_replic_correction} -C {params.folder}
-        &&
-        wget -O {output.probloci} {params.url}/probloci_{params.alt_build}.txt.gz
-        
-        """)
-
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _battenberg_input_bam:
@@ -144,13 +90,13 @@ rule _infer_patient_sex:
         **CFG["resources"]["infer_sex"]
     log:
         stderr = CFG["logs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}_infer_sex_stderr.log"
+    group: "setup_run"
     conda:
         CFG["conda_envs"]["samtools"]
-    group: "setup_run"
     threads: 8
     shell:
-        op.as_one_line(""" 
-        PATH={BATTENBERG_SCRIPT_PATH}:$PATH;
+        op.as_one_line("""
+        PATH={SCRIPT_PATH}:$PATH; 
         echo "running {rule} for {wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr} ;
         calc_sex_status.sh {input.normal_bam} {input.fasta} {wildcards.normal_id} > {output.sex_result} 2>> {log.stderr} &&
         echo "DONE running {rule} for {wildcards.normal_id} on $(hostname) at $(date)" >> {log.stderr} 
@@ -159,14 +105,13 @@ rule _infer_patient_sex:
 
 # This rule runs the entire Battenberg pipeline. Eventually we may want to set this rule up to allow re-starting
 # of partially completed jobs (e.g. if they run out of RAM and are killed by the cluster, they can automatically retry)
+# TODO: this rule needs to be modified to rely on reference_files and allow setup (downloading) of the Battenberg references
 rule _run_battenberg:
     input:
         tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        impute_info = str(rules._battenberg_get_reference.output.impute_info)
-
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         # Preprocess outputs (preserve these so multiple fits can reuse them)
         ac=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_alleleCounts.tab",
@@ -179,10 +124,10 @@ rule _run_battenberg:
         stdout = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stdout.log",
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stderr.log"
     params:
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        reference_path = lambda w: _battenberg_CFG["reference_path"][w.genome_build],
         script = CFG["inputs"]["battenberg_script"],
-        out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/",
-        ref = CFG["dirs"]["inputs"] + "reference/{genome_build}"
+        chr_prefixed = lambda w: _battenberg_CFG["options"]["chr_prefixed_reference"][w.genome_build],
+        out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}"
     conda:
         CFG["conda_envs"]["battenberg"]
     resources:
@@ -191,18 +136,14 @@ rule _run_battenberg:
         CFG["threads"]["battenberg"]
     shell:
        op.as_one_line("""
-        if [[ $(head -c 4 {params.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed='false'; fi;
-        echo "$chr_prefixed"
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stdout};
         sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
         echo "setting sex as $sex";
-        mkdir -p {params.out_dir} && \
-        Rscript --vanilla {params.script} -t {wildcards.tumour_id} \
-        -n {wildcards.normal_id} --tb $(readlink -f {input.tumour_bam}) --nb $(readlink -f {input.normal_bam}) -f {input.fasta} --reference $(readlink -f {params.ref}) \
-        -o {params.out_dir} --chr_prefixed_genome $chr_prefixed --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
+        Rscript --vanilla {params.script} -t {wildcards.tumour_id} 
+        -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta}
+        -o {params.out_dir} --sex $sex --reference {params.reference_path} {params.chr_prefixed} --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" >> {log.stdout}; 
         """)
-
 
 
 # Fit rule: run Battenberg fitting using precomputed .tab files. This rule can be run multiple
@@ -213,7 +154,6 @@ rule _run_battenberg_fit:
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        impute_info = str(rules._battenberg_get_reference.output.impute_info),
         # precomputed per-pair tables
         ac = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_alleleCounts.tab",
         mb = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_mutantBAF.tab",
@@ -233,7 +173,7 @@ rule _run_battenberg_fit:
         script = CFG["inputs"]["battenberg_script"],
         preprocess_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/",
         out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_{ploidy_constraint}",
-        ref = CFG["dirs"]["inputs"] + "reference/{genome_build}",
+        reference_path = lambda w: _battenberg_CFG["reference_path"][w.genome_build],
         ploidy_min = lambda w: w.ploidy_constraint.split('-')[0],
         ploidy_max = lambda w: w.ploidy_constraint.split('-')[1]
     conda:
@@ -251,12 +191,14 @@ rule _run_battenberg_fit:
         if [[ $(head -c 4 {input.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed='false'; fi;
         sex=$(cut -f 4 {input.sex_result}| tail -n 1);
         Rscript --vanilla {params.script} -t {wildcards.tumour_id} \
-        -n {wildcards.normal_id} --tb $(readlink -f {input.tumour_bam}) --nb $(readlink -f {input.normal_bam}) -f {input.fasta} --reference $(readlink -f {params.ref}) \
+        -n {wildcards.normal_id} --tb $(readlink -f {input.tumour_bam}) --nb $(readlink -f {input.normal_bam}) -f {input.fasta} --reference $(readlink -f {params.reference_path}) \
         -o {params.out_dir} --chr_prefixed_genome $chr_prefixed --sex $sex --ploidy_constraint {wildcards.ploidy_constraint} --skip_allelecount --skip_preprocessing --skip_phasing --cpu {threads} >> {log.stdout} 2>> {log.stderr} && \
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} ploidy {wildcards.ploidy_constraint} on $(hostname) at $(date)" >> {log.stdout};
         """)
 
+
 # Convert the subclones.txt (best fit) to igv-friendly SEG files. 
+    input:
 rule _battenberg_to_igv_seg:
     input:
         # use the canonical ploidy run's subclones file
@@ -281,9 +223,9 @@ rule _battenberg_fill_subclones:
     input:
         sub = lambda w: str(rules._run_battenberg_fit.output.sub).replace("{ploidy_constraint}", _canonical_ploidy())
     output:
-        sub = CFG["dirs"]["fill_regions"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.filled.txt"
+        sub = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.filled.txt"
     log:
-        stderr = CFG["logs"]["fill_regions"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_fill_subclones.stderr.log"
+        stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_fill_subclones.stderr.log"
     threads: 1
     group: "battenberg_post_process"
     params:
@@ -328,10 +270,6 @@ rule _battenberg_cleanup:
         rm -f $d/*alleleFrequencies* &&
         rm -f $d/*aplotype* &&
         rm -f $d/*BAFsegmented* && 
-        # remove per-pair preprocess .tab files once all fits are complete
-        rm -f $d/preprocess/*alleleCounts* || true &&
-        rm -f $d/preprocess/*mutant* || true &&
-        rm -f $d/preprocess/*normal* || true &&
         touch {output.complete}
         """)
 
@@ -484,6 +422,7 @@ rule _battenberg_normalize_projection:
             seg_open["chrom"] = seg_open["chrom"].astype(str).str.replace('chr', '')
             seg_open.to_csv(output.projection, sep="\t", index=False)
 
+
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _battenberg_output_projection:
     input:
@@ -508,7 +447,7 @@ rule _battenberg_output_seg:
         sub = CFG["output"]["txt"]["subclones"],
         cp = CFG["output"]["txt"]["cell_ploidy"]
     params: 
-        batt_dir = lambda w: CFG["dirs"]["battenberg"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_" + (_canonical_ploidy()),
+        batt_dir = CFG["dirs"]["battenberg"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
         png_dir = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}"
     group: "battenberg_post_process"
     run:
@@ -524,7 +463,7 @@ rule _battenberg_output_seg:
 rule _battenberg_all:
     input:
         expand(
-            [ 
+            [
                 rules._battenberg_output_seg.output.sub,
                 rules._battenberg_output_seg.output.seg,
                 rules._battenberg_cleanup.output.complete
@@ -535,15 +474,6 @@ rule _battenberg_all:
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
             pair_status=CFG["runs"]["pair_status"]),
-        # ensure all per-ploidy fits are run (one per ploidy run entry)
-        expand(
-            str(rules._run_battenberg_fit.output.sub),
-            zip,
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            genome_build=CFG["runs"]["tumour_genome_build"],
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            ploidy_constraint=CFG["options"]["ploidy_runs"]),
         expand(
             expand(
             [
