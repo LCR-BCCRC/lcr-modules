@@ -1,0 +1,72 @@
+lcr-modules:
+    battenberg:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            battenberg_script: "{MODSDIR}/src/battenberg_wgs_hg38.R"
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.4/cnv2igv.py"
+            src_dir: "{MODSDIR}/src/"
+
+        scratch_subdirectories: []
+
+        conda_envs:
+            battenberg: "{MODSDIR}/envs/battenberg-1.1.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
+
+        options:
+            liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
+            liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
+            prefixed_projections: ["grch38", "hg38"] # List here the base names of chr-prefixed projections
+            non_prefixed_projections: ["grch37", "hg19", "hs37d5"] # List here the base names of non-prefixed projections
+            fill_segments_version: "1.1/"
+            # List of ploidy constraint ranges to run Battenberg with. Each entry must be "MIN-MAX".
+            # Example: ["1.6-4.8", "2.0-5.0"] will run two fit jobs per input.
+            # The first entry is treated as the "canonical" ploidy for downstream outputs
+            # (plots/seg files). The template default mirrors Battenberg's typical
+            # defaults; users can override this list.
+            ploidy_runs: ["1.6-4.8"]
+            # Example with multiple ranges (runs two fits per input):
+            # ploidy_runs: ["1.6-4.8", "2.0-5.0"]
+
+        output: # specify the naming convention for the output files under 99-outputs/
+                # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
+                # other wildcards are not supported in the naming scheme of output files
+            seg:
+                original: "results/battenberg-1.2/99-outputs/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.seg"
+                projection: "results/battenberg-1.2/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+            txt:
+                subclones: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt"
+                cell_ploidy: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
+            # specify in which projections you want the output files
+            requested_projections: ["grch37", "hg38"]
+
+        resources:
+            battenberg:
+                mem_mb: 200000
+                bam: 1
+            infer_sex:
+                mem_mb: 20000
+                bam: 1
+            reference:
+                mem_mb: 8000
+            post_battenberg:
+                mem_mb: 2000
+                bam: 1
+
+        threads:
+            battenberg: 24
+            reference: 2
+            #ideal for processing all chromosomes at once
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False

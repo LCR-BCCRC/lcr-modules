@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.3] - 2025-12-10
+
+This release introduces multi-ploidy fit orchestration and refactors the module into a two-stage workflow to make repeated constrained fits efficient and transparent.
+
+Highlights
+- Split the workflow into a preprocessing stage and a lightweight per-ploidy fit stage. Preprocessing produces preserved per-pair `.tab` tables (allele counts, BAF, logR, GC-corrected logR) under `preprocess/` so they can be re-used by multiple fit jobs.
+- New configuration key `options.ploidy_runs` (list of `"MIN-MAX"` strings) drives how many fit jobs are created per pair. The first list entry is used as the canonical ploidy for downstream outputs.
+- The R runner (`src/battenberg_wgs_hg38.R`) now accepts `--ploidy_constraint MIN-MAX` (parses into `min_ploidy`/`max_ploidy`) while keeping backward-compatible `--min_ploidy`/`--max_ploidy` flags.
+- Per-fit outputs are written under `ploidy_<MIN-MAX>/` directories and the fit rule symlinks precomputed tables into the fit directory.
+- `_battenberg_cleanup` now waits for all per-ploidy fit outputs before removing preserved `preprocess/*.tab` files to ensure fits can run in parallel safely.
+- Documentation updated: `README.md` and `config/default.yaml` include `ploidy_runs` with examples and explanatory comments.
+
+Compatibility
+- Existing pipelines that rely on the previous single-fit behavior continue to work by leaving `options.ploidy_runs` as the default single entry (`"1.6-4.8"`). The runner still accepts `--min_ploidy`/`--max_ploidy`.
+
+Rationale
+- Running multiple constrained fits inside Snakemake (rather than looping inside the R script) preserves transparency, enables parallel execution, and makes it easy to choose a canonical fit for downstream outputs.
+
+
 ## [1.2] - 2021-04-23
 
 This release was authored by Lakshay Sethi.
