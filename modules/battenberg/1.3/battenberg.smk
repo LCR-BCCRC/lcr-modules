@@ -50,6 +50,30 @@ SCRIPT_PATH = CFG['inputs']['src_dir']
 #this preserves the variable when using lambda functions
 _battenberg_CFG = CFG
 
+# Basic sanity checks for the `runs` configuration to avoid empty-expands
+# which can make the `_battenberg_all` rule have no dependencies and therefore
+# run without scheduling the real rules. Fail early with a helpful message.
+_required_run_keys = [
+    "tumour_sample_id",
+    "normal_sample_id",
+    "tumour_seq_type",
+    "tumour_genome_build",
+    "pair_status",
+]
+if "runs" not in CFG or not isinstance(CFG["runs"], dict):
+    raise Exception("Configuration error: 'runs' missing under lcr-modules.battenberg in config")
+
+# verify each required key exists and is a non-empty list
+for _k in _required_run_keys:
+    _v = CFG["runs"].get(_k)
+    if not _v:
+        raise Exception(f"Configuration error: 'runs.{_k}' is missing or empty in module config (value={_v})")
+
+# ensure the sample/list lengths match (basic sanity)
+_lens = [len(CFG["runs"][k]) for k in ["tumour_sample_id", "normal_sample_id", "tumour_seq_type", "tumour_genome_build", "pair_status"]]
+if len(set(_lens)) != 1:
+    raise Exception(f"Configuration error: inconsistent lengths in runs lists: tumour_sample_id/normal_sample_id/tumour_seq_type/tumour_genome_build/pair_status -> lengths={_lens}")
+
 # Return the canonical ploidy (first entry in config ploidy_runs) or a sensible default
 def _canonical_ploidy():
     CFG = config["lcr-modules"]["battenberg"]
@@ -184,9 +208,22 @@ rule _run_battenberg_fit:
         CFG["threads"]["battenberg"]
     shell:
         op.as_one_line("""
-        mkdir -p {params.out_dir};
-        # link precomputed tables into the fit directory so the R runner finds them locally
-        ln -sf {params.preprocess_dir}/* {params.out_dir}/;
+                mkdir -p {params.out_dir};
+                # link precomputed tables into the fit directory so the R runner finds them locally
+                # Link only the expected preprocess files and warn if any are missing.
+                for f in \
+                    {params.preprocess_dir}/{wildcards.tumour_id}_alleleCounts.tab \
+                    {params.preprocess_dir}/{wildcards.tumour_id}_mutantBAF.tab \
+                    {params.preprocess_dir}/{wildcards.tumour_id}_mutantLogR_gcCorrected.tab \
+                    {params.preprocess_dir}/{wildcards.tumour_id}_mutantLogR.tab \
+                    {params.preprocess_dir}/{wildcards.tumour_id}_normalLogR.tab \
+                    {params.preprocess_dir}/{wildcards.tumour_id}_normalBAF.tab; do
+                        if [ -e "$f" ]; then
+                            ln -sf "$(readlink -f $f)" {params.out_dir}/$(basename "$f") || true;
+                        else
+                            echo "[warning] missing preprocess file: $f" 1>&2;
+                        fi;
+                done;
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} ploidy {wildcards.ploidy_constraint} on $(hostname) at $(date)" > {log.stdout};
         if [[ $(head -c 4 {input.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed='false'; fi;
         sex=$(cut -f 4 {input.sex_result}| tail -n 1);
@@ -197,9 +234,8 @@ rule _run_battenberg_fit:
         """)
 
 
-# Convert the subclones.txt (best fit) to igv-friendly SEG files. 
-    input:
-rule _battenberg_to_igv_seg:
+        # Convert the subclones.txt (best fit) to igv-friendly SEG files. 
+        rule _battenberg_to_igv_seg:
     input:
         # use the canonical ploidy run's subclones file
         sub = lambda w: str(rules._run_battenberg_fit.output.sub).replace("{ploidy_constraint}", _canonical_ploidy()),

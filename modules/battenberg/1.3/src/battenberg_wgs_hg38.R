@@ -53,7 +53,7 @@ verbose = TRUE
 ###############################################################################
 
 # General static
-IMPUTEINFOFILE = paste0(REFERENCE_BASE,"/impute_info.txt")
+IMPUTEINFOFILE = paste0(REFERENCE_BASE,"/battenberg_impute_v3/impute_info_fix.txt")
 print(IMPUTEINFOFILE)
 G1000PREFIX = paste0(REFERENCE_BASE,"/battenberg_1000genomesloci2012_v3/1000genomesAlleles2012_chr")
 G1000PREFIX_AC = paste0(REFERENCE_BASE,"/battenberg_1000genomesloci2012_v3/1000genomesloci2012_chr")
@@ -84,10 +84,43 @@ PROBLEMLOCI = paste0(REFERENCE_BASE, "/probloci.txt.gz")
 
 print(PROBLEMLOCI);
 
+# Resolve input BAM/CRAM paths to absolute paths BEFORE changing to the run directory.
+# This avoids relative-paths being interpreted relative to the run directory, which
+# can cause alleleCounter to be unable to locate the files when Snakemake passes
+# project-relative paths.
+if(!is.null(opt$nb) && nzchar(opt$nb)){
+  NORMALBAM = tryCatch(normalizePath(opt$nb, winslash="/", mustWork=FALSE), error=function(e) opt$nb)
+} else {
+  NORMALBAM = opt$nb
+}
+if(!is.null(opt$tb) && nzchar(opt$tb)){
+  TUMOURBAM = tryCatch(normalizePath(opt$tb, winslash="/", mustWork=FALSE), error=function(e) opt$tb)
+} else {
+  TUMOURBAM = opt$tb
+}
+
 # Change to work directory and load the chromosome information
-setwd(RUN_DIR)
-NORMALBAM = opt$nb
-TUMOURBAM = opt$tb
+# Make RUN_DIR if it doesn't exist and fail early with a clear message if
+# setwd() cannot be performed. This avoids later `getcwd: cannot access parent`
+# errors when the process' current directory has been removed or is unavailable.
+if(is.null(RUN_DIR) || !nzchar(RUN_DIR)){
+  stop("RUN_DIR (--output) was not provided to the runner. Please pass -o/--output.")
+}
+if(!dir.exists(RUN_DIR)){
+  warning(paste0("RUN_DIR does not exist; attempting to create it: ", RUN_DIR))
+  dir.create(RUN_DIR, recursive = TRUE, showWarnings = FALSE)
+}
+setwd_success <- tryCatch({
+  setwd(RUN_DIR)
+  TRUE
+}, error = function(e){
+  warning(paste0("Failed to change working directory to RUN_DIR (", RUN_DIR, "): ", e$message))
+  FALSE
+})
+cat(paste0("[battenberg] current working directory: ", tryCatch(getwd(), error=function(e) '<unavailable>'), "\n"))
+if(!setwd_success){
+  stop(paste0("Cannot change to RUN_DIR: ", RUN_DIR, ". Aborting to avoid running with an invalid working directory."))
+}
 
 
 #this should be the full path to the files after changing directories
@@ -121,7 +154,74 @@ if(!is.null(opt$max_ploidy) && nzchar(opt$max_ploidy)){
   if(!is.na(t)) MAX_PLOIDY = t
 }
 
+# Diagnostic pre-flight checks: print resolved paths and verify BAMs and indexes exist
+cat("[battenberg pre-flight] Resolved paths:\n")
+cat(sprintf("  TUMOURBAM: %s\n", ifelse(is.null(TUMOURBAM), "<NULL>", TUMOURBAM)))
+cat(sprintf("  NORMALBAM: %s\n", ifelse(is.null(NORMALBAM), "<NULL>", NORMALBAM)))
+
+
+check_file = function(p){
+  if(is.null(p) || !nzchar(p)) return(FALSE)
+  return(file.exists(p) && file.info(p)$size > 0)
+}
+
+tum_bam_ok = check_file(TUMOURBAM)
+norm_bam_ok = check_file(NORMALBAM)
+
+cat(sprintf("  TUMOURBAM exists and non-empty: %s\n", tum_bam_ok))
+cat(sprintf("  NORMALBAM exists and non-empty: %s\n", norm_bam_ok))
+
+# Check for BAM index files (.bai or .crai)
+tum_bai = paste0(TUMOURBAM, ".bai")
+tum_bai2 = sub("\\.bam$", ".bai", TUMOURBAM)
+tum_crai = sub("\\.bam$", ".crai", TUMOURBAM)
+norm_bai = paste0(NORMALBAM, ".bai")
+norm_bai2 = sub("\\.bam$", ".bai", NORMALBAM)
+norm_crai = sub("\\.bam$", ".crai", NORMALBAM)
+
+cat(sprintf("  TUMOUR index candidates exist: %s, %s, %s\n", file.exists(tum_bai), file.exists(tum_bai2), file.exists(tum_crai)))
+cat(sprintf("  NORMAL index candidates exist: %s, %s, %s\n", file.exists(norm_bai), file.exists(norm_bai2), file.exists(norm_crai)))
+
+if(!tum_bam_ok || !norm_bam_ok){
+  stop(paste0("Pre-flight error: Missing or empty BAMs. Tried:\n",
+              "  Tumour: ", TUMOURBAM, " (exists? ", file.exists(TUMOURBAM), ", size: ", ifelse(file.exists(TUMOURBAM), file.info(TUMOURBAM)$size, NA), ")\n",
+              "  Normal: ", NORMALBAM, " (exists? ", file.exists(NORMALBAM), ", size: ", ifelse(file.exists(NORMALBAM), file.info(NORMALBAM)$size, NA), ")\n",
+              "If these files are symlinks, ensure the symlink targets are visible from the compute node."))
+}
+
 # Re-run with explicit bounds (overwrite previous call above by running again with explicit args)
+# Ensure a `preprocess/` directory exists and run the allele-counting steps from there
+# so per-chromosome alleleFrequencies files are created inside `preprocess/` as expected.
+PREPROCESS_DIR = file.path(RUN_DIR, "preprocess")
+
+# Decide where to run battenberg depending on whether preprocessing is being
+# performed. If preprocessing is enabled (SKIP_PREPROCESSING == FALSE) we run
+# inside `RUN_DIR/preprocess` so alleleCounter output lands there. If
+# preprocessing is skipped (fit stage), we run from `RUN_DIR` where the
+# Snakemake fit-rule should have symlinked the preserved preprocess files.
+if(!SKIP_PREPROCESSING){
+  if(!dir.exists(PREPROCESS_DIR)) dir.create(PREPROCESS_DIR, recursive = TRUE, showWarnings = FALSE)
+  old_wd <- getwd()
+  setwd(PREPROCESS_DIR)
+  on.exit({ try(setwd(old_wd), silent=TRUE) }, add=TRUE)
+} else {
+  # Safety check for fit-stage: ensure preserved preprocess outputs are present
+  # in the current RUN_DIR (the Snakemake rule should have symlinked them here).
+  expected_files = c(
+    file.path(RUN_DIR, sprintf("%s_alleleCounts.tab", TUMOURNAME)),
+    file.path(RUN_DIR, sprintf("%s_mutantBAF.tab", TUMOURNAME)),
+    file.path(RUN_DIR, sprintf("%s_mutantLogR.tab", TUMOURNAME)),
+    file.path(RUN_DIR, sprintf("%s_mutantLogR_gcCorrected.tab", TUMOURNAME)),
+    file.path(RUN_DIR, sprintf("%s_normalBAF.tab", TUMOURNAME)),
+    file.path(RUN_DIR, sprintf("%s_normalLogR.tab", TUMOURNAME))
+  )
+  missing = expected_files[!sapply(expected_files, function(p) file.exists(p) && file.info(p)$size > 0)]
+  if(length(missing) > 0){
+    stop(paste0("Missing required preprocess files for fit stage. Expected the following files to be present (non-empty) in ", RUN_DIR, ":\n", paste(missing, collapse="\n"),
+                "\n\nThe Snakemake fit rule should symlink or copy preprocess outputs into the fit directory before invoking this script."))
+  }
+}
+
 battenberg(tumourname=TUMOURNAME, 
            normalname=NORMALNAME, 
            tumour_data_file=TUMOURBAM, 
@@ -160,4 +260,4 @@ battenberg(tumourname=TUMOURNAME,
            chr_prefixed=CHR_PREFIXED,
            verbose=verbose,
            logfile_prefix=paste0(IMPUTE_LOG, "_explicit_ploidy"),
-           ref_fasta=REFERENCE_FASTA)
+            ref_fasta=REFERENCE_FASTA)
