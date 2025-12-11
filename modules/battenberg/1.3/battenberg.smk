@@ -60,19 +60,37 @@ _required_run_keys = [
     "tumour_genome_build",
     "pair_status",
 ]
-if "runs" not in CFG or not isinstance(CFG["runs"], dict):
-    raise Exception("Configuration error: 'runs' missing under lcr-modules.battenberg in config")
 
-# verify each required key exists and is a non-empty list
-for _k in _required_run_keys:
-    _v = CFG["runs"].get(_k)
-    if not _v:
-        raise Exception(f"Configuration error: 'runs.{_k}' is missing or empty in module config (value={_v})")
+# Attempt to find the `runs` block either in the module's CFG (preferred) or
+# in the top-level `config` merged by Snakemake. Older workflows sometimes
+# provide `runs` only via the project config, so fail-fast raising here caused
+# surprising errors. Fall back to a warning if runs are not provided, and only
+# perform strict validation when a runs dict is available.
+_module_runs = None
+if "runs" in CFG and isinstance(CFG["runs"], dict):
+    _module_runs = CFG["runs"]
+else:
+    _module_runs = config.get("lcr-modules", {}).get("battenberg", {}).get("runs")
 
-# ensure the sample/list lengths match (basic sanity)
-_lens = [len(CFG["runs"][k]) for k in ["tumour_sample_id", "normal_sample_id", "tumour_seq_type", "tumour_genome_build", "pair_status"]]
-if len(set(_lens)) != 1:
-    raise Exception(f"Configuration error: inconsistent lengths in runs lists: tumour_sample_id/normal_sample_id/tumour_seq_type/tumour_genome_build/pair_status -> lengths={_lens}")
+if not _module_runs:
+    # Keep behaviour permissive: warn and set an empty runs dict so other
+    # parts of the module that expect CFG["runs"] won't crash immediately.
+    print("WARNING: 'runs' missing under lcr-modules.battenberg in config; some module targets may have no inputs.")
+    CFG["runs"] = {}
+else:
+    # verify each required key exists and is a non-empty list
+    for _k in _required_run_keys:
+        _v = _module_runs.get(_k)
+        if not _v:
+            raise Exception(f"Configuration error: 'runs.{_k}' is missing or empty in module config (value={_v})")
+
+    # ensure the sample/list lengths match (basic sanity)
+    _lens = [len(_module_runs[k]) for k in ["tumour_sample_id", "normal_sample_id", "tumour_seq_type", "tumour_genome_build", "pair_status"]]
+    if len(set(_lens)) != 1:
+        raise Exception(f"Configuration error: inconsistent lengths in runs lists: tumour_sample_id/normal_sample_id/tumour_seq_type/tumour_genome_build/pair_status -> lengths={_lens}")
+
+    # populate CFG['runs'] so the rest of the Snakefile can use it
+    CFG["runs"] = _module_runs
 
 # Return the canonical ploidy (first entry in config ploidy_runs) or a sensible default
 def _canonical_ploidy():
