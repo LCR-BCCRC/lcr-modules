@@ -256,48 +256,20 @@ rule _run_battenberg_fit:
         CFG["threads"]["battenberg"]
     shell:
         op.as_one_line("""
-                mkdir -p "{params.out_dir}";
-                # Enable verbose shell tracing for easier debug on the compute node
-                set -x;
-                # Expose params as shell variables to avoid Python-formatting ambiguity
-                OUTDIR="{params.out_dir}";
-                PREDIR="{params.preprocess_dir}";
-                echo "[debug] looking for preprocess files in: $PREDIR" 1>&2;
-                ls -lah "$PREDIR" 1>&2 || true;
-                # Link only the expected preprocess files and warn if any are missing.
-                for f in \
-                    "$PREDIR/{wildcards.tumour_id}_alleleCounts.tab" \
-                    "$PREDIR/{wildcards.tumour_id}_mutantBAF.tab" \
-                    "$PREDIR/{wildcards.tumour_id}_mutantLogR_gcCorrected.tab" \
-                    "$PREDIR/{wildcards.tumour_id}_mutantLogR.tab" \
-                    "$PREDIR/{wildcards.tumour_id}_normalLogR.tab" \
-                    "$PREDIR/{wildcards.tumour_id}_normalBAF.tab"; do
-                    if [ -e "$f" ]; then
-                        # compute basename separately to avoid confusing Python format parsing
-                        bn=$(basename "$f")
-                        # Prefer resolved absolute path as symlink target
-                        tgt=$(readlink -f "$f" 2>/dev/null || true)
-                        if [ -n "$tgt" ] && [ -e "$tgt" ]; then
-                            echo "[debug] linking $tgt -> $OUTDIR/$bn" 1>&2;
-                            ln -s "$tgt" "$OUTDIR/$bn" || {
-                                echo "[debug] ln failed, attempting copy" 1>&2;
-                                cp -a "$tgt" "$OUTDIR/$bn" || true;
-                            };
-                        else
-                            echo "[warning] readlink could not resolve or target missing for $f" 1>&2;
-                        fi;
-                    else
-                        echo "[warning] missing preprocess file: $f" 1>&2;
-                    fi;
-                done;
-                # Disable tracing to avoid noisy downstream logs
-                set +x;
+        mkdir -p "{params.out_dir}";
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} ploidy {wildcards.ploidy_constraint} on $(hostname) at $(date)" > {log.stdout};
         if [[ $(head -c 4 {input.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed='false'; fi;
         sex=$(cut -f 4 {input.sex_result}| tail -n 1);
-        Rscript --vanilla {params.script} -t {wildcards.tumour_id} \
-        -n {wildcards.normal_id} --tb $(readlink -f {input.tumour_bam}) --nb $(readlink -f {input.normal_bam}) -f {input.fasta} --reference $(readlink -f {params.reference_path}) \
-        -o {params.out_dir} --chr_prefixed_genome $chr_prefixed --sex $sex --ploidy_constraint {wildcards.ploidy_constraint} --skip_allelecount --skip_preprocessing --skip_phasing --cpu {threads} >> {log.stdout} 2>> {log.stderr} && \
+        Rscript --vanilla {params.script} \
+        -t {wildcards.tumour_id} \
+        -n {wildcards.normal_id} \
+        --tb $(readlink -f {input.tumour_bam}) \
+        --nb $(readlink -f {input.normal_bam}) \
+        -f {input.fasta} --reference $(readlink -f {params.reference_path}) \
+        -o {params.out_dir} --chr_prefixed_genome $chr_prefixed \
+        --sex $sex --ploidy_constraint {wildcards.ploidy_constraint} \
+        --skip_allelecount --skip_preprocessing --skip_phasing \
+        --cpu {threads} >> {log.stdout} 2>> {log.stderr} && \
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} ploidy {wildcards.ploidy_constraint} on $(hostname) at $(date)" >> {log.stdout};
         """)
 
