@@ -257,7 +257,7 @@ rule _run_battenberg_fit:
     shell:
         op.as_one_line("""
         mkdir -p "{params.out_dir}";
-        cp {preprocess_dir}/*.tab {params.out_dir}/;
+        cp {params.preprocess_dir}/*.tab {params.out_dir}/;
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} ploidy {wildcards.ploidy_constraint} on $(hostname) at $(date)" > {log.stdout};
         if [[ $(head -c 4 {input.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed='false'; fi;
         sex=$(cut -f 4 {input.sex_result}| tail -n 1);
