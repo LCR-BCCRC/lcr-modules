@@ -256,22 +256,38 @@ rule _run_battenberg_fit:
         CFG["threads"]["battenberg"]
     shell:
         op.as_one_line("""
-                mkdir -p {params.out_dir};
-                # link precomputed tables into the fit directory so the R runner finds them locally
+                mkdir -p "{params.out_dir}";
+                # Enable verbose shell tracing for easier debug on the compute node
+                set -x;
+                # Show what we will attempt to link
+                echo "[debug] looking for preprocess files in: {params.preprocess_dir}" 1>&2;
+                ls -lah "{params.preprocess_dir}" 1>&2 || true;
                 # Link only the expected preprocess files and warn if any are missing.
                 for f in \
-                    {params.preprocess_dir}/{wildcards.tumour_id}_alleleCounts.tab \
-                    {params.preprocess_dir}/{wildcards.tumour_id}_mutantBAF.tab \
-                    {params.preprocess_dir}/{wildcards.tumour_id}_mutantLogR_gcCorrected.tab \
-                    {params.preprocess_dir}/{wildcards.tumour_id}_mutantLogR.tab \
-                    {params.preprocess_dir}/{wildcards.tumour_id}_normalLogR.tab \
-                    {params.preprocess_dir}/{wildcards.tumour_id}_normalBAF.tab; do
-                        if [ -e "$f" ]; then
-                            ln -sf "$(readlink -f $f)" {params.out_dir}/$(basename "$f") || true;
+                    "{params.preprocess_dir}/{wildcards.tumour_id}_alleleCounts.tab" \
+                    "{params.preprocess_dir}/{wildcards.tumour_id}_mutantBAF.tab" \
+                    "{params.preprocess_dir}/{wildcards.tumour_id}_mutantLogR_gcCorrected.tab" \
+                    "{params.preprocess_dir}/{wildcards.tumour_id}_mutantLogR.tab" \
+                    "{params.preprocess_dir}/{wildcards.tumour_id}_normalLogR.tab" \
+                    "{params.preprocess_dir}/{wildcards.tumour_id}_normalBAF.tab"; do
+                    if [ -e "$f" ]; then
+                        # Prefer resolved absolute path as symlink target
+                        tgt=$(readlink -f "$f" 2>/dev/null || true)
+                        if [ -n "$tgt" ] && [ -e "$tgt" ]; then
+                            echo "[debug] linking $tgt -> {params.out_dir}/$(basename \"$f\")" 1>&2;
+                            ln -s "$tgt" "{params.out_dir}/$(basename "$f")" || {
+                                echo "[debug] ln failed, attempting copy" 1>&2;
+                                cp -a "$tgt" "{params.out_dir}/$(basename "$f")" || true;
+                            };
                         else
-                            echo "[warning] missing preprocess file: $f" 1>&2;
+                            echo "[warning] readlink could not resolve or target missing for $f" 1>&2;
                         fi;
+                    else
+                        echo "[warning] missing preprocess file: $f" 1>&2;
+                    fi;
                 done;
+                # Disable tracing to avoid noisy downstream logs
+                set +x;
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} ploidy {wildcards.ploidy_constraint} on $(hostname) at $(date)" > {log.stdout};
         if [[ $(head -c 4 {input.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed='false'; fi;
         sex=$(cut -f 4 {input.sex_result}| tail -n 1);
