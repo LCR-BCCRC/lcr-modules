@@ -259,27 +259,29 @@ rule _run_battenberg_fit:
                 mkdir -p "{params.out_dir}";
                 # Enable verbose shell tracing for easier debug on the compute node
                 set -x;
-                # Show what we will attempt to link
-                echo "[debug] looking for preprocess files in: {params.preprocess_dir}" 1>&2;
-                ls -lah "{params.preprocess_dir}" 1>&2 || true;
+                # Expose params as shell variables to avoid Python-formatting ambiguity
+                OUTDIR="{params.out_dir}";
+                PREDIR="{params.preprocess_dir}";
+                echo "[debug] looking for preprocess files in: $PREDIR" 1>&2;
+                ls -lah "$PREDIR" 1>&2 || true;
                 # Link only the expected preprocess files and warn if any are missing.
                 for f in \
-                    "{params.preprocess_dir}/{wildcards.tumour_id}_alleleCounts.tab" \
-                    "{params.preprocess_dir}/{wildcards.tumour_id}_mutantBAF.tab" \
-                    "{params.preprocess_dir}/{wildcards.tumour_id}_mutantLogR_gcCorrected.tab" \
-                    "{params.preprocess_dir}/{wildcards.tumour_id}_mutantLogR.tab" \
-                    "{params.preprocess_dir}/{wildcards.tumour_id}_normalLogR.tab" \
-                    "{params.preprocess_dir}/{wildcards.tumour_id}_normalBAF.tab"; do
+                    "$PREDIR/{wildcards.tumour_id}_alleleCounts.tab" \
+                    "$PREDIR/{wildcards.tumour_id}_mutantBAF.tab" \
+                    "$PREDIR/{wildcards.tumour_id}_mutantLogR_gcCorrected.tab" \
+                    "$PREDIR/{wildcards.tumour_id}_mutantLogR.tab" \
+                    "$PREDIR/{wildcards.tumour_id}_normalLogR.tab" \
+                    "$PREDIR/{wildcards.tumour_id}_normalBAF.tab"; do
                     if [ -e "$f" ]; then
                         # compute basename separately to avoid confusing Python format parsing
                         bn=$(basename "$f")
                         # Prefer resolved absolute path as symlink target
                         tgt=$(readlink -f "$f" 2>/dev/null || true)
                         if [ -n "$tgt" ] && [ -e "$tgt" ]; then
-                            echo "[debug] linking $tgt -> {params.out_dir}/$bn" 1>&2;
-                            ln -s "$tgt" "{params.out_dir}/$bn" || {
+                            echo "[debug] linking $tgt -> $OUTDIR/$bn" 1>&2;
+                            ln -s "$tgt" "$OUTDIR/$bn" || {
                                 echo "[debug] ln failed, attempting copy" 1>&2;
-                                cp -a "$tgt" "{params.out_dir}/$bn" || true;
+                                cp -a "$tgt" "$OUTDIR/$bn" || true;
                             };
                         else
                             echo "[warning] readlink could not resolve or target missing for $f" 1>&2;
