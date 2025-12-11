@@ -72,25 +72,55 @@ if "runs" in CFG and isinstance(CFG["runs"], dict):
 else:
     _module_runs = config.get("lcr-modules", {}).get("battenberg", {}).get("runs")
 
-if not _module_runs:
+# Determine whether we actually have runs provided and validate according to type.
+_has_runs = False
+if _module_runs is None:
+    _has_runs = False
+elif isinstance(_module_runs, dict):
+    _has_runs = bool(_module_runs)
+elif hasattr(_module_runs, 'empty'):
+    # likely a pandas DataFrame
+    try:
+        _has_runs = (not bool(getattr(_module_runs, 'empty')))
+    except Exception:
+        _has_runs = True
+else:
+    # Unknown but truthy object
+    _has_runs = True
+
+if not _has_runs:
     # Keep behaviour permissive: warn and set an empty runs dict so other
     # parts of the module that expect CFG["runs"] won't crash immediately.
     print("WARNING: 'runs' missing under lcr-modules.battenberg in config; some module targets may have no inputs.")
     CFG["runs"] = {}
 else:
-    # verify each required key exists and is a non-empty list
-    for _k in _required_run_keys:
-        _v = _module_runs.get(_k)
-        if not _v:
-            raise Exception(f"Configuration error: 'runs.{_k}' is missing or empty in module config (value={_v})")
+    # If runs is a dict (legacy style), validate keys & lengths
+    if isinstance(_module_runs, dict):
+        for _k in _required_run_keys:
+            _v = _module_runs.get(_k)
+            if not _v:
+                raise Exception(f"Configuration error: 'runs.{_k}' is missing or empty in module config (value={_v})")
 
-    # ensure the sample/list lengths match (basic sanity)
-    _lens = [len(_module_runs[k]) for k in ["tumour_sample_id", "normal_sample_id", "tumour_seq_type", "tumour_genome_build", "pair_status"]]
-    if len(set(_lens)) != 1:
-        raise Exception(f"Configuration error: inconsistent lengths in runs lists: tumour_sample_id/normal_sample_id/tumour_seq_type/tumour_genome_build/pair_status -> lengths={_lens}")
+        _lens = [len(_module_runs[k]) for k in ["tumour_sample_id", "normal_sample_id", "tumour_seq_type", "tumour_genome_build", "pair_status"]]
+        if len(set(_lens)) != 1:
+            raise Exception(f"Configuration error: inconsistent lengths in runs lists: tumour_sample_id/normal_sample_id/tumour_seq_type/tumour_genome_build/pair_status -> lengths={_lens}")
 
-    # populate CFG['runs'] so the rest of the Snakefile can use it
-    CFG["runs"] = _module_runs
+        CFG["runs"] = _module_runs
+
+    # If runs is a pandas DataFrame, ensure required columns exist and are non-empty
+    elif hasattr(_module_runs, 'columns'):
+        missing_cols = [c for c in _required_run_keys if c not in list(_module_runs.columns)]
+        if missing_cols:
+            raise Exception(f"Configuration error: runs DataFrame missing required columns: {missing_cols}")
+        # Ensure no required column is entirely empty
+        empty_cols = [c for c in _required_run_keys if _module_runs[c].dropna().shape[0] == 0]
+        if empty_cols:
+            raise Exception(f"Configuration error: runs DataFrame has empty required columns: {empty_cols}")
+        CFG["runs"] = _module_runs
+
+    else:
+        # Unknown runs type but present; try to pass it through
+        CFG["runs"] = _module_runs
 
 # Return the canonical ploidy (first entry in config ploidy_runs) or a sensible default
 def _canonical_ploidy():
