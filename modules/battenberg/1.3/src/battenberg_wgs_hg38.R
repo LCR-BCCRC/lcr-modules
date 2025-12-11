@@ -110,17 +110,7 @@ if(!dir.exists(RUN_DIR)){
   warning(paste0("RUN_DIR does not exist; attempting to create it: ", RUN_DIR))
   dir.create(RUN_DIR, recursive = TRUE, showWarnings = FALSE)
 }
-setwd_success <- tryCatch({
-  setwd(RUN_DIR)
-  TRUE
-}, error = function(e){
-  warning(paste0("Failed to change working directory to RUN_DIR (", RUN_DIR, "): ", e$message))
-  FALSE
-})
-cat(paste0("[battenberg] current working directory: ", tryCatch(getwd(), error=function(e) '<unavailable>'), "\n"))
-if(!setwd_success){
-  stop(paste0("Cannot change to RUN_DIR: ", RUN_DIR, ". Aborting to avoid running with an invalid working directory."))
-}
+
 
 
 #this should be the full path to the files after changing directories
@@ -219,6 +209,17 @@ if(!SKIP_PREPROCESSING){
   if(length(missing) > 0){
     stop(paste0("Missing required preprocess files for fit stage. Expected the following files to be present (non-empty) in ", RUN_DIR, ":\n", paste(missing, collapse="\n"),
                 "\n\nThe Snakemake fit rule should symlink or copy preprocess outputs into the fit directory before invoking this script."))
+  }
+  setwd_success <- tryCatch({
+    setwd(RUN_DIR)
+    TRUE
+  }, error = function(e){
+    warning(paste0("Failed to change working directory to RUN_DIR (", RUN_DIR, "): ", e$message))
+    FALSE
+  })
+  cat(paste0("[battenberg] current working directory: ", tryCatch(getwd(), error=function(e) '<unavailable>'), "\n"))
+  if(!setwd_success){
+    stop(paste0("Cannot change to RUN_DIR: ", RUN_DIR, ". Aborting to avoid running with an invalid working directory."))
   }
 }
 
