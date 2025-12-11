@@ -271,13 +271,15 @@ rule _run_battenberg_fit:
                     "{params.preprocess_dir}/{wildcards.tumour_id}_normalLogR.tab" \
                     "{params.preprocess_dir}/{wildcards.tumour_id}_normalBAF.tab"; do
                     if [ -e "$f" ]; then
+                        # compute basename separately to avoid confusing Python format parsing
+                        bn=$(basename "$f")
                         # Prefer resolved absolute path as symlink target
                         tgt=$(readlink -f "$f" 2>/dev/null || true)
                         if [ -n "$tgt" ] && [ -e "$tgt" ]; then
-                            echo "[debug] linking $tgt -> {params.out_dir}/$(basename \"$f\")" 1>&2;
-                            ln -s "$tgt" "{params.out_dir}/$(basename "$f")" || {
+                            echo "[debug] linking $tgt -> {params.out_dir}/$bn" 1>&2;
+                            ln -s "$tgt" "{params.out_dir}/$bn" || {
                                 echo "[debug] ln failed, attempting copy" 1>&2;
-                                cp -a "$tgt" "{params.out_dir}/$(basename "$f")" || true;
+                                cp -a "$tgt" "{params.out_dir}/$bn" || true;
                             };
                         else
                             echo "[warning] readlink could not resolve or target missing for $f" 1>&2;
