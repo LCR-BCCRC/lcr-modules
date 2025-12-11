@@ -191,7 +191,8 @@ rule _run_battenberg:
         mlrg=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_mutantLogR_gcCorrected.tab",
         mlr=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_mutantLogR.tab",
         nlr=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_normalLogR.tab",
-        nb=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_normalBAF.tab"
+        nb=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_normalBAF.tab",
+        hap=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_heterozygousMutBAFs_haplotyped.txt
     log:
         stdout = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stdout.log",
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stderr.log"
@@ -233,6 +234,7 @@ rule _run_battenberg_fit:
         mlr = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_mutantLogR.tab",
         nlr = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_normalLogR.tab",
         nb = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_normalBAF.tab",
+        hap = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_heterozygousMutBAFs_haplotyped.txt
 
     output:
         refit = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_{ploidy_constraint}/{tumour_id}_refit_suggestion.txt",
