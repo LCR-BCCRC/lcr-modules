@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["battenberg"]`
 CFG = op.setup_module(
     name = "battenberg",
-    version = "1.1",
+    version = "1.3",
     subdirectories = ["inputs", "infer_sex", "battenberg", "convert_coordinates", "fill_regions", "normalize", "outputs"],
 )
 
@@ -234,8 +234,8 @@ rule _run_battenberg_fit:
         """)
 
 
-        # Convert the subclones.txt (best fit) to igv-friendly SEG files. 
-        rule _battenberg_to_igv_seg:
+# Convert the subclones.txt (best fit) to igv-friendly SEG files. 
+rule _battenberg_to_igv_seg:
     input:
         # use the canonical ploidy run's subclones file
         sub = lambda w: str(rules._run_battenberg_fit.output.sub).replace("{ploidy_constraint}", _canonical_ploidy()),
