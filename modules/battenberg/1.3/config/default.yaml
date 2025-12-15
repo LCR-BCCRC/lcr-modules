@@ -45,6 +45,9 @@ lcr-modules:
 
         resources:
             battenberg:
+                mem_mb: 50000
+                bam: 1
+            battenberg_fit:
                 mem_mb: 200000
                 bam: 1
             infer_sex:
@@ -58,8 +61,11 @@ lcr-modules:
 
         threads:
             battenberg: 24
-            reference: 2
             #ideal for processing all chromosomes at once
+            battenberg_fit: 1
+            #fitting uses no parallelization
+            reference: 2
+            
 
         pairing_config:
             genome:

@@ -50,6 +50,13 @@ SCRIPT_PATH = CFG['inputs']['src_dir']
 #this preserves the variable when using lambda functions
 _battenberg_CFG = CFG
 
+# Provide backward-compatible defaults for fit-specific settings when older
+# project configs haven't defined them yet.
+if "battenberg_fit" not in CFG["threads"]:
+    CFG["threads"]["battenberg_fit"] = CFG["threads"]["battenberg"]
+if "battenberg_fit" not in CFG["resources"]:
+    CFG["resources"]["battenberg_fit"] = CFG["resources"]["battenberg"]
+
 # Basic sanity checks for the `runs` configuration to avoid empty-expands
 # which can make the `_battenberg_all` rule have no dependencies and therefore
 # run without scheduling the real rules. Fail early with a helpful message.
@@ -260,13 +267,13 @@ rule _run_battenberg_fit:
     conda:
         CFG["conda_envs"]["battenberg"]
     resources:
-        **CFG["resources"]["battenberg"]
+        **CFG["resources"]["battenberg_fit"]
     threads:
-        CFG["threads"]["battenberg"]
+        CFG["threads"]["battenberg_fit"]
     shell:
         op.as_one_line("""
         mkdir -p "{params.out_dir}";
-        cp {params.preprocess_dir}/*.tab {params.out_dir}/;
+        cp -al {params.preprocess_dir}/* {params.out_dir}/;
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} ploidy {wildcards.ploidy_constraint} on $(hostname) at $(date)" > {log.stdout};
         if [[ $(head -c 4 {input.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed='false'; fi;
         sex=$(cut -f 4 {input.sex_result}| tail -n 1);
