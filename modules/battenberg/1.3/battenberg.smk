@@ -132,7 +132,7 @@ def _canonical_ploidy():
 
 
 def _ploidy_runs_or_default():
-    pr = CFG["options"].get("ploidy_runs")
+    pr = _battenberg_CFG["options"].get("ploidy_runs")
     if pr:
         return pr
     return [_canonical_ploidy()]
