@@ -36,7 +36,7 @@ def older_sample_mafs(wildcards):
 
 def get_capture_space(wildcards):
     """Get the capture regions file path for a sample from the sample sheet and config"""
-    capture_space = SAMPLESHEET.loc[SAMPLESHEET["sample_id"] == wildcards.sample, "capture_space"]
+    capture_space = SAMPLESHEET_UN.loc[SAMPLESHEET_UN["sample_id"] == wildcards.sample, "capture_space"]
     
     # check if capture space is found in sample sheet
     if capture_space.empty:
@@ -71,6 +71,7 @@ rule run_sage_un:
         hotspots_vcf = config["lcr-modules"]["cfDNA_SAGE_workflow"]["sage_hotspots"],
         panel_regions = lambda wildcards: get_capture_space(wildcards),
         ensembl = config["lcr-modules"]["cfDNA_SAGE_workflow"]['ensembl'],
+        high_conf_bed = config["lcr-modules"]["cfDNA_SAGE_workflow"]["high_conf_bed"],
         # soft filters
         panel_vaf_threshold = config["lcr-modules"]["cfDNA_SAGE_workflow"]["tumor_panel_min_vaf"],
         # hard filters
@@ -113,7 +114,6 @@ rule filter_sage_un:
     resources:
         mem_mb = 5000
     threads: 1
-    group: "filter_sage"
     params:
         notlist = config["lcr-modules"]["cfDNA_SAGE_workflow"]["notlist"]
     shell:
@@ -138,7 +138,6 @@ rule flag_masked_pos_un:
     resources:
         mem_mb = 10000
     threads: 1
-    group: "filter_sage"
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.maskpos.log")
     shell:
@@ -160,7 +159,6 @@ rule restrict_to_capture_un:
     resources:
         mem_mb = 10000
     threads: 2
-    group: "filter_sage"
     shell:
         """
         bedtools intersect -a {input.vcf} -header -b {params.panel_regions} | bedtools intersect -a - -header -b {input.bed} -v | awk -F '\\t' '$4 !~ /N/ && $5 !~ /N/' | bcftools norm -m +any -O vcf -o {output.vcf}
@@ -180,7 +178,6 @@ rule review_consensus_reads_un:
     resources:
         mem_mb = 10000
     threads: 2
-    group: "filter_sage"
     params:
         ref_genome = config["lcr-modules"]["_shared"]["ref_genome"],
         outdir = os.path.join(SAGE_OUTDIR, "06-supportingreads/{sample}/")
@@ -206,7 +203,6 @@ rule vcf2maf_annotate_un:
         centre = config["lcr-modules"]["cfDNA_SAGE_workflow"]["centre"],
         ref_fasta = config["lcr-modules"]["_shared"]["ref_genome"],
         ref_ver = config["lcr-modules"]["_shared"]["ref_genome_ver"]
-    group: "filter_sage"
     resources:
         mem_mb = 5000
     threads: 2
@@ -237,7 +233,6 @@ rule recount_alleles_un:
     threads: 4
     conda:
         "envs/augment_ssm.yaml"
-    group: "filter_sage"
     params:
         script = os.path.join(UTILSDIR, "recount_alleles.py"),
         ref_genome_version = config["lcr-modules"]["_shared"]["ref_genome_ver"]
@@ -266,7 +261,6 @@ rule filter_repetitive_seq_un:
     resources:
         mem_mb = 5000
     threads: 1
-    group: "filter_sage"
     shell:
         f"""python {os.path.join(UTILSDIR, "filter_rep_seq.py")} \
         --in_maf {{input.maf}} --out_maf {{output.maf}} --reference_genome {{params.ref_fasta}} --max_repeat_len {{params.max_repeat_len}}
@@ -285,7 +279,6 @@ rule add_UMI_support_un:
     resources:
         mem_mb = 5000
     threads: 1
-    group: "filter_sage"
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.add_UMI_support.log")
     shell:
@@ -311,7 +304,6 @@ rule custom_filters_un:
     resources:
         mem_mb = 5000
     threads: 1
-    group: "filter_sage"
     shell:
         """python {params.script} --input_maf {input.maf} --output_maf {output.maf} \
         --min_alt_depth_tum {params.min_alt_depth} --min_t_depth {params.min_t_depth} \
@@ -328,7 +320,10 @@ rule augment_maf_un:
     params:
         script = os.path.join(UTILSDIR, "augmentMAF.py"),
         ref_genome_version = config["lcr-modules"]["_shared"]["ref_genome_ver"],
-        alt_support = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"]
+        alt_support = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"],
+        min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["aug_min_UMI_3_count"]),
+        phase_ID_col = config["lcr-modules"]["cfDNA_SAGE_workflow"]["phase_id_col"],
+        phased_min_t_alt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["phased_min_t_alt"]
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.augment_maf.log")
     conda:
@@ -337,9 +332,12 @@ rule augment_maf_un:
         mem_mb = 20000
     threads: 3
     shell:
-        f"""python {{params.script}} --sample_id {{wildcards.sample}} --index_maf {{input.index_maf}} --index_bam {{input.index_bam}} \
-            --add_maf_files {{input.additional_mafs}} --genome_build {{params.ref_genome_version}} --threads {{threads}} \
-        --alt_count_min {{params.alt_support}} --output {{output.maf}} &> {{log}}
+        """python {params.script} --sample_id {wildcards.sample} --index_maf {input.index_maf} --index_bam {input.index_bam} \
+        --add_maf_files {input.additional_mafs} --genome_build {params.ref_genome_version} --threads {threads} \
+        --min_alt_count {params.alt_support} \
+        --phase_ID_col {params.phase_ID_col} --phased_min_t_alt_count {params.phased_min_t_alt} \
+        --compute_umi_metrics --min_UMI_3_count {params.min_UMI_3_count} \
+        --output {output.maf} &> {log}
         """
 
 rule igv_screenshot_variants_un:

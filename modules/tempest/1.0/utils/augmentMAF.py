@@ -20,7 +20,7 @@ def get_args():
     parser.add_argument('--index_bam', required=True, type=str, help='index bam file')
     parser.add_argument('--add_maf_files', required=False, nargs='*', type=str, help='additional maf files')
     parser.add_argument('--genome_build', required=True, type=str, help='genome build')
-    parser.add_argument('--min_alt_count', required=True, type=int, help='minimum alt count reads needed to keep variant')
+    parser.add_argument('--min_alt_count', required=False, type=int, help='minimum alt count reads needed to keep variant')
     parser.add_argument('--min_t_depth', required=False, type=int, default=50, help='minimum depth needed to keep variant, default is 50')
     parser.add_argument('--min_VAF', required=False, type=float, help='minimum VAF needed to keep variant, default is None (no filter)')
     parser.add_argument('--output', required=True, type=str, help='output file')
@@ -34,7 +34,7 @@ def get_args():
     # phased vars arguments
     parser.add_argument("--phase_ID_col", required=False, type=str, help="""Column from input mafs that contains the IDs for the phase sets if a given variant is apart of any,
                                                                             comma delimited if multiple. Empty if none. If not specified the script wont filter by phase sets.""")
-    parser.add_argument("--phased_min_t_alt_count", required=False, type=int, default=3, help="Minimum alt count for a variant to be considered for phasing. Default is 3")
+    parser.add_argument("--phased_min_t_alt_count", required=False, type=int, default=1, help="Minimum alt count for a variant to be considered for phasing. Default is 3")
     return parser.parse_args()
 
 
@@ -47,12 +47,12 @@ class AugmnentMAFArgs:
     add_maf_files: list
     genome_build: str
     output: str
-    min_alt_count: int
+    min_alt_count: int = 1
     min_t_depth: int = 50
     compute_umi_metrics: bool = False
     min_UMI_3_count: int = None
     phase_ID_col: str = None
-    phased_min_t_alt_count: int = 3
+    phased_min_t_alt_count: int = 1
     min_VAF: float = None
 
 
