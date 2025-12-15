@@ -130,6 +130,13 @@ def _canonical_ploidy():
         return "1.6-4.8"
     return pr[0]
 
+
+def _ploidy_runs_or_default():
+    pr = CFG["options"].get("ploidy_runs")
+    if pr:
+        return pr
+    return [_canonical_ploidy()]
+
 # Define rules to be run locally when using a compute cluster
 localrules:
     _battenberg_all
@@ -332,13 +339,15 @@ rule _battenberg_fill_subclones:
 rule _battenberg_cleanup:
     input:
         rules._battenberg_to_igv_seg.output.seg,
-        # ensure cleanup waits for all ploidy fit outputs so tabs can be safely removed
-        expand(str(rules._run_battenberg_fit.output.sub), zip,
-               seq_type=CFG["runs"]["tumour_seq_type"],
-               genome_build=CFG["runs"]["tumour_genome_build"],
-               tumour_id=CFG["runs"]["tumour_sample_id"],
-               normal_id=CFG["runs"]["normal_sample_id"],
-               ploidy_constraint=CFG["options"]["ploidy_runs"]) 
+        # ensure cleanup waits for all ploidy fit outputs for this pair so tabs can be safely removed
+        lambda w: expand(
+            str(rules._run_battenberg_fit.output.sub),
+            seq_type=[w.seq_type],
+            genome_build=[w.genome_build],
+            tumour_id=[w.tumour_id],
+            normal_id=[w.normal_id],
+            ploidy_constraint=_ploidy_runs_or_default()
+        )
     output:
         complete = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_cleanup_complete.txt"
     group: "battenberg_post_process"
