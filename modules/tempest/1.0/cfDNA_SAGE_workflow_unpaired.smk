@@ -23,7 +23,7 @@ SAMPLESHEET_UN = all_samples.loc[all_samples["matched_normal"] == "unmatched"].c
 
 ####################################### input functions
 
-def older_sample_mafs(wildcards):
+def older_sample_maf_un(wildcards):
     """ Return a list of older sample mafs for augmenting the current maf file.
     """
     # get patient_id
@@ -34,7 +34,7 @@ def older_sample_mafs(wildcards):
 
     return expand(os.path.join(SAGE_OUTDIR, "12-filtered_unmatched/{sample}.sage.filtered.unmatched.maf"), sample=patient_samples)
 
-def get_capture_space(wildcards):
+def get_capture_space_un(wildcards):
     """Get the capture regions file path for a sample from the sample sheet and config"""
     capture_space = SAMPLESHEET_UN.loc[SAMPLESHEET_UN["sample_id"] == wildcards.sample, "capture_space"]
     
@@ -69,7 +69,7 @@ rule run_sage_un:
         ref_genome_version = "38" if config["lcr-modules"]["_shared"]["ref_genome_ver"] == "GRCh38" else "37",
         # Panel regions and hotspots and inputs
         hotspots_vcf = config["lcr-modules"]["cfDNA_SAGE_workflow"]["sage_hotspots"],
-        panel_regions = lambda wildcards: get_capture_space(wildcards),
+        panel_regions = lambda wildcards: get_capture_space_un(wildcards),
         ensembl = config["lcr-modules"]["cfDNA_SAGE_workflow"]['ensembl'],
         high_conf_bed = config["lcr-modules"]["cfDNA_SAGE_workflow"]["high_conf_bed"],
         # soft filters
@@ -132,7 +132,7 @@ rule flag_masked_pos_un:
         script = os.path.join(UTILSDIR, "mask_n_sites.py"),
         n_threshold = config["lcr-modules"]["cfDNA_SAGE_workflow"]["mask_threshold"],
         min_count = config["lcr-modules"]["cfDNA_SAGE_workflow"]["mask_count"],
-        panel_regions = lambda wildcards: get_capture_space(wildcards),
+        panel_regions = lambda wildcards: get_capture_space_un(wildcards),
     conda:
         "envs/bcftools.yaml"
     resources:
@@ -153,7 +153,7 @@ rule restrict_to_capture_un:
     output:
         vcf = os.path.join(SAGE_OUTDIR, "04-capturespace/{sample}.capspace.unmatched.vcf")
     params:
-        panel_regions = lambda wildcards: get_capture_space(wildcards),
+        panel_regions = lambda wildcards: get_capture_space_un(wildcards),
     conda:
         "envs/bcftools.yaml"
     resources:
@@ -313,7 +313,7 @@ rule custom_filters_un:
 rule augment_maf_un:
     input:
         index_maf = rules.custom_filters_un.output.maf,
-        additional_mafs = older_sample_mafs,
+        additional_mafs = older_sample_maf_un,
         index_bam = os.path.join(BAM_OUTDIR, "99-final", "{sample}.consensus.mapped.annot.bam")
     output:
         maf = os.path.join(SAGE_OUTDIR, f"99-final_unmatched/{{sample}}.tempest_v{pv}.unmatched.maf")
