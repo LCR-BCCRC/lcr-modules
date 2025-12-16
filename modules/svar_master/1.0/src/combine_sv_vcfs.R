@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
 
 log <- file(snakemake@log[[1]], open="wt")
-sink(stdout(), type = "message")
-sink(log)
+sink(log, type = "output")
+sink(log, type = "message")
 
 suppressWarnings({
 
