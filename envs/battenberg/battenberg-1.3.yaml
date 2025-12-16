@@ -28,14 +28,14 @@ dependencies:
   - htslib=1.9
   - icu=64.2
   - impute2=2.3.2
-  - jpeg=9c
+  - libjpeg-turbo=2.1.5
   - libjpeg-turbo=2.1.5
   - krb5=1.17.1
   - make=4.3
   - ncurses=6.1
   - openssl=1.1.1g
   - pandoc=2.9.2.1
-  - pango=1.42.4
+  - pango=1.50.14
   - parallel=20200322
   - pcre=8.44
   - perl=5.26.2
