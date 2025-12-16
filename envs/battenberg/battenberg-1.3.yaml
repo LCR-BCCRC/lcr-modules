@@ -7,11 +7,12 @@ dependencies:
   - bioconductor-biocgenerics=0.32.0
   - bioconductor-biobase=2.46.0
   - bioconductor-genomeinfodb=1.22.0
-  - bioconductor-genomeinfodbedata=1.2.2
+  - bioconductor-genomeinfodbdata=1.2.2
   - bioconductor-genomicranges=1.38.0
-  - bioconductor-iranges=2.20.2
-  - bioconductor-matrixgenerics=1.0.0
+  - bioconductor-iranges=2.20.0
   - bioconductor-s4vectors=0.24.0
+  - bioconductor-xvector=0.26.0
+  - bioconductor-zlibbioc=1.32.0
   - bwidget=1.9.14
   - bzip2=1.0.8
   - cairo=1.16.0
