@@ -10,7 +10,7 @@ lcr-modules:
         scratch_subdirectories: []
 
         conda_envs:
-            battenberg: "{MODSDIR}/envs/battenberg-1.1.yaml"
+            battenberg: "{MODSDIR}/envs/battenberg-1.3.yaml"
             wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
