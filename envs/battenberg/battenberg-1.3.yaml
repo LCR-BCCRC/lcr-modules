@@ -29,6 +29,7 @@ dependencies:
   - icu=64.2
   - impute2=2.3.2
   - jpeg=9c
+  - libjpeg-turbo=2.1.5
   - krb5=1.17.1
   - make=4.3
   - ncurses=6.1
