@@ -46,7 +46,7 @@ dependencies:
   - r-askpass=1.1
   - r-assertthat=0.2.1
   - r-backports=1.1.6
-  - r-base=3.6.3
+  - r-base=4.3.3
   - r-base64enc=0.1_3
   - r-brew=1.0_6
   - r-broom=0.5.6
