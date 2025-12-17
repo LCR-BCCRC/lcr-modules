@@ -2,25 +2,75 @@ lcr-modules:
     
     dlbclone:
 
-        # TODO: Update the list of available wildcards, if applicable
+        # DO NOT MODIFY. List of all possible genes offered by GAMBLR.predict used in training DLBCLone Models. 
+        gambl_genes: [
+            "TNFRSF14","TP73","CCDC27","NOL9","MTOR","SPEN","ID3","ARID1A","ZC3H12A","RRAGC","BCL10",
+            "CD58","NOTCH2","HIST2H2BE","CTSS","SEMA4A","FCGR2B","FCRLA","PRRC2C","SMG7","BTG2","ITPKB",
+            "IRF2BP2","HNRNPU","SEC24C","PTEN","FAS","LCOR","EDRF1","WEE1","MPEG1","MS4A1","CCND1","FADD",
+            "SESN3","BIRC3","ATM","POU2AF1","ETS1","WNK1","PTPN6","ETV6","KRAS","KMT2D","STAT6","BTG1",
+            "ATP2A2","HVCN1","DTX1","SETD1B","BCL7A","FOXO1","RB1","CHD8","NFKBIA" ,"ZFP36L1","TCL1A","YY1",
+            "CRIP1","TUBGCP5","MGA","B2M","RFX7","MAP2K1","SIN3A","IDH2","CHD2","CREBBP","TFAP4","USP7",
+            "CIITA","SOCS1","IL4R","CD19","PLCG2","MBTPS1","IRF8","TP53","IKZF3","STAT5B","STAT3","CD79B",
+            "GNA13","GRB2","ACTG1","KLHL14","BCL2","MED16","TCF3","CD70","S1PR2","SMARCA4","JUNB","KLF2",
+            "JAK3","MEF2B","CD79A","POU2F2","DNMT3A","BIRC6","FBXO11","BCL11A","XPO1","PCBP1","DYSF","DUSP2",
+            "CXCR4","ZEB2","METAP1D","SF3B1","BCL2L1","PTPN1","BMP7","PRDM15","IGLL5","XBP1","RAC2","EP300",
+            "RFTN1","OSBPL10","MYD88","SETD2","RHOA","GNAI2","NFKBIZ","TBL1XR1","KLHL6","EIF4A2","BCL6",
+            "HNRNPD","TET2","FBXW7","MEF2C","ZNF608","TNIP1","EBF1","IRF4","FOXC1","CD83","HIST1H3B","HIST1H1C",
+            "HIST1H2BC","HIST1H2AC","HIST1H1E","HIST1H2BG","HIST1H1D","HIST1H2AG","HIST1H2BK","HIST1H1B",
+            "HIST1H2AM","HLA-A","HLA-C","HLA-B","LTB","PRRC2A","HLA-DMB","PIM1","CCND3","TBCC","NFKBIE","EEF1A1",
+            "TMEM30A","ZNF292","BACH2","PRDM1","SGK1","TNFAIP3","INTS1","CARD11","ACTB","PIK3CG","LRRN3","POT1",
+            "BRAF","EZH2","KMT2C","ATP6V1B2","PRKDC","LYN","TOX","PABPC1","UBR5","MYC","CD274","CDKN2A","GRHPR",
+            "NOTCH1","TRAF2","P2RY8","TMSB4X","DDX3X","PIM2","TAF1","BTK","UBE2A","PHF6","VMA21","ATP6AP1",
+            "MYD88HOTSPOT","BCL2_SV","MYC_SV","BCL6_SV"
+        ]
+
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_tsv: "__UPDATE__"
+            # Available wildcards: {model_name_prefix} {matrix_name} 
 
-        scratch_subdirectories: []
+            # DLBCLone model storage
+            opt_model_path: "GAMBLR.predict" # Default: "GAMBLR.predict", wherein stored models associated with the package GAMBLR.predict are used. For custom models built in rule _dlbclone_build_model, instead input appropriate path directory to your stored DLBCLone model(s).
+            model_name_prefix: "__UPDATE__" # Name prefix DLBCLone model is denoted by. If using default GAMBLR.predict models, the following exist; "best_opt", "best_op_w", "lacy_opt_w", "lymphgen_opt", "lymphplex_opt_w", & "lyseq_opt_w".
+            
+            # This script from lcr-scripts will generate a saved and stored DLBCLone model
+            dlbclone_model: "{SCRIPTSDIR}/dlbclone/1.0/dlbclone_model.R"
+            # This script from lcr-scripts predicts DLBCL molecular subgroups for one or more samples using a pre-trained DLBCLone model
+            dlbclone_predict: "{SCRIPTSDIR}/dlbclone/1.0/dlbclone_predict.R"
 
-        options:
-            step_1: ""
-            step_2: ""
+            # path to test mutation matrix
+            test_matrix_dir: "__UPDATE__" 
+            # test mutation matrix name
+            matrix_name: "__UPDATE__"
+            # path to folder to store DLBCLone predictions tsv file(s)
+            pred_dir: "__UPDATE__" 
 
-        conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
+            # launch_date: ""
+
+        options: 
+            # RULE _dlbclone_build_model. Tunable parameters for GAMBLR.predict::make_and_annotate_umap() function. 
+            core_features: # list input, for each subtype define features used for weighting. Make sure params as_r_list() is used in snakemake rule.
+                ST2: ["SGK1", "DUSP2", "TET2", "SOCS1"]
+                N1: ["NOTCH1"]
+                EZB: ["EZH2", "BCL2_SV"]
+                MCD: ["MYD88HOTSPOT", "CD79B", "PIM1"]
+                BN2: ["BCL6_SV", "NOTCH2", "SPEN", "CD70"]
+            core_feature_multiplier: 1.5 # what to multiply core features by
+            hidden_features: null # features from gambl_genes you want removed from your trained DLBCLone model. Make sure params as_r_c() is used in snakemake rule.
+
+            # RULE _dlbclone_build_model. Tunable parameters for GAMBLR.predict::DLBCLone_optimize_parameters() function.
+            truth_classes: ["EZB", "MCD", "ST2", "N1", "BN2", "Other"] # List all truth classes found in the truth column. Make sure params as_r_c() is used in snakemake rule.
+            min_k: 3 # Starting k for knn (Default: 3)
+            max_k: 33 # Ending k for knn (Default: 33)
+
+            # RULE _dlbclone_predict. Tunable parameters for GAMBLR.predict::DLBCLone_predict() function. 
+            fill_missing: true # if TRUE, any features present in the dlbclone model but not seen in test mutation matrix are added and set to zero. If FALSE, missing model features cause an error
+            drop_extra: false # if TRUE, any features present in test mutation matrix but not seen during model training are dropped
             
         threads:
-            step_1: 4
+            quant: 4
 
         resources:
-            step_1: 
+            quant: 
                 mem_mb: 2000
             
-        pairing_config:
+    #    pairing_config:

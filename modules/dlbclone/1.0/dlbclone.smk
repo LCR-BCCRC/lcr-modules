@@ -13,6 +13,8 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+from datetime import datetime
+from pathlib import Path
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -42,96 +44,136 @@ CFG = op.setup_module(
 )
 
 # Define rules to be run locally when using a compute cluster
-# TODO: Replace with actual rules once you change the rule names
 localrules:
-    _dlbclone_input_tsv,
-    _dlbclone_step_2,
-    _dlbclone_output_tsv,
+    _dlbclone_build_model,
+    _dlbclone_predict,
     _dlbclone_all,
+
+# TODO: Parallelization. What if you are predicting on multiple models? What if you are building multiple models?
+# TODO: Appropriately incorporate str() as required by LCR modules
+# TODO: Appropriately assign CFG "dirs" + "outputs"
 
 
 ##### RULES #####
+if "launch_date" in CFG:
+    launch_date = CFG['launch_date']
+else:
+    launch_date = datetime.today().strftime('%Y-%m')
 
+#  Convert CFG Python dictionary lists to an R list of c(...) vectors
+def as_r_list(d):
+    if d is None:
+        return "NULL"
+    items = []
+    for k, v in d.items():
+        r_vec = "c(" + ",".join(f'"{x}"' for x in v) + ")"
+        items.append(f"{k}={r_vec}")
+    return "list(" + ",".join(items) + ")"
 
-# Symlinks the input files into the module results directory (under '00-inputs/')
-# TODO: If applicable, add an input rule for each input file used by the module
-# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
-rule _dlbclone_input_tsv:
+# Convert CFG Python lists to an R c(...) vector
+def as_r_c(vec):
+    if vec is None or len(vec) == 0:
+        return "NULL"
+    return "c(" + ",".join(f'"{x}"' for x in vec) + ")"
+
+# Uses only GAMBL metadata and binary mutation data as training for DLBCLone models
+rule _dlbclone_build_model: 
     input:
-        tsv = CFG["inputs"]["sample_tsv"]
+        dlbclone_model = CFG["inputs"]["dlbclone_model"] 
     output:
-        tsv = CFG["dirs"]["inputs"] + "tsv/{seq_type}--{genome_build}/{sample_id}.tsv"
-    group: 
-        "input_and_step_1"
-    run:
-        op.absolute_symlink(input.tsv, output.tsv)
-
-
-# Example variant calling rule (multi-threaded; must be run on compute server/cluster)
-# TODO: Replace example rule below with actual rule
-rule _dlbclone_step_1:
-    input:
-        tsv = str(rules._dlbclone_input_tsv.output.tsv),
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
-    output:
-        tsv = CFG["dirs"]["dlbclone"] + "{seq_type}--{genome_build}/{sample_id}/output.tsv"
-    log:
-        stdout = CFG["logs"]["dlbclone"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stdout.log",
-        stderr = CFG["logs"]["dlbclone"] + "{seq_type}--{genome_build}/{sample_id}/step_1.stderr.log"
+        opt_model_rds_path = CFG["inputs"]["opt_model_path"] + "/{model_name_prefix}_model.rds",
+        opt_model_uwot_path = CFG["inputs"]["opt_model_path"] + "/{model_name_prefix}_umap.uwot"
     params:
-        opts = CFG["options"]["step_1"]
-    conda:
-        CFG["conda_envs"]["samtools"]
+        opt_model_path = CFG["inputs"]["opt_model_path"],
+        core_features = as_r_list(CFG["options"]["core_features"]),
+        core_feature_multiplier = CFG["options"]["core_feature_multiplier"],
+        hidden_features = as_r_c(CFG["options"]["hidden_features"]),
+        truth_classes = as_r_c(CFG["options"]["truth_classes"]),
+        min_k = CFG["options"]["min_k"],
+        max_k = CFG["options"]["max_k"]
+    log:
+        CFG["logs"]["opt_model_path"] + "/{model_name_prefix}_model.rds",
+        CFG["logs"]["opt_model_path"] + "/{model_name_prefix}_umap.uwot"
+    container:
+        "dlbclone:latest"
     threads:
-        CFG["threads"]["step_1"]
+        CFG["threads"]["quant"]
     resources:
-        **CFG["resources"]["step_1"]    # All resources necessary can be included and referenced from the config files.
+        **CFG["resources"]["quant"]
     shell:
         op.as_one_line("""
-        <TODO> {params.opts} --input {input.tsv} --ref-fasta {input.fasta}
-        --output {output.tsv} --threads {threads} > {log.stdout} 2> {log.stderr}
+        Rscript {input.dlbclone_model} 
+            --opt_model_path {params.opt_model_path} 
+            --model_name_prefix {model_name_prefix}
+            --core_features '{params.core_features}' 
+            --core_feature_multiplier {params.core_feature_multiplier} 
+            --hidden_features '{params.hidden_features}' 
+            --truth_classes '{params.truth_classes}' 
+            --min_k {params.min_k} 
+            --max_k {params.max_k}
         """)
 
+# Determine if custom dlbclone model(s) need to be generated for predictions
+USE_GAMBLR = CFG["inputs"]["opt_model_path"] == "GAMBLR.predict"
 
-# Example variant filtering rule (single-threaded; can be run on cluster head node)
-# TODO: Replace example rule below with actual rule
-rule _dlbclone_step_2:
+HAS_CUSTOM_MODELS = False
+if not USE_GAMBLR:
+    model_dir = Path(CFG["inputs"]["opt_model_path"])
+    HAS_CUSTOM_MODELS = any(model_dir.glob("*_model.rds"))
+
+if USE_GAMBLR:
+    print("Using GAMBLR.predict pre-made dlbclone models")
+elif HAS_CUSTOM_MODELS:
+    print("Using custom pre-made dlbclone model(s)")
+else:
+    print("Building custom dlbclone model(s)")
+
+def model_inputs():
+    if USE_GAMBLR or HAS_CUSTOM_MODELS:
+        return []
+    else:
+        return rules._dlbclone_build_model.output
+
+rule _dlbclone_predict:
     input:
-        tsv = str(rules._dlbclone_step_1.output.tsv)
+        models = model_inputs(), 
+        mutation_matrix = CFG["inputs"]["test_matrix_dir"], # first column is sample ID and all other columns are features
+        dlbclone_predict = CFG["inputs"]["dlbclone_predict"]
     output:
-        tsv = CFG["dirs"]["dlbclone"] + "{seq_type}--{genome_build}/{sample_id}/output.filt.tsv"
-    log:
-        stderr = CFG["logs"]["dlbclone"] + "{seq_type}--{genome_build}/{sample_id}/step_2.stderr.log"
+        predictions = CFG["options"]["pred_dir"] + "/{model_name_prefix}--{launch_date}/{matrix_name}_DLBCLone_predictions.tsv"
     params:
-        opts = CFG["options"]["step_2"]
+        opt_model_path = CFG["inputs"]["opt_model_path"],
+        fill_missing = CFG["options"]["fill_missing"], 
+        drop_extra = CFG["options"]["drop_extra"]
+    log:
+        CFG["logs"]["pred_dir"] + "/{model_name_prefix}--{launch_date}/{matrix_name}_DLBCLone_predictions.tsv"
+    container:
+        "dlbclone:latest"
+    threads:
+        CFG["threads"]["quant"]
+    resources:
+        **CFG["resources"]["quant"]
     shell:
-        "grep {params.opts} {input.tsv} > {output.tsv} 2> {log.stderr}"
+        op.as_one_line("""
+        Rscript {input.dlbclone_predict} 
+            --test_features {input.mutation_matrix} 
+            --output_dir {output.predictions} 
+            --model_path {params.opt_model_path} 
+            --model_prefix {model_name_prefix} 
+            --fill_missing {params.fill_missing} 
+            --drop_extra {params.drop_extra}
+        """)
 
-
-# Symlinks the final output files into the module results directory (under '99-outputs/')
-# TODO: If applicable, add an output rule for each file meant to be exposed to the user
-rule _dlbclone_output_tsv:
-    input:
-        tsv = str(rules._dlbclone_step_2.output.tsv)
-    output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{sample_id}.output.filt.tsv"
-    run:
-        op.relative_symlink(input.tsv, output.tsv, in_module= True)
-
-
-# Generates the target sentinels for each run, which generate the symlinks
 rule _dlbclone_all:
     input:
         expand(
             [
-                str(rules._dlbclone_output_tsv.output.tsv),
-                # TODO: If applicable, add other output rules here
+                rules._dlbclone_predict.output.predictions
             ],
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["samples"]["seq_type"],
-            genome_build=CFG["samples"]["genome_build"],
-            sample_id=CFG["samples"]["sample_id"])
-
+            model_name_prefix = CFG["inputs"]["model_name_prefix"],
+            matrix_name = CFG["inputs"]["matrix_name"],
+            launch_date = launch_date
+        )
 
 ##### CLEANUP #####
 
