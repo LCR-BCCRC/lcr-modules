@@ -259,7 +259,7 @@ rule _run_battenberg_fit:
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_{ploidy_constraint}/{tumour_id}_battenberg.stderr.log"
     params:
         script = CFG["inputs"]["battenberg_script"],
-        preprocess_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/",
+        preprocess_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/",
         out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_{ploidy_constraint}",
         reference_path = lambda w: _battenberg_CFG["reference_path"][w.genome_build],
         ploidy_min = lambda w: w.ploidy_constraint.split('-')[0],
@@ -273,7 +273,7 @@ rule _run_battenberg_fit:
     shell:
         op.as_one_line("""
         mkdir -p "{params.out_dir}";
-        cp -al {params.preprocess_dir}/* {params.out_dir}/;
+        cp -al {input.ac} {input.mb} {input.mlrg} {input.mlr} {input.nlr} {input.nb} {input.hap} {params.out_dir}/;
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} ploidy {wildcards.ploidy_constraint} on $(hostname) at $(date)" > {log.stdout};
         if [[ $(head -c 4 {input.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed='false'; fi;
         sex=$(cut -f 4 {input.sex_result}| tail -n 1);
@@ -361,10 +361,14 @@ rule _battenberg_cleanup:
     shell:
         op.as_one_line("""
         d=$(dirname {output});
-        rm -f $d/*impute_input* &&
-        rm -f $d/*alleleFrequencies* &&
-        rm -f $d/*aplotype* &&
-        rm -f $d/*BAFsegmented* && 
+        for dd in "$d"/ploidy_*; do
+          if [[ -d "$dd" ]]; then
+            rm -f "$dd"/*impute_input* &&
+            rm -f "$dd"/*alleleFrequencies* &&
+            rm -f "$dd"/*aplotype* &&
+            rm -f "$dd"/*BAFsegmented*;
+          fi
+        done &&
         touch {output.complete}
         """)
 
@@ -542,7 +546,7 @@ rule _battenberg_output_seg:
         sub = CFG["output"]["txt"]["subclones"],
         cp = CFG["output"]["txt"]["cell_ploidy"]
     params: 
-        batt_dir = CFG["dirs"]["battenberg"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
+        batt_dir = CFG["dirs"]["battenberg"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_" + _canonical_ploidy(),
         png_dir = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}"
     group: "battenberg_post_process"
     run:

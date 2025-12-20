@@ -198,14 +198,14 @@ if(!SKIP_PREPROCESSING){
 } else {
   # Safety check for fit-stage: ensure preserved preprocess outputs are present
   # in the current RUN_DIR (the Snakemake rule should have symlinked them here).
+  # TODO: Snakemake fit rule should hardlink these preprocess outputs from the base
+  # pair directory into the ploidy-specific run directory before invoking this script.
+  # 
   expected_files = c(
     file.path(RUN_DIR, sprintf("%s_alleleCounts.tab", TUMOURNAME)),
     file.path(RUN_DIR, sprintf("%s_mutantBAF.tab", TUMOURNAME)),
     file.path(RUN_DIR,sprintf("%s_heterozygousMutBAFs_haplotyped.txt",TUMOURNAME)),
-    #file.path(RUN_DIR, sprintf("%s_mutantLogR.tab", TUMOURNAME)),
     file.path(RUN_DIR, sprintf("%s_mutantLogR_gcCorrected.tab", TUMOURNAME))
-    #file.path(RUN_DIR, sprintf("%s_normalBAF.tab", TUMOURNAME)),
-    #file.path(RUN_DIR, sprintf("%s_normalLogR.tab", TUMOURNAME))
   )
   missing = expected_files[!sapply(expected_files, function(p) file.exists(p) && file.info(p)$size > 0)]
   if(length(missing) > 0){
