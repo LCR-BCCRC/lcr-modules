@@ -200,13 +200,13 @@ rule _run_battenberg:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         # Preprocess outputs (preserve these so multiple fits can reuse them)
-        ac=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_alleleCounts.tab",
-        mb=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_mutantBAF.tab",
-        mlrg=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_mutantLogR_gcCorrected.tab",
-        mlr=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_mutantLogR.tab",
-        nlr=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_normalLogR.tab",
-        nb=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_normalBAF.tab",
-        hap=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_heterozygousMutBAFs_haplotyped.txt"
+        ac=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_alleleCounts.tab",
+        mb=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantBAF.tab",
+        mlrg=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantLogR_gcCorrected.tab",
+        mlr=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantLogR.tab",
+        nlr=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_normalLogR.tab",
+        nb=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_normalBAF.tab",
+        hap=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_heterozygousMutBAFs_haplotyped.txt"
     log:
         stdout = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stdout.log",
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_battenberg.stderr.log"
@@ -242,13 +242,13 @@ rule _run_battenberg_fit:
         sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         # precomputed per-pair tables
-        ac = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_alleleCounts.tab",
-        mb = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_mutantBAF.tab",
-        mlrg = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_mutantLogR_gcCorrected.tab",
-        mlr = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_mutantLogR.tab",
-        nlr = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_normalLogR.tab",
-        nb = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_normalBAF.tab",
-        hap = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_heterozygousMutBAFs_haplotyped.txt"
+        ac = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_alleleCounts.tab",
+        mb = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantBAF.tab",
+        mlrg = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantLogR_gcCorrected.tab",
+        mlr = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_mutantLogR.tab",
+        nlr = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_normalLogR.tab",
+        nb = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_normalBAF.tab",
+        hap = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_heterozygousMutBAFs_haplotyped.txt"
 
     output:
         refit = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_{ploidy_constraint}/{tumour_id}_refit_suggestion.txt",

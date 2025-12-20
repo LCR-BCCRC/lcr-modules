@@ -45,6 +45,7 @@ SKIP_PHASING = opt$skip_phasing
 NTHREADS = opt$cpu
 PRIOR_BREAKPOINTS_FILE = opt$bp
 IMPUTE_LOG = opt$impute_log
+
 verbose = TRUE
 ###############################################################################
 # 2018-11-01
@@ -182,8 +183,8 @@ if(!tum_bam_ok || !norm_bam_ok){
 # Re-run with explicit bounds (overwrite previous call above by running again with explicit args)
 # Ensure a `preprocess/` directory exists and run the allele-counting steps from there
 # so per-chromosome alleleFrequencies files are created inside `preprocess/` as expected.
-PREPROCESS_DIR = file.path(RUN_DIR, "preprocess")
-
+#PREPROCESS_DIR = file.path(RUN_DIR, "preprocess")
+PREPROCESS_DIR = RUN_DIR
 # Decide where to run battenberg depending on whether preprocessing is being
 # performed. If preprocessing is enabled (SKIP_PREPROCESSING == FALSE) we run
 # inside `RUN_DIR/preprocess` so alleleCounter output lands there. If
@@ -200,10 +201,11 @@ if(!SKIP_PREPROCESSING){
   expected_files = c(
     file.path(RUN_DIR, sprintf("%s_alleleCounts.tab", TUMOURNAME)),
     file.path(RUN_DIR, sprintf("%s_mutantBAF.tab", TUMOURNAME)),
-    file.path(RUN_DIR, sprintf("%s_mutantLogR.tab", TUMOURNAME)),
-    file.path(RUN_DIR, sprintf("%s_mutantLogR_gcCorrected.tab", TUMOURNAME)),
-    file.path(RUN_DIR, sprintf("%s_normalBAF.tab", TUMOURNAME)),
-    file.path(RUN_DIR, sprintf("%s_normalLogR.tab", TUMOURNAME))
+    file.path(RUN_DIR,sprintf("%s_heterozygousMutBAFs_haplotyped.txt",TUMOURNAME)),
+    #file.path(RUN_DIR, sprintf("%s_mutantLogR.tab", TUMOURNAME)),
+    file.path(RUN_DIR, sprintf("%s_mutantLogR_gcCorrected.tab", TUMOURNAME))
+    #file.path(RUN_DIR, sprintf("%s_normalBAF.tab", TUMOURNAME)),
+    #file.path(RUN_DIR, sprintf("%s_normalLogR.tab", TUMOURNAME))
   )
   missing = expected_files[!sapply(expected_files, function(p) file.exists(p) && file.info(p)$size > 0)]
   if(length(missing) > 0){
@@ -229,11 +231,11 @@ battenberg(analysis = "paired",
            sample_data_file = TUMOURBAM,
            normal_data_file = NORMALBAM,
            imputeinfofile = IMPUTEINFOFILE,
-           g1000prefix = G1000PREFIX,
+           g1000prefix = G1000PREFIX_AC,
            problemloci = PROBLEMLOCI,
            gccorrectprefix = GCCORRECTPREFIX,
            repliccorrectprefix = REPLICCORRECTPREFIX,
-           g1000allelesprefix = G1000PREFIX_AC,
+           g1000allelesprefix = G1000PREFIX,
            ismale = IS.MALE,
            data_type = "wgs",
            impute_exe = IMPUTE_EXE,
@@ -258,4 +260,5 @@ battenberg(analysis = "paired",
            skip_allele_counting = SKIP_ALLELECOUNTING,
            skip_preprocessing = SKIP_PREPROCESSING,
            skip_phasing = SKIP_PHASING,
-           prior_breakpoints_file = PRIOR_BREAKPOINTS_FILE)
+           prior_breakpoints_file = PRIOR_BREAKPOINTS_FILE,
+           ref_fasta = REFERENCE_FASTA)

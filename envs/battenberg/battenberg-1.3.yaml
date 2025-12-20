@@ -22,6 +22,9 @@ dependencies:
   - conda-forge::r-rcolorbrewer
   - conda-forge::r-ggplot2
   - conda-forge::r-scales
+  - conda-forge::r-optparse
+  - bioconda::cancerit-allelecount
+  - bioconda::impute2
 
   # toolchain for GitHub source installs
   - conda-forge::make
