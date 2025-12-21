@@ -284,6 +284,11 @@ rule _run_battenberg_fit:
             ln -sf "$(readlink -f "$f")" {params.out_dir}/;
           fi
         done;
+        for f in {params.preprocess_dir}/*_impute_output_chr*_allHaplotypeInfo.txt; do
+          if [[ -e "$f" ]]; then
+            ln -sf "$(readlink -f "$f")" {params.out_dir}/;
+          fi
+        done;
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} ploidy {wildcards.ploidy_constraint} on $(hostname) at $(date)" > {log.stdout};
         if [[ $(head -c 4 {input.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed='false'; fi;
         sex=$(cut -f 4 {input.sex_result}| tail -n 1);
