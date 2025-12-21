@@ -279,7 +279,7 @@ rule _run_battenberg_fit:
             ln -sf "$(readlink -f "$f")" {params.out_dir}/;
           fi
         done;
-        for f in {params.preprocess_dir}/*_BAFsegmented*.txt; do
+        for f in {params.preprocess_dir}/*.BAFsegmented.txt; do
           if [[ -e "$f" ]]; then
             ln -sf "$(readlink -f "$f")" {params.out_dir}/;
           fi
