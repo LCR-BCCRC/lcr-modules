@@ -15,6 +15,7 @@ lcr-modules:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
             liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
+            plink: "{MODSDIR}/envs/plink-1.9.yaml"
 
         options:
             liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
@@ -30,6 +31,20 @@ lcr-modules:
             ploidy_runs: ["1.6-4.8"]
             # Example with multiple ranges (runs two fits per input):
             # ploidy_runs: ["1.6-4.8", "2.0-5.0"]
+            roh:
+                # Minimum total depth at a site to emit a genotype in the fake VCF.
+                min_dp: 12
+                # Max minor-allele count to still call a homozygous genotype.
+                hom_max_minor: 1
+                # Minimum minor-allele count for a heterozygous call.
+                min_minor_count: 3
+                # BAF bounds for heterozygous calls (from normal counts).
+                het_lo: 0.20
+                het_hi: 0.80
+                # PLINK ROH thresholds.
+                # Both thresholds must be satisfied for a ROH segment to be reported.
+                homozyg_kb: 1000
+                homozyg_snp: 50
 
         output: # specify the naming convention for the output files under 99-outputs/
                 # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
@@ -40,6 +55,7 @@ lcr-modules:
             txt:
                 subclones: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt"
                 cell_ploidy: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
+                roh: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_roh.hom"
             # specify in which projections you want the output files
             requested_projections: ["grch37", "hg38"]
 

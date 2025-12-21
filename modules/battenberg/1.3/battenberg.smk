@@ -40,7 +40,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "battenberg",
     version = "1.3",
-    subdirectories = ["inputs", "infer_sex", "battenberg", "convert_coordinates", "fill_regions", "normalize", "outputs"],
+    subdirectories = ["inputs", "infer_sex", "battenberg", "convert_coordinates", "fill_regions", "normalize", "plink", "outputs"],
 )
 
 #set variable for prepending to PATH based on config
@@ -274,6 +274,11 @@ rule _run_battenberg_fit:
         op.as_one_line("""
         mkdir -p "{params.out_dir}";
         cp -al {input.ac} {input.mb} {input.mlrg} {input.mlr} {input.nlr} {input.nb} {input.hap} {params.out_dir}/;
+        for f in {params.preprocess_dir}/{wildcards.tumour_id}_alleleFrequencies_chr*.txt; do
+          if [[ -e "$f" ]]; then
+            ln -sf "$f" {params.out_dir}/;
+          fi
+        done;
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} ploidy {wildcards.ploidy_constraint} on $(hostname) at $(date)" > {log.stdout};
         if [[ $(head -c 4 {input.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed='false'; fi;
         sex=$(cut -f 4 {input.sex_result}| tail -n 1);
@@ -371,6 +376,102 @@ rule _battenberg_cleanup:
         done &&
         touch {output.complete}
         """)
+
+
+rule _battenberg_normal_fake_vcf:
+    input:
+        ac = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_alleleCounts.tab"
+    output:
+        vcf_gz = temp(CFG["dirs"]["plink"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{normal_id}.normal.fake.vcf.gz"),
+        tbi = temp(CFG["dirs"]["plink"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{normal_id}.normal.fake.vcf.gz.tbi")
+    log:
+        stderr = CFG["logs"]["plink"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{normal_id}_fake_vcf.stderr.log"
+    params:
+        script = CFG["inputs"]["src_dir"] + "battenberg_normal_to_vcf.pl",
+        min_dp = lambda w: _battenberg_CFG["options"].get("roh", {}).get("min_dp", 12),
+        hom_max_minor = lambda w: _battenberg_CFG["options"].get("roh", {}).get("hom_max_minor", 1),
+        min_minor_count = lambda w: _battenberg_CFG["options"].get("roh", {}).get("min_minor_count", 3),
+        het_lo = lambda w: _battenberg_CFG["options"].get("roh", {}).get("het_lo", 0.20),
+        het_hi = lambda w: _battenberg_CFG["options"].get("roh", {}).get("het_hi", 0.80)
+    conda:
+        CFG["conda_envs"]["battenberg"]
+    threads: 1
+    group: "plink"
+    shell:
+        op.as_one_line("""
+        mkdir -p $(dirname {output.vcf_gz});
+        perl {params.script} \
+        --in {input.ac} \
+        --sample {wildcards.normal_id} \
+        --out - \
+        --minDP {params.min_dp} \
+        --homMaxMinor {params.hom_max_minor} \
+        --minMinorCount {params.min_minor_count} \
+        --hetLo {params.het_lo} \
+        --hetHi {params.het_hi} \
+        2> {log.stderr} | bgzip -c > {output.vcf_gz} &&
+        tabix -p vcf {output.vcf_gz} 2>> {log.stderr}
+        """)
+
+
+rule _battenberg_plink_make_bed:
+    input:
+        vcf_gz = rules._battenberg_normal_fake_vcf.output.vcf_gz,
+        tbi = rules._battenberg_normal_fake_vcf.output.tbi
+    output:
+        bed = temp(CFG["dirs"]["plink"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{normal_id}.bed"),
+        bim = temp(CFG["dirs"]["plink"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{normal_id}.bim"),
+        fam = temp(CFG["dirs"]["plink"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{normal_id}.fam")
+    log:
+        stderr = CFG["logs"]["plink"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{normal_id}_plink_make_bed.stderr.log"
+    params:
+        out_prefix = CFG["dirs"]["plink"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{normal_id}"
+    conda:
+        CFG["conda_envs"]["plink"]
+    threads: 1
+    group: "plink"
+    shell:
+        op.as_one_line("""
+        mkdir -p $(dirname {params.out_prefix});
+        plink --vcf {input.vcf_gz} --make-bed --out {params.out_prefix} 2> {log.stderr}
+        """)
+
+
+rule _battenberg_plink_roh:
+    input:
+        bed = rules._battenberg_plink_make_bed.output.bed,
+        bim = rules._battenberg_plink_make_bed.output.bim,
+        fam = rules._battenberg_plink_make_bed.output.fam
+    output:
+        hom = CFG["dirs"]["plink"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{normal_id}.roh.hom"
+    log:
+        stderr = CFG["logs"]["plink"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{normal_id}_plink_roh.stderr.log"
+    params:
+        bfile_prefix = CFG["dirs"]["plink"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{normal_id}",
+        out_prefix = CFG["dirs"]["plink"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{normal_id}.roh",
+        homozyg_kb = lambda w: _battenberg_CFG["options"].get("roh", {}).get("homozyg_kb", 1000),
+        homozyg_snp = lambda w: _battenberg_CFG["options"].get("roh", {}).get("homozyg_snp", 50)
+    conda:
+        CFG["conda_envs"]["plink"]
+    threads: 1
+    group: "plink"
+    shell:
+        op.as_one_line("""
+        plink --bfile {params.bfile_prefix} \
+        --homozyg --homozyg-kb {params.homozyg_kb} --homozyg-snp {params.homozyg_snp} \
+        --out {params.out_prefix} 2> {log.stderr}
+        """)
+
+
+rule _battenberg_output_roh:
+    input:
+        hom = rules._battenberg_plink_roh.output.hom
+    output:
+        hom = CFG["output"]["txt"]["roh"]
+    threads: 1
+    group: "plink"
+    run:
+        op.relative_symlink(input.hom, output.hom, in_module=True)
 
 
 def _battenberg_get_chain(wildcards):
@@ -565,7 +666,8 @@ rule _battenberg_all:
             [
                 rules._battenberg_output_seg.output.sub,
                 rules._battenberg_output_seg.output.seg,
-                rules._battenberg_cleanup.output.complete
+                rules._battenberg_cleanup.output.complete,
+                rules._battenberg_output_roh.output.hom
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
