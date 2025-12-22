@@ -23,7 +23,7 @@ lcr-modules:
     # ONT	    | r941_prom_sup_g5014	    | R9.4.1, 4khz	            | Guppy5 SUP	| ont_r9_guppy	                | GRCh38_no_alt	| Minimap2
 
         options:
-            clairs: "__UPDATE__" # Update with arguments you want to use. EXAMPLE: --snv_min_af 0.1 --enable_indel_calling --min_coverage 8 -s TUMOR --snv_min_qual 5
+            clairs: "__UPDATE__" # Update with arguments you want to use for variant calling. EXAMPLE: --snv_min_af 0.1 --enable_indel_calling --min_coverage 8 -s TUMOR --snv_min_qual 5
             bind: "" # Update this if you wish to bind extra directories inside apptainer in the ClairS variant calling rule
             version_map:
                 hg38: "38"

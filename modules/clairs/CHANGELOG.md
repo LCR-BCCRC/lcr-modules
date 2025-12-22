@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Giuliano Banco.
 
-<!-- TODO: Explain each important module design decision below. -->
+This module is designed to only work with a sample table that includes the columns 'chemistry' and 'platform'. These are required by schemas.
 
-- No module design decisions explained here yet.
+This module only works with hg38, as of version 1.0.
+
+This module uses singularity/apptainer containers. These containers require binding/mounting directories with real version of all files inside the container. You cannot bind symlinks, all binding should be handled by the module.
