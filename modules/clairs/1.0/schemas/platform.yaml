@@ -1,0 +1,11 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+
+description: Required fields for each sample row in the samples data frame
+
+properties:
+    platform:
+        type: string
+        description: The platform option to be used for ClairS variant calling. All values in this column must appear as options specified in the config's example table.  
+
+required:
+    - platform
