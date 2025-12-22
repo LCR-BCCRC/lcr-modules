@@ -2,33 +2,56 @@ lcr-modules:
     
     clairs:
 
-        # TODO: Update the list of available wildcards, if applicable
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            # Available wildcards: {seq_type} {genome_build} {sample_id} {chemistry} {platform}
             sample_bam: "__UPDATE__"
-
+            sample_bai: "__UPDATE__"
+            normal_bam: "__UPDATE__"
+            normal_bai: "__UPDATE__"
+ 
         scratch_subdirectories: []
 
+# To setup your sample table to include platform (the ClairS model you want to use for calling variants in your sample), consult the table below for options.
+    # Platform	| Model name	            | Chemistry /Instruments	| Basecaller	| Option (-p/--platform)	    | Reference	    | Aligner
+    # ____________________________________________________________________________________________________________________________________________
+    # ONT	    | r1041_e82_400bps_sup_v420	| R10.4.1, 5khz	            | Dorado SUP	| ont_r10_dorado_sup_5khz_ssrs	| GRCh38_no_alt	| Minimap2
+    # ONT	    | r1041_e82_400bps_sup_v420	| R10.4.1, 5khz	            | Dorado SUP	| ont_r10_dorado_sup_5khz_ss	| GRCh38_no_alt	| Minimap2
+    # ONT	    | r1041_e82_400bps_sup_v410	| R10.4.1, 4khz	            | Dorado SUP	| ont_r10_dorado_sup_4khz	    | GRCh38_no_alt	| Minimap2
+    # ONT	    | r1041_e82_400bps_hac_v420	| R10.4.1, 5khz	            | Dorado HAC	| ont_r10_dorado_hac_5khz	    | GRCh38_no_alt	| Minimap2
+    # ONT	    | r1041_e82_400bps_hac_v410	| R10.4.1, 4khz	            | Dorado HAC	| ont_r10_dorado_hac_4khz	    | GRCh38_no_alt	| Minimap2
+    # ONT	    | r104_e81_sup_g5015	    | R10.4/R10.4.1, 4khz	    | Guppy5 SUP	| ont_r10_guppy	                | GRCh38_no_alt	| Minimap2
+    # ONT	    | r941_prom_sup_g5014	    | R9.4.1, 4khz	            | Guppy5 SUP	| ont_r9_guppy	                | GRCh38_no_alt	| Minimap2
+
         options:
-            step_1: ""
-            step_2: ""
+            clairs: "" # Update with arguments you want to use. EXAMPLE: --snv_min_af 0.1 --enable_indel_calling --min_coverage 8 -s TUMOR --snv_min_qual 5
+            bind: "" # Update this if you wish to bind extra directories inside apptainer in the ClairS variant calling rule
+            version_map:
+                hg38: "38"
+            seqtype_map:
+                promethION: "promethION"
+            normal_name:
+                R9: "HG03995"
+                R10: "HCC1395BL"
 
         conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
-            
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+            singularity: "{MODSDIR}/envs/singularity-3.8.6.yaml"
+
         threads:
-            step_1: 4
+            clairs: 24
+            bcftools: 4
 
         resources:
-            step_1: 
-                mem_mb: 2000
-            
+            clairs:
+                mem_mb: 20000
+            gnomad:
+                mem_mb: 5000
+            filter:
+                mem_mb: 5000
+
         pairing_config:
-            genome:
+            promethION:
                 run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
-                run_paired_tumours_as_unpaired: False
-            capture:
-                run_paired_tumours: True
-                run_unpaired_tumours_with: "unmatched_normal"
+                run_unpaired_tumours_with: "no_normal"
                 run_paired_tumours_as_unpaired: False
