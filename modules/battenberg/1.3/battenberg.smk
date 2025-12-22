@@ -302,6 +302,12 @@ rule _run_battenberg_fit:
         --sex $sex --ploidy_constraint {wildcards.ploidy_constraint} \
         --skip_allelecount --skip_preprocessing --skip_phasing \
         --cpu {threads} >> {log.stdout} 2>> {log.stderr} && \
+        if [[ -f "{params.out_dir}/{wildcards.tumour_id}_purity_ploidy.txt" && ! -f "{params.out_dir}/{wildcards.tumour_id}_cellularity_ploidy.txt" ]]; then \
+          ln -sf "$(readlink -f {params.out_dir}/{wildcards.tumour_id}_purity_ploidy.txt)" {params.out_dir}/{wildcards.tumour_id}_cellularity_ploidy.txt; \
+        fi; \
+        if [[ -f "{params.out_dir}/{wildcards.tumour_id}_copynumber.txt" && ! -f "{params.out_dir}/{wildcards.tumour_id}_subclones.txt" ]]; then \
+          ln -sf "$(readlink -f {params.out_dir}/{wildcards.tumour_id}_copynumber.txt)" {params.out_dir}/{wildcards.tumour_id}_subclones.txt; \
+        fi; \
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} ploidy {wildcards.ploidy_constraint} on $(hostname) at $(date)" >> {log.stdout};
         """)
 
