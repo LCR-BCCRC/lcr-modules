@@ -70,6 +70,27 @@ for genome_build, attributes in config['genome_builds'].items():
     VCF2MAF_GENOME_PREFIX[genome_build] = True if genome_provider == "ucsc" else False  # Is this chr-prefixed?
     VCF2MAF_VERSION_MAP[genome_build] = genome_version.replace("grch", "GRCh")  # Genome build for vcf2maf
 
+def get_normal_name(wildcards):
+    return wildcards.normal_name
+
+def get_chemistry(wildcards):
+    return wildcards.chemistry
+
+chemistry = CFG["runs"]["tumour_chemistry"]
+
+normal_map = CFG["options"]["normal_name"]
+
+if "tumour_chemistry" not in CFG["runs"].columns:
+    raise KeyError("Chemistry is needed in your samples table. Available chemistry values: R9, R10.")
+
+if "tumour_platform" not in CFG["runs"].columns:
+    raise KeyError("Platform is needed in your samples table. See config for possible values.")
+
+CFG["runs"]["normal_name"] = CFG["runs"]["tumour_chemistry"].map(normal_map)
+
+if CFG["runs"]["normal_name"].isna().any():
+    missing = CFG["runs"].loc[CFG["runs"]["normal_name"].isna(), "tumour_chemistry"].unique()
+    print(f"Warning: some chemistry values have no mapping in normal_name. Available chemistry values: R9, R10")
 
 ##### RULES #####
 
@@ -78,8 +99,8 @@ rule _vcf2maf_input_vcf:
     input:
         vcf_gz = CFG["inputs"]["sample_vcf_gz"]
     output:
-        vcf_gz = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.vcf.gz",
-        index = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.vcf.gz.tbi"
+        vcf_gz = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.vcf.gz",
+        index = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.vcf.gz.tbi"
     group: "vcf_and_annotate"
     run:
         op.absolute_symlink(input.vcf_gz, output.vcf_gz)
@@ -90,8 +111,8 @@ rule _vcf2maf_input_bam:
         bam = CFG["inputs"]["sample_bam"],
         bai = CFG["inputs"]["sample_bai"]
     output:
-        bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/tumour.bam",
-        bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/tumour.bam.bai"
+        bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/tumour.bam",
+        bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/tumour.bam.bai"
     group: "bam_and_augment"
     run:
         op.absolute_symlink(input.bam, output.bam)
@@ -102,7 +123,7 @@ rule _vcf2maf_annotate_gnomad:
         vcf = str(rules._vcf2maf_input_vcf.output.vcf_gz),
         normalized_gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.normalized.{genome_build}.vcf.gz")
     output:
-        vcf = temp(CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.annotated.vcf")
+        vcf = temp(CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.annotated.vcf")
     conda:
         CFG["conda_envs"]["bcftools"]
     resources:
@@ -123,11 +144,11 @@ rule _vcf2maf_run:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         vep_cache = ancient(CFG["inputs"]["vep_cache"])
     output:
-        maf = temp(CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.maf"),
-        vep = temp(CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.annotated.vep.vcf")
+        maf = temp(CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.maf"),
+        vep = temp(CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.annotated.vep.vcf")
     log:
-        stdout = CFG["logs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_vcf2maf.stdout.log",
-        stderr = CFG["logs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}_vcf2maf.stderr.log",
+        stdout = CFG["logs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}_vcf2maf.stdout.log",
+        stderr = CFG["logs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}_vcf2maf.stderr.log",
     params:
         opts = CFG["options"]["vcf2maf"],
         build = lambda w: VCF2MAF_VERSION_MAP[w.genome_build],
@@ -155,7 +176,7 @@ rule _vcf2maf_run:
             --input-vcf {input.vcf}
             --output-maf {output.maf}
             --tumor-id {wildcards.tumour_id}
-            --normal-id {wildcards.normal_id}
+            --normal-id {wildcards.normal_name}
             --ref-fasta {input.fasta}
             --ncbi-build {params.build}
             --vep-data {input.vep_cache}
@@ -172,11 +193,11 @@ rule _vcf2maf_gnomad_filter_maf:
     input:
         maf = str(rules._vcf2maf_run.output.maf)
     output:
-        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.raw.maf",
-        dropped_maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.dropped.maf.gz"
+        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.gnomad_filtered.raw.maf",
+        dropped_maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.gnomad_filtered.dropped.maf.gz"
     params:
         opts = CFG["options"]["gnomAD_cutoff"],
-        temp_file = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.dropped.maf"
+        temp_file = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.gnomad_filtered.dropped.maf"
     wildcard_constraints:
         base_name = CFG["vcf_base_name"],
         maf = "maf"
@@ -201,12 +222,12 @@ rule _vcf2maf_gamblr_config:
 
 rule _vcf2maf_deblacklist_maf:
     input:
-        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.raw.maf",
+        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.gnomad_filtered.raw.maf",
         gamblr = ancient(rules._vcf2maf_gamblr_config.output.config)
     output:
-        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.deblacklisted.maf"
+        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.gnomad_filtered.deblacklisted.maf"
     log:
-        CFG["logs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.deblacklist.log"
+        CFG["logs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.deblacklist.log"
     params:
         blacklist_build = lambda w: VCF2MAF_GENOME_VERSION[w.genome_build],
         blacklist_template = lambda w: config["lcr-modules"]["vcf2maf"]["inputs"]["blacklist_template"],
@@ -237,12 +258,12 @@ def get_add_mafs(wildcards):
     if not CFG["options"]["across_seq_types"]:
         this_patient = op.filter_samples(this_patient, tumour_seq_type = wildcards.seq_type)
     add_mafs = expand(
-        CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.{filter}.maf",
+        CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.gnomad_filtered.{filter}.maf",
         zip,
         genome_build = this_patient["tumour_genome_build"],
         seq_type = this_patient["tumour_seq_type"],
         tumour_id = this_patient["tumour_sample_id"],
-        normal_id = this_patient["normal_sample_id"],
+        normal_name = this_patient["normal_sample_id"],
         pair_status = this_patient["pair_status"],
         base_name = [CFG["vcf_base_name"]] * len(this_patient.tumour_sample_id),
         allow_missing = True
@@ -254,12 +275,12 @@ def get_add_mafs(wildcards):
 if CFG["options"]["augment"]:
     if not CFG["options"]["across_seq_types"]:
         MULTI_SAMPLES = CFG["runs"]\
-            .groupby(["tumour_patient_id", "tumour_seq_type", "tumour_genome_build"])\
+            .groupby(["tumour_patient_id", "tumour_seq_type", "tumour_genome_build", "tumour_chemistry"])\
             .filter(lambda x: len(x) > 1)\
             .reset_index()
     else:
         MULTI_SAMPLES = CFG["runs"]\
-            .groupby(["tumour_patient_id", "tumour_genome_build"])\
+            .groupby(["tumour_patient_id", "tumour_genome_build", "tumour_chemistry"])\
             .filter(lambda x: len(x) > 1)\
             .reset_index()
 else:
@@ -269,9 +290,9 @@ rule _vcf2maf_augment_maf:
     input:
         unpack(get_add_mafs),
         tumour_bam = str(rules._vcf2maf_input_bam.output.bam),
-        index_maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.{filter}.maf"
+        index_maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.gnomad_filtered.{filter}.maf"
     output:
-        augmented_maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.{filter}.augmented_maf"
+        augmented_maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.gnomad_filtered.{filter}.augmented_maf"
     params:
         script = CFG["inputs"]["augment_ssm"]
     threads:
@@ -291,9 +312,9 @@ rule _vcf2maf_augment_maf:
 
 rule _vcf2maf_output_original:
     input:
-        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.{filter}.{maf}"
+        maf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.gnomad_filtered.{filter}.{maf}"
     output:
-        maf = CFG["dirs"]["outputs"] + "{filter}/{maf}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{base_name}.maf"
+        maf = CFG["dirs"]["outputs"] + "{filter}/{maf}/{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}.{base_name}.maf"
     wildcard_constraints:
         base_name = CFG["vcf_base_name"],
         filter = "|".join(["raw", "deblacklisted"]),
@@ -311,7 +332,7 @@ def get_original_genome(wildcards):
     sample_table = config['lcr-modules']["vcf2maf"]["samples"]
     sample_entry = sample_table.loc[(sample_table["sample_id"] == wildcards.tumour_id) & (sample_table["seq_type"] == wildcards.seq_type)]
     if len(sample_entry) == 0:
-        raise AttributeError("Unable to locate a a sample with tumour_id:{wildcards.tumour_id}, normal_id:{wildcards.normal_id}, seq_type:{wildcards.seq_type} in the \'sample\' table")
+        raise AttributeError("Unable to locate a a sample with tumour_id:{wildcards.tumour_id}, normal_name:{wildcards.normal_name}, seq_type:{wildcards.seq_type} in the \'sample\' table")
     original_genome_build = sample_entry.genome_build.tolist()
     return original_genome_build
 
@@ -332,7 +353,7 @@ def crossmap_input(wildcards):
     return {
         "maf":
             expand(
-                CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.{filter}.{maf}",
+                CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.gnomad_filtered.{filter}.{maf}",
                 **wildcards,
                 genome_build = original_genome_build
             ),
@@ -344,10 +365,10 @@ rule _vcf2maf_crossmap:
     input:
         unpack(crossmap_input)
     output:
-        maf = temp(CFG["dirs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.{filter}.{maf}")
+        maf = temp(CFG["dirs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.{filter}.{maf}")
     log:
-        stdout = CFG["logs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.{filter}.{maf}.crossmap.stdout.log",
-        stderr = CFG["logs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.{filter}.{maf}.crossmap.stderr.log"
+        stdout = CFG["logs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.{filter}.{maf}.crossmap.stdout.log",
+        stderr = CFG["logs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.{filter}.{maf}.crossmap.stderr.log"
     conda:
         CFG["conda_envs"]["crossmap"]
     threads:
@@ -375,10 +396,10 @@ rule _vcf2maf_reannotate:
         fasta = reference_files("genomes/{target_build}/genome_fasta/genome.fa"),
         vep_cache = ancient(CFG["inputs"]["vep_cache"])
     output:
-        maf = temp(CFG["dirs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.{filter}_reannotated.{maf}")
+        maf = temp(CFG["dirs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.{filter}_reannotated.{maf}")
     log:
-        stdout = CFG["logs"]["normalize"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.{filter}_{maf}_reannotated.stdout.log",
-        stderr = CFG["logs"]["normalize"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.{filter}_{maf}_reannotated.stderr.log",
+        stdout = CFG["logs"]["normalize"] + "{seq_type}--{target_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.{filter}_{maf}_reannotated.stdout.log",
+        stderr = CFG["logs"]["normalize"] + "{seq_type}--{target_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.{filter}_{maf}_reannotated.stderr.log",
     params:
         opts = CFG["options"]["maf2maf"],
         build = lambda w: VCF2MAF_VERSION_MAP[w.target_build],
@@ -436,7 +457,7 @@ def get_normalize_input(wildcards, todo_only = False):
     if new_genome_build in original_genome_builds:
         # Source matches. CrossMap not necessary. No maf normalization needed.
         maf = expand(
-            CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.{filter}.{maf}",
+            CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.gnomad_filtered.{filter}.{maf}",
             **wildcards,
             genome_build = new_genome_build
         )
@@ -447,7 +468,7 @@ def get_normalize_input(wildcards, todo_only = False):
         index = original_genome_version.index(new_genome_version)
         # Get the input maf file
         maf = expand(
-            CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_filtered.{filter}.{maf}",
+            CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.gnomad_filtered.{filter}.{maf}",
             **wildcards,
             genome_build = original_genome_builds[index]
         )
@@ -487,7 +508,7 @@ rule _vcf2maf_normalize_prefix:
     input:
         unpack(lambda w: get_normalize_input(w, todo_only = False))
     output:
-        maf = CFG["dirs"]["normalize"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.{filter}.{maf}"
+        maf = CFG["dirs"]["normalize"] + "{seq_type}--{target_build}/{tumour_id}--{normal_name}--{pair_status}--{chemistry}/{base_name}.{filter}.{maf}"
     params:
         todo = lambda w: get_normalize_input(w, todo_only = True),
         dest_chr = lambda w: VCF2MAF_GENOME_PREFIX[w.target_build]
@@ -518,7 +539,7 @@ rule _vcf2maf_output_maf:
     input:
         maf = str(rules._vcf2maf_normalize_prefix.output.maf),
     output:
-        maf = CFG["dirs"]["outputs"] + "{filter}/{maf}/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{base_name}.{target_build}.maf"
+        maf = CFG["dirs"]["outputs"] + "{filter}/{maf}/{seq_type}--projection/{tumour_id}--{normal_name}--{pair_status}--{chemistry}.{base_name}.{target_build}.maf"
     wildcard_constraints:
         target_build = "|".join(CFG["options"]["target_builds"]),
         base_name = CFG["vcf_base_name"]
@@ -537,7 +558,8 @@ rule _vcf2maf_all:
                 seq_type = CFG["runs"]["tumour_seq_type"],
                 genome_build = CFG["runs"]["tumour_genome_build"],
                 tumour_id = CFG["runs"]["tumour_sample_id"],
-                normal_id = CFG["runs"]["normal_sample_id"],
+                normal_name = CFG["runs"]["normal_name"],
+                chemistry = CFG["runs"]["tumour_chemistry"],
                 pair_status = CFG["runs"]["pair_status"],
                 allow_missing = True
             ),
@@ -552,7 +574,8 @@ rule _vcf2maf_all:
                 seq_type = MULTI_SAMPLES["tumour_seq_type"],
                 genome_build = MULTI_SAMPLES["tumour_genome_build"],
                 tumour_id = MULTI_SAMPLES["tumour_sample_id"],
-                normal_id = MULTI_SAMPLES["normal_sample_id"],
+                normal_name = CFG["runs"]["normal_name"],
+                chemistry = MULTI_SAMPLES["tumour_chemistry"],
                 pair_status = MULTI_SAMPLES["pair_status"],
                 allow_missing = True
             ),
@@ -566,7 +589,8 @@ rule _vcf2maf_all:
                 zip,
                 seq_type = CFG["runs"]["tumour_seq_type"],
                 tumour_id = CFG["runs"]["tumour_sample_id"],
-                normal_id = CFG["runs"]["normal_sample_id"],
+                normal_name = CFG["runs"]["normal_name"],
+                chemistry = CFG["runs"]["tumour_chemistry"],
                 pair_status = CFG["runs"]["pair_status"],
                 base_name = [CFG["vcf_base_name"]] * len(CFG["runs"]["tumour_sample_id"]),
                 allow_missing = True
@@ -582,7 +606,8 @@ rule _vcf2maf_all:
                 zip,
                 seq_type = MULTI_SAMPLES["tumour_seq_type"],
                 tumour_id = MULTI_SAMPLES["tumour_sample_id"],
-                normal_id = MULTI_SAMPLES["normal_sample_id"],
+                normal_name = CFG["runs"]["normal_name"],
+                chemistry = MULTI_SAMPLES["tumour_chemistry"],
                 pair_status = MULTI_SAMPLES["pair_status"],
                 base_name = [CFG["vcf_base_name"]] * len(MULTI_SAMPLES["tumour_sample_id"]),
                 allow_missing = True

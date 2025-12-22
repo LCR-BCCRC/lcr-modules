@@ -444,7 +444,6 @@ rule get_mutect2_small_exac:
         bcftools index -t {output.vcf}
         """)
 
-
 ### FOR HANDLING CAPTURE SPACE/TARGETED SEQUENCING DATA ###
 # Added by Chris
 # What this *should* do (if I have written these rules correctly) is obtain a capture space BED file

@@ -444,7 +444,6 @@ rule get_mutect2_small_exac:
         bcftools index -t {output.vcf}
         """)
 
-
 ### FOR HANDLING CAPTURE SPACE/TARGETED SEQUENCING DATA ###
 # Added by Chris
 # What this *should* do (if I have written these rules correctly) is obtain a capture space BED file
@@ -776,3 +775,22 @@ rule oncodrive_hg19_regions_downloaded:
     shell:
         "touch {output.finished}"
 
+##### ONT Panel of Normals #####
+
+rule get_ont_pon_hg38:
+    input:
+        vcf = get_download_file(rules.download_ont_pon_hg38.output.vcf),
+        fai = str(rules.index_genome_fasta.output.fai),
+        bed = str(rules.get_main_chromosomes_withY_download.output.bed)
+    output:
+        vcf = "genomes/{genome_build}/ont/colorsDb.v1.2.0.deepvariant.glnexus.{genome_build}.vcf.gz",
+        tmpfile = temp("genomes/{genome_build}/ont/colorsDb.v1.2.0.deepvariant.glnexus.{genome_build}.vcf.tmp")
+    log:
+        "genomes/{genome_build}/ont/colorsDb.v1.2.0.deepvariant.glnexus.{genome_build}.vcf.log"
+    conda: CONDA_ENVS["bcftools"]
+    shell:
+        op.as_one_line("""
+        zgrep -v '##contig' {input.vcf} > {output.tmpfile} && 
+        bcftools reheader --fai {input.fai} {output.tmpfile} | bcftools view -T {input.bed} -O z -o {output.vcf} 2> {log} &&
+        bcftools index -t {output.vcf}
+        """)
