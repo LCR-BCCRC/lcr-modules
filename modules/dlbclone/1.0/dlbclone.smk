@@ -46,12 +46,14 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _dlbclone_build_model,
+    _dlbclone_assemble_genetic_features,
     _dlbclone_predict,
     _dlbclone_all,
 
 # TODO: Parallelization. What if you are predicting on multiple models? What if you are building multiple models?
 # TODO: Appropriately incorporate str() as required by LCR modules
 # TODO: Appropriately assign CFG "dirs" + "outputs"
+# TODO: Unit tests for assemble_genetic_features rule and its incorporation into dlbclone_predict rule
 
 
 ##### RULES #####
@@ -59,6 +61,7 @@ if "launch_date" in CFG:
     launch_date = CFG['launch_date']
 else:
     launch_date = datetime.today().strftime('%Y-%m')
+
 
 #  Convert CFG Python dictionary lists to an R list of c(...) vectors
 def as_r_list(d):
@@ -70,11 +73,21 @@ def as_r_list(d):
         items.append(f"{k}={r_vec}")
     return "list(" + ",".join(items) + ")"
 
-# Convert CFG Python lists to an R c(...) vector
-def as_r_c(vec):
-    if vec is None or len(vec) == 0:
+# Convert CFG Python dictionary to an R named list
+def as_r_named_list(d):
+    if d is None:
         return "NULL"
-    return "c(" + ",".join(f'"{x}"' for x in vec) + ")"
+    items = []
+    for k, v in d.items():
+        items.append(f'{k}="{v}"')
+    return "list(" + ",".join(items) + ")"
+
+# Convert CFG Python lists to an R c(...) vector
+def as_r_c(d):
+    if d is None or len(d) == 0:
+        return "NULL"
+    return "c(" + ",".join(f'"{x}"' for x in d) + ")"
+
 
 # Uses only GAMBL metadata and binary mutation data as training for DLBCLone models
 rule _dlbclone_build_model: 
@@ -91,11 +104,11 @@ rule _dlbclone_build_model:
         truth_classes = as_r_c(CFG["options"]["truth_classes"]),
         min_k = CFG["options"]["min_k"],
         max_k = CFG["options"]["max_k"]
-    log:
-        CFG["logs"]["opt_model_path"] + "/{model_name_prefix}_model.rds",
-        CFG["logs"]["opt_model_path"] + "/{model_name_prefix}_umap.uwot"
+    #log:
+     #   CFG["logs"]["opt_model_path"] + "/{model_name_prefix}_model.rds",
+      #  CFG["logs"]["opt_model_path"] + "/{model_name_prefix}_umap.uwot"
     container:
-        "dlbclone:latest"
+        "docker://lklossok/dlbclone:latest"
     threads:
         CFG["threads"]["quant"]
     resources:
@@ -112,6 +125,7 @@ rule _dlbclone_build_model:
             --min_k {params.min_k} 
             --max_k {params.max_k}
         """)
+
 
 # Determine if custom dlbclone model(s) need to be generated for predictions
 USE_GAMBLR = CFG["inputs"]["opt_model_path"] == "GAMBLR.predict"
@@ -134,21 +148,75 @@ def model_inputs():
     else:
         return rules._dlbclone_build_model.output
 
+
+rule _dlbclone_assemble_genetic_features:
+    input:
+        test_metadata = CFG["inputs"]["test_metadata_dir"],
+        test_maf = CFG["inputs"]["test_maf_dir"],
+        dlbclone_assemble_genetic_features = CFG["inputs"]["dlbclone_assemble_genetic_features"]
+    output:
+        test_mutation_matrix = CFG["inputs"]["test_matrix_dir"]
+    params:
+        sv_from_metadata = as_r_c(CFG["options"]["sv_from_metadata"]),
+        translocation_status = as_r_named_list(CFG["options"]["translocation_status"]),
+        maf_sample_id_colname = CFG["options"]["maf_sample_id_colname"],
+        metadata_sample_id_colname = CFG["options"]["metadata_sample_id_colname"],
+        truth_column_colname = CFG["options"]["truth_column_colname"],
+        genes = as_r_c(CFG["options"]["genes"]),
+        synon_genes = as_r_c(CFG["options"]["synon_genes"]),
+        hotspot_genes = as_r_c(CFG["options"]["hotspot_genes"]),
+        sv_value = CFG["options"]["sv_value"],
+        synon_value = CFG["options"]["synon_value"],
+        coding_value = CFG["options"]["coding_value"],
+        include_ashm = CFG["options"]["include_ashm"],
+        annotated_sv = CFG["options"]["annotated_sv"],
+        include_GAMBL_sv = CFG["options"]["include_GAMBL_sv"]
+    #log:
+    #   CFG["logs"]["dlbclone_predict"]["test_data_dir"]
+    container:
+        "docker://lklossok/dlbclone:latest"
+    threads:
+        CFG["threads"]["quant"]
+    resources:
+        **CFG["resources"]["quant"]
+    shell:
+        op.as_one_line("""
+        Rscript {input.dlbclone_assemble_genetic_features} 
+            --metadata {input.test_metadata} 
+            --maf {input.test_maf} 
+            --maf_sample_id_colname {params.maf_sample_id_colname}
+            --metadata_sample_id_colname {params.metadata_sample_id_colname} 
+            --sv_from_metadata '{params.sv_from_metadata}' 
+            --translocation_status '{params.translocation_status}' 
+            --truth_column_colname {params.truth_column_colname}
+            --output_matrix_dir {output.test_mutation_matrix} 
+            --genes '{params.genes}'
+            --synon_genes '{params.synon_genes}'
+            --hotspot_genes '{params.hotspot_genes}'
+            --sv_value {params.sv_value}
+            --synon_value {params.synon_value}
+            --coding_value {params.coding_value}
+            --include_ashm {params.include_ashm}
+            --annotated_sv {params.annotated_sv}
+            --include_GAMBL_sv {params.include_GAMBL_sv}
+        """)
+
+
 rule _dlbclone_predict:
     input:
         models = model_inputs(), 
         mutation_matrix = CFG["inputs"]["test_matrix_dir"], # first column is sample ID and all other columns are features
         dlbclone_predict = CFG["inputs"]["dlbclone_predict"]
     output:
-        predictions = CFG["options"]["pred_dir"] + "/{model_name_prefix}--{launch_date}/{matrix_name}_DLBCLone_predictions.tsv"
+        predictions = CFG["inputs"]["pred_dir"] + "/" + CFG["inputs"]["model_name_prefix"] + "--{launch_date}/{matrix_name}_DLBCLone_predictions.tsv"
     params:
         opt_model_path = CFG["inputs"]["opt_model_path"],
         fill_missing = CFG["options"]["fill_missing"], 
         drop_extra = CFG["options"]["drop_extra"]
-    log:
-        CFG["logs"]["pred_dir"] + "/{model_name_prefix}--{launch_date}/{matrix_name}_DLBCLone_predictions.tsv"
+    #log:
+     #   CFG["logs"]["pred_dir"] + "/{model_name_prefix}--{launch_date}/{matrix_name}_DLBCLone_predictions.tsv"
     container:
-        "dlbclone:latest"
+        "docker://lklossok/dlbclone:latest"
     threads:
         CFG["threads"]["quant"]
     resources:
@@ -164,13 +232,14 @@ rule _dlbclone_predict:
             --drop_extra {params.drop_extra}
         """)
 
+
 rule _dlbclone_all:
     input:
         expand(
             [
                 rules._dlbclone_predict.output.predictions
             ],
-            model_name_prefix = CFG["inputs"]["model_name_prefix"],
+          #  model_name_prefix = CFG["inputs"]["model_name_prefix"],
             matrix_name = CFG["inputs"]["matrix_name"],
             launch_date = launch_date
         )

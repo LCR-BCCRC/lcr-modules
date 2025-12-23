@@ -33,13 +33,20 @@ lcr-modules:
             
             # This script from lcr-scripts will generate a saved and stored DLBCLone model
             dlbclone_model: "{SCRIPTSDIR}/dlbclone/1.0/dlbclone_model.R"
+            # This script from lcr-scripts will assemble a test mutation matrix from maf and metadata files
+            dlbclone_assemble_genetic_features: "{SCRIPTSDIR}/dlbclone/1.0/dlbclone_assemble.R"
             # This script from lcr-scripts predicts DLBCL molecular subgroups for one or more samples using a pre-trained DLBCLone model
             dlbclone_predict: "{SCRIPTSDIR}/dlbclone/1.0/dlbclone_predict.R"
 
+            # path to test metadata associated with the test maf file
+            test_metadata_dir: "__UPDATE__" 
+            # path to the test maf file associated with the test metadata
+            test_maf_dir: "__UPDATE__" 
+
             # path to test mutation matrix
-            test_matrix_dir: "__UPDATE__" 
+            test_matrix_dir: "__UPDATE__" # TODO: modify for assemble_genetic_features rule
             # test mutation matrix name
-            matrix_name: "__UPDATE__"
+            matrix_name: "__UPDATE__" # TODO: modify for assemble_genetic_features rule
             # path to folder to store DLBCLone predictions tsv file(s)
             pred_dir: "__UPDATE__" 
 
@@ -61,6 +68,27 @@ lcr-modules:
             truth_classes: ["EZB", "MCD", "ST2", "N1", "BN2", "Other"] # List all truth classes found in the truth column. Make sure params as_r_c() is used in snakemake rule.
             min_k: 3 # Starting k for knn (Default: 3)
             max_k: 33 # Ending k for knn (Default: 33)
+
+            # RULE _dlbclone_assemble_genetic_features. Tunable parameters for formatting metadata and maf files.
+            maf_sample_id_colname: "__UPDATE__" # maf column storing sample_id names 
+            metadata_sample_id_colname: "__UPDATE__" # metadata column storing sample_id names
+            truth_column_colname: "__UPDATE__" # metadata column storing subtype truth labels
+            sv_from_metadata: ["__UPDATE__"] # metadata colnames that posses translocation status information
+            translocation_status: # list input, for each translocation gene status define naming conventions. Make sure params as_r_list() is used in snakemake rule.
+                POS: "__UPDATE__" # POS = positive for a translocation
+                NEG: "__UPDATE__" # NEG = negative for a translocation
+                NA_STATUS: "__UPDATE__" # NA = undetermined status
+
+            # RULE _dlbclone_assemble_genetic_features. Tunable parameters for GAMBLR.predict::assemble_genetic_features() function.
+            genes: null # list input, all genes to be included in the genetic feature matrix. If NULL, all genes from gambl_genes are used. Make sure params as_r_c() is used in snakemake rule.
+            synon_genes: null # input all synonymous genes available in your maf data you would like assembled into your feature matrix
+            hotspot_genes: ["MYD88"] # input all hotspot genes available in your maf data you would like assembled into your feature matrix (Default: "MYD88")
+            sv_value: 2 # value assigned for structural variants (Default: 2)
+            synon_value: 1 # value assigned for synonymous mutations (Default: 1)
+            coding_value: 2 # value assigned for coding mutations (Default: 2)
+            include_ashm: false # include ASHM features (Default: false)
+            annotated_sv: null # "/path/to/sv.tsv"
+            include_GAMBL_sv: false # include GAMBLR sv features (Default: false)
 
             # RULE _dlbclone_predict. Tunable parameters for GAMBLR.predict::DLBCLone_predict() function. 
             fill_missing: true # if TRUE, any features present in the dlbclone model but not seen in test mutation matrix are added and set to zero. If FALSE, missing model features cause an error
