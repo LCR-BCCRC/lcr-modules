@@ -483,7 +483,7 @@ rule _battenberg_output_roh:
     input:
         hom = rules._battenberg_plink_roh.output.hom
     output:
-        hom = CFG["dirs"]["outputs"] + "roh/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_roh.hom"
+        hom = CFG["dirs"]["outputs"] + "roh/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_roh.hom"
     threads: 1
     group: "plink"
     run:
