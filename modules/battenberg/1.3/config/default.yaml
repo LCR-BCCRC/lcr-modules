@@ -23,6 +23,8 @@ lcr-modules:
             prefixed_projections: ["grch38", "hg38"] # List here the base names of chr-prefixed projections
             non_prefixed_projections: ["grch37", "hg19", "hs37d5"] # List here the base names of non-prefixed projections
             fill_segments_version: "1.1/"
+            # specify in which projections you want the output files
+            requested_projections: ["grch37", "hg38"]
             # List of ploidy constraint ranges to run Battenberg with. Each entry must be "MIN-MAX".
             # Example: ["1.6-4.8", "2.0-5.0"] will run two fit jobs per input.
             # The first entry is treated as the "canonical" ploidy for downstream outputs
@@ -45,19 +47,6 @@ lcr-modules:
                 # Both thresholds must be satisfied for a ROH segment to be reported.
                 homozyg_kb: 1000
                 homozyg_snp: 50
-
-        output: # specify the naming convention for the output files under 99-outputs/
-                # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
-                # other wildcards are not supported in the naming scheme of output files
-            seg:
-                original: "results/battenberg-1.2/99-outputs/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.seg"
-                projection: "results/battenberg-1.2/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
-            txt:
-                subclones: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt"
-                cell_ploidy: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
-                roh: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_roh.hom"
-            # specify in which projections you want the output files
-            requested_projections: ["grch37", "hg38"]
 
         resources:
             battenberg:

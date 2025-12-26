@@ -483,7 +483,7 @@ rule _battenberg_output_roh:
     input:
         hom = rules._battenberg_plink_roh.output.hom
     output:
-        hom = CFG["output"]["txt"]["roh"]
+        hom = CFG["dirs"]["outputs"] + "roh/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_roh.hom"
     threads: 1
     group: "plink"
     run:
@@ -644,7 +644,7 @@ rule _battenberg_output_projection:
     input:
         projection = str(rules._battenberg_normalize_projection.output.projection)
     output:
-        projection = CFG["output"]["seg"]["projection"]
+        projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
     threads: 1
     group: "battenberg_post_process"
     run:
@@ -659,9 +659,9 @@ rule _battenberg_output_seg:
         sub = rules._battenberg_fill_subclones.output.sub,
         cp = lambda w: str(rules._run_battenberg_fit.output.cp).replace("{ploidy_constraint}", _canonical_ploidy())
     output:
-        seg = CFG["output"]["seg"]["original"],
-        sub = CFG["output"]["txt"]["subclones"],
-        cp = CFG["output"]["txt"]["cell_ploidy"]
+        seg = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.seg",
+        sub = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt",
+        cp = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
     params: 
         batt_dir = CFG["dirs"]["battenberg"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_" + _canonical_ploidy(),
         png_dir = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}"
@@ -704,7 +704,7 @@ rule _battenberg_all:
             #repeat the tool name N times in expand so each pair in run is used
             tool=["battenberg"] * len(CFG["runs"]["tumour_sample_id"]),
             allow_missing=True),
-            projection=CFG["output"]["requested_projections"])
+            projection=CFG["options"]["requested_projections"])
 
 
 ##### CLEANUP #####
