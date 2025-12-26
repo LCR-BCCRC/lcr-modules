@@ -273,7 +273,7 @@ rule _run_battenberg_fit:
     shell:
         op.as_one_line("""
         mkdir -p "{params.out_dir}";
-        cp -al {input.ac} {input.mb} {input.mlrg} {input.mlr} {input.nlr} {input.nb} {input.hap} {params.out_dir}/;
+        cp -al -n {input.ac} {input.mb} {input.mlrg} {input.mlr} {input.nlr} {input.nb} {input.hap} {params.out_dir}/;
         for f in {params.preprocess_dir}/*_alleleFrequencies_chr*.txt; do
           if [[ -e "$f" ]]; then
             ln -sf "$(readlink -f "$f")" {params.out_dir}/;
