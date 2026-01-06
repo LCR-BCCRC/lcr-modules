@@ -95,7 +95,7 @@ localrules:
 # Pull SIF file from lcr-sifs
 rule _dlbclone_sif_pull:
     output:
-        sif = CFG["dirs"]["dlbclone"] + "dlbclone.sif"
+        sif = CFG["dirs"]["dlbclone"] + "gamblr.sif" #dlbclone.sif
     #log:
      #   stdout = CFG["logs"]["dlbclone"] + "install.stdout.log",
       #  stderr = CFG["logs"]["dlbclone"] + "install.stderr.log"
@@ -103,7 +103,7 @@ rule _dlbclone_sif_pull:
   #      CFG["conda"]["singularity"]
     shell:
         """
-        singularity pull {output.sif} docker://lklossok/dlbclone:latest
+        singularity pull {output.sif} docker://lklossok/gamblr:latest
         """
 
 
@@ -126,10 +126,11 @@ rule _dlbclone_build_model:
         dlbclone_model = CFG["inputs"]["dlbclone_model"], 
         sif = str(rules._dlbclone_sif_pull.output.sif)
     output:
-        opt_model_rds_path = CFG["inputs"]["opt_model_path"] + "/{model_name_prefix}_model.rds",
-        opt_model_uwot_path = CFG["inputs"]["opt_model_path"] + "/{model_name_prefix}_umap.uwot"
+        opt_model_rds_path = CFG["inputs"]["opt_model_path"] + "/" + CFG["inputs"]["model_name_prefix"] + "_model.rds",
+        opt_model_uwot_path = CFG["inputs"]["opt_model_path"] + "/" + CFG["inputs"]["model_name_prefix"] + "_umap.uwot"
     params:
         opt_model_path = CFG["inputs"]["opt_model_path"],
+        model_name_prefix = CFG["inputs"]["model_name_prefix"],
         core_features = as_r_list(CFG["options"]["core_features"]),
         core_feature_multiplier = CFG["options"]["core_feature_multiplier"],
         hidden_features = as_r_c(CFG["options"]["hidden_features"]),
@@ -137,19 +138,17 @@ rule _dlbclone_build_model:
         min_k = CFG["options"]["min_k"],
         max_k = CFG["options"]["max_k"]
     #log:
-     #   CFG["logs"]["opt_model_path"] + "/{model_name_prefix}_model.rds",
-      #  CFG["logs"]["opt_model_path"] + "/{model_name_prefix}_umap.uwot"
-   # container:
-    #    "docker://lklossok/dlbclone:latest"
+     #   CFG["logs"]["opt_model_path"] + "/" + CFG["inputs"]["model_name_prefix"] + "_model.rds",
+      #  CFG["logs"]["opt_model_path"] + "/" + CFG["inputs"]["model_name_prefix"] + "_umap.uwot"
     threads:
         CFG["threads"]["quant"]
     resources:
         **CFG["resources"]["quant"]
     shell:
         op.as_one_line("""
-            apptainer exec --cleanenv {input.sif} Rscript {input.dlbclone_model} \ 
+            apptainer exec --cleanenv {input.sif} Rscript {input.dlbclone_model}  
                 --opt_model_path {params.opt_model_path} 
-                --model_name_prefix {model_name_prefix}
+                --model_name_prefix {params.model_name_prefix}
                 --core_features '{params.core_features}' 
                 --core_feature_multiplier {params.core_feature_multiplier} 
                 --hidden_features '{params.hidden_features}' 
@@ -181,58 +180,56 @@ def model_inputs():
         return rules._dlbclone_build_model.output
 
 
-#rule _dlbclone_assemble_genetic_features:
- #   input:
-  #      test_metadata = CFG["inputs"]["test_metadata_dir"],
-   #     test_maf = CFG["inputs"]["test_maf_dir"],
-    #    dlbclone_assemble_genetic_features = CFG["inputs"]["dlbclone_assemble_genetic_features"], 
-     #   sif = str(rules._dlbclone_sif_pull.output.sif)
-#    output:
- #       test_mutation_matrix = CFG["inputs"]["test_matrix_dir"]
-  #  params:
-   #     sv_from_metadata = as_r_c(CFG["options"]["sv_from_metadata"]),
-    #    translocation_status = as_r_named_list(CFG["options"]["translocation_status"]),
-     #   maf_sample_id_colname = CFG["options"]["maf_sample_id_colname"],
-      #  metadata_sample_id_colname = CFG["options"]["metadata_sample_id_colname"],
-       # truth_column_colname = CFG["options"]["truth_column_colname"],
-        #genes = as_r_c(CFG["options"]["genes"]),
-#        synon_genes = as_r_c(CFG["options"]["synon_genes"]),
- #       hotspot_genes = as_r_c(CFG["options"]["hotspot_genes"]),
-  #      sv_value = CFG["options"]["sv_value"],
-   #     synon_value = CFG["options"]["synon_value"],
-    #    coding_value = CFG["options"]["coding_value"],
-     #   include_ashm = CFG["options"]["include_ashm"],
-      #  annotated_sv = CFG["options"]["annotated_sv"],
-       # include_GAMBL_sv = CFG["options"]["include_GAMBL_sv"]
+rule _dlbclone_assemble_genetic_features:
+    input:
+        test_metadata = CFG["inputs"]["test_metadata_dir"],
+        test_maf = CFG["inputs"]["test_maf_dir"],
+        dlbclone_assemble_genetic_features = CFG["inputs"]["dlbclone_assemble_genetic_features"], 
+        sif = str(rules._dlbclone_sif_pull.output.sif)
+    output:
+        test_mutation_matrix = CFG["inputs"]["test_matrix_dir"]
+    params:
+        sv_from_metadata = as_r_c(CFG["options"]["sv_from_metadata"]),
+        translocation_status = as_r_named_list(CFG["options"]["translocation_status"]),
+        maf_sample_id_colname = CFG["options"]["maf_sample_id_colname"],
+        metadata_sample_id_colname = CFG["options"]["metadata_sample_id_colname"],
+        truth_column_colname = CFG["options"]["truth_column_colname"],
+        genes = as_r_c(CFG["options"]["genes"]),
+        synon_genes = as_r_c(CFG["options"]["synon_genes"]),
+        hotspot_genes = as_r_c(CFG["options"]["hotspot_genes"]),
+        sv_value = CFG["options"]["sv_value"],
+        synon_value = CFG["options"]["synon_value"],
+        coding_value = CFG["options"]["coding_value"],
+        include_ashm = CFG["options"]["include_ashm"],
+        annotated_sv = CFG["options"]["annotated_sv"],
+        include_GAMBL_sv = CFG["options"]["include_GAMBL_sv"]
     #log:
     #   CFG["logs"]["dlbclone_predict"]["test_data_dir"]
-    #container:
-     #   "docker://lklossok/dlbclone:latest"
-#    threads:
- #       CFG["threads"]["quant"]
-  #  resources:
-   #     **CFG["resources"]["quant"]
-    #shell:
-     #   op.as_one_line("""
-      #  apptainer exec --cleanenv {input.sif} Rscript {input.dlbclone_assemble_genetic_features} \
-       #     --metadata {input.test_metadata} 
-        #    --maf {input.test_maf} 
-         #   --maf_sample_id_colname {params.maf_sample_id_colname}
-          #  --metadata_sample_id_colname {params.metadata_sample_id_colname} 
-           # --sv_from_metadata '{params.sv_from_metadata}' 
-            #--translocation_status '{params.translocation_status}' 
-#            --truth_column_colname {params.truth_column_colname}
- #           --output_matrix_dir {output.test_mutation_matrix} 
-  #          --genes '{params.genes}'
-   #         --synon_genes '{params.synon_genes}'
-    #        --hotspot_genes '{params.hotspot_genes}'
-     #       --sv_value {params.sv_value}
-      #      --synon_value {params.synon_value}
-       #     --coding_value {params.coding_value}
-        #    --include_ashm {params.include_ashm}
-         #   --annotated_sv {params.annotated_sv}
-          #  --include_GAMBL_sv {params.include_GAMBL_sv}
-#        """)
+    threads:
+        CFG["threads"]["quant"]
+    resources:
+        **CFG["resources"]["quant"]
+    shell:
+        op.as_one_line("""
+        apptainer exec --cleanenv {input.sif} Rscript {input.dlbclone_assemble_genetic_features} 
+            --metadata {input.test_metadata} 
+            --maf {input.test_maf} 
+            --maf_sample_id_colname {params.maf_sample_id_colname}
+            --metadata_sample_id_colname {params.metadata_sample_id_colname} 
+            --sv_from_metadata '{params.sv_from_metadata}' 
+            --translocation_status '{params.translocation_status}' 
+            --truth_column_colname {params.truth_column_colname}
+            --output_matrix_dir {output.test_mutation_matrix} 
+            --genes '{params.genes}'
+            --synon_genes '{params.synon_genes}'
+            --hotspot_genes '{params.hotspot_genes}'
+            --sv_value {params.sv_value}
+            --synon_value {params.synon_value}
+            --coding_value {params.coding_value}
+            --include_ashm {params.include_ashm}
+            --annotated_sv {params.annotated_sv}
+            --include_GAMBL_sv {params.include_GAMBL_sv}
+        """)
 
 
 rule _dlbclone_predict:
@@ -249,7 +246,7 @@ rule _dlbclone_predict:
         fill_missing = CFG["options"]["fill_missing"], 
         drop_extra = CFG["options"]["drop_extra"]
     #log:
-     #   CFG["logs"]["pred_dir"] + "/{model_name_prefix}--{launch_date}/{matrix_name}_DLBCLone_predictions.tsv"
+     #   CFG["logs"]["pred_dir"] + "/" + CFG["inputs"]["model_name_prefix"] + "--{launch_date}/{matrix_name}_DLBCLone_predictions.tsv"
     #container:
      #   "docker://lklossok/dlbclone:latest"
     threads:
@@ -258,7 +255,7 @@ rule _dlbclone_predict:
         **CFG["resources"]["quant"]
     shell:
         op.as_one_line("""
-        apptainer exec --cleanenv {input.sif} Rscript {input.dlbclone_predict} \
+        apptainer exec --cleanenv {input.sif} Rscript {input.dlbclone_predict} 
             --test_features {input.mutation_matrix} 
             --output_dir {output.predictions} 
             --model_path {params.opt_model_path} 
@@ -274,7 +271,7 @@ rule _dlbclone_all:
             [
                 rules._dlbclone_predict.output.predictions
             ],
-          #  model_name_prefix = CFG["inputs"]["model_name_prefix"],
+            #model_name_prefix = CFG["inputs"]["model_name_prefix"],
             matrix_name = CFG["inputs"]["matrix_name"],
             launch_date = launch_date
         )
