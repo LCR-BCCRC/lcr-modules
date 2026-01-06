@@ -94,6 +94,9 @@ lcr-modules:
             fill_missing: true # if TRUE, any features present in the dlbclone model but not seen in test mutation matrix are added and set to zero. If FALSE, missing model features cause an error
             drop_extra: false # if TRUE, any features present in test mutation matrix but not seen during model training are dropped
             
+    #    conda:
+     #       singularity: "{MODSDIR}/envs/singularity-3.8.6.yaml"
+
         threads:
             quant: 4
 
