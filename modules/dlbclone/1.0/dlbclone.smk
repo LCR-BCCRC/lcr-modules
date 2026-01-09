@@ -90,7 +90,7 @@ localrules:
     _dlbclone_build_model,
     #_dlbclone_assemble_genetic_features,
     _dlbclone_predict,
-    _dlbclone_all,
+    _dlbclone_all
 
 # Pull SIF file from lcr-sifs
 rule _dlbclone_sif_pull:
