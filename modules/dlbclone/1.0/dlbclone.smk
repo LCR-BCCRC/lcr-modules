@@ -79,7 +79,7 @@ def as_r_named_list(d):
 # Convert CFG Python lists to an R c(...) vector
 def as_r_c(d):
     if d is None or len(d) == 0:
-        return "NULL"
+        return "None"
     return "c(" + ",".join(f'"{x}"' for x in d) + ")"
 
 
@@ -88,7 +88,7 @@ localrules:
     _dlbclone_sif_pull,
     #_dlbclone_input_maf,
     _dlbclone_build_model,
-    #_dlbclone_assemble_genetic_features,
+    _dlbclone_assemble_genetic_features,
     _dlbclone_predict,
     _dlbclone_all
 
@@ -187,9 +187,9 @@ rule _dlbclone_assemble_genetic_features:
         dlbclone_assemble_genetic_features = CFG["inputs"]["dlbclone_assemble_genetic_features"], 
         sif = str(rules._dlbclone_sif_pull.output.sif)
     output:
-        test_mutation_matrix = CFG["inputs"]["test_matrix_dir"]
+        test_mutation_matrix = CFG["inputs"]["test_matrix_dir"] + "/" + CFG["inputs"]["matrix_name"] + "_mutation_matrix.tsv"
     params:
-        sv_from_metadata = as_r_c(CFG["options"]["sv_from_metadata"]),
+        sv_from_metadata = as_r_named_list(CFG["options"]["sv_from_metadata"]),
         translocation_status = as_r_named_list(CFG["options"]["translocation_status"]),
         maf_sample_id_colname = CFG["options"]["maf_sample_id_colname"],
         metadata_sample_id_colname = CFG["options"]["metadata_sample_id_colname"],
@@ -235,7 +235,7 @@ rule _dlbclone_assemble_genetic_features:
 rule _dlbclone_predict:
     input:
         models = model_inputs(), 
-        mutation_matrix = CFG["inputs"]["test_matrix_dir"], # first column is sample ID and all other columns are features
+        mutation_matrix = str(rules._dlbclone_assemble_genetic_features.output.test_mutation_matrix), #CFG["inputs"]["test_matrix_dir"], # first column is sample ID and all other columns are features
         dlbclone_predict = CFG["inputs"]["dlbclone_predict"], 
         sif = str(rules._dlbclone_sif_pull.output.sif)
     output:
@@ -269,7 +269,7 @@ rule _dlbclone_all:
     input:
         expand(
             [
-                rules._dlbclone_predict.output.predictions
+                rules._dlbclone_assemble_genetic_features.output.test_mutation_matrix #_dlbclone_predict.output.predictions
             ],
             #model_name_prefix = CFG["inputs"]["model_name_prefix"],
             matrix_name = CFG["inputs"]["matrix_name"],
