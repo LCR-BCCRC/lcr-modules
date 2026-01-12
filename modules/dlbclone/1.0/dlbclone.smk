@@ -44,10 +44,15 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "dlbclone", "outputs"],
 )
 
-# TODO: Parallelization. What if you are predicting on multiple models? What if you are building multiple models?
-# TODO: Appropriately incorporate str() as required by LCR modules
-# TODO: Appropriately assign CFG "dirs" + "outputs"
-# TODO: Unit tests for assemble_genetic_features rule and its incorporation into dlbclone_predict rule
+
+# Define rules to be run locally when using a compute cluster
+localrules:
+    _dlbclone_sif_pull,
+    #_dlbclone_input_maf,
+    _dlbclone_build_model,
+    _dlbclone_assemble_genetic_features,
+    _dlbclone_predict,
+    _dlbclone_all
 
 
 ##### RULES #####
@@ -56,11 +61,14 @@ if "launch_date" in CFG:
 else:
     launch_date = datetime.today().strftime('%Y-%m')
 
+# Get date as used in DLBCLone output files
+TODAY = datetime.now().strftime("%d%b%Y")
+
 
 #  Convert CFG Python dictionary lists to an R list of c(...) vectors
 def as_r_list(d):
     if d is None:
-        return "NULL"
+        return "None"
     items = []
     for k, v in d.items():
         r_vec = "c(" + ",".join(f'"{x}"' for x in v) + ")"
@@ -70,7 +78,7 @@ def as_r_list(d):
 # Convert CFG Python dictionary to an R named list
 def as_r_named_list(d):
     if d is None:
-        return "NULL"
+        return "None"
     items = []
     for k, v in d.items():
         items.append(f'{k}="{v}"')
@@ -83,14 +91,18 @@ def as_r_c(d):
     return "c(" + ",".join(f'"{x}"' for x in d) + ")"
 
 
-# Define rules to be run locally when using a compute cluster
-localrules:
-    _dlbclone_sif_pull,
-    #_dlbclone_input_maf,
-    _dlbclone_build_model,
-    _dlbclone_assemble_genetic_features,
-    _dlbclone_predict,
-    _dlbclone_all
+# STEP 1: INPUT SYMLINKS
+# Symlinks the input files into the module results directory (under '00-inputs/')
+#rule _dlbclone_input_maf:
+ #   input:
+  #      maf = CFG["inputs"]["sample_maf"] 
+   # output:
+    #    maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf"
+#    group:
+ #       "lymphgen"
+  #  run:
+   #     op.relative_symlink(input.maf, output.maf)
+
 
 # Pull SIF file from lcr-sifs
 rule _dlbclone_sif_pull:
@@ -105,19 +117,6 @@ rule _dlbclone_sif_pull:
         """
         singularity pull {output.sif} docker://lklossok/gamblr:latest
         """
-
-
-# STEP 1: INPUT SYMLINKS
-# Symlinks the input files into the module results directory (under '00-inputs/')
-#rule _dlbclone_input_maf:
- #   input:
-  #      maf = CFG["inputs"]["sample_maf"] 
-   # output:
-    #    maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf"
-#    group:
- #       "lymphgen"
-  #  run:
-   #     op.relative_symlink(input.maf, output.maf)
 
 
 # Uses only GAMBL metadata and binary mutation data as training for DLBCLone models
@@ -177,7 +176,7 @@ def model_inputs():
     if USE_GAMBLR or HAS_CUSTOM_MODELS:
         return []
     else:
-        return rules._dlbclone_build_model.output
+        return str(rules._dlbclone_build_model.output)
 
 
 rule _dlbclone_assemble_genetic_features:
@@ -204,7 +203,7 @@ rule _dlbclone_assemble_genetic_features:
         annotated_sv = CFG["options"]["annotated_sv"],
         include_GAMBL_sv = CFG["options"]["include_GAMBL_sv"]
     #log:
-    #   CFG["logs"]["dlbclone_predict"]["test_data_dir"]
+    #   CFG["inputs"]["test_matrix_dir"] + "/" + CFG["inputs"]["matrix_name"] + "_mutation_matrix.tsv"
     threads:
         CFG["threads"]["quant"]
     resources:
@@ -239,16 +238,14 @@ rule _dlbclone_predict:
         dlbclone_predict = CFG["inputs"]["dlbclone_predict"], 
         sif = str(rules._dlbclone_sif_pull.output.sif)
     output:
-        predictions = CFG["inputs"]["pred_dir"] + "/" + CFG["inputs"]["model_name_prefix"] + "--{launch_date}/{matrix_name}_DLBCLone_predictions.tsv"
+        predictions = CFG["inputs"]["pred_dir"] + "/" + CFG["inputs"]["model_name_prefix"] + "--{launch_date}/{matrix_name}_" + TODAY + "_DLBCLone_predictions.tsv"
     params:
         opt_model_path = CFG["inputs"]["opt_model_path"],
         model_name_prefix = CFG["inputs"]["model_name_prefix"],
         fill_missing = CFG["options"]["fill_missing"], 
         drop_extra = CFG["options"]["drop_extra"]
     #log:
-     #   CFG["logs"]["pred_dir"] + "/" + CFG["inputs"]["model_name_prefix"] + "--{launch_date}/{matrix_name}_DLBCLone_predictions.tsv"
-    #container:
-     #   "docker://lklossok/dlbclone:latest"
+     #   CFG["inputs"]["pred_dir"] + "/" + CFG["inputs"]["model_name_prefix"] + "--{launch_date}/{matrix_name}_DLBCLone_predictions.tsv"
     threads:
         CFG["threads"]["quant"]
     resources:
@@ -269,7 +266,7 @@ rule _dlbclone_all:
     input:
         expand(
             [
-                rules._dlbclone_assemble_genetic_features.output.test_mutation_matrix #_dlbclone_predict.output.predictions
+                str(rules._dlbclone_assemble_genetic_features.output.test_mutation_matrix) #_dlbclone_predict.output.predictions
             ],
             #model_name_prefix = CFG["inputs"]["model_name_prefix"],
             matrix_name = CFG["inputs"]["matrix_name"],
