@@ -19,10 +19,12 @@ Exemption rule summary:
 A variant that is hotspot OR phased is retained regardless of gnomAD, VAF, read support, depth, or UMI thresholds (unless blacklisted).
 """
 from dataclasses import dataclass
-from typing import List
+from typing import List, Dict, Tuple, Optional
 import argparse
 import pandas as pd
 from collections import Counter
+import os
+import gzip
 
 GNOMAD_COLS = [
     "gnomAD_AF","gnomAD_AFR_AF","gnomAD_AMR_AF","gnomAD_ASJ_AF",
@@ -38,12 +40,12 @@ def get_args():
     # I/O
     p.add_argument('--input_maf', required=True, type=str, help='Path to input MAF file (tab-delimited).')
     p.add_argument('--output_maf', required=True, type=str, help='Path to write the filtered MAF.')
-    p.add_argument('--blacklist', required=True, type=str, help='TSV with blacklisted variant_key (Chromosome:Start_Position).')
-    p.add_argument('--hotspots', required=True, type=str, help='TSV with hotspot variant_key (Chromosome:Start_Position).')
+    p.add_argument('--blacklist', type=str, default="", help='TSV with blacklisted variant_key (Chromosome:Start_Position). Optional.')
+    p.add_argument('--hotspots', type=str, default="", help='VCF file with hotspot variants. Optional.')
     # thresholds
-    p.add_argument('--gnomad_threshold', required=True, type=float, help='Max allowed gnomAD AF across all population columns.')
-    p.add_argument('--min_alt_depth_tum', required=True, type=int, help='Minimum tumor alt read count (t_alt_count).')
-    p.add_argument('--min_germline_depth', required=True, type=int, help='Minimum normal depth (n_depth).')
+    p.add_argument('--gnomad_threshold', required=False, type=float, help='Max allowed gnomAD AF across all population columns.')
+    p.add_argument('--min_alt_depth_tum', required=False, type=int, help='Minimum tumor alt read count (t_alt_count).')
+    p.add_argument('--min_germline_depth', required=False, type=int, help='Minimum normal depth (n_depth).')
     p.add_argument('--min_tumour_vaf', type=float, default=0.01, help='Minimum VAF to keep non-hotspot/non-phased variants.')
     p.add_argument('--min_t_depth', type=int, default=200, help='Minimum tumor depth (t_depth).')
     # UMI thresholds
@@ -53,6 +55,13 @@ def get_args():
     # low-normal safeguards
     p.add_argument('--low_normal_depth', type=int, default=100, help='If n_depth <= this, apply stricter AF filter (unless exempt).')
     p.add_argument('--low_normal_AF', type=float, default=0.30, help='AF threshold used when n_depth is low (unless exempt).')
+    # backgrount mutation rate filter
+    p.add_argument('--background_rates', type=str, default="", 
+               help='Optional TSV with background mutation rates per position.')
+    p.add_argument('--min_background_samples', type=int, default=20, 
+                help='Minimum n_samples required in background index.')
+    p.add_argument('--background_n_std', type=float, default=2.0, 
+                help='Number of standard deviations above mean for background filter.')
     return p.parse_args()
 
 @dataclass(frozen=True)
@@ -60,11 +69,11 @@ class PipelineConfig:
     """Configuration for the variant filtering pipeline."""
     input_maf: str
     output_maf: str
-    blacklist: str
-    hotspots: str
-    gnomad_threshold: float
-    min_alt_depth_tum: int
-    min_germline_depth: int
+    blacklist: str = ""
+    hotspots: str = ""
+    gnomad_threshold: float = 0.01
+    min_alt_depth_tum: int = 5
+    min_germline_depth: int = 50
     min_tumour_vaf: float = 0.01
     min_t_depth: int = 200
     min_UMI_3_count: int = 1
@@ -72,6 +81,49 @@ class PipelineConfig:
     low_alt_min_UMI_3_count: int = 2
     low_normal_depth: int = 100
     low_normal_AF: float = 0.30
+    background_rates: str = ""
+    min_background_samples: int = 20
+    background_n_std: float = 2.0
+
+def read_hotspot_vcf(vcf_file: str) -> set:
+    """
+    Read a VCF file and return a set of (chrom, pos, alt) tuples.
+    Skips header lines starting with '#'.
+    For multi-allelic sites (comma-separated ALT), creates separate entries for each ALT.
+    Returns empty set if file path is empty or file doesn't exist.
+    Handles both plain text and gzipped VCF files.
+    """
+    
+    if not vcf_file or not os.path.isfile(vcf_file):
+        return set()
+    
+    hotspot_set = set()
+    
+    # Detect if file is gzipped
+    if vcf_file.endswith('.gz'):
+        opener = gzip.open
+        mode = 'rt'  # text mode for gzip
+    else:
+        opener = open
+        mode = 'r'
+    
+    with opener(vcf_file, mode) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            fields = line.split('\t')
+            if len(fields) < 5:
+                continue
+            chrom = fields[0]
+            pos = fields[1]
+            alt_field = fields[4]  # ALT column
+            
+            # Handle multi-allelic sites
+            for alt in alt_field.split(','):
+                hotspot_set.add((chrom, pos, alt.strip()))
+    
+    return hotspot_set
 
 class VariantFilterPipeline:
     """Variant filtering pipeline with hotspot/phasing exemptions and cumulative variant_source labeling."""
@@ -91,6 +143,12 @@ class VariantFilterPipeline:
         df = self.filter_gnomad(df, self.cfg.gnomad_threshold)
         df = self.remove_blacklisted(df)
         df = self.filter_vaf(df, self.cfg.min_tumour_vaf)
+        df = self.filter_background_rates(
+            df,
+            self.cfg.background_rates,
+            self.cfg.min_background_samples,
+            self.cfg.background_n_std
+        )
         df = self.filter_by_read_support(
             df,
             min_t_depth=self.cfg.min_t_depth,
@@ -139,12 +197,34 @@ class VariantFilterPipeline:
         return out
 
     def mark_blacklist_hotspot(self, df: pd.DataFrame, blacklist: str, hotspots: str) -> pd.DataFrame:
-        """Add blacklist and hotspot boolean flags based on variant_key membership."""
+        """
+        Add blacklist and hotspot boolean flags.
+        Blacklist: matched on variant_key (Chromosome:Start_Position). Optional.
+        Hotspot: matched on (Chromosome, Start_Position, Tumor_Seq_Allele2) from VCF. Optional.
+        If file paths are empty or files don't exist, all variants are marked False for that category.
+        """
         out = df.copy()
-        bl = pd.read_csv(blacklist, sep="\t"); bl.columns = ["variant_key"]
-        hs = pd.read_csv(hotspots, sep="\t"); hs.columns = ["variant_key"]
-        out["blacklist"] = out["variant_key"].isin(bl["variant_key"])
-        out["hotspot"] = out["variant_key"].isin(hs["variant_key"])
+        
+        # Read blacklist (TSV with variant_key) - optional
+        if blacklist and os.path.isfile(blacklist):
+            bl = pd.read_csv(blacklist, sep="\t")
+            bl.columns = ["variant_key"]
+            out["blacklist"] = out["variant_key"].isin(bl["variant_key"])
+        else:
+            out["blacklist"] = False
+        
+        # Read hotspots from VCF - optional
+        hotspot_set = read_hotspot_vcf(hotspots)
+        
+        if hotspot_set:
+            # Create matching key for MAF: (Chromosome, Start_Position, Alt_allele)
+            out["hotspot"] = out.apply(
+                lambda row: (str(row["Chromosome"]), str(row["Start_Position"]), str(row["Tumor_Seq_Allele2"])) in hotspot_set,
+                axis=1
+            )
+        else:
+            out["hotspot"] = False
+        
         return out
 
     def mark_phased_vars(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -207,7 +287,7 @@ class VariantFilterPipeline:
         if not cols:
             return out
         gnomad_ok = (out[cols].lt(threshold) | out[cols].isna()).all(axis=1)
-        exempt = out["hotspot"] | out["is_phased"]
+        exempt = out["hotspot"]
         keep = gnomad_ok | exempt
         return out.loc[keep].copy()
 
@@ -292,6 +372,119 @@ class VariantFilterPipeline:
         final_mask = base_mask | exempt
         filtered = out.loc[final_mask].copy()
         return filtered
+
+    def filter_background_rates(
+        self,
+        df: pd.DataFrame,
+        background_file: str,
+        min_samples: int = 20,
+        n_std: float = 2.0
+    ) -> pd.DataFrame:
+        """
+        Filter variants based on background mutation rates.
+        
+        - If background_file is empty or doesn't exist, skip filter
+        - SNVs: check alt allele at position
+        - INS/DEL: check INS/DEL rate at position
+        - DNP/TNP/ONP: check all affected positions pass filter
+        - Variants not in background index are removed (suspicious)
+        - Positions with n_samples < min_samples are removed (insufficient data)
+        - VAF must be >= (mean + n_std*std) for the change
+        - Hotspot OR phased variants bypass all checks
+        """
+        # Skip if no background file provided
+        if not background_file or not os.path.isfile(background_file):
+            print("No background rates file provided or file not found, skipping background filter")
+            return df.copy()
+        
+        out = df.copy()
+        
+        # Load background rates
+        print(f"Loading background mutation rates from {background_file}...")
+        bg = pd.read_csv(background_file, sep="\t")
+        bg = bg.set_index(['chromosome', 'position'])
+        print(f"Loaded {len(bg)} positions from background index")
+        
+        # Separate exempt variants (hotspot OR phased)
+        exempt_mask = out["hotspot"] | out["is_phased"]
+        exempt_df = out.loc[exempt_mask].copy()
+        non_exempt_df = out.loc[~exempt_mask].copy()
+        
+        print(f"  - {len(exempt_df)} exempt variants (hotspot or phased)")
+        print(f"  - {len(non_exempt_df)} non-exempt variants to filter")
+        
+        # Mark noisy variants in non-exempt set
+        non_exempt_df["noisy"] = False
+        
+        for variant in non_exempt_df.itertuples():
+            chrom = str(variant.Chromosome)
+            pos = int(variant.Start_Position)
+            ref_allele = str(variant.Reference_Allele)
+            alt_allele = str(variant.Tumor_Seq_Allele2)
+            vaf = float(variant.AF)
+            var_type = str(variant.Variant_Type)
+            
+            # Determine positions and alt bases to check
+            if var_type in ["DNP", "TNP", "ONP"]:
+                # Multi-nucleotide: check all affected positions
+                positions_to_check = list(range(pos, pos + len(ref_allele)))
+                alt_bases = list(alt_allele)
+            else:
+                # SNV, INS, DEL: single position
+                positions_to_check = [pos]
+                alt_bases = [alt_allele]
+            
+            # Check each position - any failure marks variant as noisy
+            for check_pos, check_alt in zip(positions_to_check, alt_bases):
+                bg_key = (chrom, check_pos)
+                
+                # Position not in background
+                if bg_key not in bg.index:
+                    non_exempt_df.at[variant.Index, "noisy"] = True
+                    break
+                
+                bg_row = bg.loc[bg_key]
+                
+                # Insufficient samples
+                if bg_row['n_samples'] < min_samples:
+                    non_exempt_df.at[variant.Index, "noisy"] = True
+                    break
+                
+                # Determine column based on variant type
+                if var_type == "INS":
+                    mean_col, std_col = "INS_mean", "INS_std"
+                elif var_type == "DEL":
+                    mean_col, std_col = "DEL_mean", "DEL_std"
+                else:
+                    # SNV or MNP: use alt base
+                    mean_col, std_col = f"{check_alt}_mean", f"{check_alt}_std"
+                
+                # Column missing - can't filter, assume pass
+                if mean_col not in bg_row.index or std_col not in bg_row.index:
+                    continue
+                
+                # Calculate threshold and check
+                bg_mean = float(bg_row[mean_col])
+                bg_std = float(bg_row[std_col])
+                threshold = bg_mean + (n_std * bg_std)
+                
+                if vaf < threshold:
+                    non_exempt_df.at[variant.Index, "noisy"] = True
+                    break
+        
+        # Filter out noisy variants
+        passed_df = non_exempt_df.loc[~non_exempt_df["noisy"]].drop(columns=["noisy"])
+        
+        # Report stats
+        n_noisy = non_exempt_df["noisy"].sum()
+        print(f"Background rate filtering: {n_noisy} variants marked as noisy and removed")
+        
+        # Combine passed variants with exempt variants
+        result = pd.concat([passed_df, exempt_df], ignore_index=True)
+        print(f"  - Total kept: {len(result)}/{len(out)} ({len(passed_df)} passed + {len(exempt_df)} exempt)")
+        
+        return result
+
 
 def main():
     """Parse args, run the pipeline, and write the filtered MAF."""

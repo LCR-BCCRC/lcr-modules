@@ -68,7 +68,7 @@ rule run_sage_un:
         ref_genome = config["lcr-modules"]["_shared"]["ref_genome"],
         ref_genome_version = "38" if config["lcr-modules"]["_shared"]["ref_genome_ver"] == "GRCh38" else "37",
         # Panel regions and hotspots and inputs
-        hotspots_vcf = config["lcr-modules"]["cfDNA_SAGE_workflow"]["sage_hotspots"],
+        hotspots_vcf = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hotspot_vcf"],
         panel_regions = lambda wildcards: get_capture_space_un(wildcards),
         ensembl = config["lcr-modules"]["cfDNA_SAGE_workflow"]['ensembl'],
         high_conf_bed = config["lcr-modules"]["cfDNA_SAGE_workflow"]["high_conf_bed"],
@@ -104,23 +104,6 @@ rule run_sage_un:
         -threads {threads} &> {log}
         """
 
-rule filter_sage_un:
-    input:
-        vcf = rules.run_sage_un.output.vcf
-    output:
-        vcf = os.path.join(SAGE_OUTDIR, "02-vcfs/{sample}.sage.unmatched.passed.vcf")
-    conda:
-        "envs/bcftools.yaml"
-    resources:
-        mem_mb = 5000
-    threads: 1
-    params:
-        notlist = config["lcr-modules"]["cfDNA_SAGE_workflow"]["notlist"]
-    shell:
-        """
-        bcftools view -T ^{params.notlist} -f PASS {input.vcf} -O vcf -o {output.vcf}
-        """
-
 # Flag positions with a high incidence of masked bases
 rule flag_masked_pos_un:
     input:
@@ -146,54 +129,41 @@ rule flag_masked_pos_un:
         bgzip -c {output.bed_raw} > {output.bed} && tabix -p bed {output.bed} >> {log}
         """
 
-rule restrict_to_capture_un:
+rule filter_and_restrict_sage_un:
     input:
-        vcf = rules.filter_sage_un.output.vcf,
-        bed = rules.flag_masked_pos_un.output.bed
+        vcf = rules.run_sage_un.output.vcf,
+        bed = rules.flag_masked_pos_un.output.bed,
     output:
         vcf = os.path.join(SAGE_OUTDIR, "04-capturespace/{sample}.capspace.unmatched.vcf")
     params:
         panel_regions = lambda wildcards: get_capture_space_un(wildcards),
+        notlist = config["lcr-modules"]["cfDNA_SAGE_workflow"]["notlist"]
     conda:
         "envs/bcftools.yaml"
     resources:
-        mem_mb = 10000
-    threads: 2
+        mem_mb = 5000
+    threads: 1
     shell:
         """
-        bedtools intersect -a {input.vcf} -header -b {params.panel_regions} | bedtools intersect -a - -header -b {input.bed} -v | awk -F '\\t' '$4 !~ /N/ && $5 !~ /N/' | bcftools norm -m +any -O vcf -o {output.vcf}
-        """
-
-# Generate review BAM files containing only the reads supporting these variants
-rule review_consensus_reads_un:
-    input:
-        bam_cons = os.path.join(BAM_OUTDIR, "99-final", "{sample}.consensus.mapped.annot.bam"),
-        bam_uncons = os.path.join(BAM_OUTDIR, "04-umigrouped", "{sample}.umigrouped.sort.bam"),
-        vcf = rules.restrict_to_capture_un.output.vcf
-    output:
-        tmp_sort = temp(os.path.join(SAGE_OUTDIR, "06-supportingreads/{sample}/{sample}.umigrouped.sort.um.bam")),
-        tmp_index = temp(os.path.join(SAGE_OUTDIR, "06-supportingreads/{sample}/{sample}.umigrouped.sort.bam.um.bai")),
-        consensus_bam = os.path.join(SAGE_OUTDIR, "06-supportingreads/{sample}/{sample}.consensus.um.bam"),
-        grouped_bam = os.path.join(SAGE_OUTDIR, "06-supportingreads/{sample}/{sample}.grouped.um.bam")
-    resources:
-        mem_mb = 10000
-    threads: 2
-    params:
-        ref_genome = config["lcr-modules"]["_shared"]["ref_genome"],
-        outdir = os.path.join(SAGE_OUTDIR, "06-supportingreads/{sample}/")
-    conda:
-        "envs/fgbio.yaml"
-    log:
-        os.path.join(SAGE_OUTDIR, "logs/{sample}.reviewconsensusvariant.log")
-    shell:
-        """
-        samtools sort -@ 2 {input.bam_uncons} > {output.tmp_sort} && samtools index -@ 2 {output.tmp_sort} &&
-        fgbio ReviewConsensusVariants --input {input.vcf} --consensus {input.bam_cons} --grouped-bam {output.tmp_sort} --ref {params.ref_genome} --output {params.outdir}/{wildcards.sample} --sample {wildcards.sample} 2>&1 > {log}
+        # First apply PASS filter and optional notlist
+        if [ -f "{params.notlist}" ]; then
+            bcftools view -T ^{params.notlist} -f PASS {input.vcf} -O vcf | \
+            bedtools intersect -a - -header -b {params.panel_regions} | \
+            bedtools intersect -a - -header -b {input.bed} -v | \
+            awk -F '\\t' '$4 !~ /N/ && $5 !~ /N/' | \
+            bcftools norm -m +any -O vcf -o {output.vcf}
+        else
+            bcftools view -f PASS {input.vcf} -O vcf | \
+            bedtools intersect -a - -header -b {params.panel_regions} | \
+            bedtools intersect -a - -header -b {input.bed} -v | \
+            awk -F '\\t' '$4 !~ /N/ && $5 !~ /N/' | \
+            bcftools norm -m +any -O vcf -o {output.vcf}
+        fi
         """
 
 rule vcf2maf_annotate_un:
     input:
-        vcf = rules.restrict_to_capture_un.output.vcf
+        vcf = rules.filter_and_restrict_sage_un.output.vcf
     output:
         vep_vcf = temp(os.path.join(SAGE_OUTDIR, "04-capturespace/{sample}.capspace.unmatched.vep.vcf")),
         maf = os.path.join(SAGE_OUTDIR, "05-MAFs/{sample}.sage.unmatched.maf")
@@ -293,22 +263,37 @@ rule custom_filters_un:
     params:
         exac_freq = float(config["lcr-modules"]["cfDNA_SAGE_workflow"]["exac_max_freq"]),
         script = os.path.join(UTILSDIR, "unmatched_filters.py"),
-        hotspot_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hotspot_manifest"],
+        hotspot_vcf = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hotspot_vcf"],
         blacklist_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["blacklist_manifest"],
-        min_alt_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"],
-        min_t_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_t_depth"],
+        min_alt_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"]),
+        min_t_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_t_depth"]),
+        min_tumour_vaf = float(config["lcr-modules"]["cfDNA_SAGE_workflow"]["novel_vaf"]),
+        min_UMI_max = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_UMI_max", 3)),
+        background_rates = config["lcr-modules"]["cfDNA_SAGE_workflow"]["background_rates"],
+        min_background_samples = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_background_samples"]),
+        background_n_std = float(config["lcr-modules"]["cfDNA_SAGE_workflow"]["background_n_std"])
     log:
-        os.path.join(SAGE_OUTDIR, "logs/{sample}.custom_filters.log")
+        os.path.join(SAGE_OUTDIR, "logs/{sample}.custom_filters_unmatched.log")
     conda:
         "envs/augment_ssm.yaml"
     resources:
         mem_mb = 5000
     threads: 1
     shell:
-        """python {params.script} --input_maf {input.maf} --output_maf {output.maf} \
-        --min_alt_depth_tum {params.min_alt_depth} --min_t_depth {params.min_t_depth} \
-        --blacklist {params.blacklist_txt} --hotspots {params.hotspot_txt} --gnomad_threshold {params.exac_freq} &> {log}
         """
+        python {params.script} --input_maf {input.maf} --output_maf {output.maf} \
+        --min_alt_depth_tum {params.min_alt_depth} \
+        --min_t_depth {params.min_t_depth} \
+        --min_tumour_vaf {params.min_tumour_vaf} \
+        --min_UMI_max {params.min_UMI_max} \
+        --gnomad_threshold {params.exac_freq} \
+        $( [ -n "{params.blacklist_txt}" ] && echo "--blacklist {params.blacklist_txt}" || echo "" ) \
+        $( [ -n "{params.hotspot_vcf}" ] && echo "--hotspots {params.hotspot_vcf}" || echo "" ) \
+        $( [ -n "{params.background_rates}" ] && echo "--background_rates {params.background_rates}" || echo "" ) \
+        --min_background_samples {params.min_background_samples} \
+        --background_n_std {params.background_n_std} &> {log}
+        """
+
 
 rule augment_maf_un:
     input:

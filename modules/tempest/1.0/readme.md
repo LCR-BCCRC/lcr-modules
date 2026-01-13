@@ -30,8 +30,8 @@ The pipeline requires Conda and Snakemake, and was built using Snakemake v8.10.8
 
 # Pipeline Overview
 TEMPEST is designed to take raw FASTQ files and produce QC and variant call files. The primary workflow for variant calling is designed
-to utilize matched normal samples from a patient, using the workflow `.../cfDNA_SAGE_workflow.smk`, and filtering has been optimized for
-using this workflow. However, unpaired samples can have variants called by using `.../cfDNA_SAGE_workflow_unpaired.smk`. However, besides
+to utilize matched normal samples from a patient, using the workflow `.../variantTEMPEST.smk`, and filtering has been optimized for
+using this workflow. However, unpaired samples can have variants called by using `.../unpaired_variantTEMPEST.smk`. However, besides
 using gnomAD frequencies and a PON for filtering, no other steps attempt to remove germline mutations.
 
 <p align="center"><img height="800" alt="TEMPEST pipeline (1)" src="https://github.com/user-attachments/assets/9e6a9502-bd5b-4475-b1ad-00a524827132" />
@@ -127,8 +127,8 @@ SAMPLESHEET = pd.read_csv(samplesheet.tsv, sep="\t")
 config["lcr-modules"]["_shared"]["samples"] = SAMPLESHEET.copy()
 
 # include workflows you want to use
-include: .../lcr-modules/modules/Tempest/1.0/cfdna_UMI_workflow.smk
-include: .../lcr-modules/modules/Tempest/1.0/cfDNA_SAGE_workflow.smk
+include: .../lcr-modules/modules/tempest/1.0/align_and_deduplicateTEMPEST.smk
+include: .../lcr-modules/modules/tempest/1.0/variantTEMPEST.smk
 
 # specify your rule all
 rule all:

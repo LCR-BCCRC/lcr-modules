@@ -62,15 +62,14 @@ lcr-modules:
 
   cfDNA_SAGE_workflow:
       # SAGE specific parameters
-      notlist: ".../PON/99-PON/capture/ctDNA_panel--hg38/rrDLBCL_ctDNA/somaticvcf/ctDNA_panel_pon.vcf"
+      notlist: ".../PON/99-PON/capture/ctDNA_panel--hg38/rrDLBCL_ctDNA/somaticvcf/ctDNA_panel_pon.vcf" # optional, leave blank if you dont have one
       ensembl: "...resources/ensemble_data_cache/38" # need to download, see README, change to 38 if needed
-      sage_hotspots: ".../resources/KnownHotspots.38.vcf.gz" # can be custom or hmf tools one
+      sage_hotspots: ".../resources/KnownHotspots.38.vcf.gz" # can be custom or hmf tools one--given to SAGE, and positions exempt from further filtering
       high_conf_bed: ".../pipeline_bed_files/dumby_high_conf.bed" # use empty dumby bed if not calling outside of panel regions
       max_depth: "100000"
 
-      # custom made for filtering purposes, create empty dumby files if not needed
-      blacklist_manifest: ""
-      hotspot_manifest: ""
+      # additional files can provided if some manual curation is desired for post-SAGE filtering
+      blacklist_manifest: "" # text file no header, chr:position
 
       # vcf2maf specific parameters
       custom_enst: ".../resources/custom_enst.hg38.txt"
@@ -105,6 +104,11 @@ lcr-modules:
       min_UMI_3_count: 2 # all variants with t_alt_count > low_alt_thresh
       low_alt_thresh: 50 # be stricter with these lower alt count variants
       low_alt_min_UMI_3_count: 3
+
+      # background mutation rate filter
+      background_rates: ""  # Optional file path, empty = skip filter
+      min_background_samples: 20  # Minimum n_samples required
+      background_n_std: 2  # Number of std devs above mean bg to pass
 
       # augment maf filter criteria
       aug_min_UMI_3_count: 1
