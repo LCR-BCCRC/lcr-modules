@@ -27,8 +27,6 @@ lcr-modules:
             # liftOver options to convert between genomic builds
             liftover_script_path: "{SCRIPTSDIR}/liftover/2.0/liftover.sh"
             liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
-            prefixed_projections: ["grch38", "hg38"] # List here the base names of chr-prefixed projections
-            non_prefixed_projections: ["grch37", "hg19", "hs37d5"] # List here the base names of non-prefixed projections
             fill_segments_version: "1.2/"
 
         conda_envs:

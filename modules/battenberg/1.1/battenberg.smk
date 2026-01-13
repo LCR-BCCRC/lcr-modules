@@ -249,32 +249,14 @@ rule _battenberg_convert_coordinates:
 # ensure to request the correct files for each projection and drop wildcards that won't be used downstream
 def _battenberg_prepare_projection(wildcards):
     CFG = config["lcr-modules"]["battenberg"]
-    tbl = CFG["runs"]
-    this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"].tolist()
-
-    prefixed_projections = CFG["options"]["prefixed_projections"]
-    non_prefixed_projections = CFG["options"]["non_prefixed_projections"]
-
-    if any(substring in this_genome_build[0] for substring in prefixed_projections):
+    if "38" in str({wildcards.genome_build}):
         hg38_projection = str(rules._battenberg_to_igv_seg.output.seg).replace("{genome_build}", this_genome_build[0])
         grch37_projection = str(rules._battenberg_convert_coordinates.output.battenberg_lifted).replace("{genome_build}", this_genome_build[0])
-        # handle the hg19 (prefixed) separately
-        if "38" in str(this_genome_build[0]):
-            grch37_projection = grch37_projection.replace("{chain}", "hg38ToHg19")
-        else:
-            grch37_projection = grch37_projection.replace("{chain}", "hg19ToHg38")
-
-    elif any(substring in this_genome_build[0] for substring in non_prefixed_projections):
+        grch37_projection = grch37_projection.replace("{chain}", "hg38ToHg19")
+    else:
         grch37_projection = str(rules._battenberg_to_igv_seg.output.seg).replace("{genome_build}", this_genome_build[0])
         hg38_projection = str(rules._battenberg_convert_coordinates.output.battenberg_lifted).replace("{genome_build}", this_genome_build[0])
-        # handle the grch38 (non-prefixed) separately
-        if "38" in str(this_genome_build[0]):
-            hg38_projection = hg38_projection.replace("{chain}", "hg38ToHg19")
-        else:
-            hg38_projection = hg38_projection.replace("{chain}", "hg19ToHg38")
-    else:
-        raise AttributeError(f"The specified genome build {this_genome_build[0]} is not specified in the config under options to indicate its chr prefixing.")
-
+        hg38_projection = hg38_projection.replace("{chain}", "hg19ToHg38")
     return{
         "grch37_projection": grch37_projection,
         "hg38_projection": hg38_projection
@@ -320,19 +302,10 @@ rule _battenberg_fill_segments:
         """)
 
 
-def _battenberg_determine_projection(wildcards):
-    CFG = config["lcr-modules"]["battenberg"]
-    if any(substring in wildcards.projection for substring in ["hg19", "grch37", "hs37d5"]):
-        this_file = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"
-    elif any(substring in wildcards.projection for substring in ["hg38", "grch38"]):
-        this_file = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
-    return (this_file)
-
-
 # Normalize chr prefix of the output file
 rule _battenberg_normalize_projection:
     input:
-        filled = _battenberg_determine_projection,
+        filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg",
         chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
     output:
         projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
