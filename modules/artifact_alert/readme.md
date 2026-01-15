@@ -1,10 +1,10 @@
 # 🚨 Artifact Alert 🧬
 
-A Snakemake workflow for calculating and aggregating background mutation rates from NGS data to identify technical artifacts and sequencing errors.
+A Snakemake workflow for calculating the background mutation rates across capture panels to identify genomic positions prone to technical artifacts.
 
 ## 📋 Overview
 
-Artifact Alert generates position-specific background error profiles from a cohort of samples. By calculating mutation rates at each genomic position across multiple samples, it helps distinguish true somatic variants from recurrent technical artifacts that plague NGS data.
+Artifact Alert generates position-specific background error profiles from a cohort of samples. By calculating mutation rates at each genomic position across multiple samples, it helps distinguish true somatic variants from recurrent technical artifacts in NGS data.
 
 ### Why do I need this? 🤔
 
@@ -52,7 +52,7 @@ artifact_alert/1.0/{PANEL_NAME}/
 
 The only required column for this module is "sample_id"
 
-`
+```
 import pandas as pd
 
 configfile: path/to/config
@@ -66,8 +66,8 @@ include: ".../artifact_alert/1.0/FetchMutationRate.smk"
 rule execute_mut_rate_pipe:
     input:
         str(rules.FetchMutationRate.input)
+```
 
-`
 # Output format
 
 Column | Description |
