@@ -312,13 +312,12 @@ rule _run_battenberg_fit:
 # Convert the copynumber_extended.txt (best fit) to igv-friendly SEG files. 
 rule _battenberg_to_igv_seg:
     input:
-        # use the canonical ploidy run's copynumber_extended file
-        cn = lambda w: str(rules._run_battenberg_fit.output.cn).replace("{ploidy_constraint}", _canonical_ploidy()),
+        cn = rules._run_battenberg_fit.output.cn,
         cnv2igv = ancient(CFG["inputs"]["cnv2igv"])
     output:
-        seg = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_copynumber_extended.igv.seg"
+        seg = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_{ploidy_constraint}/{tumour_id}_copynumber_extended_ploidy_{ploidy_constraint}.igv.seg"
     log:
-        stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_seg2igv.stderr.log"
+        stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_ploidy_{ploidy_constraint}_seg2igv.stderr.log"
     threads: 1
     group: "battenberg_post_process"
     shell:
@@ -332,11 +331,11 @@ rule _battenberg_to_igv_seg:
 # Fill copynumber_extended.txt with empty regions for compatibility with downstream tools
 rule _battenberg_fill_subclones:
     input:
-        cn = lambda w: str(rules._run_battenberg_fit.output.cn).replace("{ploidy_constraint}", _canonical_ploidy())
+        cn = rules._run_battenberg_fit.output.cn
     output:
-        sub = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.filled.txt"
+        sub = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_{ploidy_constraint}/{tumour_id}_copynumber_extended_ploidy_{ploidy_constraint}.filled.txt"
     log:
-        stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_fill_subclones.stderr.log"
+        stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_ploidy_{ploidy_constraint}_fill_subclones.stderr.log"
     threads: 1
     group: "battenberg_post_process"
     params:
@@ -363,7 +362,14 @@ rule _battenberg_fill_subclones:
 #due to the large number of files (several per chromosome) that are not explicit outputs, do some glob-based cleaning in the output directory
 rule _battenberg_cleanup:
     input:
-        rules._battenberg_to_igv_seg.output.seg,
+        lambda w: expand(
+            str(rules._battenberg_to_igv_seg.output.seg),
+            seq_type=[w.seq_type],
+            genome_build=[w.genome_build],
+            tumour_id=[w.tumour_id],
+            normal_id=[w.normal_id],
+            ploidy_constraint=_ploidy_runs_or_default()
+        ),
         # ensure cleanup waits for all ploidy fit outputs for this pair so tabs can be safely removed
         lambda w: expand(
             str(rules._run_battenberg_fit.output.cn),
@@ -499,9 +505,9 @@ rule _battenberg_convert_coordinates:
         battenberg_native = str(rules._battenberg_to_igv_seg.output.seg),
         battenberg_chain = _battenberg_get_chain
     output:
-        battenberg_lifted = CFG["dirs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.seg"
+        battenberg_lifted = CFG["dirs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.ploidy_{ploidy_constraint}.lifted_{chain}.seg"
     log:
-        stderr = CFG["logs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.stderr.log"
+        stderr = CFG["logs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}--{normal_id}--{pair_status}.ploidy_{ploidy_constraint}.lifted_{chain}.stderr.log"
     threads: 1
     group: "battenberg_post_process"
     params:
@@ -532,8 +538,8 @@ def _battenberg_prepare_projection(wildcards):
     non_prefixed_projections = CFG["options"]["non_prefixed_projections"]
 
     if any(substring in this_genome_build[0] for substring in prefixed_projections):
-        hg38_projection = str(rules._battenberg_to_igv_seg.output.seg).replace("{genome_build}", this_genome_build[0])
-        grch37_projection = str(rules._battenberg_convert_coordinates.output.battenberg_lifted).replace("{genome_build}", this_genome_build[0])
+        hg38_projection = str(rules._battenberg_to_igv_seg.output.seg).replace("{genome_build}", this_genome_build[0]).replace("{ploidy_constraint}", wildcards.ploidy_constraint)
+        grch37_projection = str(rules._battenberg_convert_coordinates.output.battenberg_lifted).replace("{genome_build}", this_genome_build[0]).replace("{ploidy_constraint}", wildcards.ploidy_constraint)
         # handle the hg19 (prefixed) separately
         if "38" in str(this_genome_build[0]):
             grch37_projection = grch37_projection.replace("{chain}", "hg38ToHg19")
@@ -541,8 +547,8 @@ def _battenberg_prepare_projection(wildcards):
             grch37_projection = grch37_projection.replace("{chain}", "hg19ToHg38")
 
     elif any(substring in this_genome_build[0] for substring in non_prefixed_projections):
-        grch37_projection = str(rules._battenberg_to_igv_seg.output.seg).replace("{genome_build}", this_genome_build[0])
-        hg38_projection = str(rules._battenberg_convert_coordinates.output.battenberg_lifted).replace("{genome_build}", this_genome_build[0])
+        grch37_projection = str(rules._battenberg_to_igv_seg.output.seg).replace("{genome_build}", this_genome_build[0]).replace("{ploidy_constraint}", wildcards.ploidy_constraint)
+        hg38_projection = str(rules._battenberg_convert_coordinates.output.battenberg_lifted).replace("{genome_build}", this_genome_build[0]).replace("{ploidy_constraint}", wildcards.ploidy_constraint)
         # handle the grch38 (non-prefixed) separately
         if "38" in str(this_genome_build[0]):
             hg38_projection = hg38_projection.replace("{chain}", "hg38ToHg19")
@@ -562,10 +568,10 @@ rule _battenberg_fill_segments:
     input:
         unpack(_battenberg_prepare_projection)
     output:
-        grch37_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"),
-        hg38_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg")
+        grch37_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.ploidy_{ploidy_constraint}.grch37.seg"),
+        hg38_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.ploidy_{ploidy_constraint}.hg38.seg")
     log:
-        stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}_fill_segments.stderr.log"
+        stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.ploidy_{ploidy_constraint}_fill_segments.stderr.log"
     threads: 1
     group: "battenberg_post_process"
     params:
@@ -599,9 +605,9 @@ rule _battenberg_fill_segments:
 def _battenberg_determine_projection(wildcards):
     CFG = config["lcr-modules"]["battenberg"]
     if any(substring in wildcards.projection for substring in ["hg19", "grch37", "hs37d5"]):
-        this_file = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"
+        this_file = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.ploidy_{ploidy_constraint}.grch37.seg"
     elif any(substring in wildcards.projection for substring in ["hg38", "grch38"]):
-        this_file = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
+        this_file = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.ploidy_{ploidy_constraint}.hg38.seg"
     return (this_file)
 
 
@@ -611,7 +617,7 @@ rule _battenberg_normalize_projection:
         filled = _battenberg_determine_projection,
         chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
     output:
-        projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+        projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.ploidy_{ploidy_constraint}.{projection}.seg"
     resources:
         **CFG["resources"]["post_battenberg"]
     threads: 1
@@ -641,7 +647,7 @@ rule _battenberg_output_projection:
     input:
         projection = str(rules._battenberg_normalize_projection.output.projection)
     output:
-        projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+        projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.ploidy_{ploidy_constraint}.{projection}.seg"
     threads: 1
     group: "battenberg_post_process"
     run:
@@ -654,13 +660,13 @@ rule _battenberg_output_seg:
     input:
         seg = rules._battenberg_to_igv_seg.output.seg,
         sub = rules._battenberg_fill_subclones.output.sub,
-        cp = lambda w: str(rules._run_battenberg_fit.output.cp).replace("{ploidy_constraint}", _canonical_ploidy())
+        cp = rules._run_battenberg_fit.output.cp
     output:
-        seg = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_copynumber_extended.seg",
-        sub = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_copynumber_extended.txt",
-        cp = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
+        seg = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_copynumber_extended_ploidy_{ploidy_constraint}.seg",
+        sub = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_copynumber_extended_ploidy_{ploidy_constraint}.txt",
+        cp = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy_{ploidy_constraint}.txt"
     params: 
-        batt_dir = CFG["dirs"]["battenberg"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_" + _canonical_ploidy(),
+        batt_dir = CFG["dirs"]["battenberg"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_{ploidy_constraint}",
         png_dir = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}"
     group: "battenberg_post_process"
     run:
@@ -677,8 +683,6 @@ rule _battenberg_all:
     input:
         expand(
             [
-                rules._battenberg_output_seg.output.sub,
-                rules._battenberg_output_seg.output.seg,
                 rules._battenberg_cleanup.output.complete,
                 rules._battenberg_output_roh.output.hom
             ],
@@ -688,6 +692,20 @@ rule _battenberg_all:
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
             pair_status=CFG["runs"]["pair_status"]),
+        expand(
+            expand(
+            [
+                rules._battenberg_output_seg.output.sub,
+                rules._battenberg_output_seg.output.seg,
+                rules._battenberg_output_seg.output.cp
+            ],
+            zip,  # Run expand() with zip(), not product()
+            seq_type=CFG["runs"]["tumour_seq_type"],
+            genome_build=CFG["runs"]["tumour_genome_build"],
+            tumour_id=CFG["runs"]["tumour_sample_id"],
+            normal_id=CFG["runs"]["normal_sample_id"],
+            pair_status=CFG["runs"]["pair_status"]),
+            ploidy_constraint=_ploidy_runs_or_default()),
         expand(
             expand(
             [
@@ -701,7 +719,8 @@ rule _battenberg_all:
             #repeat the tool name N times in expand so each pair in run is used
             tool=["battenberg"] * len(CFG["runs"]["tumour_sample_id"]),
             allow_missing=True),
-            projection=CFG["options"]["requested_projections"])
+            projection=CFG["options"]["requested_projections"],
+            ploidy_constraint=_ploidy_runs_or_default())
 
 
 ##### CLEANUP #####
