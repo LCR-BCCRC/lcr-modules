@@ -39,14 +39,14 @@ Combines all samples to create a cohort-wide background mutation profile.
 
 ## 📂 Output Structure
 
-artifact_alert/1.0/{PANEL_NAME}/
-├── 01-pileup/
-│   └── {sample_id}.pileup
-├── 02-mutation_rates/
-│   └── {sample_id}_mutation_rates.tsv
-├── 03-aggregated/
-│   └── background_mutation_rates.tsv  ⭐ (Final output!)
-└── logs/
+- `artifact_alert/1.0/{PANEL_NAME}/`
+  - `01-pileup/`
+    - `{sample_id}.pileup`
+  - `02-mutation_rates/`
+    - `{sample_id}_mutation_rates.tsv`
+  - `03-aggregated/`
+    - `background_mutation_rates.tsv` ⭐ **(Final output!)**
+  - `logs/`
 
 # Usage
 
