@@ -134,7 +134,7 @@ rule _dlbclone_build_model:
         **CFG["resources"]["quant"]
     #container:
      #   str(rules._dlbclone_sif_pull.output.sif)
-    singularity:
+    container:
         "docker://lklossok/gamblr:latest"
     shadow:
         "copy-minimal"
@@ -213,7 +213,7 @@ rule _dlbclone_assemble_genetic_features:
         **CFG["resources"]["quant"]
     #container:
      #   str(rules._dlbclone_sif_pull.output.sif)
-    singularity:
+    container:
         "docker://lklossok/gamblr:latest"
     shadow:
         "copy-minimal"
@@ -261,7 +261,7 @@ rule _dlbclone_predict:
         **CFG["resources"]["quant"]
     #container:
      #   str(rules._dlbclone_sif_pull.output.sif)
-    singularity:
+    container:
         "docker://lklossok/gamblr:latest"
     shadow:
         "copy-minimal"
