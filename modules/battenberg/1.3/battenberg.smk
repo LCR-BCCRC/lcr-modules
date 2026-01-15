@@ -323,7 +323,7 @@ rule _battenberg_to_igv_seg:
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
-        python {input.cnv2igv} --mode battenberg --sample {wildcards.tumour_id} 
+        python {input.cnv2igv} --mode battenberg --sample {wildcards.tumour_id} --preserve 
         {input.cn} > {output.seg} 2>> {log.stderr}
         """)
 
