@@ -47,7 +47,7 @@ CFG = op.setup_module(
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _dlbclone_sif_pull,
+    #_dlbclone_sif_pull,
     #_dlbclone_input_maf,
     _dlbclone_build_model,
     _dlbclone_assemble_genetic_features,
@@ -64,6 +64,9 @@ else:
 # Get date as used in DLBCLone output files
 TODAY = datetime.now().strftime("%d%b%Y")
 
+############################################################################################
+# Input Lymphgen style sv and maf style code
+############################################################################################
 
 #  Convert CFG Python dictionary lists to an R list of c(...) vectors
 def as_r_list(d):
@@ -91,39 +94,25 @@ def as_r_c(d):
     return "c(" + ",".join(f'"{x}"' for x in d) + ")"
 
 
-# STEP 1: INPUT SYMLINKS
-# Symlinks the input files into the module results directory (under '00-inputs/')
-#rule _dlbclone_input_maf:
- #   input:
-  #      maf = CFG["inputs"]["sample_maf"] 
-   # output:
-    #    maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf"
-#    group:
- #       "lymphgen"
-  #  run:
-   #     op.relative_symlink(input.maf, output.maf)
-
-
 # Pull SIF file from lcr-sifs
-rule _dlbclone_sif_pull:
-    output:
-        sif = CFG["dirs"]["dlbclone"] + "gamblr.sif" #dlbclone.sif
+#rule _dlbclone_sif_pull:
+ #   output:
+  #      sif = CFG["dirs"]["dlbclone"] + "gamblr.sif" #dlbclone.sif
     #log:
      #   stdout = CFG["logs"]["dlbclone"] + "install.stdout.log",
       #  stderr = CFG["logs"]["dlbclone"] + "install.stderr.log"
  #   conda:
   #      CFG["conda"]["singularity"]
-    shell:
-        """
-        singularity pull {output.sif} docker://lklossok/gamblr:latest
-        """
-
+#    shell:
+ #       """
+  #      singularity pull {output.sif} docker://lklossok/gamblr:latest
+   #     """
 
 # Uses only GAMBL metadata and binary mutation data as training for DLBCLone models
 rule _dlbclone_build_model: 
     input:
-        dlbclone_model = CFG["inputs"]["dlbclone_model"], 
-        sif = str(rules._dlbclone_sif_pull.output.sif)
+        dlbclone_model = CFG["scripts"]["dlbclone_model"]#, 
+        #sif = str(rules._dlbclone_sif_pull.output.sif)
     output:
         opt_model_rds_path = CFG["inputs"]["opt_model_path"] + "/" + CFG["inputs"]["model_name_prefix"] + "_model.rds",
         opt_model_uwot_path = CFG["inputs"]["opt_model_path"] + "/" + CFG["inputs"]["model_name_prefix"] + "_umap.uwot"
@@ -143,9 +132,15 @@ rule _dlbclone_build_model:
         CFG["threads"]["quant"]
     resources:
         **CFG["resources"]["quant"]
+    #container:
+     #   str(rules._dlbclone_sif_pull.output.sif)
+    singularity:
+        "docker://lklossok/gamblr:latest"
+    shadow:
+        "copy-minimal"
     shell:
         op.as_one_line("""
-            apptainer exec --cleanenv {input.sif} Rscript {input.dlbclone_model}  
+            Rscript {input.dlbclone_model}  
                 --opt_model_path {params.opt_model_path} 
                 --model_name_prefix {params.model_name_prefix}
                 --core_features '{params.core_features}' 
@@ -156,35 +151,43 @@ rule _dlbclone_build_model:
                 --max_k {params.max_k}
         """)
 
-
+################################################################################ REPLACE THIS WITH A CHECKPOINT?
 # Determine if custom dlbclone model(s) need to be generated for predictions
-USE_GAMBLR = CFG["inputs"]["opt_model_path"] == "GAMBLR.predict"
+#MODEL_DIR = Path(CFG["inputs"]["opt_model_path"])
+#MODEL_PREFIX = CFG["inputs"]["model_name_prefix"]
 
-HAS_CUSTOM_MODELS = False
-if not USE_GAMBLR:
-    model_dir = Path(CFG["inputs"]["opt_model_path"])
-    HAS_CUSTOM_MODELS = any(model_dir.glob("*_model.rds"))
+#EXPECTED_MODEL_RDS = MODEL_DIR / f"{MODEL_PREFIX}_model.rds"
+#EXPECTED_MODEL_UWOT = MODEL_DIR / f"{MODEL_PREFIX}_umap.uwot"
 
-if USE_GAMBLR:
-    print("Using GAMBLR.predict pre-made dlbclone models")
-elif HAS_CUSTOM_MODELS:
-    print("Using custom pre-made dlbclone model(s)")
-else:
-    print("Building custom dlbclone model(s)")
+#USE_GAMBLR = CFG["inputs"]["opt_model_path"] == "GAMBLR.predict"
 
-def model_inputs():
-    if USE_GAMBLR or HAS_CUSTOM_MODELS:
-        return []
-    else:
-        return str(rules._dlbclone_build_model.output)
+#HAS_REQUESTED_MODEL = (
+ #   not USE_GAMBLR
+  #  and EXPECTED_MODEL_RDS.exists()
+   # and EXPECTED_MODEL_UWOT.exists()
+#)
+
+#if USE_GAMBLR:
+ #   print("Using GAMBLR.predict pre-made dlbclone models")
+#elif HAS_REQUESTED_MODEL:
+ #   print(f"Using existing custom dlbclone model: {MODEL_PREFIX}")
+#else:
+ #   print(f"Building custom dlbclone model: {MODEL_PREFIX}")
+
+#def model_inputs():
+ #   if USE_GAMBLR or HAS_REQUESTED_MODEL:
+  #      return []
+   # else:
+    #    return rules._dlbclone_build_model.output
+################################################################################
 
 
 rule _dlbclone_assemble_genetic_features:
     input:
         test_metadata = CFG["inputs"]["test_metadata_dir"],
         test_maf = CFG["inputs"]["test_maf_dir"],
-        dlbclone_assemble_genetic_features = CFG["inputs"]["dlbclone_assemble_genetic_features"], 
-        sif = str(rules._dlbclone_sif_pull.output.sif)
+        dlbclone_assemble_genetic_features = CFG["scripts"]["dlbclone_assemble_genetic_features"]#, 
+        #sif = str(rules._dlbclone_sif_pull.output.sif)
     output:
         test_mutation_matrix = CFG["inputs"]["test_matrix_dir"] + "/" + CFG["inputs"]["matrix_name"] + "_mutation_matrix.tsv"
     params:
@@ -208,9 +211,15 @@ rule _dlbclone_assemble_genetic_features:
         CFG["threads"]["quant"]
     resources:
         **CFG["resources"]["quant"]
+    #container:
+     #   str(rules._dlbclone_sif_pull.output.sif)
+    singularity:
+        "docker://lklossok/gamblr:latest"
+    shadow:
+        "copy-minimal"
     shell:
         op.as_one_line("""
-        apptainer exec --cleanenv {input.sif} Rscript {input.dlbclone_assemble_genetic_features} 
+        Rscript {input.dlbclone_assemble_genetic_features} 
             --metadata {input.test_metadata} 
             --maf {input.test_maf} 
             --maf_sample_id_colname {params.maf_sample_id_colname}
@@ -233,10 +242,10 @@ rule _dlbclone_assemble_genetic_features:
 
 rule _dlbclone_predict:
     input:
-        models = model_inputs(), 
+        models = rules._dlbclone_build_model.output, #model_inputs(), 
         mutation_matrix = str(rules._dlbclone_assemble_genetic_features.output.test_mutation_matrix), #CFG["inputs"]["test_matrix_dir"], # first column is sample ID and all other columns are features
-        dlbclone_predict = CFG["inputs"]["dlbclone_predict"], 
-        sif = str(rules._dlbclone_sif_pull.output.sif)
+        dlbclone_predict = CFG["scripts"]["dlbclone_predict"]#, 
+        #sif = str(rules._dlbclone_sif_pull.output.sif)
     output:
         predictions = CFG["inputs"]["pred_dir"] + "/" + CFG["inputs"]["model_name_prefix"] + "--{launch_date}/{matrix_name}_" + TODAY + "_DLBCLone_predictions.tsv"
     params:
@@ -250,9 +259,15 @@ rule _dlbclone_predict:
         CFG["threads"]["quant"]
     resources:
         **CFG["resources"]["quant"]
+    #container:
+     #   str(rules._dlbclone_sif_pull.output.sif)
+    singularity:
+        "docker://lklossok/gamblr:latest"
+    shadow:
+        "copy-minimal"
     shell:
         op.as_one_line("""
-        apptainer exec --cleanenv {input.sif} Rscript {input.dlbclone_predict} 
+        Rscript {input.dlbclone_predict} 
             --test_features {input.mutation_matrix} 
             --output_dir {output.predictions} 
             --model_path {params.opt_model_path} 
@@ -266,9 +281,8 @@ rule _dlbclone_all:
     input:
         expand(
             [
-                str(rules._dlbclone_assemble_genetic_features.output.test_mutation_matrix) #_dlbclone_predict.output.predictions
+                str(rules._dlbclone_predict.output.predictions)
             ],
-            #model_name_prefix = CFG["inputs"]["model_name_prefix"],
             matrix_name = CFG["inputs"]["matrix_name"],
             launch_date = launch_date
         )

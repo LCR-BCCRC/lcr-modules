@@ -29,13 +29,6 @@ lcr-modules:
             # DLBCLone model storage
             opt_model_path: "GAMBLR.predict" # Default: "GAMBLR.predict", wherein stored models associated with the package GAMBLR.predict are used. For custom models built in rule _dlbclone_build_model, instead input appropriate path directory to your stored DLBCLone model(s).
             model_name_prefix: "__UPDATE__" # Name prefix DLBCLone model is denoted by. If using default GAMBLR.predict models, the following exist; "best_opt", "best_op_w", "lacy_opt_w", "lymphgen_opt", "lymphplex_opt_w", & "lyseq_opt_w".
-            
-            # This script from lcr-scripts will generate a saved and stored DLBCLone model
-            dlbclone_model: "{SCRIPTSDIR}/dlbclone/1.0/dlbclone_model.R"
-            # This script from lcr-scripts will assemble a test mutation matrix from maf and metadata files
-            dlbclone_assemble_genetic_features: "{SCRIPTSDIR}/dlbclone/1.0/dlbclone_assemble.R"
-            # This script from lcr-scripts predicts DLBCL molecular subgroups for one or more samples using a pre-trained DLBCLone model
-            dlbclone_predict: "{SCRIPTSDIR}/dlbclone/1.0/dlbclone_predict.R"
 
             # path to test metadata associated with the test maf file
             test_metadata_dir: "__UPDATE__" 
@@ -52,7 +45,7 @@ lcr-modules:
             # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
             # launch_date: ""
 
-        options: 
+        options:
             # RULE _dlbclone_build_model. Tunable parameters for GAMBLR.predict::make_and_annotate_umap() function. 
             core_features: # list input, for each subtype define features used for weighting. Make sure params as_r_list() is used in snakemake rule.
                 ST2: ["SGK1", "DUSP2", "TET2", "SOCS1"]
@@ -95,7 +88,17 @@ lcr-modules:
             # RULE _dlbclone_predict. Tunable parameters for GAMBLR.predict::DLBCLone_predict() function. 
             fill_missing: true # if TRUE, any features present in the dlbclone model but not seen in test mutation matrix are added and set to zero. If FALSE, missing model features cause an error
             drop_extra: false # if TRUE, any features present in test mutation matrix but not seen during model training are dropped
-            
+
+        scripts:
+            prepare_svs: "src/lcr-modules/modules/dlbclone/1.0/src/curate_svs_for_lymphgen.R"
+            # This script from lcr-scripts will generate a saved and stored DLBCLone model
+            dlbclone_model: "src/lcr-scripts/dlbclone/1.0/dlbclone_model.R"
+            # This script from lcr-scripts will assemble a test mutation matrix from maf and metadata files
+            dlbclone_assemble_genetic_features: "src/lcr-scripts/dlbclone/1.0/dlbclone_assemble.R"
+            # This script from lcr-scripts predicts DLBCL molecular subgroups for one or more samples using a pre-trained DLBCLone model
+            dlbclone_predict: "src/lcr-scripts/dlbclone/1.0/dlbclone_predict.R"
+
+
     #    conda:
      #       singularity: "{MODSDIR}/envs/singularity-3.8.6.yaml"
 
@@ -106,4 +109,12 @@ lcr-modules:
             quant: 
                 mem_mb: 2000
             
-    #    pairing_config:
+#        pairing_config:
+ #           genome:
+  #              run_paired_tumours: True
+   #             run_unpaired_tumours_with: "unmatched_normal"
+    #            run_paired_tumours_as_unpaired: False
+     #       capture:
+      #          run_paired_tumours: True
+       #         run_unpaired_tumours_with: "unmatched_normal"
+        #        run_paired_tumours_as_unpaired: False
