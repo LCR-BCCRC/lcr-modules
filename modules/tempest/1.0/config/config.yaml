@@ -109,6 +109,7 @@ lcr-modules:
       background_rates: ""  # Optional file path, empty = skip filter
       min_background_samples: 20  # Minimum n_samples required
       background_n_std: 2  # Number of std devs above mean bg to pass
+      max_background_rate: 0.05 # hard cap on background mutation rate
 
       # augment maf filter criteria
       aug_min_UMI_3_count: 1

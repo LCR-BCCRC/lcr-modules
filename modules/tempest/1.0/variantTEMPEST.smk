@@ -324,7 +324,8 @@ rule custom_filters:
         low_alt_min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["low_alt_min_UMI_3_count"]),
         background_rates = config["lcr-modules"]["cfDNA_SAGE_workflow"]["background_rates"],
         min_background_samples = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_background_samples"]),
-        background_n_std = float(config["lcr-modules"]["cfDNA_SAGE_workflow"]["background_n_std"])
+        background_n_std = float(config["lcr-modules"]["cfDNA_SAGE_workflow"]["background_n_std"]),
+        max_bg_rate = float(config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_background_rate"])
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.custom_filters.log")
     conda:
@@ -347,7 +348,7 @@ rule custom_filters:
         $( [ -n "{params.hotspot_vcf}" ] && echo "--hotspots {params.hotspot_vcf}" || echo "" ) \
         $( [ -n "{params.background_rates}" ] && echo "--background_rates {params.background_rates}" || echo "" ) \
         --min_background_samples {params.min_background_samples} \
-        --background_n_std {params.background_n_std} &> {log}
+        --background_n_std {params.background_n_std} --max_background_rate {params.max_bg_rate} &> {log}
         """
 
 

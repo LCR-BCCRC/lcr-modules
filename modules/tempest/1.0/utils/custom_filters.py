@@ -62,6 +62,8 @@ def get_args():
                 help='Minimum n_samples required in background index.')
     p.add_argument('--background_n_std', type=float, default=2.0, 
                 help='Number of standard deviations above mean for background filter.')
+    p.add_argument('--max_background_rate', type=float, default=0.05,
+            help='Maximum allowed background mutation rate. Positions exceeding this are considered too noisy.')
     return p.parse_args()
 
 @dataclass(frozen=True)
@@ -84,6 +86,7 @@ class PipelineConfig:
     background_rates: str = ""
     min_background_samples: int = 20
     background_n_std: float = 2.0
+    max_background_rate: float = 0.05
 
 def read_hotspot_vcf(vcf_file: str) -> set:
     """
@@ -147,7 +150,8 @@ class VariantFilterPipeline:
             df,
             self.cfg.background_rates,
             self.cfg.min_background_samples,
-            self.cfg.background_n_std
+            self.cfg.background_n_std,
+            self.cfg.max_background_rate
         )
         df = self.filter_by_read_support(
             df,
@@ -378,17 +382,20 @@ class VariantFilterPipeline:
         df: pd.DataFrame,
         background_file: str,
         min_samples: int = 20,
-        n_std: float = 2.0
+        n_std: float = 2.0,
+        max_background_rate: float = 0.05
     ) -> pd.DataFrame:
         """
         Filter variants based on background mutation rates.
         
         - If background_file is empty or doesn't exist, skip filter
         - SNVs: check alt allele at position
-        - INS/DEL: check INS/DEL rate at position
+        - INS: check INS rate at start position
+        - DEL: check DEL rate at ALL positions in the deleted span
         - DNP/TNP/ONP: check all affected positions pass filter
         - Variants not in background index are removed (suspicious)
         - Positions with n_samples < min_samples are removed (insufficient data)
+        - Positions with mean background rate > max_background_rate are too noisy
         - VAF must be >= (mean + n_std*std) for the change
         - Hotspot OR phased variants bypass all checks
         """
@@ -429,8 +436,16 @@ class VariantFilterPipeline:
                 # Multi-nucleotide: check all affected positions
                 positions_to_check = list(range(pos, pos + len(ref_allele)))
                 alt_bases = list(alt_allele)
+            elif var_type == "DEL":
+                # Deletion: check all positions in the deleted span
+                positions_to_check = list(range(pos, pos + len(ref_allele)))
+                alt_bases = [None] * len(positions_to_check)
+            elif var_type == "INS":
+                # Insertion: check position where insertion occurs
+                positions_to_check = [pos]
+                alt_bases = [None]
             else:
-                # SNV, INS, DEL: single position
+                # SNV: single position with alt base
                 positions_to_check = [pos]
                 alt_bases = [alt_allele]
             
@@ -455,17 +470,26 @@ class VariantFilterPipeline:
                     mean_col, std_col = "INS_mean", "INS_std"
                 elif var_type == "DEL":
                     mean_col, std_col = "DEL_mean", "DEL_std"
-                else:
+                elif check_alt is not None:
                     # SNV or MNP: use alt base
                     mean_col, std_col = f"{check_alt}_mean", f"{check_alt}_std"
+                else:
+                    # Unknown case - skip this position
+                    continue
                 
                 # Column missing - can't filter, assume pass
                 if mean_col not in bg_row.index or std_col not in bg_row.index:
                     continue
                 
-                # Calculate threshold and check
                 bg_mean = float(bg_row[mean_col])
                 bg_std = float(bg_row[std_col])
+                
+                # Check if background rate exceeds maximum allowed
+                if bg_mean > max_background_rate:
+                    non_exempt_df.at[variant.Index, "noisy"] = True
+                    break
+                
+                # Calculate threshold and check VAF
                 threshold = bg_mean + (n_std * bg_std)
                 
                 if vaf < threshold:
@@ -484,6 +508,7 @@ class VariantFilterPipeline:
         print(f"  - Total kept: {len(result)}/{len(out)} ({len(passed_df)} passed + {len(exempt_df)} exempt)")
         
         return result
+
 
 
 def main():
