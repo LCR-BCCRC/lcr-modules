@@ -252,7 +252,7 @@ rule _run_battenberg_fit:
 
     output:
         refit = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_{ploidy_constraint}/{tumour_id}_refit_suggestion.txt",
-        cn = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_{ploidy_constraint}/{tumour_id}_copynumber.txt",
+        cn = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_{ploidy_constraint}/{tumour_id}_copynumber_extended.txt",
         cp = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_{ploidy_constraint}/{tumour_id}_cellularity_ploidy.txt"
     log:
         stdout = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_{ploidy_constraint}/{tumour_id}_battenberg.stdout.log",
@@ -305,21 +305,18 @@ rule _run_battenberg_fit:
         if [[ -f "{params.out_dir}/{wildcards.tumour_id}_purity_ploidy.txt" && ! -f "{params.out_dir}/{wildcards.tumour_id}_cellularity_ploidy.txt" ]]; then \
           ln -sf "$(readlink -f {params.out_dir}/{wildcards.tumour_id}_purity_ploidy.txt)" {params.out_dir}/{wildcards.tumour_id}_cellularity_ploidy.txt; \
         fi; \
-        if [[ -f "{params.out_dir}/{wildcards.tumour_id}_copynumber.txt" && ! -f "{params.out_dir}/{wildcards.tumour_id}_subclones.txt" ]]; then \
-          ln -sf "$(readlink -f {params.out_dir}/{wildcards.tumour_id}_copynumber.txt)" {params.out_dir}/{wildcards.tumour_id}_subclones.txt; \
-        fi; \
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} ploidy {wildcards.ploidy_constraint} on $(hostname) at $(date)" >> {log.stdout};
         """)
 
 
-# Convert the copynumber.txt (best fit) to igv-friendly SEG files. 
+# Convert the copynumber_extended.txt (best fit) to igv-friendly SEG files. 
 rule _battenberg_to_igv_seg:
     input:
-        # use the canonical ploidy run's copynumber file
+        # use the canonical ploidy run's copynumber_extended file
         cn = lambda w: str(rules._run_battenberg_fit.output.cn).replace("{ploidy_constraint}", _canonical_ploidy()),
         cnv2igv = ancient(CFG["inputs"]["cnv2igv"])
     output:
-        seg = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_copynumber.igv.seg"
+        seg = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_copynumber_extended.igv.seg"
     log:
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_seg2igv.stderr.log"
     threads: 1
@@ -332,7 +329,7 @@ rule _battenberg_to_igv_seg:
         """)
 
 
-# Fill copynumber.txt with empty regions for compatibility with downstream tools
+# Fill copynumber_extended.txt with empty regions for compatibility with downstream tools
 rule _battenberg_fill_subclones:
     input:
         cn = lambda w: str(rules._run_battenberg_fit.output.cn).replace("{ploidy_constraint}", _canonical_ploidy())
@@ -659,8 +656,8 @@ rule _battenberg_output_seg:
         sub = rules._battenberg_fill_subclones.output.sub,
         cp = lambda w: str(rules._run_battenberg_fit.output.cp).replace("{ploidy_constraint}", _canonical_ploidy())
     output:
-        seg = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_copynumber.seg",
-        sub = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_copynumber.txt",
+        seg = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_copynumber_extended.seg",
+        sub = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_copynumber_extended.txt",
         cp = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
     params: 
         batt_dir = CFG["dirs"]["battenberg"] + "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}/ploidy_" + _canonical_ploidy(),
