@@ -617,7 +617,7 @@ rule _battenberg_normalize_projection:
         filled = _battenberg_determine_projection,
         chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
     output:
-        projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.ploidy_{ploidy_constraint}.{projection}.seg"
+        projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{genome_build}.ploidy_{ploidy_constraint}.{projection}.seg"
     resources:
         **CFG["resources"]["post_battenberg"]
     threads: 1
@@ -647,7 +647,7 @@ rule _battenberg_output_projection:
     input:
         projection = str(rules._battenberg_normalize_projection.output.projection)
     output:
-        projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.ploidy_{ploidy_constraint}.{projection}.seg"
+        projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{genome_build}.ploidy_{ploidy_constraint}.{projection}.seg"
     threads: 1
     group: "battenberg_post_process"
     run:
@@ -708,6 +708,7 @@ def _battenberg_expand_ploidy_projections(patterns, projections):
                 tumour_id=runs["tumour_sample_id"],
                 normal_id=runs["normal_sample_id"],
                 seq_type=runs["tumour_seq_type"],
+                genome_build=runs["tumour_genome_build"],
                 pair_status=runs["pair_status"],
                 tool=["battenberg"] * num_samples,
                 ploidy_constraint=[ploidy] * num_samples,
