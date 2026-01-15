@@ -678,6 +678,44 @@ rule _battenberg_output_seg:
         op.relative_symlink(input.sub, output.sub,in_module=True)
         op.relative_symlink(input.cp, output.cp,in_module=True)
 
+# expand per-sample targets across all ploidy constraints
+def _battenberg_expand_ploidy_outputs(patterns):
+    runs = CFG["runs"]
+    num_samples = len(runs["tumour_sample_id"])
+    outputs = []
+    for ploidy in _ploidy_runs_or_default():
+        outputs.extend(expand(
+            patterns,
+            zip,  # Run expand() with zip(), not product()
+            seq_type=runs["tumour_seq_type"],
+            genome_build=runs["tumour_genome_build"],
+            tumour_id=runs["tumour_sample_id"],
+            normal_id=runs["normal_sample_id"],
+            pair_status=runs["pair_status"],
+            ploidy_constraint=[ploidy] * num_samples
+        ))
+    return outputs
+
+def _battenberg_expand_ploidy_projections(patterns, projections):
+    runs = CFG["runs"]
+    num_samples = len(runs["tumour_sample_id"])
+    outputs = []
+    for ploidy in _ploidy_runs_or_default():
+        for projection in projections:
+            outputs.extend(expand(
+                patterns,
+                zip,  # Run expand() with zip(), not product()
+                tumour_id=runs["tumour_sample_id"],
+                normal_id=runs["normal_sample_id"],
+                seq_type=runs["tumour_seq_type"],
+                pair_status=runs["pair_status"],
+                tool=["battenberg"] * num_samples,
+                ploidy_constraint=[ploidy] * num_samples,
+                projection=[projection] * num_samples,
+                allow_missing=True
+            ))
+    return outputs
+
 # Generates the target sentinels for each run, which generate the symlinks
 rule _battenberg_all:
     input:
@@ -692,35 +730,17 @@ rule _battenberg_all:
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
             pair_status=CFG["runs"]["pair_status"]),
-        expand(
-            expand(
+        _battenberg_expand_ploidy_outputs(
             [
                 rules._battenberg_output_seg.output.sub,
                 rules._battenberg_output_seg.output.seg,
                 rules._battenberg_output_seg.output.cp
-            ],
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            genome_build=CFG["runs"]["tumour_genome_build"],
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"]),
-            ploidy_constraint=_ploidy_runs_or_default()),
-        expand(
-            expand(
+            ]),
+        _battenberg_expand_ploidy_projections(
             [
                 str(rules._battenberg_output_projection.output.projection)
             ],
-            zip,  # Run expand() with zip(), not product()
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            pair_status=CFG["runs"]["pair_status"],
-            #repeat the tool name N times in expand so each pair in run is used
-            tool=["battenberg"] * len(CFG["runs"]["tumour_sample_id"]),
-            allow_missing=True),
-            projection=CFG["options"]["requested_projections"],
-            ploidy_constraint=_ploidy_runs_or_default())
+            CFG["options"]["requested_projections"])
 
 
 ##### CLEANUP #####
