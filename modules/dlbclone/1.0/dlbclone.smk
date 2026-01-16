@@ -45,14 +45,30 @@ CFG = op.setup_module(
 )
 
 
+# Determine if custom dlbclone model(s) need to be generated for predictions
+USE_GAMBLR = CFG["inputs"]["opt_model_path"] == "GAMBLR.predict"
+
+if not USE_GAMBLR:
+    MODEL_DIR = Path(CFG["inputs"]["opt_model_path"])
+    MODEL_PREFIX = CFG["inputs"]["model_name_prefix"]
+    MODEL_RDS = str(MODEL_DIR / f"{MODEL_PREFIX}_model.rds")
+    MODEL_UWOT = str(MODEL_DIR / f"{MODEL_PREFIX}_umap.uwot")
+
+
 # Define rules to be run locally when using a compute cluster
-localrules:
-    #_dlbclone_sif_pull,
-    #_dlbclone_input_maf,
-    _dlbclone_build_model,
-    _dlbclone_assemble_genetic_features,
-    _dlbclone_predict,
-    _dlbclone_all
+if USE_GAMBLR:
+    localrules:
+        #_dlbclone_input_maf,
+        _dlbclone_assemble_genetic_features,
+        _dlbclone_predict,
+        _dlbclone_all
+else:
+    localrules:
+        #_dlbclone_input_maf,
+        _dlbclone_build_model,
+        _dlbclone_assemble_genetic_features,
+        _dlbclone_predict,
+        _dlbclone_all
 
 
 ##### RULES #####
@@ -93,101 +109,53 @@ def as_r_c(d):
         return "None"
     return "c(" + ",".join(f'"{x}"' for x in d) + ")"
 
-
-# Pull SIF file from lcr-sifs
-#rule _dlbclone_sif_pull:
- #   output:
-  #      sif = CFG["dirs"]["dlbclone"] + "gamblr.sif" #dlbclone.sif
-    #log:
-     #   stdout = CFG["logs"]["dlbclone"] + "install.stdout.log",
-      #  stderr = CFG["logs"]["dlbclone"] + "install.stderr.log"
- #   conda:
-  #      CFG["conda"]["singularity"]
-#    shell:
- #       """
-  #      singularity pull {output.sif} docker://lklossok/gamblr:latest
-   #     """
-
-# Uses only GAMBL metadata and binary mutation data as training for DLBCLone models
-rule _dlbclone_build_model: 
-    input:
-        dlbclone_model = CFG["scripts"]["dlbclone_model"]#, 
-        #sif = str(rules._dlbclone_sif_pull.output.sif)
-    output:
-        opt_model_rds_path = CFG["inputs"]["opt_model_path"] + "/" + CFG["inputs"]["model_name_prefix"] + "_model.rds",
-        opt_model_uwot_path = CFG["inputs"]["opt_model_path"] + "/" + CFG["inputs"]["model_name_prefix"] + "_umap.uwot"
-    params:
-        opt_model_path = CFG["inputs"]["opt_model_path"],
-        model_name_prefix = CFG["inputs"]["model_name_prefix"],
-        core_features = as_r_list(CFG["options"]["core_features"]),
-        core_feature_multiplier = CFG["options"]["core_feature_multiplier"],
-        hidden_features = as_r_c(CFG["options"]["hidden_features"]),
-        truth_classes = as_r_c(CFG["options"]["truth_classes"]),
-        min_k = CFG["options"]["min_k"],
-        max_k = CFG["options"]["max_k"]
-    #log:
-     #   CFG["logs"]["opt_model_path"] + "/" + CFG["inputs"]["model_name_prefix"] + "_model.rds",
-      #  CFG["logs"]["opt_model_path"] + "/" + CFG["inputs"]["model_name_prefix"] + "_umap.uwot"
-    threads:
-        CFG["threads"]["quant"]
-    resources:
-        **CFG["resources"]["quant"]
-    #container:
-     #   str(rules._dlbclone_sif_pull.output.sif)
-    container:
-        "docker://lklossok/gamblr:latest"
-    shadow:
-        "copy-minimal"
-    shell:
-        op.as_one_line("""
-            Rscript {input.dlbclone_model}  
-                --opt_model_path {params.opt_model_path} 
-                --model_name_prefix {params.model_name_prefix}
-                --core_features '{params.core_features}' 
-                --core_feature_multiplier {params.core_feature_multiplier} 
-                --hidden_features '{params.hidden_features}' 
-                --truth_classes '{params.truth_classes}' 
-                --min_k {params.min_k} 
-                --max_k {params.max_k}
-        """)
-
-################################################################################ REPLACE THIS WITH A CHECKPOINT?
-# Determine if custom dlbclone model(s) need to be generated for predictions
-#MODEL_DIR = Path(CFG["inputs"]["opt_model_path"])
-#MODEL_PREFIX = CFG["inputs"]["model_name_prefix"]
-
-#EXPECTED_MODEL_RDS = MODEL_DIR / f"{MODEL_PREFIX}_model.rds"
-#EXPECTED_MODEL_UWOT = MODEL_DIR / f"{MODEL_PREFIX}_umap.uwot"
-
-#USE_GAMBLR = CFG["inputs"]["opt_model_path"] == "GAMBLR.predict"
-
-#HAS_REQUESTED_MODEL = (
- #   not USE_GAMBLR
-  #  and EXPECTED_MODEL_RDS.exists()
-   # and EXPECTED_MODEL_UWOT.exists()
-#)
-
-#if USE_GAMBLR:
- #   print("Using GAMBLR.predict pre-made dlbclone models")
-#elif HAS_REQUESTED_MODEL:
- #   print(f"Using existing custom dlbclone model: {MODEL_PREFIX}")
-#else:
- #   print(f"Building custom dlbclone model: {MODEL_PREFIX}")
-
-#def model_inputs():
- #   if USE_GAMBLR or HAS_REQUESTED_MODEL:
-  #      return []
-   # else:
-    #    return rules._dlbclone_build_model.output
-################################################################################
+if USE_GAMBLR:
+    # Uses only GAMBL metadata and binary mutation data as training for DLBCLone models
+    rule _dlbclone_build_model: 
+        input:
+            dlbclone_model = CFG["scripts"]["dlbclone_model"]
+        output:
+            MODEL_RDS,
+            MODEL_UWOT
+        params:
+            opt_model_path = CFG["inputs"]["opt_model_path"],
+            model_name_prefix = CFG["inputs"]["model_name_prefix"],
+            core_features = as_r_list(CFG["options"]["core_features"]),
+            core_feature_multiplier = CFG["options"]["core_feature_multiplier"],
+            hidden_features = as_r_c(CFG["options"]["hidden_features"]),
+            truth_classes = as_r_c(CFG["options"]["truth_classes"]),
+            min_k = CFG["options"]["min_k"],
+            max_k = CFG["options"]["max_k"]
+        #log:
+         #   CFG["logs"]["opt_model_path"] + "/" + CFG["inputs"]["model_name_prefix"] + "_model.rds",
+          #  CFG["logs"]["opt_model_path"] + "/" + CFG["inputs"]["model_name_prefix"] + "_umap.uwot"
+        threads:
+            CFG["threads"]["quant"]
+        resources:
+            **CFG["resources"]["quant"]
+        container:
+            "docker://lklossok/gamblr:latest"
+        shadow:
+            "copy-minimal"
+        shell:
+            op.as_one_line("""
+                Rscript {input.dlbclone_model}  
+                    --opt_model_path {params.opt_model_path} 
+                    --model_name_prefix {params.model_name_prefix}
+                    --core_features '{params.core_features}' 
+                    --core_feature_multiplier {params.core_feature_multiplier} 
+                    --hidden_features '{params.hidden_features}' 
+                    --truth_classes '{params.truth_classes}' 
+                    --min_k {params.min_k} 
+                    --max_k {params.max_k}
+            """)
 
 
 rule _dlbclone_assemble_genetic_features:
     input:
         test_metadata = CFG["inputs"]["test_metadata_dir"],
         test_maf = CFG["inputs"]["test_maf_dir"],
-        dlbclone_assemble_genetic_features = CFG["scripts"]["dlbclone_assemble_genetic_features"]#, 
-        #sif = str(rules._dlbclone_sif_pull.output.sif)
+        dlbclone_assemble_genetic_features = CFG["scripts"]["dlbclone_assemble_genetic_features"]
     output:
         test_mutation_matrix = CFG["inputs"]["test_matrix_dir"] + "/" + CFG["inputs"]["matrix_name"] + "_mutation_matrix.tsv"
     params:
@@ -211,8 +179,6 @@ rule _dlbclone_assemble_genetic_features:
         CFG["threads"]["quant"]
     resources:
         **CFG["resources"]["quant"]
-    #container:
-     #   str(rules._dlbclone_sif_pull.output.sif)
     container:
         "docker://lklossok/gamblr:latest"
     shadow:
@@ -242,10 +208,9 @@ rule _dlbclone_assemble_genetic_features:
 
 rule _dlbclone_predict:
     input:
-        models = rules._dlbclone_build_model.output, #model_inputs(), 
-        mutation_matrix = str(rules._dlbclone_assemble_genetic_features.output.test_mutation_matrix), #CFG["inputs"]["test_matrix_dir"], # first column is sample ID and all other columns are features
-        dlbclone_predict = CFG["scripts"]["dlbclone_predict"]#, 
-        #sif = str(rules._dlbclone_sif_pull.output.sif)
+        models = [] if USE_GAMBLR else [MODEL_RDS, MODEL_UWOT],
+        mutation_matrix = str(rules._dlbclone_assemble_genetic_features.output.test_mutation_matrix), # first column is sample ID and all other columns are features
+        dlbclone_predict = CFG["scripts"]["dlbclone_predict"]
     output:
         predictions = CFG["inputs"]["pred_dir"] + "/" + CFG["inputs"]["model_name_prefix"] + "--{launch_date}/{matrix_name}_" + TODAY + "_DLBCLone_predictions.tsv"
     params:
@@ -259,8 +224,6 @@ rule _dlbclone_predict:
         CFG["threads"]["quant"]
     resources:
         **CFG["resources"]["quant"]
-    #container:
-     #   str(rules._dlbclone_sif_pull.output.sif)
     container:
         "docker://lklossok/gamblr:latest"
     shadow:
