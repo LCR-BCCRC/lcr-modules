@@ -109,7 +109,7 @@ def as_r_c(d):
         return "None"
     return "c(" + ",".join(f'"{x}"' for x in d) + ")"
 
-if USE_GAMBLR:
+if not USE_GAMBLR:
     # Uses only GAMBL metadata and binary mutation data as training for DLBCLone models
     rule _dlbclone_build_model: 
         input:
