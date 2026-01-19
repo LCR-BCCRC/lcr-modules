@@ -647,7 +647,9 @@ rule _cnvkit_convert_coordinates:
 
 def _cnvkit_prepare_projection(wildcards):
     CFG = config["lcr-modules"]["cnvkit"]
-    if "38" in str({wildcards.genome_build}):
+    tbl = CFG["runs"]
+    this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"].tolist()
+    if "38" in this_genome_build[0]:
         hg38_projection = str(rules._cnvkit_to_seg.output.seg).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
         grch37_projection = str(rules._cnvkit_convert_coordinates.output.cnvkit_lifted).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
         grch37_projection = grch37_projection.replace("{chain}", "hg38ToHg19")
@@ -809,6 +811,7 @@ rule _cnvkit_output:
 rule _cnvkit_all:
     input:
         expand(
+            expand(
             [
                 str(rules._cnvkit_output.output.call_cns),
                 str(rules._cnvkit_output.output.scatter),
@@ -819,27 +822,19 @@ rule _cnvkit_all:
                 str(rules._cnvkit_output.output.sex),
                 str(rules._cnvkit_output.output.seg),
                 str(rules._cnvkit_output.output.metrics),
+                str(rules._cnvkit_output_projection.output.projection)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"]
-        ),
-        expand(
-            expand(
-            [
-                str(rules._cnvkit_output_projection.output.projection)
-            ],
-            zip,  # Run expand() with zip(), not product()
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            seq_type=CFG["runs"]["tumour_seq_type"],
             pair_status=CFG["runs"]["pair_status"],
-            allow_missing=True),
-            tool = "cnvkit",
-            projection=CFG["requested_projections"])
+            allow_missing=True
+            ),
+        tool = "cnvkit",
+        projection=CFG["requested_projections"]
+        )
 
 
 ##### CLEANUP #####
