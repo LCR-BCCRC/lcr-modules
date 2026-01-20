@@ -411,7 +411,7 @@ rule _controlfreec_config_contamAdjTrue:
         "sed \"s|referenceFile|{input.reference}|g\" > {output.config}"
 
 
-rule _controlfreec_config_contamAdjTrue:
+rule _controlfreec_config_contamAdjFalse:
     input:
         tumour_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.bam_minipileup.pileup.gz",
         normal_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.bam_minipileup.pileup.gz",
@@ -510,7 +510,7 @@ rule _controlfreec_run:
 
 def _get_run_result(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
-    if os.path.exists(CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup..gz_CNVs")
+    if os.path.exists(CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_CNVs")
         info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
         ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
         CNV = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
