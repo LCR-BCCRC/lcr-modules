@@ -440,7 +440,7 @@ rule _sequenza_all:
                 str(rules._sequenza_output_projection.output.projection)
             ],
             zip,  # Run expand() with zip(), not product()
-            tseq_type=CFG["runs"]["tumour_seq_type"],
+            seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
