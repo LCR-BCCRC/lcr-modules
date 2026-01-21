@@ -136,7 +136,8 @@ rule _sequenza_bam2seqz:
 
 def _sequenza_request_chrom_seqz_files(wildcards):
     CFG = config["lcr-modules"]["sequenza"]
-    with open(checkpoints._sequenza_input_chroms.get(**wildcards).output.txt) as f:
+    chr_txt = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt").replace("{genome_build}", wildcards.genome_build)
+    with open(chr_txt) as f:
         mains_chroms = f.read().rstrip("\n").split("\n")
     seqz_files = expand(
         CFG["dirs"]["seqz"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/chromosomes/{chrom}.binned.seqz.gz",
@@ -147,6 +148,7 @@ def _sequenza_request_chrom_seqz_files(wildcards):
 
 rule _sequenza_merge_seqz:
     input:
+        txt = str(rules._sequenza_input_chroms.output.txt),
         seqz = _sequenza_request_chrom_seqz_files,
         merge_seqz = CFG["inputs"]["merge_seqz"],
         gc = reference_files("genomes/{genome_build}/annotations/gc_wiggle.window_50.wig.gz")
