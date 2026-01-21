@@ -22,6 +22,12 @@ lcr-modules:
             chr_prefixed_reference:
                 hg38: " --chr_prefixed_genome "
                 grch37: " "
+            x_chrom:
+                hg38: "chrX"
+                grch37: "X"
+            y_chrom:
+                hg38: "chrY"
+                grch37: "Y"
             # cnv2igv preserve log.ratio or change this to "" to calculate it from the absolute CN
             preserve: "--preserve_log_ratio"
             # liftOver options to convert between genomic builds
