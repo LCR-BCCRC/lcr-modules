@@ -5,12 +5,12 @@ import sys
 import glob
 import pandas as pd
 
-sys.path.append(os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "/modules/tempest/1.0/")) # add local module to path
+sys.path.append(os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules/tempest/1.0/")) # add local module to path
 import utils.fastq_utils as fu
 
 # generate paths for file locations
 BAM_OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "bam_pipeline")
-UTILSDIR = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "/modules/tempest/1.0/utils")
+UTILSDIR = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules/tempest/1.0/utils")
 
 UMI_SAMPLESHEET = config["lcr-modules"]["_shared"]["samples"].copy()
 
@@ -165,6 +165,7 @@ rule fgbio_duplex_consensus:
 # Because CallDuplexConsensusReads recalculates base qualities, and those numbers can be above those supported by certain tools, set a upper
 # limit to base qualities.
 # Also, remove all the extra space-taking tags
+# Mask bases with an N, if below base qual of 20
 rule sanitize_bam:
     input:
         bam = rules.fgbio_duplex_consensus.output.bam
