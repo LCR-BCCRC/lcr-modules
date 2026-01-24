@@ -1,7 +1,0 @@
-name: /projects/rmorin_scratch/giuliano_nanopore/environments/ont-variant-call-env
-channels:
-  - conda-forge
-  - bioconda
-  - defaults
-dependencies:
-  - singularity=3.8.6=hf1ae047_0

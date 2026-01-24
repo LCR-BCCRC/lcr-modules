@@ -46,11 +46,18 @@ config["pipeline_name"] = "clairs.yaml"
 # Define rules to be run locally when using a compute cluster
 localrules:
     _clairs_input_bam,
+    _clairs_input_normal_bam,
+    _clairs_get_resources,
+    _clairs_link_clair3_models,
     _clairs_output_vcf,
     _clairs_all
 
+
 VERSION_MAP_CLAIRS = CFG["options"]["version_map"]
 SEQTYPE_MAP_CLAIRS = CFG["options"]["seqtype_map"]
+MODULE_DIR = os.path.abspath(CFG["options"]["modsdir"])
+
+print(MODULE_DIR)
 
 possible_genome_builds = ", ".join(list(VERSION_MAP_CLAIRS.keys()))
 for genome_build in CFG["runs"]["tumour_genome_build"]:
@@ -70,12 +77,6 @@ for seq_type in CFG["runs"]["tumour_seq_type"]:
 chemistry = CFG["runs"]["tumour_chemistry"]
 
 normal_map = CFG["options"]["normal_name"]
-
-if "tumour_chemistry" not in CFG["runs"].columns:
-    raise KeyError("Chemistry is needed in your samples table. Available chemistry values: R9, R10.")
-
-if "tumour_platform" not in CFG["runs"].columns:
-    raise KeyError("Platform is needed in your samples table. See config for possible values.")
 
 CFG["runs"]["normal_name"] = CFG["runs"]["tumour_chemistry"].map(normal_map)
 
@@ -115,21 +116,6 @@ rule _clairs_input_normal_bam:
         op.absolute_symlink(input.bai, output.bai)
         op.absolute_symlink(input.bai, output.crai)
 
-# Rule to see if current container version is most recent?
-
-rule _clairs_install:
-    output:
-        sif = CFG["dirs"]["clairs"] + "clairs.sif"
-    log:
-        stdout = CFG["logs"]["clairs"] + "install.stdout.log",
-        stderr = CFG["logs"]["clairs"] + "install.stderr.log"
-    conda:
-        CFG["conda_envs"]["singularity"]
-    shell:
-        """
-        singularity pull {output.sif} docker://hkubal/clairs:latest
-        """
-
 
 def get_platform(wildcards):
     CFG = config["lcr-modules"]["clairs"]
@@ -155,14 +141,103 @@ def get_normal(wildcards):
     return normal
 
 
+def get_clair3_models_dir():
+    return os.path.abspath(
+        os.path.join(
+            MODULE_DIR,
+            "ClairS-0.4.4",
+            "models",
+            "clair3_models"
+        )
+    )
+
+
+# Clone ClairS repo at a fixed commit and download ClairS models
+rule _clairs_get_resources:
+    output:
+        resources = touch(os.path.join(MODULE_DIR, "ClairS-0.4.4", "resources_dummy"))
+    params:
+        base_dir = os.path.join(MODULE_DIR, "ClairS-0.4.4"),
+        repo_dir = os.path.join(MODULE_DIR, "ClairS-0.4.4", "ClairS"),
+        models_dir = os.path.join(MODULE_DIR, "ClairS-0.4.4", "models"),
+        tarball = os.path.join(MODULE_DIR, "ClairS-0.4.4", "models", "clairs_models.tar.gz"),
+        commit = "4ff6c5fa3e59d5abb516ba4ed7d341d6b394197c"
+    shell:
+        op.as_one_line("""
+            set -euo pipefail &&
+            mkdir -p {params.base_dir} &&
+            mkdir -p {params.models_dir} &&
+            if [ ! -d {params.repo_dir}/.git ]; then
+                git clone https://github.com/HKU-BAL/ClairS.git {params.repo_dir} ;
+            fi &&
+            cd {params.repo_dir} &&
+            CURRENT_COMMIT="$(git rev-parse HEAD)" &&
+            if [ "$CURRENT_COMMIT" != "{params.commit}" ]; then
+                git fetch --all --tags &&
+                git checkout --force {params.commit} ;
+            fi &&
+            if [ ! -d {params.models_dir}/clair3_models ] ||
+               [ -z "$(ls -A {params.models_dir}/clair3_models 2>/dev/null || true)" ]; then
+                wget -c -O {params.tarball} https://www.bio8.cs.hku.hk/clairs/models/clairs_models.tar.gz &&
+                tar -zxf {params.tarball} -C {params.models_dir} ;
+            fi &&
+            if [ ! -d {params.models_dir}/clair3_models ]; then
+                echo "ERROR: Failed to populate ClairS models!" >&2 ;
+                exit 1 ;
+            fi &&
+            touch {output.resources}
+        """)
+
+
+# Link the Clair3 models into the conda env bin
+rule _clairs_link_clair3_models:
+    input:
+        resources = str(rules._clairs_get_resources.output.resources)
+    output:
+        models = touch(os.path.join(MODULE_DIR, "model_dummy"))
+    log:
+        stdout = CFG["logs"]["clairs"] + "link_clair3_models.stdout.log",
+        stderr = CFG["logs"]["clairs"] + "link_clair3_models.stderr.log",
+    conda:
+        CFG["conda_envs"]["clairs"]
+    params:
+        link_target = lambda wc: os.path.join(config["lcr-modules"]["clairs"]["options"]["modsdir"], "ClairS-0.4.4", "models", "clair3_models"),
+        link_path = "$(dirname $(command -v pypy))/clairs_models/clair3_models"
+    shell:
+        op.as_one_line("""
+            set -euo pipefail &&
+            echo "link_target = {params.link_target}" >&2 &&
+            echo "link_path   = {params.link_path}" >&2 &&
+            TARGET="$(readlink -f {params.link_target})" &&
+            if [ ! -d "$TARGET" ]; then
+                echo "ERROR: Resolved Clair3 models directory does not exist: $TARGET" >&2 ;
+                exit 1 ;
+            fi &&
+            if ! find "$TARGET" -type f -name 'pileup.index' | grep -q .; then
+                echo "ERROR: Clair3 models directory exists but contains no pileup models" >&2 ;
+                ls -l "$TARGET" >&2 || true ;
+                exit 1 ;
+            fi &&
+            if ! find "$TARGET" -type f -name 'full_alignment.index' | grep -q .; then
+                echo "ERROR: Clair3 models directory exists but contains no full-alignment models" >&2 ;
+                ls -l "$TARGET" >&2 || true ;
+                exit 1 ;
+            fi &&
+            mkdir -p $(dirname {params.link_path}) &&
+            ln -sfn "$TARGET" {params.link_path} &&
+            test -d {params.link_path} &&
+            touch {output.models}
+        """)
+
+
 # Calls variants using ClairS
 rule _clairs_call_variants:
     input:
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_name}.bam",
+        tumour_bam = str(rules._clairs_input_bam.output.bam),
+        normal_bam = str(rules._clairs_input_normal_bam.output.bam),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
-        sif = str(rules._clairs_install.output.sif)
+        models = str(rules._clairs_link_clair3_models.output.models)
     output:
         vcf = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/output.vcf.gz"),
         tbi = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/output.vcf.gz.tbi")
@@ -170,48 +245,35 @@ rule _clairs_call_variants:
         stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/clairs.stdout.log",
         stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/clairs.stderr.log"
     params:
-        options = CFG["options"]["clairs"],
-        container = CFG["dirs"]["clairs"] + "clairs.sif",
+        clairs_args = CFG["options"]["clairs_args"],
         platform = get_platform,
         output_dir = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/",
-        tumor_bam_real = lambda wc, input: os.path.realpath(input.tumour_bam),
-        normal_bam_real = lambda wc, input: os.path.realpath(input.normal_bam),
-        ref_fasta_real = lambda wc, input: os.path.realpath(input.fasta),
-        tumor_dir = lambda wc, input: os.path.dirname(os.path.realpath(input.tumour_bam)),
-        normal_dir = lambda wc, input: os.path.dirname(os.path.realpath(input.normal_bam)),
-        ref_dir = lambda wc, input: os.path.dirname(os.path.realpath(input.fasta)),
-        tumor_base = lambda wc, input: os.path.basename(os.path.realpath(input.tumour_bam)),
-        normal_base = lambda wc, input: os.path.basename(os.path.realpath(input.normal_bam)),
-        ref_base = lambda wc, input: os.path.basename(os.path.realpath(input.fasta))
+        clairs_path = CFG["options"]["clairs_path"],
+        pileup_model = lambda wc: config["lcr-modules"]["clairs"]["options"]["model_path"] + get_platform(wc) + "/pileup.pkl",
+        fa_model = lambda wc: config["lcr-modules"]["clairs"]["options"]["model_path"] + get_platform(wc) + "/full_alignment.pkl"
     conda:
-        CFG["conda_envs"]["bcftools"]
+        CFG["conda_envs"]["clairs"]
     threads:
         CFG["threads"]["clairs"]
     resources:
         **CFG["resources"]["clairs"]
     shell:
         op.as_one_line("""
-            apptainer exec
-                -B {params.tumor_dir}:/tumor:ro
-                -B {params.normal_dir}:/normal:ro
-                -B {params.ref_dir}:/ref:ro
-                -B {params.output_dir}:/output
-                {params.container} bash -c "
-                    /opt/bin/run_clairs
-                        --tumor_bam_fn /tumor/{params.tumor_base}
-                        --normal_bam_fn /normal/{params.normal_base}
-                        --ref_fn /ref/{params.ref_base}
-                        --threads {threads}
-                        --output_dir /output
-                        -p {params.platform}
-                        --conda_prefix /opt/conda/envs/clairs
-                        {params.options}
-                "
-                > {log.stdout} 2> {log.stderr} 
+        {params.clairs_path}
+            -P {params.pileup_model}
+            -F {params.fa_model}
+            --tumor_bam_fn {input.tumour_bam}
+            --normal_bam_fn {input.normal_bam}
+            --ref_fn {input.fasta}
+            --threads {threads}
+            --platform {params.platform}
+            --output_dir {params.output_dir}
+            {params.clairs_args}
+            > {log.stdout} 2> {log.stderr}
         """)
 
 
-    # Annotates VCF file with gnomAD frequency data and filters out poor calls.
+# Annotates VCF file with gnomAD frequency data and filters out poor calls.
 rule _clairs_gnomad_annotation:
     input:
         vcf = str(rules._clairs_call_variants.output.vcf),
@@ -228,21 +290,20 @@ rule _clairs_gnomad_annotation:
     threads:
         CFG["threads"]["bcftools"]
     resources:
-        **CFG["resources"]["gnomad"]
+        **CFG["resources"]["bcftools"]
     shell:
         op.as_one_line("""
-        bcftools annotate --threads {threads}
-        -a {input.gnomad} -c INFO/AF {input.vcf} |
-        awk 'BEGIN {{FS=OFS="\\t"}} {{ if ($1 !~ /^#/ && $8 !~ ";AF=") $8=$8";AF=0"; print $0; }}' |
-        bcftools view -i 'FILTER="PASS" && INFO/AF < 0.0001 && FMT/DP[0] >= 8 && FMT/AF[0] >= 0.1 && (FMT/NDP[0] < 10 || FMT/NAF[0] < 0.3)'
-        -Oz -o {output.vcf} 2> {log.stderr}
+        bcftools annotate --threads {threads} 
+        -a {input.gnomad} -c INFO/AF {input.vcf} 2> {log.stderr} |
+        awk 'BEGIN {{FS=OFS="\t"}} {{ if ($1 !~ /^#/ && $8 !~ ";AF=") $8=$8";AF=0"; print $0; }}' |
+        bcftools view -Oz -o {output.vcf} 2> {log.stderr}
         &&
-        tabix -p vcf {output.vcf} 2>> {log.stderr}
+        tabix -p vcf {output.vcf} >> {log.stdout} 2>> {log.stderr}
         """)
 
 
 # Filters out PoN variants
-rule _clairs_filter_pon:
+rule _clairs_filter:
     input:
         vcf = str(rules._clairs_gnomad_annotation.output.vcf), 
         tbi = str(rules._clairs_gnomad_annotation.output.tbi),
@@ -253,15 +314,18 @@ rule _clairs_filter_pon:
     conda:
         CFG["conda_envs"]["bcftools"]
     resources:
-        **CFG["resources"]["filter"]
+        **CFG["resources"]["bcftools"]
     threads:
         CFG["threads"]["bcftools"]
     log:
         stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/filter_pon.stderr.log",
         stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/filter_pon.stdout.log"
+    params:
+        filters = CFG["options"]["filters"]
     shell:
         op.as_one_line("""
-        bcftools isec -C -w1 -O z -o {output.vcf} {input.vcf} {input.pon} > {log.stdout} 2> {log.stderr}
+        bcftools isec -C -w1 {input.vcf} {input.pon} 2> {log.stderr} | 
+        bcftools view -i '{params.filters}' -Oz -o {output.vcf} 2>> {log.stderr}
         &&
         tabix -p vcf {output.vcf} >> {log.stdout} 2>> {log.stderr}
         """)
@@ -270,8 +334,8 @@ rule _clairs_filter_pon:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _clairs_output_vcf:
     input:
-        vcf = str(rules._clairs_filter_pon.output.vcf),
-        tbi = str(rules._clairs_filter_pon.output.tbi)
+        vcf = str(rules._clairs_filter.output.vcf),
+        tbi = str(rules._clairs_filter.output.tbi)
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}.clairs.vcf.gz",
         tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}.clairs.vcf.gz.tbi"

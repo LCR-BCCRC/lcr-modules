@@ -2,16 +2,12 @@ lcr-modules:
     
     clairs:
 
-        inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id} {chemistry} {platform} {normal_name}
-            sample_bam: "__UPDATE__"
-            sample_bai: "__UPDATE__"
-            normal_bam: "__UPDATE__"
-            normal_bai: "__UPDATE__"
- 
-        scratch_subdirectories: []
-
-# To setup your sample table to include platform (the ClairS model you want to use for calling variants in your sample), consult the table below for options.
+# Additional required columns in your samples table: "chemistry" and "platform"
+# Chemistry is the version of pore chemistry used to sequence a particular sample
+    # Available values: R9, R10
+# Platform is the ClairS model you want to use for calling variants in a particular sample
+    # consult the table below for available values
+    # ____________________________________________________________________________________________________________________________________________
     # Platform	| Model name	            | Chemistry /Instruments	| Basecaller	| Option (-p/--platform)	    | Reference	    | Aligner
     # ____________________________________________________________________________________________________________________________________________
     # ONT	    | r1041_e82_400bps_sup_v420	| R10.4.1, 5khz	            | Dorado SUP	| ont_r10_dorado_sup_5khz_ssrs	| GRCh38_no_alt	| Minimap2
@@ -22,21 +18,32 @@ lcr-modules:
     # ONT	    | r104_e81_sup_g5015	    | R10.4/R10.4.1, 4khz	    | Guppy5 SUP	| ont_r10_guppy	                | GRCh38_no_alt	| Minimap2
     # ONT	    | r941_prom_sup_g5014	    | R9.4.1, 4khz	            | Guppy5 SUP	| ont_r9_guppy	                | GRCh38_no_alt	| Minimap2
 
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id} {chemistry} {platform} {normal_name}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            normal_bam: "__UPDATE__"
+            normal_bai: "__UPDATE__"
+
+        scratch_subdirectories: []
+
         options:
-            clairs: "__UPDATE__" # Update with arguments you want to use for variant calling. EXAMPLE: --snv_min_af 0.1 --enable_indel_calling --min_coverage 8 -s TUMOR --snv_min_qual 5
-            bind: "" # Update this if you wish to bind extra directories inside apptainer in the ClairS variant calling rule
             version_map:
                 hg38: "38"
             seqtype_map:
                 promethION: "promethION"
             normal_name:
-                R9: "HG03995"
-                R10: "HCC1395BL"
+                R9: "__UPDATE__" # Update this with the prefix for your R9 normal BAM file
+                R10: "__UPDATE__" # Update this with the prefix for your R10 normal BAM file
+            clairs_args: "__UPDATE__" # Update this with the arguments you wish to add for variant calling with ClairS. Example: "--snv_min_af 0.1 --enable_indel_calling --min_coverage 8 -s TUMOR --snv_min_qual 5"
+            model_path: "__UPDATE__" # Update this with the path to ClairS models (ending with /). Likely something like {MODSDIR}/modules/clairs/1.0/ClairS-0.4.4/models/
+            clairs_path: "__UPDATE__" # Update this with the path to the run_clairs script. Likely something like {MODSDIR}/modules/clairs/1.0/ClairS-0.4.4/ClairS/run_clairs
+            filters: 'FILTER="PASS" && INFO/AF < 0.0001 && FMT/DP[0] >= 8 && FMT/AF[0] >= 0.1 && (FMT/NDP[0] < 10 || FMT/NAF[0] < 0.3)' # Update this line if you wish to use different filters
+            modsdir: "{MODSDIR}"
 
         conda_envs:
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
-            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
-            singularity: "{MODSDIR}/envs/singularity-3.8.6.yaml"
+            clairs: "{MODSDIR}/envs/clairs-0.4.4.yaml"
 
         threads:
             clairs: 24
@@ -45,9 +52,7 @@ lcr-modules:
         resources:
             clairs:
                 mem_mb: 20000
-            gnomad:
-                mem_mb: 5000
-            filter:
+            bcftools:
                 mem_mb: 5000
 
         pairing_config:
