@@ -57,41 +57,46 @@ localrules:
 ##### RULES #####
 
 #### Rules for mappability reference
-# to generate and use hard-masked mappability (i.e. recommended for FFPE genomes) if CFG["options"]["hard_masked"] == True
-# to use the default genome's mappability file (downloaded from their website), set it CFG["options"]["hard_masked"] == False
-if CFG["options"]["hard_masked"] == True:
-    CFG["runs"]["masked"] = "_masked"
-else:
-    CFG["runs"]["masked"] = ""
+# when NOT using masked reference genome
+rule _controlfreec_get_map_refs_hg19:
+    output:
+        tar = temp(CFG["dirs"]["inputs"] + "references/mappability/unmasked/raw/out100m2_hg19.tar.gz"),
+        gem = CFG["dirs"]["inputs"] + "references/mappability/unmasked/raw/out100m2_hg19.gem"
+    params:
+        outdir = CFG["dirs"]["inputs"] + "references/mappability/unmasked/"
+    shell:
+        """
+        wget -O {output.tar} http://xfer.curie.fr/get/7hZIk1C63h0/hg19_len100bp.tar.gz && \
+        tar -xvf {output.tar} -C {params.outdir} --wildcards --no-anchored 'out100m2*gem'
+        """
+rule _controlfreec_get_map_refs_hg38:
+    output:
+        tar = temp(CFG["dirs"]["inputs"] + "references/mappability/unmasked/raw/out100m2_hg38.zip"),
+        gem = CFG["dirs"]["inputs"] + "references/mappability/unmasked/raw/out100m2_hg38.gem"
+    params:
+        outdir = CFG["dirs"]["inputs"] + "references/mappability/unmasked/"
+    shell:
+        """
+        wget -O {output.tar} http://xfer.curie.fr/get/vyIi4w8EONl/out100m2_hg38.zip && \
+        unzip {output.tar} -d {params.outdir}
+        """
 
-wildcard_constraints:
-    masked = ".{0}|_masked",
-    genome_build = ".+(?<!masked)"
+def _get_unmasked_map_ref(wildcards):
+    if "38" in str({wildcards.genome_build}):
+        return str(rules._controlfreec_get_map_refs_hg38.output.gem)
+    else:
+        return str(rules._controlfreec_get_map_refs_hg19.output.gem)
 
-#### generate references ####
-# mappability tracks for hg19 and hg38 are available from the source
-# even though the hg38 is a .zip, this saves it to the same tar path but unpacks it differently
-if CFG["options"]["hard_masked"] == False:
-    rule _controlfreec_get_map_refs:
-        output:
-            tar = temp(CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/out100m2_{genome_build}.tar.gz"),
-            gem = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/out100m2_{genome_build}.gem"
-        params:
-            outdir = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/"
-        shell:
-            """
-            if echo "{wildcards.genome_build}" | grep -q "38"; then
-                wget -O {output.tar} http://xfer.curie.fr/get/vyIi4w8EONl/out100m2_hg38.zip && \
-                unzip {output.tar} -d {params.outdir} && \
-                mv {params.outdir}out100m2_hg38.gem {output.gem}
-            else
-                wget -O {output.tar} http://xfer.curie.fr/get/7hZIk1C63h0/hg19_len100bp.tar.gz && \
-                tar -xvf {output.tar} -C {params.outdir} --wildcards --no-anchored 'out100m2*gem' && \
-                mv {params.outdir}out100m2_hg19.gem {output.gem}
-                fi
-            """
 
-# mappability tracks for hard-masked genomes need to be generated using GEM
+rule _controlfreec_symlink_map_refs_unmasked:
+    input:
+        mappability = _get_unmasked_map_ref
+    output:
+        mappability = CFG["dirs"]["inputs"] + "references/mappability/unmasked/out100m2_{genome_build}.gem"
+    run:
+        op.absolute_symlink(input.mappability, output.mappability)
+
+# mappability tracks for hard-masked genomes are generated using GEM
 rule _download_GEM:
     output:
         touch(CFG["dirs"]["inputs"] + "references/GEM/.done")
@@ -101,140 +106,153 @@ rule _download_GEM:
         CFG["conda_envs"]["wget"]
     resources: **CFG["resources"]["gem"]
     shell:
-        "wget https://sourceforge.net/projects/gemlibrary/files/gem-library/Binary%20pre-release%203/GEM-binaries-Linux-x86_64-core_i3-20130406-045632.tbz2/download -O {params.dirOut}/GEM-lib.tbz2 && bzip2 -dc {params.dirOut}/GEM-lib.tbz2 | tar -xvf - -C {params.dirOut}/"
-
-# grch37 and grch38 from ensembl have additional information in header - need to remove
-if CFG["options"]["hard_masked"] == True:
-    rule _set_up_grch_genomes:
-        input:
-            reference = reference_files("genomes/{genome_build}{masked}/genome_fasta/genome.fa")
-        output:
-            reference = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/genome_header.fa"
-        resources: **CFG["resources"]["gem"]
-        shell:
-            "cat {input.reference} | perl -ne 's/(^\>\S+).+/$1/;print;' > {output.reference} "
-
-def get_genome_fasta(wildcards):
-    CFG = config["lcr-modules"]["controlfreec"]
-    if  "grch" in str({wildcards.genome_build}):
-        return  CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/genome_header.fa"
-    else:
-        return reference_files("genomes/{genome_build}{masked}/genome_fasta/genome.fa")
-
-if CFG["options"]["hard_masked"] == True:
-    rule _generate_gem_index:
-        input:
-            software = CFG["dirs"]["inputs"] + "references/GEM/.done",
-            reference = get_genome_fasta
-        output:
-            index = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/{genome_build}.hardmask.all_index.gem"
-        params:
-            gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin",
-            idxpref = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/{genome_build}.hardmask.all_index"
-        threads: CFG["threads"]["gem"]
-        resources: **CFG["resources"]["gem"]
-        log: CFG["logs"]["inputs"] + "gem/{genome_build}{masked}/gem_index.stderr.log"
-        shell:
-            "PATH=$PATH:{params.gemDir}; {params.gemDir}/gem-indexer -T {threads} -c dna -i {input.reference} -o {params.idxpref} > {log} 2>&1 "
-
-if CFG["options"]["hard_masked"] == True:
-    rule _generate_mappability:
-        input:
-            software = CFG["dirs"]["inputs"] + "references/GEM/.done",
-            index = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/{genome_build}.hardmask.all_index.gem"
-        output:
-            mappability = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/{genome_build}.hardmask.all.gem.mappability"
-        params:
-            gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin",
-            pref =  CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/{genome_build}.hardmask.all.gem",
-            kmer = CFG["options"]["kmer"],
-            mismatch = CFG["options"]["mismatch"],
-            maxEditDistance = CFG["options"]["maxEditDistance"],
-            maxBigIndel = CFG["options"]["maxBigIndel"],
-            strata = CFG["options"]["strata"]
-        threads: CFG["threads"]["gem"]
-        resources: **CFG["resources"]["gem"]
-        log: CFG["logs"]["inputs"] + "gem/{genome_build}{masked}/gem_map.stderr.log"
-        shell:
-            "PATH=$PATH:{params.gemDir}; {params.gemDir}/gem-mappability -T {threads} -I {input.index} -l {params.kmer} -m {params.mismatch} -t disable --mismatch-alphabet ACGNT -e {params.maxEditDistance} --max-big-indel-length {params.maxBigIndel} -s {params.strata} -o {params.pref} > {log} 2>&1 "
-
-if CFG["options"]["hard_masked"] == True:
-    rule _symlink_map:
-        input:
-            mappability = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/{genome_build}.hardmask.all.gem.mappability"
-        output:
-            mappability = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/out100m2_{genome_build}.gem"
-        resources: **CFG["resources"]["gem"]
-        shell:
-            "ln -srf {input.mappability} {output.mappability} "
-
-#### Rule for setting chromosome names (chr-prefix or not)
-# no chr for grch37 and grch38
-# chr for hg19 and hg38
-# chromosomes used (i.e. chr1-22,X,Y)
+        op.as_one_line("""
+        "wget https://sourceforge.net/projects/gemlibrary/files/gem-library/Binary%20pre-release%203/GEM-binaries-Linux-x86_64-core_i3-20130406-045632.tbz2/download -O {params.dirOut}/GEM-lib.tbz2 &&
+        bzip2 -dc {params.dirOut}/GEM-lib.tbz2 | tar -xvf - -C {params.dirOut}/"
+        """)
 
 
-def _controlfreec_get_chr_fastas(wildcards):
-    CFG = config["lcr-modules"]["controlfreec"]
-    chrs = []
-    for i in range(1, 23):
-        chrs.append(str(i))
-    chrs.extend(["X", "Y"])
-    if str(wildcards.genome_build).startswith("hg"):
-        chrs = ["chr" + x for x in chrs]
-    fastas = expand(
-        CFG["dirs"]["inputs"] +  "references/{{genome_build}}/freec/chr/{chromosome}.fa",
-        chromosome = chrs
-    )
-    return(fastas)
+# grch37_masked and grch38_masked from ensembl have additional information in the chr name lines - need to remove
+rule _fix_grch_genomes:
+    input:
+        reference = reference_files("genomes/{genome_build}_masked/genome_fasta/genome.fa")
+    output:
+        reference = CFG["dirs"]["inputs"] + "references/mappability/masked/grch_fasta_fixes/{genome_build}_fix.fa"
+    resources: **CFG["resources"]["gem"]
+    shell:
+        "cat {input.reference} | perl -ne 's/(^\>\S+).+/$1/;print;' > {output.reference} "
+
+# the only masked ref genomes available currently are grch37_masked, grch38_masked, hg19_masked, hg38_masked, and hg19-reddy_masked
+def _get_genome_fasta(wildcards):
+    if  "grch37" in str({wildcards.genome_build}): # covers both cases "grch37" and ones like "grch37-noalt"
+        return  str(rules._fix_grch_genomes.output.reference).replace("{genome_build}", "grch37")
+    elif "grch38" in str({wildcards.genome_build}): # covers both cases "grch38" and ones like "grch38-nci"
+        return  str(rules._fix_grch_genomes.output.reference).replace("{genome_build}", "grch38")
+    elif "hg38" in str({wildcards.genome_build}): # covers both cases "hg38" and ones like "hg38-nci"
+        return reference_files("genomes/hg38_masked/genome_fasta/genome.fa")
+    else: # must be a flavour of hg19
+        return reference_files("genomes/hg19_masked/genome_fasta/genome.fa")
+
+rule _generate_gem_index:
+    input:
+        software = str(rules._download_GEM.output),
+        reference = _get_genome_fasta
+    output:
+        index = CFG["dirs"]["inputs"] + "references/mappability/masked/{genome_build}.hardmask.all_index.gem"
+    params:
+        gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin",
+        idxpref = CFG["dirs"]["inputs"] + "references/mappability/masked/{genome_build}.hardmask.all_index"
+    threads: CFG["threads"]["gem"]
+    resources: **CFG["resources"]["gem"]
+    log: CFG["logs"]["inputs"] + "gem/{genome_build}/gem_index.stderr.log"
+    shell:
+        op.as_one_line("""
+        PATH=$PATH:{params.gemDir};
+        {params.gemDir}/gem-indexer -T {threads} -c dna -i {input.reference} -o {params.idxpref} > {log} 2>&1
+        """)
+
+rule _generate_mappability:
+    input:
+        software = str(rules._download_GEM.output),
+        index = str(rules._generate_gem_index.output.index)
+    output:
+        mappability = CFG["dirs"]["inputs"] + "references/mappability/masked/{genome_build}.hardmask.all.gem.mappability"
+    params:
+        gemDir = CFG["dirs"]["inputs"] + "references/GEM/GEM-binaries-Linux-x86_64-core_i3-20130406-045632/bin",
+        pref =  CFG["dirs"]["inputs"] + "references/mappability/masked/{genome_build}.hardmask.all.gem",
+        kmer = CFG["options"]["kmer"],
+        mismatch = CFG["options"]["mismatch"],
+        maxEditDistance = CFG["options"]["maxEditDistance"],
+        maxBigIndel = CFG["options"]["maxBigIndel"],
+        strata = CFG["options"]["strata"]
+    threads: CFG["threads"]["gem"]
+    resources: **CFG["resources"]["gem"]
+    log: CFG["logs"]["inputs"] + "gem/{genome_build}/gem_map.stderr.log"
+    shell:
+        op.as_one_line("""
+        PATH=$PATH:{params.gemDir};
+        {params.gemDir}/gem-mappability
+            -T {threads}
+            -I {input.index}
+            -l {params.kmer}
+            -m {params.mismatch}
+            -t disable
+            --mismatch-alphabet ACGNT
+            -e {params.maxEditDistance}
+            --max-big-indel-length {params.maxBigIndel}
+            -s {params.strata}
+            -o {params.pref} > {log} 2>&1
+        """)
+
+rule _symlink_map:
+    input:
+        mappability = str(rules._generate_mappability.output.mappability)
+    output:
+        mappability = CFG["dirs"]["inputs"] + "references/mappability/masked/out100m2_{genome_build}.gem"
+    resources: **CFG["resources"]["gem"]
+    run:
+        op.absolute_symlink(input.mappability, output.mappability)
 
 
+#### Rules for genome reference files needed
+# these do not need to be done using the masked reference fasta
 
-#generates file with chromomsome lengths from genome.fa.fai
+# generates file with chromomsome lengths from genome.fa.fai
 rule _controlfreec_generate_chrLen:
     input:
-        fai = reference_files("genomes/{genome_build}{masked}/genome_fasta/genome.fa.fai"),
-        main = reference_files("genomes/{genome_build}{masked}/genome_fasta/main_chromosomes_withY.txt")
+        fai = reference_files("genomes/{genome_build}}/genome_fasta/genome.fa.fai"),
     output:
-        chrLen = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/{genome_build}.len"
+        chrLen = CFG["dirs"]["inputs"] + "references/{genome_build}/{genome_build}.len"
     resources: **CFG["resources"]["gem"]
     shell:
         op.as_one_line("""
-            grep -P '^chr[0-9,X,Y]+\t|^[0-9,X,Y]' {input.fai} | awk '{{print $1"\t"$2}}' > {output.chrLen}
+        grep -P '^chr[0-9,X,Y]+\t|^[0-9,X,Y]' {input.fai} | awk '{{print $1"\t"$2}}' > {output.chrLen}
         """)
 
-#generates a per-chromosome fasta file from genome.fa
+# generates a per-chromosome fasta file
 rule _controlfreec_generate_chrFasta:
     input:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        fasta = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/chr/{chromosome}.fa"
+        fasta = CFG["dirs"]["inputs"] + "references/{genome_build}/chr/{chromosome}.fa"
     conda:
         CFG["conda_envs"]["controlfreec"]
     resources: **CFG["resources"]["gem"]
     shell:
         "samtools faidx {input.fasta} {wildcards.chromosome} > {output.fasta} "
 
-#checks that all chroms are accounted for
+def _get_chr_fastas(wildcards):
+    CFG = config["lcr-modules"]["controlfreec"]
+    with open(reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt")) as f:
+        chrs = f.read().rstrip("\n").split("\n")
+    fastas = expand(
+        CFG["dirs"]["inputs"] +  "references/{{genome_build}}/chr/{chromosome}.fa",
+        chromosome = chrs
+        )
+    return fastas
+
+# checks that all chroms are accounted for
 rule _controlfreec_check_chrFiles:
     input:
-        _controlfreec_get_chr_fastas
-    wildcard_constraints:
-        genome_build = "|".join(CFG["runs"]["tumour_genome_build"])
+        _get_chr_fastas,
+        main = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt")
     output:
-        touch(CFG["dirs"]["inputs"] + "references/{genome_build}/freec/chr/.all_done")
+        touch(CFG["dirs"]["inputs"] + "references/{genome_build}/chr/.all_done")
 
 
+#### Rule for reference dbsnp file needed for mpileup step
 rule _controlfreec_dbsnp_to_bed:
     input:
         vcf = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")
     output:
-        bed = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/dbsnp.common_all-151.bed"
+        bed = CFG["dirs"]["inputs"] + "references/variation/{genome_build}/dbsnp.common_all-151.bed"
     resources: **CFG["resources"]["gem"]
     shell:
-        op.as_one_line(""" gunzip -c {input.vcf} | awk {{'printf ("%s\\t%s\\t%s\\n", $1,$2-1,$2)'}} | zgrep -v -h "^#" > {output.bed} """)
+        op.as_one_line("""
+        gunzip -c {input.vcf} | awk {{'printf ("%s\\t%s\\t%s\\n", $1,$2-1,$2)'}} | zgrep -v -h "^#" > {output.bed}
+        """)
 
-
+#### Rules for getting inputs related to the bam files
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _controlfreec_input_bam:
     input:
@@ -254,7 +272,7 @@ rule _controlfreec_mpileup_per_chrom:
         bam = str(rules._controlfreec_input_bam.output.bam),
         fastaFile = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         bed = str(rules._controlfreec_dbsnp_to_bed.output.bed)
-    output: # creates a temporary file for mpileup
+    output:
         pileup = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.{chrom}.minipileup.pileup.gz")
     conda:
         CFG["conda_envs"]["controlfreec"]
@@ -267,32 +285,25 @@ rule _controlfreec_mpileup_per_chrom:
     shell:
         "samtools mpileup -l {input.bed} -r {wildcards.chrom} -Q 20 -f {input.fastaFile} {input.bam} | gzip -c > {output.pileup} 2> {log.stderr}"
 
-#### set-up mpileups for BAF calling ####
-def _controlfreec_get_chr_mpileups(wildcards):
-    chrs = []
-    for i in range(1, 23):
-        chrs.append(str(i))
-    chrs.extend(["X", "Y"])
-    if str(wildcards.genome_build).startswith("hg"):
-        chrs = ["chr" + x for x in chrs]
-
+# set-up mpileups per chromosome for BAF calling
+def _get_chr_mpileups(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
-
+    with open(reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt")) as f:
+        chrs = f.read().rstrip("\n").split("\n")
     mpileups = expand(
         CFG["dirs"]["mpileup"] + "{{seq_type}}--{{genome_build}}/{{sample_id}}.{chrom}.minipileup.pileup.gz",
         chrom = chrs
     )
-    return(mpileups)
+    return mpileups
 
 rule _controlfreec_concatenate_pileups:
     input:
-        mpileup = _controlfreec_get_chr_mpileups
+        mpileup = _get_chr_mpileups,
+        main = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt")
     output:
         mpileup = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.bam_minipileup.pileup.gz")
     resources:
         **CFG["resources"]["cat"]
-    wildcard_constraints:
-        genome_build = "|".join(CFG["runs"]["tumour_genome_build"])
     group: "controlfreec"
     shell:
         "cat {input.mpileup} > {output.mpileup} "
@@ -300,7 +311,7 @@ rule _controlfreec_concatenate_pileups:
 
 #### Run control-FREEC ####
 
-# set-up controlfreec
+# set-up controlfreec config files
 # these have to be each their own function, bc `params:` can't handle dicts or use unpack()
 def _controlfreec_get_optional_step(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
@@ -308,7 +319,7 @@ def _controlfreec_get_optional_step(wildcards):
         cfg_step = "step = " + str(CFG["options"]["step"]) # will replace the entire line, so it's no longer commented out
     else:
         cfg_step = "#step = " + str(CFG["options"]["step"]) # will stay commented out, won't be used, just needed for the code below
-    return(cfg_step)
+    return cfg_step
 
 def _controlfreec_get_optional_window(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
@@ -316,17 +327,18 @@ def _controlfreec_get_optional_window(wildcards):
         cfg_window = "window = " + str(CFG["options"]["window"]) # will replace the entire line, so it's no longer commented out
     else:
         cfg_window = "#window = " + str(CFG["options"]["window"]) # will stay commented out, won't be used, just needed for the code below
-    return(cfg_window)
+    return cfg_window
 
 rule _controlfreec_config_contamAdjTrue:
     input:
         tumour_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.bam_minipileup.pileup.gz",
         normal_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.bam_minipileup.pileup.gz",
-        reference = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/out100m2_{genome_build}.gem",
-        chrLen = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/{genome_build}.len",
-        done = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/chr/.all_done"
+        mappability = CFG["dirs"]["inputs"] + "references/mappability/{masked}/out100m2_{genome_build}.gem",
+        chrLen = str(rules._controlfreec_generate_chrLen.output.chrLen),
+        done = str(rules._controlfreec_check_chrFiles.output),
+        dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")
     output:
-        config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/config.txt"
+        config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/config.txt"
     conda:
         CFG["conda_envs"]["controlfreec"]
     params:
@@ -354,9 +366,8 @@ rule _controlfreec_config_contamAdjTrue:
         minimalQualityPerPosition = CFG["options"]["minQualityPerPosition"],
         shiftInQuality = CFG["options"]["shiftInQuality"],
         threads = CFG["threads"]["controlfreec_run"],
-        dbSNP = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"),
-        outdir = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/",
-        chrFiles = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/chr/"
+        outdir = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/",
+        chrFiles = CFG["dirs"]["inputs"] + "references/{genome_build}/chr/"
     shell:
         "samtoolspath=$(which samtools ) ; "
         "samtoolsPathName=$(echo $samtoolspath) ; "
@@ -367,7 +378,7 @@ rule _controlfreec_config_contamAdjTrue:
         "sed \"s|BAMFILE|{input.tumour_bam}|g\" {output.config} | "
         "sed \"s|CONTROLFILE|{input.normal_bam}|g\" | "
         "sed \"s|OUTDIR|{params.outdir}|g\" | "
-        "sed \"s|DBsnpFile|{params.dbSNP}|g\" | "
+        "sed \"s|DBsnpFile|{input.dbsnp}|g\" | "
         "sed \"s|phredQuality|{params.shiftInQuality}|g\" | "
         "sed \"s|ploidyInput|{params.ploidy}|g\" | "
         "sed \"s|chrLenFileInput|{input.chrLen}|g\" | "
@@ -404,11 +415,12 @@ rule _controlfreec_config_contamAdjFalse:
     input:
         tumour_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.bam_minipileup.pileup.gz",
         normal_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.bam_minipileup.pileup.gz",
-        reference = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/out100m2_{genome_build}.gem",
-        chrLen = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/{genome_build}.len",
-        done = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/chr/.all_done"
+        mappability = CFG["dirs"]["inputs"] + "references/mappability/{masked}/out100m2_{genome_build}.gem",
+        chrLen = str(rules._controlfreec_generate_chrLen.output.chrLen),
+        done = str(rules._controlfreec_check_chrFiles.output),
+        dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")
     output:
-        config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/config.txt"
+        config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/config.txt"
     conda:
         CFG["conda_envs"]["controlfreec"]
     params:
@@ -436,9 +448,8 @@ rule _controlfreec_config_contamAdjFalse:
         minimalQualityPerPosition = CFG["options"]["minQualityPerPosition"],
         shiftInQuality = CFG["options"]["shiftInQuality"],
         threads = CFG["threads"]["controlfreec_run"],
-        dbSNP = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"),
-        outdir = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/",
-        chrFiles = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/chr/"
+        outdir = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/",
+        chrFiles = CFG["dirs"]["inputs"] + "references/{genome_build}/chr/"
     shell:
         "samtoolspath=$(which samtools ) ; "
         "samtoolsPathName=$(echo $samtoolspath) ; "
@@ -449,7 +460,7 @@ rule _controlfreec_config_contamAdjFalse:
         "sed \"s|BAMFILE|{input.tumour_bam}|g\" {output.config} | "
         "sed \"s|CONTROLFILE|{input.normal_bam}|g\" | "
         "sed \"s|OUTDIR|{params.outdir}|g\" | "
-        "sed \"s|DBsnpFile|{params.dbSNP}|g\" | "
+        "sed \"s|DBsnpFile|{input.dbsnp}|g\" | "
         "sed \"s|phredQuality|{params.shiftInQuality}|g\" | "
         "sed \"s|ploidyInput|{params.ploidy}|g\" | "
         "sed \"s|chrLenFileInput|{input.chrLen}|g\" | "
@@ -481,34 +492,35 @@ rule _controlfreec_config_contamAdjFalse:
         "sed \"s|numThreads|{params.threads}|g\" | "
         "sed \"s|referenceFile|{input.reference}|g\" > {output.config}"
 
-rule _controlfreec_run:
+checkpoint _controlfreec_run:
     input:
-        config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--{contamAdj}/config.txt",
+        config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--{contamAdj}/config.txt",
         tumour_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.bam_minipileup.pileup.gz",
-        normal_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.bam_minipileup.pileup.gz",
+        normal_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.bam_minipileup.pileup.gz"
     output:
-        done = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--{contamAdj}/{tumour_id}.done"
+        done = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--{contamAdj}/{tumour_id}.done"
     conda: CFG["conda_envs"]["controlfreec"]
     threads: CFG["threads"]["controlfreec_run"]
     resources: **CFG["resources"]["controlfreec_run"]
     log:
-        stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--{contamAdj}/run.stdout.log",
-        stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--{contamAdj}/run.stderr.log"
+        log = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--{contamAdj}/run.stdout.log"
     run:
-        shell("freec -conf {input.config} > {log.stdout} 2> {log.stderr} || touch {output.done}")
+        shell("freec -conf {input.config} &> {log.log} || touch {output.done}")
 
 def _get_run_result(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
-    if os.path.exists(CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_CNVs")
-        info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
-        ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
-        CNV = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
-        BAF = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
+    contamTrue_dir = expand(op.path.basename(checkpoints._controlfreec_run.get(**wildcards).output[0]), contamAdj="contamAdjTrue", **wildcards)
+
+    if os.path.exists(expand(base_dir + "{tumour_id}.bam_minipileup.pileup.gz_CNVs"), **wildcards)
+        info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
+        ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
+        CNV = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
+        BAF = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
     else:
-        info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
-        ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
-        CNV = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
-        BAF = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
+        info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
+        ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
+        CNV = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
+        BAF = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
     return{
         "info": info,
         "ratios": ratios,
@@ -518,55 +530,50 @@ def _get_run_result(wildcards):
 
 rule _controlfreec_calc_sig:
     input:
-        unpack(_get_run_result),
-        str(rules._controlfreec_run.output.done)
+        unpack(_get_run_result)
     output:
-        txt = CFG["dirs"]["calc_sig"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs.p.value.txt"
+        txt = CFG["dirs"]["calc_sig"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs.p.value.txt"
     params:
         calc_sig = CFG["software"]["FREEC_sig"]
     threads: CFG["threads"]["calc_sig"]
     resources: **CFG["resources"]["calc_sig"]
     conda: CFG["conda_envs"]["controlfreec"]
     log:
-        stdout = CFG["logs"]["calc_sig"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/calc_sig.stdout.log",
-        stderr = CFG["logs"]["calc_sig"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/calc_sig.stderr.log"
+        CFG["logs"]["calc_sig"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/calc_sig.log"
     shell:
-        "Rscript --vanilla {params.calc_sig} {input.CNV} {input.ratios} > {log.stdout} 2> {log.stderr}"
+        "Rscript --vanilla {params.calc_sig} {input.CNV} {input.ratios} &> {log}"
 
 
 rule _controlfreec_plot:
     input:
-        unpack(_get_run_result),
-        str(rules._controlfreec_run.output.done)
+        unpack(_get_run_result)
     output:
-        plot = CFG["dirs"]["plot"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt.png",
-        log2plot = CFG["dirs"]["plot"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt.log2.png",
-        bafplot = CFG["dirs"]["plot"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt.png"
+        plot = CFG["dirs"]["plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt.png",
+        log2plot = CFG["dirs"]["plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt.log2.png",
+        bafplot = CFG["dirs"]["plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt.png"
     params:
         plot = CFG["software"]["FREEC_graph"]
     resources:
         bam = 1
     conda: CFG["conda_envs"]["controlfreec"]
     log:
-        stdout = CFG["logs"]["plot"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/plot.stdout.log",
-        stderr = CFG["logs"]["plot"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/plot.stderr.log"
+        CFG["logs"]["plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/plot.log"
     shell:
-        "Rscript --vanilla {params.plot} `grep \"Output_Ploidy\" {input.info} | cut -f 2` {input.ratios} {input.BAF} > {log.stdout} 2> {log.stderr} "
+        "Rscript --vanilla {params.plot} `grep \"Output_Ploidy\" {input.info} | cut -f 2` {input.ratios} {input.BAF} &> {log}"
 
 
 rule _controlfreec_freec2bed:
     input:
-        unpack(_get_run_result),
-        str(rules._controlfreec_run.output.done)
+        unpack(_get_run_result)
     output:
-        bed = CFG["dirs"]["freec2bed"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bed"
+        bed = CFG["dirs"]["freec2bed"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bed"
     params:
         freec2bed = CFG["software"]["freec2bed"]
     threads: CFG["threads"]["freec2bed"]
     resources: **CFG["resources"]["freec2bed"]
     conda: CFG["conda_envs"]["controlfreec"]
     log:
-        stderr = CFG["logs"]["freec2bed"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/freec2bed.stderr.log"
+        stderr = CFG["logs"]["freec2bed"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/freec2bed.stderr.log"
     shell:
         "ploidy=$(grep Output_Ploidy {input.info} | cut -f 2); "
         "perl {params.freec2bed} -f {input.ratios} -p $ploidy > {output.bed} 2> {log.stderr}"
@@ -574,17 +581,16 @@ rule _controlfreec_freec2bed:
 
 rule _controlfreec_freec2circos:
     input:
-        unpack(_get_run_result),
-        str(rules._controlfreec_run.output.done)
+        unpack(_get_run_result)
     output:
-        circos = CFG["dirs"]["freec2circos"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.circos.bed"
+        circos = CFG["dirs"]["freec2circos"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.circos.bed"
     params:
         freec2circos = CFG["software"]["freec2circos"]
     threads: CFG["threads"]["freec2circos"]
     resources: **CFG["resources"]["freec2circos"]
     conda: CFG["conda_envs"]["controlfreec"]
     log:
-        stderr = CFG["logs"]["freec2circos"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/freec2circos.stderr.log"
+        stderr = CFG["logs"]["freec2circos"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/freec2circos.stderr.log"
     shell:
         "ploidy=$(grep Output_Ploidy {input.info} | cut -f 2); "
         "perl {params.freec2circos} -f {input.ratios} -p $ploidy > {output.circos} 2> {log.stderr}"
@@ -595,14 +601,14 @@ rule _controlfreec_cnv2igv:
         cnv = str(rules._controlfreec_calc_sig.output.txt),
         cnv2igv = ancient(CFG["inputs"]["cnv2igv"])
     output:
-        seg = CFG["dirs"]["cnv2igv"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.CNVs.seg"
+        seg = CFG["dirs"]["cnv2igv"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.CNVs.seg"
     params:
         opts = CFG["options"]["preserve"]
     conda:
         CFG["conda_envs"]["cnv2igv"]
     threads: 1
     log:
-        stderr = CFG["logs"]["cnv2igv"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/cnv2igv.stderr.log"
+        stderr = CFG["logs"]["cnv2igv"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/cnv2igv.stderr.log"
     group: "controlfreec_post_process"
     shell:
         op.as_one_line("""
@@ -624,9 +630,9 @@ rule _controlfreec_convert_coordinates:
         controlfreec_native = str(rules._controlfreec_cnv2igv.output.seg),
         controlfreec_chain = _controlfreec_get_chain
     output:
-        controlfreec_lifted = CFG["dirs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.seg"
+        controlfreec_lifted = CFG["dirs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.seg"
     log:
-        stderr = CFG["logs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.stderr.log"
+        stderr = CFG["logs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}/{tumour_id}--{normal_id}--{pair_status}.lifted_{chain}.stderr.log"
     threads: 1
     params:
         liftover_script = CFG["options"]["liftover_script_path"],
@@ -653,12 +659,12 @@ def _controlfreec_prepare_projection(wildcards):
     tbl = CFG["runs"]
     this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"].tolist()
     if "38" in this_genome_build[0]:
-        hg38_projection = str(rules._controlfreec_cnv2igv.output.seg).replace("{genome_build}", this_genome_build[0]).replace("{masked}", this_masked[0])
-        grch37_projection = str(rules._controlfreec_convert_coordinates.output.controlfreec_lifted).replace("{genome_build}", this_genome_build[0]).replace("{masked}", this_masked[0])
+        hg38_projection = str(rules._controlfreec_cnv2igv.output.seg).replace("{genome_build}", this_genome_build[0])
+        grch37_projection = str(rules._controlfreec_convert_coordinates.output.controlfreec_lifted).replace("{genome_build}", this_genome_build[0])
         grch37_projection = grch37_projection.replace("{chain}", "hg38ToHg19")
     else:
-        grch37_projection = str(rules._controlfreec_cnv2igv.output.seg).replace("{genome_build}", this_genome_build[0]).replace("{masked}", this_masked[0])
-        hg38_projection = str(rules._controlfreec_convert_coordinates.output.controlfreec_lifted).replace("{genome_build}", this_genome_build[0]).replace("{masked}", this_masked[0])
+        grch37_projection = str(rules._controlfreec_cnv2igv.output.seg).replace("{genome_build}", this_genome_build[0])
+        hg38_projection = str(rules._controlfreec_convert_coordinates.output.controlfreec_lifted).replace("{genome_build}", this_genome_build[0])
         hg38_projection = hg38_projection.replace("{chain}", "hg19ToHg38")
     return{
         "grch37_projection": grch37_projection,
@@ -671,10 +677,10 @@ rule _controlfreec_fill_segments:
     input:
         unpack(_controlfreec_prepare_projection)
     output:
-        grch37_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"),
-        hg38_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg")
+        grch37_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{masked}/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"),
+        hg38_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{masked}/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg")
     log:
-        stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}_fill_segments.stderr.log"
+        stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/{masked}/{tumour_id}--{normal_id}--{pair_status}.{tool}_fill_segments.stderr.log"
     threads: 1
     params:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
@@ -707,10 +713,10 @@ rule _controlfreec_fill_segments:
 # Normalize chr prefix of the output file
 rule _controlfreec_normalize_projection:
     input:
-        filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg",
+        filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{masked}/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg",
         chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
     output:
-        projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+        projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{masked}/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
     resources:
         **CFG["resources"]["post_controlfreec"]
     threads: 1
@@ -740,7 +746,7 @@ rule _controlfreec_output_projection:
     input:
         projection = str(rules._controlfreec_normalize_projection.output.projection)
     output:
-        projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+        projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{masked}/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
     threads: 1
     group: "controlfreec_post_process"
     run:
@@ -759,14 +765,14 @@ rule _controlfreec_output:
         circos = str(rules._controlfreec_freec2circos.output.circos),
         igv = str(rules._controlfreec_cnv2igv.output.seg)
     output:
-        plot = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.png",
-        log2plot = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.log2.png",
-        CNV = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.txt",
-        bed = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.bed",
-        BAFgraph = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.png",
-        ratio = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.txt",
-        circos = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.circos.bed",
-        igv = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}.seg"
+        plot = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.png",
+        log2plot = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.log2.png",
+        CNV = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.txt",
+        bed = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.bed",
+        BAFgraph = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.png",
+        ratio = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.txt",
+        circos = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.circos.bed",
+        igv = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.seg"
     group: "controlfreec_post_process"
     run:
         op.relative_symlink(input.plot, output.plot, in_module = True)
@@ -801,10 +807,10 @@ rule _controlfreec_all:
             pair_status=CFG["runs"]["pair_status"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
-            masked=CFG["runs"]["masked"],
             allow_missing=True
             ),
         tool="controlfreec",
+        masked=["masked", "unmasked"],
         projection=CFG["requested_projections"]
         )
 
