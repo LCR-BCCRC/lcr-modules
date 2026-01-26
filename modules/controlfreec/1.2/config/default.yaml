@@ -62,7 +62,6 @@ lcr-modules:
             shiftInQuality: 0 # basis for Phred quality
 
             #GEM options: (for generating hard-masked mappability files)
-            hard_masked: True # set True if using a hard-masked mappability file
             kmer: 100 # kmer size
             mismatch: 2 # maximum number of mismatches allowed
             maxBigIndel: 5 # The GEM mapper implements a special algorithm that, in addition to ordinary matches, is sometimes able to find a single long indel - this is the max size
