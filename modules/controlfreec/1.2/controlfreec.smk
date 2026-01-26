@@ -70,37 +70,26 @@ wildcard_constraints:
 
 #### generate references ####
 # mappability tracks for hg19 and hg38 are available from the source
+# even though the hg38 is a .zip, this saves it to the same tar path but unpacks it differently
 if CFG["options"]["hard_masked"] == False:
     rule _controlfreec_get_map_refs:
         output:
             tar = temp(CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/out100m2_{genome_build}.tar.gz"),
             gem = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/out100m2_{genome_build}.gem"
         params:
-            provider = "ensembl",
-            url = lambda w: {"grch37": "http://xfer.curie.fr/get/7hZIk1C63h0/hg19_len100bp.tar.gz",
-                            "hs37d5": "http://xfer.curie.fr/get/7hZIk1C63h0/hg19_len100bp.tar.gz",
-                            "hg19": "http://xfer.curie.fr/get/7hZIk1C63h0/hg19_len100bp.tar.gz",
-                            "grch38": "http://xfer.curie.fr/get/vyIi4w8EONl/out100m2_hg38.zip",
-                            "hg38": "http://xfer.curie.fr/get/vyIi4w8EONl/out100m2_hg38.zip"}[w.genome_build],
-            command1 = lambda w: {"grch37": "tar -xvf ",
-                                "hs37d5": "tar -xvf ",
-                                "hg19": "tar -xvf ",
-                                "grch38": "unzip ",
-                                "hg38": "unzip "}[w.genome_build],
-            command2 = lambda w: {"grch37": " --wildcards --no-anchored 'out100m2*gem' && mv out100m2_hg19.gem ",
-                                "hs37d5": " --wildcards --no-anchored 'out100m2*gem' && mv out100m2_hg19.gem ",
-                                "hg19": " --wildcards --no-anchored 'out100m2*gem' && mv out100m2_hg19.gem ",
-                                "grch38": " -d ",
-                                "hg38": " -d "}[w.genome_build],
-            command3 = lambda w: {"grch37": "out100m2_grch37.gem ",
-                                "hs37d5": "out100m2_hs37d5.gem ",
-                                "hg19": "out100m2_hg19.gem ",
-                                "grch38": " ",
-                                "hg38": " "}[w.genome_build],
             outdir = CFG["dirs"]["inputs"] + "references/{genome_build}{masked}/freec/"
         shell:
-            "wget -O {output.tar} {params.url} "
-            "&& {params.command1} {output.tar} {params.command2} {params.outdir}{params.command3}"
+            """
+            if echo "{wildcards.genome_build}" | grep -q "38"; then
+                wget -O {output.tar} http://xfer.curie.fr/get/vyIi4w8EONl/out100m2_hg38.zip && \
+                unzip {output.tar} -d {params.outdir} && \
+                mv {params.outdir}out100m2_hg38.gem {output.gem}
+            else
+                wget -O {output.tar} http://xfer.curie.fr/get/7hZIk1C63h0/hg19_len100bp.tar.gz && \
+                tar -xvf {output.tar} -C {params.outdir} --wildcards --no-anchored 'out100m2*gem' && \
+                mv {params.outdir}out100m2_hg19.gem {output.gem}
+                fi
+            """
 
 # mappability tracks for hard-masked genomes need to be generated using GEM
 rule _download_GEM:
