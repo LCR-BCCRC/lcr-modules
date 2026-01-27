@@ -48,7 +48,8 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _controlfreec_input_bam,
-    _controlfreec_config,
+    _controlfreec_config_contamAdjTrue,
+    _controlfreec_config_contamAdjFalse,
     _controlfreec_plot,
     _controlfreec_output,
     _controlfreec_all
@@ -504,14 +505,14 @@ checkpoint _controlfreec_run:
     resources: **CFG["resources"]["controlfreec_run"]
     log:
         log = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--{contamAdj}/run.stdout.log"
-    run:
-        shell("freec -conf {input.config} &> {log.log} || touch {output.done}")
+    shell:
+        op.as_one_line("""freec -conf {input.config} &> {log.log} || touch {output.done}""")
 
 def _get_run_result(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
-    contamTrue_dir = expand(op.path.basename(checkpoints._controlfreec_run.get(**wildcards).output[0]), contamAdj="contamAdjTrue", **wildcards)
+    contamTrue_dir = expand(os.path.dirname(checkpoints._controlfreec_run.get(**wildcards).output[0]), contamAdj="contamAdjTrue", **wildcards)
 
-    if os.path.exists(expand(base_dir + "{tumour_id}.bam_minipileup.pileup.gz_CNVs"), **wildcards)
+    if os.path.exists(expand(contamTrue_dir + "/{tumour_id}.bam_minipileup.pileup.gz_CNVs", **wildcards)):
         info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
         ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
         CNV = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
@@ -761,7 +762,6 @@ rule _controlfreec_output:
         CNV = str(rules._controlfreec_calc_sig.output.txt),
         bed = str(rules._controlfreec_freec2bed.output.bed),
         BAFgraph = str(rules._controlfreec_plot.output.bafplot),
-        ratio = str(rules._controlfreec_run.output.ratio),
         circos = str(rules._controlfreec_freec2circos.output.circos),
         igv = str(rules._controlfreec_cnv2igv.output.seg)
     output:
@@ -770,7 +770,6 @@ rule _controlfreec_output:
         CNV = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.txt",
         bed = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.bed",
         BAFgraph = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.png",
-        ratio = CFG["dirs"]["outputs"] + "txt/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.ratio.txt",
         circos = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.circos.bed",
         igv = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.seg"
     group: "controlfreec_post_process"
@@ -780,7 +779,7 @@ rule _controlfreec_output:
         op.relative_symlink(input.CNV, output.CNV, in_module = True)
         op.relative_symlink(input.bed, output.bed, in_module = True)
         op.relative_symlink(input.BAFgraph, output.BAFgraph, in_module = True)
-        op.relative_symlink(input.ratio, output.ratio, in_module = True)
+        op.relative_symlink(input.ratios, output.ratios, in_module = True)
         op.relative_symlink(input.circos, output.circos, in_module = True)
         op.relative_symlink(input.igv, output.igv, in_module = True)
 
@@ -796,9 +795,8 @@ rule _controlfreec_all:
                 str(rules._controlfreec_output.output.CNV),
                 str(rules._controlfreec_output.output.bed),
                 str(rules._controlfreec_output.output.BAFgraph),
-                str(rules._controlfreec_output.output.ratio),
                 str(rules._controlfreec_output.output.circos),
-                str(rules._controlfreec_output.output.igv)
+                str(rules._controlfreec_output.output.igv),
                 str(rules._controlfreec_output_projection.output.projection)
             ],
             zip,  # Run expand() with zip(), not product()
