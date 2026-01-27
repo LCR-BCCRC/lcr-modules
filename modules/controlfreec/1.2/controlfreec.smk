@@ -40,7 +40,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "controlfreec",
     version = "1.2",
-    subdirectories = ["inputs", "mpileup", "run", "calc_sig", "plot", "freec2bed", "freec2circos", "cnv2igv", "convert_coordinates", "fill_regions", "normalize", "outputs"]
+    subdirectories = ["inputs", "mpileup", "run", "run_result", "calc_sig", "plot", "freec2bed", "freec2circos", "cnv2igv", "convert_coordinates", "fill_regions", "normalize", "outputs"]
 )
 
 
@@ -201,7 +201,7 @@ rule _symlink_map:
 # generates file with chromomsome lengths from genome.fa.fai
 rule _controlfreec_generate_chrLen:
     input:
-        fai = reference_files("genomes/{genome_build}}/genome_fasta/genome.fa.fai"),
+        fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
     output:
         chrLen = CFG["dirs"]["inputs"] + "references/{genome_build}/{genome_build}.len"
     resources: **CFG["resources"]["gem"]
@@ -211,6 +211,14 @@ rule _controlfreec_generate_chrLen:
         """)
 
 # generates a per-chromosome fasta file
+checkpoint _controlfreec_input_chroms:
+    input:
+        txt = ancient(reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt"))
+    output:
+        txt = CFG["dirs"]["inputs"] + "references/{genome_build}/main_chromosomes_withY.txt"
+    run:
+        op.absolute_symlink(input.txt, output.txt)
+
 rule _controlfreec_generate_chrFasta:
     input:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
@@ -224,8 +232,9 @@ rule _controlfreec_generate_chrFasta:
 
 def _get_chr_fastas(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
-    with open(reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt")) as f:
+    with open(checkpoints._controlfreec_input_chroms.get(**wildcards).output.txt) as f:
         chrs = f.read().rstrip("\n").split("\n")
+
     fastas = expand(
         CFG["dirs"]["inputs"] +  "references/{{genome_build}}/chr/{chromosome}.fa",
         chromosome = chrs
@@ -255,7 +264,7 @@ rule _controlfreec_dbsnp_to_bed:
 
 #### Rules for getting inputs related to the bam files
 # Symlinks the input files into the module results directory (under '00-inputs/')
-rule _controlfreec_input_bam:
+checkpoint _controlfreec_input_bam:
     input:
         bam = ancient(CFG["inputs"]["sample_bam"]),
         bai = ancient(CFG["inputs"]["sample_bai"])
@@ -289,8 +298,9 @@ rule _controlfreec_mpileup_per_chrom:
 # set-up mpileups per chromosome for BAF calling
 def _get_chr_mpileups(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
-    with open(reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt")) as f:
+    with open(checkpoints._controlfreec_input_chroms.get(**wildcards).output.txt) as f:
         chrs = f.read().rstrip("\n").split("\n")
+
     mpileups = expand(
         CFG["dirs"]["mpileup"] + "{{seq_type}}--{{genome_build}}/{{sample_id}}.{chrom}.minipileup.pileup.gz",
         chrom = chrs
@@ -339,7 +349,7 @@ rule _controlfreec_config_contamAdjTrue:
         done = str(rules._controlfreec_check_chrFiles.output),
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")
     output:
-        config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/config.txt"
+        config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/contamAdjTrue/config.txt"
     conda:
         CFG["conda_envs"]["controlfreec"]
     params:
@@ -367,7 +377,7 @@ rule _controlfreec_config_contamAdjTrue:
         minimalQualityPerPosition = CFG["options"]["minQualityPerPosition"],
         shiftInQuality = CFG["options"]["shiftInQuality"],
         threads = CFG["threads"]["controlfreec_run"],
-        outdir = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/",
+        outdir = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/contamAdjTrue/",
         chrFiles = CFG["dirs"]["inputs"] + "references/{genome_build}/chr/"
     shell:
         "samtoolspath=$(which samtools ) ; "
@@ -409,7 +419,7 @@ rule _controlfreec_config_contamAdjTrue:
         "sed \"s|uniqBoo|{params.uniqBoo}|g\" | "
         "sed \"s|naBoo|{params.naBoo}|g\" | "
         "sed \"s|numThreads|{params.threads}|g\" | "
-        "sed \"s|referenceFile|{input.reference}|g\" > {output.config}"
+        "sed \"s|referenceFile|{input.mappability}|g\" > {output.config}"
 
 
 rule _controlfreec_config_contamAdjFalse:
@@ -421,7 +431,7 @@ rule _controlfreec_config_contamAdjFalse:
         done = str(rules._controlfreec_check_chrFiles.output),
         dbsnp = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")
     output:
-        config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/config.txt"
+        config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/contamAdjFalse/config.txt"
     conda:
         CFG["conda_envs"]["controlfreec"]
     params:
@@ -449,7 +459,7 @@ rule _controlfreec_config_contamAdjFalse:
         minimalQualityPerPosition = CFG["options"]["minQualityPerPosition"],
         shiftInQuality = CFG["options"]["shiftInQuality"],
         threads = CFG["threads"]["controlfreec_run"],
-        outdir = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/",
+        outdir = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/contamAdjFalse/",
         chrFiles = CFG["dirs"]["inputs"] + "references/{genome_build}/chr/"
     shell:
         "samtoolspath=$(which samtools ) ; "
@@ -491,47 +501,51 @@ rule _controlfreec_config_contamAdjFalse:
         "sed \"s|uniqBoo|{params.uniqBoo}|g\" | "
         "sed \"s|naBoo|{params.naBoo}|g\" | "
         "sed \"s|numThreads|{params.threads}|g\" | "
-        "sed \"s|referenceFile|{input.reference}|g\" > {output.config}"
+        "sed \"s|referenceFile|{input.mappability}|g\" > {output.config}"
 
 checkpoint _controlfreec_run:
     input:
-        config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--{contamAdj}/config.txt",
+        config_contamTrue = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/contamAdjTrue/config.txt",
+        config_contamFalse = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/contamAdjFalse/config.txt",
         tumour_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.bam_minipileup.pileup.gz",
         normal_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.bam_minipileup.pileup.gz"
     output:
-        done = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--{contamAdj}/{tumour_id}.done"
+        done = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/done"
     conda: CFG["conda_envs"]["controlfreec"]
     threads: CFG["threads"]["controlfreec_run"]
     resources: **CFG["resources"]["controlfreec_run"]
     log:
-        log = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--{contamAdj}/run.stdout.log"
+        log_contamTrue = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/run.contamTrue.log",
+        log_contamFalse = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/run.contamFalse.log"
     shell:
-        op.as_one_line("""freec -conf {input.config} &> {log.log} || touch {output.done}""")
+        op.as_one_line("""freec -conf {input.config_contamTrue} &> {log.log_contamTrue} || freec -conf {input.config_contamFalse} &> {log.log_contamFalse} || touch {output.done}""")
 
 def _get_run_result(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
-    contamTrue_dir = expand(os.path.dirname(checkpoints._controlfreec_run.get(**wildcards).output[0]), contamAdj="contamAdjTrue", **wildcards)
-
-    if os.path.exists(expand(contamTrue_dir + "/{tumour_id}.bam_minipileup.pileup.gz_CNVs", **wildcards)):
-        info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
-        ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
-        CNV = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
-        BAF = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
+    base_dir = os.path.dirname(str(checkpoints._controlfreec_run.get(**wildcards).output[0]))
+    CONTAM, = glob_wildcards(base_dir + "/{contamAdj}/{tumour_id}.bam_minipileup.pileup.gz_CNVs").contamAdj
+    if any("True" in CONTAM):
+        return expand(base_dir + "/{contamAdj}/", contamAdj = "contamAdjTrue")
     else:
-        info = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
-        ratios = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
-        CNV = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
-        BAF = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}--contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
-    return{
-        "info": info,
-        "ratios": ratios,
-        "CNV": CNV,
-        "BAF": BAF
-    }
+        return expand(base_dir + "/{contamAdj}/", contamAdj = "contamAdjFalse")
+
+rule _controlfreec_symlink_run_result:
+    input:
+        _get_run_result
+    output:
+        info = CFG["dirs"]["run_result"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
+        ratios = CFG["dirs"]["run_result"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
+        CNV = CFG["dirs"]["run_result"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
+        BAF = CFG["dirs"]["run_result"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
+    run:
+        op.relative_symlink(input, os.path.dirname(output.info), in_module = True)
 
 rule _controlfreec_calc_sig:
     input:
-        unpack(_get_run_result)
+        info = str(rules._controlfreec_symlink_run_result.output.info),
+        ratios = str(rules._controlfreec_symlink_run_result.output.ratios),
+        CNV = str(rules._controlfreec_symlink_run_result.output.CNV),
+        BAF = str(rules._controlfreec_symlink_run_result.output.BAF)
     output:
         txt = CFG["dirs"]["calc_sig"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs.p.value.txt"
     params:
@@ -547,7 +561,10 @@ rule _controlfreec_calc_sig:
 
 rule _controlfreec_plot:
     input:
-        unpack(_get_run_result)
+        info = str(rules._controlfreec_symlink_run_result.output.info),
+        ratios = str(rules._controlfreec_symlink_run_result.output.ratios),
+        CNV = str(rules._controlfreec_symlink_run_result.output.CNV),
+        BAF = str(rules._controlfreec_symlink_run_result.output.BAF)
     output:
         plot = CFG["dirs"]["plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt.png",
         log2plot = CFG["dirs"]["plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt.log2.png",
@@ -565,7 +582,10 @@ rule _controlfreec_plot:
 
 rule _controlfreec_freec2bed:
     input:
-        unpack(_get_run_result)
+        info = str(rules._controlfreec_symlink_run_result.output.info),
+        ratios = str(rules._controlfreec_symlink_run_result.output.ratios),
+        CNV = str(rules._controlfreec_symlink_run_result.output.CNV),
+        BAF = str(rules._controlfreec_symlink_run_result.output.BAF)
     output:
         bed = CFG["dirs"]["freec2bed"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bed"
     params:
@@ -582,7 +602,10 @@ rule _controlfreec_freec2bed:
 
 rule _controlfreec_freec2circos:
     input:
-        unpack(_get_run_result)
+        info = str(rules._controlfreec_symlink_run_result.output.info),
+        ratios = str(rules._controlfreec_symlink_run_result.output.ratios),
+        CNV = str(rules._controlfreec_symlink_run_result.output.CNV),
+        BAF = str(rules._controlfreec_symlink_run_result.output.BAF)
     output:
         circos = CFG["dirs"]["freec2circos"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.circos.bed"
     params:
@@ -659,6 +682,7 @@ def _controlfreec_prepare_projection(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
     tbl = CFG["runs"]
     this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"].tolist()
+
     if "38" in this_genome_build[0]:
         hg38_projection = str(rules._controlfreec_cnv2igv.output.seg).replace("{genome_build}", this_genome_build[0])
         grch37_projection = str(rules._controlfreec_convert_coordinates.output.controlfreec_lifted).replace("{genome_build}", this_genome_build[0])
@@ -771,7 +795,7 @@ rule _controlfreec_output:
         bed = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.bed",
         BAFgraph = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.png",
         circos = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.circos.bed",
-        igv = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.seg"
+        igv = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.seg"
     group: "controlfreec_post_process"
     run:
         op.relative_symlink(input.plot, output.plot, in_module = True)
@@ -797,7 +821,7 @@ rule _controlfreec_all:
                 str(rules._controlfreec_output.output.BAFgraph),
                 str(rules._controlfreec_output.output.circos),
                 str(rules._controlfreec_output.output.igv),
-                str(rules._controlfreec_output_projection.output.projection)
+                str(rules._controlfreec_run.output.done)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
@@ -805,12 +829,27 @@ rule _controlfreec_all:
             pair_status=CFG["runs"]["pair_status"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
-            allow_missing=True
+            allow_missing = True
+            ),
+         masked=["masked", "unmasked"]
+        ),
+        expand(
+            expand(
+                [
+                    str(rules._controlfreec_output_projection.output.projection)
+                ],
+                zip,
+                seq_type=CFG["runs"]["tumour_seq_type"],
+                pair_status=CFG["runs"]["pair_status"],
+                tumour_id=CFG["runs"]["tumour_sample_id"],
+                normal_id=CFG["runs"]["normal_sample_id"],
+                allow_missing = True
             ),
         tool="controlfreec",
         masked=["masked", "unmasked"],
         projection=CFG["requested_projections"]
         )
+
 
 
 
