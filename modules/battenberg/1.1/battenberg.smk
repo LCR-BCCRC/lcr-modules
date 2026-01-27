@@ -386,8 +386,7 @@ rule _battenberg_all:
         normal_id=CFG["runs"]["normal_sample_id"],
         genome_build=CFG["runs"]["tumour_genome_build"],
         seq_type=CFG["runs"]["tumour_seq_type"],
-        pair_status=CFG["runs"]["pair_status"],
-        allow_missing=True
+        pair_status=CFG["runs"]["pair_status"]
         ),
         expand(
             expand(

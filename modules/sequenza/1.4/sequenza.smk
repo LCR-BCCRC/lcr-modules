@@ -311,6 +311,7 @@ def _sequenza_prepare_projection(wildcards):
     CFG = config["lcr-modules"]["sequenza"]
     tbl = CFG["runs"]
     this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"].tolist()
+
     if "38" in this_genome_build[0]:
         hg38_projection = str(rules._sequenza_cnv2igv.output.igv).replace("{genome_build}", this_genome_build[0]).replace("{filter_status}", "filtered")
         grch37_projection = str(rules._sequenza_convert_coordinates.output.sequenza_lifted).replace("{genome_build}", this_genome_build[0])
@@ -401,9 +402,6 @@ rule _sequenza_output_projection:
         projection = str(rules._sequenza_normalize_projection.output.projection)
     output:
         projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
-    wildcard_constraints:
-        projection = "|".join(CFG["requested_projections"]),
-        pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist()))
     group: "sequenza_post_process"
     run:
         op.relative_symlink(input.projection, output.projection, in_module = True)
@@ -413,10 +411,7 @@ rule _sequenza_output_seg:
     input:
         seg = str(rules._sequenza_cnv2igv.output.igv).replace("{filter_status}", "filtered")
     output:
-        seg = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
-    wildcard_constraints:
-        projection = "|".join(CFG["requested_projections"]),
-        pair_status = "|".join(set(CFG["runs"]["pair_status"].tolist()))
+        seg = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.igv.seg"
     group: "sequenza_post_process"
     run:
         op.relative_symlink(input.seg, output.seg, in_module=True)
@@ -435,6 +430,18 @@ rule _sequenza_output_sub:
 rule _sequenza_all:
     input:
         expand(
+        [
+            str(rules._sequenza_output_seg.output.seg),
+            str(rules._sequenza_output_sub.output.sub)
+        ],
+        zip,  # Run expand() with zip(), not product()
+        seq_type=CFG["runs"]["tumour_seq_type"],
+        genome_build=CFG["runs"]["tumour_genome_build"],
+        tumour_id=CFG["runs"]["tumour_sample_id"],
+        normal_id=CFG["runs"]["normal_sample_id"],
+        pair_status=CFG["runs"]["pair_status"]
+        ),
+        expand(
             expand(
             [
                 str(rules._sequenza_output_seg.output.seg),
@@ -443,7 +450,6 @@ rule _sequenza_all:
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
-            genome_build=CFG["runs"]["tumour_genome_build"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
             pair_status=CFG["runs"]["pair_status"],
