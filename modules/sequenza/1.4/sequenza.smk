@@ -443,8 +443,6 @@ rule _sequenza_all:
         expand(
             expand(
             [
-                str(rules._sequenza_output_seg.output.seg),
-                str(rules._sequenza_output_sub.output.sub),
                 str(rules._sequenza_output_projection.output.projection)
             ],
             zip,  # Run expand() with zip(), not product()
