@@ -102,6 +102,9 @@ lcr-modules:
                 pileup: 1
             calc_sig:
                 mem_mb: 1000
+            plot:
+                mem_mb: 2000
+                bam: 1
             freec2bed:
                 mem_mb: 1000
             freec2circos:

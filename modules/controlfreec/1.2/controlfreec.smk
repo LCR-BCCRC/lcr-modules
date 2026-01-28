@@ -47,9 +47,14 @@ CFG = op.setup_module(
 
 # Define rules to be run locally when using a compute cluster
 localrules:
+    _controlfreec_get_map_refs_hg19,
+    _controlfreec_get_map_refs_hg38,
+    _controlfreec_symlink_map_refs_unmasked,
+    _symlink_map,
+    _controlfreec_input_chroms,
+    _controlfreec_check_chrFiles,
     _controlfreec_input_bam,
-    _controlfreec_config_contamAdjTrue,
-    _controlfreec_config_contamAdjFalse,
+    _controlfreec_symlink_run_result,
     _controlfreec_plot,
     _controlfreec_output,
     _controlfreec_all
@@ -105,6 +110,7 @@ rule _download_GEM:
         dirOut = CFG["dirs"]["inputs"] + "references/GEM/"
     conda:
         CFG["conda_envs"]["wget"]
+    threads: 1
     resources: **CFG["resources"]["gem"]
     shell:
         op.as_one_line("""
@@ -119,6 +125,7 @@ rule _fix_grch_genomes:
         reference = reference_files("genomes/{genome_build}_masked/genome_fasta/genome.fa")
     output:
         reference = CFG["dirs"]["inputs"] + "references/mappability/masked/grch_fasta_fixes/{genome_build}_fix.fa"
+    threads: 1
     resources: **CFG["resources"]["gem"]
     shell:
         "cat {input.reference} | perl -ne 's/(^\>\S+).+/$1/;print;' > {output.reference} "
@@ -204,6 +211,7 @@ rule _controlfreec_generate_chrLen:
         fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
     output:
         chrLen = CFG["dirs"]["inputs"] + "references/{genome_build}/{genome_build}.len"
+    threads: 1
     resources: **CFG["resources"]["gem"]
     shell:
         op.as_one_line("""
@@ -226,6 +234,7 @@ rule _controlfreec_generate_chrFasta:
         fasta = CFG["dirs"]["inputs"] + "references/{genome_build}/chr/{chromosome}.fa"
     conda:
         CFG["conda_envs"]["controlfreec"]
+    threads: CFG["threads"]["gem"]
     resources: **CFG["resources"]["gem"]
     shell:
         "samtools faidx {input.fasta} {wildcards.chromosome} > {output.fasta} "
@@ -256,6 +265,7 @@ rule _controlfreec_dbsnp_to_bed:
         vcf = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")
     output:
         bed = CFG["dirs"]["inputs"] + "references/variation/{genome_build}/dbsnp.common_all-151.bed"
+    threads: 1
     resources: **CFG["resources"]["gem"]
     shell:
         op.as_one_line("""
@@ -313,6 +323,7 @@ rule _controlfreec_concatenate_pileups:
         main = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt")
     output:
         mpileup = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.bam_minipileup.pileup.gz")
+    threads: 1
     resources:
         **CFG["resources"]["cat"]
     group: "controlfreec"
@@ -352,6 +363,7 @@ rule _controlfreec_config_contamAdjTrue:
         config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/contamAdjTrue/config.txt"
     conda:
         CFG["conda_envs"]["controlfreec"]
+    threads: 1
     params:
         window = _controlfreec_get_optional_window,
         step = _controlfreec_get_optional_step,
@@ -434,6 +446,7 @@ rule _controlfreec_config_contamAdjFalse:
         config = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/contamAdjFalse/config.txt"
     conda:
         CFG["conda_envs"]["controlfreec"]
+    threads: 1
     params:
         window = _controlfreec_get_optional_window,
         step = _controlfreec_get_optional_step,
@@ -571,8 +584,8 @@ rule _controlfreec_plot:
         bafplot = CFG["dirs"]["plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt.png"
     params:
         plot = CFG["software"]["FREEC_graph"]
-    resources:
-        bam = 1
+    threads: 1
+    resources: **CFG["resources"]["plot"]
     conda: CFG["conda_envs"]["controlfreec"]
     log:
         CFG["logs"]["plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/plot.log"

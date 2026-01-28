@@ -83,8 +83,6 @@ checkpoint _sequenza_input_chroms:
     run:
         op.absolute_symlink(input.txt, output.txt)
 
-
-
 rule _sequenza_input_dbsnp_pos:
     input:
         vcf = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")
@@ -94,6 +92,7 @@ rule _sequenza_input_dbsnp_pos:
         stderr = CFG["logs"]["inputs"] + "{genome_build}/sequenza_input_dbsnp_pos.stderr.log"
     resources:
         **CFG["resources"]["vcf_sort"]
+    threads: 1
     shell:
         op.as_one_line("""
         gzip -dc {input.vcf}
@@ -258,6 +257,7 @@ rule _sequenza_cnv2igv:
         stderr = CFG["logs"]["igv_seg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/cnv2igv.{filter_status}.stderr.log"
     params:
         opts = CFG["options"]["preserve"]
+    threads: 1
     conda:
         CFG["conda_envs"]["cnv2igv"]
     group: "sequenza_post_process"
