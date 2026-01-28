@@ -104,14 +104,14 @@ lcr-modules:
                 mem_mb: 1000
             plot:
                 mem_mb: 2000
-                bam: 1
+                pileup: 1
             freec2bed:
                 mem_mb: 1000
             freec2circos:
                 mem_mb: 1000
             post_controlfreec:
                 mem_mb: 2000
-                bam: 1
+                pileup: 1
 
 
         pairing_config:
