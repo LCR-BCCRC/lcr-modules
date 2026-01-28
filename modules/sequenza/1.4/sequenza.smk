@@ -75,7 +75,7 @@ rule _sequenza_input_bam:
 
 
 # Pulls in list of chromosomes for the genome builds
-rule _sequenza_input_chroms:
+checkpoint _sequenza_input_chroms:
     input:
         txt = ancient(reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt"))
     output:
@@ -136,8 +136,7 @@ rule _sequenza_bam2seqz:
 
 def _sequenza_request_chrom_seqz_files(wildcards):
     CFG = config["lcr-modules"]["sequenza"]
-    chr_txt = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt").replace("{genome_build}", wildcards.genome_build)
-    with open(chr_txt) as f:
+    with open(checkpoints._sequenza_input_chroms.get(**wildcards).output.txt) as f:
         mains_chroms = f.read().rstrip("\n").split("\n")
     seqz_files = expand(
         CFG["dirs"]["seqz"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/chromosomes/{chrom}.binned.seqz.gz",
