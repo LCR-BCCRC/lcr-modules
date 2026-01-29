@@ -67,9 +67,11 @@ localrules:
 rule _controlfreec_get_map_refs_hg19:
     output:
         tar = temp(CFG["dirs"]["inputs"] + "references/mappability/unmasked/raw/out100m2_hg19.tar.gz"),
-        gem = CFG["dirs"]["inputs"] + "references/mappability/unmasked/raw/out100m2_hg19.gem"
+        gem = CFG["dirs"]["inputs"] + "references/mappability/unmasked/out100m2_hg19.gem"
     params:
         outdir = CFG["dirs"]["inputs"] + "references/mappability/unmasked/"
+    conda:
+        CFG["conda_envs"]["wget"]
     shell:
         """
         wget -O {output.tar} http://xfer.curie.fr/get/7hZIk1C63h0/hg19_len100bp.tar.gz && \
@@ -81,6 +83,8 @@ rule _controlfreec_get_map_refs_hg38:
         gem = CFG["dirs"]["inputs"] + "references/mappability/unmasked/raw/out100m2_hg38.gem"
     params:
         outdir = CFG["dirs"]["inputs"] + "references/mappability/unmasked/"
+    conda:
+        CFG["conda_envs"]["wget"]
     shell:
         """
         wget -O {output.tar} http://xfer.curie.fr/get/vyIi4w8EONl/out100m2_hg38.zip && \
@@ -107,15 +111,13 @@ rule _controlfreec_download_GEM:
     output:
         touch(CFG["dirs"]["inputs"] + "references/GEM/.done")
     params:
-        dirOut = CFG["dirs"]["inputs"] + "references/GEM/"
+        dirOut = CFG["dirs"]["inputs"] + "references/GEM"
     conda:
         CFG["conda_envs"]["wget"]
-    threads: 1
-    resources: **CFG["resources"]["gem"]
     shell:
         op.as_one_line("""
-        "wget https://sourceforge.net/projects/gemlibrary/files/gem-library/Binary%20pre-release%203/GEM-binaries-Linux-x86_64-core_i3-20130406-045632.tbz2/download -O {params.dirOut}/GEM-lib.tbz2 &&
-        bzip2 -dc {params.dirOut}/GEM-lib.tbz2 | tar -xvf - -C {params.dirOut}/"
+        wget https://sourceforge.net/projects/gemlibrary/files/gem-library/Binary%20pre-release%203/GEM-binaries-Linux-x86_64-core_i3-20130406-045632.tbz2/download -O {params.dirOut}/GEM-lib.tbz2 &&
+        bzip2 -dc {params.dirOut}/GEM-lib.tbz2 | tar -xvf - -C {params.dirOut}/
         """)
 
 
