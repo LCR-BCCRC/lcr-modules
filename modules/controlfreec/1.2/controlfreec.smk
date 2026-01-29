@@ -50,7 +50,7 @@ localrules:
     _controlfreec_get_map_refs_hg19,
     _controlfreec_get_map_refs_hg38,
     _controlfreec_symlink_map_refs_unmasked,
-    _symlink_map,
+    _controlfreec_symlink_map,
     _controlfreec_input_chroms,
     _controlfreec_check_chrFiles,
     _controlfreec_input_bam,
@@ -103,7 +103,7 @@ rule _controlfreec_symlink_map_refs_unmasked:
         op.absolute_symlink(input.mappability, output.mappability)
 
 # mappability tracks for hard-masked genomes are generated using GEM
-rule _download_GEM:
+rule _controlfreec_download_GEM:
     output:
         touch(CFG["dirs"]["inputs"] + "references/GEM/.done")
     params:
@@ -120,7 +120,7 @@ rule _download_GEM:
 
 
 # grch37_masked and grch38_masked from ensembl have additional information in the chr name lines - need to remove
-rule _fix_grch_genomes:
+rule _controlfreec_fix_grch_genomes:
     input:
         reference = reference_files("genomes/{genome_build}_masked/genome_fasta/genome.fa")
     output:
@@ -133,17 +133,17 @@ rule _fix_grch_genomes:
 # the only masked ref genomes available currently are grch37_masked, grch38_masked, hg19_masked, hg38_masked, and hg19-reddy_masked
 def _get_genome_fasta(wildcards):
     if  "grch37" in str({wildcards.genome_build}): # covers both cases "grch37" and ones like "grch37-noalt"
-        return  str(rules._fix_grch_genomes.output.reference).replace("{genome_build}", "grch37")
+        return  str(rules._controlfreec_fix_grch_genomes.output.reference).replace("{genome_build}", "grch37")
     elif "grch38" in str({wildcards.genome_build}): # covers both cases "grch38" and ones like "grch38-nci"
-        return  str(rules._fix_grch_genomes.output.reference).replace("{genome_build}", "grch38")
+        return  str(rules._controlfreec_fix_grch_genomes.output.reference).replace("{genome_build}", "grch38")
     elif "hg38" in str({wildcards.genome_build}): # covers both cases "hg38" and ones like "hg38-nci"
         return reference_files("genomes/hg38_masked/genome_fasta/genome.fa")
     else: # must be a flavour of hg19
         return reference_files("genomes/hg19_masked/genome_fasta/genome.fa")
 
-rule _generate_gem_index:
+rule _controlfreec_generate_gem_index:
     input:
-        software = str(rules._download_GEM.output),
+        software = str(rules._controlfreec_download_GEM.output),
         reference = _get_genome_fasta
     output:
         index = CFG["dirs"]["inputs"] + "references/mappability/masked/{genome_build}.hardmask.all_index.gem"
@@ -159,10 +159,10 @@ rule _generate_gem_index:
         {params.gemDir}/gem-indexer -T {threads} -c dna -i {input.reference} -o {params.idxpref} > {log} 2>&1
         """)
 
-rule _generate_mappability:
+rule _controlfreec_generate_mappability:
     input:
-        software = str(rules._download_GEM.output),
-        index = str(rules._generate_gem_index.output.index)
+        software = str(rules._controlfreec_download_GEM.output),
+        index = str(rules._controlfreec_generate_gem_index.output.index)
     output:
         mappability = CFG["dirs"]["inputs"] + "references/mappability/masked/{genome_build}.hardmask.all.gem.mappability"
     params:
@@ -192,9 +192,9 @@ rule _generate_mappability:
             -o {params.pref} > {log} 2>&1
         """)
 
-rule _symlink_map:
+rule _controlfreec_symlink_map:
     input:
-        mappability = str(rules._generate_mappability.output.mappability)
+        mappability = str(rules._controlfreec_generate_mappability.output.mappability)
     output:
         mappability = CFG["dirs"]["inputs"] + "references/mappability/masked/out100m2_{genome_build}.gem"
     resources: **CFG["resources"]["gem"]
