@@ -20,6 +20,7 @@ The pipeline requires Conda and Snakemake, and was built using Snakemake v8.10.8
     - [Phase Sets](#phase-sets)
     - [UMI Support](#umi-support)
     - [augmentMAF](#augmentmaf)
+- [Artifact Filtering](#artifact-filtering)
 - [Resources](#resources)
 - [Samplesheet requirements](#samplesheet-requirements)
 - [Example Usage](#example-project-snakemake-workflow)
@@ -34,7 +35,7 @@ to utilize matched normal samples from a patient, using the workflow `.../varian
 using this workflow. However, unpaired samples can have variants called by using `.../unpaired_variantTEMPEST.smk`. However, besides
 using gnomAD frequencies and a PON for filtering, no other steps attempt to remove germline mutations.
 
-<p align="center"><img height="800" alt="TEMPEST pipeline (1)" src="https://github.com/user-attachments/assets/9e6a9502-bd5b-4475-b1ad-00a524827132" />
+<p align="center"><img height="800" alt="TEMPEST pipeline (1)" src="https://github.com/user-attachments/assets/2bfca34f-6e51-4ba4-b3a1-3b7f6a3fe73e" />
 
 ## Read Support Filters
 Final variant filtering is carried out by `.../utils/custom_filters.py`. To help determine why variants were included in the final output, a
@@ -48,7 +49,8 @@ can be found in matched normal samples for tumour variants, including known hots
 normal was built into TEMPEST. This can be adjusted in the config.
 
 Values shown are defaults which can be specified in the config. <br>
-<p align="center"><img height="600" alt="Variant Filtering" src="https://github.com/user-attachments/assets/e6d99ac0-d297-4d0f-bbaa-8288afad7b15" />
+<p align="center"><img height="600" alt="Variant Filtering (2)" src="https://github.com/user-attachments/assets/b1b501f6-3baa-404f-80f3-3ee9b5f62a77" />
+
 
 ### augmentMAF
 
@@ -87,6 +89,38 @@ TEMPEST flags, but does not remove, variants that could be a result of clonal he
 Variants are flagged if: 1) the alt allele VAF is ≥ 2% in the matched normal or 2) the alt allele vaf is x3 larger in the matched normal than in the tumour sample. 
 
 However, TEMPEST is more strict with variants in commonly reported genes that accumulate age-related CHIP mutations: "DNMT3A","TET2","ASXL1","PPM1D","TP53","JAK2","SF3B1","SRSF2", and flags any variant in these genes with an alt_read_count > 0 in the matched normal.
+
+# Artifact Filtering
+
+Technical artifacts, in the form of low VAF variant calls, are an inherent part of NGS assays. TEMPEST takes advantage of UMI error correction to surpress this noise, but further methods are also availble. 
+
+1) Custom Notspot/Blacklists: user provided known trouble spots to be filtered out
+2) Panel of Normals: a user created panel of sites commonly mutated in normal samples sequenced using the same assay intended to be used on tumour/experimental samples.
+3) Background mutation rates: Calculate the background mutation rate and SD for all positions in the target space of a hybrid capture panel, and require the VAF of a candidate variant to be a specified times greater than the mean (default 2xSD).
+
+Assistance in how to make a PON and a background mutation rate index are detailed below.
+
+## Backgroud Mutation Rate Index
+
+TEMPEST can take an input mutation rate index (.tsv file) and filter variants based on how noisy a position is. The background mutation rate can be calculated by using a selection of input samples sequenced with your assay, ideally normal or healthy samples. To can use the `artifact_alert` lcr-module to create this index, or make your own solution. 
+
+Either way here is en example of the required format:
+
+chromosome | position | ref_base | n_samples | A_mean    | A_std      | T_mean    | T_std      | C_mean    | C_std      | G_mean    | G_std      | INS_mean | INS_std    | DEL_mean | DEL_std    |
+|------------|----------|----------|-----------|-----------|------------|-----------|------------|-----------|------------|-----------|------------|----------|------------|----------|------------|
+| chr1       | 2556665  | A        | 358       | 0.0       | 0.0        | 1.031e-05 | 0.00019502 | 4.773e-05 | 0.00038169 | 3.66e-05  | 0.00029125 | 0.0      | 0.0        | 0.0      | 0.0        |
+| chr1       | 2556666  | T        | 358       | 5.05e-06  | 9.557e-05  | 0.0       | 0.0        | 0.00023905| 0.00290158 | 9.987e-05 | 0.0010797  | 6.15e-06 | 0.00011641 | 0.0      | 0.0        |
+| chr1       | 2556667  | G        | 358       | 0.00011274| 0.00066822 | 6.775e-05 | 0.00051612 | 6.379e-05 | 0.00088875 | 0.0       | 0.0        | 0.0      | 0.0        | 5.009e-05| 0.00070783
+
+## Panel of Normals
+
+To help exclude technical artifacts unique to a hybrid capture panel, it is recommended that you sequence some cfDNA
+from "healthy" individuals and use their data to create a panel of normals. That VCF is required by the pipeline for filtering,
+but if you don't have one you can provide an empty dummy file.
+
+To assist in the creation of a PON, a workflow using GATK is included in this module: `make_somaticPON.smk`
+
+<p align="center"><img height="400" alt="TEMPEST pipeline" src="https://github.com/user-attachments/assets/f6877543-ad99-416d-ad42-59526c92b730" />
 
 # Resources
 
@@ -158,6 +192,7 @@ Config Option                | Description                                      
 | novel_vaf                   | VAF threshold for novel variants; only hotspots and phased variants may be lower                            | 0.01    |
 | panel_max_germ_rel_raw_bq   | Max proportion of good-quality alt reads allowed in normal vs tumor (cumulative BQ); SAGE arg (SAGE default 0.04) | 0.08    |
 | hotspot_max_germ_rel_raw_bq | Max proportion for hotspot positions (cumulative BQ); SAGE arg (SAGE default 0.25)                          | 0.08    |
+| hotspot_max_germline_vaf    | Max VAF allowed for germline variants in hotspots                                                           | 0.1      |
 | min_germline_depth          | Minimum depth in the normal (germline) sample                                                               | 50      |
 | max_normal_alt_depth        | Maximum alt depth allowed in the normal; hard filter not applied at hotspot positions                       | 10      |
 | min_map_qual                | Minimum mapping quality                                                                                    | 40      |
@@ -170,6 +205,10 @@ Config Option                | Description                                      
 | aug_min_UMI_3_count         | Minimum UMI_3 count used in augmented MAF filter criteria                                                   | 1       |
 | phase_id_col                | SAGE phase/ID column name                                                                                   | "LPS"   |
 | phased_min_t_alt            | Minimum tumor alt count for phased variants                                                                 | 3       |
+| background_rates            | Path to file with background mutation rate index                                                            | None     |
+| min_background_samples      | Min number of samples used to calculate background mutation rate to allow a position to be passable          | 20     |
+| background_n_std            | number of SD above the mean the VAF of a candidate variant needs to be to pass filter                        | 2       |
+| max_background_rate         | hardcap on background mutaion rate. All positions with this rate or higher are filtered out!                 | 0.1     |
 
 
 # Note about patient reports
@@ -196,14 +235,6 @@ cfDNA_patient_reports:
 ```
 As this code was developed on lymphoma patient samples, it can integrate the LymphGen classifier outputs as implemented in`lcr-modules`. You can simply
 set that to `false` in the config if you do not need it.
-
-# Panel of Normals
-
-To help exclude technical artifacts unique to a hybrid capture panel, it is recommended that you sequence some cfDNA
-from "healthy" individuals and use their data to create a panel of normals. That VCF is required by the pipeline for filtering,
-but if you don't have one you can provide an empty dummy file.
-
-To assist in the creation of a PON, a workflow using GATK is included in this module: `make_somaticPON.smk`
 
 # DLBCL Panel Hotspot and Notspot Lists
 
