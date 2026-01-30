@@ -57,6 +57,6 @@ lcr-modules:
 
         pairing_config:
             promethION:
-                run_paired_tumours: True
+                run_paired_tumours: False
                 run_unpaired_tumours_with: "no_normal"
-                run_paired_tumours_as_unpaired: False
+                run_paired_tumours_as_unpaired: True

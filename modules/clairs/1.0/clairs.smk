@@ -239,15 +239,15 @@ rule _clairs_call_variants:
         fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
         models = str(rules._clairs_link_clair3_models.output.models)
     output:
-        vcf = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/output.vcf.gz"),
-        tbi = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/output.vcf.gz.tbi")
+        vcf = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.vcf.gz"),
+        tbi = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.vcf.gz.tbi")
     log:
-        stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/clairs.stdout.log",
-        stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/clairs.stderr.log"
+        stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs.stdout.log",
+        stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs.stderr.log"
     params:
         clairs_args = CFG["options"]["clairs_args"],
         platform = get_platform,
-        output_dir = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/",
+        output_dir = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/",
         clairs_path = CFG["options"]["clairs_path"],
         pileup_model = lambda wc: config["lcr-modules"]["clairs"]["options"]["model_path"] + get_platform(wc) + "/pileup.pkl",
         fa_model = lambda wc: config["lcr-modules"]["clairs"]["options"]["model_path"] + get_platform(wc) + "/full_alignment.pkl"
@@ -280,11 +280,11 @@ rule _clairs_gnomad_annotation:
         tbi = str(rules._clairs_call_variants.output.tbi),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")
     output:
-        vcf = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/output.gnomad.vcf.gz"),
-        tbi = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/output.gnomad.vcf.gz.tbi")
+        vcf = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.gnomad.vcf.gz"),
+        tbi = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.gnomad.vcf.gz.tbi")
     log:
-        stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/clairs_gnomad_annotation.stderr.log",
-        stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/clairs_gnomad_annotation.stdout.log"
+        stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs_gnomad_annotation.stderr.log",
+        stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs_gnomad_annotation.stdout.log"
     conda:
         CFG["conda_envs"]["bcftools"]
     threads:
@@ -309,8 +309,8 @@ rule _clairs_filter:
         tbi = str(rules._clairs_gnomad_annotation.output.tbi),
         pon = reference_files("genomes/{genome_build}/ont/colorsDb.v1.2.0.deepvariant.glnexus.{genome_build}.vcf.gz")
     output:
-        vcf = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/clairs.final.vcf.gz",
-        tbi = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/clairs.final.vcf.gz.tbi"
+        vcf = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs.final.vcf.gz",
+        tbi = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs.final.vcf.gz.tbi"
     conda:
         CFG["conda_envs"]["bcftools"]
     resources:
@@ -318,8 +318,8 @@ rule _clairs_filter:
     threads:
         CFG["threads"]["bcftools"]
     log:
-        stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/filter_pon.stderr.log",
-        stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}/filter_pon.stdout.log"
+        stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/filter_pon.stderr.log",
+        stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/filter_pon.stdout.log"
     params:
         filters = CFG["options"]["filters"]
     shell:
@@ -337,8 +337,8 @@ rule _clairs_output_vcf:
         vcf = str(rules._clairs_filter.output.vcf),
         tbi = str(rules._clairs_filter.output.tbi)
     output:
-        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}.clairs.vcf.gz",
-        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}.clairs.vcf.gz.tbi"
+        vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched.clairs.combined.vcf.gz",
+        tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched.clairs.combined.vcf.gz.tbi"
     run:
         op.relative_symlink(input.vcf, output.vcf, in_module= True)
         op.relative_symlink(input.tbi, output.tbi, in_module= True)
