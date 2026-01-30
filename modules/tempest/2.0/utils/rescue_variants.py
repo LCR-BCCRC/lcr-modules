@@ -17,6 +17,8 @@ def get_args():
     parser.add_argument('--lower_af', required=False, type=float, default=0.05, help='lower bound of normal AF to consider for rescue')
     parser.add_argument('--upper_af', required=False, type=float, default=0.3, help='upper bound of normal AF to consider for rescue')
     parser.add_argument('--min_qual', required=False, type=int, default=20, help='minimum QUAL score to consider for rescue')
+    parser.add_argument('--hotspots_only', required=False, type=bool, action='store_true', default=False, help='only rescue hotspot variants')
+
     parser.add_argument('--output', required=False, type=str, default='rescued_variants.tsv', help='output path for rescued variants tsv')
     return parser.parse_args()
 

@@ -81,9 +81,9 @@ def sage_dynamic_mem(wildcards, attempt, input):
     if attempt == 1:
         return max(10000, (2 * input.size_mb + 2000))
     elif attempt == 2:
-        return (input.size_mb * 3 + 5000)
+        return max(15000, (input.size_mb * 3 + 5000))
     elif attempt == 3:
-        return (input.size_mb * 4)
+        return max(20000,(input.size_mb * 4))
 
 def sage_java_mem(wildcards, attempt, input):
     if attempt == 1:
@@ -113,6 +113,7 @@ rule run_sage:
         min_norm_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_germline_depth"],
         pan_max_germ_rel_raw_bq = config["lcr-modules"]["cfDNA_SAGE_workflow"]["panel_max_germ_rel_raw_bq"],
         hotspot_max_germ_rel_raw_bq = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hotspot_max_germ_rel_raw_bq"],
+        hotspot_max_germline_vaf = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("hotspot_max_germline_vaf", 0.1),
         # hard filters
         hard_vaf_cutoff = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hard_min_vaf"],
         max_alt_norm_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_normal_alt_depth"],
@@ -143,6 +144,7 @@ rule run_sage:
         -hotspot_min_germline_depth {params.min_norm_depth} \
         -panel_max_germline_rel_qual {params.pan_max_germ_rel_raw_bq} \
         -hotspot_max_germline_rel_qual {params.hotspot_max_germ_rel_raw_bq} \
+        -hotspot_max_germline_vaf {params.hotspot_max_germline_vaf} \
         -min_map_quality {params.min_map} \
         -hard_min_tumor_vaf {params.hard_vaf_cutoff} \
         -filtered_max_germline_alt_support {params.max_alt_norm_depth} \

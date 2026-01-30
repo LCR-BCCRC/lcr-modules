@@ -83,9 +83,9 @@ def fgbio_mem(wildcards, input, attempt):
     elif attempt == 2:
         return max(input.size_mb, 15000)
     elif attempt == 3:
-        return min(input.size_mb * 1.5, 50000)
+        return min(input.size_mb + 10000, 50000)
     else:
-        return min(input.size_mb * 2, 80000)
+        return min(input.size_mb + 15000, 80000)
 
 
 def realign_finalize_mem(wildcards, input, attempt):
@@ -304,8 +304,8 @@ rule realign_and_finalize:
         --tags-to-revcomp Consensus 2>> {log} \
     | samtools view -h \
         -x ad -x ac -x bd -x bc -x aq -x bq -x ae -x be 2>> {log} \
-    | samtools sort -@ {params.sort_threads} -o {output.bam} 2>> {log} \
-    | samtools index {output.bam} 2>> {log}
+    | samtools sort -@ {params.sort_threads} -o {output.bam} 2>> {log} && \
+     samtools index {output.bam} 2>> {log}
         """
 
 # =============================================================================
