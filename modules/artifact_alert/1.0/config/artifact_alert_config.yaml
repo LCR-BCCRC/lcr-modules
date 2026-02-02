@@ -11,6 +11,7 @@ lcr-modules:
   artifact_alert:
     input_bam: 
     target_bed: "/.../.bed"
+    panel_name: ""
 
     # pileup options
     min_mapq: 20
