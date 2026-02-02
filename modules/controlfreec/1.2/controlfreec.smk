@@ -367,6 +367,7 @@ rule _controlfreec_config_contamAdjTrue:
         CFG["conda_envs"]["controlfreec"]
     threads: 1
     params:
+        config = CFG["options"]["configFile"],
         window = _controlfreec_get_optional_window,
         step = _controlfreec_get_optional_step,
         booCon = "TRUE",
@@ -450,6 +451,7 @@ rule _controlfreec_config_contamAdjFalse:
         CFG["conda_envs"]["controlfreec"]
     threads: 1
     params:
+        config = CFG["options"]["configFile"],
         window = _controlfreec_get_optional_window,
         step = _controlfreec_get_optional_step,
         booCon = "FALSE",
@@ -520,8 +522,8 @@ rule _controlfreec_config_contamAdjFalse:
 
 checkpoint _controlfreec_run:
     input:
-        config_contamTrue = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/contamAdjTrue/config.txt",
-        config_contamFalse = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/contamAdjFalse/config.txt",
+        config_contamTrue = str(rules._controlfreec_config_contamAdjTrue.output.config),
+        config_contamFalse = str(rules._controlfreec_config_contamAdjFalse.output.config),
         tumour_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{tumour_id}.bam_minipileup.pileup.gz",
         normal_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.bam_minipileup.pileup.gz"
     output:
@@ -533,7 +535,14 @@ checkpoint _controlfreec_run:
         log_contamTrue = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/run.contamTrue.log",
         log_contamFalse = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/run.contamFalse.log"
     shell:
-        op.as_one_line("""freec -conf {input.config_contamTrue} &> {log.log_contamTrue} || freec -conf {input.config_contamFalse} &> {log.log_contamFalse} || touch {output.done}""")
+        op.as_one_line("""
+        freec -conf {input.config_contamTrue} &> {log.log_contamTrue};
+        rc=$?;
+        if [ $rc != 0 ]; then
+            freec -conf {input.config_contamFalse} &> {log.log_contamFalse};
+        fi;
+        touch {output.done}
+        """)
 
 def _get_run_result(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]

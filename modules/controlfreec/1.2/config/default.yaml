@@ -23,6 +23,7 @@ lcr-modules:
 
 
         options:
+            configFile: "{MODSDIR}/config/freec/config_WGS.txt"
             BedGraphOutput: FALSE # option to generate BedGraphs for UCSC genome browser
             breakPointThreshold: 0.6 # threshold for segmentaiton of normalized profiles -
                 # use 0.6 for more segments to get more CNVs
