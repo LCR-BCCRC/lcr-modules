@@ -112,16 +112,16 @@ rule run_sage:
         ensembl = config["lcr-modules"]["cfDNA_SAGE_workflow"]['ensembl'],
         normal_name = get_normal_name,
         # soft filters
-        panel_vaf_threshold = config["lcr-modules"]["cfDNA_SAGE_workflow"]["tumor_panel_min_vaf"],
-        min_norm_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_germline_depth"],
-        pan_max_germ_rel_raw_bq = config["lcr-modules"]["cfDNA_SAGE_workflow"]["panel_max_germ_rel_raw_bq"],
-        hotspot_max_germ_rel_raw_bq = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hotspot_max_germ_rel_raw_bq"],
+        panel_vaf_threshold = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("tumor_panel_min_vaf", 0.01),
+        min_norm_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_germline_depth", 50),
+        pan_max_germ_rel_raw_bq = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("panel_max_germ_rel_raw_bq", 0.04),
+        hotspot_max_germ_rel_raw_bq = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("hotspot_max_germ_rel_raw_bq", 0.25),
         hotspot_max_germline_vaf = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("hotspot_max_germline_vaf", 0.1),
         # hard filters
-        hard_vaf_cutoff = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hard_min_vaf"],
-        max_alt_norm_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_normal_alt_depth"],
-        min_map = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_map_qual"],
-        max_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_depth"],
+        hard_vaf_cutoff = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("hard_min_vaf", 0.001),
+        max_alt_norm_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("max_normal_alt_depth", 2),
+        min_map = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_map_qual", 40),
+        max_depth = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("max_depth", 100000),
     resources:
         mem_mb = sage_dynamic_mem,
         java_mem = sage_java_mem,
@@ -292,17 +292,17 @@ rule custom_filters:
         script = os.path.join(UTILSDIR, "custom_filters.py"),
         hotspot_vcf = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hotspot_vcf"],
         blacklist_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["blacklist_manifest"],
-        min_germline_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_germline_depth"]),
-        min_alt_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"]),
-        min_tum_VAF = float(config["lcr-modules"]["cfDNA_SAGE_workflow"]["novel_vaf"]),
-        min_t_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_t_depth"]),
-        min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_UMI_3_count"]),
-        low_alt_thresh = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["low_alt_thresh"]),
-        low_alt_min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["low_alt_min_UMI_3_count"]),
+        min_germline_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_germline_depth", 50)),
+        min_alt_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_alt_depth", 5)),
+        min_tum_VAF = float(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("novel_vaf", 0.01))
+        min_t_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_t_depth", 50)),
+        min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_UMI_3_count", 2)),
+        low_alt_thresh = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("low_alt_thresh", 50)),
+        low_alt_min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("low_alt_min_UMI_3_count", 3)),
         background_rates = config["lcr-modules"]["cfDNA_SAGE_workflow"]["background_rates"],
-        min_background_samples = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_background_samples"]),
-        background_n_std = float(config["lcr-modules"]["cfDNA_SAGE_workflow"]["background_n_std"]),
-        max_bg_rate = float(config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_background_rate"])
+        min_background_samples = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_background_samples", 20)),
+        background_n_std = float(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("background_n_std", 2)),
+        max_bg_rate = float(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("max_background_rate", 0.1))
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.custom_filters.log")
     conda:
@@ -339,10 +339,10 @@ rule augment_maf:
     params:
         script = os.path.join(UTILSDIR, "augmentMAF.py"),
         ref_genome_version = config["lcr-modules"]["_shared"]["ref_genome_ver"],
-        alt_support = config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"],
-        min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["aug_min_UMI_3_count"]),
-        phase_ID_col = config["lcr-modules"]["cfDNA_SAGE_workflow"]["phase_id_col"],
-        phased_min_t_alt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["phased_min_t_alt"]
+        alt_support = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_alt_depth", 5),
+        min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("aug_min_UMI_3_count", 1)),
+        phase_ID_col = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("phase_id_col", "LPS"),
+        phased_min_t_alt = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("phased_min_t_alt", 1)
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.augment_maf.log")
     conda:
