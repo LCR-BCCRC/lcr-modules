@@ -1,3 +1,5 @@
+<p align="center"><img height="300" alt="TEMPEST_logo" src="https://github.com/user-attachments/assets/ff11d9d8-1e14-40dc-a6c8-b7a2f557ce1a" />
+
 # TEMPEST v2.0
 
 TEMPEST (Temporal Evaluation of Mutations in Plasma cfDNA with Error-suppressed Somatic Tracking) is a pipeline designed
