@@ -48,7 +48,7 @@ localrules:
     _clairs_input_bam,
     _clairs_input_normal_bam,
     _clairs_get_resources,
-    _clairs_link_clair3_models,
+    _clairs_link_clairs_models,
     _clairs_output_vcf,
     _clairs_all
 
@@ -56,8 +56,6 @@ localrules:
 VERSION_MAP_CLAIRS = CFG["options"]["version_map"]
 SEQTYPE_MAP_CLAIRS = CFG["options"]["seqtype_map"]
 MODULE_DIR = os.path.abspath(CFG["options"]["modsdir"])
-
-print(MODULE_DIR)
 
 possible_genome_builds = ", ".join(list(VERSION_MAP_CLAIRS.keys()))
 for genome_build in CFG["runs"]["tumour_genome_build"]:
@@ -141,15 +139,18 @@ def get_normal(wildcards):
     return normal
 
 
-def get_clair3_models_dir():
-    return os.path.abspath(
-        os.path.join(
-            MODULE_DIR,
-            "ClairS-0.4.4",
-            "models",
-            "clair3_models"
-        )
-    )
+def get_clairs_models(wc):
+    CFG = config["lcr-modules"]["clairs"]
+    base = CFG["options"]["model_path"]
+    platform = get_platform(wc)
+    models = {
+        "full_alignment": f"{base}{platform}/full_alignment.pkl",
+        "pileup": f"{base}{platform}/pileup.pkl"
+        }
+    if CFG["options"].get("call_indels", False):
+        models["indel_full"] = f"{base}{platform}/indel/full_alignment.pkl"
+        models["indel_pileup"] = f"{base}{platform}/indel/pileup.pkl"
+    return models
 
 
 # Clone ClairS repo at a fixed commit and download ClairS models
@@ -167,62 +168,40 @@ rule _clairs_get_resources:
             set -euo pipefail &&
             mkdir -p {params.base_dir} &&
             mkdir -p {params.models_dir} &&
-            if [ ! -d {params.repo_dir}/.git ]; then
-                git clone https://github.com/HKU-BAL/ClairS.git {params.repo_dir} ;
-            fi &&
+            if [ ! -d {params.repo_dir}/.git ]; then git clone https://github.com/HKU-BAL/ClairS.git {params.repo_dir} ; fi &&
             cd {params.repo_dir} &&
             CURRENT_COMMIT="$(git rev-parse HEAD)" &&
-            if [ "$CURRENT_COMMIT" != "{params.commit}" ]; then
-                git fetch --all --tags &&
-                git checkout --force {params.commit} ;
-            fi &&
-            if [ ! -d {params.models_dir}/clair3_models ] ||
-               [ -z "$(ls -A {params.models_dir}/clair3_models 2>/dev/null || true)" ]; then
-                wget -c -O {params.tarball} https://www.bio8.cs.hku.hk/clairs/models/clairs_models.tar.gz &&
-                tar -zxf {params.tarball} -C {params.models_dir} ;
-            fi &&
-            if [ ! -d {params.models_dir}/clair3_models ]; then
-                echo "ERROR: Failed to populate ClairS models!" >&2 ;
-                exit 1 ;
-            fi &&
+            if [ "$CURRENT_COMMIT" != "{params.commit}" ]; then git fetch --all --tags && git checkout --force {params.commit} ; fi &&
+            if ! find {params.models_dir} -type f -name 'pileup.pkl' | grep -q .; then wget -c -O {params.tarball} https://www.bio8.cs.hku.hk/clairs/models/clairs_models.tar.gz && tar -zxf {params.tarball} -C {params.models_dir} ; fi &&
+            if ! find {params.models_dir} -type f -name 'pileup.pkl' | grep -q .; then echo "ERROR: No pileup.pkl found under models/" >&2 ; exit 1 ; fi &&
+            if ! find {params.models_dir} -type f -name 'full_alignment.pkl' | grep -q .; then echo "ERROR: No full_alignment.pkl found under models/" >&2 ; exit 1 ; fi &&
             touch {output.resources}
         """)
 
 
-# Link the Clair3 models into the conda env bin
-rule _clairs_link_clair3_models:
+# Link the ClairS models into the conda env bin
+rule _clairs_link_clairs_models:
     input:
         resources = str(rules._clairs_get_resources.output.resources)
     output:
         models = touch(os.path.join(MODULE_DIR, "model_dummy"))
     log:
-        stdout = CFG["logs"]["clairs"] + "link_clair3_models.stdout.log",
-        stderr = CFG["logs"]["clairs"] + "link_clair3_models.stderr.log",
+        stdout = CFG["logs"]["clairs"] + "link_clairs_models.stdout.log",
+        stderr = CFG["logs"]["clairs"] + "link_clairs_models.stderr.log"
     conda:
         CFG["conda_envs"]["clairs"]
     params:
-        link_target = lambda wc: os.path.join(config["lcr-modules"]["clairs"]["options"]["modsdir"], "ClairS-0.4.4", "models", "clair3_models"),
-        link_path = "$(dirname $(command -v pypy))/clairs_models/clair3_models"
+        link_target = lambda wc: os.path.join(config["lcr-modules"]["clairs"]["options"]["modsdir"], "ClairS-0.4.4", "models"),
+        link_path = "$(dirname $(command -v pypy))/clairs_models"
     shell:
         op.as_one_line("""
             set -euo pipefail &&
             echo "link_target = {params.link_target}" >&2 &&
             echo "link_path   = {params.link_path}" >&2 &&
             TARGET="$(readlink -f {params.link_target})" &&
-            if [ ! -d "$TARGET" ]; then
-                echo "ERROR: Resolved Clair3 models directory does not exist: $TARGET" >&2 ;
-                exit 1 ;
-            fi &&
-            if ! find "$TARGET" -type f -name 'pileup.index' | grep -q .; then
-                echo "ERROR: Clair3 models directory exists but contains no pileup models" >&2 ;
-                ls -l "$TARGET" >&2 || true ;
-                exit 1 ;
-            fi &&
-            if ! find "$TARGET" -type f -name 'full_alignment.index' | grep -q .; then
-                echo "ERROR: Clair3 models directory exists but contains no full-alignment models" >&2 ;
-                ls -l "$TARGET" >&2 || true ;
-                exit 1 ;
-            fi &&
+            if [ ! -d "$TARGET" ]; then echo "ERROR: Resolved ClairS models directory does not exist: $TARGET" >&2 ; exit 1 ; fi &&
+            if ! find "$TARGET" -type f -name 'pileup.pkl' | grep -q .; then echo "ERROR: ClairS models directory exists but contains no pileup models" >&2 ; exit 1 ; fi &&
+            if ! find "$TARGET" -type f -name 'full_alignment.pkl' | grep -q .; then echo "ERROR: ClairS models directory exists but contains no full-alignment models" >&2 ; exit 1 ; fi &&
             mkdir -p $(dirname {params.link_path}) &&
             ln -sfn "$TARGET" {params.link_path} &&
             test -d {params.link_path} &&
@@ -237,7 +216,7 @@ rule _clairs_call_variants:
         normal_bam = str(rules._clairs_input_normal_bam.output.bam),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
-        models = str(rules._clairs_link_clair3_models.output.models)
+        models = str(rules._clairs_link_clairs_models.output.models)
     output:
         vcf = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.vcf.gz"),
         tbi = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.vcf.gz.tbi")
@@ -249,8 +228,19 @@ rule _clairs_call_variants:
         platform = get_platform,
         output_dir = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/",
         clairs_path = CFG["options"]["clairs_path"],
-        pileup_model = lambda wc: config["lcr-modules"]["clairs"]["options"]["model_path"] + get_platform(wc) + "/pileup.pkl",
-        fa_model = lambda wc: config["lcr-modules"]["clairs"]["options"]["model_path"] + get_platform(wc) + "/full_alignment.pkl"
+        models = lambda wc: get_clairs_models(wc),
+        indel_p = lambda wc: (
+            "--indel_pileup_model_path " + get_clairs_models(wc)["indel_pileup"]
+            if "indel_pileup" in get_clairs_models(wc) else ""
+            ),
+        indel_fa = lambda wc: (
+            "--indel_full_alignment_model_path " + get_clairs_models(wc)["indel_full"]
+            if "indel_full" in get_clairs_models(wc) else ""
+            ),
+        call_indels = lambda wc: (
+            "--enable_indel_calling --indel_min_qual 5"
+            if config["lcr-modules"]["clairs"]["options"].get("call_indels", False) else ""
+            )
     conda:
         CFG["conda_envs"]["clairs"]
     threads:
@@ -260,24 +250,70 @@ rule _clairs_call_variants:
     shell:
         op.as_one_line("""
         {params.clairs_path}
-            -P {params.pileup_model}
-            -F {params.fa_model}
+            -P {params.models[pileup]}
+            -F {params.models[full_alignment]}
             --tumor_bam_fn {input.tumour_bam}
             --normal_bam_fn {input.normal_bam}
             --ref_fn {input.fasta}
             --threads {threads}
             --platform {params.platform}
             --output_dir {params.output_dir}
+            {params.call_indels}
+            {params.indel_p}
+            {params.indel_fa}
             {params.clairs_args}
             > {log.stdout} 2> {log.stderr}
         """)
 
 
-# Annotates VCF file with gnomAD frequency data and filters out poor calls.
-rule _clairs_gnomad_annotation:
+# Combines ClairS VCF output files so indels and SNVs are in the same file
+rule _clairs_combine_vcfs:
     input:
         vcf = str(rules._clairs_call_variants.output.vcf),
-        tbi = str(rules._clairs_call_variants.output.tbi),
+        tbi = str(rules._clairs_call_variants.output.tbi)
+    output:
+        combined_vcf = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/combined.vcf.gz"),
+        combined_tbi = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/combined.vcf.gz.tbi")
+    log:
+        stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/combine_vcfs.stdout.log",
+        stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/combine_vcfs.stderr.log"
+    conda:
+        CFG["conda_envs"]["bcftools"]
+    threads:
+        CFG["threads"]["bcftools"]
+    resources:
+        **CFG["resources"]["bcftools"]
+    params:
+        output_dir = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/",
+        indels_enabled = lambda wc: (
+            "enabled"
+            if config["lcr-modules"]["clairs"]["options"].get("call_indels", False) else ""
+            )
+    shell:
+        op.as_one_line("""
+        if [ -z "{params.indels_enabled}" ]; then
+            bcftools view -h {input.vcf} > {params.output_dir}/indel.vcf &&
+            bgzip -f {params.output_dir}/indel.vcf &&
+            tabix -p vcf {params.output_dir}/indel.vcf.gz ;
+        fi ;
+        bcftools sort {params.output_dir}/output.vcf.gz -Oz -o {params.output_dir}/output.sorted.vcf.gz >> {log.stdout} 2>> {log.stderr} &&
+        tabix -p vcf {params.output_dir}/output.sorted.vcf.gz >> {log.stdout} 2>> {log.stderr} &&
+        bcftools sort {params.output_dir}/indel.vcf.gz -Oz -o {params.output_dir}/indel.sorted.vcf.gz >> {log.stdout} 2>> {log.stderr} &&
+        tabix -p vcf  {params.output_dir}/indel.sorted.vcf.gz >> {log.stdout} 2>> {log.stderr} &&
+        bcftools concat
+            --allow-overlaps
+            {params.output_dir}/output.sorted.vcf.gz
+            {params.output_dir}/indel.sorted.vcf.gz
+            -Oz -o {output.combined_vcf} >> {log.stdout} 2>> {log.stderr} &&
+        tabix -p vcf {output.combined_vcf} >> {log.stdout} 2>> {log.stderr}
+        """)
+
+
+# Annotates VCF file with gnomAD frequency data and filters out poor calls
+rule _clairs_gnomad_annotation:
+    input:
+        vcf = str(rules._clairs_combine_vcfs.output.combined_vcf),
+        tbi = str(rules._clairs_combine_vcfs.output.combined_tbi),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")
     output:
         vcf = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.gnomad.vcf.gz"),
@@ -344,13 +380,33 @@ rule _clairs_output_vcf:
         op.relative_symlink(input.tbi, output.tbi, in_module= True)
 
 
+# Cleans up additional files created by ClairS
+rule _clairs_clean:
+    input:
+        str(rules._clairs_output_vcf.output.vcf)
+    output:
+        cleanup_complete = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/cleanup_complete.txt"
+    shell:
+        op.as_one_line("""
+        d=$(dirname {output.cleanup_complete});
+        rm -rf $d/tmp/ &&
+        rm -rf $d/logs/ &&
+        rm -f $d/run_clairs.log* &&
+        rm -f $d/snv.vcf* &&
+        rm -f $d/indel.* &&
+        rm -f $d/output.* &&
+        touch {output.cleanup_complete}
+        """)
+
+
 # Generates the target sentinels for each run, which generate the symlinks
 rule _clairs_all:
     input:
         expand(
             [
                 str(rules._clairs_output_vcf.output.vcf),
-                str(rules._clairs_output_vcf.output.tbi)
+                str(rules._clairs_output_vcf.output.tbi),
+                str(rules._clairs_clean.output.cleanup_complete)
             ],
             zip,
             seq_type=CFG["runs"]["tumour_seq_type"],

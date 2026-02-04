@@ -36,10 +36,11 @@ lcr-modules:
                 R9: "__UPDATE__" # Update this with the prefix for your R9 normal BAM file
                 R10: "__UPDATE__" # Update this with the prefix for your R10 normal BAM file
             clairs_args: "__UPDATE__" # Update this with the arguments you wish to add for variant calling with ClairS. Example: "--snv_min_af 0.1 --enable_indel_calling --min_coverage 8 -s TUMOR --snv_min_qual 5"
-            model_path: "__UPDATE__" # Update this with the path to ClairS models (ending with /). Likely something like {MODSDIR}/modules/clairs/1.0/ClairS-0.4.4/models/
+            model_path: "{MODSDIR}/modules/clairs/1.0/ClairS-0.4.4/models/" # Update this with the path to ClairS models (ending with /). Likely something like {MODSDIR}/modules/clairs/1.0/ClairS-0.4.4/models/
             clairs_path: "__UPDATE__" # Update this with the path to the run_clairs script. Likely something like {MODSDIR}/modules/clairs/1.0/ClairS-0.4.4/ClairS/run_clairs
             filters: 'FILTER="PASS" && INFO/AF < 0.0001 && FMT/DP[0] >= 8 && FMT/AF[0] >= 0.1 && (FMT/NDP[0] < 10 || FMT/NAF[0] < 0.3)' # Update this line if you wish to use different filters
             modsdir: "{MODSDIR}"
+            call_indels: true # Change to false to disable indel calling. NOTE: indel calling is only supported for R10 models
 
         conda_envs:
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
