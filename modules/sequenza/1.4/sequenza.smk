@@ -28,7 +28,7 @@ except ModuleNotFoundError:
 
 current_version = pkg_resources.get_distribution("oncopipe").version
 if version.parse(current_version) < version.parse(min_oncopipe_version):
-    logger.warning(
+logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
                 "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
                 )
@@ -49,7 +49,6 @@ CFG = op.setup_module(
 localrules:
     _sequenza_input_bam,
     _sequenza_input_chroms,
-    _sequenza_input_dbsnp_pos,
     _sequenza_output_seg,
     _sequenza_output_projection,
     _sequenza_output_sub,
