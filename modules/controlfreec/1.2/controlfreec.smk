@@ -401,7 +401,7 @@ rule _controlfreec_config_contamAdjTrue:
         "sambambaPathName=$(echo $sambambapath) ; "
         "bedtoolspath=$(which bedtools ) ; "
         "bedtoolsPathName=$(echo $bedtoolspath) ; "
-        "sed \"s|BAMFILE|{input.tumour_bam}|g\" {output.config} | "
+        "sed \"s|BAMFILE|{input.tumour_bam}|g\" {params.config} | "
         "sed \"s|CONTROLFILE|{input.normal_bam}|g\" | "
         "sed \"s|OUTDIR|{params.outdir}|g\" | "
         "sed \"s|DBsnpFile|{input.dbsnp}|g\" | "
@@ -485,7 +485,7 @@ rule _controlfreec_config_contamAdjFalse:
         "sambambaPathName=$(echo $sambambapath) ; "
         "bedtoolspath=$(which bedtools ) ; "
         "bedtoolsPathName=$(echo $bedtoolspath) ; "
-        "sed \"s|BAMFILE|{input.tumour_bam}|g\" {output.config} | "
+        "sed \"s|BAMFILE|{input.tumour_bam}|g\" {params.config} | "
         "sed \"s|CONTROLFILE|{input.normal_bam}|g\" | "
         "sed \"s|OUTDIR|{params.outdir}|g\" | "
         "sed \"s|DBsnpFile|{input.dbsnp}|g\" | "
@@ -548,21 +548,36 @@ def _get_run_result(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
     base_dir = os.path.dirname(str(checkpoints._controlfreec_run.get(**wildcards).output[0]))
     CONTAM, = glob_wildcards(base_dir + "/{contamAdj}/{tumour_id}.bam_minipileup.pileup.gz_CNVs").contamAdj
-    if any("True" in CONTAM):
-        return expand(base_dir + "/{contamAdj}/", contamAdj = "contamAdjTrue")
+    CONTAM = [CONTAM] if isinstance(CONTAM, str) else CONTAM # makes it a list when only one value is returned by the glob
+    if any("True" in c for c in CONTAM):
+        files = {
+            "info":base_dir + "/contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
+            "ratios":base_dir + "/contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
+            "CNV":base_dir + "/contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
+            "BAF":base_dir + "/contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
+        }
     else:
-        return expand(base_dir + "/{contamAdj}/", contamAdj = "contamAdjFalse")
+        files = {
+            "info":base_dir + "/contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
+            "ratios":base_dir + "/contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
+            "CNV":base_dir + "/contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
+            "BAF":base_dir + "/contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
+        }
+    return files
 
 rule _controlfreec_symlink_run_result:
     input:
-        _get_run_result
+        unpack(_get_run_result)
     output:
         info = CFG["dirs"]["run_result"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
         ratios = CFG["dirs"]["run_result"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
         CNV = CFG["dirs"]["run_result"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
         BAF = CFG["dirs"]["run_result"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
     run:
-        op.relative_symlink(input, os.path.dirname(output.info), in_module = True)
+        op.relative_symlink(input.info, output.info, in_module = True)
+        op.relative_symlink(input.ratios, output.ratios, in_module = True)
+        op.relative_symlink(input.CNV, output.CNV, in_module = True)
+        op.relative_symlink(input.BAF, output.BAF, in_module = True)
 
 rule _controlfreec_calc_sig:
     input:
