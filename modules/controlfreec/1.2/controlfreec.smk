@@ -520,6 +520,9 @@ rule _controlfreec_config_contamAdjFalse:
         "sed \"s|numThreads|{params.threads}|g\" | "
         "sed \"s|referenceFile|{input.mappability}|g\" > {output.config}"
 
+# Tries to run with contamAdj = True case first; if it fails then it tries to
+# run contamAdj = False; if that also fails, then snakemake receives an error code
+# for the rule and the done file isn't made
 checkpoint _controlfreec_run:
     input:
         config_contamTrue = str(rules._controlfreec_config_contamAdjTrue.output.config),
@@ -538,14 +541,20 @@ checkpoint _controlfreec_run:
         log_contamTrue = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/run.contamTrue.log",
         log_contamFalse = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/run.contamFalse.log"
     shell:
-        op.as_one_line("""
-        freec -conf {input.config_contamTrue} &> {log.log_contamTrue};
-        rc=$?;
-        if [ $rc != 0 ]; then
-            freec -conf {input.config_contamFalse} &> {log.log_contamFalse};
-        fi;
-        touch {output.done}
-        """)
+        """
+        set +e
+        freec -conf {input.config_contamTrue} &> {log.log_contamTrue}
+        if [[ $? -ne 0 ]]; then
+            freec -conf {input.config_contamFalse} &> {log.log_contamFalse}
+            if [[ $? -ne 0 ]]; then
+                exit 1
+            else
+                touch {output.done}
+            fi
+        else
+            touch {output.done}
+        fi
+        """
 
 def _get_run_result(wildcards):
     CFG = config["lcr-modules"]["controlfreec"]
