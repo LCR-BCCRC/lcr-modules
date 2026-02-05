@@ -114,6 +114,7 @@ rule _controlfreec_download_GEM:
         dirOut = CFG["dirs"]["inputs"] + "references/GEM"
     conda:
         CFG["conda_envs"]["wget"]
+    threads: 1
     shell:
         op.as_one_line("""
         wget https://sourceforge.net/projects/gemlibrary/files/gem-library/Binary%20pre-release%203/GEM-binaries-Linux-x86_64-core_i3-20130406-045632.tbz2/download -O {params.dirOut}/GEM-lib.tbz2 &&
@@ -199,7 +200,6 @@ rule _controlfreec_symlink_map:
         mappability = str(rules._controlfreec_generate_mappability.output.mappability)
     output:
         mappability = CFG["dirs"]["inputs"] + "references/mappability/masked/out100m2_{genome_build}.gem"
-    resources: **CFG["resources"]["gem"]
     run:
         op.absolute_symlink(input.mappability, output.mappability)
 
@@ -552,14 +552,14 @@ def _get_run_result(wildcards):
     if any("True" in c for c in CONTAM):
         files = {
             "info":base_dir + "/contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
-            "ratios":base_dir + "/contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
+            "ratios":base_dir + "/contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
             "CNV":base_dir + "/contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
             "BAF":base_dir + "/contamAdjTrue/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
         }
     else:
         files = {
             "info":base_dir + "/contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
-            "ratios":base_dir + "/contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
+            "ratios":base_dir + "/contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
             "CNV":base_dir + "/contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
             "BAF":base_dir + "/contamAdjFalse/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
         }

@@ -79,7 +79,6 @@ lcr-modules:
         software:
             FREEC_sig: "{MODSDIR}/src/assess_significance_mod.R"
             FREEC_graph: "{MODSDIR}/src/makeGraph.R"
-            FREEC_graph_chr: "{MODSDIR}/src/makeGraph_Chromosome.R"
             freec2bed: "{MODSDIR}/src/freec2bed.pl"
             freec2circos: "{MODSDIR}/src/freec2circos.pl"
 
