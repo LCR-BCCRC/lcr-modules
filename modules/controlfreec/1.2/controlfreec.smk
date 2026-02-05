@@ -40,7 +40,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "controlfreec",
     version = "1.2",
-    subdirectories = ["inputs", "mpileup", "run", "run_result", "calc_sig", "plot", "freec2bed", "freec2circos", "cnv2igv", "convert_coordinates", "fill_regions", "normalize", "outputs"]
+    subdirectories = ["inputs", "mpileup", "run", "calc_sig_and_plot", "freec2bed", "freec2circos", "cnv2igv", "convert_coordinates", "fill_regions", "normalize", "outputs"]
 )
 
 
@@ -581,10 +581,10 @@ rule _controlfreec_symlink_run_result:
     input:
         unpack(_get_run_result)
     output:
-        info = CFG["dirs"]["run_result"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
-        ratios = CFG["dirs"]["run_result"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
-        CNV = CFG["dirs"]["run_result"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
-        BAF = CFG["dirs"]["run_result"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
+        info = CFG["dirs"]["calc_sig_and_plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_info.txt",
+        ratios = CFG["dirs"]["calc_sig_and_plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
+        CNV = CFG["dirs"]["calc_sig_and_plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
+        BAF = CFG["dirs"]["calc_sig_and_plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
     run:
         op.relative_symlink(input.info, output.info, in_module = True)
         op.relative_symlink(input.ratios, output.ratios, in_module = True)
@@ -598,7 +598,7 @@ rule _controlfreec_calc_sig:
         CNV = str(rules._controlfreec_symlink_run_result.output.CNV),
         BAF = str(rules._controlfreec_symlink_run_result.output.BAF)
     output:
-        txt = CFG["dirs"]["calc_sig"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs.p.value.txt"
+        txt = CFG["dirs"]["calc_sig_and_plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs.p.value.txt"
     params:
         calc_sig = CFG["software"]["FREEC_sig"]
     threads:
@@ -610,7 +610,7 @@ rule _controlfreec_calc_sig:
     log:
         CFG["logs"]["calc_sig"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/calc_sig.log"
     shell:
-        "Rscript --vanilla {params.calc_sig} {input.CNV} {input.ratios} &> {log}"
+        "Rscript --vanilla {params.calc_sig} {input.CNV} {input.ratios} {output.txt} &> {log}"
 
 
 rule _controlfreec_plot:
@@ -620,9 +620,9 @@ rule _controlfreec_plot:
         CNV = str(rules._controlfreec_symlink_run_result.output.CNV),
         BAF = str(rules._controlfreec_symlink_run_result.output.BAF)
     output:
-        plot = CFG["dirs"]["plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt.png",
-        log2plot = CFG["dirs"]["plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt.log2.png",
-        bafplot = CFG["dirs"]["plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt.png"
+        plot = CFG["dirs"]["calc_sig_and_plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt.png",
+        log2plot = CFG["dirs"]["calc_sig_and_plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt.log2.png",
+        bafplot = CFG["dirs"]["calc_sig_and_plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt.png"
     params:
         plot = CFG["software"]["FREEC_graph"]
     threads: 1
