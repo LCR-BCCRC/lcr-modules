@@ -94,12 +94,12 @@ lcr-modules:
                 mem_mb: 16000
             mpileup:
                 mem_mb: 8000
+                pileup: 1
             cat:
                 mem_mb: 8000
                 pileup: 1
             controlfreec_run:
                 mem_mb: 48000
-                pileup: 1
             calc_sig:
                 mem_mb: 1000
             plot:
@@ -111,7 +111,6 @@ lcr-modules:
                 mem_mb: 1000
             post_controlfreec:
                 mem_mb: 2000
-                pileup: 1
 
 
         pairing_config:

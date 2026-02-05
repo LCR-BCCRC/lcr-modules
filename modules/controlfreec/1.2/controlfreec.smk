@@ -301,7 +301,7 @@ rule _controlfreec_mpileup_per_chrom:
     threads: 1
     resources:
         **CFG["resources"]["mpileup"]
-    group: "controlfreec"
+    group: "mpileup_controlfreec"
     log:
         stderr = CFG["logs"]["inputs"] + "mpileup/{seq_type}--{genome_build}/{sample_id}.{chrom}.mpileup.stderr.log",
     shell:
@@ -328,7 +328,7 @@ rule _controlfreec_concatenate_pileups:
     threads: 1
     resources:
         **CFG["resources"]["cat"]
-    group: "controlfreec"
+    group: "mpileup_controlfreec"
     shell:
         "cat {input.mpileup} > {output.mpileup} "
 
@@ -528,9 +528,12 @@ checkpoint _controlfreec_run:
         normal_bam = CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{normal_id}.bam_minipileup.pileup.gz"
     output:
         done = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/done"
-    conda: CFG["conda_envs"]["controlfreec"]
-    threads: CFG["threads"]["controlfreec_run"]
-    resources: **CFG["resources"]["controlfreec_run"]
+    conda:
+        CFG["conda_envs"]["controlfreec"]
+    threads:
+        CFG["threads"]["controlfreec_run"]
+    resources:
+        **CFG["resources"]["controlfreec_run"]
     log:
         log_contamTrue = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/run.contamTrue.log",
         log_contamFalse = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/run.contamFalse.log"
@@ -589,9 +592,12 @@ rule _controlfreec_calc_sig:
         txt = CFG["dirs"]["calc_sig"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs.p.value.txt"
     params:
         calc_sig = CFG["software"]["FREEC_sig"]
-    threads: CFG["threads"]["calc_sig"]
-    resources: **CFG["resources"]["calc_sig"]
-    conda: CFG["conda_envs"]["controlfreec"]
+    threads:
+        CFG["threads"]["calc_sig"]
+    resources:
+        **CFG["resources"]["calc_sig"]
+    conda:
+        CFG["conda_envs"]["controlfreec"]
     log:
         CFG["logs"]["calc_sig"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/calc_sig.log"
     shell:
@@ -611,8 +617,10 @@ rule _controlfreec_plot:
     params:
         plot = CFG["software"]["FREEC_graph"]
     threads: 1
-    resources: **CFG["resources"]["plot"]
-    conda: CFG["conda_envs"]["controlfreec"]
+    resources:
+        **CFG["resources"]["plot"]
+    conda:
+        CFG["conda_envs"]["controlfreec"]
     log:
         CFG["logs"]["plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/plot.log"
     shell:
@@ -629,9 +637,12 @@ rule _controlfreec_freec2bed:
         bed = CFG["dirs"]["freec2bed"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bed"
     params:
         freec2bed = CFG["software"]["freec2bed"]
-    threads: CFG["threads"]["freec2bed"]
-    resources: **CFG["resources"]["freec2bed"]
-    conda: CFG["conda_envs"]["controlfreec"]
+    threads:
+        CFG["threads"]["freec2bed"]
+    resources:
+        **CFG["resources"]["freec2bed"]
+    conda:
+        CFG["conda_envs"]["controlfreec"]
     log:
         stderr = CFG["logs"]["freec2bed"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/freec2bed.stderr.log"
     shell:
@@ -649,9 +660,12 @@ rule _controlfreec_freec2circos:
         circos = CFG["dirs"]["freec2circos"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.circos.bed"
     params:
         freec2circos = CFG["software"]["freec2circos"]
-    threads: CFG["threads"]["freec2circos"]
-    resources: **CFG["resources"]["freec2circos"]
-    conda: CFG["conda_envs"]["controlfreec"]
+    threads:
+        CFG["threads"]["freec2circos"]
+    resources:
+        **CFG["resources"]["freec2circos"]
+    conda:
+        CFG["conda_envs"]["controlfreec"]
     log:
         stderr = CFG["logs"]["freec2circos"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/freec2circos.stderr.log"
     shell:
