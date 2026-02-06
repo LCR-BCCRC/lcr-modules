@@ -36,7 +36,7 @@ lcr-modules:
 
         threads:
             preprocess: 8
-            gridss: 8 # WARNING: GRIDSS scales sub-linearly at high thread count. Up to 8 threads is the recommended level of parallelism.
+            gridss: 8 # WARNING: higher than 8 threads is not recommended, as GRIDSS scales linearly after that amount
             repeatmasker: 24
             filter_gridss: 1
             gripss: 1 # Not multi-threaded, but we don't want it to run locally
