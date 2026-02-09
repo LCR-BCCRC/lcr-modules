@@ -314,7 +314,7 @@ def _get_chr_mpileups(wildcards):
         chrs = f.read().rstrip("\n").split("\n")
 
     mpileups = expand(
-        CFG["dirs"]["mpileup"] + "{{seq_type}}--{{genome_build}}/{{sample_id}}.{chrom}.minipileup.pileup.gz",
+        [str(rules._controlfreec_mpileup_per_chrom.output.pileup)],
         chrom = chrs
     )
     return mpileups
@@ -608,7 +608,7 @@ rule _controlfreec_calc_sig:
     conda:
         CFG["conda_envs"]["controlfreec"]
     log:
-        CFG["logs"]["calc_sig"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/calc_sig.log"
+        CFG["logs"]["calc_sig_and_plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/calc_sig.log"
     shell:
         "Rscript --vanilla {params.calc_sig} {input.CNV} {input.ratios} {output.txt} &> {log}"
 
@@ -631,7 +631,7 @@ rule _controlfreec_plot:
     conda:
         CFG["conda_envs"]["controlfreec"]
     log:
-        CFG["logs"]["plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/plot.log"
+        CFG["logs"]["calc_sig_and_plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/plot.log"
     shell:
         "Rscript --vanilla {params.plot} `grep \"Output_Ploidy\" {input.info} | cut -f 2` {input.ratios} {input.BAF} &> {log}"
 
