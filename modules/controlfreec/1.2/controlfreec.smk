@@ -315,7 +315,8 @@ def _get_chr_mpileups(wildcards):
 
     mpileups = expand(
         [str(rules._controlfreec_mpileup_per_chrom.output.pileup)],
-        chrom = chrs
+        chrom = chrs,
+        **wildcards
     )
     return mpileups
 
