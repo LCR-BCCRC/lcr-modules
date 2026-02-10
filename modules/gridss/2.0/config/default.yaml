@@ -36,10 +36,10 @@ lcr-modules:
 
         threads:
             preprocess: 8
-            gridss: 24
+            gridss: 8 # WARNING: higher than 8 threads is not recommended, as GRIDSS scales linearly after that amount
             repeatmasker: 24
             filter_gridss: 1
-            gripss: 1 # Not multi-threaded
+            gripss: 1 # Not multi-threaded, but we don't want it to run locally
             split: 1
 
         resources:
