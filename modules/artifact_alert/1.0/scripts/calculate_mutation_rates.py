@@ -4,6 +4,7 @@ import pandas as pd
 import re
 from dataclasses import dataclass
 from typing import Optional, Dict
+import gzip
 
 @dataclass
 class BaseCounts:
@@ -245,13 +246,13 @@ def write_results(results: list, output_file: str):
             print(f"  {col}: {results_df[col].mean():.8f}")
         
         # Write to file
-        results_df.to_csv(output_file, sep='\t', index=False)
+        results_df.to_csv(output_file, sep='\t', index=False, compression="gzip")
         
     else:
         print("No positions met criteria - creating empty output file")
         empty_df = pd.DataFrame(columns=['chromosome', 'position', 'ref_base', 
                                          'A', 'T', 'C', 'G', 'INS', 'DEL'])
-        empty_df.to_csv(output_file, sep='\t', index=False)
+        empty_df.to_csv(output_file, sep='\t', index=False, compression="gzip")
 
 
 def main():
