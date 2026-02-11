@@ -1,27 +1,19 @@
 lcr-modules:
   _shared:
     # lcr modules config
-    lcr-modules: "/home/kyakimovich/repos/lcr-modules/"
-    lcr-scripts: "/home/kyakimovich/repos/lcr-scripts/"
-    root_output_dir: "/projects/rmorin_scratch/prospective_rrDLBCL_trial_data/pipeline_outputs/"
-    pairing_config:
-      genome:
-          run_paired_tumours: True
-          run_unpaired_tumours_with: "unmatched_normal"
-          run_paired_tumours_as_unpaired: False
-      capture:
-          run_paired_tumours: True
-          run_unpaired_tumours_with: "no_normal"
-          run_paired_tumours_as_unpaired: False
+    lcr-modules: ".../repos/lcr-modules/"
+    lcr-scripts: ".../lcr-scripts/"
+    root_output_dir: ".../pipeline_outputs/"
     # baseoutdir: deprecated, use root_output_dir
     ref_genome: "/projects/rmorin/reference/igenomes/Homo_sapiens/GSC/GRCh38/Sequence/WholeGenomeFasta/GRCh38_no_alt.fa"
     # panel info
     ref_genome_ver: "GRCh38"  # GRCh37 if GRCh37/hg19, GRCh38 if GRCh38/hg38
   artifact_alert:
     input_bam: 
-    target_bed: "/projects/rmorin_scratch/prospective_rrDLBCL_trial_data/bed_files/pipeline_bed_files/cfDNA_hg38panel_genes_ashm_2025-01-22.bed"
+    target_bed: "/.../.bed"
+    panel_name: ""
 
-    # pileip config
+    # pileup options
     min_mapq: 20
     min_baseq: 20
 

@@ -6,14 +6,6 @@ A Snakemake workflow for calculating the background mutation rates across captur
 
 Artifact Alert generates position-specific background error profiles from a cohort of samples. By calculating mutation rates at each genomic position across multiple samples, it helps distinguish true somatic variants from recurrent technical artifacts in NGS data.
 
-### Why do I need this? 🤔
-
-Next-generation sequencing isn't perfect! Certain genomic contexts are prone to systematic errors:
-- 🧵 **Homopolymers** - Those pesky AAAAAAA stretches
-- 🔁 **Tandem repeats** - CACACACA causing polymerase slippage
-- 📊 **Extreme GC content** - PCR bias anyone?
-- ⚠️ **Mapping ambiguities** - Reads getting lost in repetitive regions
-
 This workflow creates a **background mutation rate index** that captures these systematic errors, allowing you to filter out likely artifacts in your variant calls.
 
 ## 🔬 Workflow Steps
@@ -39,14 +31,14 @@ Combines all samples to create a cohort-wide background mutation profile.
 
 ## 📂 Output Structure
 
-artifact_alert/1.0/{PANEL_NAME}/
-├── 01-pileup/
-│   └── {sample_id}.pileup
-├── 02-mutation_rates/
-│   └── {sample_id}_mutation_rates.tsv
-├── 03-aggregated/
-│   └── background_mutation_rates.tsv  ⭐ (Final output!)
-└── logs/
+- `artifact_alert/1.0/{PANEL_NAME}/`
+  - `01-pileup/`
+    - `{sample_id}.pileup`
+  - `02-mutation_rates/`
+    - `{sample_id}_mutation_rates.tsv`
+  - `03-aggregated/`
+    - `background_mutation_rates.tsv` ⭐ **(Final output!)**
+  - `logs/`
 
 # Usage
 
