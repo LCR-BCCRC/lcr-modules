@@ -40,7 +40,9 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "controlfreec",
     version = "1.2",
-    subdirectories = ["inputs", "mpileup", "run", "calc_sig_and_plot", "freec2bed", "freec2circos", "cnv2igv", "convert_coordinates", "fill_regions", "normalize", "outputs"]
+    subdirectories = ["inputs", "mpileup", "run", "calc_sig_and_plot",
+    "freec2bed", "freec2circos", "cnv2igv", "convert_coordinates",
+    "fill_regions", "normalize", "outputs"]
 )
 
 
@@ -866,7 +868,6 @@ rule _controlfreec_output:
         op.relative_symlink(input.CNV, output.CNV, in_module = True)
         op.relative_symlink(input.bed, output.bed, in_module = True)
         op.relative_symlink(input.BAFgraph, output.BAFgraph, in_module = True)
-        op.relative_symlink(input.ratios, output.ratios, in_module = True)
         op.relative_symlink(input.circos, output.circos, in_module = True)
         op.relative_symlink(input.igv, output.igv, in_module = True)
 
