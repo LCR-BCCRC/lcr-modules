@@ -5,13 +5,6 @@ All notable changes to the `sequenza` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-
-## [1.4] - 2021-01-17
-
-This release was authored by Kostiantyn Dreval.
-
-- This update includes several new features, such as: cram support, filtering of variants that falls in ENCODE blacklisted regions, version check of oncopipe module, and handling of input and output symlinks.
-
 ## [1.4] - 2026-02-11
 
 Additional changes not requiring a version bump, existing files will be overwritten instead. Authored by Sierra Gillis.
@@ -25,6 +18,12 @@ Additional changes not requiring a version bump, existing files will be overwrit
 - cleaned up formatting to be consistent between all CNV calling modules
 - update rule all to prevent ambiguous wildcards
 - better resource control
+
+## [1.4] - 2021-01-17
+
+This release was authored by Kostiantyn Dreval.
+
+- This update includes several new features, such as: cram support, filtering of variants that falls in ENCODE blacklisted regions, version check of oncopipe module, and handling of input and output symlinks.
 
 ## [1.3] - 2020-07-17
 
