@@ -698,7 +698,6 @@ rule _controlfreec_cnv2igv:
     threads: 1
     log:
         stderr = CFG["logs"]["cnv2igv"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/cnv2igv.stderr.log"
-    group: "controlfreec_post_process"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
@@ -728,7 +727,6 @@ rule _controlfreec_convert_coordinates:
         liftover_minmatch = CFG["options"]["liftover_minMatch"]
     conda:
         CFG["conda_envs"]["liftover"]
-    group: "controlfreec_post_process"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -776,7 +774,6 @@ rule _controlfreec_fill_segments:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
     conda:
         CFG["conda_envs"]["bedtools"]
-    group: "controlfreec_post_process"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -810,7 +807,6 @@ rule _controlfreec_normalize_projection:
     resources:
         **CFG["resources"]["post_controlfreec"]
     threads: 1
-    group: "controlfreec_post_process"
     run:
         # read the main chromosomes file of the projection
         chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
@@ -838,7 +834,6 @@ rule _controlfreec_output_projection:
     output:
         projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{masked}/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
     threads: 1
-    group: "controlfreec_post_process"
     run:
         op.relative_symlink(input.projection, output.projection, in_module = True)
 
@@ -861,7 +856,6 @@ rule _controlfreec_output:
         BAFgraph = CFG["dirs"]["outputs"] + "png/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.BAF.png",
         circos = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.circos.bed",
         igv = CFG["dirs"]["outputs"] + "seg/{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}.CNVs.seg"
-    group: "controlfreec_post_process"
     run:
         op.relative_symlink(input.plot, output.plot, in_module = True)
         op.relative_symlink(input.log2plot, output.log2plot, in_module = True)
