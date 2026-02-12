@@ -1,4 +1,0 @@
-chromosome	position	ref_base	depth	total_bases	ref_count	snv_alt_count	indel_alt_count	total_alt_count	A_count	T_count	G_count	C_count	deletion_count	insertion_count	snv_rate	indel_rate	total_mutation_rate
-chr17	7670588	G	211	211	211	0	1	1	0	0	0	0	1	0	0.0	0.004739336492890996	0.004739336492890996
-chr17	7670625	T	261	261	260	1	1	2	1	0	0	0	1	0	0.0038314176245210726	0.0038314176245210726	0.007662835249042145
-chr17	7673125	C	96	96	96	0	53	53	0	0	0	0	11	42	0.0	0.5520833333333334	0.5520833333333334
