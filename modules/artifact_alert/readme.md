@@ -1,76 +1,81 @@
-# 🚨 Artifact Alert 🧬
+# 🚨 Artifact Alert — Module README 🧬
 
-A Snakemake workflow for calculating the background mutation rates across capture panels to identify genomic positions prone to technical artifacts.
+A Snakemake workflow that builds a position-specific background mutation-rate index. Assists in alerting you to positions with recurrent technical artifacts (and real mutations) in NGS data. Can be run on capture panels small and large, WES. As long as you have a bed file.
 
 ## 📋 Overview
+Artifact Alert computes per-sample, per-position mutation rates (A, T, C, G, INS, DEL) and aggregates them across a cohort to produce a bgzip-compressed, tabix-indexed background mutation-rate index. The index is suitable for fast genomic lookups and for filtering likely technical artifacts from variant calls.
 
-Artifact Alert generates position-specific background error profiles from a cohort of samples. By calculating mutation rates at each genomic position across multiple samples, it helps distinguish true somatic variants from recurrent technical artifacts in NGS data.
-
-This workflow creates a **background mutation rate index** that captures these systematic errors, allowing you to filter out likely artifacts in your variant calls.
+Key points:
+- Per-sample mutation-rate tables are computed, then aggregated across samples.
+- Supports incremental updates: you can add new samples into an existing index.
+- Per-chromosome parallel processing for speed; each chromosome is position-sorted before concatenation.
+- Processed samples are tracked in a `sample_tracker` file to avoid duplication.
+- can trigger remaking index from scratch by deleting the sample tracking file, or setting `reset_mutation_index` to `True` in the config.
+- The final output index files are given to snakemake as params NOT outputs. So snakemake will never delete them itself.
 
 ## 🔬 Workflow Steps
 
-
 ### 1️⃣ Generate Pileup (`generate_pileup`)
-Creates a pileup file for each sample at targeted genomic positions.
-- Uses `samtools mpileup`
-- Filters by mapping quality and base quality
-- Restricts analysis to regions defined in target BED file
+Creates a pileup for each sample at targeted positions.
+- Uses `samtools mpileup`.
+- Filters by mapping and base quality.
+- Restricts to regions in the target BED file.
+- Output per-sample: `{sample_id}.pileup` (under `01-pileup/`).
 
 ### 2️⃣ Calculate Mutation Rates (`calculate_mutation_rates`)
 Computes position-specific mutation rates for each sample.
-- Calculates mean error rate for each alternate base (A, T, C, G, INS, DEL)
-- Applies minimum depth filtering
-- Outputs per-sample mutation rate tables
+- Calculates per-position error rates for alternate bases: `A`, `T`, `C`, `G`, `INS`, `DEL`.
+- Applies minimum depth and other filters.
+- Outputs per-sample mutation rate table: `{sample_id}_mutation_rates.tsv[.gz]` (under `02-mutation_rates/`).
 
 ### 3️⃣ Aggregate Mutation Rates (`aggregate_mutation_rates`)
-Combines all samples to create a cohort-wide background mutation profile.
-- Calculates mean and standard deviation across samples
-- Produces final **background mutation rate index**
-- One row per genomic position with summary statistics
+Combines per-sample tables to create the cohort-wide background profile.
+- Aggregates mean, standard deviation, and `M2` (see below) for each mutation type at every position.
+- Supports reading an existing bgzip+tabix aggregated file and merging new samples without reprocessing old ones.
+- Writes one bgzip-compressed, tabix-indexed file: `background_mutation_rates.tsv.gz` (under `03-aggregated/`).
 
-## 📂 Output Structure
-
+## 📂 Output structure
 - `artifact_alert/1.0/{PANEL_NAME}/`
   - `01-pileup/`
     - `{sample_id}.pileup`
   - `02-mutation_rates/`
-    - `{sample_id}_mutation_rates.tsv`
+    - `{sample_id}_mutation_rates.tsv` or `.tsv.gz`
   - `03-aggregated/`
-    - `background_mutation_rates.tsv` ⭐ **(Final output!)**
+    - `background_mutation_rates.tsv.gz` (bgzip + tabix) — final index
   - `logs/`
+  - `sample_tracker` (tracks processed sample IDs)
 
-# Usage
+## Usage (minimal example)
+Provide a sample table with at least a `sample_id` column and include the Snakemake module:
 
-The only required column for this module is "sample_id"
+```/dev/null/usage_example.py#L1-9
+configfile: "path/to/config.yaml"
 
-```
-import pandas as pd
-
-configfile: path/to/config
-
-sample_table = pd.read_csv(input_file)
-
+# Provide a table with at least a `sample_id` column
+sample_table = pd.read_csv("samples.tsv")
 config["lcr-modules"]["_shared"]["samples"] = sample_table
 
-include: ".../artifact_alert/1.0/FetchMutationRate.smk"
-
-rule execute_mut_rate_pipe:
-    input:
-        str(rules.FetchMutationRate.input)
+include: "artifact_alert/1.0/FetchMutationRate.smk"
 ```
 
-# Output format
+## Output format (columns)
+Column | Description
+---|---
+`chromosome` | Chromosome name
+`position` | Genomic position (1-based)
+`ref_base` | Reference base
+`n_samples` | Number of samples contributing to that position
+`A_mean`, `A_std`, `A_M2` | Mean, std dev, and M2 for A errors
+`T_mean`, `T_std`, `T_M2` | Mean, std dev, and M2 for T errors
+`C_mean`, `C_std`, `C_M2` | Mean, std dev, and M2 for C errors
+`G_mean`, `G_std`, `G_M2` | Mean, std dev, and M2 for G errors
+`INS_mean`, `INS_std`, `INS_M2` | Mean, std dev, and M2 for insertion errors
+`DEL_mean`, `DEL_std`, `DEL_M2` | Mean, std dev, and M2 for deletion errors
 
-Column | Description |
-|--------|-------------|
-| `chromosome` | Chromosome name |
-| `position` | Genomic position |
-| `ref_base` | Reference base |
-| `n_samples` | Number of samples with coverage |
-| `A_mean`, `A_std` | Mean and std dev for A errors |
-| `T_mean`, `T_std` | Mean and std dev for T errors |
-| `C_mean`, `C_std` | Mean and std dev for C errors |
-| `G_mean`, `G_std` | Mean and std dev for G errors |
-| `INS_mean`, `INS_std` | Mean and std dev for insertion errors |
-| `DEL_mean`, `DEL_std` | Mean and std dev for deletion errors
+## Why we include `*_M2`
+- `M2` is the running sum of squared deviations from the mean used by Welford’s algorithm.
+- From `M2` you compute the sample variance as: variance = M2 / (n - 1) (for n ≥ 2) and `std = sqrt(variance)`.
+- Storing `M2` makes incremental updates exact and numerically stable: you can merge an existing aggregated record with new samples without re-reading all original raw data.
+
+## How on-the-fly aggregation is done (Welford)
+Per-position accumulators are implemented in `MutationStats` / `PositionData` / `ChromIndex`. When you add a single new sample value `x` for a position, Welford’s online update is applied so mean and `M2` are updated without storing all individual sample values:

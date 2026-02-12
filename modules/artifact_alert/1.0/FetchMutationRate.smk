@@ -30,12 +30,10 @@ if RESET_INDEX:
     index_file = f"{aggregated_file}.tbi"
     
     if os.path.exists(aggregated_file):
-        os.chmod(aggregated_file, 0o644)  # Make writable if protected
         os.remove(aggregated_file)
         print(f"Reset: Removed {aggregated_file}")
     
     if os.path.exists(index_file):
-        os.chmod(index_file, 0o644)
         os.remove(index_file)
         print(f"Reset: Removed {index_file}")
 
@@ -72,7 +70,7 @@ rule generate_pileup:
     input:
         bam= config["lcr-modules"]["artifact_alert"]["input_bam"], 
     output:
-        pileup= os.path.join(OUTDIR, "01-pileup", "{sample_id}_{chrom}.pileup")
+        pileup= temp(os.path.join(OUTDIR, "01-pileup", "{sample_id}_{chrom}.pileup"))
     params:
         ref= config["lcr-modules"]["_shared"]["ref_genome"],
         bed= config["lcr-modules"]["artifact_alert"]["target_bed"],
@@ -109,7 +107,7 @@ rule calculate_mutation_rates:
     input:
         pileup=rules.generate_pileup.output.pileup
     output:
-        mutation_rates= os.path.join(OUTDIR, "02-mutation_rates", "{sample_id}_{chrom}_mutation_rates.tsv.gz")
+        mutation_rates= temp(os.path.join(OUTDIR, "02-mutation_rates", "{sample_id}_{chrom}_mutation_rates.tsv.gz"))
     params:
         min_depth=config["lcr-modules"]["artifact_alert"]["min_depth"],
     conda:
@@ -143,9 +141,9 @@ rule aggregate_mutation_rates:
         index = os.path.join(OUTDIR, "03-aggregated", "background_mutation_rates.tsv.gz.tbi")
     conda:
         "envs/samtools.yaml"
-    threads: 12
+    threads: config["lcr-modules"]["artifact_alert"]["agg_threads"]
     resources:
-        mem_mb = lambda wildcards, threads: threads * 6000
+        mem_mb = lambda wildcards, threads: threads * int(config["lcr-modules"]["artifact_alert"]["agg_mem_per_thread"])
     log:
         os.path.join(LOGDIR, "03-aggregated", "aggregate_mutation_rates.log")
     shell:
@@ -160,6 +158,6 @@ rule aggregate_mutation_rates:
             --log {log} >> {log} 2>&1
         """
 
-rule all:
+rule all_artifact_alert:
     input:
         rules.aggregate_mutation_rates.output.sentinel

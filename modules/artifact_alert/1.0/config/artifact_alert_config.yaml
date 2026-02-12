@@ -12,6 +12,7 @@ lcr-modules:
     input_bam: 
     target_bed: "/.../.bed"
     panel_name: ""
+    reset_mutation_index: False
 
     # pileup options
     min_mapq: 20
@@ -22,3 +23,8 @@ lcr-modules:
 
     # agg mut rates
     min_samples_coverage: 3
+
+    # aggregation resources
+    agg_threads: 12 # script parallelizes by chr
+    # pretty memory efficient, but needs to keep versions two instances of a a whole chroms index
+    agg_mem_per_thread: 4000
