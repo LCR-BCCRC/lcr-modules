@@ -279,7 +279,7 @@ rule _controlfreec_dbsnp_to_bed:
 
 #### Rules for getting inputs related to the bam files
 # Symlinks the input files into the module results directory (under '00-inputs/')
-checkpoint _controlfreec_input_bam:
+rule _controlfreec_input_bam:
     input:
         bam = ancient(CFG["inputs"]["sample_bam"]),
         bai = ancient(CFG["inputs"]["sample_bai"])
