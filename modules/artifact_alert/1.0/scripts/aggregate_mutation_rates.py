@@ -405,12 +405,12 @@ def process_chromosome(args: Tuple) -> Optional[pd.DataFrame]:
     # STEP 3: Write out chromosome results as temp file
     chrom_df = MasterChrIndex.get_all_positions_as_df()
     if chrom_df.empty:
-        return None
+        return (chromosome, None)
     
     temp_file = os.path.join(temp_dir, f"{chromosome}_aggregated_temp.tsv")
     chrom_df.to_csv(temp_file, sep="\t", index=False)
 
-    return temp_file
+    return  (chromosome, temp_file)
 
 
 def aggregate_all_chromosomes(new_files: List[str], update: bool, existing_file: str,
@@ -458,26 +458,18 @@ def aggregate_all_chromosomes(new_files: List[str], update: bool, existing_file:
 
     log(f"Processing {len(process_args)} chromosomes in parallel with {threads} threads...", log_file)
     # Process chromosomes in parallel - returns temp file paths
-    temp_files = []
+    temp_pairs = []
     with Pool(processes=threads) as pool:
         for i, result in enumerate(pool.imap_unordered(process_chromosome, process_args), 1):
-            temp_files.append(result)
+            chrom, temp_file = result
+            if temp_file is not None:
+                temp_pairs.append((chrom, temp_file))
             log(f"  Completed: {i}/{len(process_args)} chromosomes", log_file)
     
-    # Filter out None results and get chromosomes
-    chrom_file_pairs = []
-    for i, temp_file in enumerate(temp_files):
-        if temp_file is not None:
-            chrom = process_args[i][0]  # chromosome is first element of args tuple
-            chrom_file_pairs.append((chrom, temp_file))
-    
-    if len(chrom_file_pairs) == 0:
-        raise ValueError("No valid data produced from aggregation")
-    
-    # Sort by chromosome order
-    chrom_file_pairs.sort(key=lambda x: natural_sort_key(x[0]))
- 
-    return [f for _, f in chrom_file_pairs]  # Return file paths in order
+    # Sort by natural chrom order and return file paths
+    temp_pairs.sort(key=lambda x: natural_sort_key(x[0]))
+
+    return [f for _, f in temp_pairs]
 
 def bgzip_and_index(tsv_file: str, output_gz: str, seq_col: int = 0, 
                    start_col: int = 1, end_col: int = 1) -> str:
@@ -715,7 +707,7 @@ def main():
     log(f"\nFinished mutation rate aggregation: {datetime.datetime.now()}", log_file)
     finish_time = datetime.datetime.now()
     execution_time= finish_time - start_time
-    log(f"Total execution time: {execution_time}", file=log_file)
+    log(f"Total execution time: {execution_time}", log_file)
 
     if log_file != sys.stdout:
         log_file.close()
