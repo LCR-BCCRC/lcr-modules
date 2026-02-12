@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Aggregate Mutation Rates Accross multiple samples.
+Aggregate Mutation Rates across multiple samples.
 
 This script aggregates mutation rate data across multiple samples and chromosomes,
 supporting incremental updates to an existing mutation rate index.
@@ -40,149 +40,181 @@ from typing import List, Dict, Tuple, Optional
 from multiprocessing import Pool
 from dataclasses import dataclass
 from pathlib import Path
+import argparse
+import datetime
+import sys
+
+def parse_args():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(
+        description="Aggregate mutation rates across samples with incremental updates")
+    
+    parser.add_argument(
+        '-i', '--input',
+        nargs='+',
+        required=True,
+        help='Input mutation rate files (per-sample, per-chromosome .tsv.gz files)'
+    )
+    parser.add_argument(
+        '-o', '--output',
+        required=True,
+        help='Output aggregated mutation rates file (.tsv.gz, will be bgzip compressed and tabix indexed)'
+    )
+    parser.add_argument(
+        '-s', '--sample-ids',
+        nargs='+',
+        required=True,
+        help='Sample IDs being processed (used for tracking)'
+    )
+    parser.add_argument(
+        '-c', '--chromosomes',
+        nargs='+',
+        required=True,
+        help='Chromosome names (e.g., chr1 chr2 ... chrX chrY)'
+    )
+    parser.add_argument(
+        '-t', '--sample-tracker',
+        required=True,
+        help='Path to sample tracker file (tracks processed samples, one per line)'
+    )
+    parser.add_argument(
+        '--threads',
+        type=int,
+        default=1,
+        help='Number of parallel threads for chromosome processing (default: 1)'
+    )
+    parser.add_argument(
+        '--log',
+        default=None,
+        help='Path to log file (default: write to stdout)'
+    )
+    
+    return parser.parse_args()
 
 ALL_cols = ['chromosome', 'position', 'ref_base', 'A_mean', 'A_std', 'A_M2', 
             'T_mean', 'T_std', 'T_M2', 'C_mean', 'C_std', 'C_M2',
             'G_mean', 'G_std', 'G_M2', 'INS_mean', 'INS_std', 'INS_M2',
             'DEL_mean', 'DEL_std', 'DEL_M2', 'n_samples']
-MUTATION_COLS = ['A', 'T', 'C', 'G', 'INS', 'DEL']
+MUTATION_TYPES = ['A', 'T', 'C', 'G', 'INS', 'DEL']
 
 @dataclass
-class PositionStats:
+class MutationStats:
     """
-    Calculate running mean and variance for a genomic position using Welford's algorithm.
-    This data class holds the info for a single genomic position and mutation column.
-
+    Statistics for a single mutation type using Welford's algorithm.
+    Does not store n - that's shared at the position level.
+    
     Attributes:
-        n : int
-            Number of samples aggregated
         mean : float
             Running mean value
         M2 : float
-            Sum of squared differences from mean (used to calculate variance)
+            Sum of squared differences from mean
     """
     
-    def __init__(self, n: int = 0, mean: float = 0.0, M2: float = 0.0):
-        self.n = n
+    def __init__(self, mean: float = 0.0, M2: float = 0.0):
         self.mean = mean
         self.M2 = M2
     
-    def add_sample(self, value: float) -> None:
+    def add_sample(self, value: float, n: int) -> None:
         """
-        Add a new sample value to the running statistics.
-
+        Add a new sample value using Welford's algorithm.
+        
         Arguments:
             value : float
-                The new sample value to incorporate
+                The new sample value
+            n : int
+                Current sample count (after incrementing)
         """
-        self.n += 1
         delta = value - self.mean
-        self.mean += delta / self.n
+        self.mean += delta / n
         delta2 = value - self.mean
         self.M2 += delta * delta2
     
-    def get_variance(self) -> float:
-        """Return sample variance."""
-        if self.n < 2:
+    def get_variance(self, n: int) -> float:
+        """Return sample variance given n samples."""
+        if n < 2:
             return 0.0
-        return self.M2 / (self.n - 1)
+        return self.M2 / (n - 1)
     
-    def get_std(self) -> float:
-        """Return sample standard deviation."""
-        return np.sqrt(self.get_variance())
-    
-    def get_stats(self) -> Tuple[float, float, float, int]:
-        """
-        Return complete statistics tuple.
-        
-        Returns:
-        tuple : (mean, std, M2, n)
-            Mean, standard deviation, sum of squares, and sample count
-        """
-        return self.mean, self.get_std(), self.M2, self.n
-    
-    @staticmethod
-    def combine(stats1: 'PositionStats', stats2: 'PositionStats') -> 'PositionStats':
-        """
-        Combine two independent PositionStats objects.
-        
-        Uses the parallel algorithm for combining variances from two groups:
-        - Combined n = n1 + n2
-        - Combined mean = (n1*mean1 + n2*mean2) / (n1 + n2)
-        - Combined M2 = M2_1 + M2_2 + (mean1 - mean2)^2 * n1*n2/(n1+n2)
-        
-        Parameters:
-        -----------
-        stats1 : PositionStats
-            First set of statistics
-        stats2 : PositionStats
-            Second set of statistics
-            
-        Returns:
-        --------
-        PositionStats
-            Combined statistics
-        """
-        if stats1.n == 0:
-            return stats2
-        if stats2.n == 0:
-            return stats1
-        
-        n_combined = stats1.n + stats2.n
-        mean_combined = (stats1.n * stats1.mean + stats2.n * stats2.mean) / n_combined
-        
-        # Parallel variance combination formula
-        delta = stats2.mean - stats1.mean
-        M2_combined = stats1.M2 + stats2.M2 + delta * delta * stats1.n * stats2.n / n_combined
-        
-        return PositionStats(n=n_combined, mean=mean_combined, M2=M2_combined)
+    def get_std(self, n: int) -> float:
+        """Return sample standard deviation given n samples."""
+        return np.sqrt(self.get_variance(n))
 
-@dataclass
+
+class PositionData:
+    """
+    Holds all data for a single genomic position.
+    
+    Attributes:
+        n : int
+            Number of samples (shared across all mutation types)
+        ref : str
+            Reference base
+        mutations : dict
+            Maps mutation type -> MutationStats
+    """
+    
+    def __init__(self, ref: str, n: int = 0):
+        self.n = n
+        self.ref = ref
+        self.mutations: Dict[str, MutationStats] = {}
+    
+    def add_sample(self, mutation_values: Dict[str, float]) -> None:
+        """
+        Add one sample with values for all mutation types.
+        
+        Arguments:
+            mutation_values : dict
+                Maps mut_type -> value for this sample
+        """
+        self.n += 1  # Increment once per sample
+        
+        for mut_type, value in mutation_values.items():
+            if mut_type not in self.mutations:
+                self.mutations[mut_type] = MutationStats()
+            
+            self.mutations[mut_type].add_sample(value, self.n)
+
+    def get_mutation_stats(self, mut_type: str) -> Optional[MutationStats]:
+        """Get MutationStats for a specific mutation type."""
+        return self.mutations.get(mut_type)
+
 class ChromIndex:
     """
-    Holds statistics for all positions and mutation types in a chromosome.
+    Holds statistics for all positions in a chromosome.
     
     Attributes:
         chrom : str
             Chromosome name
         all_stats : dict
-            Maps position (int) -> dict(mut_type (str) -> PositionStats)
-            Example: all_stats[12345]['A'] = PositionStats(n=5, mean=0.001, M2=0.00002)
+            Maps position (int) -> PositionData
     """
     
     def __init__(self, chrom: str):
         self.chrom = chrom
-        self.all_stats: Dict[int, Dict[str, PositionStats]] = {}
-
-    def add_or_update(self, pos: int, ref_base: str, mut_type: str, stats: PositionStats) -> None:
+        self.all_stats: Dict[int, PositionData] = {}
+    
+    def add_sample(self, pos: int, ref: str, mutation_values: Dict[str, float]) -> None:
         """
-        Add new stats or combine with existing stats for a position and mutation type.
+        Add one sample's mutation values for a specific position.
         
-        Parameters:
+        Arguments:
             pos : int
                 Genomic position
-            mut_type : str
-                Mutation type (e.g., 'A', 'T', 'C', 'G', 'INS', 'DEL')
-            stats : PositionStats
-                Statistics to add or combine
+            ref : str
+                Reference base
+            mutation_values : dict
+                Maps mut_type -> value for this sample
         """
-        # if position not in index, instantiate
         if pos not in self.all_stats:
-            self.all_stats[pos] = {"ref": ref_base}
+            self.all_stats[pos] = PositionData(ref=ref)
         
-        if mut_type not in self.all_stats[pos]:
-            # New position+mut_type: store directly
-            self.all_stats[pos][mut_type] = stats
-        else:
-            # Already exists: combine
-            self.all_stats[pos][mut_type] = PositionStats.combine(
-                self.all_stats[pos][mut_type], 
-                stats
-            )
+        self.all_stats[pos].add_sample(mutation_values)
     
-    def get_stats(self, pos: int, mut_type: str) -> Optional[PositionStats]:
-        """Get PositionStats for a specific position and mutation type."""
-        return self.all_stats.get(pos, {}).get(mut_type)
+    def get_stats(self, pos: int, mut_type: str) -> Optional[MutationStats]:
+        """Get MutationStats for a specific position and mutation type."""
+        if pos not in self.all_stats:
+            return None
+        return self.all_stats[pos].get_mutation_stats(mut_type)
     
     def get_all_positions_as_df(self) -> pd.DataFrame:
         """Return DataFrame with all positions and mutation stats for this chromosome."""
@@ -190,28 +222,26 @@ class ChromIndex:
         
         rows = []
         for pos in sorted_positions:
+            pos_data = self.all_stats[pos]
+            
             row = {
                 'chromosome': self.chrom,
                 'position': pos,
-                'ref_base': self.all_stats[pos].get('ref', 'N')
+                'ref_base': pos_data.ref
             }
             
-            # Get stats for each mutation type
-            n_samples = 0
-            for mut in MUTATION_COLS:
-                stats = self.all_stats[pos].get(mut)
-                if stats:
-                    row[f'{mut}_mean'] = stats.mean
-                    row[f'{mut}_std'] = stats.get_std()
-                    row[f'{mut}_M2'] = stats.M2
-                    if n_samples == 0:
-                        n_samples = stats.n
+            # Add stats for each mutation type
+            for mut in MUTATION_TYPES:
+                mut_stats = pos_data.get_mutation_stats(mut)
+                if mut_stats:
+                    row[f'{mut}_mean'] = mut_stats.mean
+                    row[f'{mut}_std'] = mut_stats.get_std(pos_data.n)
+                    row[f'{mut}_M2'] = mut_stats.M2
             
-            row['n_samples'] = n_samples
+            row['n_samples'] = pos_data.n
             rows.append(row)
         
         return pd.DataFrame(rows)
-
 
 def natural_sort_key(chrom: str) -> Tuple[int, int, str]:
     """
@@ -293,32 +323,42 @@ def fetch_existing_chr_index(input_file: str, chrom: str) -> ChromIndex:
         ChromIndex with existing statistics loaded
     """
     chrom_index = ChromIndex(chrom)
-    
-    # Open tabix file
     tb = pysam.TabixFile(input_file)
-    
-    mutation_types = ['A', 'T', 'C', 'G', 'INS', 'DEL']
-    
-    for row in tb.fetch(chrom):
-        # Columns: chromosome(0), position(1), ref_base(2), then triplets of mean/std/M2 for each mut, n_samples(last)
-        pos = int(row[1])
-        ref_base = row[2]
-        n_samples = int(row[-1])  # last column
-        
-        # Parse each mutation type (columns 3-20, in groups of 3)
-        for i, mut_type in enumerate(mutation_types):
-            col_offset = 3 + (i * 3)
-            mean = float(row[col_offset])
-            std = float(row[col_offset + 1])
-            M2 = float(row[col_offset + 2])
-            
-            # Reconstruct PositionStats from saved values
-            stats = PositionStats(n=n_samples, mean=mean, M2=M2)
-            chrom_index.add_or_update(pos, ref_base, mut_type, stats)
-    
-    tb.close()
-    return chrom_index
 
+    try:
+        for row in tb.fetch(chrom, parser=pysam.asTuple()):
+            pos = int(row[1])
+            ref_base = row[2]
+            n_samples = int(row[-1])
+            
+            # Create PositionData with the n value
+            pos_data = PositionData(ref=ref_base, n=n_samples)
+            
+            # Parse each mutation type
+            for i, mut_type in enumerate(MUTATION_TYPES):
+                col_offset = 3 + (i * 3)
+                mean = float(row[col_offset])
+                std = float(row[col_offset + 1])
+                M2 = float(row[col_offset + 2])
+
+                # Store MutationStats (without n)
+                pos_data.mutations[mut_type] = MutationStats(mean=mean, M2=M2)
+            
+            chrom_index.all_stats[pos] = pos_data
+    
+    except (StopIteration, ValueError) as e:
+        # StopIteration: normal end of iteration
+        # ValueError: chromosome not in file (e.g., "could not create iterator for region")
+        if isinstance(e, ValueError) and "could not create iterator" in str(e):
+            print(f"Warning: Chromosome {chrom} not found in existing file. Starting fresh for this chromosome.")
+        elif isinstance(e, ValueError):
+            # Some other ValueError - re-raise it
+            raise
+        # If StopIteration, just pass (normal end)
+    finally:
+        tb.close()
+
+    return chrom_index
 
 def process_chromosome(args: Tuple) -> Optional[pd.DataFrame]:
     """
@@ -342,16 +382,13 @@ def process_chromosome(args: Tuple) -> Optional[pd.DataFrame]:
     """
     chromosome, new_files, update, existing_file, mutation_types, temp_dir = args
     
-    # STEP 1 read in existing index, if exists
+    # STEP 1: Load existing index if it exists
     if update and existing_file:
         MasterChrIndex = fetch_existing_chr_index(existing_file, chromosome)
     else:
         MasterChrIndex = ChromIndex(chromosome)
-    
-    print(f"Processing chromosome {chromosome}: {len(new_files)} new samples")
-    
-
-    # STEP 2: Process new sample files ONE AT A TIME (memory efficient)
+        
+    # STEP 2: Process new sample files ONE AT A TIME
     for file in new_files:
         new_sample = pd.read_csv(file, sep="\t", compression="gzip")
         
@@ -359,38 +396,34 @@ def process_chromosome(args: Tuple) -> Optional[pd.DataFrame]:
             pos = row.position
             ref = row.ref_base
             
-            for mut_type in mutation_types:
-                value = getattr(row, mut_type)
-                
-                # If stats exist, add sample directly; otherwise create new
-                existing_stats = MasterChrIndex.get_stats(pos, mut_type)
-                if existing_stats:
-                    existing_stats.add_sample(value)
-                else:
-                    MasterChrIndex.add_or_update(pos, ref, mut_type, PositionStats(n=1, mean=value, M2=0.0))
-
-
+            # Collect all mutation values for this position
+            mutation_values = {mut_type: getattr(row, mut_type) for mut_type in mutation_types}
+            
+            # Add to ChromIndex (handles creation if needed)
+            MasterChrIndex.add_sample(pos, ref, mutation_values)
+    
     # STEP 3: Write out chromosome results as temp file
     chrom_df = MasterChrIndex.get_all_positions_as_df()
     if chrom_df.empty:
         return None
-    else:
-        temp_file = os.path.join(temp_dir, f"{chromosome}_aggregated_temp.tsv")
-        chrom_df.to_csv(temp_file, sep="\t", index=False)
-        print(f"  Wrote chromosome {chromosome} stats to {temp_file}")
-        return temp_file
+    
+    temp_file = os.path.join(temp_dir, f"{chromosome}_aggregated_temp.tsv")
+    chrom_df.to_csv(temp_file, sep="\t", index=False)
+
+    return temp_file
 
 
 def aggregate_all_chromosomes(new_files: List[str], update: bool, existing_file: str,
                               chromosomes: List[str], mutation_types: List[str],
-                              threads: int, temp_dir: str) -> List[str]:
- """
+                              threads: int, temp_dir: str,
+                              log_file) -> List[str]:
+    """
     Aggregate mutation rates across all chromosomes in parallel.
-    
+
     Processes each chromosome independently, aggregating new sample data and merging
     with existing aggregated data if present. Writes results to temporary files for
     memory-efficient streaming concatenation.
-    
+
     Arguments:
         new_files : list of str
             New mutation rate files to process ({sample_id}_{chrom}_mutation_rates.tsv.gz)
@@ -399,7 +432,7 @@ def aggregate_all_chromosomes(new_files: List[str], update: bool, existing_file:
         chromosomes : list of str
             List of chromosome names (e.g., ['chr1', 'chr2', ...] or ['1', '2', ...])
         mutation_types : list of str
-            Mutation type column names (e.g., ['A', 'T', 'C', 'G', 'INS', 'DEL'])
+            Mutation type column names
         threads : int
             Number of parallel worker processes
         temp_dir : str
@@ -422,12 +455,14 @@ def aggregate_all_chromosomes(new_files: List[str], update: bool, existing_file:
             continue
         # Args: (chromosome, new_files, update, existing_file, mutation_types, temp_dir)
         process_args.append((chrom, new_chrom_files, update, existing_file, mutation_types, temp_dir))
-    
-    print(f"\nProcessing {len(process_args)} chromosomes in parallel with {threads} threads...")
-    
+
+    log(f"Processing {len(process_args)} chromosomes in parallel with {threads} threads...", log_file)
     # Process chromosomes in parallel - returns temp file paths
+    temp_files = []
     with Pool(processes=threads) as pool:
-        temp_files = pool.map(process_chromosome, process_args)
+        for i, result in enumerate(pool.imap_unordered(process_chromosome, process_args), 1):
+            temp_files.append(result)
+            log(f"  Completed: {i}/{len(process_args)} chromosomes", log_file)
     
     # Filter out None results and get chromosomes
     chrom_file_pairs = []
@@ -441,8 +476,7 @@ def aggregate_all_chromosomes(new_files: List[str], update: bool, existing_file:
     
     # Sort by chromosome order
     chrom_file_pairs.sort(key=lambda x: natural_sort_key(x[0]))
-    
-    print(f"\nProcessed {len(chrom_file_pairs)} chromosomes")
+ 
     return [f for _, f in chrom_file_pairs]  # Return file paths in order
 
 def bgzip_and_index(tsv_file: str, output_gz: str, seq_col: int = 0, 
@@ -466,21 +500,26 @@ def bgzip_and_index(tsv_file: str, output_gz: str, seq_col: int = 0,
         str
             Path to tabix index file (.tbi)
     """
+    # Write to temporary files first
+    temp_gz = output_gz + '.tmp'
+    temp_tbi = temp_gz + '.tbi'
+
     # Compress with bgzip
-    pysam.tabix_compress(tsv_file, output_gz, force=True)
+    pysam.tabix_compress(tsv_file, temp_gz, force=True)
     
     # Create tabix index
-    print(f"Creating tabix index...")
     index_file = pysam.tabix_index(
-        output_gz,
+        temp_gz,
         preset=None,
         seq_col=seq_col,
         start_col=start_col,
         end_col=end_col,
-        meta_char='#',
+        line_skip=1,
         zerobased=True,
         force=True
     )
+    shutil.move(temp_gz, output_gz)
+    shutil.move(temp_tbi, output_gz + '.tbi')
     return index_file
 
 
@@ -499,9 +538,7 @@ def append_samples_to_tracker(tracker_file: str, sample_ids: List[str]) -> None:
     """
     if len(sample_ids) == 0:
         return
-    
-    print(f"\nUpdating sample tracker: {tracker_file}")
-    
+
     # Create parent directory if needed
     os.makedirs(os.path.dirname(tracker_file), exist_ok=True)
     
@@ -509,8 +546,6 @@ def append_samples_to_tracker(tracker_file: str, sample_ids: List[str]) -> None:
     with open(tracker_file, 'a') as f:
         for sample_id in sample_ids:
             f.write(f"{sample_id}\n")
-    
-    print(f"  Added {len(sample_ids)} samples to tracker")
 
 
 def aggregate_mutation_rates(input_files: List[str], output_file: str, 
@@ -519,35 +554,30 @@ def aggregate_mutation_rates(input_files: List[str], output_file: str,
     """
     Main aggregation pipeline: process samples and write bgzip-compressed, tabix-indexed output.
     """
-    def log(msg, flush=False):
-        print(msg, file=log_file)
-        print(msg)
-        if flush:
-            log_file.flush()
-    
-    log(f"{'='*60}")
-    log(f"MUTATION RATE AGGREGATION")
-    log(f"{'='*60}\n")
-    log(f"Number of new samples: {len(sample_ids)}")
-    log(f"Number of input files: {len(input_files)}")
-    log(f"Output file: {output_file}")
-    log(f"Threads: {threads}\n")
+
+    log(f"{'='*60}", log_file)
+    log(f"MUTATION RATE AGGREGATION", log_file)
+    log(f"{'='*60}\n", log_file)
+    log(f"Number of new samples: {len(sample_ids)}", log_file)
+    log(f"Number of input files: {len(input_files)}", log_file)
+    log(f"Output file: {output_file}", log_file)
+    log(f"Threads: {threads}\n", log_file)
     
     # Early exit if no files to process
     if len(input_files) == 0:
-        log("No input files to process. Exiting.")
+        log("No input files to process. Exiting.", log_file)
         return
 
-    log(f"Mutation types: {MUTATION_COLS}\n", flush=True)
+    log(f"Mutation types: {MUTATION_TYPES}\n", log_file, flush=True)
 
     # Check if we're updating an existing file
     existing_file = output_file if os.path.exists(output_file) else ""
     update_existing = bool(existing_file)
     
     if update_existing:
-        log(f"Existing aggregated file found. Will update with new samples.\n")
+        log(f"Existing aggregated file found. Will update with new samples.\n", log_file)
     else:
-        log(f"No existing aggregated file. Creating new index.\n")
+        log(f"No existing aggregated file. Creating new index.\n", log_file)
     
     # Create temp directory
     temp_dir = os.path.join(os.path.dirname(output_file), 'temp_chroms')
@@ -559,13 +589,14 @@ def aggregate_mutation_rates(input_files: List[str], output_file: str,
         update=update_existing,
         existing_file=existing_file,
         chromosomes=chromosomes,
-        mutation_types=MUTATION_COLS,
+        mutation_types=MUTATION_TYPES,
         threads=threads,
-        temp_dir=temp_dir
+        temp_dir=temp_dir,
+        log_file= log_file
     )
     
     # Concatenate temp files with pandas
-    log(f"\nConcatenating {len(temp_files)} chromosome files...")
+    log(f"\nConcatenating {len(temp_files)} chromosome files...", log_file)
     
     dfs = []
     for temp_file in temp_files:
@@ -573,17 +604,17 @@ def aggregate_mutation_rates(input_files: List[str], output_file: str,
         dfs.append(df)
     
     combined_df = pd.concat(dfs, ignore_index=True)
-    log(f"  Combined {len(combined_df):,} total positions")
+    log(f"  Combined {len(combined_df):,} total positions", log_file)
     
     # Write final output and compress
-    log(f"\nCompressing and indexing...")
+    log(f"\nCompressing and indexing...", log_file)
     final_temp = output_file.replace('.tsv.gz', '_temp.tsv')
     combined_df.to_csv(final_temp, sep="\t", index=False)
     
     index_file = bgzip_and_index(final_temp, output_file, seq_col=0, start_col=1, end_col=1)
     
     # Clean up temporary files
-    log(f"\nCleaning up temporary files...")
+    log(f"\nCleaning up temporary files...", log_file)
     if os.path.exists(final_temp):
         os.remove(final_temp)
     shutil.rmtree(temp_dir)
@@ -592,54 +623,102 @@ def aggregate_mutation_rates(input_files: List[str], output_file: str,
     append_samples_to_tracker(sample_tracker, sample_ids)
     
     # Log summary
-    log(f"\n{'='*60}")
-    log(f"AGGREGATION SUMMARY")
-    log(f"{'='*60}")
-    log(f"\nTotal positions: {len(combined_df):,}")
-    log(f"Chromosomes processed: {len(temp_files)}")
-    log(f"New samples added: {len(sample_ids)}")
-    log(f"\nOutput: {output_file}")
-    log(f"Index: {index_file}")
-    log(f"\n{'='*60}\n")
+    log(f"\n{'='*60}", log_file)
+    log(f"AGGREGATION SUMMARY", log_file)
+    log(f"{'='*60}", log_file)
+    log(f"\nTotal positions: {len(combined_df):,}", log_file)
+    log(f"Chromosomes processed: {len(temp_files)}", log_file)
+    log(f"New samples added: {len(sample_ids)}", log_file)
+    log(f"\nOutput: {output_file}", log_file)
+    log(f"Index: {index_file}", log_file)
+    log(f"\n{'='*60}\n", log_file)
     
-    log(f"Completed successfully!")
+    log(f"Completed successfully!", log_file)
 
+def log(msg, log_file, flush=False):
+    print(msg, file=log_file)
+    # print(msg)
+    if flush:
+        log_file.flush()
+
+def filter_processed_samples(input_files: List[str], sample_ids: List[str], 
+                             sample_tracker: str) -> Tuple[List[str], List[str]]:
+    """
+    Filter out samples that have already been processed.
+    
+    Arguments:
+        input_files : list of str
+            All input mutation rate files
+        sample_ids : list of str
+            All sample IDs
+        sample_tracker : str
+            Path to sample tracker file
+            
+    Returns:
+        tuple: (filtered_input_files, filtered_sample_ids)
+            Lists with already-processed samples removed
+    """
+    # Load already-processed samples
+    processed = set()
+    if os.path.exists(sample_tracker):
+        with open(sample_tracker, 'r') as f:
+            processed = {line.strip() for line in f if line.strip()}
+    
+    # Filter sample IDs
+    new_sample_ids = [s for s in sample_ids if s not in processed]
+    
+    # Filter input files (only keep files that contain a new sample ID)
+    new_input_files = []
+    for filepath in input_files:
+        basename = os.path.basename(filepath)
+        # Check if this file belongs to any new sample
+        for sample_id in new_sample_ids:
+            if basename.startswith(f"{sample_id}_"):
+                new_input_files.append(filepath)
+                break
+    
+    return new_input_files, new_sample_ids
 
 def main():
-    """
-    Main entry point for Snakemake workflow.
-    
-    Expected Snakemake parameters:
-    - input.mutation_files: list of mutation rate files
-    - output.aggregated: output .tsv.gz file path
-    - output.index: output .tbi index file path
-    - params.sample_ids: list of sample IDs being processed
-    - params.chromosomes: list of chromosome names
-    - params.sample_tracker: path to sample tracker file
-    - threads: number of threads for parallel processing
-    - log: log file path
-    """
-    # Open log file
-    log_file = open(snakemake.log[0], 'w')
-    
-    try:
-        aggregate_mutation_rates(
-            input_files=snakemake.input.mutation_files,
-            output_file=snakemake.output.aggregated,
-            sample_ids=snakemake.params.sample_ids,
-            chromosomes=snakemake.params.chromosomes,
-            sample_tracker=snakemake.params.sample_tracker,
-            threads=snakemake.threads,
-            mutation_types=MUTATION_COLS,
-            log_file=log_file
-        )
-    except Exception as e:
-        print(f"ERROR: {str(e)}", file=log_file)
-        print(f"ERROR: {str(e)}")
-        raise
-    finally:
-        log_file.close()
+    args = parse_args()
+    log_file = open(args.log, 'w') if args.log else sys.stdout
 
+    # log date and time start
+    start_time = datetime.datetime.now()
+    log(f"Starting mutation rate aggregation: {datetime.datetime.now()}\n", log_file)
+
+    # Filter out already-processed samples
+    filtered_input_files, filtered_sample_ids = filter_processed_samples(
+        args.input, 
+        args.sample_ids, 
+        args.sample_tracker
+    )
+
+    # Early exit if no new samples
+    if len(filtered_sample_ids) == 0:
+        log("All samples already processed. Nothing to do.", log_file)
+        log(f"\nFinished mutation rate aggregation: {datetime.datetime.now()}", log_file)
+        if log_file != sys.stdout:
+            log_file.close()
+        return
+
+    aggregate_mutation_rates(
+        input_files=filtered_input_files,
+        output_file=args.output,
+        sample_ids=filtered_sample_ids,
+        chromosomes=args.chromosomes,
+        sample_tracker=args.sample_tracker,
+        threads=args.threads,
+        log_file=log_file
+    )
+    # log the date and time finishing the script
+    log(f"\nFinished mutation rate aggregation: {datetime.datetime.now()}", log_file)
+    finish_time = datetime.datetime.now()
+    execution_time= finish_time - start_time
+    log(f"Total execution time: {execution_time}", file=log_file)
+
+    if log_file != sys.stdout:
+        log_file.close()
 
 if __name__ == "__main__":
     main()

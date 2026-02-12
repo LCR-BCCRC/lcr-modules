@@ -1,6 +1,6 @@
 import os
 
-# setup functions
+################################ setup functions ################################
 def get_chromosomes(genome_version):
     if genome_version in ["hg19", "GRCh37"]:
         
@@ -9,13 +9,42 @@ def get_chromosomes(genome_version):
         return [f"chr{i}" for i in range(1, 23)] + ["chrX", "chrY"]
     else:
         raise ValueError(f"Unsupported genome version: {genome_version}")
-# global variables
+
+################################ global variables ################################
 PANEL_NAME = config["lcr-modules"]["artifact_alert"]["panel_name"]
 OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "artifact_alert", "1.0", PANEL_NAME)
 LOGDIR = os.path.join(OUTDIR, "logs")
 MUT_SAMPLES = config["lcr-modules"]["_shared"]["samples"]
 SAMPLE_TRACKING_FILE = os.path.join(OUTDIR, f"{PANEL_NAME}_MutRateIndex_sampletracker.txt")
 CHROMOSOMES = get_chromosomes(config["lcr-modules"]["_shared"]["ref_genome_ver"])
+SCRIPTS_DIR = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules", "artifact_alert", "1.0","scripts")
+
+################################ reset final outputs ################################
+
+# Check if user wants to reset the aggregated index
+RESET_INDEX = config["lcr-modules"]["artifact_alert"].get("reset_mutation_index", False)
+
+# If resetting, remove existing aggregated files before workflow starts
+if RESET_INDEX:
+    aggregated_file = os.path.join(OUTDIR, "03-aggregated", "background_mutation_rates.tsv.gz")
+    index_file = f"{aggregated_file}.tbi"
+    
+    if os.path.exists(aggregated_file):
+        os.chmod(aggregated_file, 0o644)  # Make writable if protected
+        os.remove(aggregated_file)
+        print(f"Reset: Removed {aggregated_file}")
+    
+    if os.path.exists(index_file):
+        os.chmod(index_file, 0o644)
+        os.remove(index_file)
+        print(f"Reset: Removed {index_file}")
+
+    # Also clear the sample tracker
+    if os.path.exists(SAMPLE_TRACKING_FILE):
+        os.remove(SAMPLE_TRACKING_FILE)
+        print(f"Reset: Removed {SAMPLE_TRACKING_FILE}")
+
+################### Filter for only new samples ################################
 
 # Sample filtering logic
 def get_new_samples():
@@ -31,8 +60,14 @@ def get_new_samples():
     return list(all_samples - processed)
 
 NEW_SAMPLES = get_new_samples()
+# if no new samples exit snakemake workflow
+if len(NEW_SAMPLES) == 0:
+    # print wiht purple text
 
-# rules 
+    print('\033[0;31m' + "No new samples to process. Exiting workflow.")
+    exit(0)
+
+######################## rules ################################
 rule generate_pileup:
     input:
         bam= config["lcr-modules"]["artifact_alert"]["input_bam"], 
@@ -98,23 +133,33 @@ rule aggregate_mutation_rates:
     input:
         mutation_files = get_mutation_rate_files
     output:
-        aggregated = os.path.join(OUTDIR, "03-aggregated", "background_mutation_rates.tsv.gz"),
-        index = os.path.join(OUTDIR, "03-aggregated", "background_mutation_rates.tsv.gz.tbi")
+        sentinel = touch(os.path.join(OUTDIR, "03-aggregated", ".aggregate_complete"))
     params:
         sample_ids = NEW_SAMPLES,
         chromosomes = CHROMOSOMES,
-        sample_tracker = SAMPLE_TRACKING_FILE  # Param, not output
+        sample_tracker = SAMPLE_TRACKING_FILE,
+        script = os.path.join(SCRIPTS_DIR, "aggregate_mutation_rates.py"),
+        aggregated = os.path.join(OUTDIR, "03-aggregated", "background_mutation_rates.tsv.gz"),
+        index = os.path.join(OUTDIR, "03-aggregated", "background_mutation_rates.tsv.gz.tbi")
     conda:
         "envs/samtools.yaml"
     threads: 12
     resources:
-        mem_mb = lambda wildcards, threads: threads * 6000  # 6GB per thread
+        mem_mb = lambda wildcards, threads: threads * 6000
     log:
         os.path.join(LOGDIR, "03-aggregated", "aggregate_mutation_rates.log")
-    script:
-        "scripts/aggregate_mutation_rates.py"
-
+    shell:
+        """
+        python {params.script} \
+            -i {input.mutation_files} \
+            -o {params.aggregated} \
+            -s {params.sample_ids} \
+            -c {params.chromosomes} \
+            -t {params.sample_tracker} \
+            --threads {threads} \
+            --log {log} >> {log} 2>&1
+        """
 
 rule all:
     input:
-        rules.aggregate_mutation_rates.output.aggregated
+        rules.aggregate_mutation_rates.output.sentinel
