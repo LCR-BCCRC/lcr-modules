@@ -507,7 +507,7 @@ def bgzip_and_index(tsv_file: str, output_gz: str, seq_col: int = 0,
         start_col=start_col,
         end_col=end_col,
         line_skip=1,
-        zerobased=True,
+        zerobased=False,
         force=True
     )
     shutil.move(temp_gz, output_gz)

@@ -12,6 +12,7 @@ Key points:
 - Processed samples are tracked in a `sample_tracker` file to avoid duplication.
 - can trigger remaking index from scratch by deleting the sample tracking file, or setting `reset_mutation_index` to `True` in the config.
 - The final output index files are given to snakemake as params NOT outputs. So snakemake will never delete them itself.
+- if a bed file is not provided, mpileup will run with no target regions.
 
 ## 🔬 Workflow Steps
 

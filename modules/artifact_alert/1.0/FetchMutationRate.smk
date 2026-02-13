@@ -18,6 +18,7 @@ MUT_SAMPLES = config["lcr-modules"]["_shared"]["samples"]
 SAMPLE_TRACKING_FILE = os.path.join(OUTDIR, f"{PANEL_NAME}_MutRateIndex_sampletracker.txt")
 CHROMOSOMES = get_chromosomes(config["lcr-modules"]["_shared"]["ref_genome_ver"])
 SCRIPTS_DIR = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules", "artifact_alert", "1.0","scripts")
+BED_FILE =config["lcr-modules"]["artifact_alert"].get("target_bed", "")
 
 ################################ reset final outputs ################################
 
@@ -73,7 +74,7 @@ rule generate_pileup:
         pileup= temp(os.path.join(OUTDIR, "01-pileup", "{sample_id}_{chrom}.pileup"))
     params:
         ref= config["lcr-modules"]["_shared"]["ref_genome"],
-        bed= config["lcr-modules"]["artifact_alert"]["target_bed"],
+        bed= (f"-l {BED_FILE}" if BED_FILE else ""),
         min_mapq= config["lcr-modules"]["artifact_alert"]["min_mapq"],
         min_baseq= config["lcr-modules"]["artifact_alert"]["min_baseq"]
     conda:
@@ -86,8 +87,7 @@ rule generate_pileup:
     shell:
         """
         samtools mpileup \
-            -f {params.ref} \
-            -l {params.bed} \
+            -f {params.ref} {params.bed} \
             -Q {params.min_baseq} \
             -q {params.min_mapq} \
             -r {wildcards.chrom} \
