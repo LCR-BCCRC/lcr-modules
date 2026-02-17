@@ -58,13 +58,17 @@ if not USE_GAMBLR:
 # Define rules to be run locally when using a compute cluster
 if USE_GAMBLR:
     localrules:
-        #_dlbclone_input_maf,
+        _dlbclone_input_maf,
+        _dlbclone_input_sv,
+        curate_sv,
         _dlbclone_assemble_genetic_features,
         _dlbclone_predict,
         _dlbclone_all
 else:
     localrules:
-        #_dlbclone_input_maf,
+        _dlbclone_input_maf,
+        _dlbclone_input_sv,
+        curate_sv,
         _dlbclone_build_model,
         _dlbclone_assemble_genetic_features,
         _dlbclone_predict,
@@ -80,9 +84,6 @@ else:
 # Get date as used in DLBCLone output files
 TODAY = datetime.now().strftime("%d%b%Y")
 
-############################################################################################
-# Input Lymphgen style sv and maf style code
-############################################################################################
 
 #  Convert CFG Python dictionary lists to an R list of c(...) vectors
 def as_r_list(d):
@@ -109,6 +110,58 @@ def as_r_c(d):
         return "None"
     return "c(" + ",".join(f'"{x}"' for x in d) + ")"
 
+
+# STEP 1: INPUT SYMLINKS
+# Symlinks the input files into the module results directory (under '00-inputs/')
+
+rule _dlbclone_input_maf:
+    input:
+        maf = CFG["inputs"]["sample_maf"] 
+    output:
+        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf"
+    group:
+        "lymphgen"
+    run:
+        op.relative_symlink(input.maf, output.maf)
+
+rule _dlbclone_input_sv: 
+    input: 
+        sv = CFG["inputs"]["sample_sv"]  if CFG["inputs"]["sample_sv"] != "" else CFG["inputs"]["empty_sv"]
+    output: 
+        sv = CFG["dirs"]["inputs"] + "sv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.bedpe"
+    run: 
+        op.relative_symlink(input.sv, output.sv)
+
+rule curate_sv:
+    input:
+        sv = str(rules._dlbclone_input_sv.output.sv),
+        metadata = CFG["inputs"]["test_metadata_dir"],
+        prepare_sv = CFG["scripts"]["prepare_svs"]
+    output:
+        output_metadata = CFG["dirs"]["inputs"] + "sv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_dlbclone_sv_metadata.tsv"
+    params:
+        real_bcl2 = as_r_c(CFG["options"]["real_bcl2"]),
+        real_bcl6 = as_r_c(CFG["options"]["real_bcl6"]),
+    # log:
+    #     log = f"{log_dir}/create_sv_input.log"
+    container:
+            "docker://lklossok/gamblr.open:latest"
+    shadow:
+            "copy-minimal"
+    shell:
+        op.as_one_line("""
+            Rscript {input.prepare_sv}
+                --sv_input {input.sv}
+                --metadata {input.metadata} 
+                --output_metadata {output.output_metadata}
+                --tumour_id {wildcards.tumour_id}
+                --real_bcl2 '{params.real_bcl2}'
+                --real_bcl6 '{params.real_bcl6}'
+        """)
+
+
+# STEP 2: RUN DLBCLONE RULES 
+
 if not USE_GAMBLR:
     # Uses only GAMBL metadata and binary mutation data as training for DLBCLone models
     rule _dlbclone_build_model: 
@@ -134,7 +187,7 @@ if not USE_GAMBLR:
         resources:
             **CFG["resources"]["quant"]
         container:
-            "docker://lklossok/gamblr:latest"
+            "docker://lklossok/gamblr.open:latest"
         shadow:
             "copy-minimal"
         shell:
@@ -150,20 +203,19 @@ if not USE_GAMBLR:
                     --max_k {params.max_k}
             """)
 
-
 rule _dlbclone_assemble_genetic_features:
     input:
-        test_metadata = CFG["inputs"]["test_metadata_dir"],
-        test_maf = CFG["inputs"]["test_maf_dir"],
-        dlbclone_assemble_genetic_features = CFG["scripts"]["dlbclone_assemble_genetic_features"]
+        test_metadata =  str(rules.curate_sv.output.output_metadata), #CFG["inputs"]["test_metadata_dir"],
+        test_maf = str(rules._dlbclone_input_maf.output.maf), # CFG["inputs"]["test_maf_dir"],
+        dlbclone_assemble_genetic_features = CFG["scripts"]["dlbclone_assemble_genetic_features"] 
     output:
-        test_mutation_matrix = CFG["inputs"]["test_matrix_dir"] + "/" + CFG["inputs"]["matrix_name"] + "_mutation_matrix.tsv"
+        test_mutation_matrix = CFG["inputs"]["test_matrix_dir"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{matrix_name}_mutation_matrix.tsv"
     params:
         sv_from_metadata = as_r_named_list(CFG["options"]["sv_from_metadata"]),
         translocation_status = as_r_named_list(CFG["options"]["translocation_status"]),
         maf_sample_id_colname = CFG["options"]["maf_sample_id_colname"],
         metadata_sample_id_colname = CFG["options"]["metadata_sample_id_colname"],
-        truth_column_colname = CFG["options"]["truth_column_colname"],
+        #truth_column_colname = CFG["options"]["truth_column_colname"], # --truth_column_colname {params.truth_column_colname}
         genes = as_r_c(CFG["options"]["genes"]),
         synon_genes = as_r_c(CFG["options"]["synon_genes"]),
         hotspot_genes = as_r_c(CFG["options"]["hotspot_genes"]),
@@ -180,9 +232,9 @@ rule _dlbclone_assemble_genetic_features:
     resources:
         **CFG["resources"]["quant"]
     container:
-        "docker://lklossok/gamblr:latest"
+        "docker://lklossok/gamblr.open:latest"
     shadow:
-        "copy-minimal"
+         "copy-minimal"
     shell:
         op.as_one_line("""
         Rscript {input.dlbclone_assemble_genetic_features} 
@@ -192,7 +244,6 @@ rule _dlbclone_assemble_genetic_features:
             --metadata_sample_id_colname {params.metadata_sample_id_colname} 
             --sv_from_metadata '{params.sv_from_metadata}' 
             --translocation_status '{params.translocation_status}' 
-            --truth_column_colname {params.truth_column_colname}
             --output_matrix_dir {output.test_mutation_matrix} 
             --genes '{params.genes}'
             --synon_genes '{params.synon_genes}'
@@ -204,15 +255,14 @@ rule _dlbclone_assemble_genetic_features:
             --annotated_sv {params.annotated_sv}
             --include_GAMBL_sv {params.include_GAMBL_sv}
         """)
-
-
+    
 rule _dlbclone_predict:
     input:
         models = [] if USE_GAMBLR else [MODEL_RDS, MODEL_UWOT],
         mutation_matrix = str(rules._dlbclone_assemble_genetic_features.output.test_mutation_matrix), # first column is sample ID and all other columns are features
         dlbclone_predict = CFG["scripts"]["dlbclone_predict"]
     output:
-        predictions = CFG["inputs"]["pred_dir"] + "/" + CFG["inputs"]["model_name_prefix"] + "--{launch_date}/{matrix_name}_" + TODAY + "_DLBCLone_predictions.tsv"
+        predictions = CFG["inputs"]["pred_dir"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}." + TODAY + ".{model_name_prefix}--{matrix_name}_DLBCLone_predictions.tsv"
     params:
         opt_model_path = CFG["inputs"]["opt_model_path"],
         model_name_prefix = CFG["inputs"]["model_name_prefix"],
@@ -225,7 +275,7 @@ rule _dlbclone_predict:
     resources:
         **CFG["resources"]["quant"]
     container:
-        "docker://lklossok/gamblr:latest"
+        "docker://lklossok/gamblr.open:latest"
     shadow:
         "copy-minimal"
     shell:
@@ -246,8 +296,19 @@ rule _dlbclone_all:
             [
                 str(rules._dlbclone_predict.output.predictions)
             ],
+            zip,
+            sample_id = SAMPLES["sample_id"],
+            patient_id = SAMPLES["patient_id"],
+            tissue_status = SAMPLES["tissue_status"],
+            seq_type=SAMPLES["seq_type"],
+            genome_build=SAMPLES["genome_build"],
+            tumour_id=SAMPLES["tumour_id"],
+            normal_id=SAMPLES["normal_id"],
+            pair_status=SAMPLES["pair_status"], 
+            allow_missing = True,
+            launch_date = launch_date,
             matrix_name = CFG["inputs"]["matrix_name"],
-            launch_date = launch_date
+            model_name_prefix = CFG["inputs"]["model_name_prefix"]
         )
 
 ##### CLEANUP #####

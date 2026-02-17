@@ -27,8 +27,10 @@ lcr-modules:
             # Available wildcards: {model_name_prefix} {matrix_name} 
 
             sample_maf: "__UPDATE__" # Input maf is required
-            sample_seg: "__UPDATE__" # Optional. Change to "" if unused.
+            # sample_seg: "__UPDATE__" # Optional. Change to "" if unused.
             sample_sv: "__UPDATE__" # Optional. Change to "" if unused.
+            empty_sv: "{MODSDIR}/etc/empty.sv"
+
 
             # DLBCLone model storage
             opt_model_path: "GAMBLR.predict" # Default: "GAMBLR.predict", wherein stored models associated with the package GAMBLR.predict are used. For custom models built in rule _dlbclone_build_model, instead input appropriate path directory to your stored DLBCLone model(s).
@@ -71,7 +73,6 @@ lcr-modules:
             # RULE _dlbclone_assemble_genetic_features. Tunable parameters for formatting metadata and maf files.
             maf_sample_id_colname: "__UPDATE__" # maf column storing sample_id names 
             metadata_sample_id_colname: "__UPDATE__" # metadata column storing sample_id names
-            truth_column_colname: "__UPDATE__" # metadata column storing subtype truth labels
             sv_from_metadata: # metadata colnames that posses translocation status information
                 BCL2: "__UPDATE__" # BCL2 translocation status column name
                 BCL6: "__UPDATE__" # BCL6 translocation status column name
@@ -97,13 +98,13 @@ lcr-modules:
             drop_extra: false # if TRUE, any features present in test mutation matrix but not seen during model training are dropped
 
         scripts:
-            prepare_svs: "src/lcr-scripts/dlbclone/1.0/curate_sv_dlbclone.R"
+            prepare_svs: "{SCRIPTSDIR}/dlbclone/1.0/curate_sv_dlbclone.R"
             # This script from lcr-scripts will generate a saved and stored DLBCLone model
-            dlbclone_model: "src/lcr-scripts/dlbclone/1.0/dlbclone_model.R"
+            dlbclone_model: "{SCRIPTSDIR}/dlbclone/1.0/dlbclone_model.R"
             # This script from lcr-scripts will assemble a test mutation matrix from maf and metadata files
-            dlbclone_assemble_genetic_features: "src/lcr-scripts/dlbclone/1.0/dlbclone_assemble.R"
+            dlbclone_assemble_genetic_features: "{SCRIPTSDIR}/dlbclone/1.0/dlbclone_assemble.R"
             # This script from lcr-scripts predicts DLBCL molecular subgroups for one or more samples using a pre-trained DLBCLone model
-            dlbclone_predict: "src/lcr-scripts/dlbclone/1.0/dlbclone_predict.R"
+            dlbclone_predict: "{SCRIPTSDIR}/dlbclone/1.0/dlbclone_predict.R"
 
         threads:
             quant: 4
