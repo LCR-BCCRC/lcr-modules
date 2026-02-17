@@ -86,7 +86,6 @@ def sage_dynamic_mem(wildcards, attempt, input):
     elif attempt == 2:
         return max(15000, (input.size_mb * 3 + 5000))
     elif attempt == 3:
-        return max(20000,(input.size_mb * 4))
 
 def sage_java_mem(wildcards, attempt, input):
     if attempt == 1:

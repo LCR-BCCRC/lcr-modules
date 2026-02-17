@@ -25,6 +25,7 @@ import pandas as pd
 from collections import Counter
 import os
 import gzip
+import pysam
 
 GNOMAD_COLS = [
     "gnomAD_AF","gnomAD_AFR_AF","gnomAD_AMR_AF","gnomAD_ASJ_AF",
@@ -57,7 +58,7 @@ def get_args():
     p.add_argument('--low_normal_AF', type=float, default=0.30, help='AF threshold used when n_depth is low (unless exempt).')
     # backgrount mutation rate filter
     p.add_argument('--background_rates', type=str, default="", 
-               help='Optional TSV with background mutation rates per position.')
+               help='Optional tsv (bgzipped with tabix index file) with background mutation rates per position.')
     p.add_argument('--min_background_samples', type=int, default=20, 
                 help='Minimum n_samples required in background index.')
     p.add_argument('--background_n_std', type=float, default=2.0, 
@@ -184,7 +185,7 @@ class VariantFilterPipeline:
     def recalculate_af(self, df: pd.DataFrame) -> pd.DataFrame:
         """Recalculate AF as t_alt_count / t_depth."""
         out = df.copy()
-        out["AF"] = out["t_alt_count"] / out["t_depth"]
+        out["AF"] = out["t_alt_count"] / out["t_depth"].replace(0, pd.NA)
         return out
 
     def mark_potential_chip(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -291,7 +292,7 @@ class VariantFilterPipeline:
         if not cols:
             return out
         gnomad_ok = (out[cols].lt(threshold) | out[cols].isna()).all(axis=1)
-        exempt = out["hotspot"]
+        exempt = out["hotspot"] | out["is_phased"]
         keep = gnomad_ok | exempt
         return out.loc[keep].copy()
 
@@ -315,21 +316,19 @@ class VariantFilterPipeline:
             lambda v: v if isinstance(v, list) else (v.split(",") if isinstance(v, str) and v else [])
         )
         keep_mask = []
-        for i, row in out.iterrows():
-            af = float(row.get("AF", 0.0))
-            hotspot = bool(row.get("hotspot", False))
-            phased = bool(row.get("is_phased", False))
-            sources = row["variant_source"]
-            passes_vaf = af >= min_vaf
+        for row in out.itertuples():
+            passes_vaf = row.AF >= min_vaf
+            sources = row.variant_source
+            
             if passes_vaf and "high_vaf" not in sources:
                 sources.append("high_vaf")
-
-            if hotspot or phased or passes_vaf:
+            
+            if row.hotspot or row.is_phased or passes_vaf:
                 keep_mask.append(True)
             else:
                 keep_mask.append(False)
-
-            out.at[i, "variant_source"] = sources
+            
+            out.at[row.Index, "variant_source"] = sources
 
         out = out.loc[keep_mask].copy()
         return out
@@ -388,30 +387,22 @@ class VariantFilterPipeline:
         """
         Filter variants based on background mutation rates.
         
-        - If background_file is empty or doesn't exist, skip filter
-        - SNVs: check alt allele at position
-        - INS: check INS rate at start position
-        - DEL: check DEL rate at ALL positions in the deleted span
-        - DNP/TNP/ONP: check all affected positions pass filter
-        - Variants not in background index are removed (suspicious)
-        - Positions with n_samples < min_samples are removed (insufficient data)
-        - Positions with mean background rate > max_background_rate are too noisy
-        - VAF must be >= (mean + n_std*std) for the change
-        - Hotspot OR phased variants bypass all checks
+        Arguments:
+            df: Input DataFrame with variants and annotations.
+            background_file: Path to TSV file with background mutation rates per position.
+            min_samples: Minimum n_samples required in background index to consider the position for filtering.
+            n_std: Number of standard deviations above mean to set the VAF threshold.
+            max_background_rate: Maximum allowed background mutation rate. Positions exceeding this are considered too noisy.
+
+        Returns:
+            Filtered DataFrame with variants that pass the background rate filter, plus all exempt variants (hotspot or phased).
         """
         # Skip if no background file provided
         if not background_file or not os.path.isfile(background_file):
             print("No background rates file provided or file not found, skipping background filter")
             return df.copy()
-        
+
         out = df.copy()
-        
-        # Load background rates
-        print(f"Loading background mutation rates from {background_file}...")
-        bg = pd.read_csv(background_file, sep="\t")
-        bg = bg.set_index(['chromosome', 'position'])
-        print(f"Loaded {len(bg)} positions from background index")
-        
         # Separate exempt variants (hotspot OR phased)
         exempt_mask = out["hotspot"] | out["is_phased"]
         exempt_df = out.loc[exempt_mask].copy()
@@ -420,82 +411,12 @@ class VariantFilterPipeline:
         print(f"  - {len(exempt_df)} exempt variants (hotspot or phased)")
         print(f"  - {len(non_exempt_df)} non-exempt variants to filter")
         
-        # Mark noisy variants in non-exempt set
-        non_exempt_df["noisy"] = False
-        
-        for variant in non_exempt_df.itertuples():
-            chrom = str(variant.Chromosome)
-            pos = int(variant.Start_Position)
-            ref_allele = str(variant.Reference_Allele)
-            alt_allele = str(variant.Tumor_Seq_Allele2)
-            vaf = float(variant.AF)
-            var_type = str(variant.Variant_Type)
-            
-            # Determine positions and alt bases to check
-            if var_type in ["DNP", "TNP", "ONP"]:
-                # Multi-nucleotide: check all affected positions
-                positions_to_check = list(range(pos, pos + len(ref_allele)))
-                alt_bases = list(alt_allele)
-            elif var_type == "DEL":
-                # Deletion: check all positions in the deleted span
-                positions_to_check = list(range(pos, pos + len(ref_allele)))
-                alt_bases = [None] * len(positions_to_check)
-            elif var_type == "INS":
-                # Insertion: check position where insertion occurs
-                positions_to_check = [pos]
-                alt_bases = [None]
-            else:
-                # SNV: single position with alt base
-                positions_to_check = [pos]
-                alt_bases = [alt_allele]
-            
-            # Check each position - any failure marks variant as noisy
-            for check_pos, check_alt in zip(positions_to_check, alt_bases):
-                bg_key = (chrom, check_pos)
-                
-                # Position not in background
-                if bg_key not in bg.index:
-                    non_exempt_df.at[variant.Index, "noisy"] = True
-                    break
-                
-                bg_row = bg.loc[bg_key]
-                
-                # Insufficient samples
-                if bg_row['n_samples'] < min_samples:
-                    non_exempt_df.at[variant.Index, "noisy"] = True
-                    break
-                
-                # Determine column based on variant type
-                if var_type == "INS":
-                    mean_col, std_col = "INS_mean", "INS_std"
-                elif var_type == "DEL":
-                    mean_col, std_col = "DEL_mean", "DEL_std"
-                elif check_alt is not None:
-                    # SNV or MNP: use alt base
-                    mean_col, std_col = f"{check_alt}_mean", f"{check_alt}_std"
-                else:
-                    # Unknown case - skip this position
-                    continue
-                
-                # Column missing - can't filter, assume pass
-                if mean_col not in bg_row.index or std_col not in bg_row.index:
-                    continue
-                
-                bg_mean = float(bg_row[mean_col])
-                bg_std = float(bg_row[std_col])
-                
-                # Check if background rate exceeds maximum allowed
-                if bg_mean > max_background_rate:
-                    non_exempt_df.at[variant.Index, "noisy"] = True
-                    break
-                
-                # Calculate threshold and check VAF
-                threshold = bg_mean + (n_std * bg_std)
-                
-                if vaf < threshold:
-                    non_exempt_df.at[variant.Index, "noisy"] = True
-                    break
-        
+        non_exempt_df = check_background_mut_rate(
+            non_exempt_df,
+            background_file,
+            min_samples=min_samples,
+            SD_multiplier=n_std
+            )
         # Filter out noisy variants
         passed_df = non_exempt_df.loc[~non_exempt_df["noisy"]].drop(columns=["noisy"])
         
@@ -506,10 +427,154 @@ class VariantFilterPipeline:
         # Combine passed variants with exempt variants
         result = pd.concat([passed_df, exempt_df], ignore_index=True)
         print(f"  - Total kept: {len(result)}/{len(out)} ({len(passed_df)} passed + {len(exempt_df)} exempt)")
-        
+
         return result
 
+def check_background_mut_rate(variant_df: pd.DataFrame, tabix_file: str, 
+                                min_samples: int = 20, SD_multiplier: int = 2) -> pd.DataFrame:
+    """Determine if variants are in positions with high background mutation rates based on a tabix-indexed background mutation rate file.
+    
+    Arguments:
+        variant_df: DataFrame containing variants to be filtered, must include 'Chromosome', 'Start_Position', 'Reference_Allele', 'Tumor_Seq_Allele2', and 'Variant_Type'.
+        tabix_file: Path to tabix-indexed file containing background mutation rates with columns for chromosome, position, n_samples, and mean/std for different variant types.
+        min_samples: Minimum number of samples required in the background index to consider the position for filtering.
+        SD_multiplier: Number of standard deviations above the mean to set the VAF threshold for filtering.
+    
+    Returns:
+        DataFrame with an additional 'noisy' boolean column indicating whether each variant is in a high background mutation rate position or has insufficient background data.
+    """
+    bg_index = __fetch_index_entries(variant_df, tabix_file)
+    variant_df["noisy"] = False
+    
+    for variant in variant_df.itertuples():
+        chrom = str(variant.Chromosome)
+        pos = int(variant.Start_Position)
+        ref = variant.Reference_Allele
+        alt = variant.Tumor_Seq_Allele2
+        var_type = variant.Variant_Type
 
+        # Determine positions to check
+        if var_type in ["SNV", "INS"]:
+            positions_to_check = [pos]
+        elif var_type in ["DEL", "DNP", "TNP", "MNP"]:
+            positions_to_check = list(range(pos, pos + len(ref)))
+        else:
+            continue  # Skip unknown variant types
+
+        # Collect thresholds from positions with sufficient background data
+        thresholds = []
+        for idx, check_pos in enumerate(positions_to_check):
+            bg_row = bg_index.loc[(bg_index["chromosome"].astype(str) == chrom) & 
+                                  (bg_index["position"] == check_pos)]
+            
+            if bg_row.empty or int(bg_row.iloc[0]["n_samples"]) < min_samples:
+                continue  # Skip positions with insufficient data
+            
+            # Determine column suffix based on variant type
+            if var_type in ["INS", "DEL"]:
+                col_suffix = var_type
+            else:  # SNV, DNP, TNP, MNP - use base at current position
+                col_suffix = alt[idx]
+
+            mean_col, std_col = f"{col_suffix}_mean", f"{col_suffix}_std"
+            
+            if mean_col not in bg_row.columns or std_col not in bg_row.columns:
+                continue  # Skip if columns missing
+            
+            bg_mean = float(bg_row.iloc[0][mean_col])
+            bg_std = float(bg_row.iloc[0][std_col])
+            thresholds.append(bg_mean + (SD_multiplier * bg_std))
+        
+        # If we have threshold data, check if variant AF is below average threshold
+        if thresholds:
+            avg_threshold = sum(thresholds) / len(thresholds)
+            if variant.AF < avg_threshold:
+                variant_df.at[variant.Index, "noisy"] = True
+
+    return variant_df
+
+
+def __fetch_index_entries(variant_df: pd.DataFrame, tabix_file: str) -> pd.DataFrame:
+    """Fetch records from a tabix-indexed file for a given chromosome and position range
+    for given variant df.
+
+    Arguments:
+        variant_df: maf like formatted variant info pandas dataframe
+    Return:
+        DataFrame with records from the tabix file that correspond to the positions in the variant_df.
+    """
+    grouped_vars = __group_vars_for_filtering(variant_df)
+    tb = pysam.TabixFile(tabix_file)
+
+    # get header from tabix file for easier parsing
+    with gzip.open(tabix_file,  "rt") as fh:
+        header = fh.readline().rstrip('\n')
+        # turn to list
+    cols = [c.strip() for c in header.split("\t")]
+
+    records = []
+    # loop through var groups pulling data, and assigning bg_rate column based on mutation
+    for group in grouped_vars["tabix_group"].unique():
+        target_group = grouped_vars.loc[grouped_vars["tabix_group"] == group]
+        chrom = str(target_group.iloc[0]["Chromosome"])
+        start = int(target_group["Start_Position"].min())
+        end = int(target_group["Start_Position"].max())
+
+        for record in tb.fetch(chrom, start-1, end, parser=pysam.asTuple()):
+            rec_dict = dict(zip(cols, record))
+            # check to see if Start_Position is one we want
+            if int(rec_dict["position"]) in target_group["Start_Position"].values:
+                # add to df
+                records.append(rec_dict)
+            else:
+                pass
+    tb.close()
+    bg_df = pd.DataFrame.from_records(records)
+
+    return bg_df
+
+
+def __group_vars_for_filtering(var_df: pd.DataFrame, genomic_interval: int = 1000) -> pd.DataFrame:
+    """Group variants by defined genomic intervals to simplify accessing background rate index.
+
+    If variants are close together then pull the block of data that encompasses them all rather
+    than access the data for each one separately, reduce tabix operations.
+
+    Arguments:
+        var_df: DataFrame containing variants to be filtered, must include 'Chromosome' and 'Start_Position'.
+        genomic_interval: Size of genomic window (in bases) to group variants together for background rate checking.
+
+    Returns:
+        DataFrame with an additional 'tabix_group' column indicating the assigned group for each variant.
+            Variants sharing the same 'tabix_group' are within the same genomic interval and can be filtered together.
+    """
+    var_df["tabix_group"] = pd.NA # initialize column
+    chrom_dfs = []
+    for chrom in var_df["Chromosome"].unique().tolist():
+
+        chrom_df = var_df.loc[var_df["Chromosome"] == chrom].sort_values("Start_Position").copy()
+        if chrom_df.empty:
+            continue
+        # setup while loop
+        group_id = 1
+        i = 0 # consumed rows
+        n = chrom_df.shape[0] # total rows
+
+        while i < n:
+            start = chrom_df.loc[chrom_df["tabix_group"].isna()].iloc[0]["Start_Position"]
+            end = start + genomic_interval
+
+            chrom_df.loc[(chrom_df["Start_Position"] >= start) & 
+                                    (chrom_df["Start_Position"] < end) &
+                                    (chrom_df["tabix_group"].isna()), 
+                                            "tabix_group"] = f"{chrom}_{group_id}"
+
+            i = chrom_df["tabix_group"].notna().sum()
+            group_id += 1
+            
+        chrom_dfs.append(chrom_df)
+
+    return pd.concat(chrom_dfs)
 
 def main():
     """Parse args, run the pipeline, and write the filtered MAF."""
