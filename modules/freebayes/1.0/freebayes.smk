@@ -78,7 +78,6 @@ for genome_build, attributes in config['genome_builds'].items():
     FREEBAYES_VERSION_MAP[genome_build] = genome_version.replace("grch", "GRCh")  # Genome build for freebayes
 
 
-
 ##### RULES #####
 
 
@@ -131,7 +130,7 @@ rule _freebayes_run:
                 2>> {log.stderr} 
         """)
 
-def get_original_genome(wildcards):
+def _freebayes_get_original_genome(wildcards):
     # Determine the original (i.e. input) reference genome for this sample
     # Since this module projects to various output genome builds, we need to parse the sample table for the starting build
     # To determine what we need to do
@@ -142,7 +141,7 @@ def get_original_genome(wildcards):
     original_genome_build = sample_entry.genome_build.tolist()
     return original_genome_build
 
-def get_chain(genome_build):
+def _freebayes_get_chain(genome_build):
     # NOTE: This only currently supports hg38 and hg19. If you are using other genome builds, this will need to be handled
     genome_version = FREEBAYES_GENOME_VERSION[genome_build]
     if genome_version == "grch38":
@@ -153,9 +152,9 @@ def get_chain(genome_build):
         raise AttributeError(f"No supported CrossMap chain for {genome_version} within this module")
 
 
-def crossmap_input(wildcards):
+def _freebayes_crossmap_input(wildcards):
     CFG = config["lcr-modules"]["freebayes"]
-    original_genome_build = get_original_genome(wildcards)[0]
+    original_genome_build = _freebayes_get_original_genome(wildcards)[0]
     return {
         "vcf":
             expand(
@@ -163,12 +162,12 @@ def crossmap_input(wildcards):
                 **wildcards,
                 genome_build = original_genome_build
             ),
-        "chain": get_chain(original_genome_build)
+        "chain": _freebayes_get_chain(original_genome_build)
     }
 
 rule _freebayes_crossmap:
     input:
-        unpack(crossmap_input), 
+        unpack(_freebayes_crossmap_input), 
         fasta = reference_files("genomes/{target_build}/genome_fasta/genome.fa")
     output:
         vcf = temp(CFG["dirs"]["crossmap"] + "{seq_type}--{target_build}/{sample_id}/freebayes.vcf")
@@ -193,11 +192,11 @@ rule _freebayes_crossmap:
         > {log.stdout} 2> {log.stderr}
         """)
 
-def get_normalize_input(wildcards, todo_only = False):
+def _freebayes_get_normalize_input(wildcards, todo_only = False):
     CFG = config["lcr-modules"]["freebayes"]
     new_genome_build  = wildcards.target_build
     # Since snakemake only knows what the TARGET genome build is, we need to find the source
-    original_genome_builds = get_original_genome(wildcards)
+    original_genome_builds = _freebayes_get_original_genome(wildcards)
     original_genome_version = [FREEBAYES_GENOME_VERSION[x] for x in original_genome_builds]
     new_genome_version = FREEBAYES_GENOME_VERSION[new_genome_build]
 
@@ -244,11 +243,11 @@ def get_normalize_input(wildcards, todo_only = False):
 # Add or remove chr prefix as necessary
 rule _freebayes_normalize_prefix:
     input:
-        unpack(lambda w: get_normalize_input(w, todo_only = False))
+        unpack(lambda w: _freebayes_get_normalize_input(w, todo_only = False))
     output:
         vcf = CFG["dirs"]["normalize"] + "{seq_type}--{target_build}/{sample_id}/freebayes.vcf"
     params:
-        todo = lambda w: get_normalize_input(w, todo_only = True),
+        todo = lambda w: _freebayes_get_normalize_input(w, todo_only = True),
         dest_chr = lambda w: FREEBAYES_GENOME_PREFIX[w.target_build]
     group: "normalize_and_bgzip"
     wildcard_constraints:
@@ -280,11 +279,13 @@ rule _freebayes_normalize_prefix:
 
 rule _freebayes_gzip_vcf: 
     input: 
-        unpack(lambda w: get_normalize_input(w, todo_only = False)), # Ensure temp vcf files don't get deleted
+        unpack(lambda w: _freebayes_get_normalize_input(w, todo_only = False)), # Ensure temp vcf files don't get deleted
         invcf = str(rules._freebayes_normalize_prefix.output.vcf)
     output: 
         vcf = CFG["dirs"]["normalize"] + "{seq_type}--{target_build}/{sample_id}/freebayes.vcf.gz", 
         tbi = CFG["dirs"]["normalize"] + "{seq_type}--{target_build}/{sample_id}/freebayes.vcf.gz.tbi"
+    params: 
+        samples = CFG["inputs"]["samples"]
     conda:
         CFG["conda_envs"]["crossmap"]
     threads:
@@ -294,7 +295,8 @@ rule _freebayes_gzip_vcf:
     group: "normalize_and_bgzip"
     shell: 
         op.as_one_line("""
-            bcftools sort -Oz -o {output.vcf} {input.invcf} && 
+            bcftools reheader --samples {params.samples} {input.invcf} |
+            bcftools sort -Oz -o {output.vcf} && 
             tabix -p vcf {output.vcf}
         """)
 
