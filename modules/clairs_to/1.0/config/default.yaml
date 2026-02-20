@@ -1,0 +1,57 @@
+lcr-modules:
+    
+    clairs_to:
+
+# Additional required columns in your samples table: "chemistry" and "platform"
+# Chemistry is the version of pore chemistry used to sequence a particular sample
+    # Available values: R9, R10
+# Platform is the ClairS model you want to use for calling variants in a particular sample
+    # consult the table below for available values
+    # ____________________________________________________________________________________________________________________________________________________________
+    # Platform  | Model name	            | Chemistry /Instruments    | Basecaller    | Latest update | Option (-p/--platform)	    | Reference	    | Aligner
+    # ____________________________________________________________________________________________________________________________________________________________
+    # ONT       | r1041_e82_400bps_sup_v420 | R10.4.1, 5khz             | Dorado SUP	| Nov. 20, 2024	| ont_r10_dorado_sup_5khz_ssrs  | GRCh38_no_alt | Minimap2
+    # ONT 	    | r1041_e82_400bps_sup_v420 | R10.4.1, 5khz	            | Dorado SUP	| Nov. 10, 2023	| ont_r10_dorado_sup_5khz_ss	| GRCh38_no_alt	| Minimap2
+    # ONT	    | r1041_e82_400bps_sup_v420 | R10.4.1, 5khz	            | Dorado SUP	| Nov. 10, 2023	| ont_r10_dorado_sup_5khz	    | GRCh38_no_alt	| Minimap2
+    # ONT	    | r1041_e82_400bps_sup_v410 | R10.4.1, 4khz	            | Dorado SUP	| Nov. 10, 2023	| ont_r10_dorado_sup_4khz	    | GRCh38_no_alt	| Minimap2
+    # ONT	    | r1041_e82_400bps_hac_v410 | R10.4.1, 4khz	            | Dorado HAC	| Jan. 19, 2024	| ont_r10_dorado_hac_4khz	    | GRCh38_no_alt	| Minimap2
+    # ONT	    | r1041_e82_400bps_sup_g615	| R10.4.1, 4khz	            | Guppy6 SUP	| Nov. 10, 2023	| ont_r10_guppy_sup_4khz	    | GRCh38_no_alt	| Minimap2
+    # ONT	    | r1041_e82_400bps_hac_g657	| R10.4.1, 5khz	            | Guppy6 HAC	| Jan. 21, 2024	| ont_r10_guppy_hac_5khz	    | GRCh38_no_alt	| Minimap2
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id} {chemistry} {platform} {normal_name}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        scratch_subdirectories: [] # Recommended: "clairs_to"
+
+        options:
+            version_map:
+                hg38: "38"
+            seqtype_map:
+                promethION: "promethION"
+            modsdir: "{MODSDIR}"
+            model_path: "{MODSDIR}/modules/clairs_to/1.0/ClairS-TO-0.4.2/resources/models/" # Update this with the path to ClairS-TO models (ending with /). Likely something like {MODSDIR}/modules/clairs_to/1.0/ClairS-TO-0.4.2/resources/models/
+            clairs_to_path: "__UPDATE__" # Update this with the path to the run_clairs_to script. Likely something like {MODSDIR}/modules/clairs_to/1.0/ClairS-TO-0.4.4/ClairS-TO/run_clairs_to
+            clairs_to_args: "__UPDATE__"
+            filters: 'FILTER="PASS" && INFO/AF < 0.0001 && FMT/DP[0] >= 8 && FMT/AF[0] >= 0.1' # Update this line if you wish to use different filters
+            
+        conda_envs:
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            clairs_to: "{MODSDIR}/envs/clairs_to-0.4.2.yaml"
+            
+        threads:
+            clairs_to: 24
+            bcftools: 4
+
+        resources:
+            clairs_to: 
+                mem_mb: 24000
+            bcftools:
+                mem_mb: 5000
+            
+        pairing_config:
+            promethION:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
