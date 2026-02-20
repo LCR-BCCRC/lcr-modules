@@ -225,9 +225,9 @@ def _qc_get_baits(wildcards):
         if wildcards.baits_regions in list(CFG["baits_regions"][this_genome_build].keys()):
             these_baits = str(wildcards.baits_regions)
         else:
-            print(
+            logger.warning(
                 f"WARNING: the baits regions were specified in the sample table, but were not found in config "
-                f"for {wildcards.genome_build} ({this_genome_build}) and {wildcards.seq_type} combination. Using the default space ..."
+                f"for {wildcards.baits_regions} ({this_genome_build}) and {wildcards.seq_type} combination. Using the default space ..."
             )
             these_baits = "_default"
     else:
@@ -314,10 +314,14 @@ def _qc_get_intervals(wildcards):
         # If user specified path to bed file in the sample table, use it from dictionary in config
         if str(this_sample.iloc[0]['baits_regions']) in list(CFG["baits_regions"][this_genome_build].keys()):
             these_baits = str(this_sample.iloc[0]['baits_regions'])
+        elif str(this_sample.iloc[0]['baits_regions']) is None:
+            these_baits = "_default"
+        elif str(this_sample.iloc[0]['baits_regions']) in ["none"]:
+            these_baits = "_default"
         else:
-            print(
+            logger.warning(
                 f"WARNING: the baits regions were specified in the sample table, but were not found in config "
-                f"for {wildcards.genome_build} ({this_genome_build}) and {wildcards.seq_type} combination. Using the default space ..."
+                f"for {str(this_sample.iloc[0]['sample_id'])} ({str(this_sample.iloc[0]['baits_regions'])}, {this_genome_build} and {wildcards.seq_type} combination). Using the default space ..."
             )
             these_baits = "_default"
     else:
