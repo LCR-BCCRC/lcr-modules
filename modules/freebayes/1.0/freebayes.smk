@@ -123,8 +123,7 @@ rule _freebayes_run:
     shell:
         op.as_one_line("""
             freebayes-parallel 
-                <(fasta_generate_regions.py 
-                {input.fasta}.fai 100000) 
+                {params.opts} 
                 {threads} 
                 -f {input.fasta} 
                 {input.bam} 

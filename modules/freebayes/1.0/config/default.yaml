@@ -11,7 +11,7 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
-            freebayes: ""
+            freebayes: <(fasta_generate_regions.py {input.fasta}.fai 10000) # Indicate the bin size for freebayes parallelization and other arguments to the script https://github.com/freebayes/freebayes/blob/master/scripts/fasta_generate_regions.py
             target_builds: ["hg38", "grch37"]
 
         conda_envs:
