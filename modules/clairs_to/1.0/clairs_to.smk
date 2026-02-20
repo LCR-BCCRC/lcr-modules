@@ -375,7 +375,11 @@ rule _clairs_to_all:
             [
                 str(rules._clairs_to_output_vcf.output.vcf),
                 str(rules._clairs_to_output_vcf.output.tbi),
-                str(rules._clairs_to_clean.output.cleanup_complete)
+                str(rules._clairs_to_clean.output.cleanup_complete),
+                str(rules._clairs_to_filter.output.vcf),
+                str(rules._clairs_to_filter.output.tbi),
+                str(rules._clairs_to_link_clairs_to_models.output.link_dummy),
+                str(rules._clairs_to_get_resources.output.resources)
             ],
             zip,
             seq_type=CFG["runs"]["tumour_seq_type"],
