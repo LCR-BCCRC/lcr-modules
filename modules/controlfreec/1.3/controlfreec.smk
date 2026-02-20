@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["controlfreec"]`
 CFG = op.setup_module(
     name = "controlfreec",
-    version = "1.2",
+    version = "1.3",
     subdirectories = ["inputs", "mpileup", "run", "calc_sig_and_plot",
     "freec2bed", "freec2circos", "cnv2igv", "convert_coordinates",
     "fill_regions", "normalize", "outputs"]
