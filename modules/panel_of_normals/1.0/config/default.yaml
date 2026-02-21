@@ -1,0 +1,30 @@
+lcr-modules:
+
+    panel_of_normals:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        options:
+            # If you want to set it as a female reference, you can change " -y " to " "
+            # Female samples normalized to a male reference will show a doubling of chromosome X (log2 value about +1.0) and complete loss of chromosome Y (log2 value below -3.0, usually far below).
+            # Male samples normalized to a female reference will show a single-copy loss of chromosome X (log2 value about -1.0). The chromosome Y value should be near 0.0, but the log2 values may be noisier and less reliable than on autosomes.
+            male_ref: " -y "
+
+        conda_envs:
+            cnvkit: "{MODSDIR}/envs/cnvkit-0.9.9.yaml"
+
+        threads:
+            cnvkit: 24
+
+        resources:
+            cnvkit:
+                mem_mb: 48000
+
+        pairing_config:
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
