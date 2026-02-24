@@ -260,13 +260,21 @@ rule _panel_of_normals_output_cnn:
     run:
         op.relative_symlink(input.cnn, output.cnn, in_module= True)
 
+rule _panel_of_normals_output_tsv:
+    input:
+        tsv = str(rules._panel_of_normals_record_samples.output.tsv)
+    output:
+        tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{capture_space}_samples_metadata.tsv"
+    run:
+        op.relative_symlink(input.tsv, output.tsv, in_module= True)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _panel_of_normals_all:
     input:
         expand(
             [
-                str(rules._panel_of_normals_output_cnn.output.cnn)
+                str(rules._panel_of_normals_output_cnn.output.cnn),
+                str(rules._panel_of_normals_output_tsv.output.tsv)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["samples"]["seq_type"],
