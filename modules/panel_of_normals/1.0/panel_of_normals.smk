@@ -37,13 +37,14 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "panel_of_normals",
     version = "1.0",
-    subdirectories = ["inputs", "target_sites", "coverage", "pon_cnn", "outputs"],
+    subdirectories = ["inputs", "fix_bed", "target_sites", "coverage", "pon_cnn", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
 localrules:
     _panel_of_normals_input_bam,
     _panel_of_normals_input_capspace,
+    _panel_of_normals_canonical_capspace,
     _panel_of_normals_filter_main_chrs,
     _panel_of_normals_output_cnn
 
@@ -73,6 +74,17 @@ rule _panel_of_normals_input_capspace:
         bed = CFG["dirs"]["inputs"] + "bed/{seq_type}--{genome_build}/{capture_space}.bed"
     run:
         op.absolute_symlink(input.bed, output.bed)
+
+# Removes non-canonical chroms from capture space bed
+rule _panel_of_normals_canonical_capspace:
+    input:
+        bed = str(rules._panel_of_normals_input_capspace.output.bed)
+    output:
+        bed = CFG["dirs"]["fix_bed"] + "bed/{seq_type}--{genome_build}/{capture_space}.canonical.bed"
+    run:
+        op.as_one_line("""
+        awk -F"\t" -v OFS="\t" '$1 !~ /(_|M|EBV)/' {input.bed} > {output.bed}
+        """)
 
 # Download gene annotation files
 rule _panel_of_normals_get_refFlat:
@@ -148,7 +160,7 @@ rule _panel_of_normals_target_sites:
     input:
         access = str(rules._panel_of_normals_filter_main_chrs.output.access_main),
         bam = _get_normals_per_combo,
-        bed = str(rules._panel_of_normals_input_capspace.output.bed),
+        bed = str(rules._panel_of_normals_canonical_capspace.output.bed),
         refFlat = str(rules._panel_of_normals_get_refFlat.output.refFlat)
     output:
         target = CFG["dirs"]["target_sites"] + "{seq_type}--{genome_build}/{capture_space}/target_sites.target.bed",
