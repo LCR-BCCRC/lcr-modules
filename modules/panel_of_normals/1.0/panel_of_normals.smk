@@ -80,7 +80,7 @@ rule _panel_of_normals_canonical_capspace:
     input:
         bed = str(rules._panel_of_normals_input_capspace.output.bed)
     output:
-        bed = CFG["dirs"]["fix_bed"] + "bed/{seq_type}--{genome_build}/{capture_space}.canonical.bed"
+        bed = CFG["dirs"]["fix_bed"] + "{seq_type}--{genome_build}/{capture_space}.canonical.bed"
     run:
         op.as_one_line("""
         awk -F"\t" -v OFS="\t" '$1 !~ /(_|M|EBV)/' {input.bed} > {output.bed}
