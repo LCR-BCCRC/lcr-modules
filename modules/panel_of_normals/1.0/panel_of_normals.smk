@@ -37,7 +37,6 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "panel_of_normals",
     version = "1.0",
-    # TODO: If applicable, add more granular output subdirectories
     subdirectories = ["inputs", "target_sites", "coverage", "pon_cnn", "outputs"],
 )
 
@@ -128,7 +127,8 @@ def _get_normals_per_combo(wildcards):
     samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
     normals = expand(
         str(rules._panel_of_normals_input_bam.output.bam),
-        sample_id = samples)
+        sample_id = samples,
+        allow_missing = True)
     return normals
 
 # Outputs the sample_ids per capture space combo
@@ -149,7 +149,7 @@ rule _panel_of_normals_target_sites:
         access = str(rules._panel_of_normals_filter_main_chrs.output.access_main),
         bam = _get_normals_per_combo,
         bed = str(rules._panel_of_normals_input_capspace.output.bed),
-        refFlat = str(rules._get_refFlat.output.refFlat)
+        refFlat = str(rules._panel_of_normals_get_refFlat.output.refFlat)
     output:
         target = CFG["dirs"]["target_sites"] + "{seq_type}--{genome_build}/{capture_space}/target_sites.target.bed",
         antitarget = CFG["dirs"]["target_sites"] + "{seq_type}--{genome_build}/{capture_space}/target_sites.antitarget.bed"
@@ -217,10 +217,12 @@ def _get_coverage_per_combo(wildcards):
     samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
     target_cov = expand(
         str(rules._panel_of_normals_coverage_target.output.cov),
-        sample_id = samples)
+        sample_id = samples,
+        allow_missing = True)
     antitarget_cov = expand(
         str(rules._panel_of_normals_coverage_antitarget.output.cov),
-        sample_id = samples)
+        sample_id = samples,
+        allow_missing = True)
     return{
         "control_target": target_cov,
         "control_antitarget": antitarget_cov
