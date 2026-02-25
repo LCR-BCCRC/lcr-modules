@@ -155,10 +155,19 @@ def _get_normals_per_combo(wildcards):
     tbl = CFG["samples"]
     samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
     normals = expand(
-        [
-            str(rules._panel_of_normals_input_bam.output.bam),
-            str(rules._panel_of_normals_index_bam.output.bai)
-        ],
+        str(rules._panel_of_normals_input_bam.output.bam),
+        sample_id = samples,
+        allow_missing = True)
+    return normals
+
+# Collects all normal indexes per genome_build--capture_space combo
+# need to do this separately so that they have a different name
+def _get_indexes_per_combo(wildcards):
+    CFG = config["lcr-modules"]["panel_of_normals"]
+    tbl = CFG["samples"]
+    samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
+    normals = expand(
+        str(rules._panel_of_normals_index_bam.output.bai),
         sample_id = samples,
         allow_missing = True)
     return normals
@@ -180,6 +189,7 @@ rule _panel_of_normals_target_sites:
     input:
         access = str(rules._panel_of_normals_filter_main_chrs.output.access_main),
         bam = _get_normals_per_combo,
+        bai = _get_indexes_per_combo,
         bed = str(rules._panel_of_normals_canonical_capspace.output.bed),
         refFlat = str(rules._panel_of_normals_get_refFlat.output.refFlat)
     output:
