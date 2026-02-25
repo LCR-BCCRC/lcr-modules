@@ -85,7 +85,7 @@ rule _panel_of_normals_symlink_index:
     shell:
         """
         cd $(dirname {input.done}) &
-        if [ ! e {output.bai} ]
+        if [[ ! -e {output.bai} ]]
         then
             ln -s {wildcards.sample_id}.bam.crai {wildcards.sample_id}.bam.bai
         fi
