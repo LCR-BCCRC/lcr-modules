@@ -67,13 +67,15 @@ rule _panel_of_normals_index_bam:
         bam = str(rules._panel_of_normals_input_bam.output.bam)
     output:
         bai = temp(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{sample_id}.bam.bai")
+    log:
+        log = CFG["logs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{sample_id}_index.log"
     conda:
         CFG["conda_envs"]["samtools"]
     threads:
         CFG["threads"]["samtools"]
     shell:
         op.as_one_line("""
-        samtools index {input.bam};
+        samtools index {input.bam} 2> &&
         cd $(dirname {input.bam});
         if [[ -e {wildcards.sample_id}.bam.crai ]];
         then
