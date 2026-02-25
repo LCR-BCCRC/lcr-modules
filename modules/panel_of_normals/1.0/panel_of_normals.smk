@@ -55,16 +55,41 @@ localrules:
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _panel_of_normals_input_bam:
     input:
-        bam = ancient(CFG["inputs"]["sample_bam"]),
-        bai = ancient(CFG["inputs"]["sample_bai"])
+        bam = ancient(CFG["inputs"]["sample_bam"])
     output:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{sample_id}.bam.bai",
-        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{sample_id}.bam.crai"
+        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{sample_id}.bam"
     run:
         op.absolute_symlink(input.bam, output.bam)
-        op.absolute_symlink(input.bai, output.bai)
-        op.absolute_symlink(input.bai, output.crai)
+
+# Recreate index so the timestamp will always be later then the bam
+rule _panel_of_normals_index_bam:
+    input:
+        bam = str(rules._panel_of_normals_input_bam.output.bam)
+    output:
+        done = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{sample_id}.index_done"
+    conda:
+        CFG["conda_envs"]["samtools"]
+    threads:
+        CFG["threads"]["samtools"]
+    shell:
+        op.as_one_line("""
+        samtools index {input.bam} & touch {output.done}
+        """)
+
+# if index made above was .crai, symlink it to .bai
+rule _panel_of_normals_symlink_index:
+    input:
+        done = str(rules._panel_of_normals_index_bam.output.done)
+    output:
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{sample_id}.bam.bai"
+    shell:
+        """
+        cd $(dirname {input.done}) &
+        if [ ! e {output.bai} ]
+        then
+            ln -s {wildcards.sample_id}.bam.crai {wildcards.sample_id}.bam.bai
+        fi
+        """
 
 # Symlinks the capture bed file
 rule _panel_of_normals_input_capspace:
@@ -184,6 +209,7 @@ rule _panel_of_normals_target_sites:
 rule _panel_of_normals_coverage_target:
     input:
         bam = str(rules._panel_of_normals_input_bam.output.bam),
+        bai = str(rules._panel_of_normals_symlink_index.output.bai),
         bed = str(rules._panel_of_normals_target_sites.output.target),
     output:
         cov = CFG["dirs"]["coverage"] + "target/{seq_type}--{genome_build}/{capture_space}/{sample_id}.targetcoverage.cnn"

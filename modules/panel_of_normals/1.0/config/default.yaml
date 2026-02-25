@@ -14,9 +14,11 @@ lcr-modules:
             male_ref: " -y "
 
         conda_envs:
+            samtools: "{MODSDIR}/envs/samtools-1.10.yaml"
             cnvkit: "{MODSDIR}/envs/cnvkit-0.9.9.yaml"
 
         threads:
+            samtools: 8
             cnvkit: 24
 
         resources:
