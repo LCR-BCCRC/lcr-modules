@@ -163,7 +163,10 @@ def _get_normals_per_combo(wildcards):
     tbl = CFG["samples"]
     samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
     normals = expand(
-        str(rules._panel_of_normals_input_bam.output.bam),
+        [
+            str(rules._panel_of_normals_input_bam.output.bam),
+            str(rules._panel_of_normals_symlink_index.output.bai)
+        ],
         sample_id = samples,
         allow_missing = True)
     return normals
