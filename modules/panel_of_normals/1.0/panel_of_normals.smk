@@ -75,7 +75,7 @@ rule _panel_of_normals_index_bam:
         CFG["threads"]["samtools"]
     shell:
         op.as_one_line("""
-        samtools index {input.bam} 2> &&
+        samtools index {input.bam} 2> {log.log} &&
         cd $(dirname {input.bam});
         if [[ -e {wildcards.sample_id}.bam.crai ]];
         then
@@ -236,6 +236,7 @@ rule _panel_of_normals_coverage_target:
 rule _panel_of_normals_coverage_antitarget:
     input:
         bam = str(rules._panel_of_normals_input_bam.output.bam),
+        bai = str(rules._panel_of_normals_index_bam.output.bai),
         bed = str(rules._panel_of_normals_target_sites.output.antitarget),
     output:
         cov = CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}/{capture_space}/{sample_id}.antitargetcoverage.cnn"
