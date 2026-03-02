@@ -1,9 +1,9 @@
 # 🚨 Artifact Alert — Module README 🧬
 
-A Snakemake workflow that builds a position-specific background mutation-rate index. Assists in alerting you to positions with recurrent technical artifacts (and real mutations) in NGS data. Can be run on capture panels small and large, WES. As long as you have a bed file.
+A Snakemake workflow that builds a position-specific background mutation-rate index, ie how many times a non-reference aberration appears at a genomic position. Assists in alerting you to positions with recurrent technical artifacts (and real mutations) in NGS data. Can be run on capture panels small and large as well as WES and WGS bam files, with or without a .bed file (but .bed file recomended for faster execution). 
 
 ## 📋 Overview
-Artifact Alert computes per-sample, per-position mutation rates (A, T, C, G, INS, DEL) and aggregates them across a cohort to produce a bgzip-compressed, tabix-indexed background mutation-rate index. The index is suitable for fast genomic lookups and for filtering likely technical artifacts from variant calls.
+Artifact Alert computes per-sample, per-position mutation rates (REF -> A, T, C, G, INS, DEL) and aggregates them across a cohort to produce a bgzip-compressed, tabix-indexed background mutation-rate index. The index is suitable for fast genomic lookups when filtering likely technical artifacts from variant calls.
 
 Key points:
 - Per-sample mutation-rate tables are computed, then aggregated across samples.
@@ -11,7 +11,7 @@ Key points:
 - Per-chromosome parallel processing for speed; each chromosome is position-sorted before concatenation.
 - Processed samples are tracked in a `sample_tracker` file to avoid duplication.
 - can trigger remaking index from scratch by deleting the sample tracking file, or setting `reset_mutation_index` to `True` in the config.
-- The final output index files are given to snakemake as params NOT outputs. So snakemake will never delete them itself.
+- The final output index file is given to snakemake as a param NOT as an output--so snakemake will never delete the index if the pipeline is terminated prematurely or if it wants to remake the index.
 - if a bed file is not provided, mpileup will run with no target regions.
 
 ## 🔬 Workflow Steps
@@ -20,16 +20,16 @@ Key points:
 Creates a pileup for each sample at targeted positions.
 - Uses `samtools mpileup`.
 - Filters by mapping and base quality.
-- Restricts to regions in the target BED file.
+- Runs only on regions in .bed file if one provided, else runs on whole bams.
 - Output per-sample: `{sample_id}.pileup` (under `01-pileup/`).
 
-### 2️⃣ Calculate Mutation Rates (`calculate_mutation_rates`)
+### 2️⃣ Calculate Mutation Rates (`calculate_mutation_rates.py`)
 Computes position-specific mutation rates for each sample.
-- Calculates per-position error rates for alternate bases: `A`, `T`, `C`, `G`, `INS`, `DEL`.
+- Calculates per-position aberration rates, aka how many times a non-reference base appears: `A`, `T`, `C`, `G`, `INS`, `DEL`.
 - Applies minimum depth and other filters.
 - Outputs per-sample mutation rate table: `{sample_id}_mutation_rates.tsv[.gz]` (under `02-mutation_rates/`).
 
-### 3️⃣ Aggregate Mutation Rates (`aggregate_mutation_rates`)
+### 3️⃣ Aggregate Mutation Rates (`aggregate_mutation_rates.py`)
 Combines per-sample tables to create the cohort-wide background profile.
 - Aggregates mean, standard deviation, and `M2` (see below) for each mutation type at every position.
 - Supports reading an existing bgzip+tabix aggregated file and merging new samples without reprocessing old ones.
@@ -44,7 +44,7 @@ Combines per-sample tables to create the cohort-wide background profile.
   - `03-aggregated/`
     - `background_mutation_rates.tsv.gz` (bgzip + tabix) — final index
   - `logs/`
-  - `sample_tracker` (tracks processed sample IDs)
+  - `{PANEL_NAME}_MutRateIndex_Sampletracker.txt` (tracks processed sample IDs)
 
 ## Usage (minimal example)
 Provide a sample table with at least a `sample_id` column and include the Snakemake module:
@@ -57,9 +57,15 @@ sample_table = pd.read_csv("samples.tsv")
 config["lcr-modules"]["_shared"]["samples"] = sample_table
 
 include: "artifact_alert/1.0/FetchMutationRate.smk"
+
+rule execute_mut_rate_pipe:
+    input:
+        str(rules.all_artifact_alert.input)
 ```
 
-## Output format (columns)
+## Output format
+
+Columns present in `background_mutation_rates.tsv.gz`
 Column | Description
 ---|---
 `chromosome` | Chromosome name
@@ -79,4 +85,4 @@ Column | Description
 - Storing `M2` makes incremental updates exact and numerically stable: you can merge an existing aggregated record with new samples without re-reading all original raw data.
 
 ## How on-the-fly aggregation is done (Welford)
-Per-position accumulators are implemented in `MutationStats` / `PositionData` / `ChromIndex`. When you add a single new sample value `x` for a position, Welford’s online update is applied so mean and `M2` are updated without storing all individual sample values:
+Per-position objects are instantiated in `aggregate_mutation_rates.py` that track the running mean and variation for each mutation type. When you add a single new sample value `x` for a position, Welford’s online update is applied so mean and `M2` are updated without storing all individual sample values.
