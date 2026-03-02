@@ -2,10 +2,9 @@ import os
 
 ################################ setup functions ################################
 def get_chromosomes(genome_version):
-    if genome_version in ["hg19", "GRCh37"]:
-        
-        return [f"chr{i}" for i in range(1, 23)] + ["chrX", "chrY"]
-    elif genome_version in ["hg38", "GRCh38"]:
+    if genome_version.lower() in ["hg19", "grch37"]:
+        return [str(i) for i in range(1, 23)] + ["X", "Y"]
+    elif genome_version.lower() in ["hg38", "grch38"]:
         return [f"chr{i}" for i in range(1, 23)] + ["chrX", "chrY"]
     else:
         raise ValueError(f"Unsupported genome version: {genome_version}")
