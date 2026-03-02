@@ -86,9 +86,9 @@ rule _panel_of_normals_index_bam:
 # Symlinks the capture bed file
 rule _panel_of_normals_input_capspace:
     input:
-        bed = ancient(reference_files("genomes/{genome_build}/capture_space/{capture_space}.bed"))
+        bed = ancient(reference_files("genomes/{genome_build}/capture_space/{capture_space}.padded.bed"))
     output:
-        bed = CFG["dirs"]["inputs"] + "bed/{seq_type}--{genome_build}/{capture_space}.bed"
+        bed = CFG["dirs"]["inputs"] + "bed/{seq_type}--{genome_build}/{capture_space}.padded.bed"
     run:
         op.absolute_symlink(input.bed, output.bed)
 
@@ -97,7 +97,7 @@ rule _panel_of_normals_canonical_capspace:
     input:
         bed = str(rules._panel_of_normals_input_capspace.output.bed)
     output:
-        bed = CFG["dirs"]["fix_bed"] + "{seq_type}--{genome_build}/{capture_space}.canonical.bed"
+        bed = CFG["dirs"]["fix_bed"] + "{seq_type}--{genome_build}/{capture_space}.padded.canonical.bed"
     shell:
         op.as_one_line("""
         awk -F"\t" -v OFS="\t" '$1 !~ /(_|M|EBV)/' {input.bed} > {output.bed}
