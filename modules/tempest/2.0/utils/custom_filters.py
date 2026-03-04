@@ -530,7 +530,6 @@ def __fetch_index_entries(variant_df: pd.DataFrame, tabix_file: str) -> pd.DataF
                 pass
     tb.close()
     bg_df = pd.DataFrame.from_records(records)
-
     return bg_df
 
 
@@ -548,6 +547,7 @@ def __group_vars_for_filtering(var_df: pd.DataFrame, genomic_interval: int = 100
         DataFrame with an additional 'tabix_group' column indicating the assigned group for each variant.
             Variants sharing the same 'tabix_group' are within the same genomic interval and can be filtered together.
     """
+    var_df = var_df.copy()
     var_df["tabix_group"] = pd.NA # initialize column
     chrom_dfs = []
     for chrom in var_df["Chromosome"].unique().tolist():

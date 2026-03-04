@@ -6,7 +6,7 @@ import glob
 snakemake.utils.min_version("7")
 
 import sys
-MODULE_PATH = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules/tempest/1.0/")
+MODULE_PATH = os.path.join(config["lcr-modules"]["_shared"]["lcr-modules"], "modules/tempest/2.0/")
 sys.path.append(MODULE_PATH) # add local module to path
 from _version import __version__ as pv # get pipeline version
 
@@ -80,20 +80,19 @@ localrules:
     filter_and_restrict_sage,
     custom_filters
 
-def sage_dynamic_mem(wildcards, attempt, input):
-    if attempt == 1:
-        return max(10000, (2 * input.size_mb + 2000))
-    elif attempt == 2:
-        return max(15000, (input.size_mb * 3 + 5000))
-    elif attempt == 3:
-
 def sage_java_mem(wildcards, attempt, input):
-    if attempt == 1:
-        return max(10000, (2 * input.size_mb + 2000))
-    elif attempt == 2:
-        return (input.size_mb * 3 + 5000) -2000
-    elif attempt == 3:
-        return (input.size_mb * 4) - 2000
+    base = input.size_mb
+    scales = [2, 3, 4]
+    offsets = [2000, 5000, 8000]
+    return max(10000, base * scales[attempt - 1] + offsets[attempt - 1])
+
+
+def sage_dynamic_mem(wildcards, attempt, input):
+    base = input.size_mb
+    floors = [10000, 15000, 20000]
+    scales = [2, 3, 4]
+    offsets = [2000, 5000, 8000]
+    return max(floors[attempt - 1], base * scales[attempt - 1] + offsets[attempt - 1])
 
 rule run_sage:
     input:
@@ -293,7 +292,7 @@ rule custom_filters:
         blacklist_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["blacklist_manifest"],
         min_germline_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_germline_depth", 50)),
         min_alt_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_alt_depth", 5)),
-        min_tum_VAF = float(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("novel_vaf", 0.01))
+        min_tum_VAF = float(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("novel_vaf", 0.01)),
         min_t_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_t_depth", 50)),
         min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_UMI_3_count", 2)),
         low_alt_thresh = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("low_alt_thresh", 50)),
