@@ -98,13 +98,13 @@ lcr-modules:
             drop_extra: false # if TRUE, any features present in test mutation matrix but not seen during model training are dropped
 
         scripts:
-            prepare_svs: "{SCRIPTSDIR}/dlbclone/1.0/curate_sv_dlbclone.R"
+            prepare_svs: "{MODSDIR}/src/curate_sv_dlbclone.R"
             # This script from lcr-scripts will generate a saved and stored DLBCLone model
-            dlbclone_model: "{SCRIPTSDIR}/dlbclone/1.0/dlbclone_model.R"
+            dlbclone_model: "{MODSDIR}/src/dlbclone_model.R"
             # This script from lcr-scripts will assemble a test mutation matrix from maf and metadata files
-            dlbclone_assemble_genetic_features: "{SCRIPTSDIR}/dlbclone/1.0/dlbclone_assemble.R"
+            dlbclone_assemble_genetic_features: "{MODSDIR}/src/dlbclone_assemble.R"
             # This script from lcr-scripts predicts DLBCL molecular subgroups for one or more samples using a pre-trained DLBCLone model
-            dlbclone_predict: "{SCRIPTSDIR}/dlbclone/1.0/dlbclone_predict.R"
+            dlbclone_predict: "{MODSDIR}/src/dlbclone_predict.R"
 
         threads:
             quant: 4

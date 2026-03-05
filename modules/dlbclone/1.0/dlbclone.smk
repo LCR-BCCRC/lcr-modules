@@ -136,7 +136,7 @@ rule curate_sv:
     input:
         sv = str(rules._dlbclone_input_sv.output.sv),
         metadata = CFG["inputs"]["test_metadata_dir"],
-        prepare_sv = CFG["scripts"]["prepare_svs"]
+        prepare_sv = "src/lcr-modules/modules/dlbclone/1.0/src/curate_sv_dlbclone.R" #CFG["scripts"]["prepare_svs"]
     output:
         output_metadata = CFG["dirs"]["inputs"] + "sv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_dlbclone_sv_metadata.tsv"
     params:
@@ -147,17 +147,44 @@ rule curate_sv:
     container:
             "docker://lklossok/gamblr.open:latest"
     shadow:
-            "copy-minimal"
+            "minimal"
     shell:
-        op.as_one_line("""
-            Rscript {input.prepare_sv}
-                --sv_input {input.sv}
-                --metadata {input.metadata} 
-                --output_metadata {output.output_metadata}
-                --tumour_id {wildcards.tumour_id}
-                --real_bcl2 '{params.real_bcl2}'
-                --real_bcl6 '{params.real_bcl6}'
-        """)
+        # op.as_one_line("""
+        #     Rscript {input.prepare_sv}
+        #         --sv_input {input.sv}
+        #         --metadata {input.metadata} 
+        #         --output_metadata {output.output_metadata}
+        #         --tumour_id {wildcards.tumour_id}
+        #         --real_bcl2 '{params.real_bcl2}'
+        #         --real_bcl6 '{params.real_bcl6}'
+        # """)
+        """
+        echo {workflow.basedir}
+        ls {workflow.basedir}/src/lcr-modules/modules
+        """
+        # """
+        # ls -l /projects/rmorin/projects/gambl-repos/gambl-lklossok/src/lcr-modules/modules/dlbclone/1.0/src
+        # ls /projects/rmorin/projects/gambl-repos/gambl-lklossok/src/lcr-modules/modules/dlbclone/1.0/src
+        # Rscript {input.prepare_sv}
+        # """
+        # """
+        #     echo "PWD:"
+        #     pwd
+        #     echo "Root:"
+        #     ls /
+        #     echo "Projects dir:"
+        #     ls /projects || true
+        # """
+    # shell:
+    #     op.as_one_line("""
+    #         Rscript {input.prepare_sv}
+    #             --sv_input {input.sv}
+    #             --metadata {input.metadata} 
+    #             --output_metadata {output.output_metadata}
+    #             --tumour_id {wildcards.tumour_id}
+    #             --real_bcl2 '{params.real_bcl2}'
+    #             --real_bcl6 '{params.real_bcl6}'
+    #     """)
 
 
 # STEP 2: RUN DLBCLONE RULES 
@@ -294,7 +321,7 @@ rule _dlbclone_all:
     input:
         expand(
             [
-                str(rules._dlbclone_predict.output.predictions)
+                str(rules.curate_sv.output.output_metadata) #str(rules._dlbclone_predict.output.predictions)
             ],
             zip,
             sample_id = SAMPLES["sample_id"],
