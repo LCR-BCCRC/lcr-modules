@@ -41,8 +41,8 @@ def get_args():
     # I/O
     p.add_argument('--input_maf', required=True, type=str, help='Path to input MAF file (tab-delimited).')
     p.add_argument('--output_maf', required=True, type=str, help='Path to write the filtered MAF.')
-    p.add_argument('--blacklist', type=str, default="", help='TSV with blacklisted variant_key (Chromosome:Start_Position). Optional.')
-    p.add_argument('--hotspots', type=str, default="", help='VCF file with hotspot variants. Optional.')
+    p.add_argument('--blacklist', type=str,nargs='?', const="", default="", help='TSV with blacklisted variant_key (Chromosome:Start_Position). Optional.')
+    p.add_argument('--hotspots', type=str, nargs='?', const="", default="", help='VCF file with hotspot variants. Optional.')
     # thresholds
     p.add_argument('--gnomad_threshold', required=False, type=float, help='Max allowed gnomAD AF across all population columns.')
     p.add_argument('--min_alt_depth_tum', required=False, type=int, help='Minimum tumor alt read count (t_alt_count).')
@@ -57,7 +57,7 @@ def get_args():
     p.add_argument('--low_normal_depth', type=int, default=100, help='If n_depth <= this, apply stricter AF filter (unless exempt).')
     p.add_argument('--low_normal_AF', type=float, default=0.30, help='AF threshold used when n_depth is low (unless exempt).')
     # backgrount mutation rate filter
-    p.add_argument('--background_rates', type=str, default="", 
+    p.add_argument('--background_rates', nargs='?', const="", type=str, default="", 
                help='Optional tsv (bgzipped with tabix index file) with background mutation rates per position.')
     p.add_argument('--min_background_samples', type=int, default=20, 
                 help='Minimum n_samples required in background index.')
@@ -382,7 +382,7 @@ class VariantFilterPipeline:
         background_file: str,
         min_samples: int = 20,
         n_std: float = 2.0,
-        max_background_rate: float = 0.05
+        max_background_rate: float = 0.2
     ) -> pd.DataFrame:
         """
         Filter variants based on background mutation rates.
@@ -415,7 +415,8 @@ class VariantFilterPipeline:
             non_exempt_df,
             background_file,
             min_samples=min_samples,
-            SD_multiplier=n_std
+            SD_multiplier=n_std,
+            max_background_rate = max_background_rate
             )
         # Filter out noisy variants
         passed_df = non_exempt_df.loc[~non_exempt_df["noisy"]].drop(columns=["noisy"])
@@ -431,7 +432,8 @@ class VariantFilterPipeline:
         return result
 
 def check_background_mut_rate(variant_df: pd.DataFrame, tabix_file: str, 
-                                min_samples: int = 20, SD_multiplier: int = 2) -> pd.DataFrame:
+                                min_samples: int = 20, SD_multiplier: float = 2,
+                                max_background_rate: float = 0.2) -> pd.DataFrame:
     """Determine if variants are in positions with high background mutation rates based on a tabix-indexed background mutation rate file.
     
     Arguments:
@@ -445,16 +447,14 @@ def check_background_mut_rate(variant_df: pd.DataFrame, tabix_file: str,
     """
     bg_index = __fetch_index_entries(variant_df, tabix_file)
     variant_df["noisy"] = False
-    
     for variant in variant_df.itertuples():
         chrom = str(variant.Chromosome)
         pos = int(variant.Start_Position)
         ref = variant.Reference_Allele
         alt = variant.Tumor_Seq_Allele2
         var_type = variant.Variant_Type
-
         # Determine positions to check
-        if var_type in ["SNV", "INS"]:
+        if var_type in ["SNV", "SNP", "INS"]:
             positions_to_check = [pos]
         elif var_type in ["DEL", "DNP", "TNP", "MNP"]:
             positions_to_check = list(range(pos, pos + len(ref)))
@@ -465,9 +465,10 @@ def check_background_mut_rate(variant_df: pd.DataFrame, tabix_file: str,
         thresholds = []
         for idx, check_pos in enumerate(positions_to_check):
             bg_row = bg_index.loc[(bg_index["chromosome"].astype(str) == chrom) & 
-                                  (bg_index["position"] == check_pos)]
+                                  (bg_index["position"].astype(int) == check_pos)]
             
             if bg_row.empty or int(bg_row.iloc[0]["n_samples"]) < min_samples:
+                print(f"Warning: No background data or insufficient samples for {chrom}:{check_pos} (n_samples={bg_row.iloc[0]['n_samples'] if not bg_row.empty else 'NA'}), skipping this position for variant {variant.variant_key}")
                 continue  # Skip positions with insufficient data
             
             # Determine column suffix based on variant type
@@ -479,17 +480,26 @@ def check_background_mut_rate(variant_df: pd.DataFrame, tabix_file: str,
             mean_col, std_col = f"{col_suffix}_mean", f"{col_suffix}_std"
             
             if mean_col not in bg_row.columns or std_col not in bg_row.columns:
+                print(f"Warning: Missing columns {mean_col} or {std_col} in background index for position {chrom}:{check_pos}, skipping this position")
                 continue  # Skip if columns missing
             
             bg_mean = float(bg_row.iloc[0][mean_col])
             bg_std = float(bg_row.iloc[0][std_col])
+
+            # Inside the per-position loop in check_background_mut_rate:
+            if bg_mean > max_background_rate:
+                variant_df.at[variant.Index, "noisy"] = True
+                break
             thresholds.append(bg_mean + (SD_multiplier * bg_std))
-        
+
         # If we have threshold data, check if variant AF is below average threshold
         if thresholds:
             avg_threshold = sum(thresholds) / len(thresholds)
             if variant.AF < avg_threshold:
                 variant_df.at[variant.Index, "noisy"] = True
+                print(f"Variant {variant.variant_key} marked as noisy: AF {variant.AF:.4f} below background threshold {avg_threshold:.4f} based on {len(thresholds)} positions")
+            else:
+                print(f"Variant {variant.variant_key} passes background filter: AF {variant.AF:.4f} above background threshold {avg_threshold:.4f} based on {len(thresholds)} positions")
 
     return variant_df
 

@@ -315,19 +315,19 @@ rule custom_filters:
     params:
         exac_freq = float(config["lcr-modules"]["cfDNA_SAGE_workflow"]["exac_max_freq"]),
         script = os.path.join(UTILSDIR, "custom_filters.py"),
-        hotspot_vcf = config["lcr-modules"]["cfDNA_SAGE_workflow"]["hotspot_vcf"],
-        blacklist_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"]["blacklist_manifest"],
-        min_germline_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_germline_depth"]),
-        min_alt_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_alt_depth"]),
-        min_tum_VAF = float(config["lcr-modules"]["cfDNA_SAGE_workflow"]["novel_vaf"]),
-        min_t_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_t_depth"]),
-        min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_UMI_3_count"]),
-        low_alt_thresh = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["low_alt_thresh"]),
-        low_alt_min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["low_alt_min_UMI_3_count"]),
-        background_rates = config["lcr-modules"]["cfDNA_SAGE_workflow"]["background_rates"],
-        min_background_samples = int(config["lcr-modules"]["cfDNA_SAGE_workflow"]["min_background_samples"]),
-        background_n_std = float(config["lcr-modules"]["cfDNA_SAGE_workflow"]["background_n_std"]),
-        max_bg_rate = float(config["lcr-modules"]["cfDNA_SAGE_workflow"]["max_background_rate"])
+        hotspot_vcf = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("hotspot_vcf", None),
+        blacklist_txt = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("blacklist_manifest", None),
+        min_germline_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_germline_depth", 50)),
+        min_alt_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_alt_depth", 5)),
+        min_tum_VAF = float(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("novel_vaf", 0.01)),
+        min_t_depth = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_t_depth", 50)),
+        min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_UMI_3_count", 2)),
+        low_alt_thresh = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("low_alt_thresh", 50)),
+        low_alt_min_UMI_3_count = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("low_alt_min_UMI_3_count", 3)),
+        background_rates = config["lcr-modules"]["cfDNA_SAGE_workflow"].get("background_rates", None),
+        min_background_samples = int(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("min_background_samples", 20)),
+        background_n_std = float(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("background_n_std", 2)),
+        max_bg_rate = float(config["lcr-modules"]["cfDNA_SAGE_workflow"].get("max_background_rate", 0.1))
     log:
         os.path.join(SAGE_OUTDIR, "logs/{sample}.custom_filters.log")
     conda:
@@ -346,12 +346,14 @@ rule custom_filters:
         --min_UMI_3_count {params.min_UMI_3_count} \
         --low_alt_thresh {params.low_alt_thresh} \
         --low_alt_min_UMI_3_count {params.low_alt_min_UMI_3_count} \
-        $( [ -n "{params.blacklist_txt}" ] && echo "--blacklist {params.blacklist_txt}" || echo "" ) \
-        $( [ -n "{params.hotspot_vcf}" ] && echo "--hotspots {params.hotspot_vcf}" || echo "" ) \
-        $( [ -n "{params.background_rates}" ] && echo "--background_rates {params.background_rates}" || echo "" ) \
+        --blacklist {params.blacklist_txt} \
+        --hotspots {params.hotspot_vcf} \
+        --background_rates {params.background_rates} \
         --min_background_samples {params.min_background_samples} \
-        --background_n_std {params.background_n_std} --max_background_rate {params.max_bg_rate} &> {log}
+        --background_n_std {params.background_n_std} \
+        --max_background_rate {params.max_bg_rate} > {log} 2>&1
         """
+
 
 
 rule augment_maf:
