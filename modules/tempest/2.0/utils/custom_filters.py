@@ -445,8 +445,19 @@ def check_background_mut_rate(variant_df: pd.DataFrame, tabix_file: str,
     Returns:
         DataFrame with an additional 'noisy' boolean column indicating whether each variant is in a high background mutation rate position or has insufficient background data.
     """
+    # if no variants, exit now
+    if variant_df.empty:
+        variant_df["noisy"] = False
+        return variant_df
+
     bg_index = __fetch_index_entries(variant_df, tabix_file)
+    if bg_index.empty or "position" not in bg_index.columns:
+        print("Warning: bg_index is empty, skipping background rate filter.")
+        variant_df["noisy"] = False
+        return variant_df
+
     variant_df["noisy"] = False
+
     for variant in variant_df.itertuples():
         chrom = str(variant.Chromosome)
         pos = int(variant.Start_Position)
@@ -583,6 +594,9 @@ def __group_vars_for_filtering(var_df: pd.DataFrame, genomic_interval: int = 100
             group_id += 1
             
         chrom_dfs.append(chrom_df)
+    # already has tabix_group column (all NA), just return it
+    if not chrom_dfs:
+        return var_df
 
     return pd.concat(chrom_dfs)
 
