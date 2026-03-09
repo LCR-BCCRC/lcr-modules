@@ -9,6 +9,9 @@ def get_chromosomes(genome_version):
     else:
         raise ValueError(f"Unsupported genome version: {genome_version}")
 
+# for samtools to look in bams
+#CHROMOSOMES = [f"chr{i}" for i in range(1, 23)] + ["chrX", "chrY"]
+
 ################################ global variables ################################
 PANEL_NAME = config["lcr-modules"]["artifact_alert"]["panel_name"]
 OUTDIR = os.path.join(config["lcr-modules"]["_shared"]["root_output_dir"], "artifact_alert", "1.0", PANEL_NAME)
