@@ -332,7 +332,7 @@ rule _panel_of_normals_flat_ref_annotate_targets:
         **CFG["resources"]["cnvkit"]
     shell:
         op.as_one_line("""
-        cnvkit.py target {input.bed} --annotate {input.refflat} --split -o {output.targets} &> {log.log}
+        cnvkit.py target {input.bed} --annotate {input.refFlat} --split -o {output.targets} &> {log.log}
         """)
 
 # Create anti target regions bed
@@ -404,8 +404,8 @@ rule _panel_of_normals_all:
             ],
             zip,
             seq_type="capture",
-            genome_build=CFG["options"]["flat_ref_combos"]["genome_build"],
-            capture_space=CFG["options"]["flat_ref_combos"]["capture_space"]
+            genome_build=CFG["options"]["flat_ref_combos"]["genome_builds"],
+            capture_space=CFG["options"]["flat_ref_combos"]["capture_spaces"]
         )
 
 
