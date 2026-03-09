@@ -396,8 +396,9 @@ rule _panel_of_normals_all:
             seq_type=CFG["samples"]["seq_type"],
             genome_build=CFG["samples"]["genome_build"],
             capture_space=CFG["samples"]["capture_space"],
-            sample_id=CFG["samples"]["sample_id"]),
-        expand{
+            sample_id=CFG["samples"]["sample_id"]
+        ),
+        expand(
             [
                 str(rules._panel_of_normals_output_flat_ref.output.cnn)
             ],
@@ -405,7 +406,7 @@ rule _panel_of_normals_all:
             seq_type="capture",
             genome_build=CFG["options"]["flat_ref_combos"]["genome_build"],
             capture_space=CFG["options"]["flat_ref_combos"]["capture_space"]
-        }
+        )
 
 
 ##### CLEANUP #####
