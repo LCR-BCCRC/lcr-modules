@@ -141,7 +141,7 @@ rule _panel_of_normals_accessible_regions:
 # Filters to only the main chromosomes
 rule _panel_of_normals_filter_main_chrs:
     input:
-        access = CFG["dirs"]["inputs"] + "references/access.{genome_build}.bed"
+        access = CFG["dirs"]["inputs"] + "references/access.{genome_build}.bed",
         main_txt = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt")
     output:
         access_main = CFG["dirs"]["inputs"] + "references/access_main.{genome_build}.bed"
