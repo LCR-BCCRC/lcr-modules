@@ -138,15 +138,16 @@ rule _panel_of_normals_accessible_regions:
         cnvkit.py access {input.fasta} -o {output.access} &> {log.log}
         """)
 
-# Filters out chrG, chrJ, chrM from bed
+# Filters to only the main chromosomes
 rule _panel_of_normals_filter_main_chrs:
     input:
         access = CFG["dirs"]["inputs"] + "references/access.{genome_build}.bed"
+        main_txt = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt")
     output:
         access_main = CFG["dirs"]["inputs"] + "references/access_main.{genome_build}.bed"
     shell:
         op.as_one_line("""
-        grep -v GL {input.access} | grep -v J | grep -v M > {output.access_main}
+        grep -F -f {input.main_txt} {input.access} > {output.access_main}
         """)
 
 # Collects all normals per genome_build--capture_space combo
