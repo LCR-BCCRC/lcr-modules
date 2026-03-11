@@ -46,8 +46,16 @@ localrules:
     _panel_of_normals_input_capspace,
     _panel_of_normals_canonical_capspace,
     _panel_of_normals_filter_main_chrs,
-    _panel_of_normals_output_cnn
+    _panel_of_normals_output_beds,
+    _panel_of_normals_output_cnn,
+    _panel_of_normals_output_tsv,
+    _panel_of_normals_flat_ref_output_beds,
+    _panel_of_normals_output_flat_ref,
+    _panel_of_normals_all
 
+
+# Get unique combos in the samples table for rule all
+META = CFG["samples"][['seq_type', 'genome_build', 'capture_space']].drop_duplicates()
 
 ##### RULES #####
 
@@ -75,7 +83,7 @@ rule _panel_of_normals_index_bam:
         CFG["threads"]["samtools"]
     shell:
         op.as_one_line("""
-        samtools index {input.bam} 2> {log.log} &&
+        samtools index -@ {threads} {input.bam} 2> {log.log} &&
         cd $(dirname {input.bam});
         if [[ -e {wildcards.sample_id}.bam.crai ]];
         then
@@ -129,8 +137,7 @@ rule _panel_of_normals_accessible_regions:
         log = CFG["logs"]["inputs"] + "{genome_build}_access.log"
     conda:
         CFG["conda_envs"]["cnvkit"]
-    threads:
-        CFG["threads"]["cnvkit"]
+    threads: 1 # does not use parallelization, but still needs to be submitted
     resources:
         **CFG["resources"]["cnvkit"]
     shell:
@@ -201,15 +208,14 @@ rule _panel_of_normals_target_sites:
     conda:
         CFG["conda_envs"]["cnvkit"]
     threads:
-        CFG["threads"]["cnvkit"]
+        CFG["threads"]["autobin"]
     resources:
-        **CFG["resources"]["cnvkit"]
-
+        **CFG["resources"]["autobin"]
     shell:
         op.as_one_line("""
         cnvkit.py autobin {input.bam} -t {input.bed} -g {input.access} --annotate
-         {input.refFlat} --short-names --target-output-bed {output.target}
-         --antitarget-output-bed {output.antitarget} &> {log.log}
+         {input.refFlat} -p {threads} --short-names --target-output-bed
+         {output.target} --antitarget-output-bed {output.antitarget} &> {log.log}
         """)
 
 # Get coverage for each sample
@@ -225,9 +231,9 @@ rule _panel_of_normals_coverage_target:
     conda:
         CFG["conda_envs"]["cnvkit"]
     threads:
-        CFG["threads"]["cnvkit"]
+        CFG["threads"]["coverage"]
     resources:
-        **CFG["resources"]["cnvkit"]
+        **CFG["resources"]["coverage"]
     shell:
         op.as_one_line("""
         cnvkit.py coverage {input.bam} {input.bed} -o {output.cov} -p {threads}
@@ -247,9 +253,9 @@ rule _panel_of_normals_coverage_antitarget:
     conda:
         CFG["conda_envs"]["cnvkit"]
     threads:
-        CFG["threads"]["cnvkit"]
+        CFG["threads"]["coverage"]
     resources:
-        **CFG["resources"]["cnvkit"]
+        **CFG["resources"]["coverage"]
     shell:
         op.as_one_line("""
         cnvkit.py coverage {input.bam} {input.bed} -o {output.cov} -p {threads}
@@ -287,33 +293,15 @@ rule _panel_of_normals_create_pon_ref:
     conda:
         CFG["conda_envs"]["cnvkit"]
     threads:
-        CFG["threads"]["cnvkit"]
+        CFG["threads"]["reference"]
     resources:
-        **CFG["resources"]["cnvkit"]
+        **CFG["resources"]["reference"]
     shell:
         op.as_one_line("""
         cnvkit.py reference {input.control_target} {input.control_antitarget}
-         --fasta {input.fasta} -o {output.pon} {params.male_reference}
+         --fasta {input.fasta} -p {threads} -o {output.pon} {params.male_reference}
          &> {log.log}
         """)
-
-# Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _panel_of_normals_output_cnn:
-    input:
-        cnn = str(rules._panel_of_normals_create_pon_ref.output.pon)
-    output:
-        cnn = CFG["dirs"]["outputs"] + "cnn/{seq_type}--{genome_build}/{capture_space}_normal_reference.cnn"
-    run:
-        op.relative_symlink(input.cnn, output.cnn, in_module= True)
-
-rule _panel_of_normals_output_tsv:
-    input:
-        tsv = str(rules._panel_of_normals_record_samples.output.tsv)
-    output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{capture_space}_samples_metadata.tsv"
-    run:
-        op.relative_symlink(input.tsv, output.tsv, in_module= True)
-
 
 #### The following rules create a "flat" reference file for edge cases where there are no normals and no equivalents
 # Annotates target sites with refFlat file
@@ -327,40 +315,38 @@ rule _panel_of_normals_flat_ref_annotate_targets:
         log = CFG["logs"]["flat_ref_cnn"] + "{seq_type}--{genome_build}/{capture_space}/annotate_targets.log"
     conda:
         CFG["conda_envs"]["cnvkit"]
-    threads:
-        CFG["threads"]["cnvkit"]
+    threads: 1 # does not use parallelization
     resources:
-        **CFG["resources"]["cnvkit"]
+        **CFG["resources"]["coverage"]
     shell:
         op.as_one_line("""
         cnvkit.py target {input.bed} --annotate {input.refFlat} --split -o {output.targets} &> {log.log}
         """)
 
 # Create anti target regions bed
-rule _panel_of_normals_flat_ref_anti_targets:
+rule _panel_of_normals_flat_ref_antitargets:
     input:
         targets = str(rules._panel_of_normals_flat_ref_annotate_targets.output.targets),
         access_main = str(rules._panel_of_normals_filter_main_chrs.output.access_main)
     output:
-        anti_targets = CFG["dirs"]["flat_ref_cnn"] + "{seq_type}--{genome_build}/{capture_space}/anti_target_sites.bed"
+        antitargets = CFG["dirs"]["flat_ref_cnn"] + "{seq_type}--{genome_build}/{capture_space}/antitarget_sites.bed"
     log:
-        log = CFG["logs"]["flat_ref_cnn"] + "{seq_type}--{genome_build}/{capture_space}/anti_targets.log"
+        log = CFG["logs"]["flat_ref_cnn"] + "{seq_type}--{genome_build}/{capture_space}/antitargets.log"
     conda:
         CFG["conda_envs"]["cnvkit"]
-    threads:
-        CFG["threads"]["cnvkit"]
+    threads: 1 # does not use parallelization
     resources:
-        **CFG["resources"]["cnvkit"]
+        **CFG["resources"]["coverage"]
     shell:
         op.as_one_line("""
-        cnvkit.py antitarget {input.targets} -g {input.access_main} -o {output.anti_targets} &> {log.log}
+        cnvkit.py antitarget {input.targets} -g {input.access_main} -o {output.antitargets} &> {log.log}
         """)
 
 # Makes the flat reference file
 rule _panel_of_normals_flat_ref:
     input:
         targets = str(rules._panel_of_normals_flat_ref_annotate_targets.output.targets),
-        anti_targets = str(rules._panel_of_normals_flat_ref_anti_targets.output.anti_targets),
+        antitargets = str(rules._panel_of_normals_flat_ref_antitargets.output.antitargets),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         cnn = CFG["dirs"]["flat_ref_cnn"] + "{seq_type}--{genome_build}/{capture_space}/flat_reference.cnn"
@@ -369,19 +355,74 @@ rule _panel_of_normals_flat_ref:
     conda:
         CFG["conda_envs"]["cnvkit"]
     threads:
-        CFG["threads"]["cnvkit"]
+        CFG["threads"]["reference"]
     resources:
-        **CFG["resources"]["cnvkit"]
+        **CFG["resources"]["reference"]
     shell:
         op.as_one_line("""
-        cnvkit.py reference -o {output.cnn} -f {input.fasta} -t {input.targets} -a {input.anti_targets} &> {log.log}
+        cnvkit.py reference -o {output.cnn} -f {input.fasta} -t {input.targets} -a {input.antitargets} &> {log.log}
         """)
+
+# Symlinks the final output files into the module results directory (under '99-outputs/')
+rule _panel_of_normals_output_beds:
+    input:
+        target = str(rules._panel_of_normals_target_sites.output.target),
+        antitarget = str(rules._panel_of_normals_target_sites.output.antitarget)
+    output:
+        target = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{capture_space}_target_sites.bed",
+        antitarget = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{capture_space}_antitarget_sites.bed"
+    wildcard_constraints: # needed in order not to clash with _panel_of_normals_flat_ref_output_beds
+        seq_type="capture",
+        genome_build='|'.join(META["genome_build"]),
+        capture_space='|'.join(META["capture_space"])
+    run:
+        op.relative_symlink(input.target, output.target, in_module= True)
+        op.relative_symlink(input.antitarget, output.antitarget, in_module= True)
+
+rule _panel_of_normals_output_cnn:
+    input:
+        cnn = str(rules._panel_of_normals_create_pon_ref.output.pon)
+    output:
+        cnn = CFG["dirs"]["outputs"] + "cnn/{seq_type}--{genome_build}/{capture_space}_normal_reference.cnn"
+    wildcard_constraints: # needed in order not to clash with _panel_of_normals_output_flat_ref
+        seq_type="capture",
+        genome_build='|'.join(META["genome_build"]),
+        capture_space='|'.join(META["capture_space"])
+    run:
+        op.relative_symlink(input.cnn, output.cnn, in_module= True)
+
+rule _panel_of_normals_output_tsv:
+    input:
+        tsv = str(rules._panel_of_normals_record_samples.output.tsv)
+    output:
+        tsv = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{capture_space}_samples_metadata.tsv"
+    run:
+        op.relative_symlink(input.tsv, output.tsv, in_module= True)
+
+rule _panel_of_normals_flat_ref_output_beds:
+    input:
+        target = str(rules._panel_of_normals_flat_ref_annotate_targets.output.targets),
+        antitarget = str(rules._panel_of_normals_flat_ref_antitargets.output.antitargets)
+    output:
+        target = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{capture_space}_target_sites.bed",
+        antitarget = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{capture_space}_antitarget_sites.bed"
+    wildcard_constraints: # needed in order not to clash with _panel_of_normals_output_beds
+        seq_type="capture",
+        genome_build='|'.join(CFG["options"]["flat_ref_combos"]["genome_builds"]),
+        capture_space='|'.join(CFG["options"]["flat_ref_combos"]["capture_spaces"])
+    run:
+        op.relative_symlink(input.target, output.target, in_module= True)
+        op.relative_symlink(input.antitarget, output.antitarget, in_module= True)
 
 rule _panel_of_normals_output_flat_ref:
     input:
         cnn = str(rules._panel_of_normals_flat_ref.output.cnn)
     output:
-        cnn = CFG["dirs"]["outputs"] + "cnn/{seq_type}--{genome_build}/{capture_space}_flat_reference.cnn"
+        cnn = CFG["dirs"]["outputs"] + "cnn/{seq_type}--{genome_build}/{capture_space}_normal_reference.cnn"
+    wildcard_constraints: # needed in order not to clash with _panel_of_normals_output_cnn
+        seq_type="capture",
+        genome_build='|'.join(CFG["options"]["flat_ref_combos"]["genome_builds"]),
+        capture_space='|'.join(CFG["options"]["flat_ref_combos"]["capture_spaces"])
     run:
         op.relative_symlink(input.cnn, output.cnn, in_module= True)
 
@@ -391,17 +432,20 @@ rule _panel_of_normals_all:
         expand(
             [
                 str(rules._panel_of_normals_output_cnn.output.cnn),
-                str(rules._panel_of_normals_output_tsv.output.tsv)
+                str(rules._panel_of_normals_output_tsv.output.tsv),
+                str(rules._panel_of_normals_output_beds.output.target),
+                str(rules._panel_of_normals_output_beds.output.antitarget)
             ],
             zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["samples"]["seq_type"],
-            genome_build=CFG["samples"]["genome_build"],
-            capture_space=CFG["samples"]["capture_space"],
-            sample_id=CFG["samples"]["sample_id"]
+            seq_type=META["seq_type"],
+            genome_build=META["genome_build"],
+            capture_space=META["capture_space"]
         ),
         expand(
             [
-                str(rules._panel_of_normals_output_flat_ref.output.cnn)
+                str(rules._panel_of_normals_output_flat_ref.output.cnn),
+                str(rules._panel_of_normals_flat_ref_output_beds.output.target),
+                str(rules._panel_of_normals_flat_ref_output_beds.output.antitarget)
             ],
             zip,
             seq_type="capture",

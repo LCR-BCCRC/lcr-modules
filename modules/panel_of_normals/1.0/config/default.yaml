@@ -8,7 +8,7 @@ lcr-modules:
             sample_bai: "__UPDATE__"
 
         options:
-            # If you want to set it as a female reference, you can change " -y " to " "
+            # Setting the sex to use as the reference
             # Female samples normalized to a male reference will show a doubling of chromosome X (log2 value about +1.0) and complete loss of chromosome Y (log2 value below -3.0, usually far below).
             # Male samples normalized to a female reference will show a single-copy loss of chromosome X (log2 value about -1.0). The chromosome Y value should be near 0.0, but the log2 values may be noisier and less reliable than on autosomes.
             male_ref: " "
@@ -27,10 +27,16 @@ lcr-modules:
 
         threads:
             samtools: 8
-            cnvkit: 24
+            autobin: 24
+            coverage: 4
+            reference: 4
 
         resources:
-            cnvkit:
+            autobin:
+                mem_mb: 48000
+            coverage:
+                mem_mb: 8000
+            reference:
                 mem_mb: 48000
 
         pairing_config:
