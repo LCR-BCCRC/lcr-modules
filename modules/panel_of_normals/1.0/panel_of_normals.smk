@@ -49,7 +49,7 @@ localrules:
     _panel_of_normals_output_beds,
     _panel_of_normals_output_cnn,
     _panel_of_normals_output_tsv,
-    _panel_of_normals_flat_ref_output_beds,
+    _panel_of_normals_output_flat_ref_beds,
     _panel_of_normals_output_flat_ref,
     _panel_of_normals_all
 
