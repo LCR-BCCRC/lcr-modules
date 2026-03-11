@@ -77,8 +77,6 @@ rule _modkit_pileup:
         stderr = CFG["logs"]["modkit"] + "{seq_type}--{genome_build}/{sample_id}/pileup.stderr.log"
     conda: 
         CFG["conda_envs"]["modkit"]
-    params:
-        CFG["options"]["header"]
     threads:
         CFG["threads"]["modkit"]
     resources:
