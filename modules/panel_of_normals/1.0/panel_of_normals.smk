@@ -399,7 +399,7 @@ rule _panel_of_normals_output_tsv:
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module= True)
 
-rule _panel_of_normals_flat_ref_output_beds:
+rule _panel_of_normals_output_flat_ref_beds:
     input:
         target = str(rules._panel_of_normals_flat_ref_annotate_targets.output.targets),
         antitarget = str(rules._panel_of_normals_flat_ref_antitargets.output.antitargets)
@@ -444,8 +444,8 @@ rule _panel_of_normals_all:
         expand(
             [
                 str(rules._panel_of_normals_output_flat_ref.output.cnn),
-                str(rules._panel_of_normals_flat_ref_output_beds.output.target),
-                str(rules._panel_of_normals_flat_ref_output_beds.output.antitarget)
+                str(rules._panel_of_normals_output_flat_ref_beds.output.target),
+                str(rules._panel_of_normals_output_flat_ref_beds.output.antitarget)
             ],
             zip,
             seq_type="capture",
