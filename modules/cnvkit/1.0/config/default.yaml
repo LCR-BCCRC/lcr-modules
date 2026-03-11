@@ -21,6 +21,13 @@ lcr-modules:
 
         scratch_subdirectories: []
 
+        conda_envs:
+            controlfreec: "{MODSDIR}/envs/controlfreec.env.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/python-3.8.3.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/2.0/liftover.yaml"
+
         options:
             # Setting the sex to use as the reference
             # NOTE: this must match what was used in the panel_of_normals module to generate the files above, which is set as default to " "
@@ -66,45 +73,12 @@ lcr-modules:
             liftover_script_path: "{SCRIPTSDIR}/liftover/2.0/liftover.sh"
             liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
             fill_segments_version: "1.2/"
-## TO REMOVE
-            # prefixed_projections: ["grch38", "hg38"] # List here the base names of chr-prefixed projections
-            # non_prefixed_projections: ["grch37", "hg19", "hs37d5"] # List here the base names of non-prefixed projections
-
-
-## TO REMOVE
-        output: # specify the naming convention for the output files under 99-outputs/
-                # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
-                # other wildcards are not supported in the naming scheme of output files
-            seg:
-                original: "results/cnvkit-1.0/99-outputs/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
-                projection: "results/cnvkit-1.0/99-outputs/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
-            pdf:
-                diagram: "results/cnvkit-1.0/99-outputs/plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.diagram.pdf"
-            png:
-                scatter: "results/cnvkit-1.0/99-outputs/plots/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.scatter.png"
-            cns:
-                call: "results/cnvkit-1.0/99-outputs/cns/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.cns"
-            txt:
-                breaks: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneBreaks.txt"
-                gene_seg: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneSeg.txt"
-                geneList: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.geneList.txt"
-                sex: "results/cnvkit-1.0/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sex.txt"
-            metrics:
-                metrics: "results/cnvkit-1.0/99-outputs/metrics/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.metrics.txt"
-
-        conda_envs:
-            samtools: "{MODSDIR}/envs/samtools-1.10.yaml"
-            cnvkit: "{MODSDIR}/envs/cnvkit-0.9.9.yaml"
-            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
-            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
-            liftover: "{SCRIPTSDIR}/liftover/2.0/liftover.yaml"
 
         threads:
             samtools: 8
             coverage: 4
             cns: 24
             SNPs: 8
-
 
         resources:
             vcf_sort:
