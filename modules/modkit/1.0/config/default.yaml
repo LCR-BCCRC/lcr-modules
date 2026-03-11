@@ -22,7 +22,7 @@ lcr-modules:
                 mem_mb: 2000
             
         pairing_config:
-            genome:
+            promethION:
                 run_paired_tumours: False
                 run_unpaired_tumours_with: "no_normal"
                 run_paired_tumours_as_unpaired: True
