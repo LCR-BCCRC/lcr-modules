@@ -1,0 +1,16 @@
+name: dlbclass-test
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - pandas==1.3.5
+  - matplotlib==3.8.4
+  - numpy==1.21.5
+  - pip==24.3.1
+  - python=3.9.21
+  - pytorch==1.10.2
+  - notebook==7.3.2
+  - r-base=4.4.2
+  - pip:
+      - jupyter==1.1.1
