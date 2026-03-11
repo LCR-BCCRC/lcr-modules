@@ -35,6 +35,7 @@ lcr-modules:
             clairs_to_path: "__UPDATE__" # Update this with the path to the run_clairs_to script. Likely something like {MODSDIR}/modules/clairs_to/1.0/ClairS-TO-0.4.4/ClairS-TO/run_clairs_to
             clairs_to_args: "__UPDATE__"
             filters: 'FILTER="PASS" && INFO/AF < 0.0001 && FMT/DP[0] >= 8 && FMT/AF[0] >= 0.1' # Update this line if you wish to use different filters
+            cleanup: True # Switch to false if you wish to keep intermediate ClairS-TO files
             
         conda_envs:
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"

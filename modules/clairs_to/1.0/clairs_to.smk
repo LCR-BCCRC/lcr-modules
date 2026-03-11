@@ -54,6 +54,7 @@ localrules:
 VERSION_MAP_CLAIRS_TO = CFG["options"]["version_map"]
 SEQTYPE_MAP_CLAIRS_TO = CFG["options"]["seqtype_map"]
 MODULE_DIR = os.path.abspath(CFG["options"]["modsdir"])
+RES_DIR = os.path.join(MODULE_DIR, "ClairS-TO-0.4.2", "resources")
 
 possible_genome_builds = ", ".join(list(VERSION_MAP_CLAIRS_TO.keys()))
 for genome_build in CFG["runs"]["tumour_genome_build"]:
@@ -68,7 +69,6 @@ for seq_type in CFG["runs"]["tumour_seq_type"]:
         f"Samples table includes seq types not yet compatible with this module. "
         f"This module is currently only compatible with {possible_seq_types}. "
     )
-
 
 chemistry = CFG["runs"]["tumour_chemistry"]
 
@@ -123,13 +123,13 @@ rule _clairs_to_get_resources:
     params:
         base_dir = os.path.join(MODULE_DIR, "ClairS-TO-0.4.2"),
         repo_dir = os.path.join(MODULE_DIR, "ClairS-TO-0.4.2", "ClairS-TO"),
-        resources_dir = os.path.join(MODULE_DIR, "ClairS-TO-0.4.2", "resources"),
-        models_dir = os.path.join(MODULE_DIR, "ClairS-TO-0.4.2", "resources", "clairs-to_models"),
-        databases_dir = os.path.join(MODULE_DIR, "ClairS-TO-0.4.2", "resources", "clairs-to_databases"),
-        references_dir = os.path.join(MODULE_DIR, "ClairS-TO-0.4.2", "resources", "clairs-to_cna_data"),
-        models_tarball = os.path.join(MODULE_DIR, "ClairS-TO-0.4.2", "resources", "clairs-to_models", "clairs-to_models.tar.gz"),
-        databases_tarball = os.path.join(MODULE_DIR, "ClairS-TO-0.4.2", "resources", "clairs-to_databases", "clairs-to_databases.tar.gz"),
-        references_tarball = os.path.join(MODULE_DIR, "ClairS-TO-0.4.2", "resources", "clairs-to_cna_data", "clairs-to_reference_files.tar.gz"),
+        resources_dir = RES_DIR,
+        models_dir = os.path.join(RES_DIR, "clairs-to_models"),
+        databases_dir = os.path.join(RES_DIR, "clairs-to_databases"),
+        references_dir = os.path.join(RES_DIR, "clairs-to_cna_data"),
+        models_tarball = os.path.join(RES_DIR, "clairs-to_models", "clairs-to_models.tar.gz"),
+        databases_tarball = os.path.join(RES_DIR, "clairs-to_databases", "clairs-to_databases.tar.gz"),
+        references_tarball = os.path.join(RES_DIR, "clairs-to_cna_data", "clairs-to_reference_files.tar.gz"),
         commit = "1179868508ca47d7972fc5d2b3fb644c0e66845c"
     shell:
         op.as_one_line("""
@@ -153,8 +153,6 @@ rule _clairs_to_get_resources:
         if ! find {params.models_dir} -type f -name 'pileup_affirmative.pkl' -print -quit | read ; then
             echo "ERROR: Missing pileup_affirmative.pkl in models directory=" >&2 ; exit 1 ;
         fi
-        &&
-        touch {output.resources}
         """)
 
 
@@ -167,11 +165,11 @@ rule _clairs_to_link_clairs_to_models:
     conda:
         CFG["conda_envs"]["clairs_to"]
     params:
-        models_target = lambda wc: os.path.join(config["lcr-modules"]["clairs_to"]["options"]["modsdir"], "ClairS-TO-0.4.2", "resources", "clairs-to_models"),
+        models_target = os.path.join(config["lcr-modules"]["clairs_to"]["options"]["modsdir"], "ClairS-TO-0.4.2", "resources", "clairs-to_models"),
         models_link   = "$(dirname $(command -v python))/clairs-to_models",
-        databases_target = lambda wc: os.path.join(config["lcr-modules"]["clairs_to"]["options"]["modsdir"], "ClairS-TO-0.4.2", "resources", "clairs-to_databases"),
+        databases_target = os.path.join(config["lcr-modules"]["clairs_to"]["options"]["modsdir"], "ClairS-TO-0.4.2", "resources", "clairs-to_databases"),
         databases_link   = "$(dirname $(command -v python))/clairs-to_databases",
-        references_target = lambda wc: os.path.join(config["lcr-modules"]["clairs_to"]["options"]["modsdir"], "ClairS-TO-0.4.2", "resources", "clairs-to_cna_data"),
+        references_target = os.path.join(config["lcr-modules"]["clairs_to"]["options"]["modsdir"], "ClairS-TO-0.4.2", "resources", "clairs-to_cna_data"),
         references_link   = "$(dirname $(command -v python))/clairs-to_cna_data"
     shell:
         op.as_one_line("""
@@ -194,8 +192,6 @@ rule _clairs_to_link_clairs_to_models:
         mkdir -p $(dirname "$LINK") &&
         ln -sfn "$TARGET" "$LINK" &&
         test -d "$LINK"
-        &&
-        touch {output.link_dummy}
         """)
 
 
@@ -225,6 +221,7 @@ rule _clairs_to_call_variants:
     threads:
         CFG["threads"]["clairs_to"]
     resources:
+        clairs_to_call=1,
         **CFG["resources"]["clairs_to"]
     shell:
         op.as_one_line("""
@@ -243,7 +240,7 @@ rule _clairs_to_call_variants:
         """)
 
 
-# Combines ClairS VCF output files so indels and SNVs are in the same file
+# Combines ClairS-TO VCF output files so indels and SNVs are in the same file
 rule _clairs_to_combine_vcfs:
     input:
         indel_vcf = str(rules._clairs_to_call_variants.output.indel_vcf),
@@ -302,7 +299,7 @@ rule _clairs_to_gnomad_annotation:
         bcftools annotate --threads {threads} 
         -a {input.gnomad} -c INFO/AF {input.vcf} 2> {log.stderr} |
         awk 'BEGIN {{FS=OFS="\t"}} {{ if ($1 !~ /^#/ && $8 !~ ";AF=") $8=$8";AF=0"; print $0; }}' |
-        bcftools view -Oz -o {output.vcf} 2> {log.stderr}
+        bcftools view -Oz -o {output.vcf} 2>> {log.stderr}
         &&
         tabix -p vcf {output.vcf} >> {log.stdout} 2>> {log.stderr}
         """)
@@ -350,23 +347,27 @@ rule _clairs_to_output_vcf:
         op.relative_symlink(input.tbi, output.tbi, in_module= True)
 
 
-# Cleans up additional files created by ClairS
+# Cleans up additional files created by ClairS-TO
 rule _clairs_to_clean:
     input:
         str(rules._clairs_to_output_vcf.output.vcf)
     output:
-        cleanup_complete = CFG["dirs"]["clairs_to"] + "{seq_type}--{genome_build}/{tumour_id}--{chemistry}--tumor_only/cleanup_complete.txt"
+        cleanup_complete = touch(CFG["dirs"]["clairs_to"] + "{seq_type}--{genome_build}/{tumour_id}--{chemistry}--tumor_only/cleanup_complete.txt")
+    params:
+        cleanup = CFG["options"]["cleanup"]
     shell:
         op.as_one_line("""
-        d=$(dirname {output.cleanup_complete});
-        rm -rf $d/tmp/ &&
-        rm -rf $d/logs/ &&
-        rm -f $d/run_clairs_to.log* &&
-        rm -f $d/snv.* &&
-        rm -f $d/indel.* &&
-        touch {output.cleanup_complete}
+        d=$(dirname {output.cleanup_complete}) &&
+        if [ "{params.cleanup}" = "True" ]; then
+            rm -rf "$d/tmp/" &&
+            rm -rf "$d/logs/" &&
+            rm -f "$d"/run_clairs_to.log* &&
+            rm -f "$d"/snv.* &&
+            rm -f "$d"/indel.* ;
+        else
+            echo "Skipping cleanup" ;
+        fi
         """)
-
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _clairs_to_all:
