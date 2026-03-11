@@ -165,11 +165,11 @@ rule _clairs_to_link_clairs_to_models:
     conda:
         CFG["conda_envs"]["clairs_to"]
     params:
-        models_target = os.path.join(config["lcr-modules"]["clairs_to"]["options"]["modsdir"], "ClairS-TO-0.4.2", "resources", "clairs-to_models"),
+        models_target = os.path.join(RES_DIR, "clairs-to_models"),
         models_link   = "$(dirname $(command -v python))/clairs-to_models",
-        databases_target = os.path.join(config["lcr-modules"]["clairs_to"]["options"]["modsdir"], "ClairS-TO-0.4.2", "resources", "clairs-to_databases"),
+        databases_target = os.path.join(RES_DIR, "clairs-to_databases"),
         databases_link   = "$(dirname $(command -v python))/clairs-to_databases",
-        references_target = os.path.join(config["lcr-modules"]["clairs_to"]["options"]["modsdir"], "ClairS-TO-0.4.2", "resources", "clairs-to_cna_data"),
+        references_target = os.path.join(RES_DIR, "clairs-to_cna_data"),
         references_link   = "$(dirname $(command -v python))/clairs-to_cna_data"
     shell:
         op.as_one_line("""
