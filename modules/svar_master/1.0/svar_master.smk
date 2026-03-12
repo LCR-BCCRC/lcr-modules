@@ -94,6 +94,10 @@ config['lcr-modules']['hmftools']['inputs']["gridss_somatic_filtered_tbi"] = str
 # Run hmftools
 include: "../../hmftools/" + CFG_SV["module_versions"]["hmftools"] + "/hmftools.smk"
 
+# Interpret the absolute path of scripts so they don't get interpreted relative to the module snakefile later.
+INTERSECT_SCRIPT =  os.path.abspath(CFG_SV["options"]["intersect"]["combine_svs"])
+ANNOTATE_SCRIPT = os.path.abspath(CFG_SV["options"]["combine_annotated"]["script"])
+
 ##### Intersect Manta and GRIDSS #####
 
 rule _svar_master_input_gridss:
@@ -152,7 +156,7 @@ rule _svar_master_intersect:
     group:
         "input_and_intersect"
     script:
-        CFG_SV["options"]["intersect"]["combine_svs"]
+        INTERSECT_SCRIPT
 
 rule _svar_master_annotate:
     input:
@@ -200,7 +204,7 @@ checkpoint _svar_master_annotate_combine:
     resources:
         **CFG_SV["resources"]["combine"]
     script:
-        CFG_SV["options"]["combine_annotated"]["script"]
+        ANNOTATE_SCRIPT
 
 rule _svar_master_touch_empty_file:
     input:

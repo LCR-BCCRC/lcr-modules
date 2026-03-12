@@ -101,6 +101,7 @@ checkpoint _dnds_prepare_maf:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         mode = "dNdS",
         metadata_cols = CFG["samples"],
+        metadata_dim = CFG["samples"].shape,
         metadata = CFG["samples"].to_numpy(na_value='')
     script:
         PREPARE_MAFS
@@ -138,7 +139,9 @@ rule _dnds_run:
         **CFG["resources"]["dnds"]
     params:
         target_genes = CFG["options"]["target_genes"],
-        max_muts_per_gene_per_sample = CFG["options"]["max_muts_per_gene_per_sample"]
+        max_muts_per_gene_per_sample = CFG["options"]["max_muts_per_gene_per_sample"],
+        hg38_reference = CFG["options"]["hg38_reference"],
+        hg38_covariates = CFG["options"]["hg38_covariates"]
     script:
         "src/R/run_dnds.R"
 

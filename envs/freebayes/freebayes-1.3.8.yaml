@@ -1,0 +1,11 @@
+name: freebayes
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - freebayes=1.3.8
+  - bamtools=2.5.2
+  - ca-certificates
+  - openssl
+prefix: /home/lhilton/miniforge3/envs/freebayes

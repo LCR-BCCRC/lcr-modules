@@ -94,7 +94,7 @@ if CFG["temp_outputs"]:
             stdout = CFG["logs"]["fastq"] + "{seq_type}/{sample_id}/bam2fastq.stdout.log",
             stderr = CFG["logs"]["fastq"] + "{seq_type}/{sample_id}/bam2fastq.stderr.log"
         wildcard_constraints:
-           sample_id = "|".join(CFG["samples"]["sample_id"].tolist())
+            sample_id = "|".join(CFG["samples"]["sample_id"].tolist())
         params:
             opts = CFG["options"]["bam2fastq"]
         conda:

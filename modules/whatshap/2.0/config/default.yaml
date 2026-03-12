@@ -1,0 +1,73 @@
+lcr-modules:
+    
+    whatshap:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            sample_vcf: "__UPDATE__" # Update path to bgzipped vcf, usually the output of freebayes from a short-read genome
+            sample_vcf_tbi: "__UPDATE__" # Update path to phased vcf index
+            regions_bed: {} # If no custom regions are provided, the whole genome main chromosomes will be used
+                # whole_genome: "" # Include this as an empty string if you want both whole_genome and a subset of regions
+                # sv_capture: "{MODSDIR}/etc/sv_regions.{genome_build}.bed" # Example to specify a custom regions bed file - 
+                                                                            # the key name will be used as a wildcard to distinguish different regions bed files
+
+        scratch_subdirectories: []
+
+        options: 
+            vcf_seq_type: "__UPDATE__" # Give the seq_type for input vcf and bam
+            bam_seq_type: "__UPDATE__" # Best practice is vcf from Illumina and bam from long read
+            region_padding: 1000000
+            phase_vcf: "--ignore-read-groups"   # This is required in most cases 
+                                                # when the sample_id in the short read vcf 
+                                                #doesn't match the sample_id in the long read bam header
+                                                # See documentation for other options
+            phase_bam: # See whatshap haplotag documentation for additional options
+
+            stats: "" # See whatshap stats documentation
+            split_bam: "" # See whatshap split documentation
+        
+        conda_envs:
+            whatshap: "{MODSDIR}/envs/whatshap-2.3.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+
+        threads:
+            split_vcf: 4
+            phase_vcf: 12
+            merge_vcf: 8
+            stats: 1
+            phase_bam: 12
+            split_bam: 1
+            cram: 8
+
+        resources:
+            split_vcf: 
+                mem_mb: 10000
+                vcf: 1
+            phase_vcf: 
+                mem_mb: 10000
+                vcf: 1
+            merge_vcf: 
+                mem_mb: 25000
+                vcf: 1
+            stats: 
+                mem_mb: 5000
+            phase_bam: 
+                mem_mb: 10000
+                bam: 1
+            split_bam: 
+                mem_mb: 10000
+                split: 1
+            cram: 
+                mem_mb: 10000
+                cram: 1
+            
+        pairing_config:
+            promethION:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            genome: 
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

@@ -1,0 +1,11 @@
+name: whatshap
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - whatshap=2.3
+  - samtools=1.21
+  - ca-certificates
+  - openssl
+prefix: /home/lhilton/miniforge3/envs/whatshap

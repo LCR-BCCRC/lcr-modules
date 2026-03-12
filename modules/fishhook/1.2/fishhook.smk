@@ -47,7 +47,6 @@ localrules:
     _fishhook_input_maf,
     _fishhook_input_subsetting_categories,
     _fishhook_prepare_maf,
-    _fishhook_install,
     _fishhook_output_tsv,
     _fishhook_aggregate,
     _fishhook_all,
@@ -99,27 +98,11 @@ checkpoint _fishhook_prepare_maf:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         mode = "fishHook",
         metadata_cols = CFG["samples"],
+        metadata_dim = CFG["samples"].shape,
         metadata = CFG["samples"].to_numpy(na_value='')
     script:
         PREPARE_MAFS
 
-
-# Install fishHook and required R pacakges
-# only available from github, not through conda/CRAN/Biocmanager
-rule _fishhook_install:
-    output:
-        complete = CFG["dirs"]["inputs"] + "fishhook_installed.success"
-    conda:
-        CFG["conda_envs"]["fishhook"]
-    log:
-        input = CFG["logs"]["inputs"] + "install_fishhook.log"
-    shell:
-        """
-        R -q --vanilla -e 'devtools::install_github("mskilab/gUtils")' >> {log.input} &&
-        R -q --vanilla -e 'devtools::install_github("mskilab/gTrack")' >> {log.input} &&
-        R -q --vanilla -e 'devtools::install_github("mskilab/fishHook")' >> {log.input} &&
-        touch {output.complete}
-        """
 
 # Get gene list input only if that method is specified in the yaml (instead of using tiles)
 def get_input_if_gene_mode(wildcards):
@@ -131,7 +114,6 @@ def get_input_if_gene_mode(wildcards):
 # Actual fishHook run
 rule _fishhook_run:
     input:
-        fishhook = ancient(str(rules._fishhook_install.output.complete)),
         maf = CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/{md5sum}.maf",
         content = CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/{md5sum}.maf.content"
     output:

@@ -110,6 +110,7 @@ checkpoint _gistic2_prepare_seg:
         CFG["conda_envs"]["prepare"]
     params:
         metadata_cols = CFG["samples"],
+        metadata_dim = CFG["samples"].shape,
         metadata = CFG["samples"].to_numpy(na_value=''),
         mode = "gistic2"
     script:

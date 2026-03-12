@@ -591,7 +591,7 @@ rule _controlfreec_fill_segments:
         stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}_fill_segments.stderr.log"
     threads: 1
     params:
-        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/1.0/"
+        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
     conda:
         CFG["conda_envs"]["bedtools"]
     group: "controlfreec_post_process"

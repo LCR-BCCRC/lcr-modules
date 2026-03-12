@@ -1,0 +1,9 @@
+name: crossmap
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - crossmap=0.7.0
+  - bcftools=1.21
+prefix: /home/lhilton/miniforge3/envs/crossmap
