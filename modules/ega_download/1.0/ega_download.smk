@@ -112,9 +112,14 @@ rule _ega_get_ega_file:
 def get_ega_file (wildcards):
     CFG = config["lcr-modules"]["ega_download"]
     tbl = CFG["samples"]
-    this_sample = tbl[(tbl.seq_type == wildcards.seq_type) & (tbl.sample_id == wildcards.sample_id) & (tbl.file_format == wildcards.file_format)]
-    if (this_sample.shape[0]>0):
-        this_sample = this_sample.iloc[int(wildcards.read) - 1]
+    if wildcards.file_format in ["cram", "bam"]:
+        constrain_id = wildcards.sample_id + wildcards.read
+        this_sample = tbl[(tbl.seq_type == wildcards.seq_type) & (tbl.sample_id == constrain_id) & (tbl.file_format == wildcards.file_format)]
+        this_sample = this_sample.iloc[0]
+    else:
+        this_sample = tbl[(tbl.seq_type == wildcards.seq_type) & (tbl.sample_id == wildcards.sample_id) & (tbl.file_format == wildcards.file_format)]
+        if (this_sample.shape[0]>0):
+            this_sample = this_sample.iloc[int(wildcards.read) - 1]
     this_egas, this_egad, this_egan, this_egaf, this_name = this_sample['EGAS'], this_sample['EGAD'], this_sample['EGAN'], this_sample['EGAF'], this_sample['file_name']
     this_file = expand(
             str(
@@ -151,7 +156,7 @@ rule _ega_all:
             file_format=CFG["samples"]["file_format"],
             seq_type=CFG["samples"]["seq_type"],
             study_id=[CFG["study_id"]]*len(CFG["samples"]["file_name"]),
-            read = [""]
+            read = [""]*len(CFG["samples"]["file_name"])
         ) if out_file_type in ["cram", "bam"] else expand(
             expand(
                 [
