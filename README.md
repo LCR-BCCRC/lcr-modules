@@ -37,6 +37,31 @@ cd demo
 
 The tables below list the purpose of each module and supported sequencing types. 
 
+- [Aggregation](#aggregation)
+- [Alignment](#alignment)
+- [Archive download](#archive-download)
+- [CNV calling](#cnv-calling)
+- [Classifiers](#classifiers)
+- [DNA modification analysis](#dna-modification-analysis)
+- [Fastq processing](#fastq-processing)
+- [Gene expression](#gene-expression)
+- [Genome build conversion](#genome-build-conversion)
+- [Microenvironment](#microenvironment)
+- [Mutation sifnificance](#mutation-sifnificance)
+- [Mutation signatures](#mutation-signatures)
+- [Mutation significance](#mutation-significance)
+- [Pathogen analysis](#pathogen-analysis)
+- [Phasing long reads](#phasing-long-reads)
+- [QC](#qc)
+- [Structural variants](#structural-variants)
+- [Structural variants long reads](#structural-variants-long-reads)
+- [TCR, IG, HLA analysis](#tcr-ig-hla-analysis)
+- [Variant annotation](#variant-annotation)
+- [Variant calling](#variant-calling)
+- [Variant calling long reads](#variant-calling-long-reads)
+
+---
+
 ### Aggregation
 
 | module | seq_type | data_type |
@@ -175,28 +200,3 @@ The tables below list the purpose of each module and supported sequencing types.
 | [igcaller](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/igcaller) | capture; genome | Illumina short reads |
 | [mixcr](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/mixcr) | genome; mrna | Illumina short reads |
 | [spechla](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/spechla) | capture; genome; mrna | Illumina short reads |
-
-### Variant annotation
-
-| module | seq_type | data_type |
-|---|---|---|
-| [vcf2maf](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/vcf2maf) | capture; genome | Illumina short reads |
-
-### Variant calling
-
-| module | seq_type | data_type |
-|---|---|---|
-| [lofreq](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/lofreq) | capture; genome | Illumina short reads |
-| [mutect2](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/mutect2) | capture; genome | Illumina short reads |
-| [sage](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/sage) | capture; genome | Illumina short reads |
-| [slms_3](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/slms_3) | capture; genome | Illumina short reads |
-| [strelka](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/strelka) | capture; genome | Illumina short reads |
-| [varscan](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/varscan) | capture; genome | Illumina short reads |
-
-### Variant calling long reads
-
-| module | seq_type | data_type |
-|---|---|---|
-| [clair3](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/clair3) | promethION | Long reads |
-| [clairs](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/clairs) | promethION | Long reads |
-| [nanopolish](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/nanopolish) | promethION | Long reads |
