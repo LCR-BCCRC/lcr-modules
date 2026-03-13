@@ -1,0 +1,101 @@
+module	seq_type	purpose
+bam2fastq	capture	Fastq processing
+bam2fastq	genome	Fastq processing
+bam2fastq	mrna	Fastq processing
+battenberg	capture	CNV calling
+battenberg	genome	CNV calling
+bwa_mem	capture	Alignment
+bwa_mem	genome	Alignment
+clair3	promethION	Variant calling long reads
+clairs	promethION	Variant calling long reads
+cnv_master	capture	Aggregation
+cnv_master	genome	Aggregation
+cnvkit	capture	CNV calling
+cnvkit	genome	CNV calling
+controlfreec	genome	CNV calling
+cutadapt	capture	Fastq processing
+cutadapt	genome	Fastq processing
+cutesv	promethION	Structural variants long reads
+dlbclass	capture	Classifiers
+dlbclass	genome	Classifiers
+dnds	capture	Mutation significance
+dnds	genome	Mutation significance
+ecotyper	mrna	Microenvironment
+ega_download	capture	Archive download
+ega_download	genome	Archive download
+ega_download	mrna	Archive download
+fishhook	capture	Mutation significance
+fishhook	genome	Mutation significance
+freebayes	capture	Phasing long reads
+freebayes	genome	Phasing long reads
+gistic2	capture	Mutation sifnificance
+gistic2	genome	Mutation sifnificance
+gridss	capture	Structural variants
+gridss	genome	Structural variants
+hmftools	genome	Structural variants
+hotmaps	capture	Mutation significance
+hotmaps	genome	Mutation significance
+ichorcna	genome	CNV calling
+igcaller	capture	TCR, IG, HLA analysis
+igcaller	genome	TCR, IG, HLA analysis
+liftover	capture	Genome build conversion
+liftover	genome	Genome build conversion
+lofreq	capture	Variant calling
+lofreq	genome	Variant calling
+lymphgen	capture	Classifiers
+lymphgen	genome	Classifiers
+manta	capture	Structural variants
+manta	genome	Structural variants
+manta	mrna	Structural variants
+mixcr	genome	TCR, IG, HLA analysis
+mixcr	mrna	TCR, IG, HLA analysis
+modkit	promethION	DNA modification analysis
+mutect2	capture	Variant calling
+mutect2	genome	Variant calling
+mutsig	capture	Mutation significance
+mutsig	genome	Mutation significance
+nanomethphase	promethION	Phasing long reads
+nanopolish	promethION	Variant calling long reads
+oncodriveclustl	capture	Mutation significance
+oncodriveclustl	genome	Mutation significance
+oncodrivefml	capture	Mutation significance
+oncodrivefml	genome	Mutation significance
+pathseq	capture	Pathogen analysis
+pathseq	genome	Pathogen analysis
+pathseq	mrna	Pathogen analysis
+phase_variants	promethION	Phasing long reads
+picard_qc	capture	QC
+picard_qc	genome	QC
+picard_qc	mrna	QC
+qc	capture	QC
+qc	genome	QC
+rainstorm	capture	Mutation significance
+rainstorm	genome	Mutation significance
+sage	capture	Variant calling
+sage	genome	Variant calling
+salmon	mrna	Gene expression
+sequenza	capture	CNV calling
+sequenza	genome	CNV calling
+sigprofiler	capture	Mutation signatures
+sigprofiler	genome	Mutation signatures
+slms_3	capture	Variant calling
+slms_3	genome	Variant calling
+sniffles	promethION	Structural variants long reads
+spechla	capture	TCR, IG, HLA analysis
+spechla	genome	TCR, IG, HLA analysis
+spechla	mrna	TCR, IG, HLA analysis
+star	mrna	Alignment
+starfish	capture	Aggregation
+starfish	genome	Aggregation
+starfish	mrna	Aggregation
+strelka	capture	Variant calling
+strelka	genome	Variant calling
+stringtie	mrna	Gene expression
+svar_master	capture	Aggregation
+svar_master	genome	Aggregation
+varscan	capture	Variant calling
+varscan	genome	Variant calling
+vcf2maf	capture	Variant annotation
+vcf2maf	genome	Variant annotation
+whatshap	genome	Phasing long reads
+whatshap	promethION	Phasing long reads
