@@ -35,6 +35,8 @@ cd demo
 
 ## Currently available modules
 
+![Module overview](docs/modules_alluvial.svg)
+
 The tables below list the purpose of each module and supported sequencing types. 
 
 - [Aggregation](#aggregation)
