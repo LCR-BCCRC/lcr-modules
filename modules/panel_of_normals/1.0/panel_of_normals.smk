@@ -37,7 +37,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "panel_of_normals",
     version = "1.0",
-    subdirectories = ["inputs", "fix_bed", "target_sites", "coverage", "pon_cnn", "flat_ref_cnn", "outputs"],
+    subdirectories = ["inputs", "targets_bed", "autobin", "coverage", "pon_cnn", "flat_ref_cnn", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -105,10 +105,10 @@ rule _panel_of_normals_canonical_capspace:
     input:
         bed = str(rules._panel_of_normals_input_capspace.output.bed)
     output:
-        bed = CFG["dirs"]["fix_bed"] + "{seq_type}--{genome_build}/{capture_space}.padded.canonical.bed"
+        bed = CFG["dirs"]["targets_bed"] + "{seq_type}--{genome_build}/{capture_space}.padded.canonical.bed"
     shell:
         op.as_one_line("""
-        awk -F"\t" -v OFS="\t" '$1 !~ /(_|M|EBV)/' {input.bed} > {output.bed}
+        awk -F"\t" -v OFS="\t" '$1 !~ /(_|M|EBV|HIV)/' {input.bed} > {output.bed}
         """)
 
 # Download gene annotation files
@@ -128,6 +128,25 @@ rule _panel_of_normals_get_refFlat:
          sed 's/chr/{params.prefix}/g' {params.txt} > {output.refFlat}
         """)
 
+# divides regions into appropriately sized bins and adds gene annotations
+rule _panel_of_normals_targets_bed:
+    input:
+        bed = str(rules._panel_of_normals_canonical_capspace.output.bed),
+        refFlat = str(rules._panel_of_normals_get_refFlat.output.refFlat)
+    output:
+        targets = CFG["dirs"]["targets_bed"] + "{seq_type}--{genome_build}/{capture_space}/targets.bed"
+    log:
+        log = CFG["logs"]["targets_bed"] + "{seq_type}--{genome_build}/{capture_space}/annotate_targets.log"
+    conda:
+        CFG["conda_envs"]["cnvkit"]
+    threads: 1 # does not use parallelization
+    resources:
+        **CFG["resources"]["coverage"]
+    shell:
+        op.as_one_line("""
+        cnvkit.py target {input.bed} --annotate {input.refFlat} --split -o {output.targets} &> {log.log}
+        """)
+
 rule _panel_of_normals_accessible_regions:
     input:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
@@ -139,7 +158,7 @@ rule _panel_of_normals_accessible_regions:
         CFG["conda_envs"]["cnvkit"]
     threads: 1 # does not use parallelization, but still needs to be submitted
     resources:
-        **CFG["resources"]["cnvkit"]
+        **CFG["resources"]["autobin"]
     shell:
         op.as_one_line("""
         cnvkit.py access {input.fasta} -o {output.access} &> {log.log}
@@ -193,28 +212,27 @@ rule _panel_of_normals_record_samples:
         metadata_for_combo = params.metadata[(params.metadata.genome_build == wildcards.genome_build) & (params.metadata.capture_space == wildcards.capture_space)]
         metadata_for_combo.to_csv(output.tsv, sep="\t", index=False, na_rep='NA')
 
-rule _panel_of_normals_target_sites:
+rule _panel_of_normals_autobin:
     input:
         access = str(rules._panel_of_normals_filter_main_chrs.output.access_main),
         bam = _get_normals_per_combo,
         bai = _get_indexes_per_combo,
-        bed = str(rules._panel_of_normals_canonical_capspace.output.bed),
+        targets = str(rules._panel_of_normals_targets_bed.output.targets),
         refFlat = str(rules._panel_of_normals_get_refFlat.output.refFlat)
     output:
-        target = CFG["dirs"]["target_sites"] + "{seq_type}--{genome_build}/{capture_space}/target_sites.target.bed",
-        antitarget = CFG["dirs"]["target_sites"] + "{seq_type}--{genome_build}/{capture_space}/target_sites.antitarget.bed"
+        target = CFG["dirs"]["autobin"] + "{seq_type}--{genome_build}/{capture_space}/target_sites.target.bed",
+        antitarget = CFG["dirs"]["autobin"] + "{seq_type}--{genome_build}/{capture_space}/target_sites.antitarget.bed"
     log:
-        log = CFG["logs"]["target_sites"] + "{seq_type}--{genome_build}/{capture_space}_autobin.log"
+        log = CFG["logs"]["autobin"] + "{seq_type}--{genome_build}/{capture_space}_autobin.log"
     conda:
         CFG["conda_envs"]["cnvkit"]
-    threads:
-        CFG["threads"]["autobin"]
+    threads: 1 # does not use parallelization, but still needs to be submitted
     resources:
         **CFG["resources"]["autobin"]
     shell:
         op.as_one_line("""
-        cnvkit.py autobin {input.bam} -t {input.bed} -g {input.access} --annotate
-         {input.refFlat} -p {threads} --short-names --target-output-bed
+        cnvkit.py autobin {input.bam} -t {input.targets} -g {input.access} --annotate
+         {input.refFlat} --short-names --target-output-bed
          {output.target} --antitarget-output-bed {output.antitarget} &> {log.log}
         """)
 
@@ -223,7 +241,7 @@ rule _panel_of_normals_coverage_target:
     input:
         bam = str(rules._panel_of_normals_input_bam.output.bam),
         bai = str(rules._panel_of_normals_index_bam.output.bai),
-        bed = str(rules._panel_of_normals_target_sites.output.target),
+        target = str(rules._panel_of_normals_autobin.output.target),
     output:
         cov = CFG["dirs"]["coverage"] + "target/{seq_type}--{genome_build}/{capture_space}/{sample_id}.targetcoverage.cnn"
     log:
@@ -236,7 +254,7 @@ rule _panel_of_normals_coverage_target:
         **CFG["resources"]["coverage"]
     shell:
         op.as_one_line("""
-        cnvkit.py coverage {input.bam} {input.bed} -o {output.cov} -p {threads}
+        cnvkit.py coverage {input.bam} {input.target} -o {output.cov} -p {threads}
          &> {log.log}
         """)
 
@@ -245,7 +263,7 @@ rule _panel_of_normals_coverage_antitarget:
     input:
         bam = str(rules._panel_of_normals_input_bam.output.bam),
         bai = str(rules._panel_of_normals_index_bam.output.bai),
-        bed = str(rules._panel_of_normals_target_sites.output.antitarget),
+        antitarget = str(rules._panel_of_normals_autobin.output.antitarget),
     output:
         cov = CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}/{capture_space}/{sample_id}.antitargetcoverage.cnn"
     log:
@@ -258,7 +276,7 @@ rule _panel_of_normals_coverage_antitarget:
         **CFG["resources"]["coverage"]
     shell:
         op.as_one_line("""
-        cnvkit.py coverage {input.bam} {input.bed} -o {output.cov} -p {threads}
+        cnvkit.py coverage {input.bam} {input.antitarget} -o {output.cov} -p {threads}
          &> {log.log}
         """)
 
@@ -366,8 +384,8 @@ rule _panel_of_normals_flat_ref:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _panel_of_normals_output_beds:
     input:
-        target = str(rules._panel_of_normals_target_sites.output.target),
-        antitarget = str(rules._panel_of_normals_target_sites.output.antitarget)
+        target = str(rules._panel_of_normals_autobin.output.target),
+        antitarget = str(rules._panel_of_normals_autobin.output.antitarget)
     output:
         target = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{capture_space}_target_sites.bed",
         antitarget = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{capture_space}_antitarget_sites.bed"
