@@ -38,7 +38,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "clairs",
     version = "1.0",
-    subdirectories = ["inputs", "clairs", "outputs"],
+    subdirectories = ["inputs", "clairs", "gnomad", "filter", "outputs"],
 )
 
 config["pipeline_name"] = "clairs.yaml"
@@ -316,11 +316,11 @@ rule _clairs_gnomad_annotation:
         tbi = str(rules._clairs_combine_vcfs.output.combined_tbi),
         gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")
     output:
-        vcf = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.gnomad.vcf.gz"),
-        tbi = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.gnomad.vcf.gz.tbi")
+        vcf = temp(CFG["dirs"]["gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.gnomad.vcf.gz"),
+        tbi = temp(CFG["dirs"]["gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.gnomad.vcf.gz.tbi")
     log:
-        stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs_gnomad_annotation.stderr.log",
-        stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs_gnomad_annotation.stdout.log"
+        stderr = CFG["logs"]["gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs_gnomad_annotation.stderr.log",
+        stdout = CFG["logs"]["gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs_gnomad_annotation.stdout.log"
     conda:
         CFG["conda_envs"]["bcftools"]
     threads:
@@ -345,8 +345,8 @@ rule _clairs_filter:
         tbi = str(rules._clairs_gnomad_annotation.output.tbi),
         pon = reference_files("genomes/{genome_build}/ont/colorsDb.v1.2.0.deepvariant.glnexus.{genome_build}.vcf.gz")
     output:
-        vcf = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs.final.vcf.gz",
-        tbi = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs.final.vcf.gz.tbi"
+        vcf = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs.final.vcf.gz",
+        tbi = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs.final.vcf.gz.tbi"
     conda:
         CFG["conda_envs"]["bcftools"]
     resources:
@@ -354,8 +354,8 @@ rule _clairs_filter:
     threads:
         CFG["threads"]["bcftools"]
     log:
-        stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/filter_pon.stderr.log",
-        stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/filter_pon.stdout.log"
+        stderr = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/filter_pon.stderr.log",
+        stdout = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/filter_pon.stdout.log"
     params:
         filters = CFG["options"]["filters"]
     shell:
