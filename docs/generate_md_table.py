@@ -181,7 +181,7 @@ with open(output_file, "w") as f:
         level_df = modules[modules["level"] == level]
 
         # header
-        f.write("| Purpose | # Tools |\n")
+        f.write("| Purpose | # modules |\n")
         f.write("|---|---|\n")
 
         for purpose, group in level_df.groupby("purpose_clean", sort=True):

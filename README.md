@@ -45,7 +45,7 @@ The tables below list the purpose of each module and supported sequencing types.
 
 ### Level 1
 
-| Purpose | # Tools |
+| Purpose | # modules |
 |---|---|
 | [Alignment](#alignment) | 2 |
 | [Archive download](#archive-download) | 1 |
@@ -57,7 +57,7 @@ The tables below list the purpose of each module and supported sequencing types.
 
 ### Level 2
 
-| Purpose | # Tools |
+| Purpose | # modules |
 |---|---|
 | [CNV calling](#cnv-calling) | 5 |
 | [DNA modification analysis](#dna-modification-analysis) | 1 |
@@ -73,7 +73,7 @@ The tables below list the purpose of each module and supported sequencing types.
 
 ### Level 3
 
-| Purpose | # Tools |
+| Purpose | # modules |
 |---|---|
 | [Aggregation](#aggregation) | 3 |
 | [Classifiers](#classifiers) | 2 |
