@@ -149,6 +149,7 @@ fig.update_layout(
 fig.write_image(svg_output)
 
 ## Generate markdown for readme
+output_file = "README.md"
 
 # Convert module names to markdown links
 modules["module"] = (
@@ -157,22 +158,17 @@ modules["module"] = (
 )
 
 # Columns to include in tables
-table_cols = [c for c in modules.columns if c not in ["purpose", "purpose_clean"]]
+table_cols = [c for c in modules.columns if c not in ["purpose", "purpose_clean", "level"]]
 
 modules = (
     modules
     .groupby(["purpose_clean", "module"], as_index=False)
     .agg({
         "seq_type": lambda x: "; ".join(sorted(x)),
-        "data_type": "first"
+        "data_type": "first",
+        "output_type": "first"
     })
 )
-
-def github_anchor(text):
-    text = text.lower()
-    text = re.sub(r"[^\w\s-]", "", text)
-    text = re.sub(r"\s+", "-", text)
-    return text
 
 with open(output_file, "w") as f:
 
