@@ -310,14 +310,13 @@ rule _panel_of_normals_create_pon_ref:
         male_reference = CFG["options"]["male_ref"]
     conda:
         CFG["conda_envs"]["cnvkit"]
-    threads:
-        CFG["threads"]["reference"]
+    threads: 1 # does not use parallelization, but still needs to be submitted
     resources:
         **CFG["resources"]["reference"]
     shell:
         op.as_one_line("""
         cnvkit.py reference {input.control_target} {input.control_antitarget}
-         --fasta {input.fasta} -p {threads} -o {output.pon} {params.male_reference}
+         --fasta {input.fasta} -o {output.pon} {params.male_reference}
          &> {log.log}
         """)
 
