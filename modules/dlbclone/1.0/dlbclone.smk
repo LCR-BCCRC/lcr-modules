@@ -58,6 +58,8 @@ if not USE_GAMBLR:
 # Define rules to be run locally when using a compute cluster
 if USE_GAMBLR:
     localrules:
+        build_sif,
+        _dlbclone_input_metadata,
         _dlbclone_input_maf,
         _dlbclone_input_sv,
         curate_sv,
@@ -66,6 +68,8 @@ if USE_GAMBLR:
         _dlbclone_all
 else:
     localrules:
+        build_sif,
+        _dlbclone_input_metadata,
         _dlbclone_input_maf,
         _dlbclone_input_sv,
         curate_sv,
@@ -114,6 +118,22 @@ def as_r_c(d):
 # STEP 1: INPUT SYMLINKS
 # Symlinks the input files into the module results directory (under '00-inputs/')
 
+rule build_sif:
+    output:
+        temp("dlbclone_module.sif")
+    shell:
+        """
+        singularity build {output} docker://lklossok/dlbclone_module:latest
+        """
+
+rule _dlbclone_input_metadata:
+    input:
+        metadata = CFG["inputs"]["test_metadata_dir"] 
+    output:
+        metadata = CFG["dirs"]["inputs"] + "metadata/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_metadata.tsv"
+    run:
+        op.relative_symlink(input.metadata, output.metadata)
+
 rule _dlbclone_input_maf:
     input:
         maf = CFG["inputs"]["sample_maf"] 
@@ -134,58 +154,33 @@ rule _dlbclone_input_sv:
 
 rule curate_sv:
     input:
-        sv = str(rules._dlbclone_input_sv.output.sv),
-        metadata = CFG["inputs"]["test_metadata_dir"],
-        prepare_sv = "src/lcr-modules/modules/dlbclone/1.0/src/curate_sv_dlbclone.R" #CFG["scripts"]["prepare_svs"]
+        sif="dlbclone_module.sif",
+        sv=str(rules._dlbclone_input_sv.output.sv),
+        metadata=str(rules._dlbclone_input_metadata.output.metadata)
     output:
-        output_metadata = CFG["dirs"]["inputs"] + "sv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_dlbclone_sv_metadata.tsv"
+        output_metadata=CFG["dirs"]["inputs"] + "sv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_dlbclone_sv_metadata.tsv"
     params:
-        real_bcl2 = as_r_c(CFG["options"]["real_bcl2"]),
-        real_bcl6 = as_r_c(CFG["options"]["real_bcl6"]),
-    # log:
-    #     log = f"{log_dir}/create_sv_input.log"
-    container:
-            "docker://lklossok/gamblr.open:latest"
-    shadow:
-            "minimal"
+        real_bcl2=as_r_c(CFG["options"]["real_bcl2"]),
+        real_bcl6=as_r_c(CFG["options"]["real_bcl6"])
     shell:
-        # op.as_one_line("""
-        #     Rscript {input.prepare_sv}
-        #         --sv_input {input.sv}
-        #         --metadata {input.metadata} 
-        #         --output_metadata {output.output_metadata}
-        #         --tumour_id {wildcards.tumour_id}
-        #         --real_bcl2 '{params.real_bcl2}'
-        #         --real_bcl6 '{params.real_bcl6}'
-        # """)
-        """
-        echo {workflow.basedir}
-        ls {workflow.basedir}/src/lcr-modules/modules
-        """
-        # """
-        # ls -l /projects/rmorin/projects/gambl-repos/gambl-lklossok/src/lcr-modules/modules/dlbclone/1.0/src
-        # ls /projects/rmorin/projects/gambl-repos/gambl-lklossok/src/lcr-modules/modules/dlbclone/1.0/src
-        # Rscript {input.prepare_sv}
-        # """
-        # """
-        #     echo "PWD:"
-        #     pwd
-        #     echo "Root:"
-        #     ls /
-        #     echo "Projects dir:"
-        #     ls /projects || true
-        # """
-    # shell:
-    #     op.as_one_line("""
-    #         Rscript {input.prepare_sv}
-    #             --sv_input {input.sv}
-    #             --metadata {input.metadata} 
-    #             --output_metadata {output.output_metadata}
-    #             --tumour_id {wildcards.tumour_id}
-    #             --real_bcl2 '{params.real_bcl2}'
-    #             --real_bcl6 '{params.real_bcl6}'
-    #     """)
+        op.as_one_line("""
+            mkdir -p $(dirname {output.output_metadata}) && 
+            touch {output.output_metadata} &&
 
+            singularity exec --cleanenv --containall 
+                --bind {input.sv}:/inputs/sv_input.tsv 
+                --bind {input.metadata}:/inputs/metadata_input.tsv 
+                --bind {output.output_metadata}:/outputs/output_metadata.tsv 
+                {input.sif} 
+                Rscript /app/scripts/curate_sv_dlbclone.R 
+                    --sv_input /inputs/sv_input.tsv 
+                    --metadata /inputs/metadata_input.tsv 
+                    --output_metadata /outputs/output_metadata.tsv 
+                    --tumour_id {wildcards.tumour_id} 
+                    --real_bcl2 '{params.real_bcl2}' 
+                    --real_bcl6 '{params.real_bcl6}'
+        """)
+        
 
 # STEP 2: RUN DLBCLONE RULES 
 
@@ -193,10 +188,10 @@ if not USE_GAMBLR:
     # Uses only GAMBL metadata and binary mutation data as training for DLBCLone models
     rule _dlbclone_build_model: 
         input:
-            dlbclone_model = CFG["scripts"]["dlbclone_model"]
+            sif="dlbclone_module.sif"
         output:
-            MODEL_RDS,
-            MODEL_UWOT
+            model_rds = MODEL_RDS,
+            model_uwot = MODEL_UWOT
         params:
             opt_model_path = CFG["inputs"]["opt_model_path"],
             model_name_prefix = CFG["inputs"]["model_name_prefix"],
@@ -213,28 +208,29 @@ if not USE_GAMBLR:
             CFG["threads"]["quant"]
         resources:
             **CFG["resources"]["quant"]
-        container:
-            "docker://lklossok/gamblr.open:latest"
-        shadow:
-            "copy-minimal"
         shell:
             op.as_one_line("""
-                Rscript {input.dlbclone_model}  
-                    --opt_model_path {params.opt_model_path} 
-                    --model_name_prefix {params.model_name_prefix}
-                    --core_features '{params.core_features}' 
-                    --core_feature_multiplier {params.core_feature_multiplier} 
-                    --hidden_features '{params.hidden_features}' 
-                    --truth_classes '{params.truth_classes}' 
-                    --min_k {params.min_k} 
-                    --max_k {params.max_k}
+                mkdir -p $(dirname {output.model_rds}) &&
+
+                singularity exec --cleanenv --containall 
+                    --bind $(dirname {output.model_rds}):/outputs 
+                    {input.sif} 
+                    Rscript /app/scripts/dlbclone_model.R 
+                        --opt_model_path /outputs 
+                        --model_name_prefix {params.model_name_prefix} 
+                        --core_features '{params.core_features}' 
+                        --core_feature_multiplier {params.core_feature_multiplier} 
+                        --hidden_features '{params.hidden_features}' 
+                        --truth_classes '{params.truth_classes}' 
+                        --min_k {params.min_k} 
+                        --max_k {params.max_k}
             """)
 
 rule _dlbclone_assemble_genetic_features:
     input:
-        test_metadata =  str(rules.curate_sv.output.output_metadata), #CFG["inputs"]["test_metadata_dir"],
-        test_maf = str(rules._dlbclone_input_maf.output.maf), # CFG["inputs"]["test_maf_dir"],
-        dlbclone_assemble_genetic_features = CFG["scripts"]["dlbclone_assemble_genetic_features"] 
+        sif="dlbclone_module.sif",
+        test_metadata =  str(rules.curate_sv.output.output_metadata), 
+        test_maf = str(rules._dlbclone_input_maf.output.maf) 
     output:
         test_mutation_matrix = CFG["inputs"]["test_matrix_dir"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{matrix_name}_mutation_matrix.tsv"
     params:
@@ -242,7 +238,6 @@ rule _dlbclone_assemble_genetic_features:
         translocation_status = as_r_named_list(CFG["options"]["translocation_status"]),
         maf_sample_id_colname = CFG["options"]["maf_sample_id_colname"],
         metadata_sample_id_colname = CFG["options"]["metadata_sample_id_colname"],
-        #truth_column_colname = CFG["options"]["truth_column_colname"], # --truth_column_colname {params.truth_column_colname}
         genes = as_r_c(CFG["options"]["genes"]),
         synon_genes = as_r_c(CFG["options"]["synon_genes"]),
         hotspot_genes = as_r_c(CFG["options"]["hotspot_genes"]),
@@ -258,62 +253,77 @@ rule _dlbclone_assemble_genetic_features:
         CFG["threads"]["quant"]
     resources:
         **CFG["resources"]["quant"]
-    container:
-        "docker://lklossok/gamblr.open:latest"
-    shadow:
-         "copy-minimal"
     shell:
         op.as_one_line("""
-        Rscript {input.dlbclone_assemble_genetic_features} 
-            --metadata {input.test_metadata} 
-            --maf {input.test_maf} 
-            --maf_sample_id_colname {params.maf_sample_id_colname}
-            --metadata_sample_id_colname {params.metadata_sample_id_colname} 
-            --sv_from_metadata '{params.sv_from_metadata}' 
-            --translocation_status '{params.translocation_status}' 
-            --output_matrix_dir {output.test_mutation_matrix} 
-            --genes '{params.genes}'
-            --synon_genes '{params.synon_genes}'
-            --hotspot_genes '{params.hotspot_genes}'
-            --sv_value {params.sv_value}
-            --synon_value {params.synon_value}
-            --coding_value {params.coding_value}
-            --include_ashm {params.include_ashm}
-            --annotated_sv {params.annotated_sv}
-            --include_GAMBL_sv {params.include_GAMBL_sv}
+            mkdir -p $(dirname {output.test_mutation_matrix}) && 
+            touch {output.test_mutation_matrix} &&
+
+            singularity exec --cleanenv --containall 
+                --bind {input.test_metadata}:/inputs/test_metadata_input.tsv 
+                --bind {input.test_maf}:/inputs/test_maf_input.tsv  
+                --bind {output.test_mutation_matrix}:/outputs/output_test_mutation_matrix.tsv 
+                {input.sif} 
+                Rscript /app/scripts/dlbclone_assemble.R 
+                    --metadata /inputs/test_metadata_input.tsv 
+                    --maf /inputs/test_maf_input.tsv
+                    --output_matrix_dir /outputs/output_test_mutation_matrix.tsv 
+                    --maf_sample_id_colname {params.maf_sample_id_colname}
+                    --metadata_sample_id_colname {params.metadata_sample_id_colname} 
+                    --sv_from_metadata '{params.sv_from_metadata}' 
+                    --translocation_status '{params.translocation_status}' 
+                    --genes '{params.genes}'
+                    --synon_genes '{params.synon_genes}'
+                    --hotspot_genes '{params.hotspot_genes}'
+                    --sv_value {params.sv_value}
+                    --synon_value {params.synon_value}
+                    --coding_value {params.coding_value}
+                    --include_ashm {params.include_ashm}
+                    --annotated_sv {params.annotated_sv}
+                    --include_GAMBL_sv {params.include_GAMBL_sv}
         """)
-    
+
 rule _dlbclone_predict:
     input:
+        sif="dlbclone_module.sif",
         models = [] if USE_GAMBLR else [MODEL_RDS, MODEL_UWOT],
-        mutation_matrix = str(rules._dlbclone_assemble_genetic_features.output.test_mutation_matrix), # first column is sample ID and all other columns are features
-        dlbclone_predict = CFG["scripts"]["dlbclone_predict"]
+        mutation_matrix = str(rules._dlbclone_assemble_genetic_features.output.test_mutation_matrix) # first column is sample ID and all other columns are features
     output:
         predictions = CFG["inputs"]["pred_dir"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}." + TODAY + ".{model_name_prefix}--{matrix_name}_DLBCLone_predictions.tsv"
     params:
         opt_model_path = CFG["inputs"]["opt_model_path"],
         model_name_prefix = CFG["inputs"]["model_name_prefix"],
         fill_missing = CFG["options"]["fill_missing"], 
-        drop_extra = CFG["options"]["drop_extra"]
+        drop_extra = CFG["options"]["drop_extra"],
+        use_gamblr = USE_GAMBLR,
+        model_bind = lambda wildcards, opt_model_path=CFG["inputs"]["opt_model_path"]: (
+            f"--bind {opt_model_path}:/models" if not USE_GAMBLR else ""
+        ),
+        model_path = lambda wildcards: (
+            "/models" if not USE_GAMBLR else "GAMBLR.predict"
+        )
     #log:
      #   CFG["inputs"]["pred_dir"] + "/" + CFG["inputs"]["model_name_prefix"] + "--{launch_date}/{matrix_name}_DLBCLone_predictions.tsv"
     threads:
         CFG["threads"]["quant"]
     resources:
         **CFG["resources"]["quant"]
-    container:
-        "docker://lklossok/gamblr.open:latest"
-    shadow:
-        "copy-minimal"
     shell:
         op.as_one_line("""
-        Rscript {input.dlbclone_predict} 
-            --test_features {input.mutation_matrix} 
-            --output_dir {output.predictions} 
-            --model_path {params.opt_model_path} 
-            --model_prefix {params.model_name_prefix} 
-            --fill_missing {params.fill_missing} 
-            --drop_extra {params.drop_extra}
+            mkdir -p $(dirname {output.predictions}) && 
+            touch {output.predictions} &&
+
+            singularity exec --cleanenv --containall 
+                --bind {input.mutation_matrix}:/inputs/mutation_matrix_input.tsv 
+                {params.model_bind} 
+                --bind {output.predictions}:/outputs/output_predictions.tsv 
+                {input.sif} 
+                Rscript /app/scripts/dlbclone_predict.R 
+                    --test_features /inputs/mutation_matrix_input.tsv 
+                    --output_dir /outputs/output_predictions.tsv 
+                    --model_path {params.model_path} 
+                    --model_prefix {params.model_name_prefix} 
+                    --fill_missing {params.fill_missing} 
+                    --drop_extra {params.drop_extra}
         """)
 
 
@@ -321,7 +331,7 @@ rule _dlbclone_all:
     input:
         expand(
             [
-                str(rules.curate_sv.output.output_metadata) #str(rules._dlbclone_predict.output.predictions)
+                str(rules._dlbclone_predict.output.predictions) #str(rules._dlbclone_predict.output.predictions)
             ],
             zip,
             sample_id = SAMPLES["sample_id"],
