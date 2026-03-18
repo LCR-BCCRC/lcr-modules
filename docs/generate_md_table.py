@@ -162,7 +162,7 @@ table_cols = [c for c in modules.columns if c not in ["purpose", "purpose_clean"
 
 modules = (
     modules
-    .groupby(["purpose_clean", "module"], as_index=False)
+    .groupby(["level", "purpose_clean", "module"], as_index=False)
     .agg({
         "seq_type": lambda x: "; ".join(sorted(x)),
         "data_type": "first",
@@ -173,24 +173,44 @@ modules = (
 with open(output_file, "w") as f:
 
     # Write TOC
-    for p in sorted(modules["purpose_clean"].unique()):
-        f.write(f"- [{p}](#{github_anchor(p)})\n")
+    f.write("## Table of Contents\n\n")
+    for level in sorted(modules["level"].unique()):
+        f.write(f"- **Level {level}**\n")
+
+        sub = modules[modules["level"] == level]
+
+        for p in sorted(sub["purpose_clean"].unique()):
+            f.write(f"  - [{p}](#{github_anchor(p)})\n")
 
     f.write("\n---\n\n")
 
-    for purpose, group in modules.groupby("purpose_clean"):
-        f.write(f"### {purpose}\n\n")
+    for level in sorted(modules["level"].unique()):
 
-        # Table header
-        header = "| " + " | ".join(table_cols) + " |\n"
-        sep = "|" + "|".join(["---"] * len(table_cols)) + "|\n"
+        f.write(f"## Level {level}\n\n")
 
-        f.write(header)
-        f.write(sep)
+        level_df = modules[modules["level"] == level]
 
-        # Table rows
-        for _, row in group.iterrows():
-            row_vals = [str(row[c]) for c in table_cols]
-            f.write("| " + " | ".join(row_vals) + " |\n")
+        for purpose, group in level_df.groupby("purpose_clean", sort=True):
 
-        f.write("\n")
+            f.write(f"### {purpose}\n\n")
+
+            # Stable ordering inside table
+            group = group.sort_values("module")
+
+            # Table header
+            header = "| " + " | ".join(table_cols) + " |\n"
+            sep = "|" + "|".join(["---"] * len(table_cols)) + "|\n"
+
+            f.write(header)
+            f.write(sep)
+
+            # Table rows
+            for _, row in group.iterrows():
+                row_vals = [str(row[c]) for c in table_cols]
+                f.write("| " + " | ".join(row_vals) + " |\n")
+
+            f.write("\n")
+
+            # Back to top link
+            f.write("[↑ Back to Table of Contents](#table-of-contents)\n\n")
+            
