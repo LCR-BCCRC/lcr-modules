@@ -17,6 +17,8 @@ lcr-modules:
     bam2fastq:
         inputs:
             sample_bam: "data/{sample_id}.bam" # path to the input files
+            # This path must include wildcards
+            # # Available wildcards: {seq_type} {genome_build} {sample_id}
         temp_outputs: True # fastq outputs will be temporary
 ```
 
