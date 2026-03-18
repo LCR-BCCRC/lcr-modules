@@ -69,15 +69,15 @@ The tables below list the purpose of each module and supported sequencing types.
 
 | module | seq_type | output_type | data_type |
 |---|---|---|---|
-| [cnv_master](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/cnv_master) | capture; genome | TSV | Illumina short reads |
-| [starfish](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/starfish) | capture; genome; mrna | TSV | Illumina short reads |
-| [svar_master](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/svar_master) | capture; genome | TSV | Illumina short reads |
+| [cnv_master](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/cnv_master) | capture; genome | SEG | Illumina short reads |
+| [starfish](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/starfish) | capture; genome; mrna | VCF | Illumina short reads |
+| [svar_master](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/svar_master) | capture; genome | BEDPE | Illumina short reads |
 
 ### Alignment
 
 | module | seq_type | output_type | data_type |
 |---|---|---|---|
-| [bwa_mem](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/bwa_mem) | capture; genome | BAM | Illumina short reads |
+| [bwa_mem](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/bwa_mem) | capture; genome | BAM/CRAM | Illumina short reads |
 | [star](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/star) | mrna | BAM | Illumina short reads |
 
 ### Archive download
@@ -90,11 +90,11 @@ The tables below list the purpose of each module and supported sequencing types.
 
 | module | seq_type | output_type | data_type |
 |---|---|---|---|
-| [battenberg](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/battenberg) | capture; genome | CNV | Illumina short reads |
-| [cnvkit](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/cnvkit) | capture; genome | CNV | Illumina short reads |
-| [controlfreec](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/controlfreec) | genome | CNV | Illumina short reads |
-| [ichorcna](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/ichorcna) | genome | CNV | Illumina short reads |
-| [sequenza](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/sequenza) | capture; genome | CNV | Illumina short reads |
+| [battenberg](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/battenberg) | capture; genome | SEG | Illumina short reads |
+| [cnvkit](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/cnvkit) | capture; genome | SEG | Illumina short reads |
+| [controlfreec](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/controlfreec) | genome | SEG | Illumina short reads |
+| [ichorcna](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/ichorcna) | genome | SEG | Illumina short reads |
+| [sequenza](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/sequenza) | capture; genome | SEG | Illumina short reads |
 
 ### Classifiers
 
@@ -152,7 +152,7 @@ The tables below list the purpose of each module and supported sequencing types.
 | [mutsig](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/mutsig) | capture; genome | TSV | Illumina short reads |
 | [oncodriveclustl](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/oncodriveclustl) | capture; genome | TSV | Illumina short reads |
 | [oncodrivefml](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/oncodrivefml) | capture; genome | TSV | Illumina short reads |
-| [rainstorm](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/rainstorm) | capture; genome | TSV | Illumina short reads |
+| [rainstorm](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/rainstorm) | capture; genome | BED | Illumina short reads |
 
 ### Pathogen analysis
 
@@ -173,8 +173,8 @@ The tables below list the purpose of each module and supported sequencing types.
 
 | module | seq_type | output_type | data_type |
 |---|---|---|---|
-| [picard_qc](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/picard_qc) | capture; genome; mrna | METRICS | Illumina short reads |
-| [qc](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/qc) | capture; genome | METRICS | Illumina short reads |
+| [picard_qc](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/picard_qc) | capture; genome; mrna | TSV | Illumina short reads |
+| [qc](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/qc) | capture; genome | TSV | Illumina short reads |
 
 ### Structural variants
 
