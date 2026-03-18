@@ -46,3 +46,9 @@ demo/scratch_archive
 /docs/build
 /docs/source/_build
 demo/run_clc.sh
+
+# Ignore ClairS/S-TO repo and dummy files
+modules/clairs/1.0/ClairS-0.4.4/
+modules/clairs/1.0/model_dummy
+modules/clairs_to/1.0/ClairS-TO-0.4.2/
+modules/clairs_to/1.0/link_dummy
