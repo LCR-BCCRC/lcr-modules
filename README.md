@@ -43,32 +43,43 @@ The tables below list the purpose of each module and supported sequencing types.
 
 ## Table of Contents
 
-- **Level 1**
-  - [Alignment](#alignment)
-  - [Archive download](#archive-download)
-  - [Fastq processing](#fastq-processing)
-  - [Genome build conversion](#genome-build-conversion)
-  - [Phasing long reads](#phasing-long-reads)
-  - [QC](#qc)
-  - [Variant calling](#variant-calling)
-- **Level 2**
-  - [CNV calling](#cnv-calling)
-  - [DNA modification analysis](#dna-modification-analysis)
-  - [Gene expression](#gene-expression)
-  - [Pathogen analysis](#pathogen-analysis)
-  - [Phasing long reads](#phasing-long-reads)
-  - [Structural variants](#structural-variants)
-  - [Structural variants long reads](#structural-variants-long-reads)
-  - [TCR, IG, HLA analysis](#tcr-ig-hla-analysis)
-  - [Variant annotation](#variant-annotation)
-  - [Variant calling](#variant-calling)
-  - [Variant calling long reads](#variant-calling-long-reads)
-- **Level 3**
-  - [Aggregation](#aggregation)
-  - [Classifiers](#classifiers)
-  - [Microenvironment](#microenvironment)
-  - [Mutation signatures](#mutation-signatures)
-  - [Mutation significance](#mutation-significance)
+### Level 1
+
+| Purpose | # Tools |
+|---|---|
+| [Alignment](#alignment) | 2 |
+| [Archive download](#archive-download) | 1 |
+| [Fastq processing](#fastq-processing) | 2 |
+| [Genome build conversion](#genome-build-conversion) | 1 |
+| [Phasing long reads](#phasing-long-reads) | 1 |
+| [QC](#qc) | 2 |
+| [Variant calling](#variant-calling) | 1 |
+
+### Level 2
+
+| Purpose | # Tools |
+|---|---|
+| [CNV calling](#cnv-calling) | 5 |
+| [DNA modification analysis](#dna-modification-analysis) | 1 |
+| [Gene expression](#gene-expression) | 2 |
+| [Pathogen analysis](#pathogen-analysis) | 1 |
+| [Phasing long reads](#phasing-long-reads) | 3 |
+| [Structural variants](#structural-variants) | 3 |
+| [Structural variants long reads](#structural-variants-long-reads) | 2 |
+| [TCR, IG, HLA analysis](#tcr-ig-hla-analysis) | 3 |
+| [Variant annotation](#variant-annotation) | 1 |
+| [Variant calling](#variant-calling) | 5 |
+| [Variant calling long reads](#variant-calling-long-reads) | 4 |
+
+### Level 3
+
+| Purpose | # Tools |
+|---|---|
+| [Aggregation](#aggregation) | 3 |
+| [Classifiers](#classifiers) | 2 |
+| [Microenvironment](#microenvironment) | 1 |
+| [Mutation signatures](#mutation-signatures) | 1 |
+| [Mutation significance](#mutation-significance) | 8 |
 
 ---
 

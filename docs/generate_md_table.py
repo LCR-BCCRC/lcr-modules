@@ -175,14 +175,26 @@ with open(output_file, "w") as f:
     # Write TOC
     f.write("## Table of Contents\n\n")
     for level in sorted(modules["level"].unique()):
-        f.write(f"- **Level {level}**\n")
 
-        sub = modules[modules["level"] == level]
+        f.write(f"### Level {level}\n\n")
 
-        for p in sorted(sub["purpose_clean"].unique()):
-            f.write(f"  - [{p}](#{github_anchor(p)})\n")
+        level_df = modules[modules["level"] == level]
 
-    f.write("\n---\n\n")
+        # header
+        f.write("| Purpose | # Tools |\n")
+        f.write("|---|---|\n")
+
+        for purpose, group in level_df.groupby("purpose_clean", sort=True):
+
+            n_tools = group["module"].nunique()
+
+            f.write(
+                f"| [{purpose}](#{github_anchor(purpose)}) | {n_tools} |\n"
+            )
+
+        f.write("\n")
+
+    f.write("---\n\n")
 
     for level in sorted(modules["level"].unique()):
 
@@ -213,4 +225,3 @@ with open(output_file, "w") as f:
 
             # Back to top link
             f.write("[↑ Back to Table of Contents](#table-of-contents)\n\n")
-            
