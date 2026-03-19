@@ -123,7 +123,7 @@ rule build_sif:
         temp("dlbclone_module.sif")
     shell:
         """
-        singularity build {output} docker://lklossok/dlbclone_module:latest
+        singularity build {output} docker://lklossok/gamblr.predict:latest
         """
 
 rule _dlbclone_input_metadata:
@@ -155,6 +155,7 @@ rule _dlbclone_input_sv:
 rule curate_sv:
     input:
         sif="dlbclone_module.sif",
+        script = CFG["scripts"]["prepare_svs"],
         sv=str(rules._dlbclone_input_sv.output.sv),
         metadata=str(rules._dlbclone_input_metadata.output.metadata)
     output:
@@ -168,11 +169,12 @@ rule curate_sv:
             touch {output.output_metadata} &&
 
             singularity exec --cleanenv --containall 
+                --bind {input.script}:/scripts/curate_sv_dlbclone.R
                 --bind {input.sv}:/inputs/sv_input.tsv 
                 --bind {input.metadata}:/inputs/metadata_input.tsv 
                 --bind {output.output_metadata}:/outputs/output_metadata.tsv 
                 {input.sif} 
-                Rscript /app/scripts/curate_sv_dlbclone.R 
+                Rscript /scripts/curate_sv_dlbclone.R 
                     --sv_input /inputs/sv_input.tsv 
                     --metadata /inputs/metadata_input.tsv 
                     --output_metadata /outputs/output_metadata.tsv 
@@ -188,7 +190,8 @@ if not USE_GAMBLR:
     # Uses only GAMBL metadata and binary mutation data as training for DLBCLone models
     rule _dlbclone_build_model: 
         input:
-            sif="dlbclone_module.sif"
+            sif="dlbclone_module.sif",
+            script = CFG["scripts"]["dlbclone_model"]
         output:
             model_rds = MODEL_RDS,
             model_uwot = MODEL_UWOT
@@ -213,9 +216,10 @@ if not USE_GAMBLR:
                 mkdir -p $(dirname {output.model_rds}) &&
 
                 singularity exec --cleanenv --containall 
+                    --bind {input.script}:/scripts/dlbclone_model.R
                     --bind $(dirname {output.model_rds}):/outputs 
                     {input.sif} 
-                    Rscript /app/scripts/dlbclone_model.R 
+                    Rscript /scripts/dlbclone_model.R 
                         --opt_model_path /outputs 
                         --model_name_prefix {params.model_name_prefix} 
                         --core_features '{params.core_features}' 
@@ -229,6 +233,7 @@ if not USE_GAMBLR:
 rule _dlbclone_assemble_genetic_features:
     input:
         sif="dlbclone_module.sif",
+        script = CFG["scripts"]["dlbclone_assemble_genetic_features"],
         test_metadata =  str(rules.curate_sv.output.output_metadata), 
         test_maf = str(rules._dlbclone_input_maf.output.maf) 
     output:
@@ -259,11 +264,12 @@ rule _dlbclone_assemble_genetic_features:
             touch {output.test_mutation_matrix} &&
 
             singularity exec --cleanenv --containall 
+                --bind {input.script}:/scripts/dlbclone_assemble.R
                 --bind {input.test_metadata}:/inputs/test_metadata_input.tsv 
                 --bind {input.test_maf}:/inputs/test_maf_input.tsv  
                 --bind {output.test_mutation_matrix}:/outputs/output_test_mutation_matrix.tsv 
                 {input.sif} 
-                Rscript /app/scripts/dlbclone_assemble.R 
+                Rscript /scripts/dlbclone_assemble.R 
                     --metadata /inputs/test_metadata_input.tsv 
                     --maf /inputs/test_maf_input.tsv
                     --output_matrix_dir /outputs/output_test_mutation_matrix.tsv 
@@ -285,6 +291,7 @@ rule _dlbclone_assemble_genetic_features:
 rule _dlbclone_predict:
     input:
         sif="dlbclone_module.sif",
+        script = CFG["scripts"]["dlbclone_predict"],
         models = [] if USE_GAMBLR else [MODEL_RDS, MODEL_UWOT],
         mutation_matrix = str(rules._dlbclone_assemble_genetic_features.output.test_mutation_matrix) # first column is sample ID and all other columns are features
     output:
@@ -294,7 +301,6 @@ rule _dlbclone_predict:
         model_name_prefix = CFG["inputs"]["model_name_prefix"],
         fill_missing = CFG["options"]["fill_missing"], 
         drop_extra = CFG["options"]["drop_extra"],
-        use_gamblr = USE_GAMBLR,
         model_bind = lambda wildcards, opt_model_path=CFG["inputs"]["opt_model_path"]: (
             f"--bind {opt_model_path}:/models" if not USE_GAMBLR else ""
         ),
@@ -313,11 +319,12 @@ rule _dlbclone_predict:
             touch {output.predictions} &&
 
             singularity exec --cleanenv --containall 
+                --bind {input.script}:/scripts/dlbclone_predict.R
                 --bind {input.mutation_matrix}:/inputs/mutation_matrix_input.tsv 
                 {params.model_bind} 
                 --bind {output.predictions}:/outputs/output_predictions.tsv 
                 {input.sif} 
-                Rscript /app/scripts/dlbclone_predict.R 
+                Rscript /scripts/dlbclone_predict.R 
                     --test_features /inputs/mutation_matrix_input.tsv 
                     --output_dir /outputs/output_predictions.tsv 
                     --model_path {params.model_path} 
