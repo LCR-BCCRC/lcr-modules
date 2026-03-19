@@ -166,6 +166,7 @@ modules = (
     .agg({
         "seq_type": lambda x: "; ".join(sorted(x)),
         "data_type": "first",
+        "input_type": "first",
         "output_type": "first"
     })
 )
