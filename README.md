@@ -296,3 +296,9 @@ The tables below list the purpose of each module and supported sequencing types.
 | [rainstorm](https://github.com/LCR-BCCRC/lcr-modules/tree/master/modules/rainstorm) | capture; genome | MAF | BED | Illumina short reads |
 
 [↑ Back to Table of Contents](#table-of-contents)
+
+
+## Known limitations
+
+The LCR-modues is not intended for installation and use on personal devices (phones,
+laptops, personal workstations) and due to the high computational requirements of a number of tools (GATK, STAR, hmftools etc.) it is recommended for use on high performance computers with Unix OS. For processing of the large number of samples in parallel, we recommend computing clusters with scheduling managers support. Due to the limitations of individual tools (e.g. samtools) that cannot be installed on non-Unix computers, we do not recommend use of LCR-modules on Windows or Apple computers.
