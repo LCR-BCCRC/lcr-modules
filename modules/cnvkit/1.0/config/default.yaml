@@ -21,13 +21,6 @@ lcr-modules:
 
         scratch_subdirectories: []
 
-        conda_envs:
-            controlfreec: "{MODSDIR}/envs/controlfreec.env.yaml"
-            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
-            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
-            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/python-3.8.3.yaml"
-            liftover: "{SCRIPTSDIR}/liftover/2.0/liftover.yaml"
-
         options:
             # Setting the sex to use as the reference
             # NOTE: this must match what was used in the panel_of_normals module to generate the files above, which is set as default to " "
@@ -38,7 +31,7 @@ lcr-modules:
                 method: "cbs " #segmentation methods (default)
                 # choices: cbs, flasso, haar, none, hmm, hmm-tumor, hmm-germline
 
-            # this is for bcftools calling across your dbSNP sites
+            # this is for bcftools calling across the dbSNP sites
             # note that bcftools call -mv is already used in the rule - it will annotate GT which is vital to cnvkit
             SNPs:
                 quality: 20 # minimum quality
@@ -74,11 +67,18 @@ lcr-modules:
             liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
             fill_segments_version: "1.2/"
 
+        conda_envs:
+            samtools: "{MODSDIR}/envs/samtools-1.10.yaml"
+            cnvkit: "{MODSDIR}/envs/cnvkit-0.9.9.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/python-3.8.3.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/2.0/liftover.yaml"
+
         threads:
             samtools: 8
-            coverage: 4
+            coverage: 8
             cns: 24
-            SNPs: 8
 
         resources:
             vcf_sort:

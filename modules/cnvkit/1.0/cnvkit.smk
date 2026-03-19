@@ -20,7 +20,7 @@ import oncopipe as op
 CFG = op.setup_module(
     name = "cnvkit",
     version = "1.0",
-    subdirectories = ["inputs", "coverage", "fix", "cns", "SNPs", "call", "plots", "breaks", "gene_metrics", "seg", "convert_coordinates", "fill_regions", "normalize", "metrics", "outputs"]
+    subdirectories = ["inputs", "coverage", "fix", "cns", "SNPs", "call", "plots", "breaks", "gene_metrics", "cnv2igv", "convert_coordinates", "fill_regions", "normalize", "metrics", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -185,7 +185,7 @@ rule _cnvkit_dbsnp_to_bed:
     output:
         bed = CFG["dirs"]["inputs"] + "dbsnp/{genome_build}/dbsnp.common_all-151.bed"
     log:
-        stderr = CFG["logs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/dbsnp_to_bed.log"
+        stderr = CFG["logs"]["inputs"] + "bam/{genome_build}/dbsnp_to_bed.log"
     threads: 1 # does not use parallelization, but still needs to be submitted
     resources:
         **CFG["resources"]["SNPs"]
@@ -210,64 +210,69 @@ rule _cnvkit_mpileup_per_chrom:
         opts = CFG["options"]["SNPs"]["opts"]
     conda:
         CFG["conda_envs"]["bcftools"]
-    threads:
-        CFG["threads"]["SNPs"]
     resources:
         **CFG["resources"]["SNPs"]
     group: "cnvkit"
     log:
-        stderr = CFG["logs"]["SNPs"] + "{capture_space}/{seq_type}--{genome_build}/{tumour_id}/{chrom}.vcf.stderr.log"
+        stderr = CFG["logs"]["SNPs"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.{chrom}.vcf.stderr.log"
     shell:
          op.as_one_line("""
         bcftools mpileup
-         --threads {threads}
           -T {input.bed}
           -r {wildcards.chrom}
           -f {input.fastaFile}
           -Q {params.quality}
           {params.opts}
           -Ou {input.bam} |
-         bcftools call -mv -Oz --threads {threads} -o {output.vcf} 2> {log.stderr} &&
-         tabix -@ {threads} -p vcf {output.vcf} 2>> {log.stderr}
+        bcftools call -mv -Oz -o {output.vcf} &> {log.stderr};
+        tabix -p vcf {output.vcf} &>> {log.stderr}
         """)
 
 # Collect vcfs
-def _cnvkit_get_chr_mpileups(wildcards):
+def _cnvkit_get_chr_vcfs(wildcards):
     CFG = config["lcr-modules"]["cnvkit"]
     with open(checkpoints._cnvkit_input_chroms.get(**wildcards).output.txt) as f:
-        mains_chroms = f.read().rstrip("\n").split("\n")
+        chrs = f.read().rstrip("\n").split("\n")
     vcfs = expand(
-        CFG["dirs"]["SNPs"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{tumour_id}}.{chrom}.vcf.gz",
-        chrom = chrs
+        # str(rules._cnvkit_mpileup_per_chrom.output.vcf),
+        CFG["dirs"]["SNPs"]  + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{tumour_id}}.{chrom}.vcf.gz",
+        chrom=chrs,
+        allow_missing = True
     )
+    return vcfs
+
+def _cnvkit_get_chr_tbis(wildcards):
+    CFG = config["lcr-modules"]["cnvkit"]
+    with open(checkpoints._cnvkit_input_chroms.get(**wildcards).output.txt) as f:
+        chrs = f.read().rstrip("\n").split("\n")
     tbis = expand(
-        CFG["dirs"]["SNPs"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{tumour_id}}.{chrom}.vcf.gz.tbi",
-        chrom = chrs
+        # str(rules._cnvkit_mpileup_per_chrom.output.tbi),
+        CFG["dirs"]["SNPs"]  + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{tumour_id}}.{chrom}.vcf.gz.tbi",
+        chrom=chrs,
+        allow_missing = True
     )
-    return {
-        "vcf" = vcfs,
-        "tbi" = tbis
-    }
+    return tbis
 
 rule _cnvkit_concatenate_vcf:
     input:
-        unpack(_cnvkit_get_chr_mpileups)
+        vcf = _cnvkit_get_chr_vcfs,
+        tbi = _cnvkit_get_chr_tbis
     output:
         vcf = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.gz",
         tbi = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.gz.tbi"
     log:
-        stderr = CFG["logs"]["SNPs"] + "{capture_space}/{seq_type}--{genome_build}/{tumour_id}.vcf.stderr.log"
-    threads:
-        CFG["threads"]["SNPs"]
+        stderr = CFG["logs"]["SNPs"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.stderr.log"
     resources:
         **CFG["resources"]["SNPs"]
     group: "cnvkit"
     conda:
         CFG["conda_envs"]["bcftools"]
+    wildcard_constraints:
+        tumour_id="|".join(CFG["runs"]["tumour_sample_id"]) # otherwise it thinks tumour_id is "{tumour_id}.{chrom}"
     shell:
         op.as_one_line("""
-        bcftools concat {input.vcf} -Oz --threads {threads} -o {output.vcf} 2> {log.stderr} &&
-         tabix -p vcf -@ {threads} {output.vcf} 2>> {log.stderr}
+        bcftools concat {input.vcf} -Oz -o {output.vcf} &> {log.stderr};
+         tabix -p vcf {output.vcf} &>> {log.stderr}
         """)
 
 
@@ -281,7 +286,7 @@ rule _cnvkit_segmetrics_ttest:
         cnr = str(rules._cnvkit_fix.output.cnr),
         cns = str(rules._cnvkit_segment.output.cns)
     output:
-        cns = temp(CFG["dirs"]["call"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.temp.cns")
+        cns = temp(CFG["dirs"]["call"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_temp.cns")
     params:
         add_col = CFG["options"]["segmetrics"]["add_col"]
     log:
@@ -512,6 +517,8 @@ rule _cnvkit_cnv2igv:
         seg = CFG["dirs"]["cnv2igv"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.seg"
     log:
         stderr = CFG["logs"]["cnv2igv"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_cnv2igv.stderr.log"
+    params:
+        opts = CFG["options"]["preserve"]
     conda:
         CFG["conda_envs"]["cnv2igv"]
     threads: 1
@@ -536,7 +543,7 @@ rule _cnvkit_convert_coordinates:
     output:
         cnvkit_lifted = CFG["dirs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{capture_space}/{tumour_id}.lifted_{chain}.seg"
     log:
-        stderr = CFG["logs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{capture_space}/{tumour_id}--{normal_id}/{tumour_id}.lifted_{chain}.stderr.log"
+        stderr = CFG["logs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.lifted_{chain}.stderr.log"
     threads: 1
     params:
         liftover_script = CFG["options"]["liftover_script_path"],
@@ -592,7 +599,7 @@ rule _cnvkit_fill_segments:
         CFG["conda_envs"]["bedtools"]
     shell:
         op.as_one_line("""
-        echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
+        echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
         echo "Filling grch37 projection" >> {log.stderr};
         bash {params.path}fill_segments.sh
         {params.path}src/chromArm.grch37.bed
@@ -616,7 +623,7 @@ rule _cnvkit_fill_segments:
 # Normalize chr prefix of the output file
 rule _cnvkit_normalize_projection:
     input:
-        filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{masked}/{tumour_id}.{tool}.{projection}.seg",
+        filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}.{tool}.{projection}.seg",
         chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
     output:
         projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}.{tool}.{projection}.seg"
@@ -647,34 +654,46 @@ rule _cnvkit_output_projection:
     input:
         projection = str(rules._cnvkit_normalize_projection.output.projection)
     output:
-        projection = CFG["dirs"]["outputs"] + "seg/{seq_type}--projection/{masked}/{tumour_id}.{tool}.{projection}.seg"
+        projection = CFG["dirs"]["outputs"] + "{seq_type}--projection/{tumour_id}.{tool}.{projection}.seg"
     run:
         op.relative_symlink(input.projection, output.projection, in_module = True)
+
+def _get_capture_space(wildcards):
+    CFG = config["lcr-modules"]["cnvkit"]
+    tbl = CFG["runs"]
+    this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
+
+    inputs = {
+        "cns": str(rules._cnvkit_call.output.cns).replace("{capture_space}", this_space[0]),
+        "scatter": str(rules._cnvkit_scatter.output.pdf).replace("{capture_space}", this_space[0]),
+        "diagram": str(rules._cnvkit_diagram.output.pdf).replace("{capture_space}", this_space[0]),
+        "breaks": str(rules._cnvkit_breaks.output.breaks).replace("{capture_space}", this_space[0]),
+        "genemetrics_seg": str(rules._cnvkit_genemetrics_seg.output.genemetrics).replace("{capture_space}", this_space[0]),
+        "genemetrics_gene": str(rules._cnvkit_genemetrics_gene.output.genemetrics).replace("{capture_space}", this_space[0]),
+        "trusted_genes": str(rules._cnvkit_trusted_genes_cna.output.trusted_genes).replace("{capture_space}", this_space[0]),
+        "sex": str(rules._cnvkit_infer_sex.output.sex).replace("{capture_space}", this_space[0]),
+        "metrics": str(rules._cnvkit_metrics.output.metrics).replace("{capture_space}", this_space[0]),
+        "seg": str(rules._cnvkit_cnv2igv.output.seg).replace("{capture_space}", this_space[0])
+    }
+    return inputs
 
 
 # The rest of the outputs will keep the capture_space wildcard
 rule _cnvkit_output:
     input:
-        cns = str(rules._cnvkit_call.output.cns),
-        scatter = str(rules._cnvkit_scatter.output.pdf),
-        diagram = str(rules._cnvkit_diagram.output.pdf),
-        breaks = str(rules._cnvkit_breaks.output.breaks),
-        genemetrics_seg = str(rules._cnvkit_genemetrics_seg.output.genemetrics),
-        genemetrics_gene = str(rules._cnvkit_genemetrics_gene.output.genemetrics),
-        trusted_genes = str(rules._cnvkit_trusted_genes_cna.output.trusted_genes),
-        sex = str(rules._cnvkit_infer_sex.output.sex),
-        metrics = str(rules._cnvkit_metrics.output.metrics),
-        seg = str(rules._cnvkit_cnv2igv.output.seg)
+        unpack(_get_capture_space)
     output:
-        cns =  CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.cns",
-        scatter = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_scatter.pdf",
-        diagram = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_diagram.pdf",
-        breaks = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_genebreaks.txt",
-        genemetrics_seg = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.segment.gene_cn.txt",
-        genemetrics_gene = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.bin.gene_cn.txt",
-        sex = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_inferred_sex.txt",
-        metrics = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.metrics.txt"
-        seg = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.seg"
+        cns =  CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}.cns",
+        scatter = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}_scatter.pdf",
+        diagram = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}_diagram.pdf",
+        breaks = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}_genebreaks.txt",
+        genemetrics_seg = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}.segment.gene_cn.txt",
+        genemetrics_gene = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}.bin.gene_cn.txt",
+        sex = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}_inferred_sex.txt",
+        metrics = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}.metrics.txt",
+        seg = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}.seg"
+    wildcard_constraints:
+        genome_build = '|'.join(CFG["runs"]["tumour_genome_build"])
     run:
         op.relative_symlink(input.cns, output.cns, in_module = True)
         op.relative_symlink(input.scatter, output.scatter, in_module = True)
@@ -717,9 +736,11 @@ rule _cnvkit_all:
             zip,  # Run expand() with zip(), not product()
             tumour_id=CFG["runs"]["tumour_sample_id"],
             seq_type=CFG["runs"]["tumour_seq_type"],
-            allow_missing=True),
-            tool = "cnvkit",
-            projection=CFG["requested_projections"])
+            allow_missing=True
+            ),
+        tool = "cnvkit",
+        projection=CFG["requested_projections"]
+        )
 
 
 ##### CLEANUP #####
