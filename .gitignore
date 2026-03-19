@@ -55,5 +55,5 @@ modules/clairs_to/1.0/link_dummy
 
 # Ignore helpers for documentation
 docs/README.md
-docs/directory-structure.md
+demo/directory-structure.md
 demo/*.pdf
