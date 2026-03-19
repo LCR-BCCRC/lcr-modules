@@ -2,7 +2,7 @@
 
 # Purpose
 
-The `battenberg` is a Level 2 module that operates on `bam/cram` files to use Battenberg and generate `seg` files as outputs.
+The `battenberg` is a Level 2 module that operates on `BAM/CRAM` files to use Battenberg and perform CNV calling for `capture, genome` data. It generates `SEG` files as outputs.
 
 # Example
 
@@ -49,3 +49,7 @@ rule all:
     input:
         rules._battenberg_all.input
 ```
+
+# Changelog
+
+See the full changelog [here](https://github.com/LCR-BCCRC/lcr-modules/blob/master/modules/battenberg/CHANGELOG.md)

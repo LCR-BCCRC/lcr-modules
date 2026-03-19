@@ -1,8 +1,8 @@
-# clair3
+# liftover
 
 # Purpose
 
-The `clair3` is a Level 2 module that operates on `BAM` files to use Clair3 and perform Variant calling long reads for `promethION` data. It generates `VCF` files as outputs.
+The `liftover` is a Level 1 module that operates on `VARIOUS` files to use UCSC liftover and perform Genome build conversion for `capture, genome` data. It generates `VARIOUS` files as outputs.
 
 # Example
 
@@ -16,7 +16,7 @@ lcr-modules:
         root_output_dir: "results/"
         scratch_directory: "scratch/"
 
-    clair3:
+    liftover:
         inputs:
             sample_bam: "data/{sample_id}.bam"
 ```
@@ -38,18 +38,18 @@ subworkflow reference_files:
     configfile:
         "../workflows/reference_files/2.4/config/default.yaml"
 
-configfile: "../modules/clair3/1.0/config/default.yaml"
+configfile: "../modules/liftover/2.0/config/default.yaml"
 configfile: "my_config.yaml" # the path to config file from the previous example
 
 config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 
-include: "../modules/clair3/1.0/clair3.smk"
+include: "../modules/liftover/2.0/liftover.smk"
 
 rule all:
     input:
-        rules._clair3_all.input
+        rules._liftover_all.input
 ```
 
 # Changelog
 
-See the full changelog [here](https://github.com/LCR-BCCRC/lcr-modules/blob/master/modules/clair3/CHANGELOG.md)
+See the full changelog [here](https://github.com/LCR-BCCRC/lcr-modules/blob/master/modules/liftover/CHANGELOG.md)

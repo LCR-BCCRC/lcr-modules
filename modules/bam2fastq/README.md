@@ -1,6 +1,8 @@
+# bam2fastq
+
 # Purpose
 
-The `bam2fastq` is a Level 1 module that operates on `bam` or `cram` files to use picard tools and generate `fastq` files as outputs.
+The `bam2fastq` is a Level 1 module that operates on `BAM/CRAM` files to use picard tools and perform Fastq processing for `capture, genome, mrna` data. It generates `FASTQ` files as outputs.
 
 # Example
 
@@ -9,17 +11,14 @@ To run this module, have config and snakefile in the current directory. The exam
 ```yaml
 lcr-modules:
     _shared:
-        lcr-modules: "../" # path to the lcr-modules directory relative to the location of the running snakefile
-        lcr-scripts: "../../lcr-scripts/" # path to the lcr-scripts directory relative to the location of the running snakefile
-        root_output_dir: "results/" # path to the location of the outputs
-        scratch_directory: "scratch/" # path to the location of the intermediate files
+        lcr-modules: "../"
+        lcr-scripts: "../../lcr-scripts/"
+        root_output_dir: "results/"
+        scratch_directory: "scratch/"
 
     bam2fastq:
         inputs:
-            sample_bam: "data/{sample_id}.bam" # path to the input files
-            # This path must include wildcards
-            # # Available wildcards: {seq_type} {genome_build} {sample_id}
-        temp_outputs: True # fastq outputs will be temporary
+            sample_bam: "data/{sample_id}.bam"
 ```
 
 The example snakefile:
@@ -27,40 +26,30 @@ The example snakefile:
 ```python
 #!/usr/bin/env snakemake
 
-
-##### SETUP #####
 import oncopipe as op
-# define sample table
+
 SAMPLES = op.load_samples("data/samples.tsv")
 
-
-##### REFERENCE_FILES WORKFLOW #####
 subworkflow reference_files:
     workdir:
-        "reference/" # path to the directory where all the references will be stored
+        "reference/"
     snakefile:
         "../workflows/reference_files/2.4/reference_files.smk"
     configfile:
         "../workflows/reference_files/2.4/config/default.yaml"
 
+configfile: "../modules/bam2fastq/1.2/config/default.yaml"
+configfile: "my_config.yaml" # the path to config file from the previous example
 
-##### CONFIGURATION FILES #####
-# Load module-specific configuration
-configfile: "../modules/bam2fastq/1.2/config/default.yaml" # path to the default config relative to the location of the running snakefile
-# Load project-specific config from the example above
-configfile: "capture.yaml"
-
-
-##### CONFIGURATION UPDATES #####
-# Use all samples as a default sample list for each module
 config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 
-##### MODULE SNAKEFILES #####
-# Load module-specific snakefiles
-include: "../modules/bam2fastq/1.2/bam2fastq.smk" # path to the module snakefile relative to the location of the running snakefile
+include: "../modules/bam2fastq/1.2/bam2fastq.smk"
 
-##### TARGETS ######
 rule all:
     input:
-        rules._bam2fastq_all.input # request the output files
+        rules._bam2fastq_all.input
 ```
+
+# Changelog
+
+See the full changelog [here](https://github.com/LCR-BCCRC/lcr-modules/blob/master/modules/bam2fastq/CHANGELOG.md)

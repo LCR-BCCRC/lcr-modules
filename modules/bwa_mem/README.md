@@ -2,7 +2,7 @@
 
 # Purpose
 
-The `bwa_mem` is a Level 1 module that operates on `fastq` files to use BWA-MEM and generate `bam/cram` files as outputs.
+The `bwa_mem` is a Level 1 module that operates on `FASTQ` files to use BWA-MEM and perform Alignment for `capture, genome` data. It generates `BAM/CRAM` files as outputs.
 
 # Example
 
@@ -49,3 +49,7 @@ rule all:
     input:
         rules._bwa_mem_all.input
 ```
+
+# Changelog
+
+See the full changelog [here](https://github.com/LCR-BCCRC/lcr-modules/blob/master/modules/bwa_mem/CHANGELOG.md)

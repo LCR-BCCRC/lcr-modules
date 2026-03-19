@@ -1,102 +1,102 @@
-module	seq_type	purpose	level	output_type
-bam2fastq	capture	Fastq processing	1	FASTQ
-bam2fastq	genome	Fastq processing	1	FASTQ
-bam2fastq	mrna	Fastq processing	1	FASTQ
-battenberg	capture	CNV calling	2	SEG
-battenberg	genome	CNV calling	2	SEG
-bwa_mem	capture	Alignment	1	BAM/CRAM
-bwa_mem	genome	Alignment	1	BAM/CRAM
-clair3	promethION	Variant calling long reads	2	VCF
-clairs	promethION	Variant calling long reads	2	VCF
-clairs_to	promethION	Variant calling long reads	2	VCF
-cnv_master	capture	Aggregation	3	SEG
-cnv_master	genome	Aggregation	3	SEG
-cnvkit	capture	CNV calling	2	SEG
-cnvkit	genome	CNV calling	2	SEG
-controlfreec	genome	CNV calling	2	SEG
-cutadapt	capture	Fastq processing	1	FASTQ
-cutadapt	genome	Fastq processing	1	FASTQ
-cutesv	promethION	Structural variants long reads	2	VCF
-dlbclass	capture	Classifiers	3	TSV
-dlbclass	genome	Classifiers	3	TSV
-dnds	capture	Mutation significance	3	TSV
-dnds	genome	Mutation significance	3	TSV
-ecotyper	mrna	Microenvironment	3	TSV
-ega_download	capture	Archive download	1	VARIOUS
-ega_download	genome	Archive download	1	VARIOUS
-ega_download	mrna	Archive download	1	VARIOUS
-fishhook	capture	Mutation significance	3	TSV
-fishhook	genome	Mutation significance	3	TSV
-freebayes	capture	Phasing long reads	2	VCF
-freebayes	genome	Phasing long reads	2	VCF
-gistic2	capture	Mutation significance	3	TSV
-gistic2	genome	Mutation significance	3	TSV
-gridss	capture	Structural variants	2	VCF
-gridss	genome	Structural variants	2	VCF
-hmftools	genome	Structural variants	2	VCF
-hotmaps	capture	Mutation significance	3	TSV
-hotmaps	genome	Mutation significance	3	TSV
-ichorcna	genome	CNV calling	2	SEG
-igcaller	capture	TCR, IG, HLA analysis	2	TSV
-igcaller	genome	TCR, IG, HLA analysis	2	TSV
-liftover	capture	Genome build conversion	1	VARIOUS
-liftover	genome	Genome build conversion	1	VARIOUS
-lofreq	capture	Variant calling	2	VCF
-lofreq	genome	Variant calling	2	VCF
-lymphgen	capture	Classifiers	3	TSV
-lymphgen	genome	Classifiers	3	TSV
-manta	capture	Structural variants	2	VCF
-manta	genome	Structural variants	2	VCF
-manta	mrna	Structural variants	2	VCF
-mixcr	genome	TCR, IG, HLA analysis	2	TSV
-mixcr	mrna	TCR, IG, HLA analysis	2	TSV
-modkit	promethION	DNA modification analysis	2	TSV
-mutect2	capture	Variant calling	2	VCF
-mutect2	genome	Variant calling	2	VCF
-mutsig	capture	Mutation significance	3	TSV
-mutsig	genome	Mutation significance	3	TSV
-nanomethphase	promethION	Phasing long reads	2	TSV
-nanopolish	promethION	Variant calling long reads	2	VCF
-oncodriveclustl	capture	Mutation significance	3	TSV
-oncodriveclustl	genome	Mutation significance	3	TSV
-oncodrivefml	capture	Mutation significance	3	TSV
-oncodrivefml	genome	Mutation significance	3	TSV
-pathseq	capture	Pathogen analysis	2	TSV
-pathseq	genome	Pathogen analysis	2	TSV
-pathseq	mrna	Pathogen analysis	2	TSV
-phase_variants	promethION	Phasing long reads	1	VCF
-picard_qc	capture	QC	1	TSV
-picard_qc	genome	QC	1	TSV
-picard_qc	mrna	QC	1	TSV
-qc	capture	QC	1	TSV
-qc	genome	QC	1	TSV
-rainstorm	capture	Mutation significance	3	BED
-rainstorm	genome	Mutation significance	3	BED
-sage	capture	Variant calling	2	VCF
-sage	genome	Variant calling	2	VCF
-salmon	mrna	Gene expression	2	TSV
-sequenza	capture	CNV calling	2	SEG
-sequenza	genome	CNV calling	2	SEG
-sigprofiler	capture	Mutation signatures	3	TSV
-sigprofiler	genome	Mutation signatures	3	TSV
-slms_3	capture	Variant calling	2	VCF
-slms_3	genome	Variant calling	2	VCF
-sniffles	promethION	Structural variants long reads	2	VCF
-spechla	capture	TCR, IG, HLA analysis	2	TSV
-spechla	genome	TCR, IG, HLA analysis	2	TSV
-spechla	mrna	TCR, IG, HLA analysis	2	TSV
-star	mrna	Alignment	1	BAM
-starfish	capture	Aggregation	3	VCF
-starfish	genome	Aggregation	3	VCF
-starfish	mrna	Aggregation	3	VCF
-strelka	capture	Variant calling	2	VCF
-strelka	genome	Variant calling	2	VCF
-stringtie	mrna	Gene expression	2	GTF
-svar_master	capture	Aggregation	3	BEDPE
-svar_master	genome	Aggregation	3	BEDPE
-varscan	capture	Variant calling	1	VCF
-varscan	genome	Variant calling	1	VCF
-vcf2maf	capture	Variant annotation	2	MAF
-vcf2maf	genome	Variant annotation	2	MAF
-whatshap	genome	Phasing long reads	2	VCF
-whatshap	promethION	Phasing long reads	2	VCF
+module	seq_type	purpose	level	input_type	output_type
+bam2fastq	capture	Fastq processing	1	BAM/CRAM	FASTQ
+bam2fastq	genome	Fastq processing	1	BAM/CRAM	FASTQ
+bam2fastq	mrna	Fastq processing	1	BAM/CRAM	FASTQ
+battenberg	capture	CNV calling	2	BAM/CRAM	SEG
+battenberg	genome	CNV calling	2	BAM/CRAM	SEG
+bwa_mem	capture	Alignment	1	FASTQ	BAM/CRAM
+bwa_mem	genome	Alignment	1	FASTQ	BAM/CRAM
+clair3	promethION	Variant calling long reads	2	BAM	VCF
+clairs	promethION	Variant calling long reads	2	BAM/CRAM	VCF
+clairs_to	promethION	Variant calling long reads	2	BAM/CRAM	VCF
+cnv_master	capture	Aggregation	3	SEG	merged SEG
+cnv_master	genome	Aggregation	3	SEG	merged SEG
+cnvkit	capture	CNV calling	2	BAM/CRAM	SEG
+cnvkit	genome	CNV calling	2	BAM/CRAM	SEG
+controlfreec	genome	CNV calling	2	BAM/CRAM	SEG
+cutadapt	capture	Fastq processing	1	FASTQ	FASTQ
+cutadapt	genome	Fastq processing	1	FASTQ	FASTQ
+cutesv	promethION	Structural variants long reads	2	BAM	VCF
+dlbclass	capture	Classifiers	3	VARIOUS	TSV
+dlbclass	genome	Classifiers	3	VARIOUS	TSV
+dnds	capture	Mutation significance	3	MAF	TSV
+dnds	genome	Mutation significance	3	MAF	TSV
+ecotyper	mrna	Microenvironment	3	TSV	TSV
+ega_download	capture	Archive download	1	TSV	VARIOUS
+ega_download	genome	Archive download	1	TSV	VARIOUS
+ega_download	mrna	Archive download	1	TSV	VARIOUS
+fishhook	capture	Mutation significance	3	MAF	TSV
+fishhook	genome	Mutation significance	3	MAF	TSV
+freebayes	capture	Phasing long reads	2	BAM/CRAM	VCF
+freebayes	genome	Phasing long reads	2	BAM/CRAM	VCF
+gistic2	capture	Mutation significance	3	SEG	TSV
+gistic2	genome	Mutation significance	3	SEG	TSV
+gridss	capture	Structural variants	2	BAM/CRAM	VCF
+gridss	genome	Structural variants	2	BAM/CRAM	VCF
+hmftools	genome	Structural variants	2	BAM/CRAM	VCF
+hotmaps	capture	Mutation significance	3	MAF	TSV
+hotmaps	genome	Mutation significance	3	MAF	TSV
+ichorcna	genome	CNV calling	2	BAM/CRAM	SEG
+igcaller	capture	TCR, IG, HLA analysis	2	BAM/CRAM	TSV
+igcaller	genome	TCR, IG, HLA analysis	2	BAM/CRAM	TSV
+liftover	capture	Genome build conversion	1	VARIOUS	VARIOUS
+liftover	genome	Genome build conversion	1	VARIOUS	VARIOUS
+lofreq	capture	Variant calling	2	BAM/CRAM	VCF
+lofreq	genome	Variant calling	2	BAM/CRAM	VCF
+lymphgen	capture	Classifiers	3	VARIOUS	TSV
+lymphgen	genome	Classifiers	3	VARIOUS	TSV
+manta	capture	Structural variants	2	BAM/CRAM	VCF
+manta	genome	Structural variants	2	BAM/CRAM	VCF
+manta	mrna	Structural variants	2	BAM/CRAM	VCF
+mixcr	genome	TCR, IG, HLA analysis	2	BAM/CRAM	TSV
+mixcr	mrna	TCR, IG, HLA analysis	2	BAM/CRAM	TSV
+modkit	promethION	DNA modification analysis	2	BAM/CRAM	TSV
+mutect2	capture	Variant calling	2	BAM/CRAM	VCF
+mutect2	genome	Variant calling	2	BAM/CRAM	VCF
+mutsig	capture	Mutation significance	3	MAF	TSV
+mutsig	genome	Mutation significance	3	MAF	TSV
+nanomethphase	promethION	Phasing long reads	2	BAM/CRAM	TSV
+nanopolish	promethION	Variant calling long reads	2	BAM/CRAM	VCF
+oncodriveclustl	capture	Mutation significance	3	MAF	TSV
+oncodriveclustl	genome	Mutation significance	3	MAF	TSV
+oncodrivefml	capture	Mutation significance	3	MAF	TSV
+oncodrivefml	genome	Mutation significance	3	MAF	TSV
+pathseq	capture	Pathogen analysis	2	BAM/CRAM	TSV
+pathseq	genome	Pathogen analysis	2	BAM/CRAM	TSV
+pathseq	mrna	Pathogen analysis	2	BAM/CRAM	TSV
+phase_variants	promethION	Phasing long reads	1	BAM/CRAM	VCF
+picard_qc	capture	QC	1	BAM/CRAM	TSV
+picard_qc	genome	QC	1	BAM/CRAM	TSV
+picard_qc	mrna	QC	1	BAM/CRAM	TSV
+qc	capture	QC	1	BAM/CRAM	TSV
+qc	genome	QC	1	BAM/CRAM	TSV
+rainstorm	capture	Mutation significance	3	MAF	BED
+rainstorm	genome	Mutation significance	3	MAF	BED
+sage	capture	Variant calling	2	BAM/CRAM	VCF
+sage	genome	Variant calling	2	BAM/CRAM	VCF
+salmon	mrna	Gene expression	2	FASTQ	TSV
+sequenza	capture	CNV calling	2	BAM/CRAM	SEG
+sequenza	genome	CNV calling	2	BAM/CRAM	SEG
+sigprofiler	capture	Mutation signatures	3	MAF	TSV
+sigprofiler	genome	Mutation signatures	3	MAF	TSV
+slms_3	capture	Variant calling	2	BAM/CRAM	VCF
+slms_3	genome	Variant calling	2	BAM/CRAM	VCF
+sniffles	promethION	Structural variants long reads	2	BAM/CRAM	VCF
+spechla	capture	TCR, IG, HLA analysis	2	BAM/CRAM	TSV
+spechla	genome	TCR, IG, HLA analysis	2	BAM/CRAM	TSV
+spechla	mrna	TCR, IG, HLA analysis	2	BAM/CRAM	TSV
+star	mrna	Alignment	1	FASTQ	BAM
+starfish	capture	Aggregation	3	VCF	VCF
+starfish	genome	Aggregation	3	VCF	VCF
+starfish	mrna	Aggregation	3	VCF	VCF
+strelka	capture	Variant calling	2	BAM/CRAM	VCF
+strelka	genome	Variant calling	2	BAM/CRAM	VCF
+stringtie	mrna	Gene expression	2	BAM/CRAM	GTF
+svar_master	capture	Aggregation	3	BEDPE	 merged BEDPE
+svar_master	genome	Aggregation	3	BEDPE	 merged BEDPE
+varscan	capture	Variant calling	2	BAM	VCF
+varscan	genome	Variant calling	2	BAM	VCF
+vcf2maf	capture	Variant annotation	2	VCF	MAF
+vcf2maf	genome	Variant annotation	2	VCF	MAF
+whatshap	genome	Phasing long reads	2	BAM/CRAM	VCF
+whatshap	promethION	Phasing long reads	2	BAM/CRAM	VCF

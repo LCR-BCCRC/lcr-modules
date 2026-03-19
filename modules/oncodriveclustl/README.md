@@ -1,8 +1,8 @@
-# clair3
+# oncodriveclustl
 
 # Purpose
 
-The `clair3` is a Level 2 module that operates on `BAM` files to use Clair3 and perform Variant calling long reads for `promethION` data. It generates `VCF` files as outputs.
+The `oncodriveclustl` is a Level 3 module that operates on `MAF` files to use OncodriveCLUSTL and perform Mutation significance for `capture, genome` data. It generates `TSV` files as outputs.
 
 # Example
 
@@ -16,7 +16,7 @@ lcr-modules:
         root_output_dir: "results/"
         scratch_directory: "scratch/"
 
-    clair3:
+    oncodriveclustl:
         inputs:
             sample_bam: "data/{sample_id}.bam"
 ```
@@ -38,18 +38,18 @@ subworkflow reference_files:
     configfile:
         "../workflows/reference_files/2.4/config/default.yaml"
 
-configfile: "../modules/clair3/1.0/config/default.yaml"
+configfile: "../modules/oncodriveclustl/1.1/config/default.yaml"
 configfile: "my_config.yaml" # the path to config file from the previous example
 
 config["lcr-modules"]["_shared"]["samples"] = SAMPLES
 
-include: "../modules/clair3/1.0/clair3.smk"
+include: "../modules/oncodriveclustl/1.1/oncodriveclustl.smk"
 
 rule all:
     input:
-        rules._clair3_all.input
+        rules._oncodriveclustl_all.input
 ```
 
 # Changelog
 
-See the full changelog [here](https://github.com/LCR-BCCRC/lcr-modules/blob/master/modules/clair3/CHANGELOG.md)
+See the full changelog [here](https://github.com/LCR-BCCRC/lcr-modules/blob/master/modules/oncodriveclustl/CHANGELOG.md)
