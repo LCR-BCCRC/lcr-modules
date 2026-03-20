@@ -1,0 +1,172 @@
+lcr-modules:
+    
+    purecn:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        cnvkit_seg: True
+        cnvkit_directory: "__UPDATE__" # set to cnvkit base directory if using lcr-modules
+
+        scratch_subdirectories: []
+
+        options:
+            # Remake normals
+            new_normals: True
+            # Target sites
+            # N.B. pureCN prefers to use the bait files, not the target files, if available. 
+            # The bed file regions should not be padded. 
+            target_bed:
+                hg19:
+                    agilent: ""
+                    idt: ""
+                hg38:
+                    agilent: ""
+                    idt: ""
+                    
+            genome_builds: 
+                grch37: "hg19"
+                hg19: "hg19"
+                hs37d5: "hg19"
+                grch38: "hg38"
+                hg38: "hg38"
+                hg38-nci: "hg38"
+
+
+            # Reference file settings: ----------------------------------------------------------------------- #
+            #GEM options: (for generating hard-masked mappability files)
+            kmer: 100 # kmer size
+            mismatch: 2 # maximum number of mismatches allowed
+            maxBigIndel: 5 # The GEM mapper implements a special algorithm that, in addition to ordinary matches, is sometimes able to find a single long indel - this is the max size
+            maxEditDistance: 0 # maximum number of edit operations allowed while verifying candidate matches by dynamic programming (can be a float 0-1, which represents differences of size n% of length, or a non-negative integer, which is a fixed number of edits)
+            strata: 0 # a stratum is a set of matches all having the same string distance from the query, GEM mapper will try to find n amount of matches to explore
+
+            setinterval:
+                force: "--force" # set to force remake the files; otherwise, it will not overwrite
+                opts: "" # Optional: "--off-target --off-target-seqlevels all for smaller targeted capture panels"
+
+
+            # Normal panel settings: ----------------------------------------------------------------------- #
+            mutect2_norm: 
+                mutect2_opts: ""
+                mutect2_filter: ""
+                mutect2_filter_for: -f 'PASS,germline' # Do not wrap in double quotes!
+                mutect2_filter_out: "FILTER~'weak_evidence' | FILTER~'contamination'"
+            normals:
+                omit_list: "" # path to list (.txt) of normal vcfs (paths) to omit from the panel of normals
+            
+            normals_coverage_loess:
+                omit_list: "" # path to list (.loess.txt) of normal coverage (paths) to omit from the panel of normals
+
+            # Tumour settings: ----------------------------------------------------------------------- #
+            mutect2: 
+                padding: 50 # Typical for exomes. May increase to 200 for very high coverage targeted capture. Applies to normal and tumour mutect2 calling. 
+                mutect2_opts: ""
+                mutect2_filter: ""
+                mutect2_filter_for: -f '.,PASS,germline' 
+                mutect2_filter_out: "FILTER~'weak_evidence' | FILTER~'contamination'"
+                depth_coverage: ""
+
+            coverage:
+                force: "--force"
+                opts: ""
+            
+
+            # this is using cnvkit seg/ratio files as input
+            pureCN:
+                alpha: "0.001"
+                max_cn: "8"
+                model: "betabin"
+                min_offtarget: "0.05"
+                opts: "--force --post-optimize --seed 123 "
+            
+            # the default segmentation method is PSCBS, which leverages vcf info to determine bins
+            purecn_cnvkit:
+                flagged_samples: [] # populate with sample names that you want to convert to using the standard Hclust method, which is the standard pureCN to cnvkit call. Noisy segmentation will remain noisy however.
+                failed_samples: [] # populate with sample names that have failed both methods. It will use "none" as the segmentation method. Note, that if the sample fails this and also failed de novo pureCN calling, then the sample may just be problematic. Should omit the sample entirely.
+            purecn_denovo:
+                flagged_samples: [] # populate with sample names that you want to convert to using the standard CBS method, which is the standard pureCN to cnvkit call. Noisy segmentation will remain noisy however.
+                failed_samples: [] # populate with sample names that have failed both methods. It will use "none" as the segmentation method. Note, that if the sample fails this and also failed de novo pureCN calling, then the sample may just be problematic. Should omit the sample entirely.
+
+            # liftOver options to convert between genomic builds
+            liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
+            liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
+            prefixed_projections: ["grch38", "hg38"] # List here the base names of chr-prefixed projections
+            non_prefixed_projections: ["hg19", "grch37",  "hs37d5"] # List here the base names of non-prefixed projections
+
+            fill_segments_version: "1.1/"
+
+        software:
+            intervalfile_script: "{MODSDIR}/etc/IntervalFile.R"
+            coverage_script: "{MODSDIR}/etc/Coverage.R"
+            tidy_pureCN_script: "{MODSDIR}/etc/Tidy_pureCN_seg.sh"
+
+        output: # specify the naming convention for the output files under 99-outputs/
+                # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}
+                # other wildcards are not supported in the naming scheme of output files
+                # The CFG["dirs"]["output"] directory is the base directory for all output files
+            cnvkit_seg:
+                original: "purecn_cnvkit/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
+                projection: "purecn_cnvkit/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+            denovo_seg:
+                original: "purecn_denovo/seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.seg"
+                projection: "purecn_denovo/seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+            cnvkit_ploidy:
+                info: "purecn_cnvkit/info/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.info.csv"
+            cnvkit_gene_cn:
+                cnvkit_gene_cn: "purecn_cnvkit/gene_cn/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.gene_cn.csv"
+            cnvkit_loh:
+                cnvkit_loh: "purecn_cnvkit/loh/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.loh.csv"
+            denovo_ploidy:
+                info: "purecn_denovo/info/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.info.csv"
+            denovo_loh:
+                denovo_loh: "purecn_denovo/loh/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.loh.csv"
+            best_seg: "best_seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg"
+
+            # specify in which projections you want the output files
+            requested_projections: ["grch37", "hg38"]
+            purecn_versions: ["purecn_cnvkit", "purecn_denovo"]
+
+            best_seg_manual:
+                purecn_denovo: []
+                purecn_cnvkit: []
+
+        conda_envs:
+            mutect: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            ucsc_bigwigtowig: "{MODSDIR}/envs/ucsc-bigwigtowig.yaml"
+            purecn: "{MODSDIR}/envs/purecn-2.0.1.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
+            
+        threads:
+            setinterval: 3
+            coverage: 3
+            pureCN: 4
+            mutect2: 4
+
+        resources:
+            setinterval: 
+                mem_mb: 6000
+            mutect:
+                mem_mb: 12000
+            concatenate_vcf:
+                mem_mb: 8000
+                pileup: 1
+            coverage:
+                mem_mb: 70000
+            pureCN:
+                mem_mb: 90000
+            post_purecn:
+                mem_mb: 2000
+                bam: 1
+            
+        pairing_config:
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
