@@ -117,14 +117,15 @@ rule _sequenza_bam2seqz:
         seqz_binning_opts = CFG["options"]["seqz_binning"]
     conda:
         CFG["conda_envs"]["sequenza-utils"]
-    threads:
-        CFG["threads"]["bam2seqz"]
+    threads: 1 # since it's grouped with the rule below, which uses CFG["threads"]["merge_seqz"], otherwise this thread count gets multiplied by # of chroms and exceeds SLURM amount allowed
+    # same with **resources, it will get the default but be able to use what's listed in **CFG["resources"]["bam2seqz"] by the grouping of these rules
     resources:
         **CFG["resources"]["bam2seqz"]
+    group: "bam2seqz"
     shell:
         op.as_one_line("""
         sequenza-utils bam2seqz {params.bam2seqz_opts} -gc {input.gc_wiggle} --fasta {input.genome}
-        --normal {input.normal_bam} --tumor {input.tumour_bam} --chromosome {wildcards.chrom} 2>> {log.stderr}
+        --normal {input.normal_bam} --tumor {input.tumour_bam} --chromosome {wildcards.chrom} 2> {log.stderr}
             |
         sequenza-utils seqz_binning {params.seqz_binning_opts} --seqz - 2>> {log.stderr}
             |
@@ -157,6 +158,7 @@ rule _sequenza_merge_seqz:
         CFG["threads"]["merge_seqz"]
     resources:
         **CFG["resources"]["merge_seqz"]
+    group: "bam2seqz"
     shell:
         op.as_one_line("""
         bash {input.merge_seqz} {input.seqz} 2>> {log.stderr}
