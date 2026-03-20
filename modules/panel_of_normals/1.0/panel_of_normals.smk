@@ -45,12 +45,12 @@ localrules:
     _panel_of_normals_input_bam,
     _panel_of_normals_input_capspace,
     _panel_of_normals_canonical_capspace,
-    _panel_of_normals_filter_main_chrs,
-    _panel_of_normals_output_beds,
-    _panel_of_normals_output_cnn,
-    _panel_of_normals_output_tsv,
-    _panel_of_normals_output_flat_ref_beds,
-    _panel_of_normals_output_flat_ref,
+    _panel_of_normal_cnvkit_accessible_main_chrs,
+    _panel_of_normals_cnvkit_output_beds,
+    _panel_of_normals_cnvkit_output_cnn,
+    _panel_of_normals_cnvkit_output_tsv,
+    _panel_of_normals_cnvkit_output_flat_ref_beds,
+    _panel_of_normals_cnvkit_output_flat_ref,
     _panel_of_normals_all
 
 
@@ -112,7 +112,7 @@ rule _panel_of_normals_canonical_capspace:
         """)
 
 # Download gene annotation files
-rule _panel_of_normals_get_refFlat:
+rule _panel_of_normals_cnvkit_get_refFlat:
     output:
         refFlat = CFG["dirs"]["inputs"] + "references/{genome_build}/refFlat.final.txt"
     params:
@@ -129,7 +129,7 @@ rule _panel_of_normals_get_refFlat:
         """)
 
 # divides regions into appropriately sized bins and adds gene annotations
-rule _panel_of_normals_targets_bed:
+rule _panel_of_normals_cnvkit_targets_bed:
     input:
         bed = str(rules._panel_of_normals_canonical_capspace.output.bed),
         refFlat = str(rules._panel_of_normals_get_refFlat.output.refFlat)
@@ -147,7 +147,7 @@ rule _panel_of_normals_targets_bed:
         cnvkit.py target {input.bed} --annotate {input.refFlat} --split -o {output.targets} &> {log.log}
         """)
 
-rule _panel_of_normals_accessible_regions:
+rule _panel_of_normals_cnvkit_accessible_regions:
     input:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
@@ -165,7 +165,7 @@ rule _panel_of_normals_accessible_regions:
         """)
 
 # Filters to only the main chromosomes
-rule _panel_of_normals_filter_main_chrs:
+rule _panel_of_normal_cnvkit_accessible_main_chrs:
     input:
         access = CFG["dirs"]["inputs"] + "references/access.{genome_build}.bed",
         main_txt = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt")
@@ -212,12 +212,12 @@ rule _panel_of_normals_record_samples:
         metadata_for_combo = params.metadata[(params.metadata.genome_build == wildcards.genome_build) & (params.metadata.capture_space == wildcards.capture_space)]
         metadata_for_combo.to_csv(output.tsv, sep="\t", index=False, na_rep='NA')
 
-rule _panel_of_normals_autobin:
+rule _panel_of_normals_cnvkit_autobin:
     input:
-        access = str(rules._panel_of_normals_filter_main_chrs.output.access_main),
+        access = str(rules._panel_of_normal_cnvkit_accessible_main_chrs.output.access_main),
         bam = _get_normals_per_combo,
         bai = _get_indexes_per_combo,
-        targets = str(rules._panel_of_normals_targets_bed.output.targets),
+        targets = str(rules._panel_of_normals_cnvkit_targets_bed.output.targets),
         refFlat = str(rules._panel_of_normals_get_refFlat.output.refFlat)
     output:
         target = CFG["dirs"]["autobin"] + "{seq_type}--{genome_build}/{capture_space}/target_sites.target.bed",
@@ -237,11 +237,11 @@ rule _panel_of_normals_autobin:
         """)
 
 # Get coverage for each sample
-rule _panel_of_normals_coverage_target:
+rule _panel_of_normals_cnvkit_coverage_target:
     input:
         bam = str(rules._panel_of_normals_input_bam.output.bam),
         bai = str(rules._panel_of_normals_index_bam.output.bai),
-        target = str(rules._panel_of_normals_autobin.output.target),
+        target = str(rules._panel_of_normals_cnvkit_autobin.output.target),
     output:
         cov = CFG["dirs"]["coverage"] + "target/{seq_type}--{genome_build}/{capture_space}/{sample_id}.targetcoverage.cnn"
     log:
@@ -259,11 +259,11 @@ rule _panel_of_normals_coverage_target:
         """)
 
 # Get coverage of anti-target sample
-rule _panel_of_normals_coverage_antitarget:
+rule _panel_of_normals_cnvkit_coverage_antitarget:
     input:
         bam = str(rules._panel_of_normals_input_bam.output.bam),
         bai = str(rules._panel_of_normals_index_bam.output.bai),
-        antitarget = str(rules._panel_of_normals_autobin.output.antitarget),
+        antitarget = str(rules._panel_of_normals_cnvkit_autobin.output.antitarget),
     output:
         cov = CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}/{capture_space}/{sample_id}.antitargetcoverage.cnn"
     log:
@@ -281,16 +281,16 @@ rule _panel_of_normals_coverage_antitarget:
         """)
 
 # Create reference coverage cnn file using all normal cnn files per combo
-def _get_coverage_per_combo(wildcards):
+def _get_cnvkit_coverage_per_combo(wildcards):
     CFG = config["lcr-modules"]["panel_of_normals"]
     tbl = CFG["samples"]
     samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
     target_cov = expand(
-        str(rules._panel_of_normals_coverage_target.output.cov),
+        str(rules._panel_of_normals_cnvkit_coverage_target.output.cov),
         sample_id = samples,
         allow_missing = True)
     antitarget_cov = expand(
-        str(rules._panel_of_normals_coverage_antitarget.output.cov),
+        str(rules._panel_of_normals_cnvkit_coverage_antitarget.output.cov),
         sample_id = samples,
         allow_missing = True)
     return{
@@ -298,9 +298,9 @@ def _get_coverage_per_combo(wildcards):
         "control_antitarget": antitarget_cov
     }
 
-rule _panel_of_normals_create_pon_ref:
+rule _panel_of_normals_cnvkit_create_pon_ref:
     input:
-        unpack(_get_coverage_per_combo),
+        unpack(_get_cnvkit_coverage_per_combo),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         pon = CFG["dirs"]["pon_cnn"] + "cnn/{seq_type}--{genome_build}/{capture_space}_normal_reference.cnn"
@@ -322,10 +322,10 @@ rule _panel_of_normals_create_pon_ref:
 
 #### The following rules create a "flat" reference file for edge cases where there are no normals and no equivalents
 # Annotates target sites with refFlat file
-rule _panel_of_normals_flat_ref_annotate_targets:
+rule _panel_of_normals_cnvkit_flat_ref_annotate_targets:
     input:
         bed = str(rules._panel_of_normals_canonical_capspace.output.bed),
-        refFlat = str(rules._panel_of_normals_get_refFlat.output.refFlat)
+        refFlat = str(rules._panel_of_normals_cnvkit_get_refFlat.output.refFlat)
     output:
         targets = CFG["dirs"]["flat_ref_cnn"] + "{seq_type}--{genome_build}/{capture_space}/target_sites.bed"
     log:
@@ -341,10 +341,10 @@ rule _panel_of_normals_flat_ref_annotate_targets:
         """)
 
 # Create anti target regions bed
-rule _panel_of_normals_flat_ref_antitargets:
+rule _panel_of_normals_cnvkit_flat_ref_antitargets:
     input:
-        targets = str(rules._panel_of_normals_flat_ref_annotate_targets.output.targets),
-        access_main = str(rules._panel_of_normals_filter_main_chrs.output.access_main)
+        targets = str(rules._panel_of_normals_cnvkit_flat_ref_annotate_targets.output.targets),
+        access_main = str(rules._panel_of_normals_cnvkit_filter_main_chrs.output.access_main)
     output:
         antitargets = CFG["dirs"]["flat_ref_cnn"] + "{seq_type}--{genome_build}/{capture_space}/antitarget_sites.bed"
     log:
@@ -360,10 +360,10 @@ rule _panel_of_normals_flat_ref_antitargets:
         """)
 
 # Makes the flat reference file
-rule _panel_of_normals_flat_ref:
+rule _panel_of_normals_cnvkit_flat_ref:
     input:
-        targets = str(rules._panel_of_normals_flat_ref_annotate_targets.output.targets),
-        antitargets = str(rules._panel_of_normals_flat_ref_antitargets.output.antitargets),
+        targets = str(rules._panel_of_normals_cnvkit_flat_ref_annotate_targets.output.targets),
+        antitargets = str(rules._panel_of_normals_cnvkit_flat_ref_antitargets.output.antitargets),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         cnn = CFG["dirs"]["flat_ref_cnn"] + "{seq_type}--{genome_build}/{capture_space}/flat_reference.cnn"
@@ -381,10 +381,10 @@ rule _panel_of_normals_flat_ref:
         """)
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _panel_of_normals_output_beds:
+rule _panel_of_normals_cnvkit_output_beds:
     input:
-        target = str(rules._panel_of_normals_autobin.output.target),
-        antitarget = str(rules._panel_of_normals_autobin.output.antitarget)
+        target = str(rules._panel_of_normals_cnvkit_autobin.output.target),
+        antitarget = str(rules._panel_of_normals_cnvkit_autobin.output.antitarget)
     output:
         target = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{capture_space}_target_sites.bed",
         antitarget = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{capture_space}_antitarget_sites.bed"
@@ -396,9 +396,9 @@ rule _panel_of_normals_output_beds:
         op.relative_symlink(input.target, output.target, in_module= True)
         op.relative_symlink(input.antitarget, output.antitarget, in_module= True)
 
-rule _panel_of_normals_output_cnn:
+rule _panel_of_normals_cnvkit_output_cnn:
     input:
-        cnn = str(rules._panel_of_normals_create_pon_ref.output.pon)
+        cnn = str(rules._panel_of_normals_cnvkit_create_pon_ref.output.pon)
     output:
         cnn = CFG["dirs"]["outputs"] + "cnn/{seq_type}--{genome_build}/{capture_space}_normal_reference.cnn"
     wildcard_constraints: # needed in order not to clash with _panel_of_normals_output_flat_ref
@@ -408,7 +408,7 @@ rule _panel_of_normals_output_cnn:
     run:
         op.relative_symlink(input.cnn, output.cnn, in_module= True)
 
-rule _panel_of_normals_output_tsv:
+rule _panel_of_normals_cnvkit_output_tsv:
     input:
         tsv = str(rules._panel_of_normals_record_samples.output.tsv)
     output:
@@ -416,10 +416,10 @@ rule _panel_of_normals_output_tsv:
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module= True)
 
-rule _panel_of_normals_output_flat_ref_beds:
+rule _panel_of_normals_cnvkit_output_flat_ref_beds:
     input:
-        target = str(rules._panel_of_normals_flat_ref_annotate_targets.output.targets),
-        antitarget = str(rules._panel_of_normals_flat_ref_antitargets.output.antitargets)
+        target = str(rules._panel_of_normals_cnvkit_flat_ref_annotate_targets.output.targets),
+        antitarget = str(rules._panel_of_normals_cnvkit_flat_ref_antitargets.output.antitargets)
     output:
         target = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{capture_space}_target_sites.bed",
         antitarget = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{capture_space}_antitarget_sites.bed"
@@ -431,9 +431,9 @@ rule _panel_of_normals_output_flat_ref_beds:
         op.relative_symlink(input.target, output.target, in_module= True)
         op.relative_symlink(input.antitarget, output.antitarget, in_module= True)
 
-rule _panel_of_normals_output_flat_ref:
+rule _panel_of_normals_cnvkit_output_flat_ref:
     input:
-        cnn = str(rules._panel_of_normals_flat_ref.output.cnn)
+        cnn = str(rules._panel_of_normals_cnvkit_flat_ref.output.cnn)
     output:
         cnn = CFG["dirs"]["outputs"] + "cnn/{seq_type}--{genome_build}/{capture_space}_normal_reference.cnn"
     wildcard_constraints: # needed in order not to clash with _panel_of_normals_output_cnn
@@ -448,10 +448,10 @@ rule _panel_of_normals_all:
     input:
         expand(
             [
-                str(rules._panel_of_normals_output_cnn.output.cnn),
-                str(rules._panel_of_normals_output_tsv.output.tsv),
-                str(rules._panel_of_normals_output_beds.output.target),
-                str(rules._panel_of_normals_output_beds.output.antitarget)
+                str(rules._panel_of_normals_cnvkit_output_cnn.output.cnn),
+                str(rules._panel_of_normals_cnvkit_output_tsv.output.tsv),
+                str(rules._panel_of_normals_cnvkit_output_beds.output.target),
+                str(rules._panel_of_normals_cnvkit_output_beds.output.antitarget)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=META["seq_type"],
@@ -460,9 +460,9 @@ rule _panel_of_normals_all:
         ),
         expand(
             [
-                str(rules._panel_of_normals_output_flat_ref.output.cnn),
-                str(rules._panel_of_normals_output_flat_ref_beds.output.target),
-                str(rules._panel_of_normals_output_flat_ref_beds.output.antitarget)
+                str(rules._panel_of_normals_cnvkit_output_flat_ref.output.cnn),
+                str(rules._panel_of_normals_cnvkit_output_flat_ref_beds.output.target),
+                str(rules._panel_of_normals_cnvkit_output_flat_ref_beds.output.antitarget)
             ],
             zip,
             seq_type="capture",
