@@ -247,7 +247,8 @@ rule _clairs_call_variants:
     threads:
         CFG["threads"]["clairs"]
     resources:
-        **CFG["resources"]["clairs"]
+        **CFG["resources"]["clairs"],
+        clairs_call=1
     shell:
         op.as_one_line("""
         {params.clairs_path}
@@ -283,8 +284,7 @@ rule _clairs_combine_vcfs:
     threads:
         CFG["threads"]["bcftools"]
     resources:
-        **CFG["resources"]["bcftools"],
-        clairs_call=1
+        **CFG["resources"]["bcftools"]
     params:
         output_dir = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/",
         indels_enabled = lambda wc: (
