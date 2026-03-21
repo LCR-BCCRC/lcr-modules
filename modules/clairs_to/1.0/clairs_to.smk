@@ -48,6 +48,7 @@ localrules:
     _clairs_to_get_resources,
     _clairs_to_link_clairs_to_models,
     _clairs_to_output_vcf,
+    _clairs_to_clean,
     _clairs_to_all
 
 
