@@ -50,6 +50,7 @@ localrules:
     _clairs_get_resources,
     _clairs_link_clairs_models,
     _clairs_output_vcf,
+    _clairs_clean,
     _clairs_all
 
 
@@ -282,7 +283,8 @@ rule _clairs_combine_vcfs:
     threads:
         CFG["threads"]["bcftools"]
     resources:
-        **CFG["resources"]["bcftools"]
+        **CFG["resources"]["bcftools"],
+        clairs_call=1
     params:
         output_dir = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/",
         indels_enabled = lambda wc: (
