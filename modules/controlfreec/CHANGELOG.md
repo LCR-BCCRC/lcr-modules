@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This release was authored by Jasper.
 
 Basic controlFREEC:
--input: 
+-input:
     - WGS or WES bam
--output: 
+-output:
     - text files indicating CNV positions, general characteristics of file (ex. ploidy, sample purity)
     - graphs visualizing CNV positions per chromosome
 
@@ -21,7 +21,7 @@ Basic controlFREEC:
 - Features the most basic default control-freec run (generates CNV plots, CNV tables, and sublone txt).
 
 - Config file:
-- There are 2-5 parameters: [general], [sample], 
+- There are 2-5 parameters: [general], [sample],
     - [general] - parameters used for controlfreec - there are different defaults for WGS vs. WES
     - [sample] - parameters for bam files used (also path/to/bam)
 * version 1.0 only allows for unpaired mode so far
@@ -64,3 +64,21 @@ Note: this version is not meant for capture/exome data.
 Added GEM mappability features - can now use/generate a hard-masked mappability file (useful for FFPE genomes) with the setting "hard_masked" = True. If this is set, GEM will be installed and ran on your reference genome of choice.
 
 Also added freec2circos function.
+
+## [1.3] - 2026-02-11
+Authored by Sierra Gillis
+
+- runs with both "masked" and "unmasked" reference files
+- added a checkpoint to the run step: it will try to run with contamination adjustment set to True; if that fails, it will try to run with it set to False. Results from "True" are used downstream where they exist. Otherwise "False" results are used.
+- Rscripts provided by the tool were changed to take inputs appropriately when the snakemake calls `Rscript --vanilla`
+- the plotting step is a local rule because their script uses `dev` to save the files, which is not available on the compute nodes; resource throttling is available so too many local rules do not run at once, and a note is made in the gambl smk of how to set that
+- masked genome fasta is only used to make the GEM mappability reference file for the `masked` run; all other rules use the fasta for the `genome_build`
+- cleaned up download of mappability reference files for the `unmasked` runs
+- update cnv2igv step to have the `--preserve_log_ratio` flag and use 1.5 version of lcr-script; config has an option to remove this flag
+- update lcr-script versions: liftover --> 2.0, fill_segments --> 1.2
+- updated liftover to expect 0-based input and to write output as 0-based as well, and to fix dropping of large unmapped segments
+- update fill_segments step to drop non-canonical chrs
+- update normalize_projections step to format `NA`s correctly in output
+- better formatting of rules and configs i.e. removed the need to specify the output paths in the config and cleaned up prepare_projection input function
+- cleaned up formatting to be consistent between all CNV calling modules
+- removed rule grouping for easier troubleshooting of errors

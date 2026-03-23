@@ -408,6 +408,18 @@ rule download_sdf:
         mv $(dirname {output.sdf})/{params.build}/* {output.sdf}
         """)
 
+rule download_ont_pon_hg38:
+    output:
+        vcf = "downloads/ont/colorsDb.v1.2.0.deepvariant.glnexus.{version}.vcf"
+    log:
+        "downloads/ont/colorsDb.v1.2.0.deepvariant.glnexus.{version}.vcf.log"
+    params:
+        provider = "ucsc"
+    shell:
+        op.as_one_line("""
+        wget -qO- https://hgdownload.soe.ucsc.edu/gbdb/hg38/colorsDb/colorsDb.v1.2.0.deepvariant.glnexus.vcf.gz 2> {log} | 
+        gzip -dc > {output.vcf} 2>> {log}
+        """)
 
 ##### FUNCTIONS #####
 
