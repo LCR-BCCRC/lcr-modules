@@ -46,8 +46,8 @@ lcr-modules:
                     force: "--force"
                     opts: ""
 
-                software:
-                    coverage_script: "{MODSDIR}/etc/Coverage.R"
+        software:
+            coverage_script: "{MODSDIR}/etc/Coverage.R"
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.10.yaml"
@@ -82,8 +82,10 @@ lcr-modules:
                     mem_mb: 6000
                 mutect:
                     mem_mb: 12000
+                    bam: 1
                 coverage:
                     mem_mb: 70000
+                    bam: 1
                 normalDB:
                     mem_mb: 90000
 
