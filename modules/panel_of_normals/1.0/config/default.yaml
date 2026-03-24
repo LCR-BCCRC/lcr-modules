@@ -8,6 +8,13 @@ lcr-modules:
             sample_bai: "__UPDATE__"
 
         options:
+            genome_builds_map:
+                grch37: "hg19"
+                hg19: "hg19"
+                hs37d5: "hg19"
+                grch38: "hg38"
+                hg38: "hg38"
+                hg38-nci: "hg38"
             cnvkit:
                 # Setting the sex to use as the reference
                 # Female samples normalized to a male reference will show a doubling of chromosome X (log2 value about +1.0) and complete loss of chromosome Y (log2 value below -3.0, usually far below).
@@ -22,14 +29,6 @@ lcr-modules:
                     genome_builds: []
                     capture_spaces: []
             purecn:
-                genome_builds_map:
-                    grch37: "hg19"
-                    hg19: "hg19"
-                    hs37d5: "hg19"
-                    grch38: "hg38"
-                    hg38: "hg38"
-                    hg38-nci: "hg38"
-
                 setinterval:
                     force: "--force" # set to force remake the files; otherwise, it will not overwrite
                     opts: "" # Optional: "--off-target --off-target-seqlevels all for smaller targeted capture panels"
