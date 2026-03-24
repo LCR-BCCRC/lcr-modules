@@ -46,9 +46,16 @@ lcr-modules:
                     force: "--force"
                     opts: ""
 
+                software:
+                    coverage_script: "{MODSDIR}/etc/Coverage.R"
+
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.10.yaml"
             cnvkit: "{MODSDIR}/envs/cnvkit-0.9.9.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+            purecn: "{MODSDIR}/envs/purecn-2.0.1.yaml"
+            mutect: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
 
         threads:
             cnvkit:

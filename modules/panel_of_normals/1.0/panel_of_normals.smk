@@ -485,7 +485,7 @@ rule _panel_of_normals_purecn_get_mappability:
         op.as_one_line("""
             wget {params.url} -O {output.bw}
         """)
-
+# TODO: remove or re-implement after testing
 # PureCN script to create intervals from capture space bed
 rule _panel_of_normals_purecn_setinterval:
     input:
@@ -1067,7 +1067,7 @@ rule _panel_of_normals_purecn_coverage:
         coverage = CFG["dirs"]["purecn_coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_coverage_loess.txt.gz"
     params:
         name = "{sample_id}",
-        coverage_script = CFG["software"]["coverage_script"],
+        coverage_script = CFG["software"]["purecn"]["coverage_script"],
         outdir = CFG["dirs"]["purecn_coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}",
         force =  CFG["options"]["purecn"]["coverage"]["force"],
         opt =  CFG["options"]["purecn"]["coverage"]["opts"],
