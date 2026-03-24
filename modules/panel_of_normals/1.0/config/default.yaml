@@ -8,36 +8,78 @@ lcr-modules:
             sample_bai: "__UPDATE__"
 
         options:
-            # Setting the sex to use as the reference
-            # Female samples normalized to a male reference will show a doubling of chromosome X (log2 value about +1.0) and complete loss of chromosome Y (log2 value below -3.0, usually far below).
-            # Male samples normalized to a female reference will show a single-copy loss of chromosome X (log2 value about -1.0). The chromosome Y value should be near 0.0, but the log2 values may be noisier and less reliable than on autosomes.
-            male_ref: " "
-            # add combinations of genome_buildcapture_space that require a "flat" reference file of even coverage instead of using normal samples
-            # these will be "zipped" e.g. if given
-            #       genome_builds: ["grch37", "hg19"]
-            #       capture_spaces: ["exome-utr-grch37", "agilent_v5"]
-            # then it will make two reference files, one for grch37--exome-utr-grch37 and one for hg19--agilent_v5
-            flat_ref_combos:
-                genome_builds: []
-                capture_spaces: []
+            cnvkit:
+                # Setting the sex to use as the reference
+                # Female samples normalized to a male reference will show a doubling of chromosome X (log2 value about +1.0) and complete loss of chromosome Y (log2 value below -3.0, usually far below).
+                # Male samples normalized to a female reference will show a single-copy loss of chromosome X (log2 value about -1.0). The chromosome Y value should be near 0.0, but the log2 values may be noisier and less reliable than on autosomes.
+                male_ref: " "
+                # add combinations of genome_buildcapture_space that require a "flat" reference file of even coverage instead of using normal samples
+                # these will be "zipped" e.g. if given
+                #       genome_builds: ["grch37", "hg19"]
+                #       capture_spaces: ["exome-utr-grch37", "agilent_v5"]
+                # then it will make two reference files, one for grch37--exome-utr-grch37 and one for hg19--agilent_v5
+                flat_ref_combos:
+                    genome_builds: []
+                    capture_spaces: []
+            purecn:
+                genome_builds_map:
+                    grch37: "hg19"
+                    hg19: "hg19"
+                    hs37d5: "hg19"
+                    grch38: "hg38"
+                    hg38: "hg38"
+                    hg38-nci: "hg38"
+
+                setinterval:
+                    force: "--force" # set to force remake the files; otherwise, it will not overwrite
+                    opts: "" # Optional: "--off-target --off-target-seqlevels all for smaller targeted capture panels"
+
+                mutect:
+                    mutect2_opts: "" # for the germline calling with Mutect2
+                    annotate: "" # for gatk FilterMutectCalls which just annotates variants for later filtering when this is blank
+                    # the following two are for the call to bcftools that actually filters the variants
+                    filter_for: -f 'PASS,germline' # Do not wrap in double quotes!
+                    filter_out: "FILTER~'weak_evidence' | FILTER~'contamination'"
+
+                coverage:
+                    depth_coverage: ""
+                    force: "--force"
+                    opts: ""
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.10.yaml"
             cnvkit: "{MODSDIR}/envs/cnvkit-0.9.9.yaml"
 
         threads:
-            samtools: 8
-            autobin: 24
-            coverage: 4
-            reference: 4
+            cnvkit:
+                samtools: 8
+                autobin: 24
+                coverage: 4
+                reference: 4
+            purecn:
+                setinterval: 3
+                mutect: 4
+                coverage: 4
+                normalDB: 4
 
         resources:
-            autobin:
-                mem_mb: 48000
-            coverage:
-                mem_mb: 8000
-            reference:
-                mem_mb: 48000
+            cnvkit:
+                coverage:
+                    mem_mb: 8000
+                autobin:
+                    mem_mb: 48000
+                reference:
+                    mem_mb: 48000
+            purecn:
+                setinterval:
+                    mem_mb: 6000
+                mutect:
+                    mem_mb: 12000
+                coverage:
+                    mem_mb: 70000
+                normalDB:
+                    mem_mb: 90000
+
 
         pairing_config:
             capture:
