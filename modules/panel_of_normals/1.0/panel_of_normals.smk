@@ -97,9 +97,9 @@ rule _panel_of_normals_index_bam:
     log:
         log = CFG["logs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{sample_id}_index.log"
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["cnvkit"]["samtools"]
     threads:
-        CFG["threads"]["samtools"]
+        CFG["threads"]["cnvkit"]["samtools"]
     shell:
         op.as_one_line("""
         samtools index -@ {threads} {input.bam} 2> {log.log} &&
@@ -499,7 +499,7 @@ rule _panel_of_normals_purecn_get_mappability:
         op.as_one_line("""
             wget {params.url} -O {output.bw}
         """)
-# TODO: remove or re-implement after testing
+
 # PureCN script to create intervals from capture space bed
 rule _panel_of_normals_purecn_setinterval:
     input:
@@ -1051,7 +1051,7 @@ rule _panel_of_normals_purecn_gatk_coverage_concatenate_depths:
     resources:
         **CFG["resources"]["purecn"]["coverage"]
     threads:
-        CFG["threads"]["coverage"]
+        CFG["threads"]["purecn"]["coverage"]
     group:
         "purecn_coverage"
     shell:
@@ -1151,34 +1151,34 @@ rule _panel_of_normals_purecn_database_cnvkit:
         """)
 
 # For pureCN de novo PSCBS seg method, using its own coverage files
-    rule _panel_of_normals_purecn_database_denovo:
-        input:
-            normal_panel = str(rules._panel_of_normals_purecn_merge_vcfs.output.normal_panel),
-            normal_panel_tbi = str(rules._panel_of_normals_purecn_merge_vcfs.output.normal_panel_tbi),
-            cov_list = str(rules._panel_of_normals_purecn_coverage_list.output.cov_list)
-        output:
-            mapping_bias = CFG["dirs"]["purecn_NormalDB"] + "{seq_type}--{genome_build}/{capture_space}/purecn_denovo_normal/mapping_bias_{genome_build}_{capture_space}.rds",
-            normal_db = CFG["dirs"]["purecn_NormalDB"] + "{seq_type}--{genome_build}/{capture_space}/purecn_denovo_normal/normalDB_{genome_build}_{capture_space}.rds"
-        log:
-            CFG["logs"]["purecn_NormalDB"] + "{seq_type}--{genome_build}/{capture_space}/purecn_denovo_normaldb.log"
-        params:
-            dirOut = CFG["dirs"]["purecn_NormalDB"] + "{seq_type}--{genome_build}/{capture_space}/purecn_denovo_normal/",
-            genome = lambda w: CFG["options"]["purecn"]["genome_builds_map"][w.genome_build]
-        conda:
-            CFG["conda_envs"]["purecn"]
-        resources:
-            **CFG["resources"]["purecn"]["normalDB"]
-        threads:
-            CFG["threads"]["purecn"]["normalDB"]
-        shell:
-            op.as_one_line("""
-                echo $CONDA_DEFAULT_ENV ;
-                PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/ ;
-                export R_LIBS=$CONDA_DEFAULT_ENV/lib/R/library/ ;
-                Rscript --vanilla $PURECN/NormalDB.R --out-dir {params.dirOut} --normal-panel {input.normal_panel}
-                --coverage-files {input.cov_list}
-                --assay {wildcards.capture_space} --genome {params.genome} --force > {log} 2>&1
-            """)
+rule _panel_of_normals_purecn_database_denovo:
+    input:
+        normal_panel = str(rules._panel_of_normals_purecn_merge_vcfs.output.normal_panel),
+        normal_panel_tbi = str(rules._panel_of_normals_purecn_merge_vcfs.output.normal_panel_tbi),
+        cov_list = str(rules._panel_of_normals_purecn_coverage_list.output.cov_list)
+    output:
+        mapping_bias = CFG["dirs"]["purecn_NormalDB"] + "{seq_type}--{genome_build}/{capture_space}/purecn_denovo_normal/mapping_bias_{genome_build}_{capture_space}.rds",
+        normal_db = CFG["dirs"]["purecn_NormalDB"] + "{seq_type}--{genome_build}/{capture_space}/purecn_denovo_normal/normalDB_{genome_build}_{capture_space}.rds"
+    log:
+        CFG["logs"]["purecn_NormalDB"] + "{seq_type}--{genome_build}/{capture_space}/purecn_denovo_normaldb.log"
+    params:
+        dirOut = CFG["dirs"]["purecn_NormalDB"] + "{seq_type}--{genome_build}/{capture_space}/purecn_denovo_normal/",
+        genome = lambda w: CFG["options"]["purecn"]["genome_builds_map"][w.genome_build]
+    conda:
+        CFG["conda_envs"]["purecn"]
+    resources:
+        **CFG["resources"]["purecn"]["normalDB"]
+    threads:
+        CFG["threads"]["purecn"]["normalDB"]
+    shell:
+        op.as_one_line("""
+            echo $CONDA_DEFAULT_ENV ;
+            PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/ ;
+            export R_LIBS=$CONDA_DEFAULT_ENV/lib/R/library/ ;
+            Rscript --vanilla $PURECN/NormalDB.R --out-dir {params.dirOut} --normal-panel {input.normal_panel}
+            --coverage-files {input.cov_list}
+            --assay {wildcards.capture_space} --genome {params.genome} --force > {log} 2>&1
+        """)
 
 rule _panel_of_normals_purecn_output_intervals:
     input:
@@ -1262,7 +1262,7 @@ rule _panel_of_normals_all:
             seq_type=META["seq_type"],
             genome_build=META["genome_build"],
             capture_space=META["capture_space"]
-        )
+        ),
         # cnvkit
         expand(
             [
@@ -1301,7 +1301,7 @@ rule _panel_of_normals_all:
                 str(rules._panel_of_normals_purecn_output_database_denovo.output.mapping_bias),
                 str(rules._panel_of_normals_purecn_output_database_denovo.output.normal_db)
             ],
-            zip
+            zip,
             seq_type="capture",
             genome_build=CFG["options"]["cnvkit"]["flat_ref_combos"]["genome_builds"],
             capture_space=CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]
