@@ -60,6 +60,8 @@ localrules:
     _panel_of_normals_purecn_samples_map,
     _panel_of_normals_purecn_coverage_list,
     _panel_of_normals_purecn_output_intervals,
+    _panel_of_normals_purecn_output_gatk_intervals,
+    _panel_of_normals_purecn_output_gatk_intervals_targets,
     _panel_of_normals_purecn_output_mutect2_pon,
     _panel_of_normals_purecn_output_normal_panel_vcf,
     _panel_of_normals_purecn_output_database_cnvkit,
@@ -131,8 +133,8 @@ rule _panel_of_normals_canonical_capspace:
 # Symlink fasta and it's index (for compatibility with $PURECN/IntervalFile.R)
 rule _panel_of_normals_symlink_fasta:
     input:
-        fasta = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.fa")),
-        fai = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"))
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
+        fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai")
     output:
         fasta = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa",
         fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa.fai"
@@ -142,7 +144,7 @@ rule _panel_of_normals_symlink_fasta:
 
 checkpoint _panel_of_normals_input_chroms_withY:
     input:
-        txt = ancient(reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt"))
+        txt = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt")
     output:
         txt = CFG["dirs"]["inputs"] + "references/{genome_build}/main_chromosomes_withY.txt"
     run:
@@ -568,10 +570,10 @@ rule _panel_of_normals_purecn_gatk_interval_list_targets:
     input:
         intervals = str(rules._panel_of_normals_purecn_setinterval.output.intervals)
     output:
-        gatk_intervals = CFG["dirs"]["purecn_intervals"] + "{seq_type}--{genome_build}/{capture_space}/baits_{capture_space}_intervals_gatk_targets.list"
+        gatk_targets = CFG["dirs"]["purecn_intervals"] + "{seq_type}--{genome_build}/{capture_space}/baits_{capture_space}_intervals_gatk_targets.list"
     shell:
         op.as_one_line("""
-            egrep -i  '^.*:.*-.*' {input.intervals} | egrep "TRUE" | awk '{{print $1}}' > {output.gatk_intervals}
+            egrep -i  '^.*:.*-.*' {input.intervals} | egrep "TRUE" | awk '{{print $1}}' > {output.gatk_targets}
         """)
 
 # Run Mutect2 to get germline variants
@@ -581,7 +583,7 @@ rule _panel_of_normals_purecn_mutect2_germline:
         dbsnp = ancient(reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")),
         fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta),
         gnomad = ancient(reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")),
-        target_regions = str(rules._panel_of_normals_purecn_gatk_interval_list_targets.output.gatk_intervals)
+        target_regions = str(rules._panel_of_normals_purecn_gatk_interval_list_targets.output.gatk_targets)
     output:
         vcf = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.vcf.gz"),
         tbi = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.vcf.gz.tbi"),
@@ -1193,6 +1195,22 @@ rule _panel_of_normals_purecn_output_intervals:
     run:
         op.relative_symlink(input.intervals, output.intervals, in_module=True)
 
+rule _panel_of_normals_purecn_output_gatk_intervals:
+    input:
+        gatk_intervals = str(rules._panel_of_normals_purecn_gatk_interval_list.output.gatk_intervals)
+    output:
+        gatk_intervals = CFG["dirs"]["outputs"] + "purecn/{seq_type}--{genome_build}/{capture_space}/baits_{capture_space}_intervals_gatk.list"
+    run:
+        op.relative_symlink(input.gatk_intervals, output.gatk_intervals, in_module=True)
+
+rule _panel_of_normals_purecn_output_gatk_intervals_targets:
+    input:
+        gatk_targets = str(rules._panel_of_normals_purecn_gatk_interval_list_targets.output.gatk_targets)
+    output:
+        gatk_targets = CFG["dirs"]["outputs"] + "purecn/{seq_type}--{genome_build}/{capture_space}/baits_{capture_space}_intervals_gatk_targets.list"
+    run:
+        op.relative_symlink(input.gatk_targets, output.gatk_targets, in_module=True)
+
 rule _panel_of_normals_purecn_output_mutect2_pon:
     input:
         pon = str(rules._panel_of_normals_purecn_mutect2_pon.output.pon),
@@ -1281,6 +1299,8 @@ rule _panel_of_normals_all:
         expand(
             [
                 str(rules._panel_of_normals_purecn_output_intervals.output.intervals),
+                str(rules._panel_of_normals_purecn_output_gatk_intervals.output.gatk_intervals),
+                str(rules._panel_of_normals_purecn_output_gatk_intervals_targets.output.gatk_targets),
                 str(rules._panel_of_normals_purecn_output_mutect2_pon.output.pn),
                 str(rules._panel_of_normals_purecn_output_normal_panel_vcf.output.normal_panel),
                 str(rules._panel_of_normals_purecn_output_normal_panel_vcf.output.normal_panel_tbi),
