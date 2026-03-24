@@ -664,6 +664,7 @@ def _get_capture_space(wildcards):
     this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
 
     inputs = {
+        "cnr": str(rules._cnvkit_fix.output.cnr).replace("{capture_space}", this_space[0]),
         "cns": str(rules._cnvkit_call.output.cns).replace("{capture_space}", this_space[0]),
         "scatter": str(rules._cnvkit_scatter.output.pdf).replace("{capture_space}", this_space[0]),
         "diagram": str(rules._cnvkit_diagram.output.pdf).replace("{capture_space}", this_space[0]),
@@ -683,6 +684,7 @@ rule _cnvkit_output:
     input:
         unpack(_get_capture_space)
     output:
+        cnr = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}.cnr",
         cns =  CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}.cns",
         scatter = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}_scatter.pdf",
         diagram = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}_diagram.pdf",
@@ -695,6 +697,7 @@ rule _cnvkit_output:
     wildcard_constraints:
         genome_build = '|'.join(CFG["runs"]["tumour_genome_build"])
     run:
+        op.relative_symlink(input.cnr, output.cnr, in_module = True)
         op.relative_symlink(input.cns, output.cns, in_module = True)
         op.relative_symlink(input.scatter, output.scatter, in_module = True)
         op.relative_symlink(input.diagram, output.diagram, in_module = True)
@@ -712,6 +715,7 @@ rule _cnvkit_all:
     input:
         expand(
             [
+                str(rules._cnvkit_output.output.cnr),
                 str(rules._cnvkit_output.output.cns),
                 str(rules._cnvkit_output.output.scatter),
                 str(rules._cnvkit_output.output.diagram),
