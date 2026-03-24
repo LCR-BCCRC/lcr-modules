@@ -53,6 +53,18 @@ localrules:
     _panel_of_normals_cnvkit_output_tsv,
     _panel_of_normals_cnvkit_output_flat_ref_beds,
     _panel_of_normals_cnvkit_output_flat_ref,
+    _panel_of_normals_purecn_get_mappability,
+    _panel_of_normals_purecn_gatk_interval_list,
+    _panel_of_normals_purecn_gatk_interval_list_chrom,
+    _panel_of_normals_purecn_gatk_interval_list_targets,
+    _panel_of_normals_purecn_samples_map,
+    _panel_of_normals_purecn_coverage_list,
+    _panel_of_normals_purecn_output_intervals,
+    _panel_of_normals_purecn_output_mutect2_pon,
+    _panel_of_normals_purecn_output_normal_panel_vcf,
+    _panel_of_normals_purecn_output_database_cnvkit,
+    _panel_of_normals_purecn_output_database_denovo,
+    _panel_of_normals_output_samples_tsv,
     _panel_of_normals_all
 
 
