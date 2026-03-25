@@ -60,7 +60,7 @@ lcr-modules:
             cnvkit:
                 samtools: 8
                 autobin: 24
-                coverage: 4
+                coverage: 24
                 reference: 4
             purecn:
                 setinterval: 3
@@ -71,7 +71,7 @@ lcr-modules:
         resources:
             cnvkit:
                 coverage:
-                    mem_mb: 8000
+                    mem_mb: 48000
                 autobin:
                     mem_mb: 48000
                 reference:

@@ -77,14 +77,14 @@ lcr-modules:
 
         threads:
             samtools: 8
-            coverage: 8
+            coverage: 24
             cns: 24
 
         resources:
             vcf_sort:
                 mem_mb: 2000
             coverage:
-                mem_mb: 8000
+                mem_mb: 48000
             fix:
                 mem_mb: 12000
             cns:
