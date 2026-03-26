@@ -129,8 +129,6 @@ rule _dlbclone_input_maf:
         maf = CFG["inputs"]["sample_maf"] 
     output:
         maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf"
-    # group:
-    #     "lymphgen"
     run:
         op.relative_symlink(input.maf, output.maf)
 
@@ -144,7 +142,7 @@ rule _dlbclone_input_sv:
 
 rule curate_sv:
     input:
-        script=CFG["scripts"]["prepare_svs"], #CFG["scripts"]["prepare_svs"],
+        script=CFG["scripts"]["prepare_svs"], 
         sv=str(rules._dlbclone_input_sv.output.sv),
         metadata=str(rules._dlbclone_input_metadata.output.metadata)
     output:
@@ -155,7 +153,7 @@ rule curate_sv:
     log:
         CFG["logs"]["outputs"] + "sv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_dlbclone_sv_metadata.log"
     singularity: 
-        "gamblr.predict.sif"
+        "docker://lklossok/predict:latest"
     shell:
         op.as_one_line("""
             Rscript {input.script}
@@ -181,12 +179,12 @@ rule combine_maf:
             pair_status=SAMPLES.pair_status
         )
     output:
-        maf = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/combined.maf"
+        maf = temp(CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/combined.maf")
     shell:
-        """
-        head -n 1 {input.mafs[0]} > {output.maf}
-        tail -n +2 -q {input.mafs} >> {output.maf}
-        """
+        op.as_one_line("""
+            head -n 1 {input.mafs[0]} > {output.maf} &&
+            tail -n +2 -q {input.mafs} >> {output.maf}
+        """)
 
 rule combine_sv_metadata:
     input:
@@ -202,10 +200,10 @@ rule combine_sv_metadata:
     output:
         sv = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/combined_metadata.tsv"
     shell:
-        """
-        head -n 1 {input.svs[0]} > {output.sv}
-        tail -n +2 -q {input.svs} >> {output.sv}
-        """
+        op.as_one_line("""
+            head -n 1 {input.svs[0]} > {output.sv} &&
+            tail -n +2 -q {input.svs} >> {output.sv}
+        """)
 
 
 # STEP 3 PREPARE SV & FEATURE MATRIX INPUTS
@@ -216,7 +214,7 @@ rule _dlbclone_assemble_genetic_features:
         test_metadata =  str(rules.combine_sv_metadata.output.sv), 
         test_maf = str(rules.combine_maf.output.maf) 
     output:
-        test_mutation_matrix = CFG["dirs"]["outputs"] + "{sample_set}--{launch_date}/_{matrix_name}_mutation_matrix.tsv"
+        test_mutation_matrix = CFG["dirs"]["outputs"] + "{sample_set}--{launch_date}/{matrix_name}_mutation_matrix.tsv"
     params:
         sv_from_metadata = as_r_named_list(CFG["options"]["sv_from_metadata"]),
         translocation_status = as_r_named_list(CFG["options"]["translocation_status"]),
@@ -231,13 +229,13 @@ rule _dlbclone_assemble_genetic_features:
         coding_value = CFG["options"]["coding_value"],
         driver_value = CFG["options"]["driver_value"]
     log:
-        CFG["logs"]["outputs"] + "{sample_set}--{launch_date}/_{matrix_name}_mutation_matrix.log"
+        CFG["logs"]["outputs"] + "{sample_set}--{launch_date}/{matrix_name}_mutation_matrix.log"
     threads:
         CFG["threads"]["quant"]
     resources:
         **CFG["resources"]["quant"]
     singularity: 
-            "gamblr.predict.sif"
+            "docker://lklossok/predict:latest"
     shell:
         op.as_one_line("""
             Rscript {input.script} 
@@ -284,7 +282,7 @@ if not USE_GAMBLR:
         resources:
             **CFG["resources"]["quant"]
         singularity: 
-            "gamblr.predict.sif"
+            "docker://lklossok/predict:latest"
         shell:
             op.as_one_line("""
                 Rscript {input.script}  
@@ -318,7 +316,7 @@ rule _dlbclone_predict:
     resources:
         **CFG["resources"]["quant"]
     singularity: 
-            "gamblr.predict.sif"
+            "docker://lklossok/predict:latest"
     shell:
         op.as_one_line("""
             Rscript {input.script} 
@@ -360,7 +358,3 @@ rule _dlbclone_all:
 # Perform some clean-up tasks, including storing the module-specific
 # configuration on disk and deleting the `CFG` variable
 op.cleanup_module(CFG)
-
-# singularity exec --cleanenv --containall --env R_LIBS_USER=NULL -B /home/lklossok -B /projects/rmorin/projects/gambl-repos -B /projects/nhl_meta_analysis_scratch/gambl/results_local gamblr.predict.sif R
-
-# singularity exec --cleanenv --env R_LIBS= --env R_LIBS_USER= --env R_PROFILE= --env R_ENVIRON=  -B /home/lklossok -B /projects/rmorin/projects/gambl-repos -B /projects/nhl_meta_analysis_scratch/gambl/results_local gamblr.predict.sif R -e '.libPaths()'
