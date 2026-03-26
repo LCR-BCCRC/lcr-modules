@@ -68,9 +68,18 @@ localrules:
     _panel_of_normals_output_samples_tsv,
     _panel_of_normals_all
 
+##### REDEFINE SAMPLES TABLE #####
+# Because this module has the edge case of "flat ref combos" where rules
+# run on certain combos that we don't want in the regular samples table
 
+# Remove any samples with the flat ref combos, since we don't want them to go through
+# the regular steps, but still need a samples table for input functions
+for g_build, cap_space in zip(CFG["options"]["cnvkit"]["flat_ref_combos"]["genome_builds"], CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]):
+    META = op.discard_samples(CFG["samples"], genome_build = g_build, capture_space = cap_space)
 # Get unique combos in the samples table for rule all
-META = CFG["samples"][['seq_type', 'genome_build', 'capture_space']].drop_duplicates()
+# Otherwise it will run each combo rule once per sample in the combo
+COMBOS = META[['seq_type', 'genome_build', 'capture_space']].drop_duplicates()
+
 
 ##### RULES #####
 
@@ -152,8 +161,7 @@ checkpoint _panel_of_normals_input_chroms_withY:
 
 # Collects all normals per genome_build--capture_space combo
 def _get_normal_bams_per_combo(wildcards):
-    CFG = config["lcr-modules"]["panel_of_normals"]
-    tbl = CFG["samples"]
+    tbl = META
     samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
     normals = expand(
         str(rules._panel_of_normals_input_bam.output.bam),
@@ -164,8 +172,7 @@ def _get_normal_bams_per_combo(wildcards):
 # Collects all normal indexes per genome_build--capture_space combo
 # need to do this separately so that they have a different name
 def _get_indexes_per_combo(wildcards):
-    CFG = config["lcr-modules"]["panel_of_normals"]
-    tbl = CFG["samples"]
+    tbl = META
     samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
     normals = expand(
         str(rules._panel_of_normals_index_bam.output.bai),
@@ -180,7 +187,7 @@ rule _panel_of_normals_record_samples:
     output:
         tsv = CFG["dirs"]["inputs"] + "sample_metadata_tsvs/{seq_type}--{genome_build}/{capture_space}_samples_metadata.tsv"
     params:
-        metadata = CFG["samples"]
+        metadata = META
     threads: 1
     run:
         metadata_for_combo = params.metadata[(params.metadata.genome_build == wildcards.genome_build) & (params.metadata.capture_space == wildcards.capture_space)]
@@ -326,8 +333,7 @@ rule _panel_of_normals_cnvkit_coverage_antitarget:
 
 # Create reference coverage cnn file using all normal cnn files per combo
 def _get_cnvkit_coverage_per_combo(wildcards):
-    CFG = config["lcr-modules"]["panel_of_normals"]
-    tbl = CFG["samples"]
+    tbl = META
     samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
     target_cov = expand(
         str(rules._panel_of_normals_cnvkit_coverage_target.output.cov),
@@ -434,8 +440,8 @@ rule _panel_of_normals_cnvkit_output_beds:
         antitarget = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{capture_space}_antitarget_sites.bed"
     wildcard_constraints: # needed in order not to clash with _panel_of_normals_flat_ref_output_beds
         seq_type="capture",
-        genome_build='|'.join(META["genome_build"]),
-        capture_space='|'.join(META["capture_space"])
+        genome_build='|'.join(COMBOS["genome_build"]),
+        capture_space='|'.join(COMBOS["capture_space"])
     run:
         op.relative_symlink(input.target, output.target, in_module= True)
         op.relative_symlink(input.antitarget, output.antitarget, in_module= True)
@@ -447,8 +453,8 @@ rule _panel_of_normals_cnvkit_output_cnn:
         cnn = CFG["dirs"]["outputs"] + "cnn/{seq_type}--{genome_build}/{capture_space}_normal_reference.cnn"
     wildcard_constraints: # needed in order not to clash with _panel_of_normals_output_flat_ref
         seq_type="capture",
-        genome_build='|'.join(META["genome_build"]),
-        capture_space='|'.join(META["capture_space"])
+        genome_build='|'.join(COMBOS["genome_build"]),
+        capture_space='|'.join(COMBOS["capture_space"])
     run:
         op.relative_symlink(input.cnn, output.cnn, in_module= True)
 
@@ -866,8 +872,7 @@ rule _panel_of_normals_purecn_mutect2_filter_vcf:
 ###### Creating a panel of normals vcf for MuTect2 variant calling in tumours
 
 def _get_normal_vcfs_per_combo(wildcards):
-    CFG = config["lcr-modules"]["panel_of_normals"]
-    tbl = CFG["samples"]
+    tbl = META
     samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
     normals = expand(
         str(rules._panel_of_normals_purecn_mutect2_filter_vcf.output.vcf),
@@ -876,8 +881,7 @@ def _get_normal_vcfs_per_combo(wildcards):
     return normals
 
 def _get_normal_tbis_per_combo(wildcards):
-    CFG = config["lcr-modules"]["panel_of_normals"]
-    tbl = CFG["samples"]
+    tbl = META
     samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
     normals = expand(
         str(rules._panel_of_normals_purecn_mutect2_filter_vcf.output.tbi),
@@ -1102,8 +1106,7 @@ rule _panel_of_normals_purecn_coverage:
         """)
 
 def _get_normals_coverage_per_combo(wildcards):
-    CFG = config["lcr-modules"]["panel_of_normals"]
-    tbl = CFG["samples"]
+    tbl = META
     samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
     normals = expand(
         str(rules._panel_of_normals_purecn_coverage.output.coverage),
@@ -1259,9 +1262,9 @@ rule _panel_of_normals_all:
         expand(
             [str(rules._panel_of_normals_output_samples_tsv.output.tsv)],
             zip,
-            seq_type=META["seq_type"],
-            genome_build=META["genome_build"],
-            capture_space=META["capture_space"]
+            seq_type=COMBOS["seq_type"],
+            genome_build=COMBOS["genome_build"],
+            capture_space=COMBOS["capture_space"]
         ),
         # cnvkit
         expand(
@@ -1271,9 +1274,9 @@ rule _panel_of_normals_all:
                 str(rules._panel_of_normals_cnvkit_output_beds.output.antitarget)
             ],
             zip,  # Run expand() with zip(), not product()
-            seq_type=META["seq_type"],
-            genome_build=META["genome_build"],
-            capture_space=META["capture_space"]
+            seq_type=COMBOS["seq_type"],
+            genome_build=COMBOS["genome_build"],
+            capture_space=COMBOS["capture_space"]
         ),
         # cnvkit flat reference file
         expand(
@@ -1301,9 +1304,9 @@ rule _panel_of_normals_all:
                 str(rules._panel_of_normals_purecn_output_database_denovo.output.normal_db)
             ],
             zip,
-            seq_type="capture",
-            genome_build=CFG["options"]["cnvkit"]["flat_ref_combos"]["genome_builds"],
-            capture_space=CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]
+            seq_type=COMBOS["seq_type"],
+            genome_build=COMBOS["genome_build"],
+            capture_space=COMBOS["capture_space"]
         )
 
 

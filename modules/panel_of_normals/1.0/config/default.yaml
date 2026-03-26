@@ -25,6 +25,7 @@ lcr-modules:
                 #       genome_builds: ["grch37", "hg19"]
                 #       capture_spaces: ["exome-utr-grch37", "agilent_v5"]
                 # then it will make two reference files, one for grch37--exome-utr-grch37 and one for hg19--agilent_v5
+                # rows in the input sample table with these combos will be dropped from the other rules
                 flat_ref_combos:
                     genome_builds: []
                     capture_spaces: []
@@ -61,7 +62,7 @@ lcr-modules:
                 samtools: 8
                 autobin: 24
                 coverage: 24
-                reference: 4
+                reference: 24
             purecn:
                 setinterval: 3
                 mutect: 4
