@@ -75,8 +75,8 @@ else:
         curate_sv,
         combine_maf,
         combine_sv_metadata,
-        _dlbclone_build_model,
         _dlbclone_assemble_genetic_features,
+        _dlbclone_build_model,
         _dlbclone_predict,
         _dlbclone_all
 
