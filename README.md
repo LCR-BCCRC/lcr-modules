@@ -1,6 +1,6 @@
 # lcr-modules: Standardizing genomic analyses
 
-This project aims to become a collection of standard analytical modules for genomic and transcriptomic data. Too often do we copy-paste from each other’s pipelines, which has several pitfalls. Fortunately, all of these problems can be solved with standardized analytical modules, and the benefits are many. 
+This project aims to become a collection of standard analytical modules for genomic and transcriptomic data. Too often do we copy-paste from each other’s pipelines, which has several pitfalls. Fortunately, all of these problems can be solved with standardized analytical modules, and the benefits are many.
 
 **Documentation:** [https://github.com/LCR-BCCRC/lcr-modules/wiki](https://github.com/LCR-BCCRC/lcr-modules/wiki)
 
@@ -8,7 +8,7 @@ This project aims to become a collection of standard analytical modules for geno
 
 ## Installing compatible Snakemake
 
-Run the following commands in your terminal to create the `opv12` environment with all necessary dependencies. 
+Run the following commands in your terminal to create the `opv12` environment with all necessary dependencies.
 ```bash
 conda deactivate
 git clone https://github.com/LCR-BCCRC/lcr-modules.git
@@ -17,7 +17,7 @@ cd lcr-modules/
 conda env create -f demo/env.yaml
 ```
 
-Always activate this environment before running any pipelines that use LCR-modules. 
+Always activate this environment before running any pipelines that use LCR-modules.
 ```bash
 conda activate opv12
 ```
@@ -39,7 +39,7 @@ Level 1 modules perform low-level tasks such as adapter trimming, quality contro
 
 ![Module overview](docs/modules_alluvial.svg)
 
-The tables below list the purpose of each module and supported sequencing types. 
+The tables below list the purpose of each module and supported sequencing types.
 
 ## Table of Contents
 
@@ -301,4 +301,4 @@ The tables below list the purpose of each module and supported sequencing types.
 ## Known limitations
 
 The LCR-modues is not intended for installation and use on personal devices (phones,
-laptops, personal workstations) and due to the high computational requirements of a number of tools (GATK, STAR, hmftools etc.) it is recommended for use on high performance computers with Unix OS. For processing of the large number of samples in parallel, we recommend computing clusters with scheduling managers support. Due to the limitations of individual tools (e.g. samtools) that cannot be installed on non-Unix computers, we do not recommend use of LCR-modules on Windows or Apple computers.
+laptops, personal workstations) and due to the high computational requirements of a number of tools (GATK, STAR, hmftools etc.) it is recommended for use on high performance computers with Unix OS. For processing of the large number of samples in parallel, we recommend computing clusters with scheduling managers support. We recommend the use of LCR-modules on Linux and portability to other operating systems has not been tested.
