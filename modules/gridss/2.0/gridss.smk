@@ -59,13 +59,10 @@ all_other_ids = list(set(sample_ids) - set(unmatched_normal_ids))
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _gridss_input_bam,
     _gridss_input_references,
-    _gridss_setup_references,
     _gridss_get_pon,
+    _gridss_input_bam,
     _gridss_symlink_preprocessed_normal,
-    _gridss_filter_gripss,
-    _gridss_gripss_to_bedpe,
     _gridss_output_somatic_vcf,
     _gridss_all
 
@@ -397,6 +394,8 @@ rule _gridss_run_gripss:
         vcf = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic.vcf.gz",
         tbi = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic.vcf.gz.tbi"
     log: log = CFG["logs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gripss.log"
+    threads:
+        CFG["threads"]["gripss"]
     resources:
         **CFG["resources"]["gripss"]
     params:
@@ -405,8 +404,6 @@ rule _gridss_run_gripss:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gripss"]
-    threads:
-        CFG["threads"]["gripss"]
     shell:
         op.as_one_line("""
         gripss -Xms4G -Xmx{params.mem_mb}m
@@ -429,6 +426,10 @@ rule _gridss_filter_gripss:
         tbi = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filtered.vcf.gz.tbi"
     conda:
         CFG["conda_envs"]["bcftools"]
+    threads:
+        CFG["threads"]["gripss"]
+    resources:
+        **CFG["resources"]["gripss"]
     shell:
         op.as_one_line("""
         zcat {input.vcf} |
@@ -444,6 +445,10 @@ rule _gridss_gripss_to_bedpe:
         bedpe = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filtered.bedpe"
     conda:
         CFG["conda_envs"]["svtools"]
+    threads:
+        CFG["threads"]["gripss"]
+    resources:
+        **CFG["resources"]["gripss"]
     shell:
         op.as_one_line("""
         if zcat {input.vcf} |  awk '$1 ~ /^#/ || $5 ~ /:/' | tail -1  | grep -q "^#CHROM";

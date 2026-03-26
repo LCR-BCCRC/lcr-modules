@@ -14,6 +14,7 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+from snakemake.logging import logger
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -67,11 +68,11 @@ def _find_best_seg(wildcards):
                               projection=wildcards.projection,
                               seq_type=list(CFG["runs"]["tumour_seq_type"].unique())))
     possible_outputs = [path for path in possible_outputs if os.path.exists(path)]
-    assert (len(possible_outputs) >= 1), (
-        f"No ouput was found for the sample {wildcards.tumour_id} in projection {wildcards.projection}. "
-        f"Please ensure it exists at one of the paths specified through config."
-    )
-    return(possible_outputs[0])
+    if (len(possible_outputs) == 0):
+        logger.warning(f"No ouput was found for the sample {wildcards.tumour_id} in projection {wildcards.projection}. Skipping. ")
+        return()
+    else: 
+        return(possible_outputs[0])
 
 # symlink the input files into 00-inputs
 rule _cnv_master_input:
@@ -80,7 +81,12 @@ rule _cnv_master_input:
     output:
         seg = CFG["dirs"]["inputs"] + "seg/{tumour_id}--{normal_id}--{pair_status}--{seq_type}--{projection}.seg"
     run:
-        op.absolute_symlink(input.seg, output.seg)
+        if(input):
+            op.absolute_symlink(input.seg, output.seg)
+        else:
+            with open(output.seg, "w") as f:
+                f.write("ID	chrom	start	end	LOH_flag	log.ratio")
+            logger.warning(f"Creating empty file {output.seg} because no input seg file was found.")
 
 
 def _get_all_segs(this_seq_type):
