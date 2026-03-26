@@ -9,7 +9,7 @@
 # Load packages -----------------------------------------------------------
 message("Loading packages...")
 suppressPackageStartupMessages({
-  library(GAMBLR.open)
+  library(GAMBLR.utils)
   library(optparse)
   library(tibble)
   library(dplyr)
@@ -22,22 +22,20 @@ suppressPackageStartupMessages({
 option_list <- list(
     make_option(c("-m", "--metadata"), type = "character", help = "path to test metadata file"),
     make_option(c("-a", "--metadata_sample_id_colname"), type = "character", help = "Column name in metadata file for sample IDs"),
-    #make_option(c("-b", "--truth_column_colname"), type = "character", help = "Column name in metadata file with truth labels"),
     make_option(c("-c", "--sv_from_metadata"), type = "character", help = "A named vector that specifies the columns containing the oncogene translocation status for any SV that is annotated in the metadata"),
     make_option(c("-d", "--translocation_status"), type = "character", help = "A named vector that specifies the values corresponding to positive translocation, negative translocation, and NA for any SV that is annotated in the metadata"),    
     make_option(c("-f", "--maf"), type = "character", help = "path to test maf file"),
     make_option(c("-e", "--maf_sample_id_colname"), type = "character", help = "Column name in MAF file for sample IDs"),
 
     make_option(c("-o", "--output_matrix_dir"), type = "character", help = "output mutation matrix path"),
-    make_option(c("-i", "--synon_genes"), type = "character", help = "Vector of gene symbols for synonymous mutations"),
-    make_option(c("-j", "--hotspot_genes"), type="character", default="MYD88", help = "Vector specifying genes for which hotspot mutations should be separately annotated"),
-    make_option(c("-g", "--genes"), type = "character", help = "Vector of gene symbols to include"),  
+    make_option(c("-i", "--genes_noncoding"), type = "character", help = "Vector of gene symbols for synonymous mutations"),
+    make_option(c("-j", "--genes_hotspot"), type="character", default="MYD88", help = "Vector specifying genes for which hotspot mutations should be separately annotated"),
+    make_option(c("-z", "--genes_driver"), type = "character", default=c("CD79B","EZH2","NOTCH1","NOTCH2"), help = "Vector of gene symbols for known driver mutations"),
+    make_option(c("-g", "--genes_coding"), type = "character", help = "Vector of gene symbols to include"),  
     make_option(c("-k", "--sv_value"), type = "integer", help = "structural variant value default: 2"),
-    make_option(c("-l", "--synon_value"), type = "integer", help = "synonymous mutation value default: 1"),
+    make_option(c("-l", "--noncoding_value"), type = "integer", help = "synonymous mutation value default: 1"),
     make_option(c("-n", "--coding_value"), type = "integer", help = "coding mutation value default: 2"),
-    make_option(c("-p", "--include_ashm"), type = "logical", help = "include ASHM features default: FALSE"),
-    make_option(c("-q", "--annotated_sv"), type = "character", help = "path to annotated sv file"),
-    make_option(c("-r", "--include_GAMBL_sv"), type = "logical", help = "include GAMBLR sv features default: FALSE")
+    make_option(c("-r", "--driver_value"), type = "integer", help = "driver mutation value default: 2")
 )
 
 opt <- parse_args(OptionParser(option_list=option_list))
@@ -52,7 +50,6 @@ parse_nullable <- function(x) {
 # command line options; formatting meta/maf files to standard column names -------
 metadata <- opt$metadata
 metadata_sample_id_colname <- opt$metadata_sample_id_colname
-#truth_column_colname <- opt$truth_column_colname
 sv_from_metadata <- parse_nullable(opt$sv_from_metadata)
 
 trans_raw <- parse_nullable(opt$translocation_status)
@@ -69,8 +66,7 @@ test_metadata <- readr::read_tsv(
         metadata
     ) %>%
     rename(
-        sample_id = metadata_sample_id_colname#,
-        #lymphgen = truth_column_colname
+        sample_id = metadata_sample_id_colname
     ) %>%
     mutate(across( # Assign POS, NEG, NA values
         all_of(sv_cols),
@@ -86,11 +82,15 @@ test_maf <- readr::read_tsv(
 
 # command line options; assemble mutation matrix ---------------------------------
 output_matrix_dir <- opt$output_matrix_dir
-synon_genes <- parse_nullable(opt$synon_genes)
-hotspot_genes <- parse_nullable(opt$hotspot_genes)
-genes <- parse_nullable(opt$genes)
-if (is.null(genes)) {
-    genes <- c(
+genes_noncoding <- parse_nullable(opt$genes_noncoding)
+genes_hotspot <- parse_nullable(opt$genes_hotspot)
+genes_driver <- parse_nullable(opt$genes_driver)
+if (is.null(genes_driver)) {
+     stop("Error: genes_driver cannot be NULL. Please provide a vector of known driver genes to include in the feature matrix.")
+}
+genes_coding <- parse_nullable(opt$genes_coding)
+if (is.null(genes_coding)) {
+    genes_coding <- c(
         "TNFRSF14","TP73","CCDC27","NOL9","MTOR","SPEN","ID3","ARID1A","ZC3H12A","RRAGC",
         "BCL10","CD58","NOTCH2","HIST2H2BE","CTSS","SEMA4A","FCGR2B","FCRLA","PRRC2C","SMG7",
         "BTG2","ITPKB","IRF2BP2","HNRNPU","SEC24C","PTEN","FAS","LCOR","EDRF1","WEE1","MPEG1",
@@ -109,15 +109,13 @@ if (is.null(genes)) {
         "TBCC","NFKBIE","EEF1A1","TMEM30A","ZNF292","BACH2","PRDM1","SGK1","TNFAIP3","INTS1","CARD11",
         "ACTB","PIK3CG","LRRN3","POT1","BRAF","EZH2","KMT2C","ATP6V1B2","PRKDC","LYN","TOX","PABPC1",
         "UBR5","MYC","CD274","CDKN2A","GRHPR","NOTCH1","TRAF2","P2RY8","TMSB4X","DDX3X","PIM2","TAF1",
-        "BTK","UBE2A","PHF6","VMA21","ATP6AP1"#,"MYD88HOTSPOT","BCL2_SV","MYC_SV","BCL6_SV"
+        "BTK","UBE2A","PHF6","VMA21","ATP6AP1"
     )
 }
 sv_value <- opt$sv_value
-synon_value <- opt$synon_value
+noncoding_value <- opt$noncoding_value
+driver_value <- opt$driver_value
 coding_value <- opt$coding_value
-include_ashm <- opt$include_ashm
-annotated_sv <- parse_nullable(opt$annotated_sv)
-include_GAMBL_sv <- opt$include_GAMBL_sv
 
 # assemble mutation matrix -------------------------------------------------------
 
@@ -127,19 +125,15 @@ test_maf <- create_maf_data( #convert to S3 object for compatability
     ) %>%
     mutate(Chromosome = as.character(Chromosome))
 
-test_matrix = assemble_genetic_features(
+test_matrix = GAMBLR.utils::assemble_genetic_features(
     these_samples_metadata = test_metadata,
-    maf_with_synon = test_maf,
+    unannotated_maf = test_maf,
     sv_from_metadata = sv_from_metadata,
-    genes = genes,
-    synon_genes = synon_genes,
-    hotspot_genes = hotspot_genes,
-    sv_value = sv_value,
-    synon_value = synon_value,
-    coding_value = coding_value,
-    include_ashm = include_ashm,
-    annotated_sv = annotated_sv,
-    include_GAMBL_sv = include_GAMBL_sv
+    genes_coding = genes_coding,
+    genes_noncoding = genes_noncoding,
+    genes_hotspot = genes_hotspot,
+    genes_driver = genes_driver, 
+    encoding_policy = list(coding=coding_value,driver=driver_value,noncoding=noncoding_value,sv=sv_value) 
     ) %>%
     rownames_to_column(var = "sample_id")
 

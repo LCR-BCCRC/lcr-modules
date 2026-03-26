@@ -41,7 +41,7 @@ CFG = op.setup_module(
     name = "dlbclone",
     version = "1.0",
     # TODO: If applicable, add more granular output subdirectories
-    subdirectories = ["inputs", "dlbclone", "outputs"],
+    subdirectories = ["inputs", "prepare_inputs", "dlbclone", "outputs"],
 )
 
 
@@ -58,21 +58,23 @@ if not USE_GAMBLR:
 # Define rules to be run locally when using a compute cluster
 if USE_GAMBLR:
     localrules:
-        build_sif,
         _dlbclone_input_metadata,
         _dlbclone_input_maf,
         _dlbclone_input_sv,
         curate_sv,
+        combine_maf,
+        combine_sv_metadata,
         _dlbclone_assemble_genetic_features,
         _dlbclone_predict,
         _dlbclone_all
 else:
     localrules:
-        build_sif,
         _dlbclone_input_metadata,
         _dlbclone_input_maf,
         _dlbclone_input_sv,
         curate_sv,
+        combine_maf,
+        combine_sv_metadata,
         _dlbclone_build_model,
         _dlbclone_assemble_genetic_features,
         _dlbclone_predict,
@@ -84,10 +86,6 @@ if "launch_date" in CFG:
     launch_date = CFG['launch_date']
 else:
     launch_date = datetime.today().strftime('%Y-%m')
-
-# Get date as used in DLBCLone output files
-TODAY = datetime.now().strftime("%d%b%Y")
-
 
 #  Convert CFG Python dictionary lists to an R list of c(...) vectors
 def as_r_list(d):
@@ -118,14 +116,6 @@ def as_r_c(d):
 # STEP 1: INPUT SYMLINKS
 # Symlinks the input files into the module results directory (under '00-inputs/')
 
-rule build_sif:
-    output:
-        temp("dlbclone_module.sif")
-    shell:
-        """
-        singularity build {output} docker://lklossok/gamblr.predict:latest
-        """
-
 rule _dlbclone_input_metadata:
     input:
         metadata = CFG["inputs"]["test_metadata_dir"] 
@@ -139,8 +129,8 @@ rule _dlbclone_input_maf:
         maf = CFG["inputs"]["sample_maf"] 
     output:
         maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf"
-    group:
-        "lymphgen"
+    # group:
+    #     "lymphgen"
     run:
         op.relative_symlink(input.maf, output.maf)
 
@@ -154,8 +144,7 @@ rule _dlbclone_input_sv:
 
 rule curate_sv:
     input:
-        sif="dlbclone_module.sif",
-        script = CFG["scripts"]["prepare_svs"],
+        script=CFG["scripts"]["prepare_svs"], #CFG["scripts"]["prepare_svs"],
         sv=str(rules._dlbclone_input_sv.output.sv),
         metadata=str(rules._dlbclone_input_metadata.output.metadata)
     output:
@@ -163,34 +152,120 @@ rule curate_sv:
     params:
         real_bcl2=as_r_c(CFG["options"]["real_bcl2"]),
         real_bcl6=as_r_c(CFG["options"]["real_bcl6"])
+    log:
+        CFG["logs"]["outputs"] + "sv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_dlbclone_sv_metadata.log"
+    singularity: 
+        "gamblr.predict.sif"
     shell:
         op.as_one_line("""
-            mkdir -p $(dirname {output.output_metadata}) && 
-            touch {output.output_metadata} &&
-
-            singularity exec --cleanenv --containall 
-                --bind {input.script}:/scripts/curate_sv_dlbclone.R
-                --bind {input.sv}:/inputs/sv_input.tsv 
-                --bind {input.metadata}:/inputs/metadata_input.tsv 
-                --bind {output.output_metadata}:/outputs/output_metadata.tsv 
-                {input.sif} 
-                Rscript /scripts/curate_sv_dlbclone.R 
-                    --sv_input /inputs/sv_input.tsv 
-                    --metadata /inputs/metadata_input.tsv 
-                    --output_metadata /outputs/output_metadata.tsv 
-                    --tumour_id {wildcards.tumour_id} 
-                    --real_bcl2 '{params.real_bcl2}' 
-                    --real_bcl6 '{params.real_bcl6}'
+            Rscript {input.script}
+                --sv_input {input.sv}
+                --metadata {input.metadata}
+                --output_metadata {output.output_metadata}
+                --real_bcl2 '{params.real_bcl2}' 
+                --real_bcl6 '{params.real_bcl6}'
+            2> {log}
         """)
-        
 
-# STEP 2: RUN DLBCLONE RULES 
+# STEP 2: AGGREGATE INPUTS
+
+rule combine_maf:
+    input:
+        mafs = expand(
+            CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf",
+            zip,
+            seq_type=SAMPLES.seq_type,
+            genome_build=SAMPLES.genome_build,
+            tumour_id=SAMPLES.tumour_id,
+            normal_id=SAMPLES.normal_id,
+            pair_status=SAMPLES.pair_status
+        )
+    output:
+        maf = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/combined.maf"
+    shell:
+        """
+        head -n 1 {input.mafs[0]} > {output.maf}
+        tail -n +2 -q {input.mafs} >> {output.maf}
+        """
+
+rule combine_sv_metadata:
+    input:
+        svs = expand(
+            CFG["dirs"]["inputs"] + "sv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_dlbclone_sv_metadata.tsv",
+            zip,
+            seq_type=SAMPLES.seq_type,
+            genome_build=SAMPLES.genome_build,
+            tumour_id=SAMPLES.tumour_id,
+            normal_id=SAMPLES.normal_id,
+            pair_status=SAMPLES.pair_status
+        )
+    output:
+        sv = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/combined_metadata.tsv"
+    shell:
+        """
+        head -n 1 {input.svs[0]} > {output.sv}
+        tail -n +2 -q {input.svs} >> {output.sv}
+        """
+
+
+# STEP 3 PREPARE SV & FEATURE MATRIX INPUTS
+
+rule _dlbclone_assemble_genetic_features:
+    input:
+        script = CFG["scripts"]["dlbclone_assemble_genetic_features"],
+        test_metadata =  str(rules.combine_sv_metadata.output.sv), 
+        test_maf = str(rules.combine_maf.output.maf) 
+    output:
+        test_mutation_matrix = CFG["dirs"]["outputs"] + "{sample_set}--{launch_date}/_{matrix_name}_mutation_matrix.tsv"
+    params:
+        sv_from_metadata = as_r_named_list(CFG["options"]["sv_from_metadata"]),
+        translocation_status = as_r_named_list(CFG["options"]["translocation_status"]),
+        maf_sample_id_colname = CFG["options"]["maf_sample_id_colname"],
+        metadata_sample_id_colname = CFG["options"]["metadata_sample_id_colname"],
+        genes_coding = as_r_c(CFG["options"]["genes_coding"]),
+        genes_noncoding = as_r_c(CFG["options"]["genes_noncoding"]),
+        genes_hotspot = as_r_c(CFG["options"]["genes_hotspot"]),
+        genes_driver = as_r_c(CFG["options"]["genes_driver"]),
+        sv_value = CFG["options"]["sv_value"],
+        noncoding_value = CFG["options"]["noncoding_value"],
+        coding_value = CFG["options"]["coding_value"],
+        driver_value = CFG["options"]["driver_value"]
+    log:
+        CFG["logs"]["outputs"] + "{sample_set}--{launch_date}/_{matrix_name}_mutation_matrix.log"
+    threads:
+        CFG["threads"]["quant"]
+    resources:
+        **CFG["resources"]["quant"]
+    singularity: 
+            "gamblr.predict.sif"
+    shell:
+        op.as_one_line("""
+            Rscript {input.script} 
+                --metadata {input.test_metadata} 
+                --maf {input.test_maf} 
+                --maf_sample_id_colname {params.maf_sample_id_colname}
+                --metadata_sample_id_colname {params.metadata_sample_id_colname} 
+                --sv_from_metadata '{params.sv_from_metadata}' 
+                --translocation_status '{params.translocation_status}'
+                --output_matrix_dir {output.test_mutation_matrix} 
+                --genes_coding '{params.genes_coding}'
+                --genes_noncoding '{params.genes_noncoding}'
+                --genes_hotspot '{params.genes_hotspot}'
+                --genes_driver '{params.genes_driver}'
+                --sv_value {params.sv_value}
+                --noncoding_value {params.noncoding_value}
+                --coding_value {params.coding_value}
+                --driver_value {params.driver_value}
+            2> {log}
+        """)
+
+
+# STEP 4: RUN DLBCLONE RULES 
 
 if not USE_GAMBLR:
     # Uses only GAMBL metadata and binary mutation data as training for DLBCLone models
     rule _dlbclone_build_model: 
         input:
-            sif="dlbclone_module.sif",
             script = CFG["scripts"]["dlbclone_model"]
         output:
             model_rds = MODEL_RDS,
@@ -204,133 +279,56 @@ if not USE_GAMBLR:
             truth_classes = as_r_c(CFG["options"]["truth_classes"]),
             min_k = CFG["options"]["min_k"],
             max_k = CFG["options"]["max_k"]
-        #log:
-         #   CFG["logs"]["opt_model_path"] + "/" + CFG["inputs"]["model_name_prefix"] + "_model.rds",
-          #  CFG["logs"]["opt_model_path"] + "/" + CFG["inputs"]["model_name_prefix"] + "_umap.uwot"
         threads:
             CFG["threads"]["quant"]
         resources:
             **CFG["resources"]["quant"]
+        singularity: 
+            "gamblr.predict.sif"
         shell:
             op.as_one_line("""
-                mkdir -p $(dirname {output.model_rds}) &&
-
-                singularity exec --cleanenv --containall 
-                    --bind {input.script}:/scripts/dlbclone_model.R
-                    --bind $(dirname {output.model_rds}):/outputs 
-                    {input.sif} 
-                    Rscript /scripts/dlbclone_model.R 
-                        --opt_model_path /outputs 
-                        --model_name_prefix {params.model_name_prefix} 
-                        --core_features '{params.core_features}' 
-                        --core_feature_multiplier {params.core_feature_multiplier} 
-                        --hidden_features '{params.hidden_features}' 
-                        --truth_classes '{params.truth_classes}' 
-                        --min_k {params.min_k} 
-                        --max_k {params.max_k}
+                Rscript {input.script}  
+                    --opt_model_path {params.opt_model_path} 
+                    --model_name_prefix {params.model_name_prefix}
+                    --core_features '{params.core_features}' 
+                    --core_feature_multiplier {params.core_feature_multiplier} 
+                    --hidden_features '{params.hidden_features}' 
+                    --truth_classes '{params.truth_classes}' 
+                    --min_k {params.min_k} 
+                    --max_k {params.max_k}
             """)
 
-rule _dlbclone_assemble_genetic_features:
-    input:
-        sif="dlbclone_module.sif",
-        script = CFG["scripts"]["dlbclone_assemble_genetic_features"],
-        test_metadata =  str(rules.curate_sv.output.output_metadata), 
-        test_maf = str(rules._dlbclone_input_maf.output.maf) 
-    output:
-        test_mutation_matrix = CFG["inputs"]["test_matrix_dir"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{matrix_name}_mutation_matrix.tsv"
-    params:
-        sv_from_metadata = as_r_named_list(CFG["options"]["sv_from_metadata"]),
-        translocation_status = as_r_named_list(CFG["options"]["translocation_status"]),
-        maf_sample_id_colname = CFG["options"]["maf_sample_id_colname"],
-        metadata_sample_id_colname = CFG["options"]["metadata_sample_id_colname"],
-        genes = as_r_c(CFG["options"]["genes"]),
-        synon_genes = as_r_c(CFG["options"]["synon_genes"]),
-        hotspot_genes = as_r_c(CFG["options"]["hotspot_genes"]),
-        sv_value = CFG["options"]["sv_value"],
-        synon_value = CFG["options"]["synon_value"],
-        coding_value = CFG["options"]["coding_value"],
-        include_ashm = CFG["options"]["include_ashm"],
-        annotated_sv = CFG["options"]["annotated_sv"],
-        include_GAMBL_sv = CFG["options"]["include_GAMBL_sv"]
-    #log:
-    #   CFG["inputs"]["test_matrix_dir"] + "/" + CFG["inputs"]["matrix_name"] + "_mutation_matrix.tsv"
-    threads:
-        CFG["threads"]["quant"]
-    resources:
-        **CFG["resources"]["quant"]
-    shell:
-        op.as_one_line("""
-            mkdir -p $(dirname {output.test_mutation_matrix}) && 
-            touch {output.test_mutation_matrix} &&
-
-            singularity exec --cleanenv --containall 
-                --bind {input.script}:/scripts/dlbclone_assemble.R
-                --bind {input.test_metadata}:/inputs/test_metadata_input.tsv 
-                --bind {input.test_maf}:/inputs/test_maf_input.tsv  
-                --bind {output.test_mutation_matrix}:/outputs/output_test_mutation_matrix.tsv 
-                {input.sif} 
-                Rscript /scripts/dlbclone_assemble.R 
-                    --metadata /inputs/test_metadata_input.tsv 
-                    --maf /inputs/test_maf_input.tsv
-                    --output_matrix_dir /outputs/output_test_mutation_matrix.tsv 
-                    --maf_sample_id_colname {params.maf_sample_id_colname}
-                    --metadata_sample_id_colname {params.metadata_sample_id_colname} 
-                    --sv_from_metadata '{params.sv_from_metadata}' 
-                    --translocation_status '{params.translocation_status}' 
-                    --genes '{params.genes}'
-                    --synon_genes '{params.synon_genes}'
-                    --hotspot_genes '{params.hotspot_genes}'
-                    --sv_value {params.sv_value}
-                    --synon_value {params.synon_value}
-                    --coding_value {params.coding_value}
-                    --include_ashm {params.include_ashm}
-                    --annotated_sv {params.annotated_sv}
-                    --include_GAMBL_sv {params.include_GAMBL_sv}
-        """)
 
 rule _dlbclone_predict:
     input:
-        sif="dlbclone_module.sif",
         script = CFG["scripts"]["dlbclone_predict"],
         models = [] if USE_GAMBLR else [MODEL_RDS, MODEL_UWOT],
-        mutation_matrix = str(rules._dlbclone_assemble_genetic_features.output.test_mutation_matrix) # first column is sample ID and all other columns are features
+        mutation_matrix = str(rules._dlbclone_assemble_genetic_features.output.test_mutation_matrix) 
     output:
-        predictions = CFG["inputs"]["pred_dir"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}." + TODAY + ".{model_name_prefix}--{matrix_name}_DLBCLone_predictions.tsv"
+        predictions = CFG["dirs"]["outputs"] + "{sample_set}--{launch_date}/{model_name_prefix}--{matrix_name}_DLBCLone_predictions.tsv"
     params:
         opt_model_path = CFG["inputs"]["opt_model_path"],
         model_name_prefix = CFG["inputs"]["model_name_prefix"],
         fill_missing = CFG["options"]["fill_missing"], 
         drop_extra = CFG["options"]["drop_extra"],
-        model_bind = lambda wildcards, opt_model_path=CFG["inputs"]["opt_model_path"]: (
-            f"--bind {opt_model_path}:/models" if not USE_GAMBLR else ""
-        ),
-        model_path = lambda wildcards: (
-            "/models" if not USE_GAMBLR else "GAMBLR.predict"
-        )
-    #log:
-     #   CFG["inputs"]["pred_dir"] + "/" + CFG["inputs"]["model_name_prefix"] + "--{launch_date}/{matrix_name}_DLBCLone_predictions.tsv"
+    log:
+        CFG["logs"]["outputs"] + "{sample_set}--{launch_date}/{model_name_prefix}--{matrix_name}_DLBCLone_predictions.tsv"
     threads:
         CFG["threads"]["quant"]
     resources:
         **CFG["resources"]["quant"]
+    singularity: 
+            "gamblr.predict.sif"
     shell:
         op.as_one_line("""
-            mkdir -p $(dirname {output.predictions}) && 
-            touch {output.predictions} &&
-
-            singularity exec --cleanenv --containall 
-                --bind {input.script}:/scripts/dlbclone_predict.R
-                --bind {input.mutation_matrix}:/inputs/mutation_matrix_input.tsv 
-                {params.model_bind} 
-                --bind {output.predictions}:/outputs/output_predictions.tsv 
-                {input.sif} 
-                Rscript /scripts/dlbclone_predict.R 
-                    --test_features /inputs/mutation_matrix_input.tsv 
-                    --output_dir /outputs/output_predictions.tsv 
-                    --model_path {params.model_path} 
-                    --model_prefix {params.model_name_prefix} 
-                    --fill_missing {params.fill_missing} 
-                    --drop_extra {params.drop_extra}
+            Rscript {input.script} 
+                --test_features {input.mutation_matrix} 
+                --output_dir {output.predictions}
+                --model_path {params.opt_model_path} 
+                --model_prefix {params.model_name_prefix} 
+                --fill_missing {params.fill_missing} 
+                --drop_extra {params.drop_extra}
+            2> {log}
         """)
 
 
@@ -338,7 +336,7 @@ rule _dlbclone_all:
     input:
         expand(
             [
-                str(rules._dlbclone_predict.output.predictions) #str(rules._dlbclone_predict.output.predictions)
+                str(rules._dlbclone_predict.output.predictions) 
             ],
             zip,
             sample_id = SAMPLES["sample_id"],
@@ -351,6 +349,7 @@ rule _dlbclone_all:
             pair_status=SAMPLES["pair_status"], 
             allow_missing = True,
             launch_date = launch_date,
+            sample_set = CFG["inputs"]["sample_set"],
             matrix_name = CFG["inputs"]["matrix_name"],
             model_name_prefix = CFG["inputs"]["model_name_prefix"]
         )
@@ -361,3 +360,7 @@ rule _dlbclone_all:
 # Perform some clean-up tasks, including storing the module-specific
 # configuration on disk and deleting the `CFG` variable
 op.cleanup_module(CFG)
+
+# singularity exec --cleanenv --containall --env R_LIBS_USER=NULL -B /home/lklossok -B /projects/rmorin/projects/gambl-repos -B /projects/nhl_meta_analysis_scratch/gambl/results_local gamblr.predict.sif R
+
+# singularity exec --cleanenv --env R_LIBS= --env R_LIBS_USER= --env R_PROFILE= --env R_ENVIRON=  -B /home/lklossok -B /projects/rmorin/projects/gambl-repos -B /projects/nhl_meta_analysis_scratch/gambl/results_local gamblr.predict.sif R -e '.libPaths()'

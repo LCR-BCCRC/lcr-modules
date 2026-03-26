@@ -21,10 +21,10 @@ lcr-modules:
             "TMEM30A","ZNF292","BACH2","PRDM1","SGK1","TNFAIP3","INTS1","CARD11","ACTB","PIK3CG","LRRN3","POT1",
             "BRAF","EZH2","KMT2C","ATP6V1B2","PRKDC","LYN","TOX","PABPC1","UBR5","MYC","CD274","CDKN2A","GRHPR",
             "NOTCH1","TRAF2","P2RY8","TMSB4X","DDX3X","PIM2","TAF1","BTK","UBE2A","PHF6","VMA21","ATP6AP1"
-        ] #"BCL2_SV","BCL6_SV","MYD88HOTSPOT" are generated during assembly
+        ] 
 
-        inputs:
-            # Available wildcards: {model_name_prefix} {matrix_name} 
+        inputs: 
+            sample_set: ["__UPDATE__"]
 
             sample_maf: "__UPDATE__" # Input maf is required
             # sample_seg: "__UPDATE__" # Optional. Change to "" if unused.
@@ -33,23 +33,14 @@ lcr-modules:
 
 
             # DLBCLone model storage
-            opt_model_path: "GAMBLR.predict" # Default: "GAMBLR.predict", wherein stored models associated with the package GAMBLR.predict are used. For custom models built in rule _dlbclone_build_model, instead input appropriate path directory to your stored DLBCLone model(s).
+            opt_model_path: "__UPDATE__" # Default: "GAMBLR.predict", wherein stored models associated with the package GAMBLR.predict are used. For custom models built in rule _dlbclone_build_model, instead input appropriate path directory to your stored DLBCLone model(s).
             model_name_prefix: "__UPDATE__" # Name prefix DLBCLone model is denoted by. If using default GAMBLR.predict models, the following exist; "best_opt", "best_op_w", "lacy_opt_w", "lymphgen_opt", "lymphplex_opt_w", & "lyseq_opt_w".
 
             # path to test metadata associated with the test maf file
             test_metadata_dir: "__UPDATE__" 
-            # path to the test maf file associated with the test metadata
-            test_maf_dir: "__UPDATE__" 
 
-            # path to test mutation matrix
-            test_matrix_dir: "__UPDATE__" # TODO: modify for assemble_genetic_features rule
-            # test mutation matrix name
-            matrix_name: "__UPDATE__" # TODO: modify for assemble_genetic_features rule
-            # path to folder to store DLBCLone predictions tsv file(s)
-            pred_dir: "__UPDATE__" 
-
-            # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
-            # launch_date: ""
+            # matrix name for storing the assembled test genetic feature matrix
+            matrix_name: "__UPDATE__" 
 
         options:
             real_bcl2: ["IGH", "IGL", "IGK"] 
@@ -70,7 +61,7 @@ lcr-modules:
             min_k: 3 # Starting k for knn (Default: 3)
             max_k: 33 # Ending k for knn (Default: 33)
 
-            # RULE _dlbclone_assemble_genetic_features. Tunable parameters for formatting metadata and maf files.
+            # RULE _dlbclone_assemble_genetic_features. Tunable parameters for GAMBLR.predict::assemble_genetic_features() function.
             maf_sample_id_colname: "__UPDATE__" # maf column storing sample_id names 
             metadata_sample_id_colname: "__UPDATE__" # metadata column storing sample_id names
             sv_from_metadata: # metadata colnames that posses translocation status information
@@ -81,17 +72,14 @@ lcr-modules:
                 POS: "__UPDATE__" # POS = positive for a translocation
                 NEG: "__UPDATE__" # NEG = negative for a translocation
                 NA_STATUS: "__UPDATE__" # NA = undetermined status
-
-            # RULE _dlbclone_assemble_genetic_features. Tunable parameters for GAMBLR.predict::assemble_genetic_features() function.
-            genes: null # list input, all genes to be included in the genetic feature matrix. If NULL, all genes from gambl_genes are used. Make sure params as_r_c() is used in snakemake rule.
-            synon_genes: null # input all synonymous genes available in your maf data you would like assembled into your feature matrix
-            hotspot_genes: ["MYD88"] # input all hotspot genes available in your maf data you would like assembled into your feature matrix (Default: "MYD88")
+            genes_coding: null # list input, all genes to be included in the genetic feature matrix. If NULL, all genes from gambl_genes are used. Make sure params as_r_c() is used in snakemake rule.
+            genes_noncoding: null # input all synonymous genes available in your maf data you would like assembled into your feature matrix
+            genes_hotspot: ["MYD88"] # input all hotspot genes available in your maf data you would like assembled into your feature matrix (Default: "MYD88")
+            genes_driver: ["CD79B","EZH2","NOTCH1","NOTCH2"] # Input all known driver genes available in your maf data you would like assembled into your feature matrix (Default: "CD79B","EZH2","NOTCH1","NOTCH2")
             sv_value: 2 # value assigned for structural variants (Default: 2)
-            synon_value: 1 # value assigned for synonymous mutations (Default: 1)
+            noncoding_value: 1 # value assigned for synonymous mutations (Default: 1)
             coding_value: 2 # value assigned for coding mutations (Default: 2)
-            include_ashm: false # include ASHM features (Default: false)
-            annotated_sv: null # "/path/to/sv.tsv"
-            include_GAMBL_sv: false # include GAMBLR sv features (Default: false)
+            driver_value: 2 # value assigned for known driver mutations (Default: 2)
 
             # RULE _dlbclone_predict. Tunable parameters for GAMBLR.predict::DLBCLone_predict() function. 
             fill_missing: true # if TRUE, any features present in the dlbclone model but not seen in test mutation matrix are added and set to zero. If FALSE, missing model features cause an error
