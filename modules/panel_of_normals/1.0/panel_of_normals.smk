@@ -138,17 +138,20 @@ rule _panel_of_normals_canonical_capspace:
         awk -F"\t" -v OFS="\t" '$1 !~ /(_|M|EBV|HIV)/' {input.bed} > {output.bed}
         """)
 
-# Symlink fasta and it's index (for compatibility with $PURECN/IntervalFile.R)
+# Symlink fasta and it's indexes (for compatibility with $PURECN/IntervalFile.R and MuTect2/GATK)
 rule _panel_of_normals_symlink_fasta:
     input:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai")
+        fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
+        gatk_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
     output:
         fasta = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa",
-        fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa.fai"
+        fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa.fai",
+        gatk_dict = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.dict"
     run:
         op.absolute_symlink(input.fasta, output.fasta)
         op.absolute_symlink(input.fai, output.fai)
+        op.absolute_symlink(input.gatk_dict, output.gatk_dict)
 
 checkpoint _panel_of_normals_input_chroms_withY:
     input:
