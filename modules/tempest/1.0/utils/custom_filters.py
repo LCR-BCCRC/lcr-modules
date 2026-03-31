@@ -143,10 +143,6 @@ class VariantFilterPipeline:
         df = self.recalculate_af(df)
         df = self.mark_potential_chip(df)
         df = self.mark_blacklist_hotspot(df, self.cfg.blacklist, self.cfg.hotspots)
-        df = self.mark_phased_vars(df)  # adds is_phased, phase_set_size, seeds variant_source with hotspot/phase_group
-        df = self.filter_gnomad(df, self.cfg.gnomad_threshold)
-        df = self.remove_blacklisted(df)
-        df = self.filter_vaf(df, self.cfg.min_tumour_vaf)
         df = self.filter_background_rates(
             df,
             self.cfg.background_rates,
@@ -154,6 +150,10 @@ class VariantFilterPipeline:
             self.cfg.background_n_std,
             self.cfg.max_background_rate
         )
+        df = self.mark_phased_vars(df)  # adds is_phased, phase_set_size, seeds variant_source with hotspot/phase_group
+        df = self.filter_gnomad(df, self.cfg.gnomad_threshold)
+        df = self.remove_blacklisted(df)
+        df = self.filter_vaf(df, self.cfg.min_tumour_vaf)
         df = self.filter_by_read_support(
             df,
             min_t_depth=self.cfg.min_t_depth,
@@ -404,7 +404,7 @@ class VariantFilterPipeline:
 
         out = df.copy()
         # Separate exempt variants (hotspot OR phased)
-        exempt_mask = out["hotspot"] | out["is_phased"]
+        exempt_mask = out["hotspot"]
         exempt_df = out.loc[exempt_mask].copy()
         non_exempt_df = out.loc[~exempt_mask].copy()
         
