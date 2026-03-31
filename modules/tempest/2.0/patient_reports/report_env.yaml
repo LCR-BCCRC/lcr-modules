@@ -1,0 +1,14 @@
+name: quarto
+channels:
+    - conda-forge
+    - bioconda
+    - defaults
+dependencies:
+    - quarto
+    - jupyter
+    - pandas
+    - matplotlib
+    - pandoc
+    - papermill
+    - plotnine
+    - itables
