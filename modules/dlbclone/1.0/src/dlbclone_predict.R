@@ -78,3 +78,65 @@ predictions <- DLBCLone_predict(
 
 message("Writing DLBCLone predictions to file...")
 write_tsv(predictions$prediction, output_dir)
+
+message("Writing DLBCLone model paramters used to file...")
+
+if(model_path == "GAMBLR.predict"){
+    package_name <- "GAMBLR.predict stored models was used with the following prefix:"
+    model_prefix <- model_prefix  
+    # Create a single line of text
+    line <- paste(package_name, model_prefix, sep = "\t")
+    # Write to a TXT file
+    model_log_file <- sub(
+        "_DLBCLone_predictions\\.tsv$",
+        "_Dlbclone_model_used.txt",
+        output_dir
+    )
+    writeLines(line, model_log_file)
+}else{
+    package_name <- "Custom model was used with the following prefix:"
+    model_prefix <- model_prefix  
+    # Create a single line of text
+    line <- paste(package_name, model_prefix, sep = "\t")
+    # Write to a TXT file
+    model_log_file <- sub(
+        "_DLBCLone_predictions\\.tsv$",
+        "_Dlbclone_model_model_used.txt",
+        output_dir
+    )
+    writeLines(line, model_log_file)
+
+    best_params_model_log <- active_model$best_params %>%
+        as.data.frame()
+
+    best_params_log_file <- sub(
+        "_DLBCLone_predictions\\.tsv$",
+        "_Dlbclone_model_logged_best_params.tsv",
+        output_dir
+    )
+
+    write.table(
+        best_params_model_log,
+        file = best_params_log_file,
+        sep = "\t",
+        quote = FALSE,
+        row.names = FALSE
+    )
+
+    features_model_log <- colnames(active_model$features) %>%
+        as.data.frame()
+
+    features_log_file <- sub(
+        "_DLBCLone_predictions\\.tsv$",
+        "_Dlbclone_model_logged_features_used.tsv",
+        output_dir
+    )
+
+    write.table(
+        features_model_log,
+        file = features_log_file,
+        sep = "\t",
+        quote = FALSE,
+        row.names = FALSE
+    )
+}

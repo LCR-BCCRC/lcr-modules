@@ -61,17 +61,7 @@ if USE_GAMBLR:
         _dlbclone_input_metadata,
         _dlbclone_input_maf,
         _dlbclone_input_sv,
-        curate_sv,
-        combine_maf,
-        combine_sv_metadata,
-        _dlbclone_assemble_genetic_features,
-        _dlbclone_predict,
-        _dlbclone_all
-else:
-    localrules:
-        _dlbclone_input_metadata,
-        _dlbclone_input_maf,
-        _dlbclone_input_sv,
+        get_combined_sv,
         curate_sv,
         combine_maf,
         combine_sv_metadata,
@@ -120,7 +110,7 @@ rule _dlbclone_input_metadata:
     input:
         metadata = CFG["inputs"]["test_metadata_dir"] 
     output:
-        metadata = CFG["dirs"]["inputs"] + "metadata/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_metadata.tsv"
+        metadata = CFG["dirs"]["inputs"] + "metadata/{sample_set}--{launch_date}_metadata.tsv"
     run:
         op.relative_symlink(input.metadata, output.metadata)
 
@@ -140,32 +130,7 @@ rule _dlbclone_input_sv:
     run: 
         op.relative_symlink(input.sv, output.sv)
 
-rule curate_sv:
-    input:
-        script=CFG["scripts"]["prepare_svs"], 
-        sv=str(rules._dlbclone_input_sv.output.sv),
-        metadata=str(rules._dlbclone_input_metadata.output.metadata)
-    output:
-        output_metadata=CFG["dirs"]["inputs"] + "sv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_dlbclone_sv_metadata.tsv"
-    params:
-        real_bcl2=as_r_c(CFG["options"]["real_bcl2"]),
-        real_bcl6=as_r_c(CFG["options"]["real_bcl6"])
-    log:
-        CFG["logs"]["outputs"] + "sv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_dlbclone_sv_metadata.log"
-    singularity: 
-        "docker://lklossok/predict:latest"
-    shell:
-        op.as_one_line("""
-            Rscript {input.script}
-                --sv_input {input.sv}
-                --metadata {input.metadata}
-                --output_metadata {output.output_metadata}
-                --real_bcl2 '{params.real_bcl2}' 
-                --real_bcl6 '{params.real_bcl6}'
-            2> {log}
-        """)
-
-# STEP 2: AGGREGATE INPUTS
+# STEP 2: PREPARE AGGREGATE INPUTS
 
 rule combine_maf:
     input:
@@ -186,32 +151,63 @@ rule combine_maf:
             tail -n +2 -q {input.mafs} >> {output.maf}
         """)
 
-rule combine_sv_metadata:
+rule get_combined_sv:
     input:
         svs = expand(
-            CFG["dirs"]["inputs"] + "sv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_dlbclone_sv_metadata.tsv",
+            rules._dlbclone_input_sv.output.sv,
             zip,
             seq_type=SAMPLES.seq_type,
             genome_build=SAMPLES.genome_build,
             tumour_id=SAMPLES.tumour_id,
             normal_id=SAMPLES.normal_id,
             pair_status=SAMPLES.pair_status
-        )
+        ) if CFG["inputs"]["sample_combined_sv"] == "" else [],
+        combined = CFG["inputs"]["sample_combined_sv"] if CFG["inputs"]["sample_combined_sv"] != "" else []
     output:
-        sv = CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/combined_metadata.tsv"
-    shell:
-        op.as_one_line("""
-            head -n 1 {input.svs[0]} > {output.sv} &&
-            tail -n +2 -q {input.svs} >> {output.sv}
-        """)
+        sv = temp(CFG["dirs"]["inputs"] + "sv/{sample_set}--{launch_date}/combined_input_sv.bedpe")
+    run:
+        if input.combined:
+            op.relative_symlink(input.combined, output.sv)
+        else:
+            shell("""
+                head -n 1 {input.svs[0]} > {output.sv} &&
+                tail -n +2 -q {input.svs} >> {output.sv}
+            """)
 
 
 # STEP 3 PREPARE SV & FEATURE MATRIX INPUTS
 
+rule curate_sv:
+    input:
+        script=CFG["scripts"]["prepare_svs"], 
+        sv=str(rules.get_combined_sv.output.sv),
+        metadata=str(rules._dlbclone_input_metadata.output.metadata)
+    output:
+        output_metadata=CFG["dirs"]["prepare_inputs"] + "{sample_set}--{launch_date}/combined_metadata.tsv"
+    params:
+        real_bcl2=as_r_c(CFG["options"]["real_bcl2"]),
+        real_bcl6=as_r_c(CFG["options"]["real_bcl6"]),
+        metadata_FISH_cols=as_r_named_list(CFG["inputs"]["metadata_FISH_cols"])
+    log:
+        CFG["logs"]["outputs"] + "{sample_set}--{launch_date}/combined_metadata.tsv"
+    singularity: 
+        "docker://lklossok/predict:latest"
+    shell:
+        op.as_one_line("""
+            Rscript {input.script}
+                --sv_input {input.sv}
+                --metadata {input.metadata}
+                --output_metadata {output.output_metadata}
+                --real_bcl2 '{params.real_bcl2}' 
+                --real_bcl6 '{params.real_bcl6}'
+                --sv_fish_colname '{params.metadata_FISH_cols}'
+            2> {log}
+        """)
+
 rule _dlbclone_assemble_genetic_features:
     input:
         script = CFG["scripts"]["dlbclone_assemble_genetic_features"],
-        test_metadata =  str(rules.combine_sv_metadata.output.sv), 
+        test_metadata =  str(rules.curate_sv.output.output_metadata), 
         test_maf = str(rules.combine_maf.output.maf) 
     output:
         test_mutation_matrix = CFG["dirs"]["outputs"] + "{sample_set}--{launch_date}/{matrix_name}_mutation_matrix.tsv"
@@ -334,7 +330,7 @@ rule _dlbclone_all:
     input:
         expand(
             [
-                str(rules._dlbclone_predict.output.predictions) 
+                str(rules._dlbclone_predict.output.predictions)
             ],
             zip,
             sample_id = SAMPLES["sample_id"],

@@ -29,6 +29,7 @@ lcr-modules:
             sample_maf: "__UPDATE__" # Input maf is required
             # sample_seg: "__UPDATE__" # Optional. Change to "" if unused.
             sample_sv: "__UPDATE__" # Optional. Change to "" if unused.
+            sample_combined_sv: "__UPDATE__" # Optional. Change to "" if unused. This input is used when you have multiple sv files in a single bedpe.
             empty_sv: "{MODSDIR}/etc/empty.sv"
 
 
@@ -38,6 +39,10 @@ lcr-modules:
 
             # path to test metadata associated with the test maf file
             test_metadata_dir: "__UPDATE__" 
+            metadata_FISH_cols: null # if metadata contains FISH data for translocation status, input the colnames here. If not, set to null.
+                # BCL2_FISH: "__UPDATE__"
+                # BCL6_FISH: "__UPDATE__"
+                # MYC_FISH: "__UPDATE__"
 
             # matrix name for storing the assembled test genetic feature matrix
             matrix_name: "__UPDATE__" 
@@ -71,7 +76,6 @@ lcr-modules:
             translocation_status: # list input, for each translocation gene status define naming conventions. Make sure params as_r_list() is used in snakemake rule.
                 POS: "__UPDATE__" # POS = positive for a translocation
                 NEG: "__UPDATE__" # NEG = negative for a translocation
-                NA_STATUS: "__UPDATE__" # NA = undetermined status
             genes_coding: null # list input, all genes to be included in the genetic feature matrix. If NULL, all genes from gambl_genes are used. Make sure params as_r_c() is used in snakemake rule.
             genes_noncoding: null # input all synonymous genes available in your maf data you would like assembled into your feature matrix
             genes_hotspot: ["MYD88"] # input all hotspot genes available in your maf data you would like assembled into your feature matrix (Default: "MYD88")
