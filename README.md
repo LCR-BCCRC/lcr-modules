@@ -300,5 +300,4 @@ The tables below list the purpose of each module and supported sequencing types.
 
 ## Known limitations
 
-The LCR-modues is not intended for installation and use on personal devices (phones,
-laptops, personal workstations) and due to the high computational requirements of a number of tools (GATK, STAR, hmftools etc.) it is recommended for use on high performance computers with Unix OS. For processing of the large number of samples in parallel, we recommend computing clusters with scheduling managers support. We recommend the use of LCR-modules on Linux and portability to other operating systems has not been tested.
+The LCR-modues is not intended for installation and use on personal devices (phones, laptops, personal workstations) and due to the high computational requirements of a number of tools (GATK, STAR, hmftools etc.) it is recommended for use on high performance computers with Unix OS. For processing of the large number of samples in parallel, we recommend computing clusters with scheduling managers support. We recommend the use of LCR-modules on Linux and portability to other operating systems is not supported when file systems are case-insensitive (APFS, NTFS), or has not been tested.
