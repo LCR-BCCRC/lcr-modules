@@ -590,6 +590,7 @@ rule _panel_of_normals_purecn_mutect2_germline:
         bam = str(rules._panel_of_normals_input_bam.output.bam),
         dbsnp = ancient(reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz")),
         fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta),
+        gatk_dict = str(rules._panel_of_normals_symlink_fasta.output.gatk_dict),
         gnomad = ancient(reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")),
         target_regions = str(rules._panel_of_normals_purecn_gatk_interval_list_targets.output.gatk_targets)
     output:
@@ -701,7 +702,7 @@ def _get_mutect2_chr_stats(wildcards):
 # Merge mutect2 stats per chrom, for FilterMutectCalls rule
 rule _panel_of_normals_purecn_merge_stats_per_sample:
     input:
-        stats = _get_mutect2_chr_stats
+        stats = _get_mutect2_chr_stats,
     output:
         stats = CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.vcf.gz.stats"
     log:
@@ -725,7 +726,8 @@ rule _panel_of_normals_purecn_pileup_summaries:
     input:
         bam = str(rules._panel_of_normals_input_bam.output.bam),
         snps = ancient(reference_files("genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz")),
-        fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta)
+        fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta),
+        gatk_dict = str(rules._panel_of_normals_symlink_fasta.output.gatk_dict)
     output:
         pileup = CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/pileupSummary.table"
     log:
@@ -997,7 +999,8 @@ rule _panel_of_normals_purecn_gatk_depthOfCoverage:
         bam = str(rules._panel_of_normals_input_bam.output.bam),
         bai = str(rules._panel_of_normals_index_bam.output.bai),
         intervals =  str(rules._panel_of_normals_purecn_gatk_interval_list_chrom.output.chrom_int),
-        fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta)
+        fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta),
+        gatk_dict = str(rules._panel_of_normals_symlink_fasta.output.gatk_dict)
     output:
         coverage = CFG["dirs"]["purecn_coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.sample_interval_summary",
         statistics = temp(CFG["dirs"]["purecn_coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.sample_interval_statistics")
