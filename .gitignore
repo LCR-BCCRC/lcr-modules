@@ -52,3 +52,8 @@ modules/clairs/1.0/ClairS-0.4.4/
 modules/clairs/1.0/model_dummy
 modules/clairs_to/1.0/ClairS-TO-0.4.2/
 modules/clairs_to/1.0/link_dummy
+
+# Ignore helpers for documentation
+docs/README.md
+demo/directory-structure.md
+demo/*.pdf
