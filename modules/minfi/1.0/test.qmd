@@ -1,0 +1,38 @@
+
+```{r}
+library(GAMBLR)
+library(tidyverse)
+library(BiocManager)
+
+library(minfi)
+library(DMRcate)
+library(sva)
+
+library(data.table)
+library(RColorBrewer)
+library(doParallel)
+library(limma)
+```
+
+```{r}
+BiocManager::install("minfi", version = "3.14", ask = FALSE, force = TRUE)
+BiocManager::install("minfiData", version = "3.14", ask = FALSE, force = TRUE)
+BiocManager::install("DMRcate", version = "3.14", ask = FALSE, force = TRUE)
+
+
+
+
+BiocManager::install(c(  
+    "minfi", 
+    "minfiData",
+    "DMRcate", 
+    "sva",
+    "IlluminaHumanMethylation450kanno.ilmn12.hg19", 
+    "IlluminaHumanMethylationEPICanno.ilm10b4.hg19"
+))
+
+```
+
+```{r}
+"/projects/adult_blgsp/data/epic_idats/geo_submission" # idat file location
+```

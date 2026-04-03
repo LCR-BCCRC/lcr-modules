@@ -8,7 +8,7 @@ Compatibility of a workflow can be checked by referring to the pairing_config pa
 
 import oncopipe as op
 
-SAMPLES = op.load_samples("data/samples.tsv")
+SAMPLES = op.load_samples("src/lcr-modules/demo/data/samples.tsv")
 GENOME = op.filter_samples(SAMPLES, seq_type = "genome")
 
 
@@ -29,17 +29,17 @@ subworkflow reference_files:
 
 
 # Load module-specific configuration
-configfile: "../modules/qc/1.0/config/default.yaml"
-configfile: "../modules/slms_3/1.0/config/default.yaml"
-configfile: "../modules/battenberg/1.2/config/default.yaml"
-configfile: "../modules/sequenza/1.4/config/default.yaml"
-configfile: "../modules/controlfreec/1.2/config/default.yaml"
-configfile: "../modules/gridss/1.1/config/default.yaml"
+configfile: "src/lcr-modules/modules/qc/1.0/config/default.yaml"
+configfile: "src/lcr-modules/modules/slms_3/1.0/config/default.yaml"
+configfile: "src/lcr-modules/modules/battenberg/1.2/config/default.yaml"
+configfile: "src/lcr-modules/modules/sequenza/1.4/config/default.yaml"
+configfile: "src/lcr-modules/modules/controlfreec/1.2/config/default.yaml"
+configfile: "src/lcr-modules/modules/gridss/1.1/config/default.yaml"
 
 
 # Load project-specific config, which includes the shared
 # configuration and some module-specific config updates
-configfile: "genome_config.yaml"
+configfile: "src/lcr-modules/demo/genome_config.yaml"
 
 
 ##### CONFIGURATION UPDATES #####
