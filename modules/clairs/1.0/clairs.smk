@@ -50,6 +50,7 @@ localrules:
     _clairs_get_resources,
     _clairs_link_clairs_models,
     _clairs_output_vcf,
+    _clairs_clean,
     _clairs_all
 
 
@@ -246,7 +247,8 @@ rule _clairs_call_variants:
     threads:
         CFG["threads"]["clairs"]
     resources:
-        **CFG["resources"]["clairs"]
+        **CFG["resources"]["clairs"],
+        clairs_call=1
     shell:
         op.as_one_line("""
         {params.clairs_path}
