@@ -128,9 +128,10 @@ metadata <- metadata %>%
 
 # If FISH data is available for any SV, override the SV consensus call with the FISH call for any sample that is FISH POS. 
 if (!is.null(sv_fish_colname)) {
-  for (fish_col in sv_fish_colname) {
+  for (gene_name in names(sv_fish_colname)) {
 
-    gene <- sub("_F$", "", fish_col)
+    fish_col <- sv_fish_colname[[gene_name]]
+    gene <- sub("_FISH$", "", gene_name)   # gives BCL2, BCL6, MYC
     ba_col <- paste0(gene, "_BA_consensus")
 
     if (ba_col %in% colnames(metadata) && fish_col %in% colnames(metadata)) {
@@ -140,7 +141,6 @@ if (!is.null(sv_fish_colname)) {
         "POS",
         metadata[[ba_col]]
       )
-
     }
   }
 }

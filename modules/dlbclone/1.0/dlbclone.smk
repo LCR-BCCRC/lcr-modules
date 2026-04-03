@@ -330,7 +330,7 @@ rule _dlbclone_all:
     input:
         expand(
             [
-                str(rules._dlbclone_predict.output.predictions)
+                str(rules.curate_sv.output.output_metadata) #str(rules._dlbclone_predict.output.predictions)
             ],
             zip,
             sample_id = SAMPLES["sample_id"],
