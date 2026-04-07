@@ -92,13 +92,15 @@ rule _sequenza_input_dbsnp_pos:
     resources:
         **CFG["resources"]["vcf_sort"]
     threads: 1
+    params:
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     shell:
         op.as_one_line("""
         gzip -dc {input.vcf}
             |
         awk 'BEGIN {{FS="\t"}} $0 !~ /^#/ {{print $1 ":" $2}}' 2>> {log.stderr}
             |
-        LC_ALL=C sort -S {resources.mem_mb}M > {output.pos} 2>> {log.stderr}
+        LC_ALL=C sort -S {params.mem_mb}M > {output.pos} 2>> {log.stderr}
         """)
 
 
@@ -119,8 +121,6 @@ rule _sequenza_bam2seqz:
         CFG["conda_envs"]["sequenza-utils"]
     threads: 1 # since it's grouped with the rule below, which uses CFG["threads"]["merge_seqz"], otherwise this thread count gets multiplied by # of chroms and exceeds SLURM amount allowed
     # same with **resources, it will get the default but be able to use what's listed in **CFG["resources"]["bam2seqz"] by the grouping of these rules
-    resources:
-        **CFG["resources"]["bam2seqz"]
     group: "bam2seqz"
     shell:
         op.as_one_line("""
