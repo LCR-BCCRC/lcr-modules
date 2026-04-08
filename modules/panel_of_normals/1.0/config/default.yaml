@@ -47,7 +47,7 @@ lcr-modules:
                     opts: ""
 
         software:
-            coverage_script: "{MODSDIR}/etc/Coverage.R"
+            coverage_script: "{MODSDIR}/../../purecn/1.0/etc/Coverage.R"
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.10.yaml"
@@ -56,6 +56,7 @@ lcr-modules:
             purecn: "{MODSDIR}/envs/purecn-2.0.1.yaml"
             mutect: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
 
         threads:
             cnvkit:
