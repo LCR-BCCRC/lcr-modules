@@ -194,7 +194,7 @@ rule _sequenza_filter_seqz:
 
 rule _sequenza_run:
     input:
-        seqz = CFG["dirs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged.binned.{filter_status}.seqz.gz",
+        seqz = str(rules._sequenza_filter_seqz.output.seqz),
         run_sequenza = CFG["inputs"]["run_sequenza"],
         assembly = reference_files("genomes/{genome_build}/version.txt"),
         chroms = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt"),

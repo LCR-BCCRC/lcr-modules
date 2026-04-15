@@ -42,9 +42,9 @@ lcr-modules:
                 bam: 1
                 disk_mb: 48000
             filter_seqz:
-                mem_mb: 20000
+                mem_mb: 2000
             sequenza:
-                mem_mb: 20000
+                mem_mb: 48000
                 disk_mb: 10000
             post_sequenza:
                 mem_mb: 2000
@@ -53,7 +53,7 @@ lcr-modules:
         threads:
             merge_seqz: 24
             filter_seqz: 1
-            sequenza: 8
+            sequenza: 4
 
 
         # For now, only supporting matched tumour-normal pairs
