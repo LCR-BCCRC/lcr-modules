@@ -247,8 +247,7 @@ rule _clairs_call_variants:
     threads:
         CFG["threads"]["clairs"]
     resources:
-        **CFG["resources"]["clairs"],
-        clairs_call=1
+        **CFG["resources"]["clairs"]
     shell:
         op.as_one_line("""
         {params.clairs_path}
