@@ -140,7 +140,7 @@ rule _lymphgen_input_cnv:
         maf = str(rules._lymphgen_input_maf.output.maf),
         seg = str(rules._lymphgen_reformat_seg.output.seg),
         # Software and resource dependencies from LGenIC
-        lgenic_script = str(rules._install_lgenic.output.lgenic_script),
+        lgenic_script = ancient(str(rules._install_lgenic.output.lgenic_script)),
         lymphgen_genes = str(rules._install_lgenic.output.lymphgen_genes),
         hugo2entrez = str(rules._install_lgenic.output.hugo2entrez),
         gene_coords = str(rules._install_lgenic.output.gene_coords),
@@ -174,7 +174,7 @@ rule _lymphgen_input_no_cnv:
     input:
         maf = str(rules._lymphgen_input_maf.output.maf),
         # Software and resource dependencies from LGenIC
-        lgenic_script = str(rules._install_lgenic.output.lgenic_script),
+        lgenic_script = ancient(str(rules._install_lgenic.output.lgenic_script)),
         lymphgen_genes = str(rules._install_lgenic.output.lymphgen_genes),
         hugo2entrez = str(rules._install_lgenic.output.hugo2entrez),
     output:

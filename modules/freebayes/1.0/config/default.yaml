@@ -7,11 +7,12 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
             reference_config: "__UPDATE__" # Path to the config file specified in the subworkflow reference_files section of the wrapper Snakefile
-
+            samples: "{MODSDIR}/etc/samples.txt" # File to rename vcf sample_id column to TUMOR 
+            
         scratch_subdirectories: []
 
         options:
-            freebayes: ""
+            freebayes: <(fasta_generate_regions.py {input.fasta}.fai 10000) # Indicate the bin size for freebayes parallelization and other arguments to the script https://github.com/freebayes/freebayes/blob/master/scripts/fasta_generate_regions.py
             target_builds: ["hg38", "grch37"]
 
         conda_envs:

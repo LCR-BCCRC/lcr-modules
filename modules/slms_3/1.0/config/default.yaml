@@ -177,6 +177,9 @@ lcr-modules:
             dirs: 
                 # Leave this blank, it will be updated within the Snakefile. 
                 _parent: "" 
+                
+            options:
+                starfish_run: "--sample ALT --squash-ploidy --vennout-format pdf --all-records"
 
             threads:
                 starfish_run: 4
