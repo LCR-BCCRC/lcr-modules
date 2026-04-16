@@ -50,6 +50,7 @@ localrules:
     _clairs_get_resources,
     _clairs_link_clairs_models,
     _clairs_output_vcf,
+    _clairs_clean,
     _clairs_all
 
 
