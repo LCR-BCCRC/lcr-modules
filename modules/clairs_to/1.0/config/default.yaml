@@ -48,8 +48,9 @@ lcr-modules:
         resources:
             clairs_to: 
                 mem_mb: 24000
+                bam: 1
             bcftools:
-                mem_mb: 5000
+                mem_mb: 5000                
             
         pairing_config:
             promethION:

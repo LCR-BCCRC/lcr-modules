@@ -222,7 +222,6 @@ rule _clairs_to_call_variants:
     threads:
         CFG["threads"]["clairs_to"]
     resources:
-        clairs_to_call=1,
         **CFG["resources"]["clairs_to"]
     shell:
         op.as_one_line("""
