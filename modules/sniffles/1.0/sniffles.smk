@@ -121,7 +121,7 @@ rule _sniffles_vcf_to_bedpe:
     threads:
         CFG["threads"]["vcf_to_bedpe"]
     resources: 
-        **CFG["reources"]["vcf_to_bedpe"]
+        **CFG["resources"]["vcf_to_bedpe"]
     shell:
         "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log.stderr}"
 
