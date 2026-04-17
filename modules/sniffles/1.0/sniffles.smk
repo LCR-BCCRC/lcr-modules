@@ -76,10 +76,12 @@ rule _promethion_bam:
         bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
+        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 
 rule _sniffles:
