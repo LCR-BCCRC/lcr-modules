@@ -76,11 +76,11 @@ rule _promethion_bam:
         bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
+        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
-        
 
 
 rule _sniffles:
@@ -95,17 +95,19 @@ rule _sniffles:
        mem_mb = CFG["mem_mb"]["sniffles"]
     threads:    
         CFG["threads"]["sniffles"]  
-    conda :
+    conda:
         CFG["conda_envs"]["sniffles"]
     log:
-        CFG["logs"]["sniffles"] + "{seq_type}--{genome_build}/{sample_id}/sniffles.log"               
+        CFG["logs"]["sniffles"] + "{seq_type}--{genome_build}/{sample_id}/sniffles.log"
+    params:
+        sniffles_args = CFG["options"]["sniffles_args"]
     shell:
-        op.as_one_line('''
+        op.as_one_line("""
         sniffles -t {threads} --input {input.bam} 
         --vcf {output.vcf} --reference {input.fasta} 
-        --non-germline 
+        {params.sniffles_args} 
         2>&1 | tee -a {log}
-        ''') 
+        """)
 
 rule _sniffles_vcf_to_bedpe:
     input:
