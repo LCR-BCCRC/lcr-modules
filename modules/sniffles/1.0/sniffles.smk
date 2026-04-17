@@ -92,8 +92,8 @@ rule _sniffles:
     conda: 
         CFG["conda_envs"]["sniffles"]
     resources: 
-       mem_mb = CFG["mem_mb"]["sniffles"]
-    threads:    
+        **CFG["resources"]["sniffles"]
+    threads:
         CFG["threads"]["sniffles"]  
     conda:
         CFG["conda_envs"]["sniffles"]
@@ -121,7 +121,7 @@ rule _sniffles_vcf_to_bedpe:
     threads:
         CFG["threads"]["vcf_to_bedpe"]
     resources: 
-        mem_mb = CFG["mem_mb"]["vcf_to_bedpe"]
+        **CFG["reources"]["vcf_to_bedpe"]
     shell:
         "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log.stderr}"
 
@@ -138,8 +138,6 @@ rule _sniffles_output:
     run:
         op.relative_symlink(input.vcf, output.vcf, in_module= True),
         op.relative_symlink(input.bedpe, output.bedpe, in_module= True)
-
-
 
 
 # Generates the target sentinels for each run, which generate the symlinks
