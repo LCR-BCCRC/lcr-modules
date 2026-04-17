@@ -102,7 +102,7 @@ rule _panel_of_normals_index_bam:
     input:
         bam = str(rules._panel_of_normals_input_bam.output.bam)
     output:
-        bai = temp(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{sample_id}.bam.bai")
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{sample_id}.bam.bai"
     log:
         log = CFG["logs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{sample_id}_index.log"
     conda:
@@ -615,6 +615,10 @@ rule _panel_of_normals_purecn_mutect2_germline:
         tbi = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.vcf.gz.tbi"),
         stats = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.vcf.gz.stats"),
         f1r2 = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.f1r2.tar.gz")
+    resources:
+        **CFG["resources"]["purecn"]["mutect"]
+    threads:
+        CFG["threads"]["purecn"]["mutect"]
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["purecn"]["mutect"]["mutect2_opts"]
@@ -622,8 +626,6 @@ rule _panel_of_normals_purecn_mutect2_germline:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/mutect2_{chrom}.log"
     conda:
         CFG["conda_envs"]["mutect"]
-    group:
-        "mutect2_per_chrom"
     shell:
         op.as_one_line("""
             if [[ $(egrep "^{wildcards.chrom}:" {input.target_regions} | wc -l) -eq 0 ]]; then
@@ -692,13 +694,10 @@ rule _panel_of_normals_purecn_concat_vcf_per_sample:
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_concat_vcf.log"
     resources:
-        **CFG["resources"]["purecn"]["mutect"]
-    threads:
-        CFG["threads"]["purecn"]["mutect"]
+        **CFG["resources"]["purecn"]["post_vcf"]
+    threads: 1
     conda:
         CFG["conda_envs"]["bcftools"]
-    group:
-        "mutect2_per_chrom"
     shell:
         op.as_one_line("""
         bcftools concat {input.vcf} -Oz -o {output.vcf} &> {log};
@@ -724,14 +723,12 @@ rule _panel_of_normals_purecn_merge_stats_per_sample:
         stats = CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.vcf.gz.stats"
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_merge_stats.log"
+    resources:
+        **CFG["resources"]["purecn"]["post_vcf"]
+    threads: 
+        CFG["threads"]["purecn"]["post_vcf"]
     conda:
         CFG["conda_envs"]["mutect"]
-    resources:
-        **CFG["resources"]["purecn"]["mutect"]
-    threads:
-        CFG["threads"]["purecn"]["mutect"]
-    group:
-        "mutect2_per_chrom"
     shell:
         op.as_one_line("""
         gatk MergeMutectStats $(for i in {input.stats}; do echo -n "-stats $i "; done)
@@ -750,13 +747,13 @@ rule _panel_of_normals_purecn_pileup_summaries:
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_pileupSummary.log"
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["mutect"]
     resources:
-        **CFG["resources"]["purecn"]["mutect"]
+        **CFG["resources"]["purecn"]["post_vcf"]
     threads:
-        CFG["threads"]["purecn"]["mutect"]
+        CFG["threads"]["purecn"]["post_vcf"]
     shell:
         op.as_one_line("""
         gatk GetPileupSummaries
@@ -779,13 +776,13 @@ rule _panel_of_normals_purecn_calc_contamination:
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_calc_contam.log"
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["mutect"]
     resources:
-        **CFG["resources"]["purecn"]["mutect"]
+        **CFG["resources"]["purecn"]["post_vcf"]
     threads:
-        CFG["threads"]["purecn"]["mutect"]
+        CFG["threads"]["purecn"]["post_vcf"]
     shell:
         op.as_one_line("""
         gatk CalculateContamination
@@ -815,13 +812,13 @@ rule _panel_of_normals_purecn_learn_orient_model:
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_learn_orient_model.log"
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["mutect"]
     resources:
-        **CFG["resources"]["purecn"]["mutect"]
+        **CFG["resources"]["purecn"]["post_vcf"]
     threads:
-        CFG["threads"]["purecn"]["mutect"]
+        CFG["threads"]["purecn"]["post_vcf"]
     shell:
         op.as_one_line("""
         inputs=$(for input in {input.f1r2}; do printf -- "-I $input "; done);
@@ -846,13 +843,14 @@ rule _panel_of_normals_purecn_annotate_vcf:
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_annotate_vcf.log",
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["purecn"]["mutect"]["annotate"]
     conda:
         CFG["conda_envs"]["mutect"]
     resources:
-        **CFG["resources"]["purecn"]["mutect"]
-    threads: 1
+        **CFG["resources"]["purecn"]["post_vcf"]
+    threads: 
+        CFG["threads"]["purecn"]["post_vcf"]
     shell:
         op.as_one_line("""
         gatk FilterMutectCalls --java-options "-Xmx{params.mem_mb}m"
@@ -882,7 +880,7 @@ rule _panel_of_normals_purecn_mutect2_filter_vcf:
     conda:
         CFG["conda_envs"]["bcftools"]
     resources:
-        **CFG["resources"]["purecn"]["mutect"]
+        **CFG["resources"]["purecn"]["post_vcf"]
     threads: 1
     shell:
         op.as_one_line("""
@@ -941,14 +939,15 @@ rule _panel_of_normals_purecn_gatk_genomicsDbimport:
         touch(CFG["dirs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb.done")
     log:
         CFG["logs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb.log"
+    resources:
+        **CFG["resources"]["purecn"]["post_vcf"]
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8),
         db_path = CFG["dirs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb/"
     conda:
         CFG["conda_envs"]["mutect"]
-    resources:
-        **CFG["resources"]["purecn"]["mutect"]
-    threads: 1
+    threads:
+        CFG["threads"]["purecn"]["post_vcf"]
     shell:
         op.as_one_line("""
         gatk GenomicsDBImport --java-options "-Xmx{params.mem_mb}m"
@@ -974,8 +973,9 @@ rule _panel_of_normals_purecn_mutect2_pon:
     conda:
         CFG["conda_envs"]["mutect"]
     resources:
-        **CFG["resources"]["purecn"]["mutect"]
-    threads: 1
+        **CFG["resources"]["purecn"]["post_vcf"]
+    threads:
+        CFG["threads"]["purecn"]["post_vcf"]
     shell:
         op.as_one_line("""
         gatk CreateSomaticPanelOfNormals --java-options "-Xmx{params.mem_mb}m"
@@ -1021,6 +1021,10 @@ rule _panel_of_normals_purecn_gatk_depthOfCoverage:
     output:
         coverage = CFG["dirs"]["purecn_coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.sample_interval_summary",
         statistics = temp(CFG["dirs"]["purecn_coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.sample_interval_statistics")
+    resources:
+        **CFG["resources"]["purecn"]["gatk_depth"]
+    threads:
+        CFG["threads"]["purecn"]["gatk_depth"]
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["purecn"]["coverage"]["depth_coverage"],
@@ -1029,8 +1033,6 @@ rule _panel_of_normals_purecn_gatk_depthOfCoverage:
         CFG["logs"]["purecn_coverage"] + "{seq_type}--{genome_build}/{capture_space}/gatk_coverage/{sample_id}.{chrom}.log"
     conda:
         CFG["conda_envs"]["mutect"]
-    group:
-        "purecn_coverage"
     shell:
         op.as_one_line("""
         gatk DepthOfCoverage
@@ -1074,12 +1076,7 @@ rule _panel_of_normals_purecn_gatk_coverage_concatenate_depths:
         statistics = _get_gatk_chr_cov_stats,
     output:
         depth = CFG["dirs"]["purecn_coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.sample_interval_summary.gz"
-    resources:
-        **CFG["resources"]["purecn"]["coverage"]
-    threads:
-        CFG["threads"]["purecn"]["coverage"]
-    group:
-        "purecn_coverage"
+    threads: 1
     shell:
         op.as_one_line("""
         file1=$(echo {input.depth} | cut -d " " -f1 ) ;

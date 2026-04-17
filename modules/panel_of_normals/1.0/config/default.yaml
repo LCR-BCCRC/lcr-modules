@@ -62,12 +62,14 @@ lcr-modules:
             cnvkit:
                 samtools: 8
                 autobin: 24
-                coverage: 24
+                coverage: 12
                 reference: 24
             purecn:
                 setinterval: 3
-                mutect: 4
-                coverage: 4
+                mutect: 3
+                post_vcf: 2
+                gatk_depth: 2
+                coverage: 2
                 normalDB: 4
 
         resources:
@@ -82,13 +84,17 @@ lcr-modules:
                 setinterval:
                     mem_mb: 6000
                 mutect:
-                    mem_mb: 12000
-                    bam: 1
+                    mem_mb: 10000
+                    chrom: 1
+                post_vcf:
+                    mem_mb: 8000
+                gatk_depth:
+                    mem_mb: 10000
+                    chrom: 1
                 coverage:
-                    mem_mb: 70000
-                    bam: 1
+                    mem_mb: 18000
                 normalDB:
-                    mem_mb: 90000
+                    mem_mb: 40000
 
 
         pairing_config:
