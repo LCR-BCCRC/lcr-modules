@@ -84,11 +84,11 @@ lcr-modules:
             vcf_sort:
                 mem_mb: 2000
             coverage:
-                mem_mb: 48000
+                mem_mb: 4800
             fix:
-                mem_mb: 12000
+                mem_mb: 9600
             cns:
-                mem_mb: 48000
+                mem_mb: 4800
             SNPs:
                 mem_mb: 8000
             call:
