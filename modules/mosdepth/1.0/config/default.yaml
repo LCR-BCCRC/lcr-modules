@@ -1,0 +1,43 @@
+lcr-modules:
+    
+    mosdepth:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            mosdepth_args: ""
+            no_per_base: false # Change to true if you wish to avoid per-base coverage calculations
+            by: null # Change to an integer if you wish to use --by <window_size> or a string with the path to a BED file if you wish to use --by <regions.BED> to calculate the coverage within BED file regions. Example: "path/to/file.bed"
+
+        conda_envs:
+            mosdepth: "{MODSDIR}/envs/mosdepth-0.3.13.yaml"
+            
+        threads:
+            mosdepth: 4
+
+        resources:
+            mosdepth: 
+                mem_mb: 8000
+            
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            promethION:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

@@ -1,0 +1,7 @@
+name: mosdepth
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - mosdepth=0.3.11
