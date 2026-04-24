@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Giuliano Banco.
 
-<!-- TODO: Explain each important module design decision below. -->
+- This module uses Mosdepth to calculate sequencing coverage from input BAM/CRAM files
 
-- No module design decisions explained here yet.
+- This module supports optional calculation of per-base or region-based coverage depending on configuration, allowing users to determine coverage within targeted sequencing panels.
+
+- This module supports optional suppression of determining per-base coverage using the `no_per_base` setting in the config. This reduces runtime when users do not which to identify per-base coverage.
