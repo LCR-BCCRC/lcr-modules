@@ -98,6 +98,7 @@ OPTIONAL_TARGETS = []
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _mosdepth_input_bam:
+    group: "mosdepth"
     input:
         bam = CFG["inputs"]["sample_bam"],
         bai = CFG["inputs"]["sample_bai"]
@@ -113,6 +114,7 @@ rule _mosdepth_input_bam:
 
 # Get BAM coverage using Mosdepth
 rule _mosdepth:
+    group: "mosdepth"
     input:
         bam = str(rules._mosdepth_input_bam.output.bam),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")

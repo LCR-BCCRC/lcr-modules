@@ -10,7 +10,7 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
-            mosdepth_args: ""
+            mosdepth_args: "" # Update this line if you wish to use additional arguments
             no_per_base: false # Change to true if you wish to avoid per-base coverage calculations
             by: null # Change to an integer if you wish to use --by <window_size> or a string with the path to a BED file if you wish to use --by <regions.BED> to calculate the coverage within BED file regions. Example: "path/to/file.bed"
 
