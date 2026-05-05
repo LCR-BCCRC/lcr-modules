@@ -66,7 +66,8 @@ lcr-modules:
                 reference: 24
             purecn:
                 setinterval: 3
-                mutect: 3
+                mutect: 4
+                importDB: 2
                 post_vcf: 2
                 gatk_depth: 2
                 coverage: 2
@@ -75,26 +76,28 @@ lcr-modules:
         resources:
             cnvkit:
                 coverage:
-                    mem_mb: 48000
+                    mem_mb: 4800
                 autobin:
-                    mem_mb: 48000
+                    mem_mb: 4800
                 reference:
-                    mem_mb: 48000
+                    mem_mb: 9600
             purecn:
                 setinterval:
                     mem_mb: 6000
                 mutect:
-                    mem_mb: 10000
+                    mem_mb: 15000
                     chrom: 1
+                importDB:
+                    mem_mb: 12000
                 post_vcf:
                     mem_mb: 8000
                 gatk_depth:
-                    mem_mb: 10000
+                    mem_mb: 15000
                     chrom: 1
                 coverage:
                     mem_mb: 18000
                 normalDB:
-                    mem_mb: 40000
+                    mem_mb: 10000
 
 
         pairing_config:

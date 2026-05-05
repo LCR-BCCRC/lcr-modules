@@ -38,7 +38,7 @@ CFG = op.setup_module(
     name = "panel_of_normals",
     version = "1.0",
     subdirectories = ["inputs", "cnvkit_targets_bed", "cnvkit_autobin", "cnvkit_coverage", "cnvkit_pon_cnn", "cnvkit_flat_ref_cnn",
-                        "purecn_intervals", "purecn_mutect2", "purecn_merge_vcfs",
+                        "purecn_intervals", "purecn_mutect2", "pon_for_mutect2", "purecn_merge_vcfs",
                         "purecn_coverage", "purecn_NormalDB", "outputs"],
 )
 
@@ -75,8 +75,9 @@ localrules:
 
 # Remove any samples with the flat ref combos, since we don't want them to go through
 # the regular steps, but still need a samples table for input functions
-for g_build, cap_space in zip(CFG["options"]["cnvkit"]["flat_ref_combos"]["genome_builds"], CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]):
-    META = op.discard_samples(CFG["samples"], genome_build = g_build, capture_space = cap_space)
+FLAT_REF_COMBOS = zip(CFG["options"]["cnvkit"]["flat_ref_combos"]["genome_builds"], CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"])
+META = CFG["samples"][[x not in FLAT_REF_COMBOS for x in zip(CFG["samples"]['genome_build'], CFG["samples"]['capture_space'])]]
+
 # Get unique combos in the samples table for rule all
 # Otherwise it will run each combo rule once per sample in the combo
 COMBOS = META[['seq_type', 'genome_build', 'capture_space']].drop_duplicates()
@@ -591,7 +592,7 @@ rule _panel_of_normals_purecn_sort_intervals:
         gatk_targets = str(rules._panel_of_normals_purecn_gatk_interval_list_targets.output.gatk_targets),
         fai = str(rules._panel_of_normals_symlink_fasta.output.fai)
     output:
-        targets_sorted = CFG["dirs"]["purecn_intervals"] + "{seq_type}--{genome_build}/{capture_space}/baits_{capture_space}_intervals_sorted.txt"
+        targets_sorted = CFG["dirs"]["purecn_intervals"] + "{seq_type}--{genome_build}/{capture_space}/baits_{capture_space}_intervals_sorted.list"
     log:
         CFG["logs"]["purecn_intervals"] + "{seq_type}--{genome_build}/{capture_space}/purecn_intervals_gatk_targets_sorting.log"
     conda:
@@ -667,8 +668,9 @@ def _get_mutect2_chr_vcfs(wildcards):
     with open(checkpoints._panel_of_normals_input_chroms_withY.get(**wildcards).output.txt) as f:
         chrs = f.read().rstrip("\n").split("\n")
     vcfs = expand(
-        CFG["dirs"]["purecn_mutect2"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}/{{sample_id}}.{chrom}.vcf.gz",
-        chrom = chrs
+        str(rules._panel_of_normals_purecn_mutect2_germline.output.vcf),
+        chrom = chrs,
+        allow_missing = True
     )
     return(vcfs)
 
@@ -678,8 +680,9 @@ def _get_mutect2_chr_tbis(wildcards):
     with open(checkpoints._panel_of_normals_input_chroms_withY.get(**wildcards).output.txt) as f:
         chrs = f.read().rstrip("\n").split("\n")
     tbis = expand(
-        CFG["dirs"]["purecn_mutect2"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}/{{sample_id}}.{chrom}.vcf.gz.tbi",
-        chrom = chrs
+        str(rules._panel_of_normals_purecn_mutect2_germline.output.tbi),
+        chrom = chrs,
+        allow_missing = True
     )
     return(tbis)
 
@@ -689,8 +692,8 @@ rule _panel_of_normals_purecn_concat_vcf_per_sample:
         vcf = _get_mutect2_chr_vcfs,
         tbi = _get_mutect2_chr_tbis
     output:
-        vcf = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.vcf.gz"),
-        tbi = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.vcf.gz.tbi")
+        vcf = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz"),
+        tbi = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz.tbi")
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_concat_vcf.log"
     resources:
@@ -709,8 +712,9 @@ def _get_mutect2_chr_stats(wildcards):
     with open(checkpoints._panel_of_normals_input_chroms_withY.get(**wildcards).output.txt) as f:
         chrs = f.read().rstrip("\n").split("\n")
     stats = expand(
-        CFG["dirs"]["purecn_mutect2"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}/{{sample_id}}.{chrom}.vcf.gz.stats",
-        chrom = chrs
+        str(rules._panel_of_normals_purecn_mutect2_germline.output.stats),
+        chrom = chrs,
+        allow_missing = True
     )
     return(stats)
 
@@ -720,12 +724,12 @@ rule _panel_of_normals_purecn_merge_stats_per_sample:
     input:
         stats = _get_mutect2_chr_stats,
     output:
-        stats = CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.vcf.gz.stats"
+        stats = CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz.stats"
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_merge_stats.log"
     resources:
         **CFG["resources"]["purecn"]["post_vcf"]
-    threads: 
+    threads:
         CFG["threads"]["purecn"]["post_vcf"]
     conda:
         CFG["conda_envs"]["mutect"]
@@ -799,8 +803,9 @@ def _get_mutect2_chr_f1r2(wildcards):
     with open(checkpoints._panel_of_normals_input_chroms_withY.get(**wildcards).output.txt) as f:
         chrs = f.read().rstrip("\n").split("\n")
     f1r2 = expand(
-        CFG["dirs"]["purecn_mutect2"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}/{{sample_id}}.{chrom}.f1r2.tar.gz",
-        chrom = chrs
+        str(rules._panel_of_normals_purecn_mutect2_germline.output.f1r2),
+        chrom = chrs,
+        allow_missing = True
     )
     return(f1r2)
 
@@ -839,7 +844,7 @@ rule _panel_of_normals_purecn_annotate_vcf:
         model = str(rules._panel_of_normals_purecn_learn_orient_model.output.model),
         fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta)
     output:
-        vcf = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/annotated.vcf.gz")
+        vcf = CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/annotated.vcf.gz"
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_annotate_vcf.log",
     params:
@@ -849,7 +854,7 @@ rule _panel_of_normals_purecn_annotate_vcf:
         CFG["conda_envs"]["mutect"]
     resources:
         **CFG["resources"]["purecn"]["post_vcf"]
-    threads: 
+    threads:
         CFG["threads"]["purecn"]["post_vcf"]
     shell:
         op.as_one_line("""
@@ -865,7 +870,9 @@ rule _panel_of_normals_purecn_annotate_vcf:
         """)
 
 # Filters for PASS and germline variants
-# This will only take somatic ones if filtering just for PASSED (need to still maintain germline ones)
+# This step cannot be combined with others below, because the VCFs needed to be
+# formatted differently for the GATK steps that make the MuTect2 PON VCF vs
+# making the merged VCF that is used in making the PureCN NormalDB
 rule _panel_of_normals_purecn_mutect2_filter_vcf:
     input:
         vcf = str(rules._panel_of_normals_purecn_annotate_vcf.output.vcf)
@@ -884,27 +891,46 @@ rule _panel_of_normals_purecn_mutect2_filter_vcf:
     threads: 1
     shell:
         op.as_one_line("""
-        bcftools view {params.filter_for_opts} -e "{params.filter_out_opts}" {input.vcf} |
-            bcftools norm -m - -Oz -o {output.vcf} 2> {log};
+        bcftools view {params.filter_for_opts} -e "{params.filter_out_opts}" {input.vcf} -Oz -o {output.vcf} 2> {log};
         tabix -p vcf {output.vcf} 2>> {log}
         """)
 
 ###### Creating a panel of normals vcf for MuTect2 variant calling in tumours
+# Join biallelic sites into multiallelic records, so there VCF does not contain multiple entries for a single genomic position
+# otherwise genomicsDbimport step breaks
+rule _panel_of_normals_purecn_format_gatk_vcf:
+    input:
+        vcf = str(rules._panel_of_normals_purecn_mutect2_filter_vcf.output.vcf)
+    output:
+        vcf = CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_for_mutect2_pon.vcf.gz",
+        tbi = CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_for_mutect2_pon.vcf.gz.tbi"
+    log:
+        CFG["logs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_format_gatk_vcf.log"
+    conda:
+        CFG["conda_envs"]["bcftools"]
+    resources:
+        **CFG["resources"]["purecn"]["post_vcf"]
+    threads: 1
+    shell:
+        op.as_one_line("""
+        bcftools norm -m +any -Oz {input.vcf} 2> {log};
+        tabix -p vcf {output.vcf} 2>> {log}
+        """)
 
-def _get_normal_vcfs_per_combo(wildcards):
+def _get_gatk_vcfs_per_combo(wildcards):
     tbl = META
     samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
     normals = expand(
-        str(rules._panel_of_normals_purecn_mutect2_filter_vcf.output.vcf),
+        str(rules._panel_of_normals_purecn_format_gatk_vcf.output.vcf),
         sample_id = samples,
         allow_missing = True)
     return normals
 
-def _get_normal_tbis_per_combo(wildcards):
+def _get_gatk_tbis_per_combo(wildcards):
     tbl = META
     samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
     normals = expand(
-        str(rules._panel_of_normals_purecn_mutect2_filter_vcf.output.tbi),
+        str(rules._panel_of_normals_purecn_format_gatk_vcf.output.tbi),
         sample_id = samples,
         allow_missing = True)
     return normals
@@ -912,10 +938,10 @@ def _get_normal_tbis_per_combo(wildcards):
 # Create sample map file
 rule _panel_of_normals_purecn_samples_map:
     input:
-        normals = _get_normal_vcfs_per_combo
+        normals = _get_gatk_vcfs_per_combo
     output:
-        samples_map = CFG["dirs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/samples_map.txt",
-        done = CFG["dirs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/samples_map.done"
+        samples_map = CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/samples_map.txt",
+        done = CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/samples_map.done"
     shell:
         """
         for vcf in {input.normals}
@@ -930,24 +956,24 @@ rule _panel_of_normals_purecn_samples_map:
 # Create genomicsDb used later in creating mutect2 pon vcf
 rule _panel_of_normals_purecn_gatk_genomicsDbimport:
     input:
-        normal = _get_normal_vcfs_per_combo,
-        normal_tbi = _get_normal_tbis_per_combo,
+        normal = _get_gatk_vcfs_per_combo,
+        normal_tbi = _get_gatk_tbis_per_combo,
         samples_map = str(rules._panel_of_normals_purecn_samples_map.output.samples_map),
         done = str(rules._panel_of_normals_purecn_samples_map.output.done),
         target_regions = str(rules._panel_of_normals_canonical_capspace.output.bed)
     output:
-        touch(CFG["dirs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb.done")
+        touch(CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb.done")
     log:
-        CFG["logs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb.log"
+        CFG["logs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb.log"
     resources:
-        **CFG["resources"]["purecn"]["post_vcf"]
+        **CFG["resources"]["purecn"]["importDB"]
     params:
         mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8),
-        db_path = CFG["dirs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb/"
+        db_path = CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb/"
     conda:
         CFG["conda_envs"]["mutect"]
     threads:
-        CFG["threads"]["purecn"]["post_vcf"]
+        CFG["threads"]["purecn"]["importDB"]
     shell:
         op.as_one_line("""
         gatk GenomicsDBImport --java-options "-Xmx{params.mem_mb}m"
@@ -964,12 +990,12 @@ rule _panel_of_normals_purecn_mutect2_pon:
         done = str(rules._panel_of_normals_purecn_gatk_genomicsDbimport.output),
         fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta)
     output:
-        pon = CFG["dirs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/{capture_space}_mutect2_pon.vcf.gz"
+        pon = CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{capture_space}_mutect2_pon.vcf.gz"
     log:
-        CFG["logs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/mutect2_pon_vcf.log"
+        CFG["logs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/mutect2_pon_vcf.log"
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
-        opts = "gendb://" + CFG["dirs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb/"
+        opts = "gendb://" + CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb/"
     conda:
         CFG["conda_envs"]["mutect"]
     resources:
@@ -986,23 +1012,42 @@ rule _panel_of_normals_purecn_mutect2_pon:
         """)
 
 ###### Create panel of normals database files for PureCN
+# These input functions are different from the ones above
+# There is no collapsing of multiallelic sites in these
+def _get_normal_vcfs_per_combo(wildcards):
+    tbl = META
+    samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
+    normals = expand(
+        str(rules. _panel_of_normals_purecn_mutect2_filter_vcf.output.vcf),
+        sample_id = samples,
+        allow_missing = True)
+    return normals
 
-# Creating a panel of normals vcf for PureCN
+def _get_normal_tbis_per_combo(wildcards):
+    tbl = META
+    samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
+    normals = expand(
+        str(rules. _panel_of_normals_purecn_mutect2_filter_vcf.output.tbi),
+        sample_id = samples,
+        allow_missing = True)
+    return normals
+
 rule _panel_of_normals_purecn_merge_vcfs:
     input:
         normal = _get_normal_vcfs_per_combo,
         normal_tbi = _get_normal_tbis_per_combo,
     output:
-        normal_panel = CFG["dirs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/{capture_space}_normalpanel.vcf.gz",
-        normal_panel_tbi = CFG["dirs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/{capture_space}_normalpanel.vcf.gz.tbi"
+        normal_panel = CFG["dirs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/{capture_space}_purecn_pon.vcf.gz",
+        normal_panel_tbi = CFG["dirs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/{capture_space}_purecn_pon.vcf.gz.tbi"
     log:
-        CFG["logs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/normalpanel.vcf.log"
+        CFG["logs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/purecn_pon.vcf.log"
     conda:
         CFG["conda_envs"]["bcftools"]
     threads: 1
     shell:
         op.as_one_line("""
-            bcftools merge {input.normal} -Oz -o {output.normal_panel} --force-samples &> {log};
+            bcftools merge {input.normal} -Ov --force-samples &> {log} |
+            bcftools annotate -x INFO -Oz -o {output.normal_panel} &>> {log};
             tabix -p vcf {output.normal_panel} &>> {log}
         """)
 
@@ -1049,14 +1094,14 @@ rule _panel_of_normals_purecn_gatk_depthOfCoverage:
             > {log} 2>&1
         """)
 
-
 def _get_gatk_chr_cov_depth(wildcards):
     CFG = config["lcr-modules"]["panel_of_normals"]
     with open(checkpoints._panel_of_normals_input_chroms_withY.get(**wildcards).output.txt) as f:
         chrs = f.read().rstrip("\n").split("\n")
     coverage = expand(
-        CFG["dirs"]["purecn_coverage"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}/{{sample_id}}.{chrom}.sample_interval_summary",
-        chrom = chrs
+        str(rules._panel_of_normals_purecn_gatk_depthOfCoverage.output.coverage),
+        chrom = chrs,
+        allow_missing = True
     )
     return(coverage)
 
@@ -1065,8 +1110,9 @@ def _get_gatk_chr_cov_stats(wildcards):
     with open(checkpoints._panel_of_normals_input_chroms_withY.get(**wildcards).output.txt) as f:
         chrs = f.read().rstrip("\n").split("\n")
     statistics = expand(
-        CFG["dirs"]["purecn_coverage"] + "{{seq_type}}--{{genome_build}}/{{capture_space}}/{{sample_id}}/{{sample_id}}.{chrom}.sample_interval_statistics",
-        chrom = chrs
+        str(rules._panel_of_normals_purecn_gatk_depthOfCoverage.output.statistics),
+        chrom = chrs,
+        allow_missing = True
     )
     return(statistics)
 
@@ -1086,7 +1132,6 @@ rule _panel_of_normals_purecn_gatk_coverage_concatenate_depths:
             awk '(NR > 1)' $sample | gzip >> {output.depth} ;
         done
         """)
-
 
 # pureCN Coverage.R used to normalize by GC, since depth is calculated above by GATK
 # These pureCN coverage files are used in making the PureCN DB that is used in the denovo case
@@ -1116,13 +1161,13 @@ rule _panel_of_normals_purecn_coverage:
         op.as_one_line("""
             PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/ ;
             export R_LIBS=$CONDA_DEFAULT_ENV/lib/R/library/ ;
-            echo -e "Using {params.coverage_script} instead of default $PURECN/Coverage.R..." ;
+            echo -e "Using {params.coverage_script} instead of default $PURECN/Coverage.R..." > {log} 2>&1;
             Rscript --vanilla {params.coverage_script}  --out-dir {params.outdir}
             --bam {input.bam}
             --name {wildcards.sample_id}
             --reference {input.fasta}
             --coverage {input.coverage}
-            --intervals {input.intervals} {params.force} {params.opt} > {log} 2>&1
+            --intervals {input.intervals} {params.force} {params.opt} >> {log} 2>&1
         """)
 
 def _get_normals_coverage_per_combo(wildcards):
@@ -1164,11 +1209,11 @@ rule _panel_of_normals_purecn_database_cnvkit:
         CFG["threads"]["purecn"]["normalDB"]
     shell:
         op.as_one_line("""
-            echo $CONDA_DEFAULT_ENV ;
+            echo $CONDA_DEFAULT_ENV > {log} 2>&1 ;
             PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/ ;
             export R_LIBS=$CONDA_DEFAULT_ENV/lib/R/library/ ;
             Rscript --vanilla $PURECN/NormalDB.R --out-dir {params.outdir} --normal-panel {input.normal_panel}
-            --assay {wildcards.capture_space} --genome {wildcards.genome_build} --force > {log} 2>&1
+            --assay {wildcards.capture_space} --genome {wildcards.genome_build} --force >> {log} 2>&1
         """)
 
 # For pureCN de novo PSCBS seg method, using its own coverage files
@@ -1192,12 +1237,12 @@ rule _panel_of_normals_purecn_database_denovo:
         CFG["threads"]["purecn"]["normalDB"]
     shell:
         op.as_one_line("""
-            echo $CONDA_DEFAULT_ENV ;
+            echo $CONDA_DEFAULT_ENV > {log} 2>&1 ;
             PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/ ;
             export R_LIBS=$CONDA_DEFAULT_ENV/lib/R/library/ ;
             Rscript --vanilla $PURECN/NormalDB.R --out-dir {params.outdir} --normal-panel {input.normal_panel}
             --coverage-files {input.cov_list}
-            --assay {wildcards.capture_space} --genome {wildcards.genome_build} --force > {log} 2>&1
+            --assay {wildcards.capture_space} --genome {wildcards.genome_build} --force >> {log} 2>&1
         """)
 
 rule _panel_of_normals_purecn_output_intervals:
@@ -1237,8 +1282,8 @@ rule _panel_of_normals_purecn_output_normal_panel_vcf:
         normal_panel = str(rules._panel_of_normals_purecn_merge_vcfs.output.normal_panel),
         normal_panel_tbi = str(rules._panel_of_normals_purecn_merge_vcfs.output.normal_panel_tbi)
     output:
-        normal_panel =  CFG["dirs"]["outputs"] + "purecn/{seq_type}--{genome_build}/{capture_space}/{capture_space}_normalpanel.vcf.gz",
-        normal_panel_tbi = CFG["dirs"]["outputs"] + "purecn/{seq_type}--{genome_build}/{capture_space}/{capture_space}_normalpanel.vcf.gz.tbi"
+        normal_panel =  CFG["dirs"]["outputs"] + "purecn/{seq_type}--{genome_build}/{capture_space}/{capture_space}_purecn_pon.vcf.gz",
+        normal_panel_tbi = CFG["dirs"]["outputs"] + "purecn/{seq_type}--{genome_build}/{capture_space}/{capture_space}_purecn_pon.vcf.gz.tbi"
     run:
         op.relative_symlink(input.normal_panel, output.normal_panel, in_module=True)
         op.relative_symlink(input.normal_panel_tbi, output.normal_panel_tbi, in_module=True)
