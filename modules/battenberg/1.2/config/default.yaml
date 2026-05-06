@@ -22,6 +22,14 @@ lcr-modules:
             prefixed_projections: ["grch38", "hg38"] # List here the base names of chr-prefixed projections
             non_prefixed_projections: ["grch37", "hg19", "hs37d5"] # List here the base names of non-prefixed projections
             fill_segments_version: "1.1/"
+            # List of ploidy constraint ranges to run Battenberg with. Each entry must be "MIN-MAX".
+            # Example: ["1.6-4.8", "2.0-5.0"] will run two fit jobs per input.
+            # The first entry is treated as the "canonical" ploidy for downstream outputs
+            # (plots/seg files). The template default mirrors Battenberg's typical
+            # defaults; users can override this list.
+            ploidy_runs: ["1.6-4.8"]
+            # Example with multiple ranges (runs two fits per input):
+            # ploidy_runs: ["1.6-4.8", "2.0-5.0"]
 
         output: # specify the naming convention for the output files under 99-outputs/
                 # required wildcards to use are {seq_type}, {tumour_id}, {normal_id}, {pair_status}, {tool}

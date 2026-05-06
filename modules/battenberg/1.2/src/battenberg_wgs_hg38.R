@@ -20,6 +20,9 @@ option_list = list(
   make_option(c("-f","--reference_fasta"), type="character", default=NULL, help="Path to indexed genome fasta file (needed for CRAM compatability)", metavar="character"),
   make_option(c("--chr_prefixed_genome"), type="logical", default=FALSE, action="store_true", help="Flag to specify if the genome has chr prefixes in chromosome names", metavar="character"),
   make_option(c("--impute_log"), type="character", default="./", help="Full path for where to store impute logs. If blank, these will be written to the main output directory and cleared.")
+  ,make_option(c("--min_ploidy"), type="character", default=NULL, help="Minimum ploidy to pass explicitly to Battenberg (numeric)")
+  ,make_option(c("--max_ploidy"), type="character", default=NULL, help="Maximum ploidy to pass explicitly to Battenberg (numeric)")
+  ,make_option(c("--ploidy_constraint"), type="character", default=NULL, help="Optional ploidy constraint in the form MIN-MAX (e.g. '1.6-4.8'). This will be parsed unless explicit --min_ploidy/--max_ploidy are provided.")
 )
 
 opt_parser = OptionParser(option_list=option_list)
@@ -93,7 +96,32 @@ TUMOURBAM = opt$tb
 #SKIP_ALLELECOUNTING = TRUE
 #SKIP_PREPROCESSING = TRUE
 #SKIP_PHASING = FALSE
+# If explicit min/max ploidy values were passed on the command line, use them (overwriting defaults above)
+# If a ploidy constraint string was passed (MIN-MAX), parse it first. Explicit --min_ploidy/--max_ploidy override this.
+if(!is.null(opt$ploidy_constraint) && nzchar(opt$ploidy_constraint)){
+  parts = unlist(strsplit(opt$ploidy_constraint, "-"))
+  if(length(parts) == 2){
+    pmin = as.numeric(parts[1]); pmax = as.numeric(parts[2])
+    if(!is.na(pmin) && !is.na(pmax)){
+      MIN_PLOIDY = pmin
+      MAX_PLOIDY = pmax
+    } else {
+      warning(paste0("Invalid numeric ploidy_constraint provided: ", opt$ploidy_constraint))
+    }
+  } else {
+    warning(paste0("Invalid ploidy_constraint format (expected MIN-MAX): ", opt$ploidy_constraint))
+  }
+}
+if(!is.null(opt$min_ploidy) && nzchar(opt$min_ploidy)){
+  t = as.numeric(opt$min_ploidy)
+  if(!is.na(t)) MIN_PLOIDY = t
+}
+if(!is.null(opt$max_ploidy) && nzchar(opt$max_ploidy)){
+  t = as.numeric(opt$max_ploidy)
+  if(!is.na(t)) MAX_PLOIDY = t
+}
 
+# Re-run with explicit bounds (overwrite previous call above by running again with explicit args)
 battenberg(tumourname=TUMOURNAME, 
            normalname=NORMALNAME, 
            tumour_data_file=TUMOURBAM, 
@@ -131,5 +159,5 @@ battenberg(tumourname=TUMOURNAME,
            prior_breakpoints_file=PRIOR_BREAKPOINTS_FILE,
            chr_prefixed=CHR_PREFIXED,
            verbose=verbose,
-	         logfile_prefix=IMPUTE_LOG,
+           logfile_prefix=paste0(IMPUTE_LOG, "_explicit_ploidy"),
            ref_fasta=REFERENCE_FASTA)
