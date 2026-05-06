@@ -79,6 +79,8 @@ rule _manta_index_bed:
         bedz = CFG["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz"
     conda:
         CFG["conda_envs"]["tabix"]
+    container:
+        CFG["container_envs"]["tabix"]
     shell:
         op.as_one_line("""
         bgzip -c {input.bed} > {output.bedz}
@@ -120,6 +122,8 @@ rule _manta_configure_paired:
         pair_status = "matched|unmatched"
     conda:
         CFG["conda_envs"]["manta"]
+    container:
+        CFG["container_envs"]["manta"]
     shell:
         op.as_one_line("""
         configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {input.bedz}
@@ -147,6 +151,8 @@ rule _manta_configure_unpaired:
         pair_status = "no_normal"
     conda:
         CFG["conda_envs"]["manta"]
+    container:
+        CFG["container_envs"]["manta"]
     shell:
         op.as_one_line("""
         configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {input.bedz}
@@ -169,6 +175,8 @@ rule _manta_run:
         workspace_dir = directory(CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/workspace/")
     conda:
         CFG["conda_envs"]["manta"]
+    container:
+        CFG["container_envs"]["manta"]
     threads:
         CFG["threads"]["manta"]
     resources:
@@ -196,6 +204,8 @@ rule _manta_augment_vcf:
         aug_vcf = CFG["scripts"]["augment_manta_vcf"]
     conda:
         CFG["conda_envs"]["augment_manta_vcf"]
+    container:
+        CFG["container_envs"]["augment_manta_vcf"]
     threads:
         CFG["threads"]["augment_vcf"]
     resources:
@@ -219,6 +229,8 @@ rule _manta_vcf_to_bedpe:
         stderr = CFG["logs"]["bedpe"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_vcf_to_bedpe.{vcf_name}.stderr.log"
     conda:
         CFG["conda_envs"]["svtools"]
+    container:
+        CFG["container_envs"]["svtools"]
     threads:
         CFG["threads"]["vcf_to_bedpe"]
     resources:
