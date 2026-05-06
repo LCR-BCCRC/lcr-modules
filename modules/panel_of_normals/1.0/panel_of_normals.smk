@@ -143,9 +143,9 @@ rule _panel_of_normals_canonical_capspace:
 # Symlink fasta and it's indexes (for compatibility with $PURECN/IntervalFile.R and MuTect2/GATK)
 rule _panel_of_normals_symlink_fasta:
     input:
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
-        gatk_dict = reference_files("genomes/{genome_build}/genome_fasta/genome.dict")
+        fasta = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.fa")),
+        fai = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai")),
+        gatk_dict = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.dict"))
     output:
         fasta = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa",
         fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.fa.fai",
@@ -157,7 +157,7 @@ rule _panel_of_normals_symlink_fasta:
 
 checkpoint _panel_of_normals_input_chroms_withY:
     input:
-        txt = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt")
+        txt = ancient(reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt"))
     output:
         txt = CFG["dirs"]["inputs"] + "references/{genome_build}/main_chromosomes_withY.txt"
     run:
@@ -592,7 +592,7 @@ rule _panel_of_normals_purecn_sort_intervals:
         gatk_targets = str(rules._panel_of_normals_purecn_gatk_interval_list_targets.output.gatk_targets),
         fai = str(rules._panel_of_normals_symlink_fasta.output.fai)
     output:
-        targets_sorted = CFG["dirs"]["purecn_intervals"] + "{seq_type}--{genome_build}/{capture_space}/baits_{capture_space}_intervals_sorted.list"
+        targets_sorted = CFG["dirs"]["purecn_intervals"] + "{seq_type}--{genome_build}/{capture_space}/baits_{capture_space}_intervals_gatk_targets_sorted.list"
     log:
         CFG["logs"]["purecn_intervals"] + "{seq_type}--{genome_build}/{capture_space}/purecn_intervals_gatk_targets_sorting.log"
     conda:
@@ -913,7 +913,7 @@ rule _panel_of_normals_purecn_format_gatk_vcf:
     threads: 1
     shell:
         op.as_one_line("""
-        bcftools norm -m +any -Oz {input.vcf} 2> {log};
+        bcftools norm -m +any -Oz {input.vcf} -o {output.vcf} 2> {log};
         tabix -p vcf {output.vcf} 2>> {log}
         """)
 
@@ -1046,7 +1046,7 @@ rule _panel_of_normals_purecn_merge_vcfs:
     threads: 1
     shell:
         op.as_one_line("""
-            bcftools merge {input.normal} -Ov --force-samples &> {log} |
+            bcftools merge {input.normal} -Ov --force-samples 2> {log} |
             bcftools annotate -x INFO -Oz -o {output.normal_panel} &>> {log};
             tabix -p vcf {output.normal_panel} &>> {log}
         """)
