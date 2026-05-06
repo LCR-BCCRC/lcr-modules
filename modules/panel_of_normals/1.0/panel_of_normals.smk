@@ -1014,11 +1014,31 @@ rule _panel_of_normals_purecn_mutect2_pon:
 ###### Create panel of normals database files for PureCN
 # These input functions are different from the ones above
 # There is no collapsing of multiallelic sites in these
+# But the INFO column still needs to be removed since MuTect2 formats it wrong
+rule _panel_of_normals_purecn_format_purecn_vcf:
+    input:
+        vcf = str(rules._panel_of_normals_purecn_mutect2_filter_vcf.output.vcf)
+    output:
+        vcf = CFG["dirs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_for_purecn_pon.vcf.gz",
+        tbi = CFG["dirs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_for_purecn_pon.vcf.gz.tbi"
+    log:
+        CFG["logs"]["purecn_merge_vcfs"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_format_purecn_vcf.log"
+    conda:
+        CFG["conda_envs"]["bcftools"]
+    resources:
+        **CFG["resources"]["purecn"]["post_vcf"]
+    threads: 1
+    shell:
+        op.as_one_line("""
+        bcftools annotate -x INFO -Oz -o {output.vcf} &> {log};
+        tabix -p vcf {output.tbi} &>> {log}
+        """)
+
 def _get_normal_vcfs_per_combo(wildcards):
     tbl = META
     samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
     normals = expand(
-        str(rules. _panel_of_normals_purecn_mutect2_filter_vcf.output.vcf),
+        str(rules._panel_of_normals_purecn_format_purecn_vcf.output.vcf),
         sample_id = samples,
         allow_missing = True)
     return normals
@@ -1027,7 +1047,7 @@ def _get_normal_tbis_per_combo(wildcards):
     tbl = META
     samples = tbl[(tbl.genome_build == wildcards.genome_build) & (tbl.capture_space == wildcards.capture_space)]["sample_id"].tolist()
     normals = expand(
-        str(rules. _panel_of_normals_purecn_mutect2_filter_vcf.output.tbi),
+        str(rules._panel_of_normals_purecn_format_purecn_vcf.output.tbi),
         sample_id = samples,
         allow_missing = True)
     return normals
@@ -1046,8 +1066,7 @@ rule _panel_of_normals_purecn_merge_vcfs:
     threads: 1
     shell:
         op.as_one_line("""
-            bcftools merge {input.normal} -Ov --force-samples 2> {log} |
-            bcftools annotate -x INFO -Oz -o {output.normal_panel} &>> {log};
+            bcftools merge {input.normal} -Ov -o {output.normal_panel} --force-samples &> {log};
             tabix -p vcf {output.normal_panel} &>> {log}
         """)
 
@@ -1265,7 +1284,7 @@ rule _panel_of_normals_purecn_output_gatk_intervals_targets:
     input:
         targets_sorted = str(rules._panel_of_normals_purecn_sort_intervals.output.targets_sorted)
     output:
-        targets_sorted = CFG["dirs"]["outputs"] + "purecn/{seq_type}--{genome_build}/{capture_space}/baits_{capture_space}_intervals_gatk_targets.list"
+        targets_sorted = CFG["dirs"]["outputs"] + "purecn/{seq_type}--{genome_build}/{capture_space}/baits_{capture_space}_intervals_gatk_targets_sorted.list"
     run:
         op.relative_symlink(input.targets_sorted, output.targets_sorted, in_module=True)
 
