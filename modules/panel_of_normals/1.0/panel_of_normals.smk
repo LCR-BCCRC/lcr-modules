@@ -692,8 +692,8 @@ rule _panel_of_normals_purecn_concat_vcf_per_sample:
         vcf = _get_mutect2_chr_vcfs,
         tbi = _get_mutect2_chr_tbis
     output:
-        vcf = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz"),
-        tbi = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz.tbi")
+        vcf = CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz",
+        tbi = CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz.tbi"
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_concat_vcf.log"
     resources:
@@ -703,8 +703,8 @@ rule _panel_of_normals_purecn_concat_vcf_per_sample:
         CFG["conda_envs"]["bcftools"]
     shell:
         op.as_one_line("""
-        bcftools concat {input.vcf} -Oz -o {output.vcf} &> {log};
-        tabix -p vcf {output.vcf} &>> {log}
+        bcftools concat {input.vcf} -Oz -o {output.vcf} &> {log} &&
+         tabix -p vcf {output.vcf} >> {log} 2>&1
         """)
 
 def _get_mutect2_chr_stats(wildcards):
@@ -891,8 +891,8 @@ rule _panel_of_normals_purecn_mutect2_filter_vcf:
     threads: 1
     shell:
         op.as_one_line("""
-        bcftools view {params.filter_for_opts} -e "{params.filter_out_opts}" {input.vcf} -Oz -o {output.vcf} 2> {log};
-        tabix -p vcf {output.vcf} 2>> {log}
+        bcftools view {params.filter_for_opts} -e "{params.filter_out_opts}" {input.vcf} -Oz -o {output.vcf} 2> {log} &&
+         tabix -p vcf {output.vcf}  >> {log} 2>&1
         """)
 
 ###### Creating a panel of normals vcf for MuTect2 variant calling in tumours
@@ -913,8 +913,8 @@ rule _panel_of_normals_purecn_format_gatk_vcf:
     threads: 1
     shell:
         op.as_one_line("""
-        bcftools norm -m +any -Oz {input.vcf} -o {output.vcf} 2> {log};
-        tabix -p vcf {output.vcf} 2>> {log}
+        bcftools norm -m +any -Oz {input.vcf} -o {output.vcf} 2> {log} &&
+         tabix -p vcf {output.vcf}  >> {log} 2>&1
         """)
 
 def _get_gatk_vcfs_per_combo(wildcards):
@@ -1030,8 +1030,8 @@ rule _panel_of_normals_purecn_format_purecn_vcf:
     threads: 1
     shell:
         op.as_one_line("""
-        bcftools annotate -x INFO -Oz -o {output.vcf} &> {log};
-        tabix -p vcf {output.tbi} &>> {log}
+        bcftools annotate -x INFO {input.vcf} -Oz -o {output.vcf} &> {log} &&
+         tabix -p vcf {output.vcf} >> {log} 2>&1
         """)
 
 def _get_normal_vcfs_per_combo(wildcards):
@@ -1066,8 +1066,8 @@ rule _panel_of_normals_purecn_merge_vcfs:
     threads: 1
     shell:
         op.as_one_line("""
-            bcftools merge {input.normal} -Ov -o {output.normal_panel} --force-samples &> {log};
-            tabix -p vcf {output.normal_panel} &>> {log}
+        bcftools merge {input.normal} -Oz -o {output.normal_panel} --force-samples &> {log} &&
+         tabix -p vcf {output.normal_panel}  >> {log} 2>&1
         """)
 
 # PureCN - by extension rsamtools, does not have CRAM compatibility, even with R v4.5.3

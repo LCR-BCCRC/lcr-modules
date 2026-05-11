@@ -39,7 +39,7 @@ lcr-modules:
                     annotate: "" # for gatk FilterMutectCalls which just annotates variants for later filtering when this is blank
                     # the following two are for the call to bcftools that actually filters the variants
                     filter_for: -f 'PASS,germline' # Do not wrap in double quotes!
-                    filter_out: "FILTER~'weak_evidence' | FILTER~'contamination'"
+                    filter_out: "FILTER~'weak_evidence' | FILTER~'contamination' | INFO/AS_FilterStatus~'weak_evidence' | INFO/AS_FilterStatus~'contamination'"
 
                 coverage:
                     depth_coverage: ""
