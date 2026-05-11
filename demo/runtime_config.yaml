@@ -1,0 +1,38 @@
+# Runtime configuration for LCR-modules
+#
+# Pass this file to run.sh / snakemake.slurm.sh / dry-run.sh as the
+# runtime_config argument to configure conda and/or Apptainer settings.
+#
+# This file is cluster- and user-specific. It should NOT be committed
+# to your project repository. Each user maintains their own copy.
+
+# Conda settings
+# prefix: shared directory where Snakemake builds and caches conda environments.
+# Pointing all users to the same location avoids redundant environment builds.
+conda:
+    prefix: ~/miniconda3/envs
+
+# Apptainer/Singularity settings (optional)
+# If this section is present, --use-apptainer is enabled automatically.
+# Apptainer natively pulls docker:// URIs from any Docker-compatible registry
+# (Docker Hub, GHCR, Quay.io), so no separate Docker runtime is needed.
+apptainer:
+    # Shared directory where Snakemake stores pulled .sif images.
+    # The directory must be writable by the first user to pull each image;
+    # subsequent users reuse the cached .sif without re-pulling.
+    prefix: /path/to/shared/containers
+
+    # Directories that Apptainer must be able to see inside the container.
+    # Include every mount point your workflow touches: input data, reference
+    # genomes, results, scratch, and the lcr-modules / lcr-scripts repos.
+    bind_paths:
+        - /path/to/projects
+        - /path/to/scratch
+        - /path/to/references
+
+    # Optional extra arguments passed directly to the Apptainer runtime,
+    # appended to --singularity-args alongside the bind paths above.
+    # Write them exactly as you would on the command line, e.g.:
+    #   extra_args: "--nv --cleanenv"
+    #   extra_args: "--nv --env MYVAR=value --no-home"
+    extra_args: ""
