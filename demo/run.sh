@@ -52,6 +52,8 @@ if (( $CORES_AVAILABLE <= 0 )); then
     exit 1
 fi
 
+export XDG_CACHE_HOME="$PWD/.cache"
+
 nice -n 10 snakemake --cores "${CORES_AVAILABLE}" $snakemake_flags -s $snakefile \
     --keep-going --latency-wait 120 "${conda_flags[@]}" \
     "${container_flags[@]}" $TARGETS
