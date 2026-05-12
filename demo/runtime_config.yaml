@@ -1,10 +1,15 @@
-# Runtime configuration for LCR-modules
+# Runtime configuration reference for LCR-modules
 #
-# Pass this file to run.sh / snakemake.slurm.sh / dry-run.sh as the
-# runtime_config argument to configure conda and/or Apptainer settings.
+# This file documents all available options. For day-to-day use, copy one of:
+#   runtime_config.conda.yaml     -- conda mode (default, no container runtime needed)
+#   runtime_config.apptainer.yaml -- container mode (Apptainer/Singularity)
 #
-# This file is cluster- and user-specific. It should NOT be committed
-# to your project repository. Each user maintains their own copy.
+# Pass your chosen file to run.sh / snakemake.slurm.sh / dry-run.sh as the
+# fourth argument. The two modes are mutually exclusive: presence of an
+# 'apptainer' section enables --use-singularity and disables --use-conda.
+#
+# These files are cluster- and user-specific. Do NOT commit them to your
+# project repository. Each user maintains their own copy.
 
 # Conda settings
 # prefix: shared directory where Snakemake builds and caches conda environments.

@@ -1,0 +1,32 @@
+# Container-mode runtime configuration for LCR-modules
+#
+# Usage: ./run.sh <snakefile> <target> "<flags>" runtime_config.apptainer.yaml
+#
+# Rules that have a container: directive run inside Apptainer/Singularity images.
+# --use-conda is NOT passed in this mode; rules without a container: directive
+# will use tools from the system PATH. Container support is being added to
+# modules progressively — check module changelogs for container availability.
+#
+# Copy this file, fill in the paths for your system, and pass it as the fourth
+# argument to run.sh / snakemake.slurm.sh / dry-run.sh.
+# This file is cluster- and user-specific — do not commit it to your repository.
+
+apptainer:
+    # Shared directory where Snakemake stores pulled .sif images.
+    # The directory must be writable by the first user to pull each image;
+    # subsequent users reuse the cached .sif without re-pulling.
+    prefix: /path/to/shared/containers
+
+    # Directories that Apptainer must be able to see inside the container.
+    # Include every mount point your workflow touches: input data, reference
+    # genomes, results, scratch, and the lcr-modules / lcr-scripts repos.
+    bind_paths:
+        - /path/to/projects
+        - /path/to/scratch
+        - /path/to/references
+
+    # Optional extra arguments passed directly to the Apptainer runtime.
+    # Examples:
+    #   extra_args: "--nv --cleanenv"
+    #   extra_args: "--nv --env MYVAR=value --no-home"
+    extra_args: ""

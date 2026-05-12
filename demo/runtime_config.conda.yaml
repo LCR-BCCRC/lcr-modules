@@ -1,0 +1,15 @@
+# Conda-mode runtime configuration for LCR-modules
+#
+# Usage: ./run.sh <snakefile> <target> "<flags>" runtime_config.conda.yaml
+#
+# All rules use conda environments. No container runtime required.
+# This is the default mode and works on any system with conda installed.
+#
+# Copy this file, set conda.prefix to a shared directory on your system,
+# and pass it as the fourth argument to run.sh / snakemake.slurm.sh / dry-run.sh.
+# This file is cluster- and user-specific — do not commit it to your repository.
+
+conda:
+    # Shared directory where Snakemake builds and caches conda environments.
+    # Pointing all users to the same location avoids redundant environment builds.
+    prefix: ~/miniconda3/envs
