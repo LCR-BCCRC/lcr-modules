@@ -189,7 +189,7 @@ rule get_main_chromosomes_withY_download:
     output:
         txt = "genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt",
         bed = "genomes/{genome_build}/genome_fasta/main_chromosomes_withY.bed",
-        patterns = temp("genomes/{genome_build}/genome_fasta/main_chromosomes.patterns.txt")
+        patterns = temp("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.patterns.txt")
     conda: CONDA_ENVS["coreutils"]
     shell:
         op.as_one_line("""
