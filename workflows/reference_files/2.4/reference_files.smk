@@ -253,7 +253,7 @@ rule get_dbsnp_download:
     container: CONTAINER_ENVS["bcftools"]
     shell:
         op.as_one_line("""
-        zgrep -v '##contig' {input.vcf} > {output.tmpfile} &&
+        bcftools view {input.vcf} | grep -v '##contig' > {output.tmpfile} &&
         bcftools reheader --fai {input.fai} {output.tmpfile} | bcftools view -T {input.bed} -O z -o {output.vcf} &&
         bcftools index -t {output.vcf}
         """)
@@ -405,7 +405,7 @@ rule get_af_only_gnomad_vcf:
     container: CONTAINER_ENVS["bcftools"]
     shell:
         op.as_one_line("""
-        zgrep -v '##contig' {input.vcf} > {output.tmpfile} &&
+        bcftools view {input.vcf} | grep -v '##contig' > {output.tmpfile} &&
         bcftools reheader --fai {input.fai} {output.tmpfile} | bcftools view -T {input.bed} -O z -o {output.vcf} &&
         bcftools index -t {output.vcf}
         """)
@@ -442,7 +442,7 @@ rule get_mutect2_pon:
         "genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.log"
     shell:
         op.as_one_line("""
-        zgrep -v '##contig' {input.vcf} > {output.tmpfile} &&
+        bcftools view {input.vcf} | grep -v '##contig' > {output.tmpfile} &&
         bcftools reheader --fai {input.fai} {output.tmpfile} | bcftools view -T {input.bed} -O z -o {output.vcf} 2> {log} &&
         bcftools index -t {output.vcf}
         """)
@@ -461,7 +461,7 @@ rule get_mutect2_small_exac:
     container: CONTAINER_ENVS["bcftools"]
     shell:
         op.as_one_line("""
-        zgrep -v '##contig' {input.vcf} > {output.tmpfile} &&
+        bcftools view {input.vcf} | grep -v '##contig' > {output.tmpfile} &&
         bcftools reheader --fai {input.fai} {output.tmpfile} | bcftools view -T {input.bed} -O z -o {output.vcf} 2> {log} &&
         bcftools index -t {output.vcf}
         """)
@@ -821,7 +821,7 @@ rule get_ont_pon_hg38:
     container: CONTAINER_ENVS["bcftools"]
     shell:
         op.as_one_line("""
-        zgrep -v '##contig' {input.vcf} > {output.tmpfile} && 
+        bcftools view {input.vcf} | grep -v '##contig' > {output.tmpfile} && 
         bcftools reheader --fai {input.fai} {output.tmpfile} | bcftools view -T {input.bed} -O z -o {output.vcf} 2> {log} &&
         bcftools index -t {output.vcf}
         """)
