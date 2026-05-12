@@ -2,8 +2,8 @@
 
 # Launches a snakefile of your choice in dry run mode (for debugging)
 # Usage: ./dry-run.sh <snakefile.smk> <target_rule> "<snakemake_flags>" [runtime_config]
-# Example (conda only): ./dry-run.sh genome_Snakefile.smk all "" runtime_config.yaml
-# Example (apptainer):  ./dry-run.sh genome_Snakefile.smk all "" runtime_config.yaml
+# Example (conda only): ./dry-run.sh genome_Snakefile.smk all "" runtime_config.conda.yaml
+# Example (apptainer):  ./dry-run.sh genome_Snakefile.smk all "" runtime_config.apptainer.yaml
 #
 # snakefile.smk   The snakefile you want to run
 # target_rule     The name of one of the target rules in the included Snakefiles

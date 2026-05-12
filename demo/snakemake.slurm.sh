@@ -2,8 +2,8 @@
 
 # Launches a snakefile of your choice on a Slurm cluster
 # Usage: ./snakemake.slurm.sh <snakefile.smk> <target_rule> "<snakemake_flags>" [runtime_config]
-# Example (conda only): ./snakemake.slurm.sh genome_Snakefile.smk all "--rerun-incomplete" runtime_config.yaml
-# Example (apptainer):  ./snakemake.slurm.sh genome_Snakefile.smk all "" runtime_config.yaml
+# Example (conda only): ./snakemake.slurm.sh genome_Snakefile.smk all "--rerun-incomplete" runtime_config.conda.yaml
+# Example (apptainer):  ./snakemake.slurm.sh genome_Snakefile.smk all "" runtime_config.apptainer.yaml
 #
 # snakefile.smk   The snakefile you want to run
 # target_rule     The name of one of the target rules in the included Snakefiles
