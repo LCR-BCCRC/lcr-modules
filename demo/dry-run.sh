@@ -37,5 +37,7 @@ if [ -n "$SNAKEMAKE_CONTAINER_FLAG" ]; then
     [ -n "$SNAKEMAKE_BIND_PATHS" ]  && container_flags+=("$SNAKEMAKE_ARGS_FLAG" "$SNAKEMAKE_BIND_PATHS")
 fi
 
+export XDG_CACHE_HOME="$PWD/.cache"
+
 snakemake --dryrun --cores 32 $snakemake_flags -s $snakefile \
     --printshellcmds --reason "${conda_flags[@]}" "${container_flags[@]}" $TARGETS

@@ -37,6 +37,8 @@ if [ -n "$SNAKEMAKE_CONTAINER_FLAG" ]; then
     [ -n "$SNAKEMAKE_BIND_PATHS" ]  && container_flags+=("$SNAKEMAKE_ARGS_FLAG" "$SNAKEMAKE_BIND_PATHS")
 fi
 
+export XDG_CACHE_HOME="$PWD/.cache"
+
 echo snakemake --jobs 5000 \
   --latency-wait 120 $snakemake_flags --keep-going --default-resources mem_mb=2000 \
   "${conda_flags[@]}" "${container_flags[@]}" \
