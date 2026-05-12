@@ -15,7 +15,6 @@ rule get_genome_fasta_download:
     wildcard_constraints:
         genome_build = ".+(?<!masked)"
     conda: CONDA_ENVS["coreutils"]
-    container: CONTAINER_ENVS["coreutils"]
     shell:
         "ln -srf {input.fasta} {output.fasta}"
 
@@ -119,7 +118,6 @@ rule get_masked_genome_fasta_download:
     wildcard_constraints:
         genome_build = ".+_masked"
     conda: CONDA_ENVS["coreutils"]
-    container: CONTAINER_ENVS["coreutils"]
     shell:
         "ln -srf {input.fasta} {output.fasta}"
 
@@ -168,7 +166,6 @@ rule get_main_chromosomes_download:
         chrx = "genomes/{genome_build}/genome_fasta/chromosome_x.txt",
         patterns = temp("genomes/{genome_build}/genome_fasta/main_chromosomes.patterns.txt")
     conda: CONDA_ENVS["coreutils"]
-    container: CONTAINER_ENVS["coreutils"]
     shell:
         op.as_one_line("""
         sed 's/^/^/' {input.txt} > {output.patterns}
@@ -194,7 +191,6 @@ rule get_main_chromosomes_withY_download:
         bed = "genomes/{genome_build}/genome_fasta/main_chromosomes_withY.bed",
         patterns = temp("genomes/{genome_build}/genome_fasta/main_chromosomes.patterns.txt")
     conda: CONDA_ENVS["coreutils"]
-    container: CONTAINER_ENVS["coreutils"]
     shell:
         op.as_one_line("""
         sed 's/^/^/' {input.txt} > {output.patterns}
@@ -217,7 +213,6 @@ rule get_gencode_download:
     output:
         gtf = "genomes/{genome_build}/annotations/gencode_annotation-{gencode_release}.gtf"
     conda: CONDA_ENVS["coreutils"]
-    container: CONTAINER_ENVS["coreutils"]
     shell:
         "ln -srf {input.gtf} {output.gtf}"
 
@@ -311,7 +306,6 @@ rule get_blacklist_download:
     output:
         bed = "genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed"
     conda: CONDA_ENVS["coreutils"]
-    container: CONTAINER_ENVS["coreutils"]
     shell:
         "ln -srf {input.bed} {output.bed}"
 
@@ -323,7 +317,6 @@ rule get_repeatmasker_download:
     output:
         bed = "genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed"
     conda: CONDA_ENVS["coreutils"]
-    container: CONTAINER_ENVS["coreutils"]
     shell:
         "ln -srf {input.bed} {output.bed}"
 
@@ -503,7 +496,6 @@ rule get_capspace_bed_download:
     output:
         capture_bed = "genomes/{genome_build}/capture_space/{capture_space}.bed"
     conda: CONDA_ENVS["coreutils"]
-    container: CONTAINER_ENVS["coreutils"]
     shell:
         "cut -f 1-3 {input.bed} > {output.capture_bed}"
 

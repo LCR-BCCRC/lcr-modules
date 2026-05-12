@@ -294,7 +294,6 @@ rule download_dbsnp_vcf:
         provider = "ensembl",
         url = lambda w: {"grch37": "GRCh37p13", "grch38": "GRCh38p7"}[w.version]
     conda: CONDA_ENVS["coreutils"]
-    container: CONTAINER_ENVS["coreutils"]
     shell:
         op.as_one_line("""
         curl -s https://ftp.ncbi.nih.gov/snp/organisms/human_9606_b{wildcards.dbsnp_build}_{params.url}/VCF/00-common_all.vcf.gz 2> {log}
