@@ -523,9 +523,9 @@ rule sort_and_pad_capspace:
     container: CONTAINER_ENVS["bedtools"]
     shell:
         op.as_one_line("""
-        cat {input.fai} | cut -f 1-2 | perl -ane 'print "$F[0]\\t0\\t$F[1]\\n"' | bedtools intersect -wa -a {input.capture_bed} -b stdin > {output.intermediate_bed}
+        awk '{{print $1"\\t0\\t"$2}}' {input.fai} | bedtools intersect -wa -a {input.capture_bed} -b stdin > {output.intermediate_bed} 2> {log}
             &&
-        bedtools slop -b {params.padding_size} -i {output.intermediate_bed} -g {input.fai} | bedtools sort | bedtools merge > {output.padded_bed} 2> {log}
+        bedtools slop -b {params.padding_size} -i {output.intermediate_bed} -g {input.fai} | bedtools sort | bedtools merge > {output.padded_bed} 2>> {log}
         """)
 
 rule check_capspace_contigs:
