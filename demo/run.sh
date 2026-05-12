@@ -22,9 +22,12 @@ runtime_config=$4
 # Parse runtime config (emits empty strings when no config is provided)
 eval "$(python3 "$SCRIPT_DIR/parse_runtime_config.py" "${runtime_config:-}")"
 
-# Build conda flag
-conda_prefix_flag=""
-[ -n "$SNAKEMAKE_CONDA_PREFIX" ] && conda_prefix_flag="--conda-prefix $SNAKEMAKE_CONDA_PREFIX"
+# Build conda flags (omitted in container mode — mutually exclusive)
+conda_flags=()
+if [ -z "$SNAKEMAKE_CONTAINER_FLAG" ]; then
+    conda_flags+=(--use-conda)
+    [ -n "$SNAKEMAKE_CONDA_PREFIX" ] && conda_flags+=(--conda-prefix "$SNAKEMAKE_CONDA_PREFIX")
+fi
 
 # Build container flags
 container_flags=()
@@ -50,5 +53,5 @@ if (( $CORES_AVAILABLE <= 0 )); then
 fi
 
 nice -n 10 snakemake --cores "${CORES_AVAILABLE}" $snakemake_flags -s $snakefile \
-    --keep-going --latency-wait 120 --use-conda $conda_prefix_flag \
+    --keep-going --latency-wait 120 "${conda_flags[@]}" \
     "${container_flags[@]}" $TARGETS
