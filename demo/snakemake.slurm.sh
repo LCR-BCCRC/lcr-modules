@@ -22,8 +22,12 @@ runtime_config=$4
 # Parse runtime config (emits empty strings when no config is provided)
 eval "$(python3 "$SCRIPT_DIR/parse_runtime_config.py" "${runtime_config:-}")"
 
-# Conda prefix: use value from runtime config, fall back to active environment
-conda_prefix="${SNAKEMAKE_CONDA_PREFIX:-$CONDA_PREFIX}"
+# Build conda flags (omitted in container mode — mutually exclusive)
+conda_flags=()
+if [ -z "$SNAKEMAKE_CONTAINER_FLAG" ]; then
+    conda_prefix="${SNAKEMAKE_CONDA_PREFIX:-$CONDA_PREFIX}"
+    conda_flags+=(--use-conda --conda-prefix "$conda_prefix")
+fi
 
 # Build container flags
 container_flags=()
@@ -33,16 +37,16 @@ if [ -n "$SNAKEMAKE_CONTAINER_FLAG" ]; then
     [ -n "$SNAKEMAKE_BIND_PATHS" ]  && container_flags+=("$SNAKEMAKE_ARGS_FLAG" "$SNAKEMAKE_BIND_PATHS")
 fi
 
-echo snakemake --use-conda --conda-prefix $conda_prefix --jobs 5000 \
+echo snakemake --jobs 5000 \
   --latency-wait 120 $snakemake_flags --keep-going --default-resources mem_mb=2000 \
-  "${container_flags[@]}" \
+  "${conda_flags[@]}" "${container_flags[@]}" \
   --cluster-sync "srun -n 1 -N 1 -J {rule} --mem {resources.mem_mb} --cpus-per-task {threads} --time 08:00:00" \
   -s $snakefile $target_rule
 
 sleep 5
 
-snakemake --use-conda --conda-prefix $conda_prefix --jobs 5000 \
+snakemake --jobs 5000 \
   --latency-wait 120 $snakemake_flags --keep-going --default-resources mem_mb=2000 \
-  "${container_flags[@]}" \
+  "${conda_flags[@]}" "${container_flags[@]}" \
   --cluster-sync "srun -n 1 -N 1 -J {rule} --mem {resources.mem_mb} --cpus-per-task {threads} --time 08:00:00" \
   -s $snakefile $target_rule
