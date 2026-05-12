@@ -15,6 +15,7 @@ rule get_genome_fasta_download:
     wildcard_constraints:
         genome_build = ".+(?<!masked)"
     conda: CONDA_ENVS["coreutils"]
+    container: CONTAINER_ENVS["coreutils"]
     shell:
         "ln -srf {input.fasta} {output.fasta}"
 
@@ -29,6 +30,7 @@ rule index_genome_fasta:
     wildcard_constraints:
         genome_build = ".+(?<!masked)"
     conda: CONDA_ENVS["samtools"]
+    container: CONTAINER_ENVS["samtools"]
     shell:
         "samtools faidx {input.fasta} > {log} 2>&1"
 
@@ -41,6 +43,7 @@ rule create_bwa_index:
     log:
         "genomes/{genome_build}/bwa_index/bwa-{bwa_version}/genome.fa.log"
     conda: CONDA_ENVS["bwa"]
+    container: CONTAINER_ENVS["bwa"]
     resources:
         mem_mb = 20000
     shell:
@@ -56,6 +59,7 @@ rule create_gatk_dict:
     log:
         "genomes/{genome_build}/gatk_fasta/genome.dict.log"
     conda: CONDA_ENVS["gatk"]
+    container: CONTAINER_ENVS["gatk"]
     resources:
         mem_mb = 20000
     shell:
@@ -73,6 +77,7 @@ rule create_star_index:
     log:
         "genomes/{genome_build}/star_index/star-{star_version}/gencode-{gencode_release}/overhang-{star_overhang}.log"
     conda: CONDA_ENVS["star"]
+    container: CONTAINER_ENVS["star"]
     threads: 12
     resources:
         mem_mb = 42000
@@ -114,6 +119,7 @@ rule get_masked_genome_fasta_download:
     wildcard_constraints:
         genome_build = ".+_masked"
     conda: CONDA_ENVS["coreutils"]
+    container: CONTAINER_ENVS["coreutils"]
     shell:
         "ln -srf {input.fasta} {output.fasta}"
 
@@ -128,6 +134,7 @@ rule index_masked_genome_fasta:
     wildcard_constraints:
         genome_build = ".+_masked"
     conda: CONDA_ENVS["samtools"]
+    container: CONTAINER_ENVS["samtools"]
     shell:
         "samtools faidx {input.fasta} > {log} 2>&1"
 
@@ -161,6 +168,7 @@ rule get_main_chromosomes_download:
         chrx = "genomes/{genome_build}/genome_fasta/chromosome_x.txt",
         patterns = temp("genomes/{genome_build}/genome_fasta/main_chromosomes.patterns.txt")
     conda: CONDA_ENVS["coreutils"]
+    container: CONTAINER_ENVS["coreutils"]
     shell:
         op.as_one_line("""
         sed 's/^/^/' {input.txt} > {output.patterns}
@@ -186,6 +194,7 @@ rule get_main_chromosomes_withY_download:
         bed = "genomes/{genome_build}/genome_fasta/main_chromosomes_withY.bed",
         patterns = temp("genomes/{genome_build}/genome_fasta/main_chromosomes.patterns.txt")
     conda: CONDA_ENVS["coreutils"]
+    container: CONTAINER_ENVS["coreutils"]
     shell:
         op.as_one_line("""
         sed 's/^/^/' {input.txt} > {output.patterns}
@@ -208,6 +217,7 @@ rule get_gencode_download:
     output:
         gtf = "genomes/{genome_build}/annotations/gencode_annotation-{gencode_release}.gtf"
     conda: CONDA_ENVS["coreutils"]
+    container: CONTAINER_ENVS["coreutils"]
     shell:
         "ln -srf {input.gtf} {output.gtf}"
 
@@ -220,6 +230,7 @@ rule calc_gc_content:
     log:
         "genomes/{genome_build}/annotations/gc_wiggle.window_{gc_window_size}.wig.gz.log"
     conda: CONDA_ENVS["sequenza-utils"]
+    container: CONTAINER_ENVS["sequenza-utils"]
     shell:
         op.as_one_line("""
         sequenza-utils gc_wiggle --fasta {input.fasta} -w {wildcards.gc_window_size} -o -
@@ -239,6 +250,7 @@ rule get_dbsnp_download:
         vcf = "genomes/{genome_build}/variation/dbsnp.common_all-{dbsnp_build}.vcf.gz",
         tmpfile = temp("genomes/{genome_build}/variation/dbsnp.common_all-{dbsnp_build}.vcf.tmp")
     conda: CONDA_ENVS["bcftools"]
+    container: CONTAINER_ENVS["bcftools"]
     shell:
         op.as_one_line("""
         zgrep -v '##contig' {input.vcf} > {output.tmpfile} &&
@@ -256,6 +268,7 @@ rule create_rRNA_interval:
     log:
         "genomes/{genome_build}/rrna_intervals/rRNA_int_gencode-{gencode_release}.log"
     conda: CONDA_ENVS["picard"]
+    container: CONTAINER_ENVS["picard"]
     shell:
         op.as_one_line("""
         grep 'gene_type "rRNA"' {input.gtf} |
@@ -278,6 +291,7 @@ rule create_refFlat:
         txt = "genomes/{genome_build}/annotations/refFlat_gencode-{gencode_release}.txt"
     log: "genomes/{genome_build}/annotations/gtfToGenePred-{gencode_release}.log"
     conda: CONDA_ENVS["ucsc-gtftogenepred"]
+    container: CONTAINER_ENVS["ucsc-gtftogenepred"]
     threads: 4
     resources:
         mem_mb = 6000
@@ -297,6 +311,7 @@ rule get_blacklist_download:
     output:
         bed = "genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed"
     conda: CONDA_ENVS["coreutils"]
+    container: CONTAINER_ENVS["coreutils"]
     shell:
         "ln -srf {input.bed} {output.bed}"
 
@@ -308,6 +323,7 @@ rule get_repeatmasker_download:
     output:
         bed = "genomes/{genome_build}/repeatmasker/repeatmasker.{genome_build}.bed"
     conda: CONDA_ENVS["coreutils"]
+    container: CONTAINER_ENVS["coreutils"]
     shell:
         "ln -srf {input.bed} {output.bed}"
 
@@ -336,6 +352,7 @@ rule _create_transcriptome_fasta:
     log:
         "genomes/{genome_build}/salmon_index/salmon-{salmon_version}/transcriptome.log"
     conda: CONDA_ENVS["gffread"]
+    container: CONTAINER_ENVS["gffread"]
     threads: 4
     resources:
         mem_mb = 8000
@@ -359,6 +376,7 @@ rule create_salmon_index:
     log:
         "genomes/{genome_build}/salmon_index/salmon-{salmon_version}/log"
     conda: CONDA_ENVS["salmon"]
+    container: CONTAINER_ENVS["salmon"]
     threads: 8
     resources:
         mem_mb = 12000
@@ -384,6 +402,7 @@ rule get_af_only_gnomad_vcf:
         vcf = "genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz",
         tmpfile = temp("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.tmp")
     conda: CONDA_ENVS["bcftools"]
+    container: CONTAINER_ENVS["bcftools"]
     shell:
         op.as_one_line("""
         zgrep -v '##contig' {input.vcf} > {output.tmpfile} &&
@@ -399,6 +418,7 @@ rule normalize_af_only_gnomad_vcf:
         vcf = "genomes/{genome_build}/variation/af-only-gnomad.normalized.{genome_build}.vcf.gz",
         vcf_index = "genomes/{genome_build}/variation/af-only-gnomad.normalized.{genome_build}.vcf.gz.tbi"
     conda: CONDA_ENVS["bcftools"]
+    container: CONTAINER_ENVS["bcftools"]
     shell:
         op.as_one_line("""
         bcftools view {input.vcf} | grep -v "_alt" | bcftools norm -m -any -f {input.fasta} | bgzip -c > {output.vcf}
@@ -417,6 +437,7 @@ rule get_mutect2_pon:
         vcf = "genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.gz",
         tmpfile = temp("genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.tmp")
     conda: CONDA_ENVS["bcftools"]
+    container: CONTAINER_ENVS["bcftools"]
     log:
         "genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.log"
     shell:
@@ -437,6 +458,7 @@ rule get_mutect2_small_exac:
     log:
         "genomes/{genome_build}/gatk/mutect2_pon.{genome_build}.vcf.log"
     conda: CONDA_ENVS["bcftools"]
+    container: CONTAINER_ENVS["bcftools"]
     shell:
         op.as_one_line("""
         zgrep -v '##contig' {input.vcf} > {output.tmpfile} &&
@@ -481,6 +503,7 @@ rule get_capspace_bed_download:
     output:
         capture_bed = "genomes/{genome_build}/capture_space/{capture_space}.bed"
     conda: CONDA_ENVS["coreutils"]
+    container: CONTAINER_ENVS["coreutils"]
     shell:
         "cut -f 1-3 {input.bed} > {output.capture_bed}"
 
@@ -497,6 +520,7 @@ rule sort_and_pad_capspace:
     log:
         "genomes/{genome_build}/capture_space/{capture_space}.padded.bed.log"
     conda: CONDA_ENVS["bedtools"]
+    container: CONTAINER_ENVS["bedtools"]
     shell:
         op.as_one_line("""
         cat {input.fai} | cut -f 1-2 | perl -ane 'print "$F[0]\\t0\\t$F[1]\\n"' | bedtools intersect -wa -a {input.capture_bed} -b stdin > {output.intermediate_bed}
@@ -549,6 +573,7 @@ rule compress_index_capspace_bed:
     log:
         "genomes/{genome_build}/capture_space/{capture_space}.padded.bed.gz.log"
     conda: CONDA_ENVS["tabix"]
+    container: CONTAINER_ENVS["tabix"]
     shell:
         op.as_one_line("""
         bgzip -c {input.capture_bed} > {output.bgzip_bed}
@@ -566,6 +591,7 @@ rule create_interval_list:
     log:
         "genomes/{genome_build}/capture_space/{capture_space}.padded.interval_list.log"
     conda: CONDA_ENVS["gatk"]
+    container: CONTAINER_ENVS["gatk"]
     shell:
         "gatk BedToIntervalList --INPUT {input.bed} -SD {input.sd} -O {output.interval_list} > {log} 2>&1"
 
@@ -575,6 +601,7 @@ rule download_sigprofiler_genome:
     output:
         complete = "downloads/sigprofiler_prereqs/{sigprofiler_build}.installed"
     conda: CONDA_ENVS["sigprofiler"]
+    container: CONTAINER_ENVS["sigprofiler"]
     shell:
         op.as_one_line("""
         python -c 'from SigProfilerMatrixGenerator import install as genInstall;
@@ -621,6 +648,7 @@ rule _get_imgt_database:
     output:
         vdj = temp("downloads/igblast/imgt_database/human/vdj/imgt_human_{subchain}.fasta")
     conda: CONDA_ENVS["igblast"]
+    container: CONTAINER_ENVS["igblast"]
     shell:
         op.as_one_line("""
         URL="http://www.imgt.org/genedb/GENElect?query=7.5+{wildcards.subchain}&species=Homo+sapiens" &&
@@ -686,6 +714,7 @@ rule _create_imgt_database:
     output:
         database = expand("genomes/no_build/igblast/database/imgt_human_{{chain}}.{ext}", ext = ['ndb','nhr','nin','nog','nos','not','nsq','ntf','nto'])
     conda: CONDA_ENVS["igblast"]
+    container: CONTAINER_ENVS["igblast"]
     shell:
         op.as_one_line("""
         fasta_file={input.fasta} &&
@@ -710,8 +739,8 @@ rule download_oncodrive_refs:
     params:
         outdir = "downloads/oncodrive/{version}/",
         provider = lambda w: config["genome_builds"][w.version]["provider"]
-    conda:
-        CONDA_ENVS["oncodriveclustl"]
+    conda: CONDA_ENVS["oncodriveclustl"]
+    container: CONTAINER_ENVS["oncodriveclustl"]
     shell:
         op.as_one_line("""
         export BGDATA_LOCAL={params.outdir} &&
@@ -789,6 +818,7 @@ rule get_ont_pon_hg38:
     log:
         "genomes/{genome_build}/ont/colorsDb.v1.2.0.deepvariant.glnexus.{genome_build}.vcf.log"
     conda: CONDA_ENVS["bcftools"]
+    container: CONTAINER_ENVS["bcftools"]
     shell:
         op.as_one_line("""
         zgrep -v '##contig' {input.vcf} > {output.tmpfile} && 
