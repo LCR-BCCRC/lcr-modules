@@ -288,7 +288,7 @@ rule _strelka_filter_combine:
         bcftools view -f ".,PASS" -Ov | 
         bcftools sort --max-mem {params.mem_mb}M -Oz -o {output.vcf}
         > {log.stdout} 2> {log.stderr} && 
-        tabix -p vcf {output.vcf} >> {log.stdout} 2>> {log.stderr} 
+        bcftools index -t {output.vcf} >> {log.stdout} 2>> {log.stderr}
         """)
 
 
