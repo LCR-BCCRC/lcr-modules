@@ -251,7 +251,7 @@ def _qc_get_baits(wildcards):
 # needed, avoiding issues with curl/wget absence in bioinformatics containers.
 rule _qc_download_baits:
     output:
-        raw_baits = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.RAW.bed")
+        raw_baits = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/raw/{baits_regions}.bed")
     params:
         baits = _qc_get_baits
     run:
