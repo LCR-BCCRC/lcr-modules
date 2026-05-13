@@ -421,7 +421,7 @@ rule _qc_collect_metrics:
     conda:
         CFG["conda_envs"]["gatkR"]
     container:
-        CFG["container_envs"]["gatkR"]
+        CFG["container_envs"]["Rscript"]
     threads:
         CFG["threads"]["collect"]
     resources:
