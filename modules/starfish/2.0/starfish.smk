@@ -125,7 +125,7 @@ rule _starfish_run:
     conda:
         CFG["conda_envs"]["starfish"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.11--h7c999a4_0"
+        "docker://ghcr.io/lcr-bccrc/lcr-scripts/starfish:2.0"
     threads:
         CFG["threads"]["starfish_run"]
     resources:
