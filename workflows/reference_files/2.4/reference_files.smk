@@ -392,15 +392,16 @@ rule get_af_only_gnomad_vcf:
         fai = str(rules.index_genome_fasta.output.fai),
         bed = str(rules.get_main_chromosomes_withY_download.output.bed)
     output:
-        vcf = "genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"
+        vcf = "genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz",
+        tmpfile = temp("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.filtered.vcf.gz")
     threads: 4
     conda: CONDA_ENVS["bcftools"]
     container: CONTAINER_ENVS["bcftools"]
     shell:
         op.as_one_line("""
         grep -v '##contig' {input.vcf} |
-        bcftools view -T {input.bed} --threads {threads} -O z -o {output.vcf} &&
-        bcftools reheader --fai {input.fai} -i {output.vcf} &&
+        bcftools view -T {input.bed} --threads {threads} -O z -o {output.tmpfile} &&
+        bcftools reheader --fai {input.fai} {output.tmpfile} -o {output.vcf} &&
         bcftools index -t {output.vcf}
         """)
 
