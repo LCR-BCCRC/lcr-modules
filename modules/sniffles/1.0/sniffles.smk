@@ -92,7 +92,7 @@ rule _sniffles:
     conda: 
         CFG["conda_envs"]["sniffles"]
     container:
-        "docker://quay.io/biocontainers/sniffles:2.0.3--pyhdfd78af_0"
+        CFG["container_envs"]["sniffles"]
     resources: 
        mem_mb = CFG["mem_mb"]["sniffles"]
     threads:    
@@ -119,7 +119,7 @@ rule _sniffles_vcf_to_bedpe:
     conda:
         CFG["conda_envs"]["svtools"]
     container:
-        "docker://quay.io/biocontainers/svtools:0.5.1--py_0"
+        CFG["container_envs"]["svtools"]
     threads:
         CFG["threads"]["vcf_to_bedpe"]
     resources: 

@@ -246,7 +246,7 @@ rule _controlfreec_generate_chrFasta:
     conda:
         CFG["conda_envs"]["controlfreec"]
     container:
-        "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+        CFG["container_envs"]["controlfreec"]
     threads: CFG["threads"]["gem"]
     resources: **CFG["resources"]["gem"]
     shell:
@@ -310,7 +310,7 @@ rule _controlfreec_mpileup_per_chrom:
     conda:
         CFG["conda_envs"]["controlfreec"]
     container:
-        "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+        CFG["container_envs"]["controlfreec"]
     threads: 1
     resources:
         **CFG["resources"]["mpileup"]
@@ -380,7 +380,7 @@ rule _controlfreec_config_contamAdjTrue:
     conda:
         CFG["conda_envs"]["controlfreec"]
     container:
-        "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+        CFG["container_envs"]["controlfreec"]
     threads: 1
     params:
         config = CFG["options"]["configFile"],
@@ -466,7 +466,7 @@ rule _controlfreec_config_contamAdjFalse:
     conda:
         CFG["conda_envs"]["controlfreec"]
     container:
-        "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+        CFG["container_envs"]["controlfreec"]
     threads: 1
     params:
         config = CFG["options"]["configFile"],
@@ -552,7 +552,7 @@ checkpoint _controlfreec_run:
     conda:
         CFG["conda_envs"]["controlfreec"]
     container:
-        "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+        CFG["container_envs"]["controlfreec"]
     threads:
         CFG["threads"]["controlfreec_run"]
     resources:
@@ -628,7 +628,7 @@ rule _controlfreec_calc_sig:
     conda:
         CFG["conda_envs"]["controlfreec"]
     container:
-        "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+        CFG["container_envs"]["controlfreec"]
     log:
         CFG["logs"]["calc_sig_and_plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/calc_sig.log"
     shell:
@@ -653,7 +653,7 @@ rule _controlfreec_plot:
     conda:
         CFG["conda_envs"]["controlfreec"]
     container:
-        "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+        CFG["container_envs"]["controlfreec"]
     log:
         CFG["logs"]["calc_sig_and_plot"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/plot.log"
     shell:
@@ -677,7 +677,7 @@ rule _controlfreec_freec2bed:
     conda:
         CFG["conda_envs"]["controlfreec"]
     container:
-        "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+        CFG["container_envs"]["controlfreec"]
     log:
         stderr = CFG["logs"]["freec2bed"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/freec2bed.stderr.log"
     shell:
@@ -702,7 +702,7 @@ rule _controlfreec_freec2circos:
     conda:
         CFG["conda_envs"]["controlfreec"]
     container:
-        "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+        CFG["container_envs"]["controlfreec"]
     log:
         stderr = CFG["logs"]["freec2circos"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/freec2circos.stderr.log"
     shell:
@@ -755,7 +755,7 @@ rule _controlfreec_convert_coordinates:
     conda:
         CFG["conda_envs"]["liftover"]
     container:
-        "docker://quay.io/biocontainers/ucsc-liftover:377--ha8a8165_4"
+        CFG["container_envs"]["liftover"]
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -804,7 +804,7 @@ rule _controlfreec_fill_segments:
     conda:
         CFG["conda_envs"]["bedtools"]
     container:
-        "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
+        CFG["container_envs"]["bedtools"]
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};

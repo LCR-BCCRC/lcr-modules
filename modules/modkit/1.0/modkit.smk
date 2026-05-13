@@ -78,7 +78,7 @@ rule _modkit_pileup:
     conda: 
         CFG["conda_envs"]["modkit"]
     container:
-        "docker://quay.io/biocontainers/ont-modkit:0.4.2--hcdda2d0_0"
+        CFG["container_envs"]["modkit"]
     threads:
         CFG["threads"]["modkit"]
     resources:

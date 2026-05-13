@@ -90,7 +90,7 @@ rule _liftover_seg_2_bed:
     conda:
         CFG["conda_envs"]["liftover-366"]
     container:
-        "docker://quay.io/biocontainers/ucsc-liftover:366--h5eb252a_0"
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
         python {params.opts}
@@ -125,7 +125,7 @@ rule _run_liftover:
     conda:
         CFG["conda_envs"]["liftover-366"]
     container:
-        "docker://quay.io/biocontainers/ucsc-liftover:366--h5eb252a_0"
+        CFG["container_envs"]["liftover-366"]
     wildcard_constraints:
         chain = "hg38ToHg19|hg19ToHg38"
     shell:
@@ -168,7 +168,7 @@ rule _liftover_bed_2_seg:
     conda:
         CFG["conda_envs"]["liftover-366"]
     container:
-        "docker://quay.io/biocontainers/ucsc-liftover:366--h5eb252a_0"
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
         python {params.opts}
@@ -194,7 +194,7 @@ rule _liftover_fill_segments:
     conda:
         CFG["conda_envs"]["liftover-366"]
     container:
-        "docker://quay.io/biocontainers/ucsc-liftover:366--h5eb252a_0"
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
         python3 {params.script}

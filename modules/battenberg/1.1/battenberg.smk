@@ -85,7 +85,7 @@ rule _infer_patient_sex:
     conda:
         CFG["conda_envs"]["samtools"]
     container:
-        "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+        CFG["container_envs"]["samtools"]
     threads: 8
     shell:
         op.as_one_line("""
@@ -186,7 +186,7 @@ rule _battenberg_fill_subclones:
     conda:
         CFG["conda_envs"]["bedtools"]
     container:
-        "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
+        CFG["container_envs"]["bedtools"]
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -242,7 +242,7 @@ rule _battenberg_convert_coordinates:
     conda:
         CFG["conda_envs"]["liftover"]
     container:
-        "docker://quay.io/biocontainers/ucsc-liftover:377--ha8a8165_4"
+        CFG["container_envs"]["liftover"]
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -292,7 +292,7 @@ rule _battenberg_fill_segments:
     conda:
         CFG["conda_envs"]["bedtools"]
     container:
-        "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
+        CFG["container_envs"]["bedtools"]
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};

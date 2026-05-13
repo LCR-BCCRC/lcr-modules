@@ -98,7 +98,7 @@ rule _generate_chrFasta:
     conda:
         CFG["conda_envs"]["controlfreec"]
     container:
-        "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+        CFG["container_envs"]["controlfreec"]
     params:
         chr_prefix = lambda w: {"grch37": " ",
                         "hg19": "chr",
@@ -128,7 +128,7 @@ rule _controlfreec_config:
     conda:
         CFG["conda_envs"]["controlfreec"]
     container:
-        "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+        CFG["container_envs"]["controlfreec"]
     params:
         config = CFG["options"]["configFile"],
         outdir = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/",
@@ -187,7 +187,7 @@ rule _controlfreec_run:
         CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_CNVs"
     conda: CFG["conda_envs"]["controlfreec"]
     container:
-        "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+        CFG["container_envs"]["controlfreec"]
     threads: CFG["threads"]["controlfreec_run"]
     resources: mem_mb = CFG["mem_mb"]["controlfreec_run"]
     log:
@@ -209,7 +209,7 @@ rule _controlfreec_calc_sig:
     resources: mem_mb = CFG["mem_mb"]["calc_sig"]
     conda: CFG["conda_envs"]["controlfreec"]
     container:
-        "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+        CFG["container_envs"]["controlfreec"]
     log:
         stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/calc_sig.stdout.log",
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/calc_sig.stderr.log"
@@ -231,7 +231,7 @@ rule _controlfreec_plot:
     resources: mem_mb = CFG["mem_mb"]["plot"]
     conda: CFG["conda_envs"]["controlfreec"]
     container:
-        "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+        CFG["container_envs"]["controlfreec"]
     log:
         stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/plot.stdout.log",
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/plot.stderr.log"

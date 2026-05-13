@@ -62,7 +62,7 @@ rule _salmon_quant:
     conda:
         CFG["conda_envs"]["salmon"]
     container:
-        "docker://quay.io/biocontainers/salmon:1.3.0--hf69c8f4_0"
+        CFG["container_envs"]["salmon"]
     threads:
         CFG["threads"]["quant"]
     resources:

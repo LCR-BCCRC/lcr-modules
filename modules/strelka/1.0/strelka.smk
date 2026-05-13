@@ -67,7 +67,7 @@ rule _strelka_input_vcf:
     conda:
         CFG["conda_envs"]["tabix"]
     container:
-        "docker://quay.io/biocontainers/tabix:0.2.6--ha92aebf_0"
+        CFG["container_envs"]["tabix"]
     shell:
         op.as_one_line("""
         bgzip -c {input.manta_vcf} > {output.vcf}
@@ -85,7 +85,7 @@ rule _strelka_index_bed:
     conda:
         CFG["conda_envs"]["tabix"]
     container:
-        "docker://quay.io/biocontainers/tabix:0.2.6--ha92aebf_0"
+        CFG["container_envs"]["tabix"]
     shell:
         op.as_one_line("""
         bgzip -c {input.bed} > {output.bedz}
@@ -124,7 +124,7 @@ rule _strelka_configure_paired: # Somatic
     conda:
         CFG["conda_envs"]["strelka"]
     container:
-        "docker://quay.io/biocontainers/strelka:2.9.10--h9ee0642_1"
+        CFG["container_envs"]["strelka"]
     shell:
         op.as_one_line("""
         configureStrelkaSomaticWorkflow.py
@@ -158,7 +158,7 @@ rule _strelka_configure_unpaired: # germline
     conda:
         CFG["conda_envs"]["strelka"]
     container:
-        "docker://quay.io/biocontainers/strelka:2.9.10--h9ee0642_1"
+        CFG["container_envs"]["strelka"]
     shell:
         op.as_one_line("""
         configureStrelkaGermlineWorkflow.py
@@ -184,7 +184,7 @@ rule _strelka_run:
     conda:
         CFG["conda_envs"]["strelka"]
     container:
-        "docker://quay.io/biocontainers/strelka:2.9.10--h9ee0642_1"
+        CFG["container_envs"]["strelka"]
     threads:
         CFG["threads"]["strelka"]
     resources:

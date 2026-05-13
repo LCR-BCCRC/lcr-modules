@@ -90,7 +90,7 @@ rule _bwa_mem_run:
     conda:
         CFG["conda_envs"]["bwa"]
     container:
-        "docker://quay.io/biocontainers/bwa:0.7.17--he4a0461_11"
+        CFG["container_envs"]["bwa"]
     threads:
         CFG["threads"]["bwa_mem"]
     resources:
@@ -122,7 +122,7 @@ rule _bwa_mem_samtools:
     conda:
         CFG["conda_envs"]["samtools"]
     container:
-        "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+        CFG["container_envs"]["samtools"]
     threads:
         CFG["threads"]["samtools"]
     resources:

@@ -86,7 +86,7 @@ rule _pathseq_input_fasta:
     conda:
         CFG["conda_envs"]["samtools"]
     container:
-        "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+        CFG["container_envs"]["samtools"]
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -112,7 +112,7 @@ rule _pathseq_fasta_dictionary:
     conda:
         CFG["conda_envs"]["picard"]
     container:
-        "docker://quay.io/biocontainers/picard:2.22.3--0"
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -142,7 +142,7 @@ rule _pathseq_reference_img:
     conda:
         CFG["conda_envs"]["gatk"]
     container:
-        "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -172,7 +172,7 @@ rule _pathseq_reference_bfi:
     conda:
         CFG["conda_envs"]["gatk"]
     container:
-        "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -227,7 +227,7 @@ rule _pathseq_collect_flagstats:
     conda:
         CFG["conda_envs"]["samtools"]
     container:
-        "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+        CFG["container_envs"]["samtools"]
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -262,7 +262,7 @@ rule _pathseq_run:
     conda:
         CFG["conda_envs"]["gatk"]
     container:
-        "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["pathseq"]
     resources:

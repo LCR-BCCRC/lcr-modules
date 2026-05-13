@@ -80,7 +80,7 @@ rule _cutadapt_fastqc_before:
     conda:
         CFG["conda_envs"]["cutadapt"]
     container:
-        "docker://quay.io/biocontainers/cutadapt:4.9--py311haab0aaa_3"
+        CFG["container_envs"]["cutadapt"]
     threads:
         CFG["threads"]["fastqc"]
     resources:
@@ -118,7 +118,7 @@ rule _cutadapt_run:
     conda:
         CFG["conda_envs"]["cutadapt"]
     container:
-        "docker://quay.io/biocontainers/cutadapt:4.9--py311haab0aaa_3"
+        CFG["container_envs"]["cutadapt"]
     threads:
         CFG["threads"]["cutadapt"]
     resources:
@@ -158,7 +158,7 @@ rule _cutadapt_fastqc_after:
     conda:
         CFG["conda_envs"]["cutadapt"]
     container:
-        "docker://quay.io/biocontainers/cutadapt:4.9--py311haab0aaa_3"
+        CFG["container_envs"]["cutadapt"]
     threads:
         CFG["threads"]["fastqc"]
     resources:

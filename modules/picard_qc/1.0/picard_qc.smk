@@ -86,7 +86,7 @@ rule _picard_qc_alignment_summary:
     conda:
         CFG["conda_envs"]["picard"]
     container:
-        "docker://quay.io/biocontainers/picard:2.22.3--0"
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["alignment_summary"]
     resources:
@@ -114,7 +114,7 @@ rule _picard_qc_insert_size:
     conda:
         CFG["conda_envs"]["picard"]
     container:
-        "docker://quay.io/biocontainers/picard:2.22.3--0"
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["insert_size"]
     resources:
@@ -145,7 +145,7 @@ rule _picard_qc_hs_metrics:
     conda:
         CFG["conda_envs"]["picard"]
     container:
-        "docker://quay.io/biocontainers/picard:2.22.3--0"
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["hs_metrics"]
     resources:
@@ -171,7 +171,7 @@ rule _picard_qc_rrna_int:
     conda:
         CFG["conda_envs"]["samtools"]
     container:
-        "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+        CFG["container_envs"]["samtools"]
     shell:
         op.as_one_line("""
         samtools view -H {input.bam} | 
@@ -198,7 +198,7 @@ rule _picard_qc_rnaseq_metrics:
     conda:
         CFG["conda_envs"]["picard"]
     container:
-        "docker://quay.io/biocontainers/picard:2.22.3--0"
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["rnaseq_metrics"]
     resources:
@@ -230,7 +230,7 @@ rule _picard_qc_wgs_metrics:
     conda:
         CFG["conda_envs"]["picard"]
     container:
-        "docker://quay.io/biocontainers/picard:2.22.3--0"
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["wgs_metrics"]
     resources:
@@ -287,7 +287,7 @@ rule _picard_qc_flagstats:
     conda:
         CFG["conda_envs"]["samtools"]
     container:
-        "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+        CFG["container_envs"]["samtools"]
     threads:
         CFG["threads"]["flagstats"]
     resources:

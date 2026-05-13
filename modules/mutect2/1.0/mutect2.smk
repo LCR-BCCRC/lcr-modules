@@ -69,7 +69,7 @@ rule _mutect2_get_sm:
     conda:
         CFG["conda_envs"]["samtools"]
     container:
-        "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+        CFG["container_envs"]["samtools"]
     shell:
         "samtools view -H {input.bam} | grep '^@RG' | "
         r"sed 's/.*SM:\([^\t]*\).*/\1/g'"" | uniq > {output.sm} 2> {log.stderr}"
@@ -97,7 +97,7 @@ rule _mutect2_run_matched_unmatched:
     conda:
         CFG["conda_envs"]["gatk"]
     container:
-        "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["mutect2_run"]
     resources:
@@ -132,7 +132,7 @@ rule _mutect2_run_no_normal:
     conda:
         CFG["conda_envs"]["gatk"]
     container:
-        "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["mutect2_run"]
     resources:
@@ -184,7 +184,7 @@ rule _mutect2_merge_vcfs:
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["mutect2_merge_vcfs"]
     resources:
@@ -223,7 +223,7 @@ rule _mutect2_merge_stats:
     conda:
         CFG["conda_envs"]["gatk"]
     container:
-        "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
+        CFG["container_envs"]["gatk"]
     shell:
         op.as_one_line("""
         gatk MergeMutectStats $(for i in {input.stat}; do echo -n "-stats $i "; done)
@@ -248,7 +248,7 @@ rule _mutect2_filter:
     conda:
         CFG["conda_envs"]["gatk"]
     container:
-        "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["mutect2_filter"]
     resources:
@@ -272,7 +272,7 @@ rule _mutect2_filter_passed:
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["mutect2_passed"]
     resources:

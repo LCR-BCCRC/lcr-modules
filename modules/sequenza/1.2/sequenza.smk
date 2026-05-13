@@ -95,7 +95,7 @@ rule _sequenza_bam2seqz:
     conda:
         CFG["conda_envs"]["sequenza-utils"]
     container:
-        "docker://quay.io/biocontainers/sequenza-utils:3.0.0--py311h8ddd9a4_8"
+        CFG["container_envs"]["sequenza-utils"]
     threads:
         CFG["threads"]["bam2seqz"]
     resources:

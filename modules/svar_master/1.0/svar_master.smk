@@ -173,7 +173,7 @@ rule _svar_master_annotate:
     conda:
         CFG_SV["conda_envs"]["bedtools"]
     container:
-        "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
+        CFG_SV["container_envs"]["bedtools"]
     threads:
         CFG_SV["threads"]["annotate"]
     resources:

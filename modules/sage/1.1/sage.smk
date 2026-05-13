@@ -165,7 +165,7 @@ rule _run_sage:
     conda:
         CFG["conda_envs"]["sage"]
     container:
-        "docker://quay.io/biocontainers/hmftools-sage:3.0.1--hdfd78af_0"
+        CFG["container_envs"]["sage"]
     threads:
         CFG["threads"]["sage_run"]
     resources:
@@ -211,7 +211,7 @@ rule _sage_filter_vcf:
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["filter"]
     resources:
@@ -241,7 +241,7 @@ rule _sage_split_vcf:
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["filter"]
     resources:

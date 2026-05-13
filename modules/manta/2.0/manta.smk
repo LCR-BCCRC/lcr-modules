@@ -59,7 +59,7 @@ rule _manta_index_bed:
     conda:
         CFG["conda_envs"]["tabix"]
     container:
-        "docker://quay.io/biocontainers/tabix:0.2.6--ha92aebf_0"
+        CFG["container_envs"]["tabix"]
     shell:
         op.as_one_line("""
         bgzip -c {input.bed} > {output.bedz}
@@ -89,7 +89,7 @@ rule _manta_configure_paired:
     conda:
         CFG["conda_envs"]["manta"]
     container:
-        "docker://quay.io/biocontainers/manta:1.6.0--py27h9948957_6"
+        CFG["container_envs"]["manta"]
     shell:
         op.as_one_line("""
         configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {input.bedz}
@@ -118,7 +118,7 @@ rule _manta_configure_unpaired:
     conda:
         CFG["conda_envs"]["manta"]
     container:
-        "docker://quay.io/biocontainers/manta:1.6.0--py27h9948957_6"
+        CFG["container_envs"]["manta"]
     shell:
         op.as_one_line("""
         configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {input.bedz}
@@ -141,7 +141,7 @@ rule _manta_run:
     conda:
         CFG["conda_envs"]["manta"]
     container:
-        "docker://quay.io/biocontainers/manta:1.6.0--py27h9948957_6"
+        CFG["container_envs"]["manta"]
     threads:
         CFG["threads"]["manta"]
     resources:
@@ -170,7 +170,7 @@ rule _manta_augment_vcf:
     conda:
         CFG["conda_envs"]["augment_manta_vcf"]
     container:
-        "docker://ghcr.io/lcr-bccrc/lcr-scripts/augment_manta_vcf:1.1"
+        CFG["container_envs"]["augment_manta_vcf"]
     threads:
         CFG["threads"]["augment_vcf"]
     resources:
@@ -195,7 +195,7 @@ rule _manta_vcf_to_bedpe:
     conda:
         CFG["conda_envs"]["svtools"]
     container:
-        "docker://quay.io/biocontainers/svtools:0.5.1--py_0"
+        CFG["container_envs"]["svtools"]
     threads:
         CFG["threads"]["vcf_to_bedpe"]
     resources:

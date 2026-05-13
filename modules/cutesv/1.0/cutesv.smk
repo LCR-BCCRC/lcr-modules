@@ -123,7 +123,7 @@ rule _cutesv_vcf_to_bedpe:
     conda:
         CFG["conda_envs"]["svtools"]
     container:
-        "docker://quay.io/biocontainers/svtools:0.5.1--py_0"
+        CFG["container_envs"]["svtools"]
     threads:
         CFG["threads"]["vcf_to_bedpe"]
     resources: 

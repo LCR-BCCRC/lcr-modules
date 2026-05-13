@@ -157,7 +157,7 @@ checkpoint _hotmaps_maf2vcf:
     conda:
         CFG["conda_envs"]["vcf2maf"]
     container:
-        "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
+        CFG["container_envs"]["vcf2maf"]
     log:
         stdout = CFG["logs"]["maf2vcf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}_maf2vcf.stdout.log",
         stderr = CFG["logs"]["maf2vcf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}_maf2vcf.stderr.log"
@@ -186,7 +186,7 @@ rule _hotmaps_bcftools:
     conda:
         CFG["conda_envs"]["bcftools"] 
     container:
-        "docker://quay.io/biocontainers/bcftools:1.17--h3cc50cf_1"
+        CFG["container_envs"]["bcftools"]
     log:
         stdout = CFG["logs"]["bcftools"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}/bcftools_norm.stdout.log",
         stderr = CFG["logs"]["bcftools"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}/bcftools_norm.stderr.log"
@@ -217,7 +217,7 @@ rule _hotmaps_vcf2maf:
     conda:
         CFG["conda_envs"]["vcf2maf"]
     container:
-        "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
+        CFG["container_envs"]["vcf2maf"]
     log:
         stdout = CFG["logs"]["vcf2maf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}/vcf2maf.stdout.log",
         stderr = CFG["logs"]["vcf2maf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}/vcf2maf.stderr.log"

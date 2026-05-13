@@ -112,7 +112,7 @@ rule _gridss_setup_references:
     conda:
         CFG["conda_envs"]["gridss"]
     container:
-        "docker://quay.io/biocontainers/gridss:2.12.0--h270b39a_1"
+        CFG["container_envs"]["gridss"]
     resources:
         mem_mb = 4000
     threads: 8
@@ -155,7 +155,7 @@ rule _gridss_preprocess_unmatched_normal:
     conda:
         CFG["conda_envs"]["gridss"]
     container:
-        "docker://quay.io/biocontainers/gridss:2.12.0--h270b39a_1"
+        CFG["container_envs"]["gridss"]
     threads:
         CFG["threads"]["gridss"]
     resources:
@@ -205,7 +205,7 @@ rule _gridss_preprocess:
     conda:
         CFG["conda_envs"]["gridss"]
     container:
-        "docker://quay.io/biocontainers/gridss:2.12.0--h270b39a_1"
+        CFG["container_envs"]["gridss"]
     threads:
         CFG["threads"]["preprocess"]
     resources:
@@ -296,7 +296,7 @@ rule _gridss_run:
     conda:
         CFG["conda_envs"]["gridss"]
     container:
-        "docker://quay.io/biocontainers/gridss:2.12.0--h270b39a_1"
+        CFG["container_envs"]["gridss"]
     threads:
         CFG["threads"]["gridss"]
     resources:
@@ -332,7 +332,7 @@ rule _gridss_annotate_repeatmasker:
     conda:
         CFG["conda_envs"]["gridss"]
     container:
-        "docker://quay.io/biocontainers/gridss:2.12.0--h270b39a_1"
+        CFG["container_envs"]["gridss"]
     threads:
         CFG["threads"]["repeatmasker"]
     resources:
@@ -366,7 +366,7 @@ rule _gridss_split_vcf:
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+        CFG["container_envs"]["bcftools"]
     threads: CFG['threads']['split']
     resources:
         **CFG['resources']['split']
@@ -417,7 +417,7 @@ rule _gridss_run_gripss:
     conda:
         CFG["conda_envs"]["gripss"]
     container:
-        "docker://quay.io/biocontainers/hmftools-gripss:1.11--hdfd78af_0"
+        CFG["container_envs"]["gripss"]
     shell:
         op.as_one_line("""
         gripss -Xms4G -Xmx{params.mem_mb}m
@@ -441,7 +441,7 @@ rule _gridss_filter_gripss:
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["gripss"]
     resources:
@@ -462,7 +462,7 @@ rule _gridss_gripss_to_bedpe:
     conda:
         CFG["conda_envs"]["svtools"]
     container:
-        "docker://quay.io/biocontainers/svtools:0.5.1--py_0"
+        CFG["container_envs"]["svtools"]
     threads:
         CFG["threads"]["gripss"]
     resources:

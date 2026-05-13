@@ -238,7 +238,7 @@ rule _hmftools_slms3_sample_names:
     conda: 
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+        CFG["container_envs"]["bcftools"]
     threads: CFG["threads"]["vcf_sample_names"]
     resources: 
         **CFG["resources"]["vcf_sample_names"]

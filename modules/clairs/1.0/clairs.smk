@@ -285,7 +285,7 @@ rule _clairs_combine_vcfs:
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["bcftools"]
     resources:
@@ -331,7 +331,7 @@ rule _clairs_gnomad_annotation:
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["bcftools"]
     resources:
@@ -359,7 +359,7 @@ rule _clairs_filter:
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+        CFG["container_envs"]["bcftools"]
     resources:
         **CFG["resources"]["bcftools"]
     threads:

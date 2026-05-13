@@ -76,7 +76,7 @@ rule _hg38seg_2_hg38bed:
     conda:
         CFG["conda_envs"]["liftover-366"]
     container:
-        "docker://quay.io/biocontainers/ucsc-liftover:366--h5eb252a_0"
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
         python {params.opts} 
@@ -105,7 +105,7 @@ rule _hg38bed_2_hg19bed:
     conda:
         CFG["conda_envs"]["liftover-366"]
     container:
-        "docker://quay.io/biocontainers/ucsc-liftover:366--h5eb252a_0"
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
         liftOver -minMatch={params.mismatch}
@@ -128,7 +128,7 @@ rule _hg19bed_2_hg19seg:
     conda:
         CFG["conda_envs"]["liftover-366"]
     container:
-        "docker://quay.io/biocontainers/ucsc-liftover:366--h5eb252a_0"
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
         python {params.opts} 

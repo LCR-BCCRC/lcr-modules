@@ -70,7 +70,7 @@ if CFG["temp_outputs"] == True:
         conda:
             CFG["conda_envs"]["picard"]
         container:
-            "docker://quay.io/biocontainers/picard:2.22.3--0"
+            CFG["container_envs"]["picard"]
         threads:
             CFG["threads"]["bam2fastq"]
         resources:
@@ -100,7 +100,7 @@ elif CFG["temp_outputs"] == False:
         conda:
             CFG["conda_envs"]["picard"]
         container:
-            "docker://quay.io/biocontainers/picard:2.22.3--0"
+            CFG["container_envs"]["picard"]
         threads:
             CFG["threads"]["bam2fastq"]
         resources:

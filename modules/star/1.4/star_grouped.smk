@@ -119,7 +119,7 @@ rule _star_run:
     conda:
         CFG["conda_envs"]["star"]
     container:
-        "docker://quay.io/biocontainers/star:2.7.3a--h5ca1c30_1"
+        CFG["container_envs"]["star"]
     threads:
         CFG["threads"]["star"]
     resources:

@@ -202,7 +202,7 @@ rule _hmftools_strelka_sample_names:
     conda: 
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+        CFG["container_envs"]["bcftools"]
     threads: CFG["threads"]["strelka_sample_names"]
     resources: 
         **CFG["resources"]["strelka_sample_names"]

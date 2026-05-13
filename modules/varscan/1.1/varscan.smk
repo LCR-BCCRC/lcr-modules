@@ -95,7 +95,7 @@ rule _varscan_bam2mpu:
     conda:
         CFG["conda_envs"]["samtools"]
     container:
-        "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+        CFG["container_envs"]["samtools"]
     threads:
         1    #hardcoded because samtools mpileup does not support more than one thread.
     resources:
@@ -127,7 +127,7 @@ rule _varscan_somatic:
     conda:
         CFG["conda_envs"]["varscan"]
     container:
-        "docker://quay.io/biocontainers/varscan:2.4.4--0"
+        CFG["container_envs"]["varscan"]
     threads:
         CFG["threads"]["somatic"]   #this seems to rarely exceed 300% due to samtools and/or I/O restrictions
     resources:
@@ -157,7 +157,7 @@ rule _varscan_unpaired:
     conda:
         CFG["conda_envs"]["varscan"]
     container:
-        "docker://quay.io/biocontainers/varscan:2.4.4--0"
+        CFG["container_envs"]["varscan"]
     threads:
         CFG["threads"]["unpaired"]
     resources:
@@ -181,7 +181,7 @@ rule _varscan_reheader_vcf:
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.9--h47928c2_1"
+        CFG["container_envs"]["bcftools"]
     shell:
         op.as_one_line("""
         contig=$( awk '{{printf("##contig=<ID=%s,length=%d>\\n",$1,$2);}}' {input.fai})
@@ -217,7 +217,7 @@ rule _varscan_combine_chroms_vcf:
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.9--h47928c2_1"
+        CFG["container_envs"]["bcftools"]
     wildcard_constraints:
         vcf_name = "(snp|indel)"
     resources:
@@ -259,7 +259,7 @@ rule _varscan_combine_vcf:
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.9--h47928c2_1"
+        CFG["container_envs"]["bcftools"]
     resources:
         mem_mb = CFG["mem_mb"]["bcftools_sort"]
     shell:

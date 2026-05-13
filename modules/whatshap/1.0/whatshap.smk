@@ -94,7 +94,7 @@ rule _whatshap_phase_bam:
     conda:
         CFG["conda_envs"]["whatshap"]
     container:
-        "docker://quay.io/biocontainers/whatshap:1.3--py37h96cfd12_1"
+        CFG["container_envs"]["whatshap"]
     resources: 
         mem_mb = CFG["mem_mb"]["whatshap"] 
     threads:

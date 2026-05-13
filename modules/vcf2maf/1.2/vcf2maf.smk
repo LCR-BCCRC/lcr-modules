@@ -94,7 +94,7 @@ rule _vcf2maf_run:
     conda:
         CFG["conda_envs"]["vcf2maf"]
     container:
-        "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
+        CFG["container_envs"]["vcf2maf"]
     threads:
         CFG["threads"]["vcf2maf"]
     resources:
@@ -137,7 +137,7 @@ rule _vcf2maf_crossmap:
     conda:
         CFG["conda_envs"]["crossmap"]
     container:
-        "docker://quay.io/biocontainers/crossmap:0.7.0--pyhdfd78af_0"
+        CFG["container_envs"]["crossmap"]
     threads:
         CFG["threads"]["vcf2maf"]
     resources:

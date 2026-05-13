@@ -228,7 +228,7 @@ rule _whatshap_split_vcf:
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+        CFG["container_envs"]["bcftools"]
     threads: CFG["threads"]["split_vcf"]
     resources: **CFG["resources"]["split_vcf"]
     log:
@@ -276,7 +276,7 @@ rule _whatshap_phase_vcf:
     conda:
         CFG["conda_envs"]["whatshap"] 
     container:
-        "docker://quay.io/biocontainers/whatshap:2.3--py311he264feb_3"
+        CFG["container_envs"]["whatshap"]
     resources: **CFG["resources"]["phase_vcf"] 
     threads: CFG["threads"]["phase_vcf"]       
     wildcard_constraints: 
@@ -337,7 +337,7 @@ rule _whatshap_merge_vcf:
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
-        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["merge_vcf"]
     resources:
@@ -367,7 +367,7 @@ rule _whatshap_stats:
     conda:
         CFG["conda_envs"]["whatshap"] 
     container:
-        "docker://quay.io/biocontainers/whatshap:2.3--py311he264feb_3"
+        CFG["container_envs"]["whatshap"]
     resources: 
         **CFG["resources"]["stats"]  
     threads: CFG["threads"]["stats"]      
@@ -396,7 +396,7 @@ rule _whatshap_phase_bam:
     conda:
         CFG["conda_envs"]["whatshap"]
     container:
-        "docker://quay.io/biocontainers/whatshap:2.3--py311he264feb_3"
+        CFG["container_envs"]["whatshap"]
     resources: 
         **CFG["resources"]["phase_bam"]
     threads:
@@ -429,7 +429,7 @@ rule _whatshap_cram_phased:
     conda: 
         CFG["conda_envs"]["whatshap"]
     container:
-        "docker://quay.io/biocontainers/whatshap:2.3--py311he264feb_3"
+        CFG["container_envs"]["whatshap"]
     resources: **CFG["resources"]["cram"]
     threads: CFG["threads"]["cram"]
     shell: 
@@ -453,7 +453,7 @@ rule _whatshap_split_bam:
     conda:
         CFG["conda_envs"]["whatshap"]
     container:
-        "docker://quay.io/biocontainers/whatshap:2.3--py311he264feb_3"
+        CFG["container_envs"]["whatshap"]
     resources: 
         **CFG["resources"]["split_bam"] 
     threads: CFG["threads"]["split_bam"]
@@ -482,7 +482,7 @@ rule _whatshap_cram_split:
     conda: 
         CFG["conda_envs"]["whatshap"]
     container:
-        "docker://quay.io/biocontainers/whatshap:2.3--py311he264feb_3"
+        CFG["container_envs"]["whatshap"]
     resources: 
         **CFG["resources"]["cram"]
     threads: CFG["threads"]["cram"]

@@ -114,7 +114,7 @@ rule _freebayes_run:
     conda:
         CFG["conda_envs"]["freebayes"]
     container:
-        "docker://quay.io/biocontainers/freebayes:1.3.8--h6a68c12_2"
+        CFG["container_envs"]["freebayes"]
     group: 
         "input_and_run"
     threads:
@@ -179,7 +179,7 @@ rule _freebayes_crossmap:
     conda:
         CFG["conda_envs"]["crossmap"]
     container:
-        "docker://quay.io/biocontainers/crossmap:0.7.0--pyhdfd78af_0"
+        CFG["container_envs"]["crossmap"]
     threads:
         CFG["threads"]["crossmap"]
     resources:
@@ -293,7 +293,7 @@ rule _freebayes_gzip_vcf:
     conda:
         CFG["conda_envs"]["crossmap"]
     container:
-        "docker://quay.io/biocontainers/crossmap:0.7.0--pyhdfd78af_0"
+        CFG["container_envs"]["crossmap"]
     threads:
         CFG["threads"]["gzip"]
     resources:

@@ -43,7 +43,7 @@ rule _utils_bam_sort:
     conda:
         _UTILS["conda_envs"]["samtools"]
     container:
-        "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+        CFG["container_envs"]["samtools"]
     threads:
         _UTILS["threads"]["bam_sort"]
     resources: 
@@ -76,7 +76,7 @@ rule _utils_bam_markdups:
     conda:
         _UTILS["conda_envs"]["sambamba"]
     container:
-        "docker://quay.io/biocontainers/sambamba:0.7.1--h984e79f_3"
+        CFG["container_envs"]["sambamba"]
     threads:
         _UTILS["threads"]["bam_markdups"]
     resources: 
@@ -106,7 +106,7 @@ rule _utils_bam_index:
     conda:
         _UTILS["conda_envs"]["samtools"]
     container:
-        "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+        CFG["container_envs"]["samtools"]
     threads:
         _UTILS["threads"]["bam_index"]
     resources: 
@@ -133,7 +133,7 @@ rule _utils_create_intervals: # create_interval_list from bed; default exomes
     conda: 
         _UTILS["conda_envs"]["picard"]
     container:
-        "docker://quay.io/biocontainers/picard:2.22.3--0"
+        CFG["container_envs"]["picard"]
     threads:
         _UTILS["threads"]["interval"]
     resources: 
