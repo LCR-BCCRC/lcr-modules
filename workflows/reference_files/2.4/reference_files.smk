@@ -399,8 +399,8 @@ rule get_af_only_gnomad_vcf:
     shell:
         op.as_one_line("""
         grep -v '##contig' {input.vcf} |
-        bcftools reheader --fai {input.fai} - |
         bcftools view -T {input.bed} --threads {threads} -O z -o {output.vcf} &&
+        bcftools reheader --fai {input.fai} -i {output.vcf} &&
         bcftools index -t {output.vcf}
         """)
 
