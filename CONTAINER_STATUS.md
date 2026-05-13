@@ -7,7 +7,7 @@ Tracks progress on adding Apptainer/Singularity `container:` directives to all m
 - ⚠️ **Partial** — some rules have `container: None` (typically R scripts or custom tools without a suitable public image)
 - ❌ **None** — all rules have `container: None`; module is conda-only
 
-Last updated: 2026-05-13
+Last updated: 2026-05-13 (battenberg 1.2: battenberg container added; wget still null)
 
 ---
 
@@ -39,12 +39,11 @@ onstart:
 
 ---
 
-## ✅ Complete (58 module versions)
+## ✅ Complete (57 module versions)
 
 | Module | Version |
 |--------|---------|
 | bam2fastq | 1.0, 1.1, 1.2 |
-| battenberg | 1.2 |
 | bwa_mem | 1.0, 1.1 |
 | cnvkit | 1.0 |
 | controlfreec | 1.0, 1.1, 1.2 |
@@ -76,13 +75,14 @@ onstart:
 
 ---
 
-## ⚠️ Partial (20 module versions)
+## ⚠️ Partial (21 module versions)
 
 Rules with `container: None` are typically R-based rules or scripts without a suitable public image.
 
-| Module | Version | None rules / Total |
-|--------|---------|-------------------|
-| battenberg | 1.1 | 2/6 |
+| Module | Version | None rules / Total | Notes |
+|--------|---------|-------------------|-------|
+| battenberg | 1.1 | 2/6 | |
+| battenberg | 1.2 | 1/6 | wget (reference download only); battenberg compute container added via lcr-scripts/battenberg:1.0 |
 | clairs | 1.0 | 2/5 |
 | clairs_to | 1.0 | 2/5 |
 | controlfreec | 1.3 | 4/15 |
