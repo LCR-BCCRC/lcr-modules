@@ -267,9 +267,9 @@ rule _qc_sort_baits:
             curl -L {params.baits} | cut -f 1-3 > {output.intermediate_baits};
         fi
             &&
-        QC_REF_PREFIXED==$(head -1 {input.fai} | cut -f 1)
+        QC_REF_PREFIXED=$(head -1 {input.fai} | cut -f 1)
             &&
-        BED_PREFIXED==$(head -1 {output.intermediate_baits} | cut -f 1)
+        BED_PREFIXED=$(head -1 {output.intermediate_baits} | cut -f 1)
             &&
         if [[ $QC_REF_PREFIXED == *"chr"* && ! $BED_PREFIXED == *"chr"* ]]; then
             cat {output.intermediate_baits} | perl -ne "s/^/chr/g;print" > {output.intermediate_baits}.fix_prefix;
