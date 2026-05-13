@@ -34,7 +34,7 @@ lcr-modules:
             samtools: "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
             samtools_cov: "docker://quay.io/biocontainers/samtools:1.10--h9402c20_2"
             bedtools: "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
-            gatkR: "docker://quay.io/biocontainers/gatk4:4.2.6.1--hdfd78af_0"
+            gatkR: "docker://broadinstitute/gatk:4.2.6.1"
 
         threads:
             samtools_stat: 8
