@@ -252,6 +252,9 @@ def _qc_get_baits(wildcards):
 rule _qc_download_baits:
     output:
         raw_baits = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/raw/{baits_regions}.bed")
+    wildcard_constraints:
+        genome_build = "[^/]+",
+        baits_regions = "[^/]+"
     params:
         baits = _qc_get_baits
     run:
@@ -272,6 +275,9 @@ rule _qc_sort_baits:
     output:
         baits = CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.bed",
         intermediate_baits = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.INTERMEDIATE.bed")
+    wildcard_constraints:
+        genome_build = "[^/]+",
+        baits_regions = "[^/]+"
     conda:
         CFG["conda_envs"]["bedtools"]
     container:
