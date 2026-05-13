@@ -133,8 +133,7 @@ rule _run_sage:
         panel_bed = _sage_get_capspace,
         main_chromosomes = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
     output:
-        vcf = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf"),
-        vcf_gz = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf.gz")
+        vcf = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf")
     log:
         stdout = CFG["logs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run_sage.stdout.log",
         stderr = CFG["logs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run_sage.stderr.log"
@@ -173,13 +172,12 @@ rule _run_sage:
         -high_confidence_bed {input.high_conf_bed}
         -out {output.vcf}
         >>  {log.stdout} 2>> {log.stderr}
-        && bgzip -c {output.vcf} > {output.vcf_gz}
         """)
 
 # Filter resulting VCF file on PASS variants
 rule _sage_filter_vcf:
     input:
-        vcf = str(rules._run_sage.output.vcf_gz)
+        vcf = str(rules._run_sage.output.vcf)
     output:
         vcf_passed = CFG["dirs"]["vcf"] + "combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/passed_combined.vcf.gz",
         vcf_passed_tbi = CFG["dirs"]["vcf"] + "combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/passed_combined.vcf.gz.tbi"
