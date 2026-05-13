@@ -141,7 +141,7 @@ rule _run_sage:
     params:
         opts = CFG["options"]["sage_run"],
         assembly = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19",
-        sage= "$(dirname $(readlink -e $(which SAGE)))/sage.jar",
+        sage= "$(dirname $(readlink -f $(which SAGE)))/sage.jar",
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["sage"]
