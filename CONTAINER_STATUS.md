@@ -11,6 +11,34 @@ Last updated: 2026-05-13
 
 ---
 
+## Future Work: Pre-flight container check
+
+**Idea:** Add an `onstart:` block to the demo (and eventually production) Snakefiles that aborts early when `--use-singularity` is active but one or more rules in the workflow have `container: None`.
+
+Currently, rules with `container: None` silently fall back to the host environment under `--use-singularity`, so failures only surface when the tool is missing — not at startup.
+
+```python
+onstart:
+    if workflow.use_singularity:
+        uncontainerized = [
+            r.name for r in workflow.rules
+            if r.name not in workflow.localrules
+            and r.container_img is None
+        ]
+        if uncontainerized:
+            sys.exit(
+                "ERROR: --use-singularity is active but the following rules have no "
+                "container directive:\n  " + "\n  ".join(sorted(uncontainerized))
+            )
+```
+
+**Open questions before implementing:**
+- Hard error (`sys.exit`) vs. warning (`logger.warning`) — or make it configurable via a top-level config flag.
+- Where to place it: demo Snakefile only, or a shared include (e.g., `lcr-snakefiles`) so production pipelines also benefit.
+- Partial modules (e.g., `hmftools`, `sequenza`) intentionally leave some R-based rules as `container: None`. A known-exceptions list or downgrade to warning may be needed for those.
+
+---
+
 ## ✅ Complete (58 module versions)
 
 | Module | Version |
