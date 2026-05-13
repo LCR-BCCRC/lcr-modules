@@ -291,7 +291,7 @@ rule _qc_sort_baits:
         BED_PREFIXED=$(head -1 {output.intermediate_baits} | cut -f 1)
             &&
         if [[ $QC_REF_PREFIXED == *"chr"* && ! $BED_PREFIXED == *"chr"* ]]; then
-            awk '{print "chr" $0}' {output.intermediate_baits} > {output.intermediate_baits}.fix_prefix;
+            awk '{{print "chr" $0}}' {output.intermediate_baits} > {output.intermediate_baits}.fix_prefix;
             rm {output.intermediate_baits};
             mv {output.intermediate_baits}.fix_prefix {output.intermediate_baits};
         fi
