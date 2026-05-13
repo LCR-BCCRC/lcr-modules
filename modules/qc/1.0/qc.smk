@@ -44,6 +44,7 @@ CFG = op.setup_module(
 localrules:
     _qc_input_bam,
     _qc_input_references,
+    _qc_download_baits,
     _qc_output_tsv,
     _qc_all
 
@@ -245,11 +246,29 @@ def _qc_get_baits(wildcards):
     return(str(CFG["baits_regions"][this_genome_build][these_baits]))
 
 
+# Downloads the baits BED file from a URL or copies it from a local path.
+# Uses a run: block so it executes in the main Python process — no container
+# needed, avoiding issues with curl/wget absence in bioinformatics containers.
+rule _qc_download_baits:
+    output:
+        raw_baits = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.RAW.bed")
+    params:
+        baits = _qc_get_baits
+    run:
+        import urllib.request, shutil, os
+        src = params.baits
+        if os.path.isfile(src):
+            shutil.copy(src, output.raw_baits)
+        else:
+            urllib.request.urlretrieve(src, output.raw_baits)
+
+
 # Subset contigs in bed to those present in the reference and sort the output
 # This is needed to pass GATK validation
 rule _qc_sort_baits:
     input:
-        fai = str(rules._qc_input_references.output.genome_fai)
+        fai = str(rules._qc_input_references.output.genome_fai),
+        raw_baits = str(rules._qc_download_baits.output.raw_baits)
     output:
         baits = CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.bed",
         intermediate_baits = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.INTERMEDIATE.bed")
@@ -257,15 +276,9 @@ rule _qc_sort_baits:
         CFG["conda_envs"]["bedtools"]
     container:
         CFG["container_envs"]["bedtools"]
-    params:
-        baits = _qc_get_baits
     shell:
         op.as_one_line("""
-        if [ -e {params.baits} ]; then
-            cut -f 1-3 {params.baits} > {output.intermediate_baits};
-        else
-            curl -L {params.baits} | cut -f 1-3 > {output.intermediate_baits};
-        fi
+        cut -f 1-3 {input.raw_baits} > {output.intermediate_baits}
             &&
         QC_REF_PREFIXED=$(head -1 {input.fai} | cut -f 1)
             &&
