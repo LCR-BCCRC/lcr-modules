@@ -3,7 +3,9 @@
 
 SCRIPT_PATH is prepended to PATH so the patched lofreq2_call_pparallel.py
 and lofreq_filter.sh are found first. This wrapper ensures the lofreq
-*binary* still comes from the conda env or container, not from src/.
+*binary* comes from the conda env or container (not the old ELF in src/)
+while keeping SCRIPT_PATH in the inherited environment so patched scripts
+remain accessible to lofreq's child processes.
 """
 import os, sys, shutil
 
@@ -15,6 +17,6 @@ real_lofreq = shutil.which('lofreq', path=new_path)
 if real_lofreq is None:
     sys.exit("ERROR: lofreq binary not found in PATH (excluding src/)")
 
-env = os.environ.copy()
-env['PATH'] = new_path
-os.execve(real_lofreq, [real_lofreq] + sys.argv[1:], env)
+# Use execv (not execve) to inherit the current environment unchanged,
+# keeping SCRIPT_PATH in PATH so patched scripts stay accessible.
+os.execv(real_lofreq, [real_lofreq] + sys.argv[1:])
