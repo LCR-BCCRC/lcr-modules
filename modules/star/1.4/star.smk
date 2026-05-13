@@ -115,6 +115,8 @@ rule _star_run:
         star_overhang = get_overhang
     conda:
         CFG["conda_envs"]["star"]
+    container:
+        CFG["container_envs"]["star"]
     threads:
         CFG["threads"]["star"]
     resources:

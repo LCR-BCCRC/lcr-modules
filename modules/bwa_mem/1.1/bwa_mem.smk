@@ -88,6 +88,8 @@ rule _bwa_mem_run:
         opts = CFG["options"]["bwa_mem"]
     conda:
         CFG["conda_envs"]["bwa"]
+    container:
+        CFG["container_envs"]["bwa"]
     threads:
         CFG["threads"]["bwa_mem"]
     resources:
@@ -117,6 +119,8 @@ rule _bwa_mem_samtools:
         opts = CFG["options"]["samtools"]
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     threads:
         CFG["threads"]["samtools"]
     resources:

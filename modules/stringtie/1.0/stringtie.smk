@@ -82,6 +82,8 @@ rule _stringtie_run:
         opts = CFG["options"]["stringtie_run"]
     conda:
         CFG["conda_envs"]["stringtie"]
+    container:
+        CFG["container_envs"]["stringtie"]
     threads:
         CFG["threads"]["stringtie_run"]
     resources:

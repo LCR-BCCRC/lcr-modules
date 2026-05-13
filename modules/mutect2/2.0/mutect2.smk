@@ -144,6 +144,8 @@ rule _mutect2_get_sm:
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}_mutect2_get_sm.stderr.log"
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     shell:
         "samtools view -H {input.bam} | grep '^@RG' | "
         r"sed 's/.*SM:\([^\t]*\).*/\1/g'"" | uniq > {output.sm} 2> {log.stderr}"
@@ -193,9 +195,11 @@ rule _mutect2_run_matched_unmatched:
         interval_arg = _mutect2_get_interval_cli_arg()
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["mutect2_run"]
-    wildcard_constraints: 
+    wildcard_constraints:
         pair_status = "matched|unmatched"
     shell:
         op.as_one_line("""
@@ -235,9 +239,11 @@ rule _mutect2_run_no_normal:
         interval_arg = _mutect2_get_interval_cli_arg()
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["mutect2_run"]
-    wildcard_constraints: 
+    wildcard_constraints:
         pair_status = "no_normal"
     shell:
         op.as_one_line("""
@@ -286,6 +292,8 @@ rule _mutect2_merge_vcfs:
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_merge_vcfs.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["mutect2_merge_vcfs"]
     resources:
@@ -325,6 +333,8 @@ rule _mutect2_merge_stats:
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_merge_stats.stderr.log"
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        CFG["container_envs"]["gatk"]
     shell:
         op.as_one_line("""
         gatk MergeMutectStats $(for i in {input.stat}; do echo -n "-stats $i "; done)
@@ -358,7 +368,9 @@ rule _mutect2_learn_orient_model:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatk"]
-    threads: 
+    container:
+        CFG["container_envs"]["gatk"]
+    threads:
         CFG["threads"]["mutect2_f1r2"]
     shell: 
         op.as_one_line("""
@@ -386,7 +398,9 @@ rule _mutect2_pileup_summaries:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatk"]
-    threads: 
+    container:
+        CFG["container_envs"]["gatk"]
+    threads:
         CFG["threads"]["mutect2_pileupsummaries"]
     shell: 
         op.as_one_line("""
@@ -416,7 +430,9 @@ rule _mutect2_calc_contamination:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatk"]
-    threads: 
+    container:
+        CFG["container_envs"]["gatk"]
+    threads:
         CFG["threads"]["mutect2_contamination"]
     shell: 
         op.as_one_line("""
@@ -450,6 +466,8 @@ rule _mutect2_filter:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["mutect2_filter"]
     shell:
@@ -479,6 +497,8 @@ rule _mutect2_filter_passed:
         stderr = CFG["logs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_filter_passed.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["mutect2_passed"]
     resources:

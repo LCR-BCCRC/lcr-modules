@@ -119,6 +119,8 @@ rule _sequenza_bam2seqz:
         seqz_binning_opts = CFG["options"]["seqz_binning"]
     conda:
         CFG["conda_envs"]["sequenza-utils"]
+    container:
+        CFG["container_envs"]["sequenza-utils"]
     threads: 1 # since it's grouped with the rule below, which uses CFG["threads"]["merge_seqz"], otherwise this thread count gets multiplied by # of chroms and exceeds SLURM amount allowed
     # same with **resources, it will get the default but be able to use what's listed in **CFG["resources"]["bam2seqz"] by the grouping of these rules
     group: "bam2seqz"
@@ -179,6 +181,8 @@ rule _sequenza_filter_seqz:
         stderr = CFG["logs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_filter_seqz.stderr.log"
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        CFG["container_envs"]["bedtools"]
     threads:
         CFG["threads"]["filter_seqz"]
     resources:
@@ -206,6 +210,8 @@ rule _sequenza_run:
         stderr = CFG["logs"]["sequenza"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_run.{filter_status}.stderr.log"
     conda:
         CFG["conda_envs"]["r-sequenza"]
+    container:
+        CFG["container_envs"]["r-sequenza"]
     threads:
         CFG["threads"]["sequenza"]
     resources:
@@ -234,6 +240,8 @@ rule _sequenza_fill_txt:
         blacklist_file = lambda w: "src/blacklisted.hg38.bed" if "38" in str({w.genome_build}) else "src/blacklisted.grch37.bed"
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        CFG["container_envs"]["bedtools"]
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -261,6 +269,8 @@ rule _sequenza_cnv2igv:
     threads: 1
     conda:
         CFG["conda_envs"]["cnv2igv"]
+    container:
+        CFG["container_envs"]["cnv2igv"]
     group: "sequenza_post_process"
     shell:
         op.as_one_line("""
@@ -292,6 +302,8 @@ rule _sequenza_convert_coordinates:
         liftover_minmatch = CFG["options"]["liftover_minMatch"]
     conda:
         CFG["conda_envs"]["liftover"]
+    container:
+        CFG["container_envs"]["liftover"]
     group: "sequenza_post_process"
     shell:
         op.as_one_line("""
@@ -340,6 +352,8 @@ rule _sequenza_fill_segments:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        CFG["container_envs"]["bedtools"]
     group: "sequenza_post_process"
     shell:
         op.as_one_line("""

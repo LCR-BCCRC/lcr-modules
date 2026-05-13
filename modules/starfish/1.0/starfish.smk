@@ -81,6 +81,8 @@ rule _starfish_run:
         vcf_dir = run_starfish_base
     conda:
         CFG["conda_envs"]["starfish"]
+    container:
+        CFG["container_envs"]["starfish"]
     threads:
         CFG["threads"]["starfish"]
     resources:
@@ -138,6 +140,8 @@ rule _starfish_vcf_to_bed:
         stderr = CFG["logs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/vcf_to_bed.stderr.log"
     conda:
         CFG["conda_envs"]["bedops"]
+    container:
+        CFG["container_envs"]["bedops"]
     threads:
         CFG["threads"]["vcf_to_bed"]
     resources:

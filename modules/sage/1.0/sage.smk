@@ -145,6 +145,8 @@ rule _run_sage:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["sage"]
+    container:
+        CFG["container_envs"]["sage"]
     threads:
         CFG["threads"]["sage_run"]
     resources:
@@ -188,6 +190,8 @@ rule _sage_filter_vcf:
         heap_mem = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["filter"]
     resources:
@@ -216,6 +220,8 @@ rule _sage_split_vcf:
         stderr = CFG["logs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/split_passed.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["filter"]
     resources:

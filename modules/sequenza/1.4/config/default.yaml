@@ -34,6 +34,13 @@ lcr-modules:
             cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/python-3.8.3.yaml"
             liftover: "{SCRIPTSDIR}/liftover/2.0/liftover.yaml"
 
+        container_envs:
+            sequenza-utils: "docker://quay.io/biocontainers/sequenza-utils:3.0.0--py38hfe239e1_7"
+            r-sequenza: "docker://quay.io/biocontainers/r-sequenza:3.0.0--r351h6115d3f_0"
+            bedtools: "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
+            cnv2igv: null
+            liftover: "docker://quay.io/biocontainers/ucsc-liftover:377--ha8a8165_4"
+
         resources:
             vcf_sort:
                 mem_mb: 2000

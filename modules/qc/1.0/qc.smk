@@ -95,6 +95,8 @@ rule _qc_samtools_stat:
         opts = CFG["options"]["samtools_stat"]
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     threads:
         CFG["threads"]["samtools_stat"]
     resources:
@@ -121,6 +123,8 @@ rule _qc_samtools_coverage:
         opts = CFG["options"]["samtools_coverage"]
     conda:
         CFG["conda_envs"]["samtools_cov"]
+    container:
+        CFG["container_envs"]["samtools_cov"]
     threads:
         CFG["threads"]["samtools_coverage"]
     resources:
@@ -151,6 +155,8 @@ rule _qc_gatk_basequality:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatkR"]
+    container:
+        CFG["container_envs"]["gatkR"]
     threads:
         CFG["threads"]["QualityScoreDistribution"]
     resources:
@@ -190,6 +196,8 @@ rule _qc_gatk_wgs:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatkR"]
+    container:
+        CFG["container_envs"]["gatkR"]
     threads:
         CFG["threads"]["CollectMetrics"]
     resources:
@@ -247,6 +255,8 @@ rule _qc_sort_baits:
         intermediate_baits = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.INTERMEDIATE.bed")
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        CFG["container_envs"]["bedtools"]
     params:
         baits = _qc_get_baits
     shell:
@@ -284,6 +294,8 @@ rule _qc_baits_to_interval_list:
         interval_list = CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.interval_list"
     conda:
         CFG["conda_envs"]["gatkR"]
+    container:
+        CFG["container_envs"]["gatkR"]
     shell:
         op.as_one_line("""
         gatk BedToIntervalList
@@ -347,6 +359,8 @@ rule _qc_gatk_wes:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatkR"]
+    container:
+        CFG["container_envs"]["gatkR"]
     threads:
         CFG["threads"]["CollectMetrics"]
     resources:
@@ -387,6 +401,8 @@ rule _qc_collect_metrics:
         stat = CFG["dirs"]["aggregated_metrics"] + "{seq_type}--{genome_build}/{sample_id}.metrix.tsv"
     conda:
         CFG["conda_envs"]["gatkR"]
+    container:
+        CFG["container_envs"]["gatkR"]
     threads:
         CFG["threads"]["collect"]
     resources:

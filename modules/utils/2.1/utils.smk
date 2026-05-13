@@ -62,6 +62,8 @@ rule _utils_bam_sort:
         memory= lambda wildcards, resources, threads: int(resources.mem_mb/threads/2)
     conda:
         _UTILS["conda_envs"]["samtools"]
+    container:
+        _UTILS["container_envs"]["samtools"]
     threads:
         _UTILS["threads"]["bam_sort"]
     resources: 
@@ -94,6 +96,8 @@ rule _utils_bam_markdups:
         opts = _UTILS["options"]["bam_markdups"]
     conda:
         _UTILS["conda_envs"]["sambamba"]
+    container:
+        _UTILS["container_envs"]["sambamba"]
     threads:
         _UTILS["threads"]["bam_markdups"]
     resources: 
@@ -122,15 +126,17 @@ rule _utils_bam_index:
         opts = _UTILS["options"]["bam_index"]
     conda:
         _UTILS["conda_envs"]["samtools"]
+    container:
+        _UTILS["container_envs"]["samtools"]
     threads:
         _UTILS["threads"]["bam_index"]
-    resources: 
+    resources:
         mem_mb = _UTILS["mem_mb"]["bam_index"]
     shell:
         op.as_one_line("""
-        samtools index 
-        {params.opts} 
-        -@ {threads} 
+        samtools index
+        {params.opts}
+        -@ {threads}
         {input.bam} 
         > {log.stdout}
         2> {log.stderr}
@@ -159,6 +165,8 @@ rule _utils_bam_to_cram:
         opts = _UTILS["options"]["bam_to_cram"]
     conda:
         _UTILS["conda_envs"]["samtools"]
+    container:
+        _UTILS["container_envs"]["samtools"]
     threads:
         _UTILS["threads"]["bam_to_cram"]
     resources: 
@@ -187,15 +195,17 @@ rule _utils_cram_index:
         opts = _UTILS["options"]["bam_index"]
     conda:
         _UTILS["conda_envs"]["samtools"]
+    container:
+        _UTILS["container_envs"]["samtools"]
     threads:
         _UTILS["threads"]["bam_index"]
-    resources: 
+    resources:
         mem_mb = _UTILS["mem_mb"]["bam_index"]
     shell:
         op.as_one_line("""
-        samtools index 
-        {params.opts} 
-        -@ {threads} 
+        samtools index
+        {params.opts}
+        -@ {threads}
         {input.cram} 
         > {log.stdout}
         2> {log.stderr}
@@ -209,8 +219,10 @@ rule _utils_create_intervals: # create_interval_list from bed; default exomes
         intervals = "reference/exomes/{genome_build}/interval/{id}_intervals.txt"
     log: 
         "reference/exomes/{genome_build}/interval/{id}_intervals.log"
-    conda: 
+    conda:
         _UTILS["conda_envs"]["picard"]
+    container:
+        _UTILS["container_envs"]["picard"]
     threads:
         _UTILS["threads"]["interval"]
     resources: 

@@ -16,6 +16,13 @@ lcr-modules:
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
             liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
 
+        container_envs:
+            battenberg: null
+            wget: null
+            samtools: "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+            bedtools: "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
+            liftover: "docker://quay.io/biocontainers/ucsc-liftover:377--ha8a8165_4"
+
         options:
             liftover_script_path: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
             liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build

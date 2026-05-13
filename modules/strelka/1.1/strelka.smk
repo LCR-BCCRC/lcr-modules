@@ -86,6 +86,8 @@ rule _strelka_input_vcf:
         tbi = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz.tbi"
     conda:
         CFG["conda_envs"]["tabix"]
+    container:
+        CFG["container_envs"]["tabix"]
     shell:
         op.as_one_line("""
         bgzip -c {input.manta_vcf} > {output.vcf}
@@ -102,6 +104,8 @@ rule _strelka_index_bed:
         bedz = CFG["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz"
     conda:
         CFG["conda_envs"]["tabix"]
+    container:
+        CFG["container_envs"]["tabix"]
     shell:
         op.as_one_line("""
         bgzip -c {input.bed} > {output.bedz}
@@ -154,6 +158,8 @@ rule _strelka_configure_paired: # Somatic
         pair_status = "matched|unmatched"
     conda:
         CFG["conda_envs"]["strelka"]
+    container:
+        CFG["container_envs"]["strelka"]
     shell:
         op.as_one_line("""
         configureStrelkaSomaticWorkflow.py 
@@ -186,6 +192,8 @@ rule _strelka_configure_unpaired: # germline
         pair_status = "no_normal"
     conda:
         CFG["conda_envs"]["strelka"]
+    container:
+        CFG["container_envs"]["strelka"]
     shell:
         op.as_one_line("""
         configureStrelkaGermlineWorkflow.py 
@@ -210,9 +218,11 @@ rule _strelka_run_unpaired:
         opts = CFG["options"]["strelka"]
     conda:
         CFG["conda_envs"]["strelka"]
+    container:
+        CFG["container_envs"]["strelka"]
     threads:
         CFG["threads"]["strelka"]
-    resources: 
+    resources:
         mem_mb = op.retry(CFG["mem_mb"]["strelka"], 2),
         bam = 1
     shell:
@@ -236,9 +246,11 @@ rule _strelka_run_paired:
         opts = CFG["options"]["strelka"]
     conda:
         CFG["conda_envs"]["strelka"]
+    container:
+        CFG["container_envs"]["strelka"]
     threads:
         CFG["threads"]["strelka"]
-    resources: 
+    resources:
         mem_mb = op.retry(CFG["mem_mb"]["strelka"], 2),
         bam = 1
     shell:
@@ -263,6 +275,8 @@ rule _strelka_filter_combine:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     log:
         stdout = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_filter_combine.stdout.log",
         stderr = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_filter_combine.stderr.log"

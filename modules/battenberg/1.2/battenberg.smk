@@ -86,7 +86,10 @@ rule _battenberg_get_reference:
         **CFG["resources"]["reference"]
     threads:
         CFG["threads"]["reference"]
-    conda: CFG["conda_envs"]["wget"]
+    conda:
+        CFG["conda_envs"]["wget"]
+    container:
+        CFG["container_envs"]["wget"]
     shell:
         op.as_one_line("""
         wget -qO-  {params.url}/battenberg_impute_{params.alt_build}.tar.gz  |
@@ -137,6 +140,8 @@ rule _infer_patient_sex:
         stderr = CFG["logs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}_infer_sex_stderr.log"
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     group: "setup_run"
     threads: 8
     shell:
@@ -178,6 +183,8 @@ rule _run_battenberg:
         ref = CFG["dirs"]["inputs"] + "reference/{genome_build}"
     conda:
         CFG["conda_envs"]["battenberg"]
+    container:
+        CFG["container_envs"]["battenberg"]
     resources:
         **CFG["resources"]["battenberg"]
     threads:
@@ -232,6 +239,8 @@ rule _battenberg_fill_subclones:
         blacklist_file = lambda w: "src/blacklisted.hg38.bed" if "38" in str({w.genome_build}) else "src/blacklisted.grch37.bed"
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        CFG["container_envs"]["bedtools"]
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -286,6 +295,8 @@ rule _battenberg_convert_coordinates:
         liftover_minmatch = CFG["options"]["liftover_minMatch"]
     conda:
         CFG["conda_envs"]["liftover"]
+    container:
+        CFG["container_envs"]["liftover"]
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -349,6 +360,8 @@ rule _battenberg_fill_segments:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        CFG["container_envs"]["bedtools"]
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};

@@ -92,6 +92,8 @@ rule _lofreq_run:
         rm_files = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_relaxed.vcf.gz"
     conda:
         CFG["conda_envs"]["lofreq"]
+    container:
+        CFG["container_envs"]["lofreq"]
     threads:
         CFG["threads"]["lofreq"]
     resources:
@@ -126,7 +128,9 @@ rule _lofreq_combine_vcf:
     resources:
         **CFG["resources"]["bcftools_sort"]
     conda:
-        CFG["conda_envs"]["lofreq"]
+        CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     log:
         stdout_all = CFG["logs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq_final.combined.stdout.log",
         stderr_all = CFG["logs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq_final.combined.stderr.log",
@@ -156,7 +160,9 @@ rule _lofreq_filter_vcf:
     resources:
         **CFG["resources"]["bcftools_sort"]
     conda:
-        CFG["conda_envs"]["lofreq"]
+        CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     shell:
         op.as_one_line("""
         PATH={SCRIPT_PATH}:$PATH;

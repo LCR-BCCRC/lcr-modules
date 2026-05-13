@@ -106,7 +106,10 @@ rule _mixcr_run:
         prefix = CFG["dirs"]["mixcr"] + "{seq_type}--{genome_build}/{sample_id}/mixcr.{sample_id}", 
         mixcr = CFG["inputs"]["mixcr_exec"] + "/mixcr", 
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8) 
-    conda: CFG["conda_envs"]["java"]
+    conda:
+        CFG["conda_envs"]["java"]
+    container:
+        CFG["container_envs"]["java"]
     threads:
         CFG["threads"]["mixcr_run"]
     message:
