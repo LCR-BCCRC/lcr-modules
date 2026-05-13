@@ -86,6 +86,8 @@ rule _ega_get_ega_file:
         additional_args = CFG["options"]["additional_args"]
     conda:
         CFG["conda_envs"]["pyega3"]
+    container:
+        None
     threads:
         CFG["threads"]["ega_file_download"]
     resources:

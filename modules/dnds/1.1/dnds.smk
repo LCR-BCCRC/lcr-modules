@@ -97,6 +97,8 @@ checkpoint _dnds_prepare_maf:
         CFG["logs"]["inputs"] + "{sample_set}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    container:
+        None
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         mode = "dNdS",
@@ -113,6 +115,8 @@ rule _install_dnds:
         complete = CFG["dirs"]["inputs"] + "dnds_installed.success"
     conda:
         CFG["conda_envs"]["dnds"]
+    container:
+        None
     log:
         input = CFG["logs"]["inputs"] + "install_dnds.log"
     shell:
@@ -132,6 +136,8 @@ rule _dnds_run:
         annotmuts = CFG["dirs"]["dnds"] + "{sample_set}--{launch_date}/{md5sum}_annotmuts.tsv"
     conda:
         CFG["conda_envs"]["dnds"]
+    container:
+        None
     threads:
         CFG["threads"]["dnds"]
     resources:

@@ -86,6 +86,8 @@ rule _salmon_quant:
         quant_to = CFG["transcriptome"]["quant_to"]
     conda:
         CFG["conda_envs"]["salmon"]
+    container:
+        "docker://quay.io/biocontainers/salmon:1.3.0--hf69c8f4_0"
     threads:
         CFG["threads"]["quant"]
     resources:
@@ -147,6 +149,8 @@ rule build_counts_matrix:
         out_dir = directory(CFG["dirs"]["outputs"] + "quant_to_" + CFG["transcriptome"]["quant_to"] + "_matrix/{seq_type}/")
     conda:
         CFG["conda_envs"]["salmon2counts"]
+    container:
+        None
     resources:
         **CFG["resources"]["matrix"]
     shell:

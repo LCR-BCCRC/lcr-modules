@@ -35,6 +35,13 @@ lcr-modules:
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
             cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/python-3.8.3.yaml"
             liftover: "{SCRIPTSDIR}/liftover/2.0/liftover.yaml"
+        container_envs:
+            battenberg: null
+            bedtools: "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
+            cnv2igv: null
+            liftover: "docker://quay.io/biocontainers/ucsc-liftover:377--ha8a8165_4"
+            samtools: "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+
 
         resources:
             battenberg:

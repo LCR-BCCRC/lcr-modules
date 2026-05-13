@@ -73,6 +73,15 @@ lcr-modules:
             linx: "{MODSDIR}/envs/hmftools-linx-1.15.yaml"
             linx_annotate: "{MODSDIR}/envs/hmftools-linx-1.15.yaml"
             snpeff: "{MODSDIR}/envs/snpeff-4.3.1t.yaml"
+        container_envs:
+            amber: null
+            bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+            cobalt: null
+            linx: null
+            purple: null
+            snpeff: null
+            wget: null
+
 
         threads:
             vcf_sample_names: 1

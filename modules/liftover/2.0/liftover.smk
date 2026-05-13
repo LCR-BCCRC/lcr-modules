@@ -92,6 +92,8 @@ rule _liftover_convert_2_bed:
         end_colNum = lambda w: {"seg": config["lcr-modules"]["liftover"]["options"]["end_colNum"], "bedpeA": 3, "bedpeB": 6}[w.type],
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        "docker://quay.io/biocontainers/ucsc-liftover:366--h5eb252a_0"
     shell:
         op.as_one_line("""
         python {params.script} 
@@ -126,6 +128,8 @@ rule _run_liftover:
         mismatch = CFG["options"]["min_mismatch"]
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        "docker://quay.io/biocontainers/ucsc-liftover:366--h5eb252a_0"
     wildcard_constraints:
         chain = "hg38ToHg19|hg19ToHg38"
     shell:
@@ -167,6 +171,8 @@ rule _liftover_bed_2_seg:
         script = CFG["options"]["convert2bed"]
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        "docker://quay.io/biocontainers/ucsc-liftover:366--h5eb252a_0"
     wildcard_constraints: 
         tool = cnv_tools
     shell:
@@ -191,6 +197,8 @@ rule _liftover_bed_2_bedpe:
         opts = CFG["options"]["convert2bed"]
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        "docker://quay.io/biocontainers/ucsc-liftover:366--h5eb252a_0"
     wildcard_constraints: 
         tool = sv_tools
     shell:
@@ -218,6 +226,8 @@ rule _liftover_fill_segments:
         chromArm = op.switch_on_wildcard("chain", CFG["chromArm"])
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        "docker://quay.io/biocontainers/ucsc-liftover:366--h5eb252a_0"
     wildcard_constraints: 
         tool = cnv_tools
     shell:

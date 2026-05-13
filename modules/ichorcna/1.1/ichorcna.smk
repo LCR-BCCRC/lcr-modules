@@ -68,6 +68,8 @@ rule _install_ichorcna:
         outdir = CFG["dirs"]["inputs"] + "ichorCNA/"
     conda:
         CFG["conda_envs"]["ichorcna"]
+    container:
+        "docker://quay.io/biocontainers/r-ichorcna:0.2.0--r36_0"
     shell:
         op.as_one_line("""
         git clone git://github.com/broadinstitute/ichorCNA.git {params.outdir} &&            
@@ -203,6 +205,8 @@ rule _ichorcna_bamCoverage:
         opt = CFG["options"]["deeptools"]["opt"],
         dirOut = CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/bw/"
     conda: CFG["conda_envs"]["deeptools"]
+    container:
+        "docker://quay.io/biocontainers/deeptools:3.5.1--pyhdfd78af_1"
     threads: CFG["threads"]["deeptools"]
     resources:
         **CFG["resources"]["deeptools"]
@@ -222,6 +226,8 @@ rule _ichorcna_bigwigToWig:
     output:
         wig_int = temp(CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/wig/{sample_id}.bin{binSize}{chrom}.wig"),
     conda: CFG["conda_envs"]["ucsc-bigwigtowig"]
+    container:
+        "docker://quay.io/biocontainers/ucsc-bigwigtowig:366--h5eb252a_0"
     threads: CFG["threads"]["ucsc"]
     resources:
         **CFG["resources"]["ucsc"]
@@ -242,6 +248,8 @@ rule _ichorcna_spread_centromeres:
     output:
         wig = temp(CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/wig/{sample_id}.bin{binSize}.{chrom}--fixed.wig")
     conda: CFG["conda_envs"]["bedops_tools"]
+    container:
+        "docker://quay.io/biocontainers/bedops:2.4.39--h7d875b9_1"
     threads: CFG["threads"]["ucsc"]
     resources:
         **CFG["resources"]["ucsc"]
@@ -336,6 +344,8 @@ rule _run_ichorcna:
         plotYlim = CFG["options"]["run"]["ichorCNA_plotYlim"],
         libdir = CFG["dirs"]["inputs"] + "ichorCNA/" + CFG["options"]["run"]["ichorCNA_libdir"]
     conda: CFG["conda_envs"]["ichorcna"]
+    container:
+        "docker://quay.io/biocontainers/r-ichorcna:0.2.0--r36_0"
     threads: CFG["threads"]["run"]
     resources:
         **CFG["resources"]["run"]

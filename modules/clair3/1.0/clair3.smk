@@ -95,6 +95,8 @@ rule _clair3_get_models:
         stderr = CFG["logs"]["inputs"] + "{model}.log"
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         op.as_one_line("""
             wget -qO- {params.url} | tar -xvzf - -C $(dirname {output.model}) 2> {log.stderr}
@@ -127,6 +129,8 @@ rule _clair3_run:
         platform = CFG["options"]["platform"], 
         options = CFG["options"]["clair3"]
     conda: CFG["conda_envs"]["clair3"]  
+    container:
+        None
     threads: CFG["threads"]["clair3"]    
     resources: **CFG["resources"]["clair3"]    
     log:
@@ -149,6 +153,8 @@ rule _clair3_filter:
         filtered = CFG["dirs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}.filtered_phased_merged.vcf.gz",
         index = CFG["dirs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}.filtered_phased_merged.vcf.gz.tbi"
     conda: CFG["conda_envs"]["clair3"]
+    container:
+        None
     resources: **CFG["resources"]["filter"]
     threads: CFG["threads"]["filter"]
     log:

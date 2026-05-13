@@ -89,6 +89,8 @@ rule _fishhook_prepare_maf:
         stderr = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stderr.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    container:
+        None
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         script = CFG["prepare_mafs"]
@@ -112,6 +114,8 @@ rule _install_fishhook:
         complete = CFG["dirs"]["inputs"] + "fishhook_installed.success"
     conda:
         CFG["conda_envs"]["fishhook"]
+    container:
+        None
     log:
         input = CFG["logs"]["inputs"] + "install_fishhook.log"
     shell:
@@ -129,6 +133,8 @@ rule _run_fishhook:
         tsv = CFG["dirs"]["fishhook"] + "{sample_set}/fishhook.output.tsv"
     conda:
         CFG["conda_envs"]["fishhook"]
+    container:
+        None
     threads:
         CFG["threads"]["fishhook"]
     resources:

@@ -75,6 +75,8 @@ rule _manta_index_bed:
         bedz = CFG["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz"
     conda:
         CFG["conda_envs"].get("tabix") or "envs/tabix-0.2.6.yaml"
+    container:
+        "docker://quay.io/biocontainers/tabix:0.2.6--ha92aebf_0"
     shell:
         "bgzip {input.bed} && tabix {output.bedz}"
 
@@ -112,6 +114,8 @@ rule _manta_configure:
         })
     conda:
         CFG["conda_envs"].get("manta") or "envs/manta-1.6.0.yaml"
+    container:
+        "docker://quay.io/biocontainers/manta:1.6.0--py27h9948957_6"
     shell:
         md.as_one_line("""
         configManta.py {params.opts} --referenceFasta {params.fasta} --callRegions {input.bedz}
@@ -179,6 +183,8 @@ rule _manta_calc_vaf:
         stderr = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_calc_vaf.{vcf_name}.stderr.log"
     conda:
         CFG["conda_envs"].get("calc_manta_vaf")
+    container:
+        None
     shell:
         "{input.cvaf} {input.vcf} > {output.vcf} 2> {log.stderr}"
 
@@ -194,6 +200,8 @@ rule _manta_vcf_to_bedpe:
         stderr = CFG["logs"]["bedpe"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_vcf_to_bedpe.{vcf_name}.stderr.log"
     conda:
         CFG["conda_envs"].get("svtools") or "envs/svtools-0.5.1.yaml"
+    container:
+        "docker://quay.io/biocontainers/svtools:0.5.1--py_0"
     threads:
         CFG["threads"].get("vcf_to_bedpe") or 1
     resources:

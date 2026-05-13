@@ -90,6 +90,8 @@ rule _dnds_prepare_maf:
         stderr = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stderr.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    container:
+        None
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         script = CFG["prepare_mafs"]
@@ -113,6 +115,8 @@ rule _install_dnds:
         complete = CFG["dirs"]["inputs"] + "dnds_installed.success"
     conda:
         CFG["conda_envs"]["dnds"]
+    container:
+        None
     log:
         input = CFG["logs"]["inputs"] + "install_dnds.log"
     shell:
@@ -131,6 +135,8 @@ rule _dnds_run:
         annotmuts = CFG["dirs"]["dnds"] + "{sample_set}/annotmuts.tsv"
     conda:
         CFG["conda_envs"]["dnds"]
+    container:
+        None
     threads:
         CFG["threads"]["dnds"]
     resources:

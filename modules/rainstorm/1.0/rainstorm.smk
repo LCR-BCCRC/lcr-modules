@@ -110,6 +110,8 @@ rule _rainstorm_run:
         rainstorm_flags = CFG["options"]["flags"]
     conda:
         CFG["conda_envs"]["rainstorm"]
+    container:
+        None
     threads:
         CFG["threads"]["rainstorm"]
     resources:
@@ -151,6 +153,8 @@ rule _rainstorm_run_doppler:
         out_name = CFG["dirs"]["doppler"] + "{genome_build}/" + CFG["options"]["cohort_name"] + "_mean_"
     conda:
         CFG["conda_envs"]["rainstorm"]
+    container:
+        None
     threads:
         CFG["threads"]["rainstorm"]
     resources:
@@ -177,6 +181,8 @@ rule _rainstorm2bed:
         bed = CFG["dirs"]["doppler"] + "{genome_build}/{cohort_name}_mean_waveletSummary_withMaf.bed"
     conda:
         CFG["conda_envs"]["rainstorm"]
+    container:
+        None
     shell:
         op.as_one_line("""
         python3 {input.converter}

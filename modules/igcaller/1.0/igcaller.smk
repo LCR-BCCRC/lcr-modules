@@ -109,6 +109,8 @@ rule _igcaller_run_paired:
         pair_status = "matched|unmatched"
     conda:
         CFG["conda_envs"]["igcaller"]
+    container:
+        None
     threads:
         CFG["threads"]["_igcaller_run"]
     resources:
@@ -146,6 +148,8 @@ rule _igcaller_run_unpaired:
         pair_status = "no_normal"
     conda:
         CFG["conda_envs"]["igcaller"]
+    container:
+        None
     threads:
         CFG["threads"]["_igcaller_run"]
     resources:

@@ -26,6 +26,9 @@ lcr-modules:
 
         conda_envs:
             pyega3: "{MODSDIR}/envs/pyega3-4.0.3.yaml"
+        container_envs:
+            pyega3: null
+
 
         options:
             additional_args: "-c 17" # number of connections to download single file

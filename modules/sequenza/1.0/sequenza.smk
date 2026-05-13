@@ -94,6 +94,8 @@ rule _sequenza_bam2seqz:
         seqz_binning_opts = CFG["options"]["seqz_binning"]
     conda:
         CFG["conda_envs"]["sequenza-utils"]
+    container:
+        "docker://quay.io/biocontainers/sequenza-utils:3.0.0--py311h8ddd9a4_8"
     threads:
         CFG["threads"]["bam2seqz"]
     resources:
@@ -173,6 +175,8 @@ rule _sequenza_run:
         stderr = CFG["logs"]["sequenza"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_run.{filter_status}.stderr.log"
     conda:
         CFG["conda_envs"]["r-sequenza"]
+    container:
+        None
     threads: CFG["threads"]["sequenza"]
     resources:
         mem_mb = CFG["mem_mb"]["sequenza"]
@@ -195,6 +199,8 @@ rule _sequenza_cnv2igv:
         opts = CFG["options"]["cnv2igv"]
     conda:
         CFG["conda_envs"]["cnv2igv"]
+    container:
+        None
     shell:
         op.as_one_line("""
         python {input.cnv2igv} {params.opts} --sample {wildcards.tumour_id}

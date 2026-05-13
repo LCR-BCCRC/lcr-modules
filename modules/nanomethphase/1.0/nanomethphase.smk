@@ -98,6 +98,8 @@ rule _methyl_call_processor:
         CFG["threads"]["methyl_call"]
     conda:
         CFG["conda_envs"]["nanomethphase"] 
+    container:
+        None
     resources: 
         mem_mb = CFG["mem_mb"]["methyl_call"]        
     log:

@@ -29,6 +29,9 @@ lcr-modules:
         conda_envs:
             liftover-366: "{MODSDIR}/envs/liftover-366.yaml"
             fill_segments: "{SCRIPTSDIR}/fill_segments/1.0/fill_segments.yaml"
+        container_envs:
+            liftover-366: "docker://quay.io/biocontainers/ucsc-liftover:366--h5eb252a_0"
+
         # tsv with chromosome coordinates for each genome build
         chromArm:
             hg19ToHg38: "{SCRIPTSDIR}/fill_segments/1.0/src/chromArm.hg38.tsv"

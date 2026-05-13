@@ -61,6 +61,8 @@ rule _vcf2maf_run:
         build = lambda w: f"{VERSION_UPPER[w.genome_build]}"
     conda:
         CONFIG["conda_envs"]["vcf2maf"]
+    container:
+        "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
     threads:
         CONFIG["threads"]["vcf2maf"]
     resources:

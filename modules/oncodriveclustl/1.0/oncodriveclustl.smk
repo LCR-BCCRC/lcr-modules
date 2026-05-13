@@ -78,6 +78,8 @@ checkpoint _oncodriveclustl_prep_input:
         stdout = CFG["logs"]["inputs"] + "{genome_build}/{sample_set}--{launch_date}/prep_input/prep_input_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    container:
+        None
     params:
         include_non_coding = str(CFG["maf_processing"]["include_non_coding"]).upper(),
         mode = "OncodriveCLUSTL",
@@ -165,6 +167,8 @@ rule _oncodriveclustl_run:
     resources:
         **CFG["resources"]["clustl"]
     conda: CFG["conda_envs"]["clustl"]
+    container:
+        None
     shell:
         op.as_one_line("""
         export BGDATA_LOCAL={params.local_path} &&

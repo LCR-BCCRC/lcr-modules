@@ -148,6 +148,8 @@ rule _hmftools_get_cobalt_gc:
         alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.gc} {params.url}/GC_profile.1000bp.{params.alt_build}.cnp'
 
@@ -159,6 +161,8 @@ rule _hmftools_get_cobalt_bed:
         alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.bed} {params.url}/DiploidRegions.{params.alt_build}.bed'
 
@@ -171,6 +175,8 @@ rule _hmftools_get_amber_snps:
         alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.vcf} {params.url}/GermlineHetPon.{params.alt_build}.vcf.gz; '
         'wget -O {output.snpcheck} {params.url}/Amber.snpcheck.{params.alt_build}.vcf'
@@ -184,6 +190,8 @@ rule _hmftools_get_purple_drivers:
         alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.hotspots} {params.url}/KnownHotspots.somatic.{params.alt_build}.vcf.gz && '
         'wget -O {output.hotspots}.tbi {params.url}/KnownHotspots.somatic.{params.alt_build}.vcf.gz.tbi && '
@@ -197,6 +205,8 @@ rule _hmftools_get_linx_db:
         alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -r -np -nd -P {output} -A .bed,.csv {params.url}/{params.alt_build}  && '
         'wget -O {output}/viral_host_ref.csv {params.url}/viral_host_ref.csv'
@@ -210,6 +220,8 @@ rule _hmftools_get_ensembl_cache:
         alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build] 
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.cache}/{params.alt_build}.zip {params.url}/{params.alt_build}.zip && '
         'unzip -d {output.cache} {output.cache}/{params.alt_build}.zip'
@@ -225,6 +237,8 @@ rule _hmftools_slms3_sample_names:
     log: CFG["dirs"]["prepare_slms3"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/vcf_sample_names.log"
     conda: 
         CFG["conda_envs"]["bcftools"]
+    container:
+        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
     threads: CFG["threads"]["vcf_sample_names"]
     resources: 
         **CFG["resources"]["vcf_sample_names"]
@@ -257,6 +271,8 @@ rule _hmftools_snpeff_vcf:
         CFG["logs"]["prepare_slms3"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/snpeff_slms3.log"
     conda: 
         CFG["conda_envs"]["snpeff"]
+    container:
+        None
     threads: 
         CFG["threads"]["snpeff"]
     shell: 
@@ -290,6 +306,8 @@ rule _hmftools_amber_matched:
         pair_status = "matched"
     conda: 
         CFG["conda_envs"]["amber"]
+    container:
+        None
     threads: 
         CFG["threads"]["amber"]
     shell: 
@@ -323,6 +341,8 @@ rule _hmftools_amber_unmatched:
         pair_status = "unmatched"
     conda: 
         CFG["conda_envs"]["amber"]
+    container:
+        None
     threads: 
         CFG["threads"]["amber"]
     shell: 
@@ -359,6 +379,8 @@ rule _hmftools_cobalt:
         pair_status = "matched|unmatched"
     conda: 
         CFG["conda_envs"]["cobalt"]
+    container:
+        None
     threads: 
         CFG["threads"]["cobalt"]
     shell: 
@@ -424,6 +446,8 @@ rule _hmftools_purple_matched:
         plot_name = "|".join(purple_plots)
     conda: 
         CFG["conda_envs"]["purple"]
+    container:
+        None
     threads: 
         CFG["threads"]["purple"]
     shell: 
@@ -469,6 +493,8 @@ rule _hmftools_linx:
       cache_subdir = lambda w: config["lcr-modules"]["hmftools"]["dirs"]["inputs"] + "references/" + w.genome_build + "/ensembl_cache/" + VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["linx"]
+    container:
+        None
     threads: 
         CFG["threads"]["linx"]
     shell: 
@@ -511,6 +537,8 @@ rule _hmftools_linx_viz:
         alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda:
         CFG["conda_envs"]["linx"]
+    container:
+        None
     threads: 
         CFG["threads"]["linx_viz"]
     

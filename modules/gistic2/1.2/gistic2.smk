@@ -108,6 +108,8 @@ checkpoint _gistic2_prepare_seg:
         log = CFG["logs"]["prepare_seg"] + "{sample_set}--{projection}--{launch_date}.log"
     conda:
         CFG["conda_envs"]["prepare"]
+    container:
+        None
     params:
         metadata_cols = CFG["samples"],
         metadata_dim = CFG["samples"].shape,
@@ -155,6 +157,8 @@ rule _gistic2_run:
         opts = CFG["options"]["gistic2_run"]
     conda:
         CFG["conda_envs"]["gistic2"]
+    container:
+        None
     threads:
         CFG["threads"]["gistic2_run"]
     resources:

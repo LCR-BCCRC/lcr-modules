@@ -96,6 +96,8 @@ rule _mutsig_prepare_maf:
         stderr = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stderr.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    container:
+        None
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         script = CFG["prepare_mafs"]
@@ -119,6 +121,8 @@ rule _mutsig_download_mutsig:
         mutsig = CFG["dirs"]["mcr"] + "MutSig2CV/MutSig2CV.success"
     conda:
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell:
         op.as_one_line("""
         wget
@@ -140,6 +144,8 @@ rule _mutsig_download_mcr:
         stderr = CFG["logs"]["mcr"] + "download_mcr.stderr.log"
     conda:
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell:
         op.as_one_line("""
         wget
@@ -164,6 +170,8 @@ rule _mutsig_install_mcr:
         stderr = CFG["logs"]["mcr"] + "install_mcr.stderr.log"
     conda:
         CFG["conda_envs"]["matlab"]
+    container:
+        None
     shell:
         op.as_one_line("""
         $(dirname {input.mcr})/install
@@ -201,6 +209,8 @@ rule _mutsig_configure_mcr:
         configured = MATLAB + "/lib/configure.success"
     conda:
         CFG["conda_envs"]["matlab"]
+    container:
+        None
     params:
         running_directory = os.path.abspath(CFG["dirs"]["mcr"]),
         scripts_directory = os.path.abspath(CFG["src_dir"]),
@@ -247,6 +257,8 @@ rule _mutsig_run:
         success = CFG["dirs"]["mutsig"] + "{sample_set}/mutsig.success"
     conda:
         CFG["conda_envs"]["matlab"]
+    container:
+        None
     threads:
         CFG["threads"]["mutsig"]
     resources:

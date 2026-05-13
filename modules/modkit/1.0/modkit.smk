@@ -77,6 +77,8 @@ rule _modkit_pileup:
         stderr = CFG["logs"]["modkit"] + "{seq_type}--{genome_build}/{sample_id}/pileup.stderr.log"
     conda: 
         CFG["conda_envs"]["modkit"]
+    container:
+        "docker://quay.io/biocontainers/ont-modkit:0.4.2--hcdda2d0_0"
     threads:
         CFG["threads"]["modkit"]
     resources:

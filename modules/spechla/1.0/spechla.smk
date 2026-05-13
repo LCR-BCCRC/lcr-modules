@@ -125,6 +125,8 @@ rule _spechla_extract_reads:
         genome = _which_genome,
         outdir = CFG["dirs"]["hla_reads"] + "{seq_type}--{genome_build}/"
     conda: CFG["conda_envs"]["spechla"]
+    container:
+        None
     group: "extract_and_run"
     threads:
         CFG["threads"]["extract_reads"]
@@ -164,6 +166,8 @@ rule _spechla_hla_typing:
         long_indels = CFG["options"]["spechla"]["long_indels"],
         opts = CFG["options"]["spechla"]["opts"]
     conda: CFG["conda_envs"]["spechla"]
+    container:
+        None
     group: "extract_and_run"
     threads:
         CFG["threads"]["spechla"]
@@ -258,6 +262,8 @@ rule _spechla_loh:
         ploidy = _get_sample_ploidy,
         outdir = CFG["dirs"]["loh"] + "{seq_type}--{genome_build}/{sample_id}/"
     conda: CFG["conda_envs"]["spechla"]
+    container:
+        None
     group: "loh_symlink"
     threads:
         CFG["threads"]["spechla"]

@@ -13,6 +13,9 @@ lcr-modules:
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             modkit: "{MODSDIR}/envs/modkit-0.4.2.yaml"
+        container_envs:
+            modkit: "docker://quay.io/biocontainers/ont-modkit:0.4.2--hcdda2d0_0"
+
             
         threads:
             pileup: 8

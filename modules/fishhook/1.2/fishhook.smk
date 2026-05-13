@@ -94,6 +94,8 @@ checkpoint _fishhook_prepare_maf:
         CFG["logs"]["prepare_maf"] + "{sample_set}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    container:
+        None
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         mode = "fishHook",
@@ -120,6 +122,8 @@ rule _fishhook_run:
         tsv = CFG["dirs"]["fishhook"] + "{sample_set}--{launch_date}/{md5sum}.fishhook.tsv"
     conda:
         CFG["conda_envs"]["fishhook"]
+    container:
+        None
     log:
         log = CFG["logs"]["fishhook"] + "{sample_set}--{launch_date}--{md5sum}_run_fishook.log"
     threads:

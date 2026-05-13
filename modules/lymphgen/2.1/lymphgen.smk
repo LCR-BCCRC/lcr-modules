@@ -445,6 +445,8 @@ rule _lymphgen_input_cnv:
         logratio = "--log2" if CFG["options"]["lymphgen_input"]["use_log_ratio"].lower() == "true" else ""
     conda:
         CFG['conda_envs']['sorted_containers']
+    container:
+        None
     wildcard_constraints:
         cnvs_wc = "with_cnvs"
     shell:
@@ -475,6 +477,8 @@ rule _lymphgen_input_no_cnv:
         outprefix = "{tumour_id}--{normal_id}--{pair_status}.{cnvs_wc}"
     conda:
         CFG['conda_envs']['sorted_containers']
+    container:
+        None
     wildcard_constraints:
         cnvs_wc = "no_cnvs"
     shell:
@@ -509,6 +513,8 @@ rule _lymphgen_process_sv:
         "lymphgen"
     conda:
         CFG['conda_envs']['gamblr']
+    container:
+        None
     wildcard_constraints:
         sv_wc = "with_sv"
     script:
@@ -638,6 +644,8 @@ rule _lymphgen_run_cnv_A53:
         "lymphgen"
     conda:
         CFG['conda_envs']['optparse']
+    container:
+        None
     wildcard_constraints:
         cnvs_wc = "with_cnvs",
         A53_wc = "with_A53"
@@ -665,6 +673,8 @@ rule _lymphgen_run_cnv_noA53:
         "lymphgen"
     conda:
         CFG['conda_envs']['optparse']
+    container:
+        None
     wildcard_constraints:
         cnvs_wc = "with_cnvs",
         A53_wc = "no_A53"
@@ -690,6 +700,8 @@ rule _lymphgen_run_no_cnv:
         "lymphgen"
     conda:
         CFG['conda_envs']['optparse']
+    container:
+        None
     wildcard_constraints:
         cnvs_wc = "no_cnvs"
     shell:

@@ -120,6 +120,8 @@ checkpoint _hotmaps_prep_input:
         stdout = CFG["logs"]["inputs"] + "{genome_build}/{sample_set}--{launch_date}/prep_input/prep_input_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    container:
+        None
     params:
         include_non_coding = str(CFG["maf_processing"]["include_non_coding"]).upper(),
         mode = "HotMAPS",
@@ -154,6 +156,8 @@ checkpoint _hotmaps_maf2vcf:
         dnps = str(rules._hotmaps_split_dnps.output.dnps)
     conda:
         CFG["conda_envs"]["vcf2maf"]
+    container:
+        "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
     log:
         stdout = CFG["logs"]["maf2vcf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}_maf2vcf.stdout.log",
         stderr = CFG["logs"]["maf2vcf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}_maf2vcf.stderr.log"
@@ -181,6 +185,8 @@ rule _hotmaps_bcftools:
         vcf = CFG["dirs"]["bcftools"] + "vcf/{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}.annotate.vcf"
     conda:
         CFG["conda_envs"]["bcftools"] 
+    container:
+        "docker://quay.io/biocontainers/bcftools:1.17--h3cc50cf_1"
     log:
         stdout = CFG["logs"]["bcftools"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}/bcftools_norm.stdout.log",
         stderr = CFG["logs"]["bcftools"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}/bcftools_norm.stderr.log"
@@ -210,6 +216,8 @@ rule _hotmaps_vcf2maf:
         custom_enst = lambda w: "--custom-enst " + str(config["lcr-modules"]["hotmaps"]["options"]["vcf2maf"]["custom_enst"][w.genome_build]) if config["lcr-modules"]["hotmaps"]["options"]["vcf2maf"]["custom_enst"][w.genome_build] is not None else ""
     conda:
         CFG["conda_envs"]["vcf2maf"]
+    container:
+        "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
     log:
         stdout = CFG["logs"]["vcf2maf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}/vcf2maf.stdout.log",
         stderr = CFG["logs"]["vcf2maf"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{tumour_id}_vs_{normal_sample_id}/vcf2maf.stderr.log"
@@ -398,6 +406,8 @@ rule _hotmaps_get_pdb_info:
         stderr = CFG["logs"]["inputs"] + "get_pdb_info/get_pdb_info.stderr.log"
     conda:
         CFG["conda_envs"]["hotmaps"]
+    container:
+        None
     shell:
         op.as_one_line("""
         mysql -u {params.mysql_user} 
@@ -417,6 +427,8 @@ rule _hotmaps_add_pdb_path:
         add_path_script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/add_path_info.py"
     conda:
         CFG["conda_envs"]["hotmaps"]
+    container:
+        None
     log:
         stdout = CFG["logs"]["inputs"] + "add_pdb_path/add_pdb_path.stdout.log",
         stderr = CFG["logs"]["inputs"] + "add_pdb_path/add_pdb_path.stderr.log"
@@ -437,6 +449,8 @@ rule _hotmaps_add_pdb_description:
         describe_pdb_script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/chain_description.py"
     conda:
         CFG["conda_envs"]["hotmaps"]
+    container:
+        None
     log:
         stdout = CFG["logs"]["inputs"] + "add_pdb_description/add_pdb_description.stdout.log",
         stderr = CFG["logs"]["inputs"] + "add_pdb_description/add_pdb_description.stderr.log"
@@ -464,6 +478,8 @@ rule _hotmaps_prep_mutations:
         script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/mupit/map_maf_to_structure.py"
     conda:
         CFG["conda_envs"]["hotmaps"]
+    container:
+        None
     log:
         stdout = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/prep_mutations/prep_mutations.stdout.log",
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/prep_mutations/prep_mutations.stderr.log"
@@ -497,6 +513,8 @@ rule _hotmaps_prep_mupit_annotation:
         script = CFG["dirs"]["inputs"] + "HotMAPS-master/scripts/maf/convert_maf_to_mupit.py"
     conda:
         CFG["conda_envs"]["hotmaps"]
+    container:
+        None
     log:
         stdout = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/prep_mupit_annotation/prep_mupit_annotation.stdout.log",
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/prep_mupit_annotation/prep_mupit_annotation.stderr.log"
@@ -530,6 +548,8 @@ rule _hotmaps_filter_hypermutated:
         mut_threshold = "--mut-threshold " + CFG["options"]["hotmaps"]["hypermut_threshold"] if CFG["options"]["hotmaps"]["hypermut_threshold"] is not None else "",
     conda:
         CFG["conda_envs"]["hotmaps"]
+    container:
+        None
     log:
         stdout = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/filter_hypermutated/filter_hypermutated.stdout.log",
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/filter_hypermutated/filter_hypermutated.stderr.log"
@@ -609,6 +629,8 @@ rule _hotmaps_get_mutations:
         mysql_pass = CFG["options"]["mysql"]["mysql_passwd"]
     conda:
         CFG["conda_envs"]["hotmaps"]
+    container:
+        None
     resources:
         **CFG["resources"]["get_mutations"]
     shell:
@@ -661,6 +683,8 @@ rule _hotmaps_run_hotspot:
         error = CFG["dirs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/hotspot/error/error_pdb_{split}.txt"
     conda: 
         CFG["conda_envs"]["hotmaps"]
+    container:
+        None
     threads: CFG["threads"]["hotmaps"]
     resources:
         **CFG["resources"]["hotmaps"]
@@ -718,6 +742,8 @@ rule _hotmaps_multiple_test_correct:
         q_value = lambda w: w.q_value,
     conda:
         CFG["conda_envs"]["hotmaps"]
+    container:
+        None
     log:
         stdout = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/multiple_test_correct/mtc_output_{q_value}.stdout.log",
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/multiple_test_correct/mtc_output_{q_value}.stderr.log"
@@ -747,6 +773,8 @@ rule _hotmaps_find_gene:
         q_value = lambda w: w.q_value
     conda:
         CFG["conda_envs"]["hotmaps"]
+    container:
+        None
     log:
         stdout = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/find_gene/find_gene_{q_value}.stdout.log",
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/find_gene/find_gene_{q_value}.stderr.log"
@@ -778,6 +806,8 @@ rule _hotmaps_find_structure:
         q_value = lambda w: w.q_value
     conda:
         CFG["conda_envs"]["hotmaps"]
+    container:
+        None
     log:
         stdout = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/find_structure/find_structure_{q_value}.stdout.log",
         stderr = CFG["logs"]["hotmaps"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/find_structure/find_structure_{q_value}.stderr.log"
@@ -815,6 +845,8 @@ rule _hotmaps_detailed_hotspots:
         **CFG["resources"]["hotmaps"]
     conda:
         CFG["conda_envs"]["hotmaps"]
+    container:
+        None
     shell:
         op.as_one_line("""
         {params.script} 

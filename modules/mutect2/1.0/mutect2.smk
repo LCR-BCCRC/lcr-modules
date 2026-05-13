@@ -68,6 +68,8 @@ rule _mutect2_get_sm:
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}_mutect2_get_sm.stderr.log"
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
     shell:
         "samtools view -H {input.bam} | grep '^@RG' | "
         r"sed 's/.*SM:\([^\t]*\).*/\1/g'"" | uniq > {output.sm} 2> {log.stderr}"
@@ -94,6 +96,8 @@ rule _mutect2_run_matched_unmatched:
         opts = CFG["options"]["mutect2_run"]
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
     threads:
         CFG["threads"]["mutect2_run"]
     resources:
@@ -127,6 +131,8 @@ rule _mutect2_run_no_normal:
         opts = CFG["options"]["mutect2_run"]
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
     threads:
         CFG["threads"]["mutect2_run"]
     resources:
@@ -177,6 +183,8 @@ rule _mutect2_merge_vcfs:
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_merge_vcfs.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
     threads:
         CFG["threads"]["mutect2_merge_vcfs"]
     resources:
@@ -214,6 +222,8 @@ rule _mutect2_merge_stats:
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_merge_stats.stderr.log"
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
     shell:
         op.as_one_line("""
         gatk MergeMutectStats $(for i in {input.stat}; do echo -n "-stats $i "; done)
@@ -237,6 +247,8 @@ rule _mutect2_filter:
         opts = CFG["options"]["mutect2_filter"]
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
     threads:
         CFG["threads"]["mutect2_filter"]
     resources:
@@ -259,6 +271,8 @@ rule _mutect2_filter_passed:
         stderr = CFG["logs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_filter_passed.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
     threads:
         CFG["threads"]["mutect2_passed"]
     resources:

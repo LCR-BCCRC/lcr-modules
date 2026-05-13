@@ -17,6 +17,9 @@ lcr-modules:
 
         conda_envs:
             nanomethphase: "{MODSDIR}/envs/nanomethphase.yaml"
+        container_envs:
+            nanomethphase: null
+
 
         threads:
             methyl_call: 20

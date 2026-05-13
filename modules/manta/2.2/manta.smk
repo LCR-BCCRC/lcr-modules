@@ -58,6 +58,8 @@ rule _manta_index_bed:
         bedz = CFG["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz"
     conda:
         CFG["conda_envs"]["tabix"]
+    container:
+        "docker://quay.io/biocontainers/tabix:0.2.6--ha92aebf_0"
     shell:
         op.as_one_line("""
         bgzip -c {input.bed} > {output.bedz}
@@ -86,6 +88,8 @@ rule _manta_configure_paired:
         pair_status = "matched|unmatched"
     conda:
         CFG["conda_envs"]["manta"]
+    container:
+        "docker://quay.io/biocontainers/manta:1.6.0--py27h9948957_6"
     shell:
         op.as_one_line("""
         configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {input.bedz}
@@ -113,6 +117,8 @@ rule _manta_configure_unpaired:
         pair_status = "no_normal"
     conda:
         CFG["conda_envs"]["manta"]
+    container:
+        "docker://quay.io/biocontainers/manta:1.6.0--py27h9948957_6"
     shell:
         op.as_one_line("""
         configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {input.bedz}
@@ -134,6 +140,8 @@ rule _manta_run:
         opts = CFG["options"]["manta"]
     conda:
         CFG["conda_envs"]["manta"]
+    container:
+        "docker://quay.io/biocontainers/manta:1.6.0--py27h9948957_6"
     threads:
         CFG["threads"]["manta"]
     resources:
@@ -161,6 +169,8 @@ rule _manta_augment_vcf:
         aug_vcf = CFG["scripts"]["augment_manta_vcf"]
     conda:
         CFG["conda_envs"]["augment_manta_vcf"]
+    container:
+        "docker://ghcr.io/lcr-bccrc/lcr-scripts/augment_manta_vcf:1.1"
     threads:
         CFG["threads"]["augment_vcf"]
     resources:
@@ -184,6 +194,8 @@ rule _manta_vcf_to_bedpe:
         stderr = CFG["logs"]["bedpe"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_vcf_to_bedpe.{vcf_name}.stderr.log"
     conda:
         CFG["conda_envs"]["svtools"]
+    container:
+        "docker://quay.io/biocontainers/svtools:0.5.1--py_0"
     threads:
         CFG["threads"]["vcf_to_bedpe"]
     resources:

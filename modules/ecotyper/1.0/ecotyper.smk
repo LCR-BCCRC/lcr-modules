@@ -62,6 +62,8 @@ rule _ecotyper_install:
         folder = CFG["dirs"]["inputs"]
     conda:
         CFG["conda_envs"]["wget"]
+    container:
+        None
     group:
         "preprocessing"
     shell:
@@ -107,6 +109,8 @@ rule _ecotyper_create_mapping:
         stdout = CFG["logs"]["ecotyper"] + "ecotyper_preprocess.stdout.log"
     conda:
         CFG["conda_envs"]["ecotyper"]
+    container:
+        None
     threads:
         CFG["threads"]["processing"]
     resources:
@@ -136,6 +140,8 @@ rule _ecotyper_run:
         out_dir = CFG["dirs"]["ecotyper"]
     conda:
         CFG["conda_envs"]["ecotyper"]
+    container:
+        None
     threads:
         CFG["threads"]["ecotyper"]
     resources:
@@ -181,6 +187,8 @@ rule _ecotyper_postprocess:
         stdout = CFG["logs"]["ecotyper"] + "ecotyper_postprocess.stdout.log"
     conda:
         CFG["conda_envs"]["ecotyper"]
+    container:
+        None
     threads:
         CFG["threads"]["processing"]
     resources:

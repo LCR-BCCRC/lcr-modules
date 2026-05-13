@@ -72,6 +72,8 @@ rule _vcf2maf_run:
         build = lambda w: VERSION_MAP[w.genome_build]
     conda:
         CFG["conda_envs"]["vcf2maf"]
+    container:
+        "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
     threads:
         CFG["threads"]["vcf2maf"]
     resources:
@@ -111,6 +113,8 @@ rule _vcf2maf_crossmap:
         stderr = CFG["logs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.crossmap.stderr.log"
     conda:
         CFG["conda_envs"]["crossmap"]
+    container:
+        "docker://quay.io/biocontainers/crossmap:0.7.0--pyhdfd78af_0"
     threads:
         CFG["threads"]["vcf2maf"]
     resources:

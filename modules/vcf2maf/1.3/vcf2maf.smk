@@ -105,6 +105,8 @@ rule _vcf2maf_annotate_gnomad:
         vcf = temp(CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.annotated.vcf")
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
     resources:
         **CFG["resources"]["annotate"]
     threads:
@@ -134,6 +136,8 @@ rule _vcf2maf_run:
         custom_enst = lambda w: "--custom-enst " + str(config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.genome_build]]) if config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.genome_build]] != "" else ""
     conda:
         CFG["conda_envs"]["vcf2maf"]
+    container:
+        "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
     threads:
         CFG["threads"]["vcf2maf"]
     resources:
@@ -215,6 +219,8 @@ rule _vcf2maf_deblacklist_maf:
         threshold = CFG["options"]["drop_threshold"]
     conda:
         CFG['conda_envs']['gamblr']
+    container:
+        None
     threads:
         CFG["threads"]["deblacklist"]
     resources:
@@ -278,6 +284,8 @@ rule _vcf2maf_augment_maf:
         CFG['threads']['augment']
     conda:
         CFG['conda_envs']['pysam']
+    container:
+        None
     resources:
         **CFG['resources']['augment']
     group: "bam_and_augment"
@@ -350,6 +358,8 @@ rule _vcf2maf_crossmap:
         stderr = CFG["logs"]["crossmap"] + "{seq_type}--{target_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.{filter}.{maf}.crossmap.stderr.log"
     conda:
         CFG["conda_envs"]["crossmap"]
+    container:
+        "docker://quay.io/biocontainers/crossmap:0.7.0--pyhdfd78af_0"
     threads:
         CFG["threads"]["vcf2maf"]
     resources:
@@ -385,6 +395,8 @@ rule _vcf2maf_reannotate:
         custom_enst = lambda w: "--custom-enst " + str(config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.target_build]]) if config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.target_build]] != "" else ""
     conda:
         CFG["conda_envs"]["vcf2maf"]
+    container:
+        "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
     threads:
         CFG["threads"]["maf2maf"]
     resources:

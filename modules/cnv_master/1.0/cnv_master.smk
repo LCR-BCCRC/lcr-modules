@@ -113,6 +113,8 @@ rule _cnv_master_merge_genome_projections:
         seq_type="genome"
     conda:
         CFG["conda_envs"]["R"]
+    container:
+        None
     threads:
         CFG["threads"]["cnv_master"]
     resources:
@@ -133,6 +135,8 @@ rule _cnv_master_merge_capture_projections:
         seq_type="capture"
     conda:
         CFG["conda_envs"]["R"]
+    container:
+        None
     threads:
         CFG["threads"]["cnv_master"]
     resources:

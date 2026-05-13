@@ -121,6 +121,8 @@ checkpoint _rainstorm_prepare_maf:
         CFG["logs"]["inputs"] + "{sample_set}--{genome_build}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    container:
+        None
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         mode = "rainstorm",
@@ -146,6 +148,8 @@ rule _rainstorm_run:
         rainstorm_flags = CFG["options"]["flags"]
     conda:
         CFG["conda_envs"]["rainstorm"]
+    container:
+        None
     threads:
         CFG["threads"]["rainstorm"]
     resources:
@@ -198,6 +202,8 @@ rule _rainstorm_run_doppler:
         out_name = CFG["dirs"]["doppler"] + "{genome_build}/{sample_set}--{launch_date}--{md5sum}/{sample_set}" + "_mean_"
     conda:
         CFG["conda_envs"]["rainstorm"]
+    container:
+        None
     threads:
         CFG["threads"]["rainstorm"]
     resources:
@@ -221,6 +227,8 @@ rule _rainstorm2bed:
         bed = CFG["dirs"]["doppler"] + "{genome_build}/{sample_set}--{launch_date}--{md5sum}/{sample_set}_mean_waveletSummary_withMaf.bed"
     conda:
         CFG["conda_envs"]["rainstorm"]
+    container:
+        None
     shell:
         op.as_one_line("""
         python3 {input.converter}

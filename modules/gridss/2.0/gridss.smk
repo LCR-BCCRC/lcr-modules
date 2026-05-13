@@ -111,6 +111,8 @@ rule _gridss_setup_references:
         steps = "setupreference"
     conda:
         CFG["conda_envs"]["gridss"]
+    container:
+        "docker://quay.io/biocontainers/gridss:2.12.0--h270b39a_1"
     resources:
         mem_mb = 4000
     threads: 8
@@ -152,6 +154,8 @@ rule _gridss_preprocess_unmatched_normal:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gridss"]
+    container:
+        "docker://quay.io/biocontainers/gridss:2.12.0--h270b39a_1"
     threads:
         CFG["threads"]["gridss"]
     resources:
@@ -200,6 +204,8 @@ rule _gridss_preprocess:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gridss"]
+    container:
+        "docker://quay.io/biocontainers/gridss:2.12.0--h270b39a_1"
     threads:
         CFG["threads"]["preprocess"]
     resources:
@@ -289,6 +295,8 @@ rule _gridss_run:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gridss"]
+    container:
+        "docker://quay.io/biocontainers/gridss:2.12.0--h270b39a_1"
     threads:
         CFG["threads"]["gridss"]
     resources:
@@ -323,6 +331,8 @@ rule _gridss_annotate_repeatmasker:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gridss"]
+    container:
+        "docker://quay.io/biocontainers/gridss:2.12.0--h270b39a_1"
     threads:
         CFG["threads"]["repeatmasker"]
     resources:
@@ -355,6 +365,8 @@ rule _gridss_split_vcf:
         ids = lambda wildcards: get_split_ids(wildcards),
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
     threads: CFG['threads']['split']
     resources:
         **CFG['resources']['split']
@@ -404,6 +416,8 @@ rule _gridss_run_gripss:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gripss"]
+    container:
+        "docker://quay.io/biocontainers/hmftools-gripss:1.11--hdfd78af_0"
     shell:
         op.as_one_line("""
         gripss -Xms4G -Xmx{params.mem_mb}m
@@ -426,6 +440,8 @@ rule _gridss_filter_gripss:
         tbi = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filtered.vcf.gz.tbi"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
     threads:
         CFG["threads"]["gripss"]
     resources:
@@ -445,6 +461,8 @@ rule _gridss_gripss_to_bedpe:
         bedpe = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filtered.bedpe"
     conda:
         CFG["conda_envs"]["svtools"]
+    container:
+        "docker://quay.io/biocontainers/svtools:0.5.1--py_0"
     threads:
         CFG["threads"]["gripss"]
     resources:

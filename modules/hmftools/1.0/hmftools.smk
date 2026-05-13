@@ -143,6 +143,8 @@ rule _hmftools_get_cobalt_gc:
         alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.gc} {params.url}/GC_profile.{params.alt_build}.1000bp.cnp'
 
@@ -155,6 +157,8 @@ rule _hmftools_get_amber_snps:
         alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.vcf} {params.url}/GermlineHetPon.{params.alt_build}.vcf.gz; '
         'wget -O {output.snpcheck} {params.url}/GermlineHetPon.{params.alt_build}.snpcheck.vcf.gz'
@@ -168,6 +172,8 @@ rule _hmftools_get_purple_drivers:
         alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.hotspots} {params.url}/KnownHotspots.{params.alt_build}.vcf.gz && '
         'wget -O {output.gene_panel} {params.url}/DriverGenePanel.{params.alt_build}.tsv'
@@ -179,6 +185,8 @@ rule _hmftools_get_linx_db:
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/linx/"
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -r -np -nd -P {output} -A .bed,.csv {params.url} '
 
@@ -193,6 +201,8 @@ rule _hmftools_strelka_sample_names:
     log: CFG["dirs"]["prepare_strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_sample_names.log"
     conda: 
         CFG["conda_envs"]["bcftools"]
+    container:
+        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
     threads: CFG["threads"]["strelka_sample_names"]
     resources: 
         **CFG["resources"]["strelka_sample_names"]
@@ -224,6 +234,8 @@ rule _hmftools_snpeff_strelka:
         CFG["logs"]["prepare_strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/snpeff_strelka.log"
     conda: 
         CFG["conda_envs"]["snpeff"]
+    container:
+        None
     threads: 
         CFG["threads"]["snpeff"]
     shell: 
@@ -247,6 +259,8 @@ rule _hmftools_annotate_strelka:
         purple_jar = "$(dirname $(readlink -e $(which PURPLE)))/purple.jar"
     log: CFG["logs"]["prepare_strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/annotate_strelka.log"
     conda: CFG["conda_envs"]["purple"]
+    container:
+        None
     threads: 
         CFG["threads"]["annotate_strelka"]
     resources: 
@@ -275,6 +289,8 @@ rule _hmftools_amber_matched:
     log: CFG["logs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/amber.log"
     conda: 
         CFG["conda_envs"]["amber"]
+    container:
+        None
     threads: 
         CFG["threads"]["amber"]
     shell: 
@@ -304,6 +320,8 @@ rule _hmftools_amber_unmatched:
     log: CFG["logs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/amber.log"
     conda: 
         CFG["conda_envs"]["amber"]
+    container:
+        None
     threads: 
         CFG["threads"]["amber"]
     shell: 
@@ -334,6 +352,8 @@ rule _hmftools_cobalt:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda: 
         CFG["conda_envs"]["cobalt"]
+    container:
+        None
     threads: 
         CFG["threads"]["cobalt"]
     shell: 
@@ -395,6 +415,8 @@ rule _hmftools_purple_matched:
         pair_status = "matched"
     conda: 
         CFG["conda_envs"]["purple"]
+    container:
+        None
     threads: 
         CFG["threads"]["purple"]
     shell: 
@@ -444,6 +466,8 @@ rule _hmftools_purple_unmatched:
         pair_status = "unmatched"
     conda: 
         CFG["conda_envs"]["purple"]
+    container:
+        None
     threads: 
         CFG["threads"]["purple"]
     shell: 
@@ -477,6 +501,8 @@ rule _hmftools_linx_prepare_ensembl:
         jar = "$(dirname $(readlink -e $(which linx)))/sv-linx.jar"
     conda: 
         CFG["conda_envs"]["linx"]
+    container:
+        None
     shell: 
         op.as_one_line("""
         java -cp {params.jar} com.hartwig.hmftools.linx.gene.GenerateEnsemblDataCache
@@ -522,6 +548,8 @@ rule _hmftools_linx:
       options = CFG["options"]["linx"]
     conda: 
         CFG["conda_envs"]["linx"]
+    container:
+        None
     threads: 
         CFG["threads"]["linx"]
     shell: 
@@ -562,6 +590,8 @@ rule _hmftools_linx_viz:
         options = CFG["options"]["linx_viz"]
     conda:
         CFG["conda_envs"]["linx"]
+    container:
+        None
     threads: 
         CFG["threads"]["linx_viz"]
     
@@ -602,6 +632,8 @@ rule _hmftools_linx_viz_annotate:
         options = CFG["options"]["linx_viz_annotate"]
     conda:
         CFG["conda_envs"]["linx"]
+    container:
+        None
     threads: 
         CFG["threads"]["linx_viz"]
     

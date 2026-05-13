@@ -108,6 +108,8 @@ rule _download_sage_references:
         cache_build = lambda w: "38" if "38" in str({w.genome_build}) else "37"
     conda:
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell:
         op.as_one_line("""
         wget -O {output.hotspots} {params.url}/KnownHotspots.{params.build}.vcf.gz
@@ -162,6 +164,8 @@ rule _run_sage:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["sage"]
+    container:
+        "docker://quay.io/biocontainers/hmftools-sage:3.0.1--hdfd78af_0"
     threads:
         CFG["threads"]["sage_run"]
     resources:
@@ -206,6 +210,8 @@ rule _sage_filter_vcf:
         heap_mem = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
     threads:
         CFG["threads"]["filter"]
     resources:
@@ -234,6 +240,8 @@ rule _sage_split_vcf:
         stderr = CFG["logs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/split_passed.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
     threads:
         CFG["threads"]["filter"]
     resources:

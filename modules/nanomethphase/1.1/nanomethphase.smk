@@ -112,6 +112,8 @@ rule _nanomethphase_methyl_call:
         CFG["threads"]["methyl_call"]
     conda:
         CFG["conda_envs"]["nanomethphase"] 
+    container:
+        None
     resources: **CFG["resources"]["methyl_call"]        
     log: CFG["logs"]["methyl_call"] + "{seq_type}--{genome_build}/{sample_id}/methyl_call_processor.stderr.log"   
     group: "input_and_meth_call"          
@@ -144,6 +146,8 @@ rule _nanomethphase_run:
         options = CFG["options"]["nanomethphase"]
     conda:
         CFG["conda_envs"]["nanomethphase"] 
+    container:
+        None
     log: CFG["logs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/nanomethphase.log" 
     shell:
         op.as_one_line("""
@@ -164,6 +168,8 @@ rule _nanomethphase_cram:
     resources: **CFG["resources"]["cram"]
     conda: 
         CFG["conda_envs"]["nanomethphase"]
+    container:
+        None
     log: CFG["logs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/HP{haplotype}_cram_conversion.log"
     shell:
         op.as_one_line("""
@@ -183,6 +189,8 @@ rule _nanomethphase_dma:
         options = CFG["options"]["dma"]
     conda:
         CFG["conda_envs"]["nanomethphase"] 
+    container:
+        None
     threads: CFG["threads"]["dma"]
     resources: **CFG["resources"]["dma"]
     shell: 

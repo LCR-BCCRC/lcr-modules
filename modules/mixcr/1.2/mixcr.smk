@@ -190,6 +190,8 @@ rule _mixcr_run:
         mixcr = CFG["inputs"]["mixcr_exec"] + "/mixcr", 
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8) 
     conda: CFG["conda_envs"]["java"]
+    container:
+        "docker://quay.io/biocontainers/java-jdk:8.0.112--1"
     threads:
         CFG["threads"]["mixcr_run"]
     shell:
@@ -236,6 +238,8 @@ if CFG["igblastn"]:
             form = "7 std btop " + CFG["options"]["igblast_run"]["form"]
         conda:
             CFG["conda_envs"]["igblast"]
+        container:
+            "docker://quay.io/biocontainers/igblast:1.17.1--pl5321h3928612_1"
         shell:
             op.as_one_line("""
             igblastn -query {input.fasta} -out {output.db} 

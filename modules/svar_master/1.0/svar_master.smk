@@ -150,6 +150,8 @@ rule _svar_master_intersect:
         maxgap = CFG_SV["options"]["intersect"]["maxgap"]
     conda:
         CFG_SV["conda_envs"]["filter_svs"]
+    container:
+        None
     threads: CFG_SV["threads"]["intersect"]
     resources:
         **CFG_SV["resources"]["intersect"]
@@ -170,6 +172,8 @@ rule _svar_master_annotate:
         annotations = op.switch_on_wildcard("genome_build", CFG_SV["switches"]["annotate"]["annotation_bed"])
     conda:
         CFG_SV["conda_envs"]["bedtools"]
+    container:
+        "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
     threads:
         CFG_SV["threads"]["annotate"]
     resources:
@@ -199,6 +203,8 @@ checkpoint _svar_master_annotate_combine:
         CFG_SV["dirs"]["annotate_svs"] + "log/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combine_annotated.RData"
     conda:
         CFG_SV["conda_envs"]["filter_svs"]
+    container:
+        None
     threads:
         CFG_SV["threads"]["combine"]
     resources:

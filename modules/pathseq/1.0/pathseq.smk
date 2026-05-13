@@ -85,6 +85,8 @@ rule _pathseq_input_fasta:
         genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.noEBV.fa.fai"
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -109,6 +111,8 @@ rule _pathseq_fasta_dictionary:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["picard"]
+    container:
+        "docker://quay.io/biocontainers/picard:2.22.3--0"
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -137,6 +141,8 @@ rule _pathseq_reference_img:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -165,6 +171,8 @@ rule _pathseq_reference_bfi:
         stderr = CFG["logs"]["inputs"] + "references/{genome_build}/genome_{genome_build}.BwaMemIndexImageCreator.stderr.log"
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -218,6 +226,8 @@ rule _pathseq_collect_flagstats:
         flagstat = CFG["dirs"]["flagstat"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.{genome_build}.flagstat"
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -251,6 +261,8 @@ rule _pathseq_run:
         flags = CFG["options"]["flags"]
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
     threads:
         CFG["threads"]["pathseq"]
     resources:
@@ -309,6 +321,8 @@ rule _pathseq_calculate_ebv:
         opts = CFG["options"]["ebv_cutoff"]
     conda:
         CFG["conda_envs"]["R"]
+    container:
+        None
     threads:
         CFG["threads"]["calculate_ebv"]
     resources:

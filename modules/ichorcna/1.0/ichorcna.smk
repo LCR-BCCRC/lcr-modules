@@ -68,6 +68,8 @@ rule _install_ichorcna:
         outdir = CFG["dirs"]["inputs"] + "ichorCNA/"
     conda:
         CFG["conda_envs"]["ichorcna"]
+    container:
+        "docker://quay.io/biocontainers/r-ichorcna:0.2.0--r36_0"
     shell:
         op.as_one_line("""
         git clone git://github.com/broadinstitute/ichorCNA.git {params.outdir} &&            
@@ -207,6 +209,8 @@ rule _ichorcna_read_counter:
         qual = CFG["options"]["readcounter"]["qual"],
         chrs = get_chromosomes
     conda: CFG["conda_envs"]["ichorcna"]
+    container:
+        "docker://quay.io/biocontainers/r-ichorcna:0.2.0--r36_0"
     threads: CFG["threads"]["readcounter"]
     resources:
         **CFG["resources"]["readcounter"]
@@ -271,6 +275,8 @@ rule _run_ichorcna:
         plotYlim = CFG["options"]["run"]["ichorCNA_plotYlim"],
         libdir = CFG["dirs"]["inputs"] + "ichorCNA/" + CFG["options"]["run"]["ichorCNA_libdir"]
     conda: CFG["conda_envs"]["ichorcna"]
+    container:
+        "docker://quay.io/biocontainers/r-ichorcna:0.2.0--r36_0"
     threads: CFG["threads"]["run"]
     resources:
         **CFG["resources"]["run"]

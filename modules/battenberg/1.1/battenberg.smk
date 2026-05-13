@@ -84,6 +84,8 @@ rule _infer_patient_sex:
     group: "setup_run"
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
     threads: 8
     shell:
         op.as_one_line("""
@@ -123,6 +125,8 @@ rule _run_battenberg:
         out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}"
     conda:
         CFG["conda_envs"]["battenberg"]
+    container:
+        None
     resources:
         **CFG["resources"]["battenberg"]
     threads:
@@ -152,6 +156,8 @@ rule _battenberg_to_igv_seg:
         opts = CFG["options"]["preserve"]
     conda:
         CFG["conda_envs"]["cnv2igv"]
+    container:
+        None
     threads: 1
     group: "battenberg_post_process"
     shell:
@@ -179,6 +185,8 @@ rule _battenberg_fill_subclones:
         blacklist_file = lambda w: "src/blacklisted.hg38.bed" if "38" in str({w.genome_build}) else "src/blacklisted.grch37.bed"
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -233,6 +241,8 @@ rule _battenberg_convert_coordinates:
         liftover_minmatch = CFG["options"]["liftover_minMatch"]
     conda:
         CFG["conda_envs"]["liftover"]
+    container:
+        "docker://quay.io/biocontainers/ucsc-liftover:377--ha8a8165_4"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -281,6 +291,8 @@ rule _battenberg_fill_segments:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};

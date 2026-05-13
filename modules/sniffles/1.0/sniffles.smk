@@ -91,6 +91,8 @@ rule _sniffles:
         vcf = CFG["dirs"]["sniffles"] + "{seq_type}--{genome_build}/{sample_id}.vcf"
     conda: 
         CFG["conda_envs"]["sniffles"]
+    container:
+        "docker://quay.io/biocontainers/sniffles:2.0.3--pyhdfd78af_0"
     resources: 
        mem_mb = CFG["mem_mb"]["sniffles"]
     threads:    
@@ -116,6 +118,8 @@ rule _sniffles_vcf_to_bedpe:
         stderr = CFG["logs"]["bedpe"] + "{seq_type}--{genome_build}/{sample_id}/sniffles_vcf_to_bedpe.stderr.log"
     conda:
         CFG["conda_envs"]["svtools"]
+    container:
+        "docker://quay.io/biocontainers/svtools:0.5.1--py_0"
     threads:
         CFG["threads"]["vcf_to_bedpe"]
     resources: 

@@ -66,6 +66,8 @@ rule _strelka_input_vcf:
         tbi = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz.tbi"
     conda:
         CFG["conda_envs"]["tabix"]
+    container:
+        "docker://quay.io/biocontainers/tabix:0.2.6--ha92aebf_0"
     shell:
         op.as_one_line("""
         bgzip -c {input.manta_vcf} > {output.vcf}
@@ -82,6 +84,8 @@ rule _strelka_index_bed:
         bedz = CFG["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz"
     conda:
         CFG["conda_envs"]["tabix"]
+    container:
+        "docker://quay.io/biocontainers/tabix:0.2.6--ha92aebf_0"
     shell:
         op.as_one_line("""
         bgzip -c {input.bed} > {output.bedz}
@@ -119,6 +123,8 @@ rule _strelka_configure_paired: # Somatic
         pair_status = "matched|unmatched"
     conda:
         CFG["conda_envs"]["strelka"]
+    container:
+        "docker://quay.io/biocontainers/strelka:2.9.10--h9ee0642_1"
     shell:
         op.as_one_line("""
         configureStrelkaSomaticWorkflow.py
@@ -151,6 +157,8 @@ rule _strelka_configure_unpaired: # germline
         pair_status = "no_normal"
     conda:
         CFG["conda_envs"]["strelka"]
+    container:
+        "docker://quay.io/biocontainers/strelka:2.9.10--h9ee0642_1"
     shell:
         op.as_one_line("""
         configureStrelkaGermlineWorkflow.py
@@ -175,6 +183,8 @@ rule _strelka_run:
         opts = CFG["options"]["strelka"]
     conda:
         CFG["conda_envs"]["strelka"]
+    container:
+        "docker://quay.io/biocontainers/strelka:2.9.10--h9ee0642_1"
     threads:
         CFG["threads"]["strelka"]
     resources:

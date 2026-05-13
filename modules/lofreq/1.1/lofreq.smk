@@ -121,6 +121,8 @@ rule _lofreq_preprocess_normal:
         opts = CFG["options"]["lofreq"]
     conda:
         CFG["conda_envs"]["lofreq"]
+    container:
+        "docker://quay.io/biocontainers/lofreq:2.1.5--py311hce89694_15"
     threads:
         CFG["threads"]["lofreq"]
     resources:
@@ -198,6 +200,8 @@ rule _lofreq_run_tumour_unmatched:
         opts = CFG["options"]["lofreq"]
     conda:
         CFG["conda_envs"]["lofreq"]
+    container:
+        "docker://quay.io/biocontainers/lofreq:2.1.5--py311hce89694_15"
     threads:
         CFG["threads"]["lofreq"]
     resources:
@@ -237,6 +241,8 @@ rule _lofreq_run_tumour_matched:
         opts = CFG["options"]["lofreq"]
     conda:
         CFG["conda_envs"]["lofreq"]
+    container:
+        "docker://quay.io/biocontainers/lofreq:2.1.5--py311hce89694_15"
     threads:
         CFG["threads"]["lofreq"]
     resources:
@@ -271,6 +277,8 @@ rule _lofreq_combine_vcf:
         **CFG["resources"]["bcftools_sort"]
     conda:
         CFG["conda_envs"]["lofreq"]
+    container:
+        "docker://quay.io/biocontainers/lofreq:2.1.5--py311hce89694_15"
     log:
         stdout_all = CFG["logs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq_final.combined.stdout.log",
         stderr_all = CFG["logs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq_final.combined.stderr.log",
@@ -301,6 +309,8 @@ rule _lofreq_filter_vcf:
         **CFG["resources"]["bcftools_sort"]
     conda:
         CFG["conda_envs"]["lofreq"]
+    container:
+        "docker://quay.io/biocontainers/lofreq:2.1.5--py311hce89694_15"
     shell:
         op.as_one_line("""
         PATH={SCRIPT_PATH}:$PATH;

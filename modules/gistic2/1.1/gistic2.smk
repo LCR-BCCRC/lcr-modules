@@ -151,6 +151,8 @@ rule _gistic2_run:
         opts = CFG["options"]["gistic2_run"]
     conda:
         CFG["conda_envs"]["gistic2"]
+    container:
+        None
     threads:
         CFG["threads"]["gistic2_run"]
     resources:

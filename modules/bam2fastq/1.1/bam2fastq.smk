@@ -69,6 +69,8 @@ if CFG["temp_outputs"] == True:
             opts = CFG["options"]["bam2fastq"]
         conda:
             CFG["conda_envs"]["picard"]
+        container:
+            "docker://quay.io/biocontainers/picard:2.22.3--0"
         threads:
             CFG["threads"]["bam2fastq"]
         resources:
@@ -97,6 +99,8 @@ elif CFG["temp_outputs"] == False:
             opts = CFG["options"]["bam2fastq"]
         conda:
             CFG["conda_envs"]["picard"]
+        container:
+            "docker://quay.io/biocontainers/picard:2.22.3--0"
         threads:
             CFG["threads"]["bam2fastq"]
         resources:

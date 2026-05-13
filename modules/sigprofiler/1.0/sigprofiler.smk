@@ -117,6 +117,8 @@ rule _sigprofiler_run_generator:
         ref = lambda w: config['lcr-modules']['sigprofiler']["sigpro_genomes"][w.genome_build]
     conda:
         CFG["conda_envs"]["sigprofiler"]
+    container:
+        None
     threads:
         CFG["threads"]["generator"]
     resources:
@@ -142,6 +144,8 @@ rule _sigprofiler_run_estimate:
         max_sig = lambda w: max_sigs[w.type],
         outpath = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{sample_set}"
     conda: CFG["conda_envs"]["sigprofiler"]
+    container:
+        None
     threads: CFG["threads"]["estimate"]
     resources:
         mem_mb = CFG["mem_mb"]["estimate"]
@@ -171,6 +175,8 @@ rule _sigprofiler_run_extract:
         exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
         outpath = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{sample_set}"
     conda: CFG["conda_envs"]["sigprofiler"]
+    container:
+        None
     threads: CFG["threads"]["extract"]
     resources:
         mem_mb = CFG["mem_mb"]["extract"]

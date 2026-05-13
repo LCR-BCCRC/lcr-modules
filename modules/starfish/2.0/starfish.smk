@@ -124,6 +124,8 @@ rule _starfish_run:
         opts = CFG["options"]["starfish_run"]
     conda:
         CFG["conda_envs"]["starfish"]
+    container:
+        "docker://quay.io/biocontainers/bcftools:1.11--h7c999a4_0"
     threads:
         CFG["threads"]["starfish_run"]
     resources:

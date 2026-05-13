@@ -73,6 +73,8 @@ rule _star_run:
         star_overhang = CFG["reference_params"]["star_overhang"]
     conda:
         CFG["conda_envs"]["star"]
+    container:
+        "docker://quay.io/biocontainers/star:2.7.3a--h5ca1c30_1"
     threads:
         CFG["threads"]["star"]
     resources:

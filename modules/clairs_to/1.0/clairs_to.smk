@@ -165,6 +165,8 @@ rule _clairs_to_link_clairs_to_models:
         link_dummy = touch(os.path.join(MODULE_DIR, "link_dummy"))
     conda:
         CFG["conda_envs"]["clairs_to"]
+    container:
+        None
     params:
         models_target = os.path.join(RES_DIR, "clairs-to_models"),
         models_link   = "$(dirname $(command -v python))/clairs-to_models",
@@ -219,6 +221,8 @@ rule _clairs_to_call_variants:
         models = lambda wc: get_clairs_to_models(wc)
     conda:
         CFG["conda_envs"]["clairs_to"]
+    container:
+        None
     threads:
         CFG["threads"]["clairs_to"]
     resources:
@@ -255,6 +259,8 @@ rule _clairs_to_combine_vcfs:
         stderr = CFG["logs"]["clairs_to"] + "{seq_type}--{genome_build}/{tumour_id}--{chemistry}--tumor_only/combine_vcfs.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
     threads:
         CFG["threads"]["bcftools"]
     resources:
@@ -290,6 +296,8 @@ rule _clairs_to_gnomad_annotation:
         stdout = CFG["logs"]["clairs_to"] + "{seq_type}--{genome_build}/{tumour_id}--{chemistry}--tumor_only/clairs_gnomad_annotation.stdout.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
     threads:
         CFG["threads"]["bcftools"]
     resources:
@@ -316,6 +324,8 @@ rule _clairs_to_filter:
         tbi = CFG["dirs"]["clairs_to_filter"] + "{seq_type}--{genome_build}/{tumour_id}--{chemistry}--tumor_only/clairs_to.final.vcf.gz.tbi"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
     resources:
         **CFG["resources"]["bcftools"]
     threads:

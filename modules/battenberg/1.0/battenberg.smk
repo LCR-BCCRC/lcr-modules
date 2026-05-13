@@ -78,6 +78,8 @@ rule _install_battenberg:
         complete = "config/envs/battenberg_dependencies_installed.success"
     conda:
         CFG["conda_envs"]["battenberg"]
+    container:
+        None
     shell:
         """
         R -q --vanilla -e 'devtools::install_github("Crick-CancerGenomics/ascat/ASCAT")' && ##move some of this to config?
@@ -117,6 +119,8 @@ rule _run_battenberg:
         out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}"
     conda:
         CFG["conda_envs"]["battenberg"]
+    container:
+        None
     resources:
         **CFG["resources"]["battenberg"]
     threads:
