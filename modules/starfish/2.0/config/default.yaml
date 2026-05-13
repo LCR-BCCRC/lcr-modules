@@ -40,7 +40,7 @@ lcr-modules:
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             starfish: "{MODSDIR}/envs/starfish.yaml"
         container_envs:
-            starfish: "docker://quay.io/biocontainers/bcftools:1.11--h7c999a4_0"
+            starfish: "docker://ghcr.io/lcr-bccrc/lcr-scripts/starfish:2.0"
 
             
         threads:
