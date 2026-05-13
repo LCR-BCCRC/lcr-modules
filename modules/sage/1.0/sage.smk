@@ -155,7 +155,7 @@ rule _run_sage:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname)" > {log.stdout}
         &&
-        SAGE_CHROMOSOMES=$(awk '{printf "%s%s",(NR>1?",":""),$0}END{printf "\n"}' {input.main_chromosomes})
+        SAGE_CHROMOSOMES=$(awk '{{printf "%s%s",(NR>1?",":""),$0}}END{{printf "\n"}}' {input.main_chromosomes})
         &&
         java -Xms1G -Xmx{params.jvmheap}m
         -cp {params.sage} com.hartwig.hmftools.sage.SageApplication
