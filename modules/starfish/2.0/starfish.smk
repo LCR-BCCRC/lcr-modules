@@ -70,9 +70,8 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _starfish_input_vcf,
-    _starfish_rename_output, 
+    _starfish_rename_output,
     _starfish_output_vcf,
-    _starfish_output_venn,
     _starfish_all,
 
 ##### GLOBAL VARIABLES #####
@@ -115,8 +114,7 @@ rule _starfish_run:
         reference = ancient(reference_files("genomes/{genome_build}/sdf")),
         starfish_script = CFG["inputs"]["starfish_script"]
     output:
-        complete = touch(CFG["dirs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/starfish.complete"), 
-        venn = CFG["dirs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/venn.pdf"
+        complete = touch(CFG["dirs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/starfish.complete")
     log:
         stdout = CFG["logs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/starfish_run.stdout.log",
         stderr = CFG["logs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/starfish_run.stderr.log"
@@ -189,13 +187,6 @@ rule _starfish_output_vcf:
         op.relative_symlink(input.vcf + ".tbi", output.tbi, in_module=True)
 
 
-rule _starfish_output_venn: 
-    input: 
-        venn = str(rules._starfish_run.output.venn)
-    output: 
-        venn = CFG["dirs"]["outputs"] + "venn/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.venn.pdf"
-    run: 
-        op.relative_symlink(input.venn, output.venn, in_module=True)
 
 def _starfish_get_output_target(wildcards): 
     CFG = config["lcr-modules"]["starfish"]
@@ -211,9 +202,8 @@ def _starfish_get_output_target(wildcards):
     return vcfs
 
 
-rule _starfish_dispatch: 
-    input: 
-        str(rules._starfish_output_venn.output.venn), 
+rule _starfish_dispatch:
+    input:
         _starfish_get_output_target        
     output: 
         touch(CFG["dirs"]["outputs"] + "dispatched/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.dispatched")
