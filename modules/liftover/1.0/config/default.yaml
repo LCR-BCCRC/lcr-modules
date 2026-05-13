@@ -26,7 +26,7 @@ lcr-modules:
         conda_envs:
             liftover-366: "{MODSDIR}/envs/liftover-377.yaml"
         container_envs:
-            liftover-366: "docker://quay.io/biocontainers/ucsc-liftover:366--h5eb252a_0"
+            liftover-366: "docker://ghcr.io/lcr-bccrc/lcr-scripts/liftover:1.0"
 
         pairing_config:
             genome:
