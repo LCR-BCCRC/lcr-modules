@@ -291,13 +291,13 @@ rule _qc_sort_baits:
         BED_PREFIXED=$(head -1 {output.intermediate_baits} | cut -f 1)
             &&
         if [[ $QC_REF_PREFIXED == *"chr"* && ! $BED_PREFIXED == *"chr"* ]]; then
-            cat {output.intermediate_baits} | perl -ne "s/^/chr/g;print" > {output.intermediate_baits}.fix_prefix;
+            awk '{print "chr" $0}' {output.intermediate_baits} > {output.intermediate_baits}.fix_prefix;
             rm {output.intermediate_baits};
             mv {output.intermediate_baits}.fix_prefix {output.intermediate_baits};
         fi
             &&
         cut -f 1-2  {input.fai} |
-        perl -ane 'print "$F[0]\\t0\\t$F[1]\\n"' |
+        awk '{{print $1 "\\t0\\t" $2}}' |
         bedtools intersect -wa -a {output.intermediate_baits} -b stdin |
         bedtools sort |
         bedtools merge >
