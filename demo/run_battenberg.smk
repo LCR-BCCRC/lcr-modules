@@ -3,14 +3,17 @@
 '''
 Example Snakefile for running the Battenberg module in isolation.
 
-This file must be run from the demo/ directory of lcr-modules:
+Must be run from the demo/ directory of lcr-modules. The symlink in
+modules/battenberg/1.2/ is for reference only — paths will not work
+if launched from the module directory.
 
     cd /path/to/lcr-modules/demo
-    snakemake --snakefile run_battenberg.smk --use-singularity [other options]
 
-The symlink in modules/battenberg/1.2/ is provided for reference only.
-All paths in this file are relative to demo/ and will not work if the
-file is launched from the module directory.
+    # Dry run (conda)
+    ./dry-run.sh run_battenberg.smk all "" runtime_config.conda.yaml
+
+    # Local run (apptainer)
+    ./run.sh run_battenberg.smk all "" runtime_config.apptainer.yaml
 '''
 
 import oncopipe as op
