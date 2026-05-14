@@ -3,7 +3,7 @@
 import oncopipe as op
 
 SAMPLES = op.load_samples("data/samples.tsv")
-GENOME = op.filter_samples(SAMPLES, seq_type = "genome")
+CAPTURE = op.filter_samples(SAMPLES, seq_type = "capture")
 
 
 subworkflow reference_files:
@@ -19,7 +19,7 @@ configfile: "../modules/battenberg/1.2/config/default.yaml"
 configfile: "genome_config.yaml"
 
 
-config["lcr-modules"]["_shared"]["samples"] = GENOME
+config["lcr-modules"]["_shared"]["samples"] = CAPTURE
 
 
 include: "../modules/battenberg/1.2/battenberg.smk"
