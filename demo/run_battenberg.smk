@@ -16,7 +16,7 @@ subworkflow reference_files:
 
 
 configfile: "../modules/battenberg/1.2/config/default.yaml"
-configfile: "genome_config.yaml"
+configfile: "capture_config.yaml"
 
 
 config["lcr-modules"]["_shared"]["samples"] = CAPTURE
