@@ -330,6 +330,24 @@ rule _cnvkit_call:
           {params.filter_by} {params.male_ref} {params.opts} &> {log.log}
         """)
 
+# Create seg formatted for PureCN pipeline
+rule _cnvkit_seg_for_purecn:
+    input:
+        cns = str(rules._cnvkit_call.output.cns)
+    output:
+        seg = CFG["dirs"]["call"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.for_purecn.seg"
+    log:
+        log = CFG["logs"]["call"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_seg_for_purecn.log"
+    conda:
+        CFG["conda_envs"]["cnvkit"]
+    threads:
+        CFG["threads"]["seg_for_purecn"]
+    resources:
+        **CFG["resources"]["seg_for_purecn"]
+    shell:
+        op.as_one_line("""
+        cnvkit.py export seg {input.cns} --enumerate-chroms -o {output.seg} &> {log.log}
+        """)
 
 # plot a scatter plot of amps and dels, also BAF
 rule _cnvkit_scatter:
@@ -509,6 +527,7 @@ rule _cnvkit_metrics:
         cnvkit.py metrics {input.cnr} -s {input.cns} > {output.metrics} 2> {log.log}
         """)
 
+# Create seg formatted for cnv_master and other lcr-mdoules
 rule _cnvkit_cnv2igv:
     input:
         cns = str(rules._cnvkit_call.output.cns),
@@ -674,7 +693,8 @@ def _get_capture_space(wildcards):
         "trusted_genes": str(rules._cnvkit_trusted_genes_cna.output.trusted_genes).replace("{capture_space}", this_space[0]),
         "sex": str(rules._cnvkit_infer_sex.output.sex).replace("{capture_space}", this_space[0]),
         "metrics": str(rules._cnvkit_metrics.output.metrics).replace("{capture_space}", this_space[0]),
-        "seg": str(rules._cnvkit_cnv2igv.output.seg).replace("{capture_space}", this_space[0])
+        "seg": str(rules._cnvkit_cnv2igv.output.seg).replace("{capture_space}", this_space[0]),
+        "seg_for_purecn": str(rules._cnvkit_seg_for_purecn.output.seg).replace("{capture_space}", this_space[0])
     }
     return inputs
 
@@ -693,7 +713,8 @@ rule _cnvkit_output:
         genemetrics_gene = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}.bin.gene_cn.txt",
         sex = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}_inferred_sex.txt",
         metrics = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}.metrics.txt",
-        seg = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}.seg"
+        seg = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}.seg",
+        seg_for_purecn = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}/{tumour_id}_for_purecn.seg",
     wildcard_constraints:
         genome_build = '|'.join(CFG["runs"]["tumour_genome_build"])
     run:
@@ -707,6 +728,7 @@ rule _cnvkit_output:
         op.relative_symlink(input.sex, output.sex, in_module = True)
         op.relative_symlink(input.metrics, output.metrics, in_module = True)
         op.relative_symlink(input.seg, output.seg, in_module = True)
+        op.relative_symlink(input.seg_for_purecn, output.seg_for_purecn, in_module = True)
 
 
 
@@ -724,7 +746,8 @@ rule _cnvkit_all:
                 str(rules._cnvkit_output.output.genemetrics_gene),
                 str(rules._cnvkit_output.output.sex),
                 str(rules._cnvkit_output.output.metrics),
-                str(rules._cnvkit_output.output.seg)
+                str(rules._cnvkit_output.output.seg),
+                str(rules._cnvkit_output.output.seg_for_purecn)
             ],
             zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],

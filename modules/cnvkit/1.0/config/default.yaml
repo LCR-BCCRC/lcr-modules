@@ -11,7 +11,7 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {capture_space}
             # target and antitarget beds from accessible regions
             # panel_of_normals-1.0/99-outputs/bed/{seq_type}--{genome_build}/{capture_space}_target_sites.bed
-            target_bed: "__UPDATE__" 
+            target_bed: "__UPDATE__"
             # panel_of_normals-1.0/99-outputs/bed/{seq_type}--{genome_build}/{capture_space}_antitarget_sites.bed
             antitarget_bed: "__UPDATE__"
             # normal reference coverage cnn
@@ -82,6 +82,7 @@ lcr-modules:
             samtools: 8
             coverage: 24
             cns: 24
+            seg_for_purecn: 8
 
         resources:
             vcf_sort:
@@ -101,6 +102,8 @@ lcr-modules:
             breaks:
                 mem_mb: 6000
             gene_metrics:
+                mem_mb: 6000
+            seg_for_purecn:
                 mem_mb: 6000
             post_cnvkit:
                 mem_mb: 2000
