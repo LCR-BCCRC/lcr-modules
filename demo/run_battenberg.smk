@@ -9,11 +9,20 @@ if launched from the module directory.
 
     cd /path/to/lcr-modules/demo
 
-    # Dry run (conda)
+    Dry run using conda:
     ./dry-run.sh run_battenberg.smk all "" runtime_config.conda.yaml
 
-    # Local run (apptainer)
+    Dry run using apptainer:
+    ./dry-run.sh run_battenberg.smk all "" runtime_config.apptainer.yaml
+
+    Local run using apptainer:
     ./run.sh run_battenberg.smk all "" runtime_config.apptainer.yaml
+
+    SLURM cluster run using apptainer:
+    ./snakemake.slurm.sh run_battenberg.smk all "" runtime_config.apptainer.yaml
+
+    SLURM cluster run with additional snakemake arguments:
+    ./snakemake.slurm.sh run_battenberg.smk all "--rerun-incomplete --keep-going" runtime_config.apptainer.yaml
 '''
 
 import oncopipe as op
