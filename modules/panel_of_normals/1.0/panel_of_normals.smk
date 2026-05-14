@@ -63,7 +63,6 @@ localrules:
     _panel_of_normals_purecn_output_gatk_intervals,
     _panel_of_normals_purecn_output_gatk_intervals_targets,
     _panel_of_normals_purecn_output_mutect2_pon,
-    _panel_of_normals_purecn_output_normal_panel_vcf,
     _panel_of_normals_purecn_output_database_cnvkit,
     _panel_of_normals_purecn_output_database_denovo,
     _panel_of_normals_output_samples_tsv,
@@ -990,7 +989,8 @@ rule _panel_of_normals_purecn_mutect2_pon:
         done = str(rules._panel_of_normals_purecn_gatk_genomicsDbimport.output),
         fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta)
     output:
-        pon = CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{capture_space}_mutect2_pon.vcf.gz"
+        pon = CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{capture_space}_mutect2_pon.vcf.gz",
+        tbi = CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{capture_space}_mutect2_pon.vcf.gz.tbi"
     log:
         CFG["logs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/mutect2_pon_vcf.log"
     params:
@@ -1295,21 +1295,13 @@ rule _panel_of_normals_purecn_output_gatk_intervals_targets:
 rule _panel_of_normals_purecn_output_mutect2_pon:
     input:
         pon = str(rules._panel_of_normals_purecn_mutect2_pon.output.pon),
+        tbi = str(rules._panel_of_normals_purecn_mutect2_pon.output.pon)
     output:
-        pon = CFG["dirs"]["outputs"] + "purecn/{seq_type}--{genome_build}/{capture_space}/{capture_space}_mutect2_pon.vcf.gz"
+        pon = CFG["dirs"]["outputs"] + "purecn/{seq_type}--{genome_build}/{capture_space}/{capture_space}_mutect2_pon.vcf.gz",
+        tbi = CFG["dirs"]["outputs"] + "purecn/{seq_type}--{genome_build}/{capture_space}/{capture_space}_mutect2_pon.vcf.gz.tbi"
     run:
         op.relative_symlink(input.pon, output.pon, in_module=True)
-
-rule _panel_of_normals_purecn_output_normal_panel_vcf:
-    input:
-        normal_panel = str(rules._panel_of_normals_purecn_merge_vcfs.output.normal_panel),
-        normal_panel_tbi = str(rules._panel_of_normals_purecn_merge_vcfs.output.normal_panel_tbi)
-    output:
-        normal_panel =  CFG["dirs"]["outputs"] + "purecn/{seq_type}--{genome_build}/{capture_space}/{capture_space}_purecn_pon.vcf.gz",
-        normal_panel_tbi = CFG["dirs"]["outputs"] + "purecn/{seq_type}--{genome_build}/{capture_space}/{capture_space}_purecn_pon.vcf.gz.tbi"
-    run:
-        op.relative_symlink(input.normal_panel, output.normal_panel, in_module=True)
-        op.relative_symlink(input.normal_panel_tbi, output.normal_panel_tbi, in_module=True)
+        op.relative_symlink(input.tbi, output.tbi, in_module=True)
 
 rule _panel_of_normals_purecn_output_database_cnvkit:
     input:
@@ -1383,8 +1375,7 @@ rule _panel_of_normals_all:
                 str(rules._panel_of_normals_purecn_output_gatk_intervals.output.gatk_intervals),
                 str(rules._panel_of_normals_purecn_output_gatk_intervals_targets.output.targets_sorted),
                 str(rules._panel_of_normals_purecn_output_mutect2_pon.output.pon),
-                str(rules._panel_of_normals_purecn_output_normal_panel_vcf.output.normal_panel),
-                str(rules._panel_of_normals_purecn_output_normal_panel_vcf.output.normal_panel_tbi),
+                str(rules._panel_of_normals_purecn_output_mutect2_pon.output.tbi),
                 str(rules._panel_of_normals_purecn_output_database_cnvkit.output.mapping_bias),
                 str(rules._panel_of_normals_purecn_output_database_denovo.output.mapping_bias),
                 str(rules._panel_of_normals_purecn_output_database_denovo.output.normal_db)
