@@ -891,7 +891,7 @@ rule _panel_of_normals_purecn_mutect2_filter_vcf:
     threads: 1
     shell:
         op.as_one_line("""
-        bcftools view {params.filter_for_opts} -e "{params.filter_out_opts}" {input.vcf} -Oz -o {output.vcf} 2> {log} &&
+        bcftools view {params.filter_for_opts} -e "{params.filter_out_opts}" {input.vcf} -Oz -o {output.vcf} > {log} 2>&1 &&
          tabix -p vcf {output.vcf}  >> {log} 2>&1
         """)
 
@@ -1219,7 +1219,8 @@ rule _panel_of_normals_purecn_database_cnvkit:
     log:
         CFG["logs"]["purecn_NormalDB"] + "{seq_type}--{genome_build}/{capture_space}/purecn_cnvkit_normaldb.log"
     params:
-        outdir = CFG["dirs"]["purecn_NormalDB"] + "{seq_type}--{genome_build}/{capture_space}/purecn_cnvkit_normal/"
+        outdir = CFG["dirs"]["purecn_NormalDB"] + "{seq_type}--{genome_build}/{capture_space}/purecn_cnvkit_normal/",
+        normalDB_script = CFG["software"]["normalDB_script"]
     conda:
         CFG["conda_envs"]["purecn"]
     resources:
@@ -1231,7 +1232,8 @@ rule _panel_of_normals_purecn_database_cnvkit:
             echo $CONDA_DEFAULT_ENV > {log} 2>&1 ;
             PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/ ;
             export R_LIBS=$CONDA_DEFAULT_ENV/lib/R/library/ ;
-            Rscript --vanilla $PURECN/NormalDB.R --out-dir {params.outdir} --normal-panel {input.normal_panel}
+            echo -e "Using {params.normalDB_script} instead of default $PURECN/NormalDB.R..." >> {log} 2>&1;
+            Rscript --vanilla {params.normalDB_script} --out-dir {params.outdir} --normal-panel {input.normal_panel}
             --assay {wildcards.capture_space} --genome {wildcards.genome_build} --force >> {log} 2>&1
         """)
 
@@ -1247,7 +1249,8 @@ rule _panel_of_normals_purecn_database_denovo:
     log:
         CFG["logs"]["purecn_NormalDB"] + "{seq_type}--{genome_build}/{capture_space}/purecn_denovo_normaldb.log"
     params:
-        outdir = CFG["dirs"]["purecn_NormalDB"] + "{seq_type}--{genome_build}/{capture_space}/purecn_denovo_normal/"
+        outdir = CFG["dirs"]["purecn_NormalDB"] + "{seq_type}--{genome_build}/{capture_space}/purecn_denovo_normal/",
+        normalDB_script = CFG["software"]["normalDB_script"]
     conda:
         CFG["conda_envs"]["purecn"]
     resources:
@@ -1259,7 +1262,8 @@ rule _panel_of_normals_purecn_database_denovo:
             echo $CONDA_DEFAULT_ENV > {log} 2>&1 ;
             PURECN=$CONDA_DEFAULT_ENV/lib/R/library/PureCN/extdata/ ;
             export R_LIBS=$CONDA_DEFAULT_ENV/lib/R/library/ ;
-            Rscript --vanilla $PURECN/NormalDB.R --out-dir {params.outdir} --normal-panel {input.normal_panel}
+            echo -e "Using {params.normalDB_script} instead of default $PURECN/NormalDB.R..." >> {log} 2>&1;
+            Rscript --vanilla {params.normalDB_script} --out-dir {params.outdir} --normal-panel {input.normal_panel}
             --coverage-files {input.cov_list}
             --assay {wildcards.capture_space} --genome {wildcards.genome_build} --force >> {log} 2>&1
         """)
