@@ -97,9 +97,9 @@ rule _methyl_call_processor:
     threads:
         CFG["threads"]["methyl_call"]
     conda:
-        CFG["conda_envs"]["nanomethphase"] 
+        CFG["conda_envs"]["nanomethphase"]
     container:
-        None
+        CFG["container_envs"]["nanomethphase"]
     resources: 
         mem_mb = CFG["mem_mb"]["methyl_call"]        
     log:

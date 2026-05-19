@@ -7,7 +7,7 @@ Tracks progress on adding Apptainer/Singularity `container:` directives to all m
 - ⚠️ **Partial** — some rules have `container: None` (typically R scripts or custom tools without a suitable public image)
 - ❌ **None** — all rules have `container: None`; module is conda-only
 
-Last updated: 2026-05-19 (clair3 1.0, spechla 1.0: biocontainers added)
+Last updated: 2026-05-19 (nanomethphase 1.0/1.1: custom lcr-scripts/nanomethphase:1.0 container)
 
 ---
 
@@ -58,6 +58,7 @@ onstart:
 | manta | 2.0, 2.1, 2.2, 2.3 |
 | mixcr | 1.1, 1.2 |
 | modkit | 1.0 |
+| nanomethphase | 1.0, 1.1 |
 | mutect2 | 1.0, 2.0 |
 | picard_qc | 1.0 |
 | qc | 1.0 |
@@ -122,7 +123,6 @@ These modules have no container support and will not run under `--use-singularit
 | igcaller | 1.0 |
 | lymphgen | 1.0, 1.1, 2.0, 2.1 |
 | mutsig | 1.0, 1.1, 1.2 |
-| nanomethphase | 1.0, 1.1 |
 | oncodriveclustl | 1.0, 1.1 |
 | oncodrivefml | 1.0, 1.1 |
 | rainstorm | 1.0, 1.1, 1.2 |

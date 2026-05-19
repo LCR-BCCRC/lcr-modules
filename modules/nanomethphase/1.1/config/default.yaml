@@ -18,7 +18,7 @@ lcr-modules:
         conda_envs:
             nanomethphase: "{MODSDIR}/envs/nanomethphase.yaml"
         container_envs:
-            nanomethphase: null
+            nanomethphase: "docker://ghcr.io/lcr-bccrc/lcr-scripts/nanomethphase:1.0"
 
 
         threads:

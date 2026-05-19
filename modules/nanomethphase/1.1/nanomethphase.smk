@@ -111,9 +111,9 @@ rule _nanomethphase_methyl_call:
     threads:
         CFG["threads"]["methyl_call"]
     conda:
-        CFG["conda_envs"]["nanomethphase"] 
+        CFG["conda_envs"]["nanomethphase"]
     container:
-        None
+        CFG["container_envs"]["nanomethphase"]
     resources: **CFG["resources"]["methyl_call"]        
     log: CFG["logs"]["methyl_call"] + "{seq_type}--{genome_build}/{sample_id}/methyl_call_processor.stderr.log"   
     group: "input_and_meth_call"          
@@ -145,9 +145,9 @@ rule _nanomethphase_run:
         prefix =  CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}",
         options = CFG["options"]["nanomethphase"]
     conda:
-        CFG["conda_envs"]["nanomethphase"] 
+        CFG["conda_envs"]["nanomethphase"]
     container:
-        None
+        CFG["container_envs"]["nanomethphase"]
     log: CFG["logs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/nanomethphase.log" 
     shell:
         op.as_one_line("""
@@ -166,10 +166,10 @@ rule _nanomethphase_cram:
         crai = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP{haplotype}_Converted2Bisulfite.cram.crai"
     threads: CFG["threads"]["cram"]
     resources: **CFG["resources"]["cram"]
-    conda: 
+    conda:
         CFG["conda_envs"]["nanomethphase"]
     container:
-        None
+        CFG["container_envs"]["nanomethphase"]
     log: CFG["logs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/HP{haplotype}_cram_conversion.log"
     shell:
         op.as_one_line("""
@@ -188,9 +188,9 @@ rule _nanomethphase_dma:
         outdir = CFG["dirs"]["dma"] + "{seq_type}--{genome_build}/{sample_id}/", 
         options = CFG["options"]["dma"]
     conda:
-        CFG["conda_envs"]["nanomethphase"] 
+        CFG["conda_envs"]["nanomethphase"]
     container:
-        None
+        CFG["container_envs"]["nanomethphase"]
     threads: CFG["threads"]["dma"]
     resources: **CFG["resources"]["dma"]
     shell: 
