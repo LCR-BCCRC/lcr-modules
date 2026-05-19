@@ -128,9 +128,9 @@ rule _clair3_run:
         dir = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}",
         platform = CFG["options"]["platform"], 
         options = CFG["options"]["clair3"]
-    conda: CFG["conda_envs"]["clair3"]  
+    conda: CFG["conda_envs"]["clair3"]
     container:
-        None
+        CFG["container_envs"]["clair3"]
     threads: CFG["threads"]["clair3"]    
     resources: **CFG["resources"]["clair3"]    
     log:
@@ -154,7 +154,7 @@ rule _clair3_filter:
         index = CFG["dirs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}.filtered_phased_merged.vcf.gz.tbi"
     conda: CFG["conda_envs"]["clair3"]
     container:
-        None
+        CFG["container_envs"]["clair3"]
     resources: **CFG["resources"]["filter"]
     threads: CFG["threads"]["filter"]
     log:

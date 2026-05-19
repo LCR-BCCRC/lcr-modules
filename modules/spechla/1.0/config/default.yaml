@@ -31,7 +31,7 @@ lcr-modules:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             spechla: "{MODSDIR}/envs/spechla_env.yaml"
         container_envs:
-            spechla: null
+            spechla: "docker://quay.io/biocontainers/spechla:1.0.10--py312pl5321h214dd5c_0"
 
             
         threads:
