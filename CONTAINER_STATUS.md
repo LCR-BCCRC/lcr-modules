@@ -7,7 +7,7 @@ Tracks progress on adding Apptainer/Singularity `container:` directives to all m
 - ⚠️ **Partial** — some rules have `container: None` (typically R scripts or custom tools without a suitable public image)
 - ❌ **None** — all rules have `container: None`; module is conda-only
 
-Last updated: 2026-05-19 (nanomethphase 1.0/1.1: custom lcr-scripts/nanomethphase:1.0 container)
+Last updated: 2026-05-19 (ega_download 1.0: pyega3 biocontainer added)
 
 ---
 
@@ -50,6 +50,7 @@ onstart:
 | controlfreec | 1.0, 1.1, 1.2 |
 | cutadapt | 1.0 |
 | cutesv | 1.0 |
+| ega_download | 1.0 |
 | freebayes | 1.0 |
 | gridss | 1.0, 1.1, 2.0 |
 | ichorcna | 1.0, 1.1 |
@@ -117,7 +118,6 @@ These modules have no container support and will not run under `--use-singularit
 | dlbclass | 1.0 |
 | dnds | 1.0, 1.1, 1.2 |
 | ecotyper | 1.0 |
-| ega_download | 1.0 |
 | fishhook | 1.0, 1.1, 1.2 |
 | gistic2 | 1.0, 1.1, 1.2 |
 | igcaller | 1.0 |

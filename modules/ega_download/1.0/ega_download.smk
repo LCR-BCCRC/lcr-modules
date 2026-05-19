@@ -87,7 +87,7 @@ rule _ega_get_ega_file:
     conda:
         CFG["conda_envs"]["pyega3"]
     container:
-        None
+        CFG["container_envs"]["pyega3"]
     threads:
         CFG["threads"]["ega_file_download"]
     resources:
