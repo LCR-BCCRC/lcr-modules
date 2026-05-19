@@ -269,11 +269,11 @@ rule _hmftools_snpeff_vcf:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     log: 
         CFG["logs"]["prepare_slms3"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/snpeff_slms3.log"
-    conda: 
+    conda:
         CFG["conda_envs"]["snpeff"]
     container:
-        None
-    threads: 
+        CFG["container_envs"]["snpeff"]
+    threads:
         CFG["threads"]["snpeff"]
     shell: 
         op.as_one_line("""
@@ -304,13 +304,13 @@ rule _hmftools_amber_matched:
     log: CFG["logs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/amber.log"
     wildcard_constraints: 
         pair_status = "matched"
-    conda: 
+    conda:
         CFG["conda_envs"]["amber"]
     container:
-        None
-    threads: 
+        CFG["container_envs"]["amber"]
+    threads:
         CFG["threads"]["amber"]
-    shell: 
+    shell:
         op.as_one_line("""
         AMBER -Xmx{params.jvmheap}m
         -reference {wildcards.normal_id} -reference_bam {input.normal_bam}
@@ -339,13 +339,13 @@ rule _hmftools_amber_unmatched:
     log: CFG["logs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/amber.log"
     wildcard_constraints: 
         pair_status = "unmatched"
-    conda: 
+    conda:
         CFG["conda_envs"]["amber"]
     container:
-        None
-    threads: 
+        CFG["container_envs"]["amber"]
+    threads:
         CFG["threads"]["amber"]
-    shell: 
+    shell:
         op.as_one_line("""
         AMBER -Xmx{params.jvmheap}m
         -tumor_only 
@@ -377,11 +377,11 @@ rule _hmftools_cobalt:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     wildcard_constraints: 
         pair_status = "matched|unmatched"
-    conda: 
+    conda:
         CFG["conda_envs"]["cobalt"]
     container:
-        None
-    threads: 
+        CFG["container_envs"]["cobalt"]
+    threads:
         CFG["threads"]["cobalt"]
     shell: 
         op.as_one_line("""
@@ -444,11 +444,11 @@ rule _hmftools_purple_matched:
         pair_status = "matched|unmatched", 
         out_file = "|".join(purple_out), 
         plot_name = "|".join(purple_plots)
-    conda: 
+    conda:
         CFG["conda_envs"]["purple"]
     container:
-        None
-    threads: 
+        CFG["container_envs"]["purple"]
+    threads:
         CFG["threads"]["purple"]
     shell: 
         op.as_one_line("""
@@ -491,13 +491,13 @@ rule _hmftools_linx:
       jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
       options = CFG["options"]["linx"], 
       cache_subdir = lambda w: config["lcr-modules"]["hmftools"]["dirs"]["inputs"] + "references/" + w.genome_build + "/ensembl_cache/" + VERSION_MAP_HMFTOOLS[w.genome_build]
-    conda: 
+    conda:
         CFG["conda_envs"]["linx"]
     container:
-        None
-    threads: 
+        CFG["container_envs"]["linx"]
+    threads:
         CFG["threads"]["linx"]
-    shell: 
+    shell:
         op.as_one_line("""
         linx -Xmx{params.jvmheap}m 
             -sample {wildcards.tumour_id} 
@@ -538,8 +538,8 @@ rule _hmftools_linx_viz:
     conda:
         CFG["conda_envs"]["linx"]
     container:
-        None
-    threads: 
+        CFG["container_envs"]["linx"]
+    threads:
         CFG["threads"]["linx_viz"]
     
     shell:

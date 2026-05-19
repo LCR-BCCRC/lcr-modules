@@ -86,8 +86,8 @@ Rules with `container: None` are typically R-based rules or scripts without a su
 | clairs | 1.0 | 2/5 | |
 | clairs_to | 1.0 | 2/5 |
 | controlfreec | 1.3 | 4/15 |
-| hmftools | 1.0 | 1/16 | wget (reference downloads only) |
-| hmftools | 1.1 | 1/14 | wget (reference downloads only) |
+| hmftools | 1.0 | 4/16 | wget (reference downloads only) |
+| hmftools | 1.1 | 6/14 | wget (reference downloads only) |
 | hotmaps | 1.0 | 13/16 |
 | hotmaps | 1.1 | 13/16 |
 | manta | 1.0 | 1/4 |
