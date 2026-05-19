@@ -7,7 +7,7 @@ Tracks progress on adding Apptainer/Singularity `container:` directives to all m
 - ⚠️ **Partial** — some rules have `container: None` (typically R scripts or custom tools without a suitable public image)
 - ❌ **None** — all rules have `container: None`; module is conda-only
 
-Last updated: 2026-05-13 (battenberg 1.2: battenberg container added; wget still null)
+Last updated: 2026-05-19 (hmftools 1.0/1.1: amber, cobalt, purple, linx containers added; snpeff/wget remain null)
 
 ---
 
@@ -83,11 +83,11 @@ Rules with `container: None` are typically R-based rules or scripts without a su
 |--------|---------|-------------------|-------|
 | battenberg | 1.1 | 2/6 | |
 | battenberg | 1.2 | 1/6 | wget (reference download only); battenberg compute container added via lcr-scripts/battenberg:1.0 |
-| clairs | 1.0 | 2/5 |
+| clairs | 1.0 | 2/5 | |
 | clairs_to | 1.0 | 2/5 |
 | controlfreec | 1.3 | 4/15 |
-| hmftools | 1.0 | 15/16 |
-| hmftools | 1.1 | 13/14 |
+| hmftools | 1.0 | 2/16 | snpeff (needs bcftools in same shell), wget |
+| hmftools | 1.1 | 2/14 | snpeff (needs bcftools in same shell), wget |
 | hotmaps | 1.0 | 13/16 |
 | hotmaps | 1.1 | 13/16 |
 | manta | 1.0 | 1/4 |
