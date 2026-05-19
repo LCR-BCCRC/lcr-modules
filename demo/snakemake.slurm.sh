@@ -7,7 +7,8 @@
 #
 # snakefile.smk   The snakefile you want to run
 # target_rule     The name of one of the target rules in the included Snakefiles
-# snakemake_flags Additional snakemake flags (e.g. "--rerun-incomplete")
+# snakemake_flags Additional snakemake flags inside quotation marks (e.g. "--rerun-incomplete").
+#                 Pass "" if you have no extra flags but need to specify a runtime_config.
 # runtime_config  Optional: path to a runtime_config.yaml file. See runtime_config.yaml
 #                 for the format. Presence of an 'apptainer' section enables containers;
 #                 absence keeps default conda behaviour.
