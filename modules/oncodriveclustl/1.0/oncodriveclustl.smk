@@ -79,7 +79,7 @@ checkpoint _oncodriveclustl_prep_input:
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     container:
-        None
+        CFG["container_envs"]["prepare_mafs"]
     params:
         include_non_coding = str(CFG["maf_processing"]["include_non_coding"]).upper(),
         mode = "OncodriveCLUSTL",
@@ -168,7 +168,7 @@ rule _oncodriveclustl_run:
         **CFG["resources"]["clustl"]
     conda: CFG["conda_envs"]["clustl"]
     container:
-        None
+        CFG["container_envs"]["clustl"]
     shell:
         op.as_one_line("""
         export BGDATA_LOCAL={params.local_path} &&

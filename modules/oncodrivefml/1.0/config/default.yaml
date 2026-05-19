@@ -70,8 +70,8 @@ lcr-modules:
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
             fml: "{MODSDIR}/envs/oncodrivefml-2.4.0.yaml"
         container_envs:
-            fml: null
-            prepare_mafs: null
+            fml: "docker://ghcr.io/lcr-bccrc/lcr-scripts/oncodrivefml:2.4.0"
+            prepare_mafs: "docker://ghcr.io/lcr-bccrc/lcr-scripts/generate_smg_inputs:1.1"
 
 
         threads:

@@ -76,7 +76,7 @@ checkpoint _oncodrivefml_prep_input:
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     container:
-        None
+        CFG["container_envs"]["prepare_mafs"]
     params:
         include_non_coding = str(CFG["maf_processing"]["include_non_coding"]).upper(),
         mode = "OncodriveFML",
@@ -140,7 +140,7 @@ rule _oncodrivefml_get_hg19_scores:
         score_dir = CFG["dirs"]["cadd"] + "grch37/"
     conda: CFG["conda_envs"]["fml"]
     container:
-        None
+        CFG["container_envs"]["fml"]
     shell:
         op.as_one_line("""
         export BGDATA_LOCAL={params.score_dir} &&
@@ -189,7 +189,7 @@ rule _oncodrivefml_run:
         **CFG["resources"]["fml"]
     conda: CFG["conda_envs"]["fml"]
     container:
-        None
+        CFG["container_envs"]["fml"]
     shell:
         op.as_one_line("""
         export BGDATA_LOCAL={params.local_path} &&

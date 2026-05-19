@@ -7,7 +7,7 @@ Tracks progress on adding Apptainer/Singularity `container:` directives to all m
 - ⚠️ **Partial** — some rules have `container: None` (typically R scripts or custom tools without a suitable public image)
 - ❌ **None** — all rules have `container: None`; module is conda-only
 
-Last updated: 2026-05-19 (ega_download 1.0: pyega3 biocontainer added)
+Last updated: 2026-05-19 (oncodriveclustl 1.0/1.1 and oncodrivefml 1.0/1.1: custom lcr-scripts containers added)
 
 ---
 
@@ -39,7 +39,7 @@ onstart:
 
 ---
 
-## ✅ Complete (57 module versions)
+## ✅ Complete (61 module versions)
 
 | Module | Version |
 |--------|---------|
@@ -61,6 +61,8 @@ onstart:
 | modkit | 1.0 |
 | nanomethphase | 1.0, 1.1 |
 | mutect2 | 1.0, 2.0 |
+| oncodriveclustl | 1.0, 1.1 |
+| oncodrivefml | 1.0, 1.1 |
 | picard_qc | 1.0 |
 | qc | 1.0 |
 | sage | 1.0 |
@@ -107,7 +109,7 @@ Rules with `container: None` are typically R-based rules or scripts without a su
 
 ---
 
-## ❌ None (34 module versions)
+## ❌ None (30 module versions)
 
 These modules have no container support and will not run under `--use-singularity`.
 
@@ -123,7 +125,5 @@ These modules have no container support and will not run under `--use-singularit
 | igcaller | 1.0 |
 | lymphgen | 1.0, 1.1, 2.0, 2.1 |
 | mutsig | 1.0, 1.1, 1.2 |
-| oncodriveclustl | 1.0, 1.1 |
-| oncodrivefml | 1.0, 1.1 |
 | rainstorm | 1.0, 1.1, 1.2 |
 | sigprofiler | 1.0 |
