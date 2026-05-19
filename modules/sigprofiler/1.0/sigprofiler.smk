@@ -118,7 +118,7 @@ rule _sigprofiler_run_generator:
     conda:
         CFG["conda_envs"]["sigprofiler"]
     container:
-        None
+        CFG["container_envs"]["sigprofiler"]
     threads:
         CFG["threads"]["generator"]
     resources:
@@ -145,7 +145,7 @@ rule _sigprofiler_run_estimate:
         outpath = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{sample_set}"
     conda: CFG["conda_envs"]["sigprofiler"]
     container:
-        None
+        CFG["container_envs"]["sigprofiler"]
     threads: CFG["threads"]["estimate"]
     resources:
         mem_mb = CFG["mem_mb"]["estimate"]
@@ -176,7 +176,7 @@ rule _sigprofiler_run_extract:
         outpath = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{sample_set}"
     conda: CFG["conda_envs"]["sigprofiler"]
     container:
-        None
+        CFG["container_envs"]["sigprofiler"]
     threads: CFG["threads"]["extract"]
     resources:
         mem_mb = CFG["mem_mb"]["extract"]

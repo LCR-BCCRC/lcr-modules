@@ -7,7 +7,7 @@ Tracks progress on adding Apptainer/Singularity `container:` directives to all m
 - ⚠️ **Partial** — some rules have `container: None` (typically R scripts or custom tools without a suitable public image)
 - ❌ **None** — all rules have `container: None`; module is conda-only
 
-Last updated: 2026-05-19 (oncodriveclustl 1.0/1.1 and oncodrivefml 1.0/1.1: custom lcr-scripts containers added)
+Last updated: 2026-05-19 (sigprofiler 1.0: lcr-scripts/sigprofiler:1.1 wired up; phase_vcf 1.0: container directives added)
 
 ---
 
@@ -39,7 +39,7 @@ onstart:
 
 ---
 
-## ✅ Complete (61 module versions)
+## ✅ Complete (62 module versions)
 
 | Module | Version |
 |--------|---------|
@@ -67,6 +67,7 @@ onstart:
 | qc | 1.0 |
 | sage | 1.0 |
 | sequenza | 1.4 |
+| sigprofiler | 1.0 |
 | slms_3 | 1.0 |
 | sniffles | 1.0 |
 | star | 1.0, 1.1, 1.2, 1.3, 1.4 |
@@ -81,7 +82,7 @@ onstart:
 
 ---
 
-## ⚠️ Partial (21 module versions)
+## ⚠️ Partial (22 module versions)
 
 Rules with `container: None` are typically R-based rules or scripts without a suitable public image.
 
@@ -99,6 +100,7 @@ Rules with `container: None` are typically R-based rules or scripts without a su
 | hotmaps | 1.1 | 13/16 |
 | manta | 1.0 | 1/4 |
 | pathseq | 1.0 | 1/7 |
+| phase_vcf | 1.0 | 2/3 | clair3 = null (no suitable public image); whatshap containerized |
 | sage | 1.1 | 1/4 |
 | salmon | 1.0 | 1/2 |
 | salmon | 1.1 | 1/4 |
@@ -109,7 +111,7 @@ Rules with `container: None` are typically R-based rules or scripts without a su
 
 ---
 
-## ❌ None (33 module versions)
+## ❌ None (31 module versions)
 
 These modules have no container support and will not run under `--use-singularity`.
 
@@ -127,6 +129,4 @@ These modules have no container support and will not run under `--use-singularit
 | mixcr | 1.0 | downloads binary at runtime; superseded by 1.1/1.2 |
 | mutsig | 1.0, 1.1, 1.2 | |
 | nanopolish | 1.0 | downloads binary at runtime; no newer conda-based version |
-| phase_vcf | 1.0 | config has container_envs but smk missing container: directives; clair3=null, whatshap=biocontainer ready |
 | rainstorm | 1.0, 1.1, 1.2 | |
-| sigprofiler | 1.0 | lcr-scripts/sigprofiler:1.1 image exists — just needs wiring |

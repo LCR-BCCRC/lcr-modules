@@ -91,7 +91,9 @@ rule _clair3:
         dir = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}",
         platform = CFG["clair3"]["platform"]
     conda :
-        CFG["conda_envs"]["clair3"]  
+        CFG["conda_envs"]["clair3"]
+    container:
+        CFG["container_envs"]["clair3"]
     threads:
         CFG["threads"]["clair3"]    
     resources: 
@@ -117,6 +119,8 @@ rule _filter_clair3:
         index = CFG["dirs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}.filtered_phased_merged.vcf.gz.tbi"
     conda :
         CFG["conda_envs"]["clair3"]
+    container:
+        CFG["container_envs"]["clair3"]
     log:
         stderr = CFG["logs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}/filter_clair3.stderr.log"      
     shell :
@@ -128,8 +132,10 @@ rule _whatshap_phase_vcf:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         vcf = CFG["inputs"]["vcf"] 
     conda :
-        CFG["conda_envs"]["whatshap"] 
-    resources: 
+        CFG["conda_envs"]["whatshap"]
+    container:
+        CFG["container_envs"]["whatshap"]
+    resources:
         mem_mb = CFG["mem_mb"]["whatshap"]        
     log:
         stderr = CFG["logs"]["whatshap_phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/whatshap_phase_vcf.stderr.log"    

@@ -32,7 +32,7 @@ lcr-modules:
         conda_envs:
             sigprofiler: "{MODSDIR}/envs/sigprofiler-1.1.yaml"
         container_envs:
-            sigprofiler: null
+            sigprofiler: "docker://ghcr.io/lcr-bccrc/lcr-scripts/sigprofiler:1.1"
 
 
         options:
