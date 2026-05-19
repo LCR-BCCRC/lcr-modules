@@ -109,21 +109,24 @@ Rules with `container: None` are typically R-based rules or scripts without a su
 
 ---
 
-## ❌ None (30 module versions)
+## ❌ None (33 module versions)
 
 These modules have no container support and will not run under `--use-singularity`.
 
-| Module | Versions |
-|--------|---------|
-| battenberg | 1.0 |
-| cnv_master | 1.0 |
-| dlbclass | 1.0 |
-| dnds | 1.0, 1.1, 1.2 |
-| ecotyper | 1.0 |
-| fishhook | 1.0, 1.1, 1.2 |
-| gistic2 | 1.0, 1.1, 1.2 |
-| igcaller | 1.0 |
-| lymphgen | 1.0, 1.1, 2.0, 2.1 |
-| mutsig | 1.0, 1.1, 1.2 |
-| rainstorm | 1.0, 1.1, 1.2 |
-| sigprofiler | 1.0 |
+| Module | Versions | Notes |
+|--------|---------|-------|
+| battenberg | 1.0 | superseded by 1.1/1.2 |
+| cnv_master | 1.0 | |
+| dlbclass | 1.0 | |
+| dnds | 1.0, 1.1, 1.2 | |
+| ecotyper | 1.0 | |
+| fishhook | 1.0, 1.1, 1.2 | |
+| gistic2 | 1.0, 1.1, 1.2 | |
+| igcaller | 1.0 | |
+| lymphgen | 1.0, 1.1, 2.0, 2.1 | |
+| mixcr | 1.0 | downloads binary at runtime; superseded by 1.1/1.2 |
+| mutsig | 1.0, 1.1, 1.2 | |
+| nanopolish | 1.0 | downloads binary at runtime; no newer conda-based version |
+| phase_vcf | 1.0 | config has container_envs but smk missing container: directives; clair3=null, whatshap=biocontainer ready |
+| rainstorm | 1.0, 1.1, 1.2 | |
+| sigprofiler | 1.0 | lcr-scripts/sigprofiler:1.1 image exists — just needs wiring |
