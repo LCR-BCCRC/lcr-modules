@@ -26,8 +26,8 @@ eval "$(python3 "$SCRIPT_DIR/parse_runtime_config.py" "${runtime_config:-}")"
 # Build conda flags (omitted in container mode — mutually exclusive)
 conda_flags=()
 if [ -z "$SNAKEMAKE_CONTAINER_FLAG" ]; then
-    conda_prefix="${SNAKEMAKE_CONDA_PREFIX:-$CONDA_PREFIX}"
-    conda_flags+=(--use-conda --conda-prefix "$conda_prefix")
+    conda_flags+=(--use-conda)
+    [ -n "$SNAKEMAKE_CONDA_PREFIX" ] && conda_flags+=(--conda-prefix "$SNAKEMAKE_CONDA_PREFIX")
 fi
 
 # Build container flags
