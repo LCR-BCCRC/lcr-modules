@@ -79,7 +79,7 @@ lcr-modules:
             cobalt: "docker://quay.io/biocontainers/hmftools-cobalt:1.11--hdfd78af_1"
             linx: "docker://quay.io/biocontainers/hmftools-linx:1.15--hdfd78af_0"
             purple: "docker://quay.io/biocontainers/hmftools-purple:2.54--hdfd78af_0"
-            snpeff: null
+            snpeff: "docker://ghcr.io/lcr-bccrc/lcr-scripts/snpeff:1.0"
             wget: null
 
 
