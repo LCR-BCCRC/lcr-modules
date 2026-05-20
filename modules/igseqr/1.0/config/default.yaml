@@ -11,10 +11,6 @@ lcr-modules:
             # Download with: hisat2-build or retrieve from the HISAT2 pre-built index page.
             # Example: /path/to/hisat2_index/grch38_snptran/genome
             hisat_ref: "__UPDATE__"
-            # Directory where IgSeqR will be cloned from GitHub and installed.
-            # The install rule runs once and caches a sentinel file here.
-            # Example: /path/to/tools/IgSeqR
-            igseqr_dir: "__UPDATE__"
 
         scratch_subdirectories: []
 

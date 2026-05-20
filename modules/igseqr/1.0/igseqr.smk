@@ -66,34 +66,11 @@ rule _igseqr_input_bam:
         op.absolute_symlink(input.bai, output.bai)
 
 
-# Clones IgSeqR from GitHub and runs its setup.sh to install the igseqr script
-# into the active conda environment. This runs once and is shared across all samples.
-rule _install_igseqr:
-    params:
-        igseqr_dir = CFG["inputs"]["igseqr_dir"],
-    output:
-        complete = CFG["inputs"]["igseqr_dir"] + "/igseqr_installed.success",
-    conda:
-        CFG["conda_envs"]["igseqr"]
-    container:
-        CFG["container_envs"]["igseqr"]
-    shell:
-        op.as_one_line("""
-        if [ ! -d {params.igseqr_dir}/.git ]; then
-            git clone https://github.com/ForconiLab/IgSeqR.git {params.igseqr_dir};
-        fi &&
-        cd {params.igseqr_dir} &&
-        bash setup.sh &&
-        touch {output.complete}
-        """)
-
-
 # Run IgSeqR to assemble and quantify immunoglobulin transcripts
 rule _igseqr_run:
     input:
         bam = rules._igseqr_input_bam.output.bam,
         bam_real = CFG["inputs"]["sample_bam"],  # Prevent premature deletion of temp bam
-        installed = rules._install_igseqr.output.complete,
     output:
         igh_fasta      = CFG["dirs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_IGH_transcripts.fasta",
         igkl_fasta     = CFG["dirs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_IGKL_transcripts.fasta",
@@ -166,7 +143,6 @@ rule _igseqr_output_files:
 # Generates the target sentinels for each run, which generate the symlinks
 rule _igseqr_all:
     input:
-        rules._install_igseqr.output.complete,
         expand(
             [
                 rules._igseqr_output_files.output.igh_fasta,
