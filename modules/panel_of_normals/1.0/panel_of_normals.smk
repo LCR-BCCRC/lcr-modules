@@ -895,7 +895,7 @@ rule _panel_of_normals_purecn_mutect2_filter_vcf:
         """)
 
 ###### Creating a panel of normals vcf for MuTect2 variant calling in tumours
-# Join biallelic sites into multiallelic records, so there VCF does not contain multiple entries for a single genomic position
+# Join biallelic sites into multiallelic records, so the VCF does not contain multiple entries for a single genomic position
 # otherwise genomicsDbimport step breaks
 rule _panel_of_normals_purecn_format_gatk_vcf:
     input:
@@ -946,7 +946,7 @@ rule _panel_of_normals_purecn_samples_map:
         for vcf in {input.normals}
         do
             name=$(basename $vcf)
-            name=${{name/_passed.vcf.gz}}
+            name=${{name/_for/_mutect2/_pon.vcf.gz}}
             echo -e "$name\t$vcf" >> {output.samples_map}
         done &&
         touch {output.done}
