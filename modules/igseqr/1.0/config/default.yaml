@@ -10,7 +10,7 @@ lcr-modules:
             # The key becomes the subdirectory name under {inputs_dir}/hisat_ref/.
             # Provide exactly one entry; to use a different index, change the key and URL.
             hisat_ref_url:
-                grch38_snptran: "https://genome-idx.s3.amazonaws.com/hisat/grch38_snptran.tar.gz"
+                hg38: "https://genome-idx.s3.amazonaws.com/hisat/grch38_snptran.tar.gz"
 
         scratch_subdirectories: []
 
