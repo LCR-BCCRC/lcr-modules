@@ -22,7 +22,12 @@ immunoglobulin transcripts from RNA-seq data.
   prevents redundant re-installation.
 - Conda env provides: blast 2.13.0, hisat2 2.2.1, kallisto 0.48.0,
   samtools 1.16.1, trinity 2.13.2.
-- Container support not yet implemented (container_envs.igseqr is null).
+- Container support added (container_envs.igseqr points to ghcr.io image).
 - Only mrna seq_type is supported; pairing_config runs tumours unpaired.
+- New `_igseqr_get_hisat_ref` rule downloads the recommended GRCh38 HISAT2
+  splice-aware index (grch38_snptran) automatically. The download URL is
+  configurable via `hisat_ref_url` (a version-keyed dict in config); the index
+  is stored under `{inputs_dir}/hisat_ref/{version}/` and the path is derived
+  in the module — no manual `hisat_ref` config entry required.
 
 Reference: Carrington et al. (2022) Nature Protocols. doi:10.1038/s41596-022-00700-6

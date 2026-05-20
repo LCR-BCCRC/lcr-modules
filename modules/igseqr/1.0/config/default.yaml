@@ -6,11 +6,11 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
-            # Prefix path to the HISAT2 splice-aware index.
-            # Recommended: GRCh38 with SNP and transcript annotation (grch38_snptran).
-            # Download with: hisat2-build or retrieve from the HISAT2 pre-built index page.
-            # Example: /path/to/hisat2_index/grch38_snptran/genome
-            hisat_ref: "__UPDATE__"
+            # HISAT2 pre-built index to download, keyed by version string.
+            # The key becomes the subdirectory name under {inputs_dir}/hisat_ref/.
+            # Provide exactly one entry; to use a different index, change the key and URL.
+            hisat_ref_url:
+                grch38_snptran: "https://genome-idx.s3.amazonaws.com/hisat/grch38_snptran.tar.gz"
 
         scratch_subdirectories: []
 
@@ -31,6 +31,8 @@ lcr-modules:
         resources:
             igseqr_run:
                 mem_mb: 32000
+            get_hisat_ref:
+                mem_mb: 2000
 
         pairing_config:
             mrna:

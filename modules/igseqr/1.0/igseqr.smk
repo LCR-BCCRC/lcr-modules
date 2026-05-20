@@ -43,6 +43,15 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "igseqr", "outputs"],
 )
 
+assert len(CFG["inputs"]["hisat_ref_url"]) == 1, (
+    "Config 'hisat_ref_url' must contain exactly one entry (version_string: url). "
+    "To use a different index, replace the key and URL."
+)
+
+HISAT_REF_VERSION = list(CFG["inputs"]["hisat_ref_url"].keys())[0]
+HISAT_REF_URL     = CFG["inputs"]["hisat_ref_url"][HISAT_REF_VERSION]
+HISAT_REF_DIR     = CFG["dirs"]["inputs"] + "hisat_ref"
+
 # Define rules to be run locally when using a compute cluster
 localrules:
     _igseqr_input_bam,
@@ -51,6 +60,32 @@ localrules:
 
 
 ##### RULES #####
+
+
+# Downloads the HISAT2 splice-aware index specified in hisat_ref_url.
+# The index is stored under {inputs_dir}/hisat_ref/{version}/ and the prefix
+# {inputs_dir}/hisat_ref/{version}/genome is passed to igseqr.
+rule _igseqr_get_hisat_ref:
+    params:
+        ref_dir = HISAT_REF_DIR,
+        version = HISAT_REF_VERSION,
+        url     = HISAT_REF_URL,
+    output:
+        complete = HISAT_REF_DIR + "/hisat2_" + HISAT_REF_VERSION + "_downloaded.success"
+    log:
+        stdout = CFG["logs"]["igseqr"] + "get_hisat_ref.stdout.log",
+        stderr = CFG["logs"]["igseqr"] + "get_hisat_ref.stderr.log",
+    resources:
+        **CFG["resources"]["get_hisat_ref"]
+    shell:
+        '''
+        wget -O {params.ref_dir}/{params.version}.tar.gz "{params.url}" \
+            > {log.stdout} 2> {log.stderr}
+        tar -xzf {params.ref_dir}/{params.version}.tar.gz -C {params.ref_dir}/ \
+            >> {log.stdout} 2>> {log.stderr}
+        rm {params.ref_dir}/{params.version}.tar.gz
+        touch {output.complete}
+        '''
 
 
 # Symlinks the input BAM and index into the module results directory (under '00-inputs/')
@@ -71,6 +106,7 @@ rule _igseqr_run:
     input:
         bam = rules._igseqr_input_bam.output.bam,
         bam_real = CFG["inputs"]["sample_bam"],  # Prevent premature deletion of temp bam
+        hisat_ref_ready = str(rules._igseqr_get_hisat_ref.output.complete),
     output:
         igh_fasta      = CFG["dirs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_IGH_transcripts.fasta",
         igkl_fasta     = CFG["dirs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_IGKL_transcripts.fasta",
@@ -84,9 +120,9 @@ rule _igseqr_run:
         stdout = CFG["logs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/igseqr_run.stdout.log",
         stderr = CFG["logs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/igseqr_run.stderr.log",
     params:
-        opts     = CFG["options"]["igseqr_run"],
-        out_dir  = CFG["dirs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}",
-        hisat_ref = CFG["inputs"]["hisat_ref"],
+        opts      = CFG["options"]["igseqr_run"],
+        out_dir   = CFG["dirs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}",
+        hisat_ref = HISAT_REF_DIR + "/" + HISAT_REF_VERSION + "/genome",
     resources:
         **CFG["resources"]["igseqr_run"]
     conda:
