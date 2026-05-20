@@ -17,7 +17,7 @@ lcr-modules:
             liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
 
         container_envs:
-            battenberg: "docker://ghcr.io/lcr-bccrc/lcr-scripts/battenberg:1.0"
+            battenberg: "docker://ghcr.io/lcr-bccrc/lcr-scripts/battenberg:1.1"
             wget: null
             samtools: "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
             bedtools: "docker://ghcr.io/lcr-bccrc/lcr-scripts/fill_segments:1.1"
