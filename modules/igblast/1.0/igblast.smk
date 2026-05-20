@@ -43,7 +43,7 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "igblast", "outputs"],
 )
 
-CHAINS = CFG["chains"]
+CHAINS = CFG["options"]["chains"]
 if isinstance(CHAINS, str):
     CHAINS = CHAINS.split(" ")
 
