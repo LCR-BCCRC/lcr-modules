@@ -3,11 +3,12 @@ lcr-modules:
     igseqr:
 
         inputs:
-            # Available wildcards: {seq_type} {genome_build} {sample_id}
-            sample_bam: "__UPDATE__"
-            sample_bai: "__UPDATE__"
+            # Available wildcards: {seq_type} {sample_id}
+            sample_fastq_1: "__UPDATE__"
+            sample_fastq_2: "__UPDATE__"
             # HISAT2 pre-built index to download, keyed by version string.
-            # The key becomes the subdirectory name under {inputs_dir}/hisat_ref/.
+            # The key becomes the subdirectory name under {inputs_dir}/hisat_ref/
+            # and is used as the {hisat_ref_version} wildcard in all output paths.
             # Provide exactly one entry; to use a different index, change the key and URL.
             hisat_ref_url:
                 hg38: "https://genome-idx.s3.amazonaws.com/hisat/grch38_snptran.tar.gz"

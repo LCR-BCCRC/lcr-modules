@@ -54,7 +54,7 @@ HISAT_REF_DIR     = CFG["dirs"]["inputs"] + "hisat_ref"
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _igseqr_input_bam,
+    _igseqr_input_fastq,
     _igseqr_output_files,
     _igseqr_all,
 
@@ -88,40 +88,42 @@ rule _igseqr_get_hisat_ref:
         '''
 
 
-# Symlinks the input BAM and index into the module results directory (under '00-inputs/')
-rule _igseqr_input_bam:
+# Symlinks the input FASTQ pair into the module results directory (under '00-inputs/')
+rule _igseqr_input_fastq:
     input:
-        bam = CFG["inputs"]["sample_bam"],
-        bai = CFG["inputs"]["sample_bai"],
+        fastq_1 = CFG["inputs"]["sample_fastq_1"],
+        fastq_2 = CFG["inputs"]["sample_fastq_2"],
     output:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
+        fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.R1.fastq.gz",
+        fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.R2.fastq.gz",
     run:
-        op.absolute_symlink(input.bam, output.bam)
-        op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.fastq_1, output.fastq_1)
+        op.absolute_symlink(input.fastq_2, output.fastq_2)
 
 
 # Run IgSeqR to assemble and quantify immunoglobulin transcripts
 rule _igseqr_run:
     input:
-        bam = rules._igseqr_input_bam.output.bam,
-        bam_real = CFG["inputs"]["sample_bam"],  # Prevent premature deletion of temp bam
+        fastq_1 = str(rules._igseqr_input_fastq.output.fastq_1),
+        fastq_2 = str(rules._igseqr_input_fastq.output.fastq_2),
+        fastq_1_real = CFG["inputs"]["sample_fastq_1"],  # Prevent premature deletion of fastqs marked as temp
+        fastq_2_real = CFG["inputs"]["sample_fastq_2"],
         hisat_ref_ready = str(rules._igseqr_get_hisat_ref.output.complete),
     output:
-        igh_fasta      = CFG["dirs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/{hisat_ref_version}/{sample_id}_IGH_transcripts.fasta",
-        igkl_fasta     = CFG["dirs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/{hisat_ref_version}/{sample_id}_IGKL_transcripts.fasta",
-        igh_report     = CFG["dirs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/{hisat_ref_version}/{sample_id}_IGH_report.tsv",
-        igkl_report    = CFG["dirs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/{hisat_ref_version}/{sample_id}_IGKL_report.tsv",
-        igh_dominant   = CFG["dirs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/{hisat_ref_version}/{sample_id}_IGH_dominant_report.tsv",
-        igkl_dominant  = CFG["dirs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/{hisat_ref_version}/{sample_id}_IGKL_dominant_report.tsv",
-        igh_tpm_fasta  = CFG["dirs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/{hisat_ref_version}/{sample_id}_IGH_TPM_filtered.fasta",
-        igkl_tpm_fasta = CFG["dirs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/{hisat_ref_version}/{sample_id}_IGKL_TPM_filtered.fasta",
+        igh_fasta      = CFG["dirs"]["igseqr"] + "{seq_type}--{hisat_ref_version}/{sample_id}/{sample_id}_IGH_transcripts.fasta",
+        igkl_fasta     = CFG["dirs"]["igseqr"] + "{seq_type}--{hisat_ref_version}/{sample_id}/{sample_id}_IGKL_transcripts.fasta",
+        igh_report     = CFG["dirs"]["igseqr"] + "{seq_type}--{hisat_ref_version}/{sample_id}/{sample_id}_IGH_report.tsv",
+        igkl_report    = CFG["dirs"]["igseqr"] + "{seq_type}--{hisat_ref_version}/{sample_id}/{sample_id}_IGKL_report.tsv",
+        igh_dominant   = CFG["dirs"]["igseqr"] + "{seq_type}--{hisat_ref_version}/{sample_id}/{sample_id}_IGH_dominant_report.tsv",
+        igkl_dominant  = CFG["dirs"]["igseqr"] + "{seq_type}--{hisat_ref_version}/{sample_id}/{sample_id}_IGKL_dominant_report.tsv",
+        igh_tpm_fasta  = CFG["dirs"]["igseqr"] + "{seq_type}--{hisat_ref_version}/{sample_id}/{sample_id}_IGH_TPM_filtered.fasta",
+        igkl_tpm_fasta = CFG["dirs"]["igseqr"] + "{seq_type}--{hisat_ref_version}/{sample_id}/{sample_id}_IGKL_TPM_filtered.fasta",
     log:
-        stdout = CFG["logs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/{hisat_ref_version}/igseqr_run.stdout.log",
-        stderr = CFG["logs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/{hisat_ref_version}/igseqr_run.stderr.log",
+        stdout = CFG["logs"]["igseqr"] + "{seq_type}--{hisat_ref_version}/{sample_id}/igseqr_run.stdout.log",
+        stderr = CFG["logs"]["igseqr"] + "{seq_type}--{hisat_ref_version}/{sample_id}/igseqr_run.stderr.log",
     params:
         opts      = CFG["options"]["igseqr_run"],
-        out_dir   = CFG["dirs"]["igseqr"] + "{seq_type}--{genome_build}/{sample_id}/{hisat_ref_version}",
+        out_dir   = CFG["dirs"]["igseqr"] + "{seq_type}--{hisat_ref_version}/{sample_id}",
         hisat_ref = HISAT_REF_DIR + "/" + HISAT_REF_VERSION + "/genome",
     wildcard_constraints:
         hisat_ref_version = HISAT_REF_VERSION
@@ -136,7 +138,8 @@ rule _igseqr_run:
     shell:
         op.as_one_line("""
         igseqr
-        --bam {input.bam}
+        --fastq1 {input.fastq_1}
+        --fastq2 {input.fastq_2}
         --hisat_ref {params.hisat_ref}
         --out {params.out_dir}
         --sample {wildcards.sample_id}
@@ -159,14 +162,14 @@ rule _igseqr_output_files:
         igh_tpm_fasta  = rules._igseqr_run.output.igh_tpm_fasta,
         igkl_tpm_fasta = rules._igseqr_run.output.igkl_tpm_fasta,
     output:
-        igh_fasta      = CFG["dirs"]["outputs"] + "fasta/{seq_type}--{genome_build}/{hisat_ref_version}/{sample_id}_IGH_transcripts.fasta",
-        igkl_fasta     = CFG["dirs"]["outputs"] + "fasta/{seq_type}--{genome_build}/{hisat_ref_version}/{sample_id}_IGKL_transcripts.fasta",
-        igh_report     = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{hisat_ref_version}/{sample_id}_IGH_report.tsv",
-        igkl_report    = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{hisat_ref_version}/{sample_id}_IGKL_report.tsv",
-        igh_dominant   = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{hisat_ref_version}/{sample_id}_IGH_dominant_report.tsv",
-        igkl_dominant  = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{hisat_ref_version}/{sample_id}_IGKL_dominant_report.tsv",
-        igh_tpm_fasta  = CFG["dirs"]["outputs"] + "fasta/{seq_type}--{genome_build}/{hisat_ref_version}/{sample_id}_IGH_TPM_filtered.fasta",
-        igkl_tpm_fasta = CFG["dirs"]["outputs"] + "fasta/{seq_type}--{genome_build}/{hisat_ref_version}/{sample_id}_IGKL_TPM_filtered.fasta",
+        igh_fasta      = CFG["dirs"]["outputs"] + "fasta/{seq_type}--{hisat_ref_version}/{sample_id}_IGH_transcripts.fasta",
+        igkl_fasta     = CFG["dirs"]["outputs"] + "fasta/{seq_type}--{hisat_ref_version}/{sample_id}_IGKL_transcripts.fasta",
+        igh_report     = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{hisat_ref_version}/{sample_id}_IGH_report.tsv",
+        igkl_report    = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{hisat_ref_version}/{sample_id}_IGKL_report.tsv",
+        igh_dominant   = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{hisat_ref_version}/{sample_id}_IGH_dominant_report.tsv",
+        igkl_dominant  = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{hisat_ref_version}/{sample_id}_IGKL_dominant_report.tsv",
+        igh_tpm_fasta  = CFG["dirs"]["outputs"] + "fasta/{seq_type}--{hisat_ref_version}/{sample_id}_IGH_TPM_filtered.fasta",
+        igkl_tpm_fasta = CFG["dirs"]["outputs"] + "fasta/{seq_type}--{hisat_ref_version}/{sample_id}_IGKL_TPM_filtered.fasta",
     wildcard_constraints:
         hisat_ref_version = HISAT_REF_VERSION
     run:
@@ -193,7 +196,6 @@ rule _igseqr_all:
                 ],
                 zip,  # Run expand() with zip(), not product()
                 seq_type=CFG["samples"]["seq_type"],
-                genome_build=CFG["samples"]["genome_build"],
                 sample_id=CFG["samples"]["sample_id"],
                 allow_missing=True),
             hisat_ref_version=HISAT_REF_VERSION)

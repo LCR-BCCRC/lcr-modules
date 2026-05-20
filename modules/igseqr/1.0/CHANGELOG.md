@@ -25,9 +25,14 @@ immunoglobulin transcripts from RNA-seq data.
 - Container support added (container_envs.igseqr points to ghcr.io image).
 - Only mrna seq_type is supported; pairing_config runs tumours unpaired.
 - New `_igseqr_get_hisat_ref` rule downloads the recommended GRCh38 HISAT2
-  splice-aware index (grch38_snptran) automatically. The download URL is
-  configurable via `hisat_ref_url` (a version-keyed dict in config); the index
-  is stored under `{inputs_dir}/hisat_ref/{version}/` and the path is derived
-  in the module — no manual `hisat_ref` config entry required.
+  splice-aware index automatically. The download URL is configurable via
+  `hisat_ref_url` (a version-keyed dict in config); the index is stored under
+  `{inputs_dir}/hisat_ref/{version}/` and the path is derived in the module —
+  no manual `hisat_ref` config entry required.
+- Inputs changed from BAM+BAI to a paired FASTQ (R1/R2); `sample_bam` and
+  `sample_bai` config keys replaced by `sample_fastq_1` and `sample_fastq_2`.
+- `{genome_build}` wildcard removed throughout; all output directories are now
+  structured as `{seq_type}--{hisat_ref_version}` so outputs are labelled by
+  the reference used rather than the genome build.
 
 Reference: Carrington et al. (2022) Nature Protocols. doi:10.1038/s41596-022-00700-6
