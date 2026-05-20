@@ -16,6 +16,7 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
+            chains: ["IGH", "IGKL"]
             # Extra flags passed verbatim to igseqr (e.g. "--min_tpm 0.5").
             # Leave empty string for defaults.
             igseqr_run: ""
