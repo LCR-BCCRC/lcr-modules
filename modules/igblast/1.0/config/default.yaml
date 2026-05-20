@@ -16,15 +16,15 @@ lcr-modules:
 
         scratch_subdirectories: []
 
-        chains: "__UPDATE__"
-        # List of chains to run igblastn on. Choose from:
-        #   IGH, IGK, IGL, TRA, TRB, TRD, TRG  (for mixcr source)
-        #   IGH, IGKL                            (for igseqr source; IGKL = combined kappa/lambda)
-
+        
         scripts:
             igblast2tsv: "{MODSDIR}/src/igblast_to_tsv.py"
 
         options:
+            chains: "__UPDATE__"
+                # List of chains to run igblastn on. Choose from:
+                #   IGH, IGK, IGL, TRA, TRB, TRD, TRG  (for mixcr source)
+                #   IGH, IGKL                            (for igseqr source; IGKL = combined kappa/lambda)
             igblast_run:
                 run_flags: ""
                 form: "qseq sseq"
