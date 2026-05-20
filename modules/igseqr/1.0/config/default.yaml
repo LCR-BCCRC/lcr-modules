@@ -23,7 +23,7 @@ lcr-modules:
             igseqr: "{MODSDIR}/envs/igseqr-1.0.1.yaml"
 
         container_envs:
-            igseqr: null
+            igseqr: "docker://ghcr.io/lcr-bccrc/lcr-scripts/igseqr:1.0.1"
 
         threads:
             igseqr_run: 8
