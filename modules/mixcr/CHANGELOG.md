@@ -5,6 +5,17 @@ All notable changes to the `mixcr` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3] - 2026-05-20
+
+This release was updated by Laura Hilton.
+
+- Removes the igBLAST steps from mixcr, which are now in the dedicated `igblast` module.
+- `_mixcr_to_fasta` now runs unconditionally, converting every per-chain clonotype table to FASTA format after assembly.
+- `seq_info` (regions.txt) is promoted from a `temp()` intermediate to a named output so downstream modules (e.g. `igblast`) can consume it.
+- New `_mixcr_output_fasta` rule symlinks per-chain FASTA files and regions.txt into `99-outputs/fasta/` and `99-outputs/seq_info/` respectively.
+- Removes the `igblastn` boolean config key and all associated assertions and conda/container env references.
+- Renames `igblast_scripts` config key to `scripts` for consistency.
+
 ## [1.2] - 2022-06-6
 
 This release was updated by Manuela Cruz.
@@ -19,11 +30,11 @@ This release was updated by Manuela Cruz.
 
 ## [1.1] - 2020-12-21
 
-This release was updated by Laura Hilton. 
+This release was updated by Laura Hilton.
 
-- The user now specifies where `mixcr` should be installed to prevent unwanted installation into the `lcr-modules` repository. 
-- Utilizes resource unpacking. 
-- Added a conda env to ensure Java > 8 is used. 
+- The user now specifies where `mixcr` should be installed to prevent unwanted installation into the `lcr-modules` repository.
+- Utilizes resource unpacking.
+- Added a conda env to ensure Java > 8 is used.
 
 ## [1.0] - 2020-06-11
 

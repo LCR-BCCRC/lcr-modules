@@ -1,0 +1,53 @@
+lcr-modules:
+
+    igblast:
+
+        dirs:
+            _parent: "__UPDATE__"
+
+        inputs:
+            # Path to input FASTA file.
+            # Available wildcards: {seq_type}, {sample_id}, {chain}
+            # For mixcr 1.3 output:
+            #   "{MIXCR_OUT}/99-outputs/fasta/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.VDJseq.fasta"
+            # For igseqr 1.0 output (chains: IGH, IGKL):
+            #   "{IGSEQR_OUT}/99-outputs/fasta/{seq_type}--{genome_build}/{sample_id}_{chain}_transcripts.fasta"
+            sample_fasta: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        chains: "__UPDATE__"
+        # List of chains to run igblastn on. Choose from:
+        #   IGH, IGK, IGL, TRA, TRB, TRD, TRG  (for mixcr source)
+        #   IGH, IGKL                            (for igseqr source; IGKL = combined kappa/lambda)
+
+        scripts:
+            igblast2tsv: "{MODSDIR}/src/igblast_to_tsv.py"
+
+        options:
+            igblast_run:
+                run_flags: ""
+                form: "qseq sseq"
+
+        conda_envs:
+            igblast: "{MODSDIR}/envs/igblast-1.17.1.yaml"
+
+        container_envs:
+            igblast: "docker://quay.io/biocontainers/igblast:1.17.1--pl5321h3928612_1"
+
+        threads:
+            igblastn_run: 4
+
+        resources:
+            igblastn_run:
+                mem_mb: 8000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
