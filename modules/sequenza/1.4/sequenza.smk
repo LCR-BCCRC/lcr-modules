@@ -150,7 +150,7 @@ rule _sequenza_merge_seqz:
     input:
         txt = str(rules._sequenza_input_chroms.output.txt),
         seqz = _sequenza_request_chrom_seqz_files,
-        merge_seqz = CFG["inputs"]["merge_seqz"],
+        merge_seqz = ancient(CFG["inputs"]["merge_seqz"]),
         gc = reference_files("genomes/{genome_build}/annotations/gc_wiggle.window_50.wig.gz")
     output:
         seqz = CFG["dirs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged.binned.unfiltered.seqz.gz"
@@ -172,7 +172,7 @@ rule _sequenza_merge_seqz:
 rule _sequenza_filter_seqz:
     input:
         seqz = str(rules._sequenza_merge_seqz.output.seqz),
-        filter_seqz = CFG["inputs"]["filter_seqz"],
+        filter_seqz = ancient(CFG["inputs"]["filter_seqz"]),
         dbsnp_pos = str(rules._sequenza_input_dbsnp_pos.output.pos),
         blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed")
     output:
@@ -199,7 +199,7 @@ rule _sequenza_filter_seqz:
 rule _sequenza_run:
     input:
         seqz = str(rules._sequenza_filter_seqz.output.seqz),
-        run_sequenza = CFG["inputs"]["run_sequenza"],
+        run_sequenza = ancient(CFG["inputs"]["run_sequenza"]),
         assembly = reference_files("genomes/{genome_build}/version.txt"),
         chroms = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt"),
         x_chrom = reference_files("genomes/{genome_build}/genome_fasta/chromosome_x.txt")
@@ -343,8 +343,8 @@ rule _sequenza_fill_segments:
     input:
         unpack(_sequenza_prepare_projection)
     output:
-        grch37_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"),
-        hg38_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg")
+        grch37_filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg",
+        hg38_filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
     log:
         stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}_fill_segments.stderr.log"
     threads: 1
