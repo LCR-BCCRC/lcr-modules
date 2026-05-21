@@ -14,6 +14,8 @@
 
 library(sequenza)
 
+Sys.setenv("VROOM_CONNECTION_SIZE" = 131072 * 100)
+
 
 # Parse Arguments ---------------------------------------------------------
 
