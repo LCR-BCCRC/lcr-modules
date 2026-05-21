@@ -9,11 +9,12 @@ lcr-modules:
             # Available wildcards: {seq_type} {sample_id}
             sample_fastq_1: "__UPDATE__"
             sample_fastq_2: "__UPDATE__"
-            # Path to the directory where MiXCR should be installed
-            mixcr_exec: "__UPDATE__"
+            # Path to the MiXCR license file (mi.license).
+            # Set the MI_LICENSE_FILE environment variable to this path at runtime.
+            license_file: "__UPDATE__"
             # Only required when run_igblast_postprocessing is True.
             # Path to the igblastn fmt7 output from the igblast module:
-            #   "{IGBLAST_OUT}/99-outputs/fmt7/{seq_type}/{sample_id}.{chain}.igblastn.fmt7"
+            #   "{IGBLAST_OUT}/01-igblast/{seq_type}/{sample_id}/{sample_id}.{chain}.igblastn.fmt7"
             sample_igblast_fmt7: "__UPDATE__"
 
         scratch_subdirectories: []
@@ -35,17 +36,22 @@ lcr-modules:
             igblastn2mixcr: "{MODSDIR}/src/igblast_to_mixcr.py"
 
         options:
+            preset:
+                mrna: "rna-seq"
+                capture: "exome-seq"
+                genome: "exome-seq"
             mixcr_run:
-                mrna:
-                    --starting-material rna
-                genome:
-                    --starting-material dna
+                # Extra flags appended after the fixed options (preset, --species, --assemble-longest-contigs).
+                # Add per-seq-type overrides here (e.g. tag patterns, receptor-type constraints).
+                mrna: ""
+                capture: ""
+                genome: ""
 
         conda_envs:
             java: "{MODSDIR}/envs/java-jdk-8.0.yaml"
 
         container_envs:
-            java: "docker://quay.io/biocontainers/java-jdk:8.0.112--1"
+            java: "docker://ghcr.io/milaboratory/mixcr/mixcr:4.7.0-364-develop"
 
         threads:
             mixcr_run: 4
