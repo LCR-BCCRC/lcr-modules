@@ -36,7 +36,7 @@ lcr-modules:
 
         container_envs:
             sequenza-utils: "docker://quay.io/biocontainers/sequenza-utils:3.0.0--py38hfe239e1_7"
-            r-sequenza: "docker://quay.io/biocontainers/r-sequenza:3.0.0--r351h6115d3f_0"
+            r-sequenza: "docker://ghcr.io/lcr-bccrc/lcr-scripts/sequenza:3.0.0"
             bedtools: "docker://ghcr.io/lcr-bccrc/lcr-scripts/bedtools:2.31.1"
             cnv2igv: null
             liftover: "docker://ghcr.io/lcr-bccrc/lcr-scripts/liftover:1.0"
