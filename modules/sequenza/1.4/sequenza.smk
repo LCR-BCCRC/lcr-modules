@@ -190,7 +190,7 @@ rule _sequenza_filter_seqz:
     shell:
         op.as_one_line("""
         SEQZ_BLACKLIST_BED_FILES='{input.blacklist}'
-        {input.filter_seqz} {input.seqz} {input.dbsnp_pos} 2>> {log.stderr}
+        {input.filter_seqz} {input.seqz} {input.dbsnp_pos} {threads} 2>> {log.stderr}
             |
         gzip > {output.seqz} 2>> {log.stderr}
         """)
