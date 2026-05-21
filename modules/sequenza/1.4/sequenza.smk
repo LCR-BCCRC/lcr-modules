@@ -171,7 +171,7 @@ rule _sequenza_merge_seqz:
 
 rule _sequenza_filter_seqz:
     input:
-        seqz = str(rules._sequenza_merge_seqz.output.seqz),
+        seqz = ancient(str(rules._sequenza_merge_seqz.output.seqz)),
         filter_seqz = ancient(CFG["inputs"]["filter_seqz"]),
         dbsnp_pos = str(rules._sequenza_input_dbsnp_pos.output.pos),
         blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed")
