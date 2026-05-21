@@ -630,8 +630,8 @@ rule _panel_of_normals_purecn_mutect2_germline:
         op.as_one_line("""
             if [[ $(egrep "^{wildcards.chrom}:" {input.target_regions} | wc -l) -eq 0 ]]; then
                 echo "No intervals found for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
-                gatk Mutect2
-                --java-options "-Xmx{params.mem_mb}m" {params.opts}
+                gatk --java-options "-Xmx{params.mem_mb}m" 
+                Mutect2 {params.opts}
                 --genotype-germline-sites true
                 --genotype-pon-sites true
                 --max-mnp-distance 0
@@ -644,8 +644,8 @@ rule _panel_of_normals_purecn_mutect2_germline:
                 >> {log} 2>&1;
             else
                 echo "Found intervals for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
-                gatk Mutect2
-                --java-options "-Xmx{params.mem_mb}m" {params.opts}
+                gatk --java-options "-Xmx{params.mem_mb}m"
+                Mutect2 {params.opts}
                 --genotype-germline-sites true
                 --genotype-pon-sites true
                 --max-mnp-distance 0
@@ -759,8 +759,8 @@ rule _panel_of_normals_purecn_pileup_summaries:
         CFG["threads"]["purecn"]["post_vcf"]
     shell:
         op.as_one_line("""
-        gatk GetPileupSummaries
-            --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m"
+            GetPileupSummaries
             -I {input.bam}
             -R {input.fasta}
             -V {input.snps}
@@ -788,8 +788,8 @@ rule _panel_of_normals_purecn_calc_contamination:
         CFG["threads"]["purecn"]["post_vcf"]
     shell:
         op.as_one_line("""
-        gatk CalculateContamination
-            --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m"
+            CalculateContamination
             -I {input.pileup}
             -tumor-segmentation {output.segments}
             -O {output.contamination}
@@ -826,8 +826,8 @@ rule _panel_of_normals_purecn_learn_orient_model:
     shell:
         op.as_one_line("""
         inputs=$(for input in {input.f1r2}; do printf -- "-I $input "; done);
-        gatk LearnReadOrientationModel
-        --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m"
+        LearnReadOrientationModel
         $inputs -O {output.model}
         > {log} 2>&1
         """)
@@ -857,8 +857,8 @@ rule _panel_of_normals_purecn_annotate_vcf:
         CFG["threads"]["purecn"]["post_vcf"]
     shell:
         op.as_one_line("""
-        gatk FilterMutectCalls --java-options "-Xmx{params.mem_mb}m"
-            {params.opts}
+        gatk --java-options "-Xmx{params.mem_mb}m"
+            FilterMutectCalls {params.opts}
             -V {input.vcf}
             -R {input.fasta}
             --tumor-segmentation {input.segments}
@@ -961,7 +961,7 @@ rule _panel_of_normals_purecn_gatk_genomicsDbimport:
         done = str(rules._panel_of_normals_purecn_samples_map.output.done),
         target_regions = str(rules._panel_of_normals_canonical_capspace.output.bed)
     output:
-        touch(CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb.done")
+       done = CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb.done"
     log:
         CFG["logs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb.log"
     resources:
@@ -975,12 +975,13 @@ rule _panel_of_normals_purecn_gatk_genomicsDbimport:
         CFG["threads"]["purecn"]["importDB"]
     shell:
         op.as_one_line("""
-        gatk GenomicsDBImport --java-options "-Xmx{params.mem_mb}m"
-        -L {input.target_regions}
+        gatk  --java-options "-Xmx{params.mem_mb}m"
+        GenomicsDBImport -L {input.target_regions}
         --sample-name-map {input.samples_map}
         --genomicsdb-workspace-path {params.db_path} --lenient --merge-input-intervals TRUE
         --overwrite-existing-genomicsdb-workspace TRUE
-        > {log} 2>&1
+        > {log} 2>&1 &&
+        touch {output.done}
         """)
 
 # Create mutect2 pon vcf
@@ -1004,7 +1005,8 @@ rule _panel_of_normals_purecn_mutect2_pon:
         CFG["threads"]["purecn"]["post_vcf"]
     shell:
         op.as_one_line("""
-        gatk CreateSomaticPanelOfNormals --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m"
+        CreateSomaticPanelOfNormals 
         --reference {input.fasta}
         --variant {params.opts}
         -O {output.pon}
@@ -1099,8 +1101,8 @@ rule _panel_of_normals_purecn_gatk_depthOfCoverage:
         CFG["conda_envs"]["mutect"]
     shell:
         op.as_one_line("""
-        gatk DepthOfCoverage
-            --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m"
+            DepthOfCoverage
             {params.opts}
             --omit-depth-output-at-each-base
             --omit-locus-table
