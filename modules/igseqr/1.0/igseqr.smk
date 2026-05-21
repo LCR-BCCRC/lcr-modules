@@ -40,7 +40,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "igseqr",
     version = "1.0",
-    subdirectories = ["inputs", "igseqr", "outputs"],
+    subdirectories = ["inputs", "hisat2", "bam2fastq", "trinity", "blastn", "kallisto", "reports", "outputs"],
 )
 
 assert len(CFG["inputs"]["hisat_ref_url"]) == 1, (
@@ -85,8 +85,8 @@ rule _igseqr_get_hisat_ref:
     output:
         complete = HISAT_REF_DIR + "/hisat2_" + HISAT_REF_VERSION + "_downloaded.success"
     log:
-        stdout = CFG["logs"]["igseqr"] + "get_hisat_ref.stdout.log",
-        stderr = CFG["logs"]["igseqr"] + "get_hisat_ref.stderr.log",
+        stdout = CFG["logs"]["inputs"] + "get_hisat_ref.stdout.log",
+        stderr = CFG["logs"]["inputs"] + "get_hisat_ref.stderr.log",
     resources:
         **CFG["resources"]["get_hisat_ref"]
     shell:
@@ -123,11 +123,11 @@ rule _igseqr_hisat2_align:
         fastq_2_real    = CFG["inputs"]["sample_fastq_2"],
         hisat_ref_ready = str(rules._igseqr_get_hisat_ref.output.complete),
     output:
-        bam = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}.aligned.sorted.bam",
-        bai = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}.aligned.sorted.bam.bai",
+        bam = temp(CFG["dirs"]["hisat2"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}.aligned.sorted.bam"),
+        bai = temp(CFG["dirs"]["hisat2"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}.aligned.sorted.bam.bai"),
     log:
-        stdout = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/hisat2_align.stdout.log",
-        stderr = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/hisat2_align.stderr.log",
+        stdout = CFG["logs"]["hisat2"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/hisat2_align.stdout.log",
+        stderr = CFG["logs"]["hisat2"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/hisat2_align.stderr.log",
     params:
         hisat_ref = HISAT_REF_DIR + "/" + HISAT_REF_VERSION + "/genome",
         opts      = CFG["options"]["hisat2_align"],
@@ -160,16 +160,16 @@ rule _igseqr_filter_reads:
         bam = str(rules._igseqr_hisat2_align.output.bam),
         bai = str(rules._igseqr_hisat2_align.output.bai),
     output:
-        fastq_1 = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}.IG.R1.fastq.gz",
-        fastq_2 = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}.IG.R2.fastq.gz",
+        fastq_1 = temp(CFG["dirs"]["bam2fastq"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}.IG.R1.fastq.gz"),
+        fastq_2 = temp(CFG["dirs"]["bam2fastq"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}.IG.R2.fastq.gz"),
     log:
-        stdout = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/filter_reads.stdout.log",
-        stderr = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/filter_reads.stderr.log",
+        stdout = CFG["logs"]["bam2fastq"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/filter_reads.stdout.log",
+        stderr = CFG["logs"]["bam2fastq"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/filter_reads.stderr.log",
     params:
         regions      = IG_REGIONS,
-        tmp_unmapped = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_tmp_unmapped.bam",
-        tmp_ig_loci  = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_tmp_ig_loci.bam",
-        tmp_merged   = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_tmp_merged.bam",
+        tmp_unmapped = CFG["dirs"]["bam2fastq"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_tmp_unmapped.bam",
+        tmp_ig_loci  = CFG["dirs"]["bam2fastq"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_tmp_ig_loci.bam",
+        tmp_merged   = CFG["dirs"]["bam2fastq"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_tmp_merged.bam",
     threads:
         CFG["threads"]["filter_reads"]
     resources:
@@ -201,13 +201,13 @@ rule _igseqr_trinity_assemble:
         fastq_1 = str(rules._igseqr_filter_reads.output.fastq_1),
         fastq_2 = str(rules._igseqr_filter_reads.output.fastq_2),
     output:
-        fasta = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_Trinity.Trinity.fasta",
+        fasta = temp(CFG["dirs"]["trinity"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_Trinity.Trinity.fasta"),
     log:
-        stdout = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/trinity.stdout.log",
-        stderr = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/trinity.stderr.log",
+        stdout = CFG["logs"]["trinity"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/trinity.stdout.log",
+        stderr = CFG["logs"]["trinity"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/trinity.stderr.log",
     params:
         # Trinity outputs {trinity_dir}.Trinity.fasta when using --full_cleanup
-        trinity_dir = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_Trinity",
+        trinity_dir = CFG["dirs"]["trinity"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_Trinity",
         max_mem     = lambda wildcards, resources: str(resources.mem_mb) + "M",
         opts        = CFG["options"]["trinity_assemble"],
     threads:
@@ -242,10 +242,10 @@ rule _igseqr_blastn:
     input:
         fasta = str(rules._igseqr_trinity_assemble.output.fasta),
     output:
-        blast = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}_blast.outfmt6",
+        blast = temp(CFG["dirs"]["blastn"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}_blast.outfmt6"),
     log:
-        stdout = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/blastn.stdout.log",
-        stderr = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/blastn.stderr.log",
+        stdout = CFG["logs"]["blastn"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/blastn.stdout.log",
+        stderr = CFG["logs"]["blastn"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/blastn.stderr.log",
     params:
         db   = lambda wildcards: f"$CONDA_PREFIX/bin/data/igseqr/IMGT/{wildcards.chain}/{wildcards.chain}.fasta",
         opts = CFG["options"]["blastn"],
@@ -278,10 +278,10 @@ rule _igseqr_extract_transcripts:
         fasta = str(rules._igseqr_trinity_assemble.output.fasta),
         blast = str(rules._igseqr_blastn.output.blast),
     output:
-        transcripts = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}_transcripts.fasta",
+        transcripts = CFG["dirs"]["blastn"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}_transcripts.fasta",
     log:
-        stdout = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/extract_transcripts.stdout.log",
-        stderr = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/extract_transcripts.stderr.log",
+        stdout = CFG["logs"]["blastn"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/extract_transcripts.stdout.log",
+        stderr = CFG["logs"]["blastn"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/extract_transcripts.stderr.log",
     wildcard_constraints:
         chain = "|".join(CHAINS),
     resources:
@@ -309,10 +309,10 @@ rule _igseqr_kallisto_index:
     input:
         transcripts = str(rules._igseqr_extract_transcripts.output.transcripts),
     output:
-        idx = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}.kallisto.idx",
+        idx = temp(CFG["dirs"]["kallisto"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}.kallisto.idx"),
     log:
-        stdout = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/kallisto_index.stdout.log",
-        stderr = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/kallisto_index.stderr.log",
+        stdout = CFG["logs"]["kallisto"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/kallisto_index.stdout.log",
+        stderr = CFG["logs"]["kallisto"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/kallisto_index.stderr.log",
     wildcard_constraints:
         chain = "|".join(CHAINS),
     resources:
@@ -334,12 +334,12 @@ rule _igseqr_kallisto_quant:
         fastq_1 = str(rules._igseqr_filter_reads.output.fastq_1),
         fastq_2 = str(rules._igseqr_filter_reads.output.fastq_2),
     output:
-        abundance = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/kallisto/{chain}/abundance.tsv",
+        abundance = CFG["dirs"]["kallisto"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/abundance.tsv",
     log:
-        stdout = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/kallisto_quant.stdout.log",
-        stderr = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/kallisto_quant.stderr.log",
+        stdout = CFG["logs"]["kallisto"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/kallisto_quant.stdout.log",
+        stderr = CFG["logs"]["kallisto"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/kallisto_quant.stderr.log",
     params:
-        out_dir = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/kallisto/{chain}",
+        out_dir = CFG["dirs"]["kallisto"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}",
     wildcard_constraints:
         chain = "|".join(CHAINS),
     threads:
@@ -367,12 +367,12 @@ rule _igseqr_make_report:
         abundance   = str(rules._igseqr_kallisto_quant.output.abundance),
         transcripts = str(rules._igseqr_extract_transcripts.output.transcripts),
     output:
-        report          = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}_report.tsv",
-        dominant_report = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}_dominant_report.tsv",
-        tpm_fasta       = CFG["dirs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}_TPM_filtered.fasta",
+        report          = CFG["dirs"]["reports"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}_report.tsv",
+        dominant_report = CFG["dirs"]["reports"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}_dominant_report.tsv",
+        tpm_fasta       = CFG["dirs"]["reports"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}_TPM_filtered.fasta",
     log:
-        stdout = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/make_report.stdout.log",
-        stderr = CFG["logs"]["igseqr"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/make_report.stderr.log",
+        stdout = CFG["logs"]["reports"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/make_report.stdout.log",
+        stderr = CFG["logs"]["reports"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/make_report.stderr.log",
     params:
         script    = CFG["scripts"]["igseqr_report"],
         sample_id = "{sample_id}",
