@@ -108,7 +108,7 @@ if CFG["temp_outputs"]:
         shell:
             op.as_one_line("""
             picard -Xmx{resources.mem_mb}m SamToFastq {params.opts}
-            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2})
+            I={input.bam} FASTQ=>(pigz -p {threads} > {output.fastq_1}) SECOND_END_FASTQ=>(pigz -p {threads} > {output.fastq_2})
             REFERENCE_SEQUENCE={input.genome}
             > {log.stdout} &> {log.stderr}
             """)
@@ -137,7 +137,7 @@ elif not CFG["temp_outputs"]:
         shell:
             op.as_one_line("""
             picard -Xmx{resources.mem_mb}m SamToFastq {params.opts}
-            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2})
+            I={input.bam} FASTQ=>(pigz -p {threads} > {output.fastq_1}) SECOND_END_FASTQ=>(pigz -p {threads} > {output.fastq_2})
             REFERENCE_SEQUENCE={input.genome}
             > {log.stdout} &> {log.stderr}
             """)
