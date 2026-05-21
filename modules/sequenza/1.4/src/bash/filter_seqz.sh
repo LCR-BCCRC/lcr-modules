@@ -18,7 +18,7 @@ set -euf -o pipefail
 zcat "${SEQZ_FILE}" \
 	| egrep -v "^chromosome" \
 	| awk 'BEGIN {FS="\t"} $9 == "het" {print $1 ":" $2}' \
-	| sort -S "${BUFFER_SIZE}" \
+	| sort -S "${BUFFER_SIZE}" --parallel 8 \
 	| comm - "${DBSNP_POS_FILE}" -2 -3 \
 	| tr ":" "\t" \
 	> "${RARE_VARIANTS}"
