@@ -8,7 +8,7 @@ lcr-modules:
             sample_fastq_2: "__UPDATE__"
             # HISAT2 pre-built index to download, keyed by version string.
             # The key becomes the subdirectory name under {inputs_dir}/hisat_ref/
-            # and is used as the {hisat_ref_version} wildcard in all output paths.
+            # and is used in all output paths.
             # Provide exactly one entry; to use a different index, change the key and URL.
             hisat_ref_url:
                 hg38: "https://genome-idx.s3.amazonaws.com/hisat/grch38_snptran.tar.gz"
@@ -17,9 +17,16 @@ lcr-modules:
 
         options:
             chains: ["IGH", "IGKL"]
-            # Extra flags passed verbatim to igseqr (e.g. "--min_tpm 0.5").
-            # Leave empty string for defaults.
-            igseqr_run: ""
+            # IGH  → BLAST against IMGT IGH database  (heavy chain)
+            # IGKL → BLAST against IMGT IGKL database (kappa/lambda light chain)
+
+            # Extra flags passed verbatim to each tool. Leave as empty string for defaults.
+            hisat2_align: ""
+            trinity_assemble: ""
+            blastn: ""
+
+        scripts:
+            igseqr_report: "{MODSDIR}/src/igseqr_report.py"
 
         conda_envs:
             igseqr: "{MODSDIR}/envs/igseqr-1.0.1.yaml"
@@ -28,11 +35,29 @@ lcr-modules:
             igseqr: "docker://ghcr.io/lcr-bccrc/lcr-scripts/igseqr:1.0.1"
 
         threads:
-            igseqr_run: 8
+            hisat2_align: 8
+            filter_reads: 4
+            trinity_assemble: 8
+            blastn: 4
+            kallisto_quant: 4
 
         resources:
-            igseqr_run:
+            hisat2_align:
                 mem_mb: 32000
+            filter_reads:
+                mem_mb: 8000
+            trinity_assemble:
+                mem_mb: 50000
+            blastn:
+                mem_mb: 8000
+            extract_transcripts:
+                mem_mb: 4000
+            kallisto_index:
+                mem_mb: 4000
+            kallisto_quant:
+                mem_mb: 8000
+            make_report:
+                mem_mb: 4000
             get_hisat_ref:
                 mem_mb: 2000
 
