@@ -38,7 +38,7 @@ lcr-modules:
         threads:
             hisat2_align: 8
             filter_reads: 4
-            trinity_assemble: 8
+            trinity_assemble: 24
             blastn: 4
             kallisto_quant: 4
 
