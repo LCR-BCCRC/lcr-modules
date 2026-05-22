@@ -211,7 +211,7 @@ rule _igseqr_trinity_assemble:
     params:
         # Trinity outputs {trinity_dir}.Trinity.fasta when using --full_cleanup
         trinity_dir = CFG["dirs"]["trinity"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_Trinity",
-        max_mem     = lambda wildcards, resources: str(resources.mem_mb) + "M",
+        max_mem     = lambda wildcards, resources: str(int(resources.mem_mb/1000)) + "G",
         opts        = CFG["options"]["trinity_assemble"],
     threads:
         CFG["threads"]["trinity_assemble"]
@@ -220,7 +220,7 @@ rule _igseqr_trinity_assemble:
     conda:
         CFG["conda_envs"]["igseqr"]
     container:
-        CFG["container_envs"]["igseqr"]
+        CFG["container_envs"]["trinity"]
     shell:
         op.as_one_line("""
         Trinity
