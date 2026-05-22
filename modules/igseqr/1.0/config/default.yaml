@@ -61,6 +61,8 @@ lcr-modules:
                 mem_mb: 4000
             get_hisat_ref:
                 mem_mb: 2000
+            get_imgt_db:
+                mem_mb: 2000
 
         pairing_config:
             mrna:

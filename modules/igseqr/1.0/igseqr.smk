@@ -67,8 +67,11 @@ IG_REGIONS = "14:105550000-106900000 2:88697000-92240000 22:22005000-23590000"
 # Define rules to be run locally when using a compute cluster
 localrules:
     _igseqr_input_fastq,
+    _igseqr_get_imgt_db,
     _igseqr_output_files,
     _igseqr_all,
+
+IMGT_DB_DIR = CFG["dirs"]["inputs"] + "imgt_db"
 
 
 ##### RULES #####
@@ -238,19 +241,43 @@ rule _igseqr_trinity_assemble:
         """)
 
 
+# Downloads the pre-built IMGT BLAST databases from the IgSeqR GitHub repository.
+# Stored under {inputs_dir}/imgt_db/{chain}/ and valid for conda and container runs.
+rule _igseqr_get_imgt_db:
+    params:
+        out_dir = IMGT_DB_DIR,
+    output:
+        complete = IMGT_DB_DIR + "/imgt_db_downloaded.success"
+    log:
+        stdout = CFG["logs"]["blastn"] + "get_imgt_db.stdout.log",
+        stderr = CFG["logs"]["blastn"] + "get_imgt_db.stderr.log",
+    resources:
+        **CFG["resources"]["get_imgt_db"]
+    shell:
+        '''
+        wget https://github.com/ForconiLab/IgSeqR/archive/refs/heads/main.tar.gz \
+            -O {params.out_dir}/igseqr_main.tar.gz > {log.stdout} 2> {log.stderr}
+        tar -xzf {params.out_dir}/igseqr_main.tar.gz \
+            -C {params.out_dir} \
+            --strip-components=3 \
+            IgSeqR-main/data/IMGT >> {log.stdout} 2>> {log.stderr}
+        rm {params.out_dir}/igseqr_main.tar.gz
+        touch {output.complete}
+        '''
+
+
 # BLASTs the Trinity assembly against the IMGT germline database for each chain.
-# The pre-built BLAST databases are installed by the post-deploy script at
-# $CONDA_PREFIX/bin/data/igseqr/IMGT/{chain}/{chain}.fasta.
 rule _igseqr_blastn:
     input:
-        fasta = str(rules._igseqr_trinity_assemble.output.fasta),
+        fasta        = str(rules._igseqr_trinity_assemble.output.fasta),
+        imgt_db_ready = str(rules._igseqr_get_imgt_db.output.complete),
     output:
         blast = temp(CFG["dirs"]["blastn"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}_blast.outfmt6"),
     log:
         stdout = CFG["logs"]["blastn"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/blastn.stdout.log",
         stderr = CFG["logs"]["blastn"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/blastn.stderr.log",
     params:
-        db   = lambda wildcards: f"$CONDA_PREFIX/bin/data/igseqr/IMGT/{wildcards.chain}/{wildcards.chain}.fasta",
+        db   = lambda wildcards: IMGT_DB_DIR + f"/{wildcards.chain}/{wildcards.chain}.fasta",
         opts = CFG["options"]["blastn"],
     wildcard_constraints:
         chain = "|".join(CHAINS),
