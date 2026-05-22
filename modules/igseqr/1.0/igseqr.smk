@@ -142,7 +142,6 @@ rule _igseqr_hisat2_align:
         CFG["container_envs"]["igseqr"]
     shell:
         '''
-        set -euo pipefail
         HISAT_PREFIX=$(cat {input.hisat_ref_ready})
         hisat2 -p {threads} --phred33 -t \
             -x $HISAT_PREFIX \
@@ -151,6 +150,8 @@ rule _igseqr_hisat2_align:
             2> {log.stderr} \
         | samtools view -@ {threads} -bS - 2>> {log.stderr} \
         | samtools sort -@ {threads} -o {output.bam} 2>> {log.stderr}
+        hisat2_exit=${{PIPESTATUS[0]}}
+        [ "$hisat2_exit" -eq 0 ] || exit "$hisat2_exit"
         samtools index -@ {threads} {output.bam} > {log.stdout} 2>> {log.stderr}
         '''
 
