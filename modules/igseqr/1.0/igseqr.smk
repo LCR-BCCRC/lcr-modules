@@ -75,8 +75,9 @@ localrules:
 
 
 # Downloads the HISAT2 splice-aware index specified in hisat_ref_url.
-# The index is stored under {inputs_dir}/hisat_ref/{version}/ and the prefix
-# {inputs_dir}/hisat_ref/{version}/genome is passed to hisat2.
+# The tarball is extracted under {inputs_dir}/hisat_ref/ and the index prefix
+# (path to the *.ht2 files without the .N.ht2 suffix) is written to the sentinel
+# file so downstream rules can discover it regardless of the archive's internal layout.
 rule _igseqr_get_hisat_ref:
     params:
         ref_dir = HISAT_REF_DIR,
@@ -85,8 +86,8 @@ rule _igseqr_get_hisat_ref:
     output:
         complete = HISAT_REF_DIR + "/hisat2_" + HISAT_REF_VERSION + "_downloaded.success"
     log:
-        stdout = CFG["logs"]["inputs"] + "get_hisat_ref.stdout.log",
-        stderr = CFG["logs"]["inputs"] + "get_hisat_ref.stderr.log",
+        stdout = CFG["logs"]["hisat2"] + "get_hisat_ref.stdout.log",
+        stderr = CFG["logs"]["hisat2"] + "get_hisat_ref.stderr.log",
     resources:
         **CFG["resources"]["get_hisat_ref"]
     shell:
@@ -96,7 +97,8 @@ rule _igseqr_get_hisat_ref:
         tar -xzf {params.ref_dir}/{params.version}.tar.gz -C {params.ref_dir}/ \
             >> {log.stdout} 2>> {log.stderr}
         rm {params.ref_dir}/{params.version}.tar.gz
-        touch {output.complete}
+        find {params.ref_dir} -name "*.1.ht2" | head -1 | sed 's/\.1\.ht2$//' \
+            > {output.complete}
         '''
 
 
@@ -129,8 +131,7 @@ rule _igseqr_hisat2_align:
         stdout = CFG["logs"]["hisat2"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/hisat2_align.stdout.log",
         stderr = CFG["logs"]["hisat2"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/hisat2_align.stderr.log",
     params:
-        hisat_ref = HISAT_REF_DIR + "/" + HISAT_REF_VERSION + "/genome",
-        opts      = CFG["options"]["hisat2_align"],
+        opts = CFG["options"]["hisat2_align"],
     threads:
         CFG["threads"]["hisat2_align"]
     resources:
@@ -142,8 +143,9 @@ rule _igseqr_hisat2_align:
     shell:
         '''
         set -euo pipefail
+        HISAT_PREFIX=$(cat {input.hisat_ref_ready})
         hisat2 -p {threads} --phred33 -t \
-            -x {params.hisat_ref} \
+            -x $HISAT_PREFIX \
             -1 {input.fastq_1} -2 {input.fastq_2} \
             {params.opts} \
             2> {log.stderr} \
