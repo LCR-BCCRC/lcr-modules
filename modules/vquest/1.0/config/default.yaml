@@ -17,10 +17,17 @@ lcr-modules:
             # Path to the source TSV to merge V-QUEST annotations into.
             # Only used when options.run_merge is True.
             # Available wildcards: {seq_type}, {sample_id}, {chain}
-            # From mixcr 1.3:
-            #   "{MIXCR_OUT}/99-outputs/tsv/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.tsv"
-            # From igseqr 1.0:
+            #
+            # From igseqr 1.0 (recommended):
             #   "{IGSEQR_OUT}/99-outputs/tsv/{seq_type}--{hisat_ref}/{sample_id}_{chain}_report.tsv"
+            #   Set options.source_id_column to "transcript_id" — igseqr report rows are keyed
+            #   by Trinity transcript ID, which matches the sequence_id in the V-QUEST AIRR TSV.
+            #
+            # From mixcr 1.3:
+            #   Not directly supported. The mixcr clonotype table (clonotypes.{chain}.txt) uses
+            #   integer cloneId values, but the FASTA headers passed to V-QUEST are compound
+            #   strings ("cloneId_N_cloneFraction_F_cloneCount_C") with no single matching column.
+            #   Pre-process the clonotype table to add a matching ID column before using run_merge.
             sample_source_tsv: "__UPDATE__"
 
         scratch_subdirectories: []
@@ -43,7 +50,8 @@ lcr-modules:
             run_merge: False
 
             # Column name in sample_source_tsv that matches sequence_id in the V-QUEST AIRR TSV.
-            source_id_column: "sequence_id"
+            #   igseqr 1.0 source → "transcript_id"
+            source_id_column: "transcript_id"
 
         scripts:
             run_vquest: "{MODSDIR}/src/run_vquest.py"
