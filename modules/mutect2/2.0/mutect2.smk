@@ -450,9 +450,9 @@ rule _mutect2_filter:
         vcf = ancient(str(rules._mutect2_merge_vcfs.output.vcf)),
         tbi = ancient(str(rules._mutect2_merge_vcfs.output.tbi)),
         stat = ancient(str(rules._mutect2_merge_stats.output.stat)),
-        segments = str(rules._mutect2_calc_contamination.output.segments), 
-        contamination = str(rules._mutect2_calc_contamination.output.contamination), 
-        model = str(rules._mutect2_learn_orient_model.output.model),
+        segments = ancient(str(rules._mutect2_calc_contamination.output.segments)),
+        contamination = ancient(str(rules._mutect2_calc_contamination.output.contamination)),
+        model = ancient(str(rules._mutect2_learn_orient_model.output.model)),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         vcf = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.unfilt.vcf.gz"
