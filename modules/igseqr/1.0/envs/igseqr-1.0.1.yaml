@@ -11,5 +11,4 @@ dependencies:
     - trinity=2.13.2
     - numpy
     - pandas
-    - biopython
     - git

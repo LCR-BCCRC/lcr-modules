@@ -12,7 +12,23 @@ import argparse
 import csv
 import sys
 
-from Bio import SeqIO
+
+def _read_fasta(path):
+    seqs = {}
+    current_id, parts = None, []
+    with open(path) as fh:
+        for line in fh:
+            line = line.rstrip()
+            if line.startswith(">"):
+                if current_id is not None:
+                    seqs[current_id] = "".join(parts)
+                current_id = line[1:].split()[0]
+                parts = []
+            else:
+                parts.append(line)
+    if current_id is not None:
+        seqs[current_id] = "".join(parts)
+    return seqs
 
 
 def main():
@@ -27,7 +43,7 @@ def main():
                         help="number of top-TPM transcripts to retain (default: 5)")
     args = parser.parse_args()
 
-    seqs = SeqIO.to_dict(SeqIO.parse(args.transcripts, "fasta"))
+    seqs = _read_fasta(args.transcripts)
 
     rows = []
     with open(args.abundance) as fh:
