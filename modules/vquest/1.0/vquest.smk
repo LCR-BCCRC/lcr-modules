@@ -53,6 +53,10 @@ assert all(chain in VALID_CHAINS for chain in CHAINS), (
     "Use 'IGKL' for combined kappa/lambda FASTA output from igseqr."
 )
 
+RUN_MERGE = CFG["options"]["run_merge"]
+SOURCE_TSV_PATTERN = CFG["inputs"]["sample_source_tsv"] if RUN_MERGE else None
+SOURCE_ID_COL = CFG["options"]["source_id_column"]
+
 # Maps chain wildcard to the IMGT V-QUEST receptorOrLocusType parameter.
 receptor_type_dict = {
     "IGH": "IG", "IGK": "IG", "IGL": "IG", "IGKL": "IG",
@@ -64,6 +68,11 @@ localrules:
     _vquest_input_fasta,
     _vquest_output_tsv,
     _vquest_all,
+
+if RUN_MERGE:
+    localrules:
+        _vquest_merge_tsv,
+        _vquest_output_merged_tsv,
 
 
 ##### RULES #####
@@ -128,19 +137,72 @@ rule _vquest_output_tsv:
         op.relative_symlink(input.tsv, output.tsv, in_module=True)
 
 
+# Merges V-QUEST AIRR annotations into the source TSV (optional, controlled by run_merge config)
+if RUN_MERGE:
+    rule _vquest_merge_tsv:
+        input:
+            annotation = str(rules._vquest_run.output.tsv),
+            source_tsv = lambda wildcards: SOURCE_TSV_PATTERN.format(
+                seq_type=wildcards.seq_type,
+                sample_id=wildcards.sample_id,
+                chain=wildcards.chain,
+            ),
+        output:
+            merged = CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.vquest_airr.merged.tsv"
+        params:
+            script     = CFG["scripts"]["merge_tsv"],
+            source_key = SOURCE_ID_COL,
+        wildcard_constraints:
+            chain = "|".join(CHAINS),
+        shell:
+            op.as_one_line("""
+            python {params.script}
+            --base {input.source_tsv}
+            --annotation {input.annotation}
+            --base_key {params.source_key}
+            --annot_key sequence_id
+            --output {output.merged}
+            """)
+
+    rule _vquest_output_merged_tsv:
+        input:
+            merged = str(rules._vquest_merge_tsv.output.merged)
+        output:
+            merged = CFG["dirs"]["outputs"] + "tsv/{seq_type}/{sample_id}.{chain}.vquest_airr.merged.tsv"
+        wildcard_constraints:
+            chain = "|".join(CHAINS)
+        run:
+            op.relative_symlink(input.merged, output.merged, in_module=True)
+
+
 # Generates the target sentinels for each run, which generate the symlinks
-rule _vquest_all:
-    input:
-        expand(
+if RUN_MERGE:
+    rule _vquest_all:
+        input:
             expand(
-                [
-                    str(rules._vquest_output_tsv.output.tsv),
-                ],
-                zip,
-                seq_type=CFG["samples"]["seq_type"],
-                sample_id=CFG["samples"]["sample_id"],
-                allow_missing=True),
-            chain=CHAINS)
+                expand(
+                    [
+                        str(rules._vquest_output_tsv.output.tsv),
+                        str(rules._vquest_output_merged_tsv.output.merged),
+                    ],
+                    zip,
+                    seq_type=CFG["samples"]["seq_type"],
+                    sample_id=CFG["samples"]["sample_id"],
+                    allow_missing=True),
+                chain=CHAINS)
+else:
+    rule _vquest_all:
+        input:
+            expand(
+                expand(
+                    [
+                        str(rules._vquest_output_tsv.output.tsv),
+                    ],
+                    zip,
+                    seq_type=CFG["samples"]["seq_type"],
+                    sample_id=CFG["samples"]["sample_id"],
+                    allow_missing=True),
+                chain=CHAINS)
 
 
 ##### CLEANUP #####

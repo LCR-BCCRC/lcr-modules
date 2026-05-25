@@ -14,6 +14,15 @@ lcr-modules:
             #   "{MIXCR_OUT}/99-outputs/fasta/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.VDJseq.fasta"
             sample_fasta: "__UPDATE__"
 
+            # Path to the source TSV to merge V-QUEST annotations into.
+            # Only used when options.run_merge is True.
+            # Available wildcards: {seq_type}, {sample_id}, {chain}
+            # From mixcr 1.3:
+            #   "{MIXCR_OUT}/99-outputs/tsv/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.tsv"
+            # From igseqr 1.0:
+            #   "{IGSEQR_OUT}/99-outputs/tsv/{seq_type}--{hisat_ref}/{sample_id}_{chain}_report.tsv"
+            sample_source_tsv: "__UPDATE__"
+
         scratch_subdirectories: []
 
         options:
@@ -29,8 +38,16 @@ lcr-modules:
             # Extra flags passed verbatim to run_vquest.py (currently unused placeholder).
             vquest_run: ""
 
+            # Set to True to merge V-QUEST annotations into the source TSV.
+            # Requires inputs.sample_source_tsv and options.source_id_column to be set.
+            run_merge: False
+
+            # Column name in sample_source_tsv that matches sequence_id in the V-QUEST AIRR TSV.
+            source_id_column: "sequence_id"
+
         scripts:
             run_vquest: "{MODSDIR}/src/run_vquest.py"
+            merge_tsv: "{MODSDIR}/src/merge_annotation_tsv.py"
 
         conda_envs:
             vquest: "{MODSDIR}/envs/vquest-1.0.yaml"

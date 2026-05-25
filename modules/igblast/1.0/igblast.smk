@@ -53,6 +53,10 @@ assert all(chain in VALID_CHAINS for chain in CHAINS), (
     "Use 'IGKL' for combined kappa/lambda FASTA output from igseqr."
 )
 
+RUN_MERGE = CFG["options"]["run_merge"]
+SOURCE_TSV_PATTERN = CFG["inputs"]["sample_source_tsv"] if RUN_MERGE else None
+SOURCE_ID_COL = CFG["options"]["source_id_column"]
+
 # Maps chain name to igblastn seqtype and germline DB prefix
 receptor_dict = {
     "IGH": "ig", "IGK": "ig", "IGL": "ig", "IGKL": "ig",
@@ -69,6 +73,11 @@ localrules:
     _igblast_parse_tsv,
     _igblast_output_tsv,
     _igblast_all,
+
+if RUN_MERGE:
+    localrules:
+        _igblast_merge_tsv,
+        _igblast_output_merged_tsv,
 
 
 ##### RULES #####
@@ -138,19 +147,72 @@ rule _igblast_output_tsv:
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module=True)
 
+# Merges igblastn annotations into the source TSV (optional, controlled by run_merge config)
+if RUN_MERGE:
+    rule _igblast_merge_tsv:
+        input:
+            annotation = str(rules._igblast_parse_tsv.output.tsv),
+            source_tsv = lambda wildcards: SOURCE_TSV_PATTERN.format(
+                seq_type=wildcards.seq_type,
+                sample_id=wildcards.sample_id,
+                chain=wildcards.chain,
+            ),
+        output:
+            merged = CFG["dirs"]["igblast"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.igblastn.merged.tsv"
+        params:
+            script     = CFG["scripts"]["merge_tsv"],
+            source_key = SOURCE_ID_COL,
+        wildcard_constraints:
+            chain = "|".join(CHAINS),
+        shell:
+            op.as_one_line("""
+            python {params.script}
+            --base {input.source_tsv}
+            --annotation {input.annotation}
+            --base_key {params.source_key}
+            --annot_key sequence_id
+            --output {output.merged}
+            """)
+
+    rule _igblast_output_merged_tsv:
+        input:
+            merged = str(rules._igblast_merge_tsv.output.merged)
+        output:
+            merged = CFG["dirs"]["outputs"] + "tsv/{seq_type}/{sample_id}.{chain}.igblastn.merged.tsv"
+        wildcard_constraints:
+            chain = "|".join(CHAINS)
+        run:
+            op.relative_symlink(input.merged, output.merged, in_module=True)
+
+
 # Generates the target sentinels for each run, which generate the symlinks
-rule _igblast_all:
-    input:
-        expand(
+if RUN_MERGE:
+    rule _igblast_all:
+        input:
             expand(
-                [
-                    str(rules._igblast_output_tsv.output.tsv),
-                ],
-                zip,
-                seq_type=CFG["samples"]["seq_type"],
-                sample_id=CFG["samples"]["sample_id"],
-                allow_missing=True),
-            chain=CHAINS)
+                expand(
+                    [
+                        str(rules._igblast_output_tsv.output.tsv),
+                        str(rules._igblast_output_merged_tsv.output.merged),
+                    ],
+                    zip,
+                    seq_type=CFG["samples"]["seq_type"],
+                    sample_id=CFG["samples"]["sample_id"],
+                    allow_missing=True),
+                chain=CHAINS)
+else:
+    rule _igblast_all:
+        input:
+            expand(
+                expand(
+                    [
+                        str(rules._igblast_output_tsv.output.tsv),
+                    ],
+                    zip,
+                    seq_type=CFG["samples"]["seq_type"],
+                    sample_id=CFG["samples"]["sample_id"],
+                    allow_missing=True),
+                chain=CHAINS)
 
 
 ##### CLEANUP #####
