@@ -447,9 +447,9 @@ rule _mutect2_calc_contamination:
 # Marks variants filtered or PASS annotations
 rule _mutect2_filter:
     input:
-        vcf = str(rules._mutect2_merge_vcfs.output.vcf),
-        tbi = str(rules._mutect2_merge_vcfs.output.tbi),
-        stat = str(rules._mutect2_merge_stats.output.stat),
+        vcf = ancient(str(rules._mutect2_merge_vcfs.output.vcf)),
+        tbi = ancient(str(rules._mutect2_merge_vcfs.output.tbi)),
+        stat = ancient(str(rules._mutect2_merge_stats.output.stat)),
         segments = str(rules._mutect2_calc_contamination.output.segments), 
         contamination = str(rules._mutect2_calc_contamination.output.contamination), 
         model = str(rules._mutect2_learn_orient_model.output.model),
