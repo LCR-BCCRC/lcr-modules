@@ -286,8 +286,8 @@ rule _mutect2_merge_vcfs:
         vcf = _mutect2_get_chr_vcfs,
         tbi = _mutect2_get_chr_tbis
     output:
-        vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz"),
-        tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz.tbi")
+        vcf = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz",
+        tbi = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz.tbi"
     log:
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_merge_vcfs.stderr.log"
     conda:
@@ -327,7 +327,7 @@ rule _mutect2_merge_stats:
     input:
         stat = _mutect2_get_chr_stats
     output:
-        stat = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz.stats")
+        stat = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz.stats"
     log:
         stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_merge_stats.stdout.log",
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_merge_stats.stderr.log"
@@ -447,9 +447,9 @@ rule _mutect2_calc_contamination:
 # Marks variants filtered or PASS annotations
 rule _mutect2_filter:
     input:
-        vcf = ancient(str(rules._mutect2_merge_vcfs.output.vcf)),
-        tbi = ancient(str(rules._mutect2_merge_vcfs.output.tbi)),
-        stat = ancient(str(rules._mutect2_merge_stats.output.stat)),
+        vcf = str(rules._mutect2_merge_vcfs.output.vcf),
+        tbi = str(rules._mutect2_merge_vcfs.output.tbi),
+        stat = str(rules._mutect2_merge_stats.output.stat),
         segments = str(rules._mutect2_calc_contamination.output.segments), 
         contamination = str(rules._mutect2_calc_contamination.output.contamination), 
         model = str(rules._mutect2_learn_orient_model.output.model),
