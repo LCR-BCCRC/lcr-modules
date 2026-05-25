@@ -12,11 +12,6 @@ lcr-modules:
             # Path to the MiXCR license file (mi.license).
             # Set the MI_LICENSE_FILE environment variable to this path at runtime.
             license_file: "__UPDATE__"
-            # Only required when run_igblast_postprocessing is True.
-            # Path to the igblastn fmt7 output from the igblast module:
-            #   "{IGBLAST_OUT}/01-igblast/{seq_type}/{sample_id}/{sample_id}.{chain}.igblastn.fmt7"
-            sample_igblast_fmt7: "__UPDATE__"
-
         scratch_subdirectories: []
 
         receptors: "__UPDATE__"
@@ -25,15 +20,8 @@ lcr-modules:
         ###### "BCR" = ['IGH', 'IGL', 'IGK']
         ###### "TCR" = ['TRA', 'TRB', 'TRD', 'TRG']
 
-        run_igblast_postprocessing: False
-        # Boolean
-        # Set to True to merge igblastn results (from the igblast module) back into
-        # MiXCR clonotype tables, producing mixcr.{sample_id}.clonotypes.{chain}.igblast.txt.
-        # Requires '--contig-assembly' in mixcr_run options and sample_igblast_fmt7 input.
-
         scripts:
             mixcr2fasta: "{MODSDIR}/src/mixcr_to_fasta.py"
-            igblastn2mixcr: "{MODSDIR}/src/igblast_to_mixcr.py"
 
         options:
             preset:

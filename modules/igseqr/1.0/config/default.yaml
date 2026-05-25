@@ -12,21 +12,12 @@ lcr-modules:
             # Provide exactly one entry; to use a different index, change the key and URL.
             hisat_ref_url:
                 hg38: "https://genome-idx.s3.amazonaws.com/hisat/grch38_snptran.tar.gz"
-            # Only required when run_igblast is True.
-            # Path to the igblast module TSV output:
-            #   "{IGBLAST_OUT}/99-outputs/tsv/{seq_type}/{sample_id}.{chain}.igblastn.tsv"
-            sample_igblast_tsv: "__UPDATE__"
-
         scratch_subdirectories: []
 
         options:
             chains: ["IGH", "IGKL"]
             # IGH  → BLAST against IMGT IGH database  (heavy chain)
             # IGKL → BLAST against IMGT IGKL database (kappa/lambda light chain)
-
-            run_igblast: False
-            # Boolean. Set to True to merge IgBLAST V/J annotation into the report TSVs.
-            # Requires sample_igblast_tsv input pointing to the igblast module 99-outputs.
 
             # Extra flags passed verbatim to each tool. Leave as empty string for defaults.
             hisat2_align: ""

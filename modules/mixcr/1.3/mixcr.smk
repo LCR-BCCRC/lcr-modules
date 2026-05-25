@@ -66,12 +66,6 @@ assert all(receptor in RANGE for receptor in RECEPTORS), (
     "Choose from: 'ALL', 'BCR', 'TCR' or list of IGH, IGK, IGL, TRA, TRB, TRD, TRG. "
 )
 
-assert type(CFG["run_igblast_postprocessing"]) == bool, (
-    "Ensure 'run_igblast_postprocessing' is set to either True or False in config. "
-    "True: merges igblastn fmt7 results (from the igblast module) back into MiXCR clonotype tables. "
-    "Requires 'sample_igblast_fmt7' input. --assemble-longest-contigs is applied automatically."
-)
-
 config_run_parameters = CFG["options"]["mixcr_run"]
 
 for seq_type, run_parameters in config_run_parameters.items():
@@ -117,12 +111,6 @@ localrules:
     _mixcr_to_fasta,
     _mixcr_output_fasta,
     _mixcr_all,
-
-if CFG["run_igblast_postprocessing"]:
-    localrules:
-        _igblast_input_fmt7,
-        _mixcr_igblast_postprocess,
-        _mixcr_output_igblast_txt,
 
 
 ##### RULES #####
@@ -217,70 +205,20 @@ rule _mixcr_output_fasta:
         op.relative_symlink(input.fasta, output.fasta, in_module=True)
         op.relative_symlink(input.seq_info, output.seq_info, in_module=True)
 
-# Rules below are only active when run_igblast_postprocessing is True.
-# They consume igblastn fmt7 output from the igblast module and merge the alignment
-# results back into MiXCR clonotype tables, reproducing the full mixcr 1.2 output.
-if CFG["run_igblast_postprocessing"]:
-
-    rule _igblast_input_fmt7:
-        input:
-            fmt7 = CFG["inputs"]["sample_igblast_fmt7"]
-        output:
-            fmt7 = CFG["dirs"]["inputs"] + "fmt7/{seq_type}/{sample_id}.{chain}.igblastn.fmt7"
-        run:
-            op.absolute_symlink(input.fmt7, output.fmt7)
-
-    rule _mixcr_igblast_postprocess:
-        input:
-            fmt7 = str(rules._igblast_input_fmt7.output.fmt7),
-            og_mixcr = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.txt",
-            seq_info = str(rules._mixcr_to_fasta.output.seq_info),
-            script = CFG["scripts"]["igblastn2mixcr"]
-        output:
-            txt = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.igblast.txt"
-        shell:
-            "{input.script} -d {input.fmt7} -m {input.og_mixcr} -o {output.txt} -s {input.seq_info}"
-
-    rule _mixcr_output_igblast_txt:
-        input:
-            txt = str(rules._mixcr_igblast_postprocess.output.txt)
-        output:
-            txt = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.igblast.txt"
-        wildcard_constraints:
-            chain = "|".join(RECEPTORS)
-        run:
-            op.relative_symlink(input.txt, output.txt, in_module=True)
-
 # Generates the target sentinels for each run, which generate the symlinks
-if CFG["run_igblast_postprocessing"]:
-    rule _mixcr_all:
-        input:
+rule _mixcr_all:
+    input:
+        expand(
             expand(
-                expand(
-                    [
-                        str(rules._mixcr_output_txt.output.results),
-                        str(rules._mixcr_output_fasta.output.fasta),
-                        str(rules._mixcr_output_igblast_txt.output.txt),
-                    ],
-                    zip,
-                    seq_type=CFG["samples"]["seq_type"],
-                    sample_id=CFG["samples"]["sample_id"],
-                    allow_missing=True),
-                chain=RECEPTORS)
-else:
-    rule _mixcr_all:
-        input:
-            expand(
-                expand(
-                    [
-                        str(rules._mixcr_output_txt.output.results),
-                        str(rules._mixcr_output_fasta.output.fasta),
-                    ],
-                    zip,
-                    seq_type=CFG["samples"]["seq_type"],
-                    sample_id=CFG["samples"]["sample_id"],
-                    allow_missing=True),
-                chain=RECEPTORS)
+                [
+                    str(rules._mixcr_output_txt.output.results),
+                    str(rules._mixcr_output_fasta.output.fasta),
+                ],
+                zip,
+                seq_type=CFG["samples"]["seq_type"],
+                sample_id=CFG["samples"]["sample_id"],
+                allow_missing=True),
+            chain=RECEPTORS)
 
 
 ##### CLEANUP #####

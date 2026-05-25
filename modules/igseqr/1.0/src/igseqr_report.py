@@ -6,9 +6,6 @@ Outputs:
   report.tsv          - all transcripts with TPM and sequence, sorted by TPM descending
   dominant_report.tsv - top N transcripts by TPM
   tpm_fasta           - FASTA of top N transcripts
-
-When --igblast_tsv is supplied the IgBLAST V/J annotation columns are merged into
-both report TSVs on transcript_id == sequence_id.
 """
 
 import argparse
@@ -34,18 +31,6 @@ def _read_fasta(path):
     return seqs
 
 
-def _read_igblast(path):
-    """Return (igblast_cols, igblast_dict) where igblast_dict maps sequence_id -> row dict."""
-    igblast = {}
-    igblast_cols = []
-    with open(path) as fh:
-        reader = csv.DictReader(fh, delimiter="\t")
-        igblast_cols = [c for c in reader.fieldnames if c != "sequence_id"]
-        for row in reader:
-            igblast[row["sequence_id"]] = {c: row[c] for c in igblast_cols}
-    return igblast_cols, igblast
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--abundance",       required=True, help="kallisto abundance.tsv")
@@ -54,8 +39,6 @@ def main():
     parser.add_argument("--report",          required=True)
     parser.add_argument("--dominant_report", required=True)
     parser.add_argument("--tpm_fasta",       required=True)
-    parser.add_argument("--igblast_tsv",     default=None,
-                        help="igblast module TSV output to merge on transcript_id")
     parser.add_argument("--n_dominant",      type=int, default=5,
                         help="number of top-TPM transcripts to retain (default: 5)")
     args = parser.parse_args()
@@ -80,14 +63,6 @@ def main():
     rows.sort(key=lambda r: float(r["tpm"]), reverse=True)
 
     header = ["sample_id", "transcript_id", "length", "eff_length", "est_counts", "tpm", "sequence"]
-
-    if args.igblast_tsv:
-        igblast_cols, igblast = _read_igblast(args.igblast_tsv)
-        header = header + igblast_cols
-        for row in rows:
-            ig = igblast.get(row["transcript_id"], {})
-            for col in igblast_cols:
-                row[col] = ig.get(col, "N/A")
 
     with open(args.report, "w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=header, delimiter="\t")
