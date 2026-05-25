@@ -50,7 +50,7 @@ def main():
         reader = csv.DictReader(fh, delimiter="\t")
         for row in reader:
             tid = row["target_id"]
-            seq = str(seqs[tid].seq) if tid in seqs else ""
+            seq = seqs[tid] if tid in seqs else ""
             rows.append({
                 "sample_id":     args.sample_id,
                 "transcript_id": tid,
