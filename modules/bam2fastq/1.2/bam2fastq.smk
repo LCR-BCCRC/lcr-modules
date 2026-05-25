@@ -148,18 +148,12 @@ else:
 
 if CFG["temp_outputs"]:
     # When outputs are temporary, symlinks in 99-outputs/ would be broken after
-    # the temp files are deleted. Skip the symlink step and track the temp fastq
-    # files directly so they still exist when _bam2fastq_all is checked.
+    # the temp files are deleted, and directly tracking temp files would cause
+    # persistent reruns (temp files are always gone after a successful run).
+    # Leave _bam2fastq_all with no inputs: the downstream module's all rule
+    # (e.g. bwa_mem -> utils_bam -> CRAM) is what verifies end-to-end completion.
     rule _bam2fastq_all:
-        input:
-            expand(
-                [
-                    CFG["dirs"]["fastq"] + "{seq_type}/{sample_id}.read1.fastq.gz",
-                    CFG["dirs"]["fastq"] + "{seq_type}/{sample_id}.read2.fastq.gz",
-                ],
-                zip,  # Run expand() with zip(), not product()
-                seq_type=CFG["samples"]["seq_type"],
-                sample_id=CFG["samples"]["sample_id"])
+        input: []
 
 else:
     localrules: _bam2fastq_output
