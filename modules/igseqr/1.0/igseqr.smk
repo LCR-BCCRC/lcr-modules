@@ -77,6 +77,11 @@ localrules:
 
 IMGT_DB_DIR = CFG["dirs"]["inputs"] + "imgt_db"
 
+# Capture igblast options into module-level variables so lambdas can reference them
+# after op.cleanup_module deletes CFG.
+RUN_IGBLAST = CFG["options"]["run_igblast"]
+IGBLAST_TSV_PATTERN = CFG["inputs"]["sample_igblast_tsv"] if RUN_IGBLAST else None
+
 
 ##### RULES #####
 
@@ -402,11 +407,11 @@ rule _igseqr_make_report:
         abundance   = str(rules._igseqr_kallisto_quant.output.abundance),
         transcripts = str(rules._igseqr_extract_transcripts.output.transcripts),
         igblast_tsv = lambda wildcards: (
-            CFG["inputs"]["sample_igblast_tsv"].format(
+            IGBLAST_TSV_PATTERN.format(
                 seq_type=wildcards.seq_type,
                 sample_id=wildcards.sample_id,
                 chain=wildcards.chain,
-            ) if CFG["options"]["run_igblast"] else []
+            ) if RUN_IGBLAST else []
         ),
     output:
         report          = CFG["dirs"]["reports"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}_report.tsv",
@@ -419,7 +424,7 @@ rule _igseqr_make_report:
         script       = CFG["scripts"]["igseqr_report"],
         sample_id    = "{sample_id}",
         igblast_flag = lambda wildcards, input: (
-            f"--igblast_tsv {input.igblast_tsv}" if CFG["options"]["run_igblast"] else ""
+            f"--igblast_tsv {input.igblast_tsv}" if RUN_IGBLAST else ""
         ),
     wildcard_constraints:
         chain = "|".join(CHAINS),
