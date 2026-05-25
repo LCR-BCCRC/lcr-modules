@@ -60,6 +60,10 @@ assert all(c in {"IGH", "IGKL"} for c in CHAINS), (
     "Config 'options.chains' must contain 'IGH', 'IGKL', or both."
 )
 
+assert type(CFG["options"]["run_igblast"]) == bool, (
+    "Config 'options.run_igblast' must be True or False."
+)
+
 # IG loci for read extraction (Ensembl-style chromosome names, no 'chr' prefix).
 # All three loci are always extracted; BLAST separates chains in a downstream rule.
 IG_REGIONS = "14:105550000-106900000 2:88697000-92240000 22:22005000-23590000"
@@ -392,10 +396,18 @@ rule _igseqr_kallisto_quant:
 
 
 # Generates TSV reports and a TPM-filtered FASTA from kallisto abundance and transcripts.
+# Optionally merges IgBLAST V/J annotation when run_igblast is True.
 rule _igseqr_make_report:
     input:
         abundance   = str(rules._igseqr_kallisto_quant.output.abundance),
         transcripts = str(rules._igseqr_extract_transcripts.output.transcripts),
+        igblast_tsv = lambda wildcards: (
+            CFG["inputs"]["sample_igblast_tsv"].format(
+                seq_type=wildcards.seq_type,
+                sample_id=wildcards.sample_id,
+                chain=wildcards.chain,
+            ) if CFG["options"]["run_igblast"] else []
+        ),
     output:
         report          = CFG["dirs"]["reports"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}_report.tsv",
         dominant_report = CFG["dirs"]["reports"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_{chain}_dominant_report.tsv",
@@ -404,8 +416,11 @@ rule _igseqr_make_report:
         stdout = CFG["logs"]["reports"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/make_report.stdout.log",
         stderr = CFG["logs"]["reports"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/make_report.stderr.log",
     params:
-        script    = CFG["scripts"]["igseqr_report"],
-        sample_id = "{sample_id}",
+        script       = CFG["scripts"]["igseqr_report"],
+        sample_id    = "{sample_id}",
+        igblast_flag = lambda wildcards, input: (
+            f"--igblast_tsv {input.igblast_tsv}" if CFG["options"]["run_igblast"] else ""
+        ),
     wildcard_constraints:
         chain = "|".join(CHAINS),
     resources:
@@ -423,6 +438,7 @@ rule _igseqr_make_report:
         --report {output.report}
         --dominant_report {output.dominant_report}
         --tpm_fasta {output.tpm_fasta}
+        {params.igblast_flag}
         > {log.stdout} 2> {log.stderr}
         """)
 
