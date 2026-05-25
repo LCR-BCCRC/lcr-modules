@@ -67,10 +67,7 @@ lcr-modules:
                 reference: 24
             purecn:
                 setinterval: 3
-                mutect: 4
-                importDB: 2
                 post_vcf: 2
-                gatk_depth: 2
                 coverage: 2
                 normalDB: 4
 

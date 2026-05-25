@@ -617,8 +617,7 @@ rule _panel_of_normals_purecn_mutect2_germline:
         f1r2 = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.f1r2.tar.gz")
     resources:
         **CFG["resources"]["purecn"]["mutect"]
-    threads:
-        CFG["threads"]["purecn"]["mutect"]
+    threads: 1 # MuTect2 doesn't support multi-threaded and adding multiple CPUs can lead to memory bloat
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["purecn"]["mutect"]["mutect2_opts"]
@@ -728,8 +727,7 @@ rule _panel_of_normals_purecn_merge_stats_per_sample:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_merge_stats.log"
     resources:
         **CFG["resources"]["purecn"]["post_vcf"]
-    threads:
-        CFG["threads"]["purecn"]["post_vcf"]
+    threads: 1
     conda:
         CFG["conda_envs"]["mutect"]
     shell:
@@ -853,8 +851,7 @@ rule _panel_of_normals_purecn_annotate_vcf:
         CFG["conda_envs"]["mutect"]
     resources:
         **CFG["resources"]["purecn"]["post_vcf"]
-    threads:
-        CFG["threads"]["purecn"]["post_vcf"]
+    threads: 1
     shell:
         op.as_one_line("""
         gatk --java-options "-Xmx{params.mem_mb}m"
@@ -946,7 +943,7 @@ rule _panel_of_normals_purecn_samples_map:
         for vcf in {input.normals}
         do
             name=$(basename $vcf)
-            name=${{name/_for/_mutect2/_pon.vcf.gz}}
+            name=${{name/_for_mutect2_pon.vcf.gz}}
             echo -e "$name\t$vcf" >> {output.samples_map}
         done &&
         touch {output.done}
@@ -971,8 +968,7 @@ rule _panel_of_normals_purecn_gatk_genomicsDbimport:
         db_path = CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb/"
     conda:
         CFG["conda_envs"]["mutect"]
-    threads:
-        CFG["threads"]["purecn"]["importDB"]
+    threads: 1
     shell:
         op.as_one_line("""
         gatk  --java-options "-Xmx{params.mem_mb}m"
@@ -1001,8 +997,7 @@ rule _panel_of_normals_purecn_mutect2_pon:
         CFG["conda_envs"]["mutect"]
     resources:
         **CFG["resources"]["purecn"]["post_vcf"]
-    threads:
-        CFG["threads"]["purecn"]["post_vcf"]
+    threads: 1
     shell:
         op.as_one_line("""
         gatk --java-options "-Xmx{params.mem_mb}m"
@@ -1089,8 +1084,7 @@ rule _panel_of_normals_purecn_gatk_depthOfCoverage:
         statistics = temp(CFG["dirs"]["purecn_coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}.sample_interval_statistics")
     resources:
         **CFG["resources"]["purecn"]["gatk_depth"]
-    threads:
-        CFG["threads"]["purecn"]["gatk_depth"]
+    threads: 1
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["purecn"]["coverage"]["depth_coverage"],
@@ -1228,7 +1222,7 @@ rule _panel_of_normals_purecn_database_cnvkit:
     resources:
         **CFG["resources"]["purecn"]["normalDB"]
     threads:
-        CFG["threads"]["purecn"]["normalDB"]
+        normalnormalDB"]
     shell:
         op.as_one_line("""
             echo $CONDA_DEFAULT_ENV > {log} 2>&1 ;
