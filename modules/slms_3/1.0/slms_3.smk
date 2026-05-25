@@ -374,16 +374,16 @@ rule _slms_3_rename_samples_all:
 
 rule _slms_3_union_vcf: 
     input: 
-        vcf = expand(
-            rules._slms_3_rename_samples_all.output.vcf, 
-            caller = config["lcr-modules"]["starfish"]["inputs"]["names"], 
+        vcf = ancient(expand(
+            rules._slms_3_rename_samples_all.output.vcf,
+            caller = config["lcr-modules"]["starfish"]["inputs"]["names"],
             allow_missing = True
-        ), 
-        tbi = expand(
-            rules._slms_3_rename_samples_all.output.tbi, 
-            caller = config["lcr-modules"]["starfish"]["inputs"]["names"], 
+        )),
+        tbi = ancient(expand(
+            rules._slms_3_rename_samples_all.output.tbi,
+            caller = config["lcr-modules"]["starfish"]["inputs"]["names"],
             allow_missing = True
-        )
+        ))
     output: 
         vcf = CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/union.vcf.gz", 
         tbi = CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/union.vcf.gz.tbi"
