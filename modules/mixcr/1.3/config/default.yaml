@@ -2,9 +2,6 @@ lcr-modules:
 
     mixcr:
 
-        dirs:
-            _parent: "__UPDATE__"
-
         inputs:
             # Available wildcards: {seq_type} {sample_id}
             sample_fastq_1: "__UPDATE__"
@@ -31,9 +28,9 @@ lcr-modules:
             mixcr_run:
                 # Extra flags appended after the fixed options (preset, --species, --assemble-longest-contigs).
                 # Add per-seq-type overrides here (e.g. tag patterns, receptor-type constraints).
-                mrna: ""
-                capture: ""
-                genome: ""
+                mrna: "--force-overwrite"
+                capture: "--force-overwrite"
+                genome: "--force-overwrite"
 
         conda_envs:
             java: "{MODSDIR}/envs/java-jdk-8.0.yaml"
