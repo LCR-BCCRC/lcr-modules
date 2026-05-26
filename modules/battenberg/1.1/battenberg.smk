@@ -152,18 +152,12 @@ rule _battenberg_to_igv_seg:
         seg = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.igv.seg"
     log:
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_seg2igv.stderr.log"
-    params:
-        opts = CFG["options"]["preserve"]
-    conda:
-        CFG["conda_envs"]["cnv2igv"]
-    container:
-        None
     threads: 1
     group: "battenberg_post_process"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
-        python {input.cnv2igv} --mode battenberg {params.opts} --sample {wildcards.tumour_id}
+        python {input.cnv2igv} --mode battenberg --sample {wildcards.tumour_id}
         {input.sub} > {output.seg} 2>> {log.stderr}
         """)
 
