@@ -66,44 +66,6 @@ assert all(receptor in RANGE for receptor in RECEPTORS), (
     "Choose from: 'ALL', 'BCR', 'TCR' or list of IGH, IGK, IGL, TRA, TRB, TRD, TRG. "
 )
 
-config_run_parameters = CFG["options"]["mixcr_run"]
-
-for seq_type, run_parameters in config_run_parameters.items():
-    if seq_type in list(CFG["samples"]["seq_type"]):
-        override = False
-        if "--receptor-type" in run_parameters:
-            if not "--receptor-type xcr" in run_parameters:
-                param_list = run_parameters.split("--")
-                receptor_param = list(filter(lambda x: x.startswith("receptor-type"), param_list))
-                rec_type = receptor_param[0].split(' ')[1]
-                if len(RECEPTORS) == 1:
-                    desired_run_1 = "--receptor-type " + RECEPTORS[0].lower()
-                    if RECEPTORS[0] in ig_type:
-                        desired_run_2 = "--receptor-type bcr"
-                    elif RECEPTORS[0] in tr_type:
-                        desired_run_2 = "--receptor-type tcr"
-                    if not desired_run_1 in run_parameters and not desired_run_2 in run_parameters:
-                        override = True
-                        desired_run = desired_run_2
-                if len(RECEPTORS) > 1:
-                    if all(receptor in ig_type for receptor in RECEPTORS):
-                        desired_run = "--receptor-type bcr"
-                        if rec_type != "bcr":
-                            override = True
-                    if all(receptor in tr_type for receptor in RECEPTORS):
-                        desired_run = "--receptor-type tcr"
-                        if rec_type != "tcr":
-                            override = True
-                    if any(receptor in ig_type for receptor in RECEPTORS) and any(receptor in tr_type for receptor in RECEPTORS):
-                        desired_run = "--receptor-type xcr"
-                        override = True
-
-        if override:
-            print(f"----- Desired receptors: {RECEPTORS} \n----- Replacing receptor type specified in config for {seq_type} run: '--receptor-type {rec_type}' to '{desired_run}'")
-
-            override_parameters = run_parameters.replace("--receptor-type " + rec_type, desired_run)
-            CFG["options"]["mixcr_run"][seq_type] = override_parameters
-
 # Define rules to be run locally when using a compute cluster
 localrules:
     _mixcr_input_fastq,
