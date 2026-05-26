@@ -98,7 +98,6 @@ rule _mixcr_run:
         fastq_1_real = CFG["inputs"]["sample_fastq_1"], # Prevent premature deletion of fastqs marked as temp
         fastq_2_real = CFG["inputs"]["sample_fastq_2"],
     output:
-        report = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.report",
         results = expand(CFG["dirs"]["mixcr"] + "{{seq_type}}/{{sample_id}}/mixcr.{{sample_id}}.clones_{chain}.tsv", chain = RECEPTORS)
     log:
         stdout = CFG["logs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr_run.stdout.log",
@@ -130,7 +129,6 @@ rule _mixcr_run:
 # Convert MiXCR clonotype table to FASTA format for downstream use (e.g. igblast module)
 rule _mixcr_to_fasta:
     input:
-        mixcr_finished = str(rules._mixcr_run.output.report),
         mixcr_results = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.tsv",
         script = CFG["scripts"]["mixcr2fasta"]
     output:
