@@ -861,6 +861,7 @@ rule _panel_of_normals_purecn_annotate_vcf:
             --tumor-segmentation {input.segments}
             --contamination-table {input.contamination}
             --ob-priors {input.model}
+            --create-output-variant-index
             -O {output.vcf}
             > {log} 2>&1
         """)
