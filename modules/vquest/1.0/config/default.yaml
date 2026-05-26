@@ -25,7 +25,7 @@ lcr-modules:
             # From mixcr 1.3:
             #   "{MIXCR_OUT}/99-outputs/txt/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.txt"
             #   Set options.source_id_column to "cloneId". The merge script automatically
-            #   parses the compound FASTA header ("cloneId_N_cloneFraction_F_cloneCount_C")
+            #   parses the compound FASTA header ("cloneId_N_readFraction_F_readCount_C")
             #   back to cloneId when "mixcr" is detected in either input file path.
             sample_source_tsv: "__UPDATE__"
 

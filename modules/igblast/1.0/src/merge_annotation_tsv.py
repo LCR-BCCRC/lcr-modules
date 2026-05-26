@@ -20,10 +20,10 @@ def _extract_mixcr_clone_id(sequence_id):
     """Parse cloneId from a MiXCR FASTA header used as sequence_id.
 
     mixcr_to_fasta.py writes FASTA headers as:
-        cloneId_{N}_cloneFraction_{F}_cloneCount_{C}
+        cloneId_{N}_readFraction_{F}_readCount_{C}
     Returns the cloneId string, or the original value if the format does not match.
     """
-    m = re.match(r"cloneId_(\S+?)_cloneFraction_", sequence_id)
+    m = re.match(r"cloneId_(\S+?)_readFraction_", sequence_id)
     return m.group(1) if m else sequence_id
 
 

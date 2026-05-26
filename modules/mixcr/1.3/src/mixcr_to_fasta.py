@@ -25,7 +25,7 @@ def main(args):
         out = open(fasta_output,'w')
     seq_info_file = args.sequence
     seq_info = open(seq_info_file, 'a')
-    seq_header = "cloneId\tcloneFraction\tcloneCount\tnumMissing\tregionsMissing\n"
+    seq_header = "cloneId\treadFraction\treadCount\tnumMissing\tregionsMissing\n"
     seq_info.write(seq_header)
     # Get column names and positions
     positions = {}
@@ -40,11 +40,11 @@ def main(args):
                 for feature in columns:
                     positions[feature] = pos
                     pos += 1
-            # Extract clone Id, clone fraction, clone count
+            # Extract clone Id, read fraction, read count (MiXCR 4.7: readFraction/readCount)
             if count > 1:
                 cloneId = columns[positions["cloneId"]]
-                cloneFraction = columns[positions["cloneFraction"]]
-                cloneCount = columns[positions["cloneCount"]]
+                readFraction = columns[positions["readFraction"]]
+                readCount = columns[positions["readCount"]]
                 nSeqFR1 = columns[positions["nSeqFR1"]]
                 nSeqCDR1 = columns[positions["nSeqCDR1"]]
                 nSeqFR2 = columns[positions["nSeqFR2"]]
@@ -52,7 +52,7 @@ def main(args):
                 nSeqFR3 = columns[positions["nSeqFR3"]]
                 nSeqCDR3 = columns[positions["nSeqCDR3"]]
                 nSeqFR4 = columns[positions["nSeqFR4"]]
-                header = f">cloneId_{cloneId}_cloneFraction_{cloneFraction}_cloneCount_{cloneCount}\n"
+                header = f">cloneId_{cloneId}_readFraction_{readFraction}_readCount_{readCount}\n"
                 out.write(header)
                 sequence = f"{nSeqFR1}{nSeqCDR1}{nSeqFR2}{nSeqCDR2}{nSeqFR3}{nSeqCDR3}{nSeqFR4}\n"
                 out.write(sequence)
@@ -67,7 +67,7 @@ def main(args):
                     position += 1
                 regions_missing_string = ",".join(regions_missing)
                 num_missing_string = str(num_missing)
-                seq_info_line = f"{cloneId}\t{cloneFraction}\t{cloneCount}\t{num_missing_string}\t{regions_missing_string}\n"
+                seq_info_line = f"{cloneId}\t{readFraction}\t{readCount}\t{num_missing_string}\t{regions_missing_string}\n"
                 seq_info.write(seq_info_line)
     out.close()
     seq_info.close()
