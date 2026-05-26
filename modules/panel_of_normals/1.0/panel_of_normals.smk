@@ -1222,7 +1222,7 @@ rule _panel_of_normals_purecn_database_cnvkit:
     resources:
         **CFG["resources"]["purecn"]["normalDB"]
     threads:
-        normalnormalDB"]
+        CFG["threads"]["purecn"]["normalDB"]
     shell:
         op.as_one_line("""
             echo $CONDA_DEFAULT_ENV > {log} 2>&1 ;
@@ -1291,7 +1291,7 @@ rule _panel_of_normals_purecn_output_gatk_intervals_targets:
 rule _panel_of_normals_purecn_output_mutect2_pon:
     input:
         pon = str(rules._panel_of_normals_purecn_mutect2_pon.output.pon),
-        tbi = str(rules._panel_of_normals_purecn_mutect2_pon.output.pon)
+        tbi = str(rules._panel_of_normals_purecn_mutect2_pon.output.tbi)
     output:
         pon = CFG["dirs"]["outputs"] + "purecn/{seq_type}--{genome_build}/{capture_space}/{capture_space}_mutect2_pon.vcf.gz",
         tbi = CFG["dirs"]["outputs"] + "purecn/{seq_type}--{genome_build}/{capture_space}/{capture_space}_mutect2_pon.vcf.gz.tbi"
