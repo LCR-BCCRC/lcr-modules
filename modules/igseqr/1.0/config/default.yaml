@@ -47,6 +47,7 @@ lcr-modules:
             filter_reads:
                 mem_mb: 8000
             trinity_assemble:
+                trinity: 1
                 mem_mb: 50000
             blastn:
                 mem_mb: 8000
