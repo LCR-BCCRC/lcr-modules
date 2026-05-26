@@ -98,9 +98,8 @@ rule _mixcr_run:
         fastq_1_real = CFG["inputs"]["sample_fastq_1"], # Prevent premature deletion of fastqs marked as temp
         fastq_2_real = CFG["inputs"]["sample_fastq_2"],
     output:
-        txt = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.ALL.txt",
         report = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.report",
-        results = expand(CFG["dirs"]["mixcr"] + "{{seq_type}}/{{sample_id}}/mixcr.{{sample_id}}.clonotypes.{chain}.txt", chain = RECEPTORS)
+        results = expand(CFG["dirs"]["mixcr"] + "{{seq_type}}/{{sample_id}}/mixcr.{{sample_id}}.clones_{chain}.tsv", chain = RECEPTORS)
     log:
         stdout = CFG["logs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr_run.stdout.log",
         stderr = CFG["logs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr_run.stderr.log"
@@ -125,29 +124,27 @@ rule _mixcr_run:
         --assemble-longest-contigs
         -t {threads} {params.opts}
         {input.fastq_1} {input.fastq_2}
-        {params.prefix} > {log.stdout} 2> {log.stderr};
-        touch "{output.txt}";
+        {params.prefix} > {log.stdout} 2> {log.stderr}
         """)
 
 # Convert MiXCR clonotype table to FASTA format for downstream use (e.g. igblast module)
 rule _mixcr_to_fasta:
     input:
-        mixcr_finished = str(rules._mixcr_run.output.txt),
-        mixcr_chains = rules._mixcr_run.output.results,
-        mixcr_results = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.txt",
+        mixcr_finished = str(rules._mixcr_run.output.report),
+        mixcr_results = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.tsv",
         script = CFG["scripts"]["mixcr2fasta"]
     output:
-        fasta = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.VDJseq.fasta",
-        seq_info = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.regions.txt"
+        fasta = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.VDJseq.fasta",
+        seq_info = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.regions.txt"
     shell:
         "{input.script} -i {input.mixcr_results} -o {output.fasta} -s {output.seq_info}"
 
 # Symlinks the final clonotype txt files into the module results directory (under '99-outputs/')
 rule _mixcr_output_txt:
     input:
-        results = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.txt"
+        results = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.tsv"
     output:
-        results = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.txt"
+        results = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clones_{chain}.tsv"
     wildcard_constraints:
         chain = '[A-Z]+'
     run:
@@ -159,8 +156,8 @@ rule _mixcr_output_fasta:
         fasta = str(rules._mixcr_to_fasta.output.fasta),
         seq_info = str(rules._mixcr_to_fasta.output.seq_info)
     output:
-        fasta = CFG["dirs"]["outputs"] + "fasta/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.VDJseq.fasta",
-        seq_info = CFG["dirs"]["outputs"] + "seq_info/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.regions.txt"
+        fasta = CFG["dirs"]["outputs"] + "fasta/{seq_type}/mixcr.{sample_id}.clones_{chain}.VDJseq.fasta",
+        seq_info = CFG["dirs"]["outputs"] + "seq_info/{seq_type}/mixcr.{sample_id}.clones_{chain}.regions.tsv"
     wildcard_constraints:
         chain = '[A-Z]+'
     run:
