@@ -126,7 +126,7 @@ rule _run_battenberg:
     conda:
         CFG["conda_envs"]["battenberg"]
     container:
-        None
+        CFG["container_envs"]["battenberg"]
     resources:
         **CFG["resources"]["battenberg"]
     threads:
