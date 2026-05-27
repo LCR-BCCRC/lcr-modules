@@ -27,7 +27,7 @@ lcr-modules:
             # liftOver options to convert between genomic builds
             liftover_script_path: "{SCRIPTSDIR}/liftover/2.0/liftover.sh"
             liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
-            fill_segments_version: "1.2/"
+            fill_segments_version: "1.1/"
 
         conda_envs:
             battenberg: "{MODSDIR}/envs/battenberg-1.1.yaml"
