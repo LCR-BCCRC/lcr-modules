@@ -13,9 +13,9 @@ module                Module name extracted from the output path
                       (results/<module>-<version>/...).
 first_incomplete_rule Most upstream pending rule for this pair × module,
                       in the order Snakemake would run them.
-target_file           Terminal output file (path containing '99-outputs')
-                      to pass to Snakemake as an explicit build target —
-                      forces the full remaining chain for this pair to run.
+target_files          Space-separated list of all terminal output files
+                      (paths containing '99-outputs') for this pair × module.
+                      Directly usable as Snakemake targets.
 
 Usage
 -----
@@ -35,8 +35,8 @@ Re-run only the pending pairs
     # Inspect the table first
     column -t pending_pairs.tsv
 
-    # Pass the target files directly to Snakemake
-    snakemake $(awk 'NR>1 {print $5}' pending_pairs.tsv) \\
+    # target_files column is space-separated and directly usable as targets
+    snakemake $(cut -f5 pending_pairs.tsv | tail -n +2) \\
         -s genome_Snakefile.smk --use-singularity -j 32 ...
 
 Arguments
@@ -196,22 +196,28 @@ def build_pair_table(
     for (tumour, normal, module), grp_jobs in sorted(groups.items()):
         first_rule = grp_jobs[0]['rule']
 
-        # Best target: prefer 99-outputs from any job in this group
-        target = ''
+        # Collect all unique 99-outputs paths across every job in this group.
+        # Using a list to preserve dry-run order while deduplicating.
+        seen: set[str] = set()
+        targets: list[str] = []
         for j in grp_jobs:
-            t = _terminal_output(j['outputs'])
-            if '99-outputs' in t:
-                target = t
-                break
-        if not target:
-            target = grp_jobs[-1]['terminal_output']  # last job as fallback
+            for p in j['outputs']:
+                if '99-outputs' in p and p not in seen:
+                    seen.add(p)
+                    targets.append(p)
+
+        # Fall back to the last job's first output if nothing in 99-outputs
+        if not targets:
+            fb = grp_jobs[-1]['terminal_output']
+            if fb:
+                targets = [fb]
 
         rows.append({
             'tumour_id': tumour,
             'normal_id': normal,
             'module': module,
             'first_incomplete_rule': first_rule,
-            'target_file': target,
+            'target_files': ' '.join(targets),
         })
 
     return rows
@@ -270,7 +276,7 @@ def main(argv=None):
 
     sep = args.sep
     header = sep.join(['tumour_id', 'normal_id', 'module',
-                       'first_incomplete_rule', 'target_file'])
+                       'first_incomplete_rule', 'target_files'])
     lines = [header]
     for row in rows:
         lines.append(sep.join([
@@ -278,7 +284,7 @@ def main(argv=None):
             row['normal_id'],
             row['module'],
             row['first_incomplete_rule'],
-            row['target_file'],
+            row['target_files'],
         ]))
     out_text = '\n'.join(lines) + '\n'
 
