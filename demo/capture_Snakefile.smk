@@ -69,8 +69,8 @@ rule all:
     input:
         rules._bam2fastq_all.input,
         rules._bwa_mem_all.input,
-        rules._qc_all.input,
+#        rules._qc_all.input,
         rules._slms_3_all.input,
         rules._battenberg_all.input,
         rules._sequenza_all.input,
-        rules._cnvkit_all.input
+#        rules._cnvkit_all.input
