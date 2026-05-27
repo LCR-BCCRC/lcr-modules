@@ -41,6 +41,17 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "cnaqc", "outputs"],
 )
 
+# Map lcr-modules genome build names to the strings CNAqc's init(ref=) accepts.
+# CNAqc accepts: "hg19", "GRCh37", "hg38", "GRCh38"
+CNAQC_GENOME_MAP = {
+    "hg19":          "hg19",
+    "grch37":        "GRCh37",
+    "hs37d5":        "GRCh37",
+    "hg38":          "hg38",
+    "grch38":        "GRCh38",
+    "grch38-legacy": "GRCh38",
+}
+
 # Define rules to be run locally when using a compute cluster
 localrules:
     _cnaqc_input_subclones,
@@ -97,6 +108,7 @@ rule _cnaqc_run:
         stdout = CFG["logs"]["cnaqc"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc.stdout.log",
         stderr = CFG["logs"]["cnaqc"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc.stderr.log"
     params:
+        ref                  = lambda w: CNAQC_GENOME_MAP[w.genome_build],
         min_depth            = CFG["options"]["min_depth"],
         min_muts_per_segment = CFG["options"]["min_muts_per_segment"],
         run_peak_analysis    = CFG["options"]["run_peak_analysis"]
@@ -115,6 +127,7 @@ rule _cnaqc_run:
             --tumour_id {wildcards.tumour_id} \
             --out_plot {output.plot} \
             --out_metrics {output.metrics} \
+            --ref {params.ref} \
             --min_depth {params.min_depth} \
             --min_muts_per_segment {params.min_muts_per_segment} \
             --run_peak_analysis {params.run_peak_analysis} \
