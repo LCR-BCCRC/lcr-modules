@@ -132,9 +132,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help='Snakemake rule name (e.g. _run_battenberg)')
     p.add_argument('--samples', '-s', required=True,
                    help='Path to samples table (TSV by default)')
-    p.add_argument('--match', '-m', action='append', default=[],
+    p.add_argument('--match', '-m', action='append', default=None,
                    metavar='WILDCARD=COLUMN',
-                   help='Map wildcard key → samples column (repeatable)')
+                   help='Map wildcard key → samples column (repeatable). '
+                        'Default: tumour_id=sample_id and normal_id=sample_id')
     p.add_argument('--output', '-o', default=None,
                    help='Output file (default: stdout)')
     p.add_argument('--sep', default='\t',
@@ -148,6 +149,11 @@ def main(argv=None):
     args = build_parser().parse_args(argv)
 
     # ---- validate --match pairs -------------------------------------------
+    # Default: tumour_id and normal_id both map to sample_id, which covers
+    # the standard lcr-modules paired tumour/normal workflow.
+    if args.match is None:
+        args.match = ['tumour_id=sample_id', 'normal_id=sample_id']
+
     match_map: dict[str, str] = {}   # wildcard_key → column_name
     for spec in args.match:
         if '=' not in spec:
@@ -155,10 +161,6 @@ def main(argv=None):
             sys.exit(1)
         wk, col = spec.split('=', 1)
         match_map[wk.strip()] = col.strip()
-
-    if not match_map:
-        print("Error: at least one --match WILDCARD=COLUMN is required.", file=sys.stderr)
-        sys.exit(1)
 
     # ---- read dry-run from stdin ------------------------------------------
     if sys.stdin.isatty():
