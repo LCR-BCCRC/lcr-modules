@@ -66,10 +66,22 @@ except ImportError:
 # Parsing
 # ---------------------------------------------------------------------------
 
+def _parse_wildcard_str(wc_str: str) -> dict:
+    """Parse a single 'key=val, key2=val2' wildcards string into a dict."""
+    wc_dict: dict[str, str] = {}
+    for pair in re.split(r',\s+', wc_str.strip()):
+        if '=' in pair:
+            k, v = pair.split('=', 1)
+            wc_dict[k.strip()] = v.strip()
+    return wc_dict
+
+
 def parse_wildcards_for_rule(text: str, rule_name: str) -> list[dict]:
     """
     Return a list of wildcard dicts (one per job) for *rule_name* found in
     the `snakemake -n` output *text*.
+
+    When *rule_name* is 'all', wildcards are collected from every rule block.
 
     Snakemake prints each job block like:
 
@@ -82,21 +94,21 @@ def parse_wildcards_for_rule(text: str, rule_name: str) -> list[dict]:
 
     The timestamp prefix is optional (absent in some Snakemake versions).
     """
-    # Locate every occurrence of this rule's header
-    rule_header = re.compile(
-        r'(?:^\[.*?\]\s+)?rule\s+' + re.escape(rule_name) + r'\s*:',
-        re.MULTILINE,
-    )
-    # A new rule block starts with the same pattern (any rule name)
     any_rule_header = re.compile(
         r'(?:^\[.*?\]\s+)?rule\s+\w+\s*:',
         re.MULTILINE,
     )
+    if rule_name == 'all':
+        target_header = any_rule_header
+    else:
+        target_header = re.compile(
+            r'(?:^\[.*?\]\s+)?rule\s+' + re.escape(rule_name) + r'\s*:',
+            re.MULTILINE,
+        )
     wildcards_line = re.compile(r'^\s+wildcards:\s+(.+)$', re.MULTILINE)
 
     jobs = []
-    for m in rule_header.finditer(text):
-        # Delimit this block: from this header to the start of the next rule
+    for m in target_header.finditer(text):
         block_start = m.start()
         next_rule = any_rule_header.search(text, m.end())
         block_end = next_rule.start() if next_rule else len(text)
@@ -105,14 +117,7 @@ def parse_wildcards_for_rule(text: str, rule_name: str) -> list[dict]:
         wc_m = wildcards_line.search(block)
         if not wc_m:
             continue
-        wc_str = wc_m.group(1).strip()
-
-        # Parse "key=val, key2=val2" — values may contain hyphens, dots, slashes
-        wc_dict: dict[str, str] = {}
-        for pair in re.split(r',\s+', wc_str):
-            if '=' in pair:
-                k, v = pair.split('=', 1)
-                wc_dict[k.strip()] = v.strip()
+        wc_dict = _parse_wildcard_str(wc_m.group(1))
         if wc_dict:
             jobs.append(wc_dict)
 
@@ -128,8 +133,10 @@ def build_parser() -> argparse.ArgumentParser:
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument('--rule', '-r', required=True,
-                   help='Snakemake rule name (e.g. _run_battenberg)')
+    p.add_argument('--rule', '-r', default='all',
+                   help='Snakemake rule name to filter on (e.g. _run_battenberg). '
+                        'Default: "all" — collect wildcards from every rule in the '
+                        'dry-run output')
     p.add_argument('--samples', '-s', required=True,
                    help='Path to samples table (TSV by default)')
     p.add_argument('--match', '-m', action='append', default=None,
@@ -169,24 +176,32 @@ def main(argv=None):
     text = sys.stdin.read()
 
     # ---- parse wildcards --------------------------------------------------
+    all_rules_mode = (args.rule == 'all')
     jobs = parse_wildcards_for_rule(text, args.rule)
 
     if not jobs:
-        print(f"No pending jobs found for rule '{args.rule}'.\n"
-              f"Check that the rule name is correct and that the dry-run "
-              f"output was captured (2>&1).", file=sys.stderr)
+        if all_rules_mode:
+            print("No rule blocks with wildcards found in dry-run output.\n"
+                  "Check that the output was captured with 2>&1.", file=sys.stderr)
+        else:
+            print(f"No pending jobs found for rule '{args.rule}'.\n"
+                  f"Check that the rule name is correct and that the dry-run "
+                  f"output was captured (2>&1).", file=sys.stderr)
         sys.exit(0)
 
-    print(f"Found {len(jobs)} pending job(s) for rule '{args.rule}'.",
+    rule_label = 'all rules' if all_rules_mode else f"rule '{args.rule}'"
+    print(f"Found {len(jobs)} pending job(s) across {rule_label}.",
           file=sys.stderr)
 
     # ---- collect matched sample IDs per column ----------------------------
+    # In all-rules mode suppress per-job warnings: most rules won't carry
+    # tumour_id/normal_id wildcards and that's expected.
     col_ids: dict[str, set] = defaultdict(set)
     for job in jobs:
         for wk, col in match_map.items():
             if wk in job:
                 col_ids[col].add(job[wk])
-            else:
+            elif not all_rules_mode:
                 print(f"Warning: wildcard '{wk}' not present in job {job}",
                       file=sys.stderr)
 
