@@ -1,65 +1,44 @@
 #!/usr/bin/env python3
 """
-Filter a samples table to only the rows needed for pending Snakemake jobs.
+List sample IDs with pending Snakemake jobs, or filter a samples table to them.
 
-Reads `snakemake -n` output from stdin, extracts wildcard values for a
-specified rule, and writes a filtered copy of the samples table containing
-only those samples.  Pipe the filtered table back as the samples table on
-re-run to avoid wasting scheduler resources on samples that are already done.
+Reads `snakemake -n` output from stdin and extracts wildcard values for the
+relevant rules.  By default prints the pending sample IDs one per line.
+Pass --samples to instead write a filtered copy of the samples table.
 
-Usage
------
-    snakemake -n [--snakefile Snakefile.smk] 2>&1 | \\
-        python utils/filter_samples_dryrun.py \\
-            --rule _run_battenberg \\
+Default usage (print pending IDs)
+----------------------------------
+    ./demo/dry-run.sh Snakefile.smk all "" runtime_config.yaml 2>&1 | \\
+        utils/filter_samples_dryrun.py
+
+Filter to a specific rule
+--------------------------
+    ... | utils/filter_samples_dryrun.py --rule _run_battenberg
+
+Write a filtered samples table (requires pandas)
+-------------------------------------------------
+    ... | utils/filter_samples_dryrun.py \\
             --samples /path/to/samples.tsv \\
-            --match tumour_id=sample_id \\
-            --match normal_id=sample_id \\
             --output samples_pending.tsv
 
 Arguments
 ---------
---rule / -r     Rule name whose pending jobs define the sample set.
-                Use the internal rule name (e.g. _run_battenberg).
---samples / -s  Path to the samples TSV (or CSV with --sep ,).
---match / -m    Map a Snakemake wildcard key to a samples-table column,
-                as WILDCARD=COLUMN.  Repeatable.  A row is included when
-                its value in COLUMN matches ANY wildcard value across
-                ALL --match pairs.  Typical battenberg usage:
-                    --match tumour_id=sample_id --match normal_id=sample_id
---output / -o   Output file path.  Omit to write to stdout.
+--rule / -r     Rule name to collect wildcards from.  Default: "all" —
+                collect wildcards from every rule block in the output.
+--match / -m    Map a wildcard key to a samples-table column as
+                WILDCARD=COLUMN (repeatable).
+                Default: tumour_id=sample_id and normal_id=sample_id
+--samples / -s  Path to samples table.  When provided, writes a filtered
+                copy instead of printing IDs.  Requires pandas.
+--output / -o   Output file for the filtered table (default: stdout).
+                Ignored unless --samples is given.
 --sep           Field separator for the samples table (default: tab).
---list-ids      Print the matched sample IDs and exit (no table written).
-
-Example: dry-run, then re-run only pending samples
----------------------------------------------------
-    # 1. Capture dry-run output and build filtered table
-    ./demo/dry-run.sh Snakefile.smk _run_battenberg_all "" runtime_config.yaml \\
-        2>&1 | python utils/filter_samples_dryrun.py \\
-            --rule _run_battenberg \\
-            --samples samples.tsv \\
-            --match tumour_id=sample_id \\
-            --match normal_id=sample_id \\
-            --output samples_battenberg_pending.tsv
-
-    # 2. Inspect
-    wc -l samples_battenberg_pending.tsv
-    head samples_battenberg_pending.tsv
-
-    # 3. Re-run pointing at the filtered table (in your Snakefile config or
-    #    by symlinking / overriding the samples variable)
 """
 
 import argparse
 import re
 import sys
 from collections import defaultdict
-
-try:
-    import pandas as pd
-except ImportError:
-    print("Error: pandas is required.  Install with: pip install pandas", file=sys.stderr)
-    sys.exit(1)
 
 
 # ---------------------------------------------------------------------------
@@ -78,33 +57,17 @@ def _parse_wildcard_str(wc_str: str) -> dict:
 
 def parse_wildcards_for_rule(text: str, rule_name: str) -> list[dict]:
     """
-    Return a list of wildcard dicts (one per job) for *rule_name* found in
-    the `snakemake -n` output *text*.
-
-    When *rule_name* is 'all', wildcards are collected from every rule block.
-
-    Snakemake prints each job block like:
-
-        [timestamp] rule _foo:
-            input:  ...
-            output: ...
-            jobid:  42
-            wildcards: key1=val1, key2=val2
-            ...
-
-    The timestamp prefix is optional (absent in some Snakemake versions).
+    Return a list of wildcard dicts (one per job) for *rule_name*.
+    When *rule_name* is 'all', collect from every rule block.
     """
     any_rule_header = re.compile(
         r'(?:^\[.*?\]\s+)?rule\s+\w+\s*:',
         re.MULTILINE,
     )
-    if rule_name == 'all':
-        target_header = any_rule_header
-    else:
-        target_header = re.compile(
-            r'(?:^\[.*?\]\s+)?rule\s+' + re.escape(rule_name) + r'\s*:',
-            re.MULTILINE,
-        )
+    target_header = any_rule_header if rule_name == 'all' else re.compile(
+        r'(?:^\[.*?\]\s+)?rule\s+' + re.escape(rule_name) + r'\s*:',
+        re.MULTILINE,
+    )
     wildcards_line = re.compile(r'^\s+wildcards:\s+(.+)$', re.MULTILINE)
 
     jobs = []
@@ -134,34 +97,29 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument('--rule', '-r', default='all',
-                   help='Snakemake rule name to filter on (e.g. _run_battenberg). '
-                        'Default: "all" — collect wildcards from every rule in the '
-                        'dry-run output')
-    p.add_argument('--samples', '-s', required=True,
-                   help='Path to samples table (TSV by default)')
+                   help='Rule name to collect wildcards from (default: all rules)')
     p.add_argument('--match', '-m', action='append', default=None,
                    metavar='WILDCARD=COLUMN',
-                   help='Map wildcard key → samples column (repeatable). '
-                        'Default: tumour_id=sample_id and normal_id=sample_id')
+                   help='Wildcard→column mapping (default: tumour_id=sample_id '
+                        'and normal_id=sample_id)')
+    p.add_argument('--samples', '-s', default=None,
+                   help='Samples table path.  When given, writes a filtered table '
+                        'instead of printing IDs.  Requires pandas.')
     p.add_argument('--output', '-o', default=None,
-                   help='Output file (default: stdout)')
+                   help='Output path for filtered table (default: stdout)')
     p.add_argument('--sep', default='\t',
-                   help='Samples table field separator (default: tab)')
-    p.add_argument('--list-ids', action='store_true',
-                   help='Print matched sample IDs and exit without writing table')
+                   help='Samples table separator (default: tab)')
     return p
 
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
 
-    # ---- validate --match pairs -------------------------------------------
-    # Default: tumour_id and normal_id both map to sample_id, which covers
-    # the standard lcr-modules paired tumour/normal workflow.
+    # ---- match defaults ---------------------------------------------------
     if args.match is None:
         args.match = ['tumour_id=sample_id', 'normal_id=sample_id']
 
-    match_map: dict[str, str] = {}   # wildcard_key → column_name
+    match_map: dict[str, str] = {}
     for spec in args.match:
         if '=' not in spec:
             print(f"Error: --match '{spec}' must be WILDCARD=COLUMN", file=sys.stderr)
@@ -180,38 +138,42 @@ def main(argv=None):
     jobs = parse_wildcards_for_rule(text, args.rule)
 
     if not jobs:
-        if all_rules_mode:
-            print("No rule blocks with wildcards found in dry-run output.\n"
-                  "Check that the output was captured with 2>&1.", file=sys.stderr)
-        else:
-            print(f"No pending jobs found for rule '{args.rule}'.\n"
-                  f"Check that the rule name is correct and that the dry-run "
-                  f"output was captured (2>&1).", file=sys.stderr)
+        msg = ("No rule blocks with wildcards found in dry-run output.\n"
+               "Check that stderr was captured with 2>&1."
+               if all_rules_mode else
+               f"No pending jobs found for rule '{args.rule}'.\n"
+               f"Check the rule name and that stderr was captured with 2>&1.")
+        print(msg, file=sys.stderr)
         sys.exit(0)
 
     rule_label = 'all rules' if all_rules_mode else f"rule '{args.rule}'"
-    print(f"Found {len(jobs)} pending job(s) across {rule_label}.",
-          file=sys.stderr)
+    print(f"Found {len(jobs)} pending job(s) across {rule_label}.", file=sys.stderr)
 
-    # ---- collect matched sample IDs per column ----------------------------
-    # In all-rules mode suppress per-job warnings: most rules won't carry
-    # tumour_id/normal_id wildcards and that's expected.
+    # ---- collect sample IDs ----------------------------------------------
     col_ids: dict[str, set] = defaultdict(set)
     for job in jobs:
         for wk, col in match_map.items():
             if wk in job:
                 col_ids[col].add(job[wk])
             elif not all_rules_mode:
-                print(f"Warning: wildcard '{wk}' not present in job {job}",
-                      file=sys.stderr)
+                print(f"Warning: wildcard '{wk}' not in job {job}", file=sys.stderr)
 
-    if args.list_ids:
-        for col, ids in sorted(col_ids.items()):
-            for sid in sorted(ids):
-                print(f"{col}\t{sid}")
+    # ---- default: print IDs ----------------------------------------------
+    if args.samples is None:
+        all_ids = sorted({sid for ids in col_ids.values() for sid in ids})
+        print(f"{len(all_ids)} unique sample ID(s):", file=sys.stderr)
+        for sid in all_ids:
+            print(sid)
         return
 
-    # ---- load + filter samples table -------------------------------------
+    # ---- --samples mode: write filtered table ----------------------------
+    try:
+        import pandas as pd
+    except ImportError:
+        print("Error: pandas is required for --samples filtering.\n"
+              "Install with: pip install pandas", file=sys.stderr)
+        sys.exit(1)
+
     try:
         samples = pd.read_csv(args.samples, sep=args.sep, dtype=str)
     except FileNotFoundError:
@@ -220,9 +182,8 @@ def main(argv=None):
 
     missing_cols = [c for c in col_ids if c not in samples.columns]
     if missing_cols:
-        print(f"Error: column(s) not found in samples table: {missing_cols}",
-              file=sys.stderr)
-        print(f"Available columns: {list(samples.columns)}", file=sys.stderr)
+        print(f"Error: column(s) not in samples table: {missing_cols}\n"
+              f"Available: {list(samples.columns)}", file=sys.stderr)
         sys.exit(1)
 
     mask = pd.Series(False, index=samples.index)
@@ -231,15 +192,12 @@ def main(argv=None):
 
     filtered = samples[mask].reset_index(drop=True)
     n_in, n_out = len(samples), len(filtered)
-    print(f"Samples table: {n_in} rows → {n_out} rows after filtering.",
-          file=sys.stderr)
+    print(f"Samples table: {n_in} → {n_out} rows.", file=sys.stderr)
 
     if n_out == 0:
         print("Warning: filtered table is empty.  "
-              "Double-check --match column names against the samples table.",
-              file=sys.stderr)
+              "Check --match column names against the samples table.", file=sys.stderr)
 
-    # ---- write output ----------------------------------------------------
     out_text = filtered.to_csv(sep=args.sep, index=False)
     if args.output:
         with open(args.output, 'w') as fh:
