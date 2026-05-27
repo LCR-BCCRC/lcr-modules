@@ -183,10 +183,10 @@ rule _run_battenberg:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         script = CFG["inputs"]["battenberg_script"],
         out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
-        ref = lambda w: (
-            CFG["inputs"]["reference_path"] + f"/{w.genome_build}"
+        ref = (
+            CFG["inputs"]["reference_path"] + "/{genome_build}"
             if CFG["inputs"].get("reference_path")
-            else CFG["dirs"]["inputs"] + f"reference/{w.genome_build}"
+            else CFG["dirs"]["inputs"] + "reference/{genome_build}"
         )
     conda:
         CFG["conda_envs"]["battenberg"]
