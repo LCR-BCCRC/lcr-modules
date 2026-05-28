@@ -103,7 +103,7 @@ rule _lofreq_run:
         SCRIPT_PATH={SCRIPT_PATH};
         PATH=$SCRIPT_PATH:$PATH;
         SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
-        if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
+        if [[ $(command -v lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
             echo "using bundled patched script $SCRIPT";
             if [ ! -e {output.vcf_snvs_filtered} ] && [ -e {params.rm_files} ]; then rm $(dirname {output.vcf_snvs_all})/*; fi
             &&
@@ -112,7 +112,7 @@ rule _lofreq_run:
             > {log.stdout} 2> {log.stderr}
             &&
             rm {params.rm_files};
-        else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
+        else echo "WARNING: PATH is not set properly, using $(command -v lofreq2_call_pparallel.py)"; fi
         """)
 
 # indels are not yet called but this rule merges the empty indels file with the snvs file to produce the consistently named "combined" vcf. 
@@ -166,7 +166,7 @@ rule _lofreq_filter_vcf:
     shell:
         op.as_one_line("""
         PATH={SCRIPT_PATH}:$PATH;
-        SCRIPT=$(which lofreq_filter.sh); 
+        SCRIPT=$(command -v lofreq_filter.sh); 
         echo "using bundled custom filtering script $SCRIPT";
         lofreq_filter.sh {input.vcf_all} | bgzip > {output.vcf_all_clean}
           && tabix -p vcf {output.vcf_all_clean}
