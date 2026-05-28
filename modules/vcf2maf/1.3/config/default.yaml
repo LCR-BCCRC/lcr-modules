@@ -42,18 +42,17 @@ lcr-modules:
         grch37: ""
 
     conda_envs:
-    container_envs:
-        bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
-        crossmap: "docker://quay.io/biocontainers/crossmap:0.7.0--pyhdfd78af_0"
-        gamblr: null
-        pysam: null
-        vcf2maf: "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
-
       vcf2maf: "{MODSDIR}/envs/vcf2maf-1.6.18.yaml"
       crossmap: "{SCRIPTSDIR}/crossmap/1.1/convert_maf_coords.yaml"
       bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
       pysam: "{MODSDIR}/envs/pysam-0.18.0.yaml"
       gamblr: "{MODSDIR}/envs/gamblr.yaml"
+    container_envs:
+      bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+      crossmap: "docker://quay.io/biocontainers/crossmap:0.7.0--pyhdfd78af_0"
+      gamblr: null
+      pysam: null
+      vcf2maf: "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
 
     threads:
       vcf2maf: 12
