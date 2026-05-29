@@ -3,6 +3,7 @@ channels:
     - defaults
 dependencies:
     - python>=3.6
+    - numpy
     - requests
     - pyyaml
     - pip
