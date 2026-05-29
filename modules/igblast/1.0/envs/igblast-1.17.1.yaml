@@ -1,7 +1,1 @@
-name: igblast
-channels:
-  - bioconda
-  - defaults
-dependencies:
-  - igblast=1.17.1
-  - perl=5.26.2
+../../../../envs/igblast/igblast-1.17.1.yaml

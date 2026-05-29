@@ -1,10 +1,1 @@
-channels:
-    - conda-forge
-    - defaults
-dependencies:
-    - python>=3.6
-    - requests
-    - pyyaml
-    - pip
-    - pip:
-        - vquest==0.0.10
+../../../../envs/vquest/vquest-1.0.yaml
