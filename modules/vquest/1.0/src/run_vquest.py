@@ -10,6 +10,7 @@ import argparse
 import sys
 
 from vquest.vq import DEFAULTS, layer_configs, vquest
+from vquest.util import VquestError
 
 
 def main():
@@ -27,7 +28,14 @@ def main():
         "fileSequences":        args.fasta,
     })
 
-    result = vquest(config)
+    try:
+        result = vquest(config)
+    except VquestError as e:
+        print(
+            f"ERROR: V-QUEST returned an error for {args.fasta}:\n  {e}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     if "vquest_airr.tsv" not in result:
         print(
