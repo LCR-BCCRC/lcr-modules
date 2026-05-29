@@ -31,8 +31,12 @@ def main():
     try:
         result = vquest(config)
     except VquestError as e:
+        # e.args[0] is "; ".join(errors), e.args[1] is the raw errors list.
+        # Either may be empty if vquest failed to parse the error HTML.
         print(
-            f"ERROR: V-QUEST returned an error for {args.fasta}:\n  {e}",
+            f"ERROR: V-QUEST returned an error for {args.fasta}:\n"
+            f"  message : {e.args[0]!r}\n"
+            f"  errors  : {e.args[1] if len(e.args) > 1 else '(not available)'}",
             file=sys.stderr,
         )
         sys.exit(1)
