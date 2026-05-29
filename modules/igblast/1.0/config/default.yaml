@@ -46,10 +46,6 @@ lcr-modules:
                 run_flags: ""
                 form: "qseq sseq"
 
-            # Set to True to merge igblastn annotations into the source TSV.
-            # Requires inputs.sample_source_tsv and options.source_id_column to be set.
-            run_merge: False
-
             # Column name in sample_source_tsv that matches sequence_id in the igblastn TSV.
             #   igseqr 1.0 source → "transcript_id"
             #   mixcr 1.3 source  → "cloneId"

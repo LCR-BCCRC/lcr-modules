@@ -44,10 +44,6 @@ lcr-modules:
             # Extra flags passed verbatim to run_vquest.py (currently unused placeholder).
             vquest_run: ""
 
-            # Set to True to merge V-QUEST annotations into the source TSV.
-            # Requires inputs.sample_source_tsv and options.source_id_column to be set.
-            run_merge: False
-
             # Column name in sample_source_tsv that matches sequence_id in the V-QUEST AIRR TSV.
             #   igseqr 1.0 source → "transcript_id"
             #   mixcr 1.3 source  → "cloneId"
