@@ -207,7 +207,7 @@ rule _igseqr_trinity_assemble:
         fastq_1 = str(rules._igseqr_filter_reads.output.fastq_1),
         fastq_2 = str(rules._igseqr_filter_reads.output.fastq_2),
     output:
-        fasta = temp(CFG["dirs"]["trinity"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_Trinity.Trinity.fasta"),
+        fasta = CFG["dirs"]["trinity"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{sample_id}_Trinity.Trinity.fasta",
     log:
         stdout = CFG["logs"]["trinity"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/trinity.stdout.log",
         stderr = CFG["logs"]["trinity"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/trinity.stderr.log",
