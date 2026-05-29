@@ -9,13 +9,12 @@ lcr-modules:
             # Path to input FASTA file.
             # Available wildcards: {seq_type}, {sample_id}, {chain}
             # For mixcr 1.3 output:
-            #   "{MIXCR_OUT}/99-outputs/fasta/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.VDJseq.fasta"
+            #   "{MIXCR_OUT}/99-outputs/fasta/{seq_type}/mixcr.{sample_id}.clones_{chain}.VDJseq.fasta"
             # For igseqr 1.0 output (chains: IGH, IGKL):
             #   "{IGSEQR_OUT}/99-outputs/fasta/{seq_type}--{genome_build}/{sample_id}_{chain}_transcripts.fasta"
             sample_fasta: "__UPDATE__"
 
             # Path to the source TSV to merge igblastn annotations into.
-            # Only used when options.run_merge is True.
             # Available wildcards: {seq_type}, {sample_id}, {chain}
             #
             # For igseqr 1.0 output:
@@ -23,7 +22,7 @@ lcr-modules:
             #   Set options.source_id_column to "transcript_id".
             #
             # For mixcr 1.3 output:
-            #   "{MIXCR_OUT}/99-outputs/txt/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.txt"
+            #   "{MIXCR_OUT}/99-outputs/txt/{seq_type}/mixcr.{sample_id}.clones_{chain}.tsv"
             #   Set options.source_id_column to "cloneId". The merge script automatically
             #   parses the compound FASTA header ("cloneId_N_readFraction_F_readCount_C")
             #   back to cloneId when "mixcr" is detected in either input file path.
