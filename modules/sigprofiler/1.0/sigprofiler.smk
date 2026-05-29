@@ -98,7 +98,7 @@ rule _sigprofiler_input_maf:
     output:
         maf = CFG["dirs"]["inputs"] + "matrices/{seq_type}--{genome_build}/{sample_set}/{sample_set}.maf"
     run:
-        op.relative_symlink(input.maf, output.maf)
+        op.relative_symlink(input.maf, output.maf, in_module=True)
 
 # Generates sample by k-mer context matrices from MAF
 rule _sigprofiler_run_generator:

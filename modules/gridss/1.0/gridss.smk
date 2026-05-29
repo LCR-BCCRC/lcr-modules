@@ -143,8 +143,8 @@ rule _gridss_input_bam:
         sample_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         sample_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
-        op.relative_symlink(input.sample_bam, output.sample_bam)
-        op.relative_symlink(input.sample_bai, output.sample_bai)
+        op.absolute_symlink(input.sample_bam, output.sample_bam)
+        op.absolute_symlink(input.sample_bai, output.sample_bai)
 
 # Preprocess unmatched normal bams
 rule _gridss_preprocess_unmatched_normal:
@@ -194,7 +194,7 @@ rule _gridss_symlink_preprocessed_normal:
     wildcard_constraints:
         sample_id = "|".join(unmatched_normal_ids)
     run:
-        op.relative_symlink(input.workdir, output.workdir)
+        op.relative_symlink(input.workdir, output.workdir, in_module=True)
 
 # Preprocess all other bams as part of the group job
 rule _gridss_preprocess:

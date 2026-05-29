@@ -508,7 +508,7 @@ rule _vcf2maf_normalize_prefix:
         base_name = CFG["vcf_base_name"]
     run:
         if params.todo == "symlink":
-            op.relative_symlink(input.maf, output.maf)
+            op.relative_symlink(input.maf, output.maf, in_module=True)
         else:
             maf_open = pd.read_csv(input.maf[0], sep = "\t")
             # Check whether the input maf is empty

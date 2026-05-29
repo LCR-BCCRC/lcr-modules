@@ -72,8 +72,8 @@ rule _liftover_input_file:
     wildcard_constraints:
         tool = CFG["tool"]
     run:
-        op.relative_symlink(input.tsv, output.tsv)
-        op.relative_symlink(input.tsv, output.another_tsv)
+        op.relative_symlink(input.tsv, output.tsv, in_module=True)
+        op.relative_symlink(input.tsv, output.another_tsv, in_module=True)
 
 
 # Convert initial seg file into bed format

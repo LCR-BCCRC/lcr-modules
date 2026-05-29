@@ -102,7 +102,7 @@ rule _hmftools_input_slms3:
         vcf = CFG["dirs"]["inputs"] + "slms3_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/slms3.vcf.gz" 
     group: "input_and_vcf"
     run: 
-        op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.vcf, output.vcf, in_module=True)
 
 rule _hmftools_input_gridss: 
     input: 

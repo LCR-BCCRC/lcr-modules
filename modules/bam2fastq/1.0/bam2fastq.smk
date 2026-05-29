@@ -40,7 +40,7 @@ rule _bam2fastq_input_bam:
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     run:
-        op.relative_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bam, output.bam)
 
 
 # Conditional rules depending on whether or not fastq outputs will be temporary
