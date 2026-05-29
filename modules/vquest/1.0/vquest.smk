@@ -222,11 +222,7 @@ if RUN_MERGE:
     rule _vquest_merge_tsv:
         input:
             annotation = str(rules._vquest_run.output.tsv),
-            source_tsv = lambda wildcards: SOURCE_TSV_PATTERN.format(
-                seq_type=wildcards.seq_type,
-                sample_id=wildcards.sample_id,
-                chain=wildcards.chain,
-            ),
+            source_tsv = SOURCE_TSV_PATTERN,
         output:
             merged = CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.vquest_airr.merged.tsv"
         params:
@@ -258,11 +254,7 @@ if RUN_MERGE:
     rule _vquest_merge_annotated_tsv:
         input:
             annotation = str(rules._vquest_annotated_tsv.output.annotated),
-            source_tsv = lambda wildcards: SOURCE_TSV_PATTERN.format(
-                seq_type=wildcards.seq_type,
-                sample_id=wildcards.sample_id,
-                chain=wildcards.chain,
-            ),
+            source_tsv = SOURCE_TSV_PATTERN,
         output:
             merged = CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.vquest_airr.merged.annotated.tsv"
         params:

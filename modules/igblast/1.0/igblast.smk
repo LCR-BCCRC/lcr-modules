@@ -232,11 +232,7 @@ if RUN_MERGE:
     rule _igblast_merge_tsv:
         input:
             annotation = str(rules._igblast_parse_tsv.output.tsv),
-            source_tsv = lambda wildcards: SOURCE_TSV_PATTERN.format(
-                seq_type=wildcards.seq_type,
-                sample_id=wildcards.sample_id,
-                chain=wildcards.chain,
-            ),
+            source_tsv = SOURCE_TSV_PATTERN,
         output:
             merged = CFG["dirs"]["igblast"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.igblastn.merged.tsv"
         params:
@@ -268,11 +264,7 @@ if RUN_MERGE:
     rule _igblast_merge_annotated_tsv:
         input:
             annotation = str(rules._igblast_annotated_tsv.output.annotated),
-            source_tsv = lambda wildcards: SOURCE_TSV_PATTERN.format(
-                seq_type=wildcards.seq_type,
-                sample_id=wildcards.sample_id,
-                chain=wildcards.chain,
-            ),
+            source_tsv = SOURCE_TSV_PATTERN,
         output:
             merged = CFG["dirs"]["igblast"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.igblastn.merged.annotated.tsv"
         params:
