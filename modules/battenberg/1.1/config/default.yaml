@@ -36,7 +36,7 @@ lcr-modules:
             cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/python-3.8.3.yaml"
             liftover: "{SCRIPTSDIR}/liftover/2.0/liftover.yaml"
         container_envs:
-            battenberg: "docker://ghcr.io/lcr-bccrc/lcr-scripts/battenberg:1.1"
+            battenberg: "docker://ghcr.io/lcr-bccrc/lcr-scripts/battenberg:1.2"
             bedtools: "docker://ghcr.io/lcr-bccrc/lcr-scripts/fill_segments:1.1"
             cnv2igv: null
             liftover: "docker://ghcr.io/lcr-bccrc/lcr-scripts/liftover:1.0"
