@@ -57,6 +57,9 @@ RUN_MERGE = CFG["options"]["run_merge"]
 SOURCE_TSV_PATTERN = CFG["inputs"]["sample_source_tsv"] if RUN_MERGE else None
 SOURCE_ID_COL = CFG["options"]["source_id_column"]
 
+GLYCO_SOURCE = CFG["options"]["glycosylation_source"]
+GLYCO_AA_TSV_PATTERN = CFG["inputs"]["sample_source_tsv"] if GLYCO_SOURCE == "mixcr_tsv" else None
+
 # Maps chain wildcard to the IMGT V-QUEST receptorOrLocusType parameter.
 receptor_type_dict = {
     "IGH": "IG", "IGK": "IG", "IGL": "IG", "IGKL": "IG",
@@ -67,12 +70,16 @@ receptor_type_dict = {
 localrules:
     _vquest_input_fasta,
     _vquest_output_tsv,
+    _vquest_annotated_tsv,
+    _vquest_output_annotated_tsv,
     _vquest_all,
 
 if RUN_MERGE:
     localrules:
         _vquest_merge_tsv,
         _vquest_output_merged_tsv,
+        _vquest_merge_annotated_tsv,
+        _vquest_output_merged_annotated_tsv,
 
 
 ##### RULES #####
@@ -137,6 +144,79 @@ rule _vquest_output_tsv:
         op.relative_symlink(input.tsv, output.tsv, in_module=True)
 
 
+# Translates input FASTA and annotates acquired N-linked glycosylation sites
+# (NxS/T, x != Pro) with IMGT unique Lefranc numbering via ANARCI.
+# In MiXCR mode (glycosylation_source: "mixcr_tsv"), AA sequences are assembled
+# from the aaSeq* fields in sample_source_tsv instead of translating the FASTA.
+rule _vquest_annotate_glycosylation:
+    input:
+        fasta  = str(rules._vquest_input_fasta.output.fasta),
+        script = CFG["scripts"]["annotate_glycosylation"],
+        source_tsv = lambda wildcards: (
+            GLYCO_AA_TSV_PATTERN.format(
+                seq_type=wildcards.seq_type,
+                sample_id=wildcards.sample_id,
+                chain=wildcards.chain,
+            ) if GLYCO_SOURCE == "mixcr_tsv" else []
+        ),
+    output:
+        tsv = CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.glycosylation.tsv"
+    log:
+        stdout = CFG["logs"]["vquest"] + "{seq_type}/{sample_id}/{chain}/annotate_glycosylation.stdout.log",
+        stderr = CFG["logs"]["vquest"] + "{seq_type}/{sample_id}/{chain}/annotate_glycosylation.stderr.log",
+    params:
+        source_tsv_flag = lambda wildcards, input: (
+            f"--source_tsv {input.source_tsv}" if GLYCO_SOURCE == "mixcr_tsv" else ""
+        ),
+    wildcard_constraints:
+        chain = "|".join(CHAINS),
+    threads:
+        CFG["threads"]["annotate_glycosylation"]
+    resources:
+        **CFG["resources"]["annotate_glycosylation"]
+    conda:
+        CFG["conda_envs"]["glycosylation"]
+    shell:
+        op.as_one_line("""
+        python {input.script}
+        --fasta {input.fasta}
+        {params.source_tsv_flag}
+        --output {output.tsv}
+        > {log.stdout} 2> {log.stderr}
+        """)
+
+# Merges glycosylation annotation into the V-QUEST AIRR TSV (always produced)
+rule _vquest_annotated_tsv:
+    input:
+        vquest = str(rules._vquest_run.output.tsv),
+        glyco  = str(rules._vquest_annotate_glycosylation.output.tsv),
+    output:
+        annotated = CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.vquest_airr.annotated.tsv"
+    params:
+        script = CFG["scripts"]["merge_tsv"],
+    wildcard_constraints:
+        chain = "|".join(CHAINS),
+    shell:
+        op.as_one_line("""
+        python {params.script}
+        --base {input.vquest}
+        --annotation {input.glyco}
+        --base_key sequence_id
+        --annot_key sequence_id
+        --output {output.annotated}
+        """)
+
+rule _vquest_output_annotated_tsv:
+    input:
+        annotated = str(rules._vquest_annotated_tsv.output.annotated)
+    output:
+        annotated = CFG["dirs"]["outputs"] + "tsv/{seq_type}/{sample_id}.{chain}.vquest_airr.annotated.tsv"
+    wildcard_constraints:
+        chain = "|".join(CHAINS)
+    run:
+        op.relative_symlink(input.annotated, output.annotated, in_module=True)
+
+
 # Merges V-QUEST AIRR annotations into the source TSV (optional, controlled by run_merge config)
 if RUN_MERGE:
     rule _vquest_merge_tsv:
@@ -174,6 +254,42 @@ if RUN_MERGE:
         run:
             op.relative_symlink(input.merged, output.merged, in_module=True)
 
+    # Merges source TSV with vquest_airr.annotated (V-QUEST + glyco combined)
+    rule _vquest_merge_annotated_tsv:
+        input:
+            annotation = str(rules._vquest_annotated_tsv.output.annotated),
+            source_tsv = lambda wildcards: SOURCE_TSV_PATTERN.format(
+                seq_type=wildcards.seq_type,
+                sample_id=wildcards.sample_id,
+                chain=wildcards.chain,
+            ),
+        output:
+            merged = CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.vquest_airr.merged.annotated.tsv"
+        params:
+            script     = CFG["scripts"]["merge_tsv"],
+            source_key = SOURCE_ID_COL,
+        wildcard_constraints:
+            chain = "|".join(CHAINS),
+        shell:
+            op.as_one_line("""
+            python {params.script}
+            --base {input.source_tsv}
+            --annotation {input.annotation}
+            --base_key {params.source_key}
+            --annot_key sequence_id
+            --output {output.merged}
+            """)
+
+    rule _vquest_output_merged_annotated_tsv:
+        input:
+            merged = str(rules._vquest_merge_annotated_tsv.output.merged)
+        output:
+            merged = CFG["dirs"]["outputs"] + "tsv/{seq_type}/{sample_id}.{chain}.vquest_airr.merged.annotated.tsv"
+        wildcard_constraints:
+            chain = "|".join(CHAINS)
+        run:
+            op.relative_symlink(input.merged, output.merged, in_module=True)
+
 
 # Generates the target sentinels for each run, which generate the symlinks
 if RUN_MERGE:
@@ -183,7 +299,9 @@ if RUN_MERGE:
                 expand(
                     [
                         str(rules._vquest_output_tsv.output.tsv),
+                        str(rules._vquest_output_annotated_tsv.output.annotated),
                         str(rules._vquest_output_merged_tsv.output.merged),
+                        str(rules._vquest_output_merged_annotated_tsv.output.merged),
                     ],
                     zip,
                     seq_type=CFG["samples"]["seq_type"],
@@ -197,6 +315,7 @@ else:
                 expand(
                     [
                         str(rules._vquest_output_tsv.output.tsv),
+                        str(rules._vquest_output_annotated_tsv.output.annotated),
                     ],
                     zip,
                     seq_type=CFG["samples"]["seq_type"],

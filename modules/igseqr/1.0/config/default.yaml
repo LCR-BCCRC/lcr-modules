@@ -35,7 +35,7 @@ lcr-modules:
             trinity: "docker://quay.io/biocontainers/trinity:2.13.2--hff880f7_4"
 
         threads:
-            hisat2_align: 8
+            hisat2_align: 16
             filter_reads: 4
             trinity_assemble: 24
             blastn: 4
