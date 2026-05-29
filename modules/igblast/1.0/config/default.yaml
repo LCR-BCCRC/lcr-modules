@@ -35,6 +35,7 @@ lcr-modules:
         scripts:
             igblast2tsv: "{MODSDIR}/src/igblast_to_tsv.py"
             merge_tsv: "{MODSDIR}/src/merge_annotation_tsv.py"
+            annotate_glycosylation: "{MODSDIR}/src/annotate_glycosylation.py"
 
         options:
             chains: "__UPDATE__"
@@ -54,18 +55,29 @@ lcr-modules:
             #   mixcr 1.3 source  → "cloneId"
             source_id_column: "transcript_id"
 
+            # AA source for glycosylation annotation. Choose:
+            #   "fasta"     - translate cDNA FASTA using best of 6 ORFs (use for igseqr source)
+            #   "mixcr_tsv" - assemble AA from aaSeq* fields in inputs.sample_source_tsv,
+            #                 skipping "region_not_covered" values (use for MiXCR source;
+            #                 requires inputs.sample_source_tsv to be set)
+            glycosylation_source: "fasta"
+
         conda_envs:
             igblast: "{MODSDIR}/envs/igblast-1.17.1.yaml"
+            glycosylation: "{MODSDIR}/envs/glycosylation-1.0.yaml"
 
         container_envs:
             igblast: "docker://quay.io/biocontainers/igblast:1.17.1--pl5321h3928612_1"
 
         threads:
             igblastn_run: 4
+            annotate_glycosylation: 1
 
         resources:
             igblastn_run:
                 mem_mb: 8000
+            annotate_glycosylation:
+                mem_mb: 4000
 
         pairing_config:
             genome:

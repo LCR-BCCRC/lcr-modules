@@ -57,6 +57,9 @@ RUN_MERGE = CFG["options"]["run_merge"]
 SOURCE_TSV_PATTERN = CFG["inputs"]["sample_source_tsv"] if RUN_MERGE else None
 SOURCE_ID_COL = CFG["options"]["source_id_column"]
 
+GLYCO_SOURCE = CFG["options"]["glycosylation_source"]
+GLYCO_AA_TSV_PATTERN = CFG["inputs"]["sample_source_tsv"] if GLYCO_SOURCE == "mixcr_tsv" else None
+
 # Maps chain name to igblastn seqtype and germline DB prefix
 receptor_dict = {
     "IGH": "ig", "IGK": "ig", "IGL": "ig", "IGKL": "ig",
@@ -72,12 +75,16 @@ localrules:
     _igblast_input_fasta,
     _igblast_parse_tsv,
     _igblast_output_tsv,
+    _igblast_annotated_tsv,
+    _igblast_output_annotated_tsv,
     _igblast_all,
 
 if RUN_MERGE:
     localrules:
         _igblast_merge_tsv,
         _igblast_output_merged_tsv,
+        _igblast_merge_annotated_tsv,
+        _igblast_output_merged_annotated_tsv,
 
 
 ##### RULES #####
@@ -147,6 +154,79 @@ rule _igblast_output_tsv:
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module=True)
 
+# Translates input FASTA and annotates acquired N-linked glycosylation sites
+# (NxS/T, x != Pro) with IMGT unique Lefranc numbering via ANARCI.
+# In MiXCR mode (glycosylation_source: "mixcr_tsv"), AA sequences are assembled
+# from the aaSeq* fields in sample_source_tsv instead of translating the FASTA.
+rule _igblast_annotate_glycosylation:
+    input:
+        fasta  = str(rules._igblast_input_fasta.output.fasta),
+        script = CFG["scripts"]["annotate_glycosylation"],
+        source_tsv = lambda wildcards: (
+            GLYCO_AA_TSV_PATTERN.format(
+                seq_type=wildcards.seq_type,
+                sample_id=wildcards.sample_id,
+                chain=wildcards.chain,
+            ) if GLYCO_SOURCE == "mixcr_tsv" else []
+        ),
+    output:
+        tsv = CFG["dirs"]["igblast"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.glycosylation.tsv"
+    log:
+        stdout = CFG["logs"]["igblast"] + "{seq_type}/{sample_id}/{chain}/annotate_glycosylation.stdout.log",
+        stderr = CFG["logs"]["igblast"] + "{seq_type}/{sample_id}/{chain}/annotate_glycosylation.stderr.log",
+    params:
+        source_tsv_flag = lambda wildcards, input: (
+            f"--source_tsv {input.source_tsv}" if GLYCO_SOURCE == "mixcr_tsv" else ""
+        ),
+    wildcard_constraints:
+        chain = "|".join(CHAINS),
+    threads:
+        CFG["threads"]["annotate_glycosylation"]
+    resources:
+        **CFG["resources"]["annotate_glycosylation"]
+    conda:
+        CFG["conda_envs"]["glycosylation"]
+    shell:
+        op.as_one_line("""
+        python {input.script}
+        --fasta {input.fasta}
+        {params.source_tsv_flag}
+        --output {output.tsv}
+        > {log.stdout} 2> {log.stderr}
+        """)
+
+# Merges glycosylation annotation into the igblastn TSV (always produced)
+rule _igblast_annotated_tsv:
+    input:
+        igblast = str(rules._igblast_parse_tsv.output.tsv),
+        glyco   = str(rules._igblast_annotate_glycosylation.output.tsv),
+    output:
+        annotated = CFG["dirs"]["igblast"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.igblastn.annotated.tsv"
+    params:
+        script = CFG["scripts"]["merge_tsv"],
+    wildcard_constraints:
+        chain = "|".join(CHAINS),
+    shell:
+        op.as_one_line("""
+        python {params.script}
+        --base {input.igblast}
+        --annotation {input.glyco}
+        --base_key sequence_id
+        --annot_key sequence_id
+        --output {output.annotated}
+        """)
+
+rule _igblast_output_annotated_tsv:
+    input:
+        annotated = str(rules._igblast_annotated_tsv.output.annotated)
+    output:
+        annotated = CFG["dirs"]["outputs"] + "tsv/{seq_type}/{sample_id}.{chain}.igblastn.annotated.tsv"
+    wildcard_constraints:
+        chain = "|".join(CHAINS)
+    run:
+        op.relative_symlink(input.annotated, output.annotated, in_module=True)
+
+
 # Merges igblastn annotations into the source TSV (optional, controlled by run_merge config)
 if RUN_MERGE:
     rule _igblast_merge_tsv:
@@ -184,6 +264,42 @@ if RUN_MERGE:
         run:
             op.relative_symlink(input.merged, output.merged, in_module=True)
 
+    # Merges source TSV with igblastn.annotated (igblast + glyco combined)
+    rule _igblast_merge_annotated_tsv:
+        input:
+            annotation = str(rules._igblast_annotated_tsv.output.annotated),
+            source_tsv = lambda wildcards: SOURCE_TSV_PATTERN.format(
+                seq_type=wildcards.seq_type,
+                sample_id=wildcards.sample_id,
+                chain=wildcards.chain,
+            ),
+        output:
+            merged = CFG["dirs"]["igblast"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.igblastn.merged.annotated.tsv"
+        params:
+            script     = CFG["scripts"]["merge_tsv"],
+            source_key = SOURCE_ID_COL,
+        wildcard_constraints:
+            chain = "|".join(CHAINS),
+        shell:
+            op.as_one_line("""
+            python {params.script}
+            --base {input.source_tsv}
+            --annotation {input.annotation}
+            --base_key {params.source_key}
+            --annot_key sequence_id
+            --output {output.merged}
+            """)
+
+    rule _igblast_output_merged_annotated_tsv:
+        input:
+            merged = str(rules._igblast_merge_annotated_tsv.output.merged)
+        output:
+            merged = CFG["dirs"]["outputs"] + "tsv/{seq_type}/{sample_id}.{chain}.igblastn.merged.annotated.tsv"
+        wildcard_constraints:
+            chain = "|".join(CHAINS)
+        run:
+            op.relative_symlink(input.merged, output.merged, in_module=True)
+
 
 # Generates the target sentinels for each run, which generate the symlinks
 if RUN_MERGE:
@@ -193,7 +309,9 @@ if RUN_MERGE:
                 expand(
                     [
                         str(rules._igblast_output_tsv.output.tsv),
+                        str(rules._igblast_output_annotated_tsv.output.annotated),
                         str(rules._igblast_output_merged_tsv.output.merged),
+                        str(rules._igblast_output_merged_annotated_tsv.output.merged),
                     ],
                     zip,
                     seq_type=CFG["samples"]["seq_type"],
@@ -207,6 +325,7 @@ else:
                 expand(
                     [
                         str(rules._igblast_output_tsv.output.tsv),
+                        str(rules._igblast_output_annotated_tsv.output.annotated),
                     ],
                     zip,
                     seq_type=CFG["samples"]["seq_type"],

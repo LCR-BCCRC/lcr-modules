@@ -53,12 +53,21 @@ lcr-modules:
             #   mixcr 1.3 source  → "cloneId"
             source_id_column: "transcript_id"
 
+            # AA source for glycosylation annotation. Choose:
+            #   "fasta"     - translate cDNA FASTA using best of 6 ORFs (use for igseqr source)
+            #   "mixcr_tsv" - assemble AA from aaSeq* fields in inputs.sample_source_tsv,
+            #                 skipping "region_not_covered" values (use for MiXCR source;
+            #                 requires inputs.sample_source_tsv to be set)
+            glycosylation_source: "fasta"
+
         scripts:
             run_vquest: "{MODSDIR}/src/run_vquest.py"
             merge_tsv: "{MODSDIR}/src/merge_annotation_tsv.py"
+            annotate_glycosylation: "{MODSDIR}/src/annotate_glycosylation.py"
 
         conda_envs:
             vquest: "{MODSDIR}/envs/vquest-1.0.yaml"
+            glycosylation: "{MODSDIR}/envs/glycosylation-1.0.yaml"
 
         container_envs:
             vquest: "docker://quay.io/biocontainers/mulled-v2-placeholder:latest"
@@ -68,9 +77,12 @@ lcr-modules:
 
         threads:
             vquest_run: 1
+            annotate_glycosylation: 1
 
         resources:
             vquest_run:
+                mem_mb: 4000
+            annotate_glycosylation:
                 mem_mb: 4000
 
         pairing_config:
