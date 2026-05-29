@@ -48,7 +48,7 @@ lcr-modules:
                 mem_mb: 8000
             trinity_assemble:
                 trinity: 1
-                mem_mb: 50000
+                mem_mb: 100000
             blastn:
                 mem_mb: 8000
             extract_transcripts:
