@@ -2,10 +2,11 @@ channels:
     - conda-forge
     - defaults
 dependencies:
-    - python>=3.6
+    - python>=3.6,<3.13
     - numpy
     - requests
     - pyyaml
     - pip
     - pip:
         - vquest==0.0.10
+        - lxml_html_clean
