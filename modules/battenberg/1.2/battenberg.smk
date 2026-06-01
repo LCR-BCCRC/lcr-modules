@@ -14,6 +14,7 @@
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 import glob
+import os
 import pandas as pd
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
@@ -121,8 +122,13 @@ rule _battenberg_input_bam:
     group: "setup_run"
     run:
         op.absolute_symlink(input.bam, output.bam)
-        op.absolute_symlink(input.bam + ".bai", output.bai)
-        op.absolute_symlink(input.bam + ".bai", output.crai)
+        # Index source depends on the input type: BAMs carry a ".bai", CRAMs a
+        # ".crai". The original code hardcoded input.bam + ".bai", which does not
+        # exist for CRAM input, so both index symlinks dangled and the job failed
+        # with missing outputs. Pick whichever sidecar is present.
+        index_src = input.bam + ".bai" if os.path.exists(input.bam + ".bai") else input.bam + ".crai"
+        op.absolute_symlink(index_src, output.bai)
+        op.absolute_symlink(index_src, output.crai)
 
 # this process is very fast on bam files and painfully slow on cram files. 
 # The result of calc_sex_status.sh is stored in a file to avoid having to rerun it unnecessarily
