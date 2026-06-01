@@ -8,5 +8,4 @@ dependencies:
     - pyyaml
     - pip
     - pip:
-        - vquest
         - lxml_html_clean
