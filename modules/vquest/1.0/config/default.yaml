@@ -40,6 +40,11 @@ lcr-modules:
                 # IMGT V-QUEST species string. Common values:
                 #   human, mouse, rat, rabbit, rhesus-monkey
 
+            molecule_type: "mRNA"
+                # V-QUEST moleculeType parameter, added in V-QUEST 3.8.0 (April 2026).
+                # Use "mRNA" for cDNA sequences (Trinity transcripts, MiXCR VDJ assemblies).
+                # Use "gDNA" for genomic DNA sequences.
+
             # Extra flags passed verbatim to run_vquest.py (currently unused placeholder).
             vquest_run: ""
 

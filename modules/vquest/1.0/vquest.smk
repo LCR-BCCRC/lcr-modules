@@ -106,6 +106,7 @@ rule _vquest_run:
     params:
         species       = CFG["options"]["species"],
         receptor_type = lambda wildcards: receptor_type_dict[wildcards.chain],
+        molecule_type = CFG["options"]["molecule_type"],
     wildcard_constraints:
         chain = "|".join(CHAINS),
     threads:
@@ -120,6 +121,7 @@ rule _vquest_run:
         --fasta {input.fasta}
         --species {params.species}
         --receptor_type {params.receptor_type}
+        --molecule_type {params.molecule_type}
         --output {output.tsv}
         > {log.stdout} 2> {log.stderr}
         """)

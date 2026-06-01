@@ -19,12 +19,15 @@ def main():
     parser.add_argument("--species",       default="human")
     parser.add_argument("--receptor_type", default="IG",
                         help="receptorOrLocusType: IG or TR")
+    parser.add_argument("--molecule_type", default="mRNA",
+                        help="V-QUEST moleculeType: mRNA (default) or gDNA")
     parser.add_argument("--output",        required=True,  help="output AIRR TSV path")
     args = parser.parse_args()
 
     config = layer_configs(DEFAULTS, {
         "species":              args.species,
         "receptorOrLocusType":  args.receptor_type,
+        "moleculeType":         args.molecule_type,
         "fileSequences":        args.fasta,
     })
 
