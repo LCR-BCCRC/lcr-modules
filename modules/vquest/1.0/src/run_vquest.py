@@ -7,10 +7,60 @@ results automatically. Requires outbound HTTPS access to www.imgt.org.
 """
 
 import argparse
+import re
 import sys
+import tempfile
 
 from vquest.vq import DEFAULTS, layer_configs, vquest
 from vquest.util import VquestError
+
+_VALID_NT = re.compile(r"[^ACGTN]", re.IGNORECASE)
+
+
+def _sanitize_fasta(src_path):
+    """
+    Write a sanitized copy of src_path to a temp file and return its path.
+    All nucleotide sequences are uppercased and any character that is not
+    A/C/G/T/N is replaced with N. V-QUEST rejects the entire batch of 50
+    when even one sequence contains an invalid character, so cleaning here
+    prevents unnecessary whole-batch failures.
+    """
+    tmp = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".fasta", delete=False
+    )
+    with open(src_path) as fh:
+        for line in fh:
+            if line.startswith(">"):
+                tmp.write(line)
+            else:
+                cleaned = _VALID_NT.sub("N", line.rstrip().upper())
+                tmp.write(cleaned + "\n")
+    tmp.close()
+    return tmp.name
+
+
+def _check_html_errors(text):
+    """
+    Raise RuntimeError if text looks like a V-QUEST HTML error page.
+    V-QUEST returns errors inside <ul class="errorMessage"> elements,
+    which the vquest package does not detect (it only checks div.form_error).
+    """
+    if not text.lstrip().startswith("<!DOCTYPE"):
+        return
+    msgs = re.findall(
+        r'<ul[^>]+class=["\']errorMessage["\'][^>]*>.*?<span>(.*?)</span>',
+        text, re.DOTALL
+    )
+    if msgs:
+        raise RuntimeError(
+            "V-QUEST returned HTML error page(s):\n"
+            + "\n".join(f"  {m.strip()}" for m in msgs[:5])
+            + (f"\n  ... ({len(msgs) - 5} more)" if len(msgs) > 5 else "")
+        )
+    raise RuntimeError(
+        "V-QUEST returned an HTML page instead of AIRR data.\n"
+        f"First 500 chars: {text[:500]}"
+    )
 
 
 def main():
@@ -24,11 +74,13 @@ def main():
     parser.add_argument("--output",        required=True,  help="output AIRR TSV path")
     args = parser.parse_args()
 
+    clean_fasta = _sanitize_fasta(args.fasta)
+
     config = layer_configs(DEFAULTS, {
         "species":              args.species,
         "receptorOrLocusType":  args.receptor_type,
         "moleculeType":         args.molecule_type,
-        "fileSequences":        args.fasta,
+        "fileSequences":        clean_fasta,
     })
 
     try:
@@ -52,8 +104,16 @@ def main():
         )
         sys.exit(1)
 
+    airr_text = result["vquest_airr.tsv"]
+
+    try:
+        _check_html_errors(airr_text)
+    except RuntimeError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
+
     with open(args.output, "w") as fh:
-        fh.write(result["vquest_airr.tsv"])
+        fh.write(airr_text)
 
 
 if __name__ == "__main__":
