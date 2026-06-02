@@ -184,7 +184,7 @@ rule _qc_gatk_wgs:
         stdout = CFG["logs"]["gatk"] + "CollectMetrics/{seq_type}--{genome_build}/{sample_id}.CollectWgsMetrics.stdout.log",
         stderr = CFG["logs"]["gatk"] + "CollectMetrics/{seq_type}--{genome_build}/{sample_id}.CollectWgsMetrics.stderr.log"
     wildcard_constraints:
-        seq_type = "genome"
+        seq_type = "genome|lpwgs"
     params:
         opts = CFG["options"]["CollectWgsMetrics"],
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
