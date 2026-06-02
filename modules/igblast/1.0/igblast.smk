@@ -66,6 +66,7 @@ run_dict = {
 # Define rules to be run locally when using a compute cluster
 localrules:
     _igblast_input_fasta,
+    _igblast_input_source_tsv,
     _igblast_output_tsv,
     _igblast_merge_final,
     _igblast_output_merged_final,
@@ -86,6 +87,16 @@ rule _igblast_input_fasta:
         fasta = CFG["dirs"]["inputs"] + "fasta/{seq_type}/{sample_id}.{chain}.fasta"
     run:
         op.absolute_symlink(input.fasta, output.fasta)
+
+rule _igblast_input_source_tsv:
+    input:
+        tsv = CFG["inputs"]["sample_source_tsv"]
+    output:
+        tsv = CFG["dirs"]["inputs"] + "tsv/{seq_type}/{sample_id}.{chain}.source.tsv"
+    wildcard_constraints:
+        chain = "|".join(CHAINS)
+    run:
+        op.absolute_symlink(input.tsv, output.tsv)
 
 rule _igblastn_run:
     input:
@@ -163,7 +174,7 @@ rule _igblast_annotate_glycosylation:
 #   2. join the combined annotation into source_tsv (keyed on source_id_column)
 rule _igblast_merge_final:
     input:
-        source_tsv = CFG["inputs"]["sample_source_tsv"],
+        source_tsv = str(rules._igblast_input_source_tsv.output.tsv),
         airr_tsv   = str(rules._igblastn_run.output.airr),
         glyco      = str(rules._igblast_annotate_glycosylation.output.tsv),
     output:
