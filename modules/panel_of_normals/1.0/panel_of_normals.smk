@@ -136,7 +136,7 @@ rule _panel_of_normals_canonical_capspace:
         bed = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{capture_space}.padded.canonical.bed"
     shell:
         op.as_one_line("""
-        awk -F"\t" -v OFS="\t" '$1 !~ /(_|M|EBV|HIV)/' {input.bed} > {output.bed}
+        awk -F"\t" -v OFS="\t" '$1 !~ /(_|M|EBV|HIV|GL)/' {input.bed} > {output.bed}
         """)
 
 # Symlink fasta and it's indexes (for compatibility with $PURECN/IntervalFile.R and MuTect2/GATK)
@@ -263,7 +263,7 @@ rule _panel_of_normals_cnvkit_accessible_main_chrs:
         access_main = CFG["dirs"]["inputs"] + "references/access_main.{genome_build}.bed"
     shell:
         op.as_one_line("""
-        grep -F -f {input.main_txt} {input.access} > {output.access_main}
+        awk -F"\t" -v OFS="\t" 'NR==FNR {{patterns[$0]; next}} $1 in patterns' {input.main_txt} {input.access} > {output.access_main}
         """)
 
 

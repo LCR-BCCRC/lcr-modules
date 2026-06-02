@@ -331,6 +331,7 @@ rule _cnvkit_call:
         """)
 
 # Create seg formatted for PureCN pipeline
+# The PureCN docs says to use --enumerate-chroms
 rule _cnvkit_seg_for_purecn:
     input:
         cns = str(rules._cnvkit_call.output.cns)
