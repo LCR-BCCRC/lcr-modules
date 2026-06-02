@@ -46,6 +46,9 @@ lcr-modules:
             # Extra flags passed verbatim to run_vquest.py (currently unused placeholder).
             vquest_run: ""
 
+            # Number of times to retry _vquest_run on failure (e.g. transient IMGT connection errors).
+            vquest_retries: 3
+
             # Key column in sample_source_tsv used to join V-QUEST annotations.
             # The merge uses sequence_id from the V-QUEST AIRR TSV as the base key;
             # this column names the corresponding key in sample_source_tsv.

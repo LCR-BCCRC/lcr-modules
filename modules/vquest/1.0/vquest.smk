@@ -115,6 +115,8 @@ rule _vquest_run:
         molecule_type = CFG["options"]["molecule_type"],
     wildcard_constraints:
         chain = "|".join(CHAINS),
+    retries:
+        CFG["options"]["vquest_retries"]
     threads:
         CFG["threads"]["vquest_run"]
     resources:
