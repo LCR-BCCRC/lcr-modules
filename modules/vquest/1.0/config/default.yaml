@@ -19,13 +19,11 @@ lcr-modules:
             #
             # From igseqr 1.0:
             #   "{IGSEQR_OUT}/99-outputs/tsv/{seq_type}--{hisat_ref}/{sample_id}_{chain}_report.tsv"
-            #   Set options.source_id_column to "transcript_id".
+            #   Set options.source_id_column to the key column in this TSV (e.g. "transcript_id").
             #
             # From mixcr 1.3:
             #   "{MIXCR_OUT}/99-outputs/txt/{seq_type}/mixcr.{sample_id}.clones_{chain}.tsv"
-            #   Set options.source_id_column to "cloneId". The merge script automatically
-            #   parses the compound FASTA header ("cloneId_N_readFraction_F_readCount_C")
-            #   back to cloneId when "mixcr" is detected in either input file path.
+            #   Set options.source_id_column to "cloneId".
             sample_source_tsv: "__UPDATE__"
 
         scratch_subdirectories: []
@@ -48,17 +46,14 @@ lcr-modules:
             # Extra flags passed verbatim to run_vquest.py (currently unused placeholder).
             vquest_run: ""
 
-            # Column name in sample_source_tsv that matches sequence_id in the V-QUEST AIRR TSV.
+            # Key column in sample_source_tsv used to join V-QUEST annotations.
+            # The merge uses sequence_id from the V-QUEST AIRR TSV as the base key;
+            # this column names the corresponding key in sample_source_tsv.
+            # For MiXCR compound sequence_ids (cloneId_N_readFraction_F_readCount_C)
+            # the cloneId is extracted automatically when this differs from sequence_id.
             #   igseqr 1.0 source → "transcript_id"
             #   mixcr 1.3 source  → "cloneId"
             source_id_column: "transcript_id"
-
-            # AA source for glycosylation annotation. Choose:
-            #   "fasta"     - translate cDNA FASTA using best of 6 ORFs (use for igseqr source)
-            #   "mixcr_tsv" - assemble AA from aaSeq* fields in inputs.sample_source_tsv,
-            #                 skipping "region_not_covered" values (use for MiXCR source;
-            #                 requires inputs.sample_source_tsv to be set)
-            glycosylation_source: "fasta"
 
         scripts:
             run_vquest: "{MODSDIR}/src/run_vquest.py"
