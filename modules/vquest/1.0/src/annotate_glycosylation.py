@@ -3,16 +3,8 @@
 Annotate acquired N-linked glycosylation sites (NxS/T, x != Pro) in IG/TCR
 sequences with IMGT unique numbering (Lefranc et al.).
 
-Two input modes (auto-detected from --source_tsv):
-
-  igseqr / default
-    Reads sequence_alignment_aa from the V-QUEST output TSV, keyed by
-    sequence_id.
-
-  MiXCR (triggered when "mixcr" is in the --source_tsv path)
-    Reads sequence_alignment_aa from the clonotype TSV, keyed by cloneId.
-    The FASTA is required to supply sequence IDs; each FASTA entry's
-    cloneId is parsed from its header and looked up in the TSV.
+Reads sequence_alignment_aa from the V-QUEST AIRR TSV (--source_tsv), keyed
+by sequence_id. Works for both igseqr and MiXCR input sources.
 
 IMGT numbering is assigned by ANARCI (bioconda: conda install -c bioconda anarci).
 
@@ -26,7 +18,6 @@ Output TSV columns:
 
 import argparse
 import csv
-import re
 import sys
 
 try:
@@ -37,29 +28,8 @@ except ImportError:
 
 # ── TSV loading ───────────────────────────────────────────────────────────────
 
-_MIXCR_CLONE_RE = re.compile(r"cloneId_(\S+?)_readFraction_")
-
-
-def _parse_clone_id(sequence_id):
-    """Extract the bare cloneId from a MiXCR FASTA header."""
-    m = _MIXCR_CLONE_RE.match(sequence_id)
-    return m.group(1) if m else None
-
-
-def load_aa_by_clone(tsv_path):
-    """Build {cloneId: sequence_alignment_aa} from a MiXCR clonotype TSV."""
-    aa_by_clone = {}
-    with open(tsv_path) as fh:
-        reader = csv.DictReader(fh, delimiter="\t")
-        for row in reader:
-            aa_seq = row.get("sequence_alignment_aa", "").strip()
-            if aa_seq:
-                aa_by_clone[row["cloneId"]] = aa_seq
-    return aa_by_clone
-
-
 def load_aa_by_sequence_id(tsv_path):
-    """Build {sequence_id: sequence_alignment_aa} from a V-QUEST output TSV."""
+    """Build {sequence_id: sequence_alignment_aa} from a V-QUEST AIRR TSV."""
     aa_by_id = {}
     with open(tsv_path) as fh:
         reader = csv.DictReader(fh, delimiter="\t")
@@ -140,32 +110,19 @@ def main():
     parser.add_argument("--fasta",      required=True,
                         help="Input FASTA. Used as the source of sequence IDs.")
     parser.add_argument("--source_tsv", required=True,
-                        help="TSV with a sequence_alignment_aa column. For MiXCR "
-                             "('mixcr' in path), cloneId is used as the key; "
-                             "otherwise sequence_id is used.")
+                        help="V-QUEST AIRR TSV with a sequence_alignment_aa column.")
     parser.add_argument("--output",     required=True, help="Output TSV path")
     args = parser.parse_args()
 
     fasta_seqs = read_fasta(args.fasta)
-
-    mixcr_mode = "mixcr" in args.source_tsv.lower()
-    if mixcr_mode:
-        aa_lookup = load_aa_by_clone(args.source_tsv)
-    else:
-        aa_lookup = load_aa_by_sequence_id(args.source_tsv)
+    aa_lookup  = load_aa_by_sequence_id(args.source_tsv)
 
     with open(args.output, "w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=FIELDS, delimiter="\t")
         writer.writeheader()
 
         for seq_id in fasta_seqs:
-
-            # ── Resolve amino acid sequence ────────────────────────────────
-            if mixcr_mode:
-                clone_id = _parse_clone_id(seq_id)
-                aa_seq = aa_lookup.get(clone_id, "") if clone_id else ""
-            else:
-                aa_seq = aa_lookup.get(seq_id, "")
+            aa_seq = aa_lookup.get(seq_id, "")
 
             if not aa_seq:
                 writer.writerow({
@@ -176,7 +133,6 @@ def main():
                 })
                 continue
 
-            # ── IMGT numbering ─────────────────────────────────────────────
             numbered = number_with_imgt(aa_seq)
             if numbered is None:
                 writer.writerow({

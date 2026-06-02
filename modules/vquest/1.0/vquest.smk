@@ -53,8 +53,6 @@ assert all(chain in VALID_CHAINS for chain in CHAINS), (
     "Use 'IGKL' for combined kappa/lambda FASTA output from igseqr."
 )
 
-GLYCO_SOURCE = CFG["options"]["glycosylation_source"]
-GLYCO_AA_TSV_PATTERN = CFG["inputs"]["sample_source_tsv"] if GLYCO_SOURCE == "mixcr_tsv" else None
 
 # Maps chain wildcard to the IMGT V-QUEST receptorOrLocusType parameter.
 receptor_type_dict = {
@@ -141,25 +139,12 @@ rule _vquest_output_tsv:
 
 # Annotates acquired N-linked glycosylation sites (NxS/T, x != Pro) with IMGT
 # unique Lefranc numbering via ANARCI. AA sequences are read from the
-# sequence_alignment_aa field of the source TSV for both igseqr and MiXCR modes.
-# igseqr: source_tsv is the V-QUEST AIRR TSV from _vquest_run.
-# MiXCR (glycosylation_source: "mixcr_tsv"): source_tsv is sample_source_tsv.
+# sequence_alignment_aa field of the V-QUEST AIRR TSV.
 rule _vquest_annotate_glycosylation:
     input:
-        fasta  = str(rules._vquest_input_fasta.output.fasta),
-        script = CFG["scripts"]["annotate_glycosylation"],
-        source_tsv = lambda wildcards: (
-            GLYCO_AA_TSV_PATTERN.format(
-                seq_type=wildcards.seq_type,
-                sample_id=wildcards.sample_id,
-                chain=wildcards.chain,
-            ) if GLYCO_SOURCE == "mixcr_tsv" else
-            str(rules._vquest_run.output.tsv).format(
-                seq_type=wildcards.seq_type,
-                sample_id=wildcards.sample_id,
-                chain=wildcards.chain,
-            )
-        ),
+        fasta      = str(rules._vquest_input_fasta.output.fasta),
+        script     = CFG["scripts"]["annotate_glycosylation"],
+        source_tsv = str(rules._vquest_run.output.tsv),
     output:
         tsv = CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.glycosylation.tsv"
     log:
