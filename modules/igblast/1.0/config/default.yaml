@@ -25,14 +25,13 @@ lcr-modules:
             #   "{MIXCR_OUT}/99-outputs/txt/{seq_type}/mixcr.{sample_id}.clones_{chain}.tsv"
             #   Set options.source_id_column to "cloneId". The merge script automatically
             #   parses the compound FASTA header ("cloneId_N_readFraction_F_readCount_C")
-            #   back to cloneId when "mixcr" is detected in either input file path.
+            #   back to cloneId when base_key and annot_key differ.
             sample_source_tsv: "__UPDATE__"
 
         scratch_subdirectories: []
 
-        
+
         scripts:
-            igblast2tsv: "{MODSDIR}/src/igblast_to_tsv.py"
             merge_tsv: "{MODSDIR}/src/merge_annotation_tsv.py"
             annotate_glycosylation: "{MODSDIR}/src/annotate_glycosylation.py"
 
@@ -43,19 +42,11 @@ lcr-modules:
                 #   IGH, IGKL                            (for igseqr source; IGKL = combined kappa/lambda)
             igblast_run:
                 run_flags: ""
-                form: "qseq sseq"
 
-            # Column name in sample_source_tsv that matches sequence_id in the igblastn TSV.
+            # Column name in sample_source_tsv that matches sequence_id in the igblastn AIRR TSV.
             #   igseqr 1.0 source → "transcript_id"
             #   mixcr 1.3 source  → "cloneId"
             source_id_column: "transcript_id"
-
-            # AA source for glycosylation annotation. Choose:
-            #   "fasta"     - translate cDNA FASTA using best of 6 ORFs (use for igseqr source)
-            #   "mixcr_tsv" - assemble AA from aaSeq* fields in inputs.sample_source_tsv,
-            #                 skipping "region_not_covered" values (use for MiXCR source;
-            #                 requires inputs.sample_source_tsv to be set)
-            glycosylation_source: "fasta"
 
         conda_envs:
             igblast: "{MODSDIR}/envs/igblast-1.17.1.yaml"
