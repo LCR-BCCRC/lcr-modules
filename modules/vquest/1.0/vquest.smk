@@ -63,13 +63,9 @@ receptor_type_dict = {
 # Define rules to be run locally when using a compute cluster
 localrules:
     _vquest_input_fasta,
+    _vquest_input_source_tsv,
     _vquest_output_tsv,
-    _vquest_annotated_tsv,
-    _vquest_output_annotated_tsv,
-    _vquest_merge_tsv,
-    _vquest_output_merged_tsv,
-    _vquest_merge_annotated_tsv,
-    _vquest_output_merged_annotated_tsv,
+    _vquest_output_merged_final,
     _vquest_all,
 
 
@@ -84,6 +80,18 @@ rule _vquest_input_fasta:
         fasta = CFG["dirs"]["inputs"] + "fasta/{seq_type}/{sample_id}.{chain}.fasta"
     run:
         op.absolute_symlink(input.fasta, output.fasta)
+
+
+# Symlinks the sample source TSV into the module results directory (under '00-inputs/')
+rule _vquest_input_source_tsv:
+    input:
+        tsv = CFG["inputs"]["sample_source_tsv"]
+    output:
+        tsv = CFG["dirs"]["inputs"] + "tsv/{seq_type}/{sample_id}.{chain}.source.tsv"
+    wildcard_constraints:
+        chain = "|".join(CHAINS)
+    run:
+        op.absolute_symlink(input.tsv, output.tsv)
 
 
 # Submits sequences to IMGT V-QUEST and writes the AIRR TSV output.
@@ -167,97 +175,49 @@ rule _vquest_annotate_glycosylation:
         > {log.stdout} 2> {log.stderr}
         """)
 
-# Merges glycosylation annotation into the V-QUEST AIRR TSV (always produced)
-rule _vquest_annotated_tsv:
+# Merges vquest_airr + glycosylation columns into source TSV in two passes:
+#   1. join glyco into vquest_airr (both keyed on sequence_id)
+#   2. join the combined annotation into source_tsv (keyed on source_id_column)
+rule _vquest_merge_final:
     input:
-        vquest = str(rules._vquest_run.output.tsv),
-        glyco  = str(rules._vquest_annotate_glycosylation.output.tsv),
+        source_tsv = str(rules._vquest_input_source_tsv.output.tsv),
+        vquest     = str(rules._vquest_run.output.tsv),
+        glyco      = str(rules._vquest_annotate_glycosylation.output.tsv),
     output:
-        annotated = CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.vquest_airr.annotated.tsv"
+        merged = CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.merged.tsv"
+    log:
+        stdout = CFG["logs"]["vquest"] + "{seq_type}/{sample_id}/{chain}/merge_final.stdout.log",
+        stderr = CFG["logs"]["vquest"] + "{seq_type}/{sample_id}/{chain}/merge_final.stderr.log",
     params:
-        script = CFG["scripts"]["merge_tsv"],
+        script     = CFG["scripts"]["merge_tsv"],
+        source_key = CFG["options"]["source_id_column"],
     wildcard_constraints:
         chain = "|".join(CHAINS),
     shell:
         op.as_one_line("""
+        tmp=$(mktemp --suffix=.tsv) &&
         python {params.script}
         --base {input.vquest}
         --annotation {input.glyco}
         --base_key sequence_id
         --annot_key sequence_id
-        --output {output.annotated}
-        """)
-
-rule _vquest_output_annotated_tsv:
-    input:
-        annotated = str(rules._vquest_annotated_tsv.output.annotated)
-    output:
-        annotated = CFG["dirs"]["outputs"] + "tsv/{seq_type}/{sample_id}.{chain}.vquest_airr.annotated.tsv"
-    wildcard_constraints:
-        chain = "|".join(CHAINS)
-    run:
-        op.relative_symlink(input.annotated, output.annotated, in_module=True)
-
-
-# Merges V-QUEST AIRR annotations into the source TSV
-rule _vquest_merge_tsv:
-    input:
-        annotation = str(rules._vquest_run.output.tsv),
-        source_tsv = CFG["inputs"]["sample_source_tsv"],
-    output:
-        merged = CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.vquest_airr.merged.tsv"
-    params:
-        script     = CFG["scripts"]["merge_tsv"],
-        source_key = CFG["options"]["source_id_column"],
-    wildcard_constraints:
-        chain = "|".join(CHAINS),
-    shell:
-        op.as_one_line("""
+        --output $tmp
+        > {log.stdout} 2> {log.stderr} &&
         python {params.script}
         --base {input.source_tsv}
-        --annotation {input.annotation}
+        --annotation $tmp
         --base_key {params.source_key}
         --annot_key sequence_id
         --output {output.merged}
+        >> {log.stdout} 2>> {log.stderr} &&
+        rm $tmp
         """)
 
-rule _vquest_output_merged_tsv:
+rule _vquest_output_merged_final:
     input:
-        merged = str(rules._vquest_merge_tsv.output.merged)
+        merged = str(rules._vquest_merge_final.output.merged)
     output:
-        merged = CFG["dirs"]["outputs"] + "tsv/{seq_type}/{sample_id}.{chain}.vquest_airr.merged.tsv"
-    wildcard_constraints:
-        chain = "|".join(CHAINS)
-    run:
-        op.relative_symlink(input.merged, output.merged, in_module=True)
-
-# Merges source TSV with vquest_airr.annotated (V-QUEST + glyco combined)
-rule _vquest_merge_annotated_tsv:
-    input:
-        annotation = str(rules._vquest_annotated_tsv.output.annotated),
-        source_tsv = CFG["inputs"]["sample_source_tsv"],
-    output:
-        merged = CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.vquest_airr.merged.annotated.tsv"
-    params:
-        script     = CFG["scripts"]["merge_tsv"],
-        source_key = CFG["options"]["source_id_column"],
-    wildcard_constraints:
-        chain = "|".join(CHAINS),
-    shell:
-        op.as_one_line("""
-        python {params.script}
-        --base {input.source_tsv}
-        --annotation {input.annotation}
-        --base_key {params.source_key}
-        --annot_key sequence_id
-        --output {output.merged}
-        """)
-
-rule _vquest_output_merged_annotated_tsv:
-    input:
-        merged = str(rules._vquest_merge_annotated_tsv.output.merged)
-    output:
-        merged = CFG["dirs"]["outputs"] + "tsv/{seq_type}/{sample_id}.{chain}.vquest_airr.merged.annotated.tsv"
+        merged = CFG["dirs"]["outputs"] + "tsv/{seq_type}/{sample_id}.{chain}.merged.tsv"
     wildcard_constraints:
         chain = "|".join(CHAINS)
     run:
@@ -271,9 +231,7 @@ rule _vquest_all:
             expand(
                 [
                     str(rules._vquest_output_tsv.output.tsv),
-                    str(rules._vquest_output_annotated_tsv.output.annotated),
-                    str(rules._vquest_output_merged_tsv.output.merged),
-                    str(rules._vquest_output_merged_annotated_tsv.output.merged),
+                    str(rules._vquest_output_merged_final.output.merged),
                 ],
                 zip,
                 seq_type=CFG["samples"]["seq_type"],

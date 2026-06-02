@@ -4,11 +4,10 @@ Left-join an annotation TSV onto a base TSV by a shared key column.
 Rows in the base table that have no match in the annotation table get 'N/A'
 for every annotation column.
 
-MiXCR compatibility: when "mixcr" appears in either input file path, the
-annotation sequence_id values are parsed from the compound FASTA header format
-written by mixcr_to_fasta.py ("cloneId_N_cloneFraction_F_cloneCount_C") to
-extract the bare cloneId for joining. Set options.source_id_column to "cloneId"
-in the module config when the base TSV is a MiXCR clonotype table.
+When --base_key and --annot_key differ, annotation key values are parsed
+through _extract_mixcr_clone_id to handle MiXCR compound FASTA headers
+("cloneId_N_readFraction_F_readCount_C") that encode the base join key.
+When both key columns are the same no transformation is applied.
 """
 
 import argparse
@@ -17,7 +16,7 @@ import re
 
 
 def _extract_mixcr_clone_id(sequence_id):
-    """Parse cloneId from a MiXCR FASTA header used as sequence_id.
+    """Parse cloneId from a MiXCR compound sequence_id.
 
     mixcr_to_fasta.py writes FASTA headers as:
         cloneId_{N}_readFraction_{F}_readCount_{C}
@@ -36,7 +35,9 @@ def main():
     parser.add_argument("--output",     required=True, help="output TSV path")
     args = parser.parse_args()
 
-    mixcr_mode = "mixcr" in args.base.lower() or "mixcr" in args.annotation.lower()
+    # Transform annotation keys when the key columns differ (e.g. base uses cloneId
+    # but the annotation encodes it in a compound sequence_id).
+    transform_key = args.base_key != args.annot_key
 
     annot, annot_cols = {}, []
     with open(args.annotation) as fh:
@@ -44,7 +45,7 @@ def main():
         annot_cols = [c for c in reader.fieldnames if c != args.annot_key]
         for row in reader:
             raw_key = row[args.annot_key]
-            key = _extract_mixcr_clone_id(raw_key) if mixcr_mode else raw_key
+            key = _extract_mixcr_clone_id(raw_key) if transform_key else raw_key
             annot[key] = {c: row[c] for c in annot_cols}
 
     with open(args.base) as fh_in, open(args.output, "w", newline="") as fh_out:
