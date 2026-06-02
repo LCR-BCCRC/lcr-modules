@@ -139,10 +139,11 @@ rule _vquest_output_tsv:
         op.relative_symlink(input.tsv, output.tsv, in_module=True)
 
 
-# Translates input FASTA and annotates acquired N-linked glycosylation sites
-# (NxS/T, x != Pro) with IMGT unique Lefranc numbering via ANARCI.
-# In MiXCR mode (glycosylation_source: "mixcr_tsv"), AA sequences are assembled
-# from the aaSeq* fields in sample_source_tsv instead of translating the FASTA.
+# Annotates acquired N-linked glycosylation sites (NxS/T, x != Pro) with IMGT
+# unique Lefranc numbering via ANARCI. AA sequences are read from the
+# sequence_alignment_aa field of the source TSV for both igseqr and MiXCR modes.
+# igseqr: source_tsv is the V-QUEST AIRR TSV from _vquest_run.
+# MiXCR (glycosylation_source: "mixcr_tsv"): source_tsv is sample_source_tsv.
 rule _vquest_annotate_glycosylation:
     input:
         fasta  = str(rules._vquest_input_fasta.output.fasta),
@@ -152,17 +153,18 @@ rule _vquest_annotate_glycosylation:
                 seq_type=wildcards.seq_type,
                 sample_id=wildcards.sample_id,
                 chain=wildcards.chain,
-            ) if GLYCO_SOURCE == "mixcr_tsv" else []
+            ) if GLYCO_SOURCE == "mixcr_tsv" else
+            str(rules._vquest_run.output.tsv).format(
+                seq_type=wildcards.seq_type,
+                sample_id=wildcards.sample_id,
+                chain=wildcards.chain,
+            )
         ),
     output:
         tsv = CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.glycosylation.tsv"
     log:
         stdout = CFG["logs"]["vquest"] + "{seq_type}/{sample_id}/{chain}/annotate_glycosylation.stdout.log",
         stderr = CFG["logs"]["vquest"] + "{seq_type}/{sample_id}/{chain}/annotate_glycosylation.stderr.log",
-    params:
-        source_tsv_flag = lambda wildcards, input: (
-            f"--source_tsv {input.source_tsv}" if GLYCO_SOURCE == "mixcr_tsv" else ""
-        ),
     wildcard_constraints:
         chain = "|".join(CHAINS),
     threads:
@@ -175,7 +177,7 @@ rule _vquest_annotate_glycosylation:
         op.as_one_line("""
         python {input.script}
         --fasta {input.fasta}
-        {params.source_tsv_flag}
+        --source_tsv {input.source_tsv}
         --output {output.tsv}
         > {log.stdout} 2> {log.stderr}
         """)
