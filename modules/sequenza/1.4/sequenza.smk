@@ -92,13 +92,15 @@ rule _sequenza_input_dbsnp_pos:
     resources:
         **CFG["resources"]["vcf_sort"]
     threads: 1
+    params:
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     shell:
         op.as_one_line("""
         gzip -dc {input.vcf}
             |
         awk 'BEGIN {{FS="\t"}} $0 !~ /^#/ {{print $1 ":" $2}}' 2>> {log.stderr}
             |
-        LC_ALL=C sort -S {resources.mem_mb}M > {output.pos} 2>> {log.stderr}
+        LC_ALL=C sort -S {params.mem_mb}M > {output.pos} 2>> {log.stderr}
         """)
 
 
@@ -117,14 +119,13 @@ rule _sequenza_bam2seqz:
         seqz_binning_opts = CFG["options"]["seqz_binning"]
     conda:
         CFG["conda_envs"]["sequenza-utils"]
-    threads:
-        CFG["threads"]["bam2seqz"]
-    resources:
-        **CFG["resources"]["bam2seqz"]
+    threads: 1 # since it's grouped with the rule below, which uses CFG["threads"]["merge_seqz"], otherwise this thread count gets multiplied by # of chroms and exceeds SLURM amount allowed
+    # same with **resources, it will get the default but be able to use what's listed in **CFG["resources"]["bam2seqz"] by the grouping of these rules
+    group: "bam2seqz"
     shell:
         op.as_one_line("""
         sequenza-utils bam2seqz {params.bam2seqz_opts} -gc {input.gc_wiggle} --fasta {input.genome}
-        --normal {input.normal_bam} --tumor {input.tumour_bam} --chromosome {wildcards.chrom} 2>> {log.stderr}
+        --normal {input.normal_bam} --tumor {input.tumour_bam} --chromosome {wildcards.chrom} 2> {log.stderr}
             |
         sequenza-utils seqz_binning {params.seqz_binning_opts} --seqz - 2>> {log.stderr}
             |
@@ -157,6 +158,7 @@ rule _sequenza_merge_seqz:
         CFG["threads"]["merge_seqz"]
     resources:
         **CFG["resources"]["merge_seqz"]
+    group: "bam2seqz"
     shell:
         op.as_one_line("""
         bash {input.merge_seqz} {input.seqz} 2>> {log.stderr}
@@ -192,7 +194,7 @@ rule _sequenza_filter_seqz:
 
 rule _sequenza_run:
     input:
-        seqz = CFG["dirs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged.binned.{filter_status}.seqz.gz",
+        seqz = str(rules._sequenza_filter_seqz.output.seqz),
         run_sequenza = CFG["inputs"]["run_sequenza"],
         assembly = reference_files("genomes/{genome_build}/version.txt"),
         chroms = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt"),
