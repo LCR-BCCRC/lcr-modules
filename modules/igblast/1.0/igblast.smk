@@ -209,6 +209,7 @@ rule _igblast_merge_final:
         --annotation $tmp
         --base_key {params.source_key}
         --annot_key sequence_id
+        --sample_id {wildcards.sample_id}
         --output {output.merged}
         >> {log.stdout} 2>> {log.stderr} &&
         rm $tmp

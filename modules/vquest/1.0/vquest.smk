@@ -210,6 +210,7 @@ rule _vquest_merge_final:
         --annotation {input.source_tsv}
         --base_key sequence_id
         --annot_key {params.source_key}
+        --sample_id {wildcards.sample_id}
         --output {output.merged}
         >> {log.stdout} 2>> {log.stderr} &&
         rm $tmp
