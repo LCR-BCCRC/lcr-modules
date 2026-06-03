@@ -102,7 +102,7 @@ rule _igblastn_run:
     input:
         fasta = str(rules._igblast_input_fasta.output.fasta),
         ig_db = reference_files("genomes/no_build/igblast/database/imgt_database.success"),
-        gd = lambda wildcards: expand(reference_files("genomes/no_build/igblast/database/imgt_human_" + receptor_dict[wildcards.chain] + "_{region}.ndb"), region = ["v", "d", "j", "c"])
+        gd = lambda wildcards: reference_files(expand("genomes/no_build/igblast/database/imgt_human_" + receptor_dict[wildcards.chain] + "_{region}.ndb", region = ["v", "d", "j", "c"]))
     output:
         airr = CFG["dirs"]["igblast"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.igblastn_airr.tsv"
     params:
@@ -129,7 +129,7 @@ rule _igblastn_run:
         -germline_db_V {params.gdv} 
         -germline_db_J {params.gdj} 
         -germline_db_D {params.gdd}
-        -c_region_db {params.gcd}
+        -c_region_db {params.gdc}
         {params.run_flags} -outfmt 19 -domain_system imgt
         """)
 
@@ -165,6 +165,8 @@ rule _igblast_annotate_glycosylation:
         **CFG["resources"]["annotate_glycosylation"]
     conda:
         CFG["conda_envs"]["glycosylation"]
+    container: 
+        CFG["container_envs"]["glycosylation"]
     shell:
         op.as_one_line("""
         python {input.script}
