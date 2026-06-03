@@ -54,6 +54,7 @@ lcr-modules:
 
         container_envs:
             igblast: "docker://quay.io/biocontainers/igblast:1.22.0--h0bb26bb_2"
+            glycosylation: "docker://quay.io/biocontainers/anarci:2024.05.21--pyhdfd78af_0"
 
         threads:
             igblastn_run: 4
