@@ -41,7 +41,7 @@ lcr-modules:
                 #   IGH, IGK, IGL, TRA, TRB, TRD, TRG  (for mixcr source)
                 #   IGH, IGKL                            (for igseqr source; IGKL = combined kappa/lambda)
             igblast_run:
-                run_flags: ""
+                run_flags: "-show_translation -extend_align5end -extend_align3end"
 
             # Column name in sample_source_tsv that matches sequence_id in the igblastn AIRR TSV.
             #   igseqr 1.0 source → "transcript_id"
@@ -49,11 +49,11 @@ lcr-modules:
             source_id_column: "transcript_id"
 
         conda_envs:
-            igblast: "{MODSDIR}/envs/igblast-1.17.1.yaml"
+            igblast: "{MODSDIR}/envs/igblast-1.22.0.yaml"
             glycosylation: "{MODSDIR}/envs/glycosylation-1.0.yaml"
 
         container_envs:
-            igblast: "docker://quay.io/biocontainers/igblast:1.17.1--pl5321h3928612_1"
+            igblast: "docker://quay.io/biocontainers/igblast:1.22.0--h0bb26bb_2"
 
         threads:
             igblastn_run: 4

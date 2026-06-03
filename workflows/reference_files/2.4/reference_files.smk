@@ -660,9 +660,11 @@ IMGT_CHAIN_KEY = {
     "ig_v" : ["IGHV","IGLV","IGKV"],
     "ig_d" : ["IGHD"],
     "ig_j" : ["IGHJ","IGLJ","IGKJ"],
+    "ig_c" : ["IGHC", "IGKC", "IGLC"],
     "tr_v" : ["TRAV","TRBV","TRDV","TRGV"],
     "tr_d" : ["TRBD","TRDD"],
-    "tr_j" : ["TRAJ","TRBJ","TRDJ","TRGJ"]
+    "tr_j" : ["TRAJ","TRBJ","TRDJ","TRGJ"],
+    "tr_c" : ["TRAC","TRBC","TRDC","TRGC"]
 }
 
 rule _combine_imgt_files:

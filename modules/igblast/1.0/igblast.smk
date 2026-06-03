@@ -101,7 +101,8 @@ rule _igblast_input_source_tsv:
 rule _igblastn_run:
     input:
         fasta = str(rules._igblast_input_fasta.output.fasta),
-        ig_db = reference_files("genomes/no_build/igblast/database/imgt_database.success")
+        ig_db = reference_files("genomes/no_build/igblast/database/imgt_database.success"),
+        gd = lambda wildcards: expand(reference_files("genomes/no_build/igblast/database/imgt_human_" + receptor_dict[wildcards.chain] + "_{region}.ndb"), region = ["v", "d", "j", "c"])
     output:
         airr = CFG["dirs"]["igblast"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.igblastn_airr.tsv"
     params:
@@ -110,6 +111,7 @@ rule _igblastn_run:
         gdv = lambda wildcards: (reference_files("genomes/no_build/igblast/database/imgt_human_" + receptor_dict[wildcards.chain] + "_v.ndb")).replace(".ndb",""),
         gdj = lambda wildcards: (reference_files("genomes/no_build/igblast/database/imgt_human_" + receptor_dict[wildcards.chain] + "_j.ndb")).replace(".ndb",""),
         gdd = lambda wildcards: (reference_files("genomes/no_build/igblast/database/imgt_human_" + receptor_dict[wildcards.chain] + "_d.ndb")).replace(".ndb",""),
+        gdc = lambda wildcards: (reference_files("genomes/no_build/igblast/database/imgt_human_" + receptor_dict[wildcards.chain] + "_c.ndb")).replace(".ndb",""),
         run_flags = CFG["options"]["igblast_run"]["run_flags"],
     conda:
         CFG["conda_envs"]["igblast"]
@@ -124,7 +126,10 @@ rule _igblastn_run:
         igblastn -query {input.fasta} -out {output.airr}
         -ig_seqtype {params.receptor_type} -organism human
         -auxiliary_data {params.aux}
-        -germline_db_V {params.gdv} -germline_db_J {params.gdj} -germline_db_D {params.gdd}
+        -germline_db_V {params.gdv} 
+        -germline_db_J {params.gdj} 
+        -germline_db_D {params.gdd}
+        -c_region_db {params.gcd}
         {params.run_flags} -outfmt 19 -domain_system imgt
         """)
 
