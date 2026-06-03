@@ -180,7 +180,8 @@ def main():
     # a compound V-QUEST sequence_id resolves to the annotation's bare cloneId.
     transform_base_key = args.base_key != args.annot_key
 
-    annot, annot_cols = {}, []
+    # Read annotation fully, keeping all non-key columns.
+    annot, all_annot_cols = {}, []
     with open(args.annotation) as fh:
         reader = csv.DictReader(fh, delimiter="\t")
         if args.annot_key not in reader.fieldnames:
@@ -189,15 +190,19 @@ def main():
                 f"       Available columns: {', '.join(reader.fieldnames)}\n"
                 f"       Check options.source_id_column in the vquest module config."
             )
-        annot_cols = [c for c in reader.fieldnames if c != args.annot_key]
+        all_annot_cols = [c for c in reader.fieldnames if c != args.annot_key]
         for row in reader:
-            annot[row[args.annot_key]] = {c: row[c] for c in annot_cols}
+            annot[row[args.annot_key]] = {c: row[c] for c in all_annot_cols}
 
     with open(args.base) as fh_in, open(args.output, "w", newline="") as fh_out:
         reader = csv.DictReader(fh_in, delimiter="\t")
 
-        # Build the raw merged header (may contain duplicates when source and
-        # V-QUEST both emit a column like 'sequence').
+        # Only add annotation columns not already present in the base, preventing
+        # duplicate column names (e.g. 'sequence' exists in both igseqr source_tsv
+        # and the V-QUEST AIRR output).
+        base_col_set = set(reader.fieldnames)
+        annot_cols = [c for c in all_annot_cols if c not in base_col_set]
+
         raw_header = list(reader.fieldnames) + annot_cols
 
         # Flags computed once before the row loop for use inside it.
@@ -238,7 +243,12 @@ def main():
         for row in reader:
             lookup = (_extract_mixcr_clone_id(row[args.base_key])
                       if transform_base_key else row[args.base_key])
-            row.update(annot.get(lookup, {c: "N/A" for c in annot_cols}))
+            matched = annot.get(lookup)
+            row.update(
+                {c: matched[c] for c in annot_cols}
+                if matched is not None
+                else {c: "N/A" for c in annot_cols}
+            )
             if args.sample_id is not None:
                 row.setdefault("sample_id", args.sample_id)
                 if rename_seq_id:
