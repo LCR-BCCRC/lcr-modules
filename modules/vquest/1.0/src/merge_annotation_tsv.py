@@ -88,7 +88,11 @@ def _ordered_columns(all_cols):
 
     # --- Glycosylation ---
     order += present("num_glycosylation_sites", "glycosylation_imgt_positions",
-                     "glycosylation_motifs")
+                     "glycosylation_motifs",
+                     "num_acquired_glycosylation_sites", "acquired_glycosylation_imgt_positions",
+                     "germline_aa_sequence",
+                     "num_germline_glycosylation_sites", "germline_glycosylation_imgt_positions",
+                     "germline_glycosylation_motifs")
 
     # --- Alignment quality: score, support, identity, cigar + positions — L(V)DJC ---
     # L gene (no support field in V-QUEST)
