@@ -645,7 +645,7 @@ rule _get_imgt_database:
     container: CONTAINER_ENVS["igblast"]
     shell:
         op.as_one_line("""
-        URL="http://www.imgt.org/genedb/GENElect?query=7.5+{wildcards.subchain}&species=Homo+sapiens" &&
+        URL="https://www.imgt.org/genedb/GENElect?query=7.5+{wildcards.subchain}&species=Homo+sapiens" &&
         outfile_temp="downloads/igblast/imgt_database/human/vdj/imgt_human_{wildcards.subchain}.html" &&
         outfile_ttemp="downloads/igblast/imgt_database/human/vdj/imgt_human_{wildcards.subchain}.txt" &&
         outfile="downloads/igblast/imgt_database/human/vdj/imgt_human_{wildcards.subchain}.fasta" &&
