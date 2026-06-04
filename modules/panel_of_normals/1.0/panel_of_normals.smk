@@ -690,8 +690,8 @@ rule _panel_of_normals_purecn_concat_vcf_per_sample:
         vcf = _get_mutect2_chr_vcfs,
         tbi = _get_mutect2_chr_tbis
     output:
-        vcf = CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz",
-        tbi = CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz.tbi"
+        vcf = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz"),
+        tbi = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz.tbi")
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_concat_vcf.log"
     resources:
@@ -841,7 +841,7 @@ rule _panel_of_normals_purecn_annotate_vcf:
         model = str(rules._panel_of_normals_purecn_learn_orient_model.output.model),
         fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta)
     output:
-        vcf = CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/annotated.vcf.gz"
+        vcf = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/annotated.vcf.gz")
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_annotate_vcf.log",
     params:
