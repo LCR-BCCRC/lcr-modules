@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by sgillis.
 
-<!-- TODO: Explain each important module design decision below. -->
+Initial set up of module. It contains the relevant parts for generating panel of normals reference files for modules `cnvkit` and `purecn`.
 
-- No module design decisions explained here yet.
+Note that this module requires the `capture_space` wildcard and maintains it through all output file names.
