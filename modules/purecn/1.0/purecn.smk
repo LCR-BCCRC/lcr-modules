@@ -17,6 +17,7 @@ import glob
 import os
 import re
 import sys
+from pathlib import Path
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -41,7 +42,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "purecn",
     version = "1.0",
-    subdirectories = ["inputs", "mutect2", "coverage", "pureCN_cnvkit", "pureCN_denovo", "pureCN_final_result", "fix_seg", "convert_coordinates", "fill_regions", "normalize", "outputs"]
+    subdirectories = ["inputs", "mutect2", "coverage", "pureCN_cnvkit", "pureCN_denovo", "pureCN_final_result", "cnv2igv", "convert_coordinates", "fill_regions", "normalize", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -302,8 +303,8 @@ rule _purecn_mutect2_concat_vcf_per_sample:
         vcf = _get_mutect2_chr_vcfs,
         tbi = _get_mutect2_chr_tbis,
     output:
-        vcf = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_tmp.vcf.gz",
-        tbi = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_tmp.vcf.gz.tbi"
+        vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_tmp.vcf.gz"),
+        tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_tmp.vcf.gz.tbi")
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_concat_vcf.log"
     resources:
@@ -452,7 +453,7 @@ rule _purecn_annotate_vcf:
         model = str(rules._purecn_learn_orient_model.output.model),
         fasta = str(rules._purecn_symlink_fasta.output.fasta)
     output:
-        vcf = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/annotated.vcf.gz"
+        vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/annotated.vcf.gz")
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_annotate_vcf.log",
     resources:
@@ -638,7 +639,6 @@ rule _purecn_make_outdirs_cnvkit_mode:
         seg = str(rules._purecn_symlink_cnvkit_seg.output.seg),
         vcf = str(rules._purecn_mutect2_filter_vcf.output.vcf),
         mapping_bias = str(rules._purecn_symlink_database_cnvkit.output.mapping_bias),
-        stats = str(rules._purecn_mutect2_merge_stats_per_sample.output.stats),
         blacklist = str(rules._purecn_setup_blacklist_bed.output.blacklist)
     output:
         done_pscbs = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/PSCBS/make_dir.done",
@@ -657,7 +657,6 @@ checkpoint _purecn_cnvkit_mode_run:
         seg = str(rules._purecn_symlink_cnvkit_seg.output.seg),
         vcf = str(rules._purecn_mutect2_filter_vcf.output.vcf),
         mapping_bias = str(rules._purecn_symlink_database_cnvkit.output.mapping_bias),
-        stats = str(rules._purecn_mutect2_merge_stats_per_sample.output.stats),
         blacklist = str(rules._purecn_setup_blacklist_bed.output.blacklist),
         done_pscbs = str(rules._purecn_make_outdirs_cnvkit_mode.output.done_pscbs),
         done_Hclust = str(rules._purecn_make_outdirs_cnvkit_mode.output.done_Hclust),
@@ -690,7 +689,6 @@ checkpoint _purecn_cnvkit_mode_run:
             --sampleid {wildcards.tumour_id} \
             --tumor {input.cnr} \
             --seg-file {input.seg} \
-            --stats-file {input.stats} \
             --vcf {input.vcf} \
             --snp-blacklist {input.blacklist} \
             --mapping-bias-file {input.mapping_bias} \
@@ -708,7 +706,6 @@ checkpoint _purecn_cnvkit_mode_run:
                 --sampleid {wildcards.tumour_id} \
                 --tumor {input.cnr} \
                 --seg-file {input.seg} \
-                --stats-file {input.stats} \
                 --vcf {input.vcf} \
                 --snp-blacklist {input.blacklist} \
                 --mapping-bias-file {input.mapping_bias} \
@@ -726,7 +723,6 @@ checkpoint _purecn_cnvkit_mode_run:
                     --sampleid {wildcards.tumour_id} \
                     --tumor {input.cnr} \
                     --seg-file {input.seg} \
-                    --stats-file {input.stats} \
                     --vcf {input.vcf} \
                     --snp-blacklist {input.blacklist} \
                     --mapping-bias-file {input.mapping_bias} \
@@ -817,7 +813,6 @@ rule _purecn_make_outdirs_denovo_mode:
         vcf = str(rules._purecn_mutect2_filter_vcf.output.vcf),
         mapping_bias = str(rules._purecn_symlink_database_denovo.output.mapping_bias),
         normal_db = str(rules._purecn_symlink_database_denovo.output.normal_db),
-        stats = str(rules._purecn_mutect2_merge_stats_per_sample.output.stats),
         blacklist = str(rules._purecn_setup_blacklist_bed.output.blacklist),
         intervals = str(rules._purecn_symlink_intervals.output.intervals)
     output:
@@ -837,7 +832,6 @@ checkpoint _purecn_denovo_mode_run:
         vcf = str(rules._purecn_mutect2_filter_vcf.output.vcf),
         mapping_bias = str(rules._purecn_symlink_database_denovo.output.mapping_bias),
         normal_db = str(rules._purecn_symlink_database_denovo.output.normal_db),
-        stats = str(rules._purecn_mutect2_merge_stats_per_sample.output.stats),
         blacklist = str(rules._purecn_setup_blacklist_bed.output.blacklist),
         intervals = str(rules._purecn_symlink_intervals.output.intervals),
         done_pscbs = str(rules._purecn_make_outdirs_denovo_mode.output.done_pscbs),
@@ -870,7 +864,6 @@ checkpoint _purecn_denovo_mode_run:
         Rscript --vanilla $PURECN/PureCN.R --out $(dirname {input.done_pscbs})  \
             --sampleid {wildcards.tumour_id} \
             --tumor {input.cnr} \
-            --stats-file {input.stats} \
             --vcf {input.vcf} \
             --snp-blacklist {input.blacklist} \
             --mapping-bias-file {input.mapping_bias} \
@@ -889,7 +882,6 @@ checkpoint _purecn_denovo_mode_run:
             Rscript --vanilla $PURECN/PureCN.R --out $(dirname {input.done_cbs})  \
                 --sampleid {wildcards.tumour_id} \
                 --tumor {input.cnr} \
-                --stats-file {input.stats} \
                 --vcf {input.vcf} \
                 --snp-blacklist {input.blacklist} \
                 --mapping-bias-file {input.mapping_bias} \
@@ -908,7 +900,6 @@ checkpoint _purecn_denovo_mode_run:
                 Rscript --vanilla $PURECN/PureCN.R --out $(dirname {input.done_none})  \
                     --sampleid {wildcards.tumour_id} \
                     --tumor {input.cnr} \
-                    --stats-file {input.stats} \
                     --vcf {input.vcf} \
                     --snp-blacklist {input.blacklist} \
                     --mappingbiasfile {input.mapping_bias} \
@@ -982,36 +973,364 @@ rule _purecn_symlink_denovo_mode_run_result:
         op.relative_symlink(input.seg, output.seg, in_module = True)
         op.relative_symlink(input.loh, output.loh, in_module = True)
         op.relative_symlink(input.log, output.log, in_module = True)
-
-rule _purecn_fix_seg:
+        
+# Record segmentation method info for the final_result seg
+rule _purecn_record_seg_fn:
     input:
-        native = CFG["dirs"]["pureCN_final_result"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg"
+        seg = CFG["dirs"]["pureCN_final_result"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg",
     output:
-        converted_seg = CFG["dirs"]["fix_seg"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg"
+        txt = CFG["dirs"]["pureCN_final_result"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_segmentation_fn.txt"
+    log:
+        log = CFG["logs"]["pureCN_final_result"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_segmentation_fn.log"
+    shell:
+        op.as_one_line("""
+        echo "segmentation_fn" > {output.txt};
+        SEG=$(readlink -f {input.seg}) > {log.log} 2>&1;
+        IFS="/" read -ra path_parts <<< $SEG >> {log.log} 2>&1;
+        echo "${{path_parts[${{#path_parts[@]}}-2]}}" >> {output.txt} 2>> {log.log} 
+        """)
+
+rule _purecn_cnv2igv:
+    input:
+        seg = CFG["dirs"]["pureCN_final_result"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg",
+        txt = str(rules._purecn_record_seg_fn.output.txt),
+        cnv2igv = ancient(CFG["inputs"]["cnv2igv"])
+    output:
+        seg = CFG["dirs"]["cnv2igv"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.seg"
+    log:
+        stderr = CFG["logs"]["cnv2igv"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/cnv2igv_{tumour_id}.stderr.log"
     params:
-        tidy_pureCN_script = CFG["software"]["tidy_pureCN_script"]
+        opts = CFG["options"]["preserve"]
+    conda:
+        CFG["conda_envs"]["cnv2igv"]
     threads: 1
     shell:
         op.as_one_line("""
-            {params.tidy_pureCN_script} -i {input.native} -o {output.converted_seg} -s {wildcards.tumour_id}
+        python {input.cnv2igv} --mode purecn {params.opts} --sample {wildcards.tumour_id} {input.seg} > {output.seg} 2>> {log.stderr}
+        """)
+        
+def _purecn_get_chain(wildcards):
+    if "38" in str({wildcards.genome_build}):
+        return reference_files("genomes/{genome_build}/chains/grch38/hg38ToHg19.over.chain")
+    else:
+        return reference_files("genomes/{genome_build}/chains/grch37/hg19ToHg38.over.chain")
+        
+
+# Convert the coordinates of seg file to a different genome build
+rule _purecn_convert_coordinates:
+    input:
+        purecn_native = str(rules._purecn_cnv2igv.output.seg),
+        purecn_chain = _purecn_get_chain
+    output:
+        purecn_lifted = CFG["dirs"]["convert_coordinates"] + "{mode}/from--{seq_type}--{genome_build}/{capture_space}/{tumour_id}.lifted_{chain}.seg"
+    log:
+        stderr = CFG["logs"]["convert_coordinates"] + "{mode}/from--{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.lifted_{chain}.stderr.log"
+    threads: 1
+    params:
+        liftover_script = CFG["options"]["liftover_script_path"],
+        liftover_minmatch = CFG["options"]["liftover_minMatch"]
+    conda:
+        CFG["conda_envs"]["liftover"]
+    shell:
+        op.as_one_line("""
+        bash {params.liftover_script}
+        SEG
+        {input.purecn_native}
+        {output.purecn_lifted}
+        {input.purecn_chain}
+        YES
+        {params.liftover_minmatch}
+        2>> {log.stderr}
+        """)
+        
+def _purecn_prepare_projection(wildcards):
+    CFG = config["lcr-modules"]["purecn"]
+    tbl = CFG["runs"]
+    this_genome_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"].tolist()
+    this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
+
+    if "38" in this_genome_build[0]:
+        hg38_projection = str(rules._purecn_cnv2igv.output.seg).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
+        grch37_projection = str(rules._purecn_convert_coordinates.output.purecn_lifted).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
+        grch37_projection = grch37_projection.replace("{chain}", "hg38ToHg19")
+    else:
+        grch37_projection = str(rules._purecn_cnv2igv.output.seg).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
+        hg38_projection = str(rules._purecn_convert_coordinates.output.purecn_lifted).replace("{genome_build}", this_genome_build[0]).replace("{capture_space}", this_space[0])
+        hg38_projection = hg38_projection.replace("{chain}", "hg19ToHg38")
+    return{
+        "grch37_projection": grch37_projection,
+        "hg38_projection": hg38_projection
+    }
+    
+
+# Fill the missing segments of seg files with neutral regions to complete the genome coverage
+rule _purecn_fill_segments:
+    input:
+        unpack(_purecn_prepare_projection)
+    output:
+        grch37_filled = temp(CFG["dirs"]["fill_regions"] + "{mode}/{seq_type}--projection/{tumour_id}.{tool}.grch37.seg"),
+        hg38_filled = temp(CFG["dirs"]["fill_regions"] + "{mode}/{seq_type}--projection/{tumour_id}.{tool}.hg38.seg")
+    log:
+        stderr = CFG["logs"]["fill_regions"] + "{mode}/{seq_type}--projection/{tumour_id}.{tool}_fill_segments.stderr.log"
+    threads: 1
+    params:
+        path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
+    conda:
+        CFG["conda_envs"]["bedtools"]
+    shell:
+        op.as_one_line("""
+        echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
+        echo "Filling grch37 projection" >> {log.stderr};
+        bash {params.path}fill_segments.sh
+        {params.path}src/chromArm.grch37.bed
+        {input.grch37_projection}
+        {params.path}src/blacklisted.grch37.bed
+        {output.grch37_filled}
+        {wildcards.tumour_id}
+        SEG
+        2>> {log.stderr};
+        echo "Filling hg38 projection" >> {log.stderr};
+        bash {params.path}fill_segments.sh
+        {params.path}src/chromArm.hg38.bed
+        {input.hg38_projection}
+        {params.path}src/blacklisted.hg38.bed
+        {output.hg38_filled}
+        {wildcards.tumour_id}
+        SEG
+        2>> {log.stderr};
         """)
 
+# Normalize chr prefix of the output file
+rule _purecn_normalize_projection:
+    input:
+        filled = CFG["dirs"]["fill_regions"] + "{mode}/{seq_type}--projection/{tumour_id}.{tool}.{projection}.seg",
+        chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
+    output:
+        projection = CFG["dirs"]["normalize"] + "{mode}/{seq_type}--projection/{tumour_id}.{tool}.{projection}.seg"
+    resources:
+        **CFG["resources"]["post_purecn"]
+    threads: 1
+    run:
+        # read the main chromosomes file of the projection
+        chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
+        # handle chr prefix
+        if "chr" in chromosomes["chromosome"][0]:
+            seg_open = pd.read_csv(input.filled, sep = "\t")
+            chrom = list(seg_open['chrom'])
+            # avoid cases of chrchr1 if the prefix already there
+            for i in range(len(chrom)):
+                if 'chr' not in str(chrom[i]):
+                    chrom[i]='chr'+str(chrom[i])
+            seg_open.loc[:, 'chrom']=chrom
+            seg_open.to_csv(output.projection, sep="\t", index=False, na_rep='NA')
+        else:
+            # remove chr prefix
+            seg_open = pd.read_csv(input.filled, sep = "\t")
+            seg_open["chrom"] = seg_open["chrom"].astype(str).str.replace('chr', '')
+            seg_open.to_csv(output.projection, sep="\t", index=False, na_rep='NA')
+
+# Symlinks the final output files into the module results directory (under '99-outputs/')
+rule _purecn_output_projection:
+    input:
+        projection = str(rules._purecn_normalize_projection.output.projection)
+    output:
+        projection = CFG["dirs"]["outputs"] + "{mode}/{seq_type}--projection/{tumour_id}.{tool}.{projection}.seg"
+    wildcard_constraints:
+        mode = "|".join(CFG["modes"])
+    run:
+        op.relative_symlink(input.projection, output.projection, in_module = True)
+
+def _get_capture_space(wildcards):
+    CFG = config["lcr-modules"]["purecn"]
+    tbl = CFG["runs"]
+    this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()
+
+    inputs = {
+        "raw_seg": CFG["dirs"]["pureCN_final_result"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg".replace("{capture_space}", this_space[0]),
+        "ploidy": CFG["dirs"]["pureCN_final_result"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.csv".replace("{capture_space}", this_space[0]),
+        "loh": CFG["dirs"]["pureCN_final_result"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_loh.csv".replace("{capture_space}", this_space[0]),
+        "log": CFG["dirs"]["pureCN_final_result"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.log".replace("{capture_space}", this_space[0]),
+        "txt": CFG["dirs"]["pureCN_final_result"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_segmentation_fn.txt".replace("{capture_space}", this_space[0]),
+        "seg": CFG["dirs"]["cnv2igv"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.seg".replace("{capture_space}", this_space[0])
+    }
+    return inputs
+    
+rule _purecn_output:
+    input:
+        unpack(_get_capture_space)
+    output:
+        raw_seg = CFG["dirs"]["outputs"] + "{mode}/{seq_type}--{genome_build}/{tumour_id}/{tumour_id}_dnacopy.seg",
+        ploidy = CFG["dirs"]["outputs"] + "{mode}/{seq_type}--{genome_build}/{tumour_id}/{tumour_id}.csv",
+        loh = CFG["dirs"]["outputs"] + "{mode}/{seq_type}--{genome_build}/{tumour_id}/{tumour_id}_loh.csv",
+        log = CFG["dirs"]["outputs"] + "{mode}/{seq_type}--{genome_build}/{tumour_id}/{tumour_id}.log",
+        txt = CFG["dirs"]["outputs"] + "{mode}/{seq_type}--{genome_build}/{tumour_id}/{tumour_id}_segmentation_fn.txt",
+        seg = CFG["dirs"]["outputs"] + "{mode}/{seq_type}--{genome_build}/{tumour_id}/{tumour_id}_cnv2igv.seg"
+    run:
+        op.relative_symlink(input.raw_seg, output.raw_seg, in_module = True)
+        op.relative_symlink(input.ploidy, output.ploidy, in_module = True)
+        op.relative_symlink(input.loh, output.loh, in_module = True)
+        op.relative_symlink(input.log, output.log, in_module = True)
+        op.relative_symlink(input.txt, output.txt, in_module = True)
+        op.relative_symlink(input.seg, output.seg, in_module = True)
+
+# Decide best seg out of the two modes
+# Select the seg file that had the least amount of deviation (noise) - as measured by the MAD value
+# If it's the de novo file, check that it's not over segmented
+def _purecn_take_lowest_MAD(wildcards):
+    CFG = config["lcr-modules"]["purecn"]
+    tbl = CFG["runs"]
+    this_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"].tolist()[0]
+    this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()[0]
+    
+    cnvkit_seg = CFG["dirs"]["outputs"] + "purecn_cnvkit/" + wildcards.seq_type + "--projection/" + wildcards.tumour_id + "." + wildcards.tool + "." + wildcards.projection + ".seg"
+    denovo_seg = CFG["dirs"]["outputs"] + "purecn_denovo/" + wildcards.seq_type + "--projection/" + wildcards.tumour_id + "." + wildcards.tool + "." + wildcards.projection + ".seg"
+
+    cnvkit_log = CFG["dirs"]["pureCN_final_result"] + "purecn_cnvkit/" + wildcards.seq_type + "--" + this_build + "/" + this_space + "/" + wildcards.tumour_id + "/" + wildcards.tumour_id + ".log"
+    denovo_log = CFG["dirs"]["pureCN_final_result"] + "purecn_denovo/" + wildcards.seq_type + "--" + this_build + "/" + this_space + "/" + wildcards.tumour_id + "/" + wildcards.tumour_id + ".log"
+
+    if os.path.isfile(str(cnvkit_seg)) and os.path.isfile(str(denovo_seg)):
+
+        cnvkit_mapd = list()
+        with open(cnvkit_log) as file:
+            for line in file.readlines():
+                if 'Mean standard deviation of log-ratios' in line:
+                    cnvkit_mapd.append(str(line))
+
+        # Take the 8th element - representing the MAD score
+        cnvkit_mapd_value = float(cnvkit_mapd[len(cnvkit_mapd)-1].split()[8])
+
+        denovo_mapd = list()
+        with open(denovo_log) as file:
+            for line in file.readlines():
+                if 'Mean standard deviation of log-ratios' in line:
+                    denovo_mapd.append(str(line))
+
+        # Take the 8th element - representing the MAD score
+        denovo_mapd_value = float(denovo_mapd[len(denovo_mapd)-1].split()[8])
+
+        if (denovo_mapd_value < cnvkit_mapd_value):
+            # Account for seg files that are over-segmented but have a lower MAD
+            count_denovo = []
+            with open(denovo_seg) as file:
+                next(file)
+                for line in file:
+                    line = line.rstrip('\n').rstrip('\r')
+                    cols = line.split('\t')
+                    if (float(cols[7]) > 0.5 or float(cols[7]) <-0.5 and float(cols[8]) != 1):
+                        count_denovo.append(line)
+            count_denovo = len(count_denovo)
+
+            count_cnvkit = []
+            with open(cnvkit_seg) as file:
+                next(file)
+                for line in file:
+                    line = line.rstrip('\n').rstrip('\r')
+                    cols = line.split('\t')
+                    if (float(cols[7]) > 0.5 or float(cols[7]) <-0.5 and float(cols[8]) != 1):
+                        count_cnvkit.append(line)
+            count_cnvkit = len(count_cnvkit)
+            if (count_cnvkit > 0):
+                if (float(count_denovo/count_cnvkit) > 2.8 and count_denovo > 400):
+                    best_seg = str(cnvkit_seg)
+                else:
+                    best_seg = str(denovo_seg)
+            else:
+                best_seg = str(denovo_seg)
+        else:
+            best_seg = str(cnvkit_seg)
+
+    elif os.path.isfile(str(cnvkit_seg)):
+        best_seg = cnvkit_seg
+    else:
+        best_seg = denovo_seg
+        
+    return{
+        "best_seg": best_seg
+    }
+    
+rule _purecn_best_seg:
+    input:
+        unpack(_purecn_take_lowest_MAD)
+    output:
+        best_seg = CFG["dirs"]["outputs"] + "best_seg/{seq_type}--projection/{tumour_id}.{tool}.{projection}.seg"
+    run:
+        op.relative_symlink(input.best_seg, output.best_seg, in_module = True)
+
+def _get_segmentation_fn_txt(wildcards):
+    CFG = config["lcr-modules"]["purecn"]
+    tbl = CFG["runs"]
+    this_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"].tolist()[0]
+    this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()[0]
+    
+    txt = CFG["dirs"]["outputs"] + "{mode}/{seq_type}--{genome_build}/{tumour_id}/{tumour_id}_segmentation_fn.txt".replace("{capture_space}", this_space[0]).replace("{genome_build}", this_build[0])
+    return txt
+
+rule _purecn_best_seg_info:
+    input:
+        # txt = _get_segmentation_fn_txt,
+        seg = str(rules._purecn_best_seg.output.best_seg)
+    output:
+        tsv = CFG["dirs"]["outputs"] + "best_seg/{seq_type}--projection/{tumour_id}.{tool}.{projection}.info.tsv"
+    log:
+        log = CFG["logs"]["outputs"] + "best_seg/{seq_type}--projection/{tumour_id}.{tool}.{projection}.info.log"
+    shell:
+        op.as_one_line("""
+        echo -e "winning_mode" > {output.tsv};
+        SEG=$(readlink -f {input.seg}) > {log.log} 2>&1;
+        IFS="/" read -ra path_parts <<< $SEG >> {log.log} 2>&1;
+        echo -e "${{path_parts[${{#path_parts[@]}}-3]}}" >> {output.tsv} 2>> {log.log}
+        """)
+    
 rule _purecn_all:
     input:
         expand(
             expand(
             [
-                str(rules._purecn_fix_seg.output.converted_seg)
+                str(rules._purecn_record_seg_fn.output.txt),
+                str(rules._purecn_output.output.raw_seg),
+                str(rules._purecn_output.output.ploidy),
+                str(rules._purecn_output.output.loh),
+                str(rules._purecn_output.output.log),
+                str(rules._purecn_output.output.seg)
             ],
-            zip, # Run expand() with zip(), not product()
+            zip,  # Run expand() with zip(), not product()
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
             capture_space=CFG["runs"]["tumour_capture_space"],
-            allow_missing = True),
-            mode = CFG["modes"]
+            allow_missing = True
+            ),
+        mode = CFG["modes"]
+        ),
+        expand(
+            expand(
+            [
+                str(rules._purecn_output_projection.output.projection)
+            ],
+            zip, # Run expand() with zip(), not product()
+            tumour_id=CFG["runs"]["tumour_sample_id"],
+            seq_type=CFG["runs"]["tumour_seq_type"],
+            allow_missing = True
+            ),
+        tool = "purecn",
+        projection=CFG["requested_projections"],
+        mode = CFG["modes"]
+        ),
+        expand(
+            expand(
+            [
+                str(rules._purecn_best_seg.output.best_seg),
+                str(rules._purecn_best_seg_info.output.tsv)
+            ],
+            zip, # Run expand() with zip(), not product()
+            tumour_id=CFG["runs"]["tumour_sample_id"],
+            seq_type=CFG["runs"]["tumour_seq_type"],
+            allow_missing = True
+            ),
+        tool = "purecn",
+        projection=CFG["requested_projections"]
         )
-
+                
 
 
 ##### CLEANUP #####

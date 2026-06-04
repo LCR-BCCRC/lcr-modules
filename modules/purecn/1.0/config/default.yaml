@@ -28,9 +28,12 @@ lcr-modules:
             denovo_mapping_bias: "__UPDATE__"
             # panel_of_normals-1.0/99-outputs/purecn/{seq_type}--{genome_build}/{capture_space}/purecn_denovo_normal/normalDB_{genome_build}_{capture_space}.rds
             denovo_normal_db: "__UPDATE__"
+            
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/cnv2igv.py"
 
         scratch_subdirectories: []
 
+        # Acceptable values: "purecn_denovo", "purecn_cnvkit"
         modes:  ["purecn_cnvkit", "purecn_denovo"]
         requested_projections: ["grch37", "hg38"]
 
@@ -64,7 +67,13 @@ lcr-modules:
                 model: "betabin"
                 min_offtarget: "0.05"
                 opts: "--force --post-optimize --seed 123 "
-
+            # cnv2igv preserve log.ratio or change this to "" to calculate it from the absolute CN
+            preserve: "--preserve_log_ratio"
+            # liftOver options to convert between genomic builds
+            liftover_script_path: "{SCRIPTSDIR}/liftover/2.0/liftover.sh"
+            liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
+            fill_segments_version: "1.2/"
+            
         software:
             coverage_script: "{MODSDIR}/etc/Coverage.R"
             tidy_pureCN_script: "{MODSDIR}/etc/Tidy_pureCN_seg.sh"
@@ -73,6 +82,9 @@ lcr-modules:
             mutect: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             purecn: "{MODSDIR}/envs/purecn-2.0.1.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/python-3.8.3.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/2.0/liftover.yaml"
 
         threads:
             post_vcf: 2
@@ -95,6 +107,8 @@ lcr-modules:
                 mem_mb: 90000
             denovo_mode:
                 mem_mb: 90000
+            post_purecn:
+                mem_mb: 2000
 
 
         pairing_config:
