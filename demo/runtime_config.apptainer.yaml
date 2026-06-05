@@ -15,15 +15,14 @@ apptainer:
     # Shared directory where Snakemake stores pulled .sif images.
     # The directory must be writable by the first user to pull each image;
     # subsequent users reuse the cached .sif without re-pulling.
-    prefix: /path/to/shared/containers
+    prefix: /projects/rmorin_scratch/shared_containers
 
     # Directories that Apptainer must be able to see inside the container.
     # Include every mount point your workflow touches: input data, reference
     # genomes, results, scratch, and the lcr-modules / lcr-scripts repos.
     bind_paths:
-        - /path/to/projects
-        - /path/to/scratch
-        - /path/to/references
+        - /home
+        - /projects
 
     # Optional extra arguments passed directly to the Apptainer runtime.
     # Examples:
