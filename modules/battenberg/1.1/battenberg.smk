@@ -6,7 +6,7 @@
 
 # Original Author:  Ryan Morin
 # Module Author:    Ryan Morin
-# Contributors:     N/A
+# Contributors:     Sierra Gillis
 
 ##### SETUP #####
 

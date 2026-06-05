@@ -4,9 +4,9 @@
 ##### ATTRIBUTION #####
 
 
-# Original Author:  N/A
+# Original Author:  Jasper Wong
 # Module Author:    Jasper Wong
-# Contributors:     N/A
+# Contributors:     Sierra Gillis
 
 
 ##### SETUP #####

@@ -6,7 +6,7 @@
 
 # Original Author:  Ryan Morin
 # Module Author:    Ryan Morin
-# Contributors:     Bruno Grande
+# Contributors:     Bruno Grande, Sierra Gillis
 
 
 ##### SETUP #####

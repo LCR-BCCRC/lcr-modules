@@ -6,7 +6,7 @@
 
 # Original Author:  Jasper
 # Module Author:    Jasper
-# Contributors:     N/A
+# Contributors:     Sierra Gillis
 
 
 ##### SETUP #####
