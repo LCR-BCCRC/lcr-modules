@@ -688,11 +688,11 @@ rule _controlfreec_freec2circos:
 
 rule _controlfreec_cnv2igv:
     input:
-        cnv = str(rules._controlfreec_calc_sig.output.txt),
-        cnv2igv = ancient(CFG["inputs"]["cnv2igv"])
+        cnv = str(rules._controlfreec_calc_sig.output.txt)
     output:
         seg = CFG["dirs"]["cnv2igv"] + "{seq_type}--{genome_build}/{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.CNVs.seg"
     params:
+        cnv2igv_script = CFG["options"]["cnv2igv_script_path"],
         opts = CFG["options"]["preserve"]
     conda:
         CFG["conda_envs"]["cnv2igv"]
@@ -702,7 +702,7 @@ rule _controlfreec_cnv2igv:
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
-        python {input.cnv2igv} --mode controlfreec {params.opts} --sample {wildcards.tumour_id}
+        python {params.cnv2igv_script} --mode controlfreec {params.opts} --sample {wildcards.tumour_id}
         {input.cnv} > {output.seg} 2>> {log.stderr}
         """)
 

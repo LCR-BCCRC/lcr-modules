@@ -531,20 +531,20 @@ rule _cnvkit_metrics:
 # Create seg formatted for cnv_master and other lcr-mdoules
 rule _cnvkit_cnv2igv:
     input:
-        cns = str(rules._cnvkit_call.output.cns),
-        cnv2igv = ancient(CFG["inputs"]["cnv2igv"])
+        cns = str(rules._cnvkit_call.output.cns)
     output:
         seg = CFG["dirs"]["cnv2igv"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.seg"
     log:
         stderr = CFG["logs"]["cnv2igv"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_cnv2igv.stderr.log"
     params:
+        cnv2igv_script = CFG["options"]["cnv2igv_script_path"],
         opts = CFG["options"]["preserve"]
     conda:
         CFG["conda_envs"]["cnv2igv"]
     threads: 1
     shell:
         op.as_one_line("""
-        python {input.cnv2igv} --mode cnvkit {params.opts} --sample {wildcards.tumour_id} {input.cns} > {output.seg} 2>> {log.stderr}
+        python {params.cnv2igv_script} --mode cnvkit {params.opts} --sample {wildcards.tumour_id} {input.cns} > {output.seg} 2>> {log.stderr}
         """)
 
 

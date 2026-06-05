@@ -1008,20 +1008,20 @@ rule _purecn_record_seg_fn:
 rule _purecn_cnv2igv:
     input:
         seg = CFG["dirs"]["pureCN_final_result"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg",
-        txt = str(rules._purecn_record_seg_fn.output.txt),
-        cnv2igv = ancient(CFG["inputs"]["cnv2igv"])
+        txt = str(rules._purecn_record_seg_fn.output.txt)
     output:
         seg = CFG["dirs"]["cnv2igv"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.seg"
     log:
         stderr = CFG["logs"]["cnv2igv"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/cnv2igv_{tumour_id}.stderr.log"
     params:
+        cnv2igv_script = CFG["options"]["cnv2igv_script_path"],
         opts = CFG["options"]["preserve"]
     conda:
         CFG["conda_envs"]["cnv2igv"]
     threads: 1
     shell:
         op.as_one_line("""
-        python {input.cnv2igv} --mode purecn {params.opts} --sample {wildcards.tumour_id} {input.seg} > {output.seg} 2>> {log.stderr}
+        python {params.cnv2igv_script} --mode purecn {params.opts} --sample {wildcards.tumour_id} {input.seg} > {output.seg} 2>> {log.stderr}
         """)
         
 def _purecn_get_chain(wildcards):

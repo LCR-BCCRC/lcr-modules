@@ -29,7 +29,7 @@ lcr-modules:
             # panel_of_normals-1.0/99-outputs/purecn/{seq_type}--{genome_build}/{capture_space}/purecn_denovo_normal/normalDB_{genome_build}_{capture_space}.rds
             denovo_normal_db: "__UPDATE__"
             
-            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/cnv2igv.py"
+            
 
         scratch_subdirectories: []
 
@@ -67,6 +67,7 @@ lcr-modules:
                 model: "betabin"
                 min_offtarget: "0.05"
                 opts: "--force --post-optimize --seed 123 "
+            cnv2igv_script_path: "{SCRIPTSDIR}/cnv2igv/1.5/cnv2igv.py"
             # cnv2igv preserve log.ratio or change this to "" to calculate it from the absolute CN
             preserve: "--preserve_log_ratio"
             # liftOver options to convert between genomic builds

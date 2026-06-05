@@ -142,13 +142,13 @@ rule _run_battenberg:
 # Convert the subclones.txt (best fit) to igv-friendly SEG files.
 rule _battenberg_to_igv_seg:
     input:
-        sub = str(rules._run_battenberg.output.sub),
-        cnv2igv = ancient(CFG["inputs"]["cnv2igv"])
+        sub = str(rules._run_battenberg.output.sub)
     output:
         seg = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.igv.seg"
     log:
         stderr = CFG["logs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_seg2igv.stderr.log"
     params:
+        cnv2igv_script = CFG["options"]["cnv2igv_script_path"],
         opts = CFG["options"]["preserve"]
     conda:
         CFG["conda_envs"]["cnv2igv"]
@@ -157,7 +157,7 @@ rule _battenberg_to_igv_seg:
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
-        python {input.cnv2igv} --mode battenberg {params.opts} --sample {wildcards.tumour_id}
+        python {params.cnv2igv_script} --mode battenberg {params.opts} --sample {wildcards.tumour_id}
         {input.sub} > {output.seg} 2>> {log.stderr}
         """)
 

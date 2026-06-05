@@ -9,7 +9,6 @@ lcr-modules:
             merge_seqz: "{MODSDIR}/src/bash/merge_seqz.sh"
             filter_seqz: "{MODSDIR}/src/bash/filter_seqz.sh"
             run_sequenza: "{MODSDIR}/src/R/run_sequenza.R"
-            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/cnv2igv.py"
 
         # specify in which projections you want the output files
         requested_projections: ["grch37", "hg38"]
@@ -20,6 +19,7 @@ lcr-modules:
             # in bam2seqz pass any additional flags for the sequenza-utils. For example, this can include --normal2 to use for depth.ratio calculation.
             bam2seqz: "--qlimit 30"
             seqz_binning: "--window 300"
+            cnv2igv_script: "{SCRIPTSDIR}/cnv2igv/1.5/cnv2igv.py"
             # cnv2igv preserve log.ratio or change this to "" to calculate it from the absolute CN
             preserve: "--preserve_log_ratio"
             # liftOver options to convert between genomic builds
