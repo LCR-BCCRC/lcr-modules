@@ -290,16 +290,20 @@ rule _igseqr_blastn:
     container:
         CFG["container_envs"]["igseqr"]
     shell:
-        op.as_one_line("""
-        blastn
-        -db {params.db}
-        -query {input.fasta}
-        -outfmt 6
-        -num_threads {threads}
-        -out {output.blast}
-        {params.opts}
-        > {log.stdout} 2> {log.stderr}
-        """)
+        '''
+        if [ ! -s {input.fasta} ]; then
+            touch {output.blast}
+        else
+            blastn \
+                -db {params.db} \
+                -query {input.fasta} \
+                -outfmt 6 \
+                -num_threads {threads} \
+                -out {output.blast} \
+                {params.opts} \
+                > {log.stdout} 2> {log.stderr}
+        fi
+        '''
 
 
 # Extracts the Trinity contigs that had BLAST hits against the chain's IMGT database.
@@ -352,9 +356,13 @@ rule _igseqr_kallisto_index:
     container:
         CFG["container_envs"]["igseqr"]
     shell:
-        """
-        kallisto index -i {output.idx} {input.transcripts} > {log.stdout} 2> {log.stderr}
-        """
+        '''
+        if [ ! -s {input.transcripts} ]; then
+            touch {output.idx}
+        else
+            kallisto index -i {output.idx} {input.transcripts} > {log.stdout} 2> {log.stderr}
+        fi
+        '''
 
 
 # Quantifies transcript abundance with kallisto using the IG-filtered reads.
@@ -381,14 +389,18 @@ rule _igseqr_kallisto_quant:
     container:
         CFG["container_envs"]["igseqr"]
     shell:
-        op.as_one_line("""
-        kallisto quant
-        -i {input.idx}
-        -o {params.out_dir}
-        -t {threads}
-        {input.fastq_1} {input.fastq_2}
-        > {log.stdout} 2> {log.stderr}
-        """)
+        '''
+        if [ ! -s {input.idx} ]; then
+            printf 'target_id\tlength\teff_length\test_counts\ttpm\n' > {output.abundance}
+        else
+            kallisto quant \
+                -i {input.idx} \
+                -o {params.out_dir} \
+                -t {threads} \
+                {input.fastq_1} {input.fastq_2} \
+                > {log.stdout} 2> {log.stderr}
+        fi
+        '''
 
 
 # Generates TSV reports and a TPM-filtered FASTA from kallisto abundance and transcripts.
