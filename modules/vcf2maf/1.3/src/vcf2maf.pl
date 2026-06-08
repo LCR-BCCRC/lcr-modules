@@ -513,8 +513,8 @@ my @ann_cols = qw( Allele Gene Feature Feature_type Consequence cDNA_position CD
     SYMBOL_SOURCE HGNC_ID BIOTYPE CANONICAL CCDS ENSP SWISSPROT TREMBL UNIPARC RefSeq SIFT PolyPhen
     EXON INTRON DOMAINS AF AFR_AF AMR_AF ASN_AF EAS_AF EUR_AF SAS_AF AA_AF EA_AF CLIN_SIG SOMATIC
     PUBMED MOTIF_NAME MOTIF_POS HIGH_INF_POS MOTIF_SCORE_CHANGE IMPACT PICK VARIANT_CLASS TSL
-    HGVS_OFFSET PHENO MINIMISED GENE_PHENO FILTER flanking_bps vcf_id vcf_qual gnomADe_AF gnomADe_AFR_AF
-    gnomADe_AMR_AF gnomADe_ASJ_AF gnomADe_EAS_AF gnomADe_FIN_AF gnomADe_NFE_AF gnomADe_OTH_AF gnomADe_SAS_AF );
+    HGVS_OFFSET PHENO MINIMISED GENE_PHENO FILTER flanking_bps vcf_id vcf_qual gnomAD_AF gnomAD_AFR_AF
+    gnomAD_AMR_AF gnomAD_ASJ_AF gnomAD_EAS_AF gnomAD_FIN_AF gnomAD_NFE_AF gnomAD_OTH_AF gnomAD_SAS_AF );
 
 # push any requested custom VEP annotations from the CSQ/ANN section into @ann_cols
 if ($retain_ann) {
@@ -885,8 +885,8 @@ while( my $line = $annotated_vcf_fh->getline ) {
     # Copy FILTER from input VCF, and tag calls with high allele freq in any gnomAD subpopulation
     my $subpop_count = 0;
     foreach my $subpop ( qw( AFR AMR ASJ EAS FIN NFE SAS )) {
-        if( $maf_line{"gnomADe_$subpop\_AF"} ) {
-            my ( $subpop_af ) = split( "/", $maf_line{"gnomADe_$subpop\_AF"} );
+        if( $maf_line{"gnomAD_$subpop\_AF"} ) {
+            my ( $subpop_af ) = split( "/", $maf_line{"gnomAD_$subpop\_AF"} );
             $subpop_count++ if( $subpop_af > $max_subpop_af );
         }
     }
