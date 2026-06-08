@@ -137,7 +137,7 @@ rule _vcf2maf_run:
     conda:
         CFG["conda_envs"]["vcf2maf"]
     container:
-        "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
+        "docker://ghcr.io/lcr-bccrc/lcr-scripts/vcf2maf:1.6.18"
     threads:
         CFG["threads"]["vcf2maf"]
     resources:
@@ -397,7 +397,7 @@ rule _vcf2maf_reannotate:
     conda:
         CFG["conda_envs"]["vcf2maf"]
     container:
-        "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
+        "docker://ghcr.io/lcr-bccrc/lcr-scripts/vcf2maf:1.6.18"
     threads:
         CFG["threads"]["maf2maf"]
     resources:
