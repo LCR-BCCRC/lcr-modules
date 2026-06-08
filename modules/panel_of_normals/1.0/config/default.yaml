@@ -62,7 +62,6 @@ lcr-modules:
         threads:
             cnvkit:
                 samtools: 8
-                autobin: 24
                 coverage: 12
                 reference: 24
             purecn:
