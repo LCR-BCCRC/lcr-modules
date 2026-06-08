@@ -136,6 +136,8 @@ rule _vcf2maf_run:
         custom_enst = lambda w: "--custom-enst " + str(config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.genome_build]]) if config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.genome_build]] != "" else ""
     conda:
         CFG["conda_envs"]["vcf2maf"]
+    container:
+        "docker://ghcr.io/lcr-bccrc/lcr-scripts/vcf2maf:1.6.18"
     threads:
         CFG["threads"]["vcf2maf"]
     resources:
@@ -394,6 +396,8 @@ rule _vcf2maf_reannotate:
         custom_enst = lambda w: "--custom-enst " + str(config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.target_build]]) if config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.target_build]] != "" else ""
     conda:
         CFG["conda_envs"]["vcf2maf"]
+    container:
+        "docker://ghcr.io/lcr-bccrc/lcr-scripts/vcf2maf:1.6.18"
     threads:
         CFG["threads"]["maf2maf"]
     resources:
