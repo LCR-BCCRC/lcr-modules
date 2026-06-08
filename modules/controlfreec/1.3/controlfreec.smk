@@ -139,7 +139,7 @@ rule _controlfreec_fix_grch_genomes:
 # hs37d5 can use grch37 files, since it is grch37+decoys and the decoys aren't used in CN calling
 def _get_genome_fasta(wildcards):
     if  "grch37" in str({wildcards.genome_build}) or "hs37d5" in str({wildcards.genome_build}): # covers both cases "grch37" and ones like "grch37-noalt"
-        return  str(rules._controlfreec_fix_grch_genomes.output.reference).replace("{genome_build}", "grch37")d
+        return  str(rules._controlfreec_fix_grch_genomes.output.reference).replace("{genome_build}", "grch37")
     elif "grch38" in str({wildcards.genome_build}): # covers both cases "grch38" and ones like "grch38-nci"
         return  str(rules._controlfreec_fix_grch_genomes.output.reference).replace("{genome_build}", "grch38")
     elif "hg38" in str({wildcards.genome_build}): # covers both cases "hg38" and ones like "hg38-nci"
