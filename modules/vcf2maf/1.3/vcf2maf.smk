@@ -152,7 +152,7 @@ rule _vcf2maf_run:
         if [[ -e {output.maf} ]]; then rm -f {output.maf}; fi;
         if [[ -e {output.vep} ]]; then rm -f {output.vep}; fi;
         vep_bin=$(command -v vep) || {{ echo "ERROR: vep not found in PATH" > {log.stderr}; exit 1; }};
-        vepPATH=$(dirname $vep_bin)/../share/variant-effect-predictor*;
+        vepPATH=$(dirname $vep_bin);
         if [[ $(which vcf2maf.pl) =~ $(ls $VCF2MAF_SCRIPT) ]]; then
             echo "using bundled patched script $VCF2MAF_SCRIPT";
             echo "Using $VCF2MAF_SCRIPT to run {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
@@ -411,7 +411,7 @@ rule _vcf2maf_reannotate:
         MAF2MAF_SCRIPT="$VCF2MAF_SCRIPT_PATH/maf2maf.pl";
         if [[ -e {output.maf} ]]; then rm -f {output.maf}; fi;
         vep_bin=$(command -v vep) || {{ echo "ERROR: vep not found in PATH" > {log.stderr}; exit 1; }};
-        vepPATH=$(dirname $vep_bin)/../share/variant-effect-predictor*;
+        vepPATH=$(dirname $vep_bin);
         echo "$(which maf2maf.pl)";
         echo "$(ls $MAF2MAF_SCRIPT)";
         if [[ -e $(ls $MAF2MAF_SCRIPT) ]]; then
