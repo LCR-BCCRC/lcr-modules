@@ -152,10 +152,10 @@ rule _vcf2maf_run:
         VCF2MAF_SCRIPT="$VCF2MAF_SCRIPT_PATH/vcf2maf.pl";
         if [[ -e {output.maf} ]]; then rm -f {output.maf}; fi;
         if [[ -e {output.vep} ]]; then rm -f {output.vep}; fi;
-        if command -v vep &>/dev/null;
-        then vepPATH=$(dirname $(command -v vep));
-        elif [[ -n "{params.vep_path}" ]];
+        if [[ -n "{params.vep_path}" ]];
         then vepPATH="{params.vep_path}";
+        elif command -v vep &>/dev/null;
+        then vepPATH=$(dirname $(command -v vep));
         else echo "ERROR: vep not found in PATH and vep_path not set in lcr-modules config" > {log.stderr}; exit 1;
         fi;
         if [[ $(which vcf2maf.pl) =~ $(ls $VCF2MAF_SCRIPT) ]]; then
@@ -416,10 +416,10 @@ rule _vcf2maf_reannotate:
         PATH=$VCF2MAF_SCRIPT_PATH:$PATH;
         MAF2MAF_SCRIPT="$VCF2MAF_SCRIPT_PATH/maf2maf.pl";
         if [[ -e {output.maf} ]]; then rm -f {output.maf}; fi;
-        if command -v vep &>/dev/null;
-        then vepPATH=$(dirname $(command -v vep));
-        elif [[ -n "{params.vep_path}" ]];
+        if [[ -n "{params.vep_path}" ]];
         then vepPATH="{params.vep_path}";
+        elif command -v vep &>/dev/null;
+        then vepPATH=$(dirname $(command -v vep));
         else echo "ERROR: vep not found in PATH and vep_path not set in lcr-modules config" > {log.stderr}; exit 1;
         fi;
         echo "$(which maf2maf.pl)";
