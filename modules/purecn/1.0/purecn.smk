@@ -1271,18 +1271,8 @@ rule _purecn_best_seg:
     run:
         op.relative_symlink(input.best_seg, output.best_seg, in_module = True)
 
-def _get_segmentation_fn_txt(wildcards):
-    CFG = config["lcr-modules"]["purecn"]
-    tbl = CFG["runs"]
-    this_build = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_genome_build"].tolist()[0]
-    this_space = tbl[(tbl.tumour_sample_id == wildcards.tumour_id) & (tbl.tumour_seq_type == wildcards.seq_type)]["tumour_capture_space"].tolist()[0]
-    
-    txt = CFG["dirs"]["outputs"] + "{mode}/{seq_type}--{genome_build}/{tumour_id}/{tumour_id}_segmentation_fn.txt".replace("{capture_space}", this_space[0]).replace("{genome_build}", this_build[0])
-    return txt
-
 rule _purecn_best_seg_info:
     input:
-        # txt = _get_segmentation_fn_txt,
         seg = str(rules._purecn_best_seg.output.best_seg)
     output:
         tsv = CFG["dirs"]["outputs"] + "best_seg/{seq_type}--projection/{tumour_id}.{tool}.{projection}.info.tsv"
