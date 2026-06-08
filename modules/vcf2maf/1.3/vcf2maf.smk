@@ -133,11 +133,12 @@ rule _vcf2maf_run:
     params:
         opts = CFG["options"]["vcf2maf"],
         build = lambda w: VCF2MAF_VERSION_MAP[w.genome_build],
-        custom_enst = lambda w: "--custom-enst " + str(config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.genome_build]]) if config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.genome_build]] != "" else ""
+        custom_enst = lambda w: "--custom-enst " + str(config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.genome_build]]) if config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.genome_build]] != "" else "",
+        vep_path = CFG["options"].get("vep_path", "")
     conda:
         CFG["conda_envs"]["vcf2maf"]
     container:
-        "docker://ghcr.io/lcr-bccrc/lcr-scripts/vcf2maf:1.6.18"
+        CFG["container_envs"]["vcf2maf"]
     threads:
         CFG["threads"]["vcf2maf"]
     resources:
@@ -151,8 +152,12 @@ rule _vcf2maf_run:
         VCF2MAF_SCRIPT="$VCF2MAF_SCRIPT_PATH/vcf2maf.pl";
         if [[ -e {output.maf} ]]; then rm -f {output.maf}; fi;
         if [[ -e {output.vep} ]]; then rm -f {output.vep}; fi;
-        vep_bin=$(command -v vep) || {{ echo "ERROR: vep not found in PATH" > {log.stderr}; exit 1; }};
-        vepPATH=$(dirname $vep_bin);
+        if command -v vep &>/dev/null;
+        then vepPATH=$(dirname $(command -v vep));
+        elif [[ -n "{params.vep_path}" ]];
+        then vepPATH="{params.vep_path}";
+        else echo "ERROR: vep not found in PATH and vep_path not set in lcr-modules config" > {log.stderr}; exit 1;
+        fi;
         if [[ $(which vcf2maf.pl) =~ $(ls $VCF2MAF_SCRIPT) ]]; then
             echo "using bundled patched script $VCF2MAF_SCRIPT";
             echo "Using $VCF2MAF_SCRIPT to run {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
@@ -393,11 +398,12 @@ rule _vcf2maf_reannotate:
     params:
         opts = CFG["options"]["maf2maf"],
         build = lambda w: VCF2MAF_VERSION_MAP[w.target_build],
-        custom_enst = lambda w: "--custom-enst " + str(config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.target_build]]) if config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.target_build]] != "" else ""
+        custom_enst = lambda w: "--custom-enst " + str(config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.target_build]]) if config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.target_build]] != "" else "",
+        vep_path = CFG["options"].get("vep_path", "")
     conda:
         CFG["conda_envs"]["vcf2maf"]
     container:
-        "docker://ghcr.io/lcr-bccrc/lcr-scripts/vcf2maf:1.6.18"
+        CFG["container_envs"]["vcf2maf"]
     threads:
         CFG["threads"]["maf2maf"]
     resources:
@@ -410,8 +416,12 @@ rule _vcf2maf_reannotate:
         PATH=$VCF2MAF_SCRIPT_PATH:$PATH;
         MAF2MAF_SCRIPT="$VCF2MAF_SCRIPT_PATH/maf2maf.pl";
         if [[ -e {output.maf} ]]; then rm -f {output.maf}; fi;
-        vep_bin=$(command -v vep) || {{ echo "ERROR: vep not found in PATH" > {log.stderr}; exit 1; }};
-        vepPATH=$(dirname $vep_bin);
+        if command -v vep &>/dev/null;
+        then vepPATH=$(dirname $(command -v vep));
+        elif [[ -n "{params.vep_path}" ]];
+        then vepPATH="{params.vep_path}";
+        else echo "ERROR: vep not found in PATH and vep_path not set in lcr-modules config" > {log.stderr}; exit 1;
+        fi;
         echo "$(which maf2maf.pl)";
         echo "$(ls $MAF2MAF_SCRIPT)";
         if [[ -e $(ls $MAF2MAF_SCRIPT) ]]; then
