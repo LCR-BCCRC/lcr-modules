@@ -109,7 +109,8 @@ rule _mixcr_run:
         opts         = op.switch_on_wildcard("seq_type", CFG["options"]["mixcr_run"]),
         prefix       = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}",
         license_file = CFG["inputs"]["license_file"],
-        jvmheap      = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        jvmheap      = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        chains       = " ".join(RECEPTORS)
     conda: CFG["conda_envs"]["java"]
     container:
         CFG["container_envs"]["java"]
@@ -124,6 +125,10 @@ rule _mixcr_run:
         -t {threads} {params.opts}
         {input.fastq_1} {input.fastq_2}
         {params.prefix} > {log.stdout} 2> {log.stderr}
+        &&
+        for chain in {params.chains}; do
+            touch {params.prefix}.clones_$chain.tsv ;
+        done
         """)
 
 # Convert MiXCR clonotype table to FASTA format for downstream use (e.g. igblast module)
@@ -135,7 +140,13 @@ rule _mixcr_to_fasta:
         fasta = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.VDJseq.fasta",
         seq_info = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.regions.txt"
     shell:
-        "{input.script} -i {input.mixcr_results} -o {output.fasta} -s {output.seq_info}"
+        op.as_one_line("""
+        if [ -s {input.mixcr_results} ]; then
+            {input.script} -i {input.mixcr_results} -o {output.fasta} -s {output.seq_info} ;
+        else
+            touch {output.fasta} {output.seq_info} ;
+        fi
+        """)
 
 # Symlinks the final clonotype txt files into the module results directory (under '99-outputs/')
 rule _mixcr_output_txt:
