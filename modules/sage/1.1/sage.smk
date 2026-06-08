@@ -160,7 +160,7 @@ rule _run_sage:
         opts = CFG["options"]["sage_run"],
         assembly = lambda w: "38" if "38" in str({w.genome_build}) else "37",
         cache_dir = lambda w: config["lcr-modules"]["sage"]["dirs"]["inputs"] + "references/" + w.genome_build + "/ensembl_cache/" + str("38" if "38" in str({w.genome_build}) else "37"),
-        sage= "$(grep -oP '(?<=-jar )\\S+' $(command -v SAGE) | head -1)",
+        sage= "$(SAGE_REAL=$(readlink -f $(command -v SAGE)); if [[ $SAGE_REAL == *.jar ]]; then echo $SAGE_REAL; else find $(dirname $(dirname $SAGE_REAL)) -maxdepth 3 -name 'sage*.jar' 2>/dev/null | head -1; fi)",
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["sage"]
