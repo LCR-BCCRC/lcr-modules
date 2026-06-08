@@ -53,7 +53,7 @@ lcr-modules:
       crossmap: "docker://quay.io/biocontainers/crossmap:0.7.0--pyhdfd78af_0"
       gamblr: null
       pysam: null
-      vcf2maf: "docker://ghcr.io/lcr-bccrc/lcr-scripts/vcf2maf:1.6.18"
+      vcf2maf: null
 
     threads:
       vcf2maf: 12
