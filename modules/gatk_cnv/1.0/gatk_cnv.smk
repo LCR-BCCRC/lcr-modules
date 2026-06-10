@@ -164,6 +164,11 @@ rule _gatk_cnv_intersect_bed:
         CFG["conda_envs"]["gatk"]
     threads: 1
     shell:
+        # When case == pon (kit-matched, the dz default) this is a self-intersection
+        # = just the kit's baits. Reduce to 3 cols, drop sex/MT (unless kept), then
+        # sort + merge so the result is clean and non-overlapping regardless of
+        # whether the input BED was pre-merged (a raw self-intersection can fragment
+        # or duplicate intervals, which would inflate the allelic-SNP regions).
         op.as_one_line("""
         bedtools intersect -a {input.v5_bed} -b {input.v6_bed} 2> {log.stderr}
             |
@@ -171,8 +176,10 @@ rule _gatk_cnv_intersect_bed:
             {{
               chrom = $1;
               gsub(/^chr/, "", chrom);
-              if (keep_sex == "True" || (chrom != "X" && chrom != "Y" && chrom != "MT" && chrom != "M")) print $0;
-            }}' > {output.bed} 2>> {log.stderr}
+              if (keep_sex == "True" || (chrom != "X" && chrom != "Y" && chrom != "MT" && chrom != "M")) print $1, $2, $3;
+            }}'
+            |
+        bedtools sort -i - 2>> {log.stderr} | bedtools merge -i - > {output.bed} 2>> {log.stderr}
         """)
 
 
@@ -295,23 +302,30 @@ rule _gatk_cnv_collect_counts_initial:
         """)
 
 
-# Aggregate per-interval medians across all case samples and drop intervals
-# whose median is below threshold. Targets V5 baits that don't capture cleanly
-# across the cohort. Output replaces the unfiltered preprocessed.interval_list
-# everywhere downstream (annotate, collect_counts, PoN).
+# Optional case-coverage interval filter (drops baits below a median read count
+# across the CASE cohort). This was a CCSRI-era workaround for running V5 cases
+# against V6+UTR normals; with kit-matched normals it is unnecessary and does
+# data-dependent bait subsetting (noisy with few cases). OFF by default: the
+# intervals are then the standard preprocessed (binned) targets, and interval QC
+# is done by the PoN step (CreateReadCountPanelOfNormals filters intervals on the
+# NORMALS — canonical GATK4/DepMap). Set options.apply_case_coverage_filter: True
+# to restore the case-median filter.
 def _gatk_cnv_filter_case_intervals_input(wildcards):
     cfg = config["lcr-modules"]["gatk_cnv"]
-    runs = _RUNS[_RUNS["tumour_genome_build"] == wildcards.genome_build]
-    pairs = runs[["tumour_sample_id", "tumour_seq_type"]].drop_duplicates()
-    counts_files = [
-        cfg["dirs"]["counts"] + f"init/{row.tumour_seq_type}--{wildcards.genome_build}/{row.tumour_sample_id}.counts.hdf5"
-        for row in pairs.itertuples(index=False)
-    ]
-    return {
+    inp = {
         "interval_list": cfg["dirs"]["intervals"] + f"{wildcards.genome_build}/v5_intersect_v6.preprocessed.interval_list",
-        "counts": counts_files,
         "filter_script": cfg["inputs"]["filter_intervals"],
     }
+    if cfg["options"].get("apply_case_coverage_filter", False):
+        runs = _RUNS[_RUNS["tumour_genome_build"] == wildcards.genome_build]
+        pairs = runs[["tumour_sample_id", "tumour_seq_type"]].drop_duplicates()
+        inp["counts"] = [
+            cfg["dirs"]["counts"] + f"init/{row.tumour_seq_type}--{wildcards.genome_build}/{row.tumour_sample_id}.counts.hdf5"
+            for row in pairs.itertuples(index=False)
+        ]
+    else:
+        inp["counts"] = []
+    return inp
 
 
 rule _gatk_cnv_filter_case_intervals:
@@ -322,6 +336,7 @@ rule _gatk_cnv_filter_case_intervals:
     log:
         stderr = CFG["logs"]["intervals"] + "{genome_build}/filter_case_intervals.stderr.log"
     params:
+        apply = CFG["options"].get("apply_case_coverage_filter", False),
         min_median = CFG["options"]["case_coverage_filter_min_median"]
     conda:
         CFG["conda_envs"]["python"]
@@ -331,12 +346,13 @@ rule _gatk_cnv_filter_case_intervals:
         **CFG["resources"]["filter_case_intervals"]
     shell:
         op.as_one_line("""
-        python {input.filter_script}
-            --interval_list {input.interval_list}
-            --counts {input.counts}
-            --output {output.interval_list}
-            --min_median {params.min_median}
-            2> {log.stderr}
+        if [ "{params.apply}" = "True" ]; then
+            python {input.filter_script} --interval_list {input.interval_list}
+                --counts {input.counts} --output {output.interval_list}
+                --min_median {params.min_median} 2> {log.stderr} ;
+        else
+            cp {input.interval_list} {output.interval_list} 2> {log.stderr} ;
+        fi
         """)
 
 

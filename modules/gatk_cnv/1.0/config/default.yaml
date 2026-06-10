@@ -36,9 +36,12 @@ lcr-modules:
             # Whether to retain chrX/chrY in the autosomes-only intersection BED.
             # v1.0 default: autosomes only (DepMap differs — see plan §3 open decisions).
             include_sex_chromosomes: False
-            # Drop intervals whose median read count across the case cohort is below
-            # this threshold. Targets V5 baits that don't capture cleanly in our
-            # samples and would otherwise fragment the segmentation.
+            # Optional case-coverage interval filter (CCSRI-era workaround for V5
+            # cases without V5 normals). OFF by default: with kit-matched normals,
+            # interval QC is done by the PoN step on the normals (canonical GATK4).
+            # Set True to drop baits below case_coverage_filter_min_median across the
+            # case cohort.
+            apply_case_coverage_filter: False
             case_coverage_filter_min_median: 5
             # PureCN — DepMap-matching defaults for cell lines.
             purecn_fun_segmentation: "Hclust"
