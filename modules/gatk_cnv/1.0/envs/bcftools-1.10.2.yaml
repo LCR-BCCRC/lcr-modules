@@ -1,0 +1,10 @@
+name: bcftools-1.10.2
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bcftools=1.10.2
+  - htslib=1.10.2
+  - tabix=0.2.6
+  - bedtools=2.30.0

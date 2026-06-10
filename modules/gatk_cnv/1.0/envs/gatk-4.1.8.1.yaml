@@ -1,0 +1,22 @@
+name: gatk-4.1.8.1
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - gatk4=4.1.8.1
+  - openjdk=8
+  - samtools=1.15
+  - bedtools=2.30.0
+  # R + packages required by GATK's PlotDenoisedCopyRatios / PlotModeledSegments
+  # (they shell out to Rscript with bundled R scripts under share/gatk4-*/scripts/).
+  # r-optparse is pinned to 1.6.6 because GATK 4.1.8.1's bundled R scripts use
+  # `--args` as a long flag, which newer optparse/getopt versions reject as
+  # reserved (error: "long flag 'args' is invalid"). 1.6.6 matches the version
+  # that GATK 4.1.x's official Docker image shipped with.
+  - r-base=4.0
+  - r-optparse=1.6.6
+  - r-data.table
+  - r-ggplot2
+  - r-gplots
+  - r-naturalsort

@@ -1,0 +1,12 @@
+name: gatk-cnv-python-3.9
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.9
+  - pandas=1.5
+  - numpy=1.23
+  - pyranges=0.0.120
+  - h5py=3.7
+  - pip

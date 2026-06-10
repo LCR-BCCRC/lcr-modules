@@ -1,0 +1,134 @@
+lcr-modules:
+
+    gatk_cnv:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            # Helper scripts shipped with the module
+            run_purecn: "{MODSDIR}/src/R/run_purecn.R"
+            build_gene_matrix: "{MODSDIR}/src/python/build_gene_matrix.py"
+            filter_intervals: "{MODSDIR}/src/python/filter_intervals_by_case_coverage.py"
+
+        # Capture-space identifiers for V5 (case samples) and V6+UTR (PoN samples).
+        # Both must be registered in config/reference_files.yaml so op.get_capture_space resolves them.
+        capture_spaces:
+            case: "agilent_all_exon_v5_grch37"
+            pon: "agilent-sureselect-V6-plus-utr-grch37"
+
+        # Panel of Normals configuration
+        pon:
+            # TSV with one row per PoN sample. Required columns: sample_id, data_path.
+            # See data/metadata/gatk_cnv_pon_samples.tsv for the project default.
+            metadata_tsv: "__UPDATE__"
+            # Column name in metadata_tsv holding the absolute BAM path for each PoN sample.
+            bam_path_column: "data_path"
+            # Minimum number of PoN samples required before CreateReadCountPanelOfNormals will run.
+            min_samples: 18
+
+        scratch_subdirectories: []
+
+        options:
+            # PreprocessIntervals
+            bin_length: 1000
+            padding: 250
+            # Whether to retain chrX/chrY in the autosomes-only intersection BED.
+            # v1.0 default: autosomes only (DepMap differs — see plan §3 open decisions).
+            include_sex_chromosomes: False
+            # Drop intervals whose median read count across the case cohort is below
+            # this threshold. Targets V5 baits that don't capture cleanly in our
+            # samples and would otherwise fragment the segmentation.
+            case_coverage_filter_min_median: 5
+            # PureCN — DepMap-matching defaults for cell lines.
+            purecn_fun_segmentation: "Hclust"
+            purecn_min_purity: 0.90
+            purecn_max_purity: 0.99
+            purecn_max_copy_number: 8
+            purecn_max_segments: 1000
+            # GATK ModelSegments smoothing thresholds (number of 95% credible
+            # interval widths used to merge adjacent segments). Defaults are
+            # GATK's defaults; override in the project config to compensate
+            # for noisy capture data.
+            model_segments_smoothing_cr: 2.0
+            model_segments_smoothing_af: 2.0
+            # Gene matrix — Gencode release used by the project's reference_files workflow.
+            # Must match an entry in config/reference_files.yaml under params.gencode_release.
+            gtf_release: "33"
+
+        conda_envs:
+            gatk: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"
+            purecn: "{MODSDIR}/envs/purecn-2.2.0.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            python: "{MODSDIR}/envs/python-3.9.yaml"
+
+        resources:
+            preprocess_intervals:
+                mem_mb: 4000
+            annotate_intervals:
+                mem_mb: 4000
+            biallelic_snps:
+                mem_mb: 4000
+            collect_read_counts:
+                mem_mb: 8000
+            collect_allelic_counts:
+                mem_mb: 8000
+            filter_case_intervals:
+                mem_mb: 8000
+            purecn_intervals:
+                mem_mb: 8000
+            mutect2_germline:
+                mem_mb: 32000
+            filter_mutect_calls:
+                mem_mb: 8000
+            create_pon:
+                mem_mb: 64000
+                disk_mb: 20000
+            denoise_read_counts:
+                mem_mb: 16000
+            model_segments:
+                mem_mb: 16000
+            call_segments:
+                mem_mb: 4000
+            plot_denoised:
+                mem_mb: 4000
+            plot_modeled:
+                mem_mb: 4000
+            purecn:
+                mem_mb: 24000
+            seg_to_igv:
+                mem_mb: 2000
+            gene_matrix:
+                mem_mb: 8000
+
+        threads:
+            preprocess_intervals: 1
+            annotate_intervals: 1
+            biallelic_snps: 4
+            collect_read_counts: 4
+            collect_allelic_counts: 4
+            filter_case_intervals: 1
+            purecn_intervals: 1
+            mutect2_germline: 4
+            filter_mutect_calls: 1
+            create_pon: 8
+            denoise_read_counts: 4
+            model_segments: 4
+            call_segments: 1
+            plot_denoised: 1
+            plot_modeled: 1
+            purecn: 4
+            seg_to_igv: 1
+            gene_matrix: 4
+
+        # Pairing config: matched tumour-normal preferred; fall back to unmatched normal
+        # via _shared.unmatched_normal_ids when no matched normal exists. Mirrors slms3.
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
