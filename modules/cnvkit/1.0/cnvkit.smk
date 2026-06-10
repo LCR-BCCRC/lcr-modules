@@ -95,19 +95,25 @@ rule _cnvkit_filter_main_chrs:
         """
 
 
+# Panel-of-normals members for a capture_space are taken from the SAMPLES table
+# (every tissue_status==normal of this seq_type/genome_build/capture_space), not
+# from paired runs. This lets an external/unpaired panel of normals (e.g. injected
+# from gambl_metadata_normals.tsv) define the PON regardless of tumour pairing.
+def _cnvkit_normal_ids(wildcards):
+    CFG = config["lcr-modules"]["cnvkit"]
+    s = CFG["samples"]
+    n = s[(s["tissue_status"] == "normal") &
+          (s["seq_type"] == wildcards.seq_type) &
+          (s["genome_build"] == wildcards.genome_build) &
+          (s["capture_space"] == wildcards.capture_space)]
+    return list(dict.fromkeys(n["sample_id"]))
+
 def _cnvkit_get_normals(wildcards):
     CFG = config["lcr-modules"]["cnvkit"]
-    capture_space = CFG["runs"][CFG["runs"]["normal_capture_space"].isin([wildcards.capture_space])]
-    capture_space = capture_space[capture_space["normal_genome_build"].isin([wildcards.genome_build])]
-    capture_space = capture_space[capture_space["normal_seq_type"].isin([wildcards.seq_type])]
-    normals = expand(CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}.bam", 
-                    zip,
-                    capture_space = capture_space["normal_capture_space"],
-                    seq_type = capture_space["normal_seq_type"],
-                    genome_build = capture_space["normal_genome_build"],
-                    normal_id = capture_space["normal_sample_id"])
-    normals = list(dict.fromkeys(normals))
-    return normals
+    return expand(CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{capture_space}/{normal_id}.bam",
+                  normal_id = _cnvkit_normal_ids(wildcards),
+                  seq_type = wildcards.seq_type, genome_build = wildcards.genome_build,
+                  capture_space = wildcards.capture_space)
 
 
 def _cnvkit_get_capspace(wildcards):
@@ -190,34 +196,20 @@ rule _coverage_antitarget:
         """
 
 
-# For NORMALS
+# For NORMALS (panel-of-normals members from the SAMPLES table; see _cnvkit_normal_ids)
 def get_normals_target(wildcards):
     CFG = config["lcr-modules"]["cnvkit"]
-    runs = CFG["runs"]
-    platform = runs[runs['tumour_capture_space'].isin([wildcards.capture_space])]
-    platform = platform[platform['tumour_genome_build'].isin([wildcards.genome_build])]
-    normals = expand(CFG["dirs"]["coverage"] +  "target/{seq_type}--{genome_build}/{capture_space}/{normal_id}.targetcoverage.cnn", 
-                        zip,
-                        seq_type = platform['tumour_seq_type'],
-                        genome_build = platform['tumour_genome_build'],
-                        normal_id = platform["normal_sample_id"],
-                        capture_space=platform["tumour_capture_space"])
-    normals = list(dict.fromkeys(normals))
-    return normals
+    return expand(CFG["dirs"]["coverage"] + "target/{seq_type}--{genome_build}/{capture_space}/{normal_id}.targetcoverage.cnn",
+                  normal_id = _cnvkit_normal_ids(wildcards),
+                  seq_type = wildcards.seq_type, genome_build = wildcards.genome_build,
+                  capture_space = wildcards.capture_space)
 
 def get_normals_anti(wildcards):
     CFG = config["lcr-modules"]["cnvkit"]
-    runs = CFG["runs"]
-    platform = runs[runs['tumour_capture_space'].isin([wildcards.capture_space])]
-    platform = platform[platform['tumour_genome_build'].isin([wildcards.genome_build])]
-    normals = expand(CFG["dirs"]["coverage"] +  "antitarget/{seq_type}--{genome_build}/{capture_space}/{normal_id}.antitargetcoverage.cnn", 
-                        zip,
-                        seq_type = platform['tumour_seq_type'],
-                        genome_build = platform['tumour_genome_build'],
-                        normal_id = platform["normal_sample_id"],
-                        capture_space=platform["tumour_capture_space"])
-    normals = list(dict.fromkeys(normals))
-    return normals
+    return expand(CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}/{capture_space}/{normal_id}.antitargetcoverage.cnn",
+                  normal_id = _cnvkit_normal_ids(wildcards),
+                  seq_type = wildcards.seq_type, genome_build = wildcards.genome_build,
+                  capture_space = wildcards.capture_space)
 
 
 if CFG["options"]["new_normals"] == True:

@@ -1,0 +1,67 @@
+lcr-modules:
+
+    panel_of_normals:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {capture_space} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            genome_builds_map:
+                grch37: "hg19"
+                hg19: "hg19"
+                hs37d5: "hg19"
+                grch38: "hg38"
+                hg38: "hg38"
+                hg38-nci: "hg38"
+
+            # Optional per-build mappability bigwig for IntervalFile.R (local .bw or URL).
+            mappability_bw:
+                grch37: ""
+                hg38: "https://s3.amazonaws.com/purecn/GCA_000001405.15_GRCh38_no_alt_analysis_set_100.bw"
+
+            setinterval:
+                opts: ""
+            coverage:
+                opts: ""
+            mutect2:
+                filter_for: "-f '.,PASS,germline'"
+                filter_out: "FILTER~'weak_evidence' | FILTER~'contamination'"
+
+        conda_envs:
+            purecn: "{MODSDIR}/../../purecn/1.0/envs/purecn-2.8.1.yaml"
+            gatk: "{MODSDIR}/../../mutect2/2.0/envs/gatk-4.1.8.1.yaml"
+            bcftools: "{MODSDIR}/../../mutect2/2.0/envs/bcftools-1.10.2.yaml"
+            wget: "{MODSDIR}/../../purecn/1.0/envs/wget-1.20.1.yaml"
+
+        threads:
+            setinterval: 3
+            coverage: 3
+            normaldb: 12
+
+        resources:
+            setinterval:
+                mem_mb: 70000
+            coverage:
+                mem_mb: 18000
+            normaldb:
+                mem_mb: 60000
+            mutect2:
+                mem_mb: 12000
+            bcftools:
+                mem_mb: 8000
+
+        pairing_config:
+            # Not used for pairing (the PON is built from all normals in the samples
+            # table), but op.setup_module expects pairing_config to exist.
+            exome:
+                run_paired_tumours: True
+                run_paired_tumours_as_unpaired: True
+                run_unpaired_tumours_with: "no_normal"
+            capture:
+                run_paired_tumours: True
+                run_paired_tumours_as_unpaired: True
+                run_unpaired_tumours_with: "no_normal"

@@ -1,0 +1,18 @@
+name: purecn-2.8.1
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bioconductor-purecn=2.8.1
+  - bioconductor-dnacopy=1.76.0
+  - bioconductor-variantannotation=1.48.1
+  - bioconductor-rtracklayer=1.62.0
+  - bioconductor-genomicranges=1.54.1
+  - r-base=4.3.3
+  - r-data.table=1.15.4
+  - r-pscbs=0.66.0
+  - r-vgam=1.1_11
+  - r-mclust=6.1
+  - r-optparse=1.7.4
+  - r-futile.logger=1.4.3

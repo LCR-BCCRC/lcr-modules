@@ -1,0 +1,89 @@
+lcr-modules:
+
+    purecn:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {capture_space} {sample_id} {tumour_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+            # CNVkit module outputs (cnvkit/1.0): .cnr (fix) and BAF call.cns.
+            cnvkit_cnr: "__UPDATE__"
+            cnvkit_cns: "__UPDATE__"
+            # panel_of_normals/1.0 outputs (per {seq_type}--{genome_build}/{capture_space}):
+            pon_intervals: "__UPDATE__"
+            pon_mapping_bias: "__UPDATE__"     # mapping_bias.rds (cnvkit mode)
+            pon_denovo_bias: "__UPDATE__"      # denovo/mapping_bias.rds
+            pon_normal_db: "__UPDATE__"        # denovo/normalDB.rds
+            pon_mutect2_pon: "__UPDATE__"      # mutect2_pon.vcf.gz
+
+        scratch_subdirectories: []
+
+        options:
+            # PureCN --genome value per genome_build label.
+            genome_builds_map:
+                grch37: "hg19"
+                hg19: "hg19"
+                hs37d5: "hg19"
+                grch38: "hg38"
+                hg38: "hg38"
+                hg38-nci: "hg38"
+
+            # Drop near-unmappable CNVkit bins (very low log2) before PureCN to
+            # avoid NaNs (CCSRI used $5 > -7).
+            min_cnr_log2: -7
+
+            coverage:
+                opts: ""
+
+            mutect2:
+                # bcftools view args for the panel/tumour BAF VCFs (keep germline).
+                filter_for: "-f '.,PASS,germline'"
+                filter_out: "FILTER~'weak_evidence' | FILTER~'contamination'"
+
+            purecn:
+                fun_segmentation: "PSCBS"   # PSCBS | Hclust | CBS | none
+                max_copy_number: 8
+                min_fraction_offtarget: 0.05
+                alpha: 0.001
+                model: "betabin"
+                opts: "--min-base-quality 20 --min-supporting-reads 10 --force --post-optimize --seed 123"
+
+        conda_envs:
+            purecn: "{MODSDIR}/envs/purecn-2.8.1.yaml"
+            gatk: "{MODSDIR}/../../mutect2/2.0/envs/gatk-4.1.8.1.yaml"
+            bcftools: "{MODSDIR}/../../mutect2/2.0/envs/bcftools-1.10.2.yaml"
+            cnvkit: "{MODSDIR}/../../cnvkit/1.0/envs/cnvkit-0.9.9.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+
+        threads:
+            setinterval: 3
+            coverage: 3
+            normaldb: 12
+            purecn: 4
+
+        resources:
+            setinterval:
+                mem_mb: 70000
+            coverage:
+                mem_mb: 18000
+            normaldb:
+                mem_mb: 60000
+            mutect2:
+                mem_mb: 12000
+            bcftools:
+                mem_mb: 8000
+            purecn:
+                mem_mb: 70000
+
+        pairing_config:
+            # PureCN is a tumour-only caller; run every tumour through the unpaired
+            # path. The panel of normals is built per capture_space from all normals
+            # in the samples table.
+            exome:
+                run_paired_tumours: True
+                run_paired_tumours_as_unpaired: True
+                run_unpaired_tumours_with: "no_normal"
+            capture:
+                run_paired_tumours: True
+                run_paired_tumours_as_unpaired: True
+                run_unpaired_tumours_with: "no_normal"
