@@ -2,21 +2,25 @@
 
 All notable changes to the `purecn` module will be documented in this file.
 
-## [1.0] - 2026-06-08
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-This release was authored by translating the CCSRI_1500 exomes PureCN pipeline
-(`/projects/dscott_prj/CCSRI_1500/exomes/snakefile_purecn.smk`, J. Wong) into a
-standalone lcr-module.
+# [2.0] 2026-06-04
 
-- Estimates tumour purity, ploidy, integer copy number and LOH with PureCN
-  (bioconductor-purecn 2.8.1), tumour-only.
-- Consumes CNVkit output from the `cnvkit/1.0` module (`.cnr` + BAF `call.cns`).
-- Consumes the panel of normals from the `panel_of_normals/1.0` module
-  (intervals, mapping_bias.rds, denovo normalDB.rds, Mutect2 PON VCF). The PON
-  construction was split out of this module so cnvkit and purecn share one
-  normal set.
-- Runs Mutect2 on the tumour (vs the PON) for BAF, then PureCN in two modes per
-  tumour (cnvkit mode + denovo mode).
-- Parametrized for grch37 and hg38 (genome_builds_map -> hg19 / hg38); all
-  references resolved through the reference_files workflow.
-- Reuses the `mutect2/2.0` gatk/bcftools envs and the `cnvkit/1.0` env.
+This release was authored by Sierra Gillis.
+
+- panel of normals files are listed in the config and symlinked in this module from the panel_of_normals module
+- runs `modes` using a wildcard instead of separate rules for each
+- the `run` step is now a checkpoint that will try the command with different segmentation functions, and the the one that runs successfully will be symlinked for the downstream
+- updated cnv2igv step to have the `--preserve_log_ratio` flag and use 1.5 version of lcr-script; config has an option to remove this flag
+- updated lcr-script versions: liftover --> 2.0, fill_segments --> 1.2
+- updated liftover to expect 0-based input and to write output as 0-based as well, and to fix dropping of large unmapped segments
+- updated fill_segments step to drop non-canonical chrs
+- updated normalize_projections step to format `NA`s correctly in output
+- better formatting of rules and configs i.e. removed the need to specify the output paths in the config and cleaned up prepare_projection input function
+- cleaned up formatting to be consistent between all CNV calling modules
+- updated rule all to prevent ambiguous wildcards
+
+# [1.0] Never fully PR'd
+
+This version is kept here for legacy reasons, and some results have been generated with this version despite it not being PR'd
