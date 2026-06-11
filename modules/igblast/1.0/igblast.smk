@@ -105,6 +105,9 @@ rule _igblastn_run:
         gd = lambda wildcards: reference_files(expand("genomes/no_build/igblast/database/imgt_human_" + receptor_dict[wildcards.chain] + "_{region}.ndb", region = ["v", "d", "j", "c"]))
     output:
         airr = CFG["dirs"]["igblast"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.igblastn_airr.tsv"
+    log:
+        stdout = CFG["logs"]["igblast"] + "{seq_type}/{sample_id}/{chain}/igblastn_run.stdout.log",
+        stderr = CFG["logs"]["igblast"] + "{seq_type}/{sample_id}/{chain}/igblastn_run.stderr.log",
     params:
         receptor_type = lambda wildcards: run_dict[wildcards.chain],
         aux = reference_files("downloads/igblast/optional_file/human_gl.aux"),
@@ -133,7 +136,8 @@ rule _igblastn_run:
             -germline_db_J {params.gdj}
             -germline_db_D {params.gdd}
             -c_region_db {params.gdc}
-            {params.run_flags} -outfmt 19 -domain_system imgt ;
+            {params.run_flags} -outfmt 19 -domain_system imgt
+            > {log.stdout} 2> {log.stderr} ;
         fi
         """)
 
