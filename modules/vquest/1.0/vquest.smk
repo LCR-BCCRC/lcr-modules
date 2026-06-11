@@ -125,13 +125,17 @@ rule _vquest_run:
         CFG["conda_envs"]["vquest"]
     shell:
         op.as_one_line("""
-        python {input.script}
-        --fasta {input.fasta}
-        --species {params.species}
-        --receptor_type {params.receptor_type}
-        --molecule_type {params.molecule_type}
-        --output {output.tsv}
-        > {log.stdout} 2> {log.stderr}
+        if [ ! -s {input.fasta} ]; then
+            touch {output.tsv} ;
+        else
+            python {input.script}
+            --fasta {input.fasta}
+            --species {params.species}
+            --receptor_type {params.receptor_type}
+            --molecule_type {params.molecule_type}
+            --output {output.tsv}
+            > {log.stdout} 2> {log.stderr} ;
+        fi
         """)
 
 
@@ -197,23 +201,27 @@ rule _vquest_merge_final:
         chain = "|".join(CHAINS),
     shell:
         op.as_one_line("""
-        tmp=$(mktemp --suffix=.tsv) &&
-        python {params.script}
-        --base {input.vquest}
-        --annotation {input.glyco}
-        --base_key sequence_id
-        --annot_key sequence_id
-        --output $tmp
-        > {log.stdout} 2> {log.stderr} &&
-        python {params.script}
-        --base $tmp
-        --annotation {input.source_tsv}
-        --base_key sequence_id
-        --annot_key {params.source_key}
-        --sample_id {wildcards.sample_id}
-        --output {output.merged}
-        >> {log.stdout} 2>> {log.stderr} &&
-        rm $tmp
+        if [ ! -s {input.vquest} ] || [ ! -s {input.source_tsv} ]; then
+            touch {output.merged} ;
+        else
+            tmp=$(mktemp --suffix=.tsv) &&
+            python {params.script}
+            --base {input.vquest}
+            --annotation {input.glyco}
+            --base_key sequence_id
+            --annot_key sequence_id
+            --output $tmp
+            > {log.stdout} 2> {log.stderr} &&
+            python {params.script}
+            --base $tmp
+            --annotation {input.source_tsv}
+            --base_key sequence_id
+            --annot_key {params.source_key}
+            --sample_id {wildcards.sample_id}
+            --output {output.merged}
+            >> {log.stdout} 2>> {log.stderr} &&
+            rm $tmp ;
+        fi
         """)
 
 rule _vquest_output_merged_final:

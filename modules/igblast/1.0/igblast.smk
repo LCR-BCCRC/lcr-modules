@@ -123,14 +123,18 @@ rule _igblastn_run:
         **CFG["resources"]["igblastn_run"]
     shell:
         op.as_one_line("""
-        igblastn -query {input.fasta} -out {output.airr}
-        -ig_seqtype {params.receptor_type} -organism human
-        -auxiliary_data {params.aux}
-        -germline_db_V {params.gdv} 
-        -germline_db_J {params.gdj} 
-        -germline_db_D {params.gdd}
-        -c_region_db {params.gdc}
-        {params.run_flags} -outfmt 19 -domain_system imgt
+        if [ ! -s {input.fasta} ]; then
+            touch {output.airr} ;
+        else
+            igblastn -query {input.fasta} -out {output.airr}
+            -ig_seqtype {params.receptor_type} -organism human
+            -auxiliary_data {params.aux}
+            -germline_db_V {params.gdv}
+            -germline_db_J {params.gdj}
+            -germline_db_D {params.gdd}
+            -c_region_db {params.gdc}
+            {params.run_flags} -outfmt 19 -domain_system imgt ;
+        fi
         """)
 
 # Symlinks the AIRR TSV output into the module results directory (under '99-outputs/')
@@ -196,23 +200,27 @@ rule _igblast_merge_final:
         chain = "|".join(CHAINS),
     shell:
         op.as_one_line("""
-        tmp=$(mktemp --suffix=.tsv) &&
-        python {params.script}
-        --base {input.airr_tsv}
-        --annotation {input.glyco}
-        --base_key sequence_id
-        --annot_key sequence_id
-        --output $tmp
-        > {log.stdout} 2> {log.stderr} &&
-        python {params.script}
-        --base {input.source_tsv}
-        --annotation $tmp
-        --base_key {params.source_key}
-        --annot_key sequence_id
-        --sample_id {wildcards.sample_id}
-        --output {output.merged}
-        >> {log.stdout} 2>> {log.stderr} &&
-        rm $tmp
+        if [ ! -s {input.airr_tsv} ] || [ ! -s {input.source_tsv} ]; then
+            touch {output.merged} ;
+        else
+            tmp=$(mktemp --suffix=.tsv) &&
+            python {params.script}
+            --base {input.airr_tsv}
+            --annotation {input.glyco}
+            --base_key sequence_id
+            --annot_key sequence_id
+            --output $tmp
+            > {log.stdout} 2> {log.stderr} &&
+            python {params.script}
+            --base {input.source_tsv}
+            --annotation $tmp
+            --base_key {params.source_key}
+            --annot_key sequence_id
+            --sample_id {wildcards.sample_id}
+            --output {output.merged}
+            >> {log.stdout} 2>> {log.stderr} &&
+            rm $tmp ;
+        fi
         """)
 
 rule _igblast_output_merged_final:
