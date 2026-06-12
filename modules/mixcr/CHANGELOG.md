@@ -9,12 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was updated by Laura Hilton.
 
-- Removes the igBLAST steps from mixcr, which are now in the dedicated `igblast` module.
-- `_mixcr_to_fasta` now runs unconditionally, converting every per-chain clonotype table to FASTA format after assembly.
-- `seq_info` (regions.txt) is promoted from a `temp()` intermediate to a named output so downstream modules (e.g. `igblast`) can consume it.
-- New `_mixcr_output_fasta` rule symlinks per-chain FASTA files and regions.txt into `99-outputs/fasta/` and `99-outputs/seq_info/` respectively.
-- Removes the `igblastn` boolean config key and all associated assertions and conda/container env references.
-- Renames `igblast_scripts` config key to `scripts` for consistency.
+Updated for MiXCR 4.7 compatibility and restructured to decouple assembly from
+downstream annotation.
+
+- Updated to MiXCR 4.7, reflecting new column names and output file conventions.
+- Single-chain mode removed; MiXCR 4.7 does not support running on a single chain.
+- igBLAST steps removed from this module; V(D)J annotation is now handled by the
+  dedicated `igblast` 1.0 module.
+- `_mixcr_to_fasta` runs unconditionally after assembly, producing per-chain FASTA
+  files ready for downstream annotation modules (`igblast`, `vquest`).
+- `seq_info` (regions.txt) promoted from a `temp()` intermediate to a named output
+  so downstream modules can consume it without re-running assembly.
+- `_mixcr_output_fasta` symlinks per-chain FASTA files and regions.txt into
+  `99-outputs/fasta/` and `99-outputs/seq_info/` respectively.
+- Missing per-chain TSV files (e.g. when a chain is not detected) are handled
+  gracefully rather than causing rule failures.
 
 ## [1.2] - 2022-06-6
 

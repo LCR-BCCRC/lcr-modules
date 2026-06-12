@@ -45,21 +45,22 @@ Config changes:
   - `{sample_id}_IGH_report.tsv` / `{sample_id}_IGKL_report.tsv`
   - `{sample_id}_IGH_dominant_report.tsv` / `{sample_id}_IGKL_dominant_report.tsv`
   - `{sample_id}_IGH_TPM_filtered.fasta` / `{sample_id}_IGKL_TPM_filtered.fasta`
-- Install rule clones IgSeqR from GitHub and runs setup.sh once; sentinel file
-  prevents redundant re-installation.
-- Conda env provides: blast 2.13.0, hisat2 2.2.1, kallisto 0.48.0,
-  samtools 1.16.1, trinity 2.13.2.
-- Container support added (container_envs.igseqr points to ghcr.io image).
+- Input: paired FASTQ (mrna seq_type); inputs changed from BAM+BAI to paired FASTQ
+  (R1/R2) — `sample_bam`/`sample_bai` config keys replaced by `sample_fastq_1`/`sample_fastq_2`.
+- `{genome_build}` wildcard removed; output directories are structured as
+  `{seq_type}--{hisat_ref_version}` so outputs are labelled by the reference used.
+- HISAT2 splice-aware index is downloaded automatically by `_igseqr_get_hisat_ref`;
+  URL is configurable via `hisat_ref_url`.
+- IMGT BLAST databases are downloaded from the IgSeqR repository into `00-inputs/`
+  at run time rather than being bundled with the conda environment.
+- The report step can optionally merge IgBLAST annotation results (from `igblast` 1.0)
+  into the output TSVs when an `igblast_tsv` input is provided.
+- Empty Trinity FASTA (no assembled contigs) is handled gracefully: downstream
+  blastn, kallisto index, and kallisto quant rules produce empty outputs rather
+  than erroring.
+- Supports both conda and container (`--use-apptainer`) execution modes; Trinity
+  uses a separate biocontainer (`quay.io/biocontainers/trinity`) to avoid a broken
+  salmon shared-library dependency.
 - Only mrna seq_type is supported; pairing_config runs tumours unpaired.
-- New `_igseqr_get_hisat_ref` rule downloads the recommended GRCh38 HISAT2
-  splice-aware index automatically. The download URL is configurable via
-  `hisat_ref_url` (a version-keyed dict in config); the index is stored under
-  `{inputs_dir}/hisat_ref/{version}/` and the path is derived in the module —
-  no manual `hisat_ref` config entry required.
-- Inputs changed from BAM+BAI to a paired FASTQ (R1/R2); `sample_bam` and
-  `sample_bai` config keys replaced by `sample_fastq_1` and `sample_fastq_2`.
-- `{genome_build}` wildcard removed throughout; all output directories are now
-  structured as `{seq_type}--{hisat_ref_version}` so outputs are labelled by
-  the reference used rather than the genome build.
 
 Reference: Carrington et al. (2022) Nature Protocols. doi:10.1038/s41596-022-00700-6
