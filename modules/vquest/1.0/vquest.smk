@@ -64,6 +64,7 @@ receptor_type_dict = {
 localrules:
     _vquest_input_fasta,
     _vquest_input_source_tsv,
+    _vquest_filter_long_seqs,
     _vquest_output_tsv,
     _vquest_output_merged_final,
     _vquest_all,
@@ -94,6 +95,18 @@ rule _vquest_input_source_tsv:
         op.absolute_symlink(input.tsv, output.tsv)
 
 
+# Drops sequences longer than 10000 bp, which V-QUEST cannot process.
+rule _vquest_filter_long_seqs:
+    input:
+        fasta = str(rules._vquest_input_fasta.output.fasta),
+    output:
+        fasta = temp(CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.filtered.fasta")
+    wildcard_constraints:
+        chain = "|".join(CHAINS),
+    shell:
+        "awk 'BEGIN{{RS=\">\"; FS=\"\\n\"}} NR>1 {{header=$1; seq=\"\"; for(i=2;i<=NF;i++) seq=seq$i; if(length(seq)<=10000) printf \">%s\\n%s\\n\", header, seq}}' {input.fasta} > {output.fasta}"
+
+
 # Submits sequences to IMGT V-QUEST and writes the AIRR TSV output.
 # NOTE: This rule requires outbound HTTPS access to www.imgt.org from the
 # executing node. On clusters where compute nodes lack internet access,
@@ -102,7 +115,7 @@ rule _vquest_input_source_tsv:
 # (50 per request) so arbitrarily large FASTA files are handled correctly.
 rule _vquest_run:
     input:
-        fasta  = str(rules._vquest_input_fasta.output.fasta),
+        fasta  = str(rules._vquest_filter_long_seqs.output.fasta),
         script = CFG["scripts"]["run_vquest"],
     output:
         tsv = CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.vquest_airr.tsv"
@@ -156,7 +169,7 @@ rule _vquest_output_tsv:
 # sequence_alignment_aa field of the V-QUEST AIRR TSV.
 rule _vquest_annotate_glycosylation:
     input:
-        fasta      = str(rules._vquest_input_fasta.output.fasta),
+        fasta      = str(rules._vquest_filter_long_seqs.output.fasta),
         script     = CFG["scripts"]["annotate_glycosylation"],
         source_tsv = str(rules._vquest_run.output.tsv),
     output:
