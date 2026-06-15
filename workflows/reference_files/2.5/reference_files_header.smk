@@ -129,7 +129,8 @@ wildcard_constraints:
     star_version = TOOL_VERSIONS["star"],
     gencode_release = "|".join(config["wildcard_values"]["gencode_release"]),
     dbsnp_build = "|".join(config["wildcard_values"]["dbsnp_build"]),
-    rm_version = "|".join(config["wildcard_values"]["rm_version"])
+    rm_version = "|".join(config["wildcard_values"]["rm_version"]),
+    capture_space = "|".join(config["capture_space"].keys())
 
 
 ##### CHROMOSOME MAPPINGS #####
@@ -450,7 +451,7 @@ def get_matching_download_rules(file):
         # At least one output file should produce
         num_matches = []
         for output_file in r.output:
-            if rule_name != "download_capspace_bed":  # Workaround since we don't really care about the provider for the capture space
+            if rule_name != "download_capspace_bed" and rule_name != "download_baitspace_bed":  # Workaround since we don't really care about the provider for the capture space
                 assert "{version}" in output_file, (
                     f"The `{rule_name}` download rule doesn't have a `{{version}}` "
                     f"wildcard in the output file ('{output_file}')."
