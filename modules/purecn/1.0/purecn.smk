@@ -259,7 +259,7 @@ rule _purecn_mutect2:
         op.as_one_line("""
             if [[ $(egrep "^{wildcards.chrom}:" {input.target_regions} | wc -l) -eq 0 ]]; then
                 echo "No intervals found for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
-                gatk --java-options "-Xmx{params.mem_mb}m" "-Djava.io.tmpdir=/var/tmp"
+                gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir=/var/tmp"
                     Mutect2 {params.opts}
                     --genotype-germline-sites true
                     --genotype-pon-sites true
@@ -273,7 +273,7 @@ rule _purecn_mutect2:
                     >> {log} 2>&1;
             else
                 echo "Found intervals for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
-                gatk --java-options "-Xmx{params.mem_mb}m" "-Djava.io.tmpdir=/var/tmp"
+                gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir=/var/tmp"
                     Mutect2 {params.opts}
                     --genotype-germline-sites true
                     --genotype-pon-sites true
@@ -384,7 +384,7 @@ rule _purecn_pileup_summaries:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m" "-Djava.io.tmpdir=/var/tmp"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir=/var/tmp"
             GetPileupSummaries
             -I {input.bam}
             -R {input.fasta}
@@ -413,7 +413,7 @@ rule _purecn_calc_contamination:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m" "-Djava.io.tmpdir=/var/tmp"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir=/var/tmp"
             CalculateContamination
             -I {input.pileup}
             -tumor-segmentation {output.segments}
@@ -451,7 +451,7 @@ rule _purecn_learn_orient_model:
     shell:
         op.as_one_line("""
         inputs=$(for input in {input.f1r2}; do printf -- "-I $input "; done);
-        gatk --java-options "-Xmx{params.mem_mb}m" "-Djava.io.tmpdir=/var/tmp"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir=/var/tmp"
         LearnReadOrientationModel
         $inputs -O {output.model}
         > {log} 2>&1
@@ -481,7 +481,7 @@ rule _purecn_annotate_vcf:
         CFG["conda_envs"]["mutect"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m" "-Djava.io.tmpdir=/var/tmp"
+        gatk --java-options "-Xmx{params.mem_mb}m Djava.io.tmpdir=/var/tmp"
             FilterMutectCalls
             {params.opts}
             -V {input.vcf}
@@ -547,7 +547,7 @@ rule _purecn_gatk_depthOfCoverage:
     shell:
         op.as_one_line(
         """
-        gatk --java-options "-Xmx{params.mem_mb}m" "-Djava.io.tmpdir=/var/tmp"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir=/var/tmp"
             DepthOfCoverage
             {params.opts}
             --omit-depth-output-at-each-base
