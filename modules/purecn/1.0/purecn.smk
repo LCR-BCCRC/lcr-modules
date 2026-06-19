@@ -353,6 +353,9 @@ rule _purecn_mutect2_merge_stats_per_sample:
         stats = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_tmp.vcf.gz.stats"
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_merge_stats.log"
+        params: 
+        mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     conda:
         CFG["conda_envs"]["mutect"]
     resources:
@@ -360,7 +363,7 @@ rule _purecn_mutect2_merge_stats_per_sample:
     threads: 1
     shell:
         op.as_one_line("""
-        gatk MergeMutectStats $(for i in {input.stats}; do echo -n "-stats $i "; done)
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}" MergeMutectStats $(for i in {input.stats}; do echo -n "-stats $i "; done)
         -O {output.stats} > {log} 2>&1
         """)
 
@@ -486,7 +489,7 @@ rule _purecn_annotate_vcf:
         CFG["conda_envs"]["mutect"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m Djava.io.tmpdir={params.temp_dir}"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
             FilterMutectCalls
             {params.opts}
             -V {input.vcf}
