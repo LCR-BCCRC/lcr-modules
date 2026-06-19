@@ -353,7 +353,7 @@ rule _purecn_mutect2_merge_stats_per_sample:
         stats = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_tmp.vcf.gz.stats"
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_merge_stats.log"
-        params: 
+    params:
         mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8),
         temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     conda:
