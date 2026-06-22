@@ -693,7 +693,8 @@ checkpoint _purecn_cnvkit_mode_run:
         max_cn = CFG["options"]["cnvkit_mode"]["max_cn"],
         model = CFG["options"]["cnvkit_mode"]["model"],
         alpha = CFG["options"]["cnvkit_mode"]["alpha"],
-        opts = CFG["options"]["cnvkit_mode"]["opts"]
+        opts = CFG["options"]["cnvkit_mode"]["opts"],
+        catch_err = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/error.log"
     conda:
         CFG["conda_envs"]["purecn"]
     resources:
@@ -742,7 +743,7 @@ checkpoint _purecn_cnvkit_mode_run:
                 --cores {threads} \
                 {params.opts} &>> {log}
             if [[ $? -ne 0 ]]; then
-                echo "Using segmentation_method: none" >> {log};
+                echo "Trying segmentation_method: none" >> {log};
                 Rscript --vanilla $PURECN/PureCN.R --out $(dirname {input.done_none}) \
                     --sampleid {wildcards.tumour_id} \
                     --tumor {input.cnr} \
@@ -759,7 +760,7 @@ checkpoint _purecn_cnvkit_mode_run:
                     --cores {threads} \
                     {params.opts}  &>> {log}
                 if [[ $? -ne 0 ]]; then
-                    exit 1
+                    grep -A3 "Error:" {log} > {params.catch_err}
                 else
                     touch {output.done}
                 fi
@@ -869,7 +870,8 @@ checkpoint _purecn_denovo_mode_run:
         max_cn = CFG["options"]["denovo_mode"]["max_cn"],
         model = CFG["options"]["denovo_mode"]["model"],
         alpha = CFG["options"]["denovo_mode"]["alpha"],
-        opts = CFG["options"]["denovo_mode"]["opts"]
+        opts = CFG["options"]["denovo_mode"]["opts"],
+        catch_err = CFG["dirs"]["denovo_mode"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/error.log"
     conda:
         CFG["conda_envs"]["purecn"]
     resources:
@@ -920,7 +922,7 @@ checkpoint _purecn_denovo_mode_run:
                 --cores {threads} \
                 {params.opts} &>> {log}
             if [[ $? -ne 0 ]]; then
-                echo "Using segmentation_method: none" >> {log};
+                echo "Trying segmentation_method: none" >> {log};
                 Rscript --vanilla $PURECN/PureCN.R --out $(dirname {input.done_none})  \
                     --sampleid {wildcards.tumour_id} \
                     --tumor {input.cnr} \
@@ -938,7 +940,7 @@ checkpoint _purecn_denovo_mode_run:
                     --cores {threads} \
                     {params.opts} &>> {log}
                 if [[ $? -ne 0 ]]; then
-                    exit 1
+                    grep -A3 "Error:" {log} > {params.catch_err}
                 else
                     touch {output.done}
                 fi
