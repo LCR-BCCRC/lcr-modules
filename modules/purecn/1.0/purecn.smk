@@ -693,8 +693,7 @@ checkpoint _purecn_cnvkit_mode_run:
         max_cn = CFG["options"]["cnvkit_mode"]["max_cn"],
         model = CFG["options"]["cnvkit_mode"]["model"],
         alpha = CFG["options"]["cnvkit_mode"]["alpha"],
-        opts = CFG["options"]["cnvkit_mode"]["opts"],
-        catch_err = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/error.log"
+        opts = CFG["options"]["cnvkit_mode"]["opts"]
     conda:
         CFG["conda_envs"]["purecn"]
     resources:
@@ -760,7 +759,7 @@ checkpoint _purecn_cnvkit_mode_run:
                     --cores {threads} \
                     {params.opts}  &>> {log}
                 if [[ $? -ne 0 ]]; then
-                    grep -A3 "Error:" {log} > {params.catch_err}
+                    exit 1
                 else
                     touch {output.done}
                 fi
@@ -870,8 +869,7 @@ checkpoint _purecn_denovo_mode_run:
         max_cn = CFG["options"]["denovo_mode"]["max_cn"],
         model = CFG["options"]["denovo_mode"]["model"],
         alpha = CFG["options"]["denovo_mode"]["alpha"],
-        opts = CFG["options"]["denovo_mode"]["opts"],
-        catch_err = CFG["dirs"]["pureCN_denovo"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/error.log"
+        opts = CFG["options"]["denovo_mode"]["opts"]
     conda:
         CFG["conda_envs"]["purecn"]
     resources:
@@ -940,7 +938,7 @@ checkpoint _purecn_denovo_mode_run:
                     --cores {threads} \
                     {params.opts} &>> {log}
                 if [[ $? -ne 0 ]]; then
-                    grep -A3 "Error:" {log} > {params.catch_err}
+                    exit 1
                 else
                     touch {output.done}
                 fi
