@@ -871,7 +871,7 @@ checkpoint _purecn_denovo_mode_run:
         model = CFG["options"]["denovo_mode"]["model"],
         alpha = CFG["options"]["denovo_mode"]["alpha"],
         opts = CFG["options"]["denovo_mode"]["opts"],
-        catch_err = CFG["dirs"]["denovo_mode"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/error.log"
+        catch_err = CFG["dirs"]["pureCN_denovo"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/error.log"
     conda:
         CFG["conda_envs"]["purecn"]
     resources:
