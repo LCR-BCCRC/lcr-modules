@@ -163,8 +163,10 @@ rule _gistic2_run:
     resources:
         **CFG["resources"]["gistic2_run"]
     shell:
+        # DISPLAY= forces the GISTIC MATLAB MCR to render figures offscreen
+        # (still written as PDFs to base_dir) instead of popping X11 windows.
         op.as_one_line("""
-        gistic2 -b {params.base_dir} -seg {input.seg} -mk {input.markers} -refgene {input.refgene_mat}
+        DISPLAY= gistic2 -b {params.base_dir} -seg {input.seg} -mk {input.markers} -refgene {input.refgene_mat}
         -genegistic 1 -broad 1 -savegene 1 -conf 0.{wildcards.conf} -v 30 -saveseg 0 -savedata 0
         {params.opts}
         > {log.stdout} 2> {log.stderr}
