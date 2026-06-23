@@ -146,7 +146,10 @@ rule _gistic2_run:
         all_lesions = CFG["dirs"]["gistic2"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/all_lesions.conf_{conf}.txt",
         amp_genes = CFG["dirs"]["gistic2"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/amp_genes.conf_{conf}.txt",
         del_genes = CFG["dirs"]["gistic2"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/del_genes.conf_{conf}.txt",
-        scores = CFG["dirs"]["gistic2"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/scores.gistic"
+        scores = CFG["dirs"]["gistic2"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/scores.gistic",
+        broad_values_by_arm = CFG["dirs"]["gistic2"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/broad_values_by_arm.txt",
+        broad_significance = CFG["dirs"]["gistic2"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/broad_significance_results.txt",
+        sample_cutoffs = CFG["dirs"]["gistic2"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/sample_cutoffs.txt"
     log:
         stdout = CFG["logs"]["gistic2"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/gistic2.stdout.log",
         stderr = CFG["logs"]["gistic2"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/gistic2.stderr.log"
@@ -174,20 +177,29 @@ rule _gistic2_output:
         all_lesions = str(rules._gistic2_run.output.all_lesions),
         amp_genes = str(rules._gistic2_run.output.amp_genes),
         del_genes = str(rules._gistic2_run.output.del_genes),
-        scores = str(rules._gistic2_run.output.scores)
+        scores = str(rules._gistic2_run.output.scores),
+        broad_values_by_arm = str(rules._gistic2_run.output.broad_values_by_arm),
+        broad_significance = str(rules._gistic2_run.output.broad_significance),
+        sample_cutoffs = str(rules._gistic2_run.output.sample_cutoffs)
     output:
         all_data_by_genes = CFG["dirs"]["outputs"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/all_data_by_genes.txt",
         all_lesions = CFG["dirs"]["outputs"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/all_lesions.conf_{conf}.txt",
         amp_genes = CFG["dirs"]["outputs"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/amp_genes.conf_{conf}.txt",
         del_genes = CFG["dirs"]["outputs"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/del_genes.conf_{conf}.txt",
-        scores = CFG["dirs"]["outputs"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/scores.gistic"
+        scores = CFG["dirs"]["outputs"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/scores.gistic",
+        broad_values_by_arm = CFG["dirs"]["outputs"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/broad_values_by_arm.txt",
+        broad_significance = CFG["dirs"]["outputs"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/broad_significance_results.txt",
+        sample_cutoffs = CFG["dirs"]["outputs"] + "{sample_set}--{projection}/{launch_date}--{md5sum}/conf_{conf}/sample_cutoffs.txt"
 
     run:
         op.relative_symlink(input.all_data_by_genes, output.all_data_by_genes, in_module= True),
         op.relative_symlink(input.all_lesions, output.all_lesions, in_module= True),
         op.relative_symlink(input.amp_genes, output.amp_genes, in_module= True),
         op.relative_symlink(input.del_genes, output.del_genes, in_module= True),
-        op.relative_symlink(input.scores, output.scores, in_module= True)
+        op.relative_symlink(input.scores, output.scores, in_module= True),
+        op.relative_symlink(input.broad_values_by_arm, output.broad_values_by_arm, in_module= True),
+        op.relative_symlink(input.broad_significance, output.broad_significance, in_module= True),
+        op.relative_symlink(input.sample_cutoffs, output.sample_cutoffs, in_module= True)
 
 def _for_aggregate(wildcards):
     CFG = config["lcr-modules"]["gistic2"]
@@ -199,7 +211,10 @@ def _for_aggregate(wildcards):
             CFG["dirs"]["outputs"] + "{{sample_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/all_lesions.conf_{{conf}}.txt",
             CFG["dirs"]["outputs"] + "{{sample_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/amp_genes.conf_{{conf}}.txt",
             CFG["dirs"]["outputs"] + "{{sample_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/del_genes.conf_{{conf}}.txt",
-            CFG["dirs"]["outputs"] + "{{sample_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/scores.gistic"
+            CFG["dirs"]["outputs"] + "{{sample_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/scores.gistic",
+            CFG["dirs"]["outputs"] + "{{sample_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/broad_values_by_arm.txt",
+            CFG["dirs"]["outputs"] + "{{sample_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/broad_significance_results.txt",
+            CFG["dirs"]["outputs"] + "{{sample_set}}--{{projection}}/{{launch_date}}--{md5sum}/conf_{{conf}}/sample_cutoffs.txt"
         ],
         md5sum = SUMS
         )
