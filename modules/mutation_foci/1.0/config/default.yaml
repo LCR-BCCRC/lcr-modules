@@ -1,0 +1,86 @@
+lcr-modules:
+
+    mutation_foci:
+
+        # ------------------------------------------------------------------ #
+        # Inputs. Replace every "__UPDATE__" in your project config.          #
+        # ------------------------------------------------------------------ #
+        inputs:
+            # Master MAF of SSMs. Available wildcards: {seq_type}
+            # Can be all SSMs (coding will be dropped via coding_variant_classifications
+            # below) or a pre-computed non-coding MAF (then set that list to []).
+            master_maf: "__UPDATE__"
+            # TSV mapping samples to sample sets. Must contain the columns named
+            # by options.sample_id_column and options.sample_set_column, e.g.:
+            #   sample_id        sample_set
+            #   sample_1         EZB--train
+            #   sample_2         ST2--train
+            sample_sets: "__UPDATE__"
+
+        # seq_types whose MAFs are combined before subsetting by sample_set
+        seq_types:
+            - "genome"
+
+        # The sample_set values to run. Must match the sample_set column values.
+        sample_set:
+            - "__UPDATE__"          # e.g. EZB--train, ST2--train, BN2--train, ...
+
+        # Chromosome tokens to scatter clustering over. These MUST match the
+        # values in the MAF's Chromosome column:
+        #   grch37 -> "1".."22","X","Y"   |   hg38 -> "chr1".."chr22","chrX","chrY"
+        chromosomes: ["1","2","3","4","5","6","7","8","9","10","11","12",
+                      "13","14","15","16","17","18","19","20","21","22","X","Y"]
+
+        scratch_subdirectories: []
+
+        options:
+            sample_id_column:  "sample_id"
+            sample_set_column: "sample_set"
+            maf_sample_column: "Tumor_Sample_Barcode"   # MAF column holding the sample id
+            chrom_column:      "Chromosome"
+            pos_column:        "Start_Position"
+
+            # Variant_Classification values treated as CODING and removed, so the
+            # remainder is the non-coding set (mirrors anti_join(all, coding_ssm)).
+            # Set to [] if master_maf is already non-coding.
+            coding_variant_classifications:
+                - "Missense_Mutation"
+                - "Nonsense_Mutation"
+                - "Nonstop_Mutation"
+                - "Splice_Site"
+                - "Splice_Region"
+                - "Translation_Start_Site"
+                - "Frame_Shift_Del"
+                - "Frame_Shift_Ins"
+                - "In_Frame_Del"
+                - "In_Frame_Ins"
+                - "Silent"
+
+            # Clustering parameters (defaults reproduce the notebook).
+            dist_method:   "euclidean"
+            hclust_method: "centroid"   # centroid can be non-monotonic; "average"
+                                        # or "ward.D2" give cleaner height cuts.
+            h_min: 1
+            h_max: 100
+
+        conda_envs:
+            r_foci: "{MODSDIR}/envs/r-foci.yaml"
+
+        # Container image, mirroring conda_envs (PR #375 convention). Used in
+        # --use-apptainer mode; op.setup_module resolves local .sif paths and
+        # leaves URIs / null unchanged.
+        #
+        # Built from the Dockerfile at mutation_foci/1.0/Dockerfile in lcr-scripts;
+        # on merge to master the build-containers workflow publishes the image
+        # below. Until that image exists, set this to null and the rule runs on the
+        # host PATH in container mode.
+        container_envs:
+            r_foci: "docker://ghcr.io/lcr-bccrc/lcr-scripts/mutation_foci:1.0"
+
+        threads:
+            cluster: 1
+
+        resources:
+            cluster:
+                mem_mb: 8000
+                runtime: 60
