@@ -34,11 +34,11 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
-            sample_id_column:  "sample_id"
+            sample_id_column: "sample_id"
             sample_set_column: "sample_set"
-            maf_sample_column: "Tumor_Sample_Barcode"   # MAF column holding the sample id
-            chrom_column:      "Chromosome"
-            pos_column:        "Start_Position"
+            maf_sample_column: "Tumor_Sample_Barcode" # MAF column holding the sample id
+            chrom_column: "Chromosome"
+            pos_column: "Start_Position"
 
             # Variant_Classification values treated as CODING and removed, so the
             # remainder is the non-coding set (mirrors anti_join(all, coding_ssm)).
@@ -75,7 +75,7 @@ lcr-modules:
         # below. Until that image exists, set this to null and the rule runs on the
         # host PATH in container mode.
         container_envs:
-            r_foci: "docker://ghcr.io/lcr-bccrc/lcr-scripts/mutation_foci:1.0"
+            mutation_foci: "docker://ghcr.io/lcr-bccrc/lcr-scripts/mutation_foci:1.0"
 
         threads:
             cluster: 1
