@@ -85,3 +85,9 @@ lcr-modules:
             cluster:
                 mem_mb: 8000
                 runtime: 60
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
