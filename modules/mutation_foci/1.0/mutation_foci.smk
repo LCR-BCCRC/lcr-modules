@@ -98,12 +98,12 @@ rule _mutation_foci_prepare_maf:
     log:
         log = CFG["logs"]["prepare"] + "{sample_set}/prepare_maf.log"
     conda:
-        CFG["conda_envs"]["r_foci"]
+        CFG["conda_envs"]["mutation_foci"]
     params:
-        coding_classes    = CFG["options"]["coding_variant_classifications"],
-        sample_id_col     = CFG["options"]["sample_id_column"],
-        sample_set_col    = CFG["options"]["sample_set_column"],
-        maf_sample_col    = CFG["options"]["maf_sample_column"]
+        coding_classes = CFG["options"]["coding_variant_classifications"],
+        sample_id_col = CFG["options"]["sample_id_column"],
+        sample_set_col = CFG["options"]["sample_set_column"],
+        maf_sample_col = CFG["options"]["maf_sample_column"]
     script:
         "src/R/prepare_maf.R"
 
@@ -119,19 +119,19 @@ rule _mutation_foci_cluster:
     log:
         log = CFG["logs"]["foci"] + "{sample_set}/{chrom}.cluster.log"
     conda:
-        CFG["conda_envs"]["r_foci"]
+        CFG["conda_envs"]["mutation_foci"]
     threads:
         CFG["threads"]["cluster"]
     resources:
         # dist() is O(n^2) in unique positions; bump mem for dense chromosomes.
         **CFG["resources"]["cluster"]
     params:
-        chrom_col     = CFG["options"]["chrom_column"],
-        pos_col       = CFG["options"]["pos_column"],
-        dist_method   = CFG["options"]["dist_method"],
+        chrom_col = CFG["options"]["chrom_column"],
+        pos_col = CFG["options"]["pos_column"],
+        dist_method = CFG["options"]["dist_method"],
         hclust_method = CFG["options"]["hclust_method"],
-        h_min         = CFG["options"]["h_min"],
-        h_max         = CFG["options"]["h_max"]
+        h_min = CFG["options"]["h_min"],
+        h_max = CFG["options"]["h_max"]
     script:
         "src/R/cluster_foci.R"
 
