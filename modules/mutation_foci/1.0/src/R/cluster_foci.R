@@ -19,29 +19,16 @@
 #     gap-based pre-blocking optimisation if a dense chromosome OOMs.
 # ---------------------------------------------------------------------------
 
-log <- file(snakemake@log[["log"]], open = "wt")
-sink(log); sink(log, type = "message")
 
 suppressPackageStartupMessages({
   library(readr)
   library(dplyr)
-  library(cluster)    # silhouette()
+  library(cluster)
   library(ggplot2)
 })
 
-maf_path      <- snakemake@input[["maf"]]
-chrom         <- snakemake@wildcards[["chrom"]]
-out_tsv       <- snakemake@output[["tsv"]]
-out_plot      <- snakemake@output[["plot"]]
-
-chrom_col     <- snakemake@params[["chrom_col"]]
-pos_col       <- snakemake@params[["pos_col"]]
-dist_method   <- snakemake@params[["dist_method"]]
-hclust_method <- snakemake@params[["hclust_method"]]
-h_min         <- as.integer(snakemake@params[["h_min"]])
-h_max         <- as.integer(snakemake@params[["h_max"]])
-
 # ---- clustering for one chromosome ----------------------------------------
+
 cluster_one_chromosome <- function(maf, pos_col, dist_method, hclust_method,
                                    h_min, h_max) {
   maf <- maf %>% arrange(.data[[pos_col]])
@@ -65,8 +52,12 @@ cluster_one_chromosome <- function(maf, pos_col, dist_method, hclust_method,
   for (i in seq_along(h_values)) {
     lab <- tryCatch(cutree(hc, h = h_values[i]), error = function(e) NULL)
     if (is.null(lab)) next
-    if (length(unique(lab)) > 1) {                 # silhouette needs > 1 cluster
-      sil_means[i] <- mean(silhouette(lab, d)[, "sil_width"])
+    k <- length(unique(lab))
+    if (k > 1 && k < length(lab)) {                # need 2..n-1 clusters
+      sil <- silhouette(lab, d)
+      if (is.matrix(sil)) {                        # guard against degenerate return
+        sil_means[i] <- mean(sil[, "sil_width"])
+      }
     }
   }
 
@@ -82,23 +73,39 @@ cluster_one_chromosome <- function(maf, pos_col, dist_method, hclust_method,
        best_h = best_h)
 }
 
-# ---- run -------------------------------------------------------------------
-maf_all <- read_tsv(maf_path, show_col_types = FALSE, progress = FALSE)
-maf_chr <- maf_all %>% filter(.data[[chrom_col]] == chrom)
-message(sprintf("chr %s: %d rows, %d unique positions",
-                chrom, nrow(maf_chr), length(unique(maf_chr[[pos_col]]))))
+if (exists("snakemake")) {
+  log <- file(snakemake@log[["log"]], open = "wt")
+  sink(log); sink(log, type = "message")
 
-res <- cluster_one_chromosome(maf_chr, pos_col, dist_method,
-                              hclust_method, h_min, h_max)
+  maf_path      <- snakemake@input[["maf"]]
+  chrom         <- snakemake@wildcards[["chrom"]]
+  out_tsv       <- snakemake@output[["tsv"]]
+  out_plot      <- snakemake@output[["plot"]]
 
-write_tsv(res$maf, out_tsv)
+  chrom_col     <- snakemake@params[["chrom_col"]]
+  pos_col       <- snakemake@params[["pos_col"]]
+  dist_method   <- snakemake@params[["dist_method"]]
+  hclust_method <- snakemake@params[["hclust_method"]]
+  h_min         <- as.integer(snakemake@params[["h_min"]])
+  h_max         <- as.integer(snakemake@params[["h_max"]])
 
-p <- ggplot(res$plot_df, aes(x = h, y = avg)) +
-  geom_line() +
-  geom_point(shape = 16) +
-  labs(x = "Height (h)", y = "Mean silhouette width",
-       title = sprintf("Foci clustering quality — chr %s", chrom)) +
-  theme_minimal()
-ggsave(out_plot, p, width = 7, height = 4)
+  maf_all <- read_tsv(maf_path, show_col_types = FALSE, progress = FALSE)
+  maf_chr <- maf_all %>% filter(.data[[chrom_col]] == chrom)
+  message(sprintf("chr %s: %d rows, %d unique positions",
+                  chrom, nrow(maf_chr), length(unique(maf_chr[[pos_col]]))))
 
-message(sprintf("best_h = %s -> %s", as.character(res$best_h), out_tsv))
+  res <- cluster_one_chromosome(maf_chr, pos_col, dist_method,
+                                hclust_method, h_min, h_max)
+
+  write_tsv(res$maf, out_tsv)
+
+  p <- ggplot(res$plot_df, aes(x = h, y = avg)) +
+    geom_line() +
+    geom_point(shape = 16) +
+    labs(x = "Height (h)", y = "Mean silhouette width",
+         title = sprintf("Foci clustering quality — chr %s", chrom)) +
+    theme_minimal()
+  ggsave(out_plot, p, width = 7, height = 4)
+
+  message(sprintf("best_h = %s -> %s", as.character(res$best_h), out_tsv))
+}
