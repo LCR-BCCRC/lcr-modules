@@ -31,27 +31,27 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # End of dependency checking section
 
 # Setup module and store module-specific configuration in `CFG`
-# `CFG` is a shortcut to `config["lcr-modules"]["mutation_foci"]`
+# `CFG` is a shortcut to `config["lcr-modules"]["mfr"]`
 CFG = op.setup_module(
-    name = "mutation_foci",
+    name = "mfr",
     version = "1.0",
     subdirectories = ["inputs", "prepare", "foci", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _mutation_foci_input_maf,
-    _mutation_foci_input_subsets,
-    _mutation_foci_prepare_maf,
-    _mutation_foci_aggregate,
-    _mutation_foci_output_tsv,
-    _mutation_foci_all,
+    _mfr_input_maf,
+    _mfr_input_subsets,
+    _mfr_prepare_maf,
+    _mfr_aggregate,
+    _mfr_output_tsv,
+    _mfr_all,
 
 
 ##### FUNCTIONS #####
 
 
-def _mutation_foci_gather_chroms(wildcards):
+def _mfr_gather_chroms(wildcards):
     """Gather the per-chromosome foci tables for one sample_set."""
     return expand(
         CFG["dirs"]["foci"] + "{sample_set}/chromosomes/{chrom}.foci.tsv",
@@ -64,7 +64,7 @@ def _mutation_foci_gather_chroms(wildcards):
 
 
 # Symlinks the input MAF into the module results directory (under '00-inputs/')
-rule _mutation_foci_input_maf:
+rule _mfr_input_maf:
     input:
         maf = CFG["inputs"]["master_maf"]
     output:
@@ -74,7 +74,7 @@ rule _mutation_foci_input_maf:
 
 
 # Symlinks the sample-set membership table into the module results directory
-rule _mutation_foci_input_subsets:
+rule _mfr_input_subsets:
     input:
         sample_sets = CFG["inputs"]["sample_sets"]
     output:
@@ -85,20 +85,20 @@ rule _mutation_foci_input_subsets:
 
 # Subset the master MAF to one sample_set and keep only non-coding mutations.
 # seq_types listed in the config are combined into a single per-sample_set MAF.
-rule _mutation_foci_prepare_maf:
+rule _mfr_prepare_maf:
     input:
         maf = expand(
-            str(rules._mutation_foci_input_maf.output.maf),
+            str(rules._mfr_input_maf.output.maf),
             allow_missing = True,
             seq_type = CFG["seq_types"]
         ),
-        sample_sets = ancient(str(rules._mutation_foci_input_subsets.output.sample_sets))
+        sample_sets = ancient(str(rules._mfr_input_subsets.output.sample_sets))
     output:
         maf = temp(CFG["dirs"]["prepare"] + "{sample_set}.noncoding.maf")
     log:
         log = CFG["logs"]["prepare"] + "{sample_set}/prepare_maf.log"
     conda:
-        CFG["conda_envs"]["mutation_foci"]
+        CFG["conda_envs"]["mfr"]
     params:
         coding_classes = CFG["options"]["coding_variant_classifications"],
         sample_id_col = CFG["options"]["sample_id_column"],
@@ -110,16 +110,16 @@ rule _mutation_foci_prepare_maf:
 
 # Cluster non-coding mutation positions into "foci", scattered by chromosome.
 # This is the heavy step (one job per sample_set x chromosome).
-rule _mutation_foci_cluster:
+rule _mfr_cluster:
     input:
-        maf = str(rules._mutation_foci_prepare_maf.output.maf)
+        maf = str(rules._mfr_prepare_maf.output.maf)
     output:
         tsv  = CFG["dirs"]["foci"] + "{sample_set}/chromosomes/{chrom}.foci.tsv",
         plot = CFG["dirs"]["foci"] + "{sample_set}/chromosomes/{chrom}.silhouette.pdf"
     log:
         log = CFG["logs"]["foci"] + "{sample_set}/{chrom}.cluster.log"
     conda:
-        CFG["conda_envs"]["mutation_foci"]
+        CFG["conda_envs"]["mfr"]
     threads:
         CFG["threads"]["cluster"]
     resources:
@@ -137,9 +137,9 @@ rule _mutation_foci_cluster:
 
 
 # Gather per-chromosome foci into a single table per sample_set.
-rule _mutation_foci_aggregate:
+rule _mfr_aggregate:
     input:
-        tsv = _mutation_foci_gather_chroms
+        tsv = _mfr_gather_chroms
     output:
         tsv = CFG["dirs"]["foci"] + "{sample_set}/{sample_set}.foci.tsv"
     run:
@@ -159,9 +159,9 @@ rule _mutation_foci_aggregate:
 
 
 # Symlinks the final output table into the module results directory (under '99-outputs/')
-rule _mutation_foci_output_tsv:
+rule _mfr_output_tsv:
     input:
-        tsv = str(rules._mutation_foci_aggregate.output.tsv)
+        tsv = str(rules._mfr_aggregate.output.tsv)
     output:
         tsv = CFG["dirs"]["outputs"] + "tsv/{sample_set}.foci.tsv"
     run:
@@ -169,10 +169,10 @@ rule _mutation_foci_output_tsv:
 
 
 # Generates the target sentinels for each run, which generate the symlinks
-rule _mutation_foci_all:
+rule _mfr_all:
     input:
         expand(
-            str(rules._mutation_foci_output_tsv.output.tsv),
+            str(rules._mfr_output_tsv.output.tsv),
             sample_set = CFG["sample_set"]
         )
 

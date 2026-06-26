@@ -1,6 +1,6 @@
 lcr-modules:
 
-    mutation_foci:
+    mfr:
 
         # ------------------------------------------------------------------ #
         # Inputs. Replace every "__UPDATE__" in your project config.          #
@@ -65,18 +65,10 @@ lcr-modules:
             h_max: 100
 
         conda_envs:
-            mutation_foci: "{MODSDIR}/envs/mutation_foci.yaml"
+            mfr: "{MODSDIR}/envs/mfr.yaml"
 
-        # Container image, mirroring conda_envs (PR #375 convention). Used in
-        # --use-apptainer mode; op.setup_module resolves local .sif paths and
-        # leaves URIs / null unchanged.
-        #
-        # Built from the Dockerfile at mutation_foci/1.0/Dockerfile in lcr-scripts;
-        # on merge to master the build-containers workflow publishes the image
-        # below. Until that image exists, set this to null and the rule runs on the
-        # host PATH in container mode.
         container_envs:
-            mutation_foci: "docker://ghcr.io/lcr-bccrc/lcr-scripts/mutation_foci:1.0"
+            mfr: "docker://ghcr.io/lcr-bccrc/lcr-scripts/mfr:1.0"
 
         threads:
             cluster: 1
