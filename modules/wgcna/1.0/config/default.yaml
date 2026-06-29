@@ -1,0 +1,82 @@
+lcr-modules:
+
+    wgcna:
+        inputs:
+            # Path to the input expression matrix.
+            # raw mode:        raw counts TSV (genes as rows, first col = "gene", samples as columns)
+            # normalized mode: pre-normalized RDS or TSV (same orientation)
+            # Available wildcards for this path: none (single cohort-level file)
+            expression_matrix: "__UPDATE__"
+
+        gene_expression:
+            # "raw"        → DESeq2 VST normalization + limma batch correction → filter → WGCNA
+            # "normalized" → skip normalization → filter → WGCNA
+            input_mode: "raw"
+
+            # --- raw mode only ---
+            # TSV of sample metadata; must include sample_id, pathology, protocol, ffpe_or_frozen
+            samples_metadata_path: "__UPDATE__"
+
+            # TSV with a "sample_id" column listing samples that failed QC (optional — set to "" to skip)
+            failed_qc_path: ""
+
+            # Pathology label(s); each label runs as an independent branch.
+            # Set to null to normalize over all samples without pathology filtering.
+            pathologies:
+                - DLBCL
+
+            # Batch-effect variables to correct for (must be columns in the metadata TSV)
+            batches:
+                - protocol
+                - ffpe_or_frozen
+
+            # Metadata column representing biological signal to protect during batch correction
+            bio_var: "pathology"
+
+            # Metadata column identifying the cohort (used in PCA diagnostic plots)
+            cohort_var: "cohort"
+
+            # Minimum total read count per sample; samples below this are dropped
+            min_reads: 3000000
+
+            # --- normalized mode only ---
+            # RDS (samples × genes matrix) or a tab-separated file (samples as rows)
+            # Only required when input_mode is "normalized"
+            normalized_matrix_path: ""
+
+            # --- filtering thresholds (applied after normalization) ---
+            median_threshold: 4      # drop genes with per-gene median below this value
+            mad_threshold: 0.25      # drop genes with per-gene MAD below this value
+
+            # --- WGCNA parameters ---
+            wgcna_powers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+            cor_method: "bicor"
+            network_type: "signed hybrid"
+
+        options:
+            normalize_expression: ""
+            filter_variance_genes: ""
+            get_coexpression_modules: ""
+
+        conda_envs:
+            wgcna: "{MODSDIR}/envs/wgcna-1.73.yaml"
+
+        container_envs:
+            wgcna: "docker://ghcr.io/LCR-BCCRC/lcr-scripts/wgcna:1.73"
+
+        threads:
+            normalize_expression: 4
+            get_coexpression_modules: 4
+
+        mem_mb:
+            normalize_expression: 16000
+            filter_variance_genes: 8000
+            get_coexpression_modules: 32000
+
+        scratch_subdirectories: []
+
+        pairing_config:
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: False

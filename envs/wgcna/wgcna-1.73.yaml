@@ -1,0 +1,14 @@
+name: wgcna_r44
+channels:
+  - defaults
+dependencies:
+  - r-base=4.4
+  - snakemake
+  - r-readr
+  - r-dplyr
+  - r-matrix
+  - bioconductor-deseq2
+  - r-remotes
+  - r-devtools
+  - r-wgcna
+prefix: /home/hmirhosseini/miniconda3/envs/wgcna_r44
