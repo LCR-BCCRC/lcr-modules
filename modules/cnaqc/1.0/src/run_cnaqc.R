@@ -258,35 +258,29 @@ if (opt$run_peak_analysis &&
   )
 }
 
-# ---- CNAqc score ----
+# ---- CNAqc QC metrics ----
 
-message("Computing CNAqc score...")
-score_df <- tryCatch(
-  CNAqc::CNAqc_score(x),
+message("Computing CNAqc QC metrics...")
+pass_pct <- tryCatch(
+  CNAqc::get_PASS_percentage(x),
   error = function(e) {
-    message(paste("CNAqc_score failed:", conditionMessage(e)))
-    data.frame(
-      score = NA_real_,
-      QC    = NA_character_,
-      stringsAsFactors = FALSE
-    )
+    message(paste("get_PASS_percentage failed:", conditionMessage(e)))
+    NULL
   }
 )
 
-if (!is.data.frame(score_df)) {
-  score_df <- data.frame(
-    score = as.numeric(score_df),
-    QC    = NA_character_,
-    stringsAsFactors = FALSE
-  )
-}
-
-score_df$tumour_id     <- opt$tumour_id
-score_df$ref           <- opt$ref
-score_df$purity        <- purity
-score_df$ploidy        <- ploidy
-score_df$n_snvs        <- nrow(snvs)
-score_df$n_cna_segments <- nrow(cna)
+score_df <- data.frame(
+  tumour_id      = opt$tumour_id,
+  ref            = opt$ref,
+  purity         = purity,
+  ploidy         = ploidy,
+  n_snvs         = nrow(snvs),
+  n_cna_segments = nrow(cna),
+  pass_pct       = if (!is.null(pass_pct) && nrow(pass_pct) > 0)
+                     pass_pct$percentage[pass_pct$QC_PASS %in% c("PASS", TRUE)][1]
+                   else NA_real_,
+  stringsAsFactors = FALSE
+)
 
 # ---- Plots ----
 
@@ -294,9 +288,9 @@ message("Generating QC plots...")
 pdf(opt$out_plot, width = 12, height = 10)
 
 tryCatch(
-  print(CNAqc::plot_CNA(x)),
+  print(CNAqc::plot_segments(x)),
   error = function(e) {
-    message(paste("plot_CNA failed:", conditionMessage(e)))
+    message(paste("plot_segments failed:", conditionMessage(e)))
   }
 )
 
