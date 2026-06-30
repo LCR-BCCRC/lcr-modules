@@ -26,6 +26,9 @@ lcr-modules:
         conda_envs:
             cnaqc: "{MODSDIR}/envs/cnaqc-1.0.yaml"
 
+        container_envs:
+            cnaqc: "docker://ghcr.io/lcr-bccrc/lcr-scripts/cnaqc:1.0"
+
         threads:
             cnaqc: 1
 

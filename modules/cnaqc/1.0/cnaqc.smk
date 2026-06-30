@@ -115,6 +115,8 @@ rule _cnaqc_run:
         run_peak_analysis    = CFG["options"]["run_peak_analysis"]
     conda:
         CFG["conda_envs"]["cnaqc"]
+    container:
+        CFG["container_envs"]["cnaqc"]
     threads:
         CFG["threads"]["cnaqc"]
     resources:
