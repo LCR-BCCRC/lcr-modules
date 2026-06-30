@@ -138,14 +138,18 @@ if (length(missing_cols) > 0) {
   ))
 }
 
-# CNAqc expects: chr, from, to, Major, minor, CCF
+# CNAqc expects: chr, from, to, Major, minor, CCF, Major_2, minor_2
+# Major_2/minor_2 come from the second Battenberg clone (nmaj2_a/nmin2_a);
+# filled with NA for purely clonal segments or absent columns.
 cna <- data.frame(
-  chr   = sub$chr,
-  from  = as.integer(sub$startpos),
-  to    = as.integer(sub$endpos),
-  Major = as.integer(sub$nmaj1_a),
-  minor = as.integer(sub$nmin1_a),
-  CCF   = as.numeric(sub$frac1_a),
+  chr     = sub$chr,
+  from    = as.integer(sub$startpos),
+  to      = as.integer(sub$endpos),
+  Major   = as.integer(sub$nmaj1_a),
+  minor   = as.integer(sub$nmin1_a),
+  CCF     = as.numeric(sub$frac1_a),
+  Major_2 = if ("nmaj2_a" %in% colnames(sub)) as.integer(sub$nmaj2_a) else NA_integer_,
+  minor_2 = if ("nmin2_a" %in% colnames(sub)) as.integer(sub$nmin2_a) else NA_integer_,
   stringsAsFactors = FALSE
 )
 
