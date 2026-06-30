@@ -275,6 +275,9 @@ pass_row <- if (!is.null(pass_pct) && nrow(pass_pct) > 0) {
   NULL
 }
 
+peak_score <- if (!is.null(x$peaks_analysis$score)) x$peaks_analysis$score else NA_real_
+peak_qc    <- if (!is.null(x$peaks_analysis$QC))    as.character(x$peaks_analysis$QC) else NA_character_
+
 score_df <- data.frame(
   tumour_id           = opt$tumour_id,
   ref                 = opt$ref,
@@ -282,9 +285,11 @@ score_df <- data.frame(
   ploidy              = ploidy,
   n_snvs              = nrow(snvs),
   n_cna_segments      = nrow(cna),
-  pass_length_frac    = if (!is.null(pass_row) && nrow(pass_row) > 0) pass_row$Length[1]       else NA_real_,
-  pass_segments_frac  = if (!is.null(pass_row) && nrow(pass_row) > 0) pass_row$N_segments[1]   else NA_real_,
-  pass_mutations_frac = if (!is.null(pass_row) && nrow(pass_row) > 0) pass_row$N_mutations[1]  else NA_real_,
+  peak_score          = peak_score,
+  peak_qc             = peak_qc,
+  pass_length_frac    = if (!is.null(pass_row) && nrow(pass_row) > 0) pass_row$Length[1]      else NA_real_,
+  pass_segments_frac  = if (!is.null(pass_row) && nrow(pass_row) > 0) pass_row$N_segments[1]  else NA_real_,
+  pass_mutations_frac = if (!is.null(pass_row) && nrow(pass_row) > 0) pass_row$N_mutations[1] else NA_real_,
   stringsAsFactors = FALSE
 )
 
