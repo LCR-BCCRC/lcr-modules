@@ -167,8 +167,9 @@ message(sprintf(
 
 # ---- MAF / SNVs ----
 
+skip_n <- sum(grepl("^#", readLines(opt$maf, n = 200)))
 maf_raw <- fread(
-  opt$maf, sep = "\t", skip = "#", data.table = FALSE
+  opt$maf, sep = "\t", skip = skip_n, data.table = FALSE
 )
 colnames(maf_raw) <- tolower(colnames(maf_raw))
 maf_cols <- colnames(maf_raw)
