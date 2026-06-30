@@ -98,20 +98,6 @@ if (!opt$ref %in% valid_refs) {
   ))
 }
 
-# ---- Install CNAqc if needed ----
-
-if (!requireNamespace("CNAqc", quietly = TRUE)) {
-  message("Installing CNAqc from GitHub (caravagnalab/CNAqc)...")
-  if (!requireNamespace("remotes", quietly = TRUE)) {
-    install.packages("remotes", repos = "https://cloud.r-project.org")
-  }
-  remotes::install_github(
-    "caravagnalab/CNAqc",
-    dependencies = TRUE,
-    upgrade = "never"
-  )
-}
-
 suppressPackageStartupMessages({
   library(CNAqc)
   library(dplyr)
