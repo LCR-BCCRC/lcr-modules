@@ -9,8 +9,9 @@ lcr-modules:
             # MAF file with somatic SNVs (e.g. from vcf2maf/slms-3)
             # Must contain: Chromosome, Start_Position, t_alt_count, t_depth, Reference_Allele, Tumor_Seq_Allele2 columns
             sample_maf: "__UPDATE__"
-            # Path to the CNAqc R script (resolved at module load via {MODSDIR})
+            # Path to the CNAqc R scripts (resolved at module load via {MODSDIR})
             cnaqc_script: "{MODSDIR}/src/run_cnaqc.R"
+            ccf_script: "{MODSDIR}/src/run_ccf.R"
 
         scratch_subdirectories: []
 

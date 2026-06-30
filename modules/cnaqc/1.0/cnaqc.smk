@@ -38,7 +38,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "cnaqc",
     version = "1.0",
-    subdirectories = ["inputs", "cnaqc", "outputs"],
+    subdirectories = ["inputs", "cnaqc", "ccf", "outputs"],
 )
 
 # Map lcr-modules genome build names to the strings CNAqc's init(ref=) accepts.
@@ -58,6 +58,7 @@ localrules:
     _cnaqc_input_cellularity_ploidy,
     _cnaqc_input_maf,
     _cnaqc_output,
+    _cnaqc_ccf_output,
     _cnaqc_all
 
 
@@ -137,6 +138,55 @@ rule _cnaqc_run:
         """
 
 
+# Estimate CCF for each mutation using CNAqc
+rule _cnaqc_ccf:
+    input:
+        sub    = str(rules._cnaqc_input_subclones.output.sub),
+        cp     = str(rules._cnaqc_input_cellularity_ploidy.output.cp),
+        maf    = str(rules._cnaqc_input_maf.output.maf),
+        script = CFG["inputs"]["ccf_script"]
+    output:
+        ccf = CFG["dirs"]["ccf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf.tsv"
+    log:
+        stdout = CFG["logs"]["ccf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf.stdout.log",
+        stderr = CFG["logs"]["ccf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf.stderr.log"
+    params:
+        ref                  = lambda w: CNAQC_GENOME_MAP[w.genome_build],
+        min_depth            = CFG["options"]["min_depth"],
+        min_muts_per_segment = CFG["options"]["min_muts_per_segment"]
+    conda:
+        CFG["conda_envs"]["cnaqc"]
+    container:
+        CFG["container_envs"]["cnaqc"]
+    threads:
+        CFG["threads"]["cnaqc"]
+    resources:
+        **CFG["resources"]["cnaqc"]
+    shell:
+        """
+        Rscript --vanilla {input.script} \
+            --subclones {input.sub} \
+            --cellularity_ploidy {input.cp} \
+            --maf {input.maf} \
+            --tumour_id {wildcards.tumour_id} \
+            --out_ccf {output.ccf} \
+            --ref {params.ref} \
+            --min_depth {params.min_depth} \
+            --min_muts_per_segment {params.min_muts_per_segment} \
+            > {log.stdout} 2> {log.stderr}
+        """
+
+
+# Symlink CCF output into 99-outputs/
+rule _cnaqc_ccf_output:
+    input:
+        ccf = str(rules._cnaqc_ccf.output.ccf)
+    output:
+        ccf = CFG["dirs"]["outputs"] + "tsv/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf.tsv"
+    run:
+        op.relative_symlink(input.ccf, output.ccf, in_module=True)
+
+
 # Symlink final output files into 99-outputs/
 rule _cnaqc_output:
     input:
@@ -157,13 +207,14 @@ rule _cnaqc_all:
             [
                 str(rules._cnaqc_output.output.plot),
                 str(rules._cnaqc_output.output.metrics),
+                str(rules._cnaqc_ccf_output.output.ccf),
             ],
             zip,
-            seq_type   = CFG["runs"]["tumour_seq_type"],
+            seq_type     = CFG["runs"]["tumour_seq_type"],
             genome_build = CFG["runs"]["tumour_genome_build"],
-            tumour_id  = CFG["runs"]["tumour_sample_id"],
-            normal_id  = CFG["runs"]["normal_sample_id"],
-            pair_status = CFG["runs"]["pair_status"],
+            tumour_id    = CFG["runs"]["tumour_sample_id"],
+            normal_id    = CFG["runs"]["normal_sample_id"],
+            pair_status  = CFG["runs"]["pair_status"],
         )
 
 
