@@ -9,7 +9,7 @@ library(readr)
 library(dplyr)
 library(tibble)
 
-source(file.path(snakemake@params[["script_dir"]], "lib", "filter_high_variance_genes.R"))
+source(file.path(snakemake@params[["script_dir"]], "R", "filter_high_variance_genes.R"))
 
 dir.create(dirname(snakemake@output[["tsv"]]), recursive = TRUE, showWarnings = FALSE)
 

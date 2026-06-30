@@ -12,7 +12,7 @@ library(limma)
 library(BiocParallel)
 library(GAMBLR.helpers)
 
-source(file.path(snakemake@params[["script_dir"]], "lib", "normalize_gene_expression.R"))
+source(file.path(snakemake@params[["script_dir"]], "R", "normalize_gene_expression.R"))
 
 dir.create(dirname(snakemake@output[["tsv"]]), recursive = TRUE, showWarnings = FALSE)
 

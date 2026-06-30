@@ -9,7 +9,7 @@ library(tibble)
 library(readr)
 library(WGCNA)
 
-source(file.path(snakemake@params[["script_dir"]], "lib", "get_co_expressed_genes_modules.R"))
+source(file.path(snakemake@params[["script_dir"]], "R", "get_co_expressed_genes_modules.R"))
 
 dir.create(dirname(snakemake@output[["modules_rds"]]), recursive = TRUE, showWarnings = FALSE)
 
