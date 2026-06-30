@@ -269,10 +269,11 @@ pass_pct <- tryCatch(
   }
 )
 
-pass_row <- if (!is.null(pass_pct) && nrow(pass_pct) > 0)
+pass_row <- if (!is.null(pass_pct) && nrow(pass_pct) > 0) {
   pass_pct[pass_pct$QC_PASS == TRUE, ]
-else
+} else {
   NULL
+}
 
 score_df <- data.frame(
   tumour_id           = opt$tumour_id,
