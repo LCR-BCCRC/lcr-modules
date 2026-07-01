@@ -36,11 +36,9 @@ suppressPackageStartupMessages({
   library(data.table)
 })
 
-write_empty <- function(path, tumour_id) {
-  write.table(
-    data.frame(tumour_id = tumour_id),
-    path, sep = "\t", quote = FALSE, row.names = FALSE
-  )
+write_all_na <- function(path, tumour_id, muts) {
+  out <- cbind(tumour_id = tumour_id, muts)
+  write.table(out, path, sep = "\t", quote = FALSE, row.names = FALSE)
 }
 
 # ---- Cellularity / ploidy ----
@@ -112,13 +110,14 @@ snvs <- data.frame(
   stringsAsFactors = FALSE
 )
 
-snvs$VAF <- snvs$NV / snvs$DP
-snvs <- snvs[
-  !is.na(snvs$DP) & snvs$DP >= opt$min_depth &
-    nchar(snvs$ref) == 1L & nchar(snvs$alt) == 1L, ]
+snvs$VAF  <- snvs$NV / snvs$DP
+snvs$type <- ifelse(nchar(snvs$ref) == 1L & nchar(snvs$alt) == 1L, "SNV", "indel")
+snvs <- snvs[!is.na(snvs$DP) & snvs$DP >= opt$min_depth, ]
 
 if (!all(grepl("^chr", snvs$chr))) snvs$chr <- paste0("chr", snvs$chr)
-message(sprintf("Loaded %d SNVs (depth >= %d).", nrow(snvs), opt$min_depth))
+message(sprintf("Loaded %d mutations (depth >= %d): %d SNVs, %d indels.",
+  nrow(snvs), opt$min_depth,
+  sum(snvs$type == "SNV"), sum(snvs$type == "indel")))
 
 # ---- CNAqc init ----
 
@@ -127,8 +126,8 @@ x <- CNAqc::init(mutations = snvs, cna = cna, purity = purity, ref = opt$ref)
 # ---- Peak analysis (required before compute_CCF) ----
 
 if (nrow(snvs) < opt$min_muts_per_segment) {
-  message("Too few mutations for peak analysis — writing empty CCF file.")
-  write_empty(opt$out_ccf, opt$tumour_id)
+  message("Too few mutations for peak analysis — writing all mutations with NA CCF.")
+  write_all_na(opt$out_ccf, opt$tumour_id, snvs)
   quit(save = "no", status = 0)
 }
 
@@ -141,8 +140,8 @@ peaks_ok <- tryCatch({
 })
 
 if (!peaks_ok) {
-  message("Writing empty CCF file.")
-  write_empty(opt$out_ccf, opt$tumour_id)
+  message("Writing all mutations with NA CCF.")
+  write_all_na(opt$out_ccf, opt$tumour_id, snvs)
   quit(save = "no", status = 0)
 }
 
@@ -157,28 +156,51 @@ ccf_ok <- tryCatch({
 })
 
 if (!ccf_ok) {
-  message("Writing empty CCF file.")
-  write_empty(opt$out_ccf, opt$tumour_id)
+  message("Writing all mutations with NA CCF.")
+  write_all_na(opt$out_ccf, opt$tumour_id, snvs)
   quit(save = "no", status = 0)
 }
 
-# ---- Export ----
+# ---- Export (all input mutations, with NA for those CNAqc could not process) ----
 
-ccf_df <- tryCatch(
-  CNAqc::CCF(x),
-  error = function(e) {
-    message(paste("CCF() getter failed:", conditionMessage(e)))
-    NULL
-  }
-)
+join_key <- c("chr", "from", "ref", "alt")
 
-if (is.null(ccf_df) || nrow(ccf_df) == 0) {
-  message("No CCF estimates available — writing empty CCF file.")
-  write_empty(opt$out_ccf, opt$tumour_id)
+# Group 1: clonal mutations with CCF estimates
+clonal_df <- tryCatch(CNAqc::CCF(x), error = function(e) {
+  message(paste("CCF() getter failed:", conditionMessage(e)))
+  NULL
+})
+
+# Group 2: subclonal mutations — mapped to a segment but no CCF estimate
+subclonal_df <- tryCatch(CNAqc::Mutations(x, cna = "subclonal"), error = function(e) NULL)
+
+# Combine all mutations CNAqc mapped to a segment
+mapped_df <- dplyr::bind_rows(clonal_df, subclonal_df)
+
+# Group 3: unmapped mutations — not overlapping any CNA segment
+if (!is.null(mapped_df) && nrow(mapped_df) > 0) {
+  unmapped_df <- dplyr::anti_join(snvs, mapped_df, by = join_key)
 } else {
-  ccf_df <- cbind(tumour_id = opt$tumour_id, ccf_df)
-  write.table(ccf_df, opt$out_ccf, sep = "\t", quote = FALSE, row.names = FALSE)
-  message(sprintf("Wrote %d CCF estimates to %s", nrow(ccf_df), opt$out_ccf))
+  unmapped_df <- snvs
 }
+
+# Fill NA for all CNAqc-derived columns in unmapped mutations
+if (nrow(unmapped_df) > 0 && !is.null(mapped_df) && nrow(mapped_df) > 0) {
+  for (col in setdiff(colnames(mapped_df), colnames(unmapped_df))) {
+    unmapped_df[[col]] <- NA
+  }
+}
+
+out_df <- dplyr::bind_rows(mapped_df, unmapped_df)
+out_df <- cbind(tumour_id = opt$tumour_id, out_df)
+
+message(sprintf(
+  "Writing %d mutations: %d clonal with CCF, %d subclonal, %d unmapped.",
+  nrow(out_df),
+  if (!is.null(clonal_df)) nrow(clonal_df) else 0L,
+  if (!is.null(subclonal_df)) nrow(subclonal_df) else 0L,
+  nrow(unmapped_df)
+))
+write.table(out_df, opt$out_ccf, sep = "\t", quote = FALSE, row.names = FALSE)
 
 message("Done.")
