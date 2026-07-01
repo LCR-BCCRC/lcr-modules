@@ -165,11 +165,28 @@ if (!ccf_ok) {
 
 join_key <- c("chr", "from", "ref", "alt")
 
-# Group 1: clonal mutations with CCF estimates
-clonal_df <- tryCatch(CNAqc::CCF(x), error = function(e) {
+# All clonal mutations (simple and complex karyotypes)
+clonal_all <- tryCatch(CNAqc::Mutations(x, cna = "clonal"), error = function(e) NULL)
+
+# CCF estimates — only available for karyotypes where CNAqc fitted peaks
+ccf_estimates <- tryCatch(CNAqc::CCF(x), error = function(e) {
   message(paste("CCF() getter failed:", conditionMessage(e)))
   NULL
 })
+
+# Left-join CCF estimates onto all clonal mutations so high-CN segments
+# (e.g. 3:1, 5:0, 11:0) get karyotype/segment_id but NA for CCF/multiplicity
+if (!is.null(clonal_all) && nrow(clonal_all) > 0 &&
+    !is.null(ccf_estimates) && nrow(ccf_estimates) > 0) {
+  ccf_cols <- setdiff(colnames(ccf_estimates), colnames(clonal_all))
+  clonal_df <- dplyr::left_join(
+    clonal_all,
+    ccf_estimates[, c(join_key, ccf_cols), drop = FALSE],
+    by = join_key
+  )
+} else {
+  clonal_df <- clonal_all
+}
 
 # Group 2: subclonal mutations — mapped to a segment but no CCF estimate
 subclonal_df <- tryCatch(CNAqc::Mutations(x, cna = "subclonal"), error = function(e) NULL)
