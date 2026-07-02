@@ -36,7 +36,14 @@ suppressPackageStartupMessages({
   library(data.table)
 })
 
+CCF_COLS <- c("karyotype", "segment_id", "QC_PASS",
+              "mutation_multiplicity", "CCF_estimate",
+              "CCF_CI_low", "CCF_CI_high")
+
 write_all_na <- function(path, tumour_id, muts) {
+  for (col in CCF_COLS) {
+    if (!col %in% colnames(muts)) muts[[col]] <- NA
+  }
   out <- cbind(tumour_id = tumour_id, muts)
   write.table(out, path, sep = "\t", quote = FALSE, row.names = FALSE)
 }
@@ -175,15 +182,22 @@ ccf_estimates <- tryCatch(CNAqc::CCF(x), error = function(e) {
 })
 
 # Left-join CCF estimates onto all clonal mutations so high-CN segments
-# (e.g. 3:1, 5:0, 11:0) get karyotype/segment_id but NA for CCF/multiplicity
-if (!is.null(clonal_all) && nrow(clonal_all) > 0 &&
-    !is.null(ccf_estimates) && nrow(ccf_estimates) > 0) {
+# (e.g. 3:1, 5:0, 11:0) get karyotype/segment_id but NA for CCF/multiplicity.
+# NULL (CCF() errored) and empty (no estimates produced) are handled separately:
+# when empty we still know the column schema and can add NA columns to keep
+# the output schema consistent with the success path.
+if (!is.null(clonal_all) && nrow(clonal_all) > 0 && !is.null(ccf_estimates)) {
   ccf_cols <- setdiff(colnames(ccf_estimates), colnames(clonal_all))
-  clonal_df <- dplyr::left_join(
-    clonal_all,
-    ccf_estimates[, c(join_key, ccf_cols), drop = FALSE],
-    by = join_key
-  )
+  if (nrow(ccf_estimates) > 0) {
+    clonal_df <- dplyr::left_join(
+      clonal_all,
+      ccf_estimates[, c(join_key, ccf_cols), drop = FALSE],
+      by = join_key
+    )
+  } else {
+    clonal_df <- clonal_all
+    for (col in ccf_cols) clonal_df[[col]] <- NA
+  }
 } else {
   clonal_df <- clonal_all
 }
@@ -209,6 +223,13 @@ if (nrow(unmapped_df) > 0 && !is.null(mapped_df) && nrow(mapped_df) > 0) {
 }
 
 out_df <- dplyr::bind_rows(mapped_df, unmapped_df)
+
+# Guarantee CCF-derived columns are always present, even when CCF() errored
+# and we couldn't read the schema from ccf_estimates.
+for (col in CCF_COLS) {
+  if (!col %in% colnames(out_df)) out_df[[col]] <- NA
+}
+
 out_df <- cbind(tumour_id = opt$tumour_id, out_df)
 
 message(sprintf(
