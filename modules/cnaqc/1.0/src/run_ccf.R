@@ -229,7 +229,7 @@ out_df <- dplyr::bind_rows(mapped_df, unmapped_df)
 
 # Guarantee CCF-derived columns are always present, even when CCF() errored
 # and we couldn't read the schema from ccf_estimates.
-for (col in c(CCF_COLS, BT_COLS)) {
+for (col in CCF_COLS) {
   if (!col %in% colnames(out_df)) out_df[[col]] <- NA
 }
 
@@ -278,6 +278,11 @@ out_df <- out_df %>%
                           ".seg_start" = ".startpos",
                           ".seg_end"   = ".endpos")) %>%
   select(-.seg_chr, -.seg_start, -.seg_end)
+
+# Fallback in case the join produced no rows or segment_id was absent everywhere
+for (col in BT_COLS) {
+  if (!col %in% colnames(out_df)) out_df[[col]] <- NA
+}
 
 out_df <- cbind(tumour_id = opt$tumour_id, out_df)
 
