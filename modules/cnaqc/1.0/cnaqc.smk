@@ -59,6 +59,7 @@ localrules:
     _cnaqc_input_maf,
     _cnaqc_output,
     _cnaqc_ccf_output,
+    _cnaqc_ccf_plot_output,
     _cnaqc_all
 
 
@@ -177,6 +178,42 @@ rule _cnaqc_ccf:
         """
 
 
+# Generate overview VAF plot from CCF TSV
+rule _cnaqc_ccf_plot:
+    input:
+        ccf    = str(rules._cnaqc_ccf.output.ccf),
+        script = CFG["inputs"]["ccf_plot_script"]
+    output:
+        plot = CFG["dirs"]["ccf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf.pdf"
+    log:
+        stdout = CFG["logs"]["ccf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf_plot.stdout.log",
+        stderr = CFG["logs"]["ccf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf_plot.stderr.log"
+    conda:
+        CFG["conda_envs"]["cnaqc_plot"]
+    threads:
+        CFG["threads"]["cnaqc"]
+    resources:
+        **CFG["resources"]["cnaqc"]
+    shell:
+        """
+        Rscript --vanilla {input.script} \
+            --ccf {input.ccf} \
+            --tumour_id {wildcards.tumour_id} \
+            --out_plot {output.plot} \
+            > {log.stdout} 2> {log.stderr}
+        """
+
+
+# Symlink CCF plot into 99-outputs/
+rule _cnaqc_ccf_plot_output:
+    input:
+        plot = str(rules._cnaqc_ccf_plot.output.plot)
+    output:
+        plot = CFG["dirs"]["outputs"] + "pdf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf.pdf"
+    run:
+        op.relative_symlink(input.plot, output.plot, in_module=True)
+
+
 # Symlink CCF output into 99-outputs/
 rule _cnaqc_ccf_output:
     input:
@@ -208,6 +245,7 @@ rule _cnaqc_all:
                 str(rules._cnaqc_output.output.plot),
                 str(rules._cnaqc_output.output.metrics),
                 str(rules._cnaqc_ccf_output.output.ccf),
+                str(rules._cnaqc_ccf_plot_output.output.plot),
             ],
             zip,
             seq_type     = CFG["runs"]["tumour_seq_type"],
