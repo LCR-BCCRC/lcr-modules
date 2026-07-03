@@ -6,6 +6,7 @@ channels:
 dependencies:
   - r-base=4.3
   - r-remotes
+  - r-devtools
   - r-optparse
   - r-dplyr
   - r-ggplot2
