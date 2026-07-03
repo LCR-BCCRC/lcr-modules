@@ -197,7 +197,7 @@ rule _cnaqc_ccf_plot:
     resources:
         **CFG["resources"]["cnaqc"]
     script:
-        CFG["inputs"]["ccf_plot_script"]
+        "src/plot_ccf.R"
 
 
 # Symlink CCF plot into 99-outputs/
