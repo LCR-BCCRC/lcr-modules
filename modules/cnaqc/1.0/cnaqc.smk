@@ -189,7 +189,7 @@ rule _cnaqc_ccf_plot:
         stdout = CFG["logs"]["ccf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf_plot.stdout.log",
         stderr = CFG["logs"]["ccf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf_plot.stderr.log"
     conda:
-        CFG["conda_envs"]["cnaqc_plot"]
+        CFG["conda_envs"]["gamblr"]
     threads:
         CFG["threads"]["cnaqc"]
     resources:

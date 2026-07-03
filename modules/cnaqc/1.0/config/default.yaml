@@ -26,7 +26,7 @@ lcr-modules:
 
         conda_envs:
             cnaqc: "{MODSDIR}/envs/cnaqc-1.0.yaml"
-            cnaqc_plot: "{MODSDIR}/envs/cnaqc-plot-1.0.yaml"
+            gamblr: "{MODSDIR}/envs/gamblr.yaml"
 
         container_envs:
             cnaqc: "docker://ghcr.io/lcr-bccrc/lcr-scripts/cnaqc:1.0"
