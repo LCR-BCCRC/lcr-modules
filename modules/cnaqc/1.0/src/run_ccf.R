@@ -40,8 +40,11 @@ CCF_COLS <- c("karyotype", "segment_id", "QC_PASS",
               "mutation_multiplicity", "CCF_estimate",
               "CCF_CI_low", "CCF_CI_high")
 
+BT_COLS <- c("bt_major_1", "bt_minor_1", "bt_frac_1", "bt_karyotype_1",
+             "bt_major_2", "bt_minor_2", "bt_frac_2", "bt_karyotype_2")
+
 write_all_na <- function(path, tumour_id, muts) {
-  for (col in CCF_COLS) {
+  for (col in c(CCF_COLS, BT_COLS)) {
     if (!col %in% colnames(muts)) muts[[col]] <- NA
   }
   out <- cbind(tumour_id = tumour_id, muts)
@@ -226,9 +229,55 @@ out_df <- dplyr::bind_rows(mapped_df, unmapped_df)
 
 # Guarantee CCF-derived columns are always present, even when CCF() errored
 # and we couldn't read the schema from ccf_estimates.
-for (col in CCF_COLS) {
+for (col in c(CCF_COLS, BT_COLS)) {
   if (!col %in% colnames(out_df)) out_df[[col]] <- NA
 }
+
+# ---- Re-join Battenberg segment CN data ----
+# CNAqc leaves karyotype=NA for subclonal mutations (the segment is a CN mixture
+# so no single karyotype can be assigned). Re-joining to the original Battenberg
+# data recovers both clones' CN values for all segment-mapped mutations.
+
+# Ensure clone 2 columns exist (absent when Battenberg found no subclonality)
+for (col in c("nmaj2_a", "nmin2_a", "frac2_a")) {
+  if (!col %in% colnames(sub)) sub[[col]] <- NA
+}
+
+sub_cn_annot <- data.frame(
+  .chr           = if_else(grepl("^chr", sub$chr), sub$chr, paste0("chr", sub$chr)),
+  .startpos      = as.integer(sub$startpos),
+  .endpos        = as.integer(sub$endpos),
+  bt_major_1     = as.integer(sub$nmaj1_a),
+  bt_minor_1     = as.integer(sub$nmin1_a),
+  bt_frac_1      = as.numeric(sub$frac1_a),
+  bt_karyotype_1 = paste0(sub$nmaj1_a, ":", sub$nmin1_a),
+  bt_major_2     = as.integer(sub$nmaj2_a),
+  bt_minor_2     = as.integer(sub$nmin2_a),
+  bt_frac_2      = as.numeric(sub$frac2_a),
+  bt_karyotype_2 = ifelse(
+    !is.na(sub$nmaj2_a) & !is.na(sub$nmin2_a),
+    paste0(sub$nmaj2_a, ":", sub$nmin2_a),
+    NA_character_
+  ),
+  stringsAsFactors = FALSE
+)
+
+# Parse chr:start:end from segment_id (format: chr:start:end:Major:minor:CCF)
+out_df <- out_df %>%
+  mutate(
+    .seg_chr   = if_else(!is.na(segment_id), sub(":.*", "", segment_id), NA_character_),
+    .seg_start = if_else(!is.na(segment_id),
+                         suppressWarnings(as.integer(gsub("^[^:]+:([^:]+):.*", "\\1", segment_id))),
+                         NA_integer_),
+    .seg_end   = if_else(!is.na(segment_id),
+                         suppressWarnings(as.integer(gsub("^[^:]+:[^:]+:([^:]+):.*", "\\1", segment_id))),
+                         NA_integer_)
+  ) %>%
+  dplyr::left_join(sub_cn_annot,
+                   by = c(".seg_chr"   = ".chr",
+                          ".seg_start" = ".startpos",
+                          ".seg_end"   = ".endpos")) %>%
+  select(-.seg_chr, -.seg_start, -.seg_end)
 
 out_df <- cbind(tumour_id = opt$tumour_id, out_df)
 
