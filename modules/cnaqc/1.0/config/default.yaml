@@ -12,7 +12,6 @@ lcr-modules:
             # Path to the CNAqc R scripts (resolved at module load via {MODSDIR})
             cnaqc_script: "{MODSDIR}/src/run_cnaqc.R"
             ccf_script: "{MODSDIR}/src/run_ccf.R"
-            ccf_plot_script: "{MODSDIR}/src/plot_ccf.R"
 
         scratch_subdirectories: []
 
