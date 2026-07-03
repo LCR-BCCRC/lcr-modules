@@ -11,5 +11,3 @@ dependencies:
   - r-ggplot2
   - r-tidyr
   - r-data.table
-  # GAMBLR.helpers must be installed from GitHub after env creation:
-  # Rscript -e 'remotes::install_github("morinlab/GAMBLR.helpers")'
