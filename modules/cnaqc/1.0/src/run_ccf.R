@@ -298,6 +298,9 @@ if (length(missing_bt) > 0) {
       (out_df$from[missing_bt] + 1L) <= as.integer(sub$endpos[i])
     ]
     if (length(in_seg) == 0) next
+    out_df$segment_id[in_seg]     <- paste(seg_chr, sub$startpos[i], sub$endpos[i],
+                                           sub$nmaj1_a[i], sub$nmin1_a[i], sub$frac1_a[i],
+                                           sep = ":")
     out_df$bt_major_1[in_seg]     <- as.integer(sub$nmaj1_a[i])
     out_df$bt_minor_1[in_seg]     <- as.integer(sub$nmin1_a[i])
     out_df$bt_frac_1[in_seg]      <- as.numeric(sub$frac1_a[i])
