@@ -284,6 +284,33 @@ for (col in BT_COLS) {
   if (!col %in% colnames(out_df)) out_df[[col]] <- NA
 }
 
+# Subclonal mutations never receive segment_id from CNAqc (map_mutations_to_subclonal_segments
+# nests mutation data frames inside the segment table rather than annotating mutations in place),
+# so the segment_id-based join above leaves them with NA BT columns. Apply CNAqc's own positional
+# overlap logic (chr == seg$chr & from >= seg$from & to <= seg$to) as a targeted fallback.
+missing_bt <- which(is.na(out_df$bt_major_1))
+if (length(missing_bt) > 0) {
+  for (i in seq_len(nrow(sub))) {
+    seg_chr <- if (grepl("^chr", sub$chr[i])) sub$chr[i] else paste0("chr", sub$chr[i])
+    in_seg  <- missing_bt[
+      out_df$chr[missing_bt]  == seg_chr &
+      out_df$from[missing_bt] >= as.integer(sub$startpos[i]) &
+      (out_df$from[missing_bt] + 1L) <= as.integer(sub$endpos[i])
+    ]
+    if (length(in_seg) == 0) next
+    out_df$bt_major_1[in_seg]     <- as.integer(sub$nmaj1_a[i])
+    out_df$bt_minor_1[in_seg]     <- as.integer(sub$nmin1_a[i])
+    out_df$bt_frac_1[in_seg]      <- as.numeric(sub$frac1_a[i])
+    out_df$bt_karyotype_1[in_seg] <- paste0(sub$nmaj1_a[i], ":", sub$nmin1_a[i])
+    out_df$bt_major_2[in_seg]     <- as.integer(sub$nmaj2_a[i])
+    out_df$bt_minor_2[in_seg]     <- as.integer(sub$nmin2_a[i])
+    out_df$bt_frac_2[in_seg]      <- as.numeric(sub$frac2_a[i])
+    out_df$bt_karyotype_2[in_seg] <- if (!is.na(sub$nmaj2_a[i]) && !is.na(sub$nmin2_a[i]))
+                                       paste0(sub$nmaj2_a[i], ":", sub$nmin2_a[i]) else NA_character_
+    missing_bt <- setdiff(missing_bt, in_seg)
+  }
+}
+
 out_df <- cbind(tumour_id = opt$tumour_id, out_df)
 
 message(sprintf(
