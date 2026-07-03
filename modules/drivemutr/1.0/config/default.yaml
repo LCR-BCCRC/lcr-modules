@@ -1,0 +1,102 @@
+lcr-modules:
+
+    drivemutr:
+
+        # DriveMuTR is a cohort-level, per-gene module: it consumes a single MAF + CN
+        # matrix spanning the cohort, scatters one job per target gene (via a checkpoint),
+        # and gathers the per-gene results into UCSC custom tracks. It is run once per
+        # cohort (module_run_per: sample) and does not use tumour/normal pairing, so no
+        # `pairing_config` block is required. Working wildcards are `{gene}` and `{lam}`.
+
+        inputs:
+            # All paths below accept no wildcards (cohort-level, single files).
+            # `__UPDATE__` flags values that MUST be set by the user; oncopipe errors if any remain.
+            ssm_maf: "__UPDATE__"                   # MAF (TSV) of simple somatic mutations
+            cnv_matrix: "__UPDATE__"                # copy-number matrix (TSV): col 1 = sample_id, rest = gene CN values
+            wgcna_coexpression_modules: "__UPDATE__" # WGCNA module: coexpression_modules.rds
+            wgcna_filtered_expression: "__UPDATE__"  # WGCNA module: filtered_expression.tsv (samples x genes)
+            tf_names_file: "__UPDATE__"             # one TF gene symbol per line (e.g. Lambert et al. 2018)
+            # Optional inputs (leave null to disable); passed straight to the rules that use them.
+            sample_id_map: null                     # DNA<->RNA sample-ID linkage table (TSV); null when modalities share IDs
+            cadd_dir: null                          # dir with a.bw/c.bw/g.bw/t.bw; null fetches live from UCSC (needs internet)
+
+        reference_params:
+            # Requires user intervention
+            genome_build: "grch37"                  # grch37/hg19/37 or grch38/hg38/38
+            pathology: "DLBCL"                      # stored in the Pathology column of the output
+            # Target-region definition
+            ashm_regions: True                      # include the aSHM region set from GAMBLR.data
+            genes_regions_list: []                  # extra [Hugo_Symbol, "chrN:start-end"] pairs, e.g.:
+            #   - ["MYC",  "chr8:128747680-128753680"]
+            #   - ["BCL2", "chr18:60790579-60987361"]
+
+        options:
+            # Hierarchical grouping: one or more lambda values; each produces its own
+            # group column and its own set of output tracks (suffix lambda_<value>).
+            lambda: [1]
+            tf_expression_threshold: 6              # min mean VST expression for a TF to count as expressed
+            # Optional sliding-window refinement of large hierarchical groups
+            custom_sliding_window: False
+            sliding_window:
+                window_size: 20                     # window width (bp)
+                max_range: 50                       # max span (bp) before a window is finalised
+                slide_by: 1                         # step size (bp)
+                min_mutations_count: 6              # min mutations to close a window group
+                min_group_range: 40                 # min group span (bp) that triggers sub-splitting
+
+        scratch_subdirectories: []
+
+        conda_envs:
+            drivemutr: "{MODSDIR}/envs/drivemutr-1.0.yaml"
+
+        container_envs:
+            drivemutr: "docker://ghcr.io/LCR-BCCRC/lcr-scripts/drivemutr:1.0"
+
+        threads:
+            annotate_io: 1
+            get_cadd_scores: 1
+            merge_and_split_genes: 1
+            annotate_lambda: 1
+            annotate_sliding_windows: 1
+            adjust_cadd: 1
+            assign_module: 1
+            filter_matched_dna_rna: 1
+            build_foci_matrix: 1
+            module_model: 1
+            genomic_models: 2
+            rulefit_model: 4
+            get_tf_results: 4
+            sanity_check_plot: 1
+            get_ucsc_tracks: 1
+
+        resources:
+            annotate_io:
+                mem_mb: 8000
+            get_cadd_scores:
+                mem_mb: 8000
+            merge_and_split_genes:
+                mem_mb: 4000
+            annotate_lambda:
+                mem_mb: 4000
+            annotate_sliding_windows:
+                mem_mb: 4000
+            adjust_cadd:
+                mem_mb: 4000
+            assign_module:
+                mem_mb: 8000
+            filter_matched_dna_rna:
+                mem_mb: 4000
+            build_foci_matrix:
+                mem_mb: 4000
+            module_model:
+                mem_mb: 8000
+            genomic_models:
+                mem_mb: 8000
+            rulefit_model:
+                mem_mb: 16000
+            get_tf_results:
+                mem_mb: 32000
+            sanity_check_plot:
+                mem_mb: 4000
+            get_ucsc_tracks:
+                mem_mb: 8000
