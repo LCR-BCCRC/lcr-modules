@@ -1,27 +1,9 @@
 #!/usr/bin/env Rscript
 
 # Plot CCF output from _cnaqc_ccf rule
+# Called via Snakemake script: directive; parameters accessed via snakemake@
 # Inputs:  CCF TSV produced by run_ccf.R
 # Outputs: PDF with per-chromosome VAF overview coloured by total CN
-
-suppressPackageStartupMessages(library(optparse))
-
-option_list <- list(
-  make_option("--ccf",       type = "character", help = "CCF TSV from _cnaqc_ccf rule"),
-  make_option("--tumour_id", type = "character", help = "Tumour sample ID (used as plot title)"),
-  make_option("--out_plot",  type = "character", help = "Output PDF file"),
-  make_option("--width",     type = "numeric",   default = 14,
-              help = "PDF width in inches [default: %default]"),
-  make_option("--height",    type = "numeric",   default = 8,
-              help = "PDF height in inches [default: %default]"),
-  make_option("--base_size", type = "numeric",   default = 6,
-              help = "ggplot base font size [default: %default]")
-)
-
-opt <- parse_args(OptionParser(option_list = option_list))
-for (arg in c("ccf", "out_plot")) {
-  if (is.null(opt[[arg]])) stop(paste("Required argument missing:", arg))
-}
 
 suppressPackageStartupMessages({
   library(dplyr)
@@ -30,6 +12,13 @@ suppressPackageStartupMessages({
   library(data.table)
   library(GAMBLR.helpers)
 })
+
+ccf_path  <- snakemake@input[["ccf"]]
+out_plot  <- snakemake@output[["plot"]]
+tumour_id <- snakemake@wildcards[["tumour_id"]]
+width     <- snakemake@params[["width"]]
+height    <- snakemake@params[["height"]]
+base_size <- snakemake@params[["base_size"]]
 
 cnaqc_overview_plot <- function(ccf_df, plot_type = "VAF", base_size = 6) {
   if (any(grepl("chr", ccf_df$chr))) {
@@ -124,25 +113,23 @@ cnaqc_overview_plot <- function(ccf_df, plot_type = "VAF", base_size = 6) {
     theme_Morons(base_size = base_size)
 }
 
-# ---- Load data ----
+# ---- Load and plot ----
 
-ccf_df <- fread(opt$ccf, sep = "\t", data.table = FALSE)
-message(sprintf("Loaded %d mutations from %s", nrow(ccf_df), opt$ccf))
+ccf_df <- fread(ccf_path, sep = "\t", data.table = FALSE)
+message(sprintf("Loaded %d mutations from %s", nrow(ccf_df), ccf_path))
 
-pdf(opt$out_plot, width = opt$width, height = opt$height)
+pdf(out_plot, width = width, height = height)
 
 if (all(is.na(ccf_df$bt_major_1))) {
   message("No CN-mapped mutations — writing blank plot page.")
   grid::grid.newpage()
   grid::grid.text(
-    paste0(opt$tumour_id, "\nNo CN-mapped mutations available for plotting"),
+    paste0(tumour_id, "\nNo CN-mapped mutations available for plotting"),
     gp = grid::gpar(fontsize = 14)
   )
 } else {
-  p <- cnaqc_overview_plot(ccf_df, base_size = opt$base_size)
-  if (!is.null(opt$tumour_id)) {
-    p <- p + ggtitle(opt$tumour_id)
-  }
+  p <- cnaqc_overview_plot(ccf_df, base_size = base_size)
+  p <- p + ggtitle(tumour_id)
   print(p)
 }
 
