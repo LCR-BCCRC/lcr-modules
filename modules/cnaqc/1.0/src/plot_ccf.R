@@ -115,7 +115,8 @@ cnaqc_overview_plot <- function(ccf_df, plot_type = "VAF", base_size = 6) {
 
 # ---- Load and plot ----
 
-ccf_df <- fread(ccf_path, sep = "\t", data.table = FALSE)
+ccf_df <- fread(ccf_path, sep = "\t", data.table = FALSE) %>% 
+  mutate(mutation_multiplicity = ifelse(is.na(mutation_multiplicity), 0, mutation_multiplicity))
 message(sprintf("Loaded %d mutations from %s", nrow(ccf_df), ccf_path))
 
 pdf(out_plot, width = width, height = height)
