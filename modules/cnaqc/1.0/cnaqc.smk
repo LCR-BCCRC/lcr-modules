@@ -181,27 +181,23 @@ rule _cnaqc_ccf:
 # Generate overview VAF plot from CCF TSV
 rule _cnaqc_ccf_plot:
     input:
-        ccf    = str(rules._cnaqc_ccf.output.ccf),
-        script = CFG["inputs"]["ccf_plot_script"]
+        ccf = str(rules._cnaqc_ccf.output.ccf)
     output:
         plot = CFG["dirs"]["ccf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf.pdf"
     log:
-        stdout = CFG["logs"]["ccf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf_plot.stdout.log",
         stderr = CFG["logs"]["ccf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf_plot.stderr.log"
+    params:
+        width     = 14,
+        height    = 8,
+        base_size = 6
     conda:
         CFG["conda_envs"]["gamblr"]
     threads:
         CFG["threads"]["cnaqc"]
     resources:
         **CFG["resources"]["cnaqc"]
-    shell:
-        """
-        Rscript --vanilla {input.script} \
-            --ccf {input.ccf} \
-            --tumour_id {wildcards.tumour_id} \
-            --out_plot {output.plot} \
-            > {log.stdout} 2> {log.stderr}
-        """
+    script:
+        CFG["inputs"]["ccf_plot_script"]
 
 
 # Symlink CCF plot into 99-outputs/
