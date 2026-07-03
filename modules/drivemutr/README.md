@@ -94,4 +94,4 @@ rule all:
 
 # Changelog
 
-See the full changelog [here](https://github.com/LCR-BCCRC/lcr-modules/blob/master/modules/drivemutr/CHANGELOG.md)
+See the full changelog [here](./CHANGELOG.md)
