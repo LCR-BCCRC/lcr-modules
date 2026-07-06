@@ -14,6 +14,7 @@ lcr-modules:
         # Remove these if REDUX outputs are available for your samples.
         options:
             sage_run: "-skip_bqr -skip_msi_jitter"
+            sage_jar: "{MODSDIR}/jar/sage-5.1-jar-with-dependencies.jar"
 
 
         conda_envs:
@@ -22,7 +23,9 @@ lcr-modules:
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
 
         container_envs:
-            sage: "docker://ghcr.io/lcr-bccrc/lcr-scripts/sage:5.0"
+            # Container support disabled: the published sage:5.0 image has the unpatched JAR.
+            # To re-enable, build a new image that includes the patched sage-5.1 JAR from modules/sage/1.2/jar/.
+            sage: null
 
         resources:
             sage_run:
