@@ -22,7 +22,7 @@ lcr-modules:
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
 
         container_envs:
-            sage: null
+            sage: "docker://ghcr.io/lcr-bccrc/lcr-scripts/sage:5.0"
 
         resources:
             sage_run:
