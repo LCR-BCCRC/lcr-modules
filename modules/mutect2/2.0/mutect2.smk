@@ -124,7 +124,7 @@ checkpoint _mutect2_input_chrs:
         candidate_chrs = pd.read_csv(input.candidate_positions, comment='#', sep='\t')
         candidate_chrs = candidate_chrs.iloc[:, 0].astype(str).unique().tolist()
         # obtain list of chromosomes in the capture space
-        interval_chrs = pd.read_csv(input.capture_arg, comment='@', sep='\t')
+        interval_chrs = pd.read_csv(input.capture_arg, comment='@', sep='\t', header=None)
         interval_chrs = interval_chrs.iloc[:, 0].astype(str).unique().tolist()
         # intersect the three lists to obtain chromosomes present in all
         intersect_chrs = list(set(main_chrs) & set(candidate_chrs) & set(interval_chrs))
