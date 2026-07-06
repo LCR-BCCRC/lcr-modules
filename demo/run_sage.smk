@@ -39,6 +39,8 @@ subworkflow reference_files:
 
 configfile: "../modules/sage/1.2/config/default.yaml"
 
+configfile: "genome_config.yaml"
+
 # Point to the demo BAM files
 config["lcr-modules"]["sage"]["inputs"]["sample_bam"] = "data/{sample_id}.bam"
 
