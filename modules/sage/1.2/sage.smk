@@ -148,7 +148,8 @@ rule _run_sage:
         high_conf_bed = str(rules._download_sage_references.output.high_conf_bed),
         cache = ancient(str(rules._download_sage_references.output.cache)),
         panel_bed = _sage_get_capspace,
-        main_chromosomes = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
+        main_chromosomes = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt"),
+        sage_jar = CFG["options"]["sage_jar"]
     output:
         vcf = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf"),
         vcf_gz = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf.gz")
@@ -159,7 +160,6 @@ rule _run_sage:
         opts = CFG["options"]["sage_run"],
         assembly = lambda w: "38" if "38" in str({w.genome_build}) else "37",
         cache_dir = lambda w: config["lcr-modules"]["sage"]["dirs"]["inputs"] + "references/" + w.genome_build + "/ensembl_cache/" + str("38" if "38" in str({w.genome_build}) else "37"),
-        sage = CFG["options"]["sage_jar"],
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["sage"]
@@ -176,7 +176,7 @@ rule _run_sage:
         SAGE_CHROMOSOMES=$(cat {input.main_chromosomes} | paste -sd ";" -)
         &&
         java -Xms1G -Xmx{params.jvmheap}m
-        -cp {params.sage} com.hartwig.hmftools.sage.SageApplication
+        -cp {input.sage_jar} com.hartwig.hmftools.sage.SageApplication
         -threads {threads}
         {params.opts}
         -specific_chr $SAGE_CHROMOSOMES
