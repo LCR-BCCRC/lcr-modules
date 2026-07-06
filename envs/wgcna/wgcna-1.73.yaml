@@ -1,5 +1,7 @@
 name: wgcna_r44
 channels:
+  - conda-forge
+  - bioconda
   - defaults
 dependencies:
   - r-base=4.4
@@ -10,5 +12,5 @@ dependencies:
   - bioconductor-deseq2
   - r-remotes
   - r-devtools
-  - r-wgcna
+  - r-wgcna=1.73
 prefix: /home/hmirhosseini/miniconda3/envs/wgcna_r44
