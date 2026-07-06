@@ -13,7 +13,7 @@ lcr-modules:
         # -skip_bqr and -skip_msi_jitter bypass the REDUX file requirements.
         # Remove these if REDUX outputs are available for your samples.
         options:
-            sage_run: "-skip_bqr -skip_msi_jitter"
+            sage_run: "-skip_bqr -skip_msi_jitter -log_level DEBUG"
             sage_jar: "{MODSDIR}/jar/sage-5.1-jar-with-dependencies.jar"
 
 
@@ -23,13 +23,13 @@ lcr-modules:
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
 
         container_envs:
-            # Container support disabled: the published sage:5.0 image has the unpatched JAR.
-            # To re-enable, build a new image that includes the patched sage-5.1 JAR from modules/sage/1.2/jar/.
-            sage: null
+            # Minimal JRE only — the patched JAR is supplied from modules/sage/1.2/jar/ via
+            # Apptainer bind-mount (input declaration ensures Snakemake mounts the directory).
+            sage: "docker://eclipse-temurin:17-jre"
 
         resources:
             sage_run:
-                mem_mb: 60000
+                mem_mb: 48000
                 disk_mb: 10000
                 bam: 1
             filter:
