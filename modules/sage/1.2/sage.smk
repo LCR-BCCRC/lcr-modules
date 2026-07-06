@@ -6,7 +6,7 @@
 
 # Original Author:  Kostiantyn Dreval
 # Module Author:    Kostiantyn Dreval
-# Contributors:     N/A
+# Contributors:     Ryan Morin
 
 
 ##### SETUP #####
@@ -163,6 +163,8 @@ rule _run_sage:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["sage"]
+    container:
+        CFG["container_envs"]["sage"]
     threads:
         CFG["threads"]["sage_run"]
     resources:

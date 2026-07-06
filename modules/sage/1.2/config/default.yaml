@@ -21,6 +21,9 @@ lcr-modules:
             sage: "{MODSDIR}/envs/hmftools-sage-5.0.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
 
+        container_envs:
+            sage: null
+
         resources:
             sage_run:
                 mem_mb: 60000
