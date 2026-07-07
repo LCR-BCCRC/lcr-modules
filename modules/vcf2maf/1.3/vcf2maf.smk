@@ -133,11 +133,12 @@ rule _vcf2maf_run:
     params:
         opts = CFG["options"]["vcf2maf"],
         build = lambda w: VCF2MAF_VERSION_MAP[w.genome_build],
-        custom_enst = lambda w: "--custom-enst " + str(config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.genome_build]]) if config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.genome_build]] != "" else ""
+        custom_enst = lambda w: "--custom-enst " + str(config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.genome_build]]) if config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.genome_build]] != "" else "",
+        vep_path = CFG["options"].get("vep_path", "")
     conda:
         CFG["conda_envs"]["vcf2maf"]
     container:
-        "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
+        CFG["container_envs"]["vcf2maf"]
     threads:
         CFG["threads"]["vcf2maf"]
     resources:
@@ -151,7 +152,12 @@ rule _vcf2maf_run:
         VCF2MAF_SCRIPT="$VCF2MAF_SCRIPT_PATH/vcf2maf.pl";
         if [[ -e {output.maf} ]]; then rm -f {output.maf}; fi;
         if [[ -e {output.vep} ]]; then rm -f {output.vep}; fi;
-        vepPATH=$(dirname $(which vep))/../share/variant-effect-predictor*;
+        if [[ -n "{params.vep_path}" ]];
+        then vepPATH="{params.vep_path}";
+        elif command -v vep &>/dev/null;
+        then vepPATH=$(dirname $(command -v vep));
+        else echo "ERROR: vep not found in PATH and vep_path not set in lcr-modules config" > {log.stderr}; exit 1;
+        fi;
         if [[ $(which vcf2maf.pl) =~ $(ls $VCF2MAF_SCRIPT) ]]; then
             echo "using bundled patched script $VCF2MAF_SCRIPT";
             echo "Using $VCF2MAF_SCRIPT to run {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
@@ -392,11 +398,12 @@ rule _vcf2maf_reannotate:
     params:
         opts = CFG["options"]["maf2maf"],
         build = lambda w: VCF2MAF_VERSION_MAP[w.target_build],
-        custom_enst = lambda w: "--custom-enst " + str(config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.target_build]]) if config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.target_build]] != "" else ""
+        custom_enst = lambda w: "--custom-enst " + str(config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.target_build]]) if config['lcr-modules']["vcf2maf"]["switches"]["custom_enst"][VCF2MAF_GENOME_VERSION[w.target_build]] != "" else "",
+        vep_path = CFG["options"].get("vep_path", "")
     conda:
         CFG["conda_envs"]["vcf2maf"]
     container:
-        "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
+        CFG["container_envs"]["vcf2maf"]
     threads:
         CFG["threads"]["maf2maf"]
     resources:
@@ -409,7 +416,12 @@ rule _vcf2maf_reannotate:
         PATH=$VCF2MAF_SCRIPT_PATH:$PATH;
         MAF2MAF_SCRIPT="$VCF2MAF_SCRIPT_PATH/maf2maf.pl";
         if [[ -e {output.maf} ]]; then rm -f {output.maf}; fi;
-        vepPATH=$(dirname $(which vep))/../share/variant-effect-predictor*;
+        if [[ -n "{params.vep_path}" ]];
+        then vepPATH="{params.vep_path}";
+        elif command -v vep &>/dev/null;
+        then vepPATH=$(dirname $(command -v vep));
+        else echo "ERROR: vep not found in PATH and vep_path not set in lcr-modules config" > {log.stderr}; exit 1;
+        fi;
         echo "$(which maf2maf.pl)";
         echo "$(ls $MAF2MAF_SCRIPT)";
         if [[ -e $(ls $MAF2MAF_SCRIPT) ]]; then
@@ -508,7 +520,7 @@ rule _vcf2maf_normalize_prefix:
         base_name = CFG["vcf_base_name"]
     run:
         if params.todo == "symlink":
-            op.relative_symlink(input.maf, output.maf)
+            op.relative_symlink(input.maf, output.maf, in_module=True)
         else:
             maf_open = pd.read_csv(input.maf[0], sep = "\t")
             # Check whether the input maf is empty

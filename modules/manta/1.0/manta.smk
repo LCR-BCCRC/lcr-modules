@@ -45,8 +45,8 @@ rule _manta_input_bam:
     output:
         sample_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     run:
-        op.relative_symlink(input.sample_bam, output.sample_bam)
-        op.relative_symlink(input.sample_bai, output.sample_bai)
+        op.absolute_symlink(input.sample_bam, output.sample_bam)
+        op.absolute_symlink(input.sample_bai, output.sample_bai)
 
 
 # Generate BED file for main chromosomes to exclude small contigs from Manta run
@@ -227,7 +227,7 @@ rule _manta_output_bedpe:
     output:
         bedpe = CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.bedpe"
     run:
-        op.relative_symlink(input.bedpe, output.bedpe)
+        op.relative_symlink(input.bedpe, output.bedpe, in_module=True)
 
 
 def _get_manta_files(wildcards):

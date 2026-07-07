@@ -349,10 +349,10 @@ include: "../../starfish/" + CFG_SLMS3["module_versions"]["starfish"] + "/starfi
 rule _slms_3_rename_samples_all: 
     input: 
         vcf = lambda w: config["lcr-modules"]["starfish"]["inputs"]["vcf"][w.caller]
-    output: 
-        vcf = temp(CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.tmp.vcf.gz"),
-        tbi = temp(CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.tmp.vcf.gz.tbi"), 
-        samples = temp(CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.samples.txt")
+    output:
+        vcf = CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.tmp.vcf.gz",
+        tbi = CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.tmp.vcf.gz.tbi",
+        samples = CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.samples.txt"
     log:
         stderr = CFG_SLMS3["logs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/rename_samples_{caller}.stderr.log"
     conda:
@@ -374,16 +374,16 @@ rule _slms_3_rename_samples_all:
 
 rule _slms_3_union_vcf: 
     input: 
-        vcf = expand(
-            rules._slms_3_rename_samples_all.output.vcf, 
-            caller = config["lcr-modules"]["starfish"]["inputs"]["names"], 
+        vcf = ancient(expand(
+            rules._slms_3_rename_samples_all.output.vcf,
+            caller = config["lcr-modules"]["starfish"]["inputs"]["names"],
             allow_missing = True
-        ), 
-        tbi = expand(
-            rules._slms_3_rename_samples_all.output.tbi, 
-            caller = config["lcr-modules"]["starfish"]["inputs"]["names"], 
+        )),
+        tbi = ancient(expand(
+            rules._slms_3_rename_samples_all.output.tbi,
+            caller = config["lcr-modules"]["starfish"]["inputs"]["names"],
             allow_missing = True
-        )
+        ))
     output: 
         vcf = CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/union.vcf.gz", 
         tbi = CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/union.vcf.gz.tbi"

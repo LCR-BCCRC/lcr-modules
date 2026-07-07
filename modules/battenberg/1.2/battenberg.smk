@@ -161,8 +161,11 @@ rule _run_battenberg:
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        impute_info = str(rules._battenberg_get_reference.output.impute_info)
-
+        impute_info = (
+            ancient(CFG["inputs"]["reference_path"] + "/{genome_build}/impute_info.txt")
+            if CFG["inputs"].get("reference_path")
+            else str(rules._battenberg_get_reference.output.impute_info)
+        )
     output:
         refit=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_refit_suggestion.txt",
         sub=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_subclones.txt",
@@ -180,7 +183,11 @@ rule _run_battenberg:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         script = CFG["inputs"]["battenberg_script"],
         out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
-        ref = CFG["dirs"]["inputs"] + "reference/{genome_build}"
+        ref = (
+            CFG["inputs"]["reference_path"] + "/{genome_build}"
+            if CFG["inputs"].get("reference_path")
+            else CFG["dirs"]["inputs"] + "reference/{genome_build}"
+        )
     conda:
         CFG["conda_envs"]["battenberg"]
     container:
@@ -191,13 +198,13 @@ rule _run_battenberg:
         CFG["threads"]["battenberg"]
     shell:
        op.as_one_line("""
-        if [[ $(head -c 4 {params.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed='false'; fi;
+        if [[ $(head -c 4 {params.fasta}) == ">chr" ]]; then chr_flag='--chr_prefixed_genome'; else chr_flag=''; fi;
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stdout};
-        sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
+        sex=$(cut -f 4 {input.sex_result}| tail -n 1);
         echo "setting sex as $sex";
-        Rscript --vanilla {params.script} -t {wildcards.tumour_id} 
+        Rscript --vanilla {params.script} -t {wildcards.tumour_id}
         -n {wildcards.normal_id} --tb $(readlink -f {input.tumour_bam}) --nb $(readlink -f {input.normal_bam}) -f {input.fasta} --reference $(readlink -f {params.ref})
-        -o {params.out_dir} --chr_prefixed_genome $chr_prefixed --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
+        -o {params.out_dir} $chr_flag --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" >> {log.stdout}; 
         """)
 

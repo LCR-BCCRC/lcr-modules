@@ -48,3 +48,15 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
+
+    cnaqc:
+        inputs:
+            subclones: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt"
+            cellularity_ploidy: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
+            # UPDATE: provide a MAF with somatic SNVs. vcf2maf is not currently
+            # in this workflow. Either add it and use the path below, or point
+            # directly at an existing MAF file.
+            # vcf2maf 1.3 would produce (with base_name = slms-3.final):
+            #   results/slms_3-1.0_vcf2maf-1.3/99-outputs/deblacklisted/maf/
+            #     {seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.maf
+            sample_maf: "__UPDATE__"

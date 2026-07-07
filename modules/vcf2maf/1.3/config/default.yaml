@@ -18,11 +18,12 @@ lcr-modules:
       src_dir: "{MODSDIR}/src"
     vcf_base_name: "__UPDATE__" #put the consistent portion of the file name here. For Strelka, this is "combined.passed"
     options:
-      vcf2maf: "--vcf-tumor-id TUMOR --vcf-normal-id NORMAL --cache-version 86"
+      vep_path: "" # Path to directory containing vep executable; auto-detected from PATH if empty (set this when using a container that lacks VEP)
+      vcf2maf: "--vcf-tumor-id TUMOR --vcf-normal-id NORMAL --cache-version 100"
       # --filter-vcf     A VCF for FILTER tag common_variant. Set to 0 to disable [~/.vep/ExAC_nonTCGA.r0.3.1.sites.vep.vcf.gz]
       #--species        Ensembl-friendly name of species (e.g. mus_musculus for mouse) [homo_sapiens]
       #--cache-version  Version of offline cache to use with VEP (e.g. 75, 84, 91) [Default: Installed version]
-      maf2maf: "--cache-version 86 --species homo_sapiens --retain-cols gnomAD_AF,gnomADg_AF"
+      maf2maf: "--cache-version 100 --species homo_sapiens --retain-cols gnomAD_AF,gnomADg_AF"
       species: "homo_sapiens"
       gnomAD_cutoff: 0.001 # cut-off to be used for AF frequency of germline variants in gnomAD
       target_builds: ["hg38", "grch38", "hg19", "grch37"] # Target genome builds for chr-prefixing and CrossMap
@@ -42,18 +43,17 @@ lcr-modules:
         grch37: ""
 
     conda_envs:
-    container_envs:
-        bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
-        crossmap: "docker://quay.io/biocontainers/crossmap:0.7.0--pyhdfd78af_0"
-        gamblr: null
-        pysam: null
-        vcf2maf: "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
-
       vcf2maf: "{MODSDIR}/envs/vcf2maf-1.6.18.yaml"
       crossmap: "{SCRIPTSDIR}/crossmap/1.1/convert_maf_coords.yaml"
       bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
       pysam: "{MODSDIR}/envs/pysam-0.18.0.yaml"
       gamblr: "{MODSDIR}/envs/gamblr.yaml"
+    container_envs:
+      bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+      crossmap: "docker://quay.io/biocontainers/crossmap:0.7.0--pyhdfd78af_0"
+      gamblr: null
+      pysam: null
+      vcf2maf: null
 
     threads:
       vcf2maf: 12

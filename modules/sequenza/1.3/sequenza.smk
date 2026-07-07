@@ -45,8 +45,8 @@ rule _sequenza_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
 
 
 # Pulls in list of chromosomes for the genome builds
@@ -56,7 +56,7 @@ checkpoint _sequenza_input_chroms:
     output:
         txt = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
     run:
-        op.relative_symlink(input.txt, output.txt)
+        op.absolute_symlink(input.txt, output.txt)
 
 
 # Pulls in list of chromosomes for the genome builds

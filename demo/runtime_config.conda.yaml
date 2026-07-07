@@ -12,4 +12,4 @@
 conda:
     # Shared directory where Snakemake builds and caches conda environments.
     # Pointing all users to the same location avoids redundant environment builds.
-    prefix: ~/miniconda3/envs
+    prefix: /projects/rmorin_scratch/conda_environments/

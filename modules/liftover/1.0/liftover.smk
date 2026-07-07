@@ -33,7 +33,7 @@ rule _liftover_input_seg:
     output:
         seg = CFG["dirs"]["inputs"] + "seg/{tumour_sample_id}--{normal_sample_id}.{tool}.igv.seg"
     run:
-        op.relative_symlink(input.seg, output.seg)
+        op.relative_symlink(input.seg, output.seg, in_module=True)
 
 
 # Convert initial seg file into bed format

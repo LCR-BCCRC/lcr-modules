@@ -76,7 +76,7 @@ rule _bam2fastq_input_bam:
     group:
         CFG["group"]["bam2fastq"]
     run:
-        op.relative_symlink(input, output.bam)
+        op.absolute_symlink(input, output.bam)
 
 
 # Conditional rules depending on whether or not fastq outputs will be temporary

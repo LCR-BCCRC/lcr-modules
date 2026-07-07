@@ -190,13 +190,13 @@ rule _install_lgenic:
 
 rule _lymphgen_input_maf:
     input:
-        maf = CFG["inputs"]["sample_maf"] 
+        maf = CFG["inputs"]["sample_maf"]
     output:
         maf = CFG["dirs"]["inputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf"
     group:
         "lymphgen"
     run:
-        op.relative_symlink(input.maf, output.maf)
+        op.relative_symlink(input.maf, output.maf, in_module=True)
 
 rule _lymphgen_input_seg:
     input:
@@ -206,7 +206,7 @@ rule _lymphgen_input_seg:
     group:
         "lymphgen"
     run:
-        op.relative_symlink(input.seg, output.seg)
+        op.relative_symlink(input.seg, output.seg, in_module=True)
 
 
 # STEP 2: REFORMAT SEG FILE

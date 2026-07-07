@@ -69,7 +69,7 @@ rule _liftover_input_seg:
     wildcard_constraints:
         tool = CFG["tool"]
     run:
-        op.relative_symlink(input.seg, output.seg)
+        op.relative_symlink(input.seg, output.seg, in_module=True)
         op.relative_symlink(input.seg, output.another_seg, in_module = True)
 
 

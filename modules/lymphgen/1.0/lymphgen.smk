@@ -82,7 +82,7 @@ rule _lymphgen_input_maf:
     output:
         maf = CFG["dirs"]["inputs"] + "maf/" + outprefix + ".maf"
     run:
-        op.relative_symlink(input.maf, output.maf)
+        op.relative_symlink(input.maf, output.maf, in_module=True)
 
 rule _lymphgen_input_seg:
     input:
@@ -90,7 +90,7 @@ rule _lymphgen_input_seg:
     output:
         seg = CFG["dirs"]["inputs"] + "seg/input.seg"
     run:
-        op.relative_symlink(input.seg, output.seg)
+        op.relative_symlink(input.seg, output.seg, in_module=True)
 
 
 # STEP 2: REFORMAT SEG FILE

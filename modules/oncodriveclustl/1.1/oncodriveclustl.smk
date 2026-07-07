@@ -273,8 +273,8 @@ rule _oncodriveclustl_genomic_coordinates_out:
         genomic_coordinates = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/genomic_coordinates_clusters_results_{q_value}.tsv",
         bed = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodriveclustl_hotspots_{q_value}.{genome_build}.bed"
     run:
-        op.relative_symlink(input.genomic_coordinates, output.genomic_coordinates)
-        op.relative_symlink(input.bed, output.bed)
+        op.relative_symlink(input.genomic_coordinates, output.genomic_coordinates, in_module=True)
+        op.relative_symlink(input.bed, output.bed, in_module=True)
 
 def _get_oncodriveclustl_outputs(wildcards):
     CFG = config["lcr-modules"]["oncodriveclustl"]
