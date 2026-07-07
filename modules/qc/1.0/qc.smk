@@ -396,16 +396,22 @@ rule _qc_collect_metrics:
 
 
 # Combine all individual metrics into one single file
+def _qc_merge_metrics_inputs(wildcards):
+    # Restrict to samples of THIS seq_type before zipping. CFG["samples"] can be a mixed
+    # genome/capture/lpwgs table; leaving seq_type as a free wildcard would request e.g.
+    # capture--<build>/<sample>.metrix.tsv for genome-only samples (which don't exist ->
+    # _qc_input_bam KeyError). Zipping seq_type too keeps each input fully resolved.
+    s = CFG["samples"][CFG["samples"]["seq_type"] == wildcards.seq_type]
+    return expand(
+        str(rules._qc_collect_metrics.output.stat),
+        zip,
+        seq_type=s["seq_type"],
+        genome_build=s["genome_build"],
+        sample_id=s["sample_id"])
+
 rule _qc_merge_metrics:
     input:
-        expand(
-            [
-                str(rules._qc_collect_metrics.output.stat)
-            ],
-            zip,
-            genome_build=CFG["samples"]["genome_build"],
-            sample_id=CFG["samples"]["sample_id"],
-            allow_missing = True)
+        _qc_merge_metrics_inputs
     output:
         CFG["dirs"]["aggregated_metrics"] + "{seq_type}/master_qc_metrics_output.tsv"
     shell:
