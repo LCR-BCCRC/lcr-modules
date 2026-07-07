@@ -23,6 +23,10 @@ lcr-modules:
         conda_envs:
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
             dnds: "{MODSDIR}/envs/dnds.yaml"
+        container_envs:
+            dnds: null
+            prepare_mafs: null
+
 
         threads:
             dnds: 2

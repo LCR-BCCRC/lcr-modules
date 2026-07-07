@@ -21,11 +21,7 @@ snakemake_flags=$3
 runtime_config=$4
 
 # Parse runtime config (emits empty strings when no config is provided)
-if [[ -e "$LCR_MODULES_DIR/utils/parse_runtime_config.py" ]]; then
-    eval "$(python3 "$LCR_MODULES_DIR/utils/parse_runtime_config.py" "${runtime_config:-}")"
-else
-    echo "Warning: $LCR_MODULES_DIR/utils/parse_runtime_config.py does not exist. Defaulting to conda mode. "
-fi
+eval "$(python3 "$SCRIPT_DIR/../utils/parse_runtime_config.py" "${runtime_config:-}")"
 
 # Build conda flags (omitted in container mode — mutually exclusive)
 conda_flags=()

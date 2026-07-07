@@ -12,7 +12,7 @@ import inspect
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -20,7 +20,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -32,7 +32,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -40,7 +40,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -227,6 +227,8 @@ rule _whatshap_split_vcf:
         tbi = temp(CFG["dirs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/{chrom}.split.vcf.gz.tbi")
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads: CFG["threads"]["split_vcf"]
     resources: **CFG["resources"]["split_vcf"]
     log:
@@ -273,6 +275,8 @@ rule _whatshap_phase_vcf:
         options = CFG["options"]["phase_vcf"]
     conda:
         CFG["conda_envs"]["whatshap"] 
+    container:
+        CFG["container_envs"]["whatshap"]
     resources: **CFG["resources"]["phase_vcf"] 
     threads: CFG["threads"]["phase_vcf"]       
     wildcard_constraints: 
@@ -332,6 +336,8 @@ rule _whatshap_merge_vcf:
         stderr = CFG["logs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/whatshap_merge_vcfs.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["merge_vcf"]
     resources:
@@ -360,6 +366,8 @@ rule _whatshap_stats:
         options = CFG["options"]["stats"]
     conda:
         CFG["conda_envs"]["whatshap"] 
+    container:
+        CFG["container_envs"]["whatshap"]
     resources: 
         **CFG["resources"]["stats"]  
     threads: CFG["threads"]["stats"]      
@@ -387,6 +395,8 @@ rule _whatshap_phase_bam:
         haptag = CFG["dirs"]["phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.{regions_bed}.haplotag.txt"
     conda:
         CFG["conda_envs"]["whatshap"]
+    container:
+        CFG["container_envs"]["whatshap"]
     resources: 
         **CFG["resources"]["phase_bam"]
     threads:
@@ -418,6 +428,8 @@ rule _whatshap_cram_phased:
         crai = CFG["dirs"]["phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.{regions_bed}.phased.cram.crai"
     conda: 
         CFG["conda_envs"]["whatshap"]
+    container:
+        CFG["container_envs"]["whatshap"]
     resources: **CFG["resources"]["cram"]
     threads: CFG["threads"]["cram"]
     shell: 
@@ -440,6 +452,8 @@ rule _whatshap_split_bam:
         options = CFG["options"]["split_bam"]
     conda:
         CFG["conda_envs"]["whatshap"]
+    container:
+        CFG["container_envs"]["whatshap"]
     resources: 
         **CFG["resources"]["split_bam"] 
     threads: CFG["threads"]["split_bam"]
@@ -467,6 +481,8 @@ rule _whatshap_cram_split:
         crai = CFG["dirs"]["split_bam"] + "{seq_type}--{genome_build}/{sample_id}.{regions_bed}.{haplotype}.cram.crai"
     conda: 
         CFG["conda_envs"]["whatshap"]
+    container:
+        CFG["container_envs"]["whatshap"]
     resources: 
         **CFG["resources"]["cram"]
     threads: CFG["threads"]["cram"]
