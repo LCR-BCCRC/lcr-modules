@@ -20,7 +20,7 @@ from datetime import datetime
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -28,7 +28,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
     print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
@@ -123,6 +123,8 @@ rule _dlbclass_download_dlbclass:
         dlbclass_release = CFG["inputs"]["dlbclass_release"]
     conda:
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell:
         op.as_one_line("""
         wget -cO - {params.dlbclass_release} > {output.dlbclass_compressed} && tar -C $(dirname {output.dlbclass}) -xf {output.dlbclass_compressed};
@@ -141,6 +143,8 @@ rule _dlbclass_download_refs:
         blacklist_cnv = CFG["dirs"]["inputs"] + "refs/" + CFG["inputs"]["blacklist_cnv"].split("/")[-1]
     conda:
         CFG["conda_envs"]["wget"] 
+    container:
+        None
     shell:
         op.as_one_line("""
         wget
@@ -172,6 +176,8 @@ checkpoint _dlbclass_prepare_maf:
         CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    container:
+        None
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         mode = "dlbclass",
@@ -196,6 +202,8 @@ checkpoint _dlbclass_prepare_seg:
         CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/prepare_seg.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    container:
+        None
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         mode = "dlbclass",
@@ -229,6 +237,8 @@ rule _dlbclass_maf_to_gsm:
     log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/maf2gsm.log"
     conda:
         CFG["conda_envs"]["dlbclass"]
+    container:
+        None
     shell:
         op.as_one_line("""
         python3 {input.script}   
@@ -272,6 +282,8 @@ rule _dlbclass_seg_to_gsm:
     log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/seg2gsm.log"
     conda:
         CFG["conda_envs"]["dlbclass"]
+    container:
+        None
     shell:
         op.as_one_line("""
         python3 {input.script} 
@@ -303,6 +315,8 @@ rule _dlbclass_sv_to_gsm:
     log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/sv2gsm.log"
     conda:
         CFG["conda_envs"]["dlbclass"]
+    container:
+        None
     script:
         PREPARE_SVS
         
@@ -338,6 +352,8 @@ rule _dlbclass_combine_gsm:
     log: CFG["logs"]["prepare_inputs"] + "{sample_set}--{launch_date}/combine2gsm.{sv_wc}--{cnv_wc}.log"
     conda:
         CFG["conda_envs"]["dlbclass"]
+    container:
+        None
     threads:
         CFG["threads"]["dlbclass"]
     resources:
@@ -362,6 +378,8 @@ rule _dlbclass_run:
         dlbclass = CFG["dirs"]["dlbclass"] + "{sample_set}--{launch_date}/{sample_set}--{sv_wc}--{cnv_wc}_classified_samples.tsv",
     conda:
         CFG["conda_envs"]["dlbclass"]
+    container:
+        None
     threads:
         CFG["threads"]["dlbclass"]
     resources:
