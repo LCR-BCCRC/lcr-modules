@@ -1,6 +1,1 @@
-channels:
-  - bioconda
-  - conda-forge
-  - defaults
-dependencies:
-  - hmftools-sage=5.0
+../../../../envs/sage/hmftools-sage-5.0.yaml
