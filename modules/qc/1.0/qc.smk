@@ -401,6 +401,9 @@ def _qc_merge_metrics_inputs(wildcards):
     # genome/capture/lpwgs table; leaving seq_type as a free wildcard would request e.g.
     # capture--<build>/<sample>.metrix.tsv for genome-only samples (which don't exist ->
     # _qc_input_bam KeyError). Zipping seq_type too keeps each input fully resolved.
+    # Re-fetch CFG from config: cleanup_module() deletes the module-level `CFG` name, so
+    # at DAG-eval time (input functions) it must be read back off config (as at L216/297).
+    CFG = config["lcr-modules"]["qc"]
     s = CFG["samples"][CFG["samples"]["seq_type"] == wildcards.seq_type]
     return expand(
         str(rules._qc_collect_metrics.output.stat),
