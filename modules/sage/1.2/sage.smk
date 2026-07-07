@@ -216,7 +216,9 @@ rule _sage_filter_vcf:
         **CFG["resources"]["filter"]
     shell:
         op.as_one_line("""
-        bcftools view -f ".,PASS" {input.vcf} -Ov
+        bcftools annotate -x FILTER/minFragmentCoords {input.vcf} -Ov
+          |
+        bcftools view -f ".,PASS" -Ov
           |
         bcftools sort --max-mem {params.heap_mem}M -Oz -o {output.vcf_passed}
         >> {log.stdout} 2>> {log.stderr}
