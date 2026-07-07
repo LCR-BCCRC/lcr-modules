@@ -1,0 +1,10 @@
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - samtools>=1.15
+  - python>=3.9
+  - pandas
+  - pysam
+  - numpy
