@@ -65,9 +65,6 @@ if _wgcna_mode == "raw":
 else:
     WGCNA_PATHOLOGIES = ["user_provided"]
 
-wildcard_constraints:
-    pathology = "[^/]+"
-
 
 localrules:
     _wgcna_input_matrix,
@@ -97,6 +94,8 @@ if _wgcna_mode == "raw":
             tsv = CFG["dirs"]["wgcna"] + "{pathology}/normalized_expression.tsv",
         log:
             log = CFG["logs"]["wgcna"] + "{pathology}/normalize_expression.log",
+        wildcard_constraints:
+            pathology = "[^/]+",    
         threads: CFG["threads"]["normalize_expression"]
         resources:
             mem_mb = CFG["mem_mb"]["normalize_expression"],
@@ -135,6 +134,8 @@ rule _wgcna_filter_variance_genes:
         tsv = CFG["dirs"]["wgcna"] + "{pathology}/filtered_expression.tsv",
     log:
         log = CFG["logs"]["wgcna"] + "{pathology}/filter_variance_genes.log",
+    wildcard_constraints:
+            pathology = "[^/]+",    
     threads: CFG["threads"]["filter_variance_genes"]
     resources:
         mem_mb = CFG["mem_mb"]["filter_variance_genes"],
@@ -164,6 +165,8 @@ rule _wgcna_get_coexpression_modules:
         log = CFG["logs"]["wgcna"] + "{pathology}/get_coexpression_modules.log",
     benchmark:
         CFG["dirs"]["wgcna"] + "{pathology}/benchmark_get_coexpression_modules.tsv"
+    wildcard_constraints:
+            pathology = "[^/]+",    
     threads: CFG["threads"]["get_coexpression_modules"]
     resources:
         mem_mb = CFG["mem_mb"]["get_coexpression_modules"],
@@ -192,6 +195,8 @@ rule _wgcna_output_modules:
         modules_rds = CFG["dirs"]["outputs"] + "{pathology}/coexpression_modules.rds",
         modules_tsv = CFG["dirs"]["outputs"] + "{pathology}/coexpression_modules.tsv",
         network_rds = CFG["dirs"]["outputs"] + "{pathology}/network.rds",
+    wildcard_constraints:
+            pathology = "[^/]+",    
     run:
         op.relative_symlink(input.modules_rds, output.modules_rds, in_module=True)
         op.relative_symlink(input.modules_tsv, output.modules_tsv, in_module=True)
