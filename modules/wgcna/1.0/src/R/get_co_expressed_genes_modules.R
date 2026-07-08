@@ -8,6 +8,10 @@ get_co_expressed_genes_modules <- function(expression_matrix, powers = 1:15, cor
                                                         networkType = network_type)
   
   opt_power = sft_filtered_median_mad$fitIndices %>% filter(SFT.R.sq >= 0.8) %>% slice_min(SFT.R.sq) %>% pull(Power)
+
+  if (length(opt_power) == 0) {
+    message("No soft-threshold power reached the scale-free topology R^2 >= 0.8 threshold")
+  }  
   
   soft_threshold_plot_path <- file.path(
     plots_dir,
