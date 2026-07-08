@@ -66,6 +66,7 @@ lcr-modules:
 
         threads:
             normalize_expression: 4
+            filter_variance_genes: 1
             get_coexpression_modules: 4
 
         mem_mb:

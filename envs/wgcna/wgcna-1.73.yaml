@@ -5,7 +5,6 @@ channels:
   - defaults
 dependencies:
   - r-base=4.4
-  - snakemake
   - r-readr
   - r-dplyr
   - r-matrix
@@ -13,4 +12,4 @@ dependencies:
   - r-remotes
   - r-devtools
   - r-wgcna=1.73
-prefix: /home/hmirhosseini/miniconda3/envs/wgcna_r44
+

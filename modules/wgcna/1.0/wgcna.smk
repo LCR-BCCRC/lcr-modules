@@ -135,6 +135,7 @@ rule _wgcna_filter_variance_genes:
         tsv = CFG["dirs"]["wgcna"] + "{pathology}/filtered_expression.tsv",
     log:
         log = CFG["logs"]["wgcna"] + "{pathology}/filter_variance_genes.log",
+    threads: CFG["threads"]["filter_variance_genes"]
     resources:
         mem_mb = CFG["mem_mb"]["filter_variance_genes"],
     container:
