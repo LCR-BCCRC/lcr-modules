@@ -14,6 +14,10 @@ lcr-modules:
         conda_envs:
             clair3: "{MODSDIR}/envs/clair3.yaml"
             whatshap: "{MODSDIR}/envs/whatshap.yaml"
+        container_envs:
+            clair3: null
+            whatshap: "docker://quay.io/biocontainers/whatshap:2.3--py311he264feb_3"
+
 
         threads:
             clair3: 50

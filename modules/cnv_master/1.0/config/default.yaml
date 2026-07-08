@@ -20,6 +20,9 @@ lcr-modules:
 
         conda_envs:
             R: "{MODSDIR}/envs/readr-2.1.2.yaml"
+        container_envs:
+            R: null
+
 
         threads:
             cnv_master: 4

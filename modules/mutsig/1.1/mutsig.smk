@@ -22,7 +22,7 @@ import numpy as np
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -30,7 +30,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
     print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
@@ -102,6 +102,8 @@ checkpoint _mutsig_prepare_maf:
         CFG["logs"]["inputs"] + "{sample_set}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    container:
+        None
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         mode = "MutSig2CV",
@@ -118,6 +120,8 @@ rule _mutsig_download_mutsig:
         mutsig = CFG["dirs"]["mcr"] + "MutSig2CV/MutSig2CV.success"
     conda:
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell:
         op.as_one_line("""
         wget
@@ -139,6 +143,8 @@ rule _mutsig_download_mcr:
         stderr = CFG["logs"]["mcr"] + "download_mcr.stderr.log"
     conda:
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell:
         op.as_one_line("""
         wget
@@ -163,6 +169,8 @@ rule _mutsig_install_mcr:
         stderr = CFG["logs"]["mcr"] + "install_mcr.stderr.log"
     conda:
         CFG["conda_envs"]["matlab"]
+    container:
+        None
     shell:
         op.as_one_line("""
         $(dirname {input.mcr})/install
@@ -200,6 +208,8 @@ rule _mutsig_configure_mcr:
         configured = MATLAB + "/lib/configure.success"
     conda:
         CFG["conda_envs"]["matlab"]
+    container:
+        None
     params:
         running_directory = os.path.abspath(CFG["dirs"]["mcr"]),
         scripts_directory = os.path.abspath(CFG["src_dir"]),
@@ -247,6 +257,8 @@ rule _mutsig_run:
         success = CFG["dirs"]["mutsig"] + "{sample_set}--{launch_date}--{md5sum}/mutsig.success"
     conda:
         CFG["conda_envs"]["matlab"]
+    container:
+        None
     threads:
         CFG["threads"]["mutsig"]
     resources:

@@ -27,6 +27,10 @@ lcr-modules:
         conda_envs:
             prepare: "{REPODIR}/envs/gatk/gatkR.yaml"
             gistic2: "{MODSDIR}/envs/gistic2-2.0.23.yaml"
+        container_envs:
+            gistic2: null
+            prepare: null
+
 
         threads:
             gistic2_run: 4

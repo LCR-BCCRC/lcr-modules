@@ -59,9 +59,9 @@ rule _cnvkit_input_bam:
         bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}.bam.bai",
         crai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}.bam.crai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
-        op.relative_symlink(input.bai, output.crai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 
 rule _cnvkit_accessible_regions:
@@ -71,6 +71,8 @@ rule _cnvkit_accessible_regions:
         access = CFG["dirs"]["inputs"] + "reference/access.{genome_build}.bed"
     conda:
         CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -140,6 +142,8 @@ rule _cnvkit_build_access_bed:
         antitarget = CFG["dirs"]["inputs"] + "reference/{seq_type}--{genome_build}/{capture_space}/target_sites.antitarget.bed"
     conda:
         CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -159,7 +163,10 @@ rule _coverage_target:
         bed = str(rules._cnvkit_build_access_bed.output.target),
     output:
         cov = CFG["dirs"]["coverage"] + "target/{seq_type}--{genome_build}/{capture_space}/{sample_id}.targetcoverage.cnn"
-    conda: CFG["conda_envs"]["cnvkit"]
+    conda:
+        CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -177,7 +184,10 @@ rule _coverage_antitarget:
         bed = str(rules._cnvkit_build_access_bed.output.antitarget),
     output:
         cov = CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}/{capture_space}/{sample_id}.antitargetcoverage.cnn"
-    conda: CFG["conda_envs"]["cnvkit"]
+    conda:
+        CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -230,7 +240,10 @@ if CFG["options"]["new_normals"] == True:
         params:
             fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
             male_reference = CFG["options"]["male_ref"]
-        conda: CFG["conda_envs"]["cnvkit"]
+        conda:
+            CFG["conda_envs"]["cnvkit"]
+        container:
+            CFG["container_envs"]["cnvkit"]
         threads:
             CFG["threads"]["reference"]
         resources:
@@ -250,7 +263,10 @@ rule _cnvkit_fix:
         pon_reference = CFG["dirs"]["coverage"]  + "normal/{seq_type}--{genome_build}/{capture_space}/normal_reference.cnn"
     output:
         cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr"
-    conda: CFG["conda_envs"]["cnvkit"]
+    conda:
+        CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["fix"]
     log:
@@ -267,7 +283,10 @@ rule _cnvkit_segment:
         cns = CFG["dirs"]["cns"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cns"
     params:
         method = CFG["options"]["cns"]["method"]
-    conda: CFG["conda_envs"]["cnvkit"]
+    conda:
+        CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["cns"]
     threads: CFG["threads"]["cns"]
@@ -337,6 +356,8 @@ rule _cnvkit_mpileup_per_chrom:
         opts = CFG["options"]["SNPs"]["opts"]
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     resources: 
         **CFG["resources"]["SNPs"]
     wildcard_constraints: 
@@ -366,6 +387,8 @@ rule _cnvkit_concatenate_vcf:
     group: "cnvkit"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     shell: 
         """
             bcftools concat {input.vcf} -Oz -o {output.vcf} && 
@@ -388,7 +411,10 @@ rule _cnvkit_segmetrics_ttest:
         add_col = CFG["options"]["segmetrics"]["add_col"]
     log:
         stdout = CFG["logs"]["BAF"] + "segmetrics/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_segmetrics.log"
-    conda: CFG["conda_envs"]["cnvkit"]
+    conda:
+        CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     wildcard_constraints: 
         tumour_id = "|".join(CFG["runs"]["tumour_sample_id"].tolist())
     resources: 
@@ -416,8 +442,10 @@ rule _run_cnvkit_call_vcf:
     log: 
         CFG["logs"]["BAF"] + "call/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_call.log"
     group: "cnvkit"
-    conda: 
+    conda:
         CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     resources: 
         **CFG["resources"]["call"]
     wildcard_constraints: 
@@ -441,8 +469,10 @@ rule _run_cnvkit_scatter:
         min_depth = CFG["options"]["scatter"]["min_depth"],
         ymax = CFG["options"]["scatter"]["ymax"],
         ymin = CFG["options"]["scatter"]["ymin"]
-    conda: 
+    conda:
         CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     group: "cnvkit"
     resources:
         **CFG["resources"]["plots"]
@@ -462,8 +492,10 @@ rule _run_cnvkit_diagram:
     params:
         threshold = CFG["options"]["diagram"]["threshold"], # to only label genes in high level amps and dels
         male_ref = CFG["options"]["male_ref"]
-    conda: 
+    conda:
         CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     group: "cnvkit"
     resources:
         **CFG["resources"]["plots"]
@@ -480,8 +512,10 @@ rule _cnvkit_breaks:
         cns =  CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cns", 
     output:
         breaks = CFG["dirs"]["breaks"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.genebreaks.txt"
-    conda: 
+    conda:
         CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["breaks"]
     log:
@@ -504,7 +538,10 @@ rule _cnvkit_genemetrics_seg:
         threshold = CFG["options"]["geneMetrics"]["threshold"],
         min_segments = CFG["options"]["geneMetrics"]["min_segments"], # to remove false positives that cover a small number of bins
         male_ref = CFG["options"]["male_ref"]
-    conda: CFG["conda_envs"]["cnvkit"]
+    conda:
+        CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["geneMetrics"]
     shell:
@@ -521,7 +558,10 @@ rule _cnvkit_genemetrics:
         threshold = CFG["options"]["geneMetrics"]["threshold"],
         min_segments = CFG["options"]["geneMetrics"]["min_segments"], # to remove false positives that cover a small number of bins
         male_ref = CFG["options"]["male_ref"]
-    conda: CFG["conda_envs"]["cnvkit"]
+    conda:
+        CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["geneMetrics"]
     shell:
@@ -554,7 +594,10 @@ rule _cnvkit_infer_sex:
         sex = CFG["dirs"]["geneMetrics"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/inferred_sex.txt"
     params:
         male_ref = CFG["options"]["male_ref"]
-    conda: CFG["conda_envs"]["cnvkit"]
+    conda:
+        CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["geneMetrics"]
     shell:
@@ -569,7 +612,10 @@ rule _cnvkit_metrics:
         cns = CFG["dirs"]["BAF"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cns"
     output:
         metrics = CFG["dirs"]["metrics"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.metrics.txt"
-    conda: CFG["conda_envs"]["cnvkit"]
+    conda:
+        CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["geneMetrics"]
     shell:
@@ -584,6 +630,8 @@ rule _cnvkit_to_seg:
         seg = CFG["dirs"]["seg"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.seg"
     conda:
         CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     threads:
         CFG["threads"]["seg"]
     resources:
@@ -615,6 +663,8 @@ rule _cnvkit_convert_coordinates:
         liftover_minmatch = CFG["options"]["liftover_minMatch"]
     conda:
         CFG["conda_envs"]["liftover"]
+    container:
+        CFG["container_envs"]["liftover"]
     group: "cnvkit_post_process"
     shell:
         op.as_one_line("""
@@ -679,6 +729,8 @@ rule _cnvkit_fill_segments:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        CFG["container_envs"]["bedtools"]
     group: "cnvkit_post_process"
     shell:
         op.as_one_line("""

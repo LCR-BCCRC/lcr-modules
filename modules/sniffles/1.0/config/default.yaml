@@ -11,6 +11,10 @@ lcr-modules:
         conda_envs:
             sniffles: "{MODSDIR}/envs/sniffles-2.7.5.yaml"
             svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
+        container_envs:
+            sniffles: "docker://quay.io/biocontainers/sniffles:2.0.3--pyhdfd78af_0"
+            svtools: "docker://quay.io/biocontainers/svtools:0.5.1--py_0"
+
 
         threads:
             sniffles: 20

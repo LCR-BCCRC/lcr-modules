@@ -45,6 +45,10 @@ lcr-modules:
         conda_envs:
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             clairs: "{MODSDIR}/envs/clairs-0.4.4.yaml"
+        container_envs:
+            bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+            clairs: null
+
 
         threads:
             clairs: 24
