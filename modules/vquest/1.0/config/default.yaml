@@ -60,18 +60,16 @@ lcr-modules:
 
         scripts:
             run_vquest: "{MODSDIR}/src/run_vquest.py"
-            merge_tsv: "{MODSDIR}/src/merge_annotation_tsv.py"
-            annotate_glycosylation: "{MODSDIR}/src/annotate_glycosylation.py"
+            merge_tsv: "{SCRIPTSDIR}/annotate_bcr/1.0/merge_annotation_tsv.py"
+            annotate_glycosylation: "{SCRIPTSDIR}/annotate_bcr/1.0/annotate_glycosylation.py"
 
         conda_envs:
             vquest: "{MODSDIR}/envs/vquest-1.0.yaml"
             glycosylation: "{MODSDIR}/envs/glycosylation-1.0.yaml"
 
         container_envs:
-            vquest: "docker://quay.io/biocontainers/mulled-v2-placeholder:latest"
-            # NOTE: No pre-built biocontainer exists for the vquest PyPI package.
-            # Use the conda env (--use-conda) instead of --use-singularity for this module,
-            # or build a custom image from the envs/vquest-1.0.yaml conda environment.
+            vquest: "docker://ghcr.io/lcr-bccrc/lcr-scripts/vquest:0.0.10"
+            glycosylation: "docker://quay.io/biocontainers/anarci:2024.05.21--pyhdfd78af_0"
 
         threads:
             vquest_run: 1

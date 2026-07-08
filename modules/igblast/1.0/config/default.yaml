@@ -32,8 +32,8 @@ lcr-modules:
 
 
         scripts:
-            merge_tsv: "{MODSDIR}/src/merge_annotation_tsv.py"
-            annotate_glycosylation: "{MODSDIR}/src/annotate_glycosylation.py"
+            merge_tsv: "{SCRIPTSDIR}/annotate_bcr/1.0/merge_annotation_tsv.py"
+            annotate_glycosylation: "{SCRIPTSDIR}/annotate_bcr/1.0/annotate_glycosylation.py"
 
         options:
             chains: "__UPDATE__"
