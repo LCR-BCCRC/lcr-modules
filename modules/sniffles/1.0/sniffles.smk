@@ -76,12 +76,11 @@ rule _promethion_bam:
         bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
-        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
-        op.absolute_symlink(input.bai, output.crai)
+        
 
 
 rule _sniffles:
@@ -95,22 +94,20 @@ rule _sniffles:
     container:
         CFG["container_envs"]["sniffles"]
     resources: 
-        **CFG["resources"]["sniffles"]
-    threads:
+       mem_mb = CFG["mem_mb"]["sniffles"]
+    threads:    
         CFG["threads"]["sniffles"]  
-    conda:
+    conda :
         CFG["conda_envs"]["sniffles"]
     log:
-        CFG["logs"]["sniffles"] + "{seq_type}--{genome_build}/{sample_id}/sniffles.log"
-    params:
-        sniffles_args = CFG["options"]["sniffles_args"]
+        CFG["logs"]["sniffles"] + "{seq_type}--{genome_build}/{sample_id}/sniffles.log"               
     shell:
-        op.as_one_line("""
+        op.as_one_line('''
         sniffles -t {threads} --input {input.bam} 
         --vcf {output.vcf} --reference {input.fasta} 
-        {params.sniffles_args} 
+        --non-germline 
         2>&1 | tee -a {log}
-        """)
+        ''') 
 
 rule _sniffles_vcf_to_bedpe:
     input:
@@ -126,7 +123,7 @@ rule _sniffles_vcf_to_bedpe:
     threads:
         CFG["threads"]["vcf_to_bedpe"]
     resources: 
-        **CFG["resources"]["vcf_to_bedpe"]
+        mem_mb = CFG["mem_mb"]["vcf_to_bedpe"]
     shell:
         "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log.stderr}"
 
@@ -143,6 +140,8 @@ rule _sniffles_output:
     run:
         op.relative_symlink(input.vcf, output.vcf, in_module= True),
         op.relative_symlink(input.bedpe, output.bedpe, in_module= True)
+
+
 
 
 # Generates the target sentinels for each run, which generate the symlinks

@@ -9,7 +9,7 @@ lcr-modules:
         scratch_subdirectories: []
 
         conda_envs:
-            sniffles: "{MODSDIR}/envs/sniffles-2.7.5.yaml"
+            sniffles: "{MODSDIR}/envs/sniffles-2.0.3.yaml"
             svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
         container_envs:
             sniffles: "docker://quay.io/biocontainers/sniffles:2.0.3--pyhdfd78af_0"
@@ -20,15 +20,10 @@ lcr-modules:
             sniffles: 20
             vcf_to_bedpe: 1
             
-        resources:
-            sniffles:
-                mem_mb: 25000
-                bam: 1
-            vcf_to_bedpe:
-                mem_mb: 2000
-        
-        options:
-            sniffles_args: "" # Update with desired Sniffles arguments. Suggested: --mosaic
+        mem_mb:
+            sniffles: 25000
+            vcf_to_bedpe: 2000
+            
 
         pairing_config:
             promethION:
