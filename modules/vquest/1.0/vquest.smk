@@ -136,6 +136,8 @@ rule _vquest_run:
         **CFG["resources"]["vquest_run"]
     conda:
         CFG["conda_envs"]["vquest"]
+    container:
+        CFG["container_envs"]["vquest"]
     shell:
         op.as_one_line("""
         if [ ! -s {input.fasta} ]; then
@@ -186,6 +188,8 @@ rule _vquest_annotate_glycosylation:
         **CFG["resources"]["annotate_glycosylation"]
     conda:
         CFG["conda_envs"]["glycosylation"]
+    container:
+        CFG["container_envs"]["glycosylation"]
     shell:
         op.as_one_line("""
         python {params.script}
