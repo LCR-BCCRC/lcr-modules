@@ -11,7 +11,7 @@ lcr-modules:
             sniffles: "{MODSDIR}/envs/sniffles-2.7.5.yaml"
             svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
         container_envs:
-            sniffles: "docker://quay.io/biocontainers/sniffles:2.0.3--pyhdfd78af_0"
+            sniffles: "docker://ghcr.io/lcr-bccrc/lcr-scripts/sniffles:2.7.5"
             svtools: "docker://quay.io/biocontainers/svtools:0.5.1--py_0"
 
 
