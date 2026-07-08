@@ -27,8 +27,8 @@ except ModuleNotFoundError:
 
 current_version = pkg_resources.get_distribution("oncopipe").version
 if version.parse(current_version) < version.parse(min_oncopipe_version):
-    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
-    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    logger.warning(f"oncopipe version installed: {current_version}")
+    logger.warning(f"This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment")
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
 # End of dependency checking section
@@ -130,6 +130,8 @@ rule _mosdepth:
         by_arg = f"--by {BY_VALUE}" if BY_VALUE not in [None, "", False] else ""
     conda:
         CFG["conda_envs"]["mosdepth"]
+    container:
+        CFG["container_envs"]["mosdepth"]
     threads:
         CFG["threads"]["mosdepth"]
     resources:
