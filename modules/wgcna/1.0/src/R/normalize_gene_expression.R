@@ -73,12 +73,6 @@ normalize_gene_expression_by_pathology <- function(
   meta = pathology_metadata %>% column_to_rownames(var = "sample_id")
   
   
-
-  convert_ids = "TRUE"
-  GRCh <- "38"
-  
-  
-  
   # Filter the matrix to samples meeting the minimum read threshold
   matrix_filt <- matrix[, colSums(matrix) > min_reads]
   
