@@ -5,7 +5,6 @@ channels:
   - defaults
 dependencies:
   - r-base=4.4
-  - snakemake
   - r-dplyr
   - r-purrr
   - r-tidyr
@@ -23,4 +22,3 @@ dependencies:
   - bioconductor-motifstack
   - bioconductor-gviz
   - r-dt
-prefix: /home/hmirhosseini/miniconda3/envs/drivemutr_r44
