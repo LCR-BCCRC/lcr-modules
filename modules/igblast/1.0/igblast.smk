@@ -158,13 +158,14 @@ rule _igblast_output_tsv:
 rule _igblast_annotate_glycosylation:
     input:
         fasta      = str(rules._igblast_input_fasta.output.fasta),
-        script     = CFG["scripts"]["annotate_glycosylation"],
         source_tsv = str(rules._igblastn_run.output.airr),
     output:
         tsv = CFG["dirs"]["igblast"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.glycosylation.tsv"
     log:
         stdout = CFG["logs"]["igblast"] + "{seq_type}/{sample_id}/{chain}/annotate_glycosylation.stdout.log",
         stderr = CFG["logs"]["igblast"] + "{seq_type}/{sample_id}/{chain}/annotate_glycosylation.stderr.log",
+    params:
+        script = CFG["scripts"]["annotate_glycosylation"],
     wildcard_constraints:
         chain = "|".join(CHAINS),
     threads:
@@ -173,11 +174,11 @@ rule _igblast_annotate_glycosylation:
         **CFG["resources"]["annotate_glycosylation"]
     conda:
         CFG["conda_envs"]["glycosylation"]
-    container: 
+    container:
         CFG["container_envs"]["glycosylation"]
     shell:
         op.as_one_line("""
-        python {input.script}
+        python {params.script}
         --fasta {input.fasta}
         --source_tsv {input.source_tsv}
         --output {output.tsv}

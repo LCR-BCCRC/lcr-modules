@@ -135,14 +135,15 @@ rule _mixcr_run:
 rule _mixcr_to_fasta:
     input:
         mixcr_results = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.tsv",
-        script = CFG["scripts"]["mixcr2fasta"]
     output:
         fasta = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.VDJseq.fasta",
         seq_info = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.regions.txt"
+    params:
+        script = CFG["scripts"]["mixcr2fasta"],
     shell:
         op.as_one_line("""
         if [ -s {input.mixcr_results} ]; then
-            {input.script} -i {input.mixcr_results} -o {output.fasta} -s {output.seq_info} ;
+            {params.script} -i {input.mixcr_results} -o {output.fasta} -s {output.seq_info} ;
         else
             touch {output.fasta} {output.seq_info} ;
         fi

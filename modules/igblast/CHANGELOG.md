@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Laura Hilton.
 
-Standalone IgBLASTn (v1.17.1) module for V(D)J annotation of IG/TCR sequences
+Standalone IgBLASTn (v1.22.0) module for V(D)J annotation of IG/TCR sequences
 against IMGT germline databases, with optional N-linked glycosylation annotation
 and merging back into a user-supplied source TSV.
 

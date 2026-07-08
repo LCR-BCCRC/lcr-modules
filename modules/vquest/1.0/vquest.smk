@@ -116,13 +116,13 @@ rule _vquest_filter_long_seqs:
 rule _vquest_run:
     input:
         fasta  = str(rules._vquest_filter_long_seqs.output.fasta),
-        script = CFG["scripts"]["run_vquest"],
     output:
         tsv = CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.vquest_airr.tsv"
     log:
         stdout = CFG["logs"]["vquest"] + "{seq_type}/{sample_id}/{chain}/vquest_run.stdout.log",
         stderr = CFG["logs"]["vquest"] + "{seq_type}/{sample_id}/{chain}/vquest_run.stderr.log",
     params:
+        script        = CFG["scripts"]["run_vquest"],
         species       = CFG["options"]["species"],
         receptor_type = lambda wildcards: receptor_type_dict[wildcards.chain],
         molecule_type = CFG["options"]["molecule_type"],
@@ -141,7 +141,7 @@ rule _vquest_run:
         if [ ! -s {input.fasta} ]; then
             touch {output.tsv} ;
         else
-            python {input.script}
+            python {params.script}
             --fasta {input.fasta}
             --species {params.species}
             --receptor_type {params.receptor_type}
@@ -170,13 +170,14 @@ rule _vquest_output_tsv:
 rule _vquest_annotate_glycosylation:
     input:
         fasta      = str(rules._vquest_filter_long_seqs.output.fasta),
-        script     = CFG["scripts"]["annotate_glycosylation"],
         source_tsv = str(rules._vquest_run.output.tsv),
     output:
         tsv = CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.glycosylation.tsv"
     log:
         stdout = CFG["logs"]["vquest"] + "{seq_type}/{sample_id}/{chain}/annotate_glycosylation.stdout.log",
         stderr = CFG["logs"]["vquest"] + "{seq_type}/{sample_id}/{chain}/annotate_glycosylation.stderr.log",
+    params:
+        script = CFG["scripts"]["annotate_glycosylation"],
     wildcard_constraints:
         chain = "|".join(CHAINS),
     threads:
@@ -187,7 +188,7 @@ rule _vquest_annotate_glycosylation:
         CFG["conda_envs"]["glycosylation"]
     shell:
         op.as_one_line("""
-        python {input.script}
+        python {params.script}
         --fasta {input.fasta}
         --source_tsv {input.source_tsv}
         --output {output.tsv}
