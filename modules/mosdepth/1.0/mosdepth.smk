@@ -101,7 +101,7 @@ rule _mosdepth_input_bam:
     group: "mosdepth"
     input:
         bam = CFG["inputs"]["sample_bam"],
-        bai = CFG["inputs"]["sample_bai"]
+        bai = CFG["inputs"]["sample_bam"] + ".bai"
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
