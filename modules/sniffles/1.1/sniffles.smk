@@ -97,9 +97,7 @@ rule _sniffles:
     resources: 
         **CFG["resources"]["sniffles"]
     threads:
-        CFG["threads"]["sniffles"]  
-    conda:
-        CFG["conda_envs"]["sniffles"]
+        CFG["threads"]["sniffles"]
     log:
         CFG["logs"]["sniffles"] + "{seq_type}--{genome_build}/{sample_id}/sniffles.log"
     params:
