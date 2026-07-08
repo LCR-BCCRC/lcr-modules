@@ -14,7 +14,6 @@
 
 # Import package with useful functions for developing analysis modules
 import os
-import re
 import glob
 import oncopipe as op
 
@@ -80,12 +79,6 @@ def _prev_step_rds(wildcards):
     """Return the output of step 4 or 5 depending on custom_sliding_window."""
     stem = "sliding_window" if CFG["options"]["custom_sliding_window"] else "lambda_annotated"
     return PER_GENE + wildcards.gene + "/" + stem + ".rds"
-
-
-wildcard_constraints:
-    gene = r"[^/]+",
-    track = "|".join([re.escape(t) for t in _UCSC_TRACKS]),
-    lam = r"lambda_[0-9A-Za-z_]+",
 
 
 # Define rules to be run locally when using a compute cluster
@@ -198,6 +191,8 @@ rule _drivemutr_annotate_lambda:
     output:
         rds             = temp(PER_GENE + "{gene}/lambda_annotated.rds"),
         height_plot_pdf = PER_GENE + "{gene}/height_plot.pdf",
+    wildcard_constraints:
+        gene = r"[^/]+",
     log:
         CFG["logs"]["per_gene"] + "{gene}/annotate_lambda.log",
     params:
@@ -221,6 +216,8 @@ if CFG["options"]["custom_sliding_window"]:
             rds = str(rules._drivemutr_annotate_lambda.output.rds),
         output:
             rds = temp(PER_GENE + "{gene}/sliding_window.rds"),
+        wildcard_constraints:
+            gene = r"[^/]+",    
         log:
             CFG["logs"]["per_gene"] + "{gene}/sliding_window.log",
         params:
@@ -247,6 +244,8 @@ rule _drivemutr_adjust_cadd:
         rds = _prev_step_rds,
     output:
         rds = temp(PER_GENE + "{gene}/cadd_adjusted.rds"),
+    wildcard_constraints:
+        gene = r"[^/]+",     
     log:
         CFG["logs"]["per_gene"] + "{gene}/adjust_cadd.log",
     params:
@@ -271,6 +270,8 @@ rule _drivemutr_assign_module:
         filtered_expression  = str(rules._drivemutr_input.output.filtered_expression),
     output:
         rds = temp(PER_GENE + "{gene}/module_annotated.rds"),
+    wildcard_constraints:
+        gene = r"[^/]+",    
     log:
         CFG["logs"]["per_gene"] + "{gene}/assign_module.log",
     params:
@@ -293,6 +294,8 @@ rule _drivemutr_filter_matched_dna_rna:
         rds = str(rules._drivemutr_assign_module.output.rds),
     output:
         rds = temp(PER_GENE + "{gene}/dna_rna_filtered.rds"),
+    wildcard_constraints:
+        gene = r"[^/]+",    
     log:
         CFG["logs"]["per_gene"] + "{gene}/filter_matched_dna_rna.log",
     conda:
@@ -313,6 +316,8 @@ rule _drivemutr_build_foci_matrix:
         rds = str(rules._drivemutr_filter_matched_dna_rna.output.rds),
     output:
         rds = temp(PER_GENE + "{gene}/foci_matrix.rds"),
+    wildcard_constraints:
+        gene = r"[^/]+",    
     log:
         CFG["logs"]["per_gene"] + "{gene}/build_mutation_foci_matrix.log",
     params:
@@ -335,6 +340,8 @@ rule _drivemutr_module_model:
         rds = str(rules._drivemutr_build_foci_matrix.output.rds),
     output:
         rds = temp(PER_GENE + "{gene}/module_model.rds"),
+    wildcard_constraints:
+        gene = r"[^/]+",    
     log:
         CFG["logs"]["per_gene"] + "{gene}/module_model.log",
     conda:
@@ -355,6 +362,8 @@ rule _drivemutr_genomic_models:
         rds = str(rules._drivemutr_module_model.output.rds),
     output:
         rds = temp(PER_GENE + "{gene}/genomic_models.rds"),
+    wildcard_constraints:
+        gene = r"[^/]+",    
     log:
         CFG["logs"]["per_gene"] + "{gene}/genomic_models.log",
     conda:
@@ -376,6 +385,8 @@ rule _drivemutr_rulefit_model:
     output:
         rds      = temp(PER_GENE + "{gene}/rulefit_model.rds"),
         shap_pdf = PER_GENE + "{gene}/shap_plots.pdf",
+    wildcard_constraints:
+        gene = r"[^/]+",    
     log:
         CFG["logs"]["per_gene"] + "{gene}/rulefit_model.log",
     conda:
@@ -398,6 +409,8 @@ rule _drivemutr_get_tf_results:
         tf_names_file       = str(rules._drivemutr_input.output.tf_names),
     output:
         rds = temp(PER_GENE + "{gene}/tf_results.rds"),
+    wildcard_constraints:
+        gene = r"[^/]+",    
     log:
         CFG["logs"]["per_gene"] + "{gene}/get_tf_results.log",
     params:
@@ -421,6 +434,8 @@ rule _drivemutr_sanity_check_plot:
     output:
         rds              = PER_GENE + "{gene}/final_results.rds",
         sanity_check_pdf = PER_GENE + "{gene}/sanity_check_plot.pdf",
+    wildcard_constraints:
+        gene = r"[^/]+",    
     log:
         CFG["logs"]["per_gene"] + "{gene}/sanity_check_plot.log",
     conda:
@@ -467,6 +482,9 @@ rule _drivemutr_output_tracks:
         tsv = CFG["dirs"]["ucsc_tracks"] + "{track}_{lam}.tsv",
     output:
         tsv = CFG["dirs"]["outputs"] + "ucsc_custom_tracks/{track}_{lam}.tsv",
+    wildcard_constraints:
+        track = "Mutation_Points|Mutation_Blocks|Transcription_Factors",
+        lam = r"lambda_[0-9A-Za-z_]+",   
     run:
         op.relative_symlink(input.tsv, output.tsv)
 
