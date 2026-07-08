@@ -4,4 +4,4 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - mosdepth=0.3.11
+  - mosdepth=0.3.13
