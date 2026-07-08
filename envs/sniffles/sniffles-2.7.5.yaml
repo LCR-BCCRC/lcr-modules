@@ -7,4 +7,3 @@ channels:
 dependencies:
   - python=3.10.15
   - sniffles=2.7.5
-prefix: /projects/rmorin_scratch/giuliano_nanopore/environments/sniffles2.7.5
