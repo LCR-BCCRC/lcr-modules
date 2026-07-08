@@ -162,8 +162,6 @@ normalize_gene_expression_by_pathology <- function(
     message("Performing batch effect correction...")
     vsd_corr <- vsd
     
-    save.image(file.path(dirname(plots_dir), "DESeq2.RData"))
-    
     batch_matrix <- model.matrix(
       as.formula(paste("~", paste(final_batches, collapse = " + "))),
       meta
