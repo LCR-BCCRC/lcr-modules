@@ -85,7 +85,7 @@ rule _wgcna_input_matrix:
     output:
         matrix = CFG["dirs"]["inputs"] + "expression_matrix",
     run:
-        op.relative_symlink(input.matrix, output.matrix, in_module=True)
+        op.absolute_symlink(input.matrix, output.matrix)
 
 
 # Rule 1 (raw mode only): DESeq2 VST normalization + limma batch correction
