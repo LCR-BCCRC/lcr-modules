@@ -17,7 +17,7 @@ lcr-modules:
             mosdepth: "{MODSDIR}/envs/mosdepth-0.3.13.yaml"
 
         container_envs:
-            mosdepth: ""
+            mosdepth: "docker://ghcr.io/lcr-bccrc/lcr-scripts/mosdepth:0.3.13"
             
         threads:
             mosdepth: 4
