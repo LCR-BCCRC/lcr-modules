@@ -486,7 +486,7 @@ rule _drivemutr_output_tracks:
         track = "Mutation_Points|Mutation_Blocks|Transcription_Factors",
         lam = r"lambda_[0-9A-Za-z_]+",   
     run:
-        op.relative_symlink(input.tsv, output.tsv)
+        op.relative_symlink(input.tsv, output.tsv, in_module=True)
 
 
 # Generates the target sentinels for the module
