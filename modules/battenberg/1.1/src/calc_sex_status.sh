@@ -15,12 +15,12 @@ DEBUG="${6:-MISSING}"
 if [[ $X_CHROM == "MISSING" ]]
 then
     X_CHROM=$(samtools view -H ${BAM} |\
-     sed -r 's/\S+:\S+/\n&/g' | perl -ne 's/\s+//g;print "$_\n"' | awk 'BEGIN{FS=":"} $1=="SN" && $2 ~ /X$/ {print $2}')
+     sed -r 's/\S+:\S+/\n&/g' | tr -d ' \t' | awk 'BEGIN{FS=":"} $1=="SN" && $2 ~ /X$/ {print $2}')
 fi
 if [[ $Y_CHROM == "MISSING" ]]
 then
     Y_CHROM=$(samtools view -H ${BAM} |\
-     sed -r 's/\S+:\S+/\n&/g' | perl -ne 's/\s+//g;print "$_\n"' | awk 'BEGIN{FS=":"} $1=="SN" && $2 ~ /Y$/ {print $2}')
+     sed -r 's/\S+:\S+/\n&/g' | tr -d ' \t' | awk 'BEGIN{FS=":"} $1=="SN" && $2 ~ /Y$/ {print $2}')
 fi
 if [[ ! $DEBUG == "MISSING" ]]
 then

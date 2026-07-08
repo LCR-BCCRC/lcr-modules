@@ -1,30 +1,55 @@
 #!/bin/bash
 
-# Launches a snakefile of your choice on a Slurm cluster and sets the conda prefix
+# Launches a snakefile of your choice on a Slurm cluster
+# Usage: ./snakemake.slurm.sh <snakefile.smk> <target_rule> "<snakemake_flags>" [runtime_config]
+# Example (conda only): ./snakemake.slurm.sh genome_Snakefile.smk all "--rerun-incomplete" runtime_config.conda.yaml
+# Example (apptainer):  ./snakemake.slurm.sh genome_Snakefile.smk all "" runtime_config.apptainer.yaml
+#
+# snakefile.smk   The snakefile you want to run
+# target_rule     The name of one of the target rules in the included Snakefiles
+# snakemake_flags Additional snakemake flags inside quotation marks (e.g. "--rerun-incomplete").
+#                 Pass "" if you have no extra flags but need to specify a runtime_config.
+# runtime_config  Optional: path to a runtime_config.yaml file. See runtime_config.yaml
+#                 for the format. Presence of an 'apptainer' section enables containers;
+#                 absence keeps default conda behaviour.
 
-# Usage: ./snakemake.slurm.sh <snakefile.smk> <target_rule> <conda_prefix> <snakemake_flags>
-
-# Example: ./snakemake.slurm.sh src/snakemake/manta.smk all "--rerun-incomplete" ~/minconda3/envs
-
-# snakefile.smk The snakefile you want to run
-# target_rule: The name of one of the target rules specified in one of the included Snakefiles
-# snakemake_flags: Any additional Snakemake options (e.g. "-np" for a dry run)
-# conda_prefix: The location where conda packages should be installed
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 snakefile=$1
 target_rule=${2:-all}
 snakemake_flags=$3
-conda_prefix=${4:-$CONDA_PREFIX}
+runtime_config=$4
 
+# Parse runtime config (emits empty strings when no config is provided)
+eval "$(python3 "$SCRIPT_DIR/parse_runtime_config.py" "${runtime_config:-}")"
 
-echo snakemake --use-conda --conda-prefix $conda_prefix --jobs 5000 \
+# Build conda flags (omitted in container mode — mutually exclusive)
+conda_flags=()
+if [ -z "$SNAKEMAKE_CONTAINER_FLAG" ]; then
+    conda_flags+=(--use-conda)
+    [ -n "$SNAKEMAKE_CONDA_PREFIX" ] && conda_flags+=(--conda-prefix "$SNAKEMAKE_CONDA_PREFIX")
+fi
+
+# Build container flags
+container_flags=()
+if [ -n "$SNAKEMAKE_CONTAINER_FLAG" ]; then
+    container_flags+=("$SNAKEMAKE_CONTAINER_FLAG")
+    [ -n "$SNAKEMAKE_SIF_PREFIX" ]  && container_flags+=("$SNAKEMAKE_PREFIX_FLAG" "$SNAKEMAKE_SIF_PREFIX")
+    [ -n "$SNAKEMAKE_BIND_PATHS" ]  && container_flags+=("$SNAKEMAKE_ARGS_FLAG" "$SNAKEMAKE_BIND_PATHS")
+fi
+
+export XDG_CACHE_HOME="$PWD/.cache"
+
+echo snakemake --jobs 5000 \
   --latency-wait 120 $snakemake_flags --keep-going --default-resources mem_mb=2000 \
+  "${conda_flags[@]}" "${container_flags[@]}" \
   --cluster-sync "srun -n 1 -N 1 -J {rule} --mem {resources.mem_mb} --cpus-per-task {threads} --time 08:00:00" \
-  -s $snakefile  $target_rule
+  -s $snakefile $target_rule
 
 sleep 5
 
-snakemake --use-conda --conda-prefix $conda_prefix --jobs 5000 \
+snakemake --jobs 5000 \
   --latency-wait 120 $snakemake_flags --keep-going --default-resources mem_mb=2000 \
+  "${conda_flags[@]}" "${container_flags[@]}" \
   --cluster-sync "srun -n 1 -N 1 -J {rule} --mem {resources.mem_mb} --cpus-per-task {threads} --time 08:00:00" \
-  -s $snakefile  $target_rule 
+  -s $snakefile $target_rule

@@ -57,6 +57,10 @@ lcr-modules:
         conda_envs:
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
             clustl: "{MODSDIR}/envs/oncodriveclustl-1.1.3.yaml"
+        container_envs:
+            clustl: "docker://ghcr.io/lcr-bccrc/lcr-scripts/oncodriveclustl:1.1.3"
+            prepare_mafs: "docker://ghcr.io/lcr-bccrc/lcr-scripts/generate_smg_inputs:1.1"
+
 
         threads:
             clustl: 4

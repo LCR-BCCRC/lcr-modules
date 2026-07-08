@@ -87,6 +87,9 @@ lcr-modules:
         conda_envs:
             ichorcna: "{MODSDIR}/envs/ichorcna.env.yaml"
             hmmcopy_utils: "{MODSDIR}/envs/hmmcopy_utils.env.yaml"
+        container_envs:
+            ichorcna: "docker://quay.io/biocontainers/r-ichorcna:0.2.0--r36_0"
+
 
         threads:
             readcounter: 4

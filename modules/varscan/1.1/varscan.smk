@@ -17,7 +17,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -25,7 +25,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -94,6 +94,8 @@ rule _varscan_bam2mpu:
         opts = CFG["options"]["mpileup"]
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     threads:
         1    #hardcoded because samtools mpileup does not support more than one thread.
     resources:
@@ -124,6 +126,8 @@ rule _varscan_somatic:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["somatic"])
     conda:
         CFG["conda_envs"]["varscan"]
+    container:
+        CFG["container_envs"]["varscan"]
     threads:
         CFG["threads"]["somatic"]   #this seems to rarely exceed 300% due to samtools and/or I/O restrictions
     resources:
@@ -152,6 +156,8 @@ rule _varscan_unpaired:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["unpaired"])
     conda:
         CFG["conda_envs"]["varscan"]
+    container:
+        CFG["container_envs"]["varscan"]
     threads:
         CFG["threads"]["unpaired"]
     resources:
@@ -174,6 +180,8 @@ rule _varscan_reheader_vcf:
         #tbi= CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}_{vcf_name}.vcf.gz.tbi"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     shell:
         op.as_one_line("""
         contig=$( awk '{{printf("##contig=<ID=%s,length=%d>\\n",$1,$2);}}' {input.fai})
@@ -208,6 +216,8 @@ rule _varscan_combine_chroms_vcf:
         stderr = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}_combine_chroms_vcf.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     wildcard_constraints:
         vcf_name = "(snp|indel)"
     resources:
@@ -248,6 +258,8 @@ rule _varscan_combine_vcf:
         stderr = CFG["logs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged_combine_vcf.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     resources:
         mem_mb = CFG["mem_mb"]["bcftools_sort"]
     shell:

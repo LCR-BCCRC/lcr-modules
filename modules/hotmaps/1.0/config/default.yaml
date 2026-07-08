@@ -74,6 +74,12 @@ lcr-modules:
             vcf2maf: "{REPODIR}/envs/vcf2maf/vcf2maf-1.6.18.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.17.yaml"
             hotmaps: "{MODSDIR}/envs/hotmaps.yaml"
+        container_envs:
+            bcftools: "docker://quay.io/biocontainers/bcftools:1.17--h3cc50cf_1"
+            hotmaps: null
+            prepare_mafs: null
+            vcf2maf: "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
+
             
         threads:
             hotmaps: 1

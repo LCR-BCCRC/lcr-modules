@@ -18,7 +18,7 @@ import pandas as pd
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -26,7 +26,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -92,13 +92,15 @@ rule _sequenza_input_dbsnp_pos:
     resources:
         **CFG["resources"]["vcf_sort"]
     threads: 1
+    params:
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     shell:
         op.as_one_line("""
         gzip -dc {input.vcf}
             |
         awk 'BEGIN {{FS="\t"}} $0 !~ /^#/ {{print $1 ":" $2}}' 2>> {log.stderr}
             |
-        LC_ALL=C sort -S {resources.mem_mb}M > {output.pos} 2>> {log.stderr}
+        LC_ALL=C sort -S {params.mem_mb}M > {output.pos} 2>> {log.stderr}
         """)
 
 
@@ -117,14 +119,15 @@ rule _sequenza_bam2seqz:
         seqz_binning_opts = CFG["options"]["seqz_binning"]
     conda:
         CFG["conda_envs"]["sequenza-utils"]
-    threads:
-        CFG["threads"]["bam2seqz"]
-    resources:
-        **CFG["resources"]["bam2seqz"]
+    container:
+        CFG["container_envs"]["sequenza-utils"]
+    threads: 1 # since it's grouped with the rule below, which uses CFG["threads"]["merge_seqz"], otherwise this thread count gets multiplied by # of chroms and exceeds SLURM amount allowed
+    # same with **resources, it will get the default but be able to use what's listed in **CFG["resources"]["bam2seqz"] by the grouping of these rules
+    group: "bam2seqz"
     shell:
         op.as_one_line("""
         sequenza-utils bam2seqz {params.bam2seqz_opts} -gc {input.gc_wiggle} --fasta {input.genome}
-        --normal {input.normal_bam} --tumor {input.tumour_bam} --chromosome {wildcards.chrom} 2>> {log.stderr}
+        --normal {input.normal_bam} --tumor {input.tumour_bam} --chromosome {wildcards.chrom} 2> {log.stderr}
             |
         sequenza-utils seqz_binning {params.seqz_binning_opts} --seqz - 2>> {log.stderr}
             |
@@ -147,7 +150,7 @@ rule _sequenza_merge_seqz:
     input:
         txt = str(rules._sequenza_input_chroms.output.txt),
         seqz = _sequenza_request_chrom_seqz_files,
-        merge_seqz = CFG["inputs"]["merge_seqz"],
+        merge_seqz = ancient(CFG["inputs"]["merge_seqz"]),
         gc = reference_files("genomes/{genome_build}/annotations/gc_wiggle.window_50.wig.gz")
     output:
         seqz = CFG["dirs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged.binned.unfiltered.seqz.gz"
@@ -157,6 +160,7 @@ rule _sequenza_merge_seqz:
         CFG["threads"]["merge_seqz"]
     resources:
         **CFG["resources"]["merge_seqz"]
+    group: "bam2seqz"
     shell:
         op.as_one_line("""
         bash {input.merge_seqz} {input.seqz} 2>> {log.stderr}
@@ -167,8 +171,8 @@ rule _sequenza_merge_seqz:
 
 rule _sequenza_filter_seqz:
     input:
-        seqz = str(rules._sequenza_merge_seqz.output.seqz),
-        filter_seqz = CFG["inputs"]["filter_seqz"],
+        seqz = ancient(str(rules._sequenza_merge_seqz.output.seqz)),
+        filter_seqz = ancient(CFG["inputs"]["filter_seqz"]),
         dbsnp_pos = str(rules._sequenza_input_dbsnp_pos.output.pos),
         blacklist = reference_files("genomes/{genome_build}/encode/encode-blacklist.{genome_build}.bed")
     output:
@@ -177,6 +181,8 @@ rule _sequenza_filter_seqz:
         stderr = CFG["logs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_filter_seqz.stderr.log"
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        CFG["container_envs"]["bedtools"]
     threads:
         CFG["threads"]["filter_seqz"]
     resources:
@@ -184,7 +190,7 @@ rule _sequenza_filter_seqz:
     shell:
         op.as_one_line("""
         SEQZ_BLACKLIST_BED_FILES='{input.blacklist}'
-        {input.filter_seqz} {input.seqz} {input.dbsnp_pos} 2>> {log.stderr}
+        {input.filter_seqz} {input.seqz} {input.dbsnp_pos} {threads} 2>> {log.stderr}
             |
         gzip > {output.seqz} 2>> {log.stderr}
         """)
@@ -192,8 +198,8 @@ rule _sequenza_filter_seqz:
 
 rule _sequenza_run:
     input:
-        seqz = CFG["dirs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/merged.binned.{filter_status}.seqz.gz",
-        run_sequenza = CFG["inputs"]["run_sequenza"],
+        seqz = str(rules._sequenza_filter_seqz.output.seqz),
+        run_sequenza = ancient(CFG["inputs"]["run_sequenza"]),
         assembly = reference_files("genomes/{genome_build}/version.txt"),
         chroms = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt"),
         x_chrom = reference_files("genomes/{genome_build}/genome_fasta/chromosome_x.txt")
@@ -204,6 +210,8 @@ rule _sequenza_run:
         stderr = CFG["logs"]["sequenza"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_run.{filter_status}.stderr.log"
     conda:
         CFG["conda_envs"]["r-sequenza"]
+    container:
+        CFG["container_envs"]["r-sequenza"]
     threads:
         CFG["threads"]["sequenza"]
     resources:
@@ -232,6 +240,8 @@ rule _sequenza_fill_txt:
         blacklist_file = lambda w: "src/blacklisted.hg38.bed" if "38" in str({w.genome_build}) else "src/blacklisted.grch37.bed"
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        CFG["container_envs"]["bedtools"]
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -259,6 +269,8 @@ rule _sequenza_cnv2igv:
     threads: 1
     conda:
         CFG["conda_envs"]["cnv2igv"]
+    container:
+        CFG["container_envs"]["cnv2igv"]
     group: "sequenza_post_process"
     shell:
         op.as_one_line("""
@@ -290,6 +302,8 @@ rule _sequenza_convert_coordinates:
         liftover_minmatch = CFG["options"]["liftover_minMatch"]
     conda:
         CFG["conda_envs"]["liftover"]
+    container:
+        CFG["container_envs"]["liftover"]
     group: "sequenza_post_process"
     shell:
         op.as_one_line("""
@@ -329,8 +343,8 @@ rule _sequenza_fill_segments:
     input:
         unpack(_sequenza_prepare_projection)
     output:
-        grch37_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg"),
-        hg38_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg")
+        grch37_filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.grch37.seg",
+        hg38_filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.hg38.seg"
     log:
         stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}_fill_segments.stderr.log"
     threads: 1
@@ -338,6 +352,8 @@ rule _sequenza_fill_segments:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        CFG["container_envs"]["bedtools"]
     group: "sequenza_post_process"
     shell:
         op.as_one_line("""
