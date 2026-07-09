@@ -88,7 +88,12 @@ rule _maf_diff_run:
     params:
         caller1_name = CALLER1,
         caller2_name = CALLER2,
-        key_cols = CFG["options"]["key_cols"]
+        key_cols = CFG["options"]["key_cols"],
+        driver_genes = CFG["options"]["driver_genes"],
+        driver_gene_col = CFG["options"]["driver_gene_col"],
+        driver_col = CFG["options"]["driver_col"],
+        driver_col_value = CFG["options"]["driver_col_value"],
+        maf_gene_col = CFG["options"]["maf_gene_col"]
     script:
         "src/maf_diff.py"
 

@@ -5,8 +5,8 @@ lcr-modules:
         inputs:
             # Paths to per-sample MAF files from each caller.
             # Available wildcards: {seq_type}, {genome_build}, {tumour_id}, {normal_id}, {pair_status}
-            maf1: "__UPDATE__"  # e.g. "results/sage--1.0/99-outputs/maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.maf"
-            maf2: "__UPDATE__"  # e.g. "results/slms-3--1.0/99-outputs/maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.maf"
+            maf1: "__UPDATE__"  # e.g. "results/sage--1.0/99-outputs/maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.combined.maf"
+            maf2: "__UPDATE__"  # e.g. "results/slms-3--1.0/99-outputs/maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.maf"
 
         options:
             caller1_name: "__UPDATE__"  # e.g. "sage"
@@ -17,6 +17,15 @@ lcr-modules:
                 - "Start_Position"
                 - "Reference_Allele"
                 - "Tumor_Seq_Allele2"
+            # Path to a TSV of lymphoma driver genes. Rows where driver_col == driver_col_value
+            # are treated as bona fide drivers. Set to "" to disable driver gene reporting.
+            # Default points to the curated LLMPP tier-1 gene list bundled in etc/:
+            #   https://raw.githubusercontent.com/morinlab/LLMPP/refs/heads/main/resources/curated/any_tier1_BL_FL_DLBCL_MCL_MZL_PMBL.tsv
+            driver_genes: "{MODSDIR}/etc/any_tier1_BL_FL_DLBCL_MCL_MZL_PMBL.tsv"
+            driver_gene_col: "Gene"       # column in driver_genes file containing gene symbols
+            driver_col: "Any_Tier1"       # column used to filter bona fide drivers
+            driver_col_value: "Yes"       # value in driver_col that marks a bona fide driver
+            maf_gene_col: "Hugo_Symbol"   # column in MAF files containing gene symbols
 
         conda_envs:
             pandas: "{MODSDIR}/envs/pandas-1.3.0.yaml"
