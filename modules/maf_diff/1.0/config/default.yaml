@@ -1,0 +1,39 @@
+lcr-modules:
+
+    maf_diff:
+
+        inputs:
+            # Paths to per-sample MAF files from each caller.
+            # Available wildcards: {seq_type}, {genome_build}, {tumour_id}, {normal_id}, {pair_status}
+            maf1: "__UPDATE__"  # e.g. "results/sage--1.0/99-outputs/maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.maf"
+            maf2: "__UPDATE__"  # e.g. "results/slms-3--1.0/99-outputs/maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.maf"
+
+        options:
+            caller1_name: "__UPDATE__"  # e.g. "sage"
+            caller2_name: "__UPDATE__"  # e.g. "slms-3"
+            # Columns used to match variants between callers
+            key_cols:
+                - "Chromosome"
+                - "Start_Position"
+                - "Reference_Allele"
+                - "Tumor_Seq_Allele2"
+
+        conda_envs:
+            pandas: "{MODSDIR}/envs/pandas-1.3.0.yaml"
+
+        threads:
+            maf_diff: 1
+
+        resources:
+            maf_diff:
+                mem_mb: 4000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
