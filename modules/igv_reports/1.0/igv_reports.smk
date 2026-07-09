@@ -76,13 +76,18 @@ rule _igv_reports_input_bam:
     output:
         tumour_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}.tumour.bam",
         tumour_bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}.tumour.bam.bai",
+        tumour_crai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}.tumour.bam.crai",
         normal_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}.normal.bam",
         normal_bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}.normal.bam.bai",
+        normal_crai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}.normal.bam.crai",
     run:
-        op.absolute_symlink(input.tumour_bam, output.tumour_bam)
-        op.absolute_symlink(input.tumour_bam + ".bai", output.tumour_bai)
-        op.absolute_symlink(input.normal_bam, output.normal_bam)
-        op.absolute_symlink(input.normal_bam + ".bai", output.normal_bai)
+        def _link_aln(bam, out_bam, out_bai, out_crai):
+            op.absolute_symlink(bam, out_bam)
+            idx = bam + (".crai" if bam.endswith(".cram") else ".bai")
+            op.absolute_symlink(idx, out_bai)
+            op.absolute_symlink(idx, out_crai)
+        _link_aln(input.tumour_bam, output.tumour_bam, output.tumour_bai, output.tumour_crai)
+        _link_aln(input.normal_bam, output.normal_bam, output.normal_bai, output.normal_crai)
 
 
 rule _igv_reports_filter_maf:
@@ -117,8 +122,10 @@ rule _igv_reports_run:
         maf = str(rules._igv_reports_filter_maf.output.maf),
         tumour_bam = str(rules._igv_reports_input_bam.output.tumour_bam),
         tumour_bai = str(rules._igv_reports_input_bam.output.tumour_bai),
+        tumour_crai = str(rules._igv_reports_input_bam.output.tumour_crai),
         normal_bam = str(rules._igv_reports_input_bam.output.normal_bam),
         normal_bai = str(rules._igv_reports_input_bam.output.normal_bai),
+        normal_crai = str(rules._igv_reports_input_bam.output.normal_crai),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai")
     output:
