@@ -93,7 +93,9 @@ rule _maf_diff_run:
         driver_gene_col = CFG["options"]["driver_gene_col"],
         driver_col = CFG["options"]["driver_col"],
         driver_col_value = CFG["options"]["driver_col_value"],
-        maf_gene_col = CFG["options"]["maf_gene_col"]
+        maf_gene_col = CFG["options"]["maf_gene_col"],
+        maf_vc_col = CFG["options"]["maf_vc_col"],
+        coding_variant_classes = CFG["options"]["coding_variant_classes"]
     script:
         "src/maf_diff.py"
 

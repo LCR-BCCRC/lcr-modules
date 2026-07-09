@@ -12,6 +12,8 @@ driver_gene_col = snakemake.params.driver_gene_col
 driver_col = snakemake.params.driver_col
 driver_col_value = snakemake.params.driver_col_value
 maf_gene_col = snakemake.params.maf_gene_col
+maf_vc_col = snakemake.params.maf_vc_col
+coding_variant_classes = set(snakemake.params.coding_variant_classes)
 
 maf1 = pd.read_csv(snakemake.input.maf1, sep="\t", comment="#", low_memory=False, dtype=str)
 maf2 = pd.read_csv(snakemake.input.maf2, sep="\t", comment="#", low_memory=False, dtype=str)
@@ -42,15 +44,14 @@ print(f"{caller2_name}-only: {len(only2)}", file=log)
 
 caller1_only_maf = maf1[maf1["_key"].isin(only1)].drop(columns=["_key"])
 caller2_only_maf = maf2[maf2["_key"].isin(only2)].drop(columns=["_key"])
+shared_maf = maf1[maf1["_key"].isin(shared)].drop(columns=["_key"])
 
 caller1_only_maf.to_csv(snakemake.output.caller1_only, sep="\t", index=False, na_rep="")
 caller2_only_maf.to_csv(snakemake.output.caller2_only, sep="\t", index=False, na_rep="")
 
 # Driver gene analysis
-caller1_driver_count = 0
-caller2_driver_count = 0
-caller1_driver_genes = ""
-caller2_driver_genes = ""
+driver_counts = {"intersect": 0, caller1_name: 0, caller2_name: 0}
+driver_genes_found = {"intersect": "", caller1_name: "", caller2_name: ""}
 
 if driver_genes_path:
     print(f"Loading driver gene list from {driver_genes_path}", file=log)
@@ -58,23 +59,25 @@ if driver_genes_path:
     drivers = set(driver_df.loc[driver_df[driver_col] == driver_col_value, driver_gene_col])
     print(f"Loaded {len(drivers)} bona fide driver genes", file=log)
 
-    if maf_gene_col in caller1_only_maf.columns:
-        genes1 = set(caller1_only_maf[maf_gene_col].dropna()) & drivers
-        caller1_driver_count = caller1_only_maf[maf_gene_col].isin(drivers).sum()
-        caller1_driver_genes = ",".join(sorted(genes1))
-        print(f"{caller1_name}-only driver gene variants: {caller1_driver_count} across {len(genes1)} genes: {caller1_driver_genes}", file=log)
-    else:
-        print(f"WARNING: {maf_gene_col} not found in {caller1_name} MAF; skipping driver gene annotation", file=log)
+    for label, maf in [("intersect", shared_maf), (caller1_name, caller1_only_maf), (caller2_name, caller2_only_maf)]:
+        if maf_gene_col not in maf.columns:
+            print(f"WARNING: {maf_gene_col} not found in {label} MAF; skipping driver gene annotation", file=log)
+            continue
+        if maf_vc_col in maf.columns:
+            coding = maf[maf[maf_vc_col].isin(coding_variant_classes)]
+        else:
+            print(f"WARNING: {maf_vc_col} not found in {label} MAF; counting all variant classes for driver genes", file=log)
+            coding = maf
+        hit_genes = set(coding[maf_gene_col].dropna()) & drivers
+        hit_count = int(coding[maf_gene_col].isin(drivers).sum())
+        genes_str = ",".join(sorted(hit_genes))
+        suffix = "" if label == "intersect" else "-only"
+        print(f"{label}{suffix} coding driver gene variants: {hit_count} across {len(hit_genes)} genes: {genes_str}", file=log)
+        driver_counts[label] = hit_count
+        driver_genes_found[label] = genes_str
 
-    if maf_gene_col in caller2_only_maf.columns:
-        genes2 = set(caller2_only_maf[maf_gene_col].dropna()) & drivers
-        caller2_driver_count = caller2_only_maf[maf_gene_col].isin(drivers).sum()
-        caller2_driver_genes = ",".join(sorted(genes2))
-        print(f"{caller2_name}-only driver gene variants: {caller2_driver_count} across {len(genes2)} genes: {caller2_driver_genes}", file=log)
-    else:
-        print(f"WARNING: {maf_gene_col} not found in {caller2_name} MAF; skipping driver gene annotation", file=log)
-
-stats = pd.DataFrame([{
+# Long-format stats: one row per category
+meta = {
     "tumour_id": snakemake.wildcards.tumour_id,
     "normal_id": snakemake.wildcards.normal_id,
     "seq_type": snakemake.wildcards.seq_type,
@@ -82,16 +85,22 @@ stats = pd.DataFrame([{
     "pair_status": snakemake.wildcards.pair_status,
     "caller1": caller1_name,
     "caller2": caller2_name,
-    "caller1_total": len(maf1),
-    "caller2_total": len(maf2),
-    "shared": len(shared),
-    "caller1_only": len(only1),
-    "caller2_only": len(only2),
-    "caller1_only_driver_variants": caller1_driver_count,
-    "caller2_only_driver_variants": caller2_driver_count,
-    "caller1_only_driver_genes": caller1_driver_genes,
-    "caller2_only_driver_genes": caller2_driver_genes,
-}])
-stats.to_csv(snakemake.output.stats, sep="\t", index=False)
+}
+rows = [
+    {**meta, "category": "intersect",
+     "count": len(shared),
+     "driver_variants": driver_counts["intersect"],
+     "driver_genes": driver_genes_found["intersect"]},
+    {**meta, "category": f"{caller1_name}_only",
+     "count": len(only1),
+     "driver_variants": driver_counts[caller1_name],
+     "driver_genes": driver_genes_found[caller1_name]},
+    {**meta, "category": f"{caller2_name}_only",
+     "count": len(only2),
+     "driver_variants": driver_counts[caller2_name],
+     "driver_genes": driver_genes_found[caller2_name]},
+]
+stats = pd.DataFrame(rows)
+stats.to_csv(snakemake.output.stats, sep="\t", index=False, na_rep="")
 
 log.close()
