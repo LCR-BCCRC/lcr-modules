@@ -41,10 +41,9 @@ lcr-modules:
                 - "Hugo_Symbol"
                 - "Variant_Classification"
                 - "HGVSp_Short"
-                - "t_ref_count"
+                - "Tumor_Seq_Allele2"
                 - "t_alt_count"
-                - "n_ref_count"
-                - "n_alt_count"
+                - "dbSNP_RS"
 
         conda_envs:
             igv_reports: "{MODSDIR}/envs/igv-reports-1.16.0.yaml"
