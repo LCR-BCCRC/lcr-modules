@@ -12,6 +12,7 @@
 ##### SETUP #####
 
 
+import re
 import oncopipe as op
 
 min_oncopipe_version = "1.0.11"
@@ -37,6 +38,9 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "filtered_maf", "igv_reports", "outputs"],
 )
 
+# {tool} wildcard is constrained to the keys configured in inputs.mafs
+_igv_tools = list(CFG["inputs"]["mafs"].keys())
+
 localrules:
     _igv_reports_input_maf,
     _igv_reports_input_bam,
@@ -49,9 +53,15 @@ localrules:
 
 rule _igv_reports_input_maf:
     input:
-        maf = CFG["inputs"]["maf"]
+        maf = lambda w: CFG["inputs"]["mafs"][w.tool].format(
+            seq_type=w.seq_type, genome_build=w.genome_build,
+            tumour_id=w.tumour_id, normal_id=w.normal_id,
+            pair_status=w.pair_status
+        )
     output:
-        maf = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf"
+        maf = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}.maf"
+    wildcard_constraints:
+        tool = "|".join(re.escape(t) for t in _igv_tools)
     run:
         op.absolute_symlink(input.maf, output.maf)
 
@@ -78,15 +88,17 @@ rule _igv_reports_filter_maf:
     input:
         maf = str(rules._igv_reports_input_maf.output.maf)
     output:
-        maf = CFG["dirs"]["filtered_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.drivers.maf"
+        maf = CFG["dirs"]["filtered_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}.drivers.maf"
     log:
-        CFG["logs"]["filtered_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/filter_maf.log"
+        CFG["logs"]["filtered_maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}/filter_maf.log"
     conda:
         CFG["conda_envs"]["pandas"]
     threads:
         CFG["threads"]["filter_maf"]
     resources:
         **CFG["resources"]["filter_maf"]
+    wildcard_constraints:
+        tool = "|".join(re.escape(t) for t in _igv_tools)
     params:
         driver_genes = CFG["options"]["driver_genes"],
         driver_gene_col = CFG["options"]["driver_gene_col"],
@@ -109,19 +121,21 @@ rule _igv_reports_run:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai")
     output:
-        html = CFG["dirs"]["igv_reports"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.html"
+        html = CFG["dirs"]["igv_reports"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}.html"
     log:
-        CFG["logs"]["igv_reports"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/igv_reports.log"
+        CFG["logs"]["igv_reports"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}/igv_reports.log"
     conda:
         CFG["conda_envs"]["igv_reports"]
     threads:
         CFG["threads"]["igv_reports"]
     resources:
         **CFG["resources"]["igv_reports"]
+    wildcard_constraints:
+        tool = "|".join(re.escape(t) for t in _igv_tools)
     params:
         flanking = CFG["options"]["flanking"],
         info_columns = lambda w: " ".join(CFG["options"]["info_columns"]),
-        title = lambda w: f"{w.tumour_id} vs {w.normal_id}"
+        title = lambda w: f"{w.tumour_id} vs {w.normal_id} — {w.tool} drivers"
     shell:
         op.as_one_line("""
         create_report {input.maf}
@@ -139,7 +153,9 @@ rule _igv_reports_output_html:
     input:
         html = str(rules._igv_reports_run.output.html)
     output:
-        html = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.html"
+        html = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}.html"
+    wildcard_constraints:
+        tool = "|".join(re.escape(t) for t in _igv_tools)
     run:
         op.relative_symlink(input.html, output.html, in_module=True)
 
@@ -147,7 +163,11 @@ rule _igv_reports_output_html:
 rule _igv_reports_all:
     input:
         expand(
-            [str(rules._igv_reports_output_html.output.html)],
+            expand(
+                str(rules._igv_reports_output_html.output.html),
+                tool=_igv_tools,
+                allow_missing=True
+            ),
             zip,
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],

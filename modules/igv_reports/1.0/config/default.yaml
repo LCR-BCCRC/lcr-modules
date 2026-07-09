@@ -3,8 +3,13 @@ lcr-modules:
     igv_reports:
 
         inputs:
+            # Dict mapping a short label (becomes the {tool} wildcard) to a MAF path pattern.
             # Available wildcards: {seq_type}, {genome_build}, {tumour_id}, {normal_id}, {pair_status}
-            maf: "__UPDATE__"
+            # e.g.:
+            #   mafs:
+            #     sage-only: "results/maf_diff-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage-only.maf"
+            #     slms-3-only: "results/maf_diff-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3-only.maf"
+            mafs: {}
             tumour_bam: "__UPDATE__"
             tumour_bai: "__UPDATE__"
             normal_bam: "__UPDATE__"
