@@ -22,6 +22,12 @@ lcr-modules:
             manta: "{MODSDIR}/envs/manta-1.6.0.yaml"
             augment_manta_vcf: "{SCRIPTSDIR}/augment_manta_vcf/1.0/augment_manta_vcf-1.yaml"
             svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
+        container_envs:
+            augment_manta_vcf: "docker://ghcr.io/lcr-bccrc/lcr-scripts/augment_manta_vcf:1.1"
+            manta: "docker://quay.io/biocontainers/manta:1.6.0--py27h9948957_6"
+            svtools: "docker://quay.io/biocontainers/svtools:0.5.1--py_0"
+            tabix: "docker://quay.io/biocontainers/tabix:0.2.6--ha92aebf_0"
+
 
         switches:
             # Run Manta in high-sensitivity mode for RNA-seq and capture data

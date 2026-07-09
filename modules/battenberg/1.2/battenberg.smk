@@ -19,7 +19,7 @@ import os
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -27,7 +27,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -95,7 +95,10 @@ rule _battenberg_get_reference:
         **CFG["resources"]["reference"]
     threads:
         CFG["threads"]["reference"]
-    conda: CFG["conda"]["wget"]
+    conda:
+        CFG["conda_envs"]["wget"]
+    container:
+        CFG["container_envs"]["wget"]
     shell:
         op.as_one_line("""
         wget -qO-  {params.url}/battenberg_impute_{params.alt_build}.tar.gz  |
@@ -146,6 +149,8 @@ rule _infer_patient_sex:
         stderr = CFG["logs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}_infer_sex_stderr.log"
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     group: "setup_run"
     threads: 8
     shell:
@@ -165,8 +170,11 @@ rule _run_battenberg:
         normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
         sex_result = CFG["dirs"]["infer_sex"] + "{seq_type}--{genome_build}/{normal_id}.sex",
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        impute_info = str(rules._battenberg_get_reference.output.impute_info)
-
+        impute_info = (
+            ancient(CFG["inputs"]["reference_path"] + "/{genome_build}/impute_info.txt")
+            if CFG["inputs"].get("reference_path")
+            else str(rules._battenberg_get_reference.output.impute_info)
+        )
     output:
         # Preprocess outputs (preserve these so multiple fits can reuse them)
         ac=CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/{tumour_id}_alleleCounts.tab",
@@ -181,25 +189,29 @@ rule _run_battenberg:
     params:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         script = CFG["inputs"]["battenberg_script"],
-        out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}/preprocess/",
-        ref = CFG["dirs"]["inputs"] + "reference/{genome_build}"
+        out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
+        ref = (
+            CFG["inputs"]["reference_path"] + "/{genome_build}"
+            if CFG["inputs"].get("reference_path")
+            else CFG["dirs"]["inputs"] + "reference/{genome_build}"
+        )
     conda:
         CFG["conda_envs"]["battenberg"]
+    container:
+        CFG["container_envs"]["battenberg"]
     resources:
         **CFG["resources"]["battenberg"]
     threads:
         CFG["threads"]["battenberg"]
     shell:
        op.as_one_line("""
-        if [[ $(head -c 4 {params.fasta}) == ">chr" ]]; then chr_prefixed='true'; else chr_prefixed='false'; fi;
-        echo "$chr_prefixed"
+        if [[ $(head -c 4 {params.fasta}) == ">chr" ]]; then chr_flag='--chr_prefixed_genome'; else chr_flag=''; fi;
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stdout};
-        sex=$(cut -f 4 {input.sex_result}| tail -n 1); 
+        sex=$(cut -f 4 {input.sex_result}| tail -n 1);
         echo "setting sex as $sex";
-        mkdir -p {params.out_dir} && \
-        Rscript --vanilla {params.script} -t {wildcards.tumour_id} \
-        -n {wildcards.normal_id} --tb $(readlink -f {input.tumour_bam}) --nb $(readlink -f {input.normal_bam}) -f {input.fasta} --reference $(readlink -f {params.ref}) \
-        -o {params.out_dir} --chr_prefixed_genome $chr_prefixed --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&  
+        Rscript --vanilla {params.script} -t {wildcards.tumour_id}
+        -n {wildcards.normal_id} --tb $(readlink -f {input.tumour_bam}) --nb $(readlink -f {input.normal_bam}) -f {input.fasta} --reference $(readlink -f {params.ref})
+        -o {params.out_dir} $chr_flag --sex $sex --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" >> {log.stdout}; 
         """)
 
@@ -293,6 +305,8 @@ rule _battenberg_fill_subclones:
         blacklist_file = lambda w: "src/blacklisted.hg38.bed" if "38" in str({w.genome_build}) else "src/blacklisted.grch37.bed"
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        CFG["container_envs"]["bedtools"]
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -358,6 +372,8 @@ rule _battenberg_convert_coordinates:
         liftover_minmatch = CFG["options"]["liftover_minMatch"]
     conda:
         CFG["conda_envs"]["liftover"]
+    container:
+        CFG["container_envs"]["liftover"]
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};
@@ -421,6 +437,8 @@ rule _battenberg_fill_segments:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        CFG["container_envs"]["bedtools"]
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" > {log.stderr};

@@ -115,6 +115,8 @@ for build_name, build_info in config["capture_space"].items():
 
 CONDA_ENVS = { pkg: pkg_info["conda_env"] for pkg, pkg_info in config["tools"].items() }
 
+CONTAINER_ENVS = { pkg: pkg_info.get("container_env") for pkg, pkg_info in config["tools"].items() }
+
 TOOL_VERSIONS = { pkg: pkg_info["version"] for pkg, pkg_info in config["tools"].items() }
 
 
@@ -275,9 +277,10 @@ rule download_repeatmasker:
         provider = "ucsc",
         version = lambda w: {"grch37": "hg19", "grch38": "hg38"}[w.version],
     conda: CONDA_ENVS["bedops"]
+    container: CONTAINER_ENVS["bedops"]
     shell:
         op.as_one_line("""
-        wget -qO- http://www.repeatmasker.org/genomes/{params.version}/RepeatMasker-rm405-db20140131/{params.version}.fa.out.gz |
+        wget -qO- https://hgdownload.soe.ucsc.edu/goldenPath/{params.version}/bigZips/{params.version}.fa.out.gz |
         gzip -dc | rmsk2bed > {output.bed}
         """)
 
@@ -313,6 +316,7 @@ rule download_af_only_gnomad_vcf:
             "grch38": "gs://gatk-best-practices/somatic-hg38/af-only-gnomad.hg38.vcf.gz"
         }[w.version]
     conda: CONDA_ENVS["gsutil"]
+    container: CONTAINER_ENVS["gsutil"]
     shell:
         op.as_one_line("""
         if [[ {params.file} == *".gz" ]]; then
@@ -348,6 +352,7 @@ rule download_mutect2_pon:
             "grch38": "gs://gatk-best-practices/somatic-hg38/1000g_pon.hg38.vcf.gz"
         }[w.version]
     conda: CONDA_ENVS["gsutil"]
+    container: CONTAINER_ENVS["gsutil"]
     shell:
         op.as_one_line("""
         if [[ {params.file} == *".gz" ]]; then
@@ -371,6 +376,7 @@ rule download_mutect2_small_exac:
             "grch38": "gs://gatk-best-practices/somatic-hg38/small_exac_common_3.hg38.vcf.gz"
         }[w.version]
     conda: CONDA_ENVS["gsutil"]
+    container: CONTAINER_ENVS["gsutil"]
     shell:
         op.as_one_line("""
         if [[ {params.file} == *".gz" ]]; then
@@ -408,6 +414,18 @@ rule download_sdf:
         mv $(dirname {output.sdf})/{params.build}/* {output.sdf}
         """)
 
+rule download_ont_pon_hg38:
+    output:
+        vcf = "downloads/ont/colorsDb.v1.2.0.deepvariant.glnexus.{version}.vcf"
+    log:
+        "downloads/ont/colorsDb.v1.2.0.deepvariant.glnexus.{version}.vcf.log"
+    params:
+        provider = "ucsc"
+    shell:
+        op.as_one_line("""
+        wget -qO- https://hgdownload.soe.ucsc.edu/gbdb/hg38/colorsDb/colorsDb.v1.2.0.deepvariant.glnexus.vcf.gz 2> {log} | 
+        gzip -dc > {output.vcf} 2>> {log}
+        """)
 
 ##### FUNCTIONS #####
 
@@ -604,6 +622,7 @@ rule update_contig_names:
         ext = "|".join(config["cvbio_config"].keys()),
         to_provider = "|".join(TO_PROVIDERS)
     conda: CONDA_ENVS["cvbio"]
+    container: CONTAINER_ENVS["cvbio"]
     shell:
         op.as_one_line("""
         if [[ '{wildcards.to_provider}' == '{params[from_provider]}' ]]; then

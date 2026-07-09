@@ -19,7 +19,7 @@ import os
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -27,7 +27,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -86,6 +86,8 @@ rule _ega_get_ega_file:
         additional_args = CFG["options"]["additional_args"]
     conda:
         CFG["conda_envs"]["pyega3"]
+    container:
+        CFG["container_envs"]["pyega3"]
     threads:
         CFG["threads"]["ega_file_download"]
     resources:
@@ -112,9 +114,14 @@ rule _ega_get_ega_file:
 def get_ega_file (wildcards):
     CFG = config["lcr-modules"]["ega_download"]
     tbl = CFG["samples"]
-    this_sample = tbl[(tbl.seq_type == wildcards.seq_type) & (tbl.sample_id == wildcards.sample_id) & (tbl.file_format == wildcards.file_format)]
-    if (this_sample.shape[0]>0):
-        this_sample = this_sample.iloc[int(wildcards.read) - 1]
+    if wildcards.file_format in ["cram", "bam"]:
+        constrain_id = wildcards.sample_id + wildcards.read
+        this_sample = tbl[(tbl.seq_type == wildcards.seq_type) & (tbl.sample_id == constrain_id) & (tbl.file_format == wildcards.file_format)]
+        this_sample = this_sample.iloc[0]
+    else:
+        this_sample = tbl[(tbl.seq_type == wildcards.seq_type) & (tbl.sample_id == wildcards.sample_id) & (tbl.file_format == wildcards.file_format)]
+        if (this_sample.shape[0]>0):
+            this_sample = this_sample.iloc[int(wildcards.read) - 1]
     this_egas, this_egad, this_egan, this_egaf, this_name = this_sample['EGAS'], this_sample['EGAD'], this_sample['EGAN'], this_sample['EGAF'], this_sample['file_name']
     this_file = expand(
             str(
@@ -151,7 +158,7 @@ rule _ega_all:
             file_format=CFG["samples"]["file_format"],
             seq_type=CFG["samples"]["seq_type"],
             study_id=[CFG["study_id"]]*len(CFG["samples"]["file_name"]),
-            read = [""]
+            read = [""]*len(CFG["samples"]["file_name"])
         ) if out_file_type in ["cram", "bam"] else expand(
             expand(
                 [

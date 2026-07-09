@@ -18,7 +18,11 @@ lcr-modules:
         conda_envs:
             sage: "{MODSDIR}/envs/hmftools-sage-2.6.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
-            
+
+        container_envs:
+            sage: "docker://quay.io/biocontainers/hmftools-sage:2.6--0"
+            bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+
         resources:
             sage_run:
                 mem_mb: 60000

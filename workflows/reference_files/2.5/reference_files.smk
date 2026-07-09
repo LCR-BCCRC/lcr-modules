@@ -184,7 +184,7 @@ rule get_main_chromosomes_withY_download:
     output:
         txt = "genomes/{genome_build}/genome_fasta/main_chromosomes_withY.txt",
         bed = "genomes/{genome_build}/genome_fasta/main_chromosomes_withY.bed",
-        patterns = temp("genomes/{genome_build}/genome_fasta/main_chromosomes.patterns.txt")
+        patterns = temp("genomes/{genome_build}/genome_fasta/main_chromosomes_withY.patterns.txt")
     conda: CONDA_ENVS["coreutils"]
     shell:
         op.as_one_line("""
@@ -382,12 +382,14 @@ rule get_af_only_gnomad_vcf:
         bed = str(rules.get_main_chromosomes_withY_download.output.bed)
     output:
         vcf = "genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz",
-        tmpfile = temp("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.tmp")
+        tmpfile = temp("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.filtered.vcf.gz")
+    threads: 4
     conda: CONDA_ENVS["bcftools"]
     shell:
         op.as_one_line("""
-        zgrep -v '##contig' {input.vcf} > {output.tmpfile} &&
-        bcftools reheader --fai {input.fai} {output.tmpfile} | bcftools view -T {input.bed} -O z -o {output.vcf} &&
+        grep -v '##contig' {input.vcf} |
+        bcftools view -T {input.bed} --threads {threads} -O z -o {output.tmpfile} &&
+        bcftools reheader --fai {input.fai} {output.tmpfile} -o {output.vcf} &&
         bcftools index -t {output.vcf}
         """)
 
