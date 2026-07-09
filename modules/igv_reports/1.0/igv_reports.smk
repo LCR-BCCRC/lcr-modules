@@ -164,14 +164,19 @@ rule _igv_reports_run:
         title = lambda w: f"{w.tumour_id} vs {w.normal_id} — {w.tool} drivers"
     shell:
         op.as_one_line("""
-        create_report {input.maf}
-            --fasta {input.genome_fa}
-            --tracks {input.tumour_bam} {input.normal_bam} {input.genome_gtf}
-            --flanking {params.flanking}
-            --info-columns {params.info_columns}
-            --title "{params.title}"
-            --output {output.html}
-            > {log} 2>&1
+        if [[ $(wc -l < {input.maf}) -le 1 ]]; then
+            echo "No driver variants in {input.maf}; skipping igv-reports" > {log};
+            touch {output.html};
+        else
+            create_report {input.maf}
+                --fasta {input.genome_fa}
+                --tracks {input.tumour_bam} {input.normal_bam} {input.genome_gtf}
+                --flanking {params.flanking}
+                --info-columns {params.info_columns}
+                --title "{params.title}"
+                --output {output.html}
+                > {log} 2>&1;
+        fi
         """)
 
 
