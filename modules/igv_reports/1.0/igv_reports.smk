@@ -54,6 +54,24 @@ localrules:
 ##### RULES #####
 
 
+rule _igv_reports_index_gtf:
+    input:
+        gtf = ancient(reference_files("genomes/{genome_build}/annotations/gencode_annotation-33.gtf"))
+    output:
+        gtf_gz = CFG["dirs"]["inputs"] + "genome_annotations/{genome_build}/gencode_annotation-33.gtf.gz",
+        tbi    = CFG["dirs"]["inputs"] + "genome_annotations/{genome_build}/gencode_annotation-33.gtf.gz.tbi"
+    conda:
+        CFG["conda_envs"]["igv_reports"]
+    shell:
+        op.as_one_line("""
+        sorted=$(mktemp --suffix=.gtf) &&
+        (grep "^#" {input.gtf} || true; grep -v "^#" {input.gtf} | sort -k1,1 -k4,4n) > $sorted &&
+        bgzip -c $sorted > {output.gtf_gz} &&
+        tabix -p gff {output.gtf_gz} &&
+        rm -f $sorted
+        """)
+
+
 rule _igv_reports_input_maf:
     input:
         maf = lambda w: _igv_mafs[w.tool].format(
@@ -125,8 +143,9 @@ rule _igv_reports_run:
         normal_bam = str(rules._igv_reports_input_bam.output.normal_bam),
         normal_bai = str(rules._igv_reports_input_bam.output.normal_bai),
         normal_crai = str(rules._igv_reports_input_bam.output.normal_crai),
-        genome_fa = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.fa")),
-        genome_gtf = ancient(reference_files("genomes/{genome_build}/annotations/gencode_annotation-33.gtf"))
+        genome_fa  = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.fa")),
+        genome_gtf = str(rules._igv_reports_index_gtf.output.gtf_gz),
+        genome_tbi = str(rules._igv_reports_index_gtf.output.tbi)
     output:
         html = CFG["dirs"]["igv_reports"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}.html"
     log:
