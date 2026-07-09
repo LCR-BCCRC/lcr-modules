@@ -41,6 +41,7 @@ lcr-modules:
                 - "Hugo_Symbol"
                 - "Variant_Classification"
                 - "HGVSp_Short"
+                - "Reference_Allele"
                 - "Tumor_Seq_Allele2"
                 - "t_alt_count"
                 - "dbSNP_RS"
