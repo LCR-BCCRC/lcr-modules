@@ -52,7 +52,7 @@ lcr-modules:
 
         threads:
             filter_maf: 1
-            igv_reports: 4
+            igv_reports: 1
 
         resources:
             filter_maf:
