@@ -35,13 +35,6 @@ lcr-modules:
                 - "Translation_Start_Site"
                 - "Nonstop_Mutation"
             # igv-reports create_report options
-            # Mapping from lcr-modules genome_build to igv.js genome identifier.
-            # igv.js uses these to fetch sequence and gene annotations from UCSC at view time.
-            genome_map:
-                grch37: "hg19"
-                hg19: "hg19"
-                grch38: "hg38"
-                hg38: "hg38"
             flanking: 1000
             # MAF columns to display in the variant table
             info_columns:

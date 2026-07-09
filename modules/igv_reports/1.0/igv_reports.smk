@@ -43,7 +43,6 @@ CFG = op.setup_module(
 _igv_tools = list(CFG["inputs"]["mafs"].keys())
 _igv_mafs = dict(CFG["inputs"]["mafs"])
 _igv_info_columns = " ".join(CFG["options"]["info_columns"])
-_igv_genome_map = dict(CFG["options"]["genome_map"])
 
 localrules:
     _igv_reports_input_maf,
@@ -125,7 +124,9 @@ rule _igv_reports_run:
         tumour_crai = str(rules._igv_reports_input_bam.output.tumour_crai),
         normal_bam = str(rules._igv_reports_input_bam.output.normal_bam),
         normal_bai = str(rules._igv_reports_input_bam.output.normal_bai),
-        normal_crai = str(rules._igv_reports_input_bam.output.normal_crai)
+        normal_crai = str(rules._igv_reports_input_bam.output.normal_crai),
+        genome_fa = ancient(reference_files("genomes/{genome_build}/genome_fasta/genome.fa")),
+        genome_gtf = ancient(reference_files("genomes/{genome_build}/annotations/gencode_annotation-33.gtf"))
     output:
         html = CFG["dirs"]["igv_reports"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{tool}.html"
     log:
@@ -141,13 +142,12 @@ rule _igv_reports_run:
     params:
         flanking = CFG["options"]["flanking"],
         info_columns = _igv_info_columns,
-        title = lambda w: f"{w.tumour_id} vs {w.normal_id} — {w.tool} drivers",
-        igv_genome = lambda w: _igv_genome_map.get(w.genome_build, w.genome_build)
+        title = lambda w: f"{w.tumour_id} vs {w.normal_id} — {w.tool} drivers"
     shell:
         op.as_one_line("""
         create_report {input.maf}
-            --genome {params.igv_genome}
-            --tracks {input.tumour_bam} {input.normal_bam}
+            --fasta {input.genome_fa}
+            --tracks {input.tumour_bam} {input.normal_bam} {input.genome_gtf}
             --flanking {params.flanking}
             --info-columns {params.info_columns}
             --title "{params.title}"
