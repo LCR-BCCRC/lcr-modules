@@ -38,8 +38,11 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "filtered_maf", "igv_reports", "outputs"],
 )
 
-# {tool} wildcard is constrained to the keys configured in inputs.mafs
+# Pre-capture values needed in lambdas — CFG is deleted by op.cleanup_module
+# and would be out of scope when Snakemake evaluates lambdas at DAG build time.
 _igv_tools = list(CFG["inputs"]["mafs"].keys())
+_igv_mafs = dict(CFG["inputs"]["mafs"])
+_igv_info_columns = " ".join(CFG["options"]["info_columns"])
 
 localrules:
     _igv_reports_input_maf,
@@ -53,7 +56,7 @@ localrules:
 
 rule _igv_reports_input_maf:
     input:
-        maf = lambda w: CFG["inputs"]["mafs"][w.tool].format(
+        maf = lambda w: _igv_mafs[w.tool].format(
             seq_type=w.seq_type, genome_build=w.genome_build,
             tumour_id=w.tumour_id, normal_id=w.normal_id,
             pair_status=w.pair_status
@@ -132,7 +135,7 @@ rule _igv_reports_run:
         tool = "|".join(re.escape(t) for t in _igv_tools)
     params:
         flanking = CFG["options"]["flanking"],
-        info_columns = lambda w: " ".join(CFG["options"]["info_columns"]),
+        info_columns = _igv_info_columns,
         title = lambda w: f"{w.tumour_id} vs {w.normal_id} — {w.tool} drivers"
     shell:
         op.as_one_line("""
