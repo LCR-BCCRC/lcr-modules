@@ -71,10 +71,10 @@ rule _igv_reports_input_bam:
         tumour_bam = CFG["inputs"]["tumour_bam"],
         normal_bam = CFG["inputs"]["normal_bam"],
     output:
-        tumour_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}.bam",
-        tumour_bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}.bam.bai",
-        normal_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{normal_id}.bam",
-        normal_bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{normal_id}.bam.bai",
+        tumour_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}.tumour.bam",
+        tumour_bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}.tumour.bam.bai",
+        normal_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}.normal.bam",
+        normal_bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}.normal.bam.bai",
     run:
         op.absolute_symlink(input.tumour_bam, output.tumour_bam)
         op.absolute_symlink(input.tumour_bam + ".bai", output.tumour_bai)
