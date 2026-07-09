@@ -69,9 +69,7 @@ rule _igv_reports_input_maf:
 rule _igv_reports_input_bam:
     input:
         tumour_bam = CFG["inputs"]["tumour_bam"],
-        tumour_bai = CFG["inputs"]["tumour_bai"],
         normal_bam = CFG["inputs"]["normal_bam"],
-        normal_bai = CFG["inputs"]["normal_bai"],
     output:
         tumour_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}.bam",
         tumour_bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}.bam.bai",
@@ -79,9 +77,9 @@ rule _igv_reports_input_bam:
         normal_bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{normal_id}.bam.bai",
     run:
         op.absolute_symlink(input.tumour_bam, output.tumour_bam)
-        op.absolute_symlink(input.tumour_bai, output.tumour_bai)
+        op.absolute_symlink(input.tumour_bam + ".bai", output.tumour_bai)
         op.absolute_symlink(input.normal_bam, output.normal_bam)
-        op.absolute_symlink(input.normal_bai, output.normal_bai)
+        op.absolute_symlink(input.normal_bam + ".bai", output.normal_bai)
 
 
 rule _igv_reports_filter_maf:

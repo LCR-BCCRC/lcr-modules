@@ -11,9 +11,7 @@ lcr-modules:
             #     slms-3-only: "results/maf_diff-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3-only.maf"
             mafs: {}
             tumour_bam: "__UPDATE__"
-            tumour_bai: "__UPDATE__"
             normal_bam: "__UPDATE__"
-            normal_bai: "__UPDATE__"
 
         options:
             # Driver gene filtering (same logic as maf_diff)
