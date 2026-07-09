@@ -48,7 +48,7 @@ lcr-modules:
 
         conda_envs:
             igv_reports: "{MODSDIR}/envs/igv-reports-1.16.0.yaml"
-            pandas: "{REPODIR}/envs/pandas/pandas-1.3.0.yaml"
+            pandas: "{MODSDIR}/envs/pandas-1.3.0.yaml"
 
         threads:
             filter_maf: 1
