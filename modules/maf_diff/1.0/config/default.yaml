@@ -39,7 +39,7 @@ lcr-modules:
                 - "Nonstop_Mutation"
 
         conda_envs:
-            pandas: "{MODSDIR}/envs/pandas-1.3.0.yaml"
+            pandas: "{MODSDIR}/envs/pandas-1.4.2.yaml"
 
         threads:
             maf_diff: 1
