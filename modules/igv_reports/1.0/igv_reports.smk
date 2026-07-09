@@ -81,13 +81,12 @@ rule _igv_reports_input_bam:
         normal_bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}.normal.bam.bai",
         normal_crai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}.normal.bam.crai",
     run:
-        def _link_aln(bam, out_bam, out_bai, out_crai):
-            op.absolute_symlink(bam, out_bam)
-            idx = bam + (".crai" if bam.endswith(".cram") else ".bai")
-            op.absolute_symlink(idx, out_bai)
-            op.absolute_symlink(idx, out_crai)
-        _link_aln(input.tumour_bam, output.tumour_bam, output.tumour_bai, output.tumour_crai)
-        _link_aln(input.normal_bam, output.normal_bam, output.normal_bai, output.normal_crai)
+        op.absolute_symlink(input.tumour_bam, output.tumour_bam)
+        op.absolute_symlink(input.tumour_bam + ".bai", output.tumour_bai)
+        op.absolute_symlink(input.tumour_bam + ".bai", output.tumour_crai)
+        op.absolute_symlink(input.normal_bam, output.normal_bam)
+        op.absolute_symlink(input.normal_bam + ".bai", output.normal_bai)
+        op.absolute_symlink(input.normal_bam + ".bai", output.normal_crai)
 
 
 rule _igv_reports_filter_maf:
