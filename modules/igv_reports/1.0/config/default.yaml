@@ -36,6 +36,10 @@ lcr-modules:
                 - "Nonstop_Mutation"
             # igv-reports create_report options
             flanking: 1000
+            # Fraction of reads to include per track (0.0–1.0). Null disables subsampling.
+            # Reducing flanking (e.g. to 200) and/or subsampling helps with samples that
+            # have many timepoint BAMs, which produce very large HTML files.
+            subsample: null
             # MAF columns to display in the variant table
             info_columns:
                 - "Hugo_Symbol"
@@ -48,7 +52,7 @@ lcr-modules:
 
         conda_envs:
             igv_reports: "{MODSDIR}/envs/igv-reports-1.16.0.yaml"
-            pandas: "{REPODIR}/envs/pandas/pandas-1.3.0.yaml"
+            pandas: "{MODSDIR}/envs/pandas-1.4.2.yaml"
 
         threads:
             filter_maf: 1
