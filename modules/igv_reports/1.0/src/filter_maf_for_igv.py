@@ -34,6 +34,11 @@ print(f"After driver gene filter: {len(filtered)} variants", file=log)
 genes_hit = sorted(filtered[maf_gene_col].dropna().unique())
 print(f"Driver genes represented: {','.join(genes_hit)}", file=log)
 
+info_columns = snakemake.params.info_columns
+missing = [c for c in info_columns if c not in maf.columns]
+if missing:
+    print(f"WARNING: the following info_columns are not present in the MAF and will be ignored by igv-reports: {missing}", file=log)
+
 filtered.to_csv(snakemake.output.maf, sep="\t", index=False, na_rep="")
 
 log.close()

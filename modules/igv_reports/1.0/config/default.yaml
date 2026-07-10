@@ -36,6 +36,10 @@ lcr-modules:
                 - "Nonstop_Mutation"
             # igv-reports create_report options
             flanking: 1000
+            # Fraction of reads to include per track (0.0–1.0). Null disables subsampling.
+            # Reducing flanking (e.g. to 200) and/or subsampling helps with samples that
+            # have many timepoint BAMs, which produce very large HTML files.
+            subsample: null
             # MAF columns to display in the variant table
             info_columns:
                 - "Hugo_Symbol"

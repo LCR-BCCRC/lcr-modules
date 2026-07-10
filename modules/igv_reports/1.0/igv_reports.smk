@@ -144,7 +144,8 @@ rule _igv_reports_filter_maf:
         driver_col_value = CFG["options"]["driver_col_value"],
         maf_gene_col = CFG["options"]["maf_gene_col"],
         maf_vc_col = CFG["options"]["maf_vc_col"],
-        coding_variant_classes = CFG["options"]["coding_variant_classes"]
+        coding_variant_classes = CFG["options"]["coding_variant_classes"],
+        info_columns = CFG["options"]["info_columns"]
     script:
         "src/filter_maf_for_igv.py"
 
@@ -184,6 +185,7 @@ rule _igv_reports_run:
     params:
         flanking = CFG["options"]["flanking"],
         info_columns = _igv_info_columns,
+        subsample = f"--subsample {CFG['options']['subsample']}" if CFG["options"].get("subsample") else "",
         title = lambda w: f"{w.tumour_id} vs {w.normal_id} — {w.tool} drivers"
     shell:
         op.as_one_line("""
@@ -195,6 +197,7 @@ rule _igv_reports_run:
                 --fasta {input.genome_fa}
                 --tracks {input.tumour_bams} {input.normal_bam} {input.genome_gtf}
                 --flanking {params.flanking}
+                {params.subsample}
                 --info-columns {params.info_columns}
                 --title "{params.title}"
                 --output {output.html}
