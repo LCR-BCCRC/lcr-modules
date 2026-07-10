@@ -45,13 +45,15 @@ def main(args):
                 cloneId = columns[positions["cloneId"]]
                 readFraction = columns[positions["readFraction"]]
                 readCount = columns[positions["readCount"]]
-                nSeqFR1 = columns[positions["nSeqFR1"]]
-                nSeqCDR1 = columns[positions["nSeqCDR1"]]
-                nSeqFR2 = columns[positions["nSeqFR2"]]
-                nSeqCDR2 = columns[positions["nSeqCDR2"]]
-                nSeqFR3 = columns[positions["nSeqFR3"]]
-                nSeqCDR3 = columns[positions["nSeqCDR3"]]
-                nSeqFR4 = columns[positions["nSeqFR4"]]
+                def clean_seq(val):
+                    return "" if val == "region_not_covered" else val
+                nSeqFR1 = clean_seq(columns[positions["nSeqFR1"]])
+                nSeqCDR1 = clean_seq(columns[positions["nSeqCDR1"]])
+                nSeqFR2 = clean_seq(columns[positions["nSeqFR2"]])
+                nSeqCDR2 = clean_seq(columns[positions["nSeqCDR2"]])
+                nSeqFR3 = clean_seq(columns[positions["nSeqFR3"]])
+                nSeqCDR3 = clean_seq(columns[positions["nSeqCDR3"]])
+                nSeqFR4 = clean_seq(columns[positions["nSeqFR4"]])
                 header = f">cloneId_{cloneId}_readFraction_{readFraction}_readCount_{readCount}\n"
                 out.write(header)
                 sequence = f"{nSeqFR1}{nSeqCDR1}{nSeqFR2}{nSeqCDR2}{nSeqFR3}{nSeqCDR3}{nSeqFR4}\n"
