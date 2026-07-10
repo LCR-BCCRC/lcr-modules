@@ -39,6 +39,14 @@ missing = [c for c in info_columns if c not in maf.columns]
 if missing:
     print(f"WARNING: the following info_columns are not present in the MAF and will be ignored by igv-reports: {missing}", file=log)
 
+# Tabulator.js uses regex matching on cell values; unescaped regex metacharacters
+# (e.g. '?' in HGVS notation like 'p.M1?') crash table initialization silently.
+# Replace them in display columns only — the rest of the MAF is unaffected.
+display_cols = [c for c in info_columns if c in filtered.columns and filtered[c].dtype == object]
+filtered = filtered.copy()
+for col in display_cols:
+    filtered[col] = filtered[col].str.replace("?", "_loss", regex=False)
+
 filtered.to_csv(snakemake.output.maf, sep="\t", index=False, na_rep="")
 
 log.close()
