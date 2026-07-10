@@ -231,10 +231,10 @@ rule _vquest_merge_final:
             --output $tmp
             > {log.stdout} 2> {log.stderr} &&
             python {params.script}
-            --base $tmp
-            --annotation {input.source_tsv}
-            --base_key sequence_id
-            --annot_key {params.source_key}
+            --base {input.source_tsv}
+            --annotation $tmp
+            --base_key {params.source_key}
+            --annot_key sequence_id
             --sample_id {wildcards.sample_id}
             --output {output.merged}
             >> {log.stdout} 2>> {log.stderr} &&
