@@ -12,7 +12,6 @@
 ##### SETUP #####
 
 
-import os
 import re
 import oncopipe as op
 
@@ -188,7 +187,7 @@ rule _igv_reports_run:
         info_columns = _igv_info_columns,
         subsample = f"--subsample {CFG['options']['subsample']}" if CFG["options"].get("subsample") else "",
         title = lambda w: f"{w.tumour_id} vs {w.normal_id} — {w.tool} drivers",
-        patch_script = os.path.join(workflow.basedir, "src/patch_igv_reports_html.py")
+        patch_script = srcdir("src/patch_igv_reports_html.py")
     shell:
         op.as_one_line("""
         if [[ $(wc -l < {input.maf}) -le 1 ]]; then
