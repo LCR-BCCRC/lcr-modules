@@ -195,6 +195,7 @@ rule _igv_reports_run:
         else
             create_report {input.maf}
                 --standalone
+                --tabulator
                 --fasta {input.genome_fa}
                 --tracks {input.tumour_bams} {input.normal_bam} {input.genome_gtf}
                 --flanking {params.flanking}
