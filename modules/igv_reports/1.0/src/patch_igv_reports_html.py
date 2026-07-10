@@ -3,15 +3,15 @@ Post-processing for igv-reports --tabulator HTML output.
 
 igv.createBrowser() can reject its promise when it fails to load the
 session for the first variant (e.g. bad reads, unusual CIGAR strings, or
-annotation track issues at that specific locus). The default template has
-no .catch() handler, so a rejection silently prevents initTable() from
-ever running — the pileup partially renders but the variant table stays
-empty.
+annotation track issues at that locus). The default template bundles
+browser creation and session loading into one promise, so a rejection
+silently prevents initTable() from ever running.
 
 This script patches the generated HTML to:
-1. Add a .catch() on igv.createBrowser() so initTable() runs even on failure
-2. Guard igvBrowser in the row-click handler so clicking rows is safe when
-   igv.js failed to initialize
+1. Decouple browser creation from initial session loading so igvBrowser is
+   always set and row-click navigation always works.
+2. Load the first variant's session separately after the browser is ready,
+   with a .catch() so a bad first-variant session doesn't break the table.
 """
 
 import sys
@@ -21,32 +21,27 @@ html_file = sys.argv[1]
 with open(html_file) as f:
     content = f.read()
 
-# Patch 1: add .catch() after the .then() block so initTable() always runs
-old_then = """.then(function (b) {
-                igvBrowser = b
+# Remove sessionURL from createBrowser options so browser creation is
+# decoupled from (potentially-failing) session loading.
+old_session_url_line = "            sessionURL: sessionDictionary[\"0\"],\n"
+new_session_url_line = ""
+
+# After igvBrowser is assigned and initTable() is called, load the first
+# session separately with its own error handler.
+old_then_body = """                igvBrowser = b
                 initTable()
             })"""
 
-new_then = """.then(function (b) {
-                igvBrowser = b
+new_then_body = """                igvBrowser = b
                 initTable()
-            })
-            .catch(function(err) {
-                console.error("igv-reports: igv.createBrowser failed:", err)
-                initTable()
+                b.loadSession({url: sessionDictionary["0"]}).catch(function(err) {
+                    console.error("igv-reports: failed to load initial session:", err)
+                })
             })"""
 
-# Patch 2: guard igvBrowser in row-click handler so it doesn't throw when
-# igv.js failed and igvBrowser was never set
-old_click = """igvBrowser.loadSession({
-                    url: session
-                })"""
-
-new_click = """if (igvBrowser) {
-                    igvBrowser.loadSession({url: session})
-                }"""
-
-patched = content.replace(old_then, new_then).replace(old_click, new_click)
+patched = (content
+           .replace(old_session_url_line, new_session_url_line)
+           .replace(old_then_body, new_then_body))
 
 if patched == content:
     print(f"WARNING: patch_igv_reports_html.py found no matching patterns in {html_file}", file=sys.stderr)
