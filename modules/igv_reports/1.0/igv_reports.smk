@@ -12,6 +12,7 @@
 ##### SETUP #####
 
 
+import os
 import re
 import oncopipe as op
 
@@ -186,7 +187,8 @@ rule _igv_reports_run:
         flanking = CFG["options"]["flanking"],
         info_columns = _igv_info_columns,
         subsample = f"--subsample {CFG['options']['subsample']}" if CFG["options"].get("subsample") else "",
-        title = lambda w: f"{w.tumour_id} vs {w.normal_id} — {w.tool} drivers"
+        title = lambda w: f"{w.tumour_id} vs {w.normal_id} — {w.tool} drivers",
+        patch_script = os.path.join(workflow.basedir, "src/patch_igv_reports_html.py")
     shell:
         op.as_one_line("""
         if [[ $(wc -l < {input.maf}) -le 1 ]]; then
@@ -203,7 +205,9 @@ rule _igv_reports_run:
                 --info-columns {params.info_columns}
                 --title "{params.title}"
                 --output {output.html}
-                > {log} 2>&1;
+                > {log} 2>&1
+            &&
+            python3 {params.patch_script} {output.html} >> {log} 2>&1;
         fi
         """)
 
