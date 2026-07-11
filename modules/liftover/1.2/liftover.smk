@@ -18,7 +18,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -26,7 +26,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -69,7 +69,7 @@ rule _liftover_input_seg:
     wildcard_constraints:
         tool = CFG["tool"]
     run:
-        op.relative_symlink(input.seg, output.seg)
+        op.relative_symlink(input.seg, output.seg, in_module=True)
         op.relative_symlink(input.seg, output.another_seg, in_module = True)
 
 
@@ -89,6 +89,8 @@ rule _liftover_seg_2_bed:
         end_colNum = CFG["options"]["end_colNum"],
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
         python {params.opts}
@@ -122,6 +124,8 @@ rule _run_liftover:
         mismatch = CFG["options"]["min_mismatch"]
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        CFG["container_envs"]["liftover-366"]
     wildcard_constraints:
         chain = "hg38ToHg19|hg19ToHg38"
     shell:
@@ -163,6 +167,8 @@ rule _liftover_bed_2_seg:
         opts = CFG["options"]["seg2bed2seg"]
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
         python {params.opts}
@@ -187,6 +193,8 @@ rule _liftover_fill_segments:
         chromArm = op.switch_on_wildcard("chain", CFG["chromArm"])
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
         python3 {params.script}

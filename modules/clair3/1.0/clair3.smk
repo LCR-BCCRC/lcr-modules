@@ -14,7 +14,7 @@ import glob
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -22,7 +22,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -34,7 +34,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -42,7 +42,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -95,6 +95,8 @@ rule _clair3_get_models:
         stderr = CFG["logs"]["inputs"] + "{model}.log"
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         op.as_one_line("""
             wget -qO- {params.url} | tar -xvzf - -C $(dirname {output.model}) 2> {log.stderr}
@@ -126,7 +128,9 @@ rule _clair3_run:
         dir = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}",
         platform = CFG["options"]["platform"], 
         options = CFG["options"]["clair3"]
-    conda: CFG["conda_envs"]["clair3"]  
+    conda: CFG["conda_envs"]["clair3"]
+    container:
+        CFG["container_envs"]["clair3"]
     threads: CFG["threads"]["clair3"]    
     resources: **CFG["resources"]["clair3"]    
     log:
@@ -149,6 +153,8 @@ rule _clair3_filter:
         filtered = CFG["dirs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}.filtered_phased_merged.vcf.gz",
         index = CFG["dirs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}.filtered_phased_merged.vcf.gz.tbi"
     conda: CFG["conda_envs"]["clair3"]
+    container:
+        CFG["container_envs"]["clair3"]
     resources: **CFG["resources"]["filter"]
     threads: CFG["threads"]["filter"]
     log:

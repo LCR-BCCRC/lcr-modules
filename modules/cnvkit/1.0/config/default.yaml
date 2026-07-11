@@ -78,6 +78,12 @@ lcr-modules:
             cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/python-3.8.3.yaml"
             liftover: "{SCRIPTSDIR}/liftover/2.0/liftover.yaml"
 
+        container_envs:
+            cnvkit: "docker://quay.io/biocontainers/cnvkit:0.9.9--pyhdfd78af_0"
+            bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+            bedtools: "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
+            liftover: "docker://ghcr.io/lcr-bccrc/lcr-scripts/liftover:1.0"
+
         threads:
             samtools: 8
             coverage: 24

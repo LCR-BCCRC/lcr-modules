@@ -301,7 +301,7 @@ rule download_repeatmasker:
     conda: CONDA_ENVS["bedops"]
     shell:
         op.as_one_line("""
-        wget -qO- http://www.repeatmasker.org/genomes/{params.version}/RepeatMasker-rm405-db20140131/{params.version}.fa.out.gz |
+        wget -qO- https://hgdownload.soe.ucsc.edu/goldenPath/{params.version}/bigZips/{params.version}.fa.out.gz |
         gzip -dc | rmsk2bed > {output.bed}
         """)
 

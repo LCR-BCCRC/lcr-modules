@@ -17,7 +17,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.12"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -25,7 +25,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -133,18 +133,19 @@ rule _run_sage:
         panel_bed = _sage_get_capspace,
         main_chromosomes = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
     output:
-        vcf = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf"),
-        vcf_gz = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf.gz")
+        vcf = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf")
     log:
         stdout = CFG["logs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run_sage.stdout.log",
         stderr = CFG["logs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/run_sage.stderr.log"
     params:
         opts = CFG["options"]["sage_run"],
         assembly = lambda w: "hg38" if "38" in str({w.genome_build}) else "hg19",
-        sage= "$(dirname $(readlink -e $(which SAGE)))/sage.jar",
+        sage= "$(SAGE_REAL=$(readlink -f $(command -v SAGE)); if [[ $SAGE_REAL == *.jar ]]; then echo $SAGE_REAL; else find $(dirname $(dirname $SAGE_REAL)) -maxdepth 3 -name 'sage*.jar' 2>/dev/null | head -1; fi)",
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["sage"]
+    container:
+        CFG["container_envs"]["sage"]
     threads:
         CFG["threads"]["sage_run"]
     resources:
@@ -153,7 +154,7 @@ rule _run_sage:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname)" > {log.stdout}
         &&
-        SAGE_CHROMOSOMES=$(cat {input.main_chromosomes} | paste -sd, -)
+        SAGE_CHROMOSOMES=$(awk '{{printf "%s%s",(NR>1?",":""),$0}}END{{printf "\n"}}' {input.main_chromosomes})
         &&
         java -Xms1G -Xmx{params.jvmheap}m
         -cp {params.sage} com.hartwig.hmftools.sage.SageApplication
@@ -171,13 +172,12 @@ rule _run_sage:
         -high_confidence_bed {input.high_conf_bed}
         -out {output.vcf}
         >>  {log.stdout} 2>> {log.stderr}
-        && bgzip -c {output.vcf} > {output.vcf_gz}
         """)
 
 # Filter resulting VCF file on PASS variants
 rule _sage_filter_vcf:
     input:
-        vcf = str(rules._run_sage.output.vcf_gz)
+        vcf = str(rules._run_sage.output.vcf)
     output:
         vcf_passed = CFG["dirs"]["vcf"] + "combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/passed_combined.vcf.gz",
         vcf_passed_tbi = CFG["dirs"]["vcf"] + "combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/passed_combined.vcf.gz.tbi"
@@ -188,6 +188,8 @@ rule _sage_filter_vcf:
         heap_mem = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["filter"]
     resources:
@@ -216,6 +218,8 @@ rule _sage_split_vcf:
         stderr = CFG["logs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/split_passed.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["filter"]
     resources:

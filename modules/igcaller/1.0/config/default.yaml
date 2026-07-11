@@ -72,6 +72,9 @@ lcr-modules:
 
         conda_envs:
             igcaller: "{MODSDIR}/envs/igcaller-1.2-env.yaml"
+        container_envs:
+            igcaller: null
+
             
         threads:
             _igcaller_run: 1

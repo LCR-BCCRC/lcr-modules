@@ -36,6 +36,12 @@ lcr-modules:
             gripss: "{MODSDIR}/envs/hmftools-gripss-1.4.0.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
+        container_envs:
+            bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+            gridss: "docker://quay.io/biocontainers/gridss:2.9.4--0"
+            gripss: "docker://quay.io/biocontainers/hmftools-gripss:1.4--0"
+            svtools: "docker://quay.io/biocontainers/svtools:0.5.1--py_0"
+
             
         threads:
             gridss: 24

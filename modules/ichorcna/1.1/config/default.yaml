@@ -91,6 +91,12 @@ lcr-modules:
             deeptools: "{MODSDIR}/envs/deeptools.env.yaml"
             bedops_tools: "{MODSDIR}/envs/bedops_tools.env.yaml"
             ucsc-bigwigtowig: "{MODSDIR}/envs/ucsc-bigwigtowig.env.yaml"
+        container_envs:
+            bedops_tools: "docker://quay.io/biocontainers/bedops:2.4.39--h7d875b9_1"
+            deeptools: "docker://quay.io/biocontainers/deeptools:3.5.1--pyhdfd78af_1"
+            ichorcna: "docker://quay.io/biocontainers/r-ichorcna:0.2.0--r36_0"
+            ucsc-bigwigtowig: "docker://quay.io/biocontainers/ucsc-bigwigtowig:366--h5eb252a_0"
+
 
         threads:
             deeptools: 20

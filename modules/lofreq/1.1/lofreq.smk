@@ -16,7 +16,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.12"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -24,7 +24,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
     print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
@@ -93,9 +93,9 @@ rule _lofreq_input_bam:
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
-        op.relative_symlink(input.bai, output.crai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 # Run LoFreq in somatic variant calling mode on a single unmatched pair to produce normal_relaxed.vcf.gz and normal_stringent vcfs
 # generate an empty file named preprocessing_complete to indicate that the run actually completed and it's safe to symlink to the outputs
@@ -121,6 +121,8 @@ rule _lofreq_preprocess_normal:
         opts = CFG["options"]["lofreq"]
     conda:
         CFG["conda_envs"]["lofreq"]
+    container:
+        CFG["container_envs"]["lofreq"]
     threads:
         CFG["threads"]["lofreq"]
     resources:
@@ -132,7 +134,7 @@ rule _lofreq_preprocess_normal:
         SCRIPT_PATH={SCRIPT_PATH};
         PATH=$SCRIPT_PATH:$PATH;
         SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
-        if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
+        if [[ $(command -v lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
             echo "using bundled patched script $SCRIPT";
             touch {output.preprocessing_start}
             && 
@@ -140,7 +142,7 @@ rule _lofreq_preprocess_normal:
             -f {input.fasta} -o $(dirname {output.vcf_relaxed})/ -d {input.dbsnp} --bed {input.bed}
             > {log.stdout} 2> {log.stderr} && 
             touch {output.preprocessing_complete};
-        else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
+        else echo "WARNING: PATH is not set properly, using $(command -v lofreq2_call_pparallel.py)"; fi
         """)
 
 
@@ -198,6 +200,8 @@ rule _lofreq_run_tumour_unmatched:
         opts = CFG["options"]["lofreq"]
     conda:
         CFG["conda_envs"]["lofreq"]
+    container:
+        CFG["container_envs"]["lofreq"]
     threads:
         CFG["threads"]["lofreq"]
     resources:
@@ -209,12 +213,12 @@ rule _lofreq_run_tumour_unmatched:
         SCRIPT_PATH={SCRIPT_PATH};
         PATH=$SCRIPT_PATH:$PATH;
         SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
-        if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
+        if [[ $(command -v lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
             echo "using bundled patched script $SCRIPT";
             lofreq somatic --continue {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
             -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} --bed {input.bed}
             > {log.stdout} 2> {log.stderr};
-        else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
+        else echo "WARNING: PATH is not set properly, using $(command -v lofreq2_call_pparallel.py)"; fi
         """)
 
 rule _lofreq_run_tumour_matched:
@@ -237,6 +241,8 @@ rule _lofreq_run_tumour_matched:
         opts = CFG["options"]["lofreq"]
     conda:
         CFG["conda_envs"]["lofreq"]
+    container:
+        CFG["container_envs"]["lofreq"]
     threads:
         CFG["threads"]["lofreq"]
     resources:
@@ -249,12 +255,12 @@ rule _lofreq_run_tumour_matched:
         PATH=$SCRIPT_PATH:$PATH;
         SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
         if [[ -e {output.vcf_snvs_all}.tbi ]]; then rm -f $(dirname {output.vcf_relaxed})/*; fi; 
-        if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
+        if [[ $(command -v lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
             echo "using bundled patched script $SCRIPT";
             lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
             -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} --bed {input.bed}
             > {log.stdout} 2> {log.stderr};
-        else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
+        else echo "WARNING: PATH is not set properly, using $(command -v lofreq2_call_pparallel.py)"; fi
         """)
 
 # indels are not yet called but this rule merges the empty indels file with the snvs file to produce the consistently named "combined" vcf. 
@@ -271,6 +277,8 @@ rule _lofreq_combine_vcf:
         **CFG["resources"]["bcftools_sort"]
     conda:
         CFG["conda_envs"]["lofreq"]
+    container:
+        CFG["container_envs"]["lofreq"]
     log:
         stdout_all = CFG["logs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq_final.combined.stdout.log",
         stderr_all = CFG["logs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq_final.combined.stderr.log",
@@ -301,10 +309,12 @@ rule _lofreq_filter_vcf:
         **CFG["resources"]["bcftools_sort"]
     conda:
         CFG["conda_envs"]["lofreq"]
+    container:
+        CFG["container_envs"]["lofreq"]
     shell:
         op.as_one_line("""
         PATH={SCRIPT_PATH}:$PATH;
-        SCRIPT=$(which lofreq_filter.sh); 
+        SCRIPT=$(command -v lofreq_filter.sh); 
         echo "using bundled custom filtering script $SCRIPT";
         lofreq_filter.sh {input.vcf_all} | bgzip > {output.vcf_all_clean}
           && tabix -p vcf {output.vcf_all_clean}

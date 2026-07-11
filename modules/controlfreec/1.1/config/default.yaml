@@ -12,6 +12,9 @@ lcr-modules:
         
         conda_envs:
             controlfreec: "{MODSDIR}/envs/controlfreec.env.yaml"
+        container_envs:
+            controlfreec: "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+
 
 
         options:

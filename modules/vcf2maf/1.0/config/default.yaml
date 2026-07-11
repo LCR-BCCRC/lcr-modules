@@ -13,6 +13,9 @@ lcr-modules:
 
         conda_envs:
             vcf2maf: "envs/vcf2maf-1.6.18.yaml"
+        container_envs:
+            vcf2maf: "docker://quay.io/biocontainers/vcf2maf:1.6.18--2"
+
 
         threads:
             vcf2maf: 12

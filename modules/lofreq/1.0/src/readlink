@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+"""Map readlink -e to readlink -f for BusyBox compatibility."""
+import sys, os
+
+args = ['-f' if a == '-e' else a for a in sys.argv[1:]]
+
+this = os.path.realpath(__file__)
+for d in os.environ.get('PATH', '').split(':'):
+    candidate = os.path.join(d, 'readlink')
+    if os.path.isfile(candidate) and os.access(candidate, os.X_OK) and os.path.realpath(candidate) != this:
+        os.execv(candidate, [candidate] + args)
+
+# Fallback: Python realpath
+target = next((a for a in args if not a.startswith('-')), None)
+if target:
+    print(os.path.realpath(target))

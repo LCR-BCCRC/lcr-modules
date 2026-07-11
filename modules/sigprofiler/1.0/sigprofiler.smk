@@ -18,7 +18,7 @@ import os.path
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -26,7 +26,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
     print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
@@ -98,7 +98,7 @@ rule _sigprofiler_input_maf:
     output:
         maf = CFG["dirs"]["inputs"] + "matrices/{seq_type}--{genome_build}/{sample_set}/{sample_set}.maf"
     run:
-        op.relative_symlink(input.maf, output.maf)
+        op.relative_symlink(input.maf, output.maf, in_module=True)
 
 # Generates sample by k-mer context matrices from MAF
 rule _sigprofiler_run_generator:
@@ -117,6 +117,8 @@ rule _sigprofiler_run_generator:
         ref = lambda w: config['lcr-modules']['sigprofiler']["sigpro_genomes"][w.genome_build]
     conda:
         CFG["conda_envs"]["sigprofiler"]
+    container:
+        CFG["container_envs"]["sigprofiler"]
     threads:
         CFG["threads"]["generator"]
     resources:
@@ -142,6 +144,8 @@ rule _sigprofiler_run_estimate:
         max_sig = lambda w: max_sigs[w.type],
         outpath = CFG["dirs"]["estimate"]+"{seq_type}--{genome_build}/{sample_set}"
     conda: CFG["conda_envs"]["sigprofiler"]
+    container:
+        CFG["container_envs"]["sigprofiler"]
     threads: CFG["threads"]["estimate"]
     resources:
         mem_mb = CFG["mem_mb"]["estimate"]
@@ -171,6 +175,8 @@ rule _sigprofiler_run_extract:
         exome = lambda w: {'genome': 'False', 'capture': 'True'}[w.seq_type],
         outpath = CFG["dirs"]["extract"]+"{seq_type}--{genome_build}/{sample_set}"
     conda: CFG["conda_envs"]["sigprofiler"]
+    container:
+        CFG["container_envs"]["sigprofiler"]
     threads: CFG["threads"]["extract"]
     resources:
         mem_mb = CFG["mem_mb"]["extract"]

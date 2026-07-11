@@ -20,6 +20,13 @@ lcr-modules:
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
             cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/python-3.8.3.yaml"
             liftover: "{SCRIPTSDIR}/liftover/2.0/liftover.yaml"
+        container_envs:
+            bedtools: "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
+            cnv2igv: null
+            controlfreec: "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+            liftover: "docker://ghcr.io/lcr-bccrc/lcr-scripts/liftover:1.0"
+            wget: null
+
 
 
         options:

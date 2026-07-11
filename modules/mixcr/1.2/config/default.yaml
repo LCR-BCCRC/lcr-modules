@@ -38,7 +38,11 @@ lcr-modules:
                 run_flags: ""
                 form: "qseq sseq"
 
-        conda_envs: 
+        conda_envs:
+        container_envs:
+            igblast: "docker://quay.io/biocontainers/igblast:1.17.1--pl5321h3928612_1"
+            java: "docker://quay.io/biocontainers/java-jdk:8.0.112--1"
+ 
             java: "{MODSDIR}/envs/java-jdk-8.0.yaml"
             igblast: "{MODSDIR}/envs/igblast.yaml"
             

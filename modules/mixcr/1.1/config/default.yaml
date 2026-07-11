@@ -18,9 +18,12 @@ lcr-modules:
                 genome:
                     --starting-material dna
 
-        conda_envs: 
+        conda_envs:
             java: "{MODSDIR}/envs/java-jdk-8.0.yaml"
-            
+
+        container_envs:
+            java: "docker://quay.io/biocontainers/java-jdk:8.0.112--1"
+
         threads:
             mixcr_run: 4
 

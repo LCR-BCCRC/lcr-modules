@@ -18,7 +18,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -26,7 +26,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -93,6 +93,8 @@ rule _vcf2maf_run:
         custom_enst = op.switch_on_wildcard("genome_build", CFG["switches"]["custom_enst"])
     conda:
         CFG["conda_envs"]["vcf2maf"]
+    container:
+        CFG["container_envs"]["vcf2maf"]
     threads:
         CFG["threads"]["vcf2maf"]
     resources:
@@ -134,6 +136,8 @@ rule _vcf2maf_crossmap:
         stderr = CFG["logs"]["crossmap"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.crossmap.stderr.log"
     conda:
         CFG["conda_envs"]["crossmap"]
+    container:
+        CFG["container_envs"]["crossmap"]
     threads:
         CFG["threads"]["vcf2maf"]
     resources:

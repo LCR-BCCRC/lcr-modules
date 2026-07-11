@@ -24,7 +24,7 @@ import os
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -32,7 +32,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -68,6 +68,8 @@ rule _install_ichorcna:
         outdir = CFG["dirs"]["inputs"] + "ichorCNA/"
     conda:
         CFG["conda_envs"]["ichorcna"]
+    container:
+        CFG["container_envs"]["ichorcna"]
     shell:
         op.as_one_line("""
         git clone git://github.com/broadinstitute/ichorCNA.git {params.outdir} &&            
@@ -136,38 +138,38 @@ rule _setup_ichorcna_extdata:
         grch38_10kb_map = ichorDir + "map_grch38_10kb.wig",
         complete = touch(ichorDir + "symlink.done")
     run:
-        op.relative_symlink(params.hg19_1Mb_rds, output.hg19_1Mb_rds)
-        op.relative_symlink(params.hg19_500kb_rds, output.hg19_500kb_rds)
-        op.relative_symlink(params.hg19_1Mb_rds, output.grch37_1Mb_rds)
-        op.relative_symlink(params.hg19_1Mb_rds, output.hs37d5_1Mb_rds)
-        op.relative_symlink(params.hg19_500kb_rds, output.grch37_500kb_rds)
-        op.relative_symlink(params.hg19_500kb_rds, output.hs37d5_500kb_rds)
-        op.relative_symlink(params.hg38_1Mb_rds, output.grch38_1Mb_rds)
-        op.relative_symlink(params.hg38_500kb_rds, output.grch38_500kb_rds)
-        op.relative_symlink(params.hg19_1000kb_gc, output.grch37_1000kb_gc)
-        op.relative_symlink(params.hg19_500kb_gc, output.grch37_500kb_gc)
-        op.relative_symlink(params.hg19_50kb_gc, output.grch37_50kb_gc)
-        op.relative_symlink(params.hg19_10kb_gc, output.grch37_10kb_gc)
-        op.relative_symlink(params.hg19_1000kb_gc, output.hs37d5_1000kb_gc)
-        op.relative_symlink(params.hg19_500kb_gc, output.hs37d5_500kb_gc)
-        op.relative_symlink(params.hg19_50kb_gc, output.hs37d5_50kb_gc)
-        op.relative_symlink(params.hg19_10kb_gc, output.hs37d5_10kb_gc)
-        op.relative_symlink(params.hg38_1000kb_gc, output.grch38_1000kb_gc)
-        op.relative_symlink(params.hg38_500kb_gc, output.grch38_500kb_gc)
-        op.relative_symlink(params.hg38_50kb_gc, output.grch38_50kb_gc)
-        op.relative_symlink(params.hg38_10kb_gc, output.grch38_10kb_gc)
-        op.relative_symlink(params.hg19_1000kb_map, output.grch37_1000kb_map)
-        op.relative_symlink(params.hg19_500kb_map, output.grch37_500kb_map)
-        op.relative_symlink(params.hg19_50kb_map, output.grch37_50kb_map)
-        op.relative_symlink(params.hg19_10kb_map, output.grch37_10kb_map)
-        op.relative_symlink(params.hg19_1000kb_map, output.hs37d5_1000kb_map)
-        op.relative_symlink(params.hg19_500kb_map, output.hs37d5_500kb_map)
-        op.relative_symlink(params.hg19_50kb_map, output.hs37d5_50kb_map)
-        op.relative_symlink(params.hg19_10kb_map, output.hs37d5_10kb_map)
-        op.relative_symlink(params.hg38_1000kb_map, output.grch38_1000kb_map)
-        op.relative_symlink(params.hg38_500kb_map, output.grch38_500kb_map)
-        op.relative_symlink(params.hg38_50kb_map, output.grch38_50kb_map)
-        op.relative_symlink(params.hg38_10kb_map, output.grch38_10kb_map)
+        op.absolute_symlink(params.hg19_1Mb_rds, output.hg19_1Mb_rds)
+        op.absolute_symlink(params.hg19_500kb_rds, output.hg19_500kb_rds)
+        op.absolute_symlink(params.hg19_1Mb_rds, output.grch37_1Mb_rds)
+        op.absolute_symlink(params.hg19_1Mb_rds, output.hs37d5_1Mb_rds)
+        op.absolute_symlink(params.hg19_500kb_rds, output.grch37_500kb_rds)
+        op.absolute_symlink(params.hg19_500kb_rds, output.hs37d5_500kb_rds)
+        op.absolute_symlink(params.hg38_1Mb_rds, output.grch38_1Mb_rds)
+        op.absolute_symlink(params.hg38_500kb_rds, output.grch38_500kb_rds)
+        op.absolute_symlink(params.hg19_1000kb_gc, output.grch37_1000kb_gc)
+        op.absolute_symlink(params.hg19_500kb_gc, output.grch37_500kb_gc)
+        op.absolute_symlink(params.hg19_50kb_gc, output.grch37_50kb_gc)
+        op.absolute_symlink(params.hg19_10kb_gc, output.grch37_10kb_gc)
+        op.absolute_symlink(params.hg19_1000kb_gc, output.hs37d5_1000kb_gc)
+        op.absolute_symlink(params.hg19_500kb_gc, output.hs37d5_500kb_gc)
+        op.absolute_symlink(params.hg19_50kb_gc, output.hs37d5_50kb_gc)
+        op.absolute_symlink(params.hg19_10kb_gc, output.hs37d5_10kb_gc)
+        op.absolute_symlink(params.hg38_1000kb_gc, output.grch38_1000kb_gc)
+        op.absolute_symlink(params.hg38_500kb_gc, output.grch38_500kb_gc)
+        op.absolute_symlink(params.hg38_50kb_gc, output.grch38_50kb_gc)
+        op.absolute_symlink(params.hg38_10kb_gc, output.grch38_10kb_gc)
+        op.absolute_symlink(params.hg19_1000kb_map, output.grch37_1000kb_map)
+        op.absolute_symlink(params.hg19_500kb_map, output.grch37_500kb_map)
+        op.absolute_symlink(params.hg19_50kb_map, output.grch37_50kb_map)
+        op.absolute_symlink(params.hg19_10kb_map, output.grch37_10kb_map)
+        op.absolute_symlink(params.hg19_1000kb_map, output.hs37d5_1000kb_map)
+        op.absolute_symlink(params.hg19_500kb_map, output.hs37d5_500kb_map)
+        op.absolute_symlink(params.hg19_50kb_map, output.hs37d5_50kb_map)
+        op.absolute_symlink(params.hg19_10kb_map, output.hs37d5_10kb_map)
+        op.absolute_symlink(params.hg38_1000kb_map, output.grch38_1000kb_map)
+        op.absolute_symlink(params.hg38_500kb_map, output.grch38_500kb_map)
+        op.absolute_symlink(params.hg38_50kb_map, output.grch38_50kb_map)
+        op.absolute_symlink(params.hg38_10kb_map, output.grch38_10kb_map)
 
 ### Run ichorCNA ###
 # Symlinks the input files into the module results directory (under '00-inputs/')
@@ -203,6 +205,8 @@ rule _ichorcna_bamCoverage:
         opt = CFG["options"]["deeptools"]["opt"],
         dirOut = CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/bw/"
     conda: CFG["conda_envs"]["deeptools"]
+    container:
+        CFG["container_envs"]["deeptools"]
     threads: CFG["threads"]["deeptools"]
     resources:
         **CFG["resources"]["deeptools"]
@@ -222,6 +226,8 @@ rule _ichorcna_bigwigToWig:
     output:
         wig_int = temp(CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/wig/{sample_id}.bin{binSize}{chrom}.wig"),
     conda: CFG["conda_envs"]["ucsc-bigwigtowig"]
+    container:
+        CFG["container_envs"]["ucsc-bigwigtowig"]
     threads: CFG["threads"]["ucsc"]
     resources:
         **CFG["resources"]["ucsc"]
@@ -242,6 +248,8 @@ rule _ichorcna_spread_centromeres:
     output:
         wig = temp(CFG["dirs"]["readDepth"] + "{seq_type}--{genome_build}/{binSize}/wig/{sample_id}.bin{binSize}.{chrom}--fixed.wig")
     conda: CFG["conda_envs"]["bedops_tools"]
+    container:
+        CFG["container_envs"]["bedops_tools"]
     threads: CFG["threads"]["ucsc"]
     resources:
         **CFG["resources"]["ucsc"]
@@ -336,6 +344,8 @@ rule _run_ichorcna:
         plotYlim = CFG["options"]["run"]["ichorCNA_plotYlim"],
         libdir = CFG["dirs"]["inputs"] + "ichorCNA/" + CFG["options"]["run"]["ichorCNA_libdir"]
     conda: CFG["conda_envs"]["ichorcna"]
+    container:
+        CFG["container_envs"]["ichorcna"]
     threads: CFG["threads"]["run"]
     resources:
         **CFG["resources"]["run"]

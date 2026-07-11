@@ -77,3 +77,8 @@ lcr-modules:
             optparse: "{MODSDIR}/envs/r-optparse-1.6.yaml"
             sorted_containers: "{MODSDIR}/envs/sortedcontainers-2.4.0.yaml"
             gamblr: "{MODSDIR}/envs/gamblr.yaml"
+        container_envs:
+            gamblr: null
+            optparse: null
+            sorted_containers: null
+

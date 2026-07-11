@@ -29,6 +29,9 @@ lcr-modules:
 
         conda_envs:
             battenberg: "{MODSDIR}/envs/battenberg_fresh.yml"
+        container_envs:
+            battenberg: null
+
             
         resources:
             battenberg:

@@ -17,6 +17,11 @@ lcr-modules:
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
             liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
 
+        container_envs:
+            controlfreec: "docker://quay.io/biocontainers/control-freec:11.6b--hde5307d_3"
+            wget: null
+            bedtools: "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
+            liftover: "docker://ghcr.io/lcr-bccrc/lcr-scripts/liftover:1.0"
 
         options:
             configFile: "{MODSDIR}/config/freec/config_WGS.txt"

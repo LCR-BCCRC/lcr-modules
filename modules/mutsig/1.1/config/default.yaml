@@ -20,6 +20,11 @@ lcr-modules:
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
             wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
             matlab: "{MODSDIR}/envs/matlab.yaml"
+        container_envs:
+            matlab: null
+            prepare_mafs: null
+            wget: null
+
 
         threads:
             mutsig: 2

@@ -16,7 +16,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -24,7 +24,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
     print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
@@ -113,6 +113,8 @@ rule _freebayes_run:
         opts = CFG["options"]["freebayes"]
     conda:
         CFG["conda_envs"]["freebayes"]
+    container:
+        CFG["container_envs"]["freebayes"]
     group: 
         "input_and_run"
     threads:
@@ -176,6 +178,8 @@ rule _freebayes_crossmap:
         stderr = CFG["logs"]["crossmap"] + "{seq_type}--{target_build}/{sample_id}/freebayes.vcf.crossmap.stderr.log"
     conda:
         CFG["conda_envs"]["crossmap"]
+    container:
+        CFG["container_envs"]["crossmap"]
     threads:
         CFG["threads"]["crossmap"]
     resources:
@@ -288,6 +292,8 @@ rule _freebayes_gzip_vcf:
         samples = CFG["inputs"]["samples"]
     conda:
         CFG["conda_envs"]["crossmap"]
+    container:
+        CFG["container_envs"]["crossmap"]
     threads:
         CFG["threads"]["gzip"]
     resources:
