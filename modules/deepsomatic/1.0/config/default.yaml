@@ -1,0 +1,67 @@
+lcr-modules:
+    
+    deepsomatic:
+
+# When calling this snakemake workflow, use --use-singularity as a flag
+# Additional required columns in your samples table: "chemistry"
+# Chemistry is the version of pore chemistry used to sequence a particular sample
+    # Available values: R9, R10
+    # It is recommended to avoid using this module with R9 samples
+# This module is intended to work with an unmatched normal
+
+        inputs:
+          # Available wildcards: {seq_type} {genome_build} {sample_id} {chemistry} {platform} {normal_name}
+          sample_bam: "__UPDATE__"
+          sample_bai: "__UPDATE__"
+          normal_bam: "__UPDATE__"
+          normal_bai: "__UPDATE__"
+
+        scratch_subdirectories: [] # Suggested: "deepsomatic"
+
+        options:
+          version_map:
+            hg38: "38"
+          seqtype_map:
+            promethION: "promethION"
+            adaptive_sampling: "adaptive_sampling"
+          normal_name:
+            R9: "__UPDATE__" # Update this with the prefix for your R9 normal BAM file
+            R10: "__UPDATE__" # Update this with the prefix for your R10 normal BAM file
+          calling_mode: "unmatched" # Available values: unmatched, tumour_only (using tumor_only will run DeepSomaic in its tumor_only mode)
+          deepsomatic_args: "" # Update this with additional DeepSomatic arguments if you wish to use any
+          filters: # Update if you wish to use different filters
+            min_depth: 8
+            snv_min_vaf: 0.10
+            snv_min_alt_depth: 3
+            indel_min_vaf: 0.15
+            indel_min_alt_depth: 6
+            normal_min_depth: 10
+            normal_max_af: 0.05
+        conda_envs:
+          bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+
+        container_envs:
+          deepsomatic: "docker://google/deepsomatic:1.10.0" # Change this if you wish to use a different version of DeepSomatic
+          bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+
+        threads:
+          deepsomatic: 24
+          bcftools: 4
+
+        resources:
+          deepsomatic: 
+            mem_mb: 32000
+            bam: 1
+          bcftools:
+            mem_mb: 5000
+            
+        pairing_config:
+          promethION:
+            run_paired_tumours: False
+            run_unpaired_tumours_with: "no_normal"
+            run_paired_tumours_as_unpaired: True
+          
+          adaptive_sampling: # See what I need to change about seqtype_map to support adaptive_sampling
+            run_paired_tumours: False
+            run_unpaired_tumours_with: "no_normal"
+            run_paired_tumours_as_unpaired: True
