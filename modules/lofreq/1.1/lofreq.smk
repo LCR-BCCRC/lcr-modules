@@ -93,9 +93,9 @@ rule _lofreq_input_bam:
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
-        op.relative_symlink(input.bai, output.crai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 # Run LoFreq in somatic variant calling mode on a single unmatched pair to produce normal_relaxed.vcf.gz and normal_stringent vcfs
 # generate an empty file named preprocessing_complete to indicate that the run actually completed and it's safe to symlink to the outputs
@@ -134,7 +134,7 @@ rule _lofreq_preprocess_normal:
         SCRIPT_PATH={SCRIPT_PATH};
         PATH=$SCRIPT_PATH:$PATH;
         SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
-        if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
+        if [[ $(command -v lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
             echo "using bundled patched script $SCRIPT";
             touch {output.preprocessing_start}
             && 
@@ -142,7 +142,7 @@ rule _lofreq_preprocess_normal:
             -f {input.fasta} -o $(dirname {output.vcf_relaxed})/ -d {input.dbsnp} --bed {input.bed}
             > {log.stdout} 2> {log.stderr} && 
             touch {output.preprocessing_complete};
-        else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
+        else echo "WARNING: PATH is not set properly, using $(command -v lofreq2_call_pparallel.py)"; fi
         """)
 
 
@@ -213,12 +213,12 @@ rule _lofreq_run_tumour_unmatched:
         SCRIPT_PATH={SCRIPT_PATH};
         PATH=$SCRIPT_PATH:$PATH;
         SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
-        if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
+        if [[ $(command -v lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
             echo "using bundled patched script $SCRIPT";
             lofreq somatic --continue {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
             -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} --bed {input.bed}
             > {log.stdout} 2> {log.stderr};
-        else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
+        else echo "WARNING: PATH is not set properly, using $(command -v lofreq2_call_pparallel.py)"; fi
         """)
 
 rule _lofreq_run_tumour_matched:
@@ -255,12 +255,12 @@ rule _lofreq_run_tumour_matched:
         PATH=$SCRIPT_PATH:$PATH;
         SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
         if [[ -e {output.vcf_snvs_all}.tbi ]]; then rm -f $(dirname {output.vcf_relaxed})/*; fi; 
-        if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
+        if [[ $(command -v lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
             echo "using bundled patched script $SCRIPT";
             lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
             -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} --bed {input.bed}
             > {log.stdout} 2> {log.stderr};
-        else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
+        else echo "WARNING: PATH is not set properly, using $(command -v lofreq2_call_pparallel.py)"; fi
         """)
 
 # indels are not yet called but this rule merges the empty indels file with the snvs file to produce the consistently named "combined" vcf. 
@@ -314,7 +314,7 @@ rule _lofreq_filter_vcf:
     shell:
         op.as_one_line("""
         PATH={SCRIPT_PATH}:$PATH;
-        SCRIPT=$(which lofreq_filter.sh); 
+        SCRIPT=$(command -v lofreq_filter.sh); 
         echo "using bundled custom filtering script $SCRIPT";
         lofreq_filter.sh {input.vcf_all} | bgzip > {output.vcf_all_clean}
           && tabix -p vcf {output.vcf_all_clean}

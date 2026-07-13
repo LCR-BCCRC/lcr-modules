@@ -234,8 +234,8 @@ def absolute_symlink(src, dest, overwrite=True):
     """
     # Prepare source and destination file paths 
     src, dest = prepare_symlink(src, dest)
-    # Retrieve the absolute file path for the source file
-    src = os.path.abspath(src)
+    # Resolve all symlinks to get the stable absolute path on the storage system
+    src = os.path.realpath(src)
 
     # Check if destination file already exists and error if it does
     compare_links(src, dest, overwrite)

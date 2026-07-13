@@ -44,8 +44,8 @@ rule _mutect2_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
 
 
 # Symlink chromosomes used for parallelization
@@ -55,7 +55,7 @@ checkpoint _mutect2_input_chrs:
     output:
         chrs = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
     run:
-        op.relative_symlink(input.chrs, output.chrs)
+        op.absolute_symlink(input.chrs, output.chrs)
 
 
 # Retrieves from SM tag from BAM and writes to file

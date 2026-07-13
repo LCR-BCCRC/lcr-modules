@@ -47,7 +47,6 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _bam2fastq_input_bam,
-    _bam2fastq_output,
     _bam2fastq_all,
 
 assert type(CFG["temp_outputs"])==bool, (
@@ -147,28 +146,39 @@ else:
     raise ValueError("CFG['temp_outputs'] must be set to a boolean value (True or False)")
 
 
-rule _bam2fastq_output:
-    input:
-        fastq_1 = str(rules._bam2fastq_run.output.fastq_1),
-        fastq_2 = str(rules._bam2fastq_run.output.fastq_2)
-    output:
-        fastq_1 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read1.fastq.gz",
-        fastq_2 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read2.fastq.gz"
-    run:
-        op.relative_symlink(input.fastq_1, output.fastq_1, in_module = True)
-        op.relative_symlink(input.fastq_2, output.fastq_2, in_module = True)
+if CFG["temp_outputs"]:
+    # When outputs are temporary, symlinks in 99-outputs/ would be broken after
+    # the temp files are deleted, and directly tracking temp files would cause
+    # persistent reruns (temp files are always gone after a successful run).
+    # Leave _bam2fastq_all with no inputs: the downstream module's all rule
+    # (e.g. bwa_mem -> utils_bam -> CRAM) is what verifies end-to-end completion.
+    rule _bam2fastq_all:
+        input: []
 
+else:
+    localrules: _bam2fastq_output
 
-rule _bam2fastq_all:
-    input:
-        expand(
-            [
-                rules._bam2fastq_output.output.fastq_1,
-                rules._bam2fastq_output.output.fastq_2,
-            ],
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["samples"]["seq_type"],
-            sample_id=CFG["samples"]["sample_id"])
+    rule _bam2fastq_output:
+        input:
+            fastq_1 = str(rules._bam2fastq_run.output.fastq_1),
+            fastq_2 = str(rules._bam2fastq_run.output.fastq_2)
+        output:
+            fastq_1 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read1.fastq.gz",
+            fastq_2 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read2.fastq.gz"
+        run:
+            op.relative_symlink(input.fastq_1, output.fastq_1, in_module = True)
+            op.relative_symlink(input.fastq_2, output.fastq_2, in_module = True)
+
+    rule _bam2fastq_all:
+        input:
+            expand(
+                [
+                    rules._bam2fastq_output.output.fastq_1,
+                    rules._bam2fastq_output.output.fastq_2,
+                ],
+                zip,  # Run expand() with zip(), not product()
+                seq_type=CFG["samples"]["seq_type"],
+                sample_id=CFG["samples"]["sample_id"])
 
 ##### CLEANUP #####
 
