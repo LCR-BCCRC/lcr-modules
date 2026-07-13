@@ -21,7 +21,7 @@ lcr-modules:
             chr_prefixed_reference:
                 hg38: " --chr_prefixed_genome "
                 grch37: " "
-            cnv2igv_script: "{SCRIPTSDIR}/cnv2igv/1.5/cnv2igv.py"
+            cnv2igv_script_path: "{SCRIPTSDIR}/cnv2igv/1.5/cnv2igv.py"
             # cnv2igv preserve log.ratio or change this to "" to calculate it from the absolute CN
             preserve: "--preserve_log_ratio"
             # liftOver options to convert between genomic builds

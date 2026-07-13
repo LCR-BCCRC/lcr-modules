@@ -92,8 +92,8 @@ rule _cnvkit_symlink_beds:
         target = CFG["dirs"]["inputs"] + "pon/{seq_type}--{genome_build}/{capture_space}_target_sites.bed",
         antitarget = CFG["dirs"]["inputs"] + "pon/{seq_type}--{genome_build}/{capture_space}_antitarget_sites.bed"
     run:
-        op.relative_symlink(input.target, output.target)
-        op.relative_symlink(input.antitarget, output.antitarget)
+        op.absolute_symlink(input.target, output.target)
+        op.absolute_symlink(input.antitarget, output.antitarget)
 
 rule _cnvkit_symlink_pon_reference:
     input:
@@ -213,7 +213,6 @@ rule _cnvkit_dbsnp_to_bed:
         bed = CFG["dirs"]["inputs"] + "dbsnp/{genome_build}/dbsnp.common_all-151.bed"
     log:
         stderr = CFG["logs"]["inputs"] + "bam/{genome_build}/dbsnp_to_bed.log"
-    threads: 1 # does not use parallelization, but still needs to be submitted
     resources:
         **CFG["resources"]["SNPs"]
     shell:
@@ -520,7 +519,6 @@ rule _cnvkit_trusted_genes_cna:
         genemetrics_gene = str(rules._cnvkit_genemetrics_gene.output.genemetrics)
     output:
         trusted_genes = CFG["dirs"]["gene_metrics"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/trusted_genes.txt"
-    threads: 1 # does not use parallelization, but still needs to be submitted
     shell:
         op.as_one_line("""
         comm -12 <(tail -n+2 {input.genemetrics_seg} | cut -f1 | sort ) <(tail -n+2 {input.genemetrics_gene} | cut -f1 | sort ) > {output.trusted_genes}
@@ -615,7 +613,6 @@ rule _cnvkit_convert_coordinates:
         cnvkit_lifted = CFG["dirs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{capture_space}/{tumour_id}.lifted_{chain}.seg"
     log:
         stderr = CFG["logs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.lifted_{chain}.stderr.log"
-    threads: 1
     params:
         liftover_script = CFG["options"]["liftover_script_path"],
         liftover_minmatch = CFG["options"]["liftover_minMatch"]
@@ -666,7 +663,6 @@ rule _cnvkit_fill_segments:
         hg38_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}.{tool}.hg38.seg")
     log:
         stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/{tumour_id}.{tool}_fill_segments.stderr.log"
-    threads: 1
     params:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
     conda:
@@ -706,7 +702,6 @@ rule _cnvkit_normalize_projection:
         projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}.{tool}.{projection}.seg"
     resources:
         **CFG["resources"]["post_cnvkit"]
-    threads: 1
     run:
         # read the main chromosomes file of the projection
         chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
