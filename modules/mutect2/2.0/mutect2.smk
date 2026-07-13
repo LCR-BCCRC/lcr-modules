@@ -19,7 +19,7 @@ import pandas as pd
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.12"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -27,7 +27,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -39,7 +39,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -47,7 +47,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -124,7 +124,7 @@ checkpoint _mutect2_input_chrs:
         candidate_chrs = pd.read_csv(input.candidate_positions, comment='#', sep='\t')
         candidate_chrs = candidate_chrs.iloc[:, 0].astype(str).unique().tolist()
         # obtain list of chromosomes in the capture space
-        interval_chrs = pd.read_csv(input.capture_arg, comment='@', sep='\t')
+        interval_chrs = pd.read_csv(input.capture_arg, comment='@', sep='\t', header=None)
         interval_chrs = interval_chrs.iloc[:, 0].astype(str).unique().tolist()
         # intersect the three lists to obtain chromosomes present in all
         intersect_chrs = list(set(main_chrs) & set(candidate_chrs) & set(interval_chrs))
@@ -144,6 +144,8 @@ rule _mutect2_get_sm:
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}_mutect2_get_sm.stderr.log"
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     shell:
         "samtools view -H {input.bam} | grep '^@RG' | "
         r"sed 's/.*SM:\([^\t]*\).*/\1/g'"" | uniq > {output.sm} 2> {log.stderr}"
@@ -193,9 +195,11 @@ rule _mutect2_run_matched_unmatched:
         interval_arg = _mutect2_get_interval_cli_arg()
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["mutect2_run"]
-    wildcard_constraints: 
+    wildcard_constraints:
         pair_status = "matched|unmatched"
     shell:
         op.as_one_line("""
@@ -235,9 +239,11 @@ rule _mutect2_run_no_normal:
         interval_arg = _mutect2_get_interval_cli_arg()
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["mutect2_run"]
-    wildcard_constraints: 
+    wildcard_constraints:
         pair_status = "no_normal"
     shell:
         op.as_one_line("""
@@ -280,12 +286,14 @@ rule _mutect2_merge_vcfs:
         vcf = _mutect2_get_chr_vcfs,
         tbi = _mutect2_get_chr_tbis
     output:
-        vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz"),
-        tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz.tbi")
+        vcf = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz",
+        tbi = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz.tbi"
     log:
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_merge_vcfs.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["mutect2_merge_vcfs"]
     resources:
@@ -319,12 +327,14 @@ rule _mutect2_merge_stats:
     input:
         stat = _mutect2_get_chr_stats
     output:
-        stat = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz.stats")
+        stat = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.vcf.gz.stats"
     log:
         stdout = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_merge_stats.stdout.log",
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_merge_stats.stderr.log"
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        CFG["container_envs"]["gatk"]
     shell:
         op.as_one_line("""
         gatk MergeMutectStats $(for i in {input.stat}; do echo -n "-stats $i "; done)
@@ -358,7 +368,9 @@ rule _mutect2_learn_orient_model:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatk"]
-    threads: 
+    container:
+        CFG["container_envs"]["gatk"]
+    threads:
         CFG["threads"]["mutect2_f1r2"]
     shell: 
         op.as_one_line("""
@@ -386,7 +398,9 @@ rule _mutect2_pileup_summaries:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatk"]
-    threads: 
+    container:
+        CFG["container_envs"]["gatk"]
+    threads:
         CFG["threads"]["mutect2_pileupsummaries"]
     shell: 
         op.as_one_line("""
@@ -416,7 +430,9 @@ rule _mutect2_calc_contamination:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatk"]
-    threads: 
+    container:
+        CFG["container_envs"]["gatk"]
+    threads:
         CFG["threads"]["mutect2_contamination"]
     shell: 
         op.as_one_line("""
@@ -431,12 +447,12 @@ rule _mutect2_calc_contamination:
 # Marks variants filtered or PASS annotations
 rule _mutect2_filter:
     input:
-        vcf = str(rules._mutect2_merge_vcfs.output.vcf),
-        tbi = str(rules._mutect2_merge_vcfs.output.tbi),
-        stat = str(rules._mutect2_merge_stats.output.stat),
-        segments = str(rules._mutect2_calc_contamination.output.segments), 
-        contamination = str(rules._mutect2_calc_contamination.output.contamination), 
-        model = str(rules._mutect2_learn_orient_model.output.model),
+        vcf = ancient(str(rules._mutect2_merge_vcfs.output.vcf)),
+        tbi = ancient(str(rules._mutect2_merge_vcfs.output.tbi)),
+        stat = ancient(str(rules._mutect2_merge_stats.output.stat)),
+        segments = ancient(str(rules._mutect2_calc_contamination.output.segments)),
+        contamination = ancient(str(rules._mutect2_calc_contamination.output.contamination)),
+        model = ancient(str(rules._mutect2_learn_orient_model.output.model)),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         vcf = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/output.unfilt.vcf.gz"
@@ -450,6 +466,8 @@ rule _mutect2_filter:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["mutect2_filter"]
     shell:
@@ -479,6 +497,8 @@ rule _mutect2_filter_passed:
         stderr = CFG["logs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_filter_passed.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["mutect2_passed"]
     resources:

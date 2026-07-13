@@ -45,8 +45,8 @@ rule _sequenza_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
 
 
 # Pulls in list of chromosomes for the genome builds
@@ -56,7 +56,7 @@ checkpoint _sequenza_input_chroms:
     output:
         txt = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
     run:
-        op.relative_symlink(input.txt, output.txt)
+        op.absolute_symlink(input.txt, output.txt)
 
 
 # Pulls in list of chromosomes for the genome builds
@@ -94,6 +94,8 @@ rule _sequenza_bam2seqz:
         seqz_binning_opts = CFG["options"]["seqz_binning"]
     conda:
         CFG["conda_envs"]["sequenza-utils"]
+    container:
+        CFG["container_envs"]["sequenza-utils"]
     threads:
         CFG["threads"]["bam2seqz"]
     resources:
@@ -174,6 +176,8 @@ rule _sequenza_run:
         stderr = CFG["logs"]["sequenza"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_run.{filter_status}.stderr.log"
     conda:
         CFG["conda_envs"]["r-sequenza"]
+    container:
+        None
     threads: CFG["threads"]["sequenza"]
     resources:
         mem_mb = CFG["mem_mb"]["sequenza"]
@@ -196,6 +200,8 @@ rule _sequenza_cnv2igv:
         opts = CFG["options"]["cnv2igv"]
     conda:
         CFG["conda_envs"]["cnv2igv"]
+    container:
+        None
     shell:
         op.as_one_line("""
         python {input.cnv2igv} {params.opts} --sample {wildcards.tumour_id}

@@ -16,7 +16,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -24,7 +24,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
     print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
@@ -90,6 +90,8 @@ rule _dnds_prepare_maf:
         stderr = CFG["logs"]["inputs"] + "{sample_set}/prepare_maf.stderr.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    container:
+        None
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         script = CFG["prepare_mafs"]
@@ -113,6 +115,8 @@ rule _install_dnds:
         complete = CFG["dirs"]["inputs"] + "dnds_installed.success"
     conda:
         CFG["conda_envs"]["dnds"]
+    container:
+        None
     log:
         input = CFG["logs"]["inputs"] + "install_dnds.log"
     shell:
@@ -131,6 +135,8 @@ rule _dnds_run:
         annotmuts = CFG["dirs"]["dnds"] + "{sample_set}/annotmuts.tsv"
     conda:
         CFG["conda_envs"]["dnds"]
+    container:
+        None
     threads:
         CFG["threads"]["dnds"]
     resources:
