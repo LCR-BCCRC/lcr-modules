@@ -158,11 +158,20 @@ rule _vcf2maf_run:
         then vepPATH=$(dirname $(command -v vep));
         else echo "ERROR: vep not found in PATH and vep_path not set in lcr-modules config" > {log.stderr}; exit 1;
         fi;
+        VCF_INPUT={input.vcf};
+        if ! grep -m1 "^#CHROM" {input.vcf} | grep -qw "TUMOR"; then
+            echo "TUMOR/NORMAL not found in VCF header; reheadering sample columns using tumour_id/normal_id wildcards" >> {log.stderr};
+            REHEADERED_VCF=$(mktemp --suffix=.vcf);
+            awk -v t="{wildcards.tumour_id}" -v n="{wildcards.normal_id}"
+            'BEGIN{{OFS="\t"}} /^#CHROM/{{for(i=1;i<=NF;i++){{if($i==t)$i="TUMOR"; else if($i==n)$i="NORMAL"}}}} {{print}}'
+            {input.vcf} > "$REHEADERED_VCF";
+            VCF_INPUT="$REHEADERED_VCF";
+        fi;
         if [[ $(which vcf2maf.pl) =~ $(ls $VCF2MAF_SCRIPT) ]]; then
             echo "using bundled patched script $VCF2MAF_SCRIPT";
             echo "Using $VCF2MAF_SCRIPT to run {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
             vcf2maf.pl
-            --input-vcf {input.vcf}
+            --input-vcf $VCF_INPUT
             --output-maf {output.maf}
             --tumor-id {wildcards.tumour_id}
             --normal-id {wildcards.normal_id}
@@ -175,6 +184,7 @@ rule _vcf2maf_run:
             --retain-info gnomADg_AF
             >> {log.stdout} 2>> {log.stderr};
         else echo "ERROR: PATH is not set properly, using $(which vcf2maf.pl) will result in error during execution. Please ensure $VCF2MAF_SCRIPT exists." > {log.stderr}; exit 1; fi &&
+        if [[ "$VCF_INPUT" != "{input.vcf}" ]]; then rm -f "$VCF_INPUT"; fi &&
         touch {output.vep}
         """)
 
