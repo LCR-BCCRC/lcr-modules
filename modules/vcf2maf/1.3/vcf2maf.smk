@@ -381,6 +381,10 @@ rule _vcf2maf_crossmap:
         {output.maf}
         crossmap
         > {log.stdout} 2> {log.stderr}
+        &&
+        (head -n 1 {output.maf}; tail -n +2 {output.maf} | sort -k5,5V -k6,6n) > {output.maf}.tmp
+        &&
+        mv {output.maf}.tmp {output.maf}
         """)
 
 
@@ -428,7 +432,7 @@ rule _vcf2maf_reannotate:
             echo "using bundled patched script $MAF2MAF_SCRIPT";
             echo "Running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
             if [[ $(wc -l < {input.maf}) -gt 1 ]]; then
-                perl $MAF2MAF_SCRIPT
+                {{ perl $MAF2MAF_SCRIPT
                 --input-maf {input.maf}
                 --ref-fasta {input.fasta}
                 --ncbi-build {params.build}
@@ -436,8 +440,7 @@ rule _vcf2maf_reannotate:
                 --vep-path $vepPATH
                 {params.opts}
                 {params.custom_enst} |
-                cut -f 1-99,108-112,124-134 |
-                grep -v "$(date +"%Y-%m-%d")"
+                grep -v "$(date +"%Y-%m-%d")"; }}
                 > {output.maf}
                 2>> {log.stderr};
             else
