@@ -119,15 +119,12 @@ rule _panel_of_normals_index_bam:
         fi
         """)
 
-# Symlinks the capture bed file. Use the UNPADDED bed: padding targets pulls in
-# low-coverage flanking sequence that dilutes per-interval coverage and adds noise,
-# which makes PureCN's denovo PSCBS over-segment (confirmed on CCS_0021: padded gave
-# 18X/287 segments/purity 0.15 vs the old unpadded 27X/165 segments).
+# Symlinks the capture bed file
 rule _panel_of_normals_input_capspace:
     input:
-        bed = ancient(reference_files("genomes/{genome_build}/capture_space/{capture_space}.bed"))
+        bed = ancient(reference_files("genomes/{genome_build}/capture_space/{capture_space}.baits.bed"))
     output:
-        bed = CFG["dirs"]["inputs"] + "bed/{seq_type}--{genome_build}/{capture_space}.bed"
+        bed = CFG["dirs"]["inputs"] + "bed/{seq_type}--{genome_build}/{capture_space}.baits.bed"
     run:
         op.absolute_symlink(input.bed, output.bed)
 
@@ -136,7 +133,7 @@ rule _panel_of_normals_canonical_capspace:
     input:
         bed = str(rules._panel_of_normals_input_capspace.output.bed)
     output:
-        bed = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{capture_space}.canonical.bed"
+        bed = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{capture_space}.baits.canonical.bed"
     shell:
         op.as_one_line("""
         awk -F"\t" -v OFS="\t" '$1 !~ /(_|M|EBV|HIV|GL)/' {input.bed} > {output.bed}
@@ -623,7 +620,8 @@ rule _panel_of_normals_purecn_mutect2_germline:
     threads: 1 # MuTect2 doesn't support multi-threaded and adding multiple CPUs can lead to memory bloat
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
-        opts = CFG["options"]["purecn"]["mutect"]["mutect2_opts"]
+        opts = CFG["options"]["purecn"]["mutect"]["mutect2_opts"],
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/mutect2_{chrom}.log"
     conda:
@@ -632,7 +630,7 @@ rule _panel_of_normals_purecn_mutect2_germline:
         op.as_one_line("""
             if [[ $(egrep "^{wildcards.chrom}:" {input.target_regions} | wc -l) -eq 0 ]]; then
                 echo "No intervals found for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
-                gatk --java-options "-Xmx{params.mem_mb}m" 
+                gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
                 Mutect2 {params.opts}
                 --genotype-germline-sites true
                 --genotype-pon-sites true
@@ -646,7 +644,7 @@ rule _panel_of_normals_purecn_mutect2_germline:
                 >> {log} 2>&1;
             else
                 echo "Found intervals for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
-                gatk --java-options "-Xmx{params.mem_mb}m"
+                gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
                 Mutect2 {params.opts}
                 --genotype-germline-sites true
                 --genotype-pon-sites true
@@ -728,6 +726,9 @@ rule _panel_of_normals_purecn_merge_stats_per_sample:
         stats = CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz.stats"
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_merge_stats.log"
+    params: 
+        mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     resources:
         **CFG["resources"]["purecn"]["post_vcf"]
     threads: 1
@@ -735,7 +736,7 @@ rule _panel_of_normals_purecn_merge_stats_per_sample:
         CFG["conda_envs"]["mutect"]
     shell:
         op.as_one_line("""
-        gatk MergeMutectStats $(for i in {input.stats}; do echo -n "-stats $i "; done)
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}" MergeMutectStats $(for i in {input.stats}; do echo -n "-stats $i "; done)
         -O {output.stats} > {log} 2>&1
         """)
 
@@ -751,7 +752,8 @@ rule _panel_of_normals_purecn_pileup_summaries:
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_pileupSummary.log"
     params:
-        mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     conda:
         CFG["conda_envs"]["mutect"]
     resources:
@@ -760,7 +762,7 @@ rule _panel_of_normals_purecn_pileup_summaries:
         CFG["threads"]["purecn"]["post_vcf"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
             GetPileupSummaries
             -I {input.bam}
             -R {input.fasta}
@@ -780,7 +782,8 @@ rule _panel_of_normals_purecn_calc_contamination:
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_calc_contam.log"
     params:
-        mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     conda:
         CFG["conda_envs"]["mutect"]
     resources:
@@ -789,7 +792,7 @@ rule _panel_of_normals_purecn_calc_contamination:
         CFG["threads"]["purecn"]["post_vcf"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
             CalculateContamination
             -I {input.pileup}
             -tumor-segmentation {output.segments}
@@ -817,7 +820,8 @@ rule _panel_of_normals_purecn_learn_orient_model:
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_learn_orient_model.log"
     params:
-        mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     conda:
         CFG["conda_envs"]["mutect"]
     resources:
@@ -827,7 +831,7 @@ rule _panel_of_normals_purecn_learn_orient_model:
     shell:
         op.as_one_line("""
         inputs=$(for input in {input.f1r2}; do printf -- "-I $input "; done);
-        gatk --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
         LearnReadOrientationModel
         $inputs -O {output.model}
         > {log} 2>&1
@@ -849,7 +853,8 @@ rule _panel_of_normals_purecn_annotate_vcf:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_annotate_vcf.log",
     params:
         mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8),
-        opts = CFG["options"]["purecn"]["mutect"]["annotate"]
+        opts = CFG["options"]["purecn"]["mutect"]["annotate"],
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     conda:
         CFG["conda_envs"]["mutect"]
     resources:
@@ -857,7 +862,7 @@ rule _panel_of_normals_purecn_annotate_vcf:
     threads: 1
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
             FilterMutectCalls {params.opts}
             -V {input.vcf}
             -R {input.fasta}
@@ -996,7 +1001,8 @@ rule _panel_of_normals_purecn_mutect2_pon:
         CFG["logs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/mutect2_pon_vcf.log"
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
-        opts = "gendb://" + CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb/"
+        opts = "gendb://" + CFG["dirs"]["pon_for_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/genomicsdb/",
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     conda:
         CFG["conda_envs"]["mutect"]
     resources:
@@ -1004,7 +1010,7 @@ rule _panel_of_normals_purecn_mutect2_pon:
     threads: 1
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
         CreateSomaticPanelOfNormals 
         --reference {input.fasta}
         --variant {params.opts}
@@ -1092,14 +1098,15 @@ rule _panel_of_normals_purecn_gatk_depthOfCoverage:
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["purecn"]["coverage"]["depth_coverage"],
-        base_name = CFG["dirs"]["purecn_coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}"
+        base_name = CFG["dirs"]["purecn_coverage"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}.{chrom}",
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     log:
         CFG["logs"]["purecn_coverage"] + "{seq_type}--{genome_build}/{capture_space}/gatk_coverage/{sample_id}.{chrom}.log"
     conda:
         CFG["conda_envs"]["mutect"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
             DepthOfCoverage
             {params.opts}
             --omit-depth-output-at-each-base

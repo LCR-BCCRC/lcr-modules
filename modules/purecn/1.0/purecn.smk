@@ -250,7 +250,8 @@ rule _purecn_mutect2:
     threads: 1 # MuTect2 doesn't support multi-threaded and adding multiple CPUs can lead to memory bloat
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
-        opts = CFG["options"]["mutect2"]["mutect2_opts"]
+        opts = CFG["options"]["mutect2"]["mutect2_opts"],
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/mutect2_{chrom}.log"
     conda:
@@ -259,7 +260,7 @@ rule _purecn_mutect2:
         op.as_one_line("""
             if [[ $(egrep "^{wildcards.chrom}:" {input.target_regions} | wc -l) -eq 0 ]]; then
                 echo "No intervals found for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
-                gatk --java-options "-Xmx{params.mem_mb}m"
+                gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
                     Mutect2 {params.opts}
                     --genotype-germline-sites true
                     --genotype-pon-sites true
@@ -273,7 +274,7 @@ rule _purecn_mutect2:
                     >> {log} 2>&1;
             else
                 echo "Found intervals for chromosome {wildcards.chrom} in {input.target_regions}" | tee {log};
-                gatk --java-options "-Xmx{params.mem_mb}m"
+                gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
                     Mutect2 {params.opts}
                     --genotype-germline-sites true
                     --genotype-pon-sites true
@@ -352,6 +353,9 @@ rule _purecn_mutect2_merge_stats_per_sample:
         stats = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_tmp.vcf.gz.stats"
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_merge_stats.log"
+    params:
+        mem_mb =  lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     conda:
         CFG["conda_envs"]["mutect"]
     resources:
@@ -359,7 +363,7 @@ rule _purecn_mutect2_merge_stats_per_sample:
     threads: 1
     shell:
         op.as_one_line("""
-        gatk MergeMutectStats $(for i in {input.stats}; do echo -n "-stats $i "; done)
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}" MergeMutectStats $(for i in {input.stats}; do echo -n "-stats $i "; done)
         -O {output.stats} > {log} 2>&1
         """)
 
@@ -381,10 +385,11 @@ rule _purecn_pileup_summaries:
     threads:
         CFG["threads"]["post_vcf"]
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
             GetPileupSummaries
             -I {input.bam}
             -R {input.fasta}
@@ -410,10 +415,11 @@ rule _purecn_calc_contamination:
     threads:
         CFG["threads"]["post_vcf"]
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
             CalculateContamination
             -I {input.pileup}
             -tumor-segmentation {output.segments}
@@ -447,11 +453,12 @@ rule _purecn_learn_orient_model:
     threads:
         CFG["threads"]["post_vcf"]
     params:
-        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     shell:
         op.as_one_line("""
         inputs=$(for input in {input.f1r2}; do printf -- "-I $input "; done);
-        gatk --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
         LearnReadOrientationModel
         $inputs -O {output.model}
         > {log} 2>&1
@@ -476,12 +483,13 @@ rule _purecn_annotate_vcf:
     threads: 1
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
-        opts = CFG["options"]["mutect2"]["annotate"]
+        opts = CFG["options"]["mutect2"]["annotate"],
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     conda:
         CFG["conda_envs"]["mutect"]
     shell:
         op.as_one_line("""
-        gatk --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
             FilterMutectCalls
             {params.opts}
             -V {input.vcf}
@@ -539,7 +547,8 @@ rule _purecn_gatk_depthOfCoverage:
     params:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8),
         opts = CFG["options"]["coverage"]["depth_coverage"],
-        base_name = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}"
+        base_name = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}",
+        temp_dir = config["lcr-modules"]["_shared"]["temp_directory"]
     log:
         CFG["logs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/gatk_coverage_{chrom}.log"
     conda:
@@ -547,7 +556,7 @@ rule _purecn_gatk_depthOfCoverage:
     shell:
         op.as_one_line(
         """
-        gatk --java-options "-Xmx{params.mem_mb}m"
+        gatk --java-options "-Xmx{params.mem_mb}m -Djava.io.tmpdir={params.temp_dir}"
             DepthOfCoverage
             {params.opts}
             --omit-depth-output-at-each-base
@@ -733,7 +742,7 @@ checkpoint _purecn_cnvkit_mode_run:
                 --cores {threads} \
                 {params.opts} &>> {log}
             if [[ $? -ne 0 ]]; then
-                echo "Using segmentation_method: none" >> {log};
+                echo "Trying segmentation_method: none" >> {log};
                 Rscript --vanilla $PURECN/PureCN.R --out $(dirname {input.done_none}) \
                     --sampleid {wildcards.tumour_id} \
                     --tumor {input.cnr} \
@@ -911,7 +920,7 @@ checkpoint _purecn_denovo_mode_run:
                 --cores {threads} \
                 {params.opts} &>> {log}
             if [[ $? -ne 0 ]]; then
-                echo "Using segmentation_method: none" >> {log};
+                echo "Trying segmentation_method: none" >> {log};
                 Rscript --vanilla $PURECN/PureCN.R --out $(dirname {input.done_none})  \
                     --sampleid {wildcards.tumour_id} \
                     --tumor {input.cnr} \

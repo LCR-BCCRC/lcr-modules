@@ -43,7 +43,13 @@ rule _cnvkit_input_bam:
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.bam"
     run:
-        op.relative_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
+
+
+rule _cnvkit_accessible_regions:
+        op.absolute_symlink(input.bam, output.bam)
 
 # Pulls in list of chromosomes for the genome builds
 checkpoint _cnvkit_input_chroms:
@@ -63,7 +69,9 @@ rule _cnvkit_index_bam:
     log:
         log = CFG["logs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_index.log"
     conda:
-        CFG["conda_envs"]["samtools"]
+        CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     threads:
         CFG["threads"]["samtools"]
     shell:
@@ -84,16 +92,30 @@ rule _cnvkit_symlink_beds:
         target = CFG["dirs"]["inputs"] + "pon/{seq_type}--{genome_build}/{capture_space}_target_sites.bed",
         antitarget = CFG["dirs"]["inputs"] + "pon/{seq_type}--{genome_build}/{capture_space}_antitarget_sites.bed"
     run:
-        op.relative_symlink(input.target, output.target)
-        op.relative_symlink(input.antitarget, output.antitarget)
+        op.absolute_symlink(input.target, output.target)
+        op.absolute_symlink(input.antitarget, output.antitarget)
 
 rule _cnvkit_symlink_pon_reference:
     input:
         pon =  CFG["inputs"]["pon_reference"]
     output:
-        pon =  CFG["dirs"]["inputs"] + "pon/{seq_type}--{genome_build}/{capture_space}_normal_reference.cnn"
-    run:
-        op.relative_symlink(input.pon, output.pon)
+        target = CFG["dirs"]["inputs"] + "reference/{seq_type}--{genome_build}/{capture_space}/target_sites.target.bed",
+        antitarget = CFG["dirs"]["inputs"] + "reference/{seq_type}--{genome_build}/{capture_space}/target_sites.antitarget.bed"
+    conda:
+        CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
+    threads:
+        CFG["threads"]["reference"]
+    resources:
+        **CFG["resources"]["reference"]
+    log:
+        stdout = CFG["logs"]["inputs"] + "{seq_type}--{genome_build}/{capture_space}_autobin.log"
+    shell:
+        """
+            cnvkit.py autobin {input.bam} -t {input.targets} -g {input.access} --annotate {input.refFlat} --short-names --target-output-bed {output.target} --antitarget-output-bed {output.antitarget} &> {log.stdout}
+        """
+
 
 # Coverage for each sample
 rule _cnvkit_coverage_target:
@@ -102,9 +124,11 @@ rule _cnvkit_coverage_target:
         bai = str(rules._cnvkit_index_bam.output.bai),
         bed = str(rules._cnvkit_symlink_beds.output.target),
     output:
-        cov = CFG["dirs"]["coverage"] + "target/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.targetcoverage.cnn"
+        cov = CFG["dirs"]["coverage"] + "target/{seq_type}--{genome_build}/{capture_space}/{sample_id}.targetcoverage.cnn"
     conda:
         CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     threads:
         CFG["threads"]["coverage"]
     resources:
@@ -123,9 +147,11 @@ rule _cnvkit_coverage_antitarget:
         bai = str(rules._cnvkit_index_bam.output.bai),
         bed = str(rules._cnvkit_symlink_beds.output.antitarget),
     output:
-        cov = CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.antitargetcoverage.cnn"
+        cov = CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}/{capture_space}/{sample_id}.antitargetcoverage.cnn"
     conda:
         CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     threads:
         CFG["threads"]["coverage"]
     resources:
@@ -148,7 +174,8 @@ rule _cnvkit_fix:
         cnr = CFG["dirs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.cnr"
     conda:
         CFG["conda_envs"]["cnvkit"]
-    threads: 1 # does not use parallelization, but still needs to be submitted
+    container:
+        CFG["container_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["fix"]
     log:
@@ -167,8 +194,8 @@ rule _cnvkit_segment:
         method = CFG["options"]["cns"]["method"]
     conda:
         CFG["conda_envs"]["cnvkit"]
-    threads:
-        CFG["threads"]["cns"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["cns"]
     log:
@@ -186,7 +213,6 @@ rule _cnvkit_dbsnp_to_bed:
         bed = CFG["dirs"]["inputs"] + "dbsnp/{genome_build}/dbsnp.common_all-151.bed"
     log:
         stderr = CFG["logs"]["inputs"] + "bam/{genome_build}/dbsnp_to_bed.log"
-    threads: 1 # does not use parallelization, but still needs to be submitted
     resources:
         **CFG["resources"]["SNPs"]
     shell:
@@ -210,7 +236,9 @@ rule _cnvkit_mpileup_per_chrom:
         opts = CFG["options"]["SNPs"]["opts"]
     conda:
         CFG["conda_envs"]["bcftools"]
-    resources:
+    container:
+        CFG["container_envs"]["bcftools"]
+    resources: 
         **CFG["resources"]["SNPs"]
     group: "cnvkit"
     log:
@@ -267,6 +295,8 @@ rule _cnvkit_concatenate_vcf:
     group: "cnvkit"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     wildcard_constraints:
         tumour_id="|".join(CFG["runs"]["tumour_sample_id"]) # otherwise it thinks tumour_id is "{tumour_id}.{chrom}"
     shell:
@@ -291,10 +321,12 @@ rule _cnvkit_segmetrics_ttest:
         add_col = CFG["options"]["segmetrics"]["add_col"]
     log:
         log = CFG["logs"]["call"] + "segmetrics/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_segmetrics.log"
-    conda:
-        CFG["conda_envs"]["cnvkit"]
-    threads: 1 # does not use parallelization, but still needs to be submitted
-    resources:
+    conda: CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
+    wildcard_constraints: 
+        tumour_id = "|".join(CFG["runs"]["tumour_sample_id"].tolist())
+    resources: 
         **CFG["resources"]["call"]
     shell:
         op.as_one_line("""
@@ -320,8 +352,9 @@ rule _cnvkit_call:
         log = CFG["logs"]["call"] + "call/{seq_type}--{genome_build}/{capture_space}/{tumour_id}_call.log"
     conda:
         CFG["conda_envs"]["cnvkit"]
-    threads: 1 # does not use parallelization, but still needs to be submitted
-    resources:
+    container:
+        CFG["container_envs"]["cnvkit"]
+    resources: 
         **CFG["resources"]["call"]
     shell:
         op.as_one_line("""
@@ -365,7 +398,9 @@ rule _cnvkit_scatter:
         ymin = CFG["options"]["scatter"]["ymin"]
     conda:
         CFG["conda_envs"]["cnvkit"]
-    threads: 1 # does not use parallelization, but still needs to be submitted
+    container:
+        CFG["container_envs"]["cnvkit"]
+    group: "cnvkit"
     resources:
         **CFG["resources"]["plots"]
     log:
@@ -390,7 +425,9 @@ rule _cnvkit_diagram:
         male_ref = CFG["options"]["male_ref"]
     conda:
         CFG["conda_envs"]["cnvkit"]
-    threads: 1 # does not use parallelization, but still needs to be submitted
+    container:
+        CFG["container_envs"]["cnvkit"]
+    group: "cnvkit"
     resources:
         **CFG["resources"]["plots"]
     log:
@@ -411,7 +448,8 @@ rule _cnvkit_breaks:
         breaks = CFG["dirs"]["breaks"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.genebreaks.txt"
     conda:
         CFG["conda_envs"]["cnvkit"]
-    threads: 1 # does not use parallelization, but still needs to be submitted
+    container:
+        CFG["container_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["breaks"]
     log:
@@ -438,7 +476,8 @@ rule _cnvkit_genemetrics_seg:
         male_ref = CFG["options"]["male_ref"]
     conda:
         CFG["conda_envs"]["cnvkit"]
-    threads: 1 # does not use parallelization, but still needs to be submitted
+    container:
+        CFG["container_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["gene_metrics"]
     shell:
@@ -461,7 +500,8 @@ rule _cnvkit_genemetrics_gene:
         male_ref = CFG["options"]["male_ref"]
     conda:
         CFG["conda_envs"]["cnvkit"]
-    threads: 1 # does not use parallelization, but still needs to be submitted
+    container:
+        CFG["container_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["gene_metrics"]
     shell:
@@ -479,7 +519,6 @@ rule _cnvkit_trusted_genes_cna:
         genemetrics_gene = str(rules._cnvkit_genemetrics_gene.output.genemetrics)
     output:
         trusted_genes = CFG["dirs"]["gene_metrics"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/trusted_genes.txt"
-    threads: 1 # does not use parallelization, but still needs to be submitted
     shell:
         op.as_one_line("""
         comm -12 <(tail -n+2 {input.genemetrics_seg} | cut -f1 | sort ) <(tail -n+2 {input.genemetrics_gene} | cut -f1 | sort ) > {output.trusted_genes}
@@ -501,7 +540,8 @@ rule _cnvkit_infer_sex:
         male_ref = CFG["options"]["male_ref"]
     conda:
         CFG["conda_envs"]["cnvkit"]
-    threads: 1 # does not use parallelization, but still needs to be submitted
+    container:
+        CFG["container_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["gene_metrics"]
     shell:
@@ -520,7 +560,10 @@ rule _cnvkit_metrics:
         log = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_metrics.log"
     conda:
         CFG["conda_envs"]["cnvkit"]
-    threads: 1 # does not use parallelization, but still needs to be submitted
+    conda:
+        CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
     resources:
         **CFG["resources"]["gene_metrics"]
     shell:
@@ -540,8 +583,14 @@ rule _cnvkit_cnv2igv:
         cnv2igv_script = CFG["options"]["cnv2igv_script_path"],
         opts = CFG["options"]["preserve"]
     conda:
-        CFG["conda_envs"]["cnv2igv"]
-    threads: 1
+        CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
+    threads:
+        CFG["threads"]["seg"]
+    resources:
+        **CFG["resources"]["seg"]
+    group: "cnvkit_post_process"
     shell:
         op.as_one_line("""
         python {params.cnv2igv_script} --mode cnvkit {params.opts} --sample {wildcards.tumour_id} {input.cns} > {output.seg} 2>> {log.stderr}
@@ -564,12 +613,14 @@ rule _cnvkit_convert_coordinates:
         cnvkit_lifted = CFG["dirs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{capture_space}/{tumour_id}.lifted_{chain}.seg"
     log:
         stderr = CFG["logs"]["convert_coordinates"] + "from--{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.lifted_{chain}.stderr.log"
-    threads: 1
     params:
         liftover_script = CFG["options"]["liftover_script_path"],
         liftover_minmatch = CFG["options"]["liftover_minMatch"]
     conda:
         CFG["conda_envs"]["liftover"]
+    container:
+        CFG["container_envs"]["liftover"]
+    group: "cnvkit_post_process"
     shell:
         op.as_one_line("""
         bash {params.liftover_script}
@@ -612,11 +663,13 @@ rule _cnvkit_fill_segments:
         hg38_filled = temp(CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}.{tool}.hg38.seg")
     log:
         stderr = CFG["logs"]["fill_regions"] + "{seq_type}--projection/{tumour_id}.{tool}_fill_segments.stderr.log"
-    threads: 1
     params:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        CFG["container_envs"]["bedtools"]
+    group: "cnvkit_post_process"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
@@ -649,7 +702,6 @@ rule _cnvkit_normalize_projection:
         projection = CFG["dirs"]["normalize"] + "seg/{seq_type}--projection/{tumour_id}.{tool}.{projection}.seg"
     resources:
         **CFG["resources"]["post_cnvkit"]
-    threads: 1
     run:
         # read the main chromosomes file of the projection
         chromosomes = pd.read_csv(input.chrom_file, sep = "\t", names=["chromosome"], header=None)
