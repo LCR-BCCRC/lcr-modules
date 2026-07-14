@@ -35,7 +35,7 @@ lcr-modules:
             normal_name:
                 R9: "__UPDATE__" # Update this with the prefix for your R9 normal BAM file
                 R10: "__UPDATE__" # Update this with the prefix for your R10 normal BAM file
-            clairs_args: "__UPDATE__" # Update this with the arguments you wish to add for variant calling with ClairS. Example: "--snv_min_af 0.1 --enable_indel_calling --min_coverage 8 -s TUMOR --snv_min_qual 5"
+            clairs_args: "__UPDATE__" # Update this with the arguments you wish to add for variant calling with ClairS.
             filters: # Update if you wish to use different filters
                 tumour_min_depth: 8
                 snv_min_af: 0.10

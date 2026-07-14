@@ -73,7 +73,7 @@ lcr-modules:
                 sample_bai: ""
             scratch_subdirectories: ["clairs"]
             options:
-                clairs_args: "--snv_min_af 0.1 --min_coverage 8 --indel_min_af 0.15" # Change this line if you wish to use other flags for ClairS
+                clairs_args: "" # Change this line if you wish to use other flags for ClairS
                 call_indels: true
                 filters: # Update if you wish to use different filters
                     tumour_min_depth: 8
@@ -102,7 +102,7 @@ lcr-modules:
                 sample_bai: ""
             scratch_subdirectories: ["clairs_to"]
             options:
-                clairs_to_args: "--snv_min_af 0.1 --min_coverage 8 --indel_min_af 0.15" # Change this line if you wish to use other flags for ClairS-TO
+                clairs_to_args: "" # Change this line if you wish to use other flags for ClairS-TO
                 filters: # Update if you wish to use different filters
                     min_depth: 8
                     snv:
@@ -131,7 +131,7 @@ lcr-modules:
             scratch_subdirectories: ["deepsomatic_temp"]
             options:
                 calling_mode: "unmatched" # Available: unmatched, tumour_only
-                deepsomatic_args: "--make_examples_extra_args=vsc_min_count_snps=3,vsc_min_count_indels=6,vsc_min_fraction_snps=0.10,vsc_min_fraction_indels=0.15" # Change this line if you wish to use other internal flags for DeepSomatic
+                deepsomatic_args: "" # Change this line if you wish to use other internal flags for DeepSomatic
                 cleanup_toggle: true
                 filters:
                     min_depth: 8
