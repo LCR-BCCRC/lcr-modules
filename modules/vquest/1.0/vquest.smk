@@ -108,11 +108,24 @@ rule _vquest_filter_long_seqs:
 
 
 # Submits sequences to IMGT V-QUEST and writes the AIRR TSV output.
-# NOTE: This rule requires outbound HTTPS access to www.imgt.org from the
-# executing node. On clusters where compute nodes lack internet access,
-# run with --cluster-config pointing jobs to a login/submit node, or use
-# a workflow proxy. The vquest package batches sequences automatically
-# (50 per request) so arbitrarily large FASTA files are handled correctly.
+#
+# IMPORTANT — network access:
+#   This rule POSTs to https://www.imgt.org from the executing node.
+#   On clusters where compute nodes are firewalled from the internet, run
+#   this rule on a login or submit node, or route traffic through a proxy.
+#
+# IMPORTANT — concurrency limiting (local and cluster):
+#   IMGT V-QUEST is a shared public web service. Submitting many jobs
+#   simultaneously saturates its connection limit and causes errno 111
+#   (Connection refused) failures. Each job declares `vquest: 1` in its
+#   resources block, but Snakemake only enforces a cap when you supply the
+#   total pool size on the command line:
+#
+#       snakemake ... --resources vquest=10
+#
+#   This applies equally to local (`--cores N`) and cluster runs. A value
+#   of 5-10 is recommended; higher values risk triggering IMGT rate limits.
+#   The `vquest` resource has no effect if you omit `--resources vquest=N`.
 rule _vquest_run:
     input:
         fasta  = str(rules._vquest_filter_long_seqs.output.fasta),

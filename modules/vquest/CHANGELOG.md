@@ -5,6 +5,23 @@ All notable changes to the `vquest` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-07-15
+
+This update was authored by Laura Hilton.
+
+- **Per-request HTTP timeout:** `run_vquest.py` now patches `requests.post` with
+  a configurable timeout (default 120 s, set via `options.request_timeout`) before
+  calling the `vquest` library. Previously, a stalled TCP connection to
+  `www.imgt.org` would hang the job indefinitely because the library makes no
+  timeout provision of its own.
+
+- **Concurrency limiting:** Running many `_vquest_run` jobs simultaneously causes
+  IMGT V-QUEST to refuse connections (errno 111) at the TCP level. Each job
+  declares `vquest: 1` in its `resources` block; pass `--resources vquest=N`
+  (recommended N = 5–10) to cap concurrent IMGT connections. This limit is
+  enforced by Snakemake's scheduler and applies equally to local and cluster runs.
+  Without `--resources vquest=N`, the `vquest` resource declaration has no effect.
+
 ## [1.0] - 2026-05-25
 
 This release was authored by Laura Hilton.
