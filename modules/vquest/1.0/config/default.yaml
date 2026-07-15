@@ -84,6 +84,7 @@ lcr-modules:
         resources:
             vquest_run:
                 mem_mb: 500
+                vquest: 1
             annotate_glycosylation:
                 mem_mb: 4000
 
