@@ -11,6 +11,8 @@ import re
 import sys
 import tempfile
 
+import requests as _requests
+
 from vquest.vq import DEFAULTS, layer_configs, vquest
 from vquest.util import VquestError
 
@@ -65,14 +67,28 @@ def _check_html_errors(text):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--fasta",         required=True,  help="input FASTA file")
-    parser.add_argument("--species",       default="human")
-    parser.add_argument("--receptor_type", default="IG",
+    parser.add_argument("--fasta",           required=True,  help="input FASTA file")
+    parser.add_argument("--species",         default="human")
+    parser.add_argument("--receptor_type",   default="IG",
                         help="receptorOrLocusType: IG or TR")
-    parser.add_argument("--molecule_type", default="cDNA",
+    parser.add_argument("--molecule_type",   default="cDNA",
                         help="V-QUEST moleculeType: cDNA (default), gDNA, or Unknown")
-    parser.add_argument("--output",        required=True,  help="output AIRR TSV path")
+    parser.add_argument("--output",          required=True,  help="output AIRR TSV path")
+    parser.add_argument("--request_timeout", type=int, default=120,
+                        help="per-request timeout in seconds for IMGT V-QUEST HTTP calls "
+                             "(default: 120). Prevents hung connections from stalling the job.")
     args = parser.parse_args()
+
+    # Patch requests.post so every call to www.imgt.org has a bounded timeout.
+    # The vquest library calls requests.post with no timeout, which can hang
+    # indefinitely when the IMGT server is unresponsive.
+    _orig_post = _requests.post
+
+    def _post_with_timeout(*pargs, **kwargs):
+        kwargs.setdefault("timeout", args.request_timeout)
+        return _orig_post(*pargs, **kwargs)
+
+    _requests.post = _post_with_timeout
 
     clean_fasta = _sanitize_fasta(args.fasta)
 

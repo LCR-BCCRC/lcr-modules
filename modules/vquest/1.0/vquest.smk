@@ -122,10 +122,11 @@ rule _vquest_run:
         stdout = CFG["logs"]["vquest"] + "{seq_type}/{sample_id}/{chain}/vquest_run.stdout.log",
         stderr = CFG["logs"]["vquest"] + "{seq_type}/{sample_id}/{chain}/vquest_run.stderr.log",
     params:
-        script        = CFG["scripts"]["run_vquest"],
-        species       = CFG["options"]["species"],
-        receptor_type = lambda wildcards: receptor_type_dict[wildcards.chain],
-        molecule_type = CFG["options"]["molecule_type"],
+        script           = CFG["scripts"]["run_vquest"],
+        species          = CFG["options"]["species"],
+        receptor_type    = lambda wildcards: receptor_type_dict[wildcards.chain],
+        molecule_type    = CFG["options"]["molecule_type"],
+        request_timeout  = CFG["options"]["request_timeout"],
     wildcard_constraints:
         chain = "|".join(CHAINS),
     retries:
@@ -148,6 +149,7 @@ rule _vquest_run:
             --species {params.species}
             --receptor_type {params.receptor_type}
             --molecule_type {params.molecule_type}
+            --request_timeout {params.request_timeout}
             --output {output.tsv}
             > {log.stdout} 2> {log.stderr} ;
         fi

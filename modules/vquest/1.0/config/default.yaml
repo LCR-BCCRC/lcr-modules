@@ -49,6 +49,12 @@ lcr-modules:
             # Number of times to retry _vquest_run on failure (e.g. transient IMGT connection errors).
             vquest_retries: 3
 
+            # Per-request timeout in seconds for each HTTPS call to www.imgt.org.
+            # The vquest library batches sequences (50/request), so this is a
+            # per-batch ceiling, not a per-job ceiling. Raise if IMGT is unusually
+            # slow; lower if you want faster failure detection.
+            request_timeout: 120
+
             # Key column in sample_source_tsv used to join V-QUEST annotations.
             # The merge uses sequence_id from the V-QUEST AIRR TSV as the base key;
             # this column names the corresponding key in sample_source_tsv.
