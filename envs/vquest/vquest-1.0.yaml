@@ -8,4 +8,4 @@ dependencies:
     - pyyaml
     - pip
     - pip:
-        - lxml_html_clean
+        - lxml_html_clean==0.4.5
