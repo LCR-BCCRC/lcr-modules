@@ -57,12 +57,12 @@ lcr-modules:
             glycosylation: "docker://quay.io/biocontainers/anarci:2024.05.21--pyhdfd78af_0"
 
         threads:
-            igblastn_run: 4
+            igblastn_run: 2
             annotate_glycosylation: 1
 
         resources:
             igblastn_run:
-                mem_mb: 8000
+                mem_mb: 750
             annotate_glycosylation:
                 mem_mb: 4000
 
