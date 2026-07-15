@@ -53,6 +53,46 @@ assert all(chain in VALID_CHAINS for chain in CHAINS), (
     "Use 'IGKL' for combined kappa/lambda FASTA output from igseqr."
 )
 
+# Enforce a concurrency cap on IMGT connections. Each _vquest_run job declares
+# `vquest: 1`; Snakemake uses the --resources vquest=N pool to limit how many
+# run simultaneously. Without the flag the pool is unlimited, which is just as
+# dangerous as a value that is too high — both cause IMGT to refuse connections
+# (errno 111). Either condition is treated as a fatal error.
+_max_imgt = CFG["options"]["max_imgt_connections"]
+try:
+    _vquest_concurrency = workflow.resource_settings.resources.get("vquest")
+except AttributeError:
+    _vquest_concurrency = None  # older Snakemake — skip the check
+
+if _vquest_concurrency is None:
+    logger.warning(
+        '\x1b[0;31;40m' +
+        "ERROR: vquest module requires --resources vquest=N on the Snakemake "
+        "command line. Without it, _vquest_run jobs run without a concurrency "
+        "limit, causing IMGT to refuse connections (errno 111). "
+        f"Recommended: --resources vquest=10 (hard limit: {_max_imgt})." +
+        '\x1b[0m'
+    )
+    sys.exit(
+        "vquest: --resources vquest=N is required. "
+        f"Recommended: --resources vquest=10 (hard limit: {_max_imgt})."
+    )
+elif _vquest_concurrency > _max_imgt:
+    logger.warning(
+        '\x1b[0;31;40m' +
+        f"ERROR: --resources vquest={_vquest_concurrency} exceeds "
+        f"options.max_imgt_connections ({_max_imgt}). "
+        "Running this many concurrent jobs will trigger IMGT connection refusals "
+        f"(errno 111). Re-run with --resources vquest={_max_imgt} or lower, "
+        "or raise options.max_imgt_connections in your config if you are certain "
+        "a higher value is safe for your network." +
+        '\x1b[0m'
+    )
+    sys.exit(
+        f"vquest: --resources vquest={_vquest_concurrency} exceeds the configured "
+        f"maximum of {_max_imgt}. See the error message above."
+    )
+
 
 # Maps chain wildcard to the IMGT V-QUEST receptorOrLocusType parameter.
 receptor_type_dict = {

@@ -55,6 +55,13 @@ lcr-modules:
             # slow; lower if you want faster failure detection.
             request_timeout: 120
 
+            # Maximum allowed value for --resources vquest=N on the Snakemake
+            # command line. The pipeline refuses to start if the value is missing
+            # or exceeds this limit. Raise only if you are certain your network
+            # can sustain more concurrent IMGT connections without triggering
+            # connection refusals (errno 111).
+            max_imgt_connections: 10
+
             # Key column in sample_source_tsv used to join V-QUEST annotations.
             # The merge uses sequence_id from the V-QUEST AIRR TSV as the base key;
             # this column names the corresponding key in sample_source_tsv.

@@ -20,7 +20,8 @@ This update was authored by Laura Hilton.
   declares `vquest: 1` in its `resources` block; pass `--resources vquest=N`
   (recommended N = 5–10) to cap concurrent IMGT connections. This limit is
   enforced by Snakemake's scheduler and applies equally to local and cluster runs.
-  Without `--resources vquest=N`, the `vquest` resource declaration has no effect.
+  The pipeline now **refuses to start** if `--resources vquest=N` is omitted or
+  if N exceeds `options.max_imgt_connections` (default: 10).
 
 ## [1.0] - 2026-05-25
 
