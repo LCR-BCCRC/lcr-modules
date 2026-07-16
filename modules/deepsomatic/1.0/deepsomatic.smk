@@ -179,7 +179,7 @@ if DEEPSOMATIC_CALLING_MODE == "tumor_only":
 else:
     DEEPSOMATIC_NORMAL_FILTER = (
         f'&& FMT/NDP[0] >= {DEEPSOMATIC_FILTERS["normal_min_depth"]} '
-        f'&& FMT/NAF[0:0] < {DEEPSOMATIC_FILTERS["normal_max_af"]}'
+        f'&& FMT/NAF[0:1] < {DEEPSOMATIC_FILTERS["normal_max_af"]}'
     )
 
 
