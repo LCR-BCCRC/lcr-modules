@@ -7,8 +7,7 @@
 # Original Author:  Anita dos Santos
 # Module Author:    Manuela Cruz
 # Contributors:     Laura Hilton
-# 1.4 (MiXCR 4.x):  adapted from 1.2 for MiXCR 4.x (analyze presets + exportClones,
-#                   JDK17, license activation, native V identity/SHM export).
+# 1.4:              adapted from 1.2 for MiXCR 4.x (analyze presets, JDK17, license, native SHM).
 
 
 ##### SETUP #####
@@ -42,8 +41,7 @@ assert type(CFG["igblastn"])==bool, (
     "True: also runs IgBLAST reannotation (% identity to IMGT) alongside MiXCR's native V identity."
     )
 
-# The IgBLAST bridge reconstructs the V(D)J from region columns, so it needs a
-# full-length analyze preset (contig assembly), not a CDR3-only one.
+# igblastn rebuilds the V(D)J from region columns, so it needs a full-length preset.
 if CFG["igblastn"]:
     for seq_type in set(CFG["samples"]["seq_type"]):
         preset = CFG["options"]["analyze"].get(seq_type, "")
@@ -121,8 +119,8 @@ rule _install_mixcr:
         touch  {output.complete};
         '''
 
-# Run MiXCR 4.x: analyze (preset) -> per-chain + ALL clonotype exports -> text report.
-# The MiLaboratories license is activated per job via MI_LICENSE_FILE.
+# MiXCR 4.x: analyze (preset) -> ALL + per-chain exportClones -> report.
+# License activated per job via MI_LICENSE_FILE.
 rule _mixcr_run:
     input:
         fastq_1 = str(rules._mixcr_input_fastq.output.fastq_1),
@@ -168,8 +166,7 @@ rule _mixcr_run:
 
 if CFG["igblastn"]:
 
-    # Run IgBLAST (optional) to reannotate each clone's V(D)J and append IMGT % identity
-    # columns next to MiXCR's native identity, for a direct comparison of the two callers.
+    # Optional: reannotate each clone with IgBLAST IMGT % identity, next to MiXCR's native identity.
 
     rule _mixcr_to_fasta:
         input:

@@ -23,20 +23,17 @@ lcr-modules:
         ###### "TCR" = ['TRA', 'TRB', 'TRD', 'TRG']
 
         igblastn: False
-        # True also runs IgBLAST reannotation alongside MiXCR 4.x's native V identity,
-        # so both germline-identity/SHM calls land in the same table for comparison.
+        # True also runs IgBLAST reannotation next to MiXCR's native identity (for comparison).
 
         igblast_scripts:
             mixcr2fasta: "{MODSDIR}/src/mixcr_to_fasta.py"
             igblastn2mixcr: "{MODSDIR}/src/igblast_to_mixcr.py"
 
         options:
-            # MiXCR 4.x analyze preset per seq_type. rnaseq-full-length recovers the
-            # full V(D)J via contig assembly (needed for SHM and to feed IgBLAST).
+            # analyze preset per seq_type; full-length recovers the whole V(D)J (SHM + IgBLAST).
             analyze:
                 mrna: "rnaseq-full-length --species hsa"
-            # exportClones field set. nSeq/aaSeq region columns feed the optional IgBLAST
-            # bridge; vIdentityPercents/mutations/isProductive are MiXCR's native SHM readout.
+            # exportClones fields: nSeq/aaSeq regions feed IgBLAST; vIdentity/mutations = native SHM.
             # VALIDATE flag names against `mixcr exportClones --help` of the installed 4.x.
             export_clones: >-
                 -cloneId -cloneCount -cloneFraction
