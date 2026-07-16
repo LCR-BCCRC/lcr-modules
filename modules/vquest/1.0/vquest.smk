@@ -60,9 +60,14 @@ assert all(chain in VALID_CHAINS for chain in CHAINS), (
 # (errno 111). Either condition is treated as a fatal error.
 _max_imgt = CFG["options"]["max_imgt_connections"]
 try:
-    _vquest_concurrency = workflow.resource_settings.resources.get("vquest")
+    # Snakemake 7.x stores --resources values in workflow.global_resources.
+    # Snakemake 8.x moved them to workflow.resource_settings.resources.
+    _vquest_concurrency = (
+        getattr(workflow, "global_resources", None)
+        or getattr(workflow.resource_settings, "resources", {})
+    ).get("vquest")
 except AttributeError:
-    _vquest_concurrency = None  # older Snakemake — skip the check
+    _vquest_concurrency = None  # unrecognised Snakemake version — skip the check
 
 if _vquest_concurrency is None:
     logger.warning(
