@@ -1,0 +1,68 @@
+lcr-modules:
+
+    mixcr:
+
+        dirs:
+            _parent: "__UPDATE__"
+
+        inputs:
+            # Available wildcards: {seq_type} {sample_id}
+            sample_fastq_1: "__UPDATE__"
+            sample_fastq_2: "__UPDATE__"
+            # Directory where MiXCR 4.x is installed (bin/mixcr launcher)
+            mixcr_exec: "__UPDATE__"
+            # MiLaboratories license file (4.x requires one); never committed
+            mixcr_license: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        receptors: "__UPDATE__"
+        ###### Desired IG/TCR chains in list format or keyword:
+        ###### "ALL" = ['IGH', 'IGL', 'IGK', 'TRA', 'TRB', 'TRD', 'TRG']
+        ###### "BCR" = ['IGH', 'IGL', 'IGK']
+        ###### "TCR" = ['TRA', 'TRB', 'TRD', 'TRG']
+
+        igblastn: False
+        # True also runs IgBLAST reannotation alongside MiXCR 4.x's native V identity,
+        # so both germline-identity/SHM calls land in the same table for comparison.
+
+        igblast_scripts:
+            mixcr2fasta: "{MODSDIR}/src/mixcr_to_fasta.py"
+            igblastn2mixcr: "{MODSDIR}/src/igblast_to_mixcr.py"
+
+        options:
+            # MiXCR 4.x analyze preset per seq_type. rnaseq-full-length recovers the
+            # full V(D)J via contig assembly (needed for SHM and to feed IgBLAST).
+            analyze:
+                mrna: "rnaseq-full-length --species hsa"
+            # exportClones field set. nSeq/aaSeq region columns feed the optional IgBLAST
+            # bridge; vIdentityPercents/mutations/isProductive are MiXCR's native SHM readout.
+            # VALIDATE flag names against `mixcr exportClones --help` of the installed 4.x.
+            export_clones: >-
+                -cloneId -cloneCount -cloneFraction
+                -nFeature FR1 -nFeature CDR1 -nFeature FR2 -nFeature CDR2 -nFeature FR3 -nFeature CDR3 -nFeature FR4
+                -aaFeature FR1 -aaFeature CDR1 -aaFeature FR2 -aaFeature CDR2 -aaFeature FR3 -aaFeature CDR3 -aaFeature FR4
+                -vHit -dHit -jHit -vHitsWithScore
+                -vIdentityPercents -nMutations VRegion -aaMutations VRegion -mutationsDetailed VRegion
+                -isProductive
+            igblast_run:
+                run_flags: ""
+                form: "qseq sseq"
+
+        conda_envs:
+            java: "{MODSDIR}/envs/java-jdk-17.yaml"
+            igblast: "{MODSDIR}/envs/igblast.yaml"
+
+        threads:
+            mixcr_run: 4
+
+        resources:
+            mixcr_run:
+                mem_mb: 10000
+                fastq: 1
+
+        pairing_config:
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
