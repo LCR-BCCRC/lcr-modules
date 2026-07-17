@@ -70,8 +70,18 @@ cluster_one_chromosome <- function(maf, pos_col, dist_method, hclust_method,
   for (i in seq_along(h_values)) {
     lab <- tryCatch(cutree(hc, h = h_values[i]), error = function(e) NULL)
     if (is.null(lab)) next
-    if (length(unique(lab)) > 1) {                 # silhouette needs > 1 cluster
-      sil_means[i] <- mean(silhouette(lab, d)[, "sil_width"])
+    # silhouette() needs >1 cluster AND at least one non-singleton cluster --
+    # with every point in its own cluster (common at h_min before any merge
+    # has happened) it returns a bare NA instead of a matrix, and indexing
+    # that with [, "sil_width"] throws "incorrect number of dimensions".
+    if (length(unique(lab)) > 1 && length(unique(lab)) < length(lab)) {
+      # Belt-and-suspenders: the condition above rules out the two known
+      # degenerate cases, but wrap anyway so any other silhouette() edge
+      # case can't abort the job either (matches the cutree() tryCatch above).
+      sil_means[i] <- tryCatch(
+        mean(silhouette(lab, d)[, "sil_width"]),
+        error = function(e) NA_real_
+      )
     }
   }
 
