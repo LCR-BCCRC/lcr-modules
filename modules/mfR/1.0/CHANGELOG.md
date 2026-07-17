@@ -24,9 +24,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Removed `options.maf_sample_column` (was used to filter the master MAF by
   `Tumor_Sample_Barcode`; no longer needed since sample selection is now by file path, not by
   filtering a column inside a shared file).
-- Split the module's single conda env / container image into two: `r_foci` (clustering) and
-  `python_tabix` (extraction; Python + htslib only, no pandas). Correspondingly, the lcr-scripts
-  side now builds two images (`mfr_r`, `mfr_tabix`) instead of one `mutation_foci` image.
+- Single combined conda env / container image (`mfr`: R clustering deps + Python + htslib) used
+  by both the extraction and clustering rules — nothing requires them to run in separate
+  environments, so one image keeps the module and its lcr-scripts container simpler than
+  maintaining two.
 
 ### Added
 

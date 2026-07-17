@@ -62,20 +62,18 @@ lcr-modules:
             h_max: 100
 
         conda_envs:
-            r_foci:       "{MODSDIR}/envs/r-foci.yaml"
-            python_tabix: "{MODSDIR}/envs/python-tabix.yaml"
+            mfr: "{MODSDIR}/envs/mfr.yaml"
 
-        # Container images, mirroring conda_envs (PR #375 convention). Used in
+        # Container image, mirroring conda_envs (PR #375 convention). Used in
         # --use-apptainer mode; op.setup_module resolves local .sif paths and
         # leaves URIs / null unchanged.
         #
-        # Built from the Dockerfiles at mfR/1.0/*.Dockerfile in lcr-scripts;
-        # on merge to master the build-containers workflow publishes the images
-        # below. Until those images exist, set these to null and the rules run
-        # on the host PATH in container mode.
+        # Built from the Dockerfile at mfr/1.0/Dockerfile in lcr-scripts; on merge
+        # to master the build-containers workflow publishes the image below. Until
+        # that image exists, set this to null and the rules run on the host PATH
+        # in container mode.
         container_envs:
-            r_foci:       "docker://ghcr.io/lcr-bccrc/lcr-scripts/mfr_r:1.0"
-            python_tabix: "docker://ghcr.io/lcr-bccrc/lcr-scripts/mfr_tabix:1.0"
+            mfr: "docker://ghcr.io/lcr-bccrc/lcr-scripts/mfr:1.0"
 
         threads:
             extract_chrom: 1

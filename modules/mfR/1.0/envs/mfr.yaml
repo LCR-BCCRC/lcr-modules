@@ -1,7 +1,12 @@
-name: python-tabix
+name: mfr
 channels:
   - conda-forge
   - bioconda
 dependencies:
+  - r-base>=4.1
+  - r-readr
+  - r-dplyr
+  - r-cluster
+  - r-ggplot2
   - python>=3.9
   - htslib   # provides tabix, used by src/python/extract_chrom_maf.py

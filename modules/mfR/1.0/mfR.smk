@@ -177,7 +177,9 @@ rule _mfR_extract_chrom:
     log:
         CFG["logs"]["extract"] + "{sample_set}/{chrom}.extract.log"
     conda:
-        CFG["conda_envs"]["python_tabix"]
+        CFG["conda_envs"]["mfr"]
+    container:
+        CFG["container_envs"]["mfr"]
     threads:
         CFG["threads"]["extract_chrom"]
     resources:
@@ -201,7 +203,9 @@ rule _mfR_cluster:
     log:
         log = CFG["logs"]["foci"] + "{sample_set}/{chrom}.cluster.log"
     conda:
-        CFG["conda_envs"]["r_foci"]
+        CFG["conda_envs"]["mfr"]
+    container:
+        CFG["container_envs"]["mfr"]
     threads:
         CFG["threads"]["cluster"]
     resources:
