@@ -84,7 +84,5 @@ lcr-modules:
         resources:
             extract_chrom:
                 mem_mb: 2000
-                runtime: 30
             cluster:
-                mem_mb: 8000
-                runtime: 60
+                mem_mb: 24000
