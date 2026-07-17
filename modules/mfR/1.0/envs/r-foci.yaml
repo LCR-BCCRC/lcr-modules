@@ -1,0 +1,10 @@
+name: r-foci
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - r-base>=4.1
+  - r-readr
+  - r-dplyr
+  - r-cluster
+  - r-ggplot2

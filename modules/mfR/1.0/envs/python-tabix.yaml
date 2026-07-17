@@ -1,0 +1,7 @@
+name: python-tabix
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python>=3.9
+  - htslib   # provides tabix, used by src/python/extract_chrom_maf.py

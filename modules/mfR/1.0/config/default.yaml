@@ -1,0 +1,90 @@
+lcr-modules:
+
+    mfR:
+
+        # ------------------------------------------------------------------ #
+        # Inputs. Replace every "__UPDATE__" in your project config.          #
+        # ------------------------------------------------------------------ #
+        inputs:
+            # Per-sample genome MAF, already bgzipped + tabix-indexed (a
+            # companion .tbi must exist alongside each file, e.g. produced by
+            # `bgzip` + `tabix -s <chrom_col> -b <pos_col> -e <pos_col>`
+            # upstream of this module).
+            # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
+            sample_maf: "__UPDATE__"
+            # TSV mapping samples to sample sets. Must contain the columns named
+            # by options.sample_id_column and options.sample_set_column, e.g.:
+            #   sample_id        sample_set
+            #   01-12345T        EZB--train
+            #   01-23456T        ST2--train
+            sample_sets: "__UPDATE__"
+
+        # The sample_set values to run. Must match the sample_set column values.
+        sample_set:
+            - "__UPDATE__"          # e.g. EZB--train, ST2--train, BN2--train, ...
+
+        # Chromosome tokens to scatter clustering over. These MUST match the
+        # values in the MAF's Chromosome column:
+        #   grch37 -> "1".."22","X","Y"   |   hg38 -> "chr1".."chr22","chrX","chrY"
+        # A sample_set's samples are assumed to share one genome_build/naming
+        # convention; this list is not per-genome_build.
+        chromosomes: ["1","2","3","4","5","6","7","8","9","10","11","12",
+                      "13","14","15","16","17","18","19","20","21","22","X","Y"]
+
+        scratch_subdirectories: []
+
+        options:
+            sample_id_column:  "sample_id"
+            sample_set_column: "sample_set"
+            pos_column:        "Start_Position"
+
+            # Variant_Classification values treated as CODING and removed, so the
+            # remainder is the non-coding set (mirrors anti_join(all, coding_ssm)).
+            # Set to [] if the per-sample MAFs are already non-coding.
+            coding_variant_classifications:
+                - "Missense_Mutation"
+                - "Nonsense_Mutation"
+                - "Nonstop_Mutation"
+                - "Splice_Site"
+                - "Splice_Region"
+                - "Translation_Start_Site"
+                - "Frame_Shift_Del"
+                - "Frame_Shift_Ins"
+                - "In_Frame_Del"
+                - "In_Frame_Ins"
+                - "Silent"
+
+            # Clustering parameters (defaults reproduce the notebook).
+            dist_method:   "euclidean"
+            hclust_method: "centroid"   # centroid can be non-monotonic; "average"
+                                        # or "ward.D2" give cleaner height cuts.
+            h_min: 1
+            h_max: 100
+
+        conda_envs:
+            r_foci:       "{MODSDIR}/envs/r-foci.yaml"
+            python_tabix: "{MODSDIR}/envs/python-tabix.yaml"
+
+        # Container images, mirroring conda_envs (PR #375 convention). Used in
+        # --use-apptainer mode; op.setup_module resolves local .sif paths and
+        # leaves URIs / null unchanged.
+        #
+        # Built from the Dockerfiles at mfR/1.0/*.Dockerfile in lcr-scripts;
+        # on merge to master the build-containers workflow publishes the images
+        # below. Until those images exist, set these to null and the rules run
+        # on the host PATH in container mode.
+        container_envs:
+            r_foci:       "docker://ghcr.io/lcr-bccrc/lcr-scripts/mfr_r:1.0"
+            python_tabix: "docker://ghcr.io/lcr-bccrc/lcr-scripts/mfr_tabix:1.0"
+
+        threads:
+            extract_chrom: 1
+            cluster: 1
+
+        resources:
+            extract_chrom:
+                mem_mb: 2000
+                runtime: 30
+            cluster:
+                mem_mb: 8000
+                runtime: 60
