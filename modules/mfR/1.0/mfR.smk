@@ -63,6 +63,12 @@ from collections import defaultdict
 _sid_col = CFG["options"]["sample_id_column"]
 _ss_col  = CFG["options"]["sample_set_column"]
 
+# Pre-captured for the same reason as the others in this section: CFG is
+# deleted by op.cleanup_module before Snakemake lazily calls
+# _mfR_gather_chroms as an input function, so it can't reference CFG directly.
+_foci_dir = CFG["dirs"]["foci"]
+_chromosomes = CFG["chromosomes"]
+
 _sample_sets_df = pd.read_csv(CFG["inputs"]["sample_sets"], sep = "\t")
 if not {_sid_col, _ss_col}.issubset(_sample_sets_df.columns):
     raise ValueError(
@@ -102,9 +108,9 @@ for _t, _n, _s, _g, _p in zip(
 def _mfR_gather_chroms(wildcards):
     """Gather the per-chromosome foci tables for one sample_set."""
     return expand(
-        CFG["dirs"]["foci"] + "{sample_set}/chromosomes/{chrom}.foci.tsv",
+        _foci_dir + "{sample_set}/chromosomes/{chrom}.foci.tsv",
         sample_set = wildcards.sample_set,
-        chrom = CFG["chromosomes"]
+        chrom = _chromosomes
     )
 
 
