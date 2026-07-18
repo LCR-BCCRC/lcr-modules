@@ -1,7 +1,7 @@
 """
 Extract one chromosome's rows from one sample_set's per-sample MAFs.
 
-Run under Snakemake's `script:` directive for the `_mfR_extract_chrom` rule.
+Run under Snakemake's `script:` directive for the `_mfr_extract_chrom` rule.
 
 For each sample belonging to this sample_set, shells out to `tabix` and
 streams its stdout one line at a time -- so a job never reads another

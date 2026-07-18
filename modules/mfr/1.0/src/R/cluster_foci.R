@@ -6,7 +6,7 @@
 # `hierachical_grouping_silhouette()`.
 #
 # The input MAF is already scoped to this sample_set x chromosome by the
-# upstream _mfR_extract_chrom rule (tabix-based extraction), so unlike the
+# upstream _mfr_extract_chrom rule (tabix-based extraction), so unlike the
 # old mutation_foci module this script no longer reads a genome-wide or
 # whole-sample_set file and filters it down -- it just reads the (small)
 # already-scoped file directly.

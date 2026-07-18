@@ -31,20 +31,20 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # End of dependency checking section
 
 # Setup module and store module-specific configuration in `CFG`
-# `CFG` is a shortcut to `config["lcr-modules"]["mfR"]`
+# `CFG` is a shortcut to `config["lcr-modules"]["mfr"]`
 CFG = op.setup_module(
-    name = "mfR",
+    name = "mfr",
     version = "1.0",
     subdirectories = ["inputs", "extract", "foci", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
 localrules:
-    _mfR_input_maf,
-    _mfR_input_subsets,
-    _mfR_aggregate,
-    _mfR_output_tsv,
-    _mfR_all,
+    _mfr_input_maf,
+    _mfr_input_subsets,
+    _mfr_aggregate,
+    _mfr_output_tsv,
+    _mfr_all,
 
 
 ##### SAMPLE_SET -> SAMPLES MAPPING #####
@@ -65,7 +65,7 @@ _ss_col  = CFG["options"]["sample_set_column"]
 
 # Pre-captured for the same reason as the others in this section: CFG is
 # deleted by op.cleanup_module before Snakemake lazily calls
-# _mfR_gather_chroms as an input function, so it can't reference CFG directly.
+# _mfr_gather_chroms as an input function, so it can't reference CFG directly.
 _foci_dir = CFG["dirs"]["foci"]
 _chromosomes = CFG["chromosomes"]
 
@@ -83,7 +83,7 @@ _sample_to_set = dict(zip(_sample_sets_df[_sid_col], _sample_sets_df[_ss_col]))
 # for every sample in CFG["runs"] that belongs to that sample_set. Assumes sample
 # ids in the sample_sets TSV match CFG["runs"]["tumour_sample_id"] (i.e. the
 # project's main sample table uses the same sample id convention).
-_mfR_sampleset_runs = defaultdict(list)
+_mfr_sampleset_runs = defaultdict(list)
 for _t, _n, _s, _g, _p in zip(
     CFG["runs"]["tumour_sample_id"],
     CFG["runs"]["normal_sample_id"],
@@ -93,19 +93,19 @@ for _t, _n, _s, _g, _p in zip(
 ):
     _sample_set = _sample_to_set.get(_t)
     if _sample_set is not None:
-        _mfR_sampleset_runs[_sample_set].append(
+        _mfr_sampleset_runs[_sample_set].append(
             {"tumour_id": _t, "normal_id": _n, "seq_type": _s, "genome_build": _g, "pair_status": _p}
         )
 # (not deleting the loop variables here: CFG["runs"] can legitimately be empty
 # for some project configs, which would leave them unassigned and make a
 # `del` raise NameError instead of the clearer "No samples found for
-# sample_set" error raised later in _mfR_runs_for_sampleset)
+# sample_set" error raised later in _mfr_runs_for_sampleset)
 
 
 ##### FUNCTIONS #####
 
 
-def _mfR_gather_chroms(wildcards):
+def _mfr_gather_chroms(wildcards):
     """Gather the per-chromosome foci tables for one sample_set."""
     return expand(
         _foci_dir + "{sample_set}/chromosomes/{chrom}.foci.tsv",
@@ -114,8 +114,8 @@ def _mfR_gather_chroms(wildcards):
     )
 
 
-def _mfR_runs_for_sampleset(wildcards):
-    runs = _mfR_sampleset_runs.get(wildcards.sample_set, [])
+def _mfr_runs_for_sampleset(wildcards):
+    runs = _mfr_sampleset_runs.get(wildcards.sample_set, [])
     if not runs:
         raise ValueError(
             f"No samples found for sample_set '{wildcards.sample_set}' in "
@@ -125,10 +125,10 @@ def _mfR_runs_for_sampleset(wildcards):
     return runs
 
 
-def _mfR_input_mafs_for_sampleset(wildcards):
-    runs = _mfR_runs_for_sampleset(wildcards)
+def _mfr_input_mafs_for_sampleset(wildcards):
+    runs = _mfr_runs_for_sampleset(wildcards)
     return expand(
-        str(rules._mfR_input_maf.output.maf_gz),
+        str(rules._mfr_input_maf.output.maf_gz),
         zip,
         seq_type     = [r["seq_type"] for r in runs],
         genome_build = [r["genome_build"] for r in runs],
@@ -138,8 +138,8 @@ def _mfR_input_mafs_for_sampleset(wildcards):
     )
 
 
-def _mfR_input_tbis_for_sampleset(wildcards):
-    return [m + ".tbi" for m in _mfR_input_mafs_for_sampleset(wildcards)]
+def _mfr_input_tbis_for_sampleset(wildcards):
+    return [m + ".tbi" for m in _mfr_input_mafs_for_sampleset(wildcards)]
 
 
 ##### RULES #####
@@ -148,7 +148,7 @@ def _mfR_input_tbis_for_sampleset(wildcards):
 # Symlinks each sample's bgzipped + tabix-indexed genome MAF (and its .tbi)
 # into the module results directory (under '00-inputs/'). Symlinked once per
 # unique sample regardless of how many sample_sets it belongs to.
-rule _mfR_input_maf:
+rule _mfr_input_maf:
     input:
         maf_gz = CFG["inputs"]["sample_maf"]
     output:
@@ -160,7 +160,7 @@ rule _mfR_input_maf:
 
 
 # Symlinks the sample-set membership table into the module results directory
-rule _mfR_input_subsets:
+rule _mfr_input_subsets:
     input:
         sample_sets = CFG["inputs"]["sample_sets"]
     output:
@@ -174,10 +174,10 @@ rule _mfR_input_subsets:
 # other chromosomes), and drop coding Variant_Classification rows. Replaces
 # the old prepare_maf.R (whole-master-MAF read) entirely, and replaces the
 # whole-per-sample_set-MAF read that used to happen once per chromosome.
-rule _mfR_extract_chrom:
+rule _mfr_extract_chrom:
     input:
-        mafs = _mfR_input_mafs_for_sampleset,
-        tbis = _mfR_input_tbis_for_sampleset
+        mafs = _mfr_input_mafs_for_sampleset,
+        tbis = _mfr_input_tbis_for_sampleset
     output:
         maf = temp(CFG["dirs"]["extract"] + "{sample_set}/chromosomes/{chrom}.noncoding.maf")
     log:
@@ -200,9 +200,9 @@ rule _mfR_extract_chrom:
 # This is the heavy step (one job per sample_set x chromosome). The input is
 # already scoped to this sample_set x chromosome, so no further filtering of
 # samples or chromosomes happens here — just the clustering math.
-rule _mfR_cluster:
+rule _mfr_cluster:
     input:
-        maf = str(rules._mfR_extract_chrom.output.maf)
+        maf = str(rules._mfr_extract_chrom.output.maf)
     output:
         tsv  = CFG["dirs"]["foci"] + "{sample_set}/chromosomes/{chrom}.foci.tsv",
         plot = CFG["dirs"]["foci"] + "{sample_set}/chromosomes/{chrom}.silhouette.pdf"
@@ -228,9 +228,9 @@ rule _mfR_cluster:
 
 
 # Gather per-chromosome foci into a single table per sample_set.
-rule _mfR_aggregate:
+rule _mfr_aggregate:
     input:
-        tsv = _mfR_gather_chroms
+        tsv = _mfr_gather_chroms
     output:
         tsv = CFG["dirs"]["foci"] + "{sample_set}/{sample_set}.foci.tsv"
     run:
@@ -250,9 +250,9 @@ rule _mfR_aggregate:
 
 
 # Symlinks the final output table into the module results directory (under '99-outputs/')
-rule _mfR_output_tsv:
+rule _mfr_output_tsv:
     input:
-        tsv = str(rules._mfR_aggregate.output.tsv)
+        tsv = str(rules._mfr_aggregate.output.tsv)
     output:
         tsv = CFG["dirs"]["outputs"] + "tsv/{sample_set}.foci.tsv"
     run:
@@ -260,10 +260,10 @@ rule _mfR_output_tsv:
 
 
 # Generates the target sentinels for each run, which generate the symlinks
-rule _mfR_all:
+rule _mfr_all:
     input:
         expand(
-            str(rules._mfR_output_tsv.output.tsv),
+            str(rules._mfr_output_tsv.output.tsv),
             sample_set = CFG["sample_set"]
         )
 

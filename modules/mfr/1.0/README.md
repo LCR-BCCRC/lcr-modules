@@ -20,7 +20,7 @@ down to one chromosome (once per chromosome, per sample_set) — for a genome-wi
 many samples this reads far more data into memory than any single job needs, and does so
 redundantly.
 
-mfR instead takes each sample's MAF individually. For a given sample_set × chromosome job, only
+mfr instead takes each sample's MAF individually. For a given sample_set × chromosome job, only
 that sample_set's own samples' MAFs are ever opened, and `tabix` is used to pull only that
 chromosome's rows directly out of each — no sample outside the set and no chromosome outside the
 one being processed is ever read. See `src/python/extract_chrom_maf.py`.
