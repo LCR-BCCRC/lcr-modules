@@ -65,9 +65,11 @@ _ss_col  = CFG["options"]["sample_set_column"]
 
 # Pre-captured for the same reason as the others in this section: CFG is
 # deleted by op.cleanup_module before Snakemake lazily calls
-# _mfr_gather_chroms as an input function, so it can't reference CFG directly.
+# _mfr_gather_chroms / _mfr_runs_for_sampleset as input functions, so they
+# can't reference CFG directly.
 _foci_dir = CFG["dirs"]["foci"]
 _chromosomes = CFG["chromosomes"]
+_sample_sets_path = CFG["inputs"]["sample_sets"]
 
 _sample_sets_df = pd.read_csv(CFG["inputs"]["sample_sets"], sep = "\t")
 if not {_sid_col, _ss_col}.issubset(_sample_sets_df.columns):
@@ -119,7 +121,7 @@ def _mfr_runs_for_sampleset(wildcards):
     if not runs:
         raise ValueError(
             f"No samples found for sample_set '{wildcards.sample_set}' in "
-            f"{CFG['inputs']['sample_sets']}. Check that sample_set values in the "
+            f"{_sample_sets_path}. Check that sample_set values in the "
             f"config match values in the sample_set column of that TSV."
         )
     return runs
