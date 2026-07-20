@@ -41,7 +41,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["purecn"]`
 CFG = op.setup_module(
     name = "purecn",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "mutect2", "coverage", "pureCN_cnvkit", "pureCN_denovo", "pureCN_final_result", "cnv2igv", "convert_coordinates", "fill_regions", "normalize", "outputs"]
 )
 
