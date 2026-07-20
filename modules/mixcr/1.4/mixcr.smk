@@ -14,6 +14,7 @@
 
 
 import oncopipe as op
+import os
 
 min_oncopipe_version="1.0.11"
 from importlib.metadata import version as pkg_version
@@ -36,18 +37,37 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "mixcr", "outputs"],
 )
 
+# MiXCR 4.x requires a MiLaboratories license (activated per job via MI_LICENSE_FILE). Require the
+# path up front so a missing license fails here with a clear message, not deep inside a job.
+_license = CFG["inputs"].get("mixcr_license", "")
+assert _license and _license != "__UPDATE__", (
+    "MiXCR 4.x needs a license: set inputs.mixcr_license to the path of your MiLaboratories "
+    "license file in the project config (gitignored / never committed). "
+    "Obtain one at https://licensing.milaboratories.com/."
+)
+assert os.path.exists(_license), (
+    f"inputs.mixcr_license = '{_license}' but that file does not exist; place your MiLaboratories "
+    "license there before running."
+)
+
 assert type(CFG["igblastn"])==bool, (
     "Ensure 'igblastn' is set to either True or False in config. "
     "True: also runs IgBLAST reannotation (% identity to IMGT) alongside MiXCR's native V identity."
     )
 
-# igblastn rebuilds the V(D)J from region columns, so it needs a full-length preset.
+# igblastn rebuilds the V(D)J from region columns (FR1..FR4), so the analyze must recover the
+# whole V(D)J: either a "full-length" preset (<=4.6 rnaseq-full-length) or a 4.7+ preset that
+# assembles VDJRegion/FullLength contigs (--assemble-contigs-by VDJRegion).
 if CFG["igblastn"]:
     for seq_type in set(CFG["samples"]["seq_type"]):
         preset = CFG["options"]["analyze"].get(seq_type, "")
-        assert "full-length" in preset, (
-            f"igblastn=True needs a full-length analyze preset for seq_type '{seq_type}' "
-            f"to reconstruct the V(D)J; got: '{preset}'."
+        p = preset.lower()
+        is_full_length = ("full-length" in p) or (
+            "assemble-contigs-by" in p and ("vdjregion" in p or "fulllength" in p))
+        assert is_full_length, (
+            f"igblastn=True needs a full-length analyze preset for seq_type '{seq_type}' to "
+            f"reconstruct the V(D)J (region columns FR1..FR4); got: '{preset}'. Use a full-length "
+            f"preset (e.g. 'rnaseq-full-length') or add '--assemble-contigs-by VDJRegion'."
         )
 
 RECEPTORS = CFG["receptors"]
