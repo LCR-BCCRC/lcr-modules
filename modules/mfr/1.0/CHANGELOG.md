@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [1.0] - 2026-07-11
 
+### Fixed
+
+- `envs/mfr.yaml` pinned `python=3.9`, which under `--use-conda` caused `_mfr_extract_chrom` jobs to
+  fail with `ImportError: Unable to import required dependencies: numpy` before
+  `extract_chrom_maf.py` (which never imports pandas/numpy itself) reached its own first line --
+  visible as an empty `.extract.log` and a traceback pointing into the *driver* env's
+  (e.g. GAMBL's `gambl-opv12`) site-packages. Snakemake's `script:` execution makes its own
+  `snakemake` package importable inside an isolated conda env by grafting the driver env's
+  site-packages onto that env's `sys.path` for the auto-generated preamble that runs before the
+  user script; `gambl-opv12` is Python 3.8, so a Python 3.9 interpreter loading 3.8-compiled numpy
+  C extensions via that graft failed on the ABI mismatch. Pinned to `python=3.8` to match.
+
 ### Changed
 
 - `cluster_foci.R` now splits each chromosome's unique positions into gap-delimited chunks

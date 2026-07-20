@@ -8,5 +8,15 @@ dependencies:
   - r-dplyr
   - r-cluster
   - r-ggplot2
-  - python=3.9
+  # Pinned to match the Python minor version of the Snakemake driver env
+  # (e.g. GAMBL's gambl-opv12, currently 3.8.10). Under --use-conda, Snakemake
+  # makes its own `snakemake` package importable inside this isolated env by
+  # inserting the driver env's site-packages onto sys.path for the `script:`
+  # preamble -- a python3.9 interpreter loading python3.8-compiled C
+  # extensions from that path (e.g. numpy, pulled in transitively via
+  # `import snakemake`) fails with "Importing the numpy C-extensions failed",
+  # before extract_chrom_maf.py's own code (or its log file) ever runs.
+  # Matching minor versions keeps whatever gets grafted onto sys.path ABI
+  # compatible. If the driver env's Python version changes, update this too.
+  - python=3.8
   - htslib   # provides tabix, used by src/python/extract_chrom_maf.py
