@@ -8,5 +8,9 @@ dependencies:
   - r-dplyr
   - r-cluster
   - r-ggplot2
-  - python>=3.9
+  - python=3.9   # pinned, not >=: an unbounded floor let conda solve to a
+                 # Python new enough (3.12+) that `distutils` -- still
+                 # imported by older snakemake versions' script-execution
+                 # wrapper -- no longer exists, crashing script rules before
+                 # they run at all
   - htslib   # provides tabix, used by src/python/extract_chrom_maf.py
