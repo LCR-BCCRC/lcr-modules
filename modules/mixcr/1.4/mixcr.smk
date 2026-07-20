@@ -55,21 +55,6 @@ assert type(CFG["igblastn"])==bool, (
     "True: also runs IgBLAST reannotation (% identity to IMGT) alongside MiXCR's native V identity."
     )
 
-# igblastn rebuilds the V(D)J from region columns (FR1..FR4), so the analyze must recover the
-# whole V(D)J: either a "full-length" preset (<=4.6 rnaseq-full-length) or a 4.7+ preset that
-# assembles VDJRegion/FullLength contigs (--assemble-contigs-by VDJRegion).
-if CFG["igblastn"]:
-    for seq_type in set(CFG["samples"]["seq_type"]):
-        preset = CFG["options"]["analyze"].get(seq_type, "")
-        p = preset.lower()
-        is_full_length = ("full-length" in p) or (
-            "assemble-contigs-by" in p and ("vdjregion" in p or "fulllength" in p))
-        assert is_full_length, (
-            f"igblastn=True needs a full-length analyze preset for seq_type '{seq_type}' to "
-            f"reconstruct the V(D)J (region columns FR1..FR4); got: '{preset}'. Use a full-length "
-            f"preset (e.g. 'rnaseq-full-length') or add '--assemble-contigs-by VDJRegion'."
-        )
-
 RECEPTORS = CFG["receptors"]
 
 ig_type = ["IGH","IGK","IGL"]

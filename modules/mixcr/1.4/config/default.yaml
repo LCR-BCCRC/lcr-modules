@@ -30,11 +30,10 @@ lcr-modules:
             igblastn2mixcr: "{MODSDIR}/src/igblast_to_mixcr.py"
 
         options:
-            # analyze preset per seq_type; full-length recovers the whole V(D)J (SHM + IgBLAST).
-            # MiXCR 4.7 renamed the bulk RNA-seq preset to "rna-seq"; full-length V(D)J comes from
-            # assembleContigs (--assemble-contigs-by VDJRegion). (<=4.6: "rnaseq-full-length".)
+            # analyze preset per seq_type. MiXCR 4.7 bulk RNA-seq preset = "rna-seq"
+            # (<=4.6 was "rnaseq-full-length").
             analyze:
-                mrna: "rna-seq --species hsa --assemble-contigs-by VDJRegion"
+                mrna: "rna-seq --species hsa"
             # exportClones fields: nSeq/aaSeq regions feed IgBLAST; vIdentity/mutations = native SHM.
             # VALIDATE flag names against `mixcr exportClones --help` of the installed 4.x.
             export_clones: >-
