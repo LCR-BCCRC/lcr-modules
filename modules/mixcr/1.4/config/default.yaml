@@ -51,6 +51,12 @@ lcr-modules:
             java: "{MODSDIR}/envs/java-jdk-17.yaml"
             igblast: "{MODSDIR}/envs/igblast.yaml"
 
+        # For --use-singularity. MiXCR 4.7 needs Java 17 (the downloaded binary runs
+        # inside this JRE); mixcr/1.2's java-jdk:8 biocontainer is too old for 4.x.
+        container_envs:
+            java: "docker://eclipse-temurin:17-jre"
+            igblast: "docker://quay.io/biocontainers/igblast:1.17.1--pl5321h3928612_1"
+
         threads:
             mixcr_run: 4
 

@@ -152,6 +152,7 @@ rule _mixcr_run:
         chains = " ".join(RECEPTORS),
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda: CFG["conda_envs"]["java"]
+    container: CFG["container_envs"]["java"]
     threads:
         CFG["threads"]["mixcr_run"]
     shell:
@@ -205,7 +206,7 @@ if CFG["igblastn"]:
         conda:
             CFG["conda_envs"]["igblast"]
         container:
-            "docker://quay.io/biocontainers/igblast:1.17.1--pl5321h3928612_1"
+            CFG["container_envs"]["igblast"]
         shell:
             op.as_one_line("""
             igblastn -query {input.fasta} -out {output.db}
