@@ -31,18 +31,6 @@ lcr-modules:
         chromosomes: ["1","2","3","4","5","6","7","8","9","10","11","12",
                       "13","14","15","16","17","18","19","20","21","22","X","Y"]
 
-        # Tumour-only: mfr clusters mutation positions from single-sample MAFs
-        # and has no use for a matched/unmatched normal. Without this,
-        # op.setup_module falls back to oncopipe.DEFAULT_PAIRING_CONFIG, which
-        # sets run_unpaired_tumours_with: "unmatched_normal" for genome and
-        # requires an unmatched_normal_id/ids to resolve against -- this module
-        # only ever processes genome seq_type, so only that key is needed.
-        pairing_config:
-            genome:
-                run_paired_tumours: False
-                run_unpaired_tumours_with: "no_normal"
-                run_paired_tumours_as_unpaired: True
-
         scratch_subdirectories: []
 
         options:
@@ -88,11 +76,26 @@ lcr-modules:
             mfr: "docker://ghcr.io/lcr-bccrc/lcr-scripts/mfr:1.0"
 
         threads:
-            extract_chrom: 1
+            extract_chrom: 2
             cluster: 1
+            bgzip_maf: 4
 
         resources:
             extract_chrom:
                 mem_mb: 2000
             cluster:
-                mem_mb: 24000
+                mem_mb: 50000
+            bgzip_maf:
+                mem_mb: 8000
+
+        # Tumour-only: mfr clusters mutation positions from single-sample MAFs
+        # and has no use for a matched/unmatched normal. Without this,
+        # op.setup_module falls back to oncopipe.DEFAULT_PAIRING_CONFIG, which
+        # sets run_unpaired_tumours_with: "unmatched_normal" for genome and
+        # requires an unmatched_normal_id/ids to resolve against -- this module
+        # only ever processes genome seq_type, so only that key is needed.
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

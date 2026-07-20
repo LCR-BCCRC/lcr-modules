@@ -4,8 +4,8 @@
 ##### ATTRIBUTION #####
 
 
-# Original Author:  <your name>
-# Module Author:    <your name>
+# Original Author:  Giuliano Banco
+# Module Author:    Giuiano Banco
 # Contributors:     N/A
 
 
@@ -14,6 +14,8 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+import pandas as pd
+from collections import defaultdict
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
@@ -57,8 +59,6 @@ localrules:
 #
 # Pre-capture these — CFG is deleted by op.cleanup_module and would be out of
 # scope when Snakemake evaluates lambdas at DAG build time.
-import pandas as pd
-from collections import defaultdict
 
 _sid_col = CFG["options"]["sample_id_column"]
 _ss_col  = CFG["options"]["sample_set_column"]
@@ -130,7 +130,7 @@ def _mfr_runs_for_sampleset(wildcards):
 def _mfr_input_mafs_for_sampleset(wildcards):
     runs = _mfr_runs_for_sampleset(wildcards)
     return expand(
-        str(rules._mfr_input_maf.output.maf_gz),
+        str(rules._mfr_bgzip_maf.output.maf_gz),
         zip,
         seq_type     = [r["seq_type"] for r in runs],
         genome_build = [r["genome_build"] for r in runs],
@@ -152,13 +152,59 @@ def _mfr_input_tbis_for_sampleset(wildcards):
 # unique sample regardless of how many sample_sets it belongs to.
 rule _mfr_input_maf:
     input:
-        maf_gz = CFG["inputs"]["sample_maf"]
+        maf = CFG["inputs"]["sample_maf"]
     output:
-        maf_gz = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf.gz",
-        tbi    = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf.gz.tbi"
+        maf = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf"
     run:
-        op.absolute_symlink(input.maf_gz, output.maf_gz)
-        op.absolute_symlink(input.maf_gz + ".tbi", output.tbi)
+        op.absolute_symlink(input.maf, output.maf)
+
+
+# Coordinate-sort, bgzip and tabix-index each per-sample MAF so that
+# _mfr_extract_chrom can pull single chromosomes without reading the whole
+# file. These are intermediates: temp() so they're removed once every
+# sample_set x chromosome extraction that needs them has completed.
+rule _mfr_bgzip_maf:
+    input:
+        maf = str(rules._mfr_input_maf.output.maf)
+    output:
+        maf_gz = temp(CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf.gz"),
+        tbi    = temp(CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.maf.gz.tbi")
+    log:
+        stderr = CFG["logs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.stderr.log",
+        stdout = CFG["logs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.stdout.log"
+    conda:
+        CFG["conda_envs"]["mfr"]
+    container:
+        CFG["container_envs"]["mfr"]
+    threads:
+        CFG["threads"]["bgzip_maf"]
+    resources:
+        **CFG["resources"]["bgzip_maf"]
+    shell:
+        op.as_one_line("""
+        set -euo pipefail;
+        exec 2>> {log.stderr};
+        NCOMMENT=$(grep -c '^#' {input.maf} || true);
+        HEADER=$(grep -v '^#' {input.maf} | head -n 1 || true);
+        CHROM_COL=$(echo "$HEADER" | tr '\\t' '\\n' | grep -n -x 'Chromosome'     | cut -d: -f1);
+        START_COL=$(echo "$HEADER" | tr '\\t' '\\n' | grep -n -x 'Start_Position' | cut -d: -f1);
+        END_COL=$(echo   "$HEADER" | tr '\\t' '\\n' | grep -n -x 'End_Position'   | cut -d: -f1);
+        NSKIP=$((NCOMMENT + 1));
+        {{
+          echo "input:      {input.maf}";
+          echo "comments:   $NCOMMENT";
+          echo "header row: $NSKIP";
+          echo "columns:    Chromosome=$CHROM_COL Start_Position=$START_COL End_Position=$END_COL";
+        }} > {log.stdout};
+        ( head -n $NSKIP {input.maf};
+          tail -n +$((NSKIP + 1)) {input.maf}
+            | sort -k${{CHROM_COL}},${{CHROM_COL}} -k${{START_COL}},${{START_COL}}n -k${{END_COL}},${{END_COL}}n
+        ) | bgzip -@ {threads} -c > {output.maf_gz}
+            &&
+        tabix -S $NSKIP -s $CHROM_COL -b $START_COL -e $END_COL -f {output.maf_gz}
+            &&
+        echo "wrote {output.maf_gz} and {output.tbi}" >> {log.stdout}
+        """)
 
 
 # Symlinks the sample-set membership table into the module results directory

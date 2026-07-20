@@ -8,5 +8,5 @@ dependencies:
   - r-dplyr
   - r-cluster
   - r-ggplot2
-  - python>=3.9
+  - python=3.9
   - htslib   # provides tabix, used by src/python/extract_chrom_maf.py
