@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- `cluster_foci.R` now splits each chromosome's unique positions into gap-delimited chunks
+  (wherever two consecutive positions are more than `h_max` apart) and clusters each chunk
+  independently, instead of running one `dist()`/`hclust()` over every unique position on the
+  chromosome. This is exact (not approximate) for any cut height `<= h_max`, since points on
+  opposite sides of such a gap can never be merged into the same cluster below that height under
+  the supported linkage methods -- but it bounds the O(n^2) `dist()` blowup to the largest chunk
+  rather than the whole chromosome, which matters once a sample_set pools ~700 WGS samples onto
+  one chromosome. Not a hard memory ceiling: a region with no gap `> h_max` anywhere (e.g. a
+  shared hotspot) still forms a single large chunk.
 - Renamed from the `mutation_foci` prototype to `mfr`; version reset to 1.0 as a fresh identity.
 - Replaced the single genome-wide `inputs.master_maf` (all samples) with per-sample,
   bgzip + tabix-indexed `inputs.sample_maf`. A sample_set's jobs now only ever open the MAFs of

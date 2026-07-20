@@ -263,7 +263,11 @@ rule _mfr_cluster:
     threads:
         CFG["threads"]["cluster"]
     resources:
-        # dist() is O(n^2) in unique positions; bump mem for dense chromosomes.
+        # dist() is O(n^2) in unique positions. cluster_foci.R chunks each
+        # chromosome at gaps > h_max before clustering to bound this to the
+        # largest chunk rather than the whole chromosome, but a chromosome
+        # region that never has a gap > h_max (e.g. a shared hotspot across
+        # many samples) still forms one large chunk -- bump mem for those.
         **CFG["resources"]["cluster"]
     params:
         pos_col       = CFG["options"]["pos_column"],
