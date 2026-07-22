@@ -61,13 +61,18 @@ localrules:
 # Symlinks the input files into the module results directory (under '00-inputs/')
 rule _sage_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"]
+        bam = CFG["inputs"]["sample_bam"],
+        bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
+        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
+        # symlink the actual index (input.bai) to BOTH .bam.bai and .bam.crai so CRAM inputs
+        # (index = .crai, provided via sample_bai) resolve - matches strelka/lofreq/manta.
         op.absolute_symlink(input.bam, output.bam)
-        op.absolute_symlink(input.bam+ ".bai", output.bai)
+        op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 
 # Setup shared reference files. Symlinking these files to 00-inputs to ensure index and dictionary are present
