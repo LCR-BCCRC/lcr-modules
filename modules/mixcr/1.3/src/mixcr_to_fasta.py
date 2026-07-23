@@ -43,8 +43,9 @@ def main(args):
             # Extract clone Id, clone fraction, clone count
             if count > 1:
                 cloneId = columns[positions["cloneId"]]
-                cloneFraction = columns[positions["cloneFraction"]]
-                cloneCount = columns[positions["cloneCount"]]
+                # MiXCR 4.7 renamed cloneFraction/cloneCount -> readFraction/readCount
+                cloneFraction = columns[positions["readFraction"]]
+                cloneCount = columns[positions["readCount"]]
                 nSeqFR1 = columns[positions["nSeqFR1"]]
                 nSeqCDR1 = columns[positions["nSeqCDR1"]]
                 nSeqFR2 = columns[positions["nSeqFR2"]]

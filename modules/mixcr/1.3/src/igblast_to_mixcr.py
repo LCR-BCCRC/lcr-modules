@@ -58,8 +58,9 @@ def main(args):
         if mixcr_count > 1:
             data = mixcr_line.split('\t')
             m_cloneId = data[mixcr_positions["cloneId"]]
-            m_cloneFraction = data[mixcr_positions["cloneFraction"]]
-            m_cloneCount = data[mixcr_positions["cloneCount"]]
+            # MiXCR 4.7 renamed cloneFraction/cloneCount -> readFraction/readCount
+            m_cloneFraction = data[mixcr_positions["readFraction"]]
+            m_cloneCount = data[mixcr_positions["readCount"]]
 
             # add clones to list to make sure ending up with same # of results
             mixcr_clones.append(m_cloneId)
