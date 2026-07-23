@@ -146,7 +146,8 @@ rule _mixcr_run:
         preset = op.switch_on_wildcard("seq_type", CFG["options"]["analyze"]),
         export = CFG["options"]["export_clones"],
         prefix = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}",
-        clns = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clns",
+        # rna-seq preset ends in assembleContigs -> final clns is <prefix>.contigs.clns
+        clns = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.contigs.clns",
         mixcr = CFG["inputs"]["mixcr_exec"] + "/mixcr",
         license = CFG["inputs"]["mixcr_license"],
         chains = " ".join(RECEPTORS),
