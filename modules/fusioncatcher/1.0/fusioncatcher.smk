@@ -90,11 +90,25 @@ rule _fusioncatcher_run:
         **CFG["resources"]["fusioncatcher_run"]
     params:
         reference = CFG["options"]["reference_path"],
-        out_dir = CFG["dirs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{sample_id}/"
+        out_dir = CFG["dirs"]["fusioncatcher"] + "{seq_type}--{genome_build}/{sample_id}/",
+        # Base dir for fusioncatcher's ~150 GB of transient intermediates. "${TMPDIR:-/tmp}"
+        # keeps them on node-local disk (no shared-scratch contention); a scratch path is
+        # the spillover for libraries too deep for node-local. Only the small final outputs
+        # are copied back to out_dir. The EXIT trap removes the work dir even on failure
+        # (ENOSPC) so a partial 150 GB blob never orphans on the node.
+        work_base = CFG["options"].get("work_base", "${TMPDIR:-/tmp}")
     shell:
         op.as_one_line("""
+        work="{params.work_base}/fusioncatcher.{wildcards.seq_type}--{wildcards.genome_build}.{wildcards.sample_id}";
+        cleanup() {{ rm -rf "$work"; }}; trap cleanup EXIT;
+        rm -rf "$work"; mkdir -p "$work";
         fusioncatcher --no-update-check -d {params.reference} -i {input.fastq_1},{input.fastq_2}
-        -o {params.out_dir} > {log.stdout} 2> {log.stderr} &&
+        -o "$work" > {log.stdout} 2> {log.stderr};
+        mkdir -p {params.out_dir};
+        cp "$work/summary_candidate_fusions.txt" "$work/junk-chimeras.txt"
+        "$work/final-list_candidate-fusion-genes.hg19.txt" "$work/final-list_candidate-fusion-genes.txt"
+        "$work/final-list_candidate-fusion-genes.caption.md.txt" "$work/viruses_bacteria_phages.txt"
+        {params.out_dir};
         touch {output.complete}
         """)
 

@@ -11,6 +11,9 @@ lcr-modules:
 
         options:
             reference_path: "__UPDATE__" #the path to fusioncatcher's reference files
+            # Base dir for fusioncatcher's transient intermediates (copied-back outputs are
+            # small). "${TMPDIR:-/tmp}" = node-local; override with a scratch path to spill over.
+            work_base: "${TMPDIR:-/tmp}"
 
         conda_envs:
             fusioncatcher: "{MODSDIR}/envs/fusioncatcher_nobuilds.yaml"
@@ -19,10 +22,11 @@ lcr-modules:
             fusioncatcher_run: 16
 
         resources:
-            fusioncatcher_run: 
+            fusioncatcher_run:
                 mem_mb: 10000
                 fastq: 1
                 scratch_gb: 55 #peak on-disk temp data footprint anticipated per job
+                tmp_mb: 0 #srun --tmp: set to 170000 for node-local work_base so jobs land on nodes with local disk
             
         pairing_config:
             mrna:
