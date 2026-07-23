@@ -142,16 +142,21 @@ rule _vquest_input_source_tsv:
         op.absolute_symlink(input.tsv, output.tsv)
 
 
-# Drops sequences longer than 10000 bp, which V-QUEST cannot process.
+# Drops sequences longer than 10000 bp (V-QUEST cannot process them) and
+# keeps only the first max_input_sequences qualifying sequences. Assumes the
+# FASTA is ordered by clone fraction (most abundant first, as MiXCR outputs),
+# so the top N clones are retained. Both filters run in a single awk pass.
 rule _vquest_filter_long_seqs:
     input:
         fasta = str(rules._vquest_input_fasta.output.fasta),
     output:
         fasta = temp(CFG["dirs"]["vquest"] + "{seq_type}/{sample_id}/{sample_id}.{chain}.filtered.fasta")
+    params:
+        max_seqs = CFG["options"]["max_input_sequences"],
     wildcard_constraints:
         chain = "|".join(CHAINS),
     shell:
-        "awk 'BEGIN{{RS=\">\"; FS=\"\\n\"}} NR>1 {{header=$1; seq=\"\"; for(i=2;i<=NF;i++) seq=seq$i; if(length(seq)<=10000) printf \">%s\\n%s\\n\", header, seq}}' {input.fasta} > {output.fasta}"
+        "awk -v max_seqs={params.max_seqs} 'BEGIN{{RS=\">\"; FS=\"\\n\"}} NR>1 {{header=$1; seq=\"\"; for(i=2;i<=NF;i++) seq=seq$i; if(length(seq)<=10000) {{n++; if(n > max_seqs) exit; printf \">%s\\n%s\\n\", header, seq}}}}' {input.fasta} > {output.fasta}"
 
 
 # Submits sequences to IMGT V-QUEST and writes the AIRR TSV output.

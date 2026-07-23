@@ -72,6 +72,7 @@ localrules:
     _mixcr_output_txt,
     _mixcr_to_fasta,
     _mixcr_output_fasta,
+    _mixcr_dominant,
     _mixcr_all,
 
 
@@ -149,30 +150,69 @@ rule _mixcr_to_fasta:
         fi
         """)
 
-# Symlinks the final clonotype txt files into the module results directory (under '99-outputs/')
+# Subsets the MiXCR clonotype TSV to the top N clones by readFraction and
+# writes matching dominant TSV, FASTA, and seq_info files. MiXCR already
+# outputs clones in descending readFraction order, so row order is preserved.
+rule _mixcr_dominant:
+    input:
+        tsv = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.tsv",
+    output:
+        tsv      = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.dominant.tsv",
+        fasta    = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.VDJseq.dominant.fasta",
+        seq_info = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.dominant.regions.txt",
+    params:
+        script     = CFG["scripts"]["mixcr_subset_dominant"],
+        n_dominant = CFG["options"]["n_dominant"],
+    wildcard_constraints:
+        chain = '[A-Z]+'
+    shell:
+        op.as_one_line("""
+        if [ -s {input.tsv} ]; then
+            python {params.script}
+            --input {input.tsv}
+            --output_tsv {output.tsv}
+            --output_fasta {output.fasta}
+            --output_seq_info {output.seq_info}
+            --n_dominant {params.n_dominant} ;
+        else
+            touch {output.tsv} {output.fasta} {output.seq_info} ;
+        fi
+        """)
+
+
+# Symlinks the full and dominant clonotype TSVs into '99-outputs/'
 rule _mixcr_output_txt:
     input:
-        results = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.tsv"
+        results          = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.tsv",
+        dominant_results = str(rules._mixcr_dominant.output.tsv),
     output:
-        results = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clones_{chain}.tsv"
+        results          = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clones_{chain}.tsv",
+        dominant_results = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clones_{chain}.dominant.tsv",
     wildcard_constraints:
         chain = '[A-Z]+'
     run:
-        op.relative_symlink(input.results, output.results, in_module=True)
+        op.relative_symlink(input.results,          output.results,          in_module=True)
+        op.relative_symlink(input.dominant_results, output.dominant_results, in_module=True)
 
-# Symlinks the per-chain FASTA and regions.txt into '99-outputs/' for use by downstream modules
+# Symlinks the full and dominant FASTA and seq_info files into '99-outputs/'
 rule _mixcr_output_fasta:
     input:
-        fasta = str(rules._mixcr_to_fasta.output.fasta),
-        seq_info = str(rules._mixcr_to_fasta.output.seq_info)
+        fasta            = str(rules._mixcr_to_fasta.output.fasta),
+        seq_info         = str(rules._mixcr_to_fasta.output.seq_info),
+        dominant_fasta   = str(rules._mixcr_dominant.output.fasta),
+        dominant_seq_info = str(rules._mixcr_dominant.output.seq_info),
     output:
-        fasta = CFG["dirs"]["outputs"] + "fasta/{seq_type}/mixcr.{sample_id}.clones_{chain}.VDJseq.fasta",
-        seq_info = CFG["dirs"]["outputs"] + "seq_info/{seq_type}/mixcr.{sample_id}.clones_{chain}.regions.tsv"
+        fasta            = CFG["dirs"]["outputs"] + "fasta/{seq_type}/mixcr.{sample_id}.clones_{chain}.VDJseq.fasta",
+        seq_info         = CFG["dirs"]["outputs"] + "seq_info/{seq_type}/mixcr.{sample_id}.clones_{chain}.regions.tsv",
+        dominant_fasta   = CFG["dirs"]["outputs"] + "fasta/{seq_type}/mixcr.{sample_id}.clones_{chain}.VDJseq.dominant.fasta",
+        dominant_seq_info = CFG["dirs"]["outputs"] + "seq_info/{seq_type}/mixcr.{sample_id}.clones_{chain}.dominant.regions.tsv",
     wildcard_constraints:
         chain = '[A-Z]+'
     run:
-        op.relative_symlink(input.fasta, output.fasta, in_module=True)
-        op.relative_symlink(input.seq_info, output.seq_info, in_module=True)
+        op.relative_symlink(input.fasta,             output.fasta,             in_module=True)
+        op.relative_symlink(input.seq_info,          output.seq_info,          in_module=True)
+        op.relative_symlink(input.dominant_fasta,    output.dominant_fasta,    in_module=True)
+        op.relative_symlink(input.dominant_seq_info, output.dominant_seq_info, in_module=True)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _mixcr_all:
@@ -181,7 +221,9 @@ rule _mixcr_all:
             expand(
                 [
                     str(rules._mixcr_output_txt.output.results),
+                    str(rules._mixcr_output_txt.output.dominant_results),
                     str(rules._mixcr_output_fasta.output.fasta),
+                    str(rules._mixcr_output_fasta.output.dominant_fasta),
                 ],
                 zip,
                 seq_type=CFG["samples"]["seq_type"],

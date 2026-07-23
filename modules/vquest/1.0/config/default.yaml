@@ -62,6 +62,14 @@ lcr-modules:
             # connection refusals (errno 111).
             max_imgt_connections: 10
 
+            # Maximum number of sequences to submit to V-QUEST per sample.
+            # The input FASTA is expected to be sorted by clone fraction (most
+            # abundant first, as MiXCR outputs it), so this keeps only the top N
+            # clones. Useful when a sample has thousands of inferred sequences but
+            # you only care about dominant clones (e.g. B-cell lymphoma). Set to
+            # a very large value (e.g. 999999) to disable the limit.
+            max_input_sequences: 100
+
             # Key column in sample_source_tsv used to join V-QUEST annotations.
             # The merge uses sequence_id from the V-QUEST AIRR TSV as the base key;
             # this column names the corresponding key in sample_source_tsv.

@@ -19,6 +19,12 @@ lcr-modules:
             # IGH  → BLAST against IMGT IGH database  (heavy chain)
             # IGKL → BLAST against IMGT IGKL database (kappa/lambda light chain)
 
+            # Number of top-TPM transcripts to include in dominant_report.tsv and
+            # tpm_fasta. Sequences are ranked by kallisto TPM; only the top N are
+            # written to the dominant outputs used by downstream modules (e.g. vquest).
+            # For B-cell lymphoma applications, 5 is usually sufficient.
+            n_dominant: 5
+
             # Extra flags passed verbatim to each tool. Leave as empty string for defaults.
             hisat2_align: ""
             trinity_assemble: ""

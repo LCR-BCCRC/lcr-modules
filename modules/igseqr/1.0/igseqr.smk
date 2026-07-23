@@ -416,8 +416,9 @@ rule _igseqr_make_report:
         stdout = CFG["logs"]["reports"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/make_report.stdout.log",
         stderr = CFG["logs"]["reports"] + "{seq_type}--" + HISAT_REF_VERSION + "/{sample_id}/{chain}/make_report.stderr.log",
     params:
-        script    = CFG["scripts"]["igseqr_report"],
-        sample_id = "{sample_id}",
+        script      = CFG["scripts"]["igseqr_report"],
+        sample_id   = "{sample_id}",
+        n_dominant  = CFG["options"]["n_dominant"],
     wildcard_constraints:
         chain = "|".join(CHAINS),
     resources:
@@ -432,6 +433,7 @@ rule _igseqr_make_report:
         --abundance {input.abundance}
         --transcripts {input.transcripts}
         --sample_id {params.sample_id}
+        --n_dominant {params.n_dominant}
         --report {output.report}
         --dominant_report {output.dominant_report}
         --tpm_fasta {output.tpm_fasta}

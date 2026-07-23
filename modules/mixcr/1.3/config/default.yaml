@@ -19,8 +19,15 @@ lcr-modules:
 
         scripts:
             mixcr2fasta: "{MODSDIR}/src/mixcr_to_fasta.py"
+            mixcr_subset_dominant: "{MODSDIR}/src/mixcr_subset_dominant.py"
 
         options:
+            # Number of top clones by readFraction to include in the dominant
+            # TSV and FASTA outputs. MiXCR writes clones in descending readFraction
+            # order, so this keeps the most abundant clones. Parallel to the
+            # n_dominant option in the igseqr module.
+            n_dominant: 5
+
             preset:
                 mrna: "rna-seq"
                 capture: "exome-seq"
