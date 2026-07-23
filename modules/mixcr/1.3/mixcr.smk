@@ -141,6 +141,8 @@ rule _mixcr_to_fasta:
         seq_info = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.regions.txt"
     params:
         script = CFG["scripts"]["mixcr2fasta"],
+    wildcard_constraints:
+        chain = '[A-Z]+'
     shell:
         op.as_one_line("""
         if [ -s {input.mixcr_results} ]; then
