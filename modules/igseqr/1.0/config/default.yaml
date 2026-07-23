@@ -60,9 +60,9 @@ lcr-modules:
             extract_transcripts:
                 mem_mb: 4000
             kallisto_index:
-                mem_mb: 4000
+                mem_mb: 25000
             kallisto_quant:
-                mem_mb: 8000
+                mem_mb: 25000
             make_report:
                 mem_mb: 4000
             get_hisat_ref:
