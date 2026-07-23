@@ -33,7 +33,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 
 CFG = op.setup_module(
     name = "mixcr",
-    version = "1.4",
+    version = "1.3",
     subdirectories = ["inputs", "mixcr", "outputs"],
 )
 
