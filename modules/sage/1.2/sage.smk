@@ -123,21 +123,6 @@ rule _download_sage_references:
         """)
 
 
-def _sage_get_capspace(wildcards):
-    CFG = config["lcr-modules"]["sage"]
-    try:
-        # Get the appropriate capture space for this sample
-        this_bed = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed.gz")
-        this_bed = reference_files(this_bed)
-    except NameError:
-        # If we are using an older version of the reference workflow, use the same region file as the genome sample
-        this_bed = rules._download_sage_references.output.panel_bed
-    # If this is a genome sample, return a BED file listing all chromosomes
-    if wildcards.seq_type != "capture":
-        this_bed = rules._download_sage_references.output.panel_bed
-    return this_bed
-
-
 # Variant calling rule
 rule _run_sage:
     input:
@@ -147,7 +132,7 @@ rule _run_sage:
         hotspots = rules._download_sage_references.output.hotspots,
         high_conf_bed = str(rules._download_sage_references.output.high_conf_bed),
         cache = ancient(str(rules._download_sage_references.output.cache)),
-        panel_bed = _sage_get_capspace,
+        panel_bed = str(rules._download_sage_references.output.panel_bed),
         main_chromosomes = reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt"),
     output:
         vcf = temp(CFG["dirs"]["sage"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}--{normal_id}--{pair_status}.vcf"),
