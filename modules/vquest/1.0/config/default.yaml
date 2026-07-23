@@ -1,0 +1,118 @@
+lcr-modules:
+
+    vquest:
+
+        dirs:
+            _parent: "__UPDATE__"
+
+        inputs:
+            # Path to input FASTA file.
+            # Available wildcards: {seq_type}, {sample_id}, {chain}
+            # From igseqr 1.0:
+            #   "{IGSEQR_OUT}/99-outputs/fasta/{seq_type}--{hisat_ref}/{sample_id}_{chain}_transcripts.fasta"
+            # From mixcr 1.3:
+            #   "{MIXCR_OUT}/99-outputs/fasta/{seq_type}/mixcr.{sample_id}.clones_{chain}.VDJseq.fasta"
+            sample_fasta: "__UPDATE__"
+
+            # Path to the source TSV to merge V-QUEST annotations into.
+            # Available wildcards: {seq_type}, {sample_id}, {chain}
+            #
+            # From igseqr 1.0:
+            #   "{IGSEQR_OUT}/99-outputs/tsv/{seq_type}--{hisat_ref}/{sample_id}_{chain}_report.tsv"
+            #   Set options.source_id_column to the key column in this TSV (e.g. "transcript_id").
+            #
+            # From mixcr 1.3:
+            #   "{MIXCR_OUT}/99-outputs/txt/{seq_type}/mixcr.{sample_id}.clones_{chain}.tsv"
+            #   Set options.source_id_column to "cloneId".
+            sample_source_tsv: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            chains: "__UPDATE__"
+                # List of chains to analyse. Choose from:
+                #   IGH, IGK, IGL, IGKL  (B-cell; IGKL = combined kappa/lambda from igseqr)
+                #   TRA, TRB, TRD, TRG   (T-cell)
+
+            species: "human"
+                # IMGT V-QUEST species string. Common values:
+                #   human, mouse, rat, rabbit, rhesus-monkey
+
+            molecule_type: "mRNA"
+                # V-QUEST moleculeType parameter, added in V-QUEST 3.8.0 (April 2026).
+                # Use "mRNA" for cDNA sequences (Trinity transcripts, MiXCR VDJ assemblies).
+                # Use "gDNA" for genomic DNA sequences.
+
+            # Extra flags passed verbatim to run_vquest.py (currently unused placeholder).
+            vquest_run: ""
+
+            # Number of times to retry _vquest_run on failure (e.g. transient IMGT connection errors).
+            vquest_retries: 3
+
+            # Per-request timeout in seconds for each HTTPS call to www.imgt.org.
+            # The vquest library batches sequences (50/request), so this is a
+            # per-batch ceiling, not a per-job ceiling. Raise if IMGT is unusually
+            # slow; lower if you want faster failure detection.
+            request_timeout: 120
+
+            # Maximum allowed value for --resources vquest=N on the Snakemake
+            # command line. The pipeline refuses to start if the value is missing
+            # or exceeds this limit. Raise only if you are certain your network
+            # can sustain more concurrent IMGT connections without triggering
+            # connection refusals (errno 111).
+            max_imgt_connections: 10
+
+            # Maximum number of sequences to submit to V-QUEST per sample.
+            # The input FASTA is expected to be sorted by clone fraction (most
+            # abundant first, as MiXCR outputs it), so this keeps only the top N
+            # clones. Useful when a sample has thousands of inferred sequences but
+            # you only care about dominant clones (e.g. B-cell lymphoma). Set to
+            # a very large value (e.g. 999999) to disable the limit.
+            max_input_sequences: 100
+
+            # Key column in sample_source_tsv used to join V-QUEST annotations.
+            # The merge uses sequence_id from the V-QUEST AIRR TSV as the base key;
+            # this column names the corresponding key in sample_source_tsv.
+            # For MiXCR compound sequence_ids (cloneId_N_readFraction_F_readCount_C)
+            # the cloneId is extracted automatically when this differs from sequence_id.
+            #   igseqr 1.0 source → "transcript_id"
+            #   mixcr 1.3 source  → "cloneId"
+            source_id_column: "transcript_id"
+
+        scripts:
+            run_vquest: "{MODSDIR}/src/run_vquest.py"
+            merge_tsv: "{SCRIPTSDIR}/annotate_bcr/1.0/merge_annotation_tsv.py"
+            annotate_glycosylation: "{SCRIPTSDIR}/annotate_bcr/1.0/annotate_glycosylation.py"
+
+        conda_envs:
+            vquest: "{MODSDIR}/envs/vquest-1.0.yaml"
+            glycosylation: "{MODSDIR}/envs/glycosylation-1.0.yaml"
+
+        container_envs:
+            vquest: "docker://ghcr.io/lcr-bccrc/lcr-scripts/vquest:0.0.10"
+            glycosylation: "docker://quay.io/biocontainers/anarci:2024.05.21--pyhdfd78af_0"
+
+        threads:
+            vquest_run: 1
+            annotate_glycosylation: 1
+
+        resources:
+            vquest_run:
+                mem_mb: 500
+                vquest: 1
+            annotate_glycosylation:
+                mem_mb: 4000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

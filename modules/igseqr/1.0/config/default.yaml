@@ -1,0 +1,77 @@
+lcr-modules:
+
+    igseqr:
+
+        inputs:
+            # Available wildcards: {seq_type} {sample_id}
+            sample_fastq_1: "__UPDATE__"
+            sample_fastq_2: "__UPDATE__"
+            # HISAT2 pre-built index to download, keyed by version string.
+            # The key becomes the subdirectory name under {inputs_dir}/hisat_ref/
+            # and is used in all output paths.
+            # Provide exactly one entry; to use a different index, change the key and URL.
+            hisat_ref_url:
+                hg38: "https://genome-idx.s3.amazonaws.com/hisat/grch38_snptran.tar.gz"
+        scratch_subdirectories: []
+
+        options:
+            chains: ["IGH", "IGKL"]
+            # IGH  → BLAST against IMGT IGH database  (heavy chain)
+            # IGKL → BLAST against IMGT IGKL database (kappa/lambda light chain)
+
+            # Number of top-TPM transcripts to include in dominant_report.tsv and
+            # tpm_fasta. Sequences are ranked by kallisto TPM; only the top N are
+            # written to the dominant outputs used by downstream modules (e.g. vquest).
+            # For B-cell lymphoma applications, 5 is usually sufficient.
+            n_dominant: 5
+
+            # Extra flags passed verbatim to each tool. Leave as empty string for defaults.
+            hisat2_align: ""
+            trinity_assemble: ""
+            blastn: ""
+
+        scripts:
+            igseqr_report: "{MODSDIR}/src/igseqr_report.py"
+
+        conda_envs:
+            igseqr: "{MODSDIR}/envs/igseqr-1.0.1.yaml"
+
+        container_envs:
+            igseqr: "docker://ghcr.io/lcr-bccrc/lcr-scripts/igseqr:1.0.1"
+            trinity: "docker://quay.io/biocontainers/trinity:2.13.2--hff880f7_4"
+
+        threads:
+            hisat2_align: 16
+            filter_reads: 4
+            trinity_assemble: 24
+            blastn: 4
+            kallisto_quant: 4
+
+        resources:
+            hisat2_align:
+                mem_mb: 32000
+            filter_reads:
+                mem_mb: 8000
+            trinity_assemble:
+                trinity: 1
+                mem_mb: 100000
+            blastn:
+                mem_mb: 8000
+            extract_transcripts:
+                mem_mb: 4000
+            kallisto_index:
+                mem_mb: 25000
+            kallisto_quant:
+                mem_mb: 25000
+            make_report:
+                mem_mb: 4000
+            get_hisat_ref:
+                mem_mb: 2000
+            get_imgt_db:
+                mem_mb: 2000
+
+        pairing_config:
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

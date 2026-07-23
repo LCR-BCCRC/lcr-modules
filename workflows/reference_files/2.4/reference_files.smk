@@ -645,7 +645,7 @@ rule _get_imgt_database:
     container: CONTAINER_ENVS["igblast"]
     shell:
         op.as_one_line("""
-        URL="http://www.imgt.org/genedb/GENElect?query=7.5+{wildcards.subchain}&species=Homo+sapiens" &&
+        URL="https://www.imgt.org/genedb/GENElect?query=7.5+{wildcards.subchain}&species=Homo+sapiens" &&
         outfile_temp="downloads/igblast/imgt_database/human/vdj/imgt_human_{wildcards.subchain}.html" &&
         outfile_ttemp="downloads/igblast/imgt_database/human/vdj/imgt_human_{wildcards.subchain}.txt" &&
         outfile="downloads/igblast/imgt_database/human/vdj/imgt_human_{wildcards.subchain}.fasta" &&
@@ -660,9 +660,11 @@ IMGT_CHAIN_KEY = {
     "ig_v" : ["IGHV","IGLV","IGKV"],
     "ig_d" : ["IGHD"],
     "ig_j" : ["IGHJ","IGLJ","IGKJ"],
+    "ig_c" : ["IGHC", "IGKC", "IGLC"],
     "tr_v" : ["TRAV","TRBV","TRDV","TRGV"],
     "tr_d" : ["TRBD","TRDD"],
-    "tr_j" : ["TRAJ","TRBJ","TRDJ","TRGJ"]
+    "tr_j" : ["TRAJ","TRBJ","TRDJ","TRGJ"],
+    "tr_c" : ["TRAC","TRBC","TRDC","TRGC"]
 }
 
 rule _combine_imgt_files:
