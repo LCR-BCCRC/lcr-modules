@@ -162,10 +162,12 @@ rule _mixcr_run:
         export MI_LICENSE_FILE="{params.license}";
         {params.mixcr} analyze {params.preset} -t {threads} -f
         {input.fastq_1} {input.fastq_2} {params.prefix} > {log.stdout} 2> {log.stderr};
-        {params.mixcr} exportClones {params.export} -f {params.clns} {output.txt} >> {log.stdout} 2>> {log.stderr};
+        {params.mixcr} exportClones {params.export} -f {params.clns} {output.txt}.tsv >> {log.stdout} 2>> {log.stderr};
+        mv {output.txt}.tsv {output.txt};
         for chain in {params.chains}; do
         {params.mixcr} exportClones --chains $chain {params.export} -f {params.clns}
-        {params.prefix}.clonotypes.$chain.txt >> {log.stdout} 2>> {log.stderr};
+        {params.prefix}.clonotypes.$chain.txt.tsv >> {log.stdout} 2>> {log.stderr};
+        mv {params.prefix}.clonotypes.$chain.txt.tsv {params.prefix}.clonotypes.$chain.txt;
         done;
         {params.mixcr} exportReports {params.clns} {output.report} >> {log.stdout} 2>> {log.stderr};
         touch "{output.txt}";
