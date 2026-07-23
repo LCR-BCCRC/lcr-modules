@@ -124,9 +124,10 @@ rule _install_mixcr:
         touch  {output.complete};
         '''
 
-# MiXCR 4.x: analyze (preset) -> ALL + per-chain exportClones -> report.
-# License activated per job via MI_LICENSE_FILE.
-rule _mixcr_run:
+# MiXCR 4.x is split into analyze (heavy, ~hours) and export (cheap, seconds) so an
+# export tweak or transient failure never re-triggers the expensive analyze. The
+# rna-seq preset ends in assembleContigs, so the checkpoint clns is <prefix>.contigs.clns.
+rule _mixcr_analyze:
     input:
         fastq_1 = str(rules._mixcr_input_fastq.output.fastq_1),
         fastq_2 = str(rules._mixcr_input_fastq.output.fastq_2),
@@ -134,23 +135,17 @@ rule _mixcr_run:
         fastq_2_real = CFG["inputs"]["sample_fastq_2"],
         installed = str(rules._install_mixcr.output.complete)
     output:
-        txt = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.ALL.txt",
-        report = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.report",
-        results = expand(CFG["dirs"]["mixcr"] + "{{seq_type}}/{{sample_id}}/mixcr.{{sample_id}}.clonotypes.{chain}.txt", chain = RECEPTORS)
+        clns = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.contigs.clns"
     log:
-        stdout = CFG["logs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr_run.stdout.log",
-        stderr = CFG["logs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr_run.stderr.log"
+        stdout = CFG["logs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr_analyze.stdout.log",
+        stderr = CFG["logs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr_analyze.stderr.log"
     resources:
         **CFG["resources"]["mixcr_run"]
     params:
         preset = op.switch_on_wildcard("seq_type", CFG["options"]["analyze"]),
-        export = CFG["options"]["export_clones"],
         prefix = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}",
-        # rna-seq preset ends in assembleContigs -> final clns is <prefix>.contigs.clns
-        clns = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.contigs.clns",
         mixcr = CFG["inputs"]["mixcr_exec"] + "/mixcr",
         license = CFG["inputs"]["mixcr_license"],
-        chains = " ".join(RECEPTORS),
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda: CFG["conda_envs"]["java"]
     container: CFG["container_envs"]["java"]
@@ -162,16 +157,42 @@ rule _mixcr_run:
         export MI_LICENSE_FILE="{params.license}";
         {params.mixcr} analyze {params.preset} -t {threads} -f
         {input.fastq_1} {input.fastq_2} {params.prefix} > {log.stdout} 2> {log.stderr};
-        {params.mixcr} exportClones {params.export} --dont-split-files -f {params.clns} {output.txt}.tsv >> {log.stdout} 2>> {log.stderr};
+        """)
+
+# Cheap: clns -> ALL + per-chain exportClones (--dont-split-files, .tsv->.txt) + report.
+rule _mixcr_export:
+    input:
+        clns = str(rules._mixcr_analyze.output.clns)
+    output:
+        txt = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.ALL.txt",
+        report = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.report",
+        results = expand(CFG["dirs"]["mixcr"] + "{{seq_type}}/{{sample_id}}/mixcr.{{sample_id}}.clonotypes.{chain}.txt", chain = RECEPTORS)
+    log:
+        stdout = CFG["logs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr_export.stdout.log",
+        stderr = CFG["logs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr_export.stderr.log"
+    resources:
+        mem_mb = 8000
+    params:
+        export = CFG["options"]["export_clones"],
+        prefix = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}",
+        mixcr = CFG["inputs"]["mixcr_exec"] + "/mixcr",
+        license = CFG["inputs"]["mixcr_license"],
+        chains = " ".join(RECEPTORS)
+    conda: CFG["conda_envs"]["java"]
+    container: CFG["container_envs"]["java"]
+    shell:
+        op.as_one_line("""
+        export JAVA_OPTS="-Xmx6500m";
+        export MI_LICENSE_FILE="{params.license}";
+        {params.mixcr} exportClones {params.export} --dont-split-files -f {input.clns} {output.txt}.tsv > {log.stdout} 2> {log.stderr};
         mv {output.txt}.tsv {output.txt};
         for chain in {params.chains}; do
-        {params.mixcr} exportClones --chains $chain {params.export} --dont-split-files -f {params.clns}
+        {params.mixcr} exportClones --chains $chain {params.export} --dont-split-files -f {input.clns}
         {params.prefix}.clonotypes.$chain.txt.tsv >> {log.stdout} 2>> {log.stderr};
         mv {params.prefix}.clonotypes.$chain.txt.tsv {params.prefix}.clonotypes.$chain.txt;
         done;
-        {params.mixcr} exportReports {params.clns} {output.report}.txt >> {log.stdout} 2>> {log.stderr};
+        {params.mixcr} exportReports {input.clns} {output.report}.txt >> {log.stdout} 2>> {log.stderr};
         mv {output.report}.txt {output.report};
-        touch "{output.txt}";
         """)
 
 if CFG["igblastn"]:
@@ -180,8 +201,8 @@ if CFG["igblastn"]:
 
     rule _mixcr_to_fasta:
         input:
-            mixcr_finished = str(rules._mixcr_run.output.txt),
-            mixcr_chains = rules._mixcr_run.output.results,
+            mixcr_finished = str(rules._mixcr_export.output.txt),
+            mixcr_chains = rules._mixcr_export.output.results,
             mixcr_results = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.txt",
             script = CFG["igblast_scripts"]["mixcr2fasta"]
         output:
