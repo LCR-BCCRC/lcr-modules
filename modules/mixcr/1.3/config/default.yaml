@@ -37,12 +37,12 @@ lcr-modules:
             # exportClones fields: nSeq/aaSeq regions feed IgBLAST; vIdentity/mutations = native SHM.
             # VALIDATE flag names against `mixcr exportClones --help` of the installed 4.x.
             export_clones: >-
-                -cloneId -cloneCount -cloneFraction
+                -cloneId -readCount -readFraction
                 -nFeature FR1 -nFeature CDR1 -nFeature FR2 -nFeature CDR2 -nFeature FR3 -nFeature CDR3 -nFeature FR4
                 -aaFeature FR1 -aaFeature CDR1 -aaFeature FR2 -aaFeature CDR2 -aaFeature FR3 -aaFeature CDR3 -aaFeature FR4
                 -vHit -dHit -jHit -vHitsWithScore
                 -vIdentityPercents -nMutations VRegion -aaMutations VRegion -mutationsDetailed VRegion
-                -isProductive
+                -isProductive VRegion
             igblast_run:
                 run_flags: ""
                 form: "qseq sseq"
