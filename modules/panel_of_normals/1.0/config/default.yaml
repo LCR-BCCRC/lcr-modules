@@ -1,0 +1,104 @@
+lcr-modules:
+
+    panel_of_normals:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        options:
+            genome_builds_map:
+                grch37: "hg19"
+                hg19: "hg19"
+                hs37d5: "hg19"
+                grch38: "hg38"
+                hg38: "hg38"
+                hg38-nci: "hg38"
+            cnvkit:
+                # Setting the sex to use as the reference
+                # Female samples normalized to a male reference will show a doubling of chromosome X (log2 value about +1.0) and complete loss of chromosome Y (log2 value below -3.0, usually far below).
+                # Male samples normalized to a female reference will show a single-copy loss of chromosome X (log2 value about -1.0). The chromosome Y value should be near 0.0, but the log2 values may be noisier and less reliable than on autosomes.
+                male_ref: " "
+                # add combinations of genome_buildcapture_space that require a "flat" reference file of even coverage instead of using normal samples
+                # these will be "zipped" e.g. if given
+                #       genome_builds: ["grch37", "hg19"]
+                #       capture_spaces: ["exome-utr-grch37", "agilent_v5"]
+                # then it will make two reference files, one for grch37--exome-utr-grch37 and one for hg19--agilent_v5
+                # rows in the input sample table with these combos will be dropped from the other rules
+                flat_ref_combos:
+                    genome_builds: []
+                    capture_spaces: []
+            purecn:
+                setinterval:
+                    force: "--force" # set to force remake the files; otherwise, it will not overwrite
+                    opts: "" # Optional: "--off-target --off-target-seqlevels all for smaller targeted capture panels"
+
+                mutect:
+                    mutect2_opts: "" # for the germline calling with Mutect2
+                    annotate: "" # for gatk FilterMutectCalls which just annotates variants for later filtering when this is blank
+                    # the following two are for the call to bcftools that actually filters the variants
+                    filter_for: -f 'PASS,germline' # Do not wrap in double quotes!
+                    filter_out: "FILTER~'weak_evidence' | FILTER~'contamination' | INFO/AS_FilterStatus~'weak_evidence' | INFO/AS_FilterStatus~'contamination'"
+
+                coverage:
+                    depth_coverage: ""
+                    force: "--force"
+                    opts: ""
+
+        software:
+            coverage_script: "{MODSDIR}/../../purecn/1.0/etc/Coverage.R"
+            normalDB_script: "{MODSDIR}/../../purecn/1.0/etc/NormalDB.R"
+
+        conda_envs:
+            samtools: "{MODSDIR}/envs/samtools-1.10.yaml"
+            cnvkit: "{MODSDIR}/envs/cnvkit-0.9.9.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+            purecn: "{MODSDIR}/envs/purecn-2.0.1.yaml"
+            mutect: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+
+        threads:
+            cnvkit:
+                samtools: 8
+                coverage: 12
+                reference: 24
+            purecn:
+                setinterval: 3
+                post_vcf: 2
+                coverage: 2
+                normalDB: 4
+
+        resources:
+            cnvkit:
+                coverage:
+                    mem_mb: 4800
+                autobin:
+                    mem_mb: 4800
+                reference:
+                    mem_mb: 9600
+            purecn:
+                setinterval:
+                    mem_mb: 6000
+                mutect:
+                    mem_mb: 15000
+                    chrom: 1
+                importDB:
+                    mem_mb: 12000
+                post_vcf:
+                    mem_mb: 8000
+                gatk_depth:
+                    mem_mb: 15000
+                    chrom: 1
+                coverage:
+                    mem_mb: 18000
+                normalDB:
+                    mem_mb: 10000
+
+
+        pairing_config:
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

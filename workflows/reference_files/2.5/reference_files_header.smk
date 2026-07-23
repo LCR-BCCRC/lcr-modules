@@ -129,7 +129,8 @@ wildcard_constraints:
     star_version = TOOL_VERSIONS["star"],
     gencode_release = "|".join(config["wildcard_values"]["gencode_release"]),
     dbsnp_build = "|".join(config["wildcard_values"]["dbsnp_build"]),
-    rm_version = "|".join(config["wildcard_values"]["rm_version"])
+    rm_version = "|".join(config["wildcard_values"]["rm_version"]),
+    capture_space = "|".join(config["capture_space"].keys())
 
 
 ##### CHROMOSOME MAPPINGS #####
@@ -450,7 +451,7 @@ def get_matching_download_rules(file):
         # At least one output file should produce
         num_matches = []
         for output_file in r.output:
-            if rule_name != "download_capspace_bed":  # Workaround since we don't really care about the provider for the capture space
+            if rule_name != "download_capspace_bed" and rule_name != "download_baitspace_bed":  # Workaround since we don't really care about the provider for the capture space
                 assert "{version}" in output_file, (
                     f"The `{rule_name}` download rule doesn't have a `{{version}}` "
                     f"wildcard in the output file ('{output_file}')."
@@ -600,6 +601,54 @@ rule add_remove_chr_prefix_bed:
 
                 o.write(line)
 
+rule download_baitspace_bed:
+    output:
+        baits_bed = "downloads/capture_space/{capture_space}.baits.{genome_build}.bed"
+    log:
+        "downloads/capture_space/{capture_space}.baits.{genome_build}.bed.log"
+    params:
+        path = lambda w: config["capture_space"][w.capture_space]["baits_bed_file"] if "baits_bed_file" in config["capture_space"][w.capture_space] else config["capture_space"][w.capture_space]["baits_bed_url"],
+        provider = lambda w: config["capture_space"][w.capture_space]["provider"]
+    shell:
+        op.as_one_line("""
+        if [ -e {params.path} ]; then
+            cat {params.path} > {output.baits_bed} 2> {log};
+        else
+            curl -L {params.path} > {output.baits_bed} 2> {log};
+        fi
+        """)
+
+rule add_remove_chr_prefix_baits_bed:
+    input:
+        baits_bed = rules.download_baitspace_bed.output.baits_bed
+    output:
+        converted_baits_bed = "downloads/capture_space/{capture_space}.baits.{genome_build}.{chr_status}.bed"
+    run:
+        # Converts the specified BED file and adds/removes chr prefixes
+        if wildcards.chr_status == "chr":  # i.e. we need to add a chr prefix
+            add_chr = True
+        else:
+            add_chr = False
+
+        # Process the BED file
+        with open(input.baits_bed) as f, open(output.converted_baits_bed, "w") as o:
+            i = 0
+            for line in f:
+                i += 1
+                # Make sure that this BED entry is chr-prefixed or not
+                if add_chr and line.startswith("chr"):
+                    # We were asked to add a chr prefix, but one already exists
+                    raise AttributeError("I was asked to add a \'chr\' prefix to \'%s\', but that BED is already \'chr\' prefixed on line %s" % (input.baits_bed, line))
+                if not add_chr and not line.startswith("chr"):
+                    # We were asked to remove a chr prefix, but there isn't one
+                    raise AttributeError("I was asked to remove a \'chr\' prefix \'%s\', but it isn't chr prefixed on line %s" % (input.baits_bed, line))
+
+                if add_chr:
+                    line = "chr" + line
+                else:
+                    line = line.replace("chr", "")
+
+                o.write(line)
 
 ##### SHARED #####
 
