@@ -60,7 +60,7 @@ assert all(chain in VALID_CHAINS for chain in CHAINS), (
 # is only called by workflow.execute() in the main process, never in subprocess
 # re-parse contexts, so the check fires exactly once at pipeline startup.
 onstart:
-    _max_imgt = CFG["options"]["max_imgt_connections"]
+    _max_imgt = config["lcr-modules"]["vquest"]["options"]["max_imgt_connections"]
     try:
         # Snakemake 7.x: workflow.global_resources
         # Snakemake 8.x: workflow.resource_settings.resources
