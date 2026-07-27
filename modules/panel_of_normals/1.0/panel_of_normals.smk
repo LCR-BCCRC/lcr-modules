@@ -744,6 +744,7 @@ rule _panel_of_normals_purecn_merge_stats_per_sample:
 rule _panel_of_normals_purecn_pileup_summaries:
     input:
         bam = str(rules._panel_of_normals_input_bam.output.bam),
+        bai = str(rules._panel_of_normals_index_bam.output.bai),
         snps = ancient(reference_files("genomes/{genome_build}/gatk/mutect2_small_exac.{genome_build}.vcf.gz")),
         fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta),
         gatk_dict = str(rules._panel_of_normals_symlink_fasta.output.gatk_dict)
