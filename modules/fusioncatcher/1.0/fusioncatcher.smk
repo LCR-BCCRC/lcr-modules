@@ -96,13 +96,18 @@ rule _fusioncatcher_run:
         # the spillover for libraries too deep for node-local. Only the small final outputs
         # are copied back to out_dir. The EXIT trap removes the work dir even on failure
         # (ENOSPC) so a partial 150 GB blob never orphans on the node.
-        work_base = CFG["options"].get("work_base", "${TMPDIR:-/tmp}")
+        work_base = CFG["options"].get("work_base", "${TMPDIR:-/tmp}"),
+        # Self-imposed wall-clock cap: fusioncatcher norm ~2h, but some libraries deadlock
+        # early and pin the node for days. `timeout` SIGKILLs it at this limit so the job
+        # exits (trap cleans up) and the node frees. (Not srun --time: that broke on this
+        # partition - the UNLIMITED default exceeds the 50d MaxTime -> PartitionTimeLimit.)
+        timeout = CFG["options"].get("timeout", "600m")
     shell:
         op.as_one_line("""
         work="{params.work_base}/fusioncatcher.{wildcards.seq_type}--{wildcards.genome_build}.{wildcards.sample_id}";
         cleanup() {{ rm -rf "$work"; }}; trap cleanup EXIT;
         rm -rf "$work"; mkdir -p "$work";
-        fusioncatcher --no-update-check -d {params.reference} -i {input.fastq_1},{input.fastq_2}
+        timeout -s KILL {params.timeout} fusioncatcher --no-update-check -d {params.reference} -i {input.fastq_1},{input.fastq_2}
         -o "$work" > {log.stdout} 2> {log.stderr};
         mkdir -p {params.out_dir};
         cp "$work/summary_candidate_fusions.txt" "$work/junk-chimeras.txt"
