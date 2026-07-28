@@ -1,0 +1,24 @@
+lcr-modules:
+    _shared:
+        lcr-modules: "../"
+        lcr-scripts: "../../lcr-scripts/"
+        root_output_dir: "results/"
+        scratch_directory: "scratch/"
+        unmatched_normal_ids:
+            genome--grch37: "00-14595_normal"
+
+    maf_diff:
+        inputs:
+            maf1: "results/sage-1.2_vcf2maf-1.3/99-outputs/deblacklisted/maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.combined.maf"
+            maf2: "results/slms_3-1.0_vcf2maf-1.3/99-outputs/deblacklisted/maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.maf"
+        options:
+            caller1_name: "sage"
+            caller2_name: "slms-3"
+
+    igv_reports:
+        inputs:
+            mafs:
+                sage-only: "results/maf_diff-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage-only.maf"
+                slms-3-only: "results/maf_diff-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3-only.maf"
+            tumour_bam: "data/genome_bams/{tumour_id}.grch37.bam"
+            normal_bam: "data/genome_bams/{normal_id}.grch37.bam"

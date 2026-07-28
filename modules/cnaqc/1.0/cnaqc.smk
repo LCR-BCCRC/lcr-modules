@@ -101,8 +101,7 @@ rule _cnaqc_run:
     input:
         sub = str(rules._cnaqc_input_subclones.output.sub),
         cp  = str(rules._cnaqc_input_cellularity_ploidy.output.cp),
-        maf = str(rules._cnaqc_input_maf.output.maf),
-        script = CFG["inputs"]["cnaqc_script"]
+        maf = str(rules._cnaqc_input_maf.output.maf)
     output:
         plot    = CFG["dirs"]["cnaqc"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_qc.pdf",
         metrics = CFG["dirs"]["cnaqc"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_metrics.tsv"
@@ -110,6 +109,7 @@ rule _cnaqc_run:
         stdout = CFG["logs"]["cnaqc"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc.stdout.log",
         stderr = CFG["logs"]["cnaqc"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc.stderr.log"
     params:
+        script               = CFG["inputs"]["cnaqc_script"],
         ref                  = lambda w: CNAQC_GENOME_MAP[w.genome_build],
         min_depth            = CFG["options"]["min_depth"],
         min_muts_per_segment = CFG["options"]["min_muts_per_segment"],
@@ -124,7 +124,7 @@ rule _cnaqc_run:
         **CFG["resources"]["cnaqc"]
     shell:
         """
-        Rscript --vanilla {input.script} \
+        Rscript --vanilla {params.script} \
             --subclones {input.sub} \
             --cellularity_ploidy {input.cp} \
             --maf {input.maf} \
@@ -144,14 +144,14 @@ rule _cnaqc_ccf:
     input:
         sub    = str(rules._cnaqc_input_subclones.output.sub),
         cp     = str(rules._cnaqc_input_cellularity_ploidy.output.cp),
-        maf    = str(rules._cnaqc_input_maf.output.maf),
-        script = CFG["inputs"]["ccf_script"]
+        maf    = str(rules._cnaqc_input_maf.output.maf)
     output:
         ccf = CFG["dirs"]["ccf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf.tsv"
     log:
         stdout = CFG["logs"]["ccf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf.stdout.log",
         stderr = CFG["logs"]["ccf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}_cnaqc_ccf.stderr.log"
     params:
+        script               = CFG["inputs"]["ccf_script"],
         ref                  = lambda w: CNAQC_GENOME_MAP[w.genome_build],
         min_depth            = CFG["options"]["min_depth"],
         min_muts_per_segment = CFG["options"]["min_muts_per_segment"]
@@ -165,7 +165,7 @@ rule _cnaqc_ccf:
         **CFG["resources"]["cnaqc"]
     shell:
         """
-        Rscript --vanilla {input.script} \
+        Rscript --vanilla {params.script} \
             --subclones {input.sub} \
             --cellularity_ploidy {input.cp} \
             --maf {input.maf} \
