@@ -105,7 +105,7 @@ rule _fusioncatcher_run:
     shell:
         op.as_one_line("""
         work="{params.work_base}/fusioncatcher.{wildcards.seq_type}--{wildcards.genome_build}.{wildcards.sample_id}";
-        cleanup() {{ rm -rf "$work"; }}; trap cleanup EXIT;
+        cleanup() {{ rm -rf "$work"; }}; trap cleanup EXIT INT TERM;
         rm -rf "$work"; mkdir -p "$work";
         timeout -s KILL {params.timeout} fusioncatcher --no-update-check -d {params.reference} -i {input.fastq_1},{input.fastq_2}
         -o "$work" > {log.stdout} 2> {log.stderr};
