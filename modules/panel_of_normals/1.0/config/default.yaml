@@ -47,8 +47,8 @@ lcr-modules:
                     opts: ""
 
         software:
-            coverage_script: "{MODSDIR}/../../purecn/1.0/etc/Coverage.R"
-            normalDB_script: "{MODSDIR}/../../purecn/1.0/etc/NormalDB.R"
+            coverage_script: "{MODSDIR}/../../purecn/1.1/etc/Coverage.R"
+            normalDB_script: "{MODSDIR}/../../purecn/1.1/etc/NormalDB.R"
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools-1.10.yaml"
