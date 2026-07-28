@@ -506,7 +506,7 @@ rule _panel_of_normals_purecn_get_mappability:
         CFG["conda_envs"]["wget"]
     shell:
         op.as_one_line("""
-            wget {params.url} -O {output.bw}
+            wget --no-check-certificate  {params.url} -O {output.bw}
         """)
 
 # PureCN script to create intervals from capture space bed
