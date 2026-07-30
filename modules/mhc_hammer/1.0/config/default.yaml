@@ -1,0 +1,148 @@
+lcr-modules:
+
+    mhc_hammer:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            # Path to a directory containing the novoalign/novoindex binaries (Novoalign V3.x;
+            # only V3 and earlier are free for non-commercial/academic use). Not conda-installable
+            # (manually licensed download from novocraft.com) -- see module README.
+            novoalign_dir: "__UPDATE__"
+
+            # Path to an installed HLA-HD directory (must contain bin/, dictionary/, freq_data/,
+            # HLA_gene.split.txt). Not conda-installable (registration-gated download) -- see
+            # module README. The HLA-HD database version must match `imgt_release` below.
+            hlahd_dir: "__UPDATE__"
+
+            # Path to your own separately-obtained, personally-licensed clone of
+            # github.com/McGranahanLab/mhc-hammer. MHC Hammer is distributed under a Cancer
+            # Research Horizons academic-use licence that prohibits redistribution -- this
+            # module therefore never bundles its bin/*.R or bin/*.sh scripts and instead calls
+            # them from this user-supplied path. See module README before setting this.
+            mhc_hammer_scripts_dir: "__UPDATE__"
+
+            # VEP is user-supplied (not conda-installed) to avoid the bioconda/Perl solver
+            # conflicts already hit with ensembl-vep in the vcf2maf module. Mirrors vcf2maf's
+            # own vep_path/vep_cache pattern.
+            vep_path: "" # Path to directory containing vep executable; auto-detected from PATH if empty
+            vep_cache: "__UPDATE__" # VEP cache directory, passed as --dir_cache
+
+            # Pins which IMGT-derived MHC Hammer reference bundle is downloaded from Zenodo
+            # (two separate zip files per release: mhc_references.zip + kmer_files.zip).
+            # Must match the IMGT/HLA-HD database version used by `hlahd_dir` above.
+            imgt_release: "3.55"
+            imgt_release_urls:
+                "3.38":
+                    mhc_references: "https://zenodo.org/records/11059410/files/mhc_references.zip?download=1"
+                    kmer_files: "https://zenodo.org/records/11059410/files/kmer_files.zip?download=1"
+                "3.55":
+                    mhc_references: "https://zenodo.org/records/12606532/files/mhc_references.zip?download=1"
+                    kmer_files: "https://zenodo.org/records/12606532/files/kmer_files.zip?download=1"
+
+            # Chromosome/contig name carrying the MHC region, per genome_build naming convention
+            # (upstream's own assets/mhc_coords_chr6.txt is just the literal contig name "chr6").
+            mhc_coords:
+                grch37: "6"
+                hg38: "chr6"
+
+            # Optional path to a sample_id\tploidy\tpurity TSV (same format used by the spechla
+            # module). Samples missing an entry are skipped for copy-number/LOH output only
+            # (allelic-imbalance/mutation calling are unaffected).
+            purity_ploidy_file: ""
+
+            # BAM subsetting (preprocessing)
+            fish_reads: True
+            unmapped_reads: True
+            contig_reads: True
+
+            # Allele BAM filtering
+            max_mismatch: 1
+
+            # DNA allelic imbalance / copy number
+            min_depth: 30
+
+            # Cohort table QC thresholds (docs/mhc_hammer_outputs.md upstream)
+            min_number_of_snps: 10
+            max_copy_number_range: 2.5
+            min_expected_depth: 10
+
+        conda_envs:
+            samtools: "{MODSDIR}/envs/samtools.yaml"
+            mhc_hammer_download: "{MODSDIR}/envs/mhc_hammer_download.yaml"
+            mosdepth: "{MODSDIR}/envs/mosdepth.yaml"
+            mhc_hammer_r: "{MODSDIR}/envs/mhc_hammer_r.yaml"
+            mhc_hammer_hlahd: "{MODSDIR}/envs/mhc_hammer_hlahd.yaml"
+            mhc_hammer_reference: "{MODSDIR}/envs/mhc_hammer_reference.yaml"
+            mhc_hammer_alignment: "{MODSDIR}/envs/mhc_hammer_alignment.yaml"
+            mhc_hammer_cn_aib: "{MODSDIR}/envs/mhc_hammer_cn_aib.yaml"
+            mhc_hammer_detect_muts: "{MODSDIR}/envs/mhc_hammer_detect_muts.yaml" # gatk4/bcftools/tabix only, no VEP
+
+        container_envs:
+            samtools: null
+            mhc_hammer_download: null
+            mosdepth: null
+            # Every rule that calls a script from mhc_hammer_scripts_dir, novoalign_dir,
+            # hlahd_dir, or vep_path sets `container: None` directly in the rule (that's most
+            # rules in this module -- subset_bam, hlahd, generate_references, novoalign,
+            # make_allele_bams, detect_cn_aib, detect_muts, parse_mutations, cohort_table).
+            # Those are all host filesystem paths outside this module's control that can't be
+            # guaranteed to exist/be bind-mounted inside a container image.
+
+        threads:
+            download_reference: 1
+            flagstat: 4
+            subset_bam: 8
+            generate_fqs: 4
+            hlahd: 4
+            generate_references: 1
+            novoalign: 1 # unlicensed Novoalign is single-threaded only
+            make_allele_bams: 1
+            mosdepth: 4
+            detect_cn_aib: 1
+            detect_muts: 1
+            parse_mutations: 1
+            cohort_table: 1
+
+        resources:
+            download_reference:
+                mem_mb: 1000
+            flagstat:
+                mem_mb: 4000
+            subset_bam:
+                mem_mb: 8000
+            generate_fqs:
+                mem_mb: 4000
+            hlahd:
+                mem_mb: 16000
+            generate_references:
+                mem_mb: 4000
+            novoalign:
+                mem_mb: 8000
+            make_allele_bams:
+                mem_mb: 4000
+            mosdepth:
+                mem_mb: 2000
+            detect_cn_aib:
+                mem_mb: 4000
+            detect_muts:
+                mem_mb: 8000
+            parse_mutations:
+                mem_mb: 2000
+            cohort_table:
+                mem_mb: 4000
+
+        pairing_config:
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: False
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: False

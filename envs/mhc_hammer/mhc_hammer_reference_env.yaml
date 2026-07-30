@@ -1,0 +1,13 @@
+name: mhc_hammer_reference
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - samtools=1.15.*
+  - picard=2.27.*
+  - tabix=1.11
+  - r-base=4.2.*
+  - r-data.table
+  - r-argparse
+  - r-seqinr
+  - bioconductor-biostrings

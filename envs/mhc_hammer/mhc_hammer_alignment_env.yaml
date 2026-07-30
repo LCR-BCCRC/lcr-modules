@@ -1,0 +1,10 @@
+name: mhc_hammer_alignment
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - samtools=1.15.*
+  - picard=2.27.*
+  - r-base=4.2.*
+  - r-data.table
+  - bioconductor-rsamtools

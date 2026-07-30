@@ -1,0 +1,8 @@
+name: mhc_hammer_detect_muts
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - gatk4=4.3.*
+  - bcftools=1.15.*
+  - tabix=1.11

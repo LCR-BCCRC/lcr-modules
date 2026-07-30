@@ -1,0 +1,6 @@
+name: mhc_hammer_download
+channels:
+  - conda-forge
+dependencies:
+  - wget
+  - unzip

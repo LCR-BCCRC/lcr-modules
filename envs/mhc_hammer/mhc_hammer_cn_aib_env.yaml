@@ -1,0 +1,12 @@
+name: mhc_hammer_cn_aib
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - samtools=1.15.*
+  - bedtools=2.30.*
+  - r-base=4.2.*
+  - r-data.table
+  - r-argparse
+  - r-seqinr
+  - r-ggpubr

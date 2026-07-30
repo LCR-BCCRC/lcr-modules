@@ -1,0 +1,9 @@
+name: mhc_hammer_hlahd
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - bowtie2=2.4.*
+  - r-base=4.2.*
+  - r-data.table
+  - r-argparse
