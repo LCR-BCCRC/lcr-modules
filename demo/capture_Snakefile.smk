@@ -37,6 +37,7 @@ configfile: "../modules/slms_3/1.0/config/default.yaml"
 configfile: "../modules/battenberg/1.2/config/default.yaml"
 configfile: "../modules/sequenza/1.4/config/default.yaml"
 configfile: "../modules/cnvkit/1.0/config/default.yaml"
+configfile: "../modules/mhc_hammer/1.0/config/default.yaml"
 
 # Load project-specific config, which includes the shared
 # configuration and some module-specific config updates
@@ -61,6 +62,7 @@ include: "../modules/slms_3/1.0/slms_3.smk"
 include: "../modules/battenberg/1.2/battenberg.smk"
 include: "../modules/sequenza/1.4/sequenza.smk"
 include: "../modules/cnvkit/1.0/cnvkit.smk"
+include: "../modules/mhc_hammer/1.0/mhc_hammer.smk"
 
 
 ##### TARGETS ######
@@ -73,4 +75,5 @@ rule all:
         rules._slms_3_all.input,
         rules._battenberg_all.input,
         rules._sequenza_all.input,
-        rules._cnvkit_all.input
+        rules._cnvkit_all.input,
+        rules._mhc_hammer_all.input

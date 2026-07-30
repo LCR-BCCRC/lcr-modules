@@ -13,25 +13,29 @@ lcr-modules:
             # Path to a directory containing the novoalign/novoindex binaries (Novoalign V3.x;
             # only V3 and earlier are free for non-commercial/academic use). Not conda-installable
             # (manually licensed download from novocraft.com) -- see module README.
-            novoalign_dir: "__UPDATE__"
+            # TEMPORARY for testing -- revert to "__UPDATE__" before merging.
+            novoalign_dir: "/home/rmorin/miniconda3/envs/novoalign_3/bin/"
 
             # Path to an installed HLA-HD directory (must contain bin/, dictionary/, freq_data/,
             # HLA_gene.split.txt). Not conda-installable (registration-gated download) -- see
             # module README. The HLA-HD database version must match `imgt_release` below.
-            hlahd_dir: "__UPDATE__"
+            # TEMPORARY for testing -- revert to "__UPDATE__" before merging.
+            hlahd_dir: "/home/rmorin/hlahd.1.7.1/"
 
             # Path to your own separately-obtained, personally-licensed clone of
             # github.com/McGranahanLab/mhc-hammer. MHC Hammer is distributed under a Cancer
             # Research Horizons academic-use licence that prohibits redistribution -- this
             # module therefore never bundles its bin/*.R or bin/*.sh scripts and instead calls
             # them from this user-supplied path. See module README before setting this.
-            mhc_hammer_scripts_dir: "__UPDATE__"
+            # TEMPORARY for testing -- revert to "__UPDATE__" before merging.
+            mhc_hammer_scripts_dir: "/projects/rmorin/rmorin_git/mhc-hammer/"
 
             # VEP is user-supplied (not conda-installed) to avoid the bioconda/Perl solver
             # conflicts already hit with ensembl-vep in the vcf2maf module. Mirrors vcf2maf's
             # own vep_path/vep_cache pattern.
-            vep_path: "" # Path to directory containing vep executable; auto-detected from PATH if empty
-            vep_cache: "__UPDATE__" # VEP cache directory, passed as --dir_cache
+            # TEMPORARY for testing -- revert vep_path to "" and vep_cache to "__UPDATE__" before merging.
+            vep_path: "/home/rmorin/lib/ensembl_latest/ensembl-tools/scripts/variant_effect_predictor" # Path to directory containing vep executable; auto-detected from PATH if empty
+            vep_cache: "/projects/rmorin/reference/ensembl_vep_cache/" # VEP cache directory, passed as --dir_cache
 
             # Pins which IMGT-derived MHC Hammer reference bundle is downloaded from Zenodo
             # (two separate zip files per release: mhc_references.zip + kmer_files.zip).
