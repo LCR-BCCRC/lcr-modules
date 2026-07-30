@@ -242,9 +242,12 @@ rule _mhc_hammer_subset_bam:
     params:
         scripts_dir = SCRIPTS_DIR,
         mhc_chrom = lambda w: MHC_COORDS[w.genome_build],
-        fish_reads = CFG["options"]["fish_reads"],
-        unmapped_reads = CFG["options"]["unmapped_reads"],
-        contig_reads = CFG["options"]["contig_reads"],
+        # subset_bam_opt.sh does literal `[ "$var" == true ]` string comparisons (lowercase) --
+        # str(True)/str(False) from a Python/YAML bool renders as "True"/"False" (capitalised)
+        # when substituted into the shell command, which never matches. Must be lowercased here.
+        fish_reads = str(CFG["options"]["fish_reads"]).lower(),
+        unmapped_reads = str(CFG["options"]["unmapped_reads"]).lower(),
+        contig_reads = str(CFG["options"]["contig_reads"]).lower(),
         sort_mem = lambda wildcards, resources: max(1, int(resources.mem_mb / 1000 * 0.8))
     conda:
         CFG["conda_envs"]["samtools"]
@@ -338,10 +341,10 @@ rule _mhc_hammer_hlahd:
              Rscript {params.scripts_dir}/bin/hlahd_parse_output.R
              --hlahd_folder result --gtf_path {params.gtf_abs}
              --sample_id {wildcards.patient_id} --genes A B C &&
-             mv result/{wildcards.patient_id}_hla_alleles.csv {wildcards.patient_id}_hla_alleles.csv) >> {log.stdout} 2>&1
+             mv result/{wildcards.patient_id}_hla_alleles.csv {wildcards.patient_id}_hla_alleles.csv) >> {log.stdout} 2>&1;
         else
             echo "ERROR: HLA-HD failed to produce HLA A, B and C estimates for patient {wildcards.patient_id}. See {log.stdout}." >&2 &&
-            exit 1
+            exit 1;
         fi
         """)
 
