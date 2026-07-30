@@ -71,6 +71,11 @@ lcr-modules:
             min_number_of_snps: 10
             max_copy_number_range: 2.5
             min_expected_depth: 10
+            # These two are RNA-specific QC thresholds, but make_cohort_overview_table.R marks
+            # them required=TRUE even when no RNA data is present (DNA-only v1) -- upstream
+            # defaults, confirmed by reading nextflow.config.
+            min_frac_mapping_uniquely: 0.5
+            max_frac_mapping_multi_gene: 0.05
 
         conda_envs:
             samtools: "{MODSDIR}/envs/samtools.yaml"

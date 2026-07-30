@@ -67,12 +67,22 @@ HLAHD_DIR = CFG["options"]["hlahd_dir"]
 VEP_PATH = CFG["options"]["vep_path"]
 VEP_CACHE = CFG["options"]["vep_cache"]
 MHC_COORDS = CFG["options"]["mhc_coords"]
+
+# Upstream's own scripts hardcode the literal tokens "wxs"/"rnaseq" (its internal DNA-vs-RNA
+# vocabulary) into filenames and into the regexes several cohort-level R scripts use to find and
+# parse those filenames (e.g. `make_cohort_overview_table.R` matches `_wxs.library_size.txt$` and
+# `_wxs_novoalign.hla_bam_read_count.csv$` literally) -- this is independent of and NOT the same
+# as lcr-modules' own `seq_type` wildcard (`capture`/`genome`). Confirmed by reading the actual
+# scripts in a local clone. Every filename segment that flows into one of those scripts' pattern
+# matching must use this literal constant, never `{wildcards.seq_type}` directly.
+MHC_SEQ = "wxs"
 IMGT_URLS = CFG["options"]["imgt_release_urls"][CFG["options"]["imgt_release"]]
 
 # Define rules to be run locally when using a compute cluster
 localrules:
     _mhc_hammer_input_bam,
     _mhc_hammer_download_reference,
+    _mhc_hammer_generate_inventory,
     _mhc_hammer_output_dna_analysis,
     _mhc_hammer_output_mutations,
     _mhc_hammer_output_cohort_table,
@@ -194,13 +204,15 @@ rule _mhc_hammer_download_reference:
 
 
 # Computes library size (used to normalise depth downstream) on the full input BAM,
-# mirroring upstream's FLAGSTAT process.
+# mirroring upstream's FLAGSTAT process. Filename uses the literal MHC_SEQ ("wxs") token, not
+# {seq_type} -- see the MHC_SEQ note near the top of this file -- because
+# make_cohort_overview_table.R locates this file via a literal `_wxs.library_size.txt$` match.
 rule _mhc_hammer_flagstat:
     input:
         bam = str(rules._mhc_hammer_input_bam.output.bam)
     output:
-        library_size = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.library_size.txt",
-        flagstat = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.flagstat"
+        library_size = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_" + MHC_SEQ + ".library_size.txt",
+        flagstat = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_" + MHC_SEQ + ".flagstat"
     conda:
         CFG["conda_envs"]["samtools"]
     container:
@@ -325,7 +337,8 @@ rule _mhc_hammer_hlahd:
             (cd {params.workdir} &&
              Rscript {params.scripts_dir}/bin/hlahd_parse_output.R
              --hlahd_folder result --gtf_path {params.gtf_abs}
-             --sample_id {wildcards.patient_id} --genes A B C) >> {log.stdout} 2>&1
+             --sample_id {wildcards.patient_id} --genes A B C &&
+             mv result/{wildcards.patient_id}_hla_alleles.csv {wildcards.patient_id}_hla_alleles.csv) >> {log.stdout} 2>&1
         else
             echo "ERROR: HLA-HD failed to produce HLA A, B and C estimates for patient {wildcards.patient_id}. See {log.stdout}." >&2 &&
             exit 1
@@ -451,10 +464,12 @@ rule _mhc_hammer_make_allele_bams:
         passed_hla_genes = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_passed_hla_genes.txt",
         passed_heterozygous_hla_genes = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_passed_heterozygous_hla_genes.txt",
         passed_hla_alleles = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_passed_hla_alleles.txt",
-        passed_heterozygous_hla_alleles = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_passed_heterozygous_hla_alleles.txt"
+        passed_heterozygous_hla_alleles = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_passed_heterozygous_hla_alleles.txt",
+        hla_bam_read_count = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_" + MHC_SEQ + "_novoalign.hla_bam_read_count.csv"
     params:
         scripts_dir = SCRIPTS_DIR,
         max_mismatch = CFG["options"]["max_mismatch"],
+        mhc_seq = MHC_SEQ,
         patient_id = lambda wildcards: _mhc_hammer_get_patient_id_for_sample(wildcards.sample_id),
         bam_abs = lambda wildcards, input: os.path.abspath(input.bam)
     conda:
@@ -471,7 +486,7 @@ rule _mhc_hammer_make_allele_bams:
         mkdir -p $wd &&
         (cd $wd &&
          {params.scripts_dir}/bin/make_hla_bams.sh {params.bam_abs} {params.scripts_dir}/
-           {params.max_mismatch} {wildcards.sample_id} {wildcards.seq_type} novoalign)
+           {params.max_mismatch} {wildcards.sample_id} {params.mhc_seq} novoalign)
         """)
 
 
@@ -482,10 +497,11 @@ rule _mhc_hammer_mosdepth:
         allele_bams_marker = str(rules._mhc_hammer_make_allele_bams.output.passed_hla_alleles),
         patient_dir = _mhc_hammer_reference_dir_for_sample
     output:
-        bed = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.{seq_type}.novoalign.mosdepth.bed"
+        bed = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}." + MHC_SEQ + ".novoalign.mosdepth.bed"
     params:
         patient_id = lambda wildcards: _mhc_hammer_get_patient_id_for_sample(wildcards.sample_id),
-        bed_file = lambda wildcards, input: f"{input.patient_dir[0]}/{_mhc_hammer_get_patient_id_for_sample(wildcards.sample_id)}.bed"
+        bed_file = lambda wildcards, input: f"{input.patient_dir[0]}/{_mhc_hammer_get_patient_id_for_sample(wildcards.sample_id)}.bed",
+        mhc_seq = MHC_SEQ
     conda:
         CFG["conda_envs"]["mosdepth"]
     container:
@@ -498,7 +514,7 @@ rule _mhc_hammer_mosdepth:
         op.as_one_line("""
         wd=$(dirname {input.allele_bams_marker}) &&
         > {output.bed} &&
-        for bam_file in $wd/*_{wildcards.seq_type}_novoalign.*.sorted.filtered.bam; do
+        for bam_file in $wd/*_{params.mhc_seq}_novoalign.*.sorted.filtered.bam; do
             [ -e "$bam_file" ] || continue;
             allele=$(basename $bam_file | sed -E 's/^.*_novoalign\\.//; s/\\.sorted\\.filtered\\.bam$//');
             mosdepth --no-per-base --chrom $allele --by {params.bed_file} $wd/{wildcards.sample_id}.$allele $bam_file &&
@@ -539,12 +555,16 @@ rule _mhc_hammer_detect_cn_aib:
     input:
         unpack(lambda wildcards: _mhc_hammer_pair_inputs(wildcards, str(rules._mhc_hammer_make_allele_bams.output.passed_heterozygous_hla_genes)))
     output:
-        dna_analysis = CFG["dirs"]["dna_analysis"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_dna_analysis.csv"
+        # Filename must match concatenate_dna_analysis_tables.R's own
+        # paste0(sample_name,"_",snp_type,"_",aligner,"_dna_analysis.csv") convention exactly --
+        # confirmed by reading that script.
+        dna_analysis = CFG["dirs"]["dna_analysis"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_all_snps_novoalign_dna_analysis.csv"
     log:
         stdout = CFG["logs"]["dna_analysis"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/detect_cn_aib.log"
     params:
         scripts_dir = SCRIPTS_DIR,
         min_depth = CFG["options"]["min_depth"],
+        mhc_seq = MHC_SEQ,
         purity_ploidy = lambda wildcards: _mhc_hammer_get_purity_ploidy(wildcards),
         tumour_marker_abs = lambda wildcards, input: os.path.abspath(input.tumour_marker[0]),
         normal_marker_abs = lambda wildcards, input: os.path.abspath(input.normal_marker[0]),
@@ -576,10 +596,10 @@ rule _mhc_hammer_detect_cn_aib:
             allele1_snp_path=${{allele1}}_genome.snp_pos.bed && allele2_snp_path=${{allele2}}_genome.snp_pos.bed &&
             cp {params.patient_dir_abs}/$allele1_snp_path . 2>/dev/null;
             cp {params.patient_dir_abs}/$allele2_snp_path . 2>/dev/null;
-            allele1_tumour_bam=$tumour_dir/{wildcards.tumour_id}_{wildcards.seq_type}_novoalign.$allele1.sorted.filtered.bam &&
-            allele2_tumour_bam=$tumour_dir/{wildcards.tumour_id}_{wildcards.seq_type}_novoalign.$allele2.sorted.filtered.bam &&
-            allele1_gl_bam=$normal_dir/{wildcards.normal_id}_{wildcards.seq_type}_novoalign.$allele1.sorted.filtered.bam &&
-            allele2_gl_bam=$normal_dir/{wildcards.normal_id}_{wildcards.seq_type}_novoalign.$allele2.sorted.filtered.bam &&
+            allele1_tumour_bam=$tumour_dir/{wildcards.tumour_id}_{params.mhc_seq}_novoalign.$allele1.sorted.filtered.bam &&
+            allele2_tumour_bam=$tumour_dir/{wildcards.tumour_id}_{params.mhc_seq}_novoalign.$allele2.sorted.filtered.bam &&
+            allele1_gl_bam=$normal_dir/{wildcards.normal_id}_{params.mhc_seq}_novoalign.$allele1.sorted.filtered.bam &&
+            allele2_gl_bam=$normal_dir/{wildcards.normal_id}_{params.mhc_seq}_novoalign.$allele2.sorted.filtered.bam &&
             samtools mpileup $allele1_tumour_bam -f $fasta > {wildcards.tumour_id}.$allele1.mpileup;
             samtools mpileup $allele1_gl_bam -f $fasta > {wildcards.normal_id}.$allele1.mpileup;
             samtools mpileup $allele2_tumour_bam -f $fasta > {wildcards.tumour_id}.$allele2.mpileup;
@@ -611,13 +631,13 @@ rule _mhc_hammer_detect_cn_aib:
             done;
             Rscript {params.scripts_dir}/bin/get_logr_aib.R --allele1 $allele1 --allele2 $allele2 --allele1_gl_reads_count_once_coverage {wildcards.normal_id}.$allele1.coverage_at_filtered_snps_reads_count_once.csv --allele2_gl_reads_count_once_coverage {wildcards.normal_id}.$allele2.coverage_at_filtered_snps_reads_count_once.csv --allele1_tumour_reads_count_once_coverage {wildcards.tumour_id}.$allele1.coverage_at_filtered_snps_reads_count_once.csv --allele2_tumour_reads_count_once_coverage {wildcards.tumour_id}.$allele2.coverage_at_filtered_snps_reads_count_once.csv --allele1_snp_bed $allele1_gene_filtered_snps --allele2_snp_bed $allele2_gene_filtered_snps --tumour_library_size_path {params.tumour_flagstat_abs} --gl_library_size_path {params.normal_flagstat_abs} --logr_aib_output_path {wildcards.tumour_id}.$gene.all_snps.logr_aib.csv --logr_aib_plots_prefix {wildcards.tumour_id}.$gene.all_snps.logr_aib --scripts_dir {params.scripts_dir}/bin/;
         done &&
-        Rscript {params.scripts_dir}/bin/concatenate_dna_analysis_tables.R --genes "$genes" --snp_type all_snps --sample_name {wildcards.tumour_id} --aligner novoalign --missing_purity_ploidy ${{missing_purity_ploidy:-TRUE}}
+        Rscript {params.scripts_dir}/bin/concatenate_dna_analysis_tables.R --genes $genes --snp_type all_snps --sample_name {wildcards.tumour_id} --aligner novoalign --missing_purity_ploidy ${{missing_purity_ploidy:-TRUE}}
         ) > {log.stdout} 2>&1
         """)
-        # NOTE: this rule's shell script was translated from the upstream DETECT_CN_AND_AIB
-        # Nextflow process (mhc_hammer_dna_modules.nf) without access to the external R scripts'
-        # source (see licensing note near the top of this file) -- verify argument names/order
-        # against your own mhc_hammer_scripts_dir checkout before relying on results.
+        # `--genes` is deliberately unquoted: concatenate_dna_analysis_tables.R's `--genes`
+        # uses argparse nargs="+", so it must receive each gene as a separate word-split CLI
+        # token, not one quoted string. Argument names/order in this rule were cross-checked
+        # against a local read-only clone of mhc-hammer's bin/*.R scripts.
 
 
 # Calls somatic mutations in each HLA allele the tumour and normal both passed filtering for,
@@ -645,7 +665,8 @@ rule _mhc_hammer_detect_muts:
         normal_marker_abs = lambda wildcards, input: os.path.abspath(input.normal_marker[0]),
         patient_dir_abs = lambda wildcards, input: os.path.abspath(input.patient_dir[0]),
         patient_id = lambda wildcards: _mhc_hammer_get_patient_id_for_tumour(wildcards.tumour_id, wildcards.seq_type),
-        mem_gb = lambda wildcards, resources: max(1, int(resources.mem_mb / 1000 * 0.8))
+        mem_gb = lambda wildcards, resources: max(1, int(resources.mem_mb / 1000 * 0.8)),
+        mhc_seq = MHC_SEQ
     conda:
         CFG["conda_envs"]["mhc_hammer_detect_muts"]
     container:
@@ -666,8 +687,8 @@ rule _mhc_hammer_detect_muts:
         bgzip -dc {params.patient_dir_abs}/{params.patient_id}_sorted.gtf.gz > {wildcards.tumour_id}.gtf &&
         alleles=$(comm -12 <(sort {params.tumour_marker_abs}) <(sort {params.normal_marker_abs})) &&
         for allele in $alleles; do
-            normal_bam=$normal_dir/{wildcards.normal_id}_{wildcards.seq_type}_novoalign.$allele.sorted.filtered.bam;
-            tumour_bam=$tumour_dir/{wildcards.tumour_id}_{wildcards.seq_type}_novoalign.$allele.sorted.filtered.bam;
+            normal_bam=$normal_dir/{wildcards.normal_id}_{params.mhc_seq}_novoalign.$allele.sorted.filtered.bam;
+            tumour_bam=$tumour_dir/{wildcards.tumour_id}_{params.mhc_seq}_novoalign.$allele.sorted.filtered.bam;
             gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' Mutect2 -R $fasta -I $normal_bam -I $tumour_bam -normal {wildcards.normal_id} --f1r2-tar-gz {wildcards.tumour_id}.$allele.f1r2.tar.gz --output {wildcards.tumour_id}.$allele.vcf;
             if tail -n 1 {wildcards.tumour_id}.$allele.vcf | grep -q CHROM; then continue; fi;
             gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' LearnReadOrientationModel -I {wildcards.tumour_id}.$allele.f1r2.tar.gz -O {wildcards.tumour_id}.$allele.read-orientation-model.tar.gz;
@@ -681,15 +702,62 @@ rule _mhc_hammer_detect_muts:
         if ! ls {wildcards.tumour_id}.*.vep.txt >/dev/null 2>&1; then touch {wildcards.tumour_id}.empty.vep.txt; fi
         ) > {log.stdout} 2>&1
         """)
-        # NOTE: translated from the upstream DETECT_MUTS Nextflow process without access to the
-        # external scripts' source -- verify against your own mhc_hammer_scripts_dir checkout.
+        # make_vep_gtf.R's arguments (--gtf_path/--gtf_vep_path/--allele) were cross-checked
+        # against a local read-only clone of mhc-hammer's bin/*.R.
+
+
+# Synthesises the small cohort-level "inventory" table that several of upstream's cohort-level
+# R scripts require (make_mutation_table.R, make_cohort_overview_table.R) -- upstream's own
+# pipeline builds this from the user's *.csv samplesheet, which lcr-modules has no equivalent of;
+# this rule derives the same columns from CFG["samples"]/CFG["paired_runs"]/purity_ploidy_file
+# instead. Confirmed against the actual column names those scripts read (`patient`, `sample_name`,
+# `sample_type`, `sequencing_type`, `purity`, `ploidy`, `normal_sample_name`) by reading a local
+# clone of mhc-hammer's bin/*.R. Cohort-wide, no wildcards, stdlib-only (no pandas dependency).
+rule _mhc_hammer_generate_inventory:
+    output:
+        inventory = CFG["dirs"]["cohort_tables"] + "inventory.csv",
+        hlahd_germline_samples = CFG["dirs"]["cohort_tables"] + "hlahd_germline_samples.txt"
+    run:
+        import csv
+        CFG = config["lcr-modules"]["mhc_hammer"]
+        samples = CFG["samples"]
+        runs = CFG["paired_runs"]
+        purity_ploidy_file = CFG["options"]["purity_ploidy_file"]
+        purity_ploidy = {}
+        if purity_ploidy_file:
+            with open(purity_ploidy_file) as fh:
+                for line in fh:
+                    fields = line.rstrip("\n").split("\t")
+                    if len(fields) >= 3:
+                        purity_ploidy[fields[0]] = (fields[2], fields[1])  # sample_id -> (purity, ploidy)
+        normal_for_tumour = dict(zip(runs["tumour_sample_id"], runs["normal_sample_id"]))
+        os.makedirs(os.path.dirname(output.inventory), exist_ok=True)
+        with open(output.inventory, "w", newline="") as fh:
+            writer = csv.writer(fh)
+            writer.writerow(["patient", "sample_name", "sample_type", "sequencing_type", "purity", "ploidy", "normal_sample_name"])
+            for _, row in samples.iterrows():
+                sample_id = row["sample_id"]
+                tissue_status = str(row["tissue_status"]).lower()
+                sample_type = "tumour" if tissue_status in ("tumour", "tumor") else "normal"
+                purity, ploidy = purity_ploidy.get(sample_id, ("", ""))
+                writer.writerow([row["patient_id"], sample_id, sample_type, MHC_SEQ, purity, ploidy, normal_for_tumour.get(sample_id, "")])
+        germline_ids = sorted(set(runs["normal_sample_id"]))
+        with open(output.hlahd_germline_samples, "w") as fh:
+            for gid in germline_ids:
+                fh.write(gid + "\n")
 
 
 # Aggregates one patient's per-tumour VEP mutation tables (across all of that patient's runs)
 # into a single per-patient mutation CSV. Patient-level. Mirrors upstream's PARSE_MUTATIONS
 # process. Skipped (no output) for patients where no run produced any real (non-empty) VEP
 # table -- matching upstream's own `mutations_detected_check` branch.
-def _mhc_hammer_get_patient_mutation_dirs(wildcards):
+#
+# make_mutation_table.R needs to run from a directory containing bare-basename copies of the
+# vep.txt tables and the tumour/normal allele-filtered BAMs it reads (it looks up VCF sample
+# columns and BAM files by bare sample_id, and reads BAMs by bare relative filename) --
+# confirmed by reading its source. This mirrors the flat per-task staging directory every
+# Nextflow process gets for free; here we build it explicitly via symlinks.
+def _mhc_hammer_get_patient_mutation_inputs(wildcards):
     CFG = config["lcr-modules"]["mhc_hammer"]
     patient_runs = op.filter_samples(
         CFG["paired_runs"],
@@ -697,25 +765,55 @@ def _mhc_hammer_get_patient_mutation_dirs(wildcards):
         tumour_seq_type = wildcards.seq_type,
         tumour_genome_build = wildcards.genome_build
     )
-    return expand(
-        str(rules._mhc_hammer_detect_muts.output.vep_dir),
-        zip,
-        tumour_id = patient_runs["tumour_sample_id"],
-        normal_id = patient_runs["normal_sample_id"],
-        pair_status = patient_runs["pair_status"],
-        allow_missing = True
+    return {
+        "vep_dirs": expand(
+            str(rules._mhc_hammer_detect_muts.output.vep_dir),
+            zip,
+            tumour_id = patient_runs["tumour_sample_id"],
+            normal_id = patient_runs["normal_sample_id"],
+            pair_status = patient_runs["pair_status"],
+            allow_missing = True
+        ),
+        "tumour_marker": expand(
+            str(rules._mhc_hammer_make_allele_bams.output.passed_hla_alleles),
+            zip, sample_id = patient_runs["tumour_sample_id"], allow_missing = True
+        ),
+        "normal_marker": expand(
+            str(rules._mhc_hammer_make_allele_bams.output.passed_hla_alleles),
+            zip, sample_id = sorted(set(patient_runs["normal_sample_id"])), allow_missing = True
+        )
+    }
+
+def _mhc_hammer_get_patient_run_ids(wildcards):
+    CFG = config["lcr-modules"]["mhc_hammer"]
+    patient_runs = op.filter_samples(
+        CFG["paired_runs"],
+        tumour_patient_id = wildcards.patient_id,
+        tumour_seq_type = wildcards.seq_type,
+        tumour_genome_build = wildcards.genome_build
     )
+    tumour_ids = " ".join(patient_runs["tumour_sample_id"].tolist())
+    normal_ids = " ".join(sorted(set(patient_runs["normal_sample_id"].tolist())))
+    return tumour_ids, normal_ids
 
 rule _mhc_hammer_parse_mutations:
     input:
-        vep_dirs = _mhc_hammer_get_patient_mutation_dirs
+        unpack(_mhc_hammer_get_patient_mutation_inputs),
+        inventory = str(rules._mhc_hammer_generate_inventory.output.inventory)
     output:
         mutations = CFG["dirs"]["mutations"] + "{seq_type}--{genome_build}/{patient_id}/{patient_id}_mutations.csv"
     log:
         stdout = CFG["logs"]["mutations"] + "{seq_type}--{genome_build}/{patient_id}/parse_mutations.log"
     params:
         scripts_dir = SCRIPTS_DIR,
-        vep_dirs_abs = lambda wildcards, input: " ".join(os.path.abspath(d) for d in input.vep_dirs)
+        mhc_seq = MHC_SEQ,
+        vep_dirs_abs = lambda wildcards, input: " ".join(os.path.abspath(d) for d in input.vep_dirs),
+        bam_dirs_abs = lambda wildcards, input: " ".join(sorted(set(
+            os.path.dirname(os.path.abspath(f)) for f in list(input.tumour_marker) + list(input.normal_marker)
+        ))),
+        tumour_normal_ids = lambda wildcards: _mhc_hammer_get_patient_run_ids(wildcards),
+        inventory_abs = lambda wildcards, input: os.path.abspath(input.inventory),
+        mutations_abs = lambda wildcards, output: os.path.abspath(output.mutations)
     conda:
         CFG["conda_envs"]["mhc_hammer_r"]
     container:
@@ -727,32 +825,45 @@ rule _mhc_hammer_parse_mutations:
     shell:
         op.as_one_line("""
         wd=$(dirname {output.mutations}) && mkdir -p $wd &&
+        stage=$wd/staged && rm -rf $stage && mkdir -p $stage &&
         (
-        vep_tables="" &&
         for d in {params.vep_dirs_abs}; do
             for f in $d/*.vep.txt; do
                 case "$f" in *empty.vep.txt) continue ;; esac;
-                [ -e "$f" ] && vep_tables="$vep_tables $f";
+                [ -e "$f" ] && ln -sf $(realpath $f) $stage/$(basename $f);
             done;
         done;
+        for d in {params.bam_dirs_abs}; do
+            for f in $d/*_{params.mhc_seq}_novoalign.*.sorted.filtered.bam*; do
+                [ -e "$f" ] && ln -sf $(realpath $f) $stage/$(basename $f);
+            done;
+        done;
+        cd $stage &&
+        vep_tables=$(ls *.vep.txt 2>/dev/null || true) &&
         if [ -z "$vep_tables" ]; then
-            echo "No mutations detected for patient {wildcards.patient_id} -- skipping mutation table" &&
-            touch {output.mutations};
+            echo "No mutations detected for patient {wildcards.patient_id} -- skipping mutation table";
+            touch {params.mutations_abs};
         else
-            cd $wd &&
-            Rscript {params.scripts_dir}/bin/make_mutation_table.R --vep_tables $vep_tables --mutation_save_path {wildcards.patient_id}_mutations.csv --scripts_dir {params.scripts_dir}/bin/;
+            tumour_ids="{params.tumour_normal_ids[0]}" && normal_ids="{params.tumour_normal_ids[1]}" &&
+            tumour_bams=$(for tid in $tumour_ids; do ls ${{tid}}_{params.mhc_seq}_novoalign.*.sorted.filtered.bam 2>/dev/null; done) &&
+            gl_bams=$(for nid in $normal_ids; do ls ${{nid}}_{params.mhc_seq}_novoalign.*.sorted.filtered.bam 2>/dev/null; done | sort -u) &&
+            Rscript {params.scripts_dir}/bin/make_mutation_table.R --vep_tables $vep_tables --wxs_tumour_bam_files $tumour_bams --wxs_gl_bam_files $gl_bams --mutation_save_path {params.mutations_abs} --scripts_dir {params.scripts_dir}/bin/ --inventory_path {params.inventory_abs};
         fi
-        ) > {log.stdout} 2>&1
+        ) > {log.stdout} 2>&1 &&
+        rm -rf $stage
         """)
-        # NOTE: upstream's make_mutation_table.R also takes --wxs_tumour_bam_files/--wxs_gl_bam_files
-        # and an --inventory csv for read-depth annotation; wire these up against your own
-        # mhc_hammer_scripts_dir checkout's actual CLI before relying on this rule's output.
 
 
 # Builds the cohort-wide gene-level summary table (docs/mhc_hammer_outputs.md upstream,
 # DNA-only column subset), combining every patient's HLA-HD genotype, allele-specific coverage
 # (mosdepth), DNA copy-number/allelic-imbalance, and mutation calls into one CSV. Cohort-wide,
 # no wildcards. Mirrors upstream's CREATE_MHC_HAMMER_TABLE process.
+#
+# Like _mhc_hammer_parse_mutations, make_cohort_overview_table.R's `--csv_tables_path` is a
+# manifest of *bare basenames* it reads relative to its own working directory (matches upstream's
+# own `.map { it.getName() }.collectFile(...)` -- confirmed by reading the script and
+# workflows/mhc_hammer.nf), not a list of absolute paths -- so inputs are staged flat with
+# symlinks first, exactly as in _mhc_hammer_parse_mutations.
 rule _mhc_hammer_cohort_table:
     input:
         dna_analysis = expand(
@@ -770,7 +881,30 @@ rule _mhc_hammer_cohort_table:
             seq_type = CFG["samples"]["seq_type"],
             genome_build = CFG["samples"]["genome_build"],
             sample_id = CFG["samples"]["sample_id"]
-        )
+        ),
+        library_size = expand(
+            str(rules._mhc_hammer_flagstat.output.library_size),
+            zip,
+            seq_type = CFG["samples"]["seq_type"],
+            genome_build = CFG["samples"]["genome_build"],
+            sample_id = CFG["samples"]["sample_id"]
+        ),
+        hla_bam_read_count = expand(
+            str(rules._mhc_hammer_make_allele_bams.output.hla_bam_read_count),
+            zip,
+            seq_type = CFG["samples"]["seq_type"],
+            genome_build = CFG["samples"]["genome_build"],
+            sample_id = CFG["samples"]["sample_id"]
+        ),
+        patient_dirs = expand(
+            str(rules._mhc_hammer_generate_references.output.patient_dir),
+            zip,
+            seq_type = CFG["paired_runs"]["tumour_seq_type"],
+            genome_build = CFG["paired_runs"]["tumour_genome_build"],
+            patient_id = CFG["paired_runs"]["tumour_patient_id"]
+        ),
+        inventory = str(rules._mhc_hammer_generate_inventory.output.inventory),
+        hlahd_germline_samples = str(rules._mhc_hammer_generate_inventory.output.hlahd_germline_samples)
     output:
         cohort_table = CFG["dirs"]["cohort_tables"] + "cohort_mhc_hammer_gene_table.csv"
     log:
@@ -780,8 +914,16 @@ rule _mhc_hammer_cohort_table:
         min_number_of_snps = CFG["options"]["min_number_of_snps"],
         max_copy_number_range = CFG["options"]["max_copy_number_range"],
         min_expected_depth = CFG["options"]["min_expected_depth"],
+        min_frac_mapping_uniquely = CFG["options"]["min_frac_mapping_uniquely"],
+        max_frac_mapping_multi_gene = CFG["options"]["max_frac_mapping_multi_gene"],
         min_depth = CFG["options"]["min_depth"],
-        input_csvs_abs = lambda wildcards, input: " ".join(os.path.abspath(f) for f in input.dna_analysis)
+        flat_files_abs = lambda wildcards, input: " ".join(os.path.abspath(f) for f in (
+            list(input.dna_analysis) + list(input.mosdepth) + list(input.library_size) + list(input.hla_bam_read_count)
+        )),
+        patient_dirs_abs = lambda wildcards, input: " ".join(sorted(set(os.path.abspath(d) for d in input.patient_dirs))),
+        inventory_abs = lambda wildcards, input: os.path.abspath(input.inventory),
+        hlahd_germline_samples_abs = lambda wildcards, input: os.path.abspath(input.hlahd_germline_samples),
+        cohort_table_abs = lambda wildcards, output: os.path.abspath(output.cohort_table)
     conda:
         CFG["conda_envs"]["mhc_hammer_r"]
     container:
@@ -793,19 +935,30 @@ rule _mhc_hammer_cohort_table:
     shell:
         op.as_one_line("""
         wd=$(dirname {output.cohort_table}) && mkdir -p $wd &&
+        stage=$wd/staged && rm -rf $stage && mkdir -p $stage &&
         (
-        cd $wd &&
+        for f in {params.flat_files_abs}; do ln -sf $f $stage/$(basename $f); done;
+        for d in {params.patient_dirs_abs}; do
+            for f in $d/*_genome_allele_table.csv; do
+                [ -e "$f" ] && ln -sf $f $stage/$(basename $f);
+            done;
+        done;
+        cd $stage &&
+        ls -1 . > input_csvs.txt &&
         Rscript {params.scripts_dir}/bin/make_cohort_overview_table.R
-          --csv_tables_path <(printf '%s\\n' {params.input_csvs_abs})
+          --inventory_path {params.inventory_abs}
+          --csv_tables_path input_csvs.txt
+          --hlahd_germline_samples_path {params.hlahd_germline_samples_abs}
           --max_cn_range {params.max_copy_number_range}
           --min_n_snps {params.min_number_of_snps}
           --min_expected_depth {params.min_expected_depth}
-          --dna_snp_min_depth {params.min_depth}
-        ) > {log.stdout} 2>&1
+          --min_frac_mapping_uniquely {params.min_frac_mapping_uniquely}
+          --max_frac_mapping_multi_gene {params.max_frac_mapping_multi_gene}
+          --dna_snp_min_depth {params.min_depth} &&
+        mv cohort_mhc_hammer_gene_table.csv {params.cohort_table_abs}
+        ) > {log.stdout} 2>&1 &&
+        rm -rf $stage
         """)
-        # NOTE: upstream's make_cohort_overview_table.R also takes --inventory_path and
-        # --hlahd_germline_samples_path; wire these up against your own mhc_hammer_scripts_dir
-        # checkout's actual CLI before relying on this rule's output.
 
 
 # Symlinks the final per-run output files into the module results directory (under '99-outputs/')
