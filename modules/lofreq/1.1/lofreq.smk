@@ -141,10 +141,11 @@ rule _lofreq_preprocess_normal:
     shell:
         op.as_one_line("""
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
+        _bam=$(readlink -f "{input.normal_bam}");
         touch {output.preprocessing_start}
         &&
         cd "$(dirname {output.vcf_relaxed})"
-        && lofreq somatic --normal_only {params.opts} --threads {threads} -t {input.normal_bam} -n {input.normal_bam}
+        && lofreq somatic --normal_only {params.opts} --threads {threads} -t "${{_bam}}" -n "${{_bam}}"
         -f {input.fasta} -o "" -d {input.dbsnp} --bed {input.bed}
         > {log.stdout} 2> {log.stderr}
         &&
@@ -217,8 +218,10 @@ rule _lofreq_run_tumour_unmatched:
     shell:
         op.as_one_line("""
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
+        _tbam=$(readlink -f "{input.tumour_bam}");
+        _nbam=$(readlink -f "{input.normal_bam}");
         cd "$(dirname {output.vcf_snvs_filtered})"
-        && lofreq somatic --continue {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
+        && lofreq somatic --continue {params.opts} --threads {threads} -t "${{_tbam}}" -n "${{_nbam}}"
         -f {input.fasta} -o "" -d {input.dbsnp} --bed {input.bed}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -254,9 +257,11 @@ rule _lofreq_run_tumour_matched:
     shell:
         op.as_one_line("""
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
+        _tbam=$(readlink -f "{input.tumour_bam}");
+        _nbam=$(readlink -f "{input.normal_bam}");
         if [[ -e {output.vcf_snvs_all}.tbi ]]; then rm -f $(dirname {output.vcf_relaxed})/*; fi;
         cd "$(dirname {output.vcf_snvs_filtered})"
-        && lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
+        && lofreq somatic {params.opts} --threads {threads} -t "${{_tbam}}" -n "${{_nbam}}"
         -f {input.fasta} -o "" -d {input.dbsnp} --bed {input.bed}
         > {log.stdout} 2> {log.stderr}
         """)
