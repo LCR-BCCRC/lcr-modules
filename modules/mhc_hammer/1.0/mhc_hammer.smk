@@ -270,10 +270,17 @@ rule _mhc_hammer_subset_bam:
         # "contigs_placeholder.txt" (not just any empty file) -- the script special-cases that
         # literal name to auto-detect non-standard contigs from the BAM header; any other
         # filename is instead treated as a real (here, empty) user-supplied contig list.
+        # subset_bam_opt.sh (bash -eu) skips its own final `rm -rf ${tmp_dir}` cleanup if any
+        # step fails partway through, and that tmp_dir isn't a Snakemake-tracked output, so nothing
+        # else cleans it up either -- a later retry can then fail on e.g. `samtools merge` refusing
+        # to overwrite a stale intermediate file left by the earlier failed attempt. Removing
+        # {sample_id}_tmpDir up front makes every invocation of this rule start from a clean slate
+        # regardless of prior failed attempts.
         op.as_one_line("""
         wd=$(dirname {output.bam}) && mkdir -p $wd &&
         echo {params.mhc_chrom} > $wd/mhc_coords.txt &&
         touch $wd/contigs_placeholder.txt &&
+        rm -rf $wd/{wildcards.sample_id}_tmpDir &&
         (
         cd $wd &&
         {params.scripts_dir}/bin/subset_bam_opt.sh
