@@ -203,6 +203,76 @@ rule _mhc_hammer_download_reference:
         """)
 
 
+# Builds a genome-wide 30-mer occurrence index from a user-supplied reference genome, used by
+# _mhc_hammer_filter_kmers below to identify which of the IMGT-derived kmers aren't actually
+# HLA-specific (see design note there). Cohort-wide, no wildcards, genome-build-independent by
+# design (see options.reference_genome_fasta above) -- built once and reused for every patient.
+#
+# Deliberately NOT canonical (no -C): upstream's own kmer file was built without -C (confirmed
+# by reading docs/mhc_reference_files.md), and subset_bam_opt.sh's actual matching is a plain
+# `grep -F` literal substring search against SAM SEQ fields (which SAM always reports relative
+# to the forward/reference strand regardless of alignment strand) -- so both the kmer file and
+# this occurrence count need to use the same strand-specific (non-canonical) convention for the
+# comparison to mean anything. Using -C here would count reverse-complement occurrences grep
+# could never actually match against, inflating every count.
+rule _mhc_hammer_build_genome_kmer_index:
+    input:
+        genome_fasta = CFG["options"]["reference_genome_fasta"]
+    output:
+        index = CFG["dirs"]["mhc_reference"] + "genome_kmer_index/genome_30mers.jf"
+    conda:
+        CFG["conda_envs"]["jellyfish"]
+    container:
+        CFG["container_envs"]["jellyfish"]
+    threads:
+        CFG["threads"]["build_genome_kmer_index"]
+    resources:
+        **CFG["resources"]["build_genome_kmer_index"]
+    shell:
+        op.as_one_line("""
+        mkdir -p $(dirname {output.index}) &&
+        jellyfish count -m 30 -s 3G -t {threads} -o {output.index} {input.genome_fasta}
+        """)
+
+
+# Drops IMGT-derived kmers that occur more than options.kmer_max_genome_occurrences times
+# genome-wide (per _mhc_hammer_build_genome_kmer_index above) before they're used for BAM
+# subsetting -- a kmer genuinely specific to HLA-A/B/C should occur only a handful of times in
+# a reference genome; kmers occurring far more than that are most likely low-complexity/
+# repetitive-element contamination rather than real HLA signal, and were observed (2026-07-30,
+# on a real capture WES BAM) producing hundreds of thousands of spurious matches per chromosome,
+# roughly proportional to chromosome length -- the signature of genome-wide non-specific
+# matching rather than true positives. Cohort-wide, no wildcards, replaces the raw downloaded
+# kmer file everywhere downstream.
+#
+# NOTE: `jellyfish query -s <file> <index>` is assumed to batch-query every line of
+# imgt_30mers.fa (one bare 30-mer per line, no FASTA headers) and print "<kmer> <count>" per
+# line -- this wasn't independently verified against a real jellyfish install; check the actual
+# output format on first real run.
+rule _mhc_hammer_filter_kmers:
+    input:
+        index = str(rules._mhc_hammer_build_genome_kmer_index.output.index),
+        raw_kmers = str(rules._mhc_hammer_download_reference.output.kmer_file)
+    output:
+        filtered_kmers = CFG["dirs"]["mhc_reference"] + "kmer_files/imgt_30mers.filtered.fa",
+        counts = CFG["dirs"]["mhc_reference"] + "kmer_files/imgt_30mers.genome_occurrences.tsv"
+    params:
+        max_occurrences = CFG["options"]["kmer_max_genome_occurrences"]
+    conda:
+        CFG["conda_envs"]["jellyfish"]
+    container:
+        CFG["container_envs"]["jellyfish"]
+    threads:
+        CFG["threads"]["filter_kmers"]
+    resources:
+        **CFG["resources"]["filter_kmers"]
+    shell:
+        op.as_one_line("""
+        jellyfish query -s {input.raw_kmers} {input.index} > {output.counts} &&
+        awk -v max={params.max_occurrences} '$2 <= max {{print $1}}' {output.counts} > {output.filtered_kmers}
+        """)
+
+
 # Computes library size (used to normalise depth downstream) on the full input BAM,
 # mirroring upstream's FLAGSTAT process. Filename uses the literal MHC_SEQ ("wxs") token, not
 # {seq_type} -- see the MHC_SEQ note near the top of this file -- because
@@ -229,12 +299,13 @@ rule _mhc_hammer_flagstat:
 
 
 # Subsets the input BAM to reads that could plausibly align to the HLA class I genes: the MHC
-# region on chr6, unmapped reads, and (fish_reads=True) reads matching the IMGT 30-mer kmer set.
-# Mirrors upstream's SUBSET_BAMS process.
+# region on chr6, unmapped reads, and (fish_reads=True) reads matching the (genome-occurrence-
+# filtered -- see _mhc_hammer_filter_kmers) IMGT 30-mer kmer set. Mirrors upstream's SUBSET_BAMS
+# process, with the kmer file filtered rather than used raw.
 rule _mhc_hammer_subset_bam:
     input:
         bam = str(rules._mhc_hammer_input_bam.output.bam),
-        kmer_file = str(rules._mhc_hammer_download_reference.output.kmer_file)
+        kmer_file = str(rules._mhc_hammer_filter_kmers.output.filtered_kmers)
     output:
         bam = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.subset.sorted.bam",
         bai = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.subset.sorted.bam.bai",

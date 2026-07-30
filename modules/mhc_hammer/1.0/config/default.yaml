@@ -37,6 +37,19 @@ lcr-modules:
             vep_path: "/home/rmorin/lib/ensembl_latest/ensembl-tools/scripts/variant_effect_predictor" # Path to directory containing vep executable; auto-detected from PATH if empty
             vep_cache: "/projects/rmorin/reference/ensembl_vep_cache/" # VEP cache directory, passed as --dir_cache
 
+            # Any complete human reference genome FASTA (does NOT need to match any sample's
+            # genome_build -- used only to identify which of the IMGT-derived kmers below are
+            # non-specific/repetitive genome-wide, so the same filtered kmer set is deliberately
+            # reused across all builds for consistency). Not conda-installable (a full reference
+            # genome download); user-supplied like novoalign_dir/hlahd_dir above.
+            reference_genome_fasta: "__UPDATE__"
+            # Kmers occurring more than this many times genome-wide (per reference_genome_fasta)
+            # are dropped before BAM subsetting -- see _mhc_hammer_filter_kmers. Starting default;
+            # intended to be tuned by inspecting the actual genome-wide occurrence distribution
+            # (a kmer truly specific to HLA-A/B/C should occur only a handful of times genome-wide;
+            # repetitive-element-contaminated kmers tend to occur many orders of magnitude more).
+            kmer_max_genome_occurrences: 50
+
             # Pins which IMGT-derived MHC Hammer reference bundle is downloaded from Zenodo
             # (two separate zip files per release: mhc_references.zip + kmer_files.zip).
             # Must match the IMGT/HLA-HD database version used by `hlahd_dir` above.
@@ -91,11 +104,13 @@ lcr-modules:
             mhc_hammer_alignment: "{MODSDIR}/envs/mhc_hammer_alignment.yaml"
             mhc_hammer_cn_aib: "{MODSDIR}/envs/mhc_hammer_cn_aib.yaml"
             mhc_hammer_detect_muts: "{MODSDIR}/envs/mhc_hammer_detect_muts.yaml" # gatk4/bcftools/tabix only, no VEP
+            jellyfish: "{MODSDIR}/envs/jellyfish.yaml"
 
         container_envs:
             samtools: null
             mhc_hammer_download: null
             mosdepth: null
+            jellyfish: null
             # Every rule that calls a script from mhc_hammer_scripts_dir, novoalign_dir,
             # hlahd_dir, or vep_path sets `container: None` directly in the rule (that's most
             # rules in this module -- subset_bam, hlahd, generate_references, novoalign,
@@ -105,6 +120,8 @@ lcr-modules:
 
         threads:
             download_reference: 1
+            build_genome_kmer_index: 8
+            filter_kmers: 4
             flagstat: 4
             subset_bam: 8
             generate_fqs: 4
@@ -121,6 +138,13 @@ lcr-modules:
         resources:
             download_reference:
                 mem_mb: 1000
+            # Whole-genome 30-mer counting is memory-hungry (non-canonical, so effectively one
+            # hash entry per distinct 30-mer actually observed in the reference -- easily >1e9
+            # for a full human genome). Starting default; may need tuning per system.
+            build_genome_kmer_index:
+                mem_mb: 32000
+            filter_kmers:
+                mem_mb: 4000
             flagstat:
                 mem_mb: 4000
             subset_bam:
