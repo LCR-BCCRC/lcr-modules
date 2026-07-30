@@ -128,6 +128,7 @@ lcr-modules:
             hlahd: 4
             generate_references: 1
             novoalign: 1 # unlicensed Novoalign is single-threaded only
+            novoalign_postprocess: 4 # sort/filter/index -- split from novoalign so this can use more threads than novoalign itself can
             make_allele_bams: 1
             mosdepth: 4
             detect_cn_aib: 1
@@ -156,6 +157,8 @@ lcr-modules:
             generate_references:
                 mem_mb: 4000
             novoalign:
+                mem_mb: 8000
+            novoalign_postprocess:
                 mem_mb: 8000
             make_allele_bams:
                 mem_mb: 4000

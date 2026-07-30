@@ -292,9 +292,11 @@ rule _mhc_hammer_flagstat:
     resources:
         **CFG["resources"]["flagstat"]
     shell:
+        # -@ {threads}: this rule reserves {threads} cores via Snakemake but neither samtools
+        # subcommand used it by default -- both flagstat and view -c support -@.
         op.as_one_line("""
-        samtools flagstat {input.bam} > {output.flagstat} &&
-        samtools view -c -f 1 -F 2308 {input.bam} > {output.library_size}
+        samtools flagstat -@ {threads} {input.bam} > {output.flagstat} &&
+        samtools view -@ {threads} -c -f 1 -F 2308 {input.bam} > {output.library_size}
         """)
 
 
@@ -382,9 +384,11 @@ rule _mhc_hammer_generate_fqs:
     resources:
         **CFG["resources"]["generate_fqs"]
     shell:
+        # -@ {threads}: this rule reserves {threads} cores via Snakemake but neither samtools
+        # subcommand used it by default -- both collate and fastq support -@.
         op.as_one_line("""
-        samtools collate -u -O {input.bam} |
-        samtools fastq -1 {output.fq1} -2 {output.fq2} -s /dev/null -0 /dev/null -n
+        samtools collate -@ {threads} -u -O {input.bam} |
+        samtools fastq -@ {threads} -1 {output.fq1} -2 {output.fq2} -s /dev/null -0 /dev/null -n
         """)
 
 
@@ -502,7 +506,12 @@ rule _mhc_hammer_generate_references:
 
 
 # Aligns a sample's HLA-region reads against its patient's personalised reference with the
-# user-supplied Novoalign. Sample-level. Mirrors upstream's NOVOALIGN process.
+# user-supplied Novoalign. Sample-level. Deliberately split from the sort/filter/index
+# postprocessing below (unlike upstream's single NOVOALIGN process, which bundles both) so each
+# half of the work can request the threads it can actually use: unlicensed Novoalign itself is
+# hard-capped at 1 thread, but samtools sort genuinely benefits from more -- bundled into one
+# rule, the whole job would be stuck reserving only 1 thread (or over-reserving cores that sit
+# idle for however long novoalign itself runs) rather than sizing each step independently.
 rule _mhc_hammer_novoalign:
     input:
         unpack(lambda wildcards: {
@@ -511,8 +520,7 @@ rule _mhc_hammer_novoalign:
         }),
         patient_dir = _mhc_hammer_reference_dir_for_sample
     output:
-        bam = CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.hla.rehead.bam",
-        bai = CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.hla.rehead.bam.bai"
+        bam = temp(CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.raw.bam")
     log:
         stderr = CFG["logs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/novoalign.stderr.log"
     params:
@@ -536,12 +544,36 @@ rule _mhc_hammer_novoalign:
         gzip -cdf {input.fq2} > $wd/fq2_uncompressed &
         {params.novoalign_dir}/novoalign -d {params.novoindex} -f $wd/fq1_uncompressed $wd/fq2_uncompressed
           -F STDFQ -R 0 -r All 9999 -o SAM -o FullNW 1> $wd/{wildcards.sample_id}.sam 2> {log.stderr} &&
-        samtools view -b -o $wd/{wildcards.sample_id}.bam $wd/{wildcards.sample_id}.sam &&
-        samtools sort -o $wd/{wildcards.sample_id}.sorted.bam $wd/{wildcards.sample_id}.bam &&
-        samtools view -f 2 -b -o $wd/{wildcards.sample_id}.hla.bam $wd/{wildcards.sample_id}.sorted.bam &&
+        samtools view -b -o {output.bam} $wd/{wildcards.sample_id}.sam &&
+        rm $wd/fq1_uncompressed $wd/fq2_uncompressed $wd/{wildcards.sample_id}.sam
+        """)
+
+
+# Sorts, filters to properly-paired reads, reheaders, and indexes the raw Novoalign alignment --
+# split out from _mhc_hammer_novoalign above specifically so this can request more threads than
+# Novoalign itself is able to use. Mirrors the tail end of upstream's single NOVOALIGN process.
+rule _mhc_hammer_novoalign_postprocess:
+    input:
+        bam = str(rules._mhc_hammer_novoalign.output.bam)
+    output:
+        bam = CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.hla.rehead.bam",
+        bai = CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.hla.rehead.bam.bai"
+    conda:
+        CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
+    threads:
+        CFG["threads"]["novoalign_postprocess"]
+    resources:
+        **CFG["resources"]["novoalign_postprocess"]
+    shell:
+        op.as_one_line("""
+        wd=$(dirname {output.bam}) &&
+        samtools sort -@ {threads} -o $wd/{wildcards.sample_id}.sorted.bam {input.bam} &&
+        samtools view -@ {threads} -f 2 -b -o $wd/{wildcards.sample_id}.hla.bam $wd/{wildcards.sample_id}.sorted.bam &&
         samtools addreplacerg -r ID:{wildcards.sample_id} -r SM:{wildcards.sample_id} -o {output.bam} $wd/{wildcards.sample_id}.hla.bam &&
-        samtools index {output.bam} &&
-        rm $wd/fq1_uncompressed $wd/fq2_uncompressed $wd/{wildcards.sample_id}.sam $wd/{wildcards.sample_id}.bam $wd/{wildcards.sample_id}.sorted.bam $wd/{wildcards.sample_id}.hla.bam
+        samtools index -@ {threads} {output.bam} &&
+        rm $wd/{wildcards.sample_id}.sorted.bam $wd/{wildcards.sample_id}.hla.bam
         """)
 
 
@@ -555,7 +587,7 @@ rule _mhc_hammer_novoalign:
 # rules discover them via the personalised reference FASTA headers, exactly as upstream does.
 rule _mhc_hammer_make_allele_bams:
     input:
-        bam = str(rules._mhc_hammer_novoalign.output.bam),
+        bam = str(rules._mhc_hammer_novoalign_postprocess.output.bam),
         patient_dir = _mhc_hammer_reference_dir_for_sample
     output:
         passed_hla_genes = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_passed_hla_genes.txt",
