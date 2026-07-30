@@ -248,7 +248,9 @@ rule _mhc_hammer_subset_bam:
         fish_reads = str(CFG["options"]["fish_reads"]).lower(),
         unmapped_reads = str(CFG["options"]["unmapped_reads"]).lower(),
         contig_reads = str(CFG["options"]["contig_reads"]).lower(),
-        sort_mem = lambda wildcards, resources: max(1, int(resources.mem_mb / 1000 * 0.8))
+        sort_mem = lambda wildcards, resources: max(1, int(resources.mem_mb / 1000 * 0.8)),
+        bam_abs = lambda wildcards, input: os.path.abspath(input.bam),
+        kmer_file_abs = lambda wildcards, input: os.path.abspath(input.kmer_file)
     conda:
         CFG["conda_envs"]["samtools"]
     container:
@@ -258,16 +260,30 @@ rule _mhc_hammer_subset_bam:
     resources:
         **CFG["resources"]["subset_bam"]
     shell:
+        # subset_bam_opt.sh builds its own internal relative paths from `-p` (e.g.
+        # tmp_dir="${out_prefix}_tmpDir", bam_header="${tmp_dir}/${out_prefix}.header") -- it
+        # expects `-p` to be a bare filename prefix, not a full path, and assumes it's being run
+        # from within an already-isolated working directory (same CWD-relative assumption as
+        # several other upstream scripts -- see the design note near the top of this file).
+        # Passing a full path as `-p` (as an earlier version of this rule did) makes it
+        # concatenate the path with itself. `-d`'s filename must be exactly
+        # "contigs_placeholder.txt" (not just any empty file) -- the script special-cases that
+        # literal name to auto-detect non-standard contigs from the BAM header; any other
+        # filename is instead treated as a real (here, empty) user-supplied contig list.
         op.as_one_line("""
-        echo {params.mhc_chrom} > $(dirname {output.bam})/mhc_coords.txt &&
-        touch $(dirname {output.bam})/extra_contigs.txt &&
+        wd=$(dirname {output.bam}) && mkdir -p $wd &&
+        echo {params.mhc_chrom} > $wd/mhc_coords.txt &&
+        touch $wd/contigs_placeholder.txt &&
+        (
+        cd $wd &&
         {params.scripts_dir}/bin/subset_bam_opt.sh
-        -b {input.bam}
-        -k {input.kmer_file}
-        -f {params.fish_reads} -c {params.contig_reads} -d $(dirname {output.bam})/extra_contigs.txt
-        -u {params.unmapped_reads} -h $(dirname {output.bam})/mhc_coords.txt
-        -p $(dirname {output.bam})/{wildcards.sample_id} -t {threads}
+        -b {params.bam_abs}
+        -k {params.kmer_file_abs}
+        -f {params.fish_reads} -c {params.contig_reads} -d contigs_placeholder.txt
+        -u {params.unmapped_reads} -h mhc_coords.txt
+        -p {wildcards.sample_id} -t {threads}
         -m {params.sort_mem}G -o false
+        )
         """)
 
 
