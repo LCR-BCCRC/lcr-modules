@@ -142,12 +142,14 @@ rule _lofreq_preprocess_normal:
         op.as_one_line("""
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
         _bam=$(readlink -f "{input.normal_bam}");
+        _stdout=$(readlink -f "{log.stdout}");
+        _stderr=$(readlink -f "{log.stderr}");
         touch {output.preprocessing_start}
         &&
         cd "$(dirname {output.vcf_relaxed})"
         && lofreq somatic --normal_only {params.opts} --threads {threads} -t "${{_bam}}" -n "${{_bam}}"
         -f {input.fasta} -o "" -d {input.dbsnp} --bed {input.bed}
-        > {log.stdout} 2> {log.stderr}
+        > "${{_stdout}}" 2> "${{_stderr}}"
         &&
         touch {output.preprocessing_complete}
         """)
@@ -220,10 +222,12 @@ rule _lofreq_run_tumour_unmatched:
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
         _tbam=$(readlink -f "{input.tumour_bam}");
         _nbam=$(readlink -f "{input.normal_bam}");
+        _stdout=$(readlink -f "{log.stdout}");
+        _stderr=$(readlink -f "{log.stderr}");
         cd "$(dirname {output.vcf_snvs_filtered})"
         && lofreq somatic --continue {params.opts} --threads {threads} -t "${{_tbam}}" -n "${{_nbam}}"
         -f {input.fasta} -o "" -d {input.dbsnp} --bed {input.bed}
-        > {log.stdout} 2> {log.stderr}
+        > "${{_stdout}}" 2> "${{_stderr}}"
         """)
 
 rule _lofreq_run_tumour_matched:
@@ -259,11 +263,13 @@ rule _lofreq_run_tumour_matched:
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
         _tbam=$(readlink -f "{input.tumour_bam}");
         _nbam=$(readlink -f "{input.normal_bam}");
+        _stdout=$(readlink -f "{log.stdout}");
+        _stderr=$(readlink -f "{log.stderr}");
         if [[ -e {output.vcf_snvs_all}.tbi ]]; then rm -f $(dirname {output.vcf_relaxed})/*; fi;
         cd "$(dirname {output.vcf_snvs_filtered})"
         && lofreq somatic {params.opts} --threads {threads} -t "${{_tbam}}" -n "${{_nbam}}"
         -f {input.fasta} -o "" -d {input.dbsnp} --bed {input.bed}
-        > {log.stdout} 2> {log.stderr}
+        > "${{_stdout}}" 2> "${{_stderr}}"
         """)
 
 # indels are not yet called but this rule merges the empty indels file with the snvs file to produce the consistently named "combined" vcf. 
