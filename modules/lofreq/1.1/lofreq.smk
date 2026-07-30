@@ -41,7 +41,16 @@ CFG = op.setup_module(
 )
 #set variable for prepending to PATH based on config
 SCRIPT_PATH = CFG['inputs']['src_dir']
-#this is used in place of the shell.prefix() because that was not working consistently. This is not ideal. 
+#this is used in place of the shell.prefix() because that was not working consistently. This is not ideal.
+
+# Use the bundled patched lofreq2_call_pparallel.py when running under conda (where it's needed),
+# fall back to the container-provided lofreq when running under singularity/apptainer.
+import os as _os
+_bundled_lofreq_script = _os.path.join(SCRIPT_PATH, "lofreq2_call_pparallel.py")
+if getattr(workflow, "use_conda", False) and _os.path.exists(_bundled_lofreq_script):
+    LOFREQ_EXEC_PATH = SCRIPT_PATH
+else:
+    LOFREQ_EXEC_PATH = ""
 
 #obtain default bed and update config
 bed = str(reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.bed"))
@@ -131,18 +140,14 @@ rule _lofreq_preprocess_normal:
         normal_id="|".join(unmatched_normal_ids)
     shell:
         op.as_one_line("""
-        SCRIPT_PATH={SCRIPT_PATH};
-        PATH=$SCRIPT_PATH:$PATH;
-        SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
-        if [[ $(command -v lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
-            echo "using bundled patched script $SCRIPT";
-            touch {output.preprocessing_start}
-            && 
-            lofreq somatic --normal_only {params.opts} --threads {threads} -t {input.normal_bam} -n {input.normal_bam}
-            -f {input.fasta} -o $(dirname {output.vcf_relaxed})/ -d {input.dbsnp} --bed {input.bed}
-            > {log.stdout} 2> {log.stderr} && 
-            touch {output.preprocessing_complete};
-        else echo "WARNING: PATH is not set properly, using $(command -v lofreq2_call_pparallel.py)"; fi
+        [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
+        touch {output.preprocessing_start}
+        &&
+        lofreq somatic --normal_only {params.opts} --threads {threads} -t {input.normal_bam} -n {input.normal_bam}
+        -f {input.fasta} -o $(dirname {output.vcf_relaxed}) -d {input.dbsnp} --bed {input.bed}
+        > {log.stdout} 2> {log.stderr}
+        &&
+        touch {output.preprocessing_complete}
         """)
 
 
@@ -210,15 +215,10 @@ rule _lofreq_run_tumour_unmatched:
         pair_status = "unmatched" 
     shell:
         op.as_one_line("""
-        SCRIPT_PATH={SCRIPT_PATH};
-        PATH=$SCRIPT_PATH:$PATH;
-        SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
-        if [[ $(command -v lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
-            echo "using bundled patched script $SCRIPT";
-            lofreq somatic --continue {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
-            -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} --bed {input.bed}
-            > {log.stdout} 2> {log.stderr};
-        else echo "WARNING: PATH is not set properly, using $(command -v lofreq2_call_pparallel.py)"; fi
+        [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
+        lofreq somatic --continue {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
+        -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered}) -d {input.dbsnp} --bed {input.bed}
+        > {log.stdout} 2> {log.stderr}
         """)
 
 rule _lofreq_run_tumour_matched:
@@ -251,16 +251,11 @@ rule _lofreq_run_tumour_matched:
         pair_status = "matched"
     shell:
         op.as_one_line("""
-        SCRIPT_PATH={SCRIPT_PATH};
-        PATH=$SCRIPT_PATH:$PATH;
-        SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
-        if [[ -e {output.vcf_snvs_all}.tbi ]]; then rm -f $(dirname {output.vcf_relaxed})/*; fi; 
-        if [[ $(command -v lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
-            echo "using bundled patched script $SCRIPT";
-            lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
-            -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered})/ -d {input.dbsnp} --bed {input.bed}
-            > {log.stdout} 2> {log.stderr};
-        else echo "WARNING: PATH is not set properly, using $(command -v lofreq2_call_pparallel.py)"; fi
+        [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
+        if [[ -e {output.vcf_snvs_all}.tbi ]]; then rm -f $(dirname {output.vcf_relaxed})/*; fi;
+        lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
+        -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered}) -d {input.dbsnp} --bed {input.bed}
+        > {log.stdout} 2> {log.stderr}
         """)
 
 # indels are not yet called but this rule merges the empty indels file with the snvs file to produce the consistently named "combined" vcf. 
