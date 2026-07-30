@@ -143,8 +143,9 @@ rule _lofreq_preprocess_normal:
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
         touch {output.preprocessing_start}
         &&
-        lofreq somatic --normal_only {params.opts} --threads {threads} -t {input.normal_bam} -n {input.normal_bam}
-        -f {input.fasta} -o $(dirname {output.vcf_relaxed}) -d {input.dbsnp} --bed {input.bed}
+        cd "$(dirname {output.vcf_relaxed})"
+        && lofreq somatic --normal_only {params.opts} --threads {threads} -t {input.normal_bam} -n {input.normal_bam}
+        -f {input.fasta} -o "" -d {input.dbsnp} --bed {input.bed}
         > {log.stdout} 2> {log.stderr}
         &&
         touch {output.preprocessing_complete}
@@ -216,8 +217,9 @@ rule _lofreq_run_tumour_unmatched:
     shell:
         op.as_one_line("""
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
-        lofreq somatic --continue {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
-        -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered}) -d {input.dbsnp} --bed {input.bed}
+        cd "$(dirname {output.vcf_snvs_filtered})"
+        && lofreq somatic --continue {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
+        -f {input.fasta} -o "" -d {input.dbsnp} --bed {input.bed}
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -253,8 +255,9 @@ rule _lofreq_run_tumour_matched:
         op.as_one_line("""
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
         if [[ -e {output.vcf_snvs_all}.tbi ]]; then rm -f $(dirname {output.vcf_relaxed})/*; fi;
-        lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
-        -f {input.fasta} -o $(dirname {output.vcf_snvs_filtered}) -d {input.dbsnp} --bed {input.bed}
+        cd "$(dirname {output.vcf_snvs_filtered})"
+        && lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
+        -f {input.fasta} -o "" -d {input.dbsnp} --bed {input.bed}
         > {log.stdout} 2> {log.stderr}
         """)
 
