@@ -21,12 +21,15 @@ snakemake_flags=$3
 runtime_config=$4
 
 # Parse runtime config (emits empty strings when no config is provided)
-eval "$(python3 "$SCRIPT_DIR/parse_runtime_config.py" "${runtime_config:-}")"
+eval "$(python3 "$SCRIPT_DIR/../utils/parse_runtime_config.py" "${runtime_config:-}")"
 
 # Build conda flags (omitted in container mode — mutually exclusive)
+# --conda-frontend uses mamba when available (much faster env solving/creation),
+# falling back to conda otherwise -- matches run.sh, via parse_runtime_config.py's
+# detect_conda_frontend().
 conda_flags=()
 if [ -z "$SNAKEMAKE_CONTAINER_FLAG" ]; then
-    conda_flags+=(--use-conda --conda-frontend conda)
+    conda_flags+=(--use-conda --conda-frontend "$SNAKEMAKE_CONDA_FRONTEND")
     [ -n "$SNAKEMAKE_CONDA_PREFIX" ] && conda_flags+=(--conda-prefix "$SNAKEMAKE_CONDA_PREFIX")
 fi
 

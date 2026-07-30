@@ -5,6 +5,7 @@ Usage: eval "$(python3 parse_runtime_config.py [runtime_config.yaml])"
 
 Prints shell variable assignments suitable for eval in bash:
   SNAKEMAKE_CONDA_PREFIX   -- value for --conda-prefix, empty if not configured
+  SNAKEMAKE_CONDA_FRONTEND -- "mamba" if the mamba binary is on PATH, else "conda"
   SNAKEMAKE_CONTAINER_FLAG -- --use-apptainer or --use-singularity (version-aware), empty if no apptainer section
   SNAKEMAKE_PREFIX_FLAG    -- --apptainer-prefix or --singularity-prefix (version-aware)
   SNAKEMAKE_ARGS_FLAG      -- --apptainer-args or --singularity-args (version-aware)
@@ -13,7 +14,17 @@ Prints shell variable assignments suitable for eval in bash:
 """
 
 import shlex
+import shutil
 import sys
+
+
+def detect_conda_frontend():
+    """Return 'mamba' if the mamba binary is available on PATH, else 'conda'.
+
+    Detected unconditionally (unlike the apptainer flags below) because conda mode
+    is the default regardless of whether a runtime_config was passed at all.
+    """
+    return "mamba" if shutil.which("mamba") else "conda"
 
 
 def detect_container_flags():
@@ -55,16 +66,19 @@ def parse(config_path):
     return conda_prefix, container_flag, prefix_flag, args_flag, sif_prefix, bind_paths
 
 
-def emit_empty():
-    for var in ("SNAKEMAKE_CONDA_PREFIX", "SNAKEMAKE_CONTAINER_FLAG",
-                "SNAKEMAKE_PREFIX_FLAG", "SNAKEMAKE_ARGS_FLAG",
-                "SNAKEMAKE_SIF_PREFIX", "SNAKEMAKE_BIND_PATHS"):
-        print(f"{var}=''")
+def emit(conda_prefix, container_flag, prefix_flag, args_flag, sif_prefix, bind_paths):
+    print(f"SNAKEMAKE_CONDA_PREFIX={shlex.quote(conda_prefix)}")
+    print(f"SNAKEMAKE_CONDA_FRONTEND={shlex.quote(detect_conda_frontend())}")
+    print(f"SNAKEMAKE_CONTAINER_FLAG={shlex.quote(container_flag)}")
+    print(f"SNAKEMAKE_PREFIX_FLAG={shlex.quote(prefix_flag)}")
+    print(f"SNAKEMAKE_ARGS_FLAG={shlex.quote(args_flag)}")
+    print(f"SNAKEMAKE_SIF_PREFIX={shlex.quote(sif_prefix)}")
+    print(f"SNAKEMAKE_BIND_PATHS={shlex.quote(bind_paths)}")
 
 
 def main():
     if len(sys.argv) < 2 or not sys.argv[1]:
-        emit_empty()
+        emit("", "", "", "", "", "")
         return
 
     try:
@@ -73,12 +87,7 @@ def main():
         print(f"Error reading {sys.argv[1]}: {e}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"SNAKEMAKE_CONDA_PREFIX={shlex.quote(conda_prefix)}")
-    print(f"SNAKEMAKE_CONTAINER_FLAG={shlex.quote(container_flag)}")
-    print(f"SNAKEMAKE_PREFIX_FLAG={shlex.quote(prefix_flag)}")
-    print(f"SNAKEMAKE_ARGS_FLAG={shlex.quote(args_flag)}")
-    print(f"SNAKEMAKE_SIF_PREFIX={shlex.quote(sif_prefix)}")
-    print(f"SNAKEMAKE_BIND_PATHS={shlex.quote(bind_paths)}")
+    emit(conda_prefix, container_flag, prefix_flag, args_flag, sif_prefix, bind_paths)
 
 
 if __name__ == "__main__":
