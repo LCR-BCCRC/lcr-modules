@@ -123,6 +123,7 @@ lcr-modules:
             download_reference: 1
             build_genome_kmer_index: 8
             filter_kmers: 4
+            build_ref_cache: 1
             flagstat: 4
             subset_bam: 8
             generate_fqs: 4
@@ -147,6 +148,8 @@ lcr-modules:
                 mem_mb: 32000
             filter_kmers:
                 mem_mb: 4000
+            build_ref_cache:
+                mem_mb: 2000
             flagstat:
                 mem_mb: 4000
             subset_bam:

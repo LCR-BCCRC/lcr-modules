@@ -312,6 +312,39 @@ rule _mhc_hammer_flagstat:
         """)
 
 
+# Builds a local htslib MD5-keyed reference cache (via samtools' own seq_cache_populate.pl) from
+# the matching reference_files() genome FASTA for {genome_build}. Needed because some
+# "sample_bam" inputs are actually CRAM content (see _mhc_hammer_input_bam) -- htslib needs the
+# reference sequence to reconstruct read bases from CRAM's reference-based compression, and
+# without a local cache it falls back to fetching each reference sequence one at a time from
+# EBI's ENA CRAM registry over the network (real symptom hit: `[W::find_file_url] ... Input/output
+# error`, silently degrading read extraction rather than hard-failing -- likely the real cause of
+# reads being missing/incomplete downstream, separate from the earlier jellyfish kmer-query bug).
+# Cohort-wide per genome_build, built once and reused by every sample of that build.
+#
+# NOTE: seq_cache_populate.pl's exact output layout/behaviour hasn't been independently verified
+# by actually running it -- if REF_CACHE-based lookups still fail after this, check that MD5-named
+# files actually exist under {params.cache_dir} after this rule runs.
+rule _mhc_hammer_build_ref_cache:
+    input:
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+    output:
+        done = touch(CFG["dirs"]["mhc_reference"] + "ref_cache/{genome_build}/.done")
+    params:
+        cache_dir = CFG["dirs"]["mhc_reference"] + "ref_cache/{genome_build}"
+    conda:
+        CFG["conda_envs"]["samtools"]
+    threads:
+        CFG["threads"]["build_ref_cache"]
+    resources:
+        **CFG["resources"]["build_ref_cache"]
+    shell:
+        op.as_one_line("""
+        mkdir -p {params.cache_dir} &&
+        seq_cache_populate.pl -root {params.cache_dir} -subdirs 2 {input.fasta}
+        """)
+
+
 # Subsets the input BAM to reads that could plausibly align to the HLA class I genes: the MHC
 # region on chr6, unmapped reads, and (fish_reads=True) reads matching the (genome-occurrence-
 # filtered -- see _mhc_hammer_filter_kmers) IMGT 30-mer kmer set. Mirrors upstream's SUBSET_BAMS
@@ -323,6 +356,7 @@ rule _mhc_hammer_subset_bam:
         # (needed when the "bam" is actually CRAM content, see _mhc_hammer_input_bam) exists
         # before this rule's region-based samtools view runs.
         crai = str(rules._mhc_hammer_input_bam.output.crai),
+        ref_cache_done = str(rules._mhc_hammer_build_ref_cache.output.done),
         kmer_file = str(rules._mhc_hammer_filter_kmers.output.filtered_kmers)
     output:
         bam = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.subset.sorted.bam",
@@ -339,7 +373,10 @@ rule _mhc_hammer_subset_bam:
         contig_reads = str(CFG["options"]["contig_reads"]).lower(),
         sort_mem = lambda wildcards, resources: max(1, int(resources.mem_mb / 1000 * 0.8)),
         bam_abs = lambda wildcards, input: os.path.abspath(input.bam),
-        kmer_file_abs = lambda wildcards, input: os.path.abspath(input.kmer_file)
+        kmer_file_abs = lambda wildcards, input: os.path.abspath(input.kmer_file),
+        ref_cache_pattern = lambda wildcards: os.path.abspath(
+            CFG["dirs"]["mhc_reference"] + f"ref_cache/{wildcards.genome_build}"
+        ) + "/%2s/%2s/%s"
     conda:
         CFG["conda_envs"]["samtools"]
     container:
@@ -370,6 +407,7 @@ rule _mhc_hammer_subset_bam:
         echo {params.mhc_chrom} > $wd/mhc_coords.txt &&
         touch $wd/contigs_placeholder.txt &&
         rm -rf $wd/{wildcards.sample_id}_tmpDir &&
+        export REF_CACHE={params.ref_cache_pattern} &&
         (
         cd $wd &&
         {params.scripts_dir}/bin/subset_bam_opt.sh
