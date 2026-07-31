@@ -235,6 +235,8 @@ rule _mhc_hammer_download_reference:
         gtf = CFG["dirs"]["mhc_reference"] + "mhc_references/gtf/mhc.gtf",
         genome_fasta = CFG["dirs"]["mhc_reference"] + "mhc_references/genome/mhc_genome_strand.fasta",
         kmer_file = CFG["dirs"]["mhc_reference"] + "kmer_files/imgt_30mers.fa"
+    log:
+        stdout = CFG["logs"]["mhc_reference"] + "download_reference.log"
     params:
         mhc_references_url = IMGT_URLS["mhc_references"],
         kmer_files_url = IMGT_URLS["kmer_files"],
@@ -249,12 +251,14 @@ rule _mhc_hammer_download_reference:
         **CFG["resources"]["download_reference"]
     shell:
         op.as_one_line("""
+        (
         mkdir -p {params.outdir} &&
         wget -qO {params.outdir}/mhc_references.zip "{params.mhc_references_url}" &&
         wget -qO {params.outdir}/kmer_files.zip "{params.kmer_files_url}" &&
         unzip -oq {params.outdir}/mhc_references.zip -d {params.outdir} &&
         unzip -oq {params.outdir}/kmer_files.zip -d {params.outdir} &&
         rm {params.outdir}/mhc_references.zip {params.outdir}/kmer_files.zip
+        ) > {log.stdout} 2>&1
         """)
 
 
@@ -275,6 +279,8 @@ rule _mhc_hammer_build_genome_kmer_index:
         genome_fasta = CFG["options"]["reference_genome_fasta"]
     output:
         index = CFG["dirs"]["mhc_reference"] + "genome_kmer_index/genome_30mers.jf"
+    log:
+        stdout = CFG["logs"]["mhc_reference"] + "build_genome_kmer_index.log"
     conda:
         CFG["conda_envs"]["jellyfish"]
     container:
@@ -285,8 +291,10 @@ rule _mhc_hammer_build_genome_kmer_index:
         **CFG["resources"]["build_genome_kmer_index"]
     shell:
         op.as_one_line("""
+        (
         mkdir -p $(dirname {output.index}) &&
         jellyfish count -m 30 -s 3G -t {threads} -o {output.index} {input.genome_fasta}
+        ) > {log.stdout} 2>&1
         """)
 
 
@@ -313,6 +321,8 @@ rule _mhc_hammer_filter_kmers:
     output:
         filtered_kmers = CFG["dirs"]["mhc_reference"] + "kmer_files/imgt_30mers.filtered.fa",
         counts = CFG["dirs"]["mhc_reference"] + "kmer_files/imgt_30mers.genome_occurrences.tsv"
+    log:
+        stdout = CFG["logs"]["mhc_reference"] + "filter_kmers.log"
     params:
         max_occurrences = CFG["options"]["kmer_max_genome_occurrences"]
     conda:
@@ -342,6 +352,7 @@ rule _mhc_hammer_filter_kmers:
         # This does mean awk has to scan every one of the ~2.5 billion lines jellyfish dump
         # produces -- a real but one-time (cohort-wide, not per-sample) cost.
         op.as_one_line("""
+        (
         wd=$(dirname {output.counts}) &&
         grep -v '^>' {input.raw_kmers} | sort -u > $wd/want_kmers.txt &&
         jellyfish dump -c {input.index} | awk -v want_file=$wd/want_kmers.txt
@@ -349,6 +360,7 @@ rule _mhc_hammer_filter_kmers:
            ($1 in want) {{ print }}' > {output.counts} &&
         rm -f $wd/want_kmers.txt &&
         awk -v max={params.max_occurrences} '$2 <= max {{print $1}}' {output.counts} > {output.filtered_kmers}
+        ) > {log.stdout} 2>&1
         """)
 
 
@@ -362,6 +374,8 @@ rule _mhc_hammer_flagstat:
     output:
         library_size = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_" + MHC_SEQ + ".library_size.txt",
         flagstat = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_" + MHC_SEQ + ".flagstat"
+    log:
+        stdout = CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/flagstat.log"
     conda:
         CFG["conda_envs"]["samtools"]
     container:
@@ -374,8 +388,10 @@ rule _mhc_hammer_flagstat:
         # -@ {threads}: this rule reserves {threads} cores via Snakemake but neither samtools
         # subcommand used it by default -- both flagstat and view -c support -@.
         op.as_one_line("""
+        (
         samtools flagstat -@ {threads} {input.bam} > {output.flagstat} &&
         samtools view -@ {threads} -c -f 1 -F 2308 {input.bam} > {output.library_size}
+        ) > {log.stdout} 2>&1
         """)
 
 
@@ -397,6 +413,8 @@ rule _mhc_hammer_build_ref_cache:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         done = touch(CFG["dirs"]["mhc_reference"] + "ref_cache/{genome_build}/.done")
+    log:
+        stdout = CFG["logs"]["mhc_reference"] + "{genome_build}/build_ref_cache.log"
     params:
         cache_dir = CFG["dirs"]["mhc_reference"] + "ref_cache/{genome_build}"
     conda:
@@ -407,8 +425,10 @@ rule _mhc_hammer_build_ref_cache:
         **CFG["resources"]["build_ref_cache"]
     shell:
         op.as_one_line("""
+        (
         mkdir -p {params.cache_dir} &&
         seq_cache_populate.pl -root {params.cache_dir} -subdirs 2 {input.fasta}
+        ) > {log.stdout} 2>&1
         """)
 
 
@@ -429,6 +449,8 @@ rule _mhc_hammer_subset_bam:
         bam = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.subset.sorted.bam",
         bai = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.subset.sorted.bam.bai",
         read_counts = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.read_counts.csv"
+    log:
+        stdout = CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/subset_bam.log"
     params:
         scripts_dir = SCRIPTS_DIR,
         mhc_chrom = lambda w: MHC_COORDS[w.genome_build],
@@ -482,7 +504,7 @@ rule _mhc_hammer_subset_bam:
         -u {params.unmapped_reads} -h mhc_coords.txt
         -p {wildcards.sample_id} -t {threads}
         -m {params.sort_mem}G -o false
-        )
+        ) > {log.stdout} 2>&1
         """)
 
 
@@ -494,6 +516,8 @@ rule _mhc_hammer_generate_fqs:
     output:
         fq1 = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.1.fq.gz",
         fq2 = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.2.fq.gz"
+    log:
+        stdout = CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/generate_fqs.log"
     conda:
         CFG["conda_envs"]["samtools"]
     container:
@@ -506,8 +530,10 @@ rule _mhc_hammer_generate_fqs:
         # -@ {threads}: this rule reserves {threads} cores via Snakemake but neither samtools
         # subcommand used it by default -- both collate and fastq support -@.
         op.as_one_line("""
+        (
         samtools collate -@ {threads} -u -O {input.bam} |
         samtools fastq -@ {threads} -1 {output.fq1} -2 {output.fq2} -s /dev/null -0 /dev/null -n
+        ) > {log.stdout} 2>&1
         """)
 
 
@@ -714,6 +740,8 @@ rule _mhc_hammer_novoalign_postprocess:
     output:
         bam = CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.hla.rehead.bam",
         bai = CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.hla.rehead.bam.bai"
+    log:
+        stdout = CFG["logs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/novoalign_postprocess.log"
     conda:
         CFG["conda_envs"]["samtools"]
     container:
@@ -724,12 +752,14 @@ rule _mhc_hammer_novoalign_postprocess:
         **CFG["resources"]["novoalign_postprocess"]
     shell:
         op.as_one_line("""
+        (
         wd=$(dirname {output.bam}) &&
         samtools sort -@ {threads} -o $wd/{wildcards.sample_id}.sorted.bam {input.bam} &&
         samtools view -@ {threads} -f 2 -b -o $wd/{wildcards.sample_id}.hla.bam $wd/{wildcards.sample_id}.sorted.bam &&
         samtools addreplacerg -r ID:{wildcards.sample_id} -r SM:{wildcards.sample_id} -o {output.bam} $wd/{wildcards.sample_id}.hla.bam &&
         samtools index -@ {threads} {output.bam} &&
         rm $wd/{wildcards.sample_id}.sorted.bam $wd/{wildcards.sample_id}.hla.bam
+        ) > {log.stdout} 2>&1
         """)
 
 
@@ -751,6 +781,8 @@ rule _mhc_hammer_make_allele_bams:
         passed_hla_alleles = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_passed_hla_alleles.txt",
         passed_heterozygous_hla_alleles = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_passed_heterozygous_hla_alleles.txt",
         hla_bam_read_count = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_" + MHC_SEQ + "_novoalign.hla_bam_read_count.csv"
+    log:
+        stdout = CFG["logs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/make_allele_bams.log"
     params:
         scripts_dir = SCRIPTS_DIR,
         max_mismatch = CFG["options"]["max_mismatch"],
@@ -829,7 +861,7 @@ rule _mhc_hammer_make_allele_bams:
              if [ -f $bam_path ]; then
                  echo $hla_allele >> {wildcards.sample_id}_passed_hla_alleles.txt ;
              fi ;
-         done)
+         done) > {log.stdout} 2>&1
         """)
 
 
@@ -841,6 +873,8 @@ rule _mhc_hammer_mosdepth:
         patient_dir = _mhc_hammer_reference_dir_for_sample
     output:
         bed = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}." + MHC_SEQ + ".novoalign.mosdepth.bed"
+    log:
+        stdout = CFG["logs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/mosdepth.log"
     params:
         patient_id = lambda wildcards: _mhc_hammer_get_patient_id_for_sample(wildcards.sample_id),
         bed_file = lambda wildcards, input: f"{input.patient_dir[0]}/{_mhc_hammer_get_patient_id_for_sample(wildcards.sample_id)}.bed",
@@ -855,6 +889,7 @@ rule _mhc_hammer_mosdepth:
         **CFG["resources"]["mosdepth"]
     shell:
         op.as_one_line("""
+        (
         wd=$(dirname {input.allele_bams_marker}) &&
         > {output.bed} &&
         for bam_file in $wd/*_{params.mhc_seq}_novoalign.*.sorted.filtered.bam; do
@@ -864,6 +899,7 @@ rule _mhc_hammer_mosdepth:
             gunzip -f $wd/{wildcards.sample_id}.$allele.regions.bed.gz &&
             cat $wd/{wildcards.sample_id}.$allele.regions.bed >> {output.bed};
         done
+        ) > {log.stdout} 2>&1
         """)
 
 
