@@ -398,6 +398,16 @@ rule _mhc_hammer_generate_fqs:
 # HLA-A/B/C. Patient-level (once per patient, not once per sample). Mirrors upstream's
 # HLAHD_LOCAL process. Fails loudly (rather than gracefully excluding the patient, as upstream
 # does) if A/B/C are not all typed -- see README v1 simplifications.
+#
+# Restricts HLA-HD's own gene list to A/B/C (v1 is class-I-only scope; hlahd_parse_output.R is
+# already only called with --genes A B C) rather than the ~25-gene stock HLA_gene.split.txt
+# (full class I + II + pseudogenes), observed on a real run typing every gene one at a time at
+# real (if not individually huge) per-gene cost. The restricted list is derived at runtime from
+# the user's own installed HLA_gene.split.txt (grep/awk on their file) rather than bundled here,
+# for the same reason novoalign_dir/hlahd_dir/mhc_hammer_scripts_dir aren't bundled -- this file
+# is part of HLA-HD's own distribution, not ours to redistribute. Each gene is typed
+# independently against its own IMGT/HLA reference alleles, so restricting the list doesn't
+# affect A/B/C typing accuracy -- this is what the tool's own gene-list argument is for.
 rule _mhc_hammer_hlahd:
     input:
         unpack(_mhc_hammer_get_germline_fqs),
@@ -424,12 +434,14 @@ rule _mhc_hammer_hlahd:
         op.as_one_line("""
         rm -rf {params.workdir}/{wildcards.patient_id} &&
         mkdir -p {params.workdir} &&
+        awk '$1 == "A" || $1 == "B" || $1 == "C"' {params.hlahd_dir}/HLA_gene.split.txt
+            > {params.workdir}/hla_class_i_genes.txt &&
         (
         export PATH=${{PATH}}:{params.hlahd_dir}/bin &&
         bash {params.hlahd_dir}/bin/hlahd.sh -m 100 -c 1.0 -t {threads}
         -f {params.hlahd_dir}/freq_data
         {input.fq1} {input.fq2}
-        {params.hlahd_dir}/HLA_gene.split.txt
+        {params.workdir}/hla_class_i_genes.txt
         {params.hlahd_dir}/dictionary
         {wildcards.patient_id} {params.workdir} &&
         rm -rf {params.workdir}/{wildcards.patient_id}/exon {params.workdir}/{wildcards.patient_id}/intron
