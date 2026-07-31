@@ -586,7 +586,8 @@ rule _mhc_hammer_hlahd:
         hlahd_dir = HLAHD_DIR,
         workdir = lambda wildcards, output: os.path.dirname(output.hla_alleles),
         gtf_abs = lambda wildcards, input: os.path.abspath(input.gtf),
-        keep_intermediates = str(CFG["options"]["keep_hlahd_intermediates"]).lower()
+        keep_intermediates = str(CFG["options"]["keep_hlahd_intermediates"]).lower(),
+        min_read_length = CFG["options"]["hlahd_min_read_length"]
     conda:
         CFG["conda_envs"]["mhc_hammer_hlahd"]
     container:
@@ -609,7 +610,7 @@ rule _mhc_hammer_hlahd:
             > {params.workdir}/hla_class_i_genes.txt &&
         (
         export PATH=${{PATH}}:{params.hlahd_dir}/bin &&
-        bash {params.hlahd_dir}/bin/hlahd.sh -m 100 -c 1.0 -t {threads}
+        bash {params.hlahd_dir}/bin/hlahd.sh -m {params.min_read_length} -c 1.0 -t {threads}
         -f {params.hlahd_dir}/freq_data
         {input.fq1} {input.fq2}
         {params.workdir}/hla_class_i_genes.txt

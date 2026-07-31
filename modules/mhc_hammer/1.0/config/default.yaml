@@ -113,6 +113,22 @@ lcr-modules:
             # once done, since normal runs shouldn't accumulate this.
             keep_hlahd_intermediates: False
 
+            # Passed to hlahd.sh's own -m flag: "A read whose length is shorter than this
+            # parameter is ignored" (HLA-HD's own documentation, w3.genome.med.kyoto-u.ac.jp/HLA-HD).
+            # HLA-HD's own default is 100 -- fine for 100bp+ reads, but silently discards *every*
+            # read (and therefore types nothing, with no clear error pointing back to this) for
+            # shorter-read data. Real-run evidence (2026-07-31): a GAMBL/ICGC-DART sample with
+            # 75bp reads typed zero alleles for A/B/C with confusing, hard-to-trace symptoms
+            # (empty intermediate FASTQs several stages downstream, "Unable to read file magic
+            # number", missing pickup.sh) that all traced back to this one flag once found in
+            # HLA-HD's own demo manual (hlahd-demo.v1.pdf) and confirmed against its documented
+            # -m description; a same-pipeline 101bp-read sample (TCRBOA7) worked fine since 101 >
+            # 100. Set below 100 here (75) so shorter-read cohorts don't hit this by default --
+            # if your cohort's reads are shorter than this value, lower it to match (should be
+            # at or below the true read length; exactly matching wastes nothing since -m is a
+            # lower bound, not an exact-length requirement).
+            hlahd_min_read_length: 75
+
             # Allele BAM filtering
             max_mismatch: 1
 
