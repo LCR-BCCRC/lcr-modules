@@ -284,8 +284,30 @@ rule _mhc_hammer_filter_kmers:
     resources:
         **CFG["resources"]["filter_kmers"]
     shell:
+        # `jellyfish query` (used originally) fails on this whole-genome-scale index:
+        # "terminate called after throwing an instance of 'std::runtime_error' what(): Unsupported
+        # format" -- confirmed on a real run (2026-07-31) to be a scale limitation in query's
+        # random-access-lookup loader, not a corrupt file or config problem: `jellyfish stats`
+        # reads the exact same 30GB/~2.52-billion-distinct-kmer index fine, and `query` round-trips
+        # correctly on a small test index built the same way. jellyfish's own docs claim count's
+        # auto-resize/merge produces output identical in format to a single-pass count, so
+        # under-sizing `-s` isn't a fixable explanation either -- this looks like a genuine
+        # large-file bug/limitation in query specifically.
+        #
+        # `jellyfish dump` is a much simpler sequential read (also confirmed working, same as
+        # `stats`, at this scale) rather than query's random-access structure, so this rule now
+        # streams the *entire* genome dump through awk and intersects it against the (small --
+        # thousands of entries) set of IMGT kmers, instead of doing random-access lookups per
+        # query kmer. Functionally equivalent to `query -s`, just implemented as a streaming join.
+        # This does mean awk has to scan every one of the ~2.5 billion lines jellyfish dump
+        # produces -- a real but one-time (cohort-wide, not per-sample) cost.
         op.as_one_line("""
-        jellyfish query {input.index} -s {input.raw_kmers} > {output.counts} &&
+        wd=$(dirname {output.counts}) &&
+        grep -v '^>' {input.raw_kmers} | sort -u > $wd/want_kmers.txt &&
+        jellyfish dump -c {input.index} | awk -v want_file=$wd/want_kmers.txt
+          'BEGIN {{ while ((getline line < want_file) > 0) want[line] = 1 }}
+           ($1 in want) {{ print }}' > {output.counts} &&
+        rm -f $wd/want_kmers.txt &&
         awk -v max={params.max_occurrences} '$2 <= max {{print $1}}' {output.counts} > {output.filtered_kmers}
         """)
 
