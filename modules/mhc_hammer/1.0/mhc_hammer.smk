@@ -1243,8 +1243,8 @@ rule _mhc_hammer_cohort_table:
                 [ -e "$f" ] && ln -sf $f $stage/$(basename $f);
             done;
             patient=$(basename $d) ;
-            printf 'gene,allele1,allele2,patient,num_snps,homozygous\nNONE,NONE,NONE,__no_transcriptome_data__,0,TRUE\n'
-                > $stage/${{patient}}_transcriptome_allele_table.csv ;
+            echo 'gene,allele1,allele2,patient,num_snps,homozygous' > $stage/${{patient}}_transcriptome_allele_table.csv ;
+            echo "NONE,NONE,NONE,__no_transcriptome_data__,0,TRUE" >> $stage/${{patient}}_transcriptome_allele_table.csv ;
         done;
         cd $stage &&
         ls -1 . | grep -v '^input_csvs\.txt$' > input_csvs.txt &&
