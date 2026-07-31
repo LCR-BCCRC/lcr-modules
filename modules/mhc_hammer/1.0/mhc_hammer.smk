@@ -727,7 +727,7 @@ rule _mhc_hammer_make_allele_bams:
         mkdir -p $wd &&
         ln -sf {params.fasta_abs} $wd/{params.patient_id}_mhc_genome_reference.fa &&
         (cd $wd &&
-         {params.scripts_dir}/bin/make_hla_bams.sh {params.bam_abs} {params.scripts_dir}/
+         {params.scripts_dir}/bin/make_hla_bams.sh {params.bam_abs} {params.scripts_dir}/bin/
            {params.max_mismatch} {wildcards.sample_id} {params.mhc_seq} novoalign &&
          touch {wildcards.sample_id}_passed_heterozygous_hla_genes.txt
                {wildcards.sample_id}_passed_heterozygous_hla_alleles.txt
