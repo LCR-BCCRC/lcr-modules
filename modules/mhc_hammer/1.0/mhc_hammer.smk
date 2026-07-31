@@ -143,17 +143,57 @@ def _mhc_hammer_reference_dir_for_tumour(wildcards):
     patient_id = _mhc_hammer_get_patient_id_for_tumour(wildcards.tumour_id, wildcards.seq_type)
     return expand(str(rules._mhc_hammer_generate_references.output.patient_dir), patient_id = patient_id, allow_missing = True)
 
-def _mhc_hammer_get_purity_ploidy(wildcards):
+# Battenberg's cellularity_ploidy.txt is genuinely optional (pairs missing it just skip
+# copy-number output, matching upstream's own missing_purity_ploidy fallback) -- returning []
+# rather than a hard path lets the DAG track it as a real dependency *when present* (so a
+# Battenberg rerun correctly invalidates this rule's output) without requiring every pair to
+# have one before mhc_hammer can run at all.
+def _mhc_hammer_get_battenberg_cp_input(wildcards):
     CFG = config["lcr-modules"]["mhc_hammer"]
-    purity_ploidy_file = CFG["options"]["purity_ploidy_file"]
-    if not purity_ploidy_file:
+    pattern = CFG["options"]["battenberg_cellularity_ploidy"]
+    if not pattern:
+        return []
+    path = pattern.format(
+        seq_type = wildcards.seq_type,
+        genome_build = wildcards.genome_build,
+        tumour_id = wildcards.tumour_id,
+        normal_id = wildcards.normal_id
+    )
+    return [path] if os.path.exists(path) else []
+
+# Parses purity/ploidy out of whatever _mhc_hammer_get_battenberg_cp_input resolved (or "", ""
+# if it resolved to nothing). Column names ("cellularity", "ploidy"), not position, matching how
+# modules/cnaqc/1.0/src/run_cnaqc.R itself reads the exact same file
+# (read.table(header = TRUE, sep = "\t"); cp$cellularity[1]/cp$ploidy[1]).
+def _mhc_hammer_parse_cellularity_ploidy(wildcards, input):
+    if not input.cellularity_ploidy:
         return "", ""
-    with open(purity_ploidy_file) as fh:
-        for line in fh:
-            fields = line.rstrip("\n").split("\t")
-            if len(fields) >= 3 and fields[0] == wildcards.tumour_id:
-                return fields[2], fields[1] # purity, ploidy
-    return "", ""
+    with open(input.cellularity_ploidy[0]) as fh:
+        header = fh.readline().rstrip("\n").split("\t")
+        values = fh.readline().rstrip("\n").split("\t")
+    row = dict(zip(header, values))
+    return row.get("cellularity", ""), row.get("ploidy", "")
+
+# Cohort-wide equivalent for _mhc_hammer_generate_inventory (no per-pair wildcards there) --
+# gathers whichever cellularity_ploidy.txt files actually exist right now across every run in
+# CFG["paired_runs"], so the DAG tracks all of them as real dependencies.
+def _mhc_hammer_get_all_battenberg_cp_inputs(wildcards):
+    CFG = config["lcr-modules"]["mhc_hammer"]
+    pattern = CFG["options"]["battenberg_cellularity_ploidy"]
+    if not pattern:
+        return []
+    runs = CFG["paired_runs"]
+    paths = []
+    for _, row in runs.iterrows():
+        path = pattern.format(
+            seq_type = row["tumour_seq_type"],
+            genome_build = row["tumour_genome_build"],
+            tumour_id = row["tumour_sample_id"],
+            normal_id = row["normal_sample_id"]
+        )
+        if os.path.exists(path):
+            paths.append(path)
+    return paths
 
 def _mhc_hammer_ref_cache_pattern(wildcards):
     CFG = config["lcr-modules"]["mhc_hammer"]
@@ -849,10 +889,12 @@ def _mhc_hammer_pair_inputs(wildcards, second_allele_marker):
 # normal both passed filtering for. Pair-level. Mirrors upstream's DETECT_CN_AND_AIB process
 # ("all_snps" variant only -- upstream's "exon_snps" variant is disabled/commented out upstream
 # too). Copy-number output is skipped (but allelic-imbalance/LOH detection still runs) for
-# samples missing a `purity_ploidy_file` entry, matching upstream's `missing_purity_ploidy` flag.
+# pairs missing a Battenberg `cellularity_ploidy.txt` file, matching upstream's own
+# `missing_purity_ploidy` flag.
 rule _mhc_hammer_detect_cn_aib:
     input:
-        unpack(lambda wildcards: _mhc_hammer_pair_inputs(wildcards, str(rules._mhc_hammer_make_allele_bams.output.passed_heterozygous_hla_genes)))
+        unpack(lambda wildcards: _mhc_hammer_pair_inputs(wildcards, str(rules._mhc_hammer_make_allele_bams.output.passed_heterozygous_hla_genes))),
+        cellularity_ploidy = _mhc_hammer_get_battenberg_cp_input
     output:
         # Filename must match concatenate_dna_analysis_tables.R's own
         # paste0(sample_name,"_",snp_type,"_",aligner,"_dna_analysis.csv") convention exactly --
@@ -864,7 +906,7 @@ rule _mhc_hammer_detect_cn_aib:
         scripts_dir = SCRIPTS_DIR,
         min_depth = CFG["options"]["min_depth"],
         mhc_seq = MHC_SEQ,
-        purity_ploidy = lambda wildcards: _mhc_hammer_get_purity_ploidy(wildcards),
+        purity_ploidy = _mhc_hammer_parse_cellularity_ploidy,
         tumour_marker_abs = lambda wildcards, input: os.path.abspath(input.tumour_marker[0]),
         normal_marker_abs = lambda wildcards, input: os.path.abspath(input.normal_marker[0]),
         tumour_flagstat_abs = lambda wildcards, input: os.path.abspath(input.tumour_flagstat[0]),
@@ -1008,11 +1050,13 @@ rule _mhc_hammer_detect_muts:
 # Synthesises the small cohort-level "inventory" table that several of upstream's cohort-level
 # R scripts require (make_mutation_table.R, make_cohort_overview_table.R) -- upstream's own
 # pipeline builds this from the user's *.csv samplesheet, which lcr-modules has no equivalent of;
-# this rule derives the same columns from CFG["samples"]/CFG["paired_runs"]/purity_ploidy_file
-# instead. Confirmed against the actual column names those scripts read (`patient`, `sample_name`,
+# this rule derives the same columns from CFG["samples"]/CFG["paired_runs"]/Battenberg's
+# cellularity_ploidy.txt instead. Confirmed against the actual column names those scripts read (`patient`, `sample_name`,
 # `sample_type`, `sequencing_type`, `purity`, `ploidy`, `normal_sample_name`) by reading a local
 # clone of mhc-hammer's bin/*.R. Cohort-wide, no wildcards, stdlib-only (no pandas dependency).
 rule _mhc_hammer_generate_inventory:
+    input:
+        cellularity_ploidy = _mhc_hammer_get_all_battenberg_cp_inputs
     output:
         inventory = CFG["dirs"]["cohort_tables"] + "inventory.csv",
         hlahd_germline_samples = CFG["dirs"]["cohort_tables"] + "hlahd_germline_samples.txt"
@@ -1021,14 +1065,23 @@ rule _mhc_hammer_generate_inventory:
         CFG = config["lcr-modules"]["mhc_hammer"]
         samples = CFG["samples"]
         runs = CFG["paired_runs"]
-        purity_ploidy_file = CFG["options"]["purity_ploidy_file"]
+        cp_pattern = CFG["options"]["battenberg_cellularity_ploidy"]
         purity_ploidy = {}
-        if purity_ploidy_file:
-            with open(purity_ploidy_file) as fh:
-                for line in fh:
-                    fields = line.rstrip("\n").split("\t")
-                    if len(fields) >= 3:
-                        purity_ploidy[fields[0]] = (fields[2], fields[1])  # sample_id -> (purity, ploidy)
+        if cp_pattern:
+            for _, run_row in runs.iterrows():
+                cp_path = cp_pattern.format(
+                    seq_type = run_row["tumour_seq_type"],
+                    genome_build = run_row["tumour_genome_build"],
+                    tumour_id = run_row["tumour_sample_id"],
+                    normal_id = run_row["normal_sample_id"]
+                )
+                if cp_path not in input.cellularity_ploidy:
+                    continue
+                with open(cp_path) as fh:
+                    header = fh.readline().rstrip("\n").split("\t")
+                    values = fh.readline().rstrip("\n").split("\t")
+                cp_row = dict(zip(header, values))
+                purity_ploidy[run_row["tumour_sample_id"]] = (cp_row.get("cellularity", ""), cp_row.get("ploidy", ""))
         normal_for_tumour = dict(zip(runs["tumour_sample_id"], runs["normal_sample_id"]))
         os.makedirs(os.path.dirname(output.inventory), exist_ok=True)
         with open(output.inventory, "w", newline="") as fh:

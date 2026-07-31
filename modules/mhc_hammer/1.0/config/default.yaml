@@ -69,10 +69,14 @@ lcr-modules:
                 grch37: "6"
                 hg38: "chr6"
 
-            # Optional path to a sample_id\tploidy\tpurity TSV (same format used by the spechla
-            # module). Samples missing an entry are skipped for copy-number/LOH output only
-            # (allelic-imbalance/mutation calling are unaffected).
-            purity_ploidy_file: ""
+            # Optional path to Battenberg's own per-pair cellularity_ploidy.txt output
+            # (tab-separated, header row, "cellularity" and "ploidy" columns -- same file
+            # modules/cnaqc/1.0 already consumes). Available wildcards: {seq_type} {genome_build}
+            # {tumour_id} {normal_id}. Pairs missing this file (or left as "") are skipped for
+            # copy-number output only (allelic-imbalance/mutation calling are unaffected) --
+            # deliberately not "__UPDATE__" since this option is optional, not required.
+            # TEMPORARY for testing -- revert to "" before merging.
+            battenberg_cellularity_ploidy: "results/battenberg-1.2/02-battenberg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_cellularity_ploidy.txt"
 
             # BAM subsetting (preprocessing)
             fish_reads: True
