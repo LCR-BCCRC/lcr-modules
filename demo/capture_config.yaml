@@ -59,3 +59,8 @@ lcr-modules:
         inputs:
             sample_bam: "data/{sample_id}.bam"
             sample_bai: "data/{sample_id}.bam.bai"
+        options:
+            # TEMPORARY debug settings -- revert (remove this options: block) once done comparing
+            # against the GAMBL/DLBCL-RICOVER_134 75bp-read HLA-HD typing failure investigation.
+            fish_reads: False
+            keep_hlahd_intermediates: True
