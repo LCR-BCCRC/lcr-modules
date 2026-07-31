@@ -155,6 +155,11 @@ def _mhc_hammer_get_purity_ploidy(wildcards):
                 return fields[2], fields[1] # purity, ploidy
     return "", ""
 
+def _mhc_hammer_ref_cache_pattern(wildcards):
+    CFG = config["lcr-modules"]["mhc_hammer"]
+    cache_dir = os.path.abspath(CFG["dirs"]["mhc_reference"] + f"ref_cache/{wildcards.genome_build}")
+    return cache_dir + "/%2s/%2s/%s"
+
 
 ##### RULES #####
 
@@ -374,9 +379,7 @@ rule _mhc_hammer_subset_bam:
         sort_mem = lambda wildcards, resources: max(1, int(resources.mem_mb / 1000 * 0.8)),
         bam_abs = lambda wildcards, input: os.path.abspath(input.bam),
         kmer_file_abs = lambda wildcards, input: os.path.abspath(input.kmer_file),
-        ref_cache_pattern = lambda wildcards: os.path.abspath(
-            CFG["dirs"]["mhc_reference"] + f"ref_cache/{wildcards.genome_build}"
-        ) + "/%2s/%2s/%s"
+        ref_cache_pattern = _mhc_hammer_ref_cache_pattern
     conda:
         CFG["conda_envs"]["samtools"]
     container:
