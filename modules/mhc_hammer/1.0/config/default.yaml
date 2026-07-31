@@ -42,7 +42,8 @@ lcr-modules:
             # non-specific/repetitive genome-wide, so the same filtered kmer set is deliberately
             # reused across all builds for consistency). Not conda-installable (a full reference
             # genome download); user-supplied like novoalign_dir/hlahd_dir above.
-            reference_genome_fasta: "__UPDATE__"
+            # TEMPORARY for testing -- revert to "__UPDATE__" before merging.
+            reference_genome_fasta: "reference/genomes/grch37/genome_fasta/genome.fa"
             # Kmers occurring more than this many times genome-wide (per reference_genome_fasta)
             # are dropped before BAM subsetting -- see _mhc_hammer_filter_kmers. Starting default;
             # intended to be tuned by inspecting the actual genome-wide occurrence distribution
