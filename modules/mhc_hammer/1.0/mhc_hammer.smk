@@ -166,10 +166,20 @@ rule _mhc_hammer_input_bam:
         bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
+        cram = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.cram",
+        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
+        crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
+        # Some "sample_bam" inputs are actually CRAM content symlinked/named as .bam (htslib
+        # content-sniffs the real format regardless of extension) -- samtools then looks for a
+        # .crai-named sidecar, not .bam.bai, and fails with cram_index_load even though a valid
+        # index exists under the "wrong" name. Providing both naming conventions for both the
+        # data file and its index covers either case. Mirrors modules/pathseq/1.0/pathseq.smk's
+        # _pathseq_input_bam.
         op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bam, output.cram)
         op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 
 # Downloads and unpacks the pinned IMGT-derived MHC Hammer reference bundle from Zenodo
@@ -309,6 +319,10 @@ rule _mhc_hammer_flagstat:
 rule _mhc_hammer_subset_bam:
     input:
         bam = str(rules._mhc_hammer_input_bam.output.bam),
+        # Declared even though subset_bam_opt.sh only takes -b: guarantees the .bam.crai sidecar
+        # (needed when the "bam" is actually CRAM content, see _mhc_hammer_input_bam) exists
+        # before this rule's region-based samtools view runs.
+        crai = str(rules._mhc_hammer_input_bam.output.crai),
         kmer_file = str(rules._mhc_hammer_filter_kmers.output.filtered_kmers)
     output:
         bam = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.subset.sorted.bam",
