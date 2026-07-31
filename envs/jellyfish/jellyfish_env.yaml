@@ -3,4 +3,4 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - jellyfish=2.3.*
+  - kmer-jellyfish=2.3.*
