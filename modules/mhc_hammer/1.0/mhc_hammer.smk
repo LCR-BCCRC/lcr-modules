@@ -245,10 +245,12 @@ rule _mhc_hammer_build_genome_kmer_index:
 # matching rather than true positives. Cohort-wide, no wildcards, replaces the raw downloaded
 # kmer file everywhere downstream.
 #
-# NOTE: `jellyfish query -s <file> <index>` is assumed to batch-query every line of
-# imgt_30mers.fa (one bare 30-mer per line, no FASTA headers) and print "<kmer> <count>" per
-# line -- this wasn't independently verified against a real jellyfish install; check the actual
-# output format on first real run.
+# NOTE: correct syntax is `jellyfish query <index> -s <file>` (index positional first, then
+# -s) -- an earlier version of this rule had the args swapped ("jellyfish query -s <file>
+# <index>"), which ran without error but silently produced zero output lines (confirmed on a
+# real run, 2026-07-31). The <kmer> <count>-per-line output format (assumed by the awk below)
+# still hasn't been independently verified beyond "it's non-empty and awk's numeric filter
+# behaves sanely" -- double check imgt_30mers.genome_occurrences.tsv's actual contents.
 rule _mhc_hammer_filter_kmers:
     input:
         index = str(rules._mhc_hammer_build_genome_kmer_index.output.index),
@@ -268,7 +270,7 @@ rule _mhc_hammer_filter_kmers:
         **CFG["resources"]["filter_kmers"]
     shell:
         op.as_one_line("""
-        jellyfish query -s {input.raw_kmers} {input.index} > {output.counts} &&
+        jellyfish query {input.index} -s {input.raw_kmers} > {output.counts} &&
         awk -v max={params.max_occurrences} '$2 <= max {{print $1}}' {output.counts} > {output.filtered_kmers}
         """)
 
