@@ -220,13 +220,13 @@ rule _lofreq_run_tumour_unmatched:
         op.as_one_line("""
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
         _outdir=$(dirname {output.vcf_snvs_filtered});
-        for f in normal_relaxed.vcf.gz normal_relaxed.vcf.gz.tbi normal_relaxed.log; do ln -sf "$f" "${{_outdir}}/_lofreq_${{f}}"; done
+        for f in normal_relaxed.vcf.gz normal_relaxed.vcf.gz.tbi normal_relaxed.log normal_stringent.indels.vcf.gz normal_stringent.indels.vcf.gz.tbi normal_stringent.snvs.vcf.gz preprocessing.complete; do ln -sf "$f" "${{_outdir}}/_lofreq_${{f}}"; done
         &&
         lofreq somatic --continue {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
         -f {input.fasta} -o "${{_outdir}}/_lofreq_" -d {input.dbsnp} --bed {input.bed}
         > {log.stdout} 2> {log.stderr}
         &&
-        for f in normal_relaxed.vcf.gz normal_relaxed.vcf.gz.tbi normal_relaxed.log; do rm -f "${{_outdir}}/_lofreq_${{f}}"; done
+        for f in normal_relaxed.vcf.gz normal_relaxed.vcf.gz.tbi normal_relaxed.log normal_stringent.indels.vcf.gz normal_stringent.indels.vcf.gz.tbi normal_stringent.snvs.vcf.gz preprocessing.complete; do rm -f "${{_outdir}}/_lofreq_${{f}}"; done
         &&
         for f in "${{_outdir}}"/_lofreq_*; do mv -- "$f" "${{_outdir}}/${{f##*/_lofreq_}}"; done
         """)
