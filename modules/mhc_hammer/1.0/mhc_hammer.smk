@@ -1141,6 +1141,22 @@ rule _mhc_hammer_parse_mutations:
 # own `.map { it.getName() }.collectFile(...)` -- confirmed by reading the script and
 # workflows/mhc_hammer.nf), not a list of absolute paths -- so inputs are staged flat with
 # symlinks first, exactly as in _mhc_hammer_parse_mutations.
+#
+# Two fixes for real bugs in make_cohort_overview_table.R itself (upstream's own script,
+# unmodifiable -- see licensing note near the top of this file), worked around from this rule's
+# side instead:
+# (1) `ls -1 . > input_csvs.txt` lists its own (already-created-by-the-redirect) output file,
+#     feeding a bogus self-referencing row into the manifest -- piping through `grep -v` before
+#     the final redirect avoids this (confirmed empirically: the file doesn't exist yet when `ls`
+#     runs inside the pipeline, only once the whole pipeline's output is redirected at the end).
+# (2) `transcriptome_hlahd_tables`'s loop (`for(line_idx in 1:nrow(transcriptome_hlahd_tables))`)
+#     is the one table-type loop in the whole script *not* guarded by `if(nrow(...) > 0)` first --
+#     every other category is. DNA-only v1 never produces a real *_transcriptome_allele_table.csv,
+#     so nrow is always 0 there, and R's `1:0` evaluates to `c(1, 0)` (not an empty range),
+#     crashing with `fread(NA)` ("missing value where TRUE/FALSE needed") -- confirmed on a real
+#     run. Staging a well-formed, zero-data-row placeholder (correct header, no fabricated data)
+#     per patient gives the loop nrow==1 so it never hits the `1:0` case, while contributing
+#     nothing but NAs to the final table -- the correct outcome for a genuinely RNA-less run.
 rule _mhc_hammer_cohort_table:
     input:
         dna_analysis = expand(
@@ -1219,9 +1235,11 @@ rule _mhc_hammer_cohort_table:
             for f in $d/*_genome_allele_table.csv; do
                 [ -e "$f" ] && ln -sf $f $stage/$(basename $f);
             done;
+            patient=$(basename $d) ;
+            echo 'gene,allele1,allele2,patient,num_snps,homozygous' > $stage/${{patient}}_transcriptome_allele_table.csv ;
         done;
         cd $stage &&
-        ls -1 . > input_csvs.txt &&
+        ls -1 . | grep -v '^input_csvs\.txt$' > input_csvs.txt &&
         Rscript {params.scripts_dir}/bin/make_cohort_overview_table.R
           --inventory_path {params.inventory_abs}
           --csv_tables_path input_csvs.txt
