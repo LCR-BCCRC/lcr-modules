@@ -420,6 +420,7 @@ rule _mhc_hammer_hlahd:
         **CFG["resources"]["hlahd"]
     shell:
         op.as_one_line("""
+        rm -rf {params.workdir}/{wildcards.patient_id} &&
         mkdir -p {params.workdir} &&
         (
         export PATH=${{PATH}}:{params.hlahd_dir}/bin &&
