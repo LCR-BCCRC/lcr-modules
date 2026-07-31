@@ -585,7 +585,8 @@ rule _mhc_hammer_hlahd:
         scripts_dir = SCRIPTS_DIR,
         hlahd_dir = HLAHD_DIR,
         workdir = lambda wildcards, output: os.path.dirname(output.hla_alleles),
-        gtf_abs = lambda wildcards, input: os.path.abspath(input.gtf)
+        gtf_abs = lambda wildcards, input: os.path.abspath(input.gtf),
+        keep_intermediates = str(CFG["options"]["keep_hlahd_intermediates"]).lower()
     conda:
         CFG["conda_envs"]["mhc_hammer_hlahd"]
     container:
@@ -614,8 +615,10 @@ rule _mhc_hammer_hlahd:
         {params.workdir}/hla_class_i_genes.txt
         {params.hlahd_dir}/dictionary
         {wildcards.patient_id} {params.workdir} &&
-        rm -rf {params.workdir}/{wildcards.patient_id}/exon {params.workdir}/{wildcards.patient_id}/intron
-                {params.workdir}/{wildcards.patient_id}/mapfile {params.workdir}/{wildcards.patient_id}/maplist &&
+        if [ "{params.keep_intermediates}" = "false" ]; then
+            rm -rf {params.workdir}/{wildcards.patient_id}/exon {params.workdir}/{wildcards.patient_id}/intron
+                   {params.workdir}/{wildcards.patient_id}/mapfile {params.workdir}/{wildcards.patient_id}/maplist;
+        fi &&
         rm -f {params.workdir}/{wildcards.patient_id}/pickup.sh {params.workdir}/{wildcards.patient_id}/estimation.sh &&
         mv {params.workdir}/{wildcards.patient_id}/* {params.workdir}/ &&
         rmdir {params.workdir}/{wildcards.patient_id}

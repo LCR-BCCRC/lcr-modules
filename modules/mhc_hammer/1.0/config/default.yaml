@@ -104,6 +104,15 @@ lcr-modules:
             unmapped_reads: True
             contig_reads: True
 
+            # Debug-only: HLA-HD's own exon/intron/mapfile/maplist intermediates (its actual
+            # per-exon/intron bowtie2 SAM alignments against its internal dictionaries) are
+            # normally deleted after each run, matching upstream's own "remove high mem
+            # intermediate files" step -- these can be many GB per patient. Set to True
+            # temporarily to keep them for inspection (e.g. when HLA-HD types nothing and
+            # aggregate read counts alone aren't enough to diagnose why); set back to False
+            # once done, since normal runs shouldn't accumulate this.
+            keep_hlahd_intermediates: False
+
             # Allele BAM filtering
             max_mismatch: 1
 
