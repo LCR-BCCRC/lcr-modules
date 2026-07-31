@@ -581,6 +581,10 @@ rule _mhc_hammer_hlahd:
              --hlahd_folder result --gtf_path {params.gtf_abs}
              --sample_id {wildcards.patient_id} --genes A B C &&
              mv result/{wildcards.patient_id}_hla_alleles.csv {wildcards.patient_id}_hla_alleles.csv) >> {log.stdout} 2>&1;
+            if ! awk -F',' '$2 != "not typed" && $3 != "not typed"' {params.workdir}/{wildcards.patient_id}_hla_alleles.csv | grep -q .; then
+                echo "ERROR: HLA-HD produced A/B/C estimate files for patient {wildcards.patient_id} but failed to confidently type any allele pair -- every gene is 'not typed' in {wildcards.patient_id}_hla_alleles.csv. Downstream scripts (make_bed_file.R) cannot handle this and would crash with a much more confusing error. See {log.stdout}." >&2 &&
+                exit 1;
+            fi;
         else
             echo "ERROR: HLA-HD failed to produce HLA A, B and C estimates for patient {wildcards.patient_id}. See {log.stdout}." >&2 &&
             exit 1;
