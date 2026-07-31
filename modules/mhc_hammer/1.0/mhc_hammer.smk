@@ -1154,9 +1154,16 @@ rule _mhc_hammer_parse_mutations:
 #     every other category is. DNA-only v1 never produces a real *_transcriptome_allele_table.csv,
 #     so nrow is always 0 there, and R's `1:0` evaluates to `c(1, 0)` (not an empty range),
 #     crashing with `fread(NA)` ("missing value where TRUE/FALSE needed") -- confirmed on a real
-#     run. Staging a well-formed, zero-data-row placeholder (correct header, no fabricated data)
-#     per patient gives the loop nrow==1 so it never hits the `1:0` case, while contributing
-#     nothing but NAs to the final table -- the correct outcome for a genuinely RNA-less run.
+#     run. Staging a placeholder CSV per patient gives the loop nrow==1 so it never hits the `1:0`
+#     case. A *header-only* placeholder isn't enough, though (also confirmed on a real run, via a
+#     follow-on "Incompatible join types: x.patient (logical) and i.patient (character)" error):
+#     fread() on zero data rows has nothing to type-infer from and defaults every column to
+#     logical, breaking the later merge against overview_table's character `patient` column. One
+#     dummy row with a `patient` value that can never collide with a real patient_id
+#     (__no_transcriptome_data__) gives fread() real values to infer correct types from; since the
+#     merge is a left join driven by overview_table (`all.x = TRUE`), this unmatched row is
+#     silently dropped, contributing nothing but NAs to the final table for every real patient --
+#     the correct outcome for a genuinely RNA-less run.
 rule _mhc_hammer_cohort_table:
     input:
         dna_analysis = expand(
@@ -1236,7 +1243,8 @@ rule _mhc_hammer_cohort_table:
                 [ -e "$f" ] && ln -sf $f $stage/$(basename $f);
             done;
             patient=$(basename $d) ;
-            echo 'gene,allele1,allele2,patient,num_snps,homozygous' > $stage/${{patient}}_transcriptome_allele_table.csv ;
+            printf 'gene,allele1,allele2,patient,num_snps,homozygous\nNONE,NONE,NONE,__no_transcriptome_data__,0,TRUE\n'
+                > $stage/${{patient}}_transcriptome_allele_table.csv ;
         done;
         cd $stage &&
         ls -1 . | grep -v '^input_csvs\.txt$' > input_csvs.txt &&
