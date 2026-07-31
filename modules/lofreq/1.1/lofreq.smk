@@ -141,15 +141,12 @@ rule _lofreq_preprocess_normal:
     shell:
         op.as_one_line("""
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
-        _bam=$(readlink -f "{input.normal_bam}");
-        _stdout=$(readlink -f "{log.stdout}");
-        _stderr=$(readlink -f "{log.stderr}");
         _outdir=$(dirname {output.vcf_relaxed});
         touch {output.preprocessing_start}
         &&
-        lofreq somatic --normal_only {params.opts} --threads {threads} -t "${{_bam}}" -n "${{_bam}}"
+        lofreq somatic --normal_only {params.opts} --threads {threads} -t {input.normal_bam} -n {input.normal_bam}
         -f {input.fasta} -o "${{_outdir}}/_lofreq_" -d {input.dbsnp} --bed {input.bed}
-        > "${{_stdout}}" 2> "${{_stderr}}"
+        > {log.stdout} 2> {log.stderr}
         &&
         for f in "${{_outdir}}"/_lofreq_*; do mv -- "$f" "${{_outdir}}/${{f##*/_lofreq_}}"; done
         &&
@@ -222,16 +219,12 @@ rule _lofreq_run_tumour_unmatched:
     shell:
         op.as_one_line("""
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
-        _tbam=$(readlink -f "{input.tumour_bam}");
-        _nbam=$(readlink -f "{input.normal_bam}");
-        _stdout=$(readlink -f "{log.stdout}");
-        _stderr=$(readlink -f "{log.stderr}");
         _outdir=$(dirname {output.vcf_snvs_filtered});
         for f in normal_relaxed.vcf.gz normal_relaxed.vcf.gz.tbi normal_relaxed.log; do ln -sf "$f" "${{_outdir}}/_lofreq_${{f}}"; done
         &&
-        lofreq somatic --continue {params.opts} --threads {threads} -t "${{_tbam}}" -n "${{_nbam}}"
+        lofreq somatic --continue {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
         -f {input.fasta} -o "${{_outdir}}/_lofreq_" -d {input.dbsnp} --bed {input.bed}
-        > "${{_stdout}}" 2> "${{_stderr}}"
+        > {log.stdout} 2> {log.stderr}
         &&
         for f in normal_relaxed.vcf.gz normal_relaxed.vcf.gz.tbi normal_relaxed.log; do rm -f "${{_outdir}}/_lofreq_${{f}}"; done
         &&
@@ -269,15 +262,11 @@ rule _lofreq_run_tumour_matched:
     shell:
         op.as_one_line("""
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
-        _tbam=$(readlink -f "{input.tumour_bam}");
-        _nbam=$(readlink -f "{input.normal_bam}");
-        _stdout=$(readlink -f "{log.stdout}");
-        _stderr=$(readlink -f "{log.stderr}");
         _outdir=$(dirname {output.vcf_snvs_filtered});
         if [[ -e {output.vcf_snvs_all}.tbi ]]; then rm -f "${{_outdir}}"/*; fi;
-        lofreq somatic {params.opts} --threads {threads} -t "${{_tbam}}" -n "${{_nbam}}"
+        lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
         -f {input.fasta} -o "${{_outdir}}/_lofreq_" -d {input.dbsnp} --bed {input.bed}
-        > "${{_stdout}}" 2> "${{_stderr}}"
+        > {log.stdout} 2> {log.stderr}
         &&
         for f in "${{_outdir}}"/_lofreq_*; do mv -- "$f" "${{_outdir}}/${{f##*/_lofreq_}}"; done
         """)
