@@ -6,3 +6,6 @@ dependencies:
   - gatk4=4.3.*
   - bcftools=1.15.*
   - tabix=1.11
+  - r-base=4.2.*
+  - r-data.table
+  - r-argparse

@@ -7,4 +7,5 @@ dependencies:
   - picard=2.27.*
   - r-base=4.2.*
   - r-data.table
+  - r-argparse
   - bioconductor-rsamtools

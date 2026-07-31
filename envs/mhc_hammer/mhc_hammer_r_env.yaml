@@ -6,3 +6,4 @@ dependencies:
   - r-base=4.2.*
   - r-data.table
   - r-argparse
+  - bioconductor-deepsnv
