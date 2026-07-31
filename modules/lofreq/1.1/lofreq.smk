@@ -144,19 +144,14 @@ rule _lofreq_preprocess_normal:
         _bam=$(readlink -f "{input.normal_bam}");
         _stdout=$(readlink -f "{log.stdout}");
         _stderr=$(readlink -f "{log.stderr}");
+        _outdir=$(dirname {output.vcf_relaxed});
         touch {output.preprocessing_start}
         &&
-        cd "$(dirname {output.vcf_relaxed})"
-        &&
-        if [[ -n "{LOFREQ_EXEC_PATH}" ]]; then
-            lofreq somatic --normal_only {params.opts} --threads {threads} -t "${{_bam}}" -n "${{_bam}}"
-            -f {input.fasta} -o "" -d {input.dbsnp} --bed {input.bed};
-        else
-            lofreq somatic --normal_only {params.opts} --threads {threads} -t "${{_bam}}" -n "${{_bam}}"
-            -f {input.fasta} -o "_lofreq_" -d {input.dbsnp} --bed {input.bed}
-            && for f in _lofreq_*; do mv -- "$f" "${{f#_lofreq_}}"; done;
-        fi
+        lofreq somatic --normal_only {params.opts} --threads {threads} -t "${{_bam}}" -n "${{_bam}}"
+        -f {input.fasta} -o "${{_outdir}}/_lofreq_" -d {input.dbsnp} --bed {input.bed}
         > "${{_stdout}}" 2> "${{_stderr}}"
+        &&
+        for f in "${{_outdir}}"/_lofreq_*; do mv -- "$f" "${{_outdir}}/${{f##*/_lofreq_}}"; done
         &&
         touch {output.preprocessing_complete}
         """)
@@ -231,19 +226,16 @@ rule _lofreq_run_tumour_unmatched:
         _nbam=$(readlink -f "{input.normal_bam}");
         _stdout=$(readlink -f "{log.stdout}");
         _stderr=$(readlink -f "{log.stderr}");
-        cd "$(dirname {output.vcf_snvs_filtered})"
+        _outdir=$(dirname {output.vcf_snvs_filtered});
+        for f in normal_relaxed.vcf.gz normal_relaxed.vcf.gz.tbi normal_relaxed.log; do ln -sf "$f" "${{_outdir}}/_lofreq_${{f}}"; done
         &&
-        if [[ -n "{LOFREQ_EXEC_PATH}" ]]; then
-            lofreq somatic --continue {params.opts} --threads {threads} -t "${{_tbam}}" -n "${{_nbam}}"
-            -f {input.fasta} -o "" -d {input.dbsnp} --bed {input.bed};
-        else
-            for f in normal_relaxed.vcf.gz normal_relaxed.vcf.gz.tbi normal_relaxed.log; do ln -sf "$f" "_lofreq_${{f}}"; done
-            && lofreq somatic --continue {params.opts} --threads {threads} -t "${{_tbam}}" -n "${{_nbam}}"
-            -f {input.fasta} -o "_lofreq_" -d {input.dbsnp} --bed {input.bed}
-            && for f in normal_relaxed.vcf.gz normal_relaxed.vcf.gz.tbi normal_relaxed.log; do rm -f "_lofreq_${{f}}"; done
-            && for f in _lofreq_*; do mv -- "$f" "${{f#_lofreq_}}"; done;
-        fi
+        lofreq somatic --continue {params.opts} --threads {threads} -t "${{_tbam}}" -n "${{_nbam}}"
+        -f {input.fasta} -o "${{_outdir}}/_lofreq_" -d {input.dbsnp} --bed {input.bed}
         > "${{_stdout}}" 2> "${{_stderr}}"
+        &&
+        for f in normal_relaxed.vcf.gz normal_relaxed.vcf.gz.tbi normal_relaxed.log; do rm -f "${{_outdir}}/_lofreq_${{f}}"; done
+        &&
+        for f in "${{_outdir}}"/_lofreq_*; do mv -- "$f" "${{_outdir}}/${{f##*/_lofreq_}}"; done
         """)
 
 rule _lofreq_run_tumour_matched:
@@ -281,18 +273,13 @@ rule _lofreq_run_tumour_matched:
         _nbam=$(readlink -f "{input.normal_bam}");
         _stdout=$(readlink -f "{log.stdout}");
         _stderr=$(readlink -f "{log.stderr}");
-        if [[ -e {output.vcf_snvs_all}.tbi ]]; then rm -f $(dirname {output.vcf_relaxed})/*; fi;
-        cd "$(dirname {output.vcf_snvs_filtered})"
-        &&
-        if [[ -n "{LOFREQ_EXEC_PATH}" ]]; then
-            lofreq somatic {params.opts} --threads {threads} -t "${{_tbam}}" -n "${{_nbam}}"
-            -f {input.fasta} -o "" -d {input.dbsnp} --bed {input.bed};
-        else
-            lofreq somatic {params.opts} --threads {threads} -t "${{_tbam}}" -n "${{_nbam}}"
-            -f {input.fasta} -o "_lofreq_" -d {input.dbsnp} --bed {input.bed}
-            && for f in _lofreq_*; do mv -- "$f" "${{f#_lofreq_}}"; done;
-        fi
+        _outdir=$(dirname {output.vcf_snvs_filtered});
+        if [[ -e {output.vcf_snvs_all}.tbi ]]; then rm -f "${{_outdir}}"/*; fi;
+        lofreq somatic {params.opts} --threads {threads} -t "${{_tbam}}" -n "${{_nbam}}"
+        -f {input.fasta} -o "${{_outdir}}/_lofreq_" -d {input.dbsnp} --bed {input.bed}
         > "${{_stdout}}" 2> "${{_stderr}}"
+        &&
+        for f in "${{_outdir}}"/_lofreq_*; do mv -- "$f" "${{_outdir}}/${{f##*/_lofreq_}}"; done
         """)
 
 # indels are not yet called but this rule merges the empty indels file with the snvs file to produce the consistently named "combined" vcf. 
