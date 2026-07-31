@@ -10,3 +10,5 @@ dependencies:
   - r-argparse
   - r-seqinr
   - r-ggpubr
+  - r-ggplot2
+  - r-ggbeeswarm
