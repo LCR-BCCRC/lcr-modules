@@ -200,6 +200,19 @@ def _mhc_hammer_ref_cache_pattern(wildcards):
     cache_dir = os.path.abspath(CFG["dirs"]["mhc_reference"] + f"ref_cache/{wildcards.genome_build}")
     return cache_dir + "/%2s/%2s/%s"
 
+# Only pulls in _mhc_hammer_filter_kmers (and transitively _mhc_hammer_build_genome_kmer_index,
+# a slow whole-genome jellyfish count+dump over the entire reference) as a real Snakemake
+# dependency when fish_reads is actually enabled. Previously _mhc_hammer_subset_bam depended on
+# it unconditionally regardless of fish_reads, so disabling kmer-fishing at the options level
+# only skipped subset_bam_opt.sh's own internal step -- it never actually skipped the expensive
+# upstream build, defeating the point of turning it off for fast iteration. Returns a list (not
+# a bare string) so input.kmer_file is consistently indexable either way.
+def _mhc_hammer_get_kmer_file_input(wildcards):
+    CFG = config["lcr-modules"]["mhc_hammer"]
+    if CFG["options"]["fish_reads"]:
+        return [str(rules._mhc_hammer_filter_kmers.output.filtered_kmers)]
+    return []
+
 
 ##### RULES #####
 
@@ -444,7 +457,7 @@ rule _mhc_hammer_subset_bam:
         # before this rule's region-based samtools view runs.
         crai = str(rules._mhc_hammer_input_bam.output.crai),
         ref_cache_done = str(rules._mhc_hammer_build_ref_cache.output.done),
-        kmer_file = str(rules._mhc_hammer_filter_kmers.output.filtered_kmers)
+        kmer_file = _mhc_hammer_get_kmer_file_input
     output:
         bam = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.subset.sorted.bam",
         bai = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.subset.sorted.bam.bai",
@@ -462,7 +475,10 @@ rule _mhc_hammer_subset_bam:
         contig_reads = str(CFG["options"]["contig_reads"]).lower(),
         sort_mem = lambda wildcards, resources: max(1, int(resources.mem_mb / 1000 * 0.8)),
         bam_abs = lambda wildcards, input: os.path.abspath(input.bam),
-        kmer_file_abs = lambda wildcards, input: os.path.abspath(input.kmer_file),
+        # Empty when fish_reads is off (_mhc_hammer_get_kmer_file_input returns []) -- the shell
+        # block below creates an empty placeholder file for -k in that case, rather than this
+        # trying to abspath a nonexistent input.
+        kmer_file_abs = lambda wildcards, input: os.path.abspath(input.kmer_file[0]) if input.kmer_file else "",
         ref_cache_pattern = _mhc_hammer_ref_cache_pattern
     conda:
         CFG["conda_envs"]["samtools"]
@@ -495,11 +511,16 @@ rule _mhc_hammer_subset_bam:
         touch $wd/contigs_placeholder.txt &&
         rm -rf $wd/{wildcards.sample_id}_tmpDir &&
         export REF_CACHE={params.ref_cache_pattern} &&
+        kmer_file_path="{params.kmer_file_abs}" &&
+        if [ -z "$kmer_file_path" ]; then
+            kmer_file_path=$wd/empty_kmers.fa;
+            touch $kmer_file_path;
+        fi &&
         (
         cd $wd &&
         {params.scripts_dir}/bin/subset_bam_opt.sh
         -b {params.bam_abs}
-        -k {params.kmer_file_abs}
+        -k $kmer_file_path
         -f {params.fish_reads} -c {params.contig_reads} -d contigs_placeholder.txt
         -u {params.unmapped_reads} -h mhc_coords.txt
         -p {wildcards.sample_id} -t {threads}

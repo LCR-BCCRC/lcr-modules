@@ -63,11 +63,28 @@ lcr-modules:
                     mhc_references: "https://zenodo.org/records/12606532/files/mhc_references.zip?download=1"
                     kmer_files: "https://zenodo.org/records/12606532/files/kmer_files.zip?download=1"
 
-            # Chromosome/contig name carrying the MHC region, per genome_build naming convention
-            # (upstream's own assets/mhc_coords_chr6.txt is just the literal contig name "chr6").
+            # Region carrying the classical HLA class I locus, per genome_build naming
+            # convention. Upstream's own assets/mhc_coords_chr6.txt is just the literal contig
+            # name "chr6" (no coordinates) -- confirmed by reading subset_bam_opt.sh that a
+            # "chr:start-end" region string is fully supported here (it explicitly splits on ":"
+            # for a chromosome-name validation check, then passes the whole string straight to
+            # `samtools view` as its region argument). Padded ~200-300kb around real HLA-A/B/C
+            # gene coordinates (Ensembl GRCh37/GRCh38, confirmed via rest.ensembl.org and
+            # grch37.rest.ensembl.org 2026-07-31: GRCh37 HLA-A 29909037-29913661, HLA-B
+            # 31321649-31324965, HLA-C 31236526-31239907; GRCh38 HLA-A 29941260-29949606, HLA-B
+            # 31353195-31367067, HLA-C 31268746-31272171), rather than the whole ~171Mb
+            # chromosome 6 used previously -- real-run evidence (2026-07-31, a GAMBL/ICGC-DART
+            # sample) showed the whole-chromosome region extracting 3.67M reads of which only
+            # ~2000-2600 were actually at the true HLA-A/B/C loci, and HLA-HD's own internal
+            # allele-narrowing algorithm found zero informative patterns despite that being
+            # perfectly adequate depth on its own -- consistent with the true signal being
+            # overwhelmed by ~1800x as much irrelevant chromosome-6 volume. Kmer-fishing (see
+            # fish_reads below) is a separate mechanism (catches reads that misalign elsewhere in
+            # the genome) and not a backstop for reads clipped at a too-tight region boundary, so
+            # this still pads generously rather than using tight gene-only boundaries.
             mhc_coords:
-                grch37: "6"
-                hg38: "chr6"
+                grch37: "6:29700000-31600000"
+                hg38: "chr6:29750000-31650000"
 
             # Optional path to Battenberg's own per-pair cellularity_ploidy.txt output
             # (tab-separated, header row, "cellularity" and "ploidy" columns -- same file
@@ -78,7 +95,11 @@ lcr-modules:
             # TEMPORARY for testing -- revert to "" before merging.
             battenberg_cellularity_ploidy: "results/battenberg-1.2/02-battenberg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_cellularity_ploidy.txt"
 
-            # BAM subsetting (preprocessing)
+            # BAM subsetting (preprocessing). Setting fish_reads to False also skips the entire
+            # genome-wide kmer index build + filter step (_mhc_hammer_build_genome_kmer_index /
+            # _mhc_hammer_filter_kmers) as a real Snakemake dependency, not just the internal
+            # subset_bam_opt.sh flag -- useful to disable for fast iteration during testing, since
+            # that whole-genome jellyfish build+dump is the slowest one-time step in this module.
             fish_reads: True
             unmapped_reads: True
             contig_reads: True
