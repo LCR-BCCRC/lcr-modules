@@ -615,10 +615,21 @@ rule _mhc_hammer_novoalign:
     resources:
         **CFG["resources"]["novoalign"]
     shell:
+        # `A && B && C &` backgrounds the *entire* A&&B&&C chain as one subshell (a bare `&`
+        # terminates whatever AND-OR list precedes it) -- an earlier version of this rule had
+        # `mkfifo ... &&` directly followed by the first backgrounded `gzip ... &`, which swept
+        # export/wd=/mkfifo into that same backgrounded subshell, so `wd` never propagated back to
+        # the foreground novoalign/samtools commands ("wd: unbound variable", confirmed on a real
+        # run). Fixed by terminating the foreground setup chain with `;` before the two gzip jobs
+        # (which must stay backgrounded -- novoalign needs to start reading both FIFOs concurrently
+        # while gzip is still writing, or the FIFOs deadlock). Also self-cleans stale FIFOs left by
+        # any earlier partial-failure run of this rule (mkfifo refuses to overwrite an existing
+        # file, unlike `>` redirection).
         op.as_one_line("""
         export PATH=${{PATH}}:{params.novoalign_dir} &&
         wd=$(dirname {output.bam}) &&
-        mkfifo $wd/fq1_uncompressed $wd/fq2_uncompressed &&
+        rm -f $wd/fq1_uncompressed $wd/fq2_uncompressed &&
+        mkfifo $wd/fq1_uncompressed $wd/fq2_uncompressed ;
         gzip -cdf {input.fq1} > $wd/fq1_uncompressed &
         gzip -cdf {input.fq2} > $wd/fq2_uncompressed &
         {params.novoalign_dir}/novoalign -d {params.novoindex} -f $wd/fq1_uncompressed $wd/fq2_uncompressed
