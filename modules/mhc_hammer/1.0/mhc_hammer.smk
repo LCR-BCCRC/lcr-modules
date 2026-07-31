@@ -486,8 +486,14 @@ rule _mhc_hammer_hlahd:
     resources:
         **CFG["resources"]["hlahd"]
     shell:
+        # Wipes the *entire* workdir up front, not just the nested {patient_id}/{patient_id}
+        # HLA-HD-internal dir: an earlier partial-failure run can succeed at the mv-flatten step
+        # (leaving e.g. log/ directly in {workdir}) before failing later, and mv refuses to merge
+        # a freshly-flattened directory into a same-named non-empty one on a rerun ("Directory
+        # not empty"). This workdir is exclusively owned by this rule for this patient, so a full
+        # wipe on every invocation is safe.
         op.as_one_line("""
-        rm -rf {params.workdir}/{wildcards.patient_id} &&
+        rm -rf {params.workdir} &&
         mkdir -p {params.workdir} &&
         awk '$1 == "A" || $1 == "B" || $1 == "C"' {params.hlahd_dir}/HLA_gene.split.txt
             > {params.workdir}/hla_class_i_genes.txt &&
