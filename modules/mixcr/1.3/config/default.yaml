@@ -23,6 +23,7 @@ lcr-modules:
         ###### "TCR" = ['TRA', 'TRB', 'TRD', 'TRG']
 
         options:
+            mixcr_version: "4.7.0"
             # analyze preset per seq_type. MiXCR 4.7 bulk RNA-seq preset = "rna-seq"
             # (<=4.6 was "rnaseq-full-length").
             analyze:

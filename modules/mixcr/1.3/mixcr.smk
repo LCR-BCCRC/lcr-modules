@@ -96,15 +96,16 @@ rule _mixcr_input_fastq:
         op.absolute_symlink(input.fastq_1, output.fastq_1)
         op.absolute_symlink(input.fastq_2, output.fastq_2)
 
-# Installs the latest MiXCR release (4.x) from github if not already present
+# Installs MiXCR from github if not already present
 rule _install_mixcr:
     params:
-        mixcr = CFG["inputs"]["mixcr_exec"]
+        mixcr = CFG["inputs"]["mixcr_exec"],
+        version = CFG["options"]["mixcr_version"]
     output:
         complete = CFG["inputs"]["mixcr_exec"] + "/mixcr_dependencies_installed.success"
     shell:
         '''
-        download_url=$(curl --silent "https://api.github.com/repos/milaboratory/mixcr/releases/latest" | grep '"browser_download_url":' | sed -E 's/.*\"([^\"]+)\".*/\\1/');
+        download_url="https://github.com/milaboratory/mixcr/releases/download/v{params.version}/mixcr-{params.version}.zip";
         mkdir -p {params.mixcr};
 
         if [ ! -f {params.mixcr}/mixcr ]; then
