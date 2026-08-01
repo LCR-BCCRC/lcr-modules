@@ -50,11 +50,6 @@ assert os.path.exists(_license), (
     "license there before running."
 )
 
-assert type(CFG["igblastn"])==bool, (
-    "Ensure 'igblastn' is set to either True or False in config. "
-    "True: also runs IgBLAST reannotation (% identity to IMGT) alongside MiXCR's native V identity."
-    )
-
 RECEPTORS = CFG["receptors"]
 
 ig_type = ["IGH","IGK","IGL"]
@@ -83,10 +78,6 @@ localrules:
     _install_mixcr,
     _mixcr_input_fastq,
     _mixcr_output_txt,
-    _mixcr_to_fasta,
-    _igblastn_run,
-    _update_mixcr_results,
-    _symlink_mixcr_update,
     _mixcr_all,
 
 
@@ -198,75 +189,6 @@ rule _mixcr_export:
         mv {output.report}.txt {output.report};
         """)
 
-if CFG["igblastn"]:
-
-    # Optional: reannotate each clone with IgBLAST IMGT % identity, next to MiXCR's native identity.
-
-    rule _mixcr_to_fasta:
-        input:
-            mixcr_finished = str(rules._mixcr_export.output.txt),
-            mixcr_chains = rules._mixcr_export.output.results,
-            mixcr_results = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.txt",
-            script = CFG["igblast_scripts"]["mixcr2fasta"]
-        output:
-            fasta = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.VDJseq.fasta",
-            seq_info = temp(CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.regions.txt")
-        shell:
-            "{input.script} -i {input.mixcr_results} -o {output.fasta} -s {output.seq_info}"
-
-    receptor_dict = {"IGH": "ig", "IGK": "ig", "IGL": "ig", "TRA": "tr", "TRB": "tr", "TRD":"tr", "TRG": "tr"}
-    run_dict = {"IGH":"Ig", "IGK":"Ig", "IGL":"Ig", "TRA":"TCR","TRB":"TCR","TRD":"TCR","TRG":"TCR"}
-
-    rule _igblastn_run:
-        input:
-            fasta = str(rules._mixcr_to_fasta.output.fasta),
-            ig_db = reference_files("genomes/no_build/igblast/database/imgt_database.success")
-        output:
-            db = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.igblastn.fmt7"
-        params:
-            receptor_type = lambda wildcards: run_dict[wildcards.chain],
-            aux = reference_files("downloads/igblast/optional_file/human_gl.aux"),
-            gdv = lambda wildcards: (reference_files("genomes/no_build/igblast/database/imgt_human_" + receptor_dict[wildcards.chain] + "_v.ndb")).replace(".ndb",""),
-            gdj = lambda wildcards: (reference_files("genomes/no_build/igblast/database/imgt_human_" + receptor_dict[wildcards.chain] + "_j.ndb")).replace(".ndb",""),
-            gdd = lambda wildcards: (reference_files("genomes/no_build/igblast/database/imgt_human_" + receptor_dict[wildcards.chain] + "_d.ndb")).replace(".ndb",""),
-            run_flags = CFG["options"]["igblast_run"]["run_flags"],
-            form = "7 std btop " + CFG["options"]["igblast_run"]["form"]
-        conda:
-            CFG["conda_envs"]["igblast"]
-        container:
-            CFG["container_envs"]["igblast"]
-        shell:
-            op.as_one_line("""
-            igblastn -query {input.fasta} -out {output.db}
-            -ig_seqtype {params.receptor_type} -organism human
-            -auxiliary_data {params.aux}
-            -germline_db_V {params.gdv} -germline_db_J {params.gdj} -germline_db_D {params.gdd}
-            {params.run_flags} -outfmt '{params.form}' -domain_system imgt
-            """)
-
-    rule _update_mixcr_results:
-        input:
-            db = str(rules._igblastn_run.output.db),
-            og_mixcr = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.txt",
-            seq_info = str(rules._mixcr_to_fasta.output.seq_info),
-            script = CFG["igblast_scripts"]["igblastn2mixcr"]
-        output:
-            txt = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.igblast.txt"
-        shell:
-            "{input.script} -d {input.db} -m {input.og_mixcr} -o {output.txt} -s {input.seq_info}"
-
-    rule _symlink_mixcr_update:
-        input:
-            txt = str(rules._update_mixcr_results.output.txt)
-        output:
-            txt = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clonotypes.{chain}.igblast.txt"
-        wildcard_constraints:
-            chain = "|".join(RECEPTORS)
-        run:
-            op.relative_symlink(input.txt, output.txt, in_module=True)
-
-
-# Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _mixcr_output_txt:
     input:
         results = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clonotypes.{chain}.txt"
@@ -279,35 +201,19 @@ rule _mixcr_output_txt:
 
 # Generates the target sentinels for each run, which generate the symlinks
 
-if CFG["igblastn"]:
-    rule _mixcr_all:
-        input:
+rule _mixcr_all:
+    input:
+        expand(
             expand(
-                expand(
-                    [
-                        str(rules._install_mixcr.output.complete),
-                        str(rules._symlink_mixcr_update.output.txt),
-                        str(rules._mixcr_output_txt.output.results),
-                    ],
-                    zip,
-                    seq_type=CFG["samples"]["seq_type"],
-                    sample_id=CFG["samples"]["sample_id"],
-                    allow_missing=True),
-                chain=RECEPTORS)
-elif not CFG["igblastn"]:
-    rule _mixcr_all:
-        input:
-            expand(
-                expand(
-                    [
-                        str(rules._install_mixcr.output.complete),
-                        str(rules._mixcr_output_txt.output.results),
-                    ],
-                    zip,  # Run expand() with zip(), not product()
-                    seq_type=CFG["samples"]["seq_type"],
-                    sample_id=CFG["samples"]["sample_id"],
-                    allow_missing=True),
-                chain=RECEPTORS)
+                [
+                    str(rules._install_mixcr.output.complete),
+                    str(rules._mixcr_output_txt.output.results),
+                ],
+                zip,  # Run expand() with zip(), not product()
+                seq_type=CFG["samples"]["seq_type"],
+                sample_id=CFG["samples"]["sample_id"],
+                allow_missing=True),
+            chain=RECEPTORS)
 
 
 ##### CLEANUP #####
