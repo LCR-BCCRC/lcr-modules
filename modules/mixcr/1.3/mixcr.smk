@@ -185,13 +185,16 @@ rule _mixcr_export:
         export JAVA_OPTS="-Xmx6500m";
         export MI_LICENSE_FILE="{params.license}";
         {params.mixcr} exportClones {params.export} --dont-split-files -f {input.clns} {output.txt}.tsv > {log.stdout} 2> {log.stderr};
+        [ -s {output.txt}.tsv ] || : > {output.txt}.tsv;
         mv {output.txt}.tsv {output.txt};
         for chain in {params.chains}; do
         {params.mixcr} exportClones --chains $chain {params.export} --dont-split-files -f {input.clns}
         {params.prefix}.clonotypes.$chain.txt.tsv >> {log.stdout} 2>> {log.stderr};
+        [ -s {params.prefix}.clonotypes.$chain.txt.tsv ] || head -1 {output.txt} > {params.prefix}.clonotypes.$chain.txt.tsv;
         mv {params.prefix}.clonotypes.$chain.txt.tsv {params.prefix}.clonotypes.$chain.txt;
         done;
         {params.mixcr} exportReports {input.clns} {output.report}.txt >> {log.stdout} 2>> {log.stderr};
+        [ -s {output.report}.txt ] || : > {output.report}.txt;
         mv {output.report}.txt {output.report};
         """)
 
