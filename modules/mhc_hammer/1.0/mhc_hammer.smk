@@ -943,8 +943,16 @@ def _mhc_hammer_pair_inputs(wildcards, second_allele_marker):
     return {
         "tumour_marker": expand(second_allele_marker, sample_id = wildcards.tumour_id, allow_missing = True),
         "normal_marker": expand(second_allele_marker, sample_id = wildcards.normal_id, allow_missing = True),
-        "tumour_flagstat": expand(str(rules._mhc_hammer_flagstat.output.flagstat), sample_id = wildcards.tumour_id, allow_missing = True),
-        "normal_flagstat": expand(str(rules._mhc_hammer_flagstat.output.flagstat), sample_id = wildcards.normal_id, allow_missing = True),
+        # get_cn.R/get_expected_depth.R/get_logr_aib.R's --tumour_library_size_path/
+        # --gl_library_size_path expect a file containing a single number
+        # (as.numeric(readLines(path))) -- that's _mhc_hammer_flagstat's own "library_size"
+        # output (a bare read-pair count), not its "flagstat" output (samtools flagstat's
+        # multi-line human-readable summary). Passing the wrong one here previously made
+        # as.numeric() return a vector of NAs, which made these scripts' own
+        # `if (is.na(...) | is.na(...))` check error under R >= 4.2's stricter length>1
+        # condition handling -- confirmed on a real run (2026-07-31).
+        "tumour_library_size": expand(str(rules._mhc_hammer_flagstat.output.library_size), sample_id = wildcards.tumour_id, allow_missing = True),
+        "normal_library_size": expand(str(rules._mhc_hammer_flagstat.output.library_size), sample_id = wildcards.normal_id, allow_missing = True),
         "patient_dir": patient_dir
     }
 
@@ -974,8 +982,8 @@ rule _mhc_hammer_detect_cn_aib:
         purity_ploidy = _mhc_hammer_parse_cellularity_ploidy,
         tumour_marker_abs = lambda wildcards, input: os.path.abspath(input.tumour_marker[0]),
         normal_marker_abs = lambda wildcards, input: os.path.abspath(input.normal_marker[0]),
-        tumour_flagstat_abs = lambda wildcards, input: os.path.abspath(input.tumour_flagstat[0]),
-        normal_flagstat_abs = lambda wildcards, input: os.path.abspath(input.normal_flagstat[0]),
+        tumour_library_size_abs = lambda wildcards, input: os.path.abspath(input.tumour_library_size[0]),
+        normal_library_size_abs = lambda wildcards, input: os.path.abspath(input.normal_library_size[0]),
         patient_dir_abs = lambda wildcards, input: os.path.abspath(input.patient_dir[0]),
         patient_id = lambda wildcards: _mhc_hammer_get_patient_id_for_tumour(wildcards.tumour_id, wildcards.seq_type)
     conda:
@@ -1023,8 +1031,8 @@ rule _mhc_hammer_detect_cn_aib:
             Rscript {params.scripts_dir}/bin/get_gene_filtered_snp_positions.R --allele1_snp_bed $allele1_snp_path --allele2_snp_bed $allele2_snp_path --allele1 $allele1 --allele2 $allele2 --allele1_filtered_pos_bed {wildcards.normal_id}.$allele1.filtered_positions.bed --allele2_filtered_pos_bed {wildcards.normal_id}.$allele2.filtered_positions.bed --sample_name {wildcards.normal_id};
             allele1_gene_filtered_snps={wildcards.normal_id}.$allele1.filtered_snp_positions.bed && allele2_gene_filtered_snps={wildcards.normal_id}.$allele2.filtered_snp_positions.bed &&
             if [ -n "$purity" ] && [ -n "$ploidy" ]; then
-                Rscript {params.scripts_dir}/bin/get_cn.R --allele1 $allele1 --allele2 $allele2 --allele1_gl_coverage_file {wildcards.normal_id}.$allele1.coverage_at_filtered_positions.csv --allele2_gl_coverage_file {wildcards.normal_id}.$allele2.coverage_at_filtered_positions.csv --allele1_tumour_coverage_file {wildcards.tumour_id}.$allele1.coverage_at_filtered_positions.csv --allele2_tumour_coverage_file {wildcards.tumour_id}.$allele2.coverage_at_filtered_positions.csv --allele1_snp_bed $allele1_gene_filtered_snps --allele2_snp_bed $allele2_gene_filtered_snps --purity $purity --ploidy $ploidy --tumour_library_size_path {params.tumour_flagstat_abs} --gl_library_size_path {params.normal_flagstat_abs} --gtf_path {params.patient_dir_abs}/{params.patient_id}.gtf --cn_output_path {wildcards.tumour_id}.$gene.all_snps.cn.csv --cn_plots_prefix {wildcards.tumour_id}.$gene.all_snps.cn --scripts_dir {params.scripts_dir}/bin/;
-                Rscript {params.scripts_dir}/bin/get_expected_depth.R --allele1 $allele1 --allele2 $allele2 --allele1_gl_coverage_file {wildcards.normal_id}.$allele1.coverage_at_filtered_positions.csv --allele2_gl_coverage_file {wildcards.normal_id}.$allele2.coverage_at_filtered_positions.csv --allele1_snp_bed $allele1_gene_filtered_snps --allele2_snp_bed $allele2_gene_filtered_snps --purity $purity --tumour_library_size_path {params.tumour_flagstat_abs} --gl_library_size_path {params.normal_flagstat_abs} --expected_depth_output_path {wildcards.tumour_id}.$gene.all_snps.expected_depth.csv --expected_depth_plots_prefix {wildcards.tumour_id}.$gene.all_snps.expected_depth --scripts_dir {params.scripts_dir}/bin/;
+                Rscript {params.scripts_dir}/bin/get_cn.R --allele1 $allele1 --allele2 $allele2 --allele1_gl_coverage_file {wildcards.normal_id}.$allele1.coverage_at_filtered_positions.csv --allele2_gl_coverage_file {wildcards.normal_id}.$allele2.coverage_at_filtered_positions.csv --allele1_tumour_coverage_file {wildcards.tumour_id}.$allele1.coverage_at_filtered_positions.csv --allele2_tumour_coverage_file {wildcards.tumour_id}.$allele2.coverage_at_filtered_positions.csv --allele1_snp_bed $allele1_gene_filtered_snps --allele2_snp_bed $allele2_gene_filtered_snps --purity $purity --ploidy $ploidy --tumour_library_size_path {params.tumour_library_size_abs} --gl_library_size_path {params.normal_library_size_abs} --gtf_path {params.patient_dir_abs}/{params.patient_id}.gtf --cn_output_path {wildcards.tumour_id}.$gene.all_snps.cn.csv --cn_plots_prefix {wildcards.tumour_id}.$gene.all_snps.cn --scripts_dir {params.scripts_dir}/bin/;
+                Rscript {params.scripts_dir}/bin/get_expected_depth.R --allele1 $allele1 --allele2 $allele2 --allele1_gl_coverage_file {wildcards.normal_id}.$allele1.coverage_at_filtered_positions.csv --allele2_gl_coverage_file {wildcards.normal_id}.$allele2.coverage_at_filtered_positions.csv --allele1_snp_bed $allele1_gene_filtered_snps --allele2_snp_bed $allele2_gene_filtered_snps --purity $purity --tumour_library_size_path {params.tumour_library_size_abs} --gl_library_size_path {params.normal_library_size_abs} --expected_depth_output_path {wildcards.tumour_id}.$gene.all_snps.expected_depth.csv --expected_depth_plots_prefix {wildcards.tumour_id}.$gene.all_snps.expected_depth --scripts_dir {params.scripts_dir}/bin/;
                 missing_purity_ploidy=FALSE;
             else
                 missing_purity_ploidy=TRUE;
@@ -1035,7 +1043,7 @@ rule _mhc_hammer_detect_cn_aib:
                 bedtools intersect -loj -bed -b $bam -a $snp_bed | cut -f1-7 > $role.$allele.snp_reads_overlap_7cols.bed;
                 Rscript {params.scripts_dir}/bin/count_reads_once.R --snp_reads_overlap_bed $role.$allele.snp_reads_overlap_7cols.bed --snp_path $snp_bed --out_csv $role.$allele.coverage_at_filtered_snps_reads_count_once.csv;
             done;
-            Rscript {params.scripts_dir}/bin/get_logr_aib.R --allele1 $allele1 --allele2 $allele2 --allele1_gl_reads_count_once_coverage {wildcards.normal_id}.$allele1.coverage_at_filtered_snps_reads_count_once.csv --allele2_gl_reads_count_once_coverage {wildcards.normal_id}.$allele2.coverage_at_filtered_snps_reads_count_once.csv --allele1_tumour_reads_count_once_coverage {wildcards.tumour_id}.$allele1.coverage_at_filtered_snps_reads_count_once.csv --allele2_tumour_reads_count_once_coverage {wildcards.tumour_id}.$allele2.coverage_at_filtered_snps_reads_count_once.csv --allele1_snp_bed $allele1_gene_filtered_snps --allele2_snp_bed $allele2_gene_filtered_snps --tumour_library_size_path {params.tumour_flagstat_abs} --gl_library_size_path {params.normal_flagstat_abs} --logr_aib_output_path {wildcards.tumour_id}.$gene.all_snps.logr_aib.csv --logr_aib_plots_prefix {wildcards.tumour_id}.$gene.all_snps.logr_aib --scripts_dir {params.scripts_dir}/bin/;
+            Rscript {params.scripts_dir}/bin/get_logr_aib.R --allele1 $allele1 --allele2 $allele2 --allele1_gl_reads_count_once_coverage {wildcards.normal_id}.$allele1.coverage_at_filtered_snps_reads_count_once.csv --allele2_gl_reads_count_once_coverage {wildcards.normal_id}.$allele2.coverage_at_filtered_snps_reads_count_once.csv --allele1_tumour_reads_count_once_coverage {wildcards.tumour_id}.$allele1.coverage_at_filtered_snps_reads_count_once.csv --allele2_tumour_reads_count_once_coverage {wildcards.tumour_id}.$allele2.coverage_at_filtered_snps_reads_count_once.csv --allele1_snp_bed $allele1_gene_filtered_snps --allele2_snp_bed $allele2_gene_filtered_snps --tumour_library_size_path {params.tumour_library_size_abs} --gl_library_size_path {params.normal_library_size_abs} --logr_aib_output_path {wildcards.tumour_id}.$gene.all_snps.logr_aib.csv --logr_aib_plots_prefix {wildcards.tumour_id}.$gene.all_snps.logr_aib --scripts_dir {params.scripts_dir}/bin/;
         done &&
         Rscript {params.scripts_dir}/bin/concatenate_dna_analysis_tables.R --genes $genes --snp_type all_snps --sample_name {wildcards.tumour_id} --aligner novoalign --missing_purity_ploidy ${{missing_purity_ploidy:-TRUE}}
         ) > {log.stdout} 2>&1
