@@ -1,0 +1,31 @@
+lcr-modules:
+    
+    fusioncatcher:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_fastq_1: "__UPDATE__"
+            sample_fastq_2: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            reference_path: "__UPDATE__" #the path to fusioncatcher's reference files
+
+        conda_envs:
+            fusioncatcher: "{MODSDIR}/envs/fusioncatcher_nobuilds.yaml"
+            
+        threads:
+            fusioncatcher_run: 16
+
+        resources:
+            fusioncatcher_run: 
+                mem_mb: 10000
+                fastq: 1
+                scratch_gb: 55 #peak on-disk temp data footprint anticipated per job
+            
+        pairing_config:
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
