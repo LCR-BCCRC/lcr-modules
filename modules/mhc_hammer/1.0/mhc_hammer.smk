@@ -46,6 +46,23 @@ CFG = op.setup_module(
     ],
 )
 
+# oncopipe's own CFG["paired_runs"] only excludes pair_status == "no_normal" -- it still
+# includes pair_status == "unmatched" (oncopipe's `run_unpaired_tumours_with: "unmatched_normal"`
+# substitute-normal mechanism, which pairs an otherwise-unpaired tumour with some OTHER patient's
+# designated stand-in normal, e.g. `_shared.unmatched_normal_ids`). That mechanism is a reasonable
+# approximation for copy-number callers, but HLA typing/CN-AIB/mutation-calling all depend on the
+# patient's OWN real germline sample to establish their baseline HLA genotype -- a substitute
+# normal from an unrelated patient is meaningless here, and every downstream rule that looks up
+# "the patient's germline sample" filters CFG["samples"] directly by patient_id, so it always
+# correctly finds zero real germline samples for a genuinely-unpaired patient regardless of
+# pairing_config. Without this extra filter, an "unmatched" row survives into CFG["paired_runs"],
+# gets requested as a real target by _mhc_hammer_all, and then hard-fails with a germline-sample
+# assertion error. Narrow CFG["paired_runs"] in place (CFG is a live reference into
+# config["lcr-modules"]["mhc_hammer"], so this propagates to every one of the ~8 call sites below,
+# including the ones inside functions that re-fetch CFG from `config` directly) so it means
+# exactly "runs where the tumour has its own real matched germline sample."
+CFG["paired_runs"] = CFG["paired_runs"][CFG["paired_runs"]["pair_status"] == "matched"]
+
 # v1 is DNA-only (WES): HLA typing -> personalised reference -> Novoalign alignment ->
 # allele-specific BAM splitting -> LOH/allelic-imbalance detection -> Mutect2+VEP mutation
 # calling. RNA allelic expression/imbalance/repression and alt-splicing are out of scope --
@@ -1316,12 +1333,21 @@ rule _mhc_hammer_parse_mutations:
 #     case. A *header-only* placeholder isn't enough, though (also confirmed on a real run, via a
 #     follow-on "Incompatible join types: x.patient (logical) and i.patient (character)" error):
 #     fread() on zero data rows has nothing to type-infer from and defaults every column to
-#     logical, breaking the later merge against overview_table's character `patient` column. One
-#     dummy row with a `patient` value that can never collide with a real patient_id
-#     (__no_transcriptome_data__) gives fread() real values to infer correct types from; since the
-#     merge is a left join driven by overview_table (`all.x = TRUE`), this unmatched row is
-#     silently dropped, contributing nothing but NAs to the final table for every real patient --
-#     the correct outcome for a genuinely RNA-less run.
+#     logical. One dummy data row gives fread() real values to infer correct types from. The
+#     `gene`/`allele1`/`allele2` fields are a fixed "NONE" sentinel (safe: no real HLA gene is ever
+#     named "NONE", so this can never collide with genuine genome-derived rows for that patient
+#     downstream), but the `patient` field must be that directory's own real patient_id, NOT a
+#     shared fixed sentinel -- confirmed on a real multi-patient run: `hlahd_alleles <- merge(
+#     genome_cohort_alleles, transcriptome_cohort_alleles, by = c("patient", "gene", "allele1",
+#     "allele2", "homozygous"), all = TRUE)` is a *full outer join* (not the left join used
+#     elsewhere in this same script for the wxs/rna library-size sections), so every patient's
+#     placeholder row survives into the merged table rather than being dropped. A fixed sentinel
+#     patient value (e.g. "__no_transcriptome_data__") would then make every patient's placeholder
+#     row collide into the exact same (patient, gene) group once more than one patient exists,
+#     tripping the script's own post-merge duplicate check ("Different HLA alleles from the genome
+#     and transcriptome allele table."). Using the real patient_id keeps each placeholder row
+#     unique across the cohort while still never matching real data (gene/allele1/allele2 stay
+#     "NONE").
 rule _mhc_hammer_cohort_table:
     input:
         dna_analysis = expand(
@@ -1402,7 +1428,7 @@ rule _mhc_hammer_cohort_table:
             done;
             patient=$(basename $d) ;
             echo 'gene,allele1,allele2,patient,num_snps,homozygous' > $stage/${{patient}}_transcriptome_allele_table.csv ;
-            echo "NONE,NONE,NONE,__no_transcriptome_data__,0,TRUE" >> $stage/${{patient}}_transcriptome_allele_table.csv ;
+            echo "NONE,NONE,NONE,${{patient}},0,TRUE" >> $stage/${{patient}}_transcriptome_allele_table.csv ;
         done;
         cd $stage &&
         ls -1 . | grep -v '^input_csvs\.txt$' > input_csvs.txt &&
