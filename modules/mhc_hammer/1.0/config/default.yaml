@@ -82,8 +82,21 @@ lcr-modules:
             # fish_reads below) is a separate mechanism (catches reads that misalign elsewhere in
             # the genome) and not a backstop for reads clipped at a too-tight region boundary, so
             # this still pads generously rather than using tight gene-only boundaries.
+            # Every genome_build value CFG["samples"]/CFG["runs"] might actually contain needs its
+            # own entry here -- unlike some other per-build config dicts elsewhere in lcr-modules,
+            # this one is looked up directly by the raw wildcards.genome_build string
+            # (mhc_hammer.smk's _mhc_hammer_subset_bam rule), with no normalization step, so an
+            # unlisted build value is a hard KeyError rather than a silent fallback. hs37d5 (GRCh37
+            # + decoy contigs, same primary-chromosome coordinates as grch37) is GAMBL's standard
+            # genome_build for "genome" (WGS) seq_type, distinct from "capture"'s plain "grch37" --
+            # confirmed via a real run (2026-08-02): KeyError: 'hs37d5' the first time this module
+            # was run against genome-seq_type GAMBL samples, following the same explicit per-build
+            # mapping convention already used by modules/igcaller/1.0/config/default.yaml for the
+            # same genome_build vocabulary. Add further aliases here (e.g. grch38, hg19) if/when a
+            # real run surfaces a KeyError for one.
             mhc_coords:
                 grch37: "6:29700000-31600000"
+                hs37d5: "6:29700000-31600000"
                 hg38: "chr6:29750000-31650000"
 
             # Optional path to Battenberg's own per-pair cellularity_ploidy.txt output
