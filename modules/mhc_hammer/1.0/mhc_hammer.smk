@@ -14,6 +14,7 @@
 
 # Import package with useful functions for developing analysis modules
 import os
+import time
 import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
@@ -1178,18 +1179,36 @@ rule _mhc_hammer_detect_muts:
 # cellularity_ploidy.txt instead. Confirmed against the actual column names those scripts read (`patient`, `sample_name`,
 # `sample_type`, `sequencing_type`, `purity`, `ploidy`, `normal_sample_name`) by reading a local
 # clone of mhc-hammer's bin/*.R. Cohort-wide, no wildcards, stdlib-only (no pandas dependency).
+# `temp()` alone (kept below as defense in depth) assumes every invocation reaches a clean,
+# successful completion, so Snakemake's own post-run cleanup actually deletes these files before
+# the next run starts. Real-world runs of this pipeline routinely fail or get interrupted partway
+# through (--keep-going), which means that cleanup never happens, and a stale inventory.csv from
+# an earlier, differently-scoped invocation (a wider cohort, or an entirely different `subset=`
+# patient) is left on disk. With `--rerun-triggers mtime` (this module's target GAMBL environment
+# always sets this) and no real tracked file input reflecting "which patients/samples are in scope
+# right now", Snakemake has no way to tell that leftover file is wrong, and silently reuses it --
+# confirmed on a real run (2026-08-02): a `subset=DLBCL-RICOVER_1013` invocation reused a
+# 50-minutes-stale inventory.csv containing six *other* patients and no DLBCL-RICOVER_1013 row at
+# all, cascading into make_mutation_table.R's "Why are some tumours missing matched germlines?"
+# (no row at all for that tumour --> no match in its own merge, not even an empty one). Force a
+# genuine, mtime-triggered rebuild on *every* invocation, independent of rerun-triggers settings
+# or prior-run cleanup success: touch a tiny sentinel file stamped with the current wall-clock
+# time at parse time (this executes once per `snakemake` process, dry-run or not -- the same as
+# the directory-creation side effects op.setup_module() already performs unconditionally) and
+# declare it as this rule's real input, so its mtime is always newer than any previous run's
+# inventory.csv/hlahd_germline_samples.txt, however old or however that prior run ended.
+_mhc_hammer_invocation_marker = CFG["dirs"]["cohort_tables"] + ".invocation_marker"
+os.makedirs(os.path.dirname(_mhc_hammer_invocation_marker), exist_ok = True)
+with open(_mhc_hammer_invocation_marker, "w") as _mhc_hammer_marker_fh:
+    _mhc_hammer_marker_fh.write(str(time.time()))
+
 rule _mhc_hammer_generate_inventory:
     input:
-        cellularity_ploidy = _mhc_hammer_get_all_battenberg_cp_inputs
+        cellularity_ploidy = _mhc_hammer_get_all_battenberg_cp_inputs,
+        invocation_marker = _mhc_hammer_invocation_marker
     output:
-        # temp() rather than a plain tracked output: this rule has no Snakemake-tracked
-        # dependency on CFG["samples"]/CFG["paired_runs"] themselves (config-derived Python data,
-        # not files -- there's nothing to declare as an input: that would change when the sample
-        # set does), so nothing would otherwise tell Snakemake to regenerate it when the cohort
-        # changes. Real-run symptom (2026-08-02): a newly-added patient's tumour sample had no
-        # matching row in a stale inventory.csv, failing make_mutation_table.R with "Why are some
-        # tumours missing matched germlines?". temp() deletes these once nothing in the current
-        # run still needs them, so the next invocation always finds them missing and rebuilds --
+        # temp() deletes these once nothing in the current run still needs them, so a clean
+        # successful run always regenerates them next time even without the marker above --
         # cheap to regenerate (a quick Python script, no real computation), so paying that cost
         # on every run is preferable to silently stale cohort-wide state.
         inventory = temp(CFG["dirs"]["cohort_tables"] + "inventory.csv"),
