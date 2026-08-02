@@ -82,6 +82,19 @@ if len(_mhc_hammer_dropped) > 0:
     )
 CFG["paired_runs"] = CFG["paired_runs"][CFG["paired_runs"]["pair_status"] == "matched"]
 
+# Unconditional, always-on scope summary -- this module has been repeatedly hard to debug when
+# CFG["samples"]/CFG["paired_runs"] turn out empty or unexpectedly scoped for a given invocation
+# (e.g. GAMBL's own subset=/config-merge layer, upstream of this file, silently producing a
+# different sample table between two runs of the nominally "same" subset). Print what this
+# specific invocation actually sees so that's the first thing visible in the log, rather than
+# something that has to be re-derived after the fact from a downstream rule's empty input list.
+print(
+    f"INFO [mhc_hammer]: {len(CFG['samples'])} sample(s) across "
+    f"{CFG['samples']['patient_id'].nunique() if len(CFG['samples']) else 0} patient(s), "
+    f"{len(CFG['paired_runs'])} matched tumour/normal pair(s) in scope for this invocation. "
+    f"Patients: {sorted(set(CFG['samples']['patient_id'])) if len(CFG['samples']) else '(none)'}"
+)
+
 # v1 is DNA-only (WES): HLA typing -> personalised reference -> Novoalign alignment ->
 # allele-specific BAM splitting -> LOH/allelic-imbalance detection -> Mutect2+VEP mutation
 # calling. RNA allelic expression/imbalance/repression and alt-splicing are out of scope --
