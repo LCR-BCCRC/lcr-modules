@@ -1131,8 +1131,18 @@ rule _mhc_hammer_generate_inventory:
     input:
         cellularity_ploidy = _mhc_hammer_get_all_battenberg_cp_inputs
     output:
-        inventory = CFG["dirs"]["cohort_tables"] + "inventory.csv",
-        hlahd_germline_samples = CFG["dirs"]["cohort_tables"] + "hlahd_germline_samples.txt"
+        # temp() rather than a plain tracked output: this rule has no Snakemake-tracked
+        # dependency on CFG["samples"]/CFG["paired_runs"] themselves (config-derived Python data,
+        # not files -- there's nothing to declare as an input: that would change when the sample
+        # set does), so nothing would otherwise tell Snakemake to regenerate it when the cohort
+        # changes. Real-run symptom (2026-08-02): a newly-added patient's tumour sample had no
+        # matching row in a stale inventory.csv, failing make_mutation_table.R with "Why are some
+        # tumours missing matched germlines?". temp() deletes these once nothing in the current
+        # run still needs them, so the next invocation always finds them missing and rebuilds --
+        # cheap to regenerate (a quick Python script, no real computation), so paying that cost
+        # on every run is preferable to silently stale cohort-wide state.
+        inventory = temp(CFG["dirs"]["cohort_tables"] + "inventory.csv"),
+        hlahd_germline_samples = temp(CFG["dirs"]["cohort_tables"] + "hlahd_germline_samples.txt")
     run:
         import csv
         CFG = config["lcr-modules"]["mhc_hammer"]
