@@ -1249,12 +1249,27 @@ rule _mhc_hammer_generate_inventory:
                 cp_row = dict(zip(header, values))
                 purity_ploidy[run_row["tumour_sample_id"]] = (cp_row.get("cellularity", ""), cp_row.get("ploidy", ""))
         normal_for_tumour = dict(zip(runs["tumour_sample_id"], runs["normal_sample_id"]))
+        # Restrict to samples belonging to a real matched pair (both the tumour_sample_id and
+        # normal_sample_id of every row in CFG["paired_runs"], already narrowed to
+        # pair_status == "matched" near the top of this file) -- same restriction
+        # _mhc_hammer_cohort_table's mosdepth/library_size/hla_bam_read_count inputs already
+        # apply. Without it, an unpaired tumour (no real germline sample at all -- categorically
+        # unprocessable by this module) still got a sample_type == "tumour" row here, which
+        # make_cohort_overview_table.R's wes_overview_dt/overview_table picks up regardless of
+        # pairing; since hlahd_germline_samples.txt (below) only ever lists germline IDs from
+        # matched pairs, that patient can never get a hlahd_germline_sample_name in the script's
+        # own merge, hard-stopping the *entire* cohort table ("Patients are missing HLAHD?") over
+        # a single unpaired patient anywhere in the full sample table -- confirmed on a real
+        # full-cohort run (2026-08-02).
+        matched_sample_ids = set(runs["tumour_sample_id"]) | set(runs["normal_sample_id"])
         os.makedirs(os.path.dirname(output.inventory), exist_ok=True)
         with open(output.inventory, "w", newline="") as fh:
             writer = csv.writer(fh)
             writer.writerow(["patient", "sample_name", "sample_type", "sequencing_type", "purity", "ploidy", "normal_sample_name"])
             for _, row in samples.iterrows():
                 sample_id = row["sample_id"]
+                if sample_id not in matched_sample_ids:
+                    continue
                 tissue_status = str(row["tissue_status"]).lower()
                 sample_type = "tumour" if tissue_status in ("tumour", "tumor") else "normal"
                 purity, ploidy = purity_ploidy.get(sample_id, ("", ""))
