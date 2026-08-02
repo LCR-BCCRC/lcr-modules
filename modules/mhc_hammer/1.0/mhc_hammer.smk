@@ -1215,6 +1215,100 @@ os.makedirs(os.path.dirname(_mhc_hammer_invocation_marker), exist_ok = True)
 with open(_mhc_hammer_invocation_marker, "w") as _mhc_hammer_marker_fh:
     _mhc_hammer_marker_fh.write(str(time.time()))
 
+# Best-effort cohort table: only include pairs whose full upstream chain has actually completed
+# on disk, rather than unconditionally requiring every matched pair in CFG["paired_runs"] to
+# succeed. Real GAMBL runs routinely have a handful of samples fail deep in preprocessing (e.g.
+# _mhc_hammer_subset_bam) for reasons unrelated to the cohort table -- under --keep-going,
+# unrelated per-patient/per-pair branches of the DAG already complete independently, but
+# _mhc_hammer_cohort_table's inputs used to be a single unconditional expand() over ALL matched
+# pairs, so ONE failing pair anywhere in a large cohort made it impossible to ever produce a
+# cohort table at all, even after every OTHER pair succeeded (real symptom, 2026-08-02: excluding
+# two chronically-failing samples was the only way to get any cohort table out at all). Used by
+# both _mhc_hammer_generate_inventory (so inventory.csv/hlahd_germline_samples.txt never
+# reference a patient whose data isn't actually staged -- otherwise make_cohort_overview_table.R
+# would expect data for a patient the staged directory doesn't have) and _mhc_hammer_cohort_table
+# itself, so the two stay consistent with each other.
+#
+# IMPORTANT: Snakemake decides a rule's input list at DAG-build time, before any of THIS
+# invocation's own jobs run -- so this only sees a pair as "completed" if it finished on some
+# *earlier* invocation. On a first, from-scratch invocation this will see zero completed pairs
+# (nothing has run yet) and produce an empty-but-valid cohort table; a *second* invocation of the
+# same command, after --keep-going has already attempted everything and left real, stable,
+# on-disk evidence of what succeeded vs failed, is required to get a real cohort table. This
+# mirrors the same os.path.exists()-based optional-input pattern already used for Battenberg
+# cellularity_ploidy elsewhere in this file, applied here to this module's own previously-
+# generated outputs instead of an externally-produced file.
+#
+# A pair is included only if EVERY one of its required files exists (dna_analysis, patient_dir,
+# and both samples' mosdepth/library_size/hla_bam_read_count) -- all-or-nothing per pair, so a
+# partially-completed pair (e.g. mosdepth succeeded but detect_cn_aib later failed) never
+# contributes inconsistent partial data to the cohort table, the same failure mode
+# _mhc_hammer_generate_inventory's own matched-pair restriction (5ad560d5) was fixed for.
+def _mhc_hammer_get_completed_pairs():
+    CFG = config["lcr-modules"]["mhc_hammer"]
+    completed = []
+    for _, row in CFG["paired_runs"].iterrows():
+        seq_type = row["tumour_seq_type"]
+        genome_build = row["tumour_genome_build"]
+        tumour_id = row["tumour_sample_id"]
+        normal_id = row["normal_sample_id"]
+        pair_status = row["pair_status"]
+        patient_id = row["tumour_patient_id"]
+        dna_analysis_path = str(rules._mhc_hammer_detect_cn_aib.output.dna_analysis).format(
+            seq_type = seq_type, genome_build = genome_build,
+            tumour_id = tumour_id, normal_id = normal_id, pair_status = pair_status
+        )
+        patient_dir_path = str(rules._mhc_hammer_generate_references.output.patient_dir).format(
+            seq_type = seq_type, genome_build = genome_build, patient_id = patient_id
+        )
+        per_sample = {}
+        for sample_id in (tumour_id, normal_id):
+            per_sample[sample_id] = {
+                "mosdepth": str(rules._mhc_hammer_mosdepth.output.bed).format(
+                    seq_type = seq_type, genome_build = genome_build, sample_id = sample_id
+                ),
+                "library_size": str(rules._mhc_hammer_flagstat.output.library_size).format(
+                    seq_type = seq_type, genome_build = genome_build, sample_id = sample_id
+                ),
+                "hla_bam_read_count": str(rules._mhc_hammer_make_allele_bams.output.hla_bam_read_count).format(
+                    seq_type = seq_type, genome_build = genome_build, sample_id = sample_id
+                ),
+            }
+        required_paths = [dna_analysis_path, patient_dir_path] + [
+            path for sample_paths in per_sample.values() for path in sample_paths.values()
+        ]
+        if not all(os.path.exists(path) for path in required_paths):
+            continue
+        completed.append({
+            "tumour_id": tumour_id,
+            "normal_id": normal_id,
+            "dna_analysis": dna_analysis_path,
+            "patient_dir": patient_dir_path,
+            "mosdepth": [per_sample[tumour_id]["mosdepth"], per_sample[normal_id]["mosdepth"]],
+            "library_size": [per_sample[tumour_id]["library_size"], per_sample[normal_id]["library_size"]],
+            "hla_bam_read_count": [per_sample[tumour_id]["hla_bam_read_count"], per_sample[normal_id]["hla_bam_read_count"]],
+        })
+    return completed
+
+_mhc_hammer_completed_pairs = _mhc_hammer_get_completed_pairs()
+_mhc_hammer_completed_dna_analysis = [p["dna_analysis"] for p in _mhc_hammer_completed_pairs]
+_mhc_hammer_completed_patient_dirs = sorted(set(p["patient_dir"] for p in _mhc_hammer_completed_pairs))
+_mhc_hammer_completed_mosdepth = sorted(set(
+    path for p in _mhc_hammer_completed_pairs for path in p["mosdepth"]
+))
+_mhc_hammer_completed_library_size = sorted(set(
+    path for p in _mhc_hammer_completed_pairs for path in p["library_size"]
+))
+_mhc_hammer_completed_hla_bam_read_count = sorted(set(
+    path for p in _mhc_hammer_completed_pairs for path in p["hla_bam_read_count"]
+))
+print(
+    f"INFO [mhc_hammer]: {len(_mhc_hammer_completed_pairs)} of {len(CFG['paired_runs'])} matched "
+    f"tumour/normal pair(s) have a complete upstream chain on disk right now and will be included "
+    f"in this invocation's cohort table (the rest, if any, need a rerun of this same command after "
+    f"they finish or are excluded)."
+)
+
 rule _mhc_hammer_generate_inventory:
     input:
         cellularity_ploidy = _mhc_hammer_get_all_battenberg_cp_inputs,
@@ -1249,32 +1343,36 @@ rule _mhc_hammer_generate_inventory:
                 cp_row = dict(zip(header, values))
                 purity_ploidy[run_row["tumour_sample_id"]] = (cp_row.get("cellularity", ""), cp_row.get("ploidy", ""))
         normal_for_tumour = dict(zip(runs["tumour_sample_id"], runs["normal_sample_id"]))
-        # Restrict to samples belonging to a real matched pair (both the tumour_sample_id and
-        # normal_sample_id of every row in CFG["paired_runs"], already narrowed to
-        # pair_status == "matched" near the top of this file) -- same restriction
-        # _mhc_hammer_cohort_table's mosdepth/library_size/hla_bam_read_count inputs already
-        # apply. Without it, an unpaired tumour (no real germline sample at all -- categorically
-        # unprocessable by this module) still got a sample_type == "tumour" row here, which
-        # make_cohort_overview_table.R's wes_overview_dt/overview_table picks up regardless of
-        # pairing; since hlahd_germline_samples.txt (below) only ever lists germline IDs from
-        # matched pairs, that patient can never get a hlahd_germline_sample_name in the script's
-        # own merge, hard-stopping the *entire* cohort table ("Patients are missing HLAHD?") over
-        # a single unpaired patient anywhere in the full sample table -- confirmed on a real
-        # full-cohort run (2026-08-02).
-        matched_sample_ids = set(runs["tumour_sample_id"]) | set(runs["normal_sample_id"])
+        # Restrict to samples belonging to a pair _mhc_hammer_get_completed_pairs() (defined
+        # above) has confirmed is actually fully complete on disk -- not just "matched" per
+        # CFG["paired_runs"]. Without this, an unpaired tumour, OR a matched-but-not-yet-(or
+        # never-)completed tumour (its per-sample chain failed somewhere upstream, e.g.
+        # _mhc_hammer_subset_bam), still got a sample_type == "tumour" row here, which
+        # make_cohort_overview_table.R's wes_overview_dt/overview_table picks up regardless;
+        # since hlahd_germline_samples.txt (below) is built the same restricted way, that
+        # patient can never get a hlahd_germline_sample_name in the script's own merge,
+        # hard-stopping the *entire* cohort table ("Patients are missing HLAHD?") over a single
+        # incomplete patient anywhere in the full sample table -- confirmed on a real full-cohort
+        # run (2026-08-02). Restricting to just-"matched" (not also completed) fixed the unpaired
+        # case but not the matched-but-failed case, which showed up next on the very same real
+        # run once the unpaired-tumour issue was fixed.
+        completed_sample_ids = set()
+        for p in _mhc_hammer_completed_pairs:
+            completed_sample_ids.add(p["tumour_id"])
+            completed_sample_ids.add(p["normal_id"])
         os.makedirs(os.path.dirname(output.inventory), exist_ok=True)
         with open(output.inventory, "w", newline="") as fh:
             writer = csv.writer(fh)
             writer.writerow(["patient", "sample_name", "sample_type", "sequencing_type", "purity", "ploidy", "normal_sample_name"])
             for _, row in samples.iterrows():
                 sample_id = row["sample_id"]
-                if sample_id not in matched_sample_ids:
+                if sample_id not in completed_sample_ids:
                     continue
                 tissue_status = str(row["tissue_status"]).lower()
                 sample_type = "tumour" if tissue_status in ("tumour", "tumor") else "normal"
                 purity, ploidy = purity_ploidy.get(sample_id, ("", ""))
                 writer.writerow([row["patient_id"], sample_id, sample_type, MHC_SEQ, purity, ploidy, normal_for_tumour.get(sample_id, "")])
-        germline_ids = sorted(set(runs["normal_sample_id"]))
+        germline_ids = sorted(set(p["normal_id"] for p in _mhc_hammer_completed_pairs))
         with open(output.hlahd_germline_samples, "w") as fh:
             for gid in germline_ids:
                 fh.write(gid + "\n")
@@ -1429,66 +1527,13 @@ rule _mhc_hammer_parse_mutations:
 #     and transcriptome allele table."). Using the real patient_id keeps each placeholder row
 #     unique across the cohort while still never matching real data (gene/allele1/allele2 stay
 #     "NONE").
-# mosdepth/library_size/hla_bam_read_count below are per-SAMPLE outputs (not per-pair), but must
-# still be restricted to samples belonging to a patient with a real matched germline -- same
-# restriction dna_analysis/patient_dirs already apply via CFG["paired_runs"]. A tumour-only sample
-# has no personalized reference at all (that requires the patient's own germline HLA typing), so
-# requesting its mosdepth/allele-BAM output the way an earlier version of this rule did (built
-# directly from CFG["samples"], every sample in the -- possibly further project-restricted --
-# sample table, regardless of pairing) drags the whole novoalign/allele-bam chain back through
-# _mhc_hammer_get_germline_fqs for that patient and hits the exact "no germline sample" assertion
-# this rule exists to aggregate results around. Derive the sample list from CFG["paired_runs"]
-# (already narrowed to pair_status == "matched" near the top of this file) instead, covering both
-# the tumour_sample_id and normal_sample_id of every matched pair, deduplicated (a shared germline
-# sample paired against >1 tumour would otherwise be requested more than once).
-_mhc_hammer_cohort_sample_rows = sorted(set(
-    (row["tumour_seq_type"], row["tumour_genome_build"], sample_id)
-    for _, row in CFG["paired_runs"].iterrows()
-    for sample_id in (row["tumour_sample_id"], row["normal_sample_id"])
-))
-_mhc_hammer_cohort_seq_types, _mhc_hammer_cohort_genome_builds, _mhc_hammer_cohort_sample_ids = (
-    zip(*_mhc_hammer_cohort_sample_rows) if _mhc_hammer_cohort_sample_rows else ((), (), ())
-)
-
 rule _mhc_hammer_cohort_table:
     input:
-        dna_analysis = expand(
-            str(rules._mhc_hammer_detect_cn_aib.output.dna_analysis),
-            zip,
-            seq_type = CFG["paired_runs"]["tumour_seq_type"],
-            genome_build = CFG["paired_runs"]["tumour_genome_build"],
-            tumour_id = CFG["paired_runs"]["tumour_sample_id"],
-            normal_id = CFG["paired_runs"]["normal_sample_id"],
-            pair_status = CFG["paired_runs"]["pair_status"]
-        ),
-        mosdepth = expand(
-            str(rules._mhc_hammer_mosdepth.output.bed),
-            zip,
-            seq_type = _mhc_hammer_cohort_seq_types,
-            genome_build = _mhc_hammer_cohort_genome_builds,
-            sample_id = _mhc_hammer_cohort_sample_ids
-        ),
-        library_size = expand(
-            str(rules._mhc_hammer_flagstat.output.library_size),
-            zip,
-            seq_type = _mhc_hammer_cohort_seq_types,
-            genome_build = _mhc_hammer_cohort_genome_builds,
-            sample_id = _mhc_hammer_cohort_sample_ids
-        ),
-        hla_bam_read_count = expand(
-            str(rules._mhc_hammer_make_allele_bams.output.hla_bam_read_count),
-            zip,
-            seq_type = _mhc_hammer_cohort_seq_types,
-            genome_build = _mhc_hammer_cohort_genome_builds,
-            sample_id = _mhc_hammer_cohort_sample_ids
-        ),
-        patient_dirs = expand(
-            str(rules._mhc_hammer_generate_references.output.patient_dir),
-            zip,
-            seq_type = CFG["paired_runs"]["tumour_seq_type"],
-            genome_build = CFG["paired_runs"]["tumour_genome_build"],
-            patient_id = CFG["paired_runs"]["tumour_patient_id"]
-        ),
+        dna_analysis = _mhc_hammer_completed_dna_analysis,
+        mosdepth = _mhc_hammer_completed_mosdepth,
+        library_size = _mhc_hammer_completed_library_size,
+        hla_bam_read_count = _mhc_hammer_completed_hla_bam_read_count,
+        patient_dirs = _mhc_hammer_completed_patient_dirs,
         inventory = str(rules._mhc_hammer_generate_inventory.output.inventory),
         hlahd_germline_samples = str(rules._mhc_hammer_generate_inventory.output.hlahd_germline_samples)
     output:
