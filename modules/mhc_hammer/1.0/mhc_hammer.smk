@@ -61,6 +61,24 @@ CFG = op.setup_module(
 # config["lcr-modules"]["mhc_hammer"], so this propagates to every one of the ~8 call sites below,
 # including the ones inside functions that re-fetch CFG from `config` directly) so it means
 # exactly "runs where the tumour has its own real matched germline sample."
+#
+# NOTE: this makes `pairing_config.<seq_type>.run_unpaired_tumours_with` effectively a no-op for
+# this module specifically -- "no_normal" and "unmatched_normal" now behave identically (both
+# excluded), even though they mean very different things for other modules (e.g. battenberg/
+# sequenza actually process "unmatched_normal" tumours against the substitute normal). Leave it
+# set to "no_normal" (the shipped default) since that's the semantically-correct choice; setting
+# it to "unmatched_normal" changes nothing here. Warn (rather than silently drop) so a tumour
+# that some OTHER module happily processes via a substitute normal doesn't just vanish from
+# mhc_hammer's cohort table with no visible explanation.
+_mhc_hammer_dropped = CFG["paired_runs"][CFG["paired_runs"]["pair_status"] != "matched"]
+if len(_mhc_hammer_dropped) > 0:
+    print(
+        f"WARNING [mhc_hammer]: excluding {len(_mhc_hammer_dropped)} tumour sample(s) with no "
+        f"real matched germline sample (pair_status != 'matched', likely paired via oncopipe's "
+        f"substitute-normal mechanism elsewhere in the pipeline) -- mhc_hammer cannot type HLA "
+        f"alleles without the patient's own germline DNA: "
+        f"{sorted(set(_mhc_hammer_dropped['tumour_sample_id']))}"
+    )
 CFG["paired_runs"] = CFG["paired_runs"][CFG["paired_runs"]["pair_status"] == "matched"]
 
 # v1 is DNA-only (WES): HLA typing -> personalised reference -> Novoalign alignment ->
