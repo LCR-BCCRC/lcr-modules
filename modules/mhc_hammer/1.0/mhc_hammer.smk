@@ -152,18 +152,34 @@ def _mhc_hammer_get_patient_id_for_tumour(tumour_id, seq_type):
 def _mhc_hammer_get_germline_fqs(wildcards):
     # Every patient must have exactly one germline WES sample (v1 simplification -- see README).
     CFG = config["lcr-modules"]["mhc_hammer"]
-    normal = op.filter_samples(
+    candidates = op.filter_samples(
         CFG["samples"],
         patient_id = wildcards.patient_id,
         seq_type = wildcards.seq_type,
         genome_build = wildcards.genome_build,
     )
-    normal = normal[normal["tissue_status"].str.lower() == "normal"]
-    assert len(normal) == 1, (
-        f"Expected exactly one germline WES sample for patient '{wildcards.patient_id}' "
-        f"({wildcards.seq_type}--{wildcards.genome_build}), found {len(normal)}. This module "
-        f"requires exactly one germline WES sample per patient (see README)."
-    )
+    normal = candidates[candidates["tissue_status"].str.lower() == "normal"]
+    if len(normal) != 1:
+        # oncopipe's own pairing (CFG["paired_runs"], which is what actually requested this
+        # patient_id/seq_type/genome_build combination in the first place -- see the
+        # pair_status == "matched" narrowing near the top of this file) can consider a tumour
+        # "matched" using logic that doesn't line up 1:1 with this direct re-query against
+        # CFG["samples"]. Rather than a bare "found 0", dump every sample row this module can see
+        # for this patient/seq_type/genome_build regardless of tissue_status, so a genome_build or
+        # tissue_status value mismatch on the germline sample's own row is visible immediately
+        # instead of requiring a second round-trip.
+        all_patient_samples = op.filter_samples(CFG["samples"], patient_id = wildcards.patient_id)
+        assert False, (
+            f"Expected exactly one germline WES sample for patient '{wildcards.patient_id}' "
+            f"({wildcards.seq_type}--{wildcards.genome_build}), found {len(normal)}. This module "
+            f"requires exactly one germline WES sample per patient (see README).\n"
+            f"Sample(s) matching patient_id + seq_type '{wildcards.seq_type}' + genome_build "
+            f"'{wildcards.genome_build}' (any tissue_status): "
+            f"{candidates[['sample_id', 'tissue_status']].to_dict('records') if len(candidates) else '(none)'}\n"
+            f"ALL sample(s) for patient_id '{wildcards.patient_id}' regardless of seq_type/"
+            f"genome_build: "
+            f"{all_patient_samples[['sample_id', 'seq_type', 'genome_build', 'tissue_status']].to_dict('records') if len(all_patient_samples) else '(none)'}"
+        )
     sample_id = normal["sample_id"].tolist()[0]
     return {
         "fq1": expand(str(rules._mhc_hammer_generate_fqs.output.fq1), sample_id = sample_id, allow_missing = True),
@@ -1366,6 +1382,27 @@ rule _mhc_hammer_parse_mutations:
 #     and transcriptome allele table."). Using the real patient_id keeps each placeholder row
 #     unique across the cohort while still never matching real data (gene/allele1/allele2 stay
 #     "NONE").
+# mosdepth/library_size/hla_bam_read_count below are per-SAMPLE outputs (not per-pair), but must
+# still be restricted to samples belonging to a patient with a real matched germline -- same
+# restriction dna_analysis/patient_dirs already apply via CFG["paired_runs"]. A tumour-only sample
+# has no personalized reference at all (that requires the patient's own germline HLA typing), so
+# requesting its mosdepth/allele-BAM output the way an earlier version of this rule did (built
+# directly from CFG["samples"], every sample in the -- possibly further project-restricted --
+# sample table, regardless of pairing) drags the whole novoalign/allele-bam chain back through
+# _mhc_hammer_get_germline_fqs for that patient and hits the exact "no germline sample" assertion
+# this rule exists to aggregate results around. Derive the sample list from CFG["paired_runs"]
+# (already narrowed to pair_status == "matched" near the top of this file) instead, covering both
+# the tumour_sample_id and normal_sample_id of every matched pair, deduplicated (a shared germline
+# sample paired against >1 tumour would otherwise be requested more than once).
+_mhc_hammer_cohort_sample_rows = sorted(set(
+    (row["tumour_seq_type"], row["tumour_genome_build"], sample_id)
+    for _, row in CFG["paired_runs"].iterrows()
+    for sample_id in (row["tumour_sample_id"], row["normal_sample_id"])
+))
+_mhc_hammer_cohort_seq_types, _mhc_hammer_cohort_genome_builds, _mhc_hammer_cohort_sample_ids = (
+    zip(*_mhc_hammer_cohort_sample_rows) if _mhc_hammer_cohort_sample_rows else ((), (), ())
+)
+
 rule _mhc_hammer_cohort_table:
     input:
         dna_analysis = expand(
@@ -1380,23 +1417,23 @@ rule _mhc_hammer_cohort_table:
         mosdepth = expand(
             str(rules._mhc_hammer_mosdepth.output.bed),
             zip,
-            seq_type = CFG["samples"]["seq_type"],
-            genome_build = CFG["samples"]["genome_build"],
-            sample_id = CFG["samples"]["sample_id"]
+            seq_type = _mhc_hammer_cohort_seq_types,
+            genome_build = _mhc_hammer_cohort_genome_builds,
+            sample_id = _mhc_hammer_cohort_sample_ids
         ),
         library_size = expand(
             str(rules._mhc_hammer_flagstat.output.library_size),
             zip,
-            seq_type = CFG["samples"]["seq_type"],
-            genome_build = CFG["samples"]["genome_build"],
-            sample_id = CFG["samples"]["sample_id"]
+            seq_type = _mhc_hammer_cohort_seq_types,
+            genome_build = _mhc_hammer_cohort_genome_builds,
+            sample_id = _mhc_hammer_cohort_sample_ids
         ),
         hla_bam_read_count = expand(
             str(rules._mhc_hammer_make_allele_bams.output.hla_bam_read_count),
             zip,
-            seq_type = CFG["samples"]["seq_type"],
-            genome_build = CFG["samples"]["genome_build"],
-            sample_id = CFG["samples"]["sample_id"]
+            seq_type = _mhc_hammer_cohort_seq_types,
+            genome_build = _mhc_hammer_cohort_genome_builds,
+            sample_id = _mhc_hammer_cohort_sample_ids
         ),
         patient_dirs = expand(
             str(rules._mhc_hammer_generate_references.output.patient_dir),
