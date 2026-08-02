@@ -1579,17 +1579,22 @@ rule _mhc_hammer_cohort_table:
         done;
         cd $stage &&
         ls -1 . | grep -v '^input_csvs\.txt$' > input_csvs.txt &&
-        Rscript {params.scripts_dir}/bin/make_cohort_overview_table.R
-          --inventory_path {params.inventory_abs}
-          --csv_tables_path input_csvs.txt
-          --hlahd_germline_samples_path {params.hlahd_germline_samples_abs}
-          --max_cn_range {params.max_copy_number_range}
-          --min_n_snps {params.min_number_of_snps}
-          --min_expected_depth {params.min_expected_depth}
-          --min_frac_mapping_uniquely {params.min_frac_mapping_uniquely}
-          --max_frac_mapping_multi_gene {params.max_frac_mapping_multi_gene}
-          --dna_snp_min_depth {params.min_depth} &&
-        mv cohort_mhc_hammer_gene_table.csv {params.cohort_table_abs}
+        if [ ! -s input_csvs.txt ]; then
+            echo "No completed tumour/normal pair(s) available yet (input_csvs.txt is empty) -- writing an empty cohort table. This is expected on a first, from-scratch invocation; rerun the same command once --keep-going has finished attempting everything to get real results." ;
+            touch {params.cohort_table_abs} ;
+        else
+            Rscript {params.scripts_dir}/bin/make_cohort_overview_table.R
+              --inventory_path {params.inventory_abs}
+              --csv_tables_path input_csvs.txt
+              --hlahd_germline_samples_path {params.hlahd_germline_samples_abs}
+              --max_cn_range {params.max_copy_number_range}
+              --min_n_snps {params.min_number_of_snps}
+              --min_expected_depth {params.min_expected_depth}
+              --min_frac_mapping_uniquely {params.min_frac_mapping_uniquely}
+              --max_frac_mapping_multi_gene {params.max_frac_mapping_multi_gene}
+              --dna_snp_min_depth {params.min_depth} &&
+            mv cohort_mhc_hammer_gene_table.csv {params.cohort_table_abs} ;
+        fi
         ) > {log.stdout} 2>&1 &&
         rm -rf $stage
         """)
