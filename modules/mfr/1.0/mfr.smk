@@ -70,6 +70,12 @@ _ss_col  = CFG["options"]["sample_set_column"]
 _foci_dir = CFG["dirs"]["foci"]
 _chromosomes = CFG["chromosomes"]
 _sample_sets_path = CFG["inputs"]["sample_sets"]
+# A single fixed value for the whole run (not scattered per-job like
+# sample_set/chrom), so results from different methods don't silently
+# overwrite each other if this option is changed and the module is re-run --
+# baked into every clustering-dependent output path below as a literal path
+# segment, not a Snakemake wildcard.
+_clustering_method = CFG["options"]["clustering_method"]
 
 _sample_sets_df = pd.read_csv(CFG["inputs"]["sample_sets"], sep = "\t")
 if not {_sid_col, _ss_col}.issubset(_sample_sets_df.columns):
@@ -110,7 +116,7 @@ for _t, _n, _s, _g, _p in zip(
 def _mfr_gather_chroms(wildcards):
     """Gather the per-chromosome foci tables for one sample_set."""
     return expand(
-        _foci_dir + "{sample_set}/chromosomes/{chrom}.foci.tsv",
+        _foci_dir + _clustering_method + "/{sample_set}/chromosomes/{chrom}.foci.tsv",
         sample_set = wildcards.sample_set,
         chrom = _chromosomes
     )
@@ -206,10 +212,11 @@ rule _mfr_cluster:
     input:
         maf = str(rules._mfr_extract_chrom.output.maf)
     output:
-        tsv  = CFG["dirs"]["foci"] + "{sample_set}/chromosomes/{chrom}.foci.tsv",
-        plot = CFG["dirs"]["foci"] + "{sample_set}/chromosomes/{chrom}.silhouette.pdf"
+        tsv        = CFG["dirs"]["foci"] + _clustering_method + "/{sample_set}/chromosomes/{chrom}.foci.tsv",
+        plot       = CFG["dirs"]["foci"] + _clustering_method + "/{sample_set}/chromosomes/{chrom}.h_distribution.pdf",
+        score_plot = CFG["dirs"]["foci"] + _clustering_method + "/{sample_set}/chromosomes/{chrom}.h_score.pdf"
     log:
-        log = CFG["logs"]["foci"] + "{sample_set}/{chrom}.cluster.log"
+        log = CFG["logs"]["foci"] + _clustering_method + "/{sample_set}/{chrom}.cluster.log"
     conda:
         CFG["conda_envs"]["mfr"]
     container:
@@ -217,14 +224,25 @@ rule _mfr_cluster:
     threads:
         CFG["threads"]["cluster"]
     resources:
-        # dist() is O(n^2) in unique positions; bump mem for dense chromosomes.
+        # dist()/hclust() is O(n^2) in unique positions per gap-chunk; bump
+        # mem for dense chromosomes. `gap` bounds chunk size, but raising it
+        # increases this cost quadratically -- see cluster_foci.R's header
+        # before bumping `gap` instead of `mem_mb` to fix an OOM.
         **CFG["resources"]["cluster"]
     params:
-        pos_col       = CFG["options"]["pos_column"],
-        dist_method   = CFG["options"]["dist_method"],
-        hclust_method = CFG["options"]["hclust_method"],
-        h_min         = CFG["options"]["h_min"],
-        h_max         = CFG["options"]["h_max"]
+        pos_col              = CFG["options"]["pos_column"],
+        dist_method          = CFG["options"]["dist_method"],
+        hclust_method        = CFG["options"]["hclust_method"],
+        clustering_method    = CFG["options"]["clustering_method"],
+        gap                  = CFG["options"]["gap"],
+        h_min                = CFG["options"]["h_min"],
+        h_max                = CFG["options"]["h_max"],
+        cut_height           = CFG["options"]["cut_height"],
+        min_cluster_size     = CFG["options"]["min_cluster_size"],
+        deep_split           = CFG["options"]["deep_split"],
+        max_abs_core_scatter = CFG["options"]["max_abs_core_scatter"],
+        min_abs_gap          = CFG["options"]["min_abs_gap"],
+        make_plots           = CFG["options"]["make_plots"]
     script:
         "src/R/cluster_foci.R"
 
@@ -234,7 +252,7 @@ rule _mfr_aggregate:
     input:
         tsv = _mfr_gather_chroms
     output:
-        tsv = CFG["dirs"]["foci"] + "{sample_set}/{sample_set}.foci.tsv"
+        tsv = CFG["dirs"]["foci"] + _clustering_method + "/{sample_set}/{sample_set}.foci.tsv"
     run:
         import pandas as pd
         frames = []
@@ -256,7 +274,7 @@ rule _mfr_output_tsv:
     input:
         tsv = str(rules._mfr_aggregate.output.tsv)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{sample_set}.foci.tsv"
+        tsv = CFG["dirs"]["outputs"] + "tsv/" + _clustering_method + "/{sample_set}.foci.tsv"
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module = True)
 

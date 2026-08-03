@@ -6,7 +6,15 @@ dependencies:
   - r-base>=4.1
   - r-readr
   - r-dplyr
-  - r-cluster
+  - r-cluster        # silhouette(), needed for clustering_method: "silhouette"
+  # r-dynamictreecut: needed for clustering_method: "dynamic". Bioconda's
+  # copy of this package is stale (only ever built against R 3.3/3.4, never
+  # rebuilt) and fails to resolve against r-base>=4.1 -- conda-forge's copy
+  # is the one kept current (builds through R 4.5 at time of writing). Both
+  # channels are listed above; conda-forge is listed first so its build
+  # should be preferred, but confirm with `conda list` after env creation
+  # if in doubt.
+  - r-dynamictreecut
   - r-ggplot2
   - python=3.9   # pinned, not >=: an unbounded floor let conda solve to a
                  # Python new enough (3.12+) that `distutils` -- still

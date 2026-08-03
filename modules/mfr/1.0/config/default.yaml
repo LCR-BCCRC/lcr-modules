@@ -66,12 +66,59 @@ lcr-modules:
                 - "In_Frame_Ins"
                 - "Silent"
 
-            # Clustering parameters (defaults reproduce the notebook).
-            dist_method:   "euclidean"
-            hclust_method: "centroid"   # centroid can be non-monotonic; "average"
-                                        # or "ward.D2" give cleaner height cuts.
+            # Which clustering method to run: "silhouette", "density", or
+            # "dynamic". See cluster_foci.R's header for what each does.
+            clustering_method: "dynamic"
+
+            dist_method: "euclidean"
+            # centroid can be non-monotonic; fine for silhouette/density
+            # (single tryCatch-guarded cutree() call either way), but a
+            # worse fit for cutreeDynamic's branch-jump heuristics, which
+            # assume roughly monotonic merge heights. Use "average" or
+            # "ward.D2" if clustering_method: "dynamic".
+            hclust_method: "average"
+
+            # Gap-chunk boundary (bp), shared by all three methods. Must be
+            # >= h_max (silhouette/density) or >= cut_height (dynamic) to
+            # keep chunking exact/safely bounded -- see cluster_foci.R's
+            # header. There is no benefit to setting gap higher than that:
+            # results don't change, only memory/compute cost does (larger
+            # gap = bigger chunks = quadratically more expensive).
+            gap: 200
+
+            # Silhouette / density methods only: range of cut heights tested.
             h_min: 1
-            h_max: 100
+            h_max: 200
+
+            # Dynamic method only: ceiling on merge height cutreeDynamic
+            # will consider (passed as cutHeight). Kept separate from `gap`
+            # so `gap` can be sized for memory without loosening what counts
+            # as a biologically valid focus.
+            cut_height: 200
+
+            # Dynamic method only (method = "hybrid"). min_cluster_size is
+            # the floor on how many mutations must be in a cluster to count
+            # as a real focus; deep_split (0-4) controls how aggressively
+            # branches get split into separate foci vs. kept merged.
+            min_cluster_size: 2
+            deep_split: 2
+
+            # Dynamic method only, optional (null = let cutreeDynamic use its
+            # own internal default for either one). Unlike min_cluster_size,
+            # which only counts members, these bound cluster tightness in
+            # actual bp: max_abs_core_scatter caps how spread out a cluster's
+            # own members can be internally; min_abs_gap requires it to be
+            # separated from its nearest neighbouring cluster by at least
+            # that much. Set max_abs_core_scatter to reject isolated,
+            # unbridged pairs (e.g. two mutations 800bp apart with nothing
+            # between them) while still allowing a real chain of
+            # closely-spaced mutations to span a similar total distance.
+            max_abs_core_scatter: null
+            min_abs_gap: null
+
+            # Set False to skip generating the diagnostic plots (cheap
+            # placeholder files are still written so declared outputs exist).
+            make_plots: True
 
         conda_envs:
             mfr: "{MODSDIR}/envs/mfr.yaml"
