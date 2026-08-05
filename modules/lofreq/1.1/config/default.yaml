@@ -26,7 +26,7 @@ lcr-modules:
             lofreq: "{MODSDIR}/envs/lofreq-2.1.5.yml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
         container_envs:
-            lofreq: "docker://quay.io/biocontainers/lofreq:2.1.5--py311hce89694_15"
+            lofreq: "docker://ghcr.io/lcr-bccrc/lcr-scripts/lofreq:2.1.5-post"
 
             
         threads:
