@@ -1578,7 +1578,7 @@ rule _mhc_hammer_cohort_table:
             echo "NONE,NONE,NONE,${{patient}},0,TRUE" >> $stage/${{patient}}_transcriptome_allele_table.csv ;
         done;
         cd $stage &&
-        ls -1 . | grep -v '^input_csvs\.txt$' > input_csvs.txt &&
+        ( ls -1 . | grep -v '^input_csvs\.txt$' > input_csvs.txt || true ) &&
         if [ ! -s input_csvs.txt ]; then
             echo "No completed tumour/normal pair(s) available yet (input_csvs.txt is empty) -- writing an empty cohort table. This is expected on a first, from-scratch invocation; rerun the same command once --keep-going has finished attempting everything to get real results." ;
             touch {params.cohort_table_abs} ;
