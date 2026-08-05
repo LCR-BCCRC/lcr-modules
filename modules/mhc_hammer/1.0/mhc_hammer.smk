@@ -1042,7 +1042,9 @@ rule _mhc_hammer_detect_cn_aib:
         stdout = CFG["logs"]["dna_analysis"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/detect_cn_aib.log"
     params:
         scripts_dir = SCRIPTS_DIR,
-        min_depth = CFG["options"]["min_depth"],
+        # Per-seq_type -- see the long comment on options.min_depth in default.yaml for why (WGS
+        # depth at this locus is structurally much lower than WES's on-target-enriched depth).
+        min_depth = lambda wildcards: CFG["options"]["min_depth"][wildcards.seq_type],
         mhc_seq = MHC_SEQ,
         purity_ploidy = _mhc_hammer_parse_cellularity_ploidy,
         tumour_marker_abs = lambda wildcards, input: os.path.abspath(input.tumour_marker[0]),
@@ -1555,7 +1557,17 @@ rule _mhc_hammer_cohort_table:
         min_expected_depth = CFG["options"]["min_expected_depth"],
         min_frac_mapping_uniquely = CFG["options"]["min_frac_mapping_uniquely"],
         max_frac_mapping_multi_gene = CFG["options"]["max_frac_mapping_multi_gene"],
-        min_depth = CFG["options"]["min_depth"],
+        # min_depth is per-seq_type (see default.yaml), but this rule is cohort-wide (not
+        # wildcarded on seq_type) and can aggregate a mix of capture/genome pairs in one run.
+        # make_cohort_overview_table.R's own use of --dna_snp_min_depth is purely a provenance
+        # column (`min_dna_snp_depth_param`, recorded once per output row, never used to filter
+        # anything -- the real per-seq_type filtering already happened upstream, correctly, in
+        # _mhc_hammer_detect_cn_aib's get_filtered_pos_bed.R call, which does have a real
+        # wildcards.seq_type). Recording the capture value here since that's this tool's original,
+        # validated default; for a genome-seq_type row in a mixed cohort this column will read 30
+        # even though 5 (or whatever options.min_depth.genome is set to) was the value actually
+        # used to filter that row's SNPs -- cosmetic inaccuracy only, not a correctness issue.
+        min_depth = CFG["options"]["min_depth"]["capture"],
         flat_files_abs = lambda wildcards, input: " ".join(os.path.abspath(f) for f in (
             list(input.dna_analysis) + list(input.mosdepth) + list(input.library_size) + list(input.hla_bam_read_count)
         )),

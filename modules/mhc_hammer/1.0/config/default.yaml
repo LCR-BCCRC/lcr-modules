@@ -145,8 +145,30 @@ lcr-modules:
             # Allele BAM filtering
             max_mismatch: 1
 
-            # DNA allelic imbalance / copy number
-            min_depth: 30
+            # DNA allelic imbalance / copy number. Minimum GERMLINE depth (strictly greater than)
+            # for a position to be used as one of the many allele-differentiating SNP positions
+            # get_cn.R/get_logr_aib.R aggregate (median + t-test CI) into a copy number/AIB call --
+            # see bin/get_filtered_pos_bed.R (`coverage_dt[depth > min_depth]`). 30 is upstream's
+            # own default (nextflow.config), clearly tuned for WES's on-target enrichment
+            # (typically 100-300x+). WGS has no such enrichment -- confirmed on a real GAMBL run
+            # (2026-08-04/05): a WGS germline sample's depth at a personalized HLA-A allele
+            # reference had mean 6.3x / max 17x, so *zero* positions ever passed depth > 30,
+            # leaving n_snps == 0 and every downstream CN/AIB column blank -- not a bug, upstream's
+            # own docs/README state MHC Hammer requires WES ("MHC Hammer requires every patient to
+            # have a whole exome sequencing (WES) germline blood sample"), and no evidence was
+            # found of anyone running it on WGS successfully. Per-seq_type since capture (WES) and
+            # genome (WGS) samples can coexist in the same cohort and need very different
+            # thresholds; keyed by seq_type (not genome_build, unlike mhc_coords) since that's what
+            # actually drives the depth difference. genome: 5 is a starting point, not a validated
+            # value -- get_cn.R/get_logr_aib.R aggregate median BAF/logR + a t-test CI across every
+            # SNP that passes this filter, so (unlike a simple presence/absence check) a lower bar
+            # here is expected to let real signal through via that aggregation, not just noise; how
+            # many SNPs actually survive per gene at this value, and how tight the resulting CI is,
+            # should be checked empirically before trusting genome-seq_type CN/AIB calls the same
+            # way as capture's.
+            min_depth:
+                capture: 30
+                genome: 5
 
             # Cohort table QC thresholds (docs/mhc_hammer_outputs.md upstream)
             min_number_of_snps: 10
