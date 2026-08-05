@@ -1343,36 +1343,44 @@ rule _mhc_hammer_generate_inventory:
                 cp_row = dict(zip(header, values))
                 purity_ploidy[run_row["tumour_sample_id"]] = (cp_row.get("cellularity", ""), cp_row.get("ploidy", ""))
         normal_for_tumour = dict(zip(runs["tumour_sample_id"], runs["normal_sample_id"]))
-        # Restrict to samples belonging to a pair _mhc_hammer_get_completed_pairs() (defined
-        # above) has confirmed is actually fully complete on disk -- not just "matched" per
-        # CFG["paired_runs"]. Without this, an unpaired tumour, OR a matched-but-not-yet-(or
-        # never-)completed tumour (its per-sample chain failed somewhere upstream, e.g.
-        # _mhc_hammer_subset_bam), still got a sample_type == "tumour" row here, which
-        # make_cohort_overview_table.R's wes_overview_dt/overview_table picks up regardless;
-        # since hlahd_germline_samples.txt (below) is built the same restricted way, that
-        # patient can never get a hlahd_germline_sample_name in the script's own merge,
-        # hard-stopping the *entire* cohort table ("Patients are missing HLAHD?") over a single
-        # incomplete patient anywhere in the full sample table -- confirmed on a real full-cohort
-        # run (2026-08-02). Restricting to just-"matched" (not also completed) fixed the unpaired
-        # case but not the matched-but-failed case, which showed up next on the very same real
-        # run once the unpaired-tumour issue was fixed.
-        completed_sample_ids = set()
-        for p in _mhc_hammer_completed_pairs:
-            completed_sample_ids.add(p["tumour_id"])
-            completed_sample_ids.add(p["normal_id"])
+        # Restrict to samples belonging to a real MATCHED pair (runs == CFG["paired_runs"],
+        # already narrowed to pair_status == "matched" near the top of this file) -- deliberately
+        # NOT the stricter _mhc_hammer_get_completed_pairs() (defined above, used by
+        # _mhc_hammer_cohort_table) that also requires dna_analysis/mosdepth/library_size/
+        # hla_bam_read_count/patient_dir to already exist on disk. inventory.csv's only real
+        # consumer of this pairing data is make_mutation_table.R's tumour_sample_name ->
+        # germline_sample_name lookup (invoked by _mhc_hammer_parse_mutations), which needs
+        # nothing but the pairing relationship itself -- a pure CFG["paired_runs"] fact, always
+        # immediately known, completely independent of whether OTHER, unrelated branches of that
+        # patient's DAG (detect_cn_aib, mosdepth) have finished. Using the "completed" restriction
+        # here (2026-08-02, commit `281d2430`) was wrong: any pair where mutation-calling finishes
+        # before some unrelated step (e.g. mosdepth) got zero rows in inventory.csv, so
+        # `inventory[sample_name %in% tumour_bam_read_counts$tumour_sample_name]` returned a
+        # 0-row, *0-column* result -- data.table can't infer a column type from zero matches on an
+        # otherwise-populated table the same way it does for a genuinely empty file, but the
+        # *subsequent* merge (`by.x = "tumour_sample_name", by.y = "sample_name"`) still failed
+        # with "Incompatible join types: x.sample_name (logical) and i.tumour_sample_name
+        # (character)" -- confirmed on a real run (2026-08-04/05): a WGS pair (SP192798/SP192796)
+        # whose detect_muts/VEP output had already completed, but whose mosdepth output for that
+        # pair had not, had zero rows in inventory.csv even though its pairing was never in
+        # question. Restricting to just "matched" (this fix) fixed the original genuinely-unpaired
+        # case (commit `5ad560d5`) without needing every unrelated branch to also finish first;
+        # _mhc_hammer_cohort_table's OWN inputs (below) correctly keep the stricter "completed"
+        # restriction, since that rule genuinely does need dna_analysis/mosdepth/etc. to exist.
+        matched_sample_ids = set(runs["tumour_sample_id"]) | set(runs["normal_sample_id"])
         os.makedirs(os.path.dirname(output.inventory), exist_ok=True)
         with open(output.inventory, "w", newline="") as fh:
             writer = csv.writer(fh)
             writer.writerow(["patient", "sample_name", "sample_type", "sequencing_type", "purity", "ploidy", "normal_sample_name"])
             for _, row in samples.iterrows():
                 sample_id = row["sample_id"]
-                if sample_id not in completed_sample_ids:
+                if sample_id not in matched_sample_ids:
                     continue
                 tissue_status = str(row["tissue_status"]).lower()
                 sample_type = "tumour" if tissue_status in ("tumour", "tumor") else "normal"
                 purity, ploidy = purity_ploidy.get(sample_id, ("", ""))
                 writer.writerow([row["patient_id"], sample_id, sample_type, MHC_SEQ, purity, ploidy, normal_for_tumour.get(sample_id, "")])
-        germline_ids = sorted(set(p["normal_id"] for p in _mhc_hammer_completed_pairs))
+        germline_ids = sorted(set(runs["normal_sample_id"]))
         with open(output.hlahd_germline_samples, "w") as fh:
             for gid in germline_ids:
                 fh.write(gid + "\n")
