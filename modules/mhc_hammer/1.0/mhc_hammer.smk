@@ -537,7 +537,10 @@ rule _mhc_hammer_subset_bam:
         # when substituted into the shell command, which never matches. Must be lowercased here.
         fish_reads = str(CFG["options"]["fish_reads"]).lower(),
         unmapped_reads = str(CFG["options"]["unmapped_reads"]).lower(),
-        contig_reads = str(CFG["options"]["contig_reads"]).lower(),
+        # Per-genome_build (not per-seq_type -- see the long comment on options.contig_reads in
+        # default.yaml). Falls back to True (upstream's own default) for any genome_build not
+        # explicitly listed, same fallback convention as elsewhere in this module.
+        contig_reads = lambda w: str(CFG["options"]["contig_reads"].get(w.genome_build, True)).lower(),
         sort_mem = lambda wildcards, resources: max(1, int(resources.mem_mb / 1000 * 0.8)),
         bam_abs = lambda wildcards, input: os.path.abspath(input.bam),
         # Empty when fish_reads is off (_mhc_hammer_get_kmer_file_input returns []) -- the shell

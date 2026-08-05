@@ -115,7 +115,28 @@ lcr-modules:
             # that whole-genome jellyfish build+dump is the slowest one-time step in this module.
             fish_reads: True
             unmapped_reads: True
-            contig_reads: True
+            # Per-genome_build, NOT per-seq_type -- seq_type (capture/genome) and genome_build
+            # (grch37/hs37d5/hg38) aren't consistently paired in real cohorts (e.g. a capture
+            # sample can be aligned to hs37d5 same as a genome/WGS sample), but whether
+            # contig_reads is worth its cost depends entirely on the *build*: it exists to rescue
+            # reads that misalign to HLA-specific ALT contigs, which only exist on GRCh38-style
+            # builds (e.g. chr6_GL*_alt). GRCh37-style builds (grch37, hs37d5) have no HLA-specific
+            # ALTs -- their "non-standard contigs" are generic, unrelated decoy/unplaced sequences,
+            # so contig_reads there rescues ~nothing HLA-relevant while costing enormously more
+            # novoalign time. Confirmed on a real GAMBL run (2026-08-05): with contig_reads: True
+            # on hs37d5, 96.8% of the entire subsetted BAM (46.2M of 47.7M reads) came from
+            # non-standard contigs -- 82.8% from the hs37d5 decoy contig alone (not the genome
+            # build, the actual decoy sequence inside it, confusingly sharing the same name) and
+            # 14.0% from ~200 small GL000xxx alt/decoy contigs -- vs. only 3.2% (1.52M reads) from
+            # the actually-targeted hla_region + unmapped_reads categories. That 31x read-count
+            # inflation was the direct cause of novoalign taking 3+ hours (and counting) on a
+            # single WGS sample. Add further genome_build entries here (e.g. grch38/hg19) as
+            # needed; anything not listed falls back to True (the original, upstream-matching
+            # default) via CFG["options"]["contig_reads"].get(genome_build, True) at the call site.
+            contig_reads:
+                grch37: False
+                hs37d5: False
+                hg38: True
 
             # Debug-only: HLA-HD's own exon/intron/mapfile/maplist intermediates (its actual
             # per-exon/intron bowtie2 SAM alignments against its internal dictionaries) are
