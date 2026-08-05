@@ -116,6 +116,14 @@ HLAHD_DIR = CFG["options"]["hlahd_dir"]
 VEP_PATH = CFG["options"]["vep_path"]
 VEP_CACHE = CFG["options"]["vep_cache"]
 MHC_COORDS = CFG["options"]["mhc_coords"]
+# Precomputed once here (not read from CFG inside the lambdas below) for the same reason
+# MHC_COORDS is -- see the NOTE above _mhc_hammer_get_patient_id_for_sample: any lambda/function
+# evaluated lazily (params functions included) must never close over the module-level `CFG` name
+# itself, since op.cleanup_module(CFG) deletes it before those lambdas ever run. A plain module-
+# level constant assigned here, before cleanup, is a completely different (never-deleted) name and
+# is safe to reference from a lambda.
+MIN_DEPTH = CFG["options"]["min_depth"]
+CONTIG_READS = CFG["options"]["contig_reads"]
 
 # Upstream's own scripts hardcode the literal tokens "wxs"/"rnaseq" (its internal DNA-vs-RNA
 # vocabulary) into filenames and into the regexes several cohort-level R scripts use to find and
@@ -539,8 +547,9 @@ rule _mhc_hammer_subset_bam:
         unmapped_reads = str(CFG["options"]["unmapped_reads"]).lower(),
         # Per-genome_build (not per-seq_type -- see the long comment on options.contig_reads in
         # default.yaml). Falls back to True (upstream's own default) for any genome_build not
-        # explicitly listed, same fallback convention as elsewhere in this module.
-        contig_reads = lambda w: str(CFG["options"]["contig_reads"].get(w.genome_build, True)).lower(),
+        # explicitly listed, same fallback convention as elsewhere in this module. References the
+        # CONTIG_READS module-level constant, not CFG directly (CFG-closure gotcha).
+        contig_reads = lambda w: str(CONTIG_READS.get(w.genome_build, True)).lower(),
         sort_mem = lambda wildcards, resources: max(1, int(resources.mem_mb / 1000 * 0.8)),
         bam_abs = lambda wildcards, input: os.path.abspath(input.bam),
         # Empty when fish_reads is off (_mhc_hammer_get_kmer_file_input returns []) -- the shell
@@ -1047,7 +1056,8 @@ rule _mhc_hammer_detect_cn_aib:
         scripts_dir = SCRIPTS_DIR,
         # Per-seq_type -- see the long comment on options.min_depth in default.yaml for why (WGS
         # depth at this locus is structurally much lower than WES's on-target-enriched depth).
-        min_depth = lambda wildcards: CFG["options"]["min_depth"][wildcards.seq_type],
+        # References the MIN_DEPTH module-level constant, not CFG directly (CFG-closure gotcha).
+        min_depth = lambda wildcards: MIN_DEPTH[wildcards.seq_type],
         mhc_seq = MHC_SEQ,
         purity_ploidy = _mhc_hammer_parse_cellularity_ploidy,
         tumour_marker_abs = lambda wildcards, input: os.path.abspath(input.tumour_marker[0]),
