@@ -141,14 +141,11 @@ rule _lofreq_preprocess_normal:
     shell:
         op.as_one_line("""
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
-        _outdir=$(dirname {output.vcf_relaxed});
         touch {output.preprocessing_start}
         &&
         lofreq somatic --normal_only {params.opts} --threads {threads} -t {input.normal_bam} -n {input.normal_bam}
-        -f {input.fasta} -o "${{_outdir}}/_lofreq_" -d {input.dbsnp} --bed {input.bed}
+        -f {input.fasta} -o "$(dirname {output.vcf_relaxed})/" -d {input.dbsnp} --bed {input.bed}
         > {log.stdout} 2> {log.stderr}
-        &&
-        for f in "${{_outdir}}"/_lofreq_*; do mv -- "$f" "${{_outdir}}/${{f##*/_lofreq_}}"; done
         &&
         touch {output.preprocessing_complete}
         """)
@@ -182,11 +179,9 @@ rule _lofreq_link_to_preprocessed:
         op.relative_symlink(input.preprocessing_complete, output.preprocessing_complete, in_module=True)
 
 
-# Run LoFreq in somatic variant calling mode for unpaired tumours using precomputed SNV positions from unmatched normal
-# For unmatched tumours we need to symlink all the files from the preprocessing to the pair's output directory
-# Matched and unmatched tumours are handled identically here. The normal is only run once and all unmatched tumours that rely on it
-# won't be run until that processing is done. 
-# The creation of symbolic links in this rule could probably be separated out into a rule that uses Oncopipe's relative_symlink
+# Run LoFreq in somatic variant calling mode for unpaired tumours using precomputed SNV positions from unmatched normal.
+# The normal preprocessing files are already symlinked into the output directory by _lofreq_link_to_preprocessed.
+# lofreq somatic --continue detects them and skips normal calling, proceeding directly to tumour calling.
 rule _lofreq_run_tumour_unmatched:
     input:
         preprocessing_complete = str(rules._lofreq_link_to_preprocessed.output.preprocessing_complete),
@@ -219,16 +214,9 @@ rule _lofreq_run_tumour_unmatched:
     shell:
         op.as_one_line("""
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
-        _outdir=$(dirname {output.vcf_snvs_filtered});
-        for f in normal_relaxed.vcf.gz normal_relaxed.vcf.gz.tbi normal_relaxed.log normal_stringent.indels.vcf.gz normal_stringent.indels.vcf.gz.tbi normal_stringent.snvs.vcf.gz preprocessing.complete; do ln -sf "$f" "${{_outdir}}/_lofreq_${{f}}"; done
-        &&
         lofreq somatic --continue {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
-        -f {input.fasta} -o "${{_outdir}}/_lofreq_" -d {input.dbsnp} --bed {input.bed}
+        -f {input.fasta} -o "$(dirname {output.vcf_snvs_all})/" -d {input.dbsnp} --bed {input.bed}
         > {log.stdout} 2> {log.stderr}
-        &&
-        for f in normal_relaxed.vcf.gz normal_relaxed.vcf.gz.tbi normal_relaxed.log normal_stringent.indels.vcf.gz normal_stringent.indels.vcf.gz.tbi normal_stringent.snvs.vcf.gz preprocessing.complete; do rm -f "${{_outdir}}/_lofreq_${{f}}"; done
-        &&
-        for f in "${{_outdir}}"/_lofreq_*; do mv -- "$f" "${{_outdir}}/${{f##*/_lofreq_}}"; done
         """)
 
 rule _lofreq_run_tumour_matched:
@@ -262,13 +250,11 @@ rule _lofreq_run_tumour_matched:
     shell:
         op.as_one_line("""
         [[ -n "{LOFREQ_EXEC_PATH}" ]] && PATH="{LOFREQ_EXEC_PATH}:$PATH";
-        _outdir=$(dirname {output.vcf_snvs_filtered});
+        _outdir=$(dirname {output.vcf_snvs_all});
         if [[ -e {output.vcf_snvs_all}.tbi ]]; then rm -f "${{_outdir}}"/*; fi;
         lofreq somatic {params.opts} --threads {threads} -t {input.tumour_bam} -n {input.normal_bam}
-        -f {input.fasta} -o "${{_outdir}}/_lofreq_" -d {input.dbsnp} --bed {input.bed}
+        -f {input.fasta} -o "${{_outdir}}/" -d {input.dbsnp} --bed {input.bed}
         > {log.stdout} 2> {log.stderr}
-        &&
-        for f in "${{_outdir}}"/_lofreq_*; do mv -- "$f" "${{_outdir}}/${{f##*/_lofreq_}}"; done
         """)
 
 # indels are not yet called but this rule merges the empty indels file with the snvs file to produce the consistently named "combined" vcf. 
