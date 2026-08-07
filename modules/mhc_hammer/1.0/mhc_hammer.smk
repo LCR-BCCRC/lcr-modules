@@ -14,6 +14,7 @@
 
 # Import package with useful functions for developing analysis modules
 import os
+import re
 import time
 import oncopipe as op
 
@@ -115,15 +116,40 @@ NOVOALIGN_DIR = CFG["options"]["novoalign_dir"]
 HLAHD_DIR = CFG["options"]["hlahd_dir"]
 VEP_PATH = CFG["options"]["vep_path"]
 VEP_CACHE = CFG["inputs"]["vep_cache"]
-MHC_COORDS = CFG["options"]["mhc_coords"]
-# Precomputed once here (not read from CFG inside the lambdas below) for the same reason
-# MHC_COORDS is -- see the NOTE above _mhc_hammer_get_patient_id_for_sample: any lambda/function
+# Precomputed once here (not read from CFG inside the lambdas/functions below) for the same
+# reason -- see the NOTE above _mhc_hammer_get_patient_id_for_sample: any lambda/function
 # evaluated lazily (params functions included) must never close over the module-level `CFG` name
 # itself, since op.cleanup_module(CFG) deletes it before those lambdas ever run. A plain module-
 # level constant assigned here, before cleanup, is a completely different (never-deleted) name and
 # is safe to reference from a lambda.
 MIN_DEPTH = CFG["options"]["min_depth"]
 CONTIG_READS = CFG["options"]["contig_reads"]
+MHC_BUILD_COORDINATE_SYSTEM_PATTERNS = CFG["options"]["mhc_build_coordinate_system_patterns"]
+MHC_COORDS_BY_SYSTEM = CFG["options"]["mhc_coords_by_system"]
+
+# The chr-prefix half of this lives in _mhc_hammer_subset_bam's shell block (read directly from
+# each sample's own BAM header at runtime -- see the long comment on options.mhc_coords_by_system
+# in default.yaml for why that's not done here too). This only resolves the coordinate-SYSTEM
+# half: which of the two canonical (hg19-style, hg38-style) HLA class I regions applies, via
+# regex patterns matched against the raw genome_build string, first match wins.
+def _mhc_hammer_get_mhc_region_coords(genome_build):
+    system = None
+    for pattern, candidate_system in MHC_BUILD_COORDINATE_SYSTEM_PATTERNS.items():
+        if re.search(pattern, genome_build):
+            system = candidate_system
+            break
+    if system is None:
+        raise ValueError(
+            f"mhc_hammer: genome_build '{genome_build}' didn't match any pattern in "
+            f"options.mhc_build_coordinate_system_patterns -- add one in default.yaml (or a "
+            f"project config override) that matches it."
+        )
+    if system not in MHC_COORDS_BY_SYSTEM:
+        raise ValueError(
+            f"mhc_hammer: genome_build '{genome_build}' matched coordinate system '{system}', "
+            f"but options.mhc_coords_by_system has no entry for '{system}'."
+        )
+    return MHC_COORDS_BY_SYSTEM[system]
 
 # Upstream's own scripts hardcode the literal tokens "wxs"/"rnaseq" (its internal DNA-vs-RNA
 # vocabulary) into filenames and into the regexes several cohort-level R scripts use to find and
@@ -539,7 +565,10 @@ rule _mhc_hammer_subset_bam:
         stdout = CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/subset_bam.log"
     params:
         scripts_dir = SCRIPTS_DIR,
-        mhc_chrom = lambda w: MHC_COORDS[w.genome_build],
+        # Coordinate portion only, no chr-prefix -- the shell block below detects that at runtime
+        # from this sample's own BAM header (see the long comment on options.mhc_coords_by_system
+        # in default.yaml for why).
+        mhc_region_coords = lambda w: _mhc_hammer_get_mhc_region_coords(w.genome_build),
         # subset_bam_opt.sh does literal `[ "$var" == true ]` string comparisons (lowercase) --
         # str(True)/str(False) from a Python/YAML bool renders as "True"/"False" (capitalised)
         # when substituted into the shell command, which never matches. Must be lowercased here.
@@ -584,7 +613,12 @@ rule _mhc_hammer_subset_bam:
         # regardless of prior failed attempts.
         op.as_one_line("""
         wd=$(dirname {output.bam}) && mkdir -p $wd &&
-        echo {params.mhc_chrom} > $wd/mhc_coords.txt &&
+        if samtools view -H {params.bam_abs} | awk -F'\\t' '$1=="@SQ"{{for(i=1;i<=NF;i++) if($i=="SN:chr6") f=1}} END{{exit !f}}'; then
+            chr_prefix=chr;
+        else
+            chr_prefix="";
+        fi &&
+        echo "${{chr_prefix}}{params.mhc_region_coords}" > $wd/mhc_coords.txt &&
         touch $wd/contigs_placeholder.txt &&
         rm -rf $wd/{wildcards.sample_id}_tmpDir &&
         export REF_CACHE={params.ref_cache_pattern} &&

@@ -71,41 +71,51 @@ lcr-modules:
                     mhc_references: "https://zenodo.org/records/12606532/files/mhc_references.zip?download=1"
                     kmer_files: "https://zenodo.org/records/12606532/files/kmer_files.zip?download=1"
 
-            # Region carrying the classical HLA class I locus, per genome_build naming
-            # convention. Upstream's own assets/mhc_coords_chr6.txt is just the literal contig
-            # name "chr6" (no coordinates) -- confirmed by reading subset_bam_opt.sh that a
-            # "chr:start-end" region string is fully supported here (it explicitly splits on ":"
-            # for a chromosome-name validation check, then passes the whole string straight to
-            # `samtools view` as its region argument). Padded ~200-300kb around real HLA-A/B/C
-            # gene coordinates (Ensembl GRCh37/GRCh38, confirmed via rest.ensembl.org and
-            # grch37.rest.ensembl.org 2026-07-31: GRCh37 HLA-A 29909037-29913661, HLA-B
-            # 31321649-31324965, HLA-C 31236526-31239907; GRCh38 HLA-A 29941260-29949606, HLA-B
-            # 31353195-31367067, HLA-C 31268746-31272171), rather than the whole ~171Mb
-            # chromosome 6 used previously -- real-run evidence (2026-07-31, a GAMBL/ICGC-DART
-            # sample) showed the whole-chromosome region extracting 3.67M reads of which only
-            # ~2000-2600 were actually at the true HLA-A/B/C loci, and HLA-HD's own internal
-            # allele-narrowing algorithm found zero informative patterns despite that being
-            # perfectly adequate depth on its own -- consistent with the true signal being
-            # overwhelmed by ~1800x as much irrelevant chromosome-6 volume. Kmer-fishing (see
-            # fish_reads below) is a separate mechanism (catches reads that misalign elsewhere in
-            # the genome) and not a backstop for reads clipped at a too-tight region boundary, so
-            # this still pads generously rather than using tight gene-only boundaries.
-            # Every genome_build value CFG["samples"]/CFG["runs"] might actually contain needs its
-            # own entry here -- unlike some other per-build config dicts elsewhere in lcr-modules,
-            # this one is looked up directly by the raw wildcards.genome_build string
-            # (mhc_hammer.smk's _mhc_hammer_subset_bam rule), with no normalization step, so an
-            # unlisted build value is a hard KeyError rather than a silent fallback. hs37d5 (GRCh37
-            # + decoy contigs, same primary-chromosome coordinates as grch37) is GAMBL's standard
-            # genome_build for "genome" (WGS) seq_type, distinct from "capture"'s plain "grch37" --
-            # confirmed via a real run (2026-08-02): KeyError: 'hs37d5' the first time this module
-            # was run against genome-seq_type GAMBL samples, following the same explicit per-build
-            # mapping convention already used by modules/igcaller/1.0/config/default.yaml for the
-            # same genome_build vocabulary. Add further aliases here (e.g. grch38, hg19) if/when a
-            # real run surfaces a KeyError for one.
-            mhc_coords:
-                grch37: "6:29700000-31600000"
-                hs37d5: "6:29700000-31600000"
-                hg38: "chr6:29750000-31650000"
+            # Region carrying the classical HLA class I locus. A real meta-analysis cohort ends up
+            # with many reference "flavours" of what's fundamentally the same two coordinate
+            # systems (grch37, grch37-noalt, grch37_masked, hs37d5, hg19, hg19-clc, hg19-clc-other,
+            # hg19-karsan, hg19-reddy, hg19_masked, ... vs. grch38, grch38-legacy, grch38-nci, hg38,
+            # hg38-nci, hg38-panea, hg38_masked, hg38_mask_parY, ... -- 18+ observed builds and
+            # counting) that only ever differ from each other in naming/masking/patch/decoy details
+            # irrelevant to HLA coordinates -- so this is regex-pattern-based (mhc_build_
+            # coordinate_system_patterns, matched against the raw genome_build string via
+            # re.search() in mhc_hammer.smk) rather than one full region string per literal build
+            # name (that grew unmanageable almost immediately -- confirmed via a real run,
+            # 2026-08-02: KeyError: 'hs37d5' the first time this module saw a "genome"/WGS build
+            # distinct from "capture"'s "grch37"). Patterns are tried in order, first match wins;
+            # add a new pattern (not a new per-build entry) if a future genome_build value doesn't
+            # match either existing one -- "37|19" and "38" cover every build observed so far.
+            #
+            # The chr-prefix ("chr6" vs "6") is NOT configured here at all -- deliberately not a
+            # third regex-pattern axis, since it's directly, reliably readable from each sample's
+            # own BAM header at runtime (_mhc_hammer_subset_bam checks for an "SN:chr6" @SQ entry),
+            # which is strictly more trustworthy than inferring it from a naming convention that
+            # could be wrong for some flavour never yet seen -- name-based guessing would fail
+            # silently (a samtools region query against a mismatched contig name just returns zero
+            # reads, not an error), so ground truth beats inference wherever ground truth is cheap
+            # to check.
+            mhc_build_coordinate_system_patterns:
+                "37|19": "hg19"
+                "38": "hg38"
+
+            # Canonical per-coordinate-system HLA class I region, no chr-prefix (added at runtime
+            # -- see above). Padded ~200-300kb around real HLA-A/B/C gene coordinates (Ensembl
+            # GRCh37/GRCh38, confirmed via rest.ensembl.org and grch37.rest.ensembl.org
+            # 2026-07-31: GRCh37 HLA-A 29909037-29913661, HLA-B 31321649-31324965, HLA-C
+            # 31236526-31239907; GRCh38 HLA-A 29941260-29949606, HLA-B 31353195-31367067, HLA-C
+            # 31268746-31272171), rather than the whole ~171Mb chromosome 6 used previously --
+            # real-run evidence (2026-07-31, a GAMBL/ICGC-DART sample) showed the whole-chromosome
+            # region extracting 3.67M reads of which only ~2000-2600 were actually at the true
+            # HLA-A/B/C loci, and HLA-HD's own internal allele-narrowing algorithm found zero
+            # informative patterns despite that being perfectly adequate depth on its own --
+            # consistent with the true signal being overwhelmed by ~1800x as much irrelevant
+            # chromosome-6 volume. Kmer-fishing (see fish_reads below) is a separate mechanism
+            # (catches reads that misalign elsewhere in the genome) and not a backstop for reads
+            # clipped at a too-tight region boundary, so this still pads generously rather than
+            # using tight gene-only boundaries.
+            mhc_coords_by_system:
+                hg19: "6:29700000-31600000"
+                hg38: "6:29750000-31650000"
 
             # Optional path to Battenberg's own per-pair cellularity_ploidy.txt output
             # (tab-separated, header row, "cellularity" and "ploidy" columns -- same file
