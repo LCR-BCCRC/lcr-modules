@@ -13,7 +13,8 @@ This module requires three things the user must obtain and configure separately 
 1. **Novoalign** (`options.novoalign_dir`): download from [novocraft.com](https://www.novocraft.com/support/download/) (only V3.x and earlier are free for non-commercial/academic use) and point this at the directory containing the `novoalign`/`novoindex` binaries.
 2. **HLA-HD** (`options.hlahd_dir`): request a download from the [HLA-HD website](https://www.genome.med.kyoto-u.ac.jp/HLA-HD/download-request/), install it, and point this at the installed directory (must contain `bin/`, `dictionary/`, `freq_data/`, `HLA_gene.split.txt`). Its database version must match `options.imgt_release` below.
 3. **MHC Hammer scripts** (`options.mhc_hammer_scripts_dir`): MHC Hammer is distributed by Cancer Research Horizons under an **academic-use licence that prohibits redistribution and modification** (see the [LICENSE](https://github.com/McGranahanLab/mhc-hammer/blob/main/LICENSE) in the upstream repo). This module therefore never bundles or copies any of upstream's `bin/*.R`/`bin/*.sh` scripts -- it calls them from a path you provide. `git clone https://github.com/McGranahanLab/mhc-hammer.git` yourself, read and accept its licence, and point `mhc_hammer_scripts_dir` at that clone. If you publish results produced with this module, cite the MHC Hammer publication per the licence's attribution requirement.
-4. **VEP** (`options.vep_path`, `options.vep_cache`): also user-supplied, following this repo's own `vcf2maf` module convention, to avoid the bioconda/Perl dependency conflicts already hit there (see `CHANGELOG.md`).
+4. **VEP** (`options.vep_path`, `inputs.vep_cache`): also user-supplied, following this repo's own `vcf2maf` module convention, to avoid the bioconda/Perl dependency conflicts already hit there (see `CHANGELOG.md`).
+5. **A reference genome FASTA** (`inputs.reference_genome_fasta`): any complete human genome FASTA, doesn't need to match any sample's `genome_build` -- used only to identify non-specific/repetitive kmers genome-wide.
 
 Every patient in your sample table must have **exactly one** germline WES sample (`tissue_status: normal`) -- unlike upstream, this module does not tolerate multiple germline samples per patient by silently picking one, and it will error instead. Tumour WES samples without a matched germline in the same patient are never processed (see `CFG["paired_runs"]` in the module code) since HLA typing and the personalised reference both require the patient's own germline sample.
 
@@ -40,12 +41,13 @@ lcr-modules:
     mhc_hammer:
         inputs:
             sample_bam: "data/{sample_id}.bam"
+            vep_cache: "/path/to/vep/cache"
+            reference_genome_fasta: "/path/to/any/reference/genome.fa"
         options:
             novoalign_dir: "/path/to/novocraft"
             hlahd_dir: "/path/to/hlahd"
             mhc_hammer_scripts_dir: "/path/to/your/mhc-hammer/clone"
             vep_path: "/path/to/vep/bin"
-            vep_cache: "/path/to/vep/cache"
 ```
 
 The example snakefile:

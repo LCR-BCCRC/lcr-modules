@@ -114,7 +114,7 @@ SCRIPTS_DIR = CFG["options"]["mhc_hammer_scripts_dir"]
 NOVOALIGN_DIR = CFG["options"]["novoalign_dir"]
 HLAHD_DIR = CFG["options"]["hlahd_dir"]
 VEP_PATH = CFG["options"]["vep_path"]
-VEP_CACHE = CFG["options"]["vep_cache"]
+VEP_CACHE = CFG["inputs"]["vep_cache"]
 MHC_COORDS = CFG["options"]["mhc_coords"]
 # Precomputed once here (not read from CFG inside the lambdas below) for the same reason
 # MHC_COORDS is -- see the NOTE above _mhc_hammer_get_patient_id_for_sample: any lambda/function
@@ -351,7 +351,7 @@ rule _mhc_hammer_download_reference:
 # Builds a genome-wide 30-mer occurrence index from a user-supplied reference genome, used by
 # _mhc_hammer_filter_kmers below to identify which of the IMGT-derived kmers aren't actually
 # HLA-specific (see design note there). Cohort-wide, no wildcards, genome-build-independent by
-# design (see options.reference_genome_fasta above) -- built once and reused for every patient.
+# design (see inputs.reference_genome_fasta above) -- built once and reused for every patient.
 #
 # Deliberately NOT canonical (no -C): upstream's own kmer file was built without -C (confirmed
 # by reading docs/mhc_reference_files.md), and subset_bam_opt.sh's actual matching is a plain
@@ -362,7 +362,7 @@ rule _mhc_hammer_download_reference:
 # could never actually match against, inflating every count.
 rule _mhc_hammer_build_genome_kmer_index:
     input:
-        genome_fasta = CFG["options"]["reference_genome_fasta"]
+        genome_fasta = CFG["inputs"]["reference_genome_fasta"]
     output:
         index = CFG["dirs"]["mhc_reference"] + "genome_kmer_index/genome_30mers.jf"
     log:
