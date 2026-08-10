@@ -117,6 +117,47 @@ lcr-modules:
                 hg19: "6:29700000-31600000"
                 hg38: "6:29750000-31650000"
 
+            # HLA class II germline typing -- a deliberately separate, parallel path alongside the
+            # class I disruption-detection pipeline above (subset -> fastq -> HLA-HD typing only;
+            # no personalised reference, novoalign, CN/AIB, or mutation calling -- that's left for
+            # a possible future extension, not built here). Reuses the same
+            # mhc_build_coordinate_system_patterns above (that classification is generic to any
+            # locus on chr6, not specific to the class I genes) but needs its own region and gene
+            # list, since the classical class II genes sit ~1Mb away from HLA-A/B/C. Coordinates
+            # confirmed via rest.ensembl.org/grch37.rest.ensembl.org 2026-08-10: GRCh37 spans
+            # HLA-DRA (32407619-32412823) through HLA-DPB1 (33043703-33054978), ~200kb padding on
+            # each side; GRCh38 spans HLA-DRB1 (32577902-32589848) through HLA-DPB1
+            # (33073786-33091655), same padding. The haplotype-dependent DRB3/DRB4/DRB5 genes and
+            # the non-classical DMA/DMB/DOA/DOB genes all fall within this same window (confirmed
+            # individually) -- only one region is needed, not one per gene.
+            hla2_coords_by_system:
+                hg19: "6:32350000-33250000"
+                hg38: "6:32380000-33300000"
+
+            # Classical peptide-presenting HLA class II genes (DRA + every functional DRB locus +
+            # DQ/DP heterodimers) plus the non-classical peptide-loading/editing genes HLA-DM/-DO.
+            # Deliberately excludes the DRB pseudogenes (DRB2, DRB6, DRB7, DRB8, DRB9) that HLA-HD
+            # can also type -- those aren't translated into functional, peptide-presenting protein.
+            hla2_genes:
+                - "DRA"
+                - "DRB1"
+                - "DRB3"
+                - "DRB4"
+                - "DRB5"
+                - "DQA1"
+                - "DQB1"
+                - "DPA1"
+                - "DPB1"
+                - "DMA"
+                - "DMB"
+                - "DOA"
+                - "DOB"
+
+            # Module-owned (not MHC Hammer's own bin/) -- see the long comment at the top of
+            # src/parse_hlahd_output.R for why this exists separately from upstream's
+            # hlahd_parse_output.R.
+            hla2_parse_script: "{MODSDIR}/src/parse_hlahd_output.R"
+
             # Optional path to Battenberg's own per-pair cellularity_ploidy.txt output
             # (tab-separated, header row, "cellularity" and "ploidy" columns -- same file
             # modules/cnaqc/1.0 already consumes). Available wildcards: {seq_type} {genome_build}
@@ -261,6 +302,10 @@ lcr-modules:
             detect_muts: 1
             parse_mutations: 1
             cohort_table: 1
+            # HLA class II germline typing (separate, parallel path -- see options.hla2_genes)
+            hla2_subset_bam: 8
+            hla2_generate_fqs: 4
+            hla2_hlahd: 4
 
         resources:
             download_reference:
@@ -300,6 +345,14 @@ lcr-modules:
                 mem_mb: 2000
             cohort_table:
                 mem_mb: 4000
+            hla2_subset_bam:
+                mem_mb: 8000
+            hla2_generate_fqs:
+                mem_mb: 4000
+            # Same footprint as class I hlahd -- typing 13 genes instead of 3 makes this take
+            # longer (HLA-HD types genes sequentially), not meaningfully more memory-hungry.
+            hla2_hlahd:
+                mem_mb: 16000
 
         pairing_config:
             capture:

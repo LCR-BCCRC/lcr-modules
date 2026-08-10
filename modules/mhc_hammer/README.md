@@ -6,6 +6,8 @@ The `mhc_hammer` module is a Level 2 module that operates on `BAM` files to use 
 
 This is a **DNA-only v1** port of MHC Hammer's DNA analysis arm (HLA typing, personalised HLA reference construction, Novoalign alignment, allele-specific BAM splitting, copy-number/allelic-imbalance/LOH detection, and Mutect2+VEP mutation calling), reimplemented as native Snakemake rules instead of wrapping upstream's Nextflow pipeline. Upstream's RNA allelic expression/imbalance/repression analysis and the alternative-splicing arm are **not** included in this version.
 
+In addition to the HLA class I disruption-detection pipeline above (which is entirely upstream MHC Hammer's own scope), this module also includes a separate, parallel **HLA class II germline typing** path (`_mhc_hammer_hla2_*` rules) -- not part of upstream MHC Hammer at all. It types the classical peptide-presenting genes (`DRA`, `DRB1`, `DRB3`, `DRB4`, `DRB5`, `DQA1`, `DQB1`, `DPA1`, `DPB1`) plus the non-classical peptide-loading/editing genes `DMA`, `DMB`, `DOA`, `DOB` (`options.hla2_genes`) from each patient's germline sample via HLA-HD, using this module's own `src/parse_hlahd_output.R` script rather than upstream's `bin/hlahd_parse_output.R` (which needs a class-I-only GTF this path has no equivalent of -- see the comment at the top of that script). This is **germline genotyping only** -- no personalised reference, Novoalign alignment, copy-number/allelic-imbalance, or mutation calling for class II, unlike the class I path. Output: `99-outputs/hla2_alleles/{seq_type}--{genome_build}/{patient_id}.hla2_alleles.csv`.
+
 ## Prerequisites (read before use)
 
 This module requires three things the user must obtain and configure separately -- it cannot install them automatically:
@@ -25,6 +27,7 @@ Every patient in your sample table must have **exactly one** germline WES sample
 - Upstream's graceful per-patient exclusion on HLA-HD failure -- this module fails loudly instead.
 - The `exon_snps`-restricted variant of copy-number/allelic-imbalance detection (upstream itself has this disabled).
 - BAM-subsetting bypass / pre-typed-HLA-input / preprocessing-only modes.
+- HLA class II somatic disruption detection (personalised reference, Novoalign, copy-number/allelic-imbalance, mutation calling) -- only germline typing is implemented for class II (see above); this is left as a possible future extension of the parallel `_mhc_hammer_hla2_*` path.
 
 # Example
 

@@ -151,6 +151,34 @@ def _mhc_hammer_get_mhc_region_coords(genome_build):
         )
     return MHC_COORDS_BY_SYSTEM[system]
 
+# HLA class II germline typing (separate, parallel path -- see the long comment on
+# options.hla2_coords_by_system in default.yaml). Reuses MHC_BUILD_COORDINATE_SYSTEM_PATTERNS
+# (that hg19-vs-hg38 classification is generic to any chr6 locus) against a different canonical
+# coordinate table -- same structure as _mhc_hammer_get_mhc_region_coords above, just resolved
+# against HLA2_COORDS_BY_SYSTEM instead of MHC_COORDS_BY_SYSTEM.
+HLA2_COORDS_BY_SYSTEM = CFG["options"]["hla2_coords_by_system"]
+HLA2_GENES = CFG["options"]["hla2_genes"]
+HLA2_PARSE_SCRIPT = CFG["options"]["hla2_parse_script"]
+
+def _mhc_hammer_get_hla2_region_coords(genome_build):
+    system = None
+    for pattern, candidate_system in MHC_BUILD_COORDINATE_SYSTEM_PATTERNS.items():
+        if re.search(pattern, genome_build):
+            system = candidate_system
+            break
+    if system is None:
+        raise ValueError(
+            f"mhc_hammer: genome_build '{genome_build}' didn't match any pattern in "
+            f"options.mhc_build_coordinate_system_patterns -- add one in default.yaml (or a "
+            f"project config override) that matches it."
+        )
+    if system not in HLA2_COORDS_BY_SYSTEM:
+        raise ValueError(
+            f"mhc_hammer: genome_build '{genome_build}' matched coordinate system '{system}', "
+            f"but options.hla2_coords_by_system has no entry for '{system}'."
+        )
+    return HLA2_COORDS_BY_SYSTEM[system]
+
 # Upstream's own scripts hardcode the literal tokens "wxs"/"rnaseq" (its internal DNA-vs-RNA
 # vocabulary) into filenames and into the regexes several cohort-level R scripts use to find and
 # parse those filenames (e.g. `make_cohort_overview_table.R` matches `_wxs.library_size.txt$` and
@@ -169,6 +197,7 @@ localrules:
     _mhc_hammer_output_dna_analysis,
     _mhc_hammer_output_mutations,
     _mhc_hammer_output_cohort_table,
+    _mhc_hammer_output_hla2_alleles,
     _mhc_hammer_all,
 
 
@@ -197,8 +226,9 @@ def _mhc_hammer_get_patient_id_for_tumour(tumour_id, seq_type):
     hits = op.filter_samples(CFG["runs"], tumour_sample_id = tumour_id, tumour_seq_type = seq_type)
     return hits["tumour_patient_id"].tolist()[0]
 
-def _mhc_hammer_get_germline_fqs(wildcards):
-    # Every patient must have exactly one germline WES sample (v1 simplification -- see README).
+def _mhc_hammer_get_germline_sample_id(wildcards):
+    # Shared by both the class I and class II (HLA-HD-only) germline-fastq lookups below --
+    # every patient must have exactly one germline WES sample (v1 simplification -- see README).
     CFG = config["lcr-modules"]["mhc_hammer"]
     candidates = op.filter_samples(
         CFG["samples"],
@@ -228,10 +258,20 @@ def _mhc_hammer_get_germline_fqs(wildcards):
             f"genome_build: "
             f"{all_patient_samples[['sample_id', 'seq_type', 'genome_build', 'tissue_status']].to_dict('records') if len(all_patient_samples) else '(none)'}"
         )
-    sample_id = normal["sample_id"].tolist()[0]
+    return normal["sample_id"].tolist()[0]
+
+def _mhc_hammer_get_germline_fqs(wildcards):
+    sample_id = _mhc_hammer_get_germline_sample_id(wildcards)
     return {
         "fq1": expand(str(rules._mhc_hammer_generate_fqs.output.fq1), sample_id = sample_id, allow_missing = True),
         "fq2": expand(str(rules._mhc_hammer_generate_fqs.output.fq2), sample_id = sample_id, allow_missing = True),
+    }
+
+def _mhc_hammer_get_hla2_germline_fqs(wildcards):
+    sample_id = _mhc_hammer_get_germline_sample_id(wildcards)
+    return {
+        "fq1": expand(str(rules._mhc_hammer_hla2_generate_fqs.output.fq1), sample_id = sample_id, allow_missing = True),
+        "fq2": expand(str(rules._mhc_hammer_hla2_generate_fqs.output.fq2), sample_id = sample_id, allow_missing = True),
     }
 
 def _mhc_hammer_reference_dir_for_sample(wildcards):
@@ -637,6 +677,182 @@ rule _mhc_hammer_subset_bam:
         -p {wildcards.sample_id} -t {threads}
         -m {params.sort_mem}G -o false
         ) > {log.stdout} 2>&1
+        """)
+
+
+##### HLA CLASS II GERMLINE TYPING (separate, parallel path) #####
+
+
+# Subsets the input BAM to reads plausibly overlapping the HLA class II region and unmapped
+# reads -- deliberately no kmer-fishing here (fish_reads is hardcoded off): the IMGT kmer set
+# _mhc_hammer_filter_kmers builds is derived from MHC Hammer's own class-I-only reference bundle,
+# so there is no class-II-specific kmer file to fish with. Writes into its own hla2/ subdirectory
+# (not the same directory as _mhc_hammer_subset_bam's output, even though both are per-sample)
+# specifically to avoid a real collision risk: subset_bam_opt.sh's -d contigs_placeholder.txt
+# argument must be that exact literal filename (see the note on _mhc_hammer_subset_bam above), so
+# if this rule wrote into the same directory, both rules would race to create/read the
+# identically-named contigs_placeholder.txt/mhc_coords.txt/{sample_id}_tmpDir for the same sample
+# whenever Snakemake happens to schedule them concurrently (they're independent DAG branches with
+# no dependency on each other).
+rule _mhc_hammer_hla2_subset_bam:
+    input:
+        bam = str(rules._mhc_hammer_input_bam.output.bam),
+        crai = str(rules._mhc_hammer_input_bam.output.crai),
+        ref_cache_done = str(rules._mhc_hammer_build_ref_cache.output.done)
+    output:
+        bam = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.subset.sorted.bam",
+        bai = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.subset.sorted.bam.bai",
+        read_counts = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.read_counts.csv"
+    log:
+        stdout = CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/subset_bam.log"
+    params:
+        scripts_dir = SCRIPTS_DIR,
+        # Coordinate portion only, no chr-prefix -- same runtime BAM-header detection as the
+        # class I rule above.
+        hla2_region_coords = lambda w: _mhc_hammer_get_hla2_region_coords(w.genome_build),
+        unmapped_reads = str(CFG["options"]["unmapped_reads"]).lower(),
+        contig_reads = lambda w: str(CONTIG_READS.get(w.genome_build, True)).lower(),
+        sort_mem = lambda wildcards, resources: max(1, int(resources.mem_mb / 1000 * 0.8)),
+        bam_abs = lambda wildcards, input: os.path.abspath(input.bam),
+        ref_cache_pattern = _mhc_hammer_ref_cache_pattern
+    conda:
+        CFG["conda_envs"]["samtools"]
+    container:
+        None # calls the user-supplied mhc_hammer_scripts_dir -- see licensing note near the top of this file
+    threads:
+        CFG["threads"]["hla2_subset_bam"]
+    resources:
+        **CFG["resources"]["hla2_subset_bam"]
+    shell:
+        op.as_one_line("""
+        wd=$(dirname {output.bam}) && mkdir -p $wd &&
+        if samtools view -H {params.bam_abs} | awk -F'\\t' '$1=="@SQ"{{for(i=1;i<=NF;i++) if($i=="SN:chr6") f=1}} END{{exit !f}}'; then
+            chr_prefix=chr;
+        else
+            chr_prefix="";
+        fi &&
+        echo "${{chr_prefix}}{params.hla2_region_coords}" > $wd/mhc_coords.txt &&
+        touch $wd/contigs_placeholder.txt &&
+        rm -rf $wd/{wildcards.sample_id}_tmpDir &&
+        export REF_CACHE={params.ref_cache_pattern} &&
+        kmer_file_path=$wd/empty_kmers.fa &&
+        touch $kmer_file_path &&
+        (
+        cd $wd &&
+        {params.scripts_dir}/bin/subset_bam_opt.sh
+        -b {params.bam_abs}
+        -k $kmer_file_path
+        -f false -c {params.contig_reads} -d contigs_placeholder.txt
+        -u {params.unmapped_reads} -h mhc_coords.txt
+        -p {wildcards.sample_id} -t {threads}
+        -m {params.sort_mem}G -o false
+        ) > {log.stdout} 2>&1
+        """)
+
+
+# Converts the class II subset BAM to paired FASTQs -- mirrors _mhc_hammer_generate_fqs exactly.
+rule _mhc_hammer_hla2_generate_fqs:
+    input:
+        bam = str(rules._mhc_hammer_hla2_subset_bam.output.bam)
+    output:
+        fq1 = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.1.fq.gz",
+        fq2 = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.2.fq.gz"
+    log:
+        stdout = CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/generate_fqs.log"
+    conda:
+        CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
+    threads:
+        CFG["threads"]["hla2_generate_fqs"]
+    resources:
+        **CFG["resources"]["hla2_generate_fqs"]
+    shell:
+        op.as_one_line("""
+        (
+        samtools collate -@ {threads} -u -O {input.bam} |
+        samtools fastq -@ {threads} -1 {output.fq1} -2 {output.fq2} -s /dev/null -0 /dev/null -n
+        ) > {log.stdout} 2>&1
+        """)
+
+
+# Runs the user-supplied HLA-HD install on the patient's germline sample to type the classical
+# class II genes plus HLA-DM/-DO (options.hla2_genes). Patient-level, mirroring
+# _mhc_hammer_hlahd's own structure exactly, but: (1) no personalised-reference/novoalign/CN-AIB/
+# mutation-calling path follows this -- germline genotyping only, see the module design note at
+# the top of this section; (2) uses parse_hlahd_output.R (this module's own script, under src/ --
+# not a copy of MHC Hammer's bin/hlahd_parse_output.R) instead of upstream's parser, since that
+# script requires a GTF cross-reference this module has no class-II equivalent of. See the long
+# comment on that script for what it does differently.
+rule _mhc_hammer_hla2_hlahd:
+    input:
+        unpack(_mhc_hammer_get_hla2_germline_fqs)
+    output:
+        hla_alleles = CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}/hla2/{patient_id}_hla2_alleles.csv",
+        result_dir = directory(CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}/hla2/result")
+    log:
+        stdout = CFG["logs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}/hla2/hlahd.log"
+    params:
+        parse_script = HLA2_PARSE_SCRIPT,
+        hlahd_dir = HLAHD_DIR,
+        workdir = lambda wildcards, output: os.path.dirname(output.hla_alleles),
+        keep_intermediates = str(CFG["options"]["keep_hlahd_intermediates"]).lower(),
+        min_read_length = CFG["options"]["hlahd_min_read_length"],
+        # awk OR-chain selecting exactly the configured gene list from HLA-HD's own stock
+        # HLA_gene.split.txt, same technique as the class I rule's A/B/C filter above.
+        gene_awk_filter = " || ".join(f'$1 == "{gene}"' for gene in HLA2_GENES),
+        genes = " ".join(HLA2_GENES)
+    conda:
+        CFG["conda_envs"]["mhc_hammer_hlahd"]
+    container:
+        None
+    threads:
+        CFG["threads"]["hla2_hlahd"]
+    resources:
+        **CFG["resources"]["hla2_hlahd"]
+    shell:
+        # Same workdir-wipe rationale as _mhc_hammer_hlahd above (a partial-failure run can leave
+        # a non-empty flattened directory that breaks a rerun's mv-flatten step).
+        #
+        # Unlike the class I rule, there's no upfront "do the expected *.est.txt files exist"
+        # gate before calling the parser -- parse_hlahd_output.R already tolerates missing/
+        # "No candidate." est.txt files per gene (marking that gene "not typed"), so it's always
+        # safe to call unconditionally. The final content-validation check (below) still catches
+        # the same class of silent, cascading failure the class I rule guards against: if HLA-HD
+        # itself never ran or typed nothing at all, every gene comes back "not typed" and this
+        # fails loudly instead of producing a silently-useless all-"not typed" CSV. Partial
+        # results (e.g. DRB3/DRB4/DRB5 legitimately "not typed" for a patient whose haplotypes
+        # don't carry that gene) are expected and not treated as failures.
+        op.as_one_line("""
+        rm -rf {params.workdir} &&
+        mkdir -p {params.workdir} &&
+        awk '{params.gene_awk_filter}' {params.hlahd_dir}/HLA_gene.split.txt
+            > {params.workdir}/hla_class_ii_genes.txt &&
+        (
+        export PATH=${{PATH}}:{params.hlahd_dir}/bin &&
+        bash {params.hlahd_dir}/bin/hlahd.sh -m {params.min_read_length} -c 1.0 -t {threads}
+        -f {params.hlahd_dir}/freq_data
+        {input.fq1} {input.fq2}
+        {params.workdir}/hla_class_ii_genes.txt
+        {params.hlahd_dir}/dictionary
+        {wildcards.patient_id} {params.workdir} &&
+        if [ "{params.keep_intermediates}" = "false" ]; then
+            rm -rf {params.workdir}/{wildcards.patient_id}/exon {params.workdir}/{wildcards.patient_id}/intron
+                   {params.workdir}/{wildcards.patient_id}/mapfile {params.workdir}/{wildcards.patient_id}/maplist;
+        fi &&
+        rm -f {params.workdir}/{wildcards.patient_id}/pickup.sh {params.workdir}/{wildcards.patient_id}/estimation.sh &&
+        mv {params.workdir}/{wildcards.patient_id}/* {params.workdir}/ &&
+        rmdir {params.workdir}/{wildcards.patient_id}
+        ) > {log.stdout} 2>&1 &&
+        (cd {params.workdir} &&
+         Rscript {params.parse_script}
+         --hlahd_folder result --sample_id {wildcards.patient_id}
+         --genes {params.genes}
+         --output {wildcards.patient_id}_hla2_alleles.csv) >> {log.stdout} 2>&1 &&
+        if ! awk -F',' '$2 != "not typed" && $3 != "not typed"' {params.workdir}/{wildcards.patient_id}_hla2_alleles.csv | grep -q .; then
+            echo "ERROR: HLA-HD ran for patient {wildcards.patient_id} but failed to confidently type any HLA class II allele pair -- every gene is 'not typed' in {wildcards.patient_id}_hla2_alleles.csv. See {log.stdout}." >&2 &&
+            exit 1;
+        fi
         """)
 
 
@@ -1692,6 +1908,14 @@ rule _mhc_hammer_output_cohort_table:
     run:
         op.relative_symlink(input.cohort_table, output.cohort_table, in_module = True)
 
+rule _mhc_hammer_output_hla2_alleles:
+    input:
+        hla_alleles = str(rules._mhc_hammer_hla2_hlahd.output.hla_alleles)
+    output:
+        hla_alleles = CFG["dirs"]["outputs"] + "hla2_alleles/{seq_type}--{genome_build}/{patient_id}.hla2_alleles.csv"
+    run:
+        op.relative_symlink(input.hla_alleles, output.hla_alleles, in_module = True)
+
 
 # Generates the target sentinels for each run, which generate the symlinks. Uses
 # CFG["paired_runs"] (not CFG["runs"]) so that tumour samples without a matched germline WES
@@ -1719,7 +1943,18 @@ rule _mhc_hammer_all:
             genome_build = CFG["paired_runs"]["tumour_genome_build"],
             patient_id = CFG["paired_runs"]["tumour_patient_id"]
         ),
-        str(rules._mhc_hammer_output_cohort_table.output.cohort_table)
+        str(rules._mhc_hammer_output_cohort_table.output.cohort_table),
+        # HLA class II germline typing -- same CFG["paired_runs"] patient scoping as the
+        # mutations target above (only patients with a real matched germline get requested).
+        expand(
+            [
+                str(rules._mhc_hammer_output_hla2_alleles.output.hla_alleles)
+            ],
+            zip,
+            seq_type = CFG["paired_runs"]["tumour_seq_type"],
+            genome_build = CFG["paired_runs"]["tumour_genome_build"],
+            patient_id = CFG["paired_runs"]["tumour_patient_id"]
+        )
 
 
 ##### CLEANUP #####
