@@ -47,27 +47,6 @@ rule _cnvkit_input_bam:
         op.absolute_symlink(input.bai, output.bai)
         op.absolute_symlink(input.bai, output.crai)
 
-
-rule _cnvkit_accessible_regions:
-    input:
-        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
-    output:
-        access = CFG["dirs"]["inputs"] + "reference/access.{genome_build}.bed"
-    conda:
-        CFG["conda_envs"]["cnvkit"]
-    container:
-        CFG["container_envs"]["cnvkit"]
-    threads:
-        CFG["threads"]["reference"]
-    resources:
-        **CFG["resources"]["reference"]
-    log:
-        stdout = CFG["logs"]["inputs"] + "{genome_build}_access.log"
-    shell:
-        """
-            cnvkit.py access {input.fasta} -o {output.access} &> {log.stdout}
-        """
-
 # Pulls in list of chromosomes for the genome builds
 checkpoint _cnvkit_input_chroms:
     input:
@@ -116,22 +95,9 @@ rule _cnvkit_symlink_pon_reference:
     input:
         pon =  CFG["inputs"]["pon_reference"]
     output:
-        target = CFG["dirs"]["inputs"] + "reference/{seq_type}--{genome_build}/{capture_space}/target_sites.target.bed",
-        antitarget = CFG["dirs"]["inputs"] + "reference/{seq_type}--{genome_build}/{capture_space}/target_sites.antitarget.bed"
-    conda:
-        CFG["conda_envs"]["cnvkit"]
-    container:
-        CFG["container_envs"]["cnvkit"]
-    threads:
-        CFG["threads"]["reference"]
-    resources:
-        **CFG["resources"]["reference"]
-    log:
-        stdout = CFG["logs"]["inputs"] + "{seq_type}--{genome_build}/{capture_space}_autobin.log"
-    shell:
-        """
-            cnvkit.py autobin {input.bam} -t {input.targets} -g {input.access} --annotate {input.refFlat} --short-names --target-output-bed {output.target} --antitarget-output-bed {output.antitarget} &> {log.stdout}
-        """
+        pon =  CFG["dirs"]["inputs"] + "pon/{seq_type}--{genome_build}/{capture_space}_normal_reference.cnn"
+    run:
+        op.relative_symlink(input.pon, output.pon)
 
 
 # Coverage for each sample
