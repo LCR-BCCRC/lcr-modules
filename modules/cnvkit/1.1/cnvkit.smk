@@ -569,10 +569,6 @@ rule _cnvkit_cnv2igv:
         CFG["conda_envs"]["cnvkit"]
     container:
         CFG["container_envs"]["cnvkit"]
-    threads:
-        CFG["threads"]["seg"]
-    resources:
-        **CFG["resources"]["seg"]
     group: "cnvkit_post_process"
     shell:
         op.as_one_line("""
