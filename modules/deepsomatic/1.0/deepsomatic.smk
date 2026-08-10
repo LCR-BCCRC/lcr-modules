@@ -238,6 +238,10 @@ rule _deepsomatic_index:
         CFG["conda_envs"]["bcftools"]
     container:
         CFG["container_envs"]["bcftools"]
+    resources:
+        **CFG["resources"]["bcftools"]
+    threads:
+        CFG["threads"]["bcftools"]
     shell:
         op.as_one_line("""
         tabix -p vcf {input.vcf} > {log.stdout} 2> {log.stderr}
