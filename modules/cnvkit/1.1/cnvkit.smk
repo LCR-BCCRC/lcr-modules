@@ -47,10 +47,6 @@ rule _cnvkit_input_bam:
         op.absolute_symlink(input.bai, output.bai)
         op.absolute_symlink(input.bai, output.crai)
 
-
-rule _cnvkit_accessible_regions:
-        op.absolute_symlink(input.bam, output.bam)
-
 # Pulls in list of chromosomes for the genome builds
 checkpoint _cnvkit_input_chroms:
     input:
@@ -99,22 +95,9 @@ rule _cnvkit_symlink_pon_reference:
     input:
         pon =  CFG["inputs"]["pon_reference"]
     output:
-        target = CFG["dirs"]["inputs"] + "reference/{seq_type}--{genome_build}/{capture_space}/target_sites.target.bed",
-        antitarget = CFG["dirs"]["inputs"] + "reference/{seq_type}--{genome_build}/{capture_space}/target_sites.antitarget.bed"
-    conda:
-        CFG["conda_envs"]["cnvkit"]
-    container:
-        CFG["container_envs"]["cnvkit"]
-    threads:
-        CFG["threads"]["reference"]
-    resources:
-        **CFG["resources"]["reference"]
-    log:
-        stdout = CFG["logs"]["inputs"] + "{seq_type}--{genome_build}/{capture_space}_autobin.log"
-    shell:
-        """
-            cnvkit.py autobin {input.bam} -t {input.targets} -g {input.access} --annotate {input.refFlat} --short-names --target-output-bed {output.target} --antitarget-output-bed {output.antitarget} &> {log.stdout}
-        """
+        pon =  CFG["dirs"]["inputs"] + "pon/{seq_type}--{genome_build}/{capture_space}_normal_reference.cnn"
+    run:
+        op.relative_symlink(input.pon, output.pon)
 
 
 # Coverage for each sample
@@ -124,7 +107,7 @@ rule _cnvkit_coverage_target:
         bai = str(rules._cnvkit_index_bam.output.bai),
         bed = str(rules._cnvkit_symlink_beds.output.target),
     output:
-        cov = CFG["dirs"]["coverage"] + "target/{seq_type}--{genome_build}/{capture_space}/{sample_id}.targetcoverage.cnn"
+        cov = CFG["dirs"]["coverage"] + "target/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.targetcoverage.cnn"
     conda:
         CFG["conda_envs"]["cnvkit"]
     container:
@@ -147,7 +130,7 @@ rule _cnvkit_coverage_antitarget:
         bai = str(rules._cnvkit_index_bam.output.bai),
         bed = str(rules._cnvkit_symlink_beds.output.antitarget),
     output:
-        cov = CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}/{capture_space}/{sample_id}.antitargetcoverage.cnn"
+        cov = CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.antitargetcoverage.cnn"
     conda:
         CFG["conda_envs"]["cnvkit"]
     container:
@@ -181,7 +164,7 @@ rule _cnvkit_fix:
     log:
         stdout = CFG["logs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.log"
     shell:
-        op.as_one_line("""
+        op.as_one_line("""R
             cnvkit.py fix {input.targetcov} {input.antitargetcov} {input.pon_reference} -o {output.cnr} &> {log.stdout}
         """)
 
@@ -586,10 +569,6 @@ rule _cnvkit_cnv2igv:
         CFG["conda_envs"]["cnvkit"]
     container:
         CFG["container_envs"]["cnvkit"]
-    threads:
-        CFG["threads"]["seg"]
-    resources:
-        **CFG["resources"]["seg"]
     group: "cnvkit_post_process"
     shell:
         op.as_one_line("""
