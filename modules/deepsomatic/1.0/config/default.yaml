@@ -23,7 +23,6 @@ lcr-modules:
             hg38: "38"
           seqtype_map:
             promethION: "promethION"
-            adaptive_sampling: "adaptive_sampling"
           normal_name:
             R9: "__UPDATE__" # Update this with the prefix for your R9 normal BAM file
             R10: "__UPDATE__" # Update this with the prefix for your R10 normal BAM file
@@ -57,11 +56,6 @@ lcr-modules:
             
         pairing_config:
           promethION:
-            run_paired_tumours: False
-            run_unpaired_tumours_with: "no_normal"
-            run_paired_tumours_as_unpaired: True
-          
-          adaptive_sampling: # See what I need to change about seqtype_map to support adaptive_sampling
             run_paired_tumours: False
             run_unpaired_tumours_with: "no_normal"
             run_paired_tumours_as_unpaired: True
