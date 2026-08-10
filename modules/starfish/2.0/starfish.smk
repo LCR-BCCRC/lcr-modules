@@ -100,7 +100,8 @@ rule _starfish_input_vcf:
         op.absolute_symlink(input.vcf + ".tbi", output.tbi)
 
 
-# Run Starfish
+# Run Starfish. RTG_MEM bounds the rtg vcfeval heap to the rule's request; left unset, rtg
+# sizes it at 90% of the node's total RAM and the job is killed by the cgroup.
 rule _starfish_run:
     input:
         vcfs = expand(
@@ -130,9 +131,11 @@ rule _starfish_run:
         **CFG["resources"]["starfish_run"]
     shell:
         op.as_one_line("""
-        if [[ -e $(dirname {output.complete})/temp ]]; then 
-            rm -rf $(dirname {output.complete})/temp; 
+        if [[ -e $(dirname {output.complete})/temp ]]; then
+            rm -rf $(dirname {output.complete})/temp;
         fi
+        &&
+        export RTG_MEM=$(( {resources.mem_mb} * 2 / 3 ))m
         &&
         {input.starfish_script} --sdf {input.reference} -O $(dirname {output.complete})
         --names {callers} --threads {threads}
