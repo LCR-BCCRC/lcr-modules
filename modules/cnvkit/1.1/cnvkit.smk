@@ -49,7 +49,24 @@ rule _cnvkit_input_bam:
 
 
 rule _cnvkit_accessible_regions:
-        op.absolute_symlink(input.bam, output.bam)
+    input:
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
+    output:
+        access = CFG["dirs"]["inputs"] + "reference/access.{genome_build}.bed"
+    conda:
+        CFG["conda_envs"]["cnvkit"]
+    container:
+        CFG["container_envs"]["cnvkit"]
+    threads:
+        CFG["threads"]["reference"]
+    resources:
+        **CFG["resources"]["reference"]
+    log:
+        stdout = CFG["logs"]["inputs"] + "{genome_build}_access.log"
+    shell:
+        """
+            cnvkit.py access {input.fasta} -o {output.access} &> {log.stdout}
+        """
 
 # Pulls in list of chromosomes for the genome builds
 checkpoint _cnvkit_input_chroms:
