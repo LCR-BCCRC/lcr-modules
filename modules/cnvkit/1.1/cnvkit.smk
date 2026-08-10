@@ -19,7 +19,7 @@ import oncopipe as op
 # `CFG` is a shortcut to `config["lcr-modules"]["cnvkit"]`
 CFG = op.setup_module(
     name = "cnvkit",
-    version = "1.0",
+    version = "1.1",
     subdirectories = ["inputs", "coverage", "fix", "cns", "SNPs", "call", "plots", "breaks", "gene_metrics", "cnv2igv", "convert_coordinates", "fill_regions", "normalize", "metrics", "outputs"]
 )
 
