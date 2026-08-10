@@ -107,7 +107,7 @@ rule _cnvkit_coverage_target:
         bai = str(rules._cnvkit_index_bam.output.bai),
         bed = str(rules._cnvkit_symlink_beds.output.target),
     output:
-        cov = CFG["dirs"]["coverage"] + "target/{seq_type}--{genome_build}/{capture_space}/{sample_id}.targetcoverage.cnn"
+        cov = CFG["dirs"]["coverage"] + "target/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.targetcoverage.cnn"
     conda:
         CFG["conda_envs"]["cnvkit"]
     container:
@@ -130,7 +130,7 @@ rule _cnvkit_coverage_antitarget:
         bai = str(rules._cnvkit_index_bam.output.bai),
         bed = str(rules._cnvkit_symlink_beds.output.antitarget),
     output:
-        cov = CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}/{capture_space}/{sample_id}.antitargetcoverage.cnn"
+        cov = CFG["dirs"]["coverage"] + "antitarget/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.antitargetcoverage.cnn"
     conda:
         CFG["conda_envs"]["cnvkit"]
     container:
@@ -164,7 +164,7 @@ rule _cnvkit_fix:
     log:
         stdout = CFG["logs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.log"
     shell:
-        op.as_one_line("""
+        op.as_one_line("""R
             cnvkit.py fix {input.targetcov} {input.antitargetcov} {input.pon_reference} -o {output.cnr} &> {log.stdout}
         """)
 
