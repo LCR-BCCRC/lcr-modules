@@ -25,6 +25,13 @@ downstream annotation.
 - Missing per-chain TSV files (e.g. when a chain is not detected) are handled
   gracefully rather than causing rule failures.
 
+## [1.2] - 2026-08-10
+
+Patch authored by Laura Hilton. 
+
+- Update `mixcr_to_fasta.py` to omit `region_not_covered` strings from assembled fasta output. 
+
+
 ## [1.2] - 2022-06-6
 
 This release was updated by Manuela Cruz.
