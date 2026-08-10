@@ -2,7 +2,7 @@ lcr-modules:
     
     deepsomatic:
 
-# When calling this snakemake workflow, use --use-singularity as a flag
+# Running this module requires containers to run DeepSomatic, conda support does not exist for the _deepsomatic_call_variants rule
 # Additional required columns in your samples table: "chemistry"
 # Chemistry is the version of pore chemistry used to sequence a particular sample
     # Available values: R9, R10
