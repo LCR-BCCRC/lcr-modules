@@ -49,7 +49,7 @@ lcr-modules:
 
         resources:
           deepsomatic: 
-            mem_mb: 32000
+            mem_mb: 32000 # DeepSomatic requires massive amounts of memory for ONT WGS data. This value will likely need to be increased to somewhere in the range of 72000-96000
             bam: 1
           bcftools:
             mem_mb: 5000
