@@ -236,7 +236,7 @@ rule _vcf2maf_deblacklist_maf:
     conda:
         CFG['conda_envs']['gamblr']
     container:
-        None
+        CFG["container_envs"]["gamblr"]
     threads:
         CFG["threads"]["deblacklist"]
     resources:
@@ -301,7 +301,7 @@ rule _vcf2maf_augment_maf:
     conda:
         CFG['conda_envs']['pysam']
     container:
-        None
+        CFG["container_envs"]["pysam"]
     resources:
         **CFG['resources']['augment']
     group: "bam_and_augment"
