@@ -158,7 +158,17 @@ def _mhc_hammer_get_mhc_region_coords(genome_build):
 # against HLA2_COORDS_BY_SYSTEM instead of MHC_COORDS_BY_SYSTEM.
 HLA2_COORDS_BY_SYSTEM = CFG["options"]["hla2_coords_by_system"]
 HLA2_GENES = CFG["options"]["hla2_genes"]
-HLA2_PARSE_SCRIPT = CFG["options"]["hla2_parse_script"]
+# os.path.abspath(), not just the raw config value: unlike SCRIPTS_DIR (mhc_hammer_scripts_dir,
+# always a real absolute path since the user supplies it directly), oncopipe resolves {MODSDIR}
+# via os.path.normpath() -- not os.path.abspath() -- so it stays relative if the user's own
+# _shared.lcr-modules config value is relative (as it typically is, e.g. "../"). Resolved to
+# absolute here, once, at parse time (while the CWD is still guaranteed to be wherever Snakemake
+# itself was invoked from -- the same directory _shared.lcr-modules is itself relative to), so
+# it survives _mhc_hammer_hla2_hlahd's `cd {params.workdir}` later. Confirmed on a real run
+# (2026-08-11): "Fatal error: cannot open file 'src/lcr-modules/modules/mhc_hammer/1.0/src/
+# parse_hlahd_output.R': No such file or directory" -- a relative path, valid only from the
+# original invocation directory, being read after the shell had already cd'd elsewhere.
+HLA2_PARSE_SCRIPT = os.path.abspath(CFG["options"]["hla2_parse_script"])
 
 def _mhc_hammer_get_hla2_region_coords(genome_build):
     system = None
@@ -823,6 +833,15 @@ rule _mhc_hammer_hla2_hlahd:
         # fails loudly instead of producing a silently-useless all-"not typed" CSV. Partial
         # results (e.g. DRB3/DRB4/DRB5 legitimately "not typed" for a patient whose haplotypes
         # don't carry that gene) are expected and not treated as failures.
+        #
+        # Also unlike the class I rule: no `cd {params.workdir}` before invoking the parser.
+        # hlahd_parse_output.R (upstream's own script, not ours to change) writes its output to a
+        # relative path internally and needs a `cd` + a follow-up `mv` step; parse_hlahd_output.R
+        # is ours, so it just takes the real --hlahd_folder/--output paths directly (Snakemake's
+        # own {output.X} references, already correctly resolved regardless of shell CWD) -- no
+        # relative-path indirection needed at all. Confirmed on a real run (2026-08-11) that
+        # copying the class I rule's `cd` pattern here was unnecessary and actively broke a
+        # relative script path (see the long comment on HLA2_PARSE_SCRIPT above).
         op.as_one_line("""
         rm -rf {params.workdir} &&
         mkdir -p {params.workdir} &&
@@ -844,13 +863,13 @@ rule _mhc_hammer_hla2_hlahd:
         mv {params.workdir}/{wildcards.patient_id}/* {params.workdir}/ &&
         rmdir {params.workdir}/{wildcards.patient_id}
         ) > {log.stdout} 2>&1 &&
-        (cd {params.workdir} &&
-         Rscript {params.parse_script}
-         --hlahd_folder result --sample_id {wildcards.patient_id}
-         --genes {params.genes}
-         --output {wildcards.patient_id}_hla2_alleles.csv) >> {log.stdout} 2>&1 &&
-        if ! awk -F',' '$2 != "not typed" && $3 != "not typed"' {params.workdir}/{wildcards.patient_id}_hla2_alleles.csv | grep -q .; then
-            echo "ERROR: HLA-HD ran for patient {wildcards.patient_id} but failed to confidently type any HLA class II allele pair -- every gene is 'not typed' in {wildcards.patient_id}_hla2_alleles.csv. See {log.stdout}." >&2 &&
+        Rscript {params.parse_script}
+        --hlahd_folder {output.result_dir}
+        --sample_id {wildcards.patient_id}
+        --genes {params.genes}
+        --output {output.hla_alleles} >> {log.stdout} 2>&1 &&
+        if ! awk -F',' '$2 != "not typed" && $3 != "not typed"' {output.hla_alleles} | grep -q .; then
+            echo "ERROR: HLA-HD ran for patient {wildcards.patient_id} but failed to confidently type any HLA class II allele pair -- every gene is 'not typed' in {output.hla_alleles}. See {log.stdout}." >&2 &&
             exit 1;
         fi
         """)
