@@ -36,7 +36,7 @@ maf_cols <- c(
 )
 
 write_empty_maf <- function(path) {
-  writeLines(c("#version 2.4", paste(maf_cols, collapse = "\t")), path)
+  writeLines(paste(maf_cols, collapse = "\t"), path)
   cat("No mutations for", args$patient_id, "-- wrote header-only MAF to", path, "\n")
 }
 
@@ -189,7 +189,6 @@ setnames(muts,
 
 out <- muts[, ..maf_cols]
 
-writeLines("#version 2.4", args$output_maf)
-fwrite(out, args$output_maf, sep = "\t", append = TRUE, col.names = TRUE, na = "")
+fwrite(out, args$output_maf, sep = "\t", col.names = TRUE, na = "")
 
 cat("Wrote", nrow(out), "mutation rows to", args$output_maf, "\n")
