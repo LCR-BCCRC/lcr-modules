@@ -68,8 +68,23 @@ if (nrow(muts) == 0) {
 }
 
 # --- Hugo_Symbol: mhc_hammer's personalised reference contigs are named after the typed HLA
-# allele itself -- the gene is the token before the first "*" (e.g. "A*02:01:01:01" -> "HLA-A").
-muts[, Hugo_Symbol := paste0("HLA-", sub("\\*.*", "", chrom))]
+# allele itself. The real reference bundle's own contig naming (confirmed against real output,
+# not the raw IMGT "A*01:01:01:01" form originally assumed from reading create_gtf_and_ref.R's
+# indexing logic in isolation) is lowercase and underscore-separated, e.g.
+# "hla_a_01_01_01_01" -> gene token "a" -> "HLA-A". Falls back to the "*"-delimited IMGT form,
+# and finally to the raw uppercased contig name, for any bundle/allele that doesn't match either
+# pattern, so an unrecognized naming convention degrades to a visibly-wrong-but-harmless value
+# instead of silently mis-parsing.
+extract_hla_gene <- function(chrom) {
+  if (grepl("^hla_[^_]+_", chrom, ignore.case = TRUE)) {
+    return(toupper(sub("^hla_([^_]+)_.*$", "\\1", chrom, ignore.case = TRUE)))
+  }
+  if (grepl("*", chrom, fixed = TRUE)) {
+    return(toupper(sub("\\*.*", "", chrom)))
+  }
+  toupper(chrom)
+}
+muts[, Hugo_Symbol := paste0("HLA-", vapply(chrom, extract_hla_gene, character(1)))]
 
 # --- VCF -> MAF allele trimming (real, derived from ref/alt/mut_type -- not a placeholder).
 # make_mutation_table.R's mut_type derivation guarantees INS has nchar(ref)==1 and DEL has
