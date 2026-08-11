@@ -170,6 +170,10 @@ HLA2_GENES = CFG["options"]["hla2_genes"]
 # original invocation directory, being read after the shell had already cd'd elsewhere.
 HLA2_PARSE_SCRIPT = os.path.abspath(CFG["options"]["hla2_parse_script"])
 
+# Same os.path.abspath() treatment as HLA2_PARSE_SCRIPT above, for the same reason -- this is
+# another module-owned {MODSDIR}-templated script path.
+MUTATIONS_TO_MAF_SCRIPT = os.path.abspath(CFG["options"]["mutations_to_maf_script"])
+
 def _mhc_hammer_get_hla2_region_coords(genome_build):
     system = None
     for pattern, candidate_system in MHC_BUILD_COORDINATE_SYSTEM_PATTERNS.items():
@@ -206,6 +210,7 @@ localrules:
     _mhc_hammer_generate_inventory,
     _mhc_hammer_output_dna_analysis,
     _mhc_hammer_output_mutations,
+    _mhc_hammer_output_mutations_maf,
     _mhc_hammer_output_cohort_table,
     _mhc_hammer_output_hla2_alleles,
     _mhc_hammer_all,
@@ -1777,6 +1782,43 @@ rule _mhc_hammer_parse_mutations:
         """)
 
 
+# Reformats a patient's {patient_id}_mutations.csv into a MAF-like table for tools that expect
+# MAF input (e.g. maftools) but don't need real genomic coordinates for HLA -- mhc_hammer calls
+# mutations against each patient's own personalised, allele-specific reference (one contig per
+# typed HLA allele), so there's no shared genomic coordinate system across alleles/samples to
+# report. See the header comment in src/mutations_to_maf.R for exactly which columns are real
+# (Hugo_Symbol, Variant_Classification, allele calls, VEP annotations, read counts, sample IDs)
+# vs. synthetic placeholders (Chromosome/Start_Position/End_Position/NCBI_Build). Module-owned
+# script, not an upstream MHC Hammer bin/ file -- postprocesses this module's own output only, so
+# (unlike most rules in this file) it needs no `container: None` for licensing/host-path reasons;
+# left as None anyway since no container image is built for the mhc_hammer_r env in this module.
+rule _mhc_hammer_mutations_to_maf:
+    input:
+        mutations = str(rules._mhc_hammer_parse_mutations.output.mutations)
+    output:
+        maf = CFG["dirs"]["mutations"] + "{seq_type}--{genome_build}/{patient_id}/{patient_id}_mutations.maf"
+    log:
+        stdout = CFG["logs"]["mutations"] + "{seq_type}--{genome_build}/{patient_id}/mutations_to_maf.log"
+    params:
+        script = MUTATIONS_TO_MAF_SCRIPT
+    conda:
+        CFG["conda_envs"]["mhc_hammer_r"]
+    container:
+        None
+    threads:
+        CFG["threads"]["mutations_to_maf"]
+    resources:
+        **CFG["resources"]["mutations_to_maf"]
+    shell:
+        op.as_one_line("""
+        Rscript {params.script}
+        --mutations_csv {input.mutations}
+        --patient_id {wildcards.patient_id}
+        --output_maf {output.maf}
+        > {log.stdout} 2>&1
+        """)
+
+
 # Builds the cohort-wide gene-level summary table (docs/mhc_hammer_outputs.md upstream,
 # DNA-only column subset), combining every patient's HLA-HD genotype, allele-specific coverage
 # (mosdepth), DNA copy-number/allelic-imbalance, and mutation calls into one CSV. Cohort-wide,
@@ -1919,6 +1961,14 @@ rule _mhc_hammer_output_mutations:
     run:
         op.relative_symlink(input.mutations, output.mutations, in_module = True)
 
+rule _mhc_hammer_output_mutations_maf:
+    input:
+        maf = str(rules._mhc_hammer_mutations_to_maf.output.maf)
+    output:
+        maf = CFG["dirs"]["outputs"] + "mutations_maf/{seq_type}--{genome_build}/{patient_id}.mutations.maf"
+    run:
+        op.relative_symlink(input.maf, output.maf, in_module = True)
+
 rule _mhc_hammer_output_cohort_table:
     input:
         cohort_table = str(rules._mhc_hammer_cohort_table.output.cohort_table)
@@ -1956,6 +2006,15 @@ rule _mhc_hammer_all:
         expand(
             [
                 str(rules._mhc_hammer_output_mutations.output.mutations)
+            ],
+            zip,
+            seq_type = CFG["paired_runs"]["tumour_seq_type"],
+            genome_build = CFG["paired_runs"]["tumour_genome_build"],
+            patient_id = CFG["paired_runs"]["tumour_patient_id"]
+        ),
+        expand(
+            [
+                str(rules._mhc_hammer_output_mutations_maf.output.maf)
             ],
             zip,
             seq_type = CFG["paired_runs"]["tumour_seq_type"],

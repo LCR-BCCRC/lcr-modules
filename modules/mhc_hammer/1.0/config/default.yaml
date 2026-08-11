@@ -158,6 +158,12 @@ lcr-modules:
             # hlahd_parse_output.R.
             hla2_parse_script: "{MODSDIR}/src/parse_hlahd_output.R"
 
+            # Module-owned (not MHC Hammer's own bin/) -- reformats _mhc_hammer_parse_mutations's
+            # own {patient_id}_mutations.csv into a MAF-like table for tools that expect MAF input
+            # (e.g. maftools) but don't need real genomic coordinates. See the header comment in
+            # src/mutations_to_maf.R for why Chromosome/Start_Position/End_Position are synthetic.
+            mutations_to_maf_script: "{MODSDIR}/src/mutations_to_maf.R"
+
             # Optional path to Battenberg's own per-pair cellularity_ploidy.txt output
             # (tab-separated, header row, "cellularity" and "ploidy" columns -- same file
             # modules/cnaqc/1.0 already consumes). Available wildcards: {seq_type} {genome_build}
@@ -301,6 +307,7 @@ lcr-modules:
             detect_cn_aib: 1
             detect_muts: 1
             parse_mutations: 1
+            mutations_to_maf: 1
             cohort_table: 1
             # HLA class II germline typing (separate, parallel path -- see options.hla2_genes)
             hla2_subset_bam: 8
@@ -342,6 +349,8 @@ lcr-modules:
             detect_muts:
                 mem_mb: 8000
             parse_mutations:
+                mem_mb: 2000
+            mutations_to_maf:
                 mem_mb: 2000
             cohort_table:
                 mem_mb: 4000
