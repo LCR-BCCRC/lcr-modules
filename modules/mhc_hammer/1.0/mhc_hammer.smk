@@ -869,7 +869,7 @@ rule _mhc_hammer_hla2_hlahd:
         --genes {params.genes}
         --output {output.hla_alleles} >> {log.stdout} 2>&1 &&
         if ! awk -F',' '$2 != "not typed" && $3 != "not typed"' {output.hla_alleles} | grep -q .; then
-            echo "ERROR: HLA-HD ran for patient {wildcards.patient_id} but failed to confidently type any HLA class II allele pair -- every gene is 'not typed' in {output.hla_alleles}. See {log.stdout}." >&2 &&
+            echo "ERROR: HLA-HD ran for patient {wildcards.patient_id} but failed to confidently type any HLA class II allele pair -- every gene is 'not typed' in {output.hla_alleles}. See {log.stdout}." | tee -a {log.stdout} >&2 &&
             exit 1;
         fi
         """)
@@ -979,11 +979,11 @@ rule _mhc_hammer_hlahd:
              --sample_id {wildcards.patient_id} --genes A B C &&
              mv result/{wildcards.patient_id}_hla_alleles.csv {wildcards.patient_id}_hla_alleles.csv) >> {log.stdout} 2>&1;
             if ! awk -F',' '$2 != "not typed" && $3 != "not typed"' {params.workdir}/{wildcards.patient_id}_hla_alleles.csv | grep -q .; then
-                echo "ERROR: HLA-HD produced A/B/C estimate files for patient {wildcards.patient_id} but failed to confidently type any allele pair -- every gene is 'not typed' in {wildcards.patient_id}_hla_alleles.csv. Downstream scripts (make_bed_file.R) cannot handle this and would crash with a much more confusing error. See {log.stdout}." >&2 &&
+                echo "ERROR: HLA-HD produced A/B/C estimate files for patient {wildcards.patient_id} but failed to confidently type any allele pair -- every gene is 'not typed' in {wildcards.patient_id}_hla_alleles.csv. Downstream scripts (make_bed_file.R) cannot handle this and would crash with a much more confusing error. See {log.stdout}." | tee -a {log.stdout} >&2 &&
                 exit 1;
             fi;
         else
-            echo "ERROR: HLA-HD failed to produce HLA A, B and C estimates for patient {wildcards.patient_id}. See {log.stdout}." >&2 &&
+            echo "ERROR: HLA-HD failed to produce HLA A, B and C estimates for patient {wildcards.patient_id}. See {log.stdout}." | tee -a {log.stdout} >&2 &&
             exit 1;
         fi
         """)
