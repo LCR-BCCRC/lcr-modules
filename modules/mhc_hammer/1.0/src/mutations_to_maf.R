@@ -11,6 +11,10 @@
 # below are therefore synthetic placeholders, not real genome coordinates -- everything else that
 # can be derived from the real VEP/Mutect2 output in mutations.csv is filled in for real.
 #
+# Only rows where mutect_filter == "PASS" are kept (also drops rows where a mutation was called
+# in one of the patient's tumour samples but only backfilled via BAM read counts, not actually
+# called, in another -- those have mutect_filter == NA).
+#
 # Module-owned code, not adapted from any upstream MHC Hammer bin/*.R script -- this only
 # post-processes this module's own already-generated mutations.csv.
 
@@ -46,6 +50,17 @@ if (!file.exists(args$mutations_csv) || file.size(args$mutations_csv) == 0) {
 }
 
 muts <- fread(args$mutations_csv)
+
+if (nrow(muts) == 0) {
+  write_empty_maf(args$output_maf)
+  quit(save = "no", status = 0)
+}
+
+# Only PASS-filtered Mutect2 calls belong in the MAF. This also naturally drops rows where
+# mutect_filter is NA (called_by_mutect == FALSE -- a tumour sample that didn't actually have
+# this mutation called, only backfilled with BAM read counts for context by
+# make_mutation_table.R): NA == "PASS" is NA, and data.table row-filtering treats NA as FALSE.
+muts <- muts[mutect_filter == "PASS"]
 
 if (nrow(muts) == 0) {
   write_empty_maf(args$output_maf)
