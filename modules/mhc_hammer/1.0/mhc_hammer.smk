@@ -78,8 +78,7 @@ if len(_mhc_hammer_dropped) > 0:
         f"WARNING [mhc_hammer]: excluding {len(_mhc_hammer_dropped)} tumour sample(s) with no "
         f"real matched germline sample (pair_status != 'matched', likely paired via oncopipe's "
         f"substitute-normal mechanism elsewhere in the pipeline) -- mhc_hammer cannot type HLA "
-        f"alleles without the patient's own germline DNA: "
-        f"{sorted(set(_mhc_hammer_dropped['tumour_sample_id']))}"
+        f"alleles without the patient's own germline DNA"
     )
 CFG["paired_runs"] = CFG["paired_runs"][CFG["paired_runs"]["pair_status"] == "matched"]
 
