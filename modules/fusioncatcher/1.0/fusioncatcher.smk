@@ -101,13 +101,16 @@ rule _fusioncatcher_run:
         # early and pin the node for days. `timeout` SIGKILLs it at this limit so the job
         # exits (trap cleans up) and the node frees. (Not srun --time: that broke on this
         # partition - the UNLIMITED default exceeds the 50d MaxTime -> PartitionTimeLimit.)
-        timeout = CFG["options"].get("timeout", "600m")
+        timeout = CFG["options"].get("timeout", "600m"),
+        # Verbatim passthrough. A param edit does not invalidate finished samples, so raising
+        # --limitSjdbInsertNsj sweeps the STAR-limit failures without re-running the cohort.
+        extra_flags = CFG["options"].get("extra_flags", "")
     shell:
         op.as_one_line("""
         work="{params.work_base}/fusioncatcher.{wildcards.seq_type}--{wildcards.genome_build}.{wildcards.sample_id}";
         cleanup() {{ rm -rf "$work"; }}; trap cleanup EXIT INT TERM;
         rm -rf "$work"; mkdir -p "$work";
-        timeout -s KILL {params.timeout} fusioncatcher --no-update-check -d {params.reference} -i {input.fastq_1},{input.fastq_2}
+        timeout -s KILL {params.timeout} fusioncatcher --no-update-check {params.extra_flags} -d {params.reference} -i {input.fastq_1},{input.fastq_2}
         -o "$work" > {log.stdout} 2> {log.stderr};
         mkdir -p {params.out_dir};
         cp "$work/summary_candidate_fusions.txt" "$work/junk-chimeras.txt"

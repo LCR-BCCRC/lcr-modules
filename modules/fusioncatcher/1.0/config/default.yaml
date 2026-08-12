@@ -14,6 +14,11 @@ lcr-modules:
             # Base dir for fusioncatcher's transient intermediates (copied-back outputs are
             # small). "${TMPDIR:-/tmp}" = node-local; override with a scratch path to spill over.
             work_base: "${TMPDIR:-/tmp}"
+            # Passed through verbatim to the fusioncatcher command line. Needed for libraries
+            # that exceed STAR's default junction limit at the gene-gene_split_star step,
+            # which aborts the run after hours of work:
+            #   extra_flags: "--limitSjdbInsertNsj=3000000"
+            extra_flags: ""
 
         conda_envs:
             fusioncatcher: "{MODSDIR}/envs/fusioncatcher_nobuilds.yaml"
