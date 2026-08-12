@@ -92,7 +92,6 @@ print(
     f"INFO [mhc_hammer]: {len(CFG['samples'])} sample(s) across "
     f"{CFG['samples']['patient_id'].nunique() if len(CFG['samples']) else 0} patient(s), "
     f"{len(CFG['paired_runs'])} matched tumour/normal pair(s) in scope for this invocation. "
-    f"Patients: {sorted(set(CFG['samples']['patient_id'])) if len(CFG['samples']) else '(none)'}"
 )
 
 # v1 is DNA-only (WES): HLA typing -> personalised reference -> Novoalign alignment ->
