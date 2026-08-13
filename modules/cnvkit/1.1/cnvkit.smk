@@ -44,8 +44,6 @@ rule _cnvkit_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.bam"
     run:
         op.absolute_symlink(input.bam, output.bam)
-        op.absolute_symlink(input.bai, output.bai)
-        op.absolute_symlink(input.bai, output.crai)
 
 # Pulls in list of chromosomes for the genome builds
 checkpoint _cnvkit_input_chroms:
