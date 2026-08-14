@@ -162,7 +162,7 @@ rule _cnvkit_fix:
     log:
         stdout = CFG["logs"]["fix"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.log"
     shell:
-        op.as_one_line("""R
+        op.as_one_line("""
             cnvkit.py fix {input.targetcov} {input.antitargetcov} {input.pon_reference} -o {output.cnr} &> {log.stdout}
         """)
 
