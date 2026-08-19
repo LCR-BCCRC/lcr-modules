@@ -102,7 +102,7 @@ rule _panel_of_normals_index_bam:
     input:
         bam = str(rules._panel_of_normals_input_bam.output.bam)
     output:
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{sample_id}.bam.bai"
+        bai = temp(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{sample_id}.bam.bai")
     log:
         log = CFG["logs"]["inputs"] + "bam/{seq_type}--{genome_build}/{capture_space}/{sample_id}_index.log"
     conda:
