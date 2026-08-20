@@ -221,7 +221,6 @@ rule _cnvkit_mpileup_per_chrom:
         CFG["container_envs"]["bcftools"]
     resources: 
         **CFG["resources"]["SNPs"]
-    group: "cnvkit"
     log:
         stderr = CFG["logs"]["SNPs"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.{chrom}.vcf.stderr.log"
     shell:
@@ -272,8 +271,7 @@ rule _cnvkit_concatenate_vcf:
     log:
         stderr = CFG["logs"]["SNPs"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.stderr.log"
     resources:
-        **CFG["resources"]["SNPs"]
-    group: "cnvkit"
+        **CFG["resources"]["call"]
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
@@ -381,7 +379,6 @@ rule _cnvkit_scatter:
         CFG["conda_envs"]["cnvkit"]
     container:
         CFG["container_envs"]["cnvkit"]
-    group: "cnvkit"
     resources:
         **CFG["resources"]["plots"]
     log:
@@ -408,7 +405,6 @@ rule _cnvkit_diagram:
         CFG["conda_envs"]["cnvkit"]
     container:
         CFG["container_envs"]["cnvkit"]
-    group: "cnvkit"
     resources:
         **CFG["resources"]["plots"]
     log:
@@ -567,7 +563,6 @@ rule _cnvkit_cnv2igv:
         CFG["conda_envs"]["cnvkit"]
     container:
         CFG["container_envs"]["cnvkit"]
-    group: "cnvkit_post_process"
     shell:
         op.as_one_line("""
         python {params.cnv2igv_script} --mode cnvkit {params.opts} --sample {wildcards.tumour_id} {input.cns} > {output.seg} 2>> {log.stderr}
@@ -597,7 +592,6 @@ rule _cnvkit_convert_coordinates:
         CFG["conda_envs"]["liftover"]
     container:
         CFG["container_envs"]["liftover"]
-    group: "cnvkit_post_process"
     shell:
         op.as_one_line("""
         bash {params.liftover_script}
@@ -646,7 +640,6 @@ rule _cnvkit_fill_segments:
         CFG["conda_envs"]["bedtools"]
     container:
         CFG["container_envs"]["bedtools"]
-    group: "cnvkit_post_process"
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};

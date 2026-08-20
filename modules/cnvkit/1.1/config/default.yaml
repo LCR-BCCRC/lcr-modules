@@ -101,6 +101,7 @@ lcr-modules:
                 mem_mb: 4800
             SNPs:
                 mem_mb: 8000
+                chrom: 1
             call:
                 mem_mb: 8000
             plots:
