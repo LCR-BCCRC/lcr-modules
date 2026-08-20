@@ -40,10 +40,10 @@ if (nrow(this_maf)>0){
         verbose = TRUE,
         drop_threshold = drop_threshold
     ) %>%
-    write_tsv(snakemake@output[["maf"]])
+    write_tsv(snakemake@output[["maf"]], na = "")
 } else {
     message(paste("WARNING: Detected 0 vartiants for the sample", snakemake@wildcards[["tumour_id"]]))
-    this_maf %>% write_tsv(snakemake@output[["maf"]])
+    this_maf %>% write_tsv(snakemake@output[["maf"]], na = "")
 }
 
 sink()

@@ -1,6 +1,8 @@
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
+  - r
   - defaults
 dependencies:
   - hmftools-sage=5.0
+  - htslib
