@@ -53,7 +53,7 @@ localrules:
 rule _promethion_bam:
     input:
         bam = CFG["inputs"]["sample_bam"],
-        bai = CFG["inputs"]["sample_bam"] + "bai"
+        bai = CFG["inputs"]["sample_bam"] + ".bai"
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
