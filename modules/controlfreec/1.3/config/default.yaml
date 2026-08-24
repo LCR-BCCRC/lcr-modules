@@ -6,7 +6,6 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id}
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
-            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/cnv2igv.py"
 
         # specify in which projections you want the output files
         requested_projections: ["grch37", "hg38"]
@@ -76,6 +75,7 @@ lcr-modules:
             maxEditDistance: 0 # maximum number of edit operations allowed while verifying candidate matches by dynamic programming (can be a float 0-1, which represents differences of size n% of length, or a non-negative integer, which is a fixed number of edits)
             strata: 0 # a stratum is a set of matches all having the same string distance from the query, GEM mapper will try to find n amount of matches to explore
 
+            cnv2igv_script_path: "{SCRIPTSDIR}/cnv2igv/1.5/cnv2igv.py"
             # cnv2igv preserve log.ratio or change this to "" to calculate it from the absolute CN
             preserve: "--preserve_log_ratio"
             # liftOver options to convert between genomic builds
