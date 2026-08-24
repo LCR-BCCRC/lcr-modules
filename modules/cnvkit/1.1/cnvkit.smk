@@ -266,8 +266,8 @@ rule _cnvkit_concatenate_vcf:
         vcf = _cnvkit_get_chr_vcfs,
         tbi = _cnvkit_get_chr_tbis
     output:
-        vcf = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.gz",
-        tbi = CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.gz.tbi"
+        vcf = temp(CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.gz"),
+        tbi = temp(CFG["dirs"]["SNPs"]  + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.gz.tbi")
     log:
         stderr = CFG["logs"]["SNPs"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.vcf.stderr.log"
     resources:
