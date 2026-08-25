@@ -201,11 +201,19 @@ def _mhc_hammer_get_hla2_region_coords(genome_build):
 MHC_SEQ = "wxs"
 IMGT_URLS = CFG["options"]["imgt_release_urls"][CFG["options"]["imgt_release"]]
 
-# Define rules to be run locally when using a compute cluster
+# Define rules to be run locally when using a compute cluster. Beyond the trivial symlink/target
+# rules, this also includes rules whose real work is pure small-CSV/text bookkeeping with no raw
+# BAM/FASTQ/FASTA IO at all (_mhc_hammer_generate_inventory, _mhc_hammer_mutations_to_maf,
+# _mhc_hammer_cohort_table) -- fast enough that submitting them as separate cluster jobs is pure
+# scheduling overhead. Rules that touch BAM/FASTQ/FASTA content directly (even small,
+# already-subsetted ones, e.g. _mhc_hammer_parse_mutations's per-mutation BAM read-counting) are
+# deliberately left off this list rather than assumed fast.
 localrules:
     _mhc_hammer_input_bam,
     _mhc_hammer_download_reference,
     _mhc_hammer_generate_inventory,
+    _mhc_hammer_mutations_to_maf,
+    _mhc_hammer_cohort_table,
     _mhc_hammer_output_dna_analysis,
     _mhc_hammer_output_mutations,
     _mhc_hammer_output_mutations_maf,
