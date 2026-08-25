@@ -218,6 +218,7 @@ localrules:
     _mhc_hammer_output_mutations,
     _mhc_hammer_output_mutations_maf,
     _mhc_hammer_output_cohort_table,
+    _mhc_hammer_output_hla_final_result,
     _mhc_hammer_output_hla2_alleles,
     _mhc_hammer_all,
 
@@ -935,7 +936,13 @@ rule _mhc_hammer_hlahd:
         gtf = str(rules._mhc_hammer_download_reference.output.gtf)
     output:
         hla_alleles = CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}/{patient_id}_hla_alleles.csv",
-        result_dir = directory(CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}/result")
+        result_dir = directory(CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}/result"),
+        # HLA-HD's own consolidated result file, in its native standard IMGT/HLA allele naming
+        # (unlike the mhc_hammer-internal personalised-reference contig names used elsewhere in
+        # this module's own outputs, e.g. DNA analysis's "hla_a_01_01_01_01"-style allele
+        # identifiers) -- HLA-HD already writes this as part of the shell block above, just not
+        # previously tracked as its own output. See _mhc_hammer_output_hla_final_result below.
+        hla_final_result = CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}/result/{patient_id}_final.result.txt"
     log:
         stdout = CFG["logs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}/hlahd.log"
     params:
@@ -1983,6 +1990,14 @@ rule _mhc_hammer_output_cohort_table:
     run:
         op.relative_symlink(input.cohort_table, output.cohort_table, in_module = True)
 
+rule _mhc_hammer_output_hla_final_result:
+    input:
+        hla_final_result = str(rules._mhc_hammer_hlahd.output.hla_final_result)
+    output:
+        hla_final_result = CFG["dirs"]["outputs"] + "hla_alleles/{seq_type}--{genome_build}/{patient_id}.hla_alleles.txt"
+    run:
+        op.relative_symlink(input.hla_final_result, output.hla_final_result, in_module = True)
+
 rule _mhc_hammer_output_hla2_alleles:
     input:
         hla_alleles = str(rules._mhc_hammer_hla2_hlahd.output.hla_alleles)
@@ -2028,6 +2043,17 @@ rule _mhc_hammer_all:
             patient_id = CFG["paired_runs"]["tumour_patient_id"]
         ),
         str(rules._mhc_hammer_output_cohort_table.output.cohort_table),
+        # HLA-HD's own class I result file, in standard nomenclature -- same patient-level
+        # CFG["paired_runs"] scoping as the mutations/cohort targets above.
+        expand(
+            [
+                str(rules._mhc_hammer_output_hla_final_result.output.hla_final_result)
+            ],
+            zip,
+            seq_type = CFG["paired_runs"]["tumour_seq_type"],
+            genome_build = CFG["paired_runs"]["tumour_genome_build"],
+            patient_id = CFG["paired_runs"]["tumour_patient_id"]
+        ),
         # HLA class II germline typing -- same CFG["paired_runs"] patient scoping as the
         # mutations target above (only patients with a real matched germline get requested).
         expand(
