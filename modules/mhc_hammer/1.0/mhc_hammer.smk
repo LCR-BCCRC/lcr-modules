@@ -1604,6 +1604,25 @@ _mhc_hammer_completed_library_size = sorted(set(
 _mhc_hammer_completed_hla_bam_read_count = sorted(set(
     path for p in _mhc_hammer_completed_pairs for path in p["hla_bam_read_count"]
 ))
+
+# _mhc_hammer_mosdepth's own output has no real consumer anywhere else in this file -- the only
+# other reference to it is the string-path construction inside _mhc_hammer_get_completed_pairs()
+# above, which is not a genuine Snakemake input dependency (it's a plain os.path.exists() check
+# against whatever a prior invocation already produced). Without a real target requesting it,
+# Snakemake never actually schedules _mhc_hammer_mosdepth to run, its output file therefore never
+# exists, and _mhc_hammer_get_completed_pairs() excludes every pair forever regardless of how many
+# times the pipeline is rerun -- confirmed on a real cohort where the cohort table stayed
+# permanently empty across several separate invocations over multiple weeks. Deduplicated
+# (seq_type, genome_build, sample_id) across both tumour and normal samples of every matched pair
+# (a shared germline sample paired against >1 tumour must not be requested twice), mirroring the
+# same dedup pattern already used for _mhc_hammer_generate_inventory/_mhc_hammer_cohort_table's
+# per-sample inputs -- used by _mhc_hammer_all below to make mosdepth a real target.
+_mhc_hammer_all_samples = sorted(set(
+    (row["tumour_seq_type"], row["tumour_genome_build"], sample_id)
+    for _, row in CFG["paired_runs"].iterrows()
+    for sample_id in (row["tumour_sample_id"], row["normal_sample_id"])
+))
+
 print(
     f"INFO [mhc_hammer]: {len(_mhc_hammer_completed_pairs)} of {len(CFG['paired_runs'])} matched "
     f"tumour/normal pair(s) have a complete upstream chain on disk right now and will be included "
@@ -2041,6 +2060,18 @@ rule _mhc_hammer_all:
             seq_type = CFG["paired_runs"]["tumour_seq_type"],
             genome_build = CFG["paired_runs"]["tumour_genome_build"],
             patient_id = CFG["paired_runs"]["tumour_patient_id"]
+        ),
+        # _mhc_hammer_mosdepth has no other real consumer in the DAG (see _mhc_hammer_all_samples
+        # above) -- without this explicit target it never runs, and the cohort table below stays
+        # permanently empty since it only ever includes pairs it finds *already* complete on disk.
+        expand(
+            [
+                str(rules._mhc_hammer_mosdepth.output.bed)
+            ],
+            zip,
+            seq_type = [s[0] for s in _mhc_hammer_all_samples],
+            genome_build = [s[1] for s in _mhc_hammer_all_samples],
+            sample_id = [s[2] for s in _mhc_hammer_all_samples]
         ),
         str(rules._mhc_hammer_output_cohort_table.output.cohort_table),
         # HLA-HD's own class I result file, in standard nomenclature -- same patient-level
