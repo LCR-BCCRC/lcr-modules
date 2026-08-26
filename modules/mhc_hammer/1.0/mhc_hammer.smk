@@ -1689,22 +1689,44 @@ rule _mhc_hammer_generate_inventory:
         # _mhc_hammer_cohort_table's OWN inputs (below) correctly keep the stricter "completed"
         # restriction, since that rule genuinely does need dna_analysis/mosdepth/etc. to exist.
         matched_sample_ids = set(runs["tumour_sample_id"]) | set(runs["normal_sample_id"])
-        os.makedirs(os.path.dirname(output.inventory), exist_ok=True)
-        with open(output.inventory, "w", newline="") as fh:
-            writer = csv.writer(fh)
-            writer.writerow(["patient", "sample_name", "sample_type", "sequencing_type", "purity", "ploidy", "normal_sample_name"])
-            for _, row in samples.iterrows():
-                sample_id = row["sample_id"]
-                if sample_id not in matched_sample_ids:
-                    continue
-                tissue_status = str(row["tissue_status"]).lower()
-                sample_type = "tumour" if tissue_status in ("tumour", "tumor") else "normal"
-                purity, ploidy = purity_ploidy.get(sample_id, ("", ""))
-                writer.writerow([row["patient_id"], sample_id, sample_type, MHC_SEQ, purity, ploidy, normal_for_tumour.get(sample_id, "")])
+
+        import io
+        inventory_buf = io.StringIO()
+        writer = csv.writer(inventory_buf, lineterminator = "\n")
+        writer.writerow(["patient", "sample_name", "sample_type", "sequencing_type", "purity", "ploidy", "normal_sample_name"])
+        for _, row in samples.iterrows():
+            sample_id = row["sample_id"]
+            if sample_id not in matched_sample_ids:
+                continue
+            tissue_status = str(row["tissue_status"]).lower()
+            sample_type = "tumour" if tissue_status in ("tumour", "tumor") else "normal"
+            purity, ploidy = purity_ploidy.get(sample_id, ("", ""))
+            writer.writerow([row["patient_id"], sample_id, sample_type, MHC_SEQ, purity, ploidy, normal_for_tumour.get(sample_id, "")])
+        inventory_content = inventory_buf.getvalue()
+
         germline_ids = sorted(set(runs["normal_sample_id"]))
-        with open(output.hlahd_germline_samples, "w") as fh:
-            for gid in germline_ids:
-                fh.write(gid + "\n")
+        germline_content = "".join(gid + "\n" for gid in germline_ids)
+
+        # This rule is deliberately forced to *evaluate* on every invocation (see
+        # _mhc_hammer_invocation_marker above -- needed to fix the stale-inventory bug documented
+        # there), so the content is always recomputed fresh and never risks going stale. But an
+        # unconditional rewrite of the output files bumps their mtime on every invocation too,
+        # and under this GAMBL wrapper's --rerun-triggers mtime, that cascaded into every
+        # downstream consumer of inventory.csv (_mhc_hammer_parse_mutations, for every single
+        # patient) rerunning on every single invocation, even when nothing about that patient's
+        # actual pairing/purity/ploidy data had changed -- real, reported pain during iterative
+        # single-patient testing. Only touch (and bump the mtime of) a file when its freshly
+        # recomputed content actually differs from what's already on disk.
+        os.makedirs(os.path.dirname(output.inventory), exist_ok=True)
+        def _write_if_changed(path, content):
+            if os.path.exists(path):
+                with open(path) as fh:
+                    if fh.read() == content:
+                        return
+            with open(path, "w", newline="") as fh:
+                fh.write(content)
+        _write_if_changed(output.inventory, inventory_content)
+        _write_if_changed(output.hlahd_germline_samples, germline_content)
 
 
 # Aggregates one patient's per-tumour VEP mutation tables (across all of that patient's runs)
