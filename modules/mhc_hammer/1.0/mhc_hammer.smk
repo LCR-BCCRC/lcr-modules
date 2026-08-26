@@ -1969,6 +1969,12 @@ rule _mhc_hammer_cohort_table:
               --min_frac_mapping_uniquely {params.min_frac_mapping_uniquely}
               --max_frac_mapping_multi_gene {params.max_frac_mapping_multi_gene}
               --dna_snp_min_depth {params.min_depth} &&
+            Rscript -e '
+              library(data.table);
+              dt <- fread("cohort_mhc_hammer_gene_table.csv");
+              dt <- dt[gene != "HLA-NONE"];
+              fwrite(dt, "cohort_mhc_hammer_gene_table.csv")
+            ' &&
             mv cohort_mhc_hammer_gene_table.csv {params.cohort_table_abs} ;
         fi
         ) > {log.stdout} 2>&1 &&
