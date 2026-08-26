@@ -10,9 +10,11 @@ annotate_sanity_check_plot <- function(target_results) {
             
             matched_mut_foci_data %>%
               dplyr::mutate(
-                Sanity_Check_Plot = purrr::map2(Module_Model, Significant_Foci, ~{
+                Sanity_Check_Plot = purrr::pmap(
+                  list(Module_Model, Significant_Foci, lambda_name),
+                  function(Module_Model, Significant_Foci, lambda_name){
                   tryCatch({
-                    sig_terms <- .y %>%
+                    sig_terms <- Significant_Foci %>%
                       dplyr::filter(foci != "CN") %>%
                       dplyr::pull(foci)
                     
@@ -20,19 +22,19 @@ annotate_sanity_check_plot <- function(target_results) {
                       return(NULL)
                     }
                     
-                    mut_cols <- names(.x)[grepl("^\\d+(?:_\\d+)?$", names(.x))]
-                    
-                    sanity_df_non_mut = .x %>%
+                    mut_cols <- names(Module_Model)[grepl("^\\d+(?:_\\d+)?$", names(Module_Model))]
+
+                    sanity_df_non_mut = Module_Model %>%
                       filter(rowSums(across(all_of(mut_cols))) == 0) %>%
                       dplyr::mutate(group_name = "Not_Mutated") %>%
                       dplyr::select(-dplyr::all_of(mut_cols))
                     
-                    sanity_df_mut = .x %>%
+                    sanity_df_mut = Module_Model %>%
                       filter(rowSums(across(all_of(mut_cols))) > 0) %>%
                       dplyr::mutate(group_name = "Mutated") %>%
                       dplyr::select(-dplyr::all_of(mut_cols))
                     
-                    sanity_df_mut_groups <- .x %>%
+                    sanity_df_mut_groups <- Module_Model %>%
                       tidyr::pivot_longer(dplyr::all_of(mut_cols), names_to = "group_name", values_to = "mut_value") %>%
                       dplyr::filter(mut_value > 0) %>%
                       dplyr::select(-mut_value)
@@ -68,7 +70,13 @@ annotate_sanity_check_plot <- function(target_results) {
                         size = 2,
                         alpha = 0.9
                       ) +
-                      labs(y = gene_col, color = "CN") +
+                      labs(
+                        y = "Normalized expression",
+                        x = "Mutation status",
+                        color = "CN",
+                        title = paste0("Expression by foci group and mutation status: ", gene_col,
+                                       " (lambda = ", gsub("_", ".", sub("^lambda_", "", lambda_name)), ")")
+                      ) +
                       theme(
                         axis.text.x = element_text(angle = 35, hjust = 1, vjust = 1)
                       )

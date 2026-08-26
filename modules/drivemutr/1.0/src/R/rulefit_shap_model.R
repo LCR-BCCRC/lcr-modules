@@ -64,10 +64,9 @@ get_rulefit_shapley_results <- function(target_results){
           
           matched_df %>%
             dplyr::mutate(
-              Interaction_Results = purrr::map2(
-                Significant_Foci,
-                Module_Model,
-                function(Significant_Foci, Module_Model) {
+              Interaction_Results = purrr::pmap(
+                list(Significant_Foci, Module_Model, lambda_name),
+                function(Significant_Foci, Module_Model, lambda_name) {
                   
                   foci_cols <- Significant_Foci %>%
                     dplyr::filter(foci != "CN") %>%
@@ -182,7 +181,9 @@ get_rulefit_shapley_results <- function(target_results){
                         ) +
                         ggplot2::labs(
                           x = "Mean Shapley value (phi)",
-                          y = NULL
+                          y = NULL,
+                          title = paste0("Mean Shapley values (lambda = ",
+                                         gsub("_", ".", sub("^lambda_", "", lambda_name)), ")")
                         )
                       
                       shap_beeswarm_plot <- ggplot2::ggplot(
@@ -211,7 +212,9 @@ get_rulefit_shapley_results <- function(target_results){
                         ggplot2::labs(
                           x = "SHAP value (impact on model output)",
                           y = NULL,
-                          color = "Feature value"
+                          color = "CADD score",
+                          title = paste0("SHAP values (lambda = ",
+                                         gsub("_", ".", sub("^lambda_", "", lambda_name)), ")")
                         ) +
                         ggplot2::theme_minimal(base_size = 13) +
                         ggplot2::theme(

@@ -51,11 +51,13 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "drivemutr",
     version = "1.0",
-    subdirectories = ["inputs", "io", "cadd", "per_gene", "ucsc_tracks", "outputs"],
+    subdirectories = ["inputs", "io", "cadd", "tf", "per_gene", "ucsc_tracks", "outputs"],
 )
 
 # Shorthand for the checkpoint scatter directory
 PER_GENE = CFG["dirs"]["per_gene"]
+_LAMBDA_VALUES = CFG["options"]["lambda"]
+_CUSTOM_SLIDING_WINDOW = CFG["options"]["custom_sliding_window"]
 
 # Tracks emitted by the aggregation step (step 15)
 _UCSC_TRACKS = ["Mutation_Points", "Mutation_Blocks", "Transcription_Factors"]
@@ -67,7 +69,7 @@ def _lambda_suffix(v):
 
 def _lambda_suffixes():
     """The list of lambda suffixes from CFG['options']['lambda']."""
-    return [_lambda_suffix(v) for v in CFG["options"]["lambda"]]
+    return [_lambda_suffix(v) for v in _LAMBDA_VALUES]
 
 def per_gene_data(wildcards):
     """Collect the terminal per-gene RDS files produced after the checkpoint."""
@@ -77,7 +79,7 @@ def per_gene_data(wildcards):
 
 def _prev_step_rds(wildcards):
     """Return the output of step 4 or 5 depending on custom_sliding_window."""
-    stem = "sliding_window" if CFG["options"]["custom_sliding_window"] else "lambda_annotated"
+    stem = "sliding_window" if _CUSTOM_SLIDING_WINDOW else "lambda_annotated"
     return PER_GENE + wildcards.gene + "/" + stem + ".rds"
 
 
@@ -85,6 +87,7 @@ def _prev_step_rds(wildcards):
 localrules:
     _drivemutr_input,
     _drivemutr_output_tracks,
+    _drivemutr_output_tf_expression,
     _drivemutr_all,
 
 
@@ -99,19 +102,19 @@ rule _drivemutr_input:
         ssm                  = CFG["inputs"]["ssm_maf"],
         cnv                  = CFG["inputs"]["cnv_matrix"],
         coexpression_modules = CFG["inputs"]["wgcna_coexpression_modules"],
-        filtered_expression  = CFG["inputs"]["wgcna_filtered_expression"],
+        normalized_expression = CFG["inputs"]["wgcna_normalized_expression"],
         tf_names             = CFG["inputs"]["tf_names_file"],
     output:
         ssm                  = CFG["dirs"]["inputs"] + "ssm/mutations.maf",
         cnv                  = CFG["dirs"]["inputs"] + "cnv/cn_matrix.tsv",
         coexpression_modules = CFG["dirs"]["inputs"] + "wgcna/coexpression_modules.rds",
-        filtered_expression  = CFG["dirs"]["inputs"] + "wgcna/filtered_expression.tsv",
+        normalized_expression = CFG["dirs"]["inputs"] + "wgcna/normalized_expression.tsv",
         tf_names             = CFG["dirs"]["inputs"] + "tf/tf_names.txt",
     run:
         op.absolute_symlink(input.ssm, output.ssm)
         op.absolute_symlink(input.cnv, output.cnv)
         op.absolute_symlink(input.coexpression_modules, output.coexpression_modules)
-        op.absolute_symlink(input.filtered_expression, output.filtered_expression)
+        op.absolute_symlink(input.normalized_expression, output.normalized_expression)
         op.absolute_symlink(input.tf_names, output.tf_names)
 
 
@@ -267,7 +270,7 @@ rule _drivemutr_assign_module:
     input:
         gene_data            = str(rules._drivemutr_adjust_cadd.output.rds),
         coexpression_modules = str(rules._drivemutr_input.output.coexpression_modules),
-        filtered_expression  = str(rules._drivemutr_input.output.filtered_expression),
+        normalized_expression = str(rules._drivemutr_input.output.normalized_expression),
     output:
         rds = temp(PER_GENE + "{gene}/module_annotated.rds"),
     wildcard_constraints:
@@ -401,20 +404,40 @@ rule _drivemutr_rulefit_model:
         "src/run_rulefit_model.R"
 
 
+# Step pre 13 (cohort-level): TF mean expression -> expressed-TF list + distribution plot.
+rule _drivemutr_tf_expression:
+    input:
+        normalized_expression = str(rules._drivemutr_input.output.normalized_expression),
+        tf_names              = str(rules._drivemutr_input.output.tf_names),
+    output:
+        names = CFG["dirs"]["tf"] + "tf_names_expressed.txt",
+        plot  = CFG["dirs"]["tf"] + "tf_expression_distribution.pdf",
+    log:
+        CFG["logs"]["tf"] + "tf_expression.log",
+    params:
+        expression_threshold = CFG["options"]["tf_expression_threshold"],
+    conda:
+        CFG["conda_envs"]["drivemutr"]
+    container:
+        CFG["container_envs"]["drivemutr"]
+    threads:
+        CFG["threads"]["tf_expression"]
+    resources:
+        **CFG["resources"]["tf_expression"]
+    script:
+        "src/run_tf_expression.R"
+
 # Step 13: TF motif analysis and Fisher enrichment per significant focus (per gene)
 rule _drivemutr_get_tf_results:
     input:
         gene_data           = str(rules._drivemutr_rulefit_model.output.rds),
-        filtered_expression = str(rules._drivemutr_input.output.filtered_expression),
-        tf_names_file       = str(rules._drivemutr_input.output.tf_names),
+        tf_names_expressed = str(rules._drivemutr_tf_expression.output.names),
     output:
         rds = temp(PER_GENE + "{gene}/tf_results.rds"),
     wildcard_constraints:
         gene = r"[^/]+",    
     log:
         CFG["logs"]["per_gene"] + "{gene}/get_tf_results.log",
-    params:
-        expression_threshold = CFG["options"]["tf_expression_threshold"],
     conda:
         CFG["conda_envs"]["drivemutr"]
     container:
@@ -488,6 +511,17 @@ rule _drivemutr_output_tracks:
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module=True)
 
+# Symlinks the cohort-level TF-expression outputs into the module results directory (under '99-outputs/')
+rule _drivemutr_output_tf_expression:
+    input:
+        plot  = str(rules._drivemutr_tf_expression.output.plot),
+        names = str(rules._drivemutr_tf_expression.output.names),
+    output:
+        plot  = CFG["dirs"]["outputs"] + "tf_expression_distribution.pdf",
+        names = CFG["dirs"]["outputs"] + "tf_names_expressed.txt",
+    run:
+        op.relative_symlink(input.plot, output.plot, in_module=True)
+        op.relative_symlink(input.names, output.names, in_module=True)
 
 # Generates the target sentinels for the module
 rule _drivemutr_all:
@@ -497,6 +531,8 @@ rule _drivemutr_all:
             track = _UCSC_TRACKS,
             lam = _lambda_suffixes(),
         ),
+        str(rules._drivemutr_output_tf_expression.output.plot),
+        str(rules._drivemutr_output_tf_expression.output.names),
 
 
 ##### CLEANUP #####

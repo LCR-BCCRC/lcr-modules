@@ -268,6 +268,17 @@ get_ucsc_custom_tracks <- function(target_results, outdir) {
       )
 
       out_df <- .x %>%
+        dplyr::group_by(Chromosome, Start_Position, End_Position, name) %>%
+        dplyr::summarise(
+          n          = dplyr::n(),
+          score      = dplyr::first(score),
+          strand     = dplyr::first(strand),
+          thickStart = dplyr::first(thickStart),
+          thickEnd   = dplyr::first(thickEnd),
+          itemRgb    = dplyr::first(itemRgb),
+          .groups    = "drop"
+        ) %>%
+        dplyr::mutate(name = paste0(name, "[[", n, "]]")) %>%
         dplyr::select(
           Chromosome, Start_Position, End_Position,
           name, score, strand, thickStart, thickEnd, itemRgb

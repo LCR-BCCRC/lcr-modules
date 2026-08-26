@@ -53,7 +53,7 @@ hierachical_grouping = function(ssm_df, lambda = 1){
     labs(
       x = "Height (h)",
       y = "Score",
-      title = "Clustering Quality vs. Tree Cut Height"
+      title = paste0("Clustering Quality vs. Tree Cut Height (lambda = ", lambda, ")")
     ) +
     theme_minimal()
   

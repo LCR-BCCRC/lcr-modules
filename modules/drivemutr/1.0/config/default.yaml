@@ -14,7 +14,7 @@ lcr-modules:
             ssm_maf: "__UPDATE__"                   # MAF (TSV) of simple somatic mutations
             cnv_matrix: "__UPDATE__"                # copy-number matrix (TSV): col 1 = sample_id, rest = gene CN values
             wgcna_coexpression_modules: "__UPDATE__" # WGCNA module: coexpression_modules.rds
-            wgcna_filtered_expression: "__UPDATE__"  # WGCNA module: filtered_expression.tsv (samples x genes)
+            wgcna_normalized_expression: "__UPDATE__" # WGCNA module: normalized_expression.tsv (genes x samples, with gene_id + hgnc_symbol cols)
             tf_names_file: "__UPDATE__"             # one TF gene symbol per line (e.g. Lambert et al. 2018)
             # Optional inputs (leave null to disable); passed straight to the rules that use them.
             sample_id_map: null                     # DNA<->RNA sample-ID linkage table (TSV); null when modalities share IDs
@@ -65,6 +65,7 @@ lcr-modules:
             module_model: 1
             genomic_models: 2
             rulefit_model: 4
+            tf_expression: 1
             get_tf_results: 4
             sanity_check_plot: 1
             get_ucsc_tracks: 1
@@ -94,9 +95,29 @@ lcr-modules:
                 mem_mb: 8000
             rulefit_model:
                 mem_mb: 16000
+            tf_expression:
+                mem_mb: 8000
             get_tf_results:
                 mem_mb: 32000
             sanity_check_plot:
                 mem_mb: 4000
             get_ucsc_tracks:
                 mem_mb: 8000
+        # DriveMuTR does no tumour/normal pairing, but oncopipe's setup_module requires this
+        # block. Every sample is treated independently (no normal). The module never reads
+        # CFG["samples"]/CFG["runs"] — this only satisfies setup_module; the per-gene scatter
+        # comes from the MAF, not the samples table. Keys must cover the seq_type(s) in your
+        # samples table (add/remove genome/capture/mrna to match).
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True      

@@ -32,4 +32,6 @@ pdf(snakemake@output[["height_plot_pdf"]], width = 10, height = 6)
 for (p in plots) tryCatch(print(p), error = function(e) NULL)
 dev.off()
 
+gene_data <- dplyr::select(gene_data, -dplyr::any_of("height_plot"))
+
 saveRDS(gene_data, snakemake@output[["rds"]])

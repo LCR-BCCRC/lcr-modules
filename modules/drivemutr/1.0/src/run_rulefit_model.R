@@ -32,4 +32,18 @@ pdf(snakemake@output[["shap_pdf"]], width = 8, height = 6)
 for (p in all_plots) tryCatch(print(p), error = function(e) NULL)
 dev.off()
 
+gene_data <- gene_data %>%
+  dplyr::mutate(
+    matched_mut_foci_data = purrr::map(matched_mut_foci_data, function(mfd) {
+      if (is.null(mfd) || !"Interaction_Results" %in% names(mfd)) return(mfd)
+      mfd %>%
+        dplyr::mutate(
+          Interaction_Results = purrr::map(Interaction_Results, function(ir) {
+            if (is.null(ir) || nrow(ir) == 0) return(ir)
+            dplyr::select(ir, -dplyr::any_of(c("SHAP_Mean_Plot", "SHAP_Beeswarm_Plot")))
+          })
+        )
+    })
+  )
+
 saveRDS(gene_data, snakemake@output[["rds"]])

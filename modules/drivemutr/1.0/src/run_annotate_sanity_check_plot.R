@@ -24,4 +24,12 @@ pdf(snakemake@output[["sanity_check_pdf"]], width = 8, height = 6)
 for (p in all_plots) tryCatch(print(p), error = function(e) NULL)
 dev.off()
 
+gene_data <- gene_data %>%
+  dplyr::mutate(
+    matched_mut_foci_data = purrr::map(matched_mut_foci_data, function(mfd) {
+      if (is.null(mfd) || !"Sanity_Check_Plot" %in% names(mfd)) return(mfd)
+      dplyr::select(mfd, -dplyr::any_of("Sanity_Check_Plot"))
+    })
+  )
+
 saveRDS(gene_data, snakemake@output[["rds"]])
