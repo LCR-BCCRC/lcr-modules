@@ -22,6 +22,21 @@ lcr-modules:
             # TEMPORARY for testing -- revert to "__UPDATE__" before merging.
             reference_genome_fasta: "reference/genomes/grch37/genome_fasta/genome.fa"
 
+            # Optional path to Battenberg's own per-pair cellularity_ploidy.txt output
+            # (tab-separated, header row, "cellularity" and "ploidy" columns -- same file
+            # modules/cnaqc/1.0 already consumes). Available wildcards: {seq_type} {genome_build}
+            # {tumour_id} {normal_id}. Pairs missing this file (or left as "") are skipped for
+            # copy-number output only (allelic-imbalance/mutation calling are unaffected) --
+            # deliberately not "__UPDATE__" since this option is optional, not required. Under
+            # inputs (not options) since it's reference *data* the module reads, same category as
+            # vep_cache/reference_genome_fasta above -- moved here from options (2026-08-26) after
+            # the inputs/options split for this exact option caused two real, separate bugs in one
+            # afternoon (a wrapper script's own config-mutation code targeting the wrong section,
+            # then a user's own config YAML doing the same) -- see project memory for the full
+            # story if this decision ever needs revisiting.
+            # TEMPORARY for testing -- revert to "" before merging.
+            battenberg_cellularity_ploidy: "results/battenberg-1.2/02-battenberg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_cellularity_ploidy.txt"
+
         scratch_subdirectories: []
 
         options:
@@ -163,15 +178,6 @@ lcr-modules:
             # (e.g. maftools) but don't need real genomic coordinates. See the header comment in
             # src/mutations_to_maf.R for why Chromosome/Start_Position/End_Position are synthetic.
             mutations_to_maf_script: "{MODSDIR}/src/mutations_to_maf.R"
-
-            # Optional path to Battenberg's own per-pair cellularity_ploidy.txt output
-            # (tab-separated, header row, "cellularity" and "ploidy" columns -- same file
-            # modules/cnaqc/1.0 already consumes). Available wildcards: {seq_type} {genome_build}
-            # {tumour_id} {normal_id}. Pairs missing this file (or left as "") are skipped for
-            # copy-number output only (allelic-imbalance/mutation calling are unaffected) --
-            # deliberately not "__UPDATE__" since this option is optional, not required.
-            # TEMPORARY for testing -- revert to "" before merging.
-            battenberg_cellularity_ploidy: "results/battenberg-1.2/02-battenberg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}/{tumour_id}_cellularity_ploidy.txt"
 
             # BAM subsetting (preprocessing). Setting fish_reads to False also skips the entire
             # genome-wide kmer index build + filter step (_mhc_hammer_build_genome_kmer_index /

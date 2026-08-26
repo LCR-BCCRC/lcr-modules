@@ -311,7 +311,7 @@ def _mhc_hammer_reference_dir_for_tumour(wildcards):
 # have one before mhc_hammer can run at all.
 def _mhc_hammer_get_battenberg_cp_input(wildcards):
     CFG = config["lcr-modules"]["mhc_hammer"]
-    pattern = CFG["options"]["battenberg_cellularity_ploidy"]
+    pattern = CFG["inputs"]["battenberg_cellularity_ploidy"]
     if not pattern:
         return []
     path = pattern.format(
@@ -340,7 +340,7 @@ def _mhc_hammer_parse_cellularity_ploidy(wildcards, input):
 # CFG["paired_runs"], so the DAG tracks all of them as real dependencies.
 def _mhc_hammer_get_all_battenberg_cp_inputs(wildcards):
     CFG = config["lcr-modules"]["mhc_hammer"]
-    pattern = CFG["options"]["battenberg_cellularity_ploidy"]
+    pattern = CFG["inputs"]["battenberg_cellularity_ploidy"]
     if not pattern:
         return []
     runs = CFG["paired_runs"]
@@ -1646,7 +1646,7 @@ rule _mhc_hammer_generate_inventory:
         CFG = config["lcr-modules"]["mhc_hammer"]
         samples = CFG["samples"]
         runs = CFG["paired_runs"]
-        cp_pattern = CFG["options"]["battenberg_cellularity_ploidy"]
+        cp_pattern = CFG["inputs"]["battenberg_cellularity_ploidy"]
         purity_ploidy = {}
         # Diagnostic counters -- checked independently of input.cellularity_ploidy (the DAG-build-
         # time list from _mhc_hammer_get_all_battenberg_cp_inputs) via a fresh os.path.exists() at
