@@ -1778,10 +1778,44 @@ def _mhc_hammer_get_patient_run_ids(wildcards):
     normal_ids = " ".join(sorted(set(patient_runs["normal_sample_id"].tolist())))
     return tumour_ids, normal_ids
 
+# make_mutation_table.R's only use of --inventory_path is a tumour_sample_name ->
+# normal_sample_name lookup, restricted to sample_type == "tumour" rows -- confirmed by reading
+# the script directly (see the long comment on the old "inventory" input this replaced). Building
+# a tiny, patient-scoped inventory snippet directly from CFG["paired_runs"] here (instead of
+# depending on the shared, cohort-wide _mhc_hammer_generate_inventory.output.inventory) removes a
+# real Snakemake dependency edge onto a rule that's deliberately forced to run on *every*
+# invocation (see _mhc_hammer_invocation_marker) -- that forced-every-time scheduling was
+# cascading into _mhc_hammer_parse_mutations rerunning for every single patient on every single
+# invocation too (Snakemake schedules a rule's downstream consumers whenever the producing rule
+# is itself scheduled to run, regardless of whether its output content ends up actually changing
+# -- confirmed on a real cohort where a dry run showed 353/353 patients rerunning even after the
+# generate_inventory content-stability fix, since that fix only helps a *later* invocation's
+# mtime comparison, not this same-invocation scheduling cascade). Only the columns
+# make_mutation_table.R actually reads (sample_name, sample_type, sequencing_type,
+# normal_sample_name) need real values; patient/purity/ploidy are never referenced by this
+# script, so they're left blank.
+def _mhc_hammer_get_patient_inventory_content(wildcards):
+    CFG = config["lcr-modules"]["mhc_hammer"]
+    patient_runs = op.filter_samples(
+        CFG["paired_runs"],
+        tumour_patient_id = wildcards.patient_id,
+        tumour_seq_type = wildcards.seq_type,
+        tumour_genome_build = wildcards.genome_build
+    )
+    lines = ["patient,sample_name,sample_type,sequencing_type,purity,ploidy,normal_sample_name"]
+    for tumour_id, normal_id in zip(patient_runs["tumour_sample_id"], patient_runs["normal_sample_id"]):
+        lines.append(f"{wildcards.patient_id},{tumour_id},tumour,{MHC_SEQ},,,{normal_id}")
+    # Literal two-character "\n" sequences (not real newlines) -- reconstructed into real
+    # newlines by `printf '%b'` in the shell block below (including a trailing one, since this
+    # value is substituted in after op.as_one_line() has already run on the static shell
+    # template -- any \n typed directly into that template would itself be parsed as a real
+    # newline by Python's own triple-quoted string handling and then collapsed back into a
+    # space by op.as_one_line(), same class of gotcha as feedback_as_one_line_semicolons).
+    return "\\n".join(lines) + "\\n"
+
 rule _mhc_hammer_parse_mutations:
     input:
-        unpack(_mhc_hammer_get_patient_mutation_inputs),
-        inventory = str(rules._mhc_hammer_generate_inventory.output.inventory)
+        unpack(_mhc_hammer_get_patient_mutation_inputs)
     output:
         mutations = CFG["dirs"]["mutations"] + "{seq_type}--{genome_build}/{patient_id}/{patient_id}_mutations.csv"
     log:
@@ -1794,7 +1828,7 @@ rule _mhc_hammer_parse_mutations:
             os.path.dirname(os.path.abspath(f)) for f in list(input.tumour_marker) + list(input.normal_marker)
         ))),
         tumour_normal_ids = lambda wildcards: _mhc_hammer_get_patient_run_ids(wildcards),
-        inventory_abs = lambda wildcards, input: os.path.abspath(input.inventory),
+        inventory_content = _mhc_hammer_get_patient_inventory_content,
         mutations_abs = lambda wildcards, output: os.path.abspath(output.mutations)
     conda:
         CFG["conda_envs"]["mhc_hammer_r"]
@@ -1821,6 +1855,7 @@ rule _mhc_hammer_parse_mutations:
             done;
         done;
         cd $stage &&
+        printf '%b' "{params.inventory_content}" > inventory.csv &&
         vep_tables=$(ls *.vep.txt 2>/dev/null || true) &&
         if [ -z "$vep_tables" ]; then
             echo "No mutations detected for patient {wildcards.patient_id} -- skipping mutation table";
@@ -1829,7 +1864,7 @@ rule _mhc_hammer_parse_mutations:
             tumour_ids="{params.tumour_normal_ids[0]}" && normal_ids="{params.tumour_normal_ids[1]}" &&
             tumour_bams=$(for tid in $tumour_ids; do ls ${{tid}}_{params.mhc_seq}_novoalign.*.sorted.filtered.bam 2>/dev/null; done) &&
             gl_bams=$(for nid in $normal_ids; do ls ${{nid}}_{params.mhc_seq}_novoalign.*.sorted.filtered.bam 2>/dev/null; done | sort -u) &&
-            Rscript {params.scripts_dir}/bin/make_mutation_table.R --vep_tables $vep_tables --wxs_tumour_bam_files $tumour_bams --wxs_gl_bam_files $gl_bams --mutation_save_path {params.mutations_abs} --scripts_dir {params.scripts_dir}/bin/ --inventory_path {params.inventory_abs};
+            Rscript {params.scripts_dir}/bin/make_mutation_table.R --vep_tables $vep_tables --wxs_tumour_bam_files $tumour_bams --wxs_gl_bam_files $gl_bams --mutation_save_path {params.mutations_abs} --scripts_dir {params.scripts_dir}/bin/ --inventory_path inventory.csv;
         fi
         ) > {log.stdout} 2>&1 &&
         rm -rf $stage
