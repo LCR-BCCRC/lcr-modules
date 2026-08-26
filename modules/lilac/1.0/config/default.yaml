@@ -1,0 +1,102 @@
+lcr-modules:
+
+    lilac:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+            # Optional, per matched pair. Reference data the module reads (same category as
+            # sample_bam above -- not a tool/script path, see the mhc_hammer battenberg_cellularity_ploidy
+            # inputs-vs-options decision this convention is based on). Skipped (LILAC still runs,
+            # just without tumour copy number output) if the file doesn't exist for a given pair.
+            # Real example default: PURPLE's own gene-level copy number TSV
+            # (modules/hmftools/1.1's own _hmftools_purple_matched output).
+            # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
+            gene_copy_number: "results/hmftools-1.1/99-outputs/purple_output/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.purple.cnv.gene.tsv"
+
+            # Optional, per matched pair. LILAC accepts any VCF with TUMOR/NORMAL-labelled samples
+            # (its own README: "from SAGE or PURPLE (other callers also accepted)") -- SAGE's own
+            # combined VCF by default (modules/sage/1.1's own _sage_output_vcf output). Skipped
+            # (LILAC still runs, just without somatic mutation-per-allele output) if missing.
+            # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
+            somatic_vcf: "results/sage-1.1/99-outputs/combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.combined.vcf.gz"
+
+        scratch_subdirectories: []
+
+        options:
+            # How genome_builds in the samples table map to LILAC's own -ref_genome_version
+            # argument (confirmed against the real installed hmftools-lilac=2.0.1 jar's own
+            # registered config item, "Ref genome version, 37 or 38" -- NOT "V37"/"V38" as LILAC's
+            # own README example commands show; both forms were empirically confirmed to parse
+            # without error, but the bare form matches the tool's own authoritative description).
+            # Mirrors modules/hmftools/1.1's own options.version_map exactly (same problem, same
+            # genome_build flavour vocabulary) -- deliberately a separate copy, not a cross-module
+            # reference, matching how modules/sage/1.1 also keeps its own copy rather than sharing.
+            version_map:
+                grch37: "37"
+                hs37d5: "37"
+                hg38: "38"
+
+            # GRCh38 BAMs must be aligned to a build with no HLA ALT contigs (LILAC's own README
+            # warning) -- set True if your genome_build's reference_files() FASTA is a masked/
+            # ALT-free variant. Mirrors modules/hmftools/1.1's own options.use_masked_ref switch.
+            use_masked_ref: False
+
+            # Pins the oncoanalyser/HMF reference-data bundle version fetched by
+            # _lilac_download_reference. Real, non-gated, versioned URLs (confirmed via the
+            # nf-co.re/oncoanalyser downloads page):
+            # https://pub-cf6ba01919994c3cbd354659947f74d8.r2.dev/hmf_reference_data/hmftools/hmf_pipeline_resources.{37,38}_v{hmf_resource_version}.tar.gz
+            # NOTE: this bundle is ~5.6GB per genome-build-family and contains reference data for
+            # every hmftools tool (AMBER/COBALT/PURPLE/SAGE/LINX/LILAC), not just LILAC's own 3
+            # small CSVs (lilac_allele_frequencies.csv, hla_ref_nucleotide_sequences.csv,
+            # hla_ref_aminoacid_sequences.csv) -- _lilac_download_reference extracts the whole
+            # thing, locates the 3 needed files with `find` (their exact internal subdirectory
+            # wasn't independently confirmed without downloading 5.6GB to check -- find is
+            # deliberately dynamic/robust to whatever it turns out to be, rather than a hardcoded
+            # guessed path), copies just those out, and deletes the rest. modules/hmftools/1.1 and
+            # modules/sage/1.1 avoid this entirely by pointing at pre-extracted, per-tool mirrors
+            # on www.bcgsc.ca/downloads/morinlab/hmftools-references/{amber,cobalt,purple,sage,...}
+            # -- no lilac/ entry exists there yet (confirmed: 404). Setting one up there with just
+            # the 3 needed files would let this rule's URL be swapped for a dramatically lighter
+            # download, matching the existing convention, without changing anything else.
+            hmf_resource_version: "2.3.0--2"
+
+            # Passed straight through as LILAC CLI flags -- see LILAC's own -h output (or
+            # lilac/README.md's "Optional parameters" table) for what each one does. Defaults here
+            # match LILAC's own built-in defaults.
+            min_base_qual: 30
+            min_evidence_support: 1
+            min_evidence_factor: 0.006
+            min_high_qual_evidence_factor: 0.003
+            min_fragments_per_allele: 7
+            min_fragments_to_remove_single: 40
+            top_score_threshold: 0.005
+            hla_y_threshold: 0.003
+            freq_score_penalty: 0.009
+            write_types: "SUMMARY"
+
+        conda_envs:
+            lilac: "{MODSDIR}/envs/hmftools-lilac-2.0.1.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+
+        threads:
+            download_reference: 1
+            lilac: 4
+
+        resources:
+            download_reference:
+                mem_mb: 2000
+            lilac:
+                mem_mb: 8000
+
+        pairing_config:
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False
