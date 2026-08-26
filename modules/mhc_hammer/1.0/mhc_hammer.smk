@@ -1648,6 +1648,13 @@ rule _mhc_hammer_generate_inventory:
         runs = CFG["paired_runs"]
         cp_pattern = CFG["options"]["battenberg_cellularity_ploidy"]
         purity_ploidy = {}
+        # Diagnostic counters -- checked independently of input.cellularity_ploidy (the DAG-build-
+        # time list from _mhc_hammer_get_all_battenberg_cp_inputs) via a fresh os.path.exists() at
+        # rule-execution time, so a real discrepancy between the two (if one ever showed up) would
+        # be visible here rather than silently masked by only trusting one of them.
+        cp_example_path = None
+        cp_found_on_disk = 0
+        cp_in_dag_inputs = 0
         if cp_pattern:
             for _, run_row in runs.iterrows():
                 cp_path = cp_pattern.format(
@@ -1656,13 +1663,32 @@ rule _mhc_hammer_generate_inventory:
                     tumour_id = run_row["tumour_sample_id"],
                     normal_id = run_row["normal_sample_id"]
                 )
+                if cp_example_path is None:
+                    cp_example_path = cp_path
+                if os.path.exists(cp_path):
+                    cp_found_on_disk += 1
                 if cp_path not in input.cellularity_ploidy:
                     continue
+                cp_in_dag_inputs += 1
                 with open(cp_path) as fh:
                     header = fh.readline().rstrip("\n").split("\t")
                     values = fh.readline().rstrip("\n").split("\t")
                 cp_row = dict(zip(header, values))
                 purity_ploidy[run_row["tumour_sample_id"]] = (cp_row.get("cellularity", ""), cp_row.get("ploidy", ""))
+        print(
+            f"INFO [mhc_hammer]: battenberg_cellularity_ploidy pattern = {cp_pattern!r} -- "
+            f"{cp_found_on_disk} of {len(runs)} matched pair(s) have a real file on disk right now "
+            f"({cp_in_dag_inputs} of those were also visible to Snakemake's own DAG-build-time "
+            f"check -- these two counts should always match; a difference would itself be a bug). "
+            f"Example resolved path for the first pair: {cp_example_path!r}."
+        )
+        if cp_pattern and cp_found_on_disk == 0:
+            print(
+                "INFO [mhc_hammer]: 0 battenberg cellularity_ploidy.txt files found at the path "
+                "above -- purity/ploidy will be blank for every sample in inventory.csv and the "
+                "cohort table until this pattern resolves to real, existing files. Check the "
+                "example path against where your Battenberg output actually lives."
+            )
         normal_for_tumour = dict(zip(runs["tumour_sample_id"], runs["normal_sample_id"]))
         # Restrict to samples belonging to a real MATCHED pair (runs == CFG["paired_runs"],
         # already narrowed to pair_status == "matched" near the top of this file) -- deliberately
