@@ -1,4 +1,4 @@
-get_co_expressed_genes_modules <- function(expression_matrix, powers = 1:15, cor_method = "bicor", network_type = "signed hybrid", plots_dir){
+get_co_expressed_genes_modules <- function(expression_matrix, powers = 1:15, cor_method = "bicor", network_type = "unsigned", plots_dir){
   
   dir.create(plots_dir, recursive = TRUE, showWarnings = FALSE)
   

@@ -114,7 +114,7 @@ if _wgcna_mode == "raw":
             batches               = _wgcna_ge_cfg.get("batches", ["protocol", "ffpe_or_frozen"]),
             cohort_var            = _wgcna_ge_cfg.get("cohort_var", "cohort"),
             bio_var               = _wgcna_ge_cfg.get("bio_var", "pathology"),
-            script_dir            = workflow.basedir + "/src",
+            script_dir            = str(workflow.current_basedir) + "/src",
         script:
             "src/run_normalize_gene_expression.R"
 
@@ -148,7 +148,7 @@ rule _wgcna_filter_variance_genes:
         median_threshold = _wgcna_ge_cfg["median_threshold"],
         mad_threshold    = _wgcna_ge_cfg["mad_threshold"],
         plots_dir        = lambda wc: _wgcna_CFG["dirs"]["wgcna"] + wc.pathology + "/plots",
-        script_dir       = workflow.basedir + "/src",
+        script_dir       = str(workflow.current_basedir) + "/src",
     script:
         "src/run_filter_high_variance_genes.R"
 
@@ -180,7 +180,7 @@ rule _wgcna_get_coexpression_modules:
         cor_method   = _wgcna_ge_cfg["cor_method"],
         network_type = _wgcna_ge_cfg["network_type"],
         plots_dir    = lambda wc: _wgcna_CFG["dirs"]["wgcna"] + wc.pathology + "/plots",
-        script_dir   = workflow.basedir + "/src",
+        script_dir   = str(workflow.current_basedir) + "/src",
     script:
         "src/run_get_co_expressed_genes_modules.R"
 

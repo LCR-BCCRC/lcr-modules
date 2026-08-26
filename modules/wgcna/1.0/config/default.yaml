@@ -51,7 +51,7 @@ lcr-modules:
             # --- WGCNA parameters ---
             wgcna_powers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
             cor_method: "bicor"
-            network_type: "signed hybrid"
+            network_type: "unsigned"
 
         options:
             normalize_expression: ""
