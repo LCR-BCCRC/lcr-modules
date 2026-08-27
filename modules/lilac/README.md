@@ -12,11 +12,7 @@ LILAC is distributed under the **GPLv3 licence** -- unlike `mhc_hammer`'s upstre
 
 ## Prerequisites (read before use)
 
-This module needs one thing that isn't fully automated yet:
-
-1. **LILAC's own reference data** (`lilac_allele_frequencies.csv`, `hla_ref_nucleotide_sequences.csv`, `hla_ref_aminoacid_sequences.csv`): fetched automatically per genome-build family by `_lilac_download_reference` from the real, non-gated [oncoanalyser reference-data bundle](https://nf-co.re/oncoanalyser/docs/usage/#reference-data-urls). **Be aware this bundle is ~5.6GB per genome-build family** and contains reference data for every hmftools tool (AMBER/COBALT/PURPLE/SAGE/LINX), not just LILAC's own 3 small files -- the rule extracts the whole thing, locates the 3 needed files, copies them out, and deletes the rest. If you have access to `www.bcgsc.ca/downloads/morinlab/hmftools-references/` (used by `modules/hmftools/1.1` and `modules/sage/1.1` for exactly this kind of pre-extracted, per-tool reference mirror), adding a `lilac/` entry there with just these 3 files would let `options.hmf_resource_version`'s download source be swapped for something dramatically lighter, without any other change to this module.
-
-Everything else -- the reference genome FASTA, the `lilac` binary itself -- is handled the standard lcr-modules way (`reference_files()`, `conda_envs`).
+Nothing needs to be supplied manually. `_lilac_download_reference` fetches LILAC's own 3 required resource files (`lilac_allele_frequencies.csv`, `hla_ref_nucleotide_sequences.csv`, `hla_ref_aminoacid_sequences.csv`, ~30MB combined) from `www.bcgsc.ca/downloads/morinlab/hmftools-references/lilac/` -- the same pre-extracted, per-tool reference mirror `modules/hmftools/1.1` and `modules/sage/1.1` already use for this upstream tool suite. One cohort-wide download, not per genome build (all 3 files are build-independent). The reference genome FASTA and the `lilac` binary itself are handled the standard lcr-modules way (`reference_files()`, `conda_envs`).
 
 Every patient in your sample table must have **exactly one** germline WES/WGS sample (`tissue_status: normal`) per `patient_id`/`seq_type`/`genome_build` combination that you want typed -- oncopipe's own pairing (`CFG["paired_runs"]`, narrowed to `pair_status == "matched"` only) handles this; a tumour sample without a real matched germline in the same patient is never processed, since HLA typing needs the patient's own germline sample.
 

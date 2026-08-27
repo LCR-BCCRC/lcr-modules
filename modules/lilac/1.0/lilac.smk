@@ -77,10 +77,6 @@ LILAC_TUNABLE_FLAGS = " ".join(
     ]
 )
 
-# Plain-string constant, not the CFG dict itself -- safe to reference in the params: lambda below
-# even after op.cleanup_module(CFG) deletes the module-level CFG name.
-HMF_RESOURCE_VERSION = CFG["options"]["hmf_resource_version"]
-
 # Define rules to be run locally when using a compute cluster
 localrules:
     _lilac_input_bam,
@@ -132,18 +128,6 @@ def _lilac_get_pair_bams(wildcards):
         "normal_bai": expand(str(rules._lilac_input_bam.output.bai), sample_id = wildcards.normal_id, allow_missing = True),
     }
 
-# The 3 resource CSVs for whichever "37"/"38" family this pair's genome_build maps to.
-def _lilac_get_resource_files(wildcards):
-    ref_genome_version = VERSION_MAP[wildcards.genome_build]
-    return expand(
-        [
-            str(rules._lilac_download_reference.output.freq),
-            str(rules._lilac_download_reference.output.nuc),
-            str(rules._lilac_download_reference.output.aa)
-        ],
-        ref_genome_version = ref_genome_version
-    )
-
 
 ##### RULES #####
 
@@ -171,34 +155,25 @@ rule _lilac_input_bam:
         op.absolute_symlink(input.bai, output.crai)
 
 
-# Downloads and unpacks the real, non-gated, versioned HMF/oncoanalyser reference-data bundle
-# (confirmed URL structure via nf-co.re/oncoanalyser's own downloads page), one per genome-build
-# family ("37"/"38", not per genome_build -- grch37/hs37d5 share the same "37" bundle). Extracts
-# just the 3 CSVs LILAC's own -resource_dir requires.
-#
-# NOTE: this bundle is ~5.6GB per family and contains reference data for every hmftools tool
-# (AMBER/COBALT/PURPLE/SAGE/LINX/LILAC), not just LILAC's own 3 small files -- the exact internal
-# subdirectory containing them wasn't independently confirmed without downloading the whole thing
-# to check, so `find` locates them dynamically (robust to whatever the real structure turns out to
-# be) rather than assuming a guessed path. modules/hmftools/1.1 and modules/sage/1.1 avoid this
-# multi-GB download entirely by pointing at pre-extracted, per-tool mirrors on
-# www.bcgsc.ca/downloads/morinlab/hmftools-references/{amber,cobalt,purple,sage,...} -- no lilac/
-# entry exists there yet (confirmed: 404 as of 2026-08-26). Setting one up there with just these 3
-# files would let this rule's params.url be swapped for a dramatically lighter download without
-# changing anything else about this module.
+# Downloads LILAC's own 3 required resource CSVs directly from a pre-extracted mirror on
+# www.bcgsc.ca/downloads/morinlab/hmftools-references/lilac/ -- the same convention
+# modules/hmftools/1.1 and modules/sage/1.1 already use for this exact upstream tool suite
+# (confirmed directory listing, 2026-08-26: all 3 files here are plain, build-independent
+# filenames, ~30MB total combined -- unlike the ~5.6GB-per-build official HMF/oncoanalyser bundle
+# this rule originally pointed at. The mirror also has hla.37.bed/hla.38.bed -- the one file in
+# this resource set that *is* build-specific -- but LILAC's own -resource_dir requirement, per its
+# real registered CLI config items, is only these 3 CSVs; the bed file isn't fetched here). No
+# genome_build/ref_genome_version wildcard needed at all: one cohort-wide download, reused by
+# every pair regardless of build.
 rule _lilac_download_reference:
     output:
-        freq = CFG["dirs"]["reference"] + "{ref_genome_version}/lilac_allele_frequencies.csv",
-        nuc = CFG["dirs"]["reference"] + "{ref_genome_version}/hla_ref_nucleotide_sequences.csv",
-        aa = CFG["dirs"]["reference"] + "{ref_genome_version}/hla_ref_aminoacid_sequences.csv"
+        freq = CFG["dirs"]["reference"] + "lilac_allele_frequencies.csv",
+        nuc = CFG["dirs"]["reference"] + "hla_ref_nucleotide_sequences.csv",
+        aa = CFG["dirs"]["reference"] + "hla_ref_aminoacid_sequences.csv"
     log:
-        stdout = CFG["logs"]["reference"] + "{ref_genome_version}/download_reference.log"
+        stdout = CFG["logs"]["reference"] + "download_reference.log"
     params:
-        url = lambda wildcards: (
-            "https://pub-cf6ba01919994c3cbd354659947f74d8.r2.dev/hmf_reference_data/hmftools/"
-            f"hmf_pipeline_resources.{wildcards.ref_genome_version}_v{HMF_RESOURCE_VERSION}.tar.gz"
-        ),
-        outdir = CFG["dirs"]["reference"] + "{ref_genome_version}"
+        url = "https://www.bcgsc.ca/downloads/morinlab/hmftools-references/lilac"
     conda:
         CFG["conda_envs"]["wget"]
     container:
@@ -210,17 +185,9 @@ rule _lilac_download_reference:
     shell:
         op.as_one_line("""
         (
-        mkdir -p {params.outdir} &&
-        stage={params.outdir}/staged && rm -rf $stage && mkdir -p $stage &&
-        wget -qO $stage/bundle.tar.gz "{params.url}" &&
-        tar -xzf $stage/bundle.tar.gz -C $stage &&
-        freq_path=$(find $stage -name lilac_allele_frequencies.csv | head -1) &&
-        nuc_path=$(find $stage -name hla_ref_nucleotide_sequences.csv | head -1) &&
-        aa_path=$(find $stage -name hla_ref_aminoacid_sequences.csv | head -1) &&
-        cp "$freq_path" {output.freq} &&
-        cp "$nuc_path" {output.nuc} &&
-        cp "$aa_path" {output.aa} &&
-        rm -rf $stage
+        wget -qO {output.freq} {params.url}/lilac_allele_frequencies.csv &&
+        wget -qO {output.nuc} {params.url}/hla_ref_nucleotide_sequences.csv &&
+        wget -qO {output.aa} {params.url}/hla_ref_aminoacid_sequences.csv
         ) > {log.stdout} 2>&1
         """)
 
@@ -245,7 +212,9 @@ rule _lilac_run:
         unpack(_lilac_get_pair_bams),
         gene_copy_number = _lilac_get_gene_copy_number_input,
         somatic_vcf = _lilac_get_somatic_vcf_input,
-        resource_files = _lilac_get_resource_files,
+        resource_freq = str(rules._lilac_download_reference.output.freq),
+        resource_nuc = str(rules._lilac_download_reference.output.nuc),
+        resource_aa = str(rules._lilac_download_reference.output.aa),
         fasta = reference_files("genomes/{genome_build}" + masked_string + "/genome_fasta/genome.fa")
     output:
         tsv = CFG["dirs"]["lilac"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.lilac.tsv",
@@ -256,7 +225,7 @@ rule _lilac_run:
         stdout = CFG["logs"]["lilac"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lilac.log"
     params:
         ref_genome_version = lambda wildcards: VERSION_MAP[wildcards.genome_build],
-        resource_dir = lambda wildcards, input: os.path.dirname(input.resource_files[0]),
+        resource_dir = lambda wildcards, input: os.path.dirname(input.resource_freq),
         output_dir = lambda wildcards, output: os.path.dirname(output.tsv),
         gene_copy_number_flag = lambda wildcards, input: f"-gene_copy_number {input.gene_copy_number[0]}" if input.gene_copy_number else "",
         somatic_vcf_flag = lambda wildcards, input: f"-somatic_vcf {input.somatic_vcf[0]}" if input.somatic_vcf else "",
