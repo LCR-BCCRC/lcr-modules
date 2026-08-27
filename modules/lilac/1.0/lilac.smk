@@ -236,7 +236,15 @@ rule _lilac_run:
         output_dir = lambda wildcards, output: os.path.dirname(output.tsv),
         gene_copy_number_flag = lambda wildcards, input: f"-gene_copy_number {input.gene_copy_number[0]}" if input.gene_copy_number else "",
         somatic_vcf_flag = lambda wildcards, input: f"-somatic_vcf {input.somatic_vcf[0]}" if input.somatic_vcf else "",
-        tunable_flags = LILAC_TUNABLE_FLAGS
+        tunable_flags = LILAC_TUNABLE_FLAGS,
+        # The lilac wrapper script defaults to -Xmx1g regardless of how much memory Snakemake/the
+        # cluster scheduler actually reserved for this job -- those are two entirely separate
+        # settings, and this rule never told the JVM about the real allocation. Real, fatal
+        # failure without this: OutOfMemoryError while loading the ~24MB nucleotide reference file
+        # alone, well before touching any BAM data. Mirrors modules/hmftools/1.1's own jvmheap
+        # pattern exactly (used there for AMBER/COBALT/PURPLE/LINX, the same JVM-based tool
+        # family) -- 80% of the reserved memory, leaving headroom for JVM overhead beyond the heap.
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["lilac"]
     container:
@@ -249,6 +257,7 @@ rule _lilac_run:
         op.as_one_line("""
         mkdir -p {params.output_dir} &&
         lilac
+        -Xmx{params.jvmheap}m
         -sample {wildcards.tumour_id}
         -ref_genome {input.fasta}
         -ref_genome_version {params.ref_genome_version}
