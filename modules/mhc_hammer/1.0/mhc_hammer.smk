@@ -806,14 +806,28 @@ rule _mhc_hammer_hla2_generate_fqs:
 # not a copy of MHC Hammer's bin/hlahd_parse_output.R) instead of upstream's parser, since that
 # script requires a GTF cross-reference this module has no class-II equivalent of. See the long
 # comment on that script for what it does differently.
+#
+# Output lives in a SIBLING "{patient_id}_hla2/" directory, not a "{patient_id}/hla2/" subdirectory
+# of _mhc_hammer_hlahd's own workdir -- unlike the analogous preprocess-level hla2/ nesting above
+# (which is safe: _mhc_hammer_subset_bam only ever rm -rf's its own {sample_id}_tmpDir, never its
+# whole {sample_id}/ directory), _mhc_hammer_hlahd's workdir-wipe step does `rm -rf {workdir}` on
+# its ENTIRE {patient_id}/ directory as its first command (see that rule's own comment on why: a
+# partial-failure retry needs a truly clean slate). Nesting this rule's output inside that same
+# {patient_id}/ directory created a real, confirmed race condition: Snakemake has no way to know
+# these two independent, no-dependency rules touch overlapping paths, so it can (and did, on a
+# real run) schedule them concurrently for the same patient -- _mhc_hammer_hlahd's `rm -rf` walking
+# the directory tree while this rule was concurrently writing new files into hla2/{patient_id}/,
+# producing "rm: cannot remove '.../hla2/{patient_id}/mapfile': Directory not empty" and failing
+# _mhc_hammer_hlahd's job. A sibling directory makes the two rules' workdirs fully disjoint, so
+# neither rule's cleanup can ever race against the other's writes.
 rule _mhc_hammer_hla2_hlahd:
     input:
         unpack(_mhc_hammer_get_hla2_germline_fqs)
     output:
-        hla_alleles = CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}/hla2/{patient_id}_hla2_alleles.csv",
-        result_dir = directory(CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}/hla2/result")
+        hla_alleles = CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}_hla2/{patient_id}_hla2_alleles.csv",
+        result_dir = directory(CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}_hla2/result")
     log:
-        stdout = CFG["logs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}/hla2/hlahd.log"
+        stdout = CFG["logs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}_hla2/hlahd.log"
     params:
         parse_script = HLA2_PARSE_SCRIPT,
         hlahd_dir = HLAHD_DIR,
