@@ -65,12 +65,15 @@ if CFG["options"]["use_masked_ref"]:
     masked_string = "_masked"
 
 # Static passthrough of LILAC's own tunable parameters -- built once at parse time (not per-rule)
-# since none of these depend on wildcards. See LILAC's own -h output (or lilac/README.md's
-# "Optional parameters" table) for what each one does; defaults here match LILAC's own built-ins.
+# since none of these depend on wildcards. Every key here is checked against the real installed
+# hmftools-lilac=2.0.1 jar's own registered config items (`lilac -h`'s error-dump output), not just
+# LILAC's own README table -- the two disagree in at least one place: the README documents a
+# `-min_base_qual` option that doesn't exist in the real v2.0.1 CLI at all (confirmed on a real
+# run: "unregistered config item: -min_base_qual"), so it's deliberately not included here.
 LILAC_TUNABLE_FLAGS = " ".join(
     f"-{key} {CFG['options'][key]}"
     for key in [
-        "min_base_qual", "min_evidence_support", "min_evidence_factor",
+        "min_evidence_support", "min_evidence_factor",
         "min_high_qual_evidence_factor", "min_fragments_per_allele",
         "min_fragments_to_remove_single", "top_score_threshold",
         "hla_y_threshold", "freq_score_penalty", "write_types"
