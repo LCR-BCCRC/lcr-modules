@@ -373,8 +373,22 @@ rule _lilac_run:
         ref_genome_version = lambda wildcards: VERSION_MAP[wildcards.genome_build],
         resource_dir = lambda wildcards, input: os.path.dirname(input.resource_freq),
         output_dir = lambda wildcards, output: os.path.dirname(output.tsv),
-        gene_copy_number_flag = lambda wildcards, input: f"-gene_copy_number {input.gene_copy_number[0]}" if input.gene_copy_number else "",
-        somatic_vcf_flag = lambda wildcards, input: f"-somatic_vcf {input.somatic_vcf[0]}" if input.somatic_vcf else "",
+        # Real, undocumented bug confirmed by running the real lilac-v2.0.1 jar locally with dummy
+        # inputs: LilacConfig.java (line ~176) only picks up -somatic_vcf/-gene_copy_number via
+        # `configBuilder.hasValue(SOMATIC_VCF) && configBuilder.hasValue(GENE_COPY_NUMBER)` -- BOTH
+        # flags must be present on the command line simultaneously, or LILAC silently discards
+        # BOTH (SomaticVariantsFile/CopyNumberFile both end up "", with no error, no warning; the
+        # startup log line "somaticVCF(false)"/"geneCopyNumber(false)" is the only trace). Passing
+        # only one flag -- exactly what this rule did before, and exactly this cohort's real
+        # situation (gene_copy_number unset while the PURPLE-schema-compatibility issue is
+        # unresolved) -- meant -somatic_vcf was being silently ignored even with a real, correctly
+        # PAVE-annotated VCF. Confirmed the fix locally too: passing the other flag as an empty
+        # string ("") satisfies hasValue() (true) while leaving CopyNumberFile/SomaticVariantsFile
+        # genuinely empty downstream (LilacApplication.java only reads CopyNumberFile when
+        # !isEmpty()), so this is safe even when the real value truly isn't available -- always
+        # pass both flags together, using "" for whichever input is missing.
+        gene_copy_number_value = lambda wildcards, input: input.gene_copy_number[0] if input.gene_copy_number else "",
+        somatic_vcf_value = lambda wildcards, input: input.somatic_vcf[0] if input.somatic_vcf else "",
         tunable_flags = LILAC_TUNABLE_FLAGS,
         # The lilac wrapper script defaults to -Xmx1g regardless of how much memory Snakemake/the
         # cluster scheduler actually reserved for this job -- those are two entirely separate
@@ -403,8 +417,8 @@ rule _lilac_run:
         -resource_dir {params.resource_dir}
         -reference_bam {input.normal_bam}
         -tumor_bam {input.tumour_bam}
-        {params.gene_copy_number_flag}
-        {params.somatic_vcf_flag}
+        -gene_copy_number "{params.gene_copy_number_value}"
+        -somatic_vcf "{params.somatic_vcf_value}"
         {params.tunable_flags}
         -threads {threads}
         -output_dir {params.output_dir}

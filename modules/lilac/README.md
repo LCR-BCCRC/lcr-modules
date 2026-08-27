@@ -29,6 +29,8 @@ Both are optional per pair -- missing either one just means LILAC runs without t
 
   PAVE itself needs an Ensembl gene/transcript cache (`inputs.ensembl_data_dir`, also optional). Left unset, this module downloads its own copy. If you already have one -- `modules/hmftools/1.1` downloads the exact same reference data for AMBER/COBALT/PURPLE/LINX -- point this at that directory instead (e.g. `results/hmftools-1.1/00-inputs/references/{genome_build}/ensembl_cache/`) to skip a redundant second download.
 
+  One real quirk in LILAC itself, not this module: LILAC's own CLI only honours `-somatic_vcf`/`-gene_copy_number` if *both* are present on the command line at once -- pass only one and LILAC silently discards it (no error). This module always passes both flags together (using an empty value for whichever input isn't available for a given pair) so `somatic_vcf` alone still works correctly even while `gene_copy_number` stays unset.
+
 ## What's not included in v1
 
 - LILAC's own native tumour-only and germline-only run modes -- this module always runs paired mode (germline + tumour BAM together), matching `mhc_hammer`'s own v1 simplification, even though LILAC itself could type a germline-only or tumour-only sample. A real, low-cost future extension, not implemented yet.
