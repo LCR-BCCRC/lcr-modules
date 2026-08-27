@@ -70,10 +70,14 @@ if CFG["options"]["use_masked_ref"]:
 # LILAC's own README table -- the two disagree in at least one place: the README documents a
 # `-min_base_qual` option that doesn't exist in the real v2.0.1 CLI at all (confirmed on a real
 # run: "unregistered config item: -min_base_qual"), so it's deliberately not included here.
+# "genes" is included deliberately (restricted to MHC_CLASS_1, not LILAC's own "ALL" default) --
+# see the long comment on options.genes in default.yaml for why: a real run crashed trying to
+# solve for HLA-DQA1 (a class II gene "ALL" includes in this build) against class-I-only
+# reference data.
 LILAC_TUNABLE_FLAGS = " ".join(
     f"-{key} {CFG['options'][key]}"
     for key in [
-        "min_evidence_support", "min_evidence_factor",
+        "genes", "min_evidence_support", "min_evidence_factor",
         "min_high_qual_evidence_factor", "min_fragments_per_allele",
         "min_fragments_to_remove_single", "top_score_threshold",
         "hla_y_threshold", "freq_score_penalty", "write_types"

@@ -44,6 +44,20 @@ lcr-modules:
             # ALT-free variant. Mirrors modules/hmftools/1.1's own options.use_masked_ref switch.
             use_masked_ref: False
 
+            # Restricts LILAC to HLA class I (A/B/C) only, matching this module's own documented
+            # scope. NOT LILAC's own default -- confirmed by reading GeneSelector.java directly
+            # (hmftools/lilac/src/main/java/.../GeneSelector.java) that "-genes ALL" (the default
+            # this module was silently relying on before) actually includes several class II genes
+            # too (HLA_DQB1/DPA1/DPB1/DQA1, everything with IncludedInAll=true except DRB1/DRB) in
+            # this real v2.0.1 build, despite LILAC's own README describing class-I-only scope.
+            # Real, fatal failure on a real run without this: LILAC tried to solve for HLA-DQA1,
+            # found zero matching entries in the class-I-only reference data this module's
+            # www.bcgsc.ca mirror provides ("loaded 0 allele frequencies"/"loaded 0 sequences"),
+            # and crashed ("failed to assign fragments to alleles"). "MHC_CLASS_1" is the exact
+            # GeneSelector enum constant name LILAC's own arg parser requires (case-sensitive,
+            # java Enum.valueOf() under the hood) -- not a value invented for this config.
+            genes: "MHC_CLASS_1"
+
             # Passed straight through as LILAC CLI flags. Every key here was checked against the
             # real installed hmftools-lilac=2.0.1 jar's own registered config items (`lilac -h`'s
             # error-dump output), not just LILAC's own README table -- the README documents a
