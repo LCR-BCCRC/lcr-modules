@@ -14,6 +14,8 @@ LILAC is distributed under the **GPLv3 licence** -- unlike `mhc_hammer`'s upstre
 
 Nothing needs to be supplied manually. `_lilac_download_reference` fetches LILAC's own 3 required resource files (`lilac_allele_frequencies.csv`, `hla_ref_nucleotide_sequences.csv`, `hla_ref_aminoacid_sequences.csv`, ~30MB combined) from `www.bcgsc.ca/downloads/morinlab/hmftools-references/lilac/` -- the same pre-extracted, per-tool reference mirror `modules/hmftools/1.1` and `modules/sage/1.1` already use for this upstream tool suite. One cohort-wide download, not per genome build (all 3 files are build-independent). The reference genome FASTA and the `lilac` binary itself are handled the standard lcr-modules way (`reference_files()`, `conda_envs`).
 
+If you supply `inputs.somatic_vcf` for a pair, `_lilac_download_ensembl_cache` also fetches PAVE's Ensembl gene/transcript cache (genome-build-keyed, same `www.bcgsc.ca/downloads/morinlab/hmftools-references/ensembl_data_cache/` mirror `modules/hmftools/1.1` already uses) -- needed for the PAVE annotation step, not for LILAC itself. Skipped entirely for pairs with no somatic_vcf.
+
 Every patient in your sample table must have **exactly one** germline WES/WGS sample (`tissue_status: normal`) per `patient_id`/`seq_type`/`genome_build` combination that you want typed -- oncopipe's own pairing (`CFG["paired_runs"]`, narrowed to `pair_status == "matched"` only) handles this; a tumour sample without a real matched germline in the same patient is never processed, since HLA typing needs the patient's own germline sample.
 
 ## Optional inputs
@@ -22,6 +24,10 @@ Both are optional per pair -- missing either one just means LILAC runs without t
 
 - `inputs.gene_copy_number`: a gene-level copy number TSV (minimum copy number and minimum minor allele copy number per gene), e.g. PURPLE's own `cnv.gene.tsv` output (`modules/hmftools/1.1`). Enables tumour allele-specific copy number output.
 - `inputs.somatic_vcf`: a somatic SNV/indel VCF with `TUMOR`/`NORMAL`-labelled samples, e.g. SAGE's own combined VCF (`modules/sage/1.1`) or PURPLE's. Enables per-allele somatic mutation assignment (`SomaticMissense`, `SomaticNonsenseOrFrameshift`, etc. in the output TSV, plus an annotated `<tumour_id>.lilac.somatic.vcf.gz`).
+
+  Whatever VCF you point this at, this module automatically runs it through **PAVE** (`_lilac_pave_annotate`) first, before handing it to LILAC. This isn't optional/skippable: LILAC's own somatic-mutation matching requires the VCF INFO tag PAVE writes (`IMPACT`) to know which gene/coding-effect each variant hits, and a raw, unannotated VCF (like SAGE's own combined output on its own, with no PAVE step) silently produces `0.0` for every Somatic* column, every allele, every sample, with no error -- LILAC completes normally throughout. If you point `inputs.somatic_vcf` at output that's already been through PAVE, that's fine too; PAVE overwriting an existing `IMPACT` tag is a no-op in practice.
+
+  PAVE itself needs an Ensembl gene/transcript cache (`inputs.ensembl_data_dir`, also optional). Left unset, this module downloads its own copy. If you already have one -- `modules/hmftools/1.1` downloads the exact same reference data for AMBER/COBALT/PURPLE/LINX -- point this at that directory instead (e.g. `results/hmftools-1.1/00-inputs/references/{genome_build}/ensembl_cache/`) to skip a redundant second download.
 
 ## What's not included in v1
 

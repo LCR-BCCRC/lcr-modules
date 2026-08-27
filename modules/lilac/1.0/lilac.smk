@@ -33,7 +33,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "lilac",
     version = "1.0",
-    subdirectories = ["inputs", "reference", "lilac", "outputs"],
+    subdirectories = ["inputs", "reference", "pave", "lilac", "outputs"],
 )
 
 # HLA typing genuinely needs the patient's own germline sample -- a substitute normal from a
@@ -88,6 +88,7 @@ LILAC_TUNABLE_FLAGS = " ".join(
 localrules:
     _lilac_input_bam,
     _lilac_download_reference,
+    _lilac_download_ensembl_cache,
     _lilac_output_tsv,
     _lilac_output_qc,
     _lilac_output_somatic_vcf,
@@ -102,6 +103,10 @@ localrules:
 # missing this file just runs LILAC without it (no CN or somatic-mutation-vs-CN output), rather
 # than being required up front. Re-fetches CFG from config[...] inline (not the module-level CFG
 # name) since op.cleanup_module(CFG) deletes that name before Snakemake evaluates input functions.
+# Uses os.path.isfile (not os.path.exists) deliberately -- a real run showed an unset/misconfigured
+# inputs.gene_copy_number resolving to a bare, non-templated directory path (the results root
+# itself), which os.path.exists() happily accepted (directories exist too), silently handing
+# "-gene_copy_number <a directory>" to LILAC. isfile() can't be fooled the same way.
 def _lilac_get_gene_copy_number_input(wildcards):
     CFG = config["lcr-modules"]["lilac"]
     pattern = CFG["inputs"]["gene_copy_number"]
@@ -111,9 +116,19 @@ def _lilac_get_gene_copy_number_input(wildcards):
         seq_type = wildcards.seq_type, genome_build = wildcards.genome_build,
         tumour_id = wildcards.tumour_id, normal_id = wildcards.normal_id, pair_status = wildcards.pair_status
     )
-    return [path] if os.path.exists(path) else []
+    return [path] if os.path.isfile(path) else []
 
-def _lilac_get_somatic_vcf_input(wildcards):
+# The raw, as-supplied somatic VCF (e.g. SAGE's combined output) -- existence-gated the same way as
+# gene_copy_number above. This is NOT what _lilac_run consumes directly (see
+# _lilac_get_somatic_vcf_input below) -- it's raw SAGE/caller output with no PAVE annotation, and
+# LILAC's own SomaticVariantAnnotation requires the VCF INFO tag PAVE writes ("IMPACT") to identify
+# each variant's gene/coding-effect. Real, silent, fatal-to-correctness bug confirmed on hundreds of
+# real samples: without that tag, VariantContextDecorator.gene() returns "", HlaGene.fromString("")
+# throws internally and is caught as null, and every variant ends up assigned to no real gene --
+# LILAC completes normally throughout, but SomaticMissense/SomaticNonsenseOrFrameshift/SomaticSplice
+# are 0.0 for every allele, every sample, regardless of real mutation burden. _lilac_pave_annotate
+# below is the fix -- this function is now just its gate/input.
+def _lilac_get_raw_somatic_vcf_input(wildcards):
     CFG = config["lcr-modules"]["lilac"]
     pattern = CFG["inputs"]["somatic_vcf"]
     if not pattern:
@@ -122,7 +137,38 @@ def _lilac_get_somatic_vcf_input(wildcards):
         seq_type = wildcards.seq_type, genome_build = wildcards.genome_build,
         tumour_id = wildcards.tumour_id, normal_id = wildcards.normal_id, pair_status = wildcards.pair_status
     )
-    return [path] if os.path.exists(path) else []
+    return [path] if os.path.isfile(path) else []
+
+# What _lilac_run actually consumes as somatic_vcf -- PAVE's IMPACT-annotated rewrite of the raw
+# VCF above, not the raw VCF itself. Gated on the same raw-file check (so a pair with no somatic_vcf
+# still runs LILAC without one, exactly as before); _lilac_pave_annotate's own output path is
+# returned directly (not existence-checked -- Snakemake is responsible for producing it).
+def _lilac_get_somatic_vcf_input(wildcards):
+    if not _lilac_get_raw_somatic_vcf_input(wildcards):
+        return []
+    path = str(rules._lilac_pave_annotate.output.vcf).format(
+        seq_type = wildcards.seq_type, genome_build = wildcards.genome_build,
+        tumour_id = wildcards.tumour_id, normal_id = wildcards.normal_id, pair_status = wildcards.pair_status
+    )
+    return [path]
+
+# PAVE's Ensembl gene/transcript cache (-ensembl_data_dir) -- NOT something LILAC itself needs.
+# modules/hmftools/1.1 already downloads the exact same reference data (same bcgsc.ca mirror, same
+# zip) for AMBER/COBALT/PURPLE/LINX -- set inputs.ensembl_data_dir to that module's own cache
+# directory (e.g. results/hmftools-1.1/00-inputs/references/{genome_build}/ensembl_cache/) to avoid
+# this module downloading a second, byte-identical copy. Leave unset (default) and this module
+# downloads its own via _lilac_download_ensembl_cache -- kept optional, not required, so lilac still
+# works standalone without hmftools/1.1 also being included in the runner.
+# ancient() on the reuse path: this directory isn't produced by any rule in this DAG, so nothing
+# should ever be "newer" than it in a way that would trigger a rerun.
+def _lilac_get_ensembl_data_dir_input(wildcards):
+    CFG = config["lcr-modules"]["lilac"]
+    pattern = CFG["inputs"].get("ensembl_data_dir", "")
+    if pattern:
+        path = pattern.format(seq_type = wildcards.seq_type, genome_build = wildcards.genome_build)
+        if os.path.isdir(path):
+            return ancient(path)
+    return str(rules._lilac_download_ensembl_cache.output.cache).format(genome_build = wildcards.genome_build)
 
 # Both tumour and normal BAMs for a pair, from the sample-level _lilac_input_bam rule --
 # allow_missing=True keeps {seq_type}/{genome_build} as real wildcards (filled in automatically
@@ -196,6 +242,99 @@ rule _lilac_download_reference:
         wget -qO {output.nuc} {params.url}/hla_ref_nucleotide_sequences.csv &&
         wget -qO {output.aa} {params.url}/hla_ref_aminoacid_sequences.csv
         ) > {log.stdout} 2>&1
+        """)
+
+
+# Downloads PAVE's Ensembl gene/transcript cache, genome-build-keyed -- same
+# www.bcgsc.ca/downloads/morinlab/hmftools-references/ensembl_data_cache/{build}.zip mirror and
+# VERSION_MAP values modules/hmftools/1.1's own _hmftools_get_ensembl_cache already uses for this
+# exact upstream reference data (software-version-independent, safe to mirror as this module's own
+# copy rather than depending cross-module on hmftools/1.1 -- same reasoning as
+# _lilac_download_reference above). Only PAVE needs this; LILAC itself doesn't.
+# Only actually in the DAG when _lilac_get_ensembl_data_dir_input's reuse check (inputs.ensembl_data_dir)
+# doesn't find an existing directory to point at instead -- see that function's comment. Set that
+# config value (e.g. to modules/hmftools/1.1's own cache path) to skip this download entirely and
+# reuse an existing copy of the same data.
+rule _lilac_download_ensembl_cache:
+    output:
+        cache = directory(CFG["dirs"]["reference"] + "{genome_build}/ensembl_cache/"),
+        complete = touch(CFG["dirs"]["reference"] + "{genome_build}/ensembl_cache/cache.complete")
+    log:
+        stdout = CFG["logs"]["reference"] + "{genome_build}/download_ensembl_cache.log"
+    params:
+        url = "https://www.bcgsc.ca/downloads/morinlab/hmftools-references/ensembl_data_cache",
+        alt_build = lambda w: VERSION_MAP[w.genome_build]
+    conda:
+        CFG["conda_envs"]["wget"]
+    container:
+        None
+    threads:
+        CFG["threads"]["download_reference"]
+    resources:
+        **CFG["resources"]["download_reference"]
+    shell:
+        op.as_one_line("""
+        (
+        wget -qO {output.cache}/{params.alt_build}.zip {params.url}/{params.alt_build}.zip &&
+        unzip -qod {output.cache} {output.cache}/{params.alt_build}.zip
+        ) > {log.stdout} 2>&1
+        """)
+
+
+# Annotates a raw somatic VCF (e.g. SAGE's combined output) with the VCF INFO tag ("IMPACT") LILAC
+# requires to identify each variant's gene/coding-effect -- see the long comment on
+# _lilac_get_raw_somatic_vcf_input for the real, silent-failure bug this fixes (every sample
+# reporting 0.0 somatic mutations regardless of real mutation burden, confirmed on a real cohort of
+# hundreds). Real, verified-minimal PAVE invocation: confirmed by downloading the actual
+# pave-v1.9.1 release jar directly from GitHub and running it locally with a plain `java` (bypasses
+# conda entirely -- same trick used for LILAC's and PURPLE's own CLI verification earlier), then
+# reading its registered CLI config items -- only -sample/-input_vcf/-ref_genome/
+# -ref_genome_version/-ensembl_data_dir are REQUIRED; driver_gene_panel/gnomad/clinvar/blacklist/PON
+# are all optional and safely omitted here, since the only thing this module needs from PAVE is the
+# IMPACT tag, not a full driver-annotation pass.
+# Only ever in the DAG for a pair that actually has a real somatic_vcf on disk -- nothing downstream
+# requests this rule's output otherwise (same existence-gated-optional-input mechanism already used
+# for gene_copy_number/somatic_vcf themselves).
+rule _lilac_pave_annotate:
+    input:
+        vcf = _lilac_get_raw_somatic_vcf_input,
+        ensembl_cache = _lilac_get_ensembl_data_dir_input,
+        fasta = reference_files("genomes/{genome_build}" + masked_string + "/genome_fasta/genome.fa")
+    output:
+        vcf = CFG["dirs"]["pave"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.pave.vcf.gz"
+    log:
+        stdout = CFG["logs"]["pave"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pave.log"
+    params:
+        ref_genome_version = lambda wildcards: VERSION_MAP[wildcards.genome_build],
+        # The real, downloaded ensembl_data_cache zip unpacks into a build-versioned subdirectory
+        # (confirmed by downloading the real 37.zip and inspecting it directly: its files are all
+        # under "37/", e.g. "37/ensembl_gene_data.csv", not at the top level) -- true whether this
+        # module downloaded the cache itself or it's an externally-supplied one following the same
+        # modules/hmftools/1.1-established layout, so this appends the same subdirectory either way.
+        ensembl_dir = lambda wildcards, input: os.path.join(str(input.ensembl_cache), VERSION_MAP[wildcards.genome_build]),
+        output_dir = lambda wildcards, output: os.path.dirname(output.vcf),
+        jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
+    conda:
+        CFG["conda_envs"]["pave"]
+    container:
+        None
+    threads:
+        CFG["threads"]["pave"]
+    resources:
+        **CFG["resources"]["pave"]
+    shell:
+        op.as_one_line("""
+        mkdir -p {params.output_dir} &&
+        pave -Xmx{params.jvmheap}m
+        -sample {wildcards.tumour_id}
+        -input_vcf {input.vcf[0]}
+        -ref_genome {input.fasta}
+        -ref_genome_version {params.ref_genome_version}
+        -ensembl_data_dir {params.ensembl_dir}
+        -output_dir {params.output_dir}
+        -output_vcf {output.vcf}
+        -threads {threads}
+        > {log.stdout} 2>&1
         """)
 
 

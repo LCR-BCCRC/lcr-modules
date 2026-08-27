@@ -23,6 +23,19 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
             somatic_vcf: "results/sage-1.1/99-outputs/combined/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage.combined.vcf.gz"
 
+            # Optional, genome-build-keyed (not per-pair). Whatever somatic_vcf above is set to gets
+            # run through PAVE first (_lilac_pave_annotate) to add the VCF INFO tag LILAC itself
+            # requires to match variants to genes -- see that rule's comment. PAVE needs an Ensembl
+            # gene/transcript cache to do this (-ensembl_data_dir); if left unset (default), this
+            # module downloads its own copy (_lilac_download_ensembl_cache). If you already have one
+            # -- e.g. modules/hmftools/1.1 downloads the exact same reference data (same bcgsc.ca
+            # mirror, same zip) for AMBER/COBALT/PURPLE/LINX -- point this at that directory instead
+            # to skip a redundant second download of identical data.
+            # Available wildcards: {seq_type} {genome_build}
+            ensembl_data_dir: ""
+            # Real example, if you already have modules/hmftools/1.1 in the same runner:
+            # ensembl_data_dir: "results/hmftools-1.1/00-inputs/references/{genome_build}/ensembl_cache/"
+
         scratch_subdirectories: []
 
         options:
@@ -76,15 +89,24 @@ lcr-modules:
 
         conda_envs:
             lilac: "{MODSDIR}/envs/hmftools-lilac-2.0.1.yaml"
+            # PAVE annotates the raw somatic_vcf input with the VCF INFO tag ("IMPACT") LILAC
+            # itself requires to identify each variant's gene/coding-effect -- without it, LILAC
+            # silently reports 0.0 SomaticMissense/SomaticNonsenseOrFrameshift/SomaticSplice for
+            # every allele, every sample, regardless of real mutation burden (confirmed on a real
+            # cohort of hundreds -- see _lilac_get_raw_somatic_vcf_input's comment in lilac.smk).
+            pave: "{MODSDIR}/envs/hmftools-pave-1.9.1.yaml"
             wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
 
         threads:
             download_reference: 1
+            pave: 4
             lilac: 4
 
         resources:
             download_reference:
                 mem_mb: 2000
+            pave:
+                mem_mb: 8000
             lilac:
                 mem_mb: 8000
 
