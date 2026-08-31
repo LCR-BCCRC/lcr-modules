@@ -179,7 +179,7 @@ if DEEPSOMATIC_CALLING_MODE == "tumor_only":
 else:
     DEEPSOMATIC_NORMAL_FILTER = (
         f'&& FMT/NDP[0] >= {DEEPSOMATIC_FILTERS["normal_min_depth"]} '
-        f'&& FMT/NAF[0:1] < {DEEPSOMATIC_FILTERS["normal_max_af"]}'
+        f'&& FMT/NAF[0:0] < {DEEPSOMATIC_FILTERS["normal_max_af"]}'
     )
 
 
@@ -238,6 +238,8 @@ rule _deepsomatic_index:
         CFG["conda_envs"]["bcftools"]
     container:
         CFG["container_envs"]["bcftools"]
+    resources:
+        **CFG["resources"]["bcftools"]
     shell:
         op.as_one_line("""
         tabix -p vcf {input.vcf} > {log.stdout} 2> {log.stderr}
