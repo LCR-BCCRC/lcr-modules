@@ -558,10 +558,15 @@ rule _mhc_hammer_flagstat:
         # apparently plain BAM (no reference lookup needed), which is why this was build-specific.
         # _mhc_hammer_build_ref_cache/REF_CACHE already exists for exactly this reason but was only
         # ever wired into _mhc_hammer_subset_bam/_mhc_hammer_hla2_subset_bam, not this rule -- fixed
-        # here with --reference pointing directly at the real local FASTA instead of depending on
-        # the seq_cache_populate.pl-built MD5 cache (that rule's own comment already flags its
-        # output layout as "not independently verified"; a direct --reference is simpler and more
-        # robust for a rule that doesn't need anything else from the cache).
+        # here by pointing directly at the real local FASTA instead of depending on the
+        # seq_cache_populate.pl-built MD5 cache (that rule's own comment already flags its output
+        # layout as "not independently verified"). NOTE: `samtools flagstat` has no -T/--reference
+        # flag at all (confirmed via its own usage text -- real run: passing --reference just
+        # printed flagstat's usage and failed) -- only `samtools view` has that dedicated flag;
+        # flagstat only accepts the generic --input-fmt-option OPT[=VAL] mechanism, so the two
+        # subcommands below deliberately use different syntax for the same underlying reference.
+        # Confirmed both forms work by building a real minimal CRAM locally and running each
+        # command against it directly.
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         library_size = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_" + MHC_SEQ + ".library_size.txt",
@@ -581,7 +586,7 @@ rule _mhc_hammer_flagstat:
         # subcommand used it by default -- both flagstat and view -c support -@.
         op.as_one_line("""
         (
-        samtools flagstat -@ {threads} --reference {input.fasta} {input.bam} > {output.flagstat} &&
+        samtools flagstat -@ {threads} --input-fmt-option reference={input.fasta} {input.bam} > {output.flagstat} &&
         samtools view -@ {threads} -c -f 1 -F 2308 --reference {input.fasta} {input.bam} > {output.library_size}
         ) > {log.stdout} 2>&1
         """)
