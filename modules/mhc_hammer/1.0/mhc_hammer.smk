@@ -13,6 +13,8 @@
 
 
 # Import package with useful functions for developing analysis modules
+import csv
+import glob
 import os
 import re
 import time
@@ -44,7 +46,8 @@ CFG = op.setup_module(
     version = "1.0",
     subdirectories = [
         "inputs", "mhc_reference", "preprocess", "hlahd", "patient_reference",
-        "novoalign", "allele_bams", "dna_analysis", "mutations", "cohort_tables", "outputs"
+        "novoalign", "allele_bams", "dna_analysis", "mutations", "gene_tables",
+        "cohort_tables", "outputs"
     ],
 )
 
@@ -217,6 +220,7 @@ localrules:
     _mhc_hammer_output_dna_analysis,
     _mhc_hammer_output_mutations,
     _mhc_hammer_output_mutations_maf,
+    _mhc_hammer_output_gene_table,
     _mhc_hammer_output_cohort_table,
     _mhc_hammer_output_hla_final_result,
     _mhc_hammer_output_hla2_alleles,
@@ -1531,118 +1535,17 @@ os.makedirs(os.path.dirname(_mhc_hammer_invocation_marker), exist_ok = True)
 with open(_mhc_hammer_invocation_marker, "w") as _mhc_hammer_marker_fh:
     _mhc_hammer_marker_fh.write(str(time.time()))
 
-# Best-effort cohort table: only include pairs whose full upstream chain has actually completed
-# on disk, rather than unconditionally requiring every matched pair in CFG["paired_runs"] to
-# succeed. Real GAMBL runs routinely have a handful of samples fail deep in preprocessing (e.g.
-# _mhc_hammer_subset_bam) for reasons unrelated to the cohort table -- under --keep-going,
-# unrelated per-patient/per-pair branches of the DAG already complete independently, but
-# _mhc_hammer_cohort_table's inputs used to be a single unconditional expand() over ALL matched
-# pairs, so ONE failing pair anywhere in a large cohort made it impossible to ever produce a
-# cohort table at all, even after every OTHER pair succeeded (real symptom, 2026-08-02: excluding
-# two chronically-failing samples was the only way to get any cohort table out at all). Used by
-# both _mhc_hammer_generate_inventory (so inventory.csv/hlahd_germline_samples.txt never
-# reference a patient whose data isn't actually staged -- otherwise make_cohort_overview_table.R
-# would expect data for a patient the staged directory doesn't have) and _mhc_hammer_cohort_table
-# itself, so the two stay consistent with each other.
-#
-# IMPORTANT: Snakemake decides a rule's input list at DAG-build time, before any of THIS
-# invocation's own jobs run -- so this only sees a pair as "completed" if it finished on some
-# *earlier* invocation. On a first, from-scratch invocation this will see zero completed pairs
-# (nothing has run yet) and produce an empty-but-valid cohort table; a *second* invocation of the
-# same command, after --keep-going has already attempted everything and left real, stable,
-# on-disk evidence of what succeeded vs failed, is required to get a real cohort table. This
-# mirrors the same os.path.exists()-based optional-input pattern already used for Battenberg
-# cellularity_ploidy elsewhere in this file, applied here to this module's own previously-
-# generated outputs instead of an externally-produced file.
-#
-# A pair is included only if EVERY one of its required files exists (dna_analysis, patient_dir,
-# and both samples' mosdepth/library_size/hla_bam_read_count) -- all-or-nothing per pair, so a
-# partially-completed pair (e.g. mosdepth succeeded but detect_cn_aib later failed) never
-# contributes inconsistent partial data to the cohort table, the same failure mode
-# _mhc_hammer_generate_inventory's own matched-pair restriction (5ad560d5) was fixed for.
-def _mhc_hammer_get_completed_pairs():
-    CFG = config["lcr-modules"]["mhc_hammer"]
-    completed = []
-    for _, row in CFG["paired_runs"].iterrows():
-        seq_type = row["tumour_seq_type"]
-        genome_build = row["tumour_genome_build"]
-        tumour_id = row["tumour_sample_id"]
-        normal_id = row["normal_sample_id"]
-        pair_status = row["pair_status"]
-        patient_id = row["tumour_patient_id"]
-        dna_analysis_path = str(rules._mhc_hammer_detect_cn_aib.output.dna_analysis).format(
-            seq_type = seq_type, genome_build = genome_build,
-            tumour_id = tumour_id, normal_id = normal_id, pair_status = pair_status
-        )
-        patient_dir_path = str(rules._mhc_hammer_generate_references.output.patient_dir).format(
-            seq_type = seq_type, genome_build = genome_build, patient_id = patient_id
-        )
-        per_sample = {}
-        for sample_id in (tumour_id, normal_id):
-            per_sample[sample_id] = {
-                "mosdepth": str(rules._mhc_hammer_mosdepth.output.bed).format(
-                    seq_type = seq_type, genome_build = genome_build, sample_id = sample_id
-                ),
-                "library_size": str(rules._mhc_hammer_flagstat.output.library_size).format(
-                    seq_type = seq_type, genome_build = genome_build, sample_id = sample_id
-                ),
-                "hla_bam_read_count": str(rules._mhc_hammer_make_allele_bams.output.hla_bam_read_count).format(
-                    seq_type = seq_type, genome_build = genome_build, sample_id = sample_id
-                ),
-            }
-        required_paths = [dna_analysis_path, patient_dir_path] + [
-            path for sample_paths in per_sample.values() for path in sample_paths.values()
-        ]
-        if not all(os.path.exists(path) for path in required_paths):
-            continue
-        completed.append({
-            "tumour_id": tumour_id,
-            "normal_id": normal_id,
-            "dna_analysis": dna_analysis_path,
-            "patient_dir": patient_dir_path,
-            "mosdepth": [per_sample[tumour_id]["mosdepth"], per_sample[normal_id]["mosdepth"]],
-            "library_size": [per_sample[tumour_id]["library_size"], per_sample[normal_id]["library_size"]],
-            "hla_bam_read_count": [per_sample[tumour_id]["hla_bam_read_count"], per_sample[normal_id]["hla_bam_read_count"]],
-        })
-    return completed
-
-_mhc_hammer_completed_pairs = _mhc_hammer_get_completed_pairs()
-_mhc_hammer_completed_dna_analysis = [p["dna_analysis"] for p in _mhc_hammer_completed_pairs]
-_mhc_hammer_completed_patient_dirs = sorted(set(p["patient_dir"] for p in _mhc_hammer_completed_pairs))
-_mhc_hammer_completed_mosdepth = sorted(set(
-    path for p in _mhc_hammer_completed_pairs for path in p["mosdepth"]
-))
-_mhc_hammer_completed_library_size = sorted(set(
-    path for p in _mhc_hammer_completed_pairs for path in p["library_size"]
-))
-_mhc_hammer_completed_hla_bam_read_count = sorted(set(
-    path for p in _mhc_hammer_completed_pairs for path in p["hla_bam_read_count"]
-))
-
-# _mhc_hammer_mosdepth's own output has no real consumer anywhere else in this file -- the only
-# other reference to it is the string-path construction inside _mhc_hammer_get_completed_pairs()
-# above, which is not a genuine Snakemake input dependency (it's a plain os.path.exists() check
-# against whatever a prior invocation already produced). Without a real target requesting it,
-# Snakemake never actually schedules _mhc_hammer_mosdepth to run, its output file therefore never
-# exists, and _mhc_hammer_get_completed_pairs() excludes every pair forever regardless of how many
-# times the pipeline is rerun -- confirmed on a real cohort where the cohort table stayed
-# permanently empty across several separate invocations over multiple weeks. Deduplicated
-# (seq_type, genome_build, sample_id) across both tumour and normal samples of every matched pair
-# (a shared germline sample paired against >1 tumour must not be requested twice), mirroring the
-# same dedup pattern already used for _mhc_hammer_generate_inventory/_mhc_hammer_cohort_table's
-# per-sample inputs -- used by _mhc_hammer_all below to make mosdepth a real target.
+# Deduplicated (seq_type, genome_build, sample_id) across both tumour and normal samples of every
+# matched pair (a shared germline sample paired against >1 tumour must not be requested twice) --
+# used by _mhc_hammer_all below to make mosdepth a real target. mosdepth's own output has no other
+# consumer that unconditionally requires it (_mhc_hammer_patient_gene_table below only pulls it in
+# for pairs that already have real upstream data), so without this explicit target Snakemake would
+# never schedule it for a pair whose gene-table computation hasn't been reached yet.
 _mhc_hammer_all_samples = sorted(set(
     (row["tumour_seq_type"], row["tumour_genome_build"], sample_id)
     for _, row in CFG["paired_runs"].iterrows()
     for sample_id in (row["tumour_sample_id"], row["normal_sample_id"])
 ))
-
-print(
-    f"INFO [mhc_hammer]: {len(_mhc_hammer_completed_pairs)} of {len(CFG['paired_runs'])} matched "
-    f"tumour/normal pair(s) have a complete upstream chain on disk right now and will be included "
-    f"in this invocation's cohort table (the rest, if any, need a rerun of this same command after "
-    f"they finish or are excluded)."
-)
 
 rule _mhc_hammer_generate_inventory:
     input:
@@ -1706,9 +1609,9 @@ rule _mhc_hammer_generate_inventory:
         normal_for_tumour = dict(zip(runs["tumour_sample_id"], runs["normal_sample_id"]))
         # Restrict to samples belonging to a real MATCHED pair (runs == CFG["paired_runs"],
         # already narrowed to pair_status == "matched" near the top of this file) -- deliberately
-        # NOT the stricter _mhc_hammer_get_completed_pairs() (defined above, used by
-        # _mhc_hammer_cohort_table) that also requires dna_analysis/mosdepth/library_size/
-        # hla_bam_read_count/patient_dir to already exist on disk. inventory.csv's only real
+        # NOT the stricter completeness restriction _mhc_hammer_patient_gene_table now applies via
+        # its own real Snakemake input: dependencies on dna_analysis/mosdepth/library_size/
+        # hla_bam_read_count/patient_dir. inventory.csv's only real
         # consumer of this pairing data is make_mutation_table.R's tumour_sample_name ->
         # germline_sample_name lookup (invoked by _mhc_hammer_parse_mutations), which needs
         # nothing but the pairing relationship itself -- a pure CFG["paired_runs"] fact, always
@@ -1948,61 +1851,135 @@ rule _mhc_hammer_mutations_to_maf:
         """)
 
 
-# Builds the cohort-wide gene-level summary table (docs/mhc_hammer_outputs.md upstream,
-# DNA-only column subset), combining every patient's HLA-HD genotype, allele-specific coverage
-# (mosdepth), DNA copy-number/allelic-imbalance, and mutation calls into one CSV. Cohort-wide,
-# no wildcards. Mirrors upstream's CREATE_MHC_HAMMER_TABLE process.
+# Builds one patient's own gene-level summary table (docs/mhc_hammer_outputs.md upstream,
+# DNA-only column subset) -- HLA-HD genotype, allele-specific coverage (mosdepth), DNA
+# copy-number/allelic-imbalance, and mutation calls, all for this one patient. Patient-level,
+# mirroring _mhc_hammer_parse_mutations's own structure exactly (staging + patient-scoped
+# inventory snippet), aggregating all of that patient's tumour/normal runs (a patient with
+# multiple tumour samples gets multiple rows in their own file, exactly as they would in the old
+# cohort-wide table). Replaces the previous design, where this same computation only ever ran
+# once, cohort-wide, gated by a plain os.path.exists() check over CFG["paired_runs"] (real user
+# report: this meant (a) a patient processed under a *different* sample subset in an earlier
+# invocation was invisible forever, since that subset's own CFG["paired_runs"] never mentioned
+# them, and (b) even the current subset always looked empty on a first pass, since
+# os.path.exists() only sees what an *earlier* invocation already finished). Read the entire
+# 749-line make_cohort_overview_table.R end to end to confirm this split is safe: every column it
+# computes (including LOH, dna_aib, wxs_fail) is derived per-patient/per-sample/per-allele --
+# there is no cohort-wide statistic anywhere -- so calling it once per patient produces bit-
+# identical values to calling it once for the whole cohort. _mhc_hammer_cohort_table below now
+# just concatenates each patient's own output.
+#
+# Real Snakemake `input:` for dna_analysis/patient_dir/mosdepth/library_size/hla_bam_read_count
+# (not an os.path.exists() gate) -- Snakemake's own scheduler now handles "wait until this
+# patient's data is ready", so this rule is never even scheduled until every one of those files is
+# genuinely a real, current build target, and no "run it twice" dance is needed for a single
+# patient's own file to be correct.
 #
 # Like _mhc_hammer_parse_mutations, make_cohort_overview_table.R's `--csv_tables_path` is a
-# manifest of *bare basenames* it reads relative to its own working directory (matches upstream's
-# own `.map { it.getName() }.collectFile(...)` -- confirmed by reading the script and
-# workflows/mhc_hammer.nf), not a list of absolute paths -- so inputs are staged flat with
-# symlinks first, exactly as in _mhc_hammer_parse_mutations.
+# manifest of *bare basenames* it reads relative to its own working directory, not a list of
+# absolute paths -- so inputs are staged flat with symlinks first, exactly as in
+# _mhc_hammer_parse_mutations.
 #
-# Two fixes for real bugs in make_cohort_overview_table.R itself (upstream's own script,
-# unmodifiable -- see licensing note near the top of this file), worked around from this rule's
-# side instead:
-# (1) `ls -1 . > input_csvs.txt` lists its own (already-created-by-the-redirect) output file,
-#     feeding a bogus self-referencing row into the manifest -- piping through `grep -v` before
-#     the final redirect avoids this (confirmed empirically: the file doesn't exist yet when `ls`
-#     runs inside the pipeline, only once the whole pipeline's output is redirected at the end).
-# (2) `transcriptome_hlahd_tables`'s loop (`for(line_idx in 1:nrow(transcriptome_hlahd_tables))`)
-#     is the one table-type loop in the whole script *not* guarded by `if(nrow(...) > 0)` first --
-#     every other category is. DNA-only v1 never produces a real *_transcriptome_allele_table.csv,
-#     so nrow is always 0 there, and R's `1:0` evaluates to `c(1, 0)` (not an empty range),
-#     crashing with `fread(NA)` ("missing value where TRUE/FALSE needed") -- confirmed on a real
-#     run. Staging a placeholder CSV per patient gives the loop nrow==1 so it never hits the `1:0`
-#     case. A *header-only* placeholder isn't enough, though (also confirmed on a real run, via a
-#     follow-on "Incompatible join types: x.patient (logical) and i.patient (character)" error):
-#     fread() on zero data rows has nothing to type-infer from and defaults every column to
-#     logical. One dummy data row gives fread() real values to infer correct types from. The
-#     `gene`/`allele1`/`allele2` fields are a fixed "NONE" sentinel (safe: no real HLA gene is ever
-#     named "NONE", so this can never collide with genuine genome-derived rows for that patient
-#     downstream), but the `patient` field must be that directory's own real patient_id, NOT a
-#     shared fixed sentinel -- confirmed on a real multi-patient run: `hlahd_alleles <- merge(
-#     genome_cohort_alleles, transcriptome_cohort_alleles, by = c("patient", "gene", "allele1",
-#     "allele2", "homozygous"), all = TRUE)` is a *full outer join* (not the left join used
-#     elsewhere in this same script for the wxs/rna library-size sections), so every patient's
-#     placeholder row survives into the merged table rather than being dropped. A fixed sentinel
-#     patient value (e.g. "__no_transcriptome_data__") would then make every patient's placeholder
-#     row collide into the exact same (patient, gene) group once more than one patient exists,
-#     tripping the script's own post-merge duplicate check ("Different HLA alleles from the genome
-#     and transcriptome allele table."). Using the real patient_id keeps each placeholder row
-#     unique across the cohort while still never matching real data (gene/allele1/allele2 stay
-#     "NONE").
-rule _mhc_hammer_cohort_table:
+# The same transcriptome-allele-table placeholder row _mhc_hammer_cohort_table used to write per
+# patient directory is still needed here, for the same reason (DNA-only v1 never produces a real
+# *_transcriptome_allele_table.csv, and the one un-guarded `1:0` R-indexing loop in
+# make_cohort_overview_table.R crashes on a genuinely-missing table without it -- see the original,
+# fuller version of this comment in this module's git history for the full real-run trail that
+# found this).
+def _mhc_hammer_get_patient_gene_table_inputs(wildcards):
+    CFG = config["lcr-modules"]["mhc_hammer"]
+    patient_runs = op.filter_samples(
+        CFG["paired_runs"],
+        tumour_patient_id = wildcards.patient_id,
+        tumour_seq_type = wildcards.seq_type,
+        tumour_genome_build = wildcards.genome_build
+    )
+    all_sample_ids = sorted(set(patient_runs["tumour_sample_id"]) | set(patient_runs["normal_sample_id"]))
+    # Battenberg cellularity_ploidy.txt is genuinely optional (same reasoning as
+    # _mhc_hammer_get_battenberg_cp_input above) -- included as a real dependency only when it
+    # already exists, one check per run rather than the single-pair version's single wildcards set.
+    cp_pattern = CFG["inputs"]["battenberg_cellularity_ploidy"]
+    cp_paths = []
+    if cp_pattern:
+        for tumour_id, normal_id in zip(patient_runs["tumour_sample_id"], patient_runs["normal_sample_id"]):
+            cp_path = cp_pattern.format(
+                seq_type = wildcards.seq_type, genome_build = wildcards.genome_build,
+                tumour_id = tumour_id, normal_id = normal_id
+            )
+            if os.path.exists(cp_path):
+                cp_paths.append(cp_path)
+    return {
+        "dna_analysis": expand(
+            str(rules._mhc_hammer_detect_cn_aib.output.dna_analysis),
+            zip,
+            tumour_id = patient_runs["tumour_sample_id"],
+            normal_id = patient_runs["normal_sample_id"],
+            pair_status = patient_runs["pair_status"],
+            allow_missing = True
+        ),
+        "patient_dir": expand(
+            str(rules._mhc_hammer_generate_references.output.patient_dir), allow_missing = True
+        ),
+        "mosdepth": expand(
+            str(rules._mhc_hammer_mosdepth.output.bed), sample_id = all_sample_ids, allow_missing = True
+        ),
+        "library_size": expand(
+            str(rules._mhc_hammer_flagstat.output.library_size), sample_id = all_sample_ids, allow_missing = True
+        ),
+        "hla_bam_read_count": expand(
+            str(rules._mhc_hammer_make_allele_bams.output.hla_bam_read_count), sample_id = all_sample_ids, allow_missing = True
+        ),
+        "cellularity_ploidy": cp_paths
+    }
+
+# Patient-scoped inventory.csv snippet, mirroring _mhc_hammer_get_patient_inventory_content's own
+# idiom exactly, but with the fuller column set make_cohort_overview_table.R actually reads
+# (_mhc_hammer_get_patient_inventory_content's own trimmed-down version is only for
+# make_mutation_table.R's narrower needs) and real purity/ploidy, looked up the same way
+# _mhc_hammer_generate_inventory already does cohort-wide. Needs `input` (not just `wildcards`) to
+# know which cellularity_ploidy.txt paths are real Snakemake dependencies of *this* rule instance,
+# not just which ones exist on disk in general.
+def _mhc_hammer_get_patient_gene_table_inventory_content(wildcards, input):
+    CFG = config["lcr-modules"]["mhc_hammer"]
+    patient_runs = op.filter_samples(
+        CFG["paired_runs"],
+        tumour_patient_id = wildcards.patient_id,
+        tumour_seq_type = wildcards.seq_type,
+        tumour_genome_build = wildcards.genome_build
+    )
+    cp_pattern = CFG["inputs"]["battenberg_cellularity_ploidy"]
+    cp_dependency_paths = set(input.cellularity_ploidy)
+    lines = ["patient,sample_name,sample_type,sequencing_type,purity,ploidy,normal_sample_name"]
+    seen_normals = set()
+    for tumour_id, normal_id in zip(patient_runs["tumour_sample_id"], patient_runs["normal_sample_id"]):
+        purity, ploidy = "", ""
+        if cp_pattern:
+            cp_path = cp_pattern.format(
+                seq_type = wildcards.seq_type, genome_build = wildcards.genome_build,
+                tumour_id = tumour_id, normal_id = normal_id
+            )
+            if cp_path in cp_dependency_paths:
+                with open(cp_path) as fh:
+                    header = fh.readline().rstrip("\n").split("\t")
+                    values = fh.readline().rstrip("\n").split("\t")
+                cp_row = dict(zip(header, values))
+                purity, ploidy = cp_row.get("cellularity", ""), cp_row.get("ploidy", "")
+        lines.append(f"{wildcards.patient_id},{tumour_id},tumour,{MHC_SEQ},{purity},{ploidy},{normal_id}")
+        if normal_id not in seen_normals:
+            seen_normals.add(normal_id)
+            lines.append(f"{wildcards.patient_id},{normal_id},normal,{MHC_SEQ},,,")
+    # Literal two-character "\n" sequences, reconstructed into real newlines by `printf '%b'` in
+    # the shell block below -- same op.as_one_line() newline gotcha as
+    # _mhc_hammer_get_patient_inventory_content.
+    return "\\n".join(lines) + "\\n"
+
+rule _mhc_hammer_patient_gene_table:
     input:
-        dna_analysis = _mhc_hammer_completed_dna_analysis,
-        mosdepth = _mhc_hammer_completed_mosdepth,
-        library_size = _mhc_hammer_completed_library_size,
-        hla_bam_read_count = _mhc_hammer_completed_hla_bam_read_count,
-        patient_dirs = _mhc_hammer_completed_patient_dirs,
-        inventory = str(rules._mhc_hammer_generate_inventory.output.inventory),
-        hlahd_germline_samples = str(rules._mhc_hammer_generate_inventory.output.hlahd_germline_samples)
+        unpack(_mhc_hammer_get_patient_gene_table_inputs)
     output:
-        cohort_table = CFG["dirs"]["cohort_tables"] + "cohort_mhc_hammer_gene_table.csv"
+        gene_table = CFG["dirs"]["gene_tables"] + "{seq_type}--{genome_build}/{patient_id}/{patient_id}_gene_table.csv"
     log:
-        stdout = CFG["logs"]["cohort_tables"] + "cohort_table.log"
+        stdout = CFG["logs"]["gene_tables"] + "{seq_type}--{genome_build}/{patient_id}/gene_table.log"
     params:
         scripts_dir = SCRIPTS_DIR,
         min_number_of_snps = CFG["options"]["min_number_of_snps"],
@@ -2010,24 +1987,18 @@ rule _mhc_hammer_cohort_table:
         min_expected_depth = CFG["options"]["min_expected_depth"],
         min_frac_mapping_uniquely = CFG["options"]["min_frac_mapping_uniquely"],
         max_frac_mapping_multi_gene = CFG["options"]["max_frac_mapping_multi_gene"],
-        # min_depth is per-seq_type (see default.yaml), but this rule is cohort-wide (not
-        # wildcarded on seq_type) and can aggregate a mix of capture/genome pairs in one run.
-        # make_cohort_overview_table.R's own use of --dna_snp_min_depth is purely a provenance
-        # column (`min_dna_snp_depth_param`, recorded once per output row, never used to filter
-        # anything -- the real per-seq_type filtering already happened upstream, correctly, in
-        # _mhc_hammer_detect_cn_aib's get_filtered_pos_bed.R call, which does have a real
-        # wildcards.seq_type). Recording the capture value here since that's this tool's original,
-        # validated default; for a genome-seq_type row in a mixed cohort this column will read 30
-        # even though 5 (or whatever options.min_depth.genome is set to) was the value actually
-        # used to filter that row's SNPs -- cosmetic inaccuracy only, not a correctness issue.
-        min_depth = CFG["options"]["min_depth"]["capture"],
+        # Per-seq_type and genuinely accurate now (unlike the old cohort-wide rule, which could
+        # only ever record the capture value as a provenance column for a mixed-seq_type cohort) --
+        # this rule is wildcarded on seq_type, so MIN_DEPTH[wildcards.seq_type] is always the real
+        # value _mhc_hammer_detect_cn_aib actually used for this patient's own runs.
+        min_depth = lambda wildcards: MIN_DEPTH[wildcards.seq_type],
         flat_files_abs = lambda wildcards, input: " ".join(os.path.abspath(f) for f in (
             list(input.dna_analysis) + list(input.mosdepth) + list(input.library_size) + list(input.hla_bam_read_count)
         )),
-        patient_dirs_abs = lambda wildcards, input: " ".join(sorted(set(os.path.abspath(d) for d in input.patient_dirs))),
-        inventory_abs = lambda wildcards, input: os.path.abspath(input.inventory),
-        hlahd_germline_samples_abs = lambda wildcards, input: os.path.abspath(input.hlahd_germline_samples),
-        cohort_table_abs = lambda wildcards, output: os.path.abspath(output.cohort_table)
+        patient_dir_abs = lambda wildcards, input: os.path.abspath(input.patient_dir[0]),
+        inventory_content = _mhc_hammer_get_patient_gene_table_inventory_content,
+        germline_id = lambda wildcards: _mhc_hammer_get_germline_sample_id(wildcards),
+        gene_table_abs = lambda wildcards, output: os.path.abspath(output.gene_table)
     conda:
         CFG["conda_envs"]["mhc_hammer_r"]
     container:
@@ -2038,45 +2009,108 @@ rule _mhc_hammer_cohort_table:
         **CFG["resources"]["cohort_table"]
     shell:
         op.as_one_line("""
-        wd=$(dirname {output.cohort_table}) && mkdir -p $wd &&
+        wd=$(dirname {output.gene_table}) && mkdir -p $wd &&
         stage=$wd/staged && rm -rf $stage && mkdir -p $stage &&
         (
         for f in {params.flat_files_abs}; do ln -sf $f $stage/$(basename $f); done;
-        for d in {params.patient_dirs_abs}; do
-            for f in $d/*_genome_allele_table.csv; do
-                [ -e "$f" ] && ln -sf $f $stage/$(basename $f);
-            done;
-            patient=$(basename $d) ;
-            echo 'gene,allele1,allele2,patient,num_snps,homozygous' > $stage/${{patient}}_transcriptome_allele_table.csv ;
-            echo "NONE,NONE,NONE,${{patient}},0,TRUE" >> $stage/${{patient}}_transcriptome_allele_table.csv ;
+        for f in {params.patient_dir_abs}/*_genome_allele_table.csv; do
+            [ -e "$f" ] && ln -sf $f $stage/$(basename $f);
         done;
+        echo 'gene,allele1,allele2,patient,num_snps,homozygous' > $stage/{wildcards.patient_id}_transcriptome_allele_table.csv &&
+        echo "NONE,NONE,NONE,{wildcards.patient_id},0,TRUE" >> $stage/{wildcards.patient_id}_transcriptome_allele_table.csv &&
+        printf '%b' "{params.inventory_content}" > $stage/inventory.csv &&
+        echo "{params.germline_id}" > $stage/hlahd_germline_samples.txt &&
         cd $stage &&
         ( ls -1 . | grep -v '^input_csvs\.txt$' > input_csvs.txt || true ) &&
-        if [ ! -s input_csvs.txt ]; then
-            echo "No completed tumour/normal pair(s) available yet (input_csvs.txt is empty) -- writing an empty cohort table. This is expected on a first, from-scratch invocation; rerun the same command once --keep-going has finished attempting everything to get real results." ;
-            touch {params.cohort_table_abs} ;
-        else
-            Rscript {params.scripts_dir}/bin/make_cohort_overview_table.R
-              --inventory_path {params.inventory_abs}
-              --csv_tables_path input_csvs.txt
-              --hlahd_germline_samples_path {params.hlahd_germline_samples_abs}
-              --max_cn_range {params.max_copy_number_range}
-              --min_n_snps {params.min_number_of_snps}
-              --min_expected_depth {params.min_expected_depth}
-              --min_frac_mapping_uniquely {params.min_frac_mapping_uniquely}
-              --max_frac_mapping_multi_gene {params.max_frac_mapping_multi_gene}
-              --dna_snp_min_depth {params.min_depth} &&
-            Rscript -e '
-              library(data.table);
-              dt <- fread("cohort_mhc_hammer_gene_table.csv");
-              dt <- dt[gene != "HLA-NONE"];
-              fwrite(dt, "cohort_mhc_hammer_gene_table.csv")
-            ' &&
-            mv cohort_mhc_hammer_gene_table.csv {params.cohort_table_abs} ;
-        fi
+        Rscript {params.scripts_dir}/bin/make_cohort_overview_table.R
+          --inventory_path inventory.csv
+          --csv_tables_path input_csvs.txt
+          --hlahd_germline_samples_path hlahd_germline_samples.txt
+          --max_cn_range {params.max_copy_number_range}
+          --min_n_snps {params.min_number_of_snps}
+          --min_expected_depth {params.min_expected_depth}
+          --min_frac_mapping_uniquely {params.min_frac_mapping_uniquely}
+          --max_frac_mapping_multi_gene {params.max_frac_mapping_multi_gene}
+          --dna_snp_min_depth {params.min_depth} &&
+        Rscript -e '
+          library(data.table);
+          dt <- fread("cohort_mhc_hammer_gene_table.csv");
+          dt <- dt[gene != "HLA-NONE"];
+          fwrite(dt, "cohort_mhc_hammer_gene_table.csv")
+        ' &&
+        mv cohort_mhc_hammer_gene_table.csv {params.gene_table_abs}
         ) > {log.stdout} 2>&1 &&
         rm -rf $stage
         """)
+
+
+rule _mhc_hammer_output_gene_table:
+    input:
+        gene_table = str(rules._mhc_hammer_patient_gene_table.output.gene_table)
+    output:
+        gene_table = CFG["dirs"]["outputs"] + "gene_tables/{seq_type}--{genome_build}/{patient_id}.gene_table.csv"
+    run:
+        op.relative_symlink(input.gene_table, output.gene_table, in_module = True)
+
+
+# The cohort-wide table is now a trivial concatenation of every patient's own
+# _mhc_hammer_patient_gene_table output -- pure row-union of already-fully-computed data, not a
+# reimplementation of any of make_cohort_overview_table.R's real logic, so this is safely
+# module-owned code (no licensing concern).
+#
+# Discovers per-patient files by globbing the filesystem directly, NOT by iterating
+# CFG["paired_runs"] -- this is what actually fixes the real problem the old design had: a patient
+# computed under a *different* sample subset in an earlier invocation is picked up here too, so
+# this table is a genuine, persistent, accumulating view of everything ever processed, not scoped
+# to whatever subset happens to be active in the current invocation.
+#
+# One inherent Snakemake caveat, impossible to fully eliminate: glob.glob() runs once at parse
+# time (DAG-build time), before any of *this* invocation's own jobs execute -- so a patient
+# computed for the very first time in this same invocation still won't appear in this same
+# invocation's cohort table; one more invocation picks it up. This is a narrower, more honest
+# version of the equivalent caveat the old cohort-wide design already had (there, the *entire*
+# table needed a second invocation, and forgot every other subset's patients permanently -- here,
+# only genuinely brand-new patients need the extra invocation, and nothing already computed is
+# ever forgotten).
+def _mhc_hammer_get_all_patient_gene_tables():
+    pattern = str(rules._mhc_hammer_patient_gene_table.output.gene_table).format(
+        seq_type = "*", genome_build = "*", patient_id = "*"
+    )
+    return sorted(glob.glob(pattern))
+
+rule _mhc_hammer_cohort_table:
+    input:
+        gene_tables = _mhc_hammer_get_all_patient_gene_tables()
+    output:
+        cohort_table = CFG["dirs"]["cohort_tables"] + "cohort_mhc_hammer_gene_table.csv"
+    run:
+        if not input.gene_tables:
+            print(
+                "INFO [mhc_hammer]: no patient gene tables found on disk yet -- writing an empty "
+                "cohort table. This is expected before any patient has finished; rerun this same "
+                "command once at least one patient's own gene table has been produced."
+            )
+        header = None
+        rows = []
+        for path in input.gene_tables:
+            with open(path, newline = "") as fh:
+                reader = csv.reader(fh)
+                file_header = next(reader)
+                if header is None:
+                    header = file_header
+                elif file_header != header:
+                    raise ValueError(
+                        f"{path} has a different column set than {input.gene_tables[0]} -- every "
+                        f"per-patient gene table should share the same columns, since they're all "
+                        f"produced by the same script."
+                    )
+                rows.extend(reader)
+        os.makedirs(os.path.dirname(output.cohort_table), exist_ok = True)
+        with open(output.cohort_table, "w", newline = "") as fh:
+            writer = csv.writer(fh)
+            if header is not None:
+                writer.writerow(header)
+            writer.writerows(rows)
 
 
 # Symlinks the final per-run output files into the module results directory (under '99-outputs/')
@@ -2164,9 +2198,10 @@ rule _mhc_hammer_all:
             genome_build = CFG["paired_runs"]["tumour_genome_build"],
             patient_id = CFG["paired_runs"]["tumour_patient_id"]
         ),
-        # _mhc_hammer_mosdepth has no other real consumer in the DAG (see _mhc_hammer_all_samples
-        # above) -- without this explicit target it never runs, and the cohort table below stays
-        # permanently empty since it only ever includes pairs it finds *already* complete on disk.
+        # _mhc_hammer_mosdepth is also a real input of _mhc_hammer_patient_gene_table now (see
+        # _mhc_hammer_all_samples above), so this explicit target is somewhat redundant for
+        # patients that also get a gene-table request below -- kept anyway as a small, harmless
+        # belt-and-braces target so mosdepth's own QC output is always produced regardless.
         expand(
             [
                 str(rules._mhc_hammer_mosdepth.output.bed)
@@ -2175,6 +2210,18 @@ rule _mhc_hammer_all:
             seq_type = [s[0] for s in _mhc_hammer_all_samples],
             genome_build = [s[1] for s in _mhc_hammer_all_samples],
             sample_id = [s[2] for s in _mhc_hammer_all_samples]
+        ),
+        # Per-patient gene table -- stable and available as soon as this one patient's own upstream
+        # data is ready, independent of any other patient or of which sample subset is currently
+        # active. Same CFG["paired_runs"] patient scoping as the mutations/cohort targets above.
+        expand(
+            [
+                str(rules._mhc_hammer_output_gene_table.output.gene_table)
+            ],
+            zip,
+            seq_type = CFG["paired_runs"]["tumour_seq_type"],
+            genome_build = CFG["paired_runs"]["tumour_genome_build"],
+            patient_id = CFG["paired_runs"]["tumour_patient_id"]
         ),
         str(rules._mhc_hammer_output_cohort_table.output.cohort_table),
         # HLA-HD's own class I result file, in standard nomenclature -- same patient-level
