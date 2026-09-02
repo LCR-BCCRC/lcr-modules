@@ -548,7 +548,21 @@ rule _mhc_hammer_filter_kmers:
 # make_cohort_overview_table.R locates this file via a literal `_wxs.library_size.txt$` match.
 rule _mhc_hammer_flagstat:
     input:
-        bam = str(rules._mhc_hammer_input_bam.output.bam)
+        bam = str(rules._mhc_hammer_input_bam.output.bam),
+        # Real, confirmed cause of a real failure on one genome_build's samples specifically
+        # (hg38-nci): those "sample_bam" inputs are actually CRAM content (see _mhc_hammer_input_bam's
+        # own dual .bam/.cram naming), and without a local reference htslib falls back to fetching
+        # each reference sequence one at a time from EBI's ENA CRAM registry over the network --
+        # confirmed on a real run (`[W::find_file_url] ... Input/output error`, `[E::cram_get_ref]
+        # Failed to populate reference`), for a genome_build whose other builds' samples are
+        # apparently plain BAM (no reference lookup needed), which is why this was build-specific.
+        # _mhc_hammer_build_ref_cache/REF_CACHE already exists for exactly this reason but was only
+        # ever wired into _mhc_hammer_subset_bam/_mhc_hammer_hla2_subset_bam, not this rule -- fixed
+        # here with --reference pointing directly at the real local FASTA instead of depending on
+        # the seq_cache_populate.pl-built MD5 cache (that rule's own comment already flags its
+        # output layout as "not independently verified"; a direct --reference is simpler and more
+        # robust for a rule that doesn't need anything else from the cache).
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         library_size = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_" + MHC_SEQ + ".library_size.txt",
         flagstat = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_" + MHC_SEQ + ".flagstat"
@@ -567,8 +581,8 @@ rule _mhc_hammer_flagstat:
         # subcommand used it by default -- both flagstat and view -c support -@.
         op.as_one_line("""
         (
-        samtools flagstat -@ {threads} {input.bam} > {output.flagstat} &&
-        samtools view -@ {threads} -c -f 1 -F 2308 {input.bam} > {output.library_size}
+        samtools flagstat -@ {threads} --reference {input.fasta} {input.bam} > {output.flagstat} &&
+        samtools view -@ {threads} -c -f 1 -F 2308 --reference {input.fasta} {input.bam} > {output.library_size}
         ) > {log.stdout} 2>&1
         """)
 
