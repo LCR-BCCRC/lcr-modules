@@ -2083,27 +2083,39 @@ rule _mhc_hammer_output_gene_table:
 # this table is a genuine, persistent, accumulating view of everything ever processed, not scoped
 # to whatever subset happens to be active in the current invocation.
 #
-# One inherent Snakemake caveat, impossible to fully eliminate: glob.glob() runs once at parse
-# time (DAG-build time), before any of *this* invocation's own jobs execute -- so a patient
-# computed for the very first time in this same invocation still won't appear in this same
-# invocation's cohort table; one more invocation picks it up. This is a narrower, more honest
-# version of the equivalent caveat the old cohort-wide design already had (there, the *entire*
-# table needed a second invocation, and forgot every other subset's patients permanently -- here,
-# only genuinely brand-new patients need the extra invocation, and nothing already computed is
-# ever forgotten).
-def _mhc_hammer_get_all_patient_gene_tables():
-    pattern = str(rules._mhc_hammer_patient_gene_table.output.gene_table).format(
-        seq_type = "*", genome_build = "*", patient_id = "*"
-    )
-    return sorted(glob.glob(pattern))
-
+# Deliberately NOT declared as a real Snakemake `input:` list (unlike a first version of this
+# rule) -- glob'd paths are read as plain files inside the run: block instead, using
+# _mhc_hammer_invocation_marker to force a fresh re-glob on every invocation (same "always rerun,
+# read whatever's on disk right now" trick _mhc_hammer_generate_inventory already uses). Real,
+# confirmed crash from the first version: declaring these as `input:` makes Snakemake trace each
+# path's production lineage back through _mhc_hammer_patient_gene_table to check staleness, which
+# re-evaluates that rule's own input/param functions (including the germline-sample lookup) for
+# whatever {seq_type}/{genome_build}/{patient_id} the *old* file's path happened to encode --
+# even when a subsequent invocation's own CFG["samples"] no longer contains that combination at
+# all (e.g. a patient's old capture--grch37 gene table sitting on disk from before a later
+# invocation restricted CFG["samples"] to genome-only), hard-failing the whole DAG build with an
+# assertion error meant for a genuinely-missing germline sample, not a deliberately out-of-scope
+# one. Reading the files directly, untracked, sidesteps this entirely -- Snakemake never tries to
+# resolve a producing rule for a plain string read inside a run: block.
+#
+# One inherent Snakemake caveat, impossible to fully eliminate: this rule still only sees whatever
+# gene tables exist on disk *when it runs*, so a patient computed for the very first time in this
+# same invocation still won't appear in this same invocation's cohort table; one more invocation
+# picks it up. This is a narrower, more honest version of the equivalent caveat the old cohort-wide
+# design already had (there, the *entire* table needed a second invocation, and forgot every other
+# subset's patients permanently -- here, only genuinely brand-new patients need the extra
+# invocation, and nothing already computed is ever forgotten).
 rule _mhc_hammer_cohort_table:
     input:
-        gene_tables = _mhc_hammer_get_all_patient_gene_tables()
+        invocation_marker = _mhc_hammer_invocation_marker
     output:
         cohort_table = CFG["dirs"]["cohort_tables"] + "cohort_mhc_hammer_gene_table.csv"
     run:
-        if not input.gene_tables:
+        pattern = str(rules._mhc_hammer_patient_gene_table.output.gene_table).format(
+            seq_type = "*", genome_build = "*", patient_id = "*"
+        )
+        gene_tables = sorted(glob.glob(pattern))
+        if not gene_tables:
             print(
                 "INFO [mhc_hammer]: no patient gene tables found on disk yet -- writing an empty "
                 "cohort table. This is expected before any patient has finished; rerun this same "
@@ -2111,7 +2123,7 @@ rule _mhc_hammer_cohort_table:
             )
         header = None
         rows = []
-        for path in input.gene_tables:
+        for path in gene_tables:
             with open(path, newline = "") as fh:
                 reader = csv.reader(fh)
                 file_header = next(reader)
@@ -2119,7 +2131,7 @@ rule _mhc_hammer_cohort_table:
                     header = file_header
                 elif file_header != header:
                     raise ValueError(
-                        f"{path} has a different column set than {input.gene_tables[0]} -- every "
+                        f"{path} has a different column set than {gene_tables[0]} -- every "
                         f"per-patient gene table should share the same columns, since they're all "
                         f"produced by the same script."
                     )
