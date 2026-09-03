@@ -536,6 +536,16 @@ rule _hmftools_linx:
 # registered-options list on an unrecognised flag the way the newer ConfigBuilder-based hmftools
 # apps do, so this was confirmed via a direct Python zipfile scan of the compiled classes, not a
 # CLI probe) -- no LINX version bump needed for this.
+# Real, version-specific filename quirk found on a real cluster run: LINX 1.17 (the version this
+# module actually installs -- confirmed via a real run's own log, "LINX version: 1.17") writes
+# "<sample>.linx.neo_epitope.tsv" (underscore before "epitope"). But modules/neo/1.0's own NEO v1.3
+# binary looks for "<sample>.linx.neoepitope.tsv" (no underscore) inside whatever -linx_dir it's
+# given -- confirmed by checking out the real neo-v1.3 tag directly and reading hmf-common's
+# NeoEpitopeFusion.FILE_EXTENSION constant there (".linx.neoepitope.tsv"). Two different points in
+# this shared library's own history, pinned on either side of a real naming change -- neither tool
+# is "wrong" individually. Fixed with a same-directory compat symlink (see shell: below) rather than
+# renaming either binary's own behaviour, so the rule's own output: stays the name neo/1.0's
+# inputs.linx_neo_epitope_file default already expects.
 rule _hmftools_linx_neo_epitopes:
     input:
         purple_vcf = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.purple.sv.vcf.gz",
@@ -575,7 +585,8 @@ rule _hmftools_linx_neo_epitopes:
             -write_vis_data
             -write_neo_epitopes
             {params.options}
-            2>&1 | tee -a {log}
+            2>&1 | tee -a {log} &&
+        ln -sf {wildcards.tumour_id}.linx.neo_epitope.tsv {output.neo_epitopes}
         """)
 
 
