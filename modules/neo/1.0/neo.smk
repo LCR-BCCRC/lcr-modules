@@ -126,24 +126,27 @@ def _neo_get_ensembl_data_dir_input(wildcards):
 ##### RULES #####
 
 
-# NEO's own bundled scoring reference data (position-weight matrices, likelihood distributions --
-# see neo/README.md's own resource file table, upstream). Real filename
-# convention confirmed by reading ScoreConfig.java/TrainConfig.java directly:
-# <score_file_dir>/train_<fileType>.<score_file_id>.csv. Cohort-wide, no genome_build wildcard --
-# this is protein/peptide-level binding data, not genome-coordinate reference data, so (like
-# modules/lilac/1.0's own 3 resource CSVs) it should be build-independent. NOT yet independently
-# verified against the real HMF resource bundle contents (flagged in this module's own README) --
-# confirm the exact file list/score_file_id once the bundle is downloaded and mirrored.
+# NEO's own bundled scoring reference data (position-weight matrices, likelihood distributions).
+# Real filename convention confirmed two ways: (1) reading BindCommon.formFilename() directly --
+# "<dir>/neo_train_<fileType>.csv" when no -score_file_id is passed (ScoreConfig.ScoreFileId is an
+# optional CLI item; a null id skips the "_<id>" suffix entirely and there is no "." before it --
+# both details were wrong in this rule's first version), "<dir>/neo_train_<fileType>_<id>.csv" if
+# one is; (2) the real, current hartwigmedical/hmftools pipeline/README_RESOURCES.md NEO section,
+# which lists exactly these 8 filenames with no id suffix at all -- i.e. the standard, publicly
+# distributed bundle is generated and used id-less. So this module does the same: no
+# -score_file_id passed to NeoScorer (see that rule), matching the bundle exactly. Cohort-wide, no
+# genome_build wildcard -- this is protein/peptide-level binding data, not genome-coordinate
+# reference data, so (like modules/lilac/1.0's own 3 resource CSVs) it's build-independent.
 rule _neo_download_reference:
     output:
-        pos_weight = CFG["dirs"]["reference"] + f"train_pos_weight.{CFG['options']['score_file_id']}.csv",
-        flank_pos_weight = CFG["dirs"]["reference"] + f"train_flank_pos_weight.{CFG['options']['score_file_id']}.csv",
-        likelihood = CFG["dirs"]["reference"] + f"train_likelihood.{CFG['options']['score_file_id']}.csv",
-        expression_dist = CFG["dirs"]["reference"] + f"train_expression_dist.{CFG['options']['score_file_id']}.csv",
-        recognition = CFG["dirs"]["reference"] + f"train_recognition.{CFG['options']['score_file_id']}.csv",
-        rand_dist = CFG["dirs"]["reference"] + f"train_rand_dist.{CFG['options']['score_file_id']}.csv",
-        likelihood_rand_dist = CFG["dirs"]["reference"] + f"train_likelihood_rand_dist.{CFG['options']['score_file_id']}.csv",
-        exp_likelihood_rand_dist = CFG["dirs"]["reference"] + f"train_exp_likelihood_rand_dist.{CFG['options']['score_file_id']}.csv"
+        pos_weight = CFG["dirs"]["reference"] + "neo_train_pos_weight.csv",
+        flank_pos_weight = CFG["dirs"]["reference"] + "neo_train_flank_pos_weight.csv",
+        likelihood = CFG["dirs"]["reference"] + "neo_train_likelihood.csv",
+        expression_dist = CFG["dirs"]["reference"] + "neo_train_expression_dist.csv",
+        recognition = CFG["dirs"]["reference"] + "neo_train_recognition.csv",
+        rand_dist = CFG["dirs"]["reference"] + "neo_train_rand_dist.csv",
+        likelihood_rand_dist = CFG["dirs"]["reference"] + "neo_train_likelihood_rand_dist.csv",
+        exp_likelihood_rand_dist = CFG["dirs"]["reference"] + "neo_train_exp_likelihood_rand_dist.csv"
     log:
         stdout = CFG["logs"]["reference"] + "download_reference.log"
     params:
@@ -316,10 +319,13 @@ rule _neo_epitope_finder:
 # its first non-memory argument and switches from `-jar neo.jar` to `-cp neo.jar <class>` when it
 # starts with "com.hartwig.hmftools.", so -Xmx placement doesn't matter). NeoScorer's own real
 # registered config has zero CLI-flagged-REQUIRED items at all (confirmed via the real jar) -- its
-# true requirements are enforced at runtime; -score_file_dir/-score_file_id is confirmed
-# functionally required via a real crash (NullPointerException in BindScoreMatrix.loadFromCsv)
-# without it. RNA/isofox/-cancer_tpm_medians_file deliberately omitted for v1 (README confirms
-# graceful degradation to un-adjusted presentation likelihood without RNA).
+# true requirements are enforced at runtime; -score_file_dir is confirmed functionally required via
+# a real crash (NullPointerException in BindScoreMatrix.loadFromCsv) without it. -score_file_id is
+# deliberately NOT passed -- ScoreConfig.ScoreFileId is optional, and a null id makes NeoScorer look
+# for the plain, id-less filenames _neo_download_reference downloads (matching the standard,
+# publicly distributed HMF resource bundle exactly -- see that rule's own comment). RNA/isofox/
+# -cancer_tpm_medians_file deliberately omitted for v1 (README confirms graceful degradation to
+# un-adjusted presentation likelihood without RNA).
 rule _neo_scorer:
     input:
         neo_data = str(rules._neo_epitope_finder.output.neo_data),
@@ -347,7 +353,6 @@ rule _neo_scorer:
         lilac_dir = lambda wildcards, input: os.path.dirname(input.lilac_tsv),
         purple_dir = lambda wildcards, input: os.path.dirname(input.purple_purity),
         score_file_dir = lambda wildcards, input: os.path.dirname(input.score_files[0]),
-        score_file_id = CFG["options"]["score_file_id"],
         peptide_lengths = CFG["options"]["peptide_lengths"],
         output_dir = lambda wildcards, output: os.path.dirname(output.neoepitopes),
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
@@ -370,7 +375,6 @@ rule _neo_scorer:
         -lilac_dir {params.lilac_dir}
         -purple_dir {params.purple_dir}
         -score_file_dir {params.score_file_dir}
-        -score_file_id {params.score_file_id}
         -peptide_lengths {params.peptide_lengths}
         -write_peptide_scores
         -threads {threads}

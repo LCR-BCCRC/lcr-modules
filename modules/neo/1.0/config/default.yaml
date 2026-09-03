@@ -67,16 +67,6 @@ lcr-modules:
             # with the rest of the HMF Tools family avoids a second, differently-named switch.
             use_masked_ref: False
 
-            # NEO's own reference file id for its bundled scoring data (position-weight matrices,
-            # likelihood distributions -- auto-downloaded by this module's own
-            # _neo_download_reference, not a user-configured path; only the id is configurable
-            # here since the same directory can hold data for more than one id). Real filenames
-            # confirmed via ScoreConfig.java/TrainConfig.java:
-            # <score_file_dir>/train_<fileType>.<score_file_id>.csv. NOT yet independently verified
-            # against the real HMF resource bundle contents -- confirm the real id once the bundle
-            # is downloaded and mirrored (see _neo_download_reference).
-            score_file_id: "cmb_02"
-
             # Peptide lengths NeoScorer considers, per its own -peptide_lengths format.
             peptide_lengths: "8-12"
 
