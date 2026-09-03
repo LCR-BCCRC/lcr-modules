@@ -40,7 +40,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "hmftools",
     version = "1.1",
-    subdirectories = ["inputs", "prepare_slms3", "amber", "cobalt", "purple", "linx", "outputs"],
+    subdirectories = ["inputs", "prepare_slms3", "amber", "cobalt", "purple", "linx", "linx_neo_epitopes", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -517,7 +517,69 @@ rule _hmftools_linx:
             2>&1 | tee -a {log}
         """)
 
-rule _hmftools_linx_viz: 
+# Re-invokes LINX with -write_neo_epitopes added, into its own output directory -- deliberately a
+# separate rule from _hmftools_linx above, not an extra output added to that rule, even though
+# both consume the exact same real inputs. Under --rerun-triggers mtime (this pipeline's always-on
+# setting), adding a new required output to _hmftools_linx's own output: would make Snakemake
+# consider every already-completed sample's LINX run "incomplete" (the new file wouldn't exist for
+# them yet) and force a rerun across the whole cohort just to pick up one new file -- confirmed via
+# direct discussion with the user, who has already run this module at scale and doesn't want that.
+# This rule costs one redundant LINX invocation per pair that wants neo-epitope output (LINX is a
+# fast SV-clustering/annotation step on already-computed PURPLE/AMBER/COBALT data, not a heavyweight
+# recompute), but leaves _hmftools_linx and its own already-completed output completely untouched
+# for every sample/user, including ones with no interest in neo-epitope prediction at all.
+#
+# -write_neo_epitopes confirmed to exist in the LINX version this module already pins
+# (hmftools-linx=1.15) by downloading the closest available real release jar (linx-v1.16 -- GitHub
+# has no exact 1.15 tag) and finding the literal string "write_neo_epitopes" compiled into
+# FusionDisruptionAnalyser.class (LINX uses an older Apache Commons CLI parser that doesn't dump a
+# registered-options list on an unrecognised flag the way the newer ConfigBuilder-based hmftools
+# apps do, so this was confirmed via a direct Python zipfile scan of the compiled classes, not a
+# CLI probe) -- no LINX version bump needed for this.
+rule _hmftools_linx_neo_epitopes:
+    input:
+        purple_vcf = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.purple.sv.vcf.gz",
+        ensembl_cache = str(rules._hmftools_get_ensembl_cache.output.cache),
+        linx_db = str(rules._hmftools_get_linx_db.output)
+    output:
+        neo_epitopes = CFG["dirs"]["linx_neo_epitopes"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.linx.neoepitope.tsv"
+    log: CFG["dirs"]["linx_neo_epitopes"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/linx_neo_epitopes.log"
+    resources:
+        **CFG["resources"]["linx"]
+    params:
+      ref_genome_version = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build],
+      jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8),
+      options = CFG["options"]["linx"],
+      cache_subdir = lambda w: config["lcr-modules"]["hmftools"]["dirs"]["inputs"] + "references/" + w.genome_build + "/ensembl_cache/" + VERSION_MAP_HMFTOOLS[w.genome_build]
+    conda:
+        CFG["conda_envs"]["linx"]
+    container:
+        CFG["container_envs"]["linx"]
+    threads:
+        CFG["threads"]["linx"]
+    shell:
+        op.as_one_line("""
+        linx -Xmx{params.jvmheap}m
+            -sample {wildcards.tumour_id}
+            -ref_genome_version {params.ref_genome_version}
+            -sv_vcf {input.purple_vcf}
+            -purple_dir `dirname {input.purple_vcf}`
+            -output_dir `dirname {output.neo_epitopes}`
+            -gene_transcripts_dir {params.cache_subdir}
+            -fragile_site_file {input.linx_db}/fragile_sites_hmf.{params.ref_genome_version}.csv
+            -line_element_file {input.linx_db}/line_elements.{params.ref_genome_version}.csv
+            -viral_hosts_file {input.linx_db}/viral_host_ref.csv
+            -known_fusion_file {input.linx_db}/known_fusion_data.{params.ref_genome_version}.csv
+            -check_fusions
+            -check_drivers
+            -write_vis_data
+            -write_neo_epitopes
+            {params.options}
+            2>&1 | tee -a {log}
+        """)
+
+
+rule _hmftools_linx_viz:
     input:
         clusters = rules._hmftools_linx.output.clusters,
         svs = rules._hmftools_linx.output.svs,
@@ -594,7 +656,31 @@ rule _hmftools_purple_output:
     run:
         op.relative_symlink(input.files, output.files, in_module=True)
 
-rule _hmftools_purple_plots: 
+# PURPLE already writes a real <tumour_id>.purple.somatic.vcf.gz as a standard side-effect of
+# being given -somatic_vcf as an input (which _hmftools_purple_matched already does) -- confirmed
+# by reading that rule's own purple_out list (purity.tsv, purity.range.tsv, cnv.gene.tsv,
+# sv.vcf.gz): the somatic VCF is real, on disk, but was never declared as a tracked output.
+#
+# Deliberately NOT added to purple_out / _hmftools_purple_matched's own output: (the same
+# rerun-avoidance reasoning as _hmftools_linx_neo_epitopes above -- adding a new required output to
+# that existing rule would force every already-completed sample through PURPLE, and everything
+# downstream of it, to rerun under --rerun-triggers mtime). Instead, this rule depends only on one
+# of _hmftools_purple_matched's own *already-tracked* outputs (files[0], i.e. purity.tsv) as a real
+# dependency anchor -- ensuring correct "PURPLE actually ran and finished" ordering/staleness --
+# then reads the adjacent, already-real, previously-untracked somatic VCF from that same directory
+# directly. _hmftools_purple_matched's own output: is completely unchanged; no PURPLE rerun is
+# forced for any existing sample.
+rule _hmftools_output_purple_somatic_vcf:
+    input:
+        purity = str(rules._hmftools_purple_matched.output.files[0])
+    output:
+        somatic_vcf = CFG["dirs"]["outputs"] + "purple_somatic_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.purple.somatic.vcf.gz"
+    params:
+        somatic_vcf = lambda wildcards, input: os.path.join(os.path.dirname(input.purity), f"{wildcards.tumour_id}.purple.somatic.vcf.gz")
+    run:
+        op.relative_symlink(params.somatic_vcf, output.somatic_vcf, in_module=True)
+
+rule _hmftools_purple_plots:
     input:
         plots = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/plot/{tumour_id}.{plot_name}.png"
     output: 
@@ -638,6 +724,32 @@ rule _hmftools_all:
                 str(rules._hmftools_dispatch.output.dispatched),
             ],
             zip,  # Run expand() with zip(), not product()
+            seq_type=CFG["runs"]["tumour_seq_type"],
+            genome_build=CFG["runs"]["tumour_genome_build"],
+            tumour_id=CFG["runs"]["tumour_sample_id"],
+            normal_id=CFG["runs"]["normal_sample_id"],
+            pair_status=CFG["runs"]["pair_status"]),
+        # Deliberately separate expand() blocks, not merged into _hmftools_dispatch's own input: --
+        # both new rules exist specifically to avoid ever being a dependency that could force
+        # _hmftools_linx/_hmftools_purple_matched themselves to rerun for already-completed
+        # samples (see the long comments on _hmftools_linx_neo_epitopes and
+        # _hmftools_output_purple_somatic_vcf above); keeping them out of _hmftools_dispatch's own
+        # input: means that guarantee doesn't depend on this target list too.
+        expand(
+            [
+                str(rules._hmftools_linx_neo_epitopes.output.neo_epitopes),
+            ],
+            zip,
+            seq_type=CFG["runs"]["tumour_seq_type"],
+            genome_build=CFG["runs"]["tumour_genome_build"],
+            tumour_id=CFG["runs"]["tumour_sample_id"],
+            normal_id=CFG["runs"]["normal_sample_id"],
+            pair_status=CFG["runs"]["pair_status"]),
+        expand(
+            [
+                str(rules._hmftools_output_purple_somatic_vcf.output.somatic_vcf),
+            ],
+            zip,
             seq_type=CFG["runs"]["tumour_seq_type"],
             genome_build=CFG["runs"]["tumour_genome_build"],
             tumour_id=CFG["runs"]["tumour_sample_id"],
