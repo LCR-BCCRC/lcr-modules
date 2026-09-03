@@ -39,11 +39,19 @@ lcr-modules:
             # why (NEO reads the same IMPACT VCF tag LILAC needed, confirmed in PointMutationData.java).
             somatic_vcf: "results/hmftools-1.1/99-outputs/purple_somatic_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.purple.somatic.vcf.gz"
 
-            # modules/lilac/1.0's own INTERNAL 02-lilac/ directory -- NOT 99-outputs/lilac/, whose
+            # modules/lilac/1.0's own INTERNAL 03-lilac/ directory -- NOT 99-outputs/lilac/, whose
             # files are renamed to the full {tumour_id}--{normal_id}--{pair_status} compound prefix.
             # Confirmed real requirement by reading hmf-common's LilacAllele.generateFilename():
             # NeoScorer expects a bare "<lilac_dir>/<tumour_id>.lilac.tsv".
-            lilac_tsv_file: "results/lilac-1.0/02-lilac/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.lilac.tsv"
+            # Real subdirectory number confirmed directly against lilac.smk's own
+            # subdirectories = ["inputs", "reference", "pave", "lilac", "outputs"] (00-inputs,
+            # 01-reference, 02-pave, 03-lilac, 99-outputs) -- this was originally written as
+            # "02-lilac" (an unverified guess, not checked against lilac.smk's own real numbering),
+            # found and fixed on a real cluster run: it only ever "worked" for one sample because a
+            # stale 02-lilac/ directory happened to still exist on disk from an older lilac.smk
+            # version (from before "reference" was its own subdirectory) -- every other sample
+            # correctly got "No rule to produce" for the nonexistent 02-lilac/ path.
+            lilac_tsv_file: "results/lilac-1.0/03-lilac/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.lilac.tsv"
 
             # modules/hmftools/1.1's own PURPLE per-pair output directory (PurityContextFile's
             # purity.tsv/qc files -- confirmed via hmf-common not to be the same gene-copy-number

@@ -18,7 +18,7 @@ RNA/expression annotation (Isofox, cohort TPM medians) is out of scope for v1 --
 This module needs real output from **two other modules**, none of which it can produce itself:
 
 1. **`modules/hmftools/1.1`'s own PURPLE somatic VCF**, exposed via a new rule (`_hmftools_output_purple_somatic_vcf`) added to that module specifically for this -- PURPLE already writes this file as a side-effect of being given `-somatic_vcf`, it just wasn't tracked before. No config changes needed in `hmftools/1.1` itself beyond having this module updated.
-2. **`modules/lilac/1.0`'s own HLA typing output** (`inputs.lilac_tsv_file`, pointing at `lilac`'s *internal* `02-lilac/` directory, not `99-outputs/` -- see the long comment on that config value for why).
+2. **`modules/lilac/1.0`'s own HLA typing output** (`inputs.lilac_tsv_file`, pointing at `lilac`'s *internal* `03-lilac/` directory, not `99-outputs/` -- see the long comment on that config value for why).
 
 ## LINX fusion neoepitopes are currently unavailable
 
@@ -58,7 +58,7 @@ lcr-modules:
             # linx_neo_epitope_file omitted -- optional, and currently never resolves to a real
             # file (see "LINX fusion neoepitopes are currently unavailable" above).
             somatic_vcf: "results/hmftools-1.1/99-outputs/purple_somatic_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.purple.somatic.vcf.gz"
-            lilac_tsv_file: "results/lilac-1.0/02-lilac/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.lilac.tsv"
+            lilac_tsv_file: "results/lilac-1.0/03-lilac/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.lilac.tsv"
             purple_purity_file: "results/hmftools-1.1/04-purple/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.purple.purity.tsv"
 ```
 
