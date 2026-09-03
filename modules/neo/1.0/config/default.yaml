@@ -3,9 +3,11 @@ lcr-modules:
     neo:
 
         inputs:
-            # Cross-module inputs, all required for this module to produce anything -- NEO
-            # structurally combines somatic mutation calls (SAGE->PAVE->PURPLE), fusion
-            # neoepitopes (LINX), and HLA typing (LILAC); it cannot avoid depending on all three.
+            # Cross-module inputs -- NEO structurally combines somatic mutation calls
+            # (SAGE->PAVE->PURPLE), fusion neoepitopes (LINX), and HLA typing (LILAC). somatic_vcf/
+            # lilac_tsv_file/purple_purity_file below are REQUIRED; linx_neo_epitope_file is
+            # OPTIONAL (see its own comment) -- this module cannot avoid depending on the required
+            # three, but can produce meaningful point-mutation-derived output without the fourth.
             # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
 
             # Each pattern below points at one real, specific FILE (not a bare directory) --
@@ -16,9 +18,18 @@ lcr-modules:
             # tool actually wants (-linx_dir/-purple_dir/-lilac_dir) via os.path.dirname() on these
             # same paths -- see _neo_get_linx_epitope_file etc. in neo.smk.
 
-            # modules/hmftools/1.1's own _hmftools_linx_neo_epitopes output (a new, separate rule
-            # added specifically for this -- NOT the same directory as the regular _hmftools_linx
-            # output, which never has -write_neo_epitopes enabled).
+            # OPTIONAL -- existence-gated like modules/lilac/1.0's own gene_copy_number/somatic_vcf
+            # (see _neo_get_linx_epitope_file in neo.smk). Left pointing at
+            # modules/hmftools/1.1's own _hmftools_linx_neo_epitopes output for documentation, but
+            # this will now NEVER resolve to a real file in practice, deliberately: that rule's own
+            # real output is named "<sample>.linx.neo_epitope.tsv" (an underscore before "epitope",
+            # matching what LINX itself actually writes), not the no-underscore name below. Fusion-
+            # derived neoepitopes are skipped by default until a real LINX release includes the
+            # "copyNumber" field NEO v1.3's own reader requires -- confirmed on a real cluster run
+            # that no tagged LINX release through the current latest (v2.3) writes it. See
+            # modules/hmftools/1.1's own CHANGELOG.md and this module's CHANGELOG.md for the full
+            # real-source trace. Point-mutation-derived neoepitopes (the majority for most samples)
+            # are entirely unaffected -- see somatic_vcf below.
             linx_neo_epitope_file: "results/hmftools-1.1/06-linx_neo_epitopes/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.linx.neoepitope.tsv"
 
             # modules/hmftools/1.1's own _hmftools_output_purple_somatic_vcf output -- PURPLE's own

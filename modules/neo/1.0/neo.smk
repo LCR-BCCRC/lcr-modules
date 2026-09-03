@@ -74,19 +74,34 @@ localrules:
 # than closing over the module-level `CFG` variable) since op.cleanup_module(CFG) deletes the
 # module-level shortcut before Snakemake lazily evaluates input/param functions.
 
-# All four of these are REQUIRED (not optional) cross-module inputs -- unlike modules/lilac/1.0's
-# own os.path.exists()-gated optional inputs, NEO cannot produce anything meaningful without real
-# LINX/PURPLE/LILAC data, so there's no "run without it" fallback to support. Each pattern points
-# at one real, specific file (not a bare directory) so Snakemake's own path-matching recognises it
-# as a real dependency on whatever rule actually produces it (in hmftools/1.1 or lilac, if that
-# module is also included in the same runner) -- if it isn't, Snakemake correctly, honestly fails
-# with "no rule to produce this file" rather than silently producing an empty/wrong result.
+# somatic_vcf/lilac_tsv_file/purple_purity_file (below) are REQUIRED (not optional) cross-module
+# inputs -- unlike modules/lilac/1.0's own os.path.exists()-gated optional inputs, NEO cannot
+# produce anything meaningful without real PURPLE/LILAC data, so there's no "run without it"
+# fallback to support for those three. Each pattern points at one real, specific file (not a bare
+# directory) so Snakemake's own path-matching recognises it as a real dependency on whatever rule
+# actually produces it (in hmftools/1.1 or lilac, if that module is also included in the same
+# runner) -- if it isn't, Snakemake correctly, honestly fails with "no rule to produce this file"
+# rather than silently producing an empty/wrong result.
+
+# linx_neo_epitope_file is the one exception -- OPTIONAL, existence-gated exactly like
+# modules/lilac/1.0's own gene_copy_number/somatic_vcf. Confirmed on a real cluster run that no
+# currently-released LINX version's own NeoEpitopeFusion schema includes the "copyNumber" field
+# NEO v1.3's own reader unconditionally requires (checked every tagged LINX release through the
+# current latest, v2.3 -- none of them write it; only the unreleased hmftools master branch does).
+# Until a real LINX release closes this gap, this module skips fusion-derived neoepitopes rather
+# than crash or fabricate the missing column -- see CHANGELOG.md for the full real-source trace.
+# Point-mutation-derived neoepitopes (the PAVE-annotated somatic_vcf path, the majority for most
+# samples) are entirely unaffected -- that's a separate code path in NeoEpitopeFinder.
 def _neo_get_linx_epitope_file(wildcards):
     CFG = config["lcr-modules"]["neo"]
-    return CFG["inputs"]["linx_neo_epitope_file"].format(
+    pattern = CFG["inputs"].get("linx_neo_epitope_file", "")
+    if not pattern:
+        return []
+    path = pattern.format(
         seq_type = wildcards.seq_type, genome_build = wildcards.genome_build,
         tumour_id = wildcards.tumour_id, normal_id = wildcards.normal_id, pair_status = wildcards.pair_status
     )
+    return [path] if os.path.isfile(path) else []
 
 def _neo_get_raw_somatic_vcf(wildcards):
     CFG = config["lcr-modules"]["neo"]
@@ -272,14 +287,18 @@ rule _neo_pave_annotate:
 
 
 # Step 1: identifies candidate neoepitopes from point mutations (the PAVE-annotated somatic VCF)
-# and gene fusions (LINX's own neoepitope file). Real entry point confirmed by downloading the
-# actual neo-v1.3 release jar and inspecting its class listing directly: the real class is
-# com.hartwig.hmftools.neo.epitope.NeoEpitopeFinder -- the module's own README names a stale,
-# nonexistent com.hartwig.hmftools.neo.cohort.NeoEpitopeAnnotator instead. Real required config
-# (-linx_dir/-somatic_vcf/-ref_genome_version/-ref_genome) confirmed via the real jar's own
-# registered-config-item dump. RNA/expression annotation deliberately out of scope for v1 (DNA-only
-# mutation predictions only) -- same precedent already set for modules/mhc_hammer/1.0 and
-# modules/lilac/1.0.
+# and, when available, gene fusions (LINX's own neoepitope file). Real entry point confirmed by
+# downloading the actual neo-v1.3 release jar and inspecting its class listing directly: the real
+# class is com.hartwig.hmftools.neo.epitope.NeoEpitopeFinder -- the module's own README names a
+# stale, nonexistent com.hartwig.hmftools.neo.cohort.NeoEpitopeAnnotator instead. Real required
+# config (-linx_dir/-somatic_vcf/-ref_genome_version/-ref_genome) confirmed via the real jar's own
+# registered-config-item dump -- -linx_dir must still always be passed (CLI-required), but confirmed
+# via NeoSampleTask.getSvFusions() source that it gracefully warns and skips fusion-neoepitope
+# lookup (rather than crashing) when the sample's own expected file isn't present in that
+# directory -- exploited deliberately below (params.linx_dir) when linx_epitope_file isn't
+# configured/found, rather than needing to omit the flag itself. RNA/expression annotation
+# deliberately out of scope for v1 (DNA-only mutation predictions only) -- same precedent already
+# set for modules/mhc_hammer/1.0 and modules/lilac/1.0.
 rule _neo_epitope_finder:
     input:
         linx_epitope_file = _neo_get_linx_epitope_file,
@@ -292,7 +311,11 @@ rule _neo_epitope_finder:
         stdout = CFG["logs"]["epitopes"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/epitope_finder.log"
     params:
         ref_genome_version = lambda wildcards: VERSION_MAP[wildcards.genome_build],
-        linx_dir = lambda wildcards, input: os.path.dirname(input.linx_epitope_file),
+        # Falls back to this rule's own output_dir (guaranteed to exist, guaranteed to never
+        # contain a real <sample>.linx.neoepitope.tsv) when linx_epitope_file isn't
+        # configured/found -- satisfies -linx_dir's CLI-required check while NeoEpitopeFinder
+        # gracefully finds no fusion-neoepitope file there and skips that part of its own analysis.
+        linx_dir = lambda wildcards, input, output: os.path.dirname(input.linx_epitope_file[0]) if input.linx_epitope_file else os.path.dirname(output.neo_data),
         ensembl_dir = lambda wildcards, input: os.path.join(str(input.ensembl_cache), VERSION_MAP[wildcards.genome_build]),
         output_dir = lambda wildcards, output: os.path.dirname(output.neo_data),
         req_amino_acids = CFG["options"]["req_amino_acids"],

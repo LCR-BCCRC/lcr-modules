@@ -538,21 +538,27 @@ rule _hmftools_linx:
 # CLI probe) -- no LINX version bump needed for this.
 # Real, version-specific filename quirk found on a real cluster run: LINX 1.17 (the version this
 # module actually installs -- confirmed via a real run's own log, "LINX version: 1.17") writes
-# "<sample>.linx.neo_epitope.tsv" (underscore before "epitope"). But modules/neo/1.0's own NEO v1.3
-# binary looks for "<sample>.linx.neoepitope.tsv" (no underscore) inside whatever -linx_dir it's
-# given -- confirmed by checking out the real neo-v1.3 tag directly and reading hmf-common's
-# NeoEpitopeFusion.FILE_EXTENSION constant there (".linx.neoepitope.tsv"). Two different points in
-# this shared library's own history, pinned on either side of a real naming change -- neither tool
-# is "wrong" individually. Fixed with a same-directory compat symlink (see shell: below) rather than
-# renaming either binary's own behaviour, so the rule's own output: stays the name neo/1.0's
-# inputs.linx_neo_epitope_file default already expects.
+# "<sample>.linx.neo_epitope.tsv" (underscore before "epitope"), not the "neoepitope" (no
+# underscore) name some newer hmf-common source uses -- output: below matches what LINX actually
+# writes rather than promising a name it doesn't produce.
+#
+# Deliberately NOT bridged to modules/neo/1.0's own expected filename/schema any more (an earlier
+# version of this rule added a same-directory compat symlink under the no-underscore name) -- found
+# on the same real cluster run that this file's own real, 17-column schema is missing a
+# "copyNumber" field NEO v1.3's own reader unconditionally expects (a genuine upstream version gap:
+# checked every tagged LINX release through the current latest, v2.3, and NONE of them write this
+# field -- only the current, unreleased hmftools master branch does). modules/neo/1.0 has decided to
+# skip fusion-derived neoepitopes entirely until a real LINX release closes this gap, rather than
+# fabricate the missing column -- see that module's own CHANGELOG.md. This rule is kept as-is
+# (real, useful LINX fusion-neoepitope data for any other purpose) but is no longer wired to satisfy
+# NEO's specific filename expectation.
 rule _hmftools_linx_neo_epitopes:
     input:
         purple_vcf = CFG["dirs"]["purple"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.purple.sv.vcf.gz",
         ensembl_cache = str(rules._hmftools_get_ensembl_cache.output.cache),
         linx_db = str(rules._hmftools_get_linx_db.output)
     output:
-        neo_epitopes = CFG["dirs"]["linx_neo_epitopes"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.linx.neoepitope.tsv"
+        neo_epitopes = CFG["dirs"]["linx_neo_epitopes"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.linx.neo_epitope.tsv"
     log: CFG["dirs"]["linx_neo_epitopes"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/linx_neo_epitopes.log"
     resources:
         **CFG["resources"]["linx"]
@@ -585,8 +591,7 @@ rule _hmftools_linx_neo_epitopes:
             -write_vis_data
             -write_neo_epitopes
             {params.options}
-            2>&1 | tee -a {log} &&
-        ln -sf {wildcards.tumour_id}.linx.neo_epitope.tsv {output.neo_epitopes}
+            2>&1 | tee -a {log}
         """)
 
 

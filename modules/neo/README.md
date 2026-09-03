@@ -6,8 +6,8 @@ The `neo` module is a Level 3 module that predicts and scores tumour neoepitopes
 
 NEO is a genuinely cross-tool downstream analysis, not a preprocessing detail of any one upstream tool -- it structurally requires:
 - **Somatic variants**: PURPLE's own somatic VCF (variant copy number and subclonal likelihood, real, standard PURPLE VCF annotations -- confirmed to *not* require the same `cnv.gene.tsv` gene-copy-number file whose schema drift broke `modules/lilac/1.0`'s own `gene_copy_number` input).
-- **Gene fusion neoepitopes**: LINX's own `-write_neo_epitopes` output.
 - **HLA typing**: `modules/lilac/1.0`'s own allele coverage/CN output.
+- **Gene fusion neoepitopes** (optional, currently skipped by default): LINX's own `-write_neo_epitopes` output -- see "LINX fusion neoepitopes are currently unavailable" below for why.
 
 This is exactly why `neo` is its own standalone module rather than being folded into `modules/lilac/1.0` -- its real inputs are a cross-module-input problem (the same convention `lilac` itself already uses for `gene_copy_number`/`somatic_vcf`), not something any one of those other modules' own internal steps needs. A standalone module can point at *any* compatible PURPLE/LINX/LILAC output, not just this repo's own.
 
@@ -15,11 +15,14 @@ RNA/expression annotation (Isofox, cohort TPM medians) is out of scope for v1 --
 
 ## Prerequisites (read before use)
 
-This module needs real output from **three other modules/pipeline steps**, none of which it can produce itself:
+This module needs real output from **two other modules**, none of which it can produce itself:
 
 1. **`modules/hmftools/1.1`'s own PURPLE somatic VCF**, exposed via a new rule (`_hmftools_output_purple_somatic_vcf`) added to that module specifically for this -- PURPLE already writes this file as a side-effect of being given `-somatic_vcf`, it just wasn't tracked before. No config changes needed in `hmftools/1.1` itself beyond having this module updated.
-2. **`modules/hmftools/1.1`'s own LINX neoepitope output**, via a new, separate rule (`_hmftools_linx_neo_epitopes`) added to that module -- deliberately *not* merged into the existing `_hmftools_linx` rule, so requesting it never forces an already-completed sample's LINX run to redo. Confirmed the pinned `hmftools-linx=1.15` already supports `-write_neo_epitopes` (no LINX version bump needed).
-3. **`modules/lilac/1.0`'s own HLA typing output** (`inputs.lilac_tsv_file`, pointing at `lilac`'s *internal* `02-lilac/` directory, not `99-outputs/` -- see the long comment on that config value for why).
+2. **`modules/lilac/1.0`'s own HLA typing output** (`inputs.lilac_tsv_file`, pointing at `lilac`'s *internal* `02-lilac/` directory, not `99-outputs/` -- see the long comment on that config value for why).
+
+## LINX fusion neoepitopes are currently unavailable
+
+`modules/hmftools/1.1` has a rule for this (`_hmftools_linx_neo_epitopes`, real LINX output), but this module does **not** consume it by default, and `inputs.linx_neo_epitope_file`'s own default pattern will never resolve to a real file in practice. This is a genuine, confirmed upstream gap in HMF Tools itself, not a bug in this module or `hmftools/1.1`: LINX 1.17 (the version `hmftools/1.1` actually installs) writes its neoepitope file with a 17-column schema that has no `copyNumber` field, but NEO v1.3's own reader unconditionally requires one -- confirmed by checking every tagged LINX release through the current latest (v2.3) directly; **none** of them write this field, only the current, unreleased `hmftools` `master` branch does. Rather than crash (the real failure mode found on a real cluster run: a `NullPointerException` in `NeoEpitopeFusion.fromLines()`) or fabricate the missing column, this module simply skips fusion-derived neoepitopes until a real LINX release closes the gap. Point-mutation-derived neoepitopes (the PAVE-annotated `somatic_vcf` path, the majority for most samples) are entirely unaffected. See `CHANGELOG.md` for the full real-source trace, and `modules/hmftools/1.1`'s own `CHANGELOG.md` for the LINX side of this.
 
 `_neo_download_reference` fetches NEO's own bundled scoring reference data (position-weight matrices, likelihood distributions) from `www.bcgsc.ca/downloads/morinlab/hmftools-references/neo/`, same pre-extracted mirror convention as `modules/lilac/1.0`/`modules/hmftools/1.1`. The exact 8 filenames (`neo_train_pos_weight.csv`, `neo_train_flank_pos_weight.csv`, `neo_train_likelihood.csv`, `neo_train_expression_dist.csv`, `neo_train_recognition.csv`, `neo_train_rand_dist.csv`, `neo_train_likelihood_rand_dist.csv`, `neo_train_exp_likelihood_rand_dist.csv`) are now confirmed against both `BindCommon.formFilename()` and the real, current `hartwigmedical/hmftools` `pipeline/README_RESOURCES.md` NEO section -- source these 8 files from there (via the [Oncoanalyser reference-data page](https://nf-co.re/oncoanalyser/docs/usage/#reference-data-urls) it links to) and place them, unrenamed, at that mirror path. `-score_file_id` is deliberately never passed to `NeoScorer` -- see `CHANGELOG.md` for why.
 
@@ -48,7 +51,8 @@ lcr-modules:
 
     neo:
         inputs:
-            linx_neo_epitope_file: "results/hmftools-1.1/06-linx_neo_epitopes/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.linx.neoepitope.tsv"
+            # linx_neo_epitope_file omitted -- optional, and currently never resolves to a real
+            # file (see "LINX fusion neoepitopes are currently unavailable" above).
             somatic_vcf: "results/hmftools-1.1/99-outputs/purple_somatic_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.purple.somatic.vcf.gz"
             lilac_tsv_file: "results/lilac-1.0/02-lilac/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.lilac.tsv"
             purple_purity_file: "results/hmftools-1.1/04-purple/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.purple.purity.tsv"
