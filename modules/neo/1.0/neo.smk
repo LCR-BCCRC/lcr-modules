@@ -95,6 +95,16 @@ def _neo_get_raw_somatic_vcf(wildcards):
         tumour_id = wildcards.tumour_id, normal_id = wildcards.normal_id, pair_status = wildcards.pair_status
     )
 
+# PAVE reads the somatic VCF via htsjdk, which requires a .tbi index physically alongside it --
+# confirmed via a real crash (TribbleException: "An index is required, but none found.") on
+# modules/hmftools/1.1's own symlinked purple_somatic_vcf output, which originally dropped PURPLE's
+# own companion index on relocation. Tracked here as a real Snakemake input (not passed to any CLI
+# flag -- PAVE finds it itself by the standard sibling-.tbi convention) purely so Snakemake enforces
+# its existence/ordering before this rule runs, same path-pattern-matching convention as the VCF
+# itself.
+def _neo_get_raw_somatic_vcf_index(wildcards):
+    return _neo_get_raw_somatic_vcf(wildcards) + ".tbi"
+
 def _neo_get_lilac_tsv_file(wildcards):
     CFG = config["lcr-modules"]["neo"]
     return CFG["inputs"]["lilac_tsv_file"].format(
@@ -220,6 +230,7 @@ rule _neo_download_ensembl_cache:
 rule _neo_pave_annotate:
     input:
         vcf = _neo_get_raw_somatic_vcf,
+        vcf_index = _neo_get_raw_somatic_vcf_index,
         ensembl_cache = _neo_get_ensembl_data_dir_input,
         fasta = reference_files("genomes/{genome_build}" + masked_string + "/genome_fasta/genome.fa")
     output:

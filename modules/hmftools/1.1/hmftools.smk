@@ -670,15 +670,27 @@ rule _hmftools_purple_output:
 # then reads the adjacent, already-real, previously-untracked somatic VCF from that same directory
 # directly. _hmftools_purple_matched's own output: is completely unchanged; no PURPLE rerun is
 # forced for any existing sample.
+#
+# Also symlinks the VCF's own companion .tbi index -- PURPLE, like every other VCF-writing tool in
+# this family, tabix-indexes its own output as a matter of course, but a symlink of the .vcf.gz
+# alone drops that sibling file. Found the hard way: htsjdk's VcfFileReader requires an index
+# physically alongside any VCF it opens, and modules/neo/1.0's own _neo_pave_annotate crashed on a
+# real run reading this rule's symlinked-but-unindexed output
+# (htsjdk.tribble.TribbleException: "An index is required, but none found."). PURPLE's own,
+# un-relocated output directory was never affected by this -- only a symlinked copy that dropped the
+# index silently was.
 rule _hmftools_output_purple_somatic_vcf:
     input:
         purity = str(rules._hmftools_purple_matched.output.files[0])
     output:
-        somatic_vcf = CFG["dirs"]["outputs"] + "purple_somatic_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.purple.somatic.vcf.gz"
+        somatic_vcf = CFG["dirs"]["outputs"] + "purple_somatic_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.purple.somatic.vcf.gz",
+        somatic_vcf_tbi = CFG["dirs"]["outputs"] + "purple_somatic_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.purple.somatic.vcf.gz.tbi"
     params:
-        somatic_vcf = lambda wildcards, input: os.path.join(os.path.dirname(input.purity), f"{wildcards.tumour_id}.purple.somatic.vcf.gz")
+        somatic_vcf = lambda wildcards, input: os.path.join(os.path.dirname(input.purity), f"{wildcards.tumour_id}.purple.somatic.vcf.gz"),
+        somatic_vcf_tbi = lambda wildcards, input: os.path.join(os.path.dirname(input.purity), f"{wildcards.tumour_id}.purple.somatic.vcf.gz.tbi")
     run:
         op.relative_symlink(params.somatic_vcf, output.somatic_vcf, in_module=True)
+        op.relative_symlink(params.somatic_vcf_tbi, output.somatic_vcf_tbi, in_module=True)
 
 rule _hmftools_purple_plots:
     input:
@@ -748,6 +760,7 @@ rule _hmftools_all:
         expand(
             [
                 str(rules._hmftools_output_purple_somatic_vcf.output.somatic_vcf),
+                str(rules._hmftools_output_purple_somatic_vcf.output.somatic_vcf_tbi),
             ],
             zip,
             seq_type=CFG["runs"]["tumour_seq_type"],
