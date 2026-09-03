@@ -1,0 +1,121 @@
+lcr-modules:
+
+    neo:
+
+        inputs:
+            # Cross-module inputs, all required for this module to produce anything -- NEO
+            # structurally combines somatic mutation calls (SAGE->PAVE->PURPLE), fusion
+            # neoepitopes (LINX), and HLA typing (LILAC); it cannot avoid depending on all three.
+            # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
+
+            # Each pattern below points at one real, specific FILE (not a bare directory) --
+            # deliberately, so Snakemake's own path-matching can recognise it as a real dependency
+            # on whatever rule (in hmftools/1.1 or lilac, if that module is also included in the
+            # same runner) actually produces it, the same way _hmftools_output_purple_somatic_vcf's
+            # own anchor-file technique works. This module's own rules derive the directory each
+            # tool actually wants (-linx_dir/-purple_dir/-lilac_dir) via os.path.dirname() on these
+            # same paths -- see _neo_get_linx_epitope_file etc. in neo.smk.
+
+            # modules/hmftools/1.1's own _hmftools_linx_neo_epitopes output (a new, separate rule
+            # added specifically for this -- NOT the same directory as the regular _hmftools_linx
+            # output, which never has -write_neo_epitopes enabled).
+            linx_neo_epitope_file: "results/hmftools-1.1/06-linx_neo_epitopes/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.linx.neoepitope.tsv"
+
+            # modules/hmftools/1.1's own _hmftools_output_purple_somatic_vcf output -- PURPLE's own
+            # somatic VCF (real PURPLE_CN/subclonal-likelihood INFO tags, confirmed by reading
+            # NeoSampleTask.java directly), run through this module's own PAVE annotation step
+            # (_neo_pave_annotate) before NEO ever sees it -- see the long comment on that rule for
+            # why (NEO reads the same IMPACT VCF tag LILAC needed, confirmed in PointMutationData.java).
+            somatic_vcf: "results/hmftools-1.1/99-outputs/purple_somatic_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.purple.somatic.vcf.gz"
+
+            # modules/lilac/1.0's own INTERNAL 02-lilac/ directory -- NOT 99-outputs/lilac/, whose
+            # files are renamed to the full {tumour_id}--{normal_id}--{pair_status} compound prefix.
+            # Confirmed real requirement by reading hmf-common's LilacAllele.generateFilename():
+            # NeoScorer expects a bare "<lilac_dir>/<tumour_id>.lilac.tsv".
+            lilac_tsv_file: "results/lilac-1.0/02-lilac/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.lilac.tsv"
+
+            # modules/hmftools/1.1's own PURPLE per-pair output directory (PurityContextFile's
+            # purity.tsv/qc files -- confirmed via hmf-common not to be the same gene-copy-number
+            # file whose schema drift broke lilac's own gene_copy_number input).
+            purple_purity_file: "results/hmftools-1.1/04-purple/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.purple.purity.tsv"
+
+            # Optional. Points this module at an already-downloaded Ensembl gene/transcript cache
+            # (e.g. modules/hmftools/1.1's own) to avoid a redundant second download of the exact
+            # same reference data -- same pattern as modules/lilac/1.0's own inputs.ensembl_data_dir.
+            # Leave unset (default) and this module downloads its own via _neo_download_ensembl_cache.
+            # Available wildcards: {seq_type} {genome_build}
+            ensembl_data_dir: ""
+            # Real example, if you already have modules/hmftools/1.1 in the same runner:
+            # ensembl_data_dir: "results/hmftools-1.1/00-inputs/references/{genome_build}/ensembl_cache/"
+
+        scratch_subdirectories: []
+
+        options:
+            # genome_build -> NEO's own -ref_genome_version argument ("37"/"38"), mirrors
+            # modules/lilac/1.0's own options.version_map exactly (same problem, same genome_build
+            # flavour vocabulary) -- deliberately a separate copy, not a cross-module reference,
+            # matching how every other module in this HMF Tools family keeps its own copy.
+            version_map:
+                grch37: "37"
+                hs37d5: "37"
+                hg38: "38"
+
+            # GRCh38 BAMs must be aligned to a build with no HLA ALT contigs -- mirrors
+            # modules/lilac/1.0's own use_masked_ref switch exactly. Only relevant if this module
+            # is ever pointed at a genome_build affecting NEO's own -ref_genome input; NEO itself
+            # doesn't touch the HLA region directly the way LILAC does, but keeping this consistent
+            # with the rest of the HMF Tools family avoids a second, differently-named switch.
+            use_masked_ref: False
+
+            # NEO's own reference file id for its bundled scoring data (position-weight matrices,
+            # likelihood distributions -- auto-downloaded by this module's own
+            # _neo_download_reference, not a user-configured path; only the id is configurable
+            # here since the same directory can hold data for more than one id). Real filenames
+            # confirmed via ScoreConfig.java/TrainConfig.java:
+            # <score_file_dir>/train_<fileType>.<score_file_id>.csv. NOT yet independently verified
+            # against the real HMF resource bundle contents -- confirm the real id once the bundle
+            # is downloaded and mirrored (see _neo_download_reference).
+            score_file_id: "cmb_02"
+
+            # Peptide lengths NeoScorer considers, per its own -peptide_lengths format.
+            peptide_lengths: "8-12"
+
+            # Number of amino acids up/downstream of each variant NeoEpitopeFinder includes in a
+            # candidate neoepitope -- NEO's own real default (confirmed via its registered CLI
+            # config items), kept explicit here rather than relying on the tool's own default.
+            req_amino_acids: 15
+
+        conda_envs:
+            neo: "{MODSDIR}/envs/hmftools-neo-1.3.yaml"
+            # PAVE annotates the raw somatic_vcf input with the VCF INFO tag ("IMPACT") NEO itself
+            # requires to identify each variant's gene/coding-effect -- same real requirement
+            # already found and fixed once for modules/lilac/1.0 (confirmed here independently by
+            # reading NEO's own PointMutationData.isRelevantMutation()/NeoSampleTask.java).
+            pave: "{MODSDIR}/envs/hmftools-pave-1.9.1.yaml"
+            wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
+
+        threads:
+            download_reference: 1
+            pave: 4
+            epitope_finder: 2
+            scorer: 2
+
+        resources:
+            download_reference:
+                mem_mb: 2000
+            pave:
+                mem_mb: 8000
+            epitope_finder:
+                mem_mb: 8000
+            scorer:
+                mem_mb: 8000
+
+        pairing_config:
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False
