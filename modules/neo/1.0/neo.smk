@@ -61,6 +61,7 @@ if CFG["options"]["use_masked_ref"]:
 localrules:
     _neo_download_reference,
     _neo_download_ensembl_cache,
+    _neo_prep_purple_dir,
     _neo_output_epitopes,
     _neo_output_neoepitope_scores,
     _neo_output_peptide_scores,
@@ -345,6 +346,45 @@ rule _neo_epitope_finder:
         """)
 
 
+# NeoScorer's own -purple_dir reads both PURPLE's real, unmodified <sample>.purple.qc (via
+# PurpleQCFile, whose own reader uses defaulted getValue() lookups -- confirmed NOT to hit the same
+# crash class below) and <sample>.purple.purity.tsv (via PurplePurity, whose reader does an
+# unchecked fieldsIndexMap.get() per column). Confirmed via a real crash
+# (NullPointerException reading fieldsIndexMap.get("runMode")) that NEO v1.3's own PurplePurity
+# reader (checked out at the real neo-v1.3 tag) requires two columns -- "runMode"/"targeted" -- that
+# modules/hmftools/1.1's pinned PURPLE 2.54 simply never wrote (confirmed by checking out the real
+# purple-v2.54 tag's own writer, PurityContextFile.java, directly: no such columns exist in its own
+# header() at all). A large real upstream version gap -- PURPLE has since reached v4.4 -- but unlike
+# the LINX neoepitope copyNumber gap (real ADR discussed with the user), both missing values here
+# are deterministic run metadata this module already knows, not unknowable biological measurements,
+# so they're filled in directly rather than skipped: runMode is always TUMOR_GERMLINE (this module's
+# own CFG["paired_runs"] is narrowed to pair_status == "matched" only, so every sample NeoScorer
+# ever processes really is a matched tumour/normal run), and targeted is read straight off
+# {seq_type} (true for capture/WES, false for genome/WGS) -- both real, already-known facts, not
+# guesses. Writes a small "purple_compat" directory (real purity.tsv + 2 appended columns, real QC
+# file symlinked in unmodified) for _neo_scorer's own -purple_dir to point at instead of
+# hmftools/1.1's real PURPLE directory directly.
+rule _neo_prep_purple_dir:
+    input:
+        purity = _neo_get_purple_purity_file
+    output:
+        purity = CFG["dirs"]["scores"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/purple_compat/{tumour_id}.purple.purity.tsv",
+        qc = CFG["dirs"]["scores"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/purple_compat/{tumour_id}.purple.qc"
+    params:
+        real_qc = lambda wildcards, input: os.path.join(os.path.dirname(input.purity), f"{wildcards.tumour_id}.purple.qc"),
+        run_mode = "TUMOR_GERMLINE",
+        targeted = lambda wildcards: "true" if wildcards.seq_type == "capture" else "false"
+    run:
+        with open(input.purity) as f:
+            lines = f.read().rstrip("\n").split("\n")
+        lines[0] += "\trunMode\ttargeted"
+        for i in range(1, len(lines)):
+            lines[i] += f"\t{params.run_mode}\t{params.targeted}"
+        with open(output.purity, "w") as f:
+            f.write("\n".join(lines) + "\n")
+        op.relative_symlink(params.real_qc, output.qc, in_module = True)
+
+
 # Step 2: scores each candidate neoepitope's peptides for MHC binding/presentation likelihood,
 # using this pair's own LILAC allele typing and PURPLE purity/CN context. Real entry point
 # confirmed the same way as _neo_epitope_finder: com.hartwig.hmftools.neo.score.NeoScorer (README
@@ -364,7 +404,8 @@ rule _neo_scorer:
     input:
         neo_data = str(rules._neo_epitope_finder.output.neo_data),
         lilac_tsv = _neo_get_lilac_tsv_file,
-        purple_purity = _neo_get_purple_purity_file,
+        purple_purity = str(rules._neo_prep_purple_dir.output.purity),
+        purple_qc = str(rules._neo_prep_purple_dir.output.qc),
         score_files = [
             str(rules._neo_download_reference.output.pos_weight),
             str(rules._neo_download_reference.output.flank_pos_weight),

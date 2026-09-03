@@ -28,6 +28,10 @@ This module needs real output from **two other modules**, none of which it can p
 
 This module runs its own PAVE annotation step (`_neo_pave_annotate`) on the raw PURPLE somatic VCF before NEO ever sees it -- **not optional**: NEO reads the same `IMPACT` VCF INFO tag `modules/lilac/1.0` needed (confirmed by reading `PointMutationData.isRelevantMutation()`/`NeoSampleTask.java` directly), and a raw, unannotated VCF would silently exclude every variant with no error. `_neo_download_ensembl_cache` fetches PAVE's required Ensembl gene/transcript cache -- reusable via `inputs.ensembl_data_dir` if you already have a copy (e.g. from `modules/hmftools/1.1`), same pattern as `modules/lilac/1.0`.
 
+## PURPLE purity file compatibility shim
+
+`modules/hmftools/1.1` pins PURPLE 2.54, whose `purity.tsv` predates two columns (`runMode`, `targeted`) NEO v1.3's own reader unconditionally requires -- a real, confirmed upstream version gap (PURPLE has since reached v4.4). Unlike the LINX gap above, both missing values are deterministic run metadata this module already knows (this module only ever processes matched tumour/normal pairs, and `{seq_type}` already says capture vs genome), so a small new rule, `_neo_prep_purple_dir`, writes a `purple_compat/` directory per pair with the real `purity.tsv` plus these 2 columns appended, and the real `.purple.qc` symlinked in unmodified. `_neo_scorer`'s own `-purple_dir` points at this directory rather than `hmftools/1.1`'s real PURPLE output directly. See `CHANGELOG.md` for the full real-source trace.
+
 ## Real CLI verification notes
 
 Confirmed directly against the real `neo-v1.3` release jar (downloaded from GitHub, run locally with `java -cp`/the installed `neo` wrapper -- same technique already used for `lilac`/`pave`/`purple`):
