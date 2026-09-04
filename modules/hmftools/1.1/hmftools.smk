@@ -757,22 +757,23 @@ rule _hmftools_all:
             tumour_id=CFG["runs"]["tumour_sample_id"],
             normal_id=CFG["runs"]["normal_sample_id"],
             pair_status=CFG["runs"]["pair_status"]),
-        # Deliberately separate expand() blocks, not merged into _hmftools_dispatch's own input: --
-        # both new rules exist specifically to avoid ever being a dependency that could force
-        # _hmftools_linx/_hmftools_purple_matched themselves to rerun for already-completed
-        # samples (see the long comments on _hmftools_linx_neo_epitopes and
-        # _hmftools_output_purple_somatic_vcf above); keeping them out of _hmftools_dispatch's own
-        # input: means that guarantee doesn't depend on this target list too.
-        expand(
-            [
-                str(rules._hmftools_linx_neo_epitopes.output.neo_epitopes),
-            ],
-            zip,
-            seq_type=CFG["runs"]["tumour_seq_type"],
-            genome_build=CFG["runs"]["tumour_genome_build"],
-            tumour_id=CFG["runs"]["tumour_sample_id"],
-            normal_id=CFG["runs"]["normal_sample_id"],
-            pair_status=CFG["runs"]["pair_status"]),
+        # Deliberately separate expand() block, not merged into _hmftools_dispatch's own input: --
+        # this new rule exists specifically to avoid ever being a dependency that could force
+        # _hmftools_purple_matched itself to rerun for already-completed samples (see the long
+        # comment on _hmftools_output_purple_somatic_vcf above); keeping it out of
+        # _hmftools_dispatch's own input: means that guarantee doesn't depend on this target list
+        # too.
+        #
+        # _hmftools_linx_neo_epitopes deliberately NOT included here (any more) -- it was
+        # originally added to this list for modules/neo/1.0's own benefit, but that module no
+        # longer consumes its output at all (a real, confirmed LINX/NEO schema gap means no
+        # released LINX version satisfies what NEO v1.3 needs from this file -- see
+        # modules/neo/1.0's own CHANGELOG.md). Requesting it here by default would just rerun LINX
+        # a second time for output nothing downstream reads. The rule itself is left in place
+        # (still real, useful LINX fusion-neoepitope data, and ready to resume being wired in once
+        # a real LINX release closes the gap) -- just no longer part of the default _hmftools_all
+        # target set; request rules._hmftools_linx_neo_epitopes.output.neo_epitopes directly if you
+        # want it.
         expand(
             [
                 str(rules._hmftools_output_purple_somatic_vcf.output.somatic_vcf),
