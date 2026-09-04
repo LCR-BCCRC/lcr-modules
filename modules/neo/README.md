@@ -11,7 +11,7 @@ NEO is a genuinely cross-tool downstream analysis, not a preprocessing detail of
 
 This is exactly why `neo` is its own standalone module rather than being folded into `modules/lilac/1.0` -- its real inputs are a cross-module-input problem (the same convention `lilac` itself already uses for `gene_copy_number`/`somatic_vcf`), not something any one of those other modules' own internal steps needs. A standalone module can point at *any* compatible PURPLE/LINX/LILAC output, not just this repo's own.
 
-RNA/expression annotation (Isofox, cohort TPM medians) is out of scope for v1 -- DNA-only mutation-derived predictions only, matching the same DNA-only precedent already set for `modules/mhc_hammer/1.0` and `modules/lilac/1.0`. NEO's own README confirms this degrades gracefully (un-adjusted presentation likelihood, no expression annotation) rather than failing.
+Per-sample RNA/expression annotation (Isofox, real sample TPM) is out of scope for v1 -- DNA-only mutation-derived predictions only, matching the same DNA-only precedent already set for `modules/mhc_hammer/1.0` and `modules/lilac/1.0`. NEO's own README confirms this degrades gracefully (un-adjusted presentation likelihood, no per-sample expression annotation) rather than failing. This module *does* however wire up NEO's own **cohort TPM medians** fallback (`-cancer_tpm_medians_file`/`-cancer_type`) -- see "Cohort TPM medians (cancer-type expression fallback)" below.
 
 ## Prerequisites (read before use)
 
@@ -27,6 +27,25 @@ This module needs real output from **two other modules**, none of which it can p
 `_neo_download_reference` fetches NEO's own bundled scoring reference data (position-weight matrices, likelihood distributions) from `www.bcgsc.ca/downloads/morinlab/hmftools-references/neo/`, same pre-extracted mirror convention as `modules/lilac/1.0`/`modules/hmftools/1.1`. The exact 8 filenames (`neo_train_pos_weight.csv`, `neo_train_flank_pos_weight.csv`, `neo_train_likelihood.csv`, `neo_train_expression_dist.csv`, `neo_train_recognition.csv`, `neo_train_rand_dist.csv`, `neo_train_likelihood_rand_dist.csv`, `neo_train_exp_likelihood_rand_dist.csv`) are now confirmed against both `BindCommon.formFilename()` and the real, current `hartwigmedical/hmftools` `pipeline/README_RESOURCES.md` NEO section -- source these 8 files from there (via the [Oncoanalyser reference-data page](https://nf-co.re/oncoanalyser/docs/usage/#reference-data-urls) it links to) and place them, unrenamed, at that mirror path. `-score_file_id` is deliberately never passed to `NeoScorer` -- see `CHANGELOG.md` for why.
 
 This module runs its own PAVE annotation step (`_neo_pave_annotate`) on the raw PURPLE somatic VCF before NEO ever sees it -- **not optional**: NEO reads the same `IMPACT` VCF INFO tag `modules/lilac/1.0` needed (confirmed by reading `PointMutationData.isRelevantMutation()`/`NeoSampleTask.java` directly), and a raw, unannotated VCF would silently exclude every variant with no error. `_neo_download_ensembl_cache` fetches PAVE's required Ensembl gene/transcript cache -- reusable via `inputs.ensembl_data_dir` if you already have a copy (e.g. from `modules/hmftools/1.1`), same pattern as `modules/lilac/1.0`.
+
+## Cohort TPM medians (cancer-type expression fallback)
+
+Without real per-sample RNA (out of scope, see above), NEO's own `-cancer_tpm_medians_file`/`-cancer_type` mechanism lets it use a **cohort median TPM by cancer type** instead of raw expression -- real behaviour confirmed directly in `NeoScorerConfig.java`/`TpmMediansCache.java`: if `-cancer_type` matches one of the reference file's own column headers, NEO uses that column's median; if it doesn't match (or is omitted), NEO gracefully falls back to the file's `All` (pan-cancer) column rather than failing. `_neo_download_tpm_medians` fetches this reference file, genome-build-keyed (`neo_tpm_medians.csv` per build, from the same bcgsc.ca mirror as the other reference files).
+
+The real reference file (HMF's own `hmf_3444` cohort, `isofox.hmf_3444.transcript_medians.<build>.csv`, found in the same `misc/neo/tpm_cohort/` location inside HMF's `pipeline_resources` bundle the other reference CSVs above come from) was downloaded and inspected directly -- its own column headers are HMF's **broad tissue-of-origin categories** (`Stomach`, `Lung`, `Liver`, `Lymphoid tissue`, `Skin`, `Bone/Soft tissue`, ... `Other`, plus `All`), **not** per-disease-subtype. Since this repo's own cohorts are lymphoma/leukemia (DLBCL, FL, CLL, MCL, etc.), essentially the entire cohort maps to the exact same single category -- `options.cancer_type` defaults to `"Lymphoid tissue"`, no per-sample mapping needed.
+
+To set up the mirror, source the real files from the same `hmf_pipeline_resources` tarball as the scoring reference bundle (see the [Oncoanalyser reference-data page](https://nf-co.re/oncoanalyser/docs/usage/#reference-data-urls)):
+
+```bash
+curl -sL https://data.oncoanalyser.com/r2/reference/dist/v1/hartwig/pipeline_resources/hmf_pipeline_resources.37_v3.0.0--8.tar.gz \
+  | tar -xz --wildcards "*tpm_cohort*"
+gunzip -k hmf_pipeline_resources.37_v3.0.0--8/misc/neo/tpm_cohort/isofox.hmf_3444.transcript_medians.37.csv.gz
+# repeat with the .38_v3.0.0--8.tar.gz bundle for the hg38 file
+```
+
+Upload the two decompressed CSVs, renamed, to `www.bcgsc.ca/downloads/morinlab/hmftools-references/neo/`:
+- `isofox.hmf_3444.transcript_medians.37.csv` -> `neo_tpm_medians_37.csv`
+- `isofox.hmf_3444.transcript_medians.38.csv` (from the 38 bundle) -> `neo_tpm_medians_38.csv`
 
 ## PURPLE purity file compatibility shim
 

@@ -60,6 +60,7 @@ if CFG["options"]["use_masked_ref"]:
 # Define rules to be run locally when using a compute cluster
 localrules:
     _neo_download_reference,
+    _neo_download_tpm_medians,
     _neo_download_ensembl_cache,
     _neo_prep_purple_dir,
     _neo_output_epitopes,
@@ -197,6 +198,42 @@ rule _neo_download_reference:
         wget -qO {output.likelihood_rand_dist} {params.url}/$(basename {output.likelihood_rand_dist}) &&
         wget -qO {output.exp_likelihood_rand_dist} {params.url}/$(basename {output.exp_likelihood_rand_dist})
         ) > {log.stdout} 2>&1
+        """)
+
+
+# Downloads NEO's own cohort TPM-by-cancer-type medians (HMF's real "hmf_3444" cohort --
+# isofox.hmf_3444.transcript_medians.<build>.csv, from the same misc/neo/tpm_cohort/ location in
+# HMF's own pipeline_resources bundle the 8 reference CSVs above come from). Genome-build-keyed,
+# unlike those 8 -- this is real per-transcript expression data, not build-independent
+# protein/peptide binding data. Real column headers confirmed directly: HMF's own broad
+# tissue-of-origin categories (Stomach, Lung, Liver, Lymphoid tissue, Skin, ... Other), plus "All"
+# for the pan-cancer median -- NOT per-disease-subtype, so options.cancer_type only needs one real
+# value for this whole lymphoma/leukemia cohort: "Lymphoid tissue" (see its own comment in
+# config/default.yaml). Used by _neo_scorer's own -cancer_tpm_medians_file/-cancer_type; without
+# either, NeoScorer gracefully falls back to the pan-cancer "All" column rather than failing
+# (confirmed in TpmMediansCache.java), so this rule is optional in the same spirit as the other
+# reference downloads, not a hard requirement -- _neo_scorer still runs fine (just without
+# expression-adjusted TPM columns) if it's skipped.
+rule _neo_download_tpm_medians:
+    output:
+        tpm_medians = CFG["dirs"]["reference"] + "{genome_build}/neo_tpm_medians.csv"
+    log:
+        stdout = CFG["logs"]["reference"] + "{genome_build}/download_tpm_medians.log"
+    params:
+        url = "https://www.bcgsc.ca/downloads/morinlab/hmftools-references/neo",
+        alt_build = lambda w: VERSION_MAP[w.genome_build]
+    conda:
+        CFG["conda_envs"]["wget"]
+    container:
+        None
+    threads:
+        CFG["threads"]["download_reference"]
+    resources:
+        **CFG["resources"]["download_reference"]
+    shell:
+        op.as_one_line("""
+        wget -qO {output.tpm_medians} {params.url}/neo_tpm_medians_{params.alt_build}.csv
+        > {log.stdout} 2>&1
         """)
 
 
@@ -416,7 +453,8 @@ rule _neo_scorer:
             str(rules._neo_download_reference.output.likelihood_rand_dist),
             str(rules._neo_download_reference.output.exp_likelihood_rand_dist)
         ],
-        ensembl_cache = _neo_get_ensembl_data_dir_input
+        ensembl_cache = _neo_get_ensembl_data_dir_input,
+        tpm_medians = str(rules._neo_download_tpm_medians.output.tpm_medians)
     output:
         neoepitopes = CFG["dirs"]["scores"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.neo.neoepitope.tsv",
         peptide_scores = CFG["dirs"]["scores"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.neo.peptide_scores.tsv"
@@ -429,6 +467,7 @@ rule _neo_scorer:
         purple_dir = lambda wildcards, input: os.path.dirname(input.purple_purity),
         score_file_dir = lambda wildcards, input: os.path.dirname(input.score_files[0]),
         peptide_lengths = CFG["options"]["peptide_lengths"],
+        cancer_type = CFG["options"]["cancer_type"],
         output_dir = lambda wildcards, output: os.path.dirname(output.neoepitopes),
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
@@ -451,6 +490,8 @@ rule _neo_scorer:
         -purple_dir {params.purple_dir}
         -score_file_dir {params.score_file_dir}
         -peptide_lengths {params.peptide_lengths}
+        -cancer_tpm_medians_file {input.tpm_medians}
+        -cancer_type "{params.cancer_type}"
         -write_peptide_scores
         -threads {threads}
         -output_dir {params.output_dir}

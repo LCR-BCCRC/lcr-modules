@@ -89,6 +89,20 @@ lcr-modules:
             # Peptide lengths NeoScorer considers, per its own -peptide_lengths format.
             peptide_lengths: "8-12"
 
+            # NeoScorer's own -cancer_type value, used to select a cancer-type-specific column from
+            # the cohort TPM medians file (_neo_download_tpm_medians) when no real per-sample RNA
+            # is available (this module is DNA-only -- see README). Confirmed by downloading and
+            # inspecting the real reference file directly (HMF's own hmf_3444 cohort,
+            # isofox.hmf_3444.transcript_medians.<build>.csv): its own column headers are HMF's
+            # broad tissue-of-origin categories (Stomach, Lung, Liver, Lymphoid tissue, Skin, ...
+            # Other), NOT per-disease-subtype -- so this one value covers this whole lymphoma/
+            # leukemia cohort (DLBCL, FL, CLL, MCL, etc. are all "Lymphoid tissue" in HMF's own
+            # taxonomy), no per-sample mapping needed. If it doesn't match a real column (e.g. for a
+            # non-lymphoid sample), NeoScorer gracefully falls back to the pan-cancer "All" column
+            # rather than failing (confirmed in TpmMediansCache.java) -- safe to leave as-is even
+            # for occasional non-lymphoid samples, just less precise for those.
+            cancer_type: "Lymphoid tissue"
+
             # Number of amino acids up/downstream of each variant NeoEpitopeFinder includes in a
             # candidate neoepitope -- NEO's own real default (confirmed via its registered CLI
             # config items), kept explicit here rather than relying on the tool's own default.
