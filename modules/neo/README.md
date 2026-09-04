@@ -43,7 +43,7 @@ gunzip -k hmf_pipeline_resources.37_v3.0.0--8/misc/neo/tpm_cohort/isofox.hmf_344
 # repeat with the .38_v3.0.0--8.tar.gz bundle for the hg38 file
 ```
 
-Upload the two decompressed CSVs, renamed, to `www.bcgsc.ca/downloads/morinlab/hmftools-references/neo/`:
+Upload the two decompressed CSVs, renamed, to `www.bcgsc.ca/downloads/morinlab/hmftools-references/isofox/` (a separate subdirectory from NEO's own scoring reference CSVs above, since this file is Isofox-derived cohort expression data, not one of NEO's own peptide/allele-binding reference files):
 - `isofox.hmf_3444.transcript_medians.37.csv` -> `neo_tpm_medians_37.csv`
 - `isofox.hmf_3444.transcript_medians.38.csv` (from the 38 bundle) -> `neo_tpm_medians_38.csv`
 

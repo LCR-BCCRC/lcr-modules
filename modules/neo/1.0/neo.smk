@@ -220,7 +220,11 @@ rule _neo_download_tpm_medians:
     log:
         stdout = CFG["logs"]["reference"] + "{genome_build}/download_tpm_medians.log"
     params:
-        url = "https://www.bcgsc.ca/downloads/morinlab/hmftools-references/neo",
+        # Real mirror path -- confirmed against what's actually been uploaded, a dedicated
+        # hmftools-references/isofox/ subdirectory rather than hmftools-references/neo/ (this file
+        # is Isofox-derived cohort expression data, not one of NEO's own peptide/allele-binding
+        # reference CSVs, so it living alongside other Isofox reference data makes sense).
+        url = "https://www.bcgsc.ca/downloads/morinlab/hmftools-references/isofox",
         alt_build = lambda w: VERSION_MAP[w.genome_build]
     conda:
         CFG["conda_envs"]["wget"]
