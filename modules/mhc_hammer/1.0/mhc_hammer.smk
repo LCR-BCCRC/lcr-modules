@@ -654,8 +654,13 @@ rule _mhc_hammer_subset_bam:
         ref_cache_done = str(rules._mhc_hammer_build_ref_cache.output.done),
         kmer_file = _mhc_hammer_get_kmer_file_input
     output:
-        bam = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.subset.sorted.bam",
-        bai = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.subset.sorted.bam.bai",
+        # bam/bai are temp() -- consumed only by _mhc_hammer_generate_fqs (confirmed by grep: no
+        # other rule references them), verified empirically that a later invocation adding a new
+        # sample for an already-processed patient does not need to reconstruct another sample's
+        # own deleted temp() files (see this module's own CHANGELOG.md). read_counts is a small,
+        # standalone QC artifact with no downstream consumer in this DAG -- kept permanent.
+        bam = temp(CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.subset.sorted.bam"),
+        bai = temp(CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.subset.sorted.bam.bai"),
         read_counts = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.read_counts.csv"
     # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
     priority: 10
@@ -758,8 +763,9 @@ rule _mhc_hammer_hla2_subset_bam:
         crai = str(rules._mhc_hammer_input_bam.output.crai),
         ref_cache_done = str(rules._mhc_hammer_build_ref_cache.output.done)
     output:
-        bam = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.subset.sorted.bam",
-        bai = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.subset.sorted.bam.bai",
+        # See _mhc_hammer_subset_bam's own comment -- same reasoning, class II path.
+        bam = temp(CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.subset.sorted.bam"),
+        bai = temp(CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.subset.sorted.bam.bai"),
         read_counts = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.read_counts.csv"
     # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
     priority: 10
@@ -815,8 +821,10 @@ rule _mhc_hammer_hla2_generate_fqs:
     input:
         bam = str(rules._mhc_hammer_hla2_subset_bam.output.bam)
     output:
-        fq1 = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.1.fq.gz",
-        fq2 = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.2.fq.gz"
+        # See _mhc_hammer_generate_fqs's own comment -- same reasoning, class II path (this one's
+        # germline fastqs feed _mhc_hammer_hla2_hlahd instead).
+        fq1 = temp(CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.1.fq.gz"),
+        fq2 = temp(CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.2.fq.gz")
     # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
     priority: 20
     log:
@@ -949,8 +957,13 @@ rule _mhc_hammer_generate_fqs:
     input:
         bam = str(rules._mhc_hammer_subset_bam.output.bam)
     output:
-        fq1 = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.1.fq.gz",
-        fq2 = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.2.fq.gz"
+        # temp() -- consumed by _mhc_hammer_novoalign (every sample) and, for the germline sample
+        # specifically, also by _mhc_hammer_hlahd (patient-level) -- both are real Snakemake
+        # dependencies, so temp() correctly waits for whichever of them actually apply to a given
+        # sample before deleting. See _mhc_hammer_subset_bam's own comment for the empirical
+        # verification this doesn't force unrelated samples/patients to regenerate anything.
+        fq1 = temp(CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.1.fq.gz"),
+        fq2 = temp(CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.2.fq.gz")
     # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
     priority: 20
     log:
@@ -1191,8 +1204,12 @@ rule _mhc_hammer_novoalign_postprocess:
     input:
         bam = str(rules._mhc_hammer_novoalign.output.bam)
     output:
-        bam = CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.hla.rehead.bam",
-        bai = CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.hla.rehead.bam.bai"
+        # temp() -- consumed only by _mhc_hammer_make_allele_bams (confirmed by grep: no other
+        # rule references it). This rule already `rm`s its own two within-rule scratch files
+        # (sorted.bam, hla.bam) below -- that existing cleanup is for different files than this
+        # one's own declared output, not a substitute for it.
+        bam = temp(CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.hla.rehead.bam"),
+        bai = temp(CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.hla.rehead.bam.bai")
     # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
     priority: 60
     log:
