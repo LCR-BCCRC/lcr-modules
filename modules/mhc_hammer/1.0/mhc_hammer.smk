@@ -1155,7 +1155,17 @@ rule _mhc_hammer_novoalign:
         }),
         patient_dir = _mhc_hammer_reference_dir_for_sample
     output:
-        bam = temp(CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.raw.bam")
+        # NOT temp() -- this is Novoalign's own alignment output, the most expensive single step
+        # in this whole per-sample chain, and every rule feeding it (_mhc_hammer_subset_bam,
+        # _mhc_hammer_generate_fqs) is temp()-marked and already cleaned up by the time this rule's
+        # own consumer (_mhc_hammer_novoalign_postprocess) finishes. See this module's CHANGELOG:
+        # a real incident where a corrupted/incomplete downstream file had to be manually deleted
+        # and regenerated forced a full realignment from scratch, because no checkpoint survived
+        # anywhere between the original input BAM and novoalign_postprocess's own output. Keeping
+        # this one file persistent means any future need to redo novoalign_postprocess (or
+        # anything downstream of it) only re-runs cheap samtools bookkeeping on the
+        # already-aligned bam, not the alignment itself.
+        bam = CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.raw.bam"
     # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
     priority: 50
     log:
