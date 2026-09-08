@@ -226,6 +226,17 @@ localrules:
     _mhc_hammer_output_hla2_alleles,
     _mhc_hammer_all,
 
+# _mhc_hammer_novoalign_postprocess indexes its own `.hla.rehead.bam` output directly (via
+# `samtools index` in its own shell block) rather than relying on the generic modules/utils
+# `_utils_bam_index` wildcard rule -- but that generic rule's own wildcarded output pattern
+# (`{out_dir}/{prefix}/{suffix}.bam.bai`) still matches this file's path exactly. As long as
+# nothing declared this `.bai` as a real Snakemake input, that ambiguity never mattered (Snakemake
+# only needs to resolve a producer for files it's actually asked to build); now that
+# `_mhc_hammer_make_allele_bams` does (needed so `temp()` doesn't delete the index before that
+# rule's own indexed `samtools view` calls can use it), Snakemake raises a real
+# `AmbiguousRuleException` (confirmed via a real dry-run) without this.
+ruleorder: _mhc_hammer_novoalign_postprocess > _utils_bam_index
+
 
 ##### HELPER FUNCTIONS #####
 
@@ -1246,6 +1257,7 @@ rule _mhc_hammer_novoalign_postprocess:
 rule _mhc_hammer_make_allele_bams:
     input:
         bam = str(rules._mhc_hammer_novoalign_postprocess.output.bam),
+        bai = str(rules._mhc_hammer_novoalign_postprocess.output.bai),
         patient_dir = _mhc_hammer_reference_dir_for_sample
     output:
         passed_hla_genes = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_passed_hla_genes.txt",
