@@ -571,6 +571,17 @@ rule _mhc_hammer_flagstat:
     output:
         library_size = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_" + MHC_SEQ + ".library_size.txt",
         flagstat = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_" + MHC_SEQ + ".flagstat"
+    # Scheduling hint, not a resource change (see the long discussion this was added from): biases
+    # Snakemake toward advancing samples already in flight through this module's own long chain
+    # before starting brand-new samples' early, disk-heavy stages, so temp() cleanup (once added)
+    # happens sooner and this module doesn't accumulate every in-flight sample's intermediates
+    # simultaneously when many samples are launched at once. Values increase monotonically with
+    # DAG depth through this rule chain (flagstat/subset_bam=10, generate_fqs=20, hlahd=30,
+    # generate_references=40, novoalign=50, novoalign_postprocess=60, make_allele_bams=70,
+    # mosdepth/detect_cn_aib/detect_muts=80, parse_mutations/patient_gene_table=90) -- default
+    # priority (0) still applies to every other rule, so this whole chain already outranks
+    # everything else too.
+    priority: 10
     log:
         stdout = CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/flagstat.log"
     conda:
@@ -646,6 +657,8 @@ rule _mhc_hammer_subset_bam:
         bam = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.subset.sorted.bam",
         bai = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.subset.sorted.bam.bai",
         read_counts = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.read_counts.csv"
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 10
     log:
         stdout = CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/subset_bam.log"
     params:
@@ -748,6 +761,8 @@ rule _mhc_hammer_hla2_subset_bam:
         bam = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.subset.sorted.bam",
         bai = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.subset.sorted.bam.bai",
         read_counts = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.read_counts.csv"
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 10
     log:
         stdout = CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/subset_bam.log"
     params:
@@ -802,6 +817,8 @@ rule _mhc_hammer_hla2_generate_fqs:
     output:
         fq1 = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.1.fq.gz",
         fq2 = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/{sample_id}.2.fq.gz"
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 20
     log:
         stdout = CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/generate_fqs.log"
     conda:
@@ -849,6 +866,8 @@ rule _mhc_hammer_hla2_hlahd:
     output:
         hla_alleles = CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}_hla2/{patient_id}_hla2_alleles.csv",
         result_dir = directory(CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}_hla2/result")
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 30
     log:
         stdout = CFG["logs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}_hla2/hlahd.log"
     params:
@@ -932,6 +951,8 @@ rule _mhc_hammer_generate_fqs:
     output:
         fq1 = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.1.fq.gz",
         fq2 = CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.2.fq.gz"
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 20
     log:
         stdout = CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/generate_fqs.log"
     conda:
@@ -980,6 +1001,8 @@ rule _mhc_hammer_hlahd:
         # identifiers) -- HLA-HD already writes this as part of the shell block above, just not
         # previously tracked as its own output. See _mhc_hammer_output_hla_final_result below.
         hla_final_result = CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}/result/{patient_id}_final.result.txt"
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 30
     log:
         stdout = CFG["logs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}/hlahd.log"
     params:
@@ -1061,6 +1084,8 @@ rule _mhc_hammer_generate_references:
         mhc_fasta = str(rules._mhc_hammer_download_reference.output.genome_fasta)
     output:
         patient_dir = directory(CFG["dirs"]["patient_reference"] + "{seq_type}--{genome_build}/{patient_id}")
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 40
     log:
         stdout = CFG["logs"]["patient_reference"] + "{seq_type}--{genome_build}/{patient_id}/generate_references.log"
     params:
@@ -1118,6 +1143,8 @@ rule _mhc_hammer_novoalign:
         patient_dir = _mhc_hammer_reference_dir_for_sample
     output:
         bam = temp(CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.raw.bam")
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 50
     log:
         stderr = CFG["logs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/novoalign.stderr.log"
     params:
@@ -1166,6 +1193,8 @@ rule _mhc_hammer_novoalign_postprocess:
     output:
         bam = CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.hla.rehead.bam",
         bai = CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.hla.rehead.bam.bai"
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 60
     log:
         stdout = CFG["logs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}/novoalign_postprocess.log"
     conda:
@@ -1207,6 +1236,8 @@ rule _mhc_hammer_make_allele_bams:
         passed_hla_alleles = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_passed_hla_alleles.txt",
         passed_heterozygous_hla_alleles = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_passed_heterozygous_hla_alleles.txt",
         hla_bam_read_count = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_" + MHC_SEQ + "_novoalign.hla_bam_read_count.csv"
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 70
     log:
         stdout = CFG["logs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/make_allele_bams.log"
     params:
@@ -1299,6 +1330,8 @@ rule _mhc_hammer_mosdepth:
         patient_dir = _mhc_hammer_reference_dir_for_sample
     output:
         bed = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}." + MHC_SEQ + ".novoalign.mosdepth.bed"
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 80
     log:
         stdout = CFG["logs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}/mosdepth.log"
     params:
@@ -1374,6 +1407,8 @@ rule _mhc_hammer_detect_cn_aib:
         # paste0(sample_name,"_",snp_type,"_",aligner,"_dna_analysis.csv") convention exactly --
         # confirmed by reading that script.
         dna_analysis = CFG["dirs"]["dna_analysis"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}_all_snps_novoalign_dna_analysis.csv"
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 80
     log:
         stdout = CFG["logs"]["dna_analysis"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/detect_cn_aib.log"
     params:
@@ -1473,6 +1508,8 @@ rule _mhc_hammer_detect_muts:
         unpack(lambda wildcards: _mhc_hammer_pair_inputs(wildcards, str(rules._mhc_hammer_make_allele_bams.output.passed_hla_alleles)))
     output:
         vep_dir = directory(CFG["dirs"]["mutations"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/vep")
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 80
     log:
         stdout = CFG["logs"]["mutations"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/detect_muts.log"
     params:
@@ -1780,6 +1817,8 @@ rule _mhc_hammer_parse_mutations:
         unpack(_mhc_hammer_get_patient_mutation_inputs)
     output:
         mutations = CFG["dirs"]["mutations"] + "{seq_type}--{genome_build}/{patient_id}/{patient_id}_mutations.csv"
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 90
     log:
         stdout = CFG["logs"]["mutations"] + "{seq_type}--{genome_build}/{patient_id}/parse_mutations.log"
     params:
@@ -1997,6 +2036,8 @@ rule _mhc_hammer_patient_gene_table:
         unpack(_mhc_hammer_get_patient_gene_table_inputs)
     output:
         gene_table = CFG["dirs"]["gene_tables"] + "{seq_type}--{genome_build}/{patient_id}/{patient_id}_gene_table.csv"
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 90
     log:
         stdout = CFG["logs"]["gene_tables"] + "{seq_type}--{genome_build}/{patient_id}/gene_table.log"
     params:
