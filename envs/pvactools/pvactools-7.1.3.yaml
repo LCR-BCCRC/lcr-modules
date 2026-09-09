@@ -1,0 +1,11 @@
+name: pvactools-7.1.3
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - pvactools=7.1.3
+  # See modules/pvactools/1.0/config/default.yaml's own conda_envs comment: mhcflurry-downloads
+  # imports the deprecated pkg_resources API, which modern setuptools no longer ships. Confirmed
+  # on a real install that pinning setuptools<81 fixes `mhcflurry-downloads fetch`.
+  - setuptools<81

@@ -1,0 +1,173 @@
+lcr-modules:
+
+    pvactools:
+
+        inputs:
+            # Required, per matched pair. This module has no variant source of its own, by design:
+            # it reads whatever vcf2maf's own deployment is already configured with, so it never
+            # cares which caller (SAGE, Strelka, Mutect2, ...) actually produced the calls -- that
+            # question is already solved once, upstream, by vcf2maf's own generic
+            # inputs.sample_vcf_gz. Point these at the SAME vcf2maf-1.3 deployment your project
+            # already uses (same _parent / vcf_base_name / filter / target_build choices) --
+            # <parent>/<base_name>/<filter>/<target_build> below are literal strings you fill in to
+            # match that deployment, not module wildcards.
+            # Real path confirmed by reading modules/vcf2maf/1.3/vcf2maf.smk directly:
+            # _vcf2maf_input_vcf's own tracked, symlinked copy of the raw caller VCF.
+            # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
+            vcf2maf_raw_vcf: "results/vcf2maf-<parent>/00-inputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/<base_name>.vcf.gz"
+
+            # Required, per matched pair. vcf2maf's own final, most-filtered MAF
+            # (_vcf2maf_output_maf) -- its Variant_Classification column (already computed by
+            # vcf2maf's own earlier VEP run) is used to subset vcf2maf_raw_vcf above down to only
+            # protein-altering positions before this module's own VEP+Frameshift+Wildtype
+            # annotation, avoiding a full re-annotation and re-scoring of variants already known to
+            # be silent/non-coding (see options.coding_variant_classifications below, and
+            # _pvactools_subset_to_coding_variants in pvactools.smk). <filter> is "raw" or
+            # "deblacklisted" per your vcf2maf deployment's own options.filter.
+            vcf2maf_maf: "results/vcf2maf-<parent>/99-outputs/<filter>/maf/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.<base_name>.<target_build>.maf"
+
+            # Required, per matched pair. modules/lilac/1.0's own 99-outputs (stable, renamed path
+            # -- unlike modules/neo/1.0, this module has no hardcoded-bare-filename dependency on
+            # LILAC's own internal directory layout, so the renamed 99-outputs path is fine).
+            lilac_tsv: "results/lilac-1.0/99-outputs/lilac/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lilac.tsv"
+
+            # Optional, per patient (not per pair -- HLA typing is germline, shared across a
+            # patient's samples). modules/mhc_hammer/1.0's own class II HLA-HD typing output.
+            # Resolved from {tumour_id}/{seq_type} via CFG["runs"], mirroring mhc_hammer's own
+            # _mhc_hammer_get_patient_id_for_tumour helper. A pair with no Class II typing available
+            # (file doesn't exist, or mhc_hammer isn't even part of this runner) still gets a
+            # Class-I-only pvacseq run rather than failing outright.
+            hla2_alleles: "results/mhc_hammer-1.0/99-outputs/hla2_alleles/{seq_type}--{genome_build}/{patient_id}.hla2_alleles.csv"
+
+            # Same options/inputs key-split precedent as modules/mhc_hammer/1.0's own
+            # inputs.vep_cache -- reference data, not a tool/script path.
+            vep_cache: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            # Module-owned scripts -- same {MODSDIR}/src/ convention as modules/mhc_hammer/1.0's
+            # own options.hla2_parse_script/options.mutations_to_maf_script.
+            maf_coding_positions_script: "{MODSDIR}/src/maf_coding_positions.py"
+            prepare_allele_list_script: "{MODSDIR}/src/prepare_allele_list.py"
+
+            # Path to the directory containing the vep executable; auto-detected from PATH if
+            # empty. Same options.vep_path precedent as modules/mhc_hammer/1.0 and
+            # modules/vcf2maf/1.3 -- VEP is user-supplied, not conda-managed, to avoid the
+            # bioconda/Perl solver conflicts already hit with ensembl-vep in the vcf2maf module.
+            vep_path: "__UPDATE__"
+
+            # Recommended (not required) by pVACtools' own docs to control VEP runtime -- restricts
+            # annotation to one transcript per variant.
+            vep_pick: True
+
+            # Protein-altering MAF classes only -- reused as-is from vcf2maf's own earlier
+            # VEP-derived Variant_Classification, so no redundant re-annotation/re-scoring is spent
+            # on variants already known to be silent/non-coding (the large majority for a WGS
+            # sample). Splice_Site is deliberately EXCLUDED: splice-derived neoepitopes are
+            # pVACsplice's job, out of scope for this pVACseq-only module.
+            coding_variant_classifications:
+                - "Missense_Mutation"
+                - "Nonsense_Mutation"
+                - "Frame_Shift_Ins"
+                - "Frame_Shift_Del"
+                - "In_Frame_Ins"
+                - "In_Frame_Del"
+                - "Nonstop_Mutation"
+                - "Translation_Start_Site"
+
+            # Optional. Local IEDB installation directory (--iedb-install-directory), needed only
+            # for IEDB-mediated algorithms (NetMHCpan, NetMHCIIpan, etc. -- see
+            # options.iedb_gated_algorithms below). Free for academic use but requires a manual,
+            # license-gated download -- same shape as this repo's own options.novoalign_dir/
+            # options.hlahd_dir pattern (modules/mhc_hammer/1.0). Left empty, only the fully
+            # ungated algorithms in options.prediction_algorithms below are usable.
+            iedb_install_directory: ""
+
+            # Every algorithm in this list is rejected at config-parse time unless
+            # options.iedb_install_directory is set -- fail fast rather than a confusing pvacseq
+            # runtime error. Only NetMHCpan/NetMHCIIpan confirmed IEDB-mediated this session; add to
+            # this list as more are confirmed (BigMHC/DeepImmuno/MixMHCpred/MixMHC2pred/PRIME/
+            # TL-MHC also need separate manual installs per pVACtools' own docs, not yet confirmed
+            # to specifically be IEDB-mediated rather than their own standalone installs).
+            iedb_gated_algorithms:
+                - "NetMHCpan"
+                - "NetMHCpanEL"
+                - "NetMHCIIpan"
+                - "NetMHCIIpanEL"
+                - "NetMHC"
+                - "NetMHCcons"
+                - "PickPocket"
+                - "SMM"
+                - "SMMPMBEC"
+                - "SMMalign"
+                - "NNalign"
+
+            # Fully ungated (pip/bioconda-installable, no license/registration) default set,
+            # confirmed via a real installed pvactools=7.1.3: MHCflurry/MHCflurryEL (Class I) and
+            # MHCnuggetsI (Class I) / MHCnuggetsII (Class II). MHCnuggets ships its trained models
+            # bundled in the package (confirmed: mhcnuggets/saves/production/*.h5) -- no download
+            # step needed. MHCflurry needs a one-time `mhcflurry-downloads fetch` (see
+            # _pvactools_download_mhcflurry_models in pvactools.smk).
+            prediction_algorithms:
+                - "MHCflurry"
+                - "MHCflurryEL"
+                - "MHCnuggetsI"
+                - "MHCnuggetsII"
+
+            # -e1/-e2. Real confirmed defaults from a real `pvacseq run --help` (pvactools=7.1.3).
+            class_i_epitope_lengths: "8,9,10,11"
+            class_ii_epitope_lengths: "12,13,14,15,16,17,18"
+
+            # -b/-m. Real confirmed defaults from `pvacseq run --help`.
+            binding_threshold: 500
+            top_score_metric: "median"
+
+            # MHCflurry release to fetch (mhcflurry-downloads fetch --release). Confirmed via a
+            # real run: pointing MHCFLURRY_DOWNLOADS_DIR at a fresh/custom directory disables
+            # mhcflurry's own default-release auto-detection ("No release defined"), so this must be
+            # passed explicitly. Real current default confirmed via `mhcflurry-downloads info`.
+            mhcflurry_release: "2.0.0"
+
+        conda_envs:
+            # Real confirmed real gotcha (pvactools=7.1.3, 2026-09): mhcflurry's own
+            # `mhcflurry-downloads` command imports the deprecated `pkg_resources` API
+            # (`ModuleNotFoundError: No module named 'pkg_resources'` on a plain pip install with a
+            # modern setuptools) -- setuptools removed pkg_resources entirely as of the deprecation
+            # date this same warning cites (2025-11-30, already past). `setuptools<81` is pinned
+            # below specifically to keep `mhcflurry-downloads fetch` working; confirmed this fixes
+            # it on a real local install.
+            pvactools: "{MODSDIR}/envs/pvactools-7.1.3.yaml"
+            bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+
+        threads:
+            download_mhcflurry: 1
+            install_vep_plugins: 1
+            subset_coding_variants: 1
+            vep_annotate: 4
+            prepare_allele_list: 1
+            pvacseq_run: 8
+
+        resources:
+            download_mhcflurry:
+                mem_mb: 2000
+            install_vep_plugins:
+                mem_mb: 2000
+            subset_coding_variants:
+                mem_mb: 2000
+            vep_annotate:
+                mem_mb: 8000
+            prepare_allele_list:
+                mem_mb: 1000
+            pvacseq_run:
+                mem_mb: 16000
+
+        pairing_config:
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False
