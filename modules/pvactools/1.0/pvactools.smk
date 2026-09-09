@@ -50,6 +50,22 @@ assert not _requested_gated or CFG["options"]["iedb_install_directory"], (
     f"install directory (see options.iedb_install_directory's own comment in default.yaml)."
 )
 
+# genome_build -> VEP's own -assembly argument ("GRCh37"/"GRCh38"). Real, confirmed requirement
+# (not just tidiness): a real run against a shared cache directory containing multiple assemblies
+# under the same VEP cache version failed with "ERROR: Multiple assemblies found for cache version
+# 105 (GRCh38, GRCh37) - specify one using --assembly [assembly]" -- VEP cannot always infer this on
+# its own. Mirrors modules/vcf2maf/1.3's own VCF2MAF_VERSION_MAP exactly (same
+# "grch37"/"grch38"-style genome_build values, same "grch" -> "GRCh" transform), kept as a separate,
+# user-configurable copy rather than a cross-module reference, matching how every other module in
+# this repo keeps its own copy of this same genome-build mapping.
+VEP_ASSEMBLY_MAP = CFG["options"]["vep_assembly_map"]
+_possible_genome_builds = ", ".join(VEP_ASSEMBLY_MAP.keys())
+for _genome_build in CFG["paired_runs"]["tumour_genome_build"]:
+    assert _genome_build in VEP_ASSEMBLY_MAP, (
+        f"Samples table includes genome build '{_genome_build}', not yet covered by "
+        f"options.vep_assembly_map (currently: {_possible_genome_builds}). Add it there before rerunning."
+    )
+
 # Define rules to be run locally when using a compute cluster. Beyond the trivial symlink/target
 # rules, this also includes the small, pure Python bookkeeping steps (subsetting positions from an
 # already-computed MAF, building the allele-list string) -- fast enough that submitting them as
@@ -168,16 +184,30 @@ CFG["paired_runs"] = CFG["paired_runs"][~_pvactools_missing_inputs]
 # Fetches MHCflurry's own trained models -- a one-time, cohort-wide download (not per-pair).
 # MHCnuggetsI/MHCnuggetsII need no equivalent step: confirmed via a real local install that their
 # trained models ship bundled directly in the pip/conda package (mhcnuggets/saves/production/*.h5).
-# Real, confirmed gotcha (pvactools=7.1.3, 2026-09): pointing MHCFLURRY_DOWNLOADS_DIR at a fresh/
-# custom directory disables mhcflurry's own default-release auto-detection ("No release defined"),
-# so --release must be passed explicitly -- see options.mhcflurry_release's own comment.
+#
+# Deliberately does NOT set MHCFLURRY_DOWNLOADS_DIR at all -- confirmed via a real run, then traced
+# through mhcflurry's own downloads.py source directly: this is an unconditional bug in mhcflurry's
+# own configure(), not a usage mistake. configure() only sets the module-global _CURRENT_RELEASE
+# (from --release/MHCFLURRY_DOWNLOADS_CURRENT_RELEASE/the package's own default) INSIDE its
+# `if not MHCFLURRY_DOWNLOADS_DIR:` branch -- so setting MHCFLURRY_DOWNLOADS_DIR to ANY custom value
+# skips that whole block, leaving _CURRENT_RELEASE permanently None regardless of --release. The
+# `fetch` subcommand's own get_current_release_downloads() then does
+# metadata['releases'][None] -> KeyError: None, unconditionally, every time. There is no
+# environment-variable combination that has both a custom download directory and a working
+# _CURRENT_RELEASE. Letting mhcflurry manage its own default location (a per-user
+# `user_data_dir("mhcflurry", ...)`, e.g. under $HOME) is the only clean fix -- confirmed this
+# doesn't break _pvactools_run's own later use of the downloaded models either, since
+# get_path()/get_default_class1_models_dir() (what pvacseq actually calls at prediction time) only
+# read get_downloads_dir() (the real, resolved directory), never _CURRENT_RELEASE. Flag: this means
+# mhcflurry's models land in $HOME rather than this module's own results directory, unlike every
+# other reference/resource this repo manages -- worth revisiting if $HOME quota is a real constraint
+# on a given cluster.
 rule _pvactools_download_mhcflurry_models:
     output:
         complete = touch(CFG["dirs"]["mhcflurry_reference"] + "mhcflurry_downloads.complete")
     log:
         stdout = CFG["logs"]["mhcflurry_reference"] + "download_mhcflurry_models.log"
     params:
-        dir = CFG["dirs"]["mhcflurry_reference"],
         release = CFG["options"]["mhcflurry_release"]
     conda:
         CFG["conda_envs"]["pvactools"]
@@ -189,7 +219,6 @@ rule _pvactools_download_mhcflurry_models:
         **CFG["resources"]["download_mhcflurry"]
     shell:
         op.as_one_line("""
-        export MHCFLURRY_DOWNLOADS_DIR={params.dir} &&
         mhcflurry-downloads fetch --release {params.release} > {log.stdout} 2>&1
         """)
 
@@ -326,7 +355,8 @@ rule _pvactools_vep_annotate:
     params:
         vep_path = CFG["options"]["vep_path"],
         pick_flag = "--pick" if CFG["options"]["vep_pick"] else "",
-        vep_plugins_dir = lambda wildcards, input: os.path.dirname(input.vep_frameshift)
+        vep_plugins_dir = lambda wildcards, input: os.path.dirname(input.vep_frameshift),
+        assembly = lambda wildcards: VEP_ASSEMBLY_MAP[wildcards.genome_build]
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
@@ -343,7 +373,7 @@ rule _pvactools_vep_annotate:
         --format vcf --vcf -o STDOUT
         --symbol --terms SO --mane_select --canonical --tsl --biotype --hgvs
         --fasta {input.fasta}
-        --offline --cache --dir_cache {input.vep_cache}
+        --offline --cache --dir_cache {input.vep_cache} --assembly {params.assembly}
         --plugin Frameshift --plugin Wildtype --dir_plugins {params.vep_plugins_dir}
         {params.pick_flag}
         --fork {threads}
@@ -407,8 +437,7 @@ rule _pvactools_run:
         e2 = CFG["options"]["class_ii_epitope_lengths"],
         binding_threshold = CFG["options"]["binding_threshold"],
         top_score_metric = CFG["options"]["top_score_metric"],
-        iedb_flag = f"--iedb-install-directory {CFG['options']['iedb_install_directory']}" if CFG["options"]["iedb_install_directory"] else "",
-        mhcflurry_dir = CFG["dirs"]["mhcflurry_reference"]
+        iedb_flag = f"--iedb-install-directory {CFG['options']['iedb_install_directory']}" if CFG["options"]["iedb_install_directory"] else ""
     conda:
         CFG["conda_envs"]["pvactools"]
     container:
@@ -420,7 +449,6 @@ rule _pvactools_run:
     shell:
         op.as_one_line("""
         (
-        export MHCFLURRY_DOWNLOADS_DIR={params.mhcflurry_dir} &&
         mkdir -p {output.outdir} &&
         pvacseq run {input.vep_vcf} {wildcards.tumour_id} "{params.alleles}" {params.algorithms}
         {output.outdir}

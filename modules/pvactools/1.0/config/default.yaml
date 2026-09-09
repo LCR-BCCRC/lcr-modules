@@ -76,6 +76,17 @@ lcr-modules:
             # annotation to one transcript per variant.
             vep_pick: True
 
+            # genome_build -> VEP's own -assembly argument. Real, confirmed requirement (not just
+            # tidiness): a real run against a shared cache directory holding both GRCh37 and GRCh38
+            # under the same VEP cache version failed with "ERROR: Multiple assemblies found for
+            # cache version 105 (GRCh38, GRCh37) - specify one using --assembly [assembly]". Mirrors
+            # modules/vcf2maf/1.3's own VCF2MAF_VERSION_MAP transform ("grch" -> "GRCh") -- extend
+            # with any other genome_build values your samples table uses (e.g. hs37d5 -> GRCh37).
+            vep_assembly_map:
+                grch37: "GRCh37"
+                hs37d5: "GRCh37"
+                hg38: "GRCh38"
+
             # Protein-altering MAF classes only -- reused as-is from vcf2maf's own earlier
             # VEP-derived Variant_Classification, so no redundant re-annotation/re-scoring is spent
             # on variants already known to be silent/non-coding (the large majority for a WGS
