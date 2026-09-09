@@ -90,6 +90,7 @@ lcr-modules:
                 # alignment tool (CLC Genomics Workbench) that produced this reference/BAM, not a
                 # different genome build. Real value hit on a real genome-cohort run (2026-09).
                 hg19-clc: "GRCh37"
+                hg19-clc-other: "GRCh37"
 
             # Protein-altering MAF classes only -- reused as-is from vcf2maf's own earlier
             # VEP-derived Variant_Classification, so no redundant re-annotation/re-scoring is spent
