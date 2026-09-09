@@ -33,6 +33,7 @@ lcr-modules:
             # options.coding_variant_classifications below and _pvactools_subset_to_coding_variants
             # in pvactools.smk). <filter> is "raw" or "deblacklisted", <maf> is "maf" or
             # "augmented_maf", per your vcf2maf deployment's own options.filter/options.augment.
+            # results/unix_group to be prepended to this in snakefile
             vcf2maf_maf: "slms_3-1.0_vcf2maf-1.3/99-outputs/deblacklisted/maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.maf"
 
             # Required, per patient (not per pair -- HLA typing is germline, shared across a
@@ -41,7 +42,8 @@ lcr-modules:
             # LILAC -- keeps this module to a single upstream typing source (mhc_hammer already
             # produces both classes). Resolved from {tumour_id}/{seq_type} via CFG["runs"], mirroring
             # mhc_hammer's own _mhc_hammer_get_patient_id_for_tumour helper.
-            hla_alleles: "results/mhc_hammer-1.0/99-outputs/hla_alleles/{seq_type}--{genome_build}/{patient_id}.hla_alleles.txt"
+            # results/unix_group to be prepended to this in snakefile
+            hla_alleles: "mhc_hammer-1.0/99-outputs/hla_alleles/{seq_type}--{genome_build}/{patient_id}.hla_alleles.txt"
 
             # Optional, per patient (not per pair -- HLA typing is germline, shared across a
             # patient's samples). modules/mhc_hammer/1.0's own class II HLA-HD typing output.
@@ -49,11 +51,12 @@ lcr-modules:
             # _mhc_hammer_get_patient_id_for_tumour helper. A pair with no Class II typing available
             # (file doesn't exist, or mhc_hammer isn't even part of this runner) still gets a
             # Class-I-only pvacseq run rather than failing outright.
-            hla2_alleles: "results/mhc_hammer-1.0/99-outputs/hla2_alleles/{seq_type}--{genome_build}/{patient_id}.hla2_alleles.csv"
+            # results/unix_group to be prepended to this in snakefile
+            hla2_alleles: "mhc_hammer-1.0/99-outputs/hla2_alleles/{seq_type}--{genome_build}/{patient_id}.hla2_alleles.csv"
 
             # Same options/inputs key-split precedent as modules/mhc_hammer/1.0's own
             # inputs.vep_cache -- reference data, not a tool/script path.
-            vep_cache: "__UPDATE__"
+            vep_cache: "/projects/rmorin/reference/ensembl_vep_cache/"
 
         scratch_subdirectories: []
 
@@ -67,7 +70,7 @@ lcr-modules:
             # empty. Same options.vep_path precedent as modules/mhc_hammer/1.0 and
             # modules/vcf2maf/1.3 -- VEP is user-supplied, not conda-managed, to avoid the
             # bioconda/Perl solver conflicts already hit with ensembl-vep in the vcf2maf module.
-            vep_path: "__UPDATE__"
+            vep_path: "/projects/rmorin_scratch/conda_environments/f816977f06ed42b54bf471f1bb26c3b0_/bin"
 
             # Recommended (not required) by pVACtools' own docs to control VEP runtime -- restricts
             # annotation to one transcript per variant.
