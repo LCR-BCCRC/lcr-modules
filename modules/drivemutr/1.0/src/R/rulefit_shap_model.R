@@ -75,7 +75,7 @@ get_rulefit_shapley_results <- function(target_results){
                   rulefit_df <- Module_Model %>%
                     dplyr::select(
                       1,
-                      5,
+                      6,
                       dplyr::any_of(foci_cols),
                       residual
                     )

@@ -2,7 +2,7 @@ calc_genomic_model <- function(df) {
   tryCatch({
     if (is.null(df) || nrow(df) == 0) return(tibble::tibble())
     
-    df2 <- df %>% ungroup() %>% dplyr::select(-(1:5))
+    df2 <- df %>% ungroup() %>% dplyr::select(-(1:6))
     
     stats::lm(residual ~ ., data = df2) %>% broom::tidy()
     

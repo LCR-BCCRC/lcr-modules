@@ -36,7 +36,63 @@ assign_module_color_and_expression <- function(target_regions_df,
             annotate_ids(sample_id_aliases = sample_id_aliases)
         }, error = function(e) NULL)
       )
-    )
+    ) %>%
+    mutate(
+      Module_cor_pos = purrr::map2(Module, Hugo_Symbol, function(module_df, target_gene) {
+        tryCatch({
+          if (is.null(module_df) || !target_gene %in% names(module_df)) return(NULL)
+
+          gene_cols <- setdiff(
+            names(module_df),
+            c("Tumor_Sample_Barcode", "IDs", target_gene)
+          )
+
+          cors <- sapply(
+            gene_cols,
+            function(g) suppressWarnings(cor(
+              module_df[[target_gene]],
+              module_df[[g]],
+              use = "pairwise.complete.obs"
+            ))
+          )
+
+          pos_genes <- names(cors)[!is.na(cors) & cors > 0]
+          if (length(pos_genes) == 0) return(NULL)
+
+          module_df %>%
+            dplyr::select(
+              dplyr::any_of("Tumor_Sample_Barcode"),
+              dplyr::all_of(target_gene),
+              dplyr::all_of(pos_genes),
+              dplyr::any_of("IDs")
+            )
+        }, error = function(e) NULL)
+      }),
+      # Everything the positive half did not take.
+      Module_cor_neg = purrr::pmap(
+        list(Module, Module_cor_pos, Hugo_Symbol),
+        function(module_df, module_pos, target_gene) {
+          tryCatch({
+            if (is.null(module_df) || !target_gene %in% names(module_df)) return(NULL)
+
+            neg_genes <- setdiff(
+              names(module_df),
+              c(names(module_pos), "Tumor_Sample_Barcode", "IDs", target_gene)
+            )
+            if (length(neg_genes) == 0) return(NULL)
+
+            module_df %>%
+              dplyr::select(
+                dplyr::any_of("Tumor_Sample_Barcode"),
+                dplyr::all_of(target_gene),
+                dplyr::all_of(neg_genes),
+                dplyr::any_of("IDs")
+              )
+          }, error = function(e) NULL)
+        }
+      )
+    ) %>%
+    dplyr::select(-Module)
 
   return(target_gene_regions_data)
 }

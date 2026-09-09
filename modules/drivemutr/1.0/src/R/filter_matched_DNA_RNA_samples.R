@@ -3,33 +3,36 @@ get_ids <- function(ssm_df, sample_col = "Tumor_Sample_Barcode") {
   unique(na.omit(as.character(ssm_df[[sample_col]])))
 }
 
+filter_module_to_matched <- function(module_df, cn_df) {
+  tryCatch(
+    module_df %>%
+      mutate(IDs_All = IDs) %>%
+      unnest(IDs, keep_empty = TRUE) %>%
+      left_join(cn_df, by = c("all_ids" = "sample_id")) %>%
+      group_by(Tumor_Sample_Barcode) %>%
+      arrange((CN)) %>%
+      slice_head() %>%
+      dplyr::select(-id_type, -all_ids) %>%
+      filter(!is.na(CN)) %>%
+      mutate(
+        CN = case_when(CN < 2 ~ 1,
+                       CN == 2 ~ 2,
+                       CN > 2 ~ 3)
+      )
+    ,
+    error = function(e) NULL
+  )
+}
+
 filter_matched_DNA_RNA_samples <- function(target_regions_df){
   
   # filter to those samples we have matched DNA and RNA seq data
   target_gene_regions_data <- target_regions_df %>%
     mutate(
-      Module = map2(Module, CN, ~ {
-        tryCatch(
-          .x %>%
-            mutate(IDs_All = IDs) %>%
-            unnest(IDs, keep_empty = TRUE) %>%
-            left_join(.y, by = c("all_ids" = "sample_id")) %>%
-            group_by(Tumor_Sample_Barcode) %>%
-            arrange((CN)) %>%
-            slice_head() %>%
-            dplyr::select(-id_type, -all_ids) %>%
-            filter(!is.na(CN)) %>%
-            mutate(
-              CN = case_when(CN < 2 ~ 1, 
-                             CN == 2 ~ 2,
-                             CN > 2 ~ 3)
-            )
-          ,
-          error = function(e) NULL
-        )
-      } 
-      ),
-      ssm_matched = map(Module, ~ {
+      Module_cor_pos = map2(Module_cor_pos, CN, filter_module_to_matched),
+      Module_cor_neg = map2(Module_cor_neg, CN, filter_module_to_matched),
+      
+      ssm_matched = map(Module_cor_pos, ~ {
         if (is.null(.x)) return(NULL)
         .x %>%
           dplyr::select(Tumor_Sample_Barcode, IDs_All, CN) 

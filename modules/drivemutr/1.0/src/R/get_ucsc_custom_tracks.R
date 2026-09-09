@@ -59,7 +59,7 @@ get_ucsc_custom_tracks <- function(target_results, outdir) {
                         dplyr::mutate(
                           p.value = dplyr::if_else(is.na(p.value), 1, p.value),
                           itemRgb = dplyr::if_else(
-                            is.na(ME),
+                            is.na(ME_pos) & is.na(ME_neg),
                             "255,0,0",   # red  = no RNA match
                             "0,0,255"    # blue = RNA-matched
                           )

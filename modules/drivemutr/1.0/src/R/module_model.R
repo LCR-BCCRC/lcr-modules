@@ -47,7 +47,14 @@ calc_module_model <- function(genomic_matrix, ME_data, Hugo_Symbol){
       column_to_rownames(var = "Tumor_Sample_Barcode")
     
     
-    module_model = lm(module_model_train[[Hugo_Symbol]] ~ ME , data = module_model_train)
+    me_terms = intersect(c("ME_pos", "ME_neg"), names(module_model_train))
+    me_terms = me_terms[colSums(!is.na(module_model_train[me_terms])) > 0]
+    if (length(me_terms) == 0) return(tibble())
+
+    module_model = lm(
+      as.formula(paste("module_model_train[[Hugo_Symbol]] ~", paste(me_terms, collapse = " + "))),
+      data = module_model_train
+    )
     module_model_nonmut_resid = augment(module_model) %>%
       dplyr::select(.rownames ,.resid)
     
@@ -72,8 +79,8 @@ annotate_module_model_results <- function(target_regions_df){
   target_gene_regions_data <- target_regions_df %>%
     mutate(
       matched_mut_foci_data = purrr::pmap(
-        list(matched_mut_foci_data, Module, Hugo_Symbol),
-        function(matched_mut_foci_data, Module, Hugo_Symbol) {
+        list(matched_mut_foci_data, Module_cor_pos, Module_cor_neg, Hugo_Symbol),
+        function(matched_mut_foci_data, Module_cor_pos, Module_cor_neg, Hugo_Symbol) {
           
           if (is.null(matched_mut_foci_data) || nrow(matched_mut_foci_data) == 0) {
             return(matched_mut_foci_data)
@@ -83,7 +90,20 @@ annotate_module_model_results <- function(target_regions_df){
             mutate(
               ME_data = purrr::map(
                 genomic_matrix, 
-                ~ calc_ME(.x, Module, Hugo_Symbol)
+                ~ tryCatch({
+                  ME_pos <- calc_ME(.x, Module_cor_pos, Hugo_Symbol)
+                  ME_neg <- calc_ME(.x, Module_cor_neg, Hugo_Symbol)
+
+                  if (is.null(ME_pos) || nrow(ME_pos) == 0) ME_pos <- dplyr::mutate(ME_neg, ME = NA_real_)
+                  if (is.null(ME_neg) || nrow(ME_neg) == 0) ME_neg <- dplyr::mutate(ME_pos, ME = NA_real_)
+                  ME_pos %>%
+                    dplyr::rename("ME_pos" = "ME") %>%
+                    dplyr::left_join(
+                      ME_neg %>% dplyr::select(Tumor_Sample_Barcode, "ME_neg" = "ME"),
+                      by = "Tumor_Sample_Barcode"
+                    ) %>%
+                    dplyr::select(Tumor_Sample_Barcode, dplyr::all_of(Hugo_Symbol), ME_pos, ME_neg, Mutated)
+                }, error = function(e) tibble())
               ),
               Module_Model = purrr::map2(
                 genomic_matrix,
