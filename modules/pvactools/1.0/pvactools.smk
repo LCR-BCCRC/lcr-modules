@@ -104,9 +104,10 @@ def _pvactools_get_patient_id_for_tumour(tumour_id, seq_type):
 
 # Required. Class I HLA typing -- modules/mhc_hammer/1.0's own _mhc_hammer_output_hla_final_result
 # (HLA-HD's own consolidated per-patient result). Patient-keyed like hla2_alleles below (HLA is
-# germline, shared across a patient's samples). No existence gate: unlike Class II, this module has
-# no other Class I typing source, so a missing file here means this pair genuinely cannot run
-# pvacseq -- mirroring modules/neo/1.0's own required-input helper pattern.
+# germline, shared across a patient's samples). No existence gate INSIDE this function -- by the
+# time it's called, _pvactools_all's own target-list filtering below has already guaranteed this
+# file exists for any pair actually requested, mirroring modules/neo/1.0's own required-input
+# helper pattern (a bare, ungated path formatter) rather than an inline check here.
 def _pvactools_get_hla_final_result(wildcards):
     CFG = config["lcr-modules"]["pvactools"]
     pattern = CFG["inputs"]["hla_alleles"]
@@ -125,6 +126,40 @@ def _pvactools_get_hla2_alleles(wildcards):
     patient_id = _pvactools_get_patient_id_for_tumour(wildcards.tumour_id, wildcards.seq_type)
     path = pattern.format(seq_type = wildcards.seq_type, genome_build = wildcards.genome_build, patient_id = patient_id)
     return [path] if os.path.isfile(path) else []
+
+# Real, expected scenario for a cohort-wide sample list: some pairs will have failed mhc_hammer or
+# the upstream SLMS-3/vcf2maf pipeline, so their required inputs (vcf2maf's raw VCF/MAF, mhc_hammer's
+# own Class I typing) simply don't exist on disk yet. Without this filter, _pvactools_all would
+# request targets for every matched pair regardless, and Snakemake would hard-fail with
+# MissingInputException on the very first pair missing anything -- not a graceful per-pair skip.
+# This isn't a job for checkpoints (those handle a rule whose own OUTPUT SET isn't known until it
+# actually runs, e.g. splitting a file into an unknown number of pieces) -- the candidate pair list
+# here is already fully known upfront from the sample table; the only question is whether each
+# pair's inputs already exist, which is exactly the same existence-gated-optional-input pattern
+# already used throughout this codebase (e.g. hla2_alleles above, modules/lilac/1.0's own
+# gene_copy_number/somatic_vcf) -- just applied at the target-list level, since these three are
+# hard requirements a pair can't run without at all, rather than ones it can gracefully run without.
+def _pvactools_pair_has_required_inputs(row):
+    wildcards_dict = dict(
+        seq_type = row["tumour_seq_type"], genome_build = row["tumour_genome_build"],
+        tumour_id = row["tumour_sample_id"], normal_id = row["normal_sample_id"], pair_status = row["pair_status"]
+    )
+    raw_vcf = CFG["inputs"]["vcf2maf_raw_vcf"].format(**wildcards_dict)
+    maf = CFG["inputs"]["vcf2maf_maf"].format(**wildcards_dict)
+    patient_id = _pvactools_get_patient_id_for_tumour(row["tumour_sample_id"], row["tumour_seq_type"])
+    hla = CFG["inputs"]["hla_alleles"].format(
+        seq_type = wildcards_dict["seq_type"], genome_build = wildcards_dict["genome_build"], patient_id = patient_id
+    )
+    return os.path.isfile(raw_vcf) and os.path.isfile(raw_vcf + ".tbi") and os.path.isfile(maf) and os.path.isfile(hla)
+
+_pvactools_missing_inputs = ~CFG["paired_runs"].apply(_pvactools_pair_has_required_inputs, axis = 1)
+if _pvactools_missing_inputs.any():
+    print(
+        f"INFO [pvactools]: skipping {_pvactools_missing_inputs.sum()} of {len(CFG['paired_runs'])} "
+        f"pair(s) missing required upstream input (vcf2maf raw VCF/MAF or mhc_hammer Class I typing): "
+        f"{CFG['paired_runs'][_pvactools_missing_inputs]['tumour_sample_id'].tolist()}"
+    )
+CFG["paired_runs"] = CFG["paired_runs"][~_pvactools_missing_inputs]
 
 
 ##### RULES #####
