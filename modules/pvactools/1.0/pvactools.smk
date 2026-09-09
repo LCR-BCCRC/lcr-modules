@@ -315,6 +315,10 @@ rule _pvactools_subset_to_coding_variants:
         CFG["threads"]["subset_coding_variants"]
     resources:
         **CFG["resources"]["subset_coding_variants"]
+    # Bundled into one cluster job with _pvactools_vep_annotate/_pvactools_run -- see that rule's
+    # own comment for why and the real resource-reservation tradeoff this brings.
+    group:
+        "vep_and_run"
     shell:
         op.as_one_line("""
         (
@@ -368,6 +372,21 @@ rule _pvactools_vep_annotate:
         CFG["threads"]["vep_annotate"]
     resources:
         **CFG["resources"]["vep_annotate"]
+    # Bundled into one cluster job with _pvactools_subset_to_coding_variants/_pvactools_run.
+    # Real, requested change: VEP annotation of an already-small, coding-only variant set finishes
+    # in well under a minute, and this cluster penalizes total job COUNT (short jobs still count
+    # fully against that), not just aggregate compute time. group: bundles all three connected
+    # per-pair rules into a single cluster submission -- confirmed this repo already uses this
+    # convention (modules/freebayes/1.0's own "input_and_run"/"normalize_and_bgzip" groups).
+    # Real tradeoff, same one already documented for modules/mhc_hammer/1.0's own grouping
+    # consideration: Snakemake's group resource aggregation SUMS every member rule's mem_mb/threads
+    # rather than assuming sequential execution, so the combined job reserves
+    # 2000+8000+16000=26000 mem_mb and 1+4+8=13 threads for the group's whole duration (a few
+    # minutes, dominated by _pvactools_run itself) -- not just _pvactools_run's own 16000/8. Revisit
+    # this grouping (or split it back out) if that over-reservation becomes a real problem instead
+    # of the job-count penalty it's meant to solve.
+    group:
+        "vep_and_run"
     shell:
         op.as_one_line("""
         (
@@ -449,6 +468,11 @@ rule _pvactools_run:
         CFG["threads"]["pvacseq_run"]
     resources:
         **CFG["resources"]["pvacseq_run"]
+    # See _pvactools_vep_annotate's own comment for why this rule is grouped together with
+    # _pvactools_subset_to_coding_variants/_pvactools_vep_annotate into a single cluster job, and
+    # the resource-reservation tradeoff that comes with it.
+    group:
+        "vep_and_run"
     shell:
         op.as_one_line("""
         (
