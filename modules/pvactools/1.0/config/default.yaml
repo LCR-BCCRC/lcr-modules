@@ -149,6 +149,50 @@ lcr-modules:
             binding_threshold: 500
             top_score_metric: "median"
 
+            # Additional standard filterings of pvacseq's own combined all_epitopes.tsv, run via
+            # `pvacseq binding_filter` -- pure post-processing on already-computed scores (confirmed
+            # by reading pvactools' own lib/binding_filter.py directly: no model/IEDB calls at all,
+            # just re-applies thresholds to an existing report), so these cost essentially nothing
+            # beyond the primary pvacseq run itself. Motivated by a real observation: pvacseq's own
+            # default filtered.tsv (using "conservative" strategy -- a candidate must pass ALL of
+            # binding score/binding percentile/presentation percentile simultaneously) left several
+            # real samples with very few or zero surviving candidates, likely a combination of
+            # DLBCL's generally modest TMB and that three-way-AND requirement being genuinely
+            # strict. Each key here becomes a "{filter_preset}/*.filtered.tsv" file under
+            # 99-outputs/additional_filters/ -- add/remove/rename presets freely, no code change
+            # needed. binding_threshold/binding_percentile_threshold/presentation_percentile_threshold
+            # match pvacseq's own -b/--binding-percentile-threshold/--presentation-percentile-threshold.
+            #
+            # percentile_threshold_strategy is ALWAYS "conservative" below, deliberately --
+            # confirmed via a real test against pvactools' own binding_filter that "exploratory"
+            # (--percentile-threshold-strategy exploratory) is a silent no-op for our algorithm
+            # selection: it only excludes a row if it fails ALL FOUR criteria (binding score/
+            # binding percentile/presentation percentile/immunogenicity percentile)
+            # simultaneously, but immunogenicity percentile is always "NA" for us (none of
+            # MHCflurry/MHCflurryEL/MHCnuggetsI/MHCnuggetsII compute it -- that needs DeepImmuno or
+            # ImmuScope_IM, which we don't run), and pvactools treats "NA" as automatically NOT
+            # failing -- so that one always-NA column alone is enough to keep every row regardless
+            # of how poor its other three scores are. Confirmed directly: a synthetic row failing
+            # all three real criteria (IC50 1000 > 500, percentile 5.0 > 2.0, presentation
+            # 5.0 > 2.0) still survived "exploratory" filtering intact. If DeepImmuno/ImmuScope_IM
+            # are ever added to options.prediction_algorithms, this would need revisiting --
+            # exploratory mode would become meaningful again once immunogenicity percentile is
+            # actually populated.
+            additional_filters:
+                relaxed:
+                    # ~2x pvacseq's own default numeric cutoffs.
+                    binding_threshold: 1000
+                    binding_percentile_threshold: 5.0
+                    presentation_percentile_threshold: 5.0
+                    percentile_threshold_strategy: "conservative"
+                very_relaxed:
+                    # A much broader net -- most useful for exploratory prioritization work (e.g.
+                    # manually reviewing near-misses) rather than a high-confidence shortlist.
+                    binding_threshold: 5000
+                    binding_percentile_threshold: 20.0
+                    presentation_percentile_threshold: 20.0
+                    percentile_threshold_strategy: "conservative"
+
             # MHCflurry release to fetch (mhcflurry-downloads fetch --release). Confirmed via a
             # real run: pointing MHCFLURRY_DOWNLOADS_DIR at a fresh/custom directory disables
             # mhcflurry's own default-release auto-detection ("No release defined"), so this must be

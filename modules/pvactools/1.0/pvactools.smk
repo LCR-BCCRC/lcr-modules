@@ -82,6 +82,7 @@ localrules:
     _pvactools_output_class2_all_epitopes,
     _pvactools_output_combined_filtered,
     _pvactools_output_combined_all_epitopes,
+    _pvactools_apply_additional_filter,
     _pvactools_all,
 
 
@@ -572,6 +573,43 @@ rule _pvactools_output_combined_all_epitopes:
             open(output.tsv, "w").close()
 
 
+# Additional standard filterings of the SAME already-computed combined all_epitopes.tsv, via
+# `pvacseq binding_filter` -- pure post-processing on existing scores/percentiles (confirmed by
+# reading pvactools' own lib/binding_filter.py directly: no model/IEDB calls, just re-applies
+# thresholds to an existing report), so these cost essentially nothing beyond the primary pvacseq
+# run itself -- no need to rerun anything to get a differently-thresholded view. See
+# options.additional_filters for the preset definitions and the real observation that motivated
+# this (pvacseq's own default "conservative" filtered.tsv left several samples with very few or
+# zero surviving candidates). Localrule: this is fast, pure TSV post-processing, not a real compute
+# job.
+rule _pvactools_apply_additional_filter:
+    input:
+        all_epitopes = str(rules._pvactools_output_combined_all_epitopes.output.tsv)
+    output:
+        tsv = CFG["dirs"]["outputs"] + "additional_filters/{filter_preset}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.filtered.tsv"
+    log:
+        stdout = CFG["logs"]["outputs"] + "additional_filters/{filter_preset}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/apply_additional_filter.log"
+    params:
+        preset = lambda wildcards: config["lcr-modules"]["pvactools"]["options"]["additional_filters"][wildcards.filter_preset],
+        top_score_metric = CFG["options"]["top_score_metric"]
+    wildcard_constraints:
+        filter_preset = "|".join(CFG["options"]["additional_filters"].keys())
+    conda:
+        CFG["conda_envs"]["pvactools"]
+    container:
+        None
+    shell:
+        op.as_one_line("""
+        pvacseq binding_filter {input.all_epitopes} {output.tsv}
+        -b {params.preset[binding_threshold]}
+        --binding-percentile-threshold {params.preset[binding_percentile_threshold]}
+        --presentation-percentile-threshold {params.preset[presentation_percentile_threshold]}
+        --percentile-threshold-strategy {params.preset[percentile_threshold_strategy]}
+        -m {params.top_score_metric}
+        > {log.stdout} 2>&1
+        """)
+
+
 # Generates the target sentinels for each run, which generate the symlinks. Uses
 # CFG["paired_runs"] (narrowed to pair_status == "matched" above) so tumour samples without a
 # matched germline sample are never requested as targets -- HLA typing needs the patient's own
@@ -598,6 +636,22 @@ rule _pvactools_all:
             tumour_id = CFG["paired_runs"]["tumour_sample_id"],
             normal_id = CFG["paired_runs"]["normal_sample_id"],
             pair_status = CFG["paired_runs"]["pair_status"]
+        ),
+        # Cross product (every pair x every preset), not zip -- every pair gets every preset.
+        # allow_missing=True on the inner expand leaves {filter_preset} unresolved so the outer
+        # expand can fill it in across all presets.
+        expand(
+            expand(
+                [str(rules._pvactools_apply_additional_filter.output.tsv)],
+                zip,
+                seq_type = CFG["paired_runs"]["tumour_seq_type"],
+                genome_build = CFG["paired_runs"]["tumour_genome_build"],
+                tumour_id = CFG["paired_runs"]["tumour_sample_id"],
+                normal_id = CFG["paired_runs"]["normal_sample_id"],
+                pair_status = CFG["paired_runs"]["pair_status"],
+                allow_missing = True
+            ),
+            filter_preset = list(CFG["options"]["additional_filters"].keys())
         )
 
 
