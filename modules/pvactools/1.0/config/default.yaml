@@ -86,6 +86,10 @@ lcr-modules:
                 grch37: "GRCh37"
                 hs37d5: "GRCh37"
                 hg38: "GRCh38"
+                # Same underlying coordinate system as grch37/hs37d5 -- "clc" refers to the
+                # alignment tool (CLC Genomics Workbench) that produced this reference/BAM, not a
+                # different genome build. Real value hit on a real genome-cohort run (2026-09).
+                hg19-clc: "GRCh37"
 
             # Protein-altering MAF classes only -- reused as-is from vcf2maf's own earlier
             # VEP-derived Variant_Classification, so no redundant re-annotation/re-scoring is spent
