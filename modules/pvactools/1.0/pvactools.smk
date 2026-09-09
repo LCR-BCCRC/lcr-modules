@@ -80,6 +80,8 @@ localrules:
     _pvactools_output_class1_all_epitopes,
     _pvactools_output_class2_filtered,
     _pvactools_output_class2_all_epitopes,
+    _pvactools_output_combined_filtered,
+    _pvactools_output_combined_all_epitopes,
     _pvactools_all,
 
 
@@ -463,11 +465,13 @@ rule _pvactools_run:
 
 # Symlinks the final output files into the module results directory (under '99-outputs/').
 #
-# Filenames below are PLACEHOLDERS based on general pVACtools documentation knowledge, NOT
-# confirmed against a real pvacseq run's actual output directory in this session -- written
-# defensively (symlink if the expected file exists, otherwise touch an empty file and warn) so a
-# filename mismatch on the first real run doesn't hard-fail the whole pipeline. Correct the path
-# here once confirmed via a real `ls -R` (see this module's CHANGELOG), rather than guessing twice.
+# Filenames confirmed against a real completed pvacseq run (pvactools=7.1.3, 2026-09) -- an earlier
+# draft guessed "{tumour_id}.filtered.tsv"/"{tumour_id}.all_epitopes.tsv" with no class infix; the
+# real files are "{tumour_id}.MHC_I.filtered.tsv" etc. (and there's also a third, previously
+# unaccounted-for "combined/" directory merging both classes -- see
+# _pvactools_output_combined_filtered/_pvactools_output_combined_all_epitopes below). Still written
+# defensively (symlink if the expected file exists, otherwise touch an empty file and warn) since a
+# Class-I-only pair (no Class II alleles) never gets an MHC_Class_II/ or combined/ directory at all.
 rule _pvactools_output_class1_filtered:
     input:
         outdir = str(rules._pvactools_run.output.outdir),
@@ -475,13 +479,12 @@ rule _pvactools_output_class1_filtered:
     output:
         tsv = CFG["dirs"]["outputs"] + "mhc_class_i_filtered/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.filtered.tsv"
     run:
-        src = os.path.join(input.outdir, "MHC_Class_I", f"{wildcards.tumour_id}.filtered.tsv")
+        src = os.path.join(input.outdir, "MHC_Class_I", f"{wildcards.tumour_id}.MHC_I.filtered.tsv")
         if os.path.isfile(src):
             op.relative_symlink(src, output.tsv, in_module = True)
         else:
             print(f"WARNING: expected pvacseq Class I filtered output not found at {src} -- "
-                  f"writing an empty placeholder. Confirm the real filename with `ls -R {input.outdir}` "
-                  f"and fix this rule.")
+                  f"writing an empty placeholder (this pair likely has no Class I alleles typed).")
             open(output.tsv, "w").close()
 
 rule _pvactools_output_class1_all_epitopes:
@@ -491,13 +494,12 @@ rule _pvactools_output_class1_all_epitopes:
     output:
         tsv = CFG["dirs"]["outputs"] + "mhc_class_i_all_epitopes/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.all_epitopes.tsv"
     run:
-        src = os.path.join(input.outdir, "MHC_Class_I", f"{wildcards.tumour_id}.all_epitopes.tsv")
+        src = os.path.join(input.outdir, "MHC_Class_I", f"{wildcards.tumour_id}.MHC_I.all_epitopes.tsv")
         if os.path.isfile(src):
             op.relative_symlink(src, output.tsv, in_module = True)
         else:
             print(f"WARNING: expected pvacseq Class I all_epitopes output not found at {src} -- "
-                  f"writing an empty placeholder. Confirm the real filename with `ls -R {input.outdir}` "
-                  f"and fix this rule.")
+                  f"writing an empty placeholder (this pair likely has no Class I alleles typed).")
             open(output.tsv, "w").close()
 
 # Class II outputs are only meaningful for a pair whose allele_summary.tsv actually contains a
@@ -510,13 +512,12 @@ rule _pvactools_output_class2_filtered:
     output:
         tsv = CFG["dirs"]["outputs"] + "mhc_class_ii_filtered/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.filtered.tsv"
     run:
-        src = os.path.join(input.outdir, "MHC_Class_II", f"{wildcards.tumour_id}.filtered.tsv")
+        src = os.path.join(input.outdir, "MHC_Class_II", f"{wildcards.tumour_id}.MHC_II.filtered.tsv")
         if os.path.isfile(src):
             op.relative_symlink(src, output.tsv, in_module = True)
         else:
             print(f"WARNING: expected pvacseq Class II filtered output not found at {src} -- "
-                  f"writing an empty placeholder. Confirm the real filename with `ls -R {input.outdir}` "
-                  f"and fix this rule.")
+                  f"writing an empty placeholder (this pair likely has no Class II alleles typed).")
             open(output.tsv, "w").close()
 
 rule _pvactools_output_class2_all_epitopes:
@@ -526,25 +527,60 @@ rule _pvactools_output_class2_all_epitopes:
     output:
         tsv = CFG["dirs"]["outputs"] + "mhc_class_ii_all_epitopes/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.all_epitopes.tsv"
     run:
-        src = os.path.join(input.outdir, "MHC_Class_II", f"{wildcards.tumour_id}.all_epitopes.tsv")
+        src = os.path.join(input.outdir, "MHC_Class_II", f"{wildcards.tumour_id}.MHC_II.all_epitopes.tsv")
         if os.path.isfile(src):
             op.relative_symlink(src, output.tsv, in_module = True)
         else:
             print(f"WARNING: expected pvacseq Class II all_epitopes output not found at {src} -- "
-                  f"writing an empty placeholder. Confirm the real filename with `ls -R {input.outdir}` "
-                  f"and fix this rule.")
+                  f"writing an empty placeholder (this pair likely has no Class II alleles typed).")
+            open(output.tsv, "w").close()
+
+# The "combined/" directory (confirmed on a real run, not anticipated when this module was first
+# designed) merges both classes into a single report -- likely the most useful single deliverable
+# for most downstream analysis, since it saves having to concatenate MHC_Class_I/MHC_Class_II
+# yourself. Same defensive pattern: only absent for a pair where neither class produced any alleles
+# at all (shouldn't happen given _pvactools_prepare_allele_list's own both-empty assertion, but kept
+# consistent with the other four output rules regardless).
+rule _pvactools_output_combined_filtered:
+    input:
+        outdir = str(rules._pvactools_run.output.outdir),
+        complete = str(rules._pvactools_run.output.complete)
+    output:
+        tsv = CFG["dirs"]["outputs"] + "combined_filtered/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.filtered.tsv"
+    run:
+        src = os.path.join(input.outdir, "combined", f"{wildcards.tumour_id}.Combined.filtered.tsv")
+        if os.path.isfile(src):
+            op.relative_symlink(src, output.tsv, in_module = True)
+        else:
+            print(f"WARNING: expected pvacseq combined filtered output not found at {src} -- "
+                  f"writing an empty placeholder.")
+            open(output.tsv, "w").close()
+
+rule _pvactools_output_combined_all_epitopes:
+    input:
+        outdir = str(rules._pvactools_run.output.outdir),
+        complete = str(rules._pvactools_run.output.complete)
+    output:
+        tsv = CFG["dirs"]["outputs"] + "combined_all_epitopes/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.all_epitopes.tsv"
+    run:
+        src = os.path.join(input.outdir, "combined", f"{wildcards.tumour_id}.Combined.all_epitopes.tsv")
+        if os.path.isfile(src):
+            op.relative_symlink(src, output.tsv, in_module = True)
+        else:
+            print(f"WARNING: expected pvacseq combined all_epitopes output not found at {src} -- "
+                  f"writing an empty placeholder.")
             open(output.tsv, "w").close()
 
 
 # Generates the target sentinels for each run, which generate the symlinks. Uses
 # CFG["paired_runs"] (narrowed to pair_status == "matched" above) so tumour samples without a
 # matched germline sample are never requested as targets -- HLA typing needs the patient's own
-# germline sample. Class II outputs are requested unconditionally for every pair -- whether a given
-# pair actually has a Class II allele can't be known until _pvactools_prepare_allele_list has
+# germline sample. Class II/combined outputs are requested unconditionally for every pair -- whether
+# a given pair actually has a Class II allele can't be known until _pvactools_prepare_allele_list has
 # already run (a per-pair expand() can't depend on that rule's own output at DAG-build time), so a
 # pair with no real Class II typing just gets the defensive empty-placeholder-plus-warning behaviour
-# already built into _pvactools_output_class2_filtered/_pvactools_output_class2_all_epitopes above,
-# rather than being excluded from the target list entirely.
+# already built into the relevant output rules above, rather than being excluded from the target
+# list entirely.
 rule _pvactools_all:
     input:
         expand(
@@ -552,7 +588,9 @@ rule _pvactools_all:
                 str(rules._pvactools_output_class1_filtered.output.tsv),
                 str(rules._pvactools_output_class1_all_epitopes.output.tsv),
                 str(rules._pvactools_output_class2_filtered.output.tsv),
-                str(rules._pvactools_output_class2_all_epitopes.output.tsv)
+                str(rules._pvactools_output_class2_all_epitopes.output.tsv),
+                str(rules._pvactools_output_combined_filtered.output.tsv),
+                str(rules._pvactools_output_combined_all_epitopes.output.tsv)
             ],
             zip,
             seq_type = CFG["paired_runs"]["tumour_seq_type"],

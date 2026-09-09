@@ -34,7 +34,7 @@ By default, only fully ungated (no license/registration) prediction algorithms a
 - VAF/depth-based filtering inside pvacseq (`--normal-vaf`/`--tdna-vaf`/etc.) -- pVACtools' own docs describe this as optional, requiring a separate bam-readcount + `vatools` re-annotation pipeline this module doesn't build. A future addition, not required to run pvacseq at all.
 - Phased proximal-variant handling (`--phased-proximal-variants-vcf`) -- pVACtools' own docs note the tool this needs (`GATK ReadBackedPhasing`) is no longer available in current GATK versions.
 - pVACfuse/pVACbind/pVACvector -- see "Purpose" above.
-- Exact final pvacseq output filenames are placeholders, not yet confirmed against a real run in this session -- the output-symlinking rules are written defensively (symlink if the expected file exists, else an empty placeholder + a warning) specifically because of this; see this module's CHANGELOG for what's confirmed vs. still open.
+- pvacseq's own `.all_epitopes.aggregated.tsv`/`.aggregated.metrics.json` reports (its documented tiered/prioritized candidate view) aren't exposed as `99-outputs/` symlinks yet -- only the flat `filtered.tsv`/`all_epitopes.tsv` tables (per class, and the combined `combined/` report) are. Worth adding if the tiered view turns out more useful in practice.
 
 # Example
 
