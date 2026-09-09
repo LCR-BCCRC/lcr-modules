@@ -14,22 +14,34 @@ lcr-modules:
             # Real path confirmed by reading modules/vcf2maf/1.3/vcf2maf.smk directly:
             # _vcf2maf_input_vcf's own tracked, symlinked copy of the raw caller VCF.
             # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
-            vcf2maf_raw_vcf: "results/vcf2maf-<parent>/00-inputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/<base_name>.vcf.gz"
+            # results/unix_group to be prepended to this in snakefile
+            vcf2maf_raw_vcf: "slms_3-1.0_vcf2maf-1.3/00-inputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/slms-3.final.vcf.gz"
 
-            # Required, per matched pair. vcf2maf's own final, most-filtered MAF
-            # (_vcf2maf_output_maf) -- its Variant_Classification column (already computed by
-            # vcf2maf's own earlier VEP run) is used to subset vcf2maf_raw_vcf above down to only
-            # protein-altering positions before this module's own VEP+Frameshift+Wildtype
-            # annotation, avoiding a full re-annotation and re-scoring of variants already known to
-            # be silent/non-coding (see options.coding_variant_classifications below, and
-            # _pvactools_subset_to_coding_variants in pvactools.smk). <filter> is "raw" or
-            # "deblacklisted" per your vcf2maf deployment's own options.filter.
-            vcf2maf_maf: "results/vcf2maf-<parent>/99-outputs/<filter>/maf/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.<base_name>.<target_build>.maf"
+            # Required, per matched pair. vcf2maf's own ORIGINAL (not CrossMap-projected) MAF --
+            # _vcf2maf_output_original, NOT _vcf2maf_output_maf. This matters for correctness, not
+            # just convention: _vcf2maf_output_maf's own path is CrossMap-projected onto a single
+            # cohort-wide target_build, so its coordinates are in a DIFFERENT build than the raw VCF
+            # for any sample whose own native genome_build doesn't match that target -- silently
+            # wrong position-matching against vcf2maf_raw_vcf above for those samples.
+            # _vcf2maf_output_original stays in the sample's own native {genome_build} the whole
+            # way through (confirmed by reading modules/vcf2maf/1.3/vcf2maf.smk directly: its own
+            # output path is keyed on {genome_build}, with no {target_build}/projection involved at
+            # all), matching vcf2maf_raw_vcf's own coordinate system exactly. Its
+            # Variant_Classification column (already computed by vcf2maf's own earlier VEP run) is
+            # used to subset vcf2maf_raw_vcf above down to only protein-altering positions before
+            # this module's own VEP+Frameshift+Wildtype annotation (see
+            # options.coding_variant_classifications below and _pvactools_subset_to_coding_variants
+            # in pvactools.smk). <filter> is "raw" or "deblacklisted", <maf> is "maf" or
+            # "augmented_maf", per your vcf2maf deployment's own options.filter/options.augment.
+            vcf2maf_maf: "slms_3-1.0_vcf2maf-1.3/99-outputs/deblacklisted/maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.maf"
 
-            # Required, per matched pair. modules/lilac/1.0's own 99-outputs (stable, renamed path
-            # -- unlike modules/neo/1.0, this module has no hardcoded-bare-filename dependency on
-            # LILAC's own internal directory layout, so the renamed 99-outputs path is fine).
-            lilac_tsv: "results/lilac-1.0/99-outputs/lilac/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lilac.tsv"
+            # Required, per patient (not per pair -- HLA typing is germline, shared across a
+            # patient's samples). modules/mhc_hammer/1.0's own consolidated HLA-HD Class I result
+            # (_mhc_hammer_output_hla_final_result). Class I typing lives entirely here rather than
+            # LILAC -- keeps this module to a single upstream typing source (mhc_hammer already
+            # produces both classes). Resolved from {tumour_id}/{seq_type} via CFG["runs"], mirroring
+            # mhc_hammer's own _mhc_hammer_get_patient_id_for_tumour helper.
+            hla_alleles: "results/mhc_hammer-1.0/99-outputs/hla_alleles/{seq_type}--{genome_build}/{patient_id}.hla_alleles.txt"
 
             # Optional, per patient (not per pair -- HLA typing is germline, shared across a
             # patient's samples). modules/mhc_hammer/1.0's own class II HLA-HD typing output.

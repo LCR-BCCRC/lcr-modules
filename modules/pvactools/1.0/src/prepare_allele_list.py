@@ -1,43 +1,64 @@
 #!/usr/bin/env python3
-"""Build pvacseq's comma-separated HLA allele-list argument from LILAC (Class I) + mhc_hammer's
-HLA-HD-based Class II typing.
+"""Build pvacseq's comma-separated HLA allele-list argument entirely from mhc_hammer's own
+HLA-HD-based typing: Class I (_mhc_hammer_output_hla_final_result, HLA-HD's own consolidated
+per-patient result) and Class II (_mhc_hammer_output_hla2_alleles).
 
 Real formats confirmed against a real installed pvactools=7.1.3 (`pvactools valid_alleles`):
   Class I:  "HLA-A*02:01"                (gene short name, with HLA- prefix)
   Class II: "DRB1*01:01"                 (single-chain genes, no HLA- prefix)
             "DQA1*01:01-DQB1*02:01"      (DQ heterodimer, hyphenated pair)
             "DPA1*01:03-DPB1*01:01"      (DP heterodimer, hyphenated pair)
+
+Class I input is HLA-HD's own `{patient_id}_final.result.txt` -- its exact field layout (gene name
+column plus two allele columns, alleles already carrying an "HLA-" prefix, "Not typed" placeholder
+capitalization) is based on HLA-HD's well-documented standard convention, NOT independently
+re-verified against a real file in this session (see this module's CHANGELOG) -- parsing below is
+deliberately defensive (case-insensitive "not typed" check, tolerates the prefix being present or
+absent) so a real file that differs slightly still degrades gracefully rather than crashing.
 """
 import argparse
 import csv
 import itertools
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--lilac-tsv", required=True)
-parser.add_argument("--hla2-alleles", default=None, help="mhc_hammer's own hla2_alleles.csv (optional)")
+parser.add_argument("--hla-final-result", required=True, help="mhc_hammer's own {patient_id}_final.result.txt (Class I)")
+parser.add_argument("--hla2-alleles", default=None, help="mhc_hammer's own hla2_alleles.csv (optional, Class II)")
 parser.add_argument("--output-allele-list", required=True)
 parser.add_argument("--output-audit", required=True)
 args = parser.parse_args()
 
 audit = []  # (source, gene, raw, resolved, note)
 
+CLASS_I_GENES = {"A", "B", "C"}
+
 
 def trim_resolution(allele):
-    # GENE*NN:NN[:NN[:NN]] -> GENE*NN:NN. LILAC already reports at 2-field resolution; HLA-HD's
-    # own raw candidate strings are not independently verified to (see this module's CHANGELOG).
+    # GENE*NN:NN[:NN[:NN]] -> GENE*NN:NN.
     star = allele.index("*")
     gene, fields = allele[:star], allele[star + 1:].split(":")
     return f"{gene}*{fields[0]}:{fields[1]}" if len(fields) >= 2 else allele
 
 
-# ---- Class I (LILAC) ----
+# ---- Class I (mhc_hammer's own HLA-HD final result) ----
 class_i = set()
-with open(args.lilac_tsv) as f:
-    for row in csv.DictReader(f, delimiter="\t"):
-        raw = row["Allele"]
-        resolved = "HLA-" + trim_resolution(raw)
-        class_i.add(resolved)
-        audit.append(("lilac", raw.split("*")[0], raw, resolved, ""))
+with open(args.hla_final_result) as f:
+    for row in csv.reader(f, delimiter="\t"):
+        if not row or not row[0]:
+            continue
+        gene, alleles = row[0].strip(), row[1:]
+        if gene not in CLASS_I_GENES:
+            continue
+        for allele in alleles:
+            allele = allele.strip()
+            if not allele or allele.lower() == "not typed":
+                audit.append(("hla_final_result", gene, allele, "", "skipped: not typed"))
+                continue
+            # HLA-HD's final result conventionally already carries the HLA- prefix -- strip it
+            # first so it's never doubled, then add it back consistently.
+            bare = allele[4:] if allele.upper().startswith("HLA-") else allele
+            resolved = "HLA-" + trim_resolution(bare)
+            class_i.add(resolved)
+            audit.append(("hla_final_result", gene, allele, resolved, ""))
 
 # ---- Class II (mhc_hammer HLA-HD), optional ----
 class_ii_single = set()   # DRB1/DRB3/DRB4/DRB5
@@ -83,7 +104,8 @@ class_ii |= {f"{a}-{b}" for a, b in itertools.product(dp_a, dp_b)}
 all_alleles = sorted(class_i) + sorted(class_ii)
 if not all_alleles:
     raise AssertionError(
-        "No usable HLA alleles from either LILAC or mhc_hammer -- cannot run pvacseq for this pair."
+        "No usable HLA alleles from mhc_hammer's own Class I or Class II typing -- cannot run "
+        "pvacseq for this pair."
     )
 
 with open(args.output_allele_list, "w") as f:

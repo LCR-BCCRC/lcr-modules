@@ -10,7 +10,7 @@ import argparse
 import csv
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--maf", required=True, help="vcf2maf's own final MAF (_vcf2maf_output_maf)")
+parser.add_argument("--maf", required=True, help="vcf2maf's own ORIGINAL, non-CrossMap-projected MAF (_vcf2maf_output_original, NOT _vcf2maf_output_maf -- must share the raw VCF's own native genome_build coordinates)")
 parser.add_argument("--classifications", nargs="+", required=True,
                      help="Variant_Classification values to keep (options.coding_variant_classifications)")
 parser.add_argument("--output-regions", required=True, help="bcftools -R regions file (CHROM/FROM/TO)")

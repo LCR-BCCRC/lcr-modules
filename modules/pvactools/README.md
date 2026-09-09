@@ -16,11 +16,11 @@ This also solves a real, separate efficiency problem for free: a WGS sample carr
 
 ## Prerequisites (read before use)
 
-`vcf2maf` is a **required** upstream dependency -- this module has no variant source without it. Point `inputs.vcf2maf_raw_vcf`/`inputs.vcf2maf_maf` at the same `vcf2maf-1.3` deployment (same `_parent`/`vcf_base_name`/`filter`/`target_build` choices) your project already uses.
+`vcf2maf` is a **required** upstream dependency -- this module has no variant source without it. Point `inputs.vcf2maf_raw_vcf`/`inputs.vcf2maf_maf` at the same `vcf2maf-1.3` deployment (same `_parent`/`vcf_base_name`/`filter` choices) your project already uses.
 
-`inputs.lilac_tsv` (Class I HLA typing, `modules/lilac/1.0`) is also required -- there is no fallback HLA typing source built into this module.
+`inputs.vcf2maf_maf` must be vcf2maf's own **original, non-CrossMap-projected** MAF (`_vcf2maf_output_original`) -- not its final `_vcf2maf_output_maf` (which is projected onto a single cohort-wide `target_build`). This matters for correctness: `_pvactools_subset_to_coding_variants` matches this MAF's positions directly against `vcf2maf_raw_vcf`'s own coordinates, which are in the sample's native `genome_build`. A CrossMap-projected MAF would silently mismatch for any sample whose native build differs from the projection target.
 
-`inputs.hla2_alleles` (Class II HLA typing, `modules/mhc_hammer/1.0`'s own HLA-HD-based typing) is optional -- a pair with none available (file doesn't exist, or `mhc_hammer` isn't even part of your runner) still gets a Class-I-only pvacseq run rather than failing.
+`modules/mhc_hammer/1.0` is the sole HLA typing source for **both** MHC classes -- `inputs.hla_alleles` (Class I, `_mhc_hammer_output_hla_final_result`) is required, there is no fallback typing source built into this module. `inputs.hla2_alleles` (Class II, `_mhc_hammer_output_hla2_alleles`) is optional -- a pair with none available (typing failed for this patient) still gets a Class-I-only pvacseq run rather than failing. (An earlier draft of this module sourced Class I from `modules/lilac/1.0` instead, for its better-validated WGS typing accuracy -- switched to mhc_hammer for both classes to keep this module to a single upstream typing dependency; worth revisiting if mhc_hammer's own WGS depth-tuning caveat, noted in its own README, turns out to matter in practice.)
 
 VEP is user-supplied (`options.vep_path`, `inputs.vep_cache`), following the same pattern already used by `modules/mhc_hammer/1.0`/`modules/vcf2maf/1.3`, to avoid the bioconda/Perl dependency conflicts already documented for those modules. This module additionally needs two VEP plugins (`Frameshift`, `Wildtype`) that pVACtools bundles and installs itself (`_pvactools_install_vep_plugins`) -- nothing to supply manually for those.
 
@@ -51,8 +51,8 @@ lcr-modules:
     pvactools:
         inputs:
             vcf2maf_raw_vcf: "results/vcf2maf-sage-1.1_vcf2maf-1.3/00-inputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combined.passed.vcf.gz"
-            vcf2maf_maf: "results/vcf2maf-sage-1.1_vcf2maf-1.3/99-outputs/deblacklisted/maf/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.combined.passed.grch37.maf"
-            lilac_tsv: "results/lilac-1.0/99-outputs/lilac/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.lilac.tsv"
+            vcf2maf_maf: "results/vcf2maf-sage-1.1_vcf2maf-1.3/99-outputs/deblacklisted/maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.combined.passed.maf"
+            hla_alleles: "results/mhc_hammer-1.0/99-outputs/hla_alleles/{seq_type}--{genome_build}/{patient_id}.hla_alleles.txt"
             # Optional -- omit or leave as "" to run Class-I-only
             hla2_alleles: "results/mhc_hammer-1.0/99-outputs/hla2_alleles/{seq_type}--{genome_build}/{patient_id}.hla2_alleles.csv"
             vep_cache: "ref/ensembl_vep_cache/"

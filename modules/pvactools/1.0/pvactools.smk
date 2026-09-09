@@ -94,10 +94,6 @@ def _pvactools_get_vcf2maf_maf(wildcards):
     CFG = config["lcr-modules"]["pvactools"]
     return _pvactools_format_pair_path(CFG["inputs"]["vcf2maf_maf"], wildcards)
 
-def _pvactools_get_lilac_tsv(wildcards):
-    CFG = config["lcr-modules"]["pvactools"]
-    return _pvactools_format_pair_path(CFG["inputs"]["lilac_tsv"], wildcards)
-
 # Mirrors modules/mhc_hammer/1.0's own _mhc_hammer_get_patient_id_for_tumour exactly: recovers
 # patient_id for a pair-level rule (wildcarded on tumour_id/normal_id, not patient_id) via
 # CFG["runs"].
@@ -106,9 +102,21 @@ def _pvactools_get_patient_id_for_tumour(tumour_id, seq_type):
     hits = op.filter_samples(CFG["runs"], tumour_sample_id = tumour_id, tumour_seq_type = seq_type)
     return hits["tumour_patient_id"].tolist()[0]
 
+# Required. Class I HLA typing -- modules/mhc_hammer/1.0's own _mhc_hammer_output_hla_final_result
+# (HLA-HD's own consolidated per-patient result). Patient-keyed like hla2_alleles below (HLA is
+# germline, shared across a patient's samples). No existence gate: unlike Class II, this module has
+# no other Class I typing source, so a missing file here means this pair genuinely cannot run
+# pvacseq -- mirroring modules/neo/1.0's own required-input helper pattern.
+def _pvactools_get_hla_final_result(wildcards):
+    CFG = config["lcr-modules"]["pvactools"]
+    pattern = CFG["inputs"]["hla_alleles"]
+    patient_id = _pvactools_get_patient_id_for_tumour(wildcards.tumour_id, wildcards.seq_type)
+    return pattern.format(seq_type = wildcards.seq_type, genome_build = wildcards.genome_build, patient_id = patient_id)
+
 # Optional -- Class II HLA typing. Existence-gated like modules/lilac/1.0's own gene_copy_number/
-# somatic_vcf: a pair with no Class II typing available (file doesn't exist, or mhc_hammer isn't
-# even part of this runner) still gets a Class-I-only pvacseq run rather than failing outright.
+# somatic_vcf: a pair with no Class II typing available (mhc_hammer's own class II path wasn't run,
+# or typing simply failed for this patient) still gets a Class-I-only pvacseq run rather than
+# failing outright.
 def _pvactools_get_hla2_alleles(wildcards):
     CFG = config["lcr-modules"]["pvactools"]
     pattern = CFG["inputs"].get("hla2_alleles", "")
@@ -311,12 +319,14 @@ rule _pvactools_vep_annotate:
         """)
 
 
-# Builds pvacseq's own comma-separated HLA allele-list argument from LILAC (Class I, required) and
-# mhc_hammer's HLA-HD-based Class II typing (optional). See src/prepare_allele_list.py's own header
-# comment for the real, confirmed allele-naming conventions this implements.
+# Builds pvacseq's own comma-separated HLA allele-list argument entirely from mhc_hammer's own
+# HLA-HD-based typing: Class I (required) and Class II (optional). See
+# src/prepare_allele_list.py's own header comment for the real, confirmed allele-naming conventions
+# this implements, and for the caveats on Class I's own file format (not independently verified
+# against a real HLA-HD final.result.txt in this session).
 rule _pvactools_prepare_allele_list:
     input:
-        lilac_tsv = _pvactools_get_lilac_tsv,
+        hla_final_result = _pvactools_get_hla_final_result,
         hla2_alleles = _pvactools_get_hla2_alleles,
         script = CFG["options"]["prepare_allele_list_script"]
     output:
@@ -329,7 +339,7 @@ rule _pvactools_prepare_allele_list:
     shell:
         op.as_one_line("""
         python3 {input.script}
-        --lilac-tsv {input.lilac_tsv}
+        --hla-final-result {input.hla_final_result}
         {params.hla2_flag}
         --output-allele-list {output.allele_list}
         --output-audit {output.audit}
