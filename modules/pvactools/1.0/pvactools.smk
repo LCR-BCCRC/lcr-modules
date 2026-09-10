@@ -483,7 +483,20 @@ rule _pvactools_run:
         e2 = CFG["options"]["class_ii_epitope_lengths"],
         binding_threshold = CFG["options"]["binding_threshold"],
         top_score_metric = CFG["options"]["top_score_metric"],
-        iedb_flag = f"--iedb-install-directory {CFG['options']['iedb_install_directory']}" if CFG["options"]["iedb_install_directory"] else ""
+        iedb_flag = f"--iedb-install-directory {CFG['options']['iedb_install_directory']}" if CFG["options"]["iedb_install_directory"] else "",
+        # EXPERIMENTAL diagnostic knob, not a default-on fix -- see this module's CHANGELOG for the
+        # full investigation. `--tumor-purity` alone only feeds pvacseq's own `vaf_clonal` estimate
+        # (confirmed from pvactools/lib/aggregate_all_epitopes.py's calculate_clonal_vaf(): when
+        # unset, pvacseq falls back to a crude, single-outlier-sensitive heuristic -- the single
+        # largest observed DNA VAF under 0.6, capped at 0.5 -- rather than any real central-tendency
+        # estimate of the sample's own VAF distribution), which only affects the aggregated report's
+        # Tier/Subclonal labels. It does NOT touch coverage_filter's own separate, hardcoded
+        # --tdna-vaf (default 0.25, confirmed independent in lib/run_argument_parser.py) -- the
+        # actual gate on filtered.tsv membership. So assumed_purity also derives an explicit
+        # --tdna-vaf override using pvacseq's own vaf_clonal/2 formula (tdna_vaf = purity * 0.25),
+        # matching what a real --tumor-purity would imply for "half the clonal VAF" and applying it
+        # consistently to both the Tier labels and the filtered.tsv coverage gate.
+        purity_flag = f"--tumor-purity {CFG['options']['assumed_purity']} --tdna-vaf {CFG['options']['assumed_purity'] * 0.25}" if CFG["options"].get("assumed_purity") else ""
     conda:
         CFG["conda_envs"]["pvactools"]
     container:
@@ -510,6 +523,7 @@ rule _pvactools_run:
         -b {params.binding_threshold} -m {params.top_score_metric}
         --normal-sample-name {wildcards.normal_id}
         {params.iedb_flag}
+        {params.purity_flag}
         -t {threads}
         ) > {log.stdout} 2>&1
         """)
