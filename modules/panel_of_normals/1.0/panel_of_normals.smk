@@ -1373,7 +1373,7 @@ rule _panel_of_normals_all:
                 str(rules._panel_of_normals_cnvkit_output_flat_ref_beds.output.antitarget)
             ],
             zip,
-            seq_type="capture",
+            seq_type=["capture"] * len(CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]),
             genome_build=CFG["options"]["cnvkit"]["flat_ref_combos"]["genome_builds"],
             capture_space=CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]
         ),
