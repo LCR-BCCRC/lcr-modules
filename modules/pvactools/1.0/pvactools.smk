@@ -268,6 +268,21 @@ rule _pvactools_extract_coding_regions:
     output:
         regions = CFG["dirs"]["coding_variants"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.coding_regions.tsv",
         audit = CFG["dirs"]["outputs"] + "coding_variant_audit/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.coding_variant_audit.tsv"
+    # Scheduling hint, not a resource change -- same real, requested pattern already established in
+    # modules/mhc_hammer/1.0 (see that module's own _mhc_hammer_flagstat comment): biases Snakemake
+    # toward advancing pairs already in flight through this module's own per-pair chain (especially
+    # ones needing only the cheap final output/filter rules re-run, e.g. after a code change to
+    # _pvactools_apply_additional_filter) before starting brand-new pairs' early, more expensive
+    # stages. Values increase monotonically with DAG depth through this module's per-pair chain:
+    # this rule/_pvactools_prepare_allele_list=10 (parallel branches, same depth), the grouped
+    # "vep_and_run" job (_pvactools_subset_to_coding_variants/_pvactools_vep_annotate/_pvactools_run
+    # -- all three share one priority value since a group job's own priority is the max of its
+    # members' regardless)=20, the six 99-outputs/ symlink rules=30,
+    # _pvactools_apply_additional_filter=40. Default priority (0) still applies to every other rule
+    # (including the cohort-wide, one-time _pvactools_download_mhcflurry_models/
+    # _pvactools_install_vep_plugins setup rules), so this whole per-pair chain already outranks
+    # everything else too.
+    priority: 10
     log:
         stdout = CFG["logs"]["coding_variants"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/extract_coding_regions.log"
     params:
@@ -319,6 +334,9 @@ rule _pvactools_subset_to_coding_variants:
     # own comment for why and the real resource-reservation tradeoff this brings.
     group:
         "vep_and_run"
+    # See _pvactools_extract_coding_regions's own comment for why this whole chain has increasing
+    # priority.
+    priority: 20
     shell:
         op.as_one_line("""
         (
@@ -387,6 +405,9 @@ rule _pvactools_vep_annotate:
     # of the job-count penalty it's meant to solve.
     group:
         "vep_and_run"
+    # See _pvactools_extract_coding_regions's own comment for why this whole chain has increasing
+    # priority.
+    priority: 20
     shell:
         op.as_one_line("""
         (
@@ -419,6 +440,9 @@ rule _pvactools_prepare_allele_list:
     output:
         allele_list = CFG["dirs"]["alleles"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.allele_list.txt",
         audit = CFG["dirs"]["outputs"] + "allele_summary/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.allele_summary.tsv"
+    # See _pvactools_extract_coding_regions's own comment for why this whole chain has increasing
+    # priority (this rule is a parallel branch at the same DAG depth as that one).
+    priority: 10
     log:
         stdout = CFG["logs"]["alleles"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/prepare_allele_list.log"
     params:
@@ -473,6 +497,9 @@ rule _pvactools_run:
     # the resource-reservation tradeoff that comes with it.
     group:
         "vep_and_run"
+    # See _pvactools_extract_coding_regions's own comment for why this whole chain has increasing
+    # priority.
+    priority: 20
     shell:
         op.as_one_line("""
         (
@@ -503,6 +530,9 @@ rule _pvactools_output_class1_filtered:
         complete = str(rules._pvactools_run.output.complete)
     output:
         tsv = CFG["dirs"]["outputs"] + "mhc_class_i_filtered/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.filtered.tsv"
+    # See _pvactools_extract_coding_regions's own comment for why this whole chain has increasing
+    # priority.
+    priority: 30
     run:
         src = os.path.join(input.outdir, "MHC_Class_I", f"{wildcards.tumour_id}.MHC_I.filtered.tsv")
         if os.path.isfile(src):
@@ -518,6 +548,9 @@ rule _pvactools_output_class1_all_epitopes:
         complete = str(rules._pvactools_run.output.complete)
     output:
         tsv = CFG["dirs"]["outputs"] + "mhc_class_i_all_epitopes/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.all_epitopes.tsv"
+    # See _pvactools_extract_coding_regions's own comment for why this whole chain has increasing
+    # priority.
+    priority: 30
     run:
         src = os.path.join(input.outdir, "MHC_Class_I", f"{wildcards.tumour_id}.MHC_I.all_epitopes.tsv")
         if os.path.isfile(src):
@@ -536,6 +569,9 @@ rule _pvactools_output_class2_filtered:
         complete = str(rules._pvactools_run.output.complete)
     output:
         tsv = CFG["dirs"]["outputs"] + "mhc_class_ii_filtered/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.filtered.tsv"
+    # See _pvactools_extract_coding_regions's own comment for why this whole chain has increasing
+    # priority.
+    priority: 30
     run:
         src = os.path.join(input.outdir, "MHC_Class_II", f"{wildcards.tumour_id}.MHC_II.filtered.tsv")
         if os.path.isfile(src):
@@ -551,6 +587,9 @@ rule _pvactools_output_class2_all_epitopes:
         complete = str(rules._pvactools_run.output.complete)
     output:
         tsv = CFG["dirs"]["outputs"] + "mhc_class_ii_all_epitopes/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.all_epitopes.tsv"
+    # See _pvactools_extract_coding_regions's own comment for why this whole chain has increasing
+    # priority.
+    priority: 30
     run:
         src = os.path.join(input.outdir, "MHC_Class_II", f"{wildcards.tumour_id}.MHC_II.all_epitopes.tsv")
         if os.path.isfile(src):
@@ -572,6 +611,9 @@ rule _pvactools_output_combined_filtered:
         complete = str(rules._pvactools_run.output.complete)
     output:
         tsv = CFG["dirs"]["outputs"] + "combined_filtered/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.filtered.tsv"
+    # See _pvactools_extract_coding_regions's own comment for why this whole chain has increasing
+    # priority.
+    priority: 30
     run:
         src = os.path.join(input.outdir, "combined", f"{wildcards.tumour_id}.Combined.filtered.tsv")
         if os.path.isfile(src):
@@ -587,6 +629,9 @@ rule _pvactools_output_combined_all_epitopes:
         complete = str(rules._pvactools_run.output.complete)
     output:
         tsv = CFG["dirs"]["outputs"] + "combined_all_epitopes/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.all_epitopes.tsv"
+    # See _pvactools_extract_coding_regions's own comment for why this whole chain has increasing
+    # priority.
+    priority: 30
     run:
         src = os.path.join(input.outdir, "combined", f"{wildcards.tumour_id}.Combined.all_epitopes.tsv")
         if os.path.isfile(src):
@@ -629,6 +674,9 @@ rule _pvactools_apply_additional_filter:
         CFG["conda_envs"]["pvactools"]
     container:
         None
+    # See _pvactools_extract_coding_regions's own comment for why this whole chain has increasing
+    # priority -- this rule is the last step, so it gets the highest value.
+    priority: 40
     shell:
         op.as_one_line("""
         pvacseq binding_filter {input.all_epitopes} {output.uncollapsed_tsv}
