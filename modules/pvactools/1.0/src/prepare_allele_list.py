@@ -65,8 +65,16 @@ class_ii_single = set()   # DRB1/DRB3/DRB4/DRB5
 dq_a, dq_b = set(), set()
 dp_a, dp_b = set(), set()
 # HLA-DM/-DO are non-classical peptide-loading chaperones, never presented to T cells -- not
-# relevant to neoantigen prediction, and pvacseq has no alleles for them at all.
-IGNORED_GENES = {"DMA", "DMB", "DOA", "DOB"}
+# relevant to neoantigen prediction, and pvacseq has no alleles for them at all. DRA is DRB1's
+# invariant alpha chain (unlike DQ/DP, DR's alpha chain is essentially non-polymorphic and is
+# never submitted as its own standalone allele) -- confirmed absent from every one of pvactools'
+# own Class II allele reference files (MHCnuggets.txt, netmhciipan.tsv, nn_align.tsv,
+# smm_align.tsv, MixMHC2pred.tsv). Before this fix, "DRA*01:01"/"DRA*01:02" were passed to
+# pvacseq as if they were real single-chain alleles like DRB1 -- silently dropped per-run with a
+# "not valid for Method ..." warning (pvacseq's per-allele/method check just skips unrecognized
+# alleles rather than failing the run), so this was wasted work/log noise rather than a
+# correctness bug, but excluding it here matches how DMA/DMB/DOA/DOB are already handled.
+IGNORED_GENES = {"DMA", "DMB", "DOA", "DOB", "DRA"}
 
 if args.hla2_alleles:
     with open(args.hla2_alleles) as f:
