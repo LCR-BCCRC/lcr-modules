@@ -5,7 +5,6 @@ lcr-modules:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
             sample_bam: "__UPDATE__"
             battenberg_script: "{MODSDIR}/src/battenberg_wgs_hg38.R"
-            cnv2igv: "{SCRIPTSDIR}/cnv2igv/1.5/cnv2igv.py"
             src_dir: "{MODSDIR}/src/"
 
         # specify in which projections you want the output files
@@ -22,6 +21,7 @@ lcr-modules:
             chr_prefixed_reference:
                 hg38: " --chr_prefixed_genome "
                 grch37: " "
+            cnv2igv_script_path: "{SCRIPTSDIR}/cnv2igv/1.5/cnv2igv.py"
             # cnv2igv preserve log.ratio or change this to "" to calculate it from the absolute CN
             preserve: "--preserve_log_ratio"
             # liftOver options to convert between genomic builds

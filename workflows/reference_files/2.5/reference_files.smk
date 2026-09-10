@@ -571,6 +571,96 @@ rule create_interval_list:
     shell:
         "gatk BedToIntervalList --INPUT {input.bed} -SD {input.sd} -O {output.interval_list} > {log} 2>&1"
 
+# Added by Sierra
+# Motivated by updating the CNV callers, we want both the target capture space, and the baits space
+# for each capture panel. Some tools use the baits sapce, some tools use the target space
+# The baits space is NOT padded
+def _check_baitspace_provider(w):
+    # Checks to determine if both the baits space BED and associated reference genome
+    # are chr prefixed or not
+
+    # If this is specified as the "default", make sure we obtain the relevent capture space
+    default_key = "default-" + w.genome_build
+    if default_key not in config["capture_space"] and w.capture_space == default_key:
+        # aka if the user hasn't explicitly specified a default using a default name
+        capture_space = _get_default_capspace(w)
+    else:
+        capture_space = w.capture_space
+
+    genome_provider = config["genome_builds"][w.genome_build]["provider"]
+    bed_provider = config["capture_space"][capture_space]["provider"]
+
+    # If the providers match (i.e. they share the same prefix), just use the downloaded version
+    if genome_provider == bed_provider:
+        return {'bed': expand(rules.download_baitspace_bed.output.baits_bed, capture_space=capture_space, genome_build=w.genome_build)}
+    else:
+        # Prompt the prefix to be converted
+        chr_status = "chr" if genome_provider == "ucsc" else "no_chr"
+        return {'bed': expand(rules.add_remove_chr_prefix_baits_bed.output.converted_baits_bed, capture_space = capture_space, genome_build = w.genome_build, chr_status= chr_status)}
+
+
+rule get_baitspace_bed_download:
+    input:
+        unpack(_check_baitspace_provider)
+    output:
+        baits_bed = "genomes/{genome_build}/capture_space/{capture_space}.baits.bed"
+    conda: CONDA_ENVS["coreutils"]
+    shell:
+        "cut -f 1-3 {input.bed} > {output.baits_bed}"
+
+
+rule check_baitspace_contigs:
+    input:
+        bed = rules.get_baitspace_bed_download.output.baits_bed,
+        fai = rules.index_genome_fasta.output.fai
+    output:
+        contig_log = "genomes/{genome_build}/capture_space/{capture_space}.baits.check_contigs.log"
+    run:
+        # Parse BED contigs
+        bed_contigs = set()
+        with open(input.bed) as f:
+            for line in f:
+                line = line.rstrip()
+                contig = line.split("\t")[0]
+                if contig not in bed_contigs:
+                    bed_contigs.add(contig)
+
+        # Parse fai contigs
+        fai_contigs = set()
+        with open(input.fai) as f:
+            for line in f:
+                line = line.rstrip()
+                contig = line.split('\t')[0]
+                if contig not in fai_contigs:
+                    fai_contigs.add(contig)
+
+        # Check the BED file for contigs that are not in the reference genome
+        missing_contigs = list(x for x in bed_contigs if x not in fai_contigs)
+        with open(output.contig_log, "w") as o:
+            if len(missing_contigs) == 0:
+                o.write("No contigs missing from reference")
+            else:
+                o.write("The following contigs were missing from the reference\n")
+                o.write("\n".join(missing_contigs))
+            o.write("\n")
+
+
+rule compress_index_baitspace_bed:
+    input:
+        baits_bed = rules.get_baitspace_bed_download.output.baits_bed
+    output:
+        bgzip_bed = "genomes/{genome_build}/capture_space/{capture_space}.baits.bed.gz",
+        tabix = "genomes/{genome_build}/capture_space/{capture_space}.baits.bed.gz.tbi"
+    log:
+        "genomes/{genome_build}/capture_space/{capture_space}.baits.bed.gz.log"
+    conda: CONDA_ENVS["tabix"]
+    shell:
+        op.as_one_line("""
+        bgzip -c {input.baits_bed} > {output.bgzip_bed}
+            &&
+        tabix -p bed {output.bgzip_bed}
+        """)
+
 ##### SigProfiler #####
 
 rule download_sigprofiler_genome:

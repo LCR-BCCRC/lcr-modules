@@ -1,4 +1,4 @@
-name: null
+name: cnvkit
 channels:
   - conda-forge
   - bioconda

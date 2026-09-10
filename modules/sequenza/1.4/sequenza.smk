@@ -6,7 +6,7 @@
 
 # Original Author:  Ryan Morin
 # Module Author:    Ryan Morin
-# Contributors:     Bruno Grande
+# Contributors:     Bruno Grande, Sierra Gillis
 
 
 ##### SETUP #####
@@ -258,13 +258,13 @@ rule _sequenza_fill_txt:
 
 rule _sequenza_cnv2igv:
     input:
-        segments = str(rules._sequenza_run.output.segments),
-        cnv2igv =  ancient(CFG["inputs"]["cnv2igv"])
+        segments = str(rules._sequenza_run.output.segments)
     output:
         igv = CFG["dirs"]["igv_seg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{filter_status}/sequenza_segments.igv.seg"
     log:
         stderr = CFG["logs"]["igv_seg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/cnv2igv.{filter_status}.stderr.log"
     params:
+        cnv2igv_script = CFG["options"]["cnv2igv_script_path"],
         opts = CFG["options"]["preserve"]
     threads: 1
     conda:
@@ -275,7 +275,7 @@ rule _sequenza_cnv2igv:
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.tumour_id} on $(hostname) at $(date)" > {log.stderr};
-        python {input.cnv2igv} --mode sequenza {params.opts} --sample {wildcards.tumour_id}
+        python {params.cnv2igv_script} --mode sequenza {params.opts} --sample {wildcards.tumour_id}
         {input.segments} > {output.igv} 2>> {log.stderr}
         """)
 
