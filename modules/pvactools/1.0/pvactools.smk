@@ -610,7 +610,14 @@ rule _pvactools_apply_additional_filter:
     input:
         all_epitopes = str(rules._pvactools_output_combined_all_epitopes.output.tsv)
     output:
-        tsv = CFG["dirs"]["outputs"] + "additional_filters/{filter_preset}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.filtered.tsv"
+        tsv = CFG["dirs"]["outputs"] + "additional_filters/{filter_preset}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.filtered.tsv",
+        # binding_filter alone does not collapse per mutation -- a single mutation with several
+        # alleles/transcripts/peptide-windows surviving the loosened threshold would otherwise show
+        # up as several rows here, inflating counts in a way that scales with how many HLA alleles
+        # a sample has (a real, confounding bias for any cross-sample comparison). This uncollapsed
+        # intermediate is filtered first, then collapsed to one row per mutation below -- kept as a
+        # declared temp() output (not an ad hoc scratch file) so Snakemake tracks/cleans it.
+        uncollapsed_tsv = temp(CFG["dirs"]["outputs"] + "additional_filters/{filter_preset}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.uncollapsed.tsv")
     log:
         stdout = CFG["logs"]["outputs"] + "additional_filters/{filter_preset}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/apply_additional_filter.log"
     params:
@@ -624,13 +631,18 @@ rule _pvactools_apply_additional_filter:
         None
     shell:
         op.as_one_line("""
-        pvacseq binding_filter {input.all_epitopes} {output.tsv}
+        pvacseq binding_filter {input.all_epitopes} {output.uncollapsed_tsv}
         -b {params.preset[binding_threshold]}
         --binding-percentile-threshold {params.preset[binding_percentile_threshold]}
         --presentation-percentile-threshold {params.preset[presentation_percentile_threshold]}
         --percentile-threshold-strategy {params.preset[percentile_threshold_strategy]}
         -m {params.top_score_metric}
         > {log.stdout} 2>&1
+        &&
+        pvacseq top_score_filter {output.uncollapsed_tsv} {output.tsv}
+        -b {params.preset[binding_threshold]}
+        -m {params.top_score_metric}
+        >> {log.stdout} 2>&1
         """)
 
 

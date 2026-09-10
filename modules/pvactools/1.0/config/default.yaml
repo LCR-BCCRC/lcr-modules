@@ -155,10 +155,15 @@ lcr-modules:
             top_score_metric: "median"
 
             # Additional standard filterings of pvacseq's own combined all_epitopes.tsv, run via
-            # `pvacseq binding_filter` -- pure post-processing on already-computed scores (confirmed
-            # by reading pvactools' own lib/binding_filter.py directly: no model/IEDB calls at all,
-            # just re-applies thresholds to an existing report), so these cost essentially nothing
-            # beyond the primary pvacseq run itself. Motivated by a real observation: pvacseq's own
+            # `pvacseq binding_filter` followed by `pvacseq top_score_filter` -- both pure
+            # post-processing on already-computed scores (confirmed by reading pvactools' own
+            # lib/binding_filter.py/lib/top_score_filter.py directly: no model/IEDB calls at all),
+            # so these cost essentially nothing beyond the primary pvacseq run itself. Filtering
+            # first and collapsing to one row per mutation second (the reverse of pvacseq's own
+            # internal run order) is deliberate -- see _pvactools_apply_additional_filter's own
+            # comment in pvactools.smk and this module's CHANGELOG for why.
+            #
+            # Motivated by a real observation: pvacseq's own
             # default filtered.tsv (using "conservative" strategy -- a candidate must pass ALL of
             # binding score/binding percentile/presentation percentile simultaneously) left several
             # real samples with very few or zero surviving candidates, likely a combination of
