@@ -18,6 +18,7 @@ Start/Stop being pure digits and Reference/Variant being pure nucleotide sequenc
 """
 import argparse
 import csv
+import json
 import re
 
 parser = argparse.ArgumentParser()
@@ -27,9 +28,11 @@ parser.add_argument("--relaxed-filtered", required=True, help="This pair's addit
 parser.add_argument("--very-relaxed-filtered", required=True, help="This pair's additional_filters/very_relaxed/*.filtered.tsv")
 parser.add_argument("--minimal-maf-columns", type=int, required=True, help="Keep only the first N columns of the native MAF (options.minimal_maf_columns)")
 parser.add_argument("--neoantigen-columns", nargs="+", required=True, help="Aggregated-report column names to carry through (options.neoantigen_maf_columns)")
+parser.add_argument("--pass-filters-json", default="{}", help="JSON dict: {column_name: {binding_threshold, presentation_percentile_threshold, min_dna_vaf, excluded_tiers}} (options.neoantigen_pass_filters)")
 parser.add_argument("--output-maf", required=True)
 parser.add_argument("--output-audit", required=True)
 args = parser.parse_args()
+pass_filters = json.loads(args.pass_filters_json)
 
 # Chromosome is "everything before the first digit-only run" -- greedy but safe, since standard
 # human chromosome names (1-22, X, Y, MT) never contain a "-digits-digits-" pattern themselves.
@@ -113,6 +116,38 @@ def find_maf_match(chrom, start, ref, var, exact_index, ref_var_index, by_chrom)
     return None, None
 
 
+def _passes_numeric_criterion(raw_value, threshold, comparison):
+    # "NA"/missing auto-passes a criterion -- matches pvactools' own established convention
+    # (confirmed directly from lib/filter.py's Filter.execute() earlier this session: a column
+    # value of 'NA' never causes exclusion there either), kept consistent here rather than
+    # inventing a stricter rule this module doesn't use anywhere else.
+    if threshold is None:
+        return True
+    if raw_value is None or raw_value == "" or raw_value == "NA":
+        return True
+    value = float(raw_value)
+    return comparison(value, threshold)
+
+
+def passes_filter(aggregated_row, spec):
+    # aggregated_row is the RAW pvactools aggregated-report row (has 'Tier'/'IC50 MT'/
+    # 'Pres %ile MT'/'DNA VAF' keys) -- evaluated against the fixed criteria this module supports,
+    # each individually optional (omit a key in the preset's own spec to skip that criterion
+    # entirely, not just to make it always-pass). A criterion is a real numeric comparison, not
+    # "NA-tolerant" in the sense of ignoring bad data -- only genuinely missing ('NA') values
+    # auto-pass, matching pvactools' own convention.
+    if not _passes_numeric_criterion(aggregated_row.get("IC50 MT"), spec.get("binding_threshold"), lambda v, t: v <= t):
+        return False
+    if not _passes_numeric_criterion(aggregated_row.get("Pres %ile MT"), spec.get("presentation_percentile_threshold"), lambda v, t: v <= t):
+        return False
+    if not _passes_numeric_criterion(aggregated_row.get("DNA VAF"), spec.get("min_dna_vaf"), lambda v, t: v >= t):
+        return False
+    excluded_tiers = spec.get("excluded_tiers") or []
+    if excluded_tiers and aggregated_row.get("Tier") in excluded_tiers:
+        return False
+    return True
+
+
 def load_filter_membership(path):
     # additional_filters/{preset}/*.filtered.tsv is derived from Combined.all_epitopes.tsv (the
     # uncollapsed report), which does carry real Chromosome/Start/Reference/Variant columns --
@@ -155,10 +190,15 @@ with open(args.aggregated_report) as f:
             out_row[col] = row.get(col, "NA")
         out_row["Pvacseq_Pass_Relaxed"] = str((chrom, start, ref, var) in relaxed_pass)
         out_row["Pvacseq_Pass_VeryRelaxed"] = str((chrom, start, ref, var) in very_relaxed_pass)
+        for column_name, spec in pass_filters.items():
+            out_row[column_name] = str(passes_filter(row, spec))
         audit.append((id_value, f"matched ({match_type})"))
         output_rows.append(out_row)
 
-output_fieldnames = minimal_header + list(args.neoantigen_columns) + ["Pvacseq_Pass_Relaxed", "Pvacseq_Pass_VeryRelaxed"]
+output_fieldnames = (
+    minimal_header + list(args.neoantigen_columns) +
+    ["Pvacseq_Pass_Relaxed", "Pvacseq_Pass_VeryRelaxed"] + list(pass_filters.keys())
+)
 with open(args.output_maf, "w", newline="") as f:
     writer = csv.DictWriter(f, fieldnames=output_fieldnames, delimiter="\t", restval="NA")
     writer.writeheader()

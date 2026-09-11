@@ -11,6 +11,7 @@
 
 ##### SETUP #####
 
+import json
 import os
 import shlex
 import oncopipe as op
@@ -845,7 +846,12 @@ rule _pvactools_join_neoantigen_maf:
         stdout = CFG["logs"]["outputs"] + "neoantigen_maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/join_neoantigen_maf.log"
     params:
         minimal_maf_columns = CFG["options"]["minimal_maf_columns"],
-        neoantigen_columns = " ".join(shlex.quote(c) for c in CFG["options"]["neoantigen_maf_columns"])
+        neoantigen_columns = " ".join(shlex.quote(c) for c in CFG["options"]["neoantigen_maf_columns"]),
+        # Column name -> threshold spec, as JSON (a nested dict doesn't fit this module's usual
+        # space-joined-list param convention). One new pass/fail column per entry, named exactly by
+        # its own config key -- see options.neoantigen_pass_filters' own comment in default.yaml for
+        # the criteria supported and why NA auto-passes each one.
+        pass_filters_json = shlex.quote(json.dumps(CFG["options"]["neoantigen_pass_filters"]))
     # See _pvactools_extract_coding_regions's own comment for why this whole chain has increasing
     # priority.
     priority: 30
@@ -858,6 +864,7 @@ rule _pvactools_join_neoantigen_maf:
         --very-relaxed-filtered {input.very_relaxed_filtered}
         --minimal-maf-columns {params.minimal_maf_columns}
         --neoantigen-columns {params.neoantigen_columns}
+        --pass-filters-json {params.pass_filters_json}
         --output-maf {output.maf}
         --output-audit {output.audit}
         > {log.stdout} 2>&1

@@ -225,6 +225,34 @@ lcr-modules:
                 - "RNA Depth"
                 - "Allele Expr"
 
+            # Configurable combined pass/fail filtering for the neoantigen MAF -- each key here
+            # becomes its own new column (named exactly by that key) in the output, holding "True"/
+            # "False" for whether that row passes the given preset's own combined criteria. Add,
+            # remove, or rename presets freely -- no code change needed, same "as many as you want"
+            # convention as options.additional_filters. Fixed criteria (deliberately not a generic
+            # rule engine, matching this module's own established config-driven-thresholds style):
+            #   binding_threshold                  -- max "IC50 MT" (pvacseq's own -b units)
+            #   presentation_percentile_threshold  -- max "Pres %ile MT"
+            #   min_dna_vaf                        -- min "DNA VAF" (this module's own tdna_vaf
+            #                                          philosophy -- pvacseq's own binding_filter,
+            #                                          which Pvacseq_Pass_Relaxed/VeryRelaxed above
+            #                                          reflect, never looks at DNA VAF at all)
+            #   excluded_tiers                      -- list of aggregated-report Tier values to
+            #                                          reject (default []: no Tier-based exclusion
+            #                                          at all -- "Subclonal" is deliberately never
+            #                                          excluded by default, see this module's own
+            #                                          CHANGELOG for why raw VAF/Tier alone isn't a
+            #                                          reliable clonality signal)
+            # Omit any key entirely to skip that criterion for a given preset. A criterion is a real
+            # numeric comparison -- only a genuinely missing ("NA") value auto-passes it, matching
+            # pvactools' own Filter.execute() convention (confirmed directly from its source earlier
+            # this session) rather than inventing a stricter rule this module doesn't use elsewhere.
+            neoantigen_pass_filters:
+                Neoantigen_Pass_Standard:
+                    binding_threshold: 500
+                    presentation_percentile_threshold: 2.0
+                    min_dna_vaf: 0.05
+
             # Single, cohort-wide target build for the neoantigen MAF's harmonized coordinates --
             # NOT a per-pair wildcard (confirmed with the user: one oncoplot wants one shared
             # coordinate system). Lowercase "grch37"/"grch38", matching modules/vcf2maf/1.3's own
