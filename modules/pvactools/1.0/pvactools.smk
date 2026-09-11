@@ -312,6 +312,22 @@ rule _pvactools_extract_coding_regions:
 # step is cheap/fast (small variant count, no expensive computation), so temp()-marking it is safe
 # (single consumer, _pvactools_vep_annotate) and avoids leaving a redundant permanent copy of a
 # subsetted VCF around indefinitely.
+#
+# Real production crash fixed here (see this module's CHANGELOG for the full investigation):
+# `bcftools annotate -x FORMAT/AF` strips the FORMAT/AF field unconditionally, and `bcftools norm
+# -m-` splits multiallelic records into one biallelic record per ALT. Confirmed directly (real
+# bcftools + vcfpy, not just reasoning from docs) that a caller can declare FORMAT/AF as
+# `Number=1` in its own VCF header while still writing one comma-joined value per ALT allele on a
+# multiallelic line (a real, non-compliant-but-real VCF pattern) -- vcfpy then can't parse it as a
+# scalar float and keeps it as a raw string, which crashes pvacseq's own coverage_filter input
+# conversion (`'>' not supported between instances of 'str' and 'int'`) downstream. `bcftools norm
+# -m-` alone does NOT fix this: since it trusts the (wrong) Number=1 declaration, it just copies
+# the whole unsplit string into both resulting biallelic records unchanged -- confirmed empirically.
+# Dropping AF instead of trying to repair it lets pvacseq fall through to its own already-built-in,
+# more robust AD+DP-based VAF calculation (`calculate_vaf()`: a plain `var_count / depth`, no
+# scale/encoding ambiguity) -- AD (Number=R) and DP (Number=1) are far more universally,
+# consistently declared across variant callers than AF, so this is a general robustness
+# improvement for a deliberately caller-agnostic module, not a narrow patch for one caller's bug.
 rule _pvactools_subset_to_coding_variants:
     input:
         vcf = _pvactools_get_vcf2maf_raw_vcf,
@@ -341,6 +357,8 @@ rule _pvactools_subset_to_coding_variants:
         op.as_one_line("""
         (
         bcftools view -R {input.regions} {input.vcf} |
+        bcftools annotate -x FORMAT/AF |
+        bcftools norm -m- |
         awk -v t="{wildcards.tumour_id}" -v n="{wildcards.normal_id}"
         'BEGIN{{OFS="\\t"}} /^#CHROM/{{for(i=1;i<=NF;i++){{if($i=="TUMOR"||$i==t)$i=t; else if($i=="NORMAL"||$i==n)$i=n}}}} {{print}}' |
         bgzip -c > {output.vcf} &&
