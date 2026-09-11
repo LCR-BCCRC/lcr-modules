@@ -138,6 +138,13 @@ def passes_filter(aggregated_row, spec):
     # auto-pass, matching pvactools' own convention.
     if not _passes_numeric_criterion(aggregated_row.get("IC50 MT"), spec.get("binding_threshold"), lambda v, t: v <= t):
         return False
+    # Binding *percentile* -- a separate metric from presentation percentile below (pvacseq's own
+    # "IC50 %ile MT" column, not "Pres %ile MT"). Confirmed via a real comparison against production
+    # filtered.tsv data that omitting this was the dominant reason Neoantigen_Pass_Standard passed
+    # rows filtered.tsv's own binding_filter (conservative strategy: IC50 + both percentiles must
+    # all pass) rejected -- every such row had a fine absolute IC50 MT but IC50 %ile MT > 2.0.
+    if not _passes_numeric_criterion(aggregated_row.get("IC50 %ile MT"), spec.get("binding_percentile_threshold"), lambda v, t: v <= t):
+        return False
     if not _passes_numeric_criterion(aggregated_row.get("Pres %ile MT"), spec.get("presentation_percentile_threshold"), lambda v, t: v <= t):
         return False
     if not _passes_numeric_criterion(aggregated_row.get("DNA VAF"), spec.get("min_dna_vaf"), lambda v, t: v >= t):

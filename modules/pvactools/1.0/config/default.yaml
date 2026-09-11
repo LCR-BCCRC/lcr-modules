@@ -232,6 +232,15 @@ lcr-modules:
             # convention as options.additional_filters. Fixed criteria (deliberately not a generic
             # rule engine, matching this module's own established config-driven-thresholds style):
             #   binding_threshold                  -- max "IC50 MT" (pvacseq's own -b units)
+            #   binding_percentile_threshold       -- max "IC50 %ile MT" -- a SEPARATE metric from
+            #                                          presentation percentile below. This is the one
+            #                                          criterion pvacseq's own default filtered.tsv
+            #                                          (via binding_filter's conservative strategy)
+            #                                          checks that Neoantigen_Pass_Standard doesn't --
+            #                                          confirmed via a real comparison against
+            #                                          production filtered.tsv/aggregated-report data
+            #                                          that this was the dominant (12 of 137 rows)
+            #                                          reason the two disagreed.
             #   presentation_percentile_threshold  -- max "Pres %ile MT"
             #   min_dna_vaf                        -- min "DNA VAF" (this module's own tdna_vaf
             #                                          philosophy -- pvacseq's own binding_filter,
@@ -250,6 +259,32 @@ lcr-modules:
             neoantigen_pass_filters:
                 Neoantigen_Pass_Standard:
                     binding_threshold: 500
+                    presentation_percentile_threshold: 2.0
+                    min_dna_vaf: 0.05
+                # Adds binding_percentile_threshold on top of Standard, matching pvacseq's own
+                # default filtered.tsv criteria (binding_threshold/binding_percentile_threshold/
+                # presentation_percentile_threshold, all "conservative"-strategy, real confirmed
+                # defaults from pvacseq run --help) plus this module's own min_dna_vaf -- meant for
+                # subsetting a neoantigen MAF down to roughly what pvacseq's own default filtered.tsv
+                # already contains. NOT a byte-for-byte guarantee, and the gap is bigger than a rare
+                # edge case: verified against real production data (SP59448, this module's own
+                # CHANGELOG) that Neoantigen_Pass_Strict has zero false positives against
+                # filtered.tsv (every row that passes it really is in filtered.tsv) but real false
+                # negatives -- about 1 in 9 filtered.tsv rows (14 of 127 in that real sample) don't
+                # show Strict=True. Root cause: filtered.tsv's own top_score_filter picks its "best"
+                # candidate per mutation AFTER binding_filter has already narrowed the pool to
+                # threshold-passing candidates only, while the aggregated report picks its own "best"
+                # candidate (by a different ic50+percentile rank-sum) BEFORE any filtering, from the
+                # full candidate pool -- these two selection criteria don't always agree on which
+                # candidate represents a locus, and disagreed for ~11% of loci in that real sample.
+                # This is a structural pipeline-order difference this module doesn't attempt to
+                # replicate (would require reimplementing pvacseq's own multi-stage candidate
+                # selection, not just adding another threshold). Use this preset to get a
+                # conservative, high-precision subset of filtered.tsv's own candidates, not an exact
+                # reproduction of it.
+                Neoantigen_Pass_Strict:
+                    binding_threshold: 500
+                    binding_percentile_threshold: 2.0
                     presentation_percentile_threshold: 2.0
                     min_dna_vaf: 0.05
 
