@@ -9,12 +9,15 @@ Real formats confirmed against a real installed pvactools=7.1.3 (`pvactools vali
             "DQA1*01:01-DQB1*02:01"      (DQ heterodimer, hyphenated pair)
             "DPA1*01:03-DPB1*01:01"      (DP heterodimer, hyphenated pair)
 
-Class I input is HLA-HD's own `{patient_id}_final.result.txt` -- its exact field layout (gene name
-column plus two allele columns, alleles already carrying an "HLA-" prefix, "Not typed" placeholder
-capitalization) is based on HLA-HD's well-documented standard convention, NOT independently
-re-verified against a real file in this session (see this module's CHANGELOG) -- parsing below is
-deliberately defensive (case-insensitive "not typed" check, tolerates the prefix being present or
-absent) so a real file that differs slightly still degrades gracefully rather than crashing.
+Class I input is HLA-HD's own `{patient_id}_final.result.txt` (gene name column plus two allele
+columns, alleles carrying an "HLA-" prefix). Confirmed against real production files (see this
+module's CHANGELOG): a "Not typed" gene shows that literal placeholder in both columns, while a
+gene with only one confidently-called allele (homozygous, or a second allele HLA-HD couldn't
+resolve) shows a literal "-" in the second column instead -- distinct from "Not typed" and handled
+separately below. Parsing is deliberately defensive beyond those two known cases too (skips any
+value with no "*" at all, rather than assuming an exhaustive list of placeholder strings) so a
+real file using some other not-yet-seen HLA-HD convention still degrades gracefully instead of
+crashing.
 """
 import argparse
 import csv
@@ -52,6 +55,25 @@ with open(args.hla_final_result) as f:
             allele = allele.strip()
             if not allele or allele.lower() == "not typed":
                 audit.append(("hla_final_result", gene, allele, "", "skipped: not typed"))
+                continue
+            if allele == "-":
+                # HLA-HD's own convention for "no distinct second allele" (homozygous, or only
+                # one allele group reported) -- confirmed via a real production sample
+                # (modules/pvactools/CHANGELOG.md) whose *_final.result.txt had a literal "-" in
+                # a gene's second allele column. Matches how modules/mhc_hammer/1.0's own Class II
+                # parser (src/parse_hlahd_output.R) already handles the identical HLA-HD output
+                # convention (duplicates allele1 rather than treating it as a no-call). The gene's
+                # one real call is already captured from its other column, so there's nothing to
+                # add here -- class_i is a set, so explicitly duplicating allele1 would be a no-op
+                # anyway.
+                audit.append(("hla_final_result", gene, allele, "", "skipped: homozygous/single call (HLA-HD '-')"))
+                continue
+            if "*" not in allele:
+                # Defensive catch-all: an HLA-HD placeholder we haven't seen before. Skip rather
+                # than crash trim_resolution() -- matches this module's own stated design
+                # philosophy (see this file's header docstring) of degrading gracefully instead of
+                # failing the whole pair over one unrecognized value.
+                audit.append(("hla_final_result", gene, allele, "", f"skipped: unrecognized allele format (raw: {allele!r})"))
                 continue
             # HLA-HD's final result conventionally already carries the HLA- prefix -- strip it
             # first so it's never doubled, then add it back consistently.
