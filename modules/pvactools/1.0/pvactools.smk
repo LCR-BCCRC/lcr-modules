@@ -556,18 +556,32 @@ rule _pvactools_run:
         top_score_metric = CFG["options"]["top_score_metric"],
         iedb_flag = f"--iedb-install-directory {CFG['options']['iedb_install_directory']}" if CFG["options"]["iedb_install_directory"] else "",
         # EXPERIMENTAL diagnostic knob, not a default-on fix -- see this module's CHANGELOG for the
-        # full investigation. `--tumor-purity` alone only feeds pvacseq's own `vaf_clonal` estimate
+        # full investigation. `--tumor-purity` only feeds pvacseq's own `vaf_clonal` estimate
         # (confirmed from pvactools/lib/aggregate_all_epitopes.py's calculate_clonal_vaf(): when
         # unset, pvacseq falls back to a crude, single-outlier-sensitive heuristic -- the single
         # largest observed DNA VAF under 0.6, capped at 0.5 -- rather than any real central-tendency
-        # estimate of the sample's own VAF distribution), which only affects the aggregated report's
-        # Tier/Subclonal labels. It does NOT touch coverage_filter's own separate, hardcoded
-        # --tdna-vaf (default 0.25, confirmed independent in lib/run_argument_parser.py) -- the
-        # actual gate on filtered.tsv membership. So assumed_purity also derives an explicit
-        # --tdna-vaf override using pvacseq's own vaf_clonal/2 formula (tdna_vaf = purity * 0.25),
-        # matching what a real --tumor-purity would imply for "half the clonal VAF" and applying it
-        # consistently to both the Tier labels and the filtered.tsv coverage gate.
-        purity_flag = f"--tumor-purity {CFG['options']['assumed_purity']} --tdna-vaf {CFG['options']['assumed_purity'] * 0.25}" if CFG["options"].get("assumed_purity") else ""
+        # estimate of the sample's own VAF distribution), used only for the aggregated report's own
+        # Tier/Subclonal *labels*. It is deliberately NOT used to derive --tdna-vaf below -- see that
+        # param's own comment for why coupling them was wrong.
+        purity_flag = f"--tumor-purity {CFG['options']['assumed_purity']}" if CFG["options"].get("assumed_purity") is not None else "",
+        # Independent of purity/vaf_clonal on purpose (an earlier version of this rule derived this
+        # from assumed_purity via pvacseq's own vaf_clonal/2 formula -- reverted, real, requested
+        # correction): `--tdna-vaf` is coverage_filter's own hard coverage/filtering threshold on
+        # whether a variant survives into filtered.tsv at all, completely independent of
+        # `--tumor-purity`/vaf_clonal's own, separate role (an aggregate-report *tiering* label,
+        # confirmed above). Raw tumour DNA VAF is not a reliable clonality estimator on its own --
+        # it also depends on tumour purity, copy number, mutant multiplicity, LOH, and sampling
+        # variance -- so using pvacseq's own clonality heuristic as a hard neoantigen-exclusion
+        # criterion was never appropriate for our lymphoma/WGS use case, where subclonal mutations
+        # should remain available for downstream neoantigen analysis rather than being silently
+        # dropped from filtered.tsv. options.tdna_vaf (default 0.05, well below pvacseq's own stock
+        # default of 0.25) is a fixed technical minimum -- low enough to retain credible
+        # lower-VAF/subclonal candidates -- applied unconditionally, regardless of whether
+        # assumed_purity is set. Tier labels (including "Subclonal") are never used anywhere in this
+        # module to discard a candidate outright -- neither _pvactools_apply_additional_filter nor
+        # _pvactools_join_neoantigen_maf filter on Tier at all, they only ever carry it through as
+        # metadata (see this module's CHANGELOG).
+        tdna_vaf_flag = f"--tdna-vaf {CFG['options'].get('tdna_vaf', 0.05)}"
     conda:
         CFG["conda_envs"]["pvactools"]
     container:
@@ -595,6 +609,7 @@ rule _pvactools_run:
         --normal-sample-name {wildcards.normal_id}
         {params.iedb_flag}
         {params.purity_flag}
+        {params.tdna_vaf_flag}
         -t {threads}
         ) > {log.stdout} 2>&1
         """)

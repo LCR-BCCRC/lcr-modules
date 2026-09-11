@@ -163,21 +163,40 @@ lcr-modules:
             top_score_metric: "median"
 
             # EXPERIMENTAL diagnostic knob, null (unset) by default -- NOT a default-on fix. Set to
-            # a fraction in (0, 1] to override both `--tumor-purity` and, derived from it,
-            # `--tdna-vaf` on every pvacseq run in this cohort (see _pvactools_run's own comment in
-            # pvactools.smk for exactly why both are needed and the formula used). Motivated by a
-            # real, data-confirmed investigation (this module's own CHANGELOG): pvacseq's own default
-            # "crude" purity estimate is a single-outlier-sensitive heuristic (the largest observed
-            # DNA VAF under 0.6, capped at 0.5) that can badly overestimate purity for a sample whose
-            # true clonal VAF cluster sits well below 0.5 -- which then makes both the aggregated
-            # report's Subclonal tier AND coverage_filter's own hardcoded default Tumor DNA VAF floor
-            # (0.25) far stricter than warranted, dropping roughly half of a genuinely clonal
-            # population purely from ordinary VAF-estimation spread around the true (lower) center.
-            # A single global value here is a blunt, cohort-wide experimental override -- not a
-            # per-sample purity estimate -- meant for testing whether correcting this assumption
-            # meaningfully changes filtered.tsv candidate counts (e.g. genome vs. capture
-            # convergence), before investing in a real per-sample purity source.
+            # a fraction in (0, 1] to pass `--tumor-purity` on every pvacseq run in this cohort.
+            # `--tumor-purity` ONLY feeds pvacseq's own `vaf_clonal` estimate, used solely for the
+            # aggregated report's own Tier/Subclonal *labels* -- it has no effect on filtered.tsv
+            # membership at all (that's options.tdna_vaf below, entirely independent -- an earlier
+            # version of this rule derived --tdna-vaf from this value, coupling the two; reverted
+            # after a real, requested correction -- see options.tdna_vaf's own comment for why).
+            # Real, data-confirmed motivation for this option existing at all (this module's own
+            # CHANGELOG): pvacseq's own default "crude" purity estimate, used when this is left
+            # unset, is a single-outlier-sensitive heuristic (the largest observed DNA VAF under 0.6,
+            # capped at 0.5) that can badly overestimate purity for a sample whose true clonal VAF
+            # cluster sits well below 0.5, making the aggregated report's own Tier labels
+            # correspondingly unreliable. A single global value here is a blunt, cohort-wide
+            # experimental override -- not a per-sample purity estimate.
             assumed_purity: null
+
+            # Fixed technical minimum Tumor DNA VAF passed to pvacseq's own `--tdna-vaf`
+            # (coverage_filter's hard threshold on whether a variant survives into filtered.tsv at
+            # all) -- applied unconditionally, on every run, regardless of whether assumed_purity is
+            # set. Deliberately NOT derived from assumed_purity/vaf_clonal (an earlier version of
+            # this rule did exactly that -- reverted, real, requested correction): `--tdna-vaf` and
+            # `--tumor-purity` serve genuinely different purposes and coupling them was wrong.
+            # `--tumor-purity` only informs pvacseq's own VAF-based clonality estimate used for
+            # aggregate-report tiering; `--tdna-vaf` is independently configured here as a technical
+            # minimum for retaining somatic variants at all. Raw tumour DNA VAF alone is not a
+            # reliable clonality estimator (it also depends on tumour purity, copy number, mutant
+            # multiplicity, LOH, and sampling variance), so this pipeline intentionally does NOT use
+            # pvacseq's own clonality heuristic as a hard neoantigen-exclusion criterion. Default
+            # 0.05 (well below pvacseq's own stock default of 0.25) is intended to retain credible
+            # lower-VAF/subclonal variants for downstream neoantigen analysis -- real motivation for
+            # our lymphoma/WGS use case, where subclonal mutations should remain available rather
+            # than being silently dropped from filtered.tsv. Tier labels (including "Subclonal") are
+            # never used anywhere in this module to discard a candidate outright -- see
+            # _pvactools_run's own comment in pvactools.smk.
+            tdna_vaf: 0.05
 
             # Neoantigen MAF feature (_pvactools_join_neoantigen_maf/_pvactools_crossmap_neoantigen_maf)
             # -- see this module's CHANGELOG for the full design reasoning, including the approaches
