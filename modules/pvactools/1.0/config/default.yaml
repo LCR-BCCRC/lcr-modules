@@ -65,6 +65,14 @@ lcr-modules:
             # own options.hla2_parse_script/options.mutations_to_maf_script.
             maf_coding_positions_script: "{MODSDIR}/src/maf_coding_positions.py"
             prepare_allele_list_script: "{MODSDIR}/src/prepare_allele_list.py"
+            join_neoantigen_maf_script: "{MODSDIR}/src/join_neoantigen_maf.py"
+
+            # Reused directly from modules/vcf2maf/1.3 -- NOT a copy. This is the exact same
+            # CrossMap-based MAF coordinate-lift script that module's own _vcf2maf_crossmap rule
+            # uses (confirmed by reading vcf2maf.smk directly), reused here for
+            # _pvactools_crossmap_neoantigen_maf so both modules stay lifting-behaviour-identical
+            # with zero duplicated logic.
+            convert_coord_script: "{SCRIPTSDIR}/crossmap/1.1/convert_maf_coords.sh"
 
             # Path to the directory containing the vep executable; auto-detected from PATH if
             # empty. Same options.vep_path precedent as modules/mhc_hammer/1.0 and
@@ -171,6 +179,41 @@ lcr-modules:
             # convergence), before investing in a real per-sample purity source.
             assumed_purity: null
 
+            # Neoantigen MAF feature (_pvactools_join_neoantigen_maf/_pvactools_crossmap_neoantigen_maf)
+            # -- see this module's CHANGELOG for the full design reasoning, including the approaches
+            # tried and rejected before landing on this one. Produces one small, MAF-shaped file per
+            # pair (this MAF's own first N columns plus the pvactools columns below), one row per
+            # pvactools-predicted mutation, in a single cohort-wide harmonized genome build -- NOT a
+            # cohort-wide concatenation (that's left to your own downstream MAF-merging tooling).
+
+            # Literally the first N columns of the real MAF header (not a hand-picked column list),
+            # matching the "minimal MAF" convention this was requested to match.
+            minimal_maf_columns: 45
+
+            # pvactools' own aggregated-report columns to carry through onto the minimal MAF above.
+            # RNA Expr/RNA VAF/RNA Depth/Allele Expr are always "NA" today (this module is DNA-only,
+            # see README) but kept here anyway, per explicit request, so this table's own schema
+            # doesn't need to change again once RNA support lands.
+            neoantigen_maf_columns:
+                - "Tier"
+                - "Best Peptide"
+                - "Allele"
+                - "IC50 MT"
+                - "Pres %ile MT"
+                - "DNA VAF"
+                - "RNA Expr"
+                - "RNA VAF"
+                - "RNA Depth"
+                - "Allele Expr"
+
+            # Single, cohort-wide target build for the neoantigen MAF's harmonized coordinates --
+            # NOT a per-pair wildcard (confirmed with the user: one oncoplot wants one shared
+            # coordinate system). Lowercase "grch37"/"grch38", matching modules/vcf2maf/1.3's own
+            # internal genome "version" convention. Only grch37<->grch38 lifting is supported,
+            # mirroring that module's own CrossMap chain-pairing limitation (hg19/hg38 chains only)
+            # -- a pair whose native build is already this version needs no lift at all.
+            neoantigen_target_build: "grch37"
+
             # Additional standard filterings of pvacseq's own combined all_epitopes.tsv, run via
             # `pvacseq binding_filter` followed by `pvacseq top_score_filter` -- both pure
             # post-processing on already-computed scores (confirmed by reading pvactools' own
@@ -236,6 +279,10 @@ lcr-modules:
             # it on a real local install.
             pvactools: "{MODSDIR}/envs/pvactools-7.1.3.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+            # Reused directly from modules/vcf2maf/1.3 -- same env file, not a copy, so
+            # _pvactools_crossmap_neoantigen_maf stays CrossMap-version-identical to that module's
+            # own _vcf2maf_crossmap rule.
+            crossmap: "{SCRIPTSDIR}/crossmap/1.1/convert_maf_coords.yaml"
 
         threads:
             download_mhcflurry: 1
@@ -244,6 +291,8 @@ lcr-modules:
             vep_annotate: 4
             prepare_allele_list: 1
             pvacseq_run: 8
+            join_neoantigen_maf: 1
+            crossmap_neoantigen_maf: 1
 
         resources:
             download_mhcflurry:
@@ -258,6 +307,10 @@ lcr-modules:
                 mem_mb: 1000
             pvacseq_run:
                 mem_mb: 16000
+            join_neoantigen_maf:
+                mem_mb: 1000
+            crossmap_neoantigen_maf:
+                mem_mb: 2000
 
         pairing_config:
             capture:

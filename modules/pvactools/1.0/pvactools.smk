@@ -12,6 +12,7 @@
 ##### SETUP #####
 
 import os
+import shlex
 import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
@@ -66,6 +67,18 @@ for _genome_build in CFG["paired_runs"]["tumour_genome_build"]:
         f"options.vep_assembly_map (currently: {_possible_genome_builds}). Add it there before rerunning."
     )
 
+# Single, cohort-wide harmonized build for _pvactools_join_neoantigen_maf's own output -- NOT a
+# per-pair wildcard (confirmed with the user: one oncoplot wants one shared coordinate system, not
+# multiple simultaneous projections). Lowercase "grch37"/"grch38", matching modules/vcf2maf/1.3's
+# own internal genome "version" convention (VEP_ASSEMBLY_MAP above uses VEP's own "GRCh37"/"GRCh38"
+# --assembly convention instead -- same information, different casing, for a different tool).
+NEOANTIGEN_TARGET_BUILD = CFG["options"]["neoantigen_target_build"].lower()
+assert NEOANTIGEN_TARGET_BUILD in ("grch37", "grch38"), (
+    f"options.neoantigen_target_build must be 'grch37' or 'grch38' (got '{CFG['options']['neoantigen_target_build']}') "
+    f"-- matches modules/vcf2maf/1.3's own CrossMap chain-pairing limitation (hg19<->hg38 only, see "
+    f"that module's own vcf2maf.smk get_chain())."
+)
+
 # Define rules to be run locally when using a compute cluster. Beyond the trivial symlink/target
 # rules, this also includes the small, pure Python bookkeeping steps (subsetting positions from an
 # already-computed MAF, building the allele-list string) -- fast enough that submitting them as
@@ -82,7 +95,9 @@ localrules:
     _pvactools_output_class2_all_epitopes,
     _pvactools_output_combined_filtered,
     _pvactools_output_combined_all_epitopes,
+    _pvactools_output_combined_aggregated,
     _pvactools_apply_additional_filter,
+    _pvactools_join_neoantigen_maf,
     _pvactools_all,
 
 
@@ -112,6 +127,44 @@ def _pvactools_get_vcf2maf_raw_vcf(wildcards):
 def _pvactools_get_vcf2maf_maf(wildcards):
     CFG = config["lcr-modules"]["pvactools"]
     return _pvactools_format_pair_path(CFG["inputs"]["vcf2maf_maf"], wildcards)
+
+# Builds the concrete additional_filters/{preset}/... path for a specific preset, for a rule that
+# isn't itself wildcarded on filter_preset (_pvactools_apply_additional_filter is). Mirrors that
+# rule's own declared output pattern directly rather than trying to coerce rules.X.output.Y (whose
+# string form still carries THAT rule's own {filter_preset} wildcard) into a second .format() call.
+def _pvactools_get_filtered_for_preset(wildcards, preset):
+    CFG = config["lcr-modules"]["pvactools"]
+    pattern = (
+        CFG["dirs"]["outputs"] +
+        "additional_filters/" + preset +
+        "/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.filtered.tsv"
+    )
+    return _pvactools_format_pair_path(pattern, wildcards)
+
+# Mirrors modules/vcf2maf/1.3's own get_chain() (vcf2maf.smk) exactly: same fixed hg19<->hg38
+# chain-file pairing (that module's own documented limitation -- "This only currently supports
+# hg38 and hg19" -- not a new one introduced here) and the same reference_files() mechanism this
+# module already uses for the genome FASTA in _pvactools_vep_annotate. Reuses VEP_ASSEMBLY_MAP
+# (already required, already validated at parse time) for "which build family is this" rather than
+# a second, separate genome-build map -- same "parallel copy, not cross-module coupling" convention
+# already established for VEP_ASSEMBLY_MAP itself. Returns None if this pair's native build already
+# matches NEOANTIGEN_TARGET_BUILD (no lift needed).
+def _pvactools_native_build_version(genome_build):
+    return VEP_ASSEMBLY_MAP[genome_build].lower()
+
+def _pvactools_get_crossmap_chain(genome_build):
+    native_version = _pvactools_native_build_version(genome_build)
+    if native_version == NEOANTIGEN_TARGET_BUILD:
+        return None
+    if native_version == "grch38" and NEOANTIGEN_TARGET_BUILD == "grch37":
+        return reference_files("genomes/" + genome_build + "/chains/grch38/hg38ToHg19.over.chain")
+    if native_version == "grch37" and NEOANTIGEN_TARGET_BUILD == "grch38":
+        return reference_files("genomes/" + genome_build + "/chains/grch37/hg19ToHg38.over.chain")
+    raise AssertionError(
+        f"No supported CrossMap chain from '{native_version}' (genome_build '{genome_build}') to "
+        f"'{NEOANTIGEN_TARGET_BUILD}' -- only grch37<->grch38 lifting is supported, mirroring "
+        f"modules/vcf2maf/1.3's own same limitation."
+    )
 
 # Mirrors modules/mhc_hammer/1.0's own _mhc_hammer_get_patient_id_for_tumour exactly: recovers
 # patient_id for a pair-level rule (wildcarded on tumour_id/normal_id, not patient_id) via
@@ -673,6 +726,30 @@ rule _pvactools_output_combined_all_epitopes:
                   f"writing an empty placeholder.")
             open(output.tsv, "w").close()
 
+# Previously unexposed (noted as a known gap in this module's own CHANGELOG): pvacseq's own tiered,
+# already-one-row-per-mutation aggregated report. Needed as the join source for
+# _pvactools_join_neoantigen_maf below -- its own "ID" column encodes genomic coordinates as
+# "{Chromosome}-{Start}-{Stop}-{Reference}-{Variant}" (confirmed against real production files;
+# there are no separate Chromosome/Start/etc columns in this report, unlike the uncollapsed
+# all_epitopes.tsv above). Same defensive symlink-or-placeholder pattern as the six rules above.
+rule _pvactools_output_combined_aggregated:
+    input:
+        outdir = str(rules._pvactools_run.output.outdir),
+        complete = str(rules._pvactools_run.output.complete)
+    output:
+        tsv = CFG["dirs"]["outputs"] + "combined_aggregated/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.all_epitopes.aggregated.tsv"
+    # See _pvactools_extract_coding_regions's own comment for why this whole chain has increasing
+    # priority.
+    priority: 30
+    run:
+        src = os.path.join(input.outdir, "combined", f"{wildcards.tumour_id}.Combined.all_epitopes.aggregated.tsv")
+        if os.path.isfile(src):
+            op.relative_symlink(src, output.tsv, in_module = True)
+        else:
+            print(f"WARNING: expected pvacseq combined aggregated output not found at {src} -- "
+                  f"writing an empty placeholder.")
+            open(output.tsv, "w").close()
+
 
 # Additional standard filterings of the SAME already-computed combined all_epitopes.tsv, via
 # `pvacseq binding_filter` -- pure post-processing on existing scores/percentiles (confirmed by
@@ -726,6 +803,119 @@ rule _pvactools_apply_additional_filter:
         """)
 
 
+# Stage 1 of the neoantigen MAF feature -- see this module's CHANGELOG for the full design
+# reasoning, including the approaches tried and rejected before landing on this one. Joins
+# pvactools' own aggregated report onto inputs.vcf2maf_maf -- the SAME native-build MAF this module
+# already reads (_pvactools_extract_coding_regions already derives its own coding-region VCF subset
+# from this exact file), so every pvactools-predicted mutation is guaranteed a corresponding row in
+# it already. No second vcf2maf deployment needed: an earlier draft of this rule introduced one,
+# left over from brainstorming Stage 2's own harmonized-build problem (a different problem -- see
+# CHANGELOG) and never cleaned back out; removed as a pure simplification once noticed. Localrule:
+# pure stdlib Python (csv/re), no conda env needed, matching _pvactools_prepare_allele_list's own
+# convention.
+#
+# Output NOT permanent -- single consumer (_pvactools_crossmap_neoantigen_maf), cheap to
+# regenerate, same temp()-chain-checkpoint reasoning already used elsewhere in this module.
+rule _pvactools_join_neoantigen_maf:
+    input:
+        aggregated_report = str(rules._pvactools_output_combined_aggregated.output.tsv),
+        native_maf = _pvactools_get_vcf2maf_maf,
+        relaxed_filtered = lambda wildcards: _pvactools_get_filtered_for_preset(wildcards, "relaxed"),
+        very_relaxed_filtered = lambda wildcards: _pvactools_get_filtered_for_preset(wildcards, "very_relaxed"),
+        script = CFG["options"]["join_neoantigen_maf_script"]
+    output:
+        maf = temp(CFG["dirs"]["outputs"] + "neoantigen_maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.native.maf"),
+        audit = CFG["dirs"]["outputs"] + "neoantigen_maf_audit/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.neoantigen_maf_audit.tsv"
+    log:
+        stdout = CFG["logs"]["outputs"] + "neoantigen_maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/join_neoantigen_maf.log"
+    params:
+        minimal_maf_columns = CFG["options"]["minimal_maf_columns"],
+        neoantigen_columns = " ".join(shlex.quote(c) for c in CFG["options"]["neoantigen_maf_columns"])
+    # See _pvactools_extract_coding_regions's own comment for why this whole chain has increasing
+    # priority.
+    priority: 30
+    shell:
+        op.as_one_line("""
+        python3 {input.script}
+        --aggregated-report {input.aggregated_report}
+        --native-maf {input.native_maf}
+        --relaxed-filtered {input.relaxed_filtered}
+        --very-relaxed-filtered {input.very_relaxed_filtered}
+        --minimal-maf-columns {params.minimal_maf_columns}
+        --neoantigen-columns {params.neoantigen_columns}
+        --output-maf {output.maf}
+        --output-audit {output.audit}
+        > {log.stdout} 2>&1
+        """)
+
+
+# Stage 2 of the neoantigen MAF feature: lifts Stage 1's native-build joined MAF to
+# NEOANTIGEN_TARGET_BUILD, using ONLY the CrossMap coordinate-lift half of modules/vcf2maf/1.3's
+# own pipeline (lcr-scripts' own convert_maf_coords.sh, same chain files/conda env that module's
+# own _vcf2maf_crossmap rule uses) -- deliberately skipping vcf2maf's own reannotation half
+# (_vcf2maf_reannotate/maf2maf.pl). Confirmed by reading convert_maf_coords.sh directly: it's
+# column-agnostic, overwriting only Chromosome/Start_Position/End_Position in place and passing
+# every other column through unchanged -- exactly what's needed, since Stage 1's own
+# Hugo_Symbol/Variant_Classification/pvactools columns should ride through untouched rather than
+# being re-derived (re-annotating at the target build is both unnecessary -- gene/protein identity
+# doesn't depend on which build's coordinates it's expressed in -- and the specific step that would
+# reintroduce the transcript-instability risk this module's CHANGELOG already documents rejecting).
+# When this pair's native build already matches NEOANTIGEN_TARGET_BUILD, no chain file is needed at
+# all -- Stage 1's own output is used as-is.
+#
+# This rule's own output already lands directly under 99-outputs/ (CFG["dirs"]["outputs"]) -- no
+# separate "_pvactools_output_*" symlink wrapper needed, matching _pvactools_apply_additional_filter's
+# own precedent (those wrapper rules exist specifically to extract files out of _pvactools_run's own
+# nested, pvacseq-internal outdir; this rule has no such nesting to extract from).
+#
+# Real bug found while verifying this rule (not introduced by it): convert_maf_coords.sh's own
+# multi-stage `awk | awk | cut | awk | sed | perl` reconstruction pipeline is intermittently flaky
+# under its own `set -o pipefail` -- confirmed directly by running it 10 times against identical
+# input, 1 of 10 runs failed with exit 141 (SIGPIPE) partway through that pipe chain, the other 9
+# succeeded and lifted coordinates correctly. This is a real, pre-existing issue in that SHARED
+# lcr-scripts file (also used by modules/vcf2maf/1.3's own _vcf2maf_crossmap) -- not something
+# specific to this module, and not yet confirmed whether it reproduces on Linux (this was only
+# observed on macOS) or is more of a pipe-scheduling artifact there. Rather than patch a shared
+# script outside this module's own scope, this rule retries its own call up to 3 times (the
+# `cp`-only branch never invokes the flaky script at all, so doesn't need this) -- a self-contained
+# workaround, not a fix; worth reporting upstream if this turns out to matter on a real cluster too.
+rule _pvactools_crossmap_neoantigen_maf:
+    input:
+        maf = str(rules._pvactools_join_neoantigen_maf.output.maf),
+        convert_coord = CFG["options"]["convert_coord_script"]
+    output:
+        maf = CFG["dirs"]["outputs"] + "neoantigen_maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.neoantigen.maf"
+    log:
+        stdout = CFG["logs"]["outputs"] + "neoantigen_maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/crossmap_neoantigen_maf.log"
+    params:
+        chain = lambda wildcards: _pvactools_get_crossmap_chain(wildcards.genome_build) or ""
+    conda:
+        CFG["conda_envs"]["crossmap"]
+    container:
+        None
+    threads:
+        CFG["threads"]["crossmap_neoantigen_maf"]
+    resources:
+        **CFG["resources"]["crossmap_neoantigen_maf"]
+    # See _pvactools_extract_coding_regions's own comment for why this whole chain has increasing
+    # priority -- this rule is the last step for this feature, so it gets the highest value.
+    priority: 40
+    shell:
+        op.as_one_line("""
+        (
+        if [[ -z "{params.chain}" ]];
+        then cp {input.maf} {output.maf};
+        else
+        for attempt in 1 2 3;
+        do {input.convert_coord} {input.maf} {params.chain} {output.maf} crossmap && break || true;
+        sleep 1;
+        done;
+        test -s {output.maf};
+        fi
+        ) > {log.stdout} 2>&1
+        """)
+
+
 # Generates the target sentinels for each run, which generate the symlinks. Uses
 # CFG["paired_runs"] (narrowed to pair_status == "matched" above) so tumour samples without a
 # matched germline sample are never requested as targets -- HLA typing needs the patient's own
@@ -744,7 +934,8 @@ rule _pvactools_all:
                 str(rules._pvactools_output_class2_filtered.output.tsv),
                 str(rules._pvactools_output_class2_all_epitopes.output.tsv),
                 str(rules._pvactools_output_combined_filtered.output.tsv),
-                str(rules._pvactools_output_combined_all_epitopes.output.tsv)
+                str(rules._pvactools_output_combined_all_epitopes.output.tsv),
+                str(rules._pvactools_crossmap_neoantigen_maf.output.maf)
             ],
             zip,
             seq_type = CFG["paired_runs"]["tumour_seq_type"],

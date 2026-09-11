@@ -34,7 +34,14 @@ By default, only fully ungated (no license/registration) prediction algorithms a
 - VAF/depth-based filtering inside pvacseq (`--normal-vaf`/`--tdna-vaf`/etc.) -- pVACtools' own docs describe this as optional, requiring a separate bam-readcount + `vatools` re-annotation pipeline this module doesn't build. A future addition, not required to run pvacseq at all.
 - Phased proximal-variant handling (`--phased-proximal-variants-vcf`) -- pVACtools' own docs note the tool this needs (`GATK ReadBackedPhasing`) is no longer available in current GATK versions.
 - pVACfuse/pVACbind/pVACvector -- see "Purpose" above.
-- pvacseq's own `.all_epitopes.aggregated.tsv`/`.aggregated.metrics.json` reports (its documented tiered/prioritized candidate view) aren't exposed as `99-outputs/` symlinks yet -- only the flat `filtered.tsv`/`all_epitopes.tsv` tables (per class, and the combined `combined/` report) are. Worth adding if the tiered view turns out more useful in practice.
+
+## Neoantigen MAF output (linking pvactools predictions back to your MAF)
+
+`_pvactools_join_neoantigen_maf`/`_pvactools_crossmap_neoantigen_maf` produce one small, MAF-shaped file per pair (`99-outputs/neoantigen_maf/.../{tumour_id}--{normal_id}--{pair_status}.neoantigen.maf`) -- this MAF's own first `options.minimal_maf_columns` columns (default 45) plus a handful of pvactools annotation columns (`options.neoantigen_maf_columns`: `Tier`, `Best Peptide`, `Allele`, `IC50 MT`, `Pres %ile MT`, `DNA VAF`, and the RNA-related columns kept for forward-compatibility even though always `NA` today) and two derived booleans (`Pvacseq_Pass_Relaxed`/`Pvacseq_Pass_VeryRelaxed`, from the `additional_filters` presets above). **One row per pvactools-predicted mutation** -- this is not a left join against every row of your cohort MAF, and it does **not** concatenate across a cohort; combining these per-pair files is left to your own downstream MAF-merging tooling.
+
+No new upstream dependency: the join (Stage 1) reads `inputs.vcf2maf_maf` -- the same native-build MAF this module already requires -- since `_pvactools_extract_coding_regions` already derives its own coding-region VCF subset from that exact file, every pvactools-predicted mutation is guaranteed a corresponding row in it. Two earlier designs were tried and rejected before landing here: joining directly onto your cohort's final, CrossMap-*projected* MAF (by genomic position, and separately by a `Hugo_Symbol`+`HGVSp_Short` protein-level key) -- see this module's CHANGELOG for the full account, including a real, non-hypothetical case where a cohort's native builds differ from the target build at the majority of positions, which is what actually motivated Stage 2 below.
+
+`options.neoantigen_target_build` (default `"grch37"`) is the single, cohort-wide harmonized build Stage 2 lifts every pair's Stage-1 output into -- lowercase `"grch37"`/`"grch38"`, matching `modules/vcf2maf/1.3`'s own internal convention (not VEP's own `"GRCh37"`/`"GRCh38"` `--assembly` convention used by `options.vep_assembly_map` above). Only `grch37`<->`grch38` lifting is supported, mirroring that module's own CrossMap chain-file limitation (hg19/hg38 chains only) -- a pair whose native build already matches needs no lift at all. The lift itself calls `lcr-scripts/crossmap/1.1/convert_maf_coords.sh` directly (same script/chain files/conda env `modules/vcf2maf/1.3`'s own `_vcf2maf_crossmap` rule uses) but deliberately skips that module's own reannotation step (`_vcf2maf_reannotate`/`maf2maf.pl`) -- gene/protein identity doesn't depend on which build's coordinates it's expressed in, and reannotating would reintroduce a transcript-instability risk (see CHANGELOG). That script's own multi-stage shell pipeline was found to be intermittently flaky (real, observed ~1-in-10 failure rate, see CHANGELOG) -- `_pvactools_crossmap_neoantigen_maf` retries it up to 3 times to work around this.
 
 # Example
 
@@ -58,6 +65,9 @@ lcr-modules:
             vep_cache: "ref/ensembl_vep_cache/"
         options:
             vep_path: "/path/to/vep/bin"
+            # Only relevant to the neoantigen MAF feature -- see above. No extra inputs needed:
+            # it reuses vcf2maf_maf above directly.
+            neoantigen_target_build: "grch37"
 ```
 
 The example snakefile:
