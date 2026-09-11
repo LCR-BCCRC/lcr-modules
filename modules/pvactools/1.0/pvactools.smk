@@ -804,18 +804,24 @@ rule _pvactools_apply_additional_filter:
     priority: 40
     shell:
         op.as_one_line("""
+        (
+        if [[ ! -s {input.all_epitopes} ]];
+        then
+        echo "WARNING: {input.all_epitopes} is empty (this pair's own pvacseq run never produced a combined/ directory at all -- confirmed from pvactools' own tools/pvacseq/run.py: create_combined_reports() only runs when BOTH Class I and Class II produced real results, a normal outcome for a Class-I-only or Class-II-only pair, not a failure) -- writing empty placeholder outputs instead of running pvacseq binding_filter/top_score_filter on an empty file.";
+        touch {output.uncollapsed_tsv} {output.tsv};
+        else
         pvacseq binding_filter {input.all_epitopes} {output.uncollapsed_tsv}
         -b {params.preset[binding_threshold]}
         --binding-percentile-threshold {params.preset[binding_percentile_threshold]}
         --presentation-percentile-threshold {params.preset[presentation_percentile_threshold]}
         --percentile-threshold-strategy {params.preset[percentile_threshold_strategy]}
         -m {params.top_score_metric}
-        > {log.stdout} 2>&1
         &&
         pvacseq top_score_filter {output.uncollapsed_tsv} {output.tsv}
         -b {params.preset[binding_threshold]}
-        -m {params.top_score_metric}
-        >> {log.stdout} 2>&1
+        -m {params.top_score_metric};
+        fi
+        ) > {log.stdout} 2>&1
         """)
 
 
