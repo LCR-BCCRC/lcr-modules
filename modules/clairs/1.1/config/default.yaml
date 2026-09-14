@@ -54,7 +54,6 @@ lcr-modules:
             bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
             clairs: "docker://hkubal/clairs:v0.4.5"
 
-
         threads:
             clairs: 24
             bcftools: 4
