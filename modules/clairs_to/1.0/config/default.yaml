@@ -23,38 +23,48 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
 
-        scratch_subdirectories: [] # Recommended: "clairs_to"
+        scratch_subdirectories: []
 
         options:
             version_map:
                 hg38: "38"
             seqtype_map:
                 promethION: "promethION"
-            modsdir: "{MODSDIR}"
             model_path: "{MODSDIR}/modules/clairs_to/1.0/ClairS-TO-0.4.2/resources/models/" # Update this with the path to ClairS-TO models (ending with /). Likely something like {MODSDIR}/modules/clairs_to/1.0/ClairS-TO-0.4.2/resources/models/
-            clairs_to_path: "__UPDATE__" # Update this with the path to the run_clairs_to script. Likely something like {MODSDIR}/modules/clairs_to/1.0/ClairS-TO-0.4.4/ClairS-TO/run_clairs_to
-            clairs_to_args: "__UPDATE__"
-            filters: 'FILTER="PASS" && INFO/AF < 0.0001 && FMT/DP[0] >= 8 && FMT/AF[0] >= 0.1' # Update this line if you wish to use different filters
-            cleanup: True # Switch to false if you wish to keep intermediate ClairS-TO files
+            clairs_to_args: "__UPDATE__" # Do NOT pass --bed_fn here use target_regions_bed instead (see below), it's already applied per-chromosome and a second --bed_fn here would conflict
+            target_regions_bed: "" # Optional: restrict calling to a target BED (e.g. adaptive-sampling capture intervals). Leave "" for whole-chromosome calling. Intersected per-chromosome automatically; do not also pass --bed_fn via clairs_to_args, the two would conflict
+            chromosomes_file: "" # Optional: path to a custom contig list (one contig per line) to parallelize over instead of the default (reference_files main_chromosomes.txt, chr1-22 + chrX, no chrY). Leave "" for the default; set to your own file's path (e.g. one including chrY) to override
+            intermediate_results_dir_base: "" # Optional: base directory for run_clairs_to's own --output_dir (raw per-chromosome scratch), e.g. to redirect off a disk that shouldn't take heavy small-file traffic. Leave "" to use the module's own clairs_to/ subdirectory (default). Must be shared/network-visible storage, NOT node-local (/tmp, /var/tmp); a node-local path would silently break cleanup, since per-chromosome jobs and their cleanup jobs can run on different compute nodes. Must end with "/"
+            filters: # Update if you wish to use different filters
+                min_depth: 8
+                snv:
+                    min_af: 0.10
+                    min_alt_depth: 3
+                indel:
+                    min_af: 0.15
+                    min_alt_depth: 6
+            cleanup_toggle: true # Switch to false if you wish to keep intermediate ClairS-TO files
             
         conda_envs:
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
-            clairs_to: "{MODSDIR}/envs/clairs_to-0.4.2.yaml"
         container_envs:
             bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
-            clairs_to: null
+            clairs_to: "docker://hkubal/clairs-to:v0.4.4"
 
             
         threads:
-            clairs_to: 24
+            clairs_to_run: 6 # clairs_to_run is PER CHROMOSOME
+            clairs_to_merge_vcfs: 8
             bcftools: 4
 
         resources:
-            clairs_to: 
-                mem_mb: 24000
+            clairs_to_run:
+                mem_mb: 8000 # clairs_to_run is PER CHROMOSOME
                 bam: 1
+            clairs_to_merge_vcfs:
+                mem_mb: 8000
             bcftools:
-                mem_mb: 5000                
+                mem_mb: 5000
             
         pairing_config:
             promethION:
