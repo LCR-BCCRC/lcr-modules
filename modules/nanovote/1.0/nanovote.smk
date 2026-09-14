@@ -71,11 +71,6 @@ assert float(CFG_NANOVOTE["module_versions"]["clairs_to"]) >= 1.1, (
     "NanoVote requires ClairS-TO module version 1.1 or higher. "
 )
 
-# assert float(CFG_NANOVOTE["module_versions"]["starfish"]) >= 2.0, (
-#     f"The current starfish module version is {CFG_NANOVOTE['module_versions']['starfish']}. "
-#     "NanoVote requires starfish module version 2.0 or higher. "
-# )
-
 assert float(CFG_NANOVOTE["module_versions"]["deepsomatic"]) >= 1.0, (
     f"The current deepsomatic module version is {CFG_NANOVOTE['module_versions']['deepsomatic']}. "
     "NanoVote requires deepsomatic module version 1.0 or higher. "
