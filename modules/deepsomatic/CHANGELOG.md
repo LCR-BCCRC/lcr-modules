@@ -1,4 +1,3 @@
-
 # Changelog
 
 All notable changes to the `deepsomatic` module will be documented in this file.
@@ -6,28 +5,14 @@ All notable changes to the `deepsomatic` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0] - 2026-08-10
+## [1.0] - 2026-09-14
 
 This release was authored by Giuliano Banco.
 
-Initial release of the `deepsomatic` module, which calls somatic variants from Oxford
-Nanopore Technologies (ONT) long-read data using DeepSomatic. The workflow calls variants,
-indexes the VCF with tabix, filters against a panel of normals and quality/depth/VAF
-thresholds, annotates with gnomAD population frequencies, and symlinks a final filtered
-VCF into the outputs directory.
+This module calls somatic variants from ONT long-read data using Google's DeepSomatic. It supports two calling modes via `options.calling_mode`: `unmatched` (tumour + an unmatched normal, the default) and `tumor_only`. The sample table must include a `chemistry` column (`R9` or `R10`); `options.normal_name` maps chemistry to the correct unmatched-normal sample per run. As of writing, this module only works with hg38 data.
 
-### Requirements and constraints
-- Requires a sample table with `chemistry` and `platform` columns (enforced by schemas).
-- Only compatible with PromethION and hg38 data as of version 1.0.
-- Requires container usage for the DeepSomatic calling step. The bcftools steps (index,
-    filter, gnomAD annotation) support either conda or container.
+Variant calling is parallelized by chromosome: a checkpoint reads the reference chromosome list (`reference_files`' `main_chromosomes.txt`, chr1-22 + chrX, no chrY by default — override via `options.chromosomes_file` if you need chrY or a different contig set), `_deepsomatic_call_variants` runs once per chromosome via DeepSomatic's `--regions`, and the resulting per-chromosome VCFs are merged (`bcftools concat`/`sort`/index) into one final VCF before filtering/gnomAD annotation.
 
-### Features
-- Two calling modes, set via `calling_mode` in the config.
-    - `unmatched` (uses an unmatched normal BAM with the ONT model)
-    - `tumor_only` (no normal, ONT_TUMOR_ONLY model). Normal-based filters are only
-        applied in unmatched mode.
-- Maps tumour chemistry (R9 or R10) to a normal sample name via the `normal_name`
-    config option.
-- Filters variants to gnomAD AF < 0.0001 (missing AF is treated as 0).
-- Optional cleanup of DeepSomatic intermediate files with `cleanup_toggle` (recommended).
+`options.target_regions_bed` optionally restricts calling to a target panel — leave `""` for unrestricted whole-chromosome calling. It's a dedicated option rather than something to bake into `deepsomatic_args`: the module already appends its own `--regions` per chromosome, and DeepSomatic treats multiple `--regions` values as a union rather than an intersection, so simply concatenating a chromosome name with a whole-genome BED wouldn't restrict a chromosome's job to just its own targeted subregions. When a target BED is set, it's intersected with each chromosome automatically.
+
+DeepSomatic always writes intermediate/scratch files somewhere — `--intermediate_results_dir` is passed on every run and defaults to the module's own managed `deepsomatic_temp/` subdirectory. Each chromosome's intermediate directory is deleted (`_cleanup_intermediate_dir`) as soon as that chromosome's own VCF is written, not after the whole sample finishes, unless `options.cleanup_toggle` is set to `false`. The base directory for `--intermediate_results_dir` can be redirected via `options.intermediate_results_dir_base` (e.g. to avoid heavy small-file traffic on a disk that shouldn't take it) — this must be shared/network-visible storage, not node-local (`/tmp`, `/var/tmp`): per-chromosome jobs and their cleanup jobs can land on different compute nodes, and a node-local path is invisible from any node other than the one that wrote it, which would silently break cleanup.

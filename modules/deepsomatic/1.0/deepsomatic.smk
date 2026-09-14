@@ -45,8 +45,10 @@ CFG = op.setup_module(
 localrules:
     _deepsomatic_input_bam,
     _deepsomatic_input_normal_bam,
+    _deepsomatic_input_chrs,
     _deepsomatic_output_vcf,
     _cleanup_intermediate_dir,
+    _deepsomatic_cleanup_all_chroms,
     _deepsomatic_all
 
 
@@ -115,13 +117,28 @@ rule _deepsomatic_input_normal_bam:
         op.absolute_symlink(input.bai, output.crai)
 
 
+# Base dir for --intermediate_results_dir. Defaults to the module's own deepsomatic_temp/ subdirectory; override via options.intermediate_results_dir_base to redirect onto different storage. Must be shared/network-visible, NOT node-local (/tmp, /var/tmp); per-chromosome jobs and their cleanup jobs can land on different compute nodes, and a node-local path is invisible from any node other than the one that wrote it, which would silently break cleanup
+DEEPSOMATIC_INTERMEDIATE_BASE = CFG["options"].get("intermediate_results_dir_base", "") or CFG["dirs"]["deepsomatic_temp"]
+
+# Symlink chromosomes used for parallelization. genome_build-keyed only (not per-sample). Override via options.chromosomes_file (default excludes chrY)
+DEEPSOMATIC_CHROMOSOMES_FILE = CFG["options"].get("chromosomes_file", "")
+
+checkpoint _deepsomatic_input_chrs:
+    input:
+        chrs = DEEPSOMATIC_CHROMOSOMES_FILE if DEEPSOMATIC_CHROMOSOMES_FILE else reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
+    output:
+        chrs = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
+    run:
+        op.absolute_symlink(input.chrs, output.chrs)
+
+
 # Helper function to fetch normal_name for the unmatched normal bam file depending on sample chemistry
 def get_normal(wildcards):
     CFG = config["lcr-modules"]["deepsomatic"]
     this_sample = op.filter_samples(
         CFG["runs"],
         sample_id = wildcards.tumour_id,
-        seq_type = wildcards.seq_type, 
+        seq_type = wildcards.seq_type,
         genome_build = wildcards.genome_build
     )
     normal = this_sample["normal_name"].tolist()[0]
@@ -155,6 +172,36 @@ DEEPSOMATIC_CALLING_MODE_DIR = DEEPSOMATIC_CALLING_MODE_DIRS[
 ]
 
 
+# Optional restriction to a target-regions BED (e.g. adaptive-sampling capture intervals). Kept as a DEDICATED option rather than baked into deepsomatic_args
+DEEPSOMATIC_TARGET_BED = CFG["options"].get("target_regions_bed", "")
+
+if DEEPSOMATIC_TARGET_BED:
+    # The BED file will be filtered to each chromosome if provided
+    rule _deepsomatic_chrom_bed:
+        input:
+            bed = DEEPSOMATIC_TARGET_BED
+        output:
+            bed = CFG["dirs"]["inputs"] + "chroms/{genome_build}/target_regions/{chrom}.bed"
+        shell:
+            """awk -v chrom="{wildcards.chrom}" '$1 == chrom' {input.bed} > {output.bed}"""
+
+    # Separate localrules statement because this rule only exists when DEEPSOMATIC_TARGET_BED is set
+    localrules: _deepsomatic_chrom_bed
+
+
+def _deepsomatic_get_regions_input(wildcards):
+    CFG = config["lcr-modules"]["deepsomatic"]
+    if DEEPSOMATIC_TARGET_BED:
+        return CFG["dirs"]["inputs"] + f"chroms/{wildcards.genome_build}/target_regions/{wildcards.chrom}.bed"
+    return []
+
+
+def _deepsomatic_get_regions_arg(wildcards, input):
+    if DEEPSOMATIC_TARGET_BED:
+        return input.regions_bed
+    return wildcards.chrom
+
+
 # Helper function to require the normal BAM only in unmatched mode
 def _deepsomatic_get_normal_bam(wildcards):
     if DEEPSOMATIC_CALLING_MODE == "tumor_only":
@@ -183,30 +230,32 @@ else:
     )
 
 
-# Call variants in tumour using DeepSomatic
+# Call variants in tumour using DeepSomatic, one chromosome at a time via --regions.
 rule _deepsomatic_call_variants:
     input:
         tumour_bam = str(rules._deepsomatic_input_bam.output.bam),
         normal_bam = _deepsomatic_get_normal_bam,
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
-        fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai")
+        fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
+        regions_bed = _deepsomatic_get_regions_input
     output:
-        vcf = CFG["dirs"]["deepsomatic_output"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/output.vcf.gz"
+        vcf = temp(CFG["dirs"]["deepsomatic_output"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/chromosomes/{chrom}.output.vcf.gz")
     log:
-        stdout = CFG["dirs"]["deepsomatic_output"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/deepsomatic.call_variants.stdout.log",
-        stderr = CFG["dirs"]["deepsomatic_output"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/deepsomatic.call_variants.stderr.log"
+        stdout = CFG["dirs"]["deepsomatic_output"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/{chrom}.deepsomatic.call_variants.stdout.log",
+        stderr = CFG["dirs"]["deepsomatic_output"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/{chrom}.deepsomatic.call_variants.stderr.log"
     params:
         model_type = DEEPSOMATIC_MODEL_TYPES[DEEPSOMATIC_CALLING_MODE],
         normal_args = _deepsomatic_get_normal_args,
         deepsomatic_args = CFG["options"]["deepsomatic_args"],
-        intermediate_results_dir = CFG["dirs"]["deepsomatic_temp"] + "{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "--intermediate_results/",
-        logging_dir = CFG["logs"]["deepsomatic_output"] + "logs/{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR
+        regions_arg = _deepsomatic_get_regions_arg,
+        intermediate_results_dir = DEEPSOMATIC_INTERMEDIATE_BASE + "{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "--{chrom}--intermediate_results/",
+        logging_dir = CFG["logs"]["deepsomatic_output"] + "logs/{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/{chrom}"
     container:
         CFG["container_envs"]["deepsomatic"]
     threads:
-        CFG["threads"]["deepsomatic"]
+        CFG["threads"]["deepsomatic_run"]
     resources:
-        **CFG["resources"]["deepsomatic"]
+        **CFG["resources"]["deepsomatic_run"]
     shell:
         op.as_one_line("""
         run_deepsomatic
@@ -214,6 +263,7 @@ rule _deepsomatic_call_variants:
             --ref="{input.fasta}"
             --reads_tumor="{input.tumour_bam}"
             {params.normal_args}
+            --regions="{params.regions_arg}"
             --output_vcf="{output.vcf}"
             --sample_name_tumor="TUMOR"
             --num_shards={threads}
@@ -225,32 +275,123 @@ rule _deepsomatic_call_variants:
         """)
 
 
-# Create TBI index DeepSomatic VCF file
-rule _deepsomatic_index:
+# Remove files from one chromosome's intermediate_results_dir as soon as that chromosome's own VCF has been written
+rule _cleanup_intermediate_dir:
     input:
         vcf = str(rules._deepsomatic_call_variants.output.vcf)
     output:
+        cleanup_dummy = touch(
+            CFG["dirs"]["deepsomatic_output"]
+            + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}"
+            + "--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR
+            + "/chromosomes/{chrom}.cleanup_complete.txt"
+        )
+    params:
+        cleanup_toggle = CFG["options"]["cleanup_toggle"],
+        intermediate_results_parent = DEEPSOMATIC_INTERMEDIATE_BASE,
+        intermediate_results_dir = (
+            DEEPSOMATIC_INTERMEDIATE_BASE
+            + "{tumour_id}--{normal_name}--{chemistry}--"
+            + DEEPSOMATIC_CALLING_MODE_DIR
+            + "--{chrom}--intermediate_results/"
+        )
+    shell:
+        op.as_one_line("""
+        if [[ "{params.cleanup_toggle}" == "True" ]]; then
+            target=$(readlink -f "{params.intermediate_results_dir}" 2>/dev/null || true) ;
+            parent=$(readlink -f "{params.intermediate_results_parent}" 2>/dev/null || true) ;
+            if [[ -n "$target" &&
+                  -n "$parent" &&
+                  "$target" != "/" &&
+                  "$target" == "$parent"/* ]]; then
+                rm -rf -- "$target" ;
+            elif [[ -n "$target" ]]; then
+                echo "Refusing to remove unexpected path: $target" >&2 ;
+                exit 1 ;
+            fi ;
+            if [[ -L "{params.intermediate_results_dir}" ]]; then
+                rm -f -- "{params.intermediate_results_dir}" ;
+            fi ;
+        else
+            echo "Skipping cleanup" ;
+        fi
+        """)
+
+
+# Reads the checkpoint's chromosome list and expands it into the per-chrom call_variants VCF paths for one sample-run.
+def _deepsomatic_get_chr_vcfs(wildcards):
+    CFG = config["lcr-modules"]["deepsomatic"]
+    chrs = checkpoints._deepsomatic_input_chrs.get(**wildcards).output.chrs
+    with open(chrs) as file:
+        chrs = file.read().rstrip("\n").split("\n")
+    vcfs = expand(
+        CFG["dirs"]["deepsomatic_output"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_name}}--{{chemistry}}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/chromosomes/{chrom}.output.vcf.gz",
+        chrom = chrs
+    )
+    return(vcfs)
+
+
+def _deepsomatic_get_chr_cleanup(wildcards):
+    CFG = config["lcr-modules"]["deepsomatic"]
+    chrs = checkpoints._deepsomatic_input_chrs.get(**wildcards).output.chrs
+    with open(chrs) as file:
+        chrs = file.read().rstrip("\n").split("\n")
+    dummies = expand(
+        CFG["dirs"]["deepsomatic_output"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_name}}--{{chemistry}}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/chromosomes/{chrom}.cleanup_complete.txt",
+        chrom = chrs
+    )
+    return(dummies)
+
+
+# Merge per-chromosome VCFs from the same sample into one sorted, indexed VCF
+rule _deepsomatic_merge_vcfs:
+    input:
+        vcf = _deepsomatic_get_chr_vcfs,
+        cleanup = _deepsomatic_get_chr_cleanup
+    output:
+        vcf = CFG["dirs"]["deepsomatic_output"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/output.vcf.gz",
         tbi = CFG["dirs"]["deepsomatic_output"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/output.vcf.gz.tbi"
     log:
-        stdout = CFG["dirs"]["deepsomatic_output"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/deepsomatic.index.stdout.log",
-        stderr = CFG["dirs"]["deepsomatic_output"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/deepsomatic.index.stderr.log"
+        stdout = CFG["logs"]["deepsomatic_output"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/deepsomatic.merge_vcfs.stdout.log",
+        stderr = CFG["logs"]["deepsomatic_output"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/deepsomatic.merge_vcfs.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
         CFG["container_envs"]["bcftools"]
+    threads:
+        CFG["threads"]["deepsomatic_merge_vcfs"]
     resources:
-        **CFG["resources"]["bcftools"]
+        **CFG["resources"]["deepsomatic_merge_vcfs"]
+    params:
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     shell:
         op.as_one_line("""
-        tabix -p vcf {input.vcf} > {log.stdout} 2> {log.stderr}
+        bcftools concat --threads {threads} -a -O z {input.vcf} 2> {log.stderr}
+            |
+        bcftools sort -m {params.mem_mb}M -O z -o {output.vcf} 2>> {log.stderr}
+            &&
+        tabix -p vcf {output.vcf} > {log.stdout} 2>> {log.stderr}
         """)
+
+
+# Aggregates all per-chromosome cleanups for one sample-run into a single dummy target
+rule _deepsomatic_cleanup_all_chroms:
+    input:
+        _deepsomatic_get_chr_cleanup
+    output:
+        cleanup_dummy = touch(
+            CFG["dirs"]["deepsomatic_output"]
+            + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}"
+            + "--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR
+            + "/cleanup_complete.txt"
+        )
 
 
 # Filter out population variants and low quality variant calls
 rule _deepsomatic_filter:
     input:
-        vcf = str(rules._deepsomatic_call_variants.output.vcf), 
-        tbi = str(rules._deepsomatic_index.output.tbi),
+        vcf = str(rules._deepsomatic_merge_vcfs.output.vcf),
+        tbi = str(rules._deepsomatic_merge_vcfs.output.tbi),
         pon = reference_files("genomes/{genome_build}/ont/colorsDb.v1.2.0.deepvariant.glnexus.{genome_build}.vcf.gz")
     output:
         vcf = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR + "/output.filtered.vcf.gz",
@@ -312,7 +453,7 @@ rule _deepsomatic_gnomad_annotation:
         **CFG["resources"]["bcftools"]
     shell:
         op.as_one_line("""
-        bcftools annotate --threads {threads} 
+        bcftools annotate --threads {threads}
         -a {input.gnomad} -c INFO/AF {input.vcf} 2> {log.stderr} |
         awk 'BEGIN {{FS=OFS="\t"}} /^#/ {{print; next}} {{ if ($8 == ".") $8="AF=0"; else if ($8 !~ /(^|;)AF=/) $8=$8";AF=0"; print }}' |
         bcftools view -i 'INFO/AF[0] < 0.0001' -Oz -o {output.vcf} 2>> {log.stderr}
@@ -334,50 +475,6 @@ rule _deepsomatic_output_vcf:
         op.relative_symlink(input.tbi, output.tbi, in_module= True)
 
 
-# Remove files from the intermediate_results_dir used during DeepSomatic
-rule _cleanup_intermediate_dir:
-    input:
-        vcf = str(rules._deepsomatic_output_vcf.output.vcf),
-        tbi = str(rules._deepsomatic_output_vcf.output.tbi)
-    output:
-        cleanup_dummy = touch(
-            CFG["dirs"]["deepsomatic_output"]
-            + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}"
-            + "--{chemistry}--" + DEEPSOMATIC_CALLING_MODE_DIR
-            + "/cleanup_complete.txt"
-        )
-    params:
-        cleanup_toggle = CFG["options"]["cleanup_toggle"],
-        intermediate_results_parent = CFG["dirs"]["deepsomatic_temp"],
-        intermediate_results_dir = (
-            CFG["dirs"]["deepsomatic_temp"]
-            + "{tumour_id}--{normal_name}--{chemistry}--"
-            + DEEPSOMATIC_CALLING_MODE_DIR
-            + "--intermediate_results/"
-        )
-    shell:
-        op.as_one_line("""
-        if [[ "{params.cleanup_toggle}" == "True" ]]; then
-            target=$(readlink -f "{params.intermediate_results_dir}" 2>/dev/null || true) ;
-            parent=$(readlink -f "{params.intermediate_results_parent}" 2>/dev/null || true) ;
-            if [[ -n "$target" &&
-                  -n "$parent" &&
-                  "$target" != "/" &&
-                  "$target" == "$parent"/* ]]; then
-                rm -rf -- "$target" ;
-            elif [[ -n "$target" ]]; then
-                echo "Refusing to remove unexpected path: $target" >&2 ;
-                exit 1 ;
-            fi ;
-            if [[ -L "{params.intermediate_results_dir}" ]]; then
-                rm -f -- "{params.intermediate_results_dir}" ;
-            fi ;
-        else
-            echo "Skipping cleanup" ;
-        fi
-        """)
-
-
 # Generates the target sentinels for each run, which generate the symlinks
 rule _deepsomatic_all:
     input:
@@ -385,7 +482,7 @@ rule _deepsomatic_all:
             [
                 str(rules._deepsomatic_output_vcf.output.vcf),
                 str(rules._deepsomatic_output_vcf.output.tbi),
-                str(rules._cleanup_intermediate_dir.output.cleanup_dummy)
+                str(rules._deepsomatic_cleanup_all_chroms.output.cleanup_dummy)
             ],
             zip,
             seq_type=CFG["runs"]["tumour_seq_type"],
