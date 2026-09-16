@@ -22,9 +22,6 @@ properties:
     genome_build:
         type: string
         description: Reference genome build (e.g., grch37, hg38)
-    capture_space:
-        type: string
-        description: Name of capture space used
 
 required:
     - sample_id
