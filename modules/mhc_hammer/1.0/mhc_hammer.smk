@@ -217,6 +217,7 @@ localrules:
     _mhc_hammer_generate_inventory,
     _mhc_hammer_mutations_to_maf,
     _mhc_hammer_cohort_table,
+    _mhc_hammer_patient_completed_samples,
     _mhc_hammer_output_dna_analysis,
     _mhc_hammer_output_mutations,
     _mhc_hammer_output_mutations_maf,
@@ -2222,6 +2223,109 @@ rule _mhc_hammer_cohort_table:
             writer.writerows(rows)
 
 
+# Per-patient, LIVE manifest of which of that patient's own candidate sample_ids have reached
+# _mhc_hammer_make_allele_bams' own per-sample "personalized allele-bam" checkpoint
+# (hla_bam_read_count.csv) as of THIS invocation -- deliberately NOT gated on every sample for the
+# patient being done (unlike _mhc_hammer_patient_gene_table, which requires the whole patient to be
+# finished before it runs at all). Real, requested use case: checking progress on an in-flight,
+# only-partially-processed patient without waiting for the slowest sample in that patient's cohort.
+#
+# Same "untracked existence check inside run:, forced fresh every invocation via
+# _mhc_hammer_invocation_marker" idiom _mhc_hammer_generate_inventory/_mhc_hammer_cohort_table
+# already use, and for the same reason: declaring each candidate sample's hla_bam_read_count.csv as
+# a real Snakemake `input:` would force Snakemake to trace each one's production lineage and
+# require ALL of them to exist before this rule could run at all -- exactly the all-or-nothing
+# behaviour this rule exists to avoid. Same inherent tradeoff _mhc_hammer_cohort_table's own comment
+# already documents: this file only reflects whatever's on disk *when this rule runs*, so a sample
+# that finishes moments after this rule ran won't appear until the next invocation re-triggers it --
+# acceptable here since the point is a live progress snapshot, not a completeness guarantee. To
+# force a refresh on demand rather than waiting for the next real invocation, target this rule's
+# own output file directly (Snakemake will re-evaluate it, since the invocation marker is always
+# freshly touched).
+#
+# Writes directly into 99-outputs/ rather than the usual separate raw-compute-dir-then-symlink
+# two-step most other patient-level outputs in this file use -- nothing else in this DAG reads this
+# file, and adding a new numbered subdirectory to CFG["dirs"] would renumber every existing
+# subdirectory after it. 99-outputs is the one directory guaranteed to keep a stable number
+# regardless (oncopipe's own setup_subdirs() always assigns the last declared subdirectory "99"
+# regardless of its position in the `subdirectories` list), so a new file living directly under it
+# introduces no such risk.
+rule _mhc_hammer_patient_completed_samples:
+    input:
+        invocation_marker = _mhc_hammer_invocation_marker
+    output:
+        manifest = CFG["dirs"]["outputs"] + "completed_samples/{seq_type}--{genome_build}/{patient_id}.completed_samples.txt"
+    run:
+        # Re-fetch CFG from the persistent `config` global rather than closing over the
+        # module-level CFG variable -- run: blocks execute even later than input/param functions,
+        # after op.cleanup_module(CFG) at the bottom of this file has already deleted it (see the
+        # identical fix in _mhc_hammer_generate_inventory's own run: block, and the CFG-closure
+        # gotcha documented near the top of this file's HELPER FUNCTIONS section).
+        CFG = config["lcr-modules"]["mhc_hammer"]
+        patient_runs = op.filter_samples(
+            CFG["paired_runs"],
+            tumour_patient_id = wildcards.patient_id,
+            tumour_seq_type = wildcards.seq_type,
+            tumour_genome_build = wildcards.genome_build
+        )
+        candidate_sample_ids = sorted(set(patient_runs["tumour_sample_id"]) | set(patient_runs["normal_sample_id"]))
+        marker_pattern = str(rules._mhc_hammer_make_allele_bams.output.hla_bam_read_count)
+        newly_completed = {
+            sample_id for sample_id in candidate_sample_ids
+            if os.path.exists(marker_pattern.format(
+                seq_type = wildcards.seq_type, genome_build = wildcards.genome_build, sample_id = sample_id
+            ))
+        }
+        # Accumulate rather than replace: candidate_sample_ids only reflects THIS invocation's own
+        # CFG["paired_runs"] (whatever sample subset/batch is currently active), so a sample this
+        # same patient already had recorded as completed in an earlier invocation -- but that isn't
+        # part of the current batch's config at all -- would otherwise silently vanish from this
+        # file the moment a differently-scoped invocation rewrites it (a real, requested concern,
+        # and the exact same class of bug _mhc_hammer_cohort_table's own CHANGELOG entry already
+        # documents being fixed for a different file). Reading the existing manifest first and
+        # union-ing it with this invocation's own newly-discovered completions makes this file a
+        # genuine, monotonically-accumulating record across batches, never one that forgets a
+        # sample just because a later invocation's own config doesn't happen to include it.
+        # Deliberate, accepted residual limitation: a sample that finishes independently of any
+        # invocation that ever lists it as a candidate (e.g. reprocessed by hand outside every
+        # batch definition that includes it) will never get picked up at all, since its completion
+        # is only ever checked when it's a real candidate in SOME invocation's own CFG["paired_runs"].
+        previously_recorded = set()
+        if os.path.exists(output.manifest):
+            with open(output.manifest) as fh:
+                previously_recorded = {line.strip() for line in fh if line.strip()}
+        all_completed = sorted(previously_recorded | newly_completed)
+        content = "".join(sample_id + "\n" for sample_id in all_completed)
+        # No log: block on this rule (run: blocks don't get shell:'s automatic {log} stdout
+        # redirection, and neither of the two other run:-based housekeeping rules this idiom is
+        # copied from -- _mhc_hammer_generate_inventory/_mhc_hammer_cohort_table -- declare one
+        # either) -- this print() is the only record of what this rule actually found on a given
+        # invocation, and lands wherever Snakemake's own main-process output goes (the invoking
+        # terminal directly, or e.g. .snakemake/log/<timestamp>.snakemake.log if that's how your
+        # own launcher captures it -- not a per-rule file under this module's own logs/ tree).
+        # Printed unconditionally (before the unchanged-content early-return below), so it reflects
+        # this invocation's real findings even on a run that doesn't end up touching the file.
+        newly_this_run = sorted(newly_completed - previously_recorded)
+        print(
+            f"INFO [mhc_hammer]: patient {wildcards.patient_id} ({wildcards.seq_type}--{wildcards.genome_build}): "
+            f"{len(all_completed)} sample(s) completed in total so far ({', '.join(all_completed) if all_completed else 'none yet'}); "
+            f"{len(newly_this_run)} newly completed as of this invocation ({', '.join(newly_this_run) if newly_this_run else 'none'}); "
+            f"{len(candidate_sample_ids)} candidate sample(s) in this invocation's own config "
+            f"({', '.join(candidate_sample_ids)})."
+        )
+        os.makedirs(os.path.dirname(output.manifest), exist_ok = True)
+        # Only touch (bump mtime of) the file when content actually changed -- same
+        # _write_if_changed idiom _mhc_hammer_generate_inventory uses, so a downstream consumer
+        # added later under --rerun-triggers mtime doesn't rerun on every single invocation just
+        # because this rule itself always re-evaluates.
+        if os.path.exists(output.manifest):
+            with open(output.manifest) as fh:
+                if fh.read() == content:
+                    return
+        with open(output.manifest, "w") as fh:
+            fh.write(content)
+
+
 # Symlinks the final per-run output files into the module results directory (under '99-outputs/')
 rule _mhc_hammer_output_dna_analysis:
     input:
@@ -2333,6 +2437,18 @@ rule _mhc_hammer_all:
             patient_id = CFG["paired_runs"]["tumour_patient_id"]
         ),
         str(rules._mhc_hammer_output_cohort_table.output.cohort_table),
+        # Live per-patient completed-sample manifest -- same CFG["paired_runs"] patient scoping as
+        # the mutations/cohort/gene-table targets above. Always requestable regardless of whether
+        # this patient (or any of its samples) has finished -- see the rule's own comment.
+        expand(
+            [
+                str(rules._mhc_hammer_patient_completed_samples.output.manifest)
+            ],
+            zip,
+            seq_type = CFG["paired_runs"]["tumour_seq_type"],
+            genome_build = CFG["paired_runs"]["tumour_genome_build"],
+            patient_id = CFG["paired_runs"]["tumour_patient_id"]
+        ),
         # HLA-HD's own class I result file, in standard nomenclature -- same patient-level
         # CFG["paired_runs"] scoping as the mutations/cohort targets above.
         expand(
