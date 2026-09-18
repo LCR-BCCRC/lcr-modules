@@ -350,7 +350,7 @@ rule _purecn_mutect2_merge_stats_per_sample:
     input:
         stats = _get_mutect2_chr_stats
     output:
-        stats = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_tmp.vcf.gz.stats"
+        stats = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_tmp.vcf.gz.stats")
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_merge_stats.log"
     params:
@@ -375,7 +375,7 @@ rule _purecn_pileup_summaries:
         fasta = str(rules._purecn_symlink_fasta.output.fasta),
         gatk_dict = str(rules._purecn_symlink_fasta.output.gatk_dict)
     output:
-        pileup = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/pileupSummary.table"
+        pileup = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/pileupSummary.table")
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_pileupSummary.log"
     conda:
