@@ -1,0 +1,43 @@
+lcr-modules:
+    _shared:
+        lcr-modules: "../"
+        lcr-scripts: "../../lcr-scripts/"
+        root_output_dir: "results/"
+        scratch_directory: "scratch/"
+
+    salmon:
+        inputs:
+            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
+        transcriptome:
+            quant_to: "hg38"
+
+    star:
+        inputs:
+            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
+        scratch_subdirectories: []
+
+
+    manta:
+        inputs:
+            sample_bam: "results/star-1.4/99-outputs/bam/{seq_type}--{genome_build}/{sample_id}.bam"
+            sample_bai: "results/star-1.4/99-outputs/bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
+
+    mixcr:
+        inputs:
+            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
+            # Path to the directory where MIXCR should be installed
+            mixcr_exec: "data"
+    
+    stringtie:
+        inputs: 
+            sample_bam: "results/star-1.4/99-outputs/bam/{seq_type}--{genome_build}/{sample_id}.bam"
+            sample_bai: "results/star-1.4/99-outputs/bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
+
+    utils:
+        mem_mb:
+            bam_sort: 48000
+        threads:
+            bam_sort: 12

@@ -11,9 +11,26 @@
 
 ##### SETUP #####
 
-
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+import pkg_resources
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_resources.get_distribution("oncopipe").version
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
+    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section
 
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["{{cookiecutter.module_name}}"]`
@@ -38,13 +55,16 @@ localrules:
 
 # Symlinks the input files into the module results directory (under '00-inputs/')
 # TODO: If applicable, add an input rule for each input file used by the module
+# TODO: If applicable, create second symlink to .crai file in the input function, to accomplish cram support
 rule _{{cookiecutter.module_name}}_input_{{cookiecutter.input_file_type}}:
     input:
         {{cookiecutter.input_file_type}} = CFG["inputs"]["sample_{{cookiecutter.input_file_type}}"]
     output:
         {{cookiecutter.input_file_type}} = CFG["dirs"]["inputs"] + "{{cookiecutter.input_file_type}}/{seq_type}--{genome_build}/{sample_id}.{{cookiecutter.input_file_type}}"
+    group: 
+        "input_and_step_1"
     run:
-        op.relative_symlink(input.{{cookiecutter.input_file_type}}, output.{{cookiecutter.input_file_type}})
+        op.absolute_symlink(input.{{cookiecutter.input_file_type}}, output.{{cookiecutter.input_file_type}})
 
 {% if cookiecutter.module_run_per == "tumour" %}
 # Example variant calling rule (multi-threaded; must be run on compute server/cluster)
@@ -66,7 +86,9 @@ rule _{{cookiecutter.module_name}}_step_1:
     threads:
         CFG["threads"]["step_1"]
     resources:
-        mem_mb = CFG["mem_mb"]["step_1"]
+        **CFG["resources"]["step_1"]
+    group: 
+        "input_and_step_1"
     shell:
         op.as_one_line("""
         <TODO> {params.opts} --tumour {input.tumour_{{cookiecutter.input_file_type}}} --normal {input.normal_{{cookiecutter.input_file_type}}}
@@ -98,7 +120,7 @@ rule _{{cookiecutter.module_name}}_output_{{cookiecutter.output_file_type}}:
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["outputs"] + "{{cookiecutter.output_file_type}}/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.filt.{{cookiecutter.output_file_type}}"
     run:
-        op.relative_symlink(input.{{cookiecutter.output_file_type}}, output.{{cookiecutter.output_file_type}})
+        op.relative_symlink(input.{{cookiecutter.output_file_type}}, output.{{cookiecutter.output_file_type}}, in_module= True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -135,7 +157,7 @@ rule _{{cookiecutter.module_name}}_step_1:
     threads:
         CFG["threads"]["step_1"]
     resources:
-        mem_mb = CFG["mem_mb"]["step_1"]
+        **CFG["resources"]["step_1"]    # All resources necessary can be included and referenced from the config files.
     shell:
         op.as_one_line("""
         <TODO> {params.opts} --input {input.{{cookiecutter.input_file_type}}} --ref-fasta {input.fasta}
@@ -166,7 +188,7 @@ rule _{{cookiecutter.module_name}}_output_{{cookiecutter.output_file_type}}:
     output:
         {{cookiecutter.output_file_type}} = CFG["dirs"]["outputs"] + "{{cookiecutter.output_file_type}}/{seq_type}--{genome_build}/{sample_id}.output.filt.{{cookiecutter.output_file_type}}"
     run:
-        op.relative_symlink(input.{{cookiecutter.output_file_type}}, output.{{cookiecutter.output_file_type}})
+        op.relative_symlink(input.{{cookiecutter.output_file_type}}, output.{{cookiecutter.output_file_type}}, in_module= True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks

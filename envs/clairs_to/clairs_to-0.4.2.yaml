@@ -1,0 +1,14 @@
+name: clairs_to-0.4.2
+channels:
+  - bioconda
+  - pytorch
+  - conda-forge
+dependencies:
+  - python=3.9.0
+  - pytorch
+  - tqdm
+  - clair3
+  - bcftools
+  - einops
+  - scipy
+  - scikit-learn

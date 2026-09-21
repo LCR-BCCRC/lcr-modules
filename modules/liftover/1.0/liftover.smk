@@ -33,7 +33,7 @@ rule _liftover_input_seg:
     output:
         seg = CFG["dirs"]["inputs"] + "seg/{tumour_sample_id}--{normal_sample_id}.{tool}.igv.seg"
     run:
-        op.relative_symlink(input.seg, output.seg)
+        op.relative_symlink(input.seg, output.seg, in_module=True)
 
 
 # Convert initial seg file into bed format
@@ -52,15 +52,17 @@ rule _hg38seg_2_hg38bed:
         end_colNum = CFG["options"]["end_colNum"],
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
-        python {params.opts} 
-        --input {input.seg_hg38} 
-        --output {output.bed_hg38} 
-        --chromColnum {params.chr_colNum} 
-        --startColnum {params.start_colNum} 
+        python {params.opts}
+        --input {input.seg_hg38}
+        --output {output.bed_hg38}
+        --chromColnum {params.chr_colNum}
+        --startColnum {params.start_colNum}
         --endColnum {params.end_colNum}
-        {params.opts} 
+        {params.opts}
         2> {log.stderr}
         """)
 
@@ -76,13 +78,15 @@ rule _hg38bed_2_hg19bed:
         stderr = CFG["logs"]["bedhg38tobedhg19"] + "{tumour_sample_id}--{normal_sample_id}.{tool}.stderr.log"
     params:
         opts = CFG["options"]["bedhg38tobedhg19"],
-        mismatch = CFG["options"]["min_mismatch"]       
+        mismatch = CFG["options"]["min_mismatch"]
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
         liftOver -minMatch={params.mismatch}
-        {input} {params.opts} 
+        {input} {params.opts}
         {output.bed_hg19} {output.unmapped}
         2> {log.stderr}
         """)
@@ -97,16 +101,18 @@ rule _hg19bed_2_hg19seg:
     log:
         stderr = CFG["logs"]["bedhg19toseghg19"] + "{tumour_sample_id}--{normal_sample_id}.{tool}.stderr.log"
     params:
-        opts = CFG["options"]["bedhg19toseghg19"]      
+        opts = CFG["options"]["bedhg19toseghg19"]
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
-        python {params.opts} 
+        python {params.opts}
         --input {input.bed_hg19}
         --column-header {input.headers}
-        --output {output.seg_hg19} 
-        {params.opts} 
+        --output {output.seg_hg19}
+        {params.opts}
         2> {log.stderr}
         """)
 
@@ -118,7 +124,7 @@ rule _liftover_output_seg:
     output:
         seg = CFG["dirs"]["outputs"] + "seg/{tumour_sample_id}--{normal_sample_id}.{tool}.hg19.igv.seg"
     run:
-        op.relative_symlink(input.seg, output.seg)
+        op.relative_symlink(input.seg, output.seg, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -134,8 +140,8 @@ rule _liftover_all:
             #repeat the tool name N times in expand so each pair in run is used
             tool=[CFG["tool"]] * len(CFG["runs"]["tumour_sample_id"])
             )
-            
-            
+
+
 
 ##### CLEANUP #####
 

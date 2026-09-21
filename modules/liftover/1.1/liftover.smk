@@ -11,9 +11,29 @@
 
 ##### SETUP #####
 
-
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+
+
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+from importlib.metadata import version as pkg_version
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_version("oncopipe")
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
 
 
 # Setup module and store module-specific configuration in `CFG`
@@ -36,7 +56,7 @@ rule _liftover_input_seg:
     output:
         seg = CFG["dirs"]["inputs"] + "{genome_build}/seg/{tumour_sample_id}--{normal_sample_id}.{tool}.igv.seg"
     run:
-        op.relative_symlink(input.seg, output.seg)
+        op.absolute_symlink(input.seg, output.seg)
 
 
 # Convert initial seg file into bed format
@@ -55,6 +75,8 @@ rule _hg38seg_2_hg38bed:
         end_colNum = CFG["options"]["end_colNum"],
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
         python {params.opts} 
@@ -82,6 +104,8 @@ rule _hg38bed_2_hg19bed:
         mismatch = CFG["options"]["min_mismatch"]       
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
         liftOver -minMatch={params.mismatch}
@@ -103,6 +127,8 @@ rule _hg19bed_2_hg19seg:
         opts = CFG["options"]["bedhg19toseghg19"]      
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
         python {params.opts} 
@@ -121,7 +147,7 @@ rule _liftover_output_seg:
     output:
         seg = CFG["dirs"]["outputs"] + "seg/{tumour_sample_id}--{normal_sample_id}.{tool}.hg19.igv.seg"
     run:
-        op.relative_symlink(input.seg, output.seg)
+        op.relative_symlink(input.seg, output.seg, in_module=True )
 
 
 # Generates the target sentinels for each run, which generate the symlinks

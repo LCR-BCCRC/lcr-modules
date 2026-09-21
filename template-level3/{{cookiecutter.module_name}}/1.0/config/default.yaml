@@ -1,0 +1,44 @@
+lcr-modules:
+    
+    {{cookiecutter.module_name}}:
+
+        inputs:
+           # Available wildcards: {seq_type} {projection}
+            master_{{cookiecutter.input_file_type}}: "__UPDATE__"
+            subsetting_categories: "__UPDATE__" # e.g. "data/metadata/level3_subsetting_categories.tsv"
+        sample_set: "__UPDATE__" # E.g. ["DLBCL-only", "BL_DLBCL-BL-like_all"]
+        projections: ["grch37", "hg38"]
+        # Uncomment the following line to add a launch_date. Otherwise the current year-month will be used
+        # launch_date: "2025-01"
+
+        {%- if cookiecutter.input_file_type == "maf" %}
+        include_non_coding: True
+        {%- endif %}
+
+        prepare_script: "{SCRIPTSDIR}/generate_smg_inputs/1.1/generate_smg_inputs.R"
+
+        scratch_subdirectories: []
+
+        options:
+            {{cookiecutter.module_name}}_run: ""
+
+        conda_envs:
+            prepare: "{REPODIR}/envs/gatk/gatkR.yaml"
+            {{cookiecutter.module_name}}: "{MODSDIR}/envs/{{cookiecutter.module_name}}.yaml"
+            
+        threads:
+            {{cookiecutter.module_name}}_run: 4
+
+        resources:
+            {{cookiecutter.module_name}}_run: 
+                mem_mb: 2000
+            
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

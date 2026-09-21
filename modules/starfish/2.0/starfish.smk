@@ -21,7 +21,7 @@ import inspect
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -29,10 +29,32 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
-    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
-    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
+
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+from importlib.metadata import version as pkg_version
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_version("oncopipe")
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
 # End of dependency checking section 
@@ -48,9 +70,8 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _starfish_input_vcf,
-    _starfish_rename_output, 
+    _starfish_rename_output,
     _starfish_output_vcf,
-    _starfish_output_venn,
     _starfish_all,
 
 ##### GLOBAL VARIABLES #####
@@ -75,8 +96,8 @@ rule _starfish_input_vcf:
         vcf = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{caller}.vcf.gz", 
         tbi = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.{caller}.vcf.gz.tbi"
     run:
-        op.relative_symlink(input.vcf, output.vcf), 
-        op.relative_symlink(input.vcf + ".tbi", output.tbi)
+        op.absolute_symlink(input.vcf, output.vcf), 
+        op.absolute_symlink(input.vcf + ".tbi", output.tbi)
 
 
 # Run Starfish
@@ -93,8 +114,7 @@ rule _starfish_run:
         reference = ancient(reference_files("genomes/{genome_build}/sdf")),
         starfish_script = CFG["inputs"]["starfish_script"]
     output:
-        complete = touch(CFG["dirs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/starfish.complete"), 
-        venn = CFG["dirs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/venn.pdf"
+        complete = touch(CFG["dirs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/starfish.complete")
     log:
         stdout = CFG["logs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/starfish_run.stdout.log",
         stderr = CFG["logs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/starfish_run.stderr.log"
@@ -102,6 +122,8 @@ rule _starfish_run:
         opts = CFG["options"]["starfish_run"]
     conda:
         CFG["conda_envs"]["starfish"]
+    container:
+        CFG["container_envs"]["starfish"]
     threads:
         CFG["threads"]["starfish_run"]
     resources:
@@ -165,13 +187,6 @@ rule _starfish_output_vcf:
         op.relative_symlink(input.vcf + ".tbi", output.tbi, in_module=True)
 
 
-rule _starfish_output_venn: 
-    input: 
-        venn = str(rules._starfish_run.output.venn)
-    output: 
-        venn = CFG["dirs"]["outputs"] + "venn/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.venn.pdf"
-    run: 
-        op.relative_symlink(input.venn, output.venn, in_module=True)
 
 def _starfish_get_output_target(wildcards): 
     CFG = config["lcr-modules"]["starfish"]
@@ -187,9 +202,8 @@ def _starfish_get_output_target(wildcards):
     return vcfs
 
 
-rule _starfish_dispatch: 
-    input: 
-        str(rules._starfish_output_venn.output.venn), 
+rule _starfish_dispatch:
+    input:
         _starfish_get_output_target        
     output: 
         touch(CFG["dirs"]["outputs"] + "dispatched/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.dispatched")

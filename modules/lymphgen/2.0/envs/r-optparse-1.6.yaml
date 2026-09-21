@@ -1,0 +1,6 @@
+name: r-base
+channels:
+    - r
+dependencies:
+    - r-base = 3.6
+    - r-optparse = 1.6

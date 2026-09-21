@@ -50,8 +50,8 @@ rule _star_input_fastq:
         fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R1.fastq.gz",
         fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R2.fastq.gz",
     run:
-        op.relative_symlink(input.fastq_1, output.fastq_1)
-        op.relative_symlink(input.fastq_2, output.fastq_2)
+        op.absolute_symlink(input.fastq_1, output.fastq_1)
+        op.absolute_symlink(input.fastq_2, output.fastq_2)
 
 
 # Align reads using STAR (including soft-clipped chimeric reads)
@@ -76,13 +76,15 @@ rule _star_run:
         star_overhang = CFG["reference_params"]["star_overhang"]
     conda:
         CFG["conda_envs"]["star"]
+    container:
+        CFG["container_envs"]["star"]
     threads:
         CFG["threads"]["star"]
     resources:
         mem_mb = CFG["mem_mb"]["star"]
     shell:
         op.as_one_line("""
-        STAR {params.opts} --readFilesIn {input.fastq_1} {input.fastq_2} --genomeDir {input.index} 
+        STAR {params.opts} --readFilesIn {input.fastq_1} {input.fastq_2} --genomeDir {input.index}
         --outFileNamePrefix {params.prefix} --runThreadN {threads} --sjdbGTFfile {input.gtf}
         --sjdbOverhang {params.star_overhang} > {log.stdout} 2> {log.stderr}
             &&
@@ -97,7 +99,7 @@ rule _star_symlink_star_bam:
     output:
         bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.bam"
     run:
-        op.relative_symlink(input.bam, output.bam)
+        op.relative_symlink(input.bam, output.bam, in_module=True)
 
 
 # Create symlink in subdirectory where duplicates will be marked by the `utils` module
@@ -110,7 +112,7 @@ rule _star_symlink_sorted_bam:
     output:
         bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam"
     run:
-        op.relative_symlink(input.bam, output.bam)
+        op.relative_symlink(input.bam, output.bam, in_module=True)
         os.remove(input.star_bam)
         shell("touch {input.star_bam}.deleted")
 
@@ -126,8 +128,8 @@ rule _star_output_bam:
     output:
         bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bam + ".bai")
+        op.relative_symlink(input.bam, output.bam, in_module = True)
+        op.relative_symlink(input.bai, output.bam + ".bai", in_module = True)
         os.remove(input.sorted_bam)
         shell("touch {input.sorted_bam}.deleted")
 

@@ -48,8 +48,8 @@ rule _strelka_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
 
 
 rule _strelka_dummy_vcf:
@@ -66,6 +66,8 @@ rule _strelka_input_vcf:
         tbi = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz.tbi"
     conda:
         CFG["conda_envs"]["tabix"]
+    container:
+        CFG["container_envs"]["tabix"]
     shell:
         op.as_one_line("""
         bgzip -c {input.manta_vcf} > {output.vcf}
@@ -82,6 +84,8 @@ rule _strelka_index_bed:
         bedz = CFG["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz"
     conda:
         CFG["conda_envs"]["tabix"]
+    container:
+        CFG["container_envs"]["tabix"]
     shell:
         op.as_one_line("""
         bgzip -c {input.bed} > {output.bedz}
@@ -94,7 +98,7 @@ def _strelka_get_indel_cli_arg(vcf_in = config["lcr-modules"]["strelka"]["inputs
     def _strelka_get_indel_cli_custom(wildcards, input):
         if vcf_in:
             param = f"--indelCandidates={input.indels}"
-        else: 
+        else:
             param = ""
         return param
     return _strelka_get_indel_cli_custom
@@ -119,16 +123,18 @@ rule _strelka_configure_paired: # Somatic
         pair_status = "matched|unmatched"
     conda:
         CFG["conda_envs"]["strelka"]
+    container:
+        CFG["container_envs"]["strelka"]
     shell:
         op.as_one_line("""
-        configureStrelkaSomaticWorkflow.py 
+        configureStrelkaSomaticWorkflow.py
         --normalBam={input.normal_bam}
         --tumorBam={input.tumour_bam}
         --referenceFasta={input.fasta}
        --callRegions={input.bedz}
         --runDir=$(dirname {output.runwf})
         {params.indel_arg}
-        {params.opts} 
+        {params.opts}
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -151,14 +157,16 @@ rule _strelka_configure_unpaired: # germline
         pair_status = "no_normal"
     conda:
         CFG["conda_envs"]["strelka"]
+    container:
+        CFG["container_envs"]["strelka"]
     shell:
         op.as_one_line("""
-        configureStrelkaGermlineWorkflow.py 
+        configureStrelkaGermlineWorkflow.py
         --bam={input.tumour_bam}
         --referenceFasta={input.fasta}
         --callRegions={input.bedz}
         --runDir=$(dirname {output.runwf})
-        {params.opts} 
+        {params.opts}
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -175,9 +183,11 @@ rule _strelka_run:
         opts = CFG["options"]["strelka"]
     conda:
         CFG["conda_envs"]["strelka"]
+    container:
+        CFG["container_envs"]["strelka"]
     threads:
         CFG["threads"]["strelka"]
-    resources: 
+    resources:
         mem_mb = op.retry(CFG["mem_mb"]["strelka"], 2)
     shell:
         op.as_one_line("""
@@ -218,8 +228,8 @@ rule _strelka_output_vcf:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{var_type}.vcf",
         vcf_p = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{var_type}.passed.vcf"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(input.vcf_p, output.vcf_p)
+        op.relative_symlink(input.vcf, output.vcf, in_module = True)
+        op.relative_symlink(input.vcf_p, output.vcf_p, in_module = True)
 
 
 def _strelka_get_output(wildcards):
@@ -234,7 +244,7 @@ def _strelka_get_output(wildcards):
 
 
 rule _strelka_dispatch:
-    input: 
+    input:
         vcf = _strelka_get_output
     output:
         dispatched = touch(CFG["dirs"]["outputs"] + "dispatched/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.dispatched")

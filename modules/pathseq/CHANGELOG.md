@@ -20,3 +20,14 @@ This release was authored by Kostiantyn Dreval.
 - Currently it is designed to run on all samples, including bam/cram, rnaseq/genome, and tumour/normal. This can be modified in later versions as needed.
 
 - Temp files are generated in the output directory before writing finaal bam and are located in the folder with `parts` name. Pathseq hangs on indefinitely and does not exit with error if cancelled midway through and generated temp files. Therefore, rule `_pathseq_run` will clear temp files first if they exist.
+
+## [1.0] - Bug Fix - 2023-04-12
+
+Implemented by Sierra Gillis
+
+- Symlinks in the directory `00-inputs` now have both cram and bam extensions. 
+
+- The rule `_pathseq_run` determines which filetype the symlink points to, and uses the symlink with the appropriate extenstion as the input
+
+- In order to use cram files as input, the reference genome is specified in the command in the rule `_pathseq_run`
+

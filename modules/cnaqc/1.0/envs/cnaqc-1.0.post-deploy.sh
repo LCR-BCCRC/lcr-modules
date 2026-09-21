@@ -1,0 +1,1 @@
+../../../../envs/cnaqc/cnaqc-1.0.post-deploy.sh

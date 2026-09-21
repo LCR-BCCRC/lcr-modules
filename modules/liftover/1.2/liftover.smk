@@ -18,7 +18,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -26,13 +26,15 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
-    print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
-    print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
     sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
 
-# End of dependency checking section 
+# End of dependency checking section
 
 
 # Setup module and store module-specific configuration in `CFG`
@@ -62,9 +64,13 @@ rule _liftover_input_seg:
     input:
         seg = CFG["inputs"]["sample_seg"]
     output:
-        seg = CFG["dirs"]["inputs"] + "{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.seg"
+        seg = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.seg",
+        another_seg = CFG["dirs"]["outputs"] + "from--{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.seg"
+    wildcard_constraints:
+        tool = CFG["tool"]
     run:
-        op.relative_symlink(input.seg, output.seg)
+        op.relative_symlink(input.seg, output.seg, in_module=True)
+        op.relative_symlink(input.seg, output.another_seg, in_module = True)
 
 
 # Convert initial seg file into bed format
@@ -72,10 +78,10 @@ rule _liftover_seg_2_bed:
     input:
         seg = str(rules._liftover_input_seg.output.seg)
     output:
-        bed = CFG["dirs"]["seg2bed"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.bed",
-        header = temp(CFG["dirs"]["seg2bed"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.bed.header")
+        bed = CFG["dirs"]["seg2bed"] + "from--{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.bed",
+        header = temp(CFG["dirs"]["seg2bed"] + "from--{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.bed.header")
     log:
-        stderr = CFG["logs"]["seg2bed"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.stderr.log"
+        stderr = CFG["logs"]["seg2bed"] + "from--{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.stderr.log"
     params:
         opts = CFG["options"]["seg2bed2seg"],
         chr_colNum = CFG["options"]["chr_colNum"],
@@ -83,13 +89,15 @@ rule _liftover_seg_2_bed:
         end_colNum = CFG["options"]["end_colNum"],
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
-        python {params.opts} 
-        --input {input.seg} 
-        --output {output.bed} 
-        --chromColnum {params.chr_colNum} 
-        --startColnum {params.start_colNum} 
+        python {params.opts}
+        --input {input.seg}
+        --output {output.bed}
+        --chromColnum {params.chr_colNum}
+        --startColnum {params.start_colNum}
         --endColnum {params.end_colNum}
         2> {log.stderr}
         """)
@@ -108,20 +116,22 @@ rule _run_liftover:
         native = rules._liftover_seg_2_bed.output.bed,
         chains = get_chain
     output:
-        lifted = CFG["dirs"]["liftover"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.bed",
-        unmapped = CFG["dirs"]["liftover"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.unmapped.bed"
+        lifted = CFG["dirs"]["liftover"] + "from--{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.lifted_{chain}.bed",
+        unmapped = CFG["dirs"]["liftover"] + "from--{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.lifted_{chain}.unmapped.bed"
     log:
-        stderr = CFG["logs"]["liftover"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.stderr.log"
+        stderr = CFG["logs"]["liftover"] + "from--{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.lifted_{chain}.stderr.log"
     params:
         mismatch = CFG["options"]["min_mismatch"]
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        CFG["container_envs"]["liftover-366"]
     wildcard_constraints:
         chain = "hg38ToHg19|hg19ToHg38"
     shell:
         op.as_one_line("""
         liftOver -minMatch={params.mismatch}
-        {input.native} {input.chains} 
+        {input.native} {input.chains}
         {output.lifted} {output.unmapped}
         2> {log.stderr}
         """)
@@ -132,9 +142,9 @@ rule _liftover_sort:
     input:
         lifted = rules._run_liftover.output.lifted
     output:
-        lifted_sorted = CFG["dirs"]["liftover"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.sorted.bed"
+        lifted_sorted = CFG["dirs"]["liftover"] + "from--{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.lifted_{chain}.sorted.bed"
     log:
-        stderr = CFG["logs"]["liftover"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.sorted.stderr.log"
+        stderr = CFG["logs"]["liftover"] + "from--{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.lifted_{chain}.sorted.stderr.log"
     shell:
         op.as_one_line("""
         sort -k1,1 -k2,2n -V {input.lifted} |
@@ -150,19 +160,21 @@ rule _liftover_bed_2_seg:
         lifted_sorted = str(rules._liftover_sort.output.lifted_sorted),
         headers = str(rules._liftover_seg_2_bed.output.header)
     output:
-        seg_lifted = CFG["dirs"]["bed2seg"] + "from--{genome_build}/raw_segments/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.seg"
+        seg_lifted = CFG["dirs"]["bed2seg"] + "from--{seq_type}--{genome_build}/raw_segments/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.lifted_{chain}.seg"
     log:
-        stderr = CFG["logs"]["bed2seg"] + "from--{genome_build}/raw_segments/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.stderr.log"
+        stderr = CFG["logs"]["bed2seg"] + "from--{seq_type}--{genome_build}/raw_segments/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.lifted_{chain}.stderr.log"
     params:
         opts = CFG["options"]["seg2bed2seg"]
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
-        python {params.opts} 
+        python {params.opts}
         --input {input.lifted_sorted}
         --column-header {input.headers}
-        --output {output.seg_lifted} 
+        --output {output.seg_lifted}
         2> {log.stderr}
         """)
 
@@ -172,15 +184,17 @@ rule _liftover_fill_segments:
     input:
         seg_lifted = str(rules._liftover_bed_2_seg.output.seg_lifted)
     output:
-        seg_filled = CFG["dirs"]["bed2seg"] + "from--{genome_build}/filled_segments/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.filled.seg"
+        seg_filled = CFG["dirs"]["bed2seg"] + "from--{seq_type}--{genome_build}/filled_segments/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.lifted_{chain}.filled.seg"
     log:
-        stdout = CFG["logs"]["bed2seg"] + "from--{genome_build}/filled_segments/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.filled.stdout.log",
-        stderr = CFG["logs"]["bed2seg"] + "from--{genome_build}/filled_segments/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.filled.stderr.log"
+        stdout = CFG["logs"]["bed2seg"] + "from--{seq_type}--{genome_build}/filled_segments/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.lifted_{chain}.filled.stdout.log",
+        stderr = CFG["logs"]["bed2seg"] + "from--{seq_type}--{genome_build}/filled_segments/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.lifted_{chain}.filled.stderr.log"
     params:
         script = CFG["options"]["fill_segments"],
         chromArm = op.switch_on_wildcard("chain", CFG["chromArm"])
     conda:
         CFG["conda_envs"]["liftover-366"]
+    container:
+        CFG["container_envs"]["liftover-366"]
     shell:
         op.as_one_line("""
         python3 {params.script}
@@ -197,7 +211,7 @@ rule _liftover_output_seg:
     input:
         seg = str(rules._liftover_fill_segments.output.seg_filled)
     output:
-        seg = CFG["dirs"]["outputs"] + "from--{genome_build}/{tumour_sample_id}--{normal_sample_id}.{tool}.lifted_{chain}.seg"
+        seg = CFG["dirs"]["outputs"] + "from--{seq_type}--{genome_build}/{tumour_sample_id}--{normal_sample_id}--{pair_status}.{tool}.lifted_{chain}.seg"
     run:
         op.relative_symlink(input.seg, output.seg, in_module=True)
 
@@ -207,18 +221,21 @@ rule _liftover_all:
     input:
         expand(
             [
-                str(rules._liftover_output_seg.output.seg)
+                str(rules._liftover_output_seg.output.seg),
+                str(rules._liftover_input_seg.output.another_seg)
             ],
             zip,  # Run expand() with zip(), not product()
             tumour_sample_id=CFG["runs"]["tumour_sample_id"],
             normal_sample_id=CFG["runs"]["normal_sample_id"],
             genome_build = CFG["runs"]["tumour_genome_build"],
+            seq_type=CFG["runs"]["tumour_seq_type"],
+            pair_status=CFG["runs"]["pair_status"],
             #repeat the tool name N times in expand so each pair in run is used
             tool=[CFG["tool"]] * len(CFG["runs"]["tumour_sample_id"]),
             chain=["hg38ToHg19" if "38" in str(x) else "hg19ToHg38" for x in CFG["runs"]["tumour_genome_build"]]
             )
-            
-            
+
+
 
 ##### CLEANUP #####
 

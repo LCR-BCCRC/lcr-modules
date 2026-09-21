@@ -10,7 +10,7 @@
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -18,7 +18,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -65,10 +65,12 @@ rule _pathseq_input_bam:
         bai = CFG["inputs"]["sample_bai"]
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
+        cram = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.cram",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
         op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bam, output.cram)
         op.absolute_symlink(input.bai, output.bai)
         op.absolute_symlink(input.bai, output.crai)
 
@@ -83,6 +85,8 @@ rule _pathseq_input_fasta:
         genome_fai = CFG["dirs"]["inputs"] + "references/{genome_build}/genome.noEBV.fa.fai"
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -107,6 +111,8 @@ rule _pathseq_fasta_dictionary:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["picard"]
+    container:
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -135,6 +141,8 @@ rule _pathseq_reference_img:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -163,6 +171,8 @@ rule _pathseq_reference_bfi:
         stderr = CFG["logs"]["inputs"] + "references/{genome_build}/genome_{genome_build}.BwaMemIndexImageCreator.stderr.log"
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -216,6 +226,8 @@ rule _pathseq_collect_flagstats:
         flagstat = CFG["dirs"]["flagstat"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.{genome_build}.flagstat"
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     threads:
         CFG["threads"]["reference"]
     resources:
@@ -230,11 +242,13 @@ rule _pathseq_collect_flagstats:
 rule _pathseq_run:
     input:
         bam = str(rules._pathseq_input_bam.output.bam),
+        cram = str(rules._pathseq_input_bam.output.cram),
         k_mers = str(rules._pathseq_reference_img.output.genome_img),
         genome_img = str(rules._pathseq_reference_bfi.output.genome_bfi),
         taxonomy = str(rules._pathseq_download_taxonomy.output.taxonomy),
         microbe_dict = str(rules._pathseq_download_microbe_references.output.microbe_dict),
-        microbe_image = str(rules._pathseq_download_microbe_references.output.microbe_image)
+        microbe_image = str(rules._pathseq_download_microbe_references.output.microbe_image),
+        genome_fa = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         bam = temp(CFG["dirs"]["pathseq"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.{genome_build}.pathseq.bam"),
         scores = CFG["dirs"]["pathseq"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.{genome_build}.pathseq.scores.txt"
@@ -247,6 +261,8 @@ rule _pathseq_run:
         flags = CFG["options"]["flags"]
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["pathseq"]
     resources:
@@ -256,22 +272,42 @@ rule _pathseq_run:
           if [ -e {output.bam}.parts ]; then rm -R {output.bam}.parts; fi
               &&
           echo "running {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
-          gatk PathSeqPipelineSpark --spark-master local[{threads}]
-          --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
-          {params.flags}
-          --input {input.bam}
-          --filter-bwa-image {input.genome_img}
-          --kmer-file {input.k_mers}
-          --min-clipped-read-length {params.min_read_length} 
-          --microbe-dict {input.microbe_dict}
-          --microbe-bwa-image {input.microbe_image}
-          --taxonomy-file {input.taxonomy}
-          --output {output.bam}
-          --scores-output {output.scores}
-          >> {log.stdout}
-          2>> {log.stderr} &&  
-          echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
-        """)
+          if [[ $(readlink -f {input.bam}) == *.cram ]]; then
+            gatk PathSeqPipelineSpark --spark-master local[{threads}]
+            --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
+            {params.flags}
+            --input {input.cram}
+            --filter-bwa-image {input.genome_img}
+            --kmer-file {input.k_mers}
+            --min-clipped-read-length {params.min_read_length}
+            --microbe-dict {input.microbe_dict}
+            --microbe-bwa-image {input.microbe_image}
+            --taxonomy-file {input.taxonomy}
+            --output {output.bam}
+            --scores-output {output.scores}
+            --reference {input.genome_fa}
+            >> {log.stdout}
+            2>> {log.stderr} &&
+            echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
+          else
+            gatk PathSeqPipelineSpark --spark-master local[{threads}]
+            --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
+            {params.flags}
+            --input {input.bam}
+            --filter-bwa-image {input.genome_img}
+            --kmer-file {input.k_mers}
+            --min-clipped-read-length {params.min_read_length}
+            --microbe-dict {input.microbe_dict}
+            --microbe-bwa-image {input.microbe_image}
+            --taxonomy-file {input.taxonomy}
+            --output {output.bam}
+            --scores-output {output.scores}
+            --reference {input.genome_fa}
+            >> {log.stdout}
+            2>> {log.stderr} &&
+            echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
+          fi
+         """)
 
 
 # Calculate the proportion of EBV reads in the given sample
@@ -285,6 +321,8 @@ rule _pathseq_calculate_ebv:
         opts = CFG["options"]["ebv_cutoff"]
     conda:
         CFG["conda_envs"]["R"]
+    container:
+        None
     threads:
         CFG["threads"]["calculate_ebv"]
     resources:

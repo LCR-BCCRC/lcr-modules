@@ -44,9 +44,9 @@ rule _controlfreec_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
-        
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
+
 
 # generate references
 rule _get_map_refs:
@@ -97,6 +97,8 @@ rule _generate_chrFasta:
         fasta = "references/{genome_build}/freec/chr/{chromosome}.fa"
     conda:
         CFG["conda_envs"]["controlfreec"]
+    container:
+        CFG["container_envs"]["controlfreec"]
     params:
         chr_prefix = lambda w: {"grch37": " ",
                         "hg19": "chr",
@@ -125,6 +127,8 @@ rule _controlfreec_config:
         CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/config_WGS.txt"
     conda:
         CFG["conda_envs"]["controlfreec"]
+    container:
+        CFG["container_envs"]["controlfreec"]
     params:
         config = CFG["options"]["configFile"],
         outdir = CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/",
@@ -182,6 +186,8 @@ rule _controlfreec_run:
         CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_ratio.txt",
         CFG["dirs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}.bam_CNVs"
     conda: CFG["conda_envs"]["controlfreec"]
+    container:
+        CFG["container_envs"]["controlfreec"]
     threads: CFG["threads"]["controlfreec_run"]
     resources: mem_mb = CFG["mem_mb"]["controlfreec_run"]
     log:
@@ -202,7 +208,9 @@ rule _controlfreec_calc_sig:
     threads: CFG["threads"]["calc_sig"]
     resources: mem_mb = CFG["mem_mb"]["calc_sig"]
     conda: CFG["conda_envs"]["controlfreec"]
-    log:         
+    container:
+        CFG["container_envs"]["controlfreec"]
+    log:
         stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/calc_sig.stdout.log",
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/calc_sig.stderr.log"
     shell:
@@ -222,7 +230,9 @@ rule _controlfreec_plot:
     threads: CFG["threads"]["plot"]
     resources: mem_mb = CFG["mem_mb"]["plot"]
     conda: CFG["conda_envs"]["controlfreec"]
-    log: 
+    container:
+        CFG["container_envs"]["controlfreec"]
+    log:
         stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/plot.stdout.log",
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}/{sample_id}/plot.stderr.log"
     shell:
@@ -240,9 +250,9 @@ rule _controlfreec_output:
         log2plot = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/log2plots/{sample_id}.bam_ratio.txt.log2.png",
         CNV = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/CNV/{sample_id}.bam_CNVs.p.value.txt"
     run:
-        op.relative_symlink(input.plot, output.plot)
-        op.relative_symlink(input.log2plot, output.log2plot)
-        op.relative_symlink(input.CNV, output.CNV)
+        op.relative_symlink(input.plot, output.plot, in_module = True)
+        op.relative_symlink(input.log2plot, output.log2plot, in_module = True)
+        op.relative_symlink(input.CNV, output.CNV, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks

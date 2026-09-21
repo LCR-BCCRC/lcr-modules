@@ -1,0 +1,7 @@
+name: sortedcontainers
+channels:
+    - anaconda
+    - defaults
+dependencies:
+    - sortedcontainers=2.4.0
+prefix: /home/anaconda3/envs/sortedcontainers/

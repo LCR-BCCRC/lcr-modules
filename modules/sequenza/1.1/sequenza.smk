@@ -45,8 +45,8 @@ rule _sequenza_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
 
 
 # Pulls in list of chromosomes for the genome builds
@@ -56,7 +56,7 @@ checkpoint _sequenza_input_chroms:
     output:
         txt = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
     run:
-        op.relative_symlink(input.txt, output.txt)
+        op.absolute_symlink(input.txt, output.txt)
 
 
 # Pulls in list of chromosomes for the genome builds
@@ -94,15 +94,17 @@ rule _sequenza_bam2seqz:
         seqz_binning_opts = CFG["options"]["seqz_binning"]
     conda:
         CFG["conda_envs"]["sequenza-utils"]
+    container:
+        CFG["container_envs"]["sequenza-utils"]
     threads:
         CFG["threads"]["bam2seqz"]
     resources:
         mem_mb = CFG["mem_mb"]["bam2seqz"]
     shell:
         op.as_one_line("""
-        sequenza-utils bam2seqz {params.bam2seqz_opts} -gc {input.gc_wiggle} --fasta {input.genome} 
+        sequenza-utils bam2seqz {params.bam2seqz_opts} -gc {input.gc_wiggle} --fasta {input.genome}
         --normal {input.normal_bam} --tumor {input.tumour_bam} --chromosome {wildcards.chrom} 2>> {log.stderr}
-            | 
+            |
         sequenza-utils seqz_binning {params.seqz_binning_opts} --seqz - 2>> {log.stderr}
             |
         gzip > {output} 2>> {log.stderr}
@@ -114,7 +116,7 @@ def _sequenza_request_chrom_seqz_files(wildcards):
     with open(checkpoints._sequenza_input_chroms.get(**wildcards).output.txt) as f:
         mains_chroms = f.read().rstrip("\n").split("\n")
     seqz_files = expand(
-        CFG["dirs"]["seqz"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/chromosomes/{chrom}.binned.seqz.gz", 
+        CFG["dirs"]["seqz"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_id}}--{{pair_status}}/chromosomes/{chrom}.binned.seqz.gz",
         chrom=mains_chroms
     )
     return seqz_files
@@ -130,12 +132,12 @@ rule _sequenza_merge_seqz:
     log:
         stderr = CFG["logs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_merge_seqz.stderr.log"
     threads: CFG["threads"]["merge_seqz"]
-    resources: 
+    resources:
         mem_mb = CFG["mem_mb"]["merge_seqz"]
     shell:
         op.as_one_line("""
         bash {input.merge_seqz} {input} 2>> {log.stderr}
-            | 
+            |
         gzip > {output.seqz} 2>> {log.stderr}
         """)
 
@@ -150,7 +152,7 @@ rule _sequenza_filter_seqz:
     log:
         stderr = CFG["logs"]["seqz"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_filter_seqz.stderr.log"
     threads: CFG["threads"]["filter_seqz"]
-    resources: 
+    resources:
         mem_mb = CFG["mem_mb"]["filter_seqz"]
     shell:
         op.as_one_line("""
@@ -174,12 +176,14 @@ rule _sequenza_run:
         stderr = CFG["logs"]["sequenza"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sequenza_run.{filter_status}.stderr.log"
     conda:
         CFG["conda_envs"]["r-sequenza"]
+    container:
+        None
     threads: CFG["threads"]["sequenza"]
-    resources: 
+    resources:
         mem_mb = CFG["mem_mb"]["sequenza"]
     shell:
         op.as_one_line("""
-        Rscript {input.run_sequenza} {input.seqz} {input.assembly} {input.chroms} {input.x_chrom} 
+        Rscript --vanilla {input.run_sequenza} {input.seqz} {input.assembly} {input.chroms} {input.x_chrom}
         $(dirname {output.segments}) {threads} > {log.stdout} 2> {log.stderr}
         """)
 
@@ -196,9 +200,11 @@ rule _sequenza_cnv2igv:
         opts = CFG["options"]["cnv2igv"]
     conda:
         CFG["conda_envs"]["cnv2igv"]
+    container:
+        None
     shell:
         op.as_one_line("""
-        python {input.cnv2igv} {params.opts} --sample {wildcards.tumour_id} 
+        python {input.cnv2igv} {params.opts} --sample {wildcards.tumour_id}
         {input.segments} > {output} 2> {log.stderr}
         """)
 
@@ -210,7 +216,7 @@ rule _sequenza_output_seg:
     output:
         seg = CFG["dirs"]["outputs"] + "{filter_status}_seg/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.igv.seg"
     run:
-        op.relative_symlink(input.seg, output.seg)
+        op.relative_symlink(input.seg, output.seg, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks

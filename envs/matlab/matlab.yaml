@@ -1,0 +1,13 @@
+name: matlab
+channels:
+  - cyclus
+  - anaconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1
+  - _openmp_mutex=4.5
+  - java-jre=8.45.14
+  - libgcc-ng=9.3.0
+  - libgomp=9.3.0
+  - ncurses=6.3
+prefix: /home/kdreval/miniconda3/envs/matlab

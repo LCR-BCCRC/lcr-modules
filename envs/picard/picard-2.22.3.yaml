@@ -64,6 +64,7 @@ dependencies:
   - pango=1.42.4
   - pcre=8.44
   - picard=2.22.3
+  - pigz
   - pip=20.0.2
   - pixman=0.38.0
   - pthread-stubs=0.4

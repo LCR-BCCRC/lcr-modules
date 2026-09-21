@@ -47,8 +47,8 @@ rule _varscan_input_bam:
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bam + ".bai")
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bam + ".bai")
 
 
 # Pulls in list of chromosomes for the genome builds
@@ -58,7 +58,7 @@ checkpoint _varscan_input_chroms:
     output:
         txt = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
     run:
-        op.relative_symlink(input.txt, output.txt)
+        op.absolute_symlink(input.txt, output.txt)
 
 # generate mpileups for tumour and normal bams separately. 
 # If we parallelize this by chromosome we will need 2 * 2 threads per chromosome but this should be a lot more efficient
@@ -74,6 +74,8 @@ rule _varscan_bam2mpu:
         opts = CFG["options"]["mpileup"]
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     threads:
         1    #hardcoded because samtools mpileup does not support more than one thread.
     resources:
@@ -104,6 +106,8 @@ rule _varscan_somatic:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["somatic"])
     conda:
         CFG["conda_envs"]["varscan"]
+    container:
+        CFG["container_envs"]["varscan"]
     threads:
         CFG["threads"]["somatic"]   #this seems to rarely exceed 300% due to samtools and/or I/O restrictions
     resources:
@@ -131,6 +135,8 @@ rule _varscan_unpaired:
         opts = op.switch_on_wildcard("seq_type", CFG["options"]["unpaired"])
     conda:
         CFG["conda_envs"]["varscan"]
+    container:
+        CFG["container_envs"]["varscan"]
     threads:
         CFG["threads"]["unpaired"]
     resources:
@@ -152,6 +158,8 @@ rule _varscan_reheader_vcf:
         vcf = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{chrom}_{vcf_name}.vcf.gz"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     shell:
         op.as_one_line("""
         contig=$( awk '{{printf("##contig=<ID=%s,length=%d>\\n",$1,$2);}}' {input.fai})
@@ -180,6 +188,8 @@ rule _varscan_combine_vcf:
         vcf_gz = CFG["dirs"]["varscan"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/pass.somatic.{vcf_name}.vcf.gz"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     shell:
         op.as_one_line(""" 
         bcftools concat -o {output.vcf} {input.vcf} 
@@ -195,7 +205,7 @@ rule _varscan_symlink_maf:
     output:
         vcf = CFG["dirs"]["maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.vcf"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.vcf, output.vcf, in_module=True)
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
@@ -205,7 +215,7 @@ rule _varscan_output_vcf:
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.somatic.{vcf_name}.vcf.gz"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.vcf, output.vcf, in_module=True)
 
 
 rule _varscan_output_maf:
@@ -215,7 +225,7 @@ rule _varscan_output_maf:
     output:
         maf = CFG["dirs"]["outputs"] + "maf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}-pass.somatic.{vcf_name}.maf"
     run:
-        op.relative_symlink(input.maf, output.maf)
+        op.relative_symlink(input.maf, output.maf, in_module=True)
 
 
 def _varscan_get_output(wildcards):

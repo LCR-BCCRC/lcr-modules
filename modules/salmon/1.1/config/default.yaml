@@ -20,7 +20,11 @@ lcr-modules:
         conda_envs:
             salmon: "{MODSDIR}/envs/salmon-1.3.0.yaml"
             salmon2counts: "{SCRIPTSDIR}/salmon2counts/1.0/salmon2counts.yaml"
-            
+
+        container_envs:
+            salmon: "docker://quay.io/biocontainers/salmon:1.3.0--hf69c8f4_0"
+            salmon2counts: null
+
         threads:
             quant: 4
 

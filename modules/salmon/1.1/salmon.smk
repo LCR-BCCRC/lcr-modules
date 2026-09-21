@@ -15,6 +15,27 @@
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 import pandas as pd
+
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+from importlib.metadata import version as pkg_version
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_version("oncopipe")
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
+
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["salmon"]`
 CFG = op.setup_module(
@@ -42,8 +63,8 @@ rule _salmon_input_fastq:
         fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.read1.fastq.gz",
         fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.read2.fastq.gz"
     run:
-        op.relative_symlink(input.fastq_1, output.fastq_1)
-        op.relative_symlink(input.fastq_2, output.fastq_2)
+        op.absolute_symlink(input.fastq_1, output.fastq_1)
+        op.absolute_symlink(input.fastq_2, output.fastq_2)
 
 
 rule _salmon_quant:
@@ -63,6 +84,8 @@ rule _salmon_quant:
         quant_to = CFG["transcriptome"]["quant_to"]
     conda:
         CFG["conda_envs"]["salmon"]
+    container:
+        CFG["container_envs"]["salmon"]
     threads:
         CFG["threads"]["quant"]
     resources:
@@ -85,7 +108,7 @@ rule _salmon_output:
     output:
         quant = CFG["dirs"]["outputs"] + "quant_to_" + CFG["transcriptome"]["quant_to"] + "/{seq_type}/{sample_id}.quant.sf"
     run:
-        op.relative_symlink(input.quant, output.quant)
+        op.relative_symlink(input.quant, output.quant, in_module=True)
 
 
 rule export_sample_table:
@@ -122,11 +145,13 @@ rule build_counts_matrix:
         out_dir = directory(CFG["dirs"]["outputs"] + "quant_to_" + CFG["transcriptome"]["quant_to"] + "_matrix/{seq_type}/")
     conda:
         CFG["conda_envs"]["salmon2counts"]
+    container:
+        CFG["container_envs"]["salmon2counts"]
     resources:
         **CFG["resources"]["matrix"]
     shell:
         op.as_one_line("""
-        Rscript {input.salmon2counts}
+        Rscript --vanilla {input.salmon2counts}
         {params.path}
         {input.gtf}
         {params.out_dir}

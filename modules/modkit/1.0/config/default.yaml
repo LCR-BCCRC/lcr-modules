@@ -1,0 +1,31 @@
+lcr-modules:
+    
+    modkit:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+
+        conda_envs:
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
+            modkit: "{MODSDIR}/envs/modkit-0.4.2.yaml"
+        container_envs:
+            modkit: "docker://quay.io/biocontainers/ont-modkit:0.4.2--hcdda2d0_0"
+
+            
+        threads:
+            pileup: 8
+
+        resources:
+            modkit: 
+                mem_mb: 2000
+            
+        pairing_config:
+            promethION:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

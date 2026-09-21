@@ -19,9 +19,10 @@ lcr-modules:
         threads:
             step_1: 4
 
-        mem_mb:
-            step_1: 2000
-
+        resources:
+            step_1: 
+                mem_mb: 2000
+            
         pairing_config:
         {%- for seq_type, mode in cookiecutter.items() if seq_type.startswith("seq_type.") %}
             {%- if mode != "omit" %}

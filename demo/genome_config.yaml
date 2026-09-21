@@ -1,0 +1,62 @@
+lcr-modules:
+    _shared:
+        lcr-modules: "../"
+        lcr-scripts: "../../lcr-scripts/"
+        root_output_dir: "results/"
+        scratch_directory: "scratch/"
+        unmatched_normal_ids:
+            genome--grch37: "TCRBOA7-N-WGS"
+
+
+    sequenza:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+        scratch_subdirectories: []
+        options:
+            # in bam2seqz pass any additional flags for the sequenza-utils. For example, this can include --normal2 to use for depth.ratio calculation.
+            bam2seqz: "--qlimit 30"
+            seqz_binning: "--window 300"
+            cnv2igv: "--mode sequenza"
+
+    slms_3:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+
+    gridss:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+
+    battenberg:
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            sample_bam: "data/{sample_id}.bam"
+
+    controlfreec:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+
+    manta:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+
+    qc:
+        inputs:
+            sample_bam: "data/{sample_id}.bam"
+            sample_bai: "data/{sample_id}.bam.bai"
+
+    cnaqc:
+        inputs:
+            subclones: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_subclones.txt"
+            cellularity_ploidy: "results/battenberg-1.2/99-outputs/txt/{seq_type}--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
+            # UPDATE: provide a MAF with somatic SNVs. vcf2maf is not currently
+            # in this workflow. Either add it and use the path below, or point
+            # directly at an existing MAF file.
+            # vcf2maf 1.3 would produce (with base_name = slms-3.final):
+            #   results/slms_3-1.0_vcf2maf-1.3/99-outputs/deblacklisted/maf/
+            #     {seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3.final.maf
+            sample_maf: "__UPDATE__"

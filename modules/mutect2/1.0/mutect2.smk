@@ -44,8 +44,8 @@ rule _mutect2_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
 
 
 # Symlink chromosomes used for parallelization
@@ -55,7 +55,7 @@ checkpoint _mutect2_input_chrs:
     output:
         chrs = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
     run:
-        op.relative_symlink(input.chrs, output.chrs)
+        op.absolute_symlink(input.chrs, output.chrs)
 
 
 # Retrieves from SM tag from BAM and writes to file
@@ -68,6 +68,8 @@ rule _mutect2_get_sm:
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{sample_id}_mutect2_get_sm.stderr.log"
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     shell:
         "samtools view -H {input.bam} | grep '^@RG' | "
         r"sed 's/.*SM:\([^\t]*\).*/\1/g'"" | uniq > {output.sm} 2> {log.stderr}"
@@ -94,17 +96,19 @@ rule _mutect2_run_matched_unmatched:
         opts = CFG["options"]["mutect2_run"]
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["mutect2_run"]
     resources:
         **CFG["resources"]["mutect2_run"]
-    wildcard_constraints: 
+    wildcard_constraints:
         pair_status = "matched|unmatched"
     shell:
         op.as_one_line("""
         gatk Mutect2 {params.opts} -I {input.tumour_bam} -I {input.normal_bam}
         -R {input.fasta} -normal $(cat {input.normal_sm}) -O {output.vcf}
-        --germline-resource {input.gnomad} -L {wildcards.chrom} 
+        --germline-resource {input.gnomad} -L {wildcards.chrom}
         > {log.stdout} 2> {log.stderr}
         """)
 
@@ -127,15 +131,17 @@ rule _mutect2_run_no_normal:
         opts = CFG["options"]["mutect2_run"]
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["mutect2_run"]
     resources:
         **CFG["resources"]["mutect2_run"]
-    wildcard_constraints: 
+    wildcard_constraints:
         pair_status = "no_normal"
     shell:
         op.as_one_line("""
-        gatk Mutect2 {params.opts} -I {input.tumour_bam} -R {input.fasta} 
+        gatk Mutect2 {params.opts} -I {input.tumour_bam} -R {input.fasta}
         -O {output.vcf} --germline-resource {input.gnomad} -L {wildcards.chrom}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -177,6 +183,8 @@ rule _mutect2_merge_vcfs:
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_merge_vcfs.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["mutect2_merge_vcfs"]
     resources:
@@ -185,7 +193,7 @@ rule _mutect2_merge_vcfs:
         op.as_one_line("""
         bcftools concat --threads {threads} -a -O z {input.vcf} 2> {log.stderr}
             |
-        bcftools sort -O z -o {output.vcf} 2>> {log.stderr} 
+        bcftools sort -O z -o {output.vcf} 2>> {log.stderr}
             &&
         bcftools index -t --threads {threads} {output.vcf} 2>> {log.stderr}
         """)
@@ -214,6 +222,8 @@ rule _mutect2_merge_stats:
         stderr = CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_merge_stats.stderr.log"
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        CFG["container_envs"]["gatk"]
     shell:
         op.as_one_line("""
         gatk MergeMutectStats $(for i in {input.stat}; do echo -n "-stats $i "; done)
@@ -237,6 +247,8 @@ rule _mutect2_filter:
         opts = CFG["options"]["mutect2_filter"]
     conda:
         CFG["conda_envs"]["gatk"]
+    container:
+        CFG["container_envs"]["gatk"]
     threads:
         CFG["threads"]["mutect2_filter"]
     resources:
@@ -259,12 +271,14 @@ rule _mutect2_filter_passed:
         stderr = CFG["logs"]["passed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_filter_passed.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["mutect2_passed"]
     resources:
         **CFG["resources"]["mutect2_passed"]
     shell:
-        op.as_one_line(""" 
+        op.as_one_line("""
         bcftools view -f '.,PASS' -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
             &&
         tabix -p vcf {output.vcf} 2>> {log.stderr}
@@ -280,8 +294,8 @@ rule _mutect2_output_vcf:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.passed.vcf.gz",
         tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.output.passed.vcf.gz.tbi"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
-        op.relative_symlink(input.tbi, output.tbi)
+        op.relative_symlink(input.vcf, output.vcf, in_module = True)
+        op.relative_symlink(input.tbi, output.tbi, in_module = True)
 
 
 # Generates the target sentinels for each run, which generate the symlinks

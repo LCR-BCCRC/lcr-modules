@@ -1,0 +1,64 @@
+lcr-modules:
+
+    mixcr:
+
+        inputs:
+            # Available wildcards: {seq_type} {sample_id}
+            sample_fastq_1: "__UPDATE__"
+            sample_fastq_2: "__UPDATE__"
+            # Path to the MiXCR license file (mi.license).
+            # Set the MI_LICENSE_FILE environment variable to this path at runtime.
+            license_file: "__UPDATE__"
+        scratch_subdirectories: []
+
+        receptors: "__UPDATE__"
+        ###### Desired IG/TCR chains in list format or keyword:
+        ###### "ALL" = ['IGH', 'IGL', 'IGK', 'TRA', 'TRB', 'TRD', 'TRG']
+        ###### "BCR" = ['IGH', 'IGL', 'IGK']
+        ###### "TCR" = ['TRA', 'TRB', 'TRD', 'TRG']
+
+        scripts:
+            mixcr2fasta: "{MODSDIR}/src/mixcr_to_fasta.py"
+            mixcr_subset_dominant: "{MODSDIR}/src/mixcr_subset_dominant.py"
+
+        options:
+            # Number of top clones by readFraction to include in the dominant
+            # TSV and FASTA outputs. MiXCR writes clones in descending readFraction
+            # order, so this keeps the most abundant clones. Parallel to the
+            # n_dominant option in the igseqr module.
+            n_dominant: 5
+
+            preset:
+                mrna: "rna-seq"
+                capture: "exome-seq"
+                genome: "exome-seq"
+            mixcr_run:
+                # Extra flags appended after the fixed options (preset, --species, --assemble-longest-contigs).
+                # Add per-seq-type overrides here (e.g. tag patterns, receptor-type constraints).
+                mrna: "--force-overwrite"
+                capture: "--force-overwrite"
+                genome: "--force-overwrite"
+
+        conda_envs:
+            java: "{MODSDIR}/envs/java-jdk-8.0.yaml"
+
+        container_envs:
+            java: "docker://ghcr.io/milaboratory/mixcr/mixcr:4.7.0-364-develop"
+
+        threads:
+            mixcr_run: 4
+
+        resources:
+            mixcr_run:
+                mem_mb: 10000
+                fastq: 1
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

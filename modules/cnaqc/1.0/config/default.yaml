@@ -1,0 +1,48 @@
+lcr-modules:
+
+    cnaqc:
+        inputs:
+            # Battenberg 1.2 subclones (filled) and cellularity/ploidy files
+            # Available wildcards: {seq_type} {genome_build} {tumour_id} {normal_id} {pair_status}
+            subclones: "__UPDATE__"
+            cellularity_ploidy: "__UPDATE__"
+            # MAF file with somatic SNVs (e.g. from vcf2maf/slms-3)
+            # Must contain: Chromosome, Start_Position, t_alt_count, t_depth, Reference_Allele, Tumor_Seq_Allele2 columns
+            sample_maf: "__UPDATE__"
+            # Path to the CNAqc R scripts (resolved at module load via {MODSDIR})
+            cnaqc_script: "{MODSDIR}/src/run_cnaqc.R"
+            ccf_script: "{MODSDIR}/src/run_ccf.R"
+
+        scratch_subdirectories: []
+
+        options:
+            # Minimum depth for a variant to be included in CNAqc analysis
+            min_depth: 10
+            # Minimum number of mutations in a segment for peak analysis
+            min_muts_per_segment: 10
+            # Whether to run peak analysis (True/False)
+            run_peak_analysis: True
+
+        conda_envs:
+            cnaqc: "{MODSDIR}/envs/cnaqc-1.0.yaml"
+            gamblr: "{MODSDIR}/envs/gamblr.yaml"
+
+        container_envs:
+            cnaqc: "docker://ghcr.io/lcr-bccrc/lcr-scripts/cnaqc:1.0"
+
+        threads:
+            cnaqc: 1
+
+        resources:
+            cnaqc:
+                mem_mb: 8000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: null
+                run_paired_tumours_as_unpaired: False

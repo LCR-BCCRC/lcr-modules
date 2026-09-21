@@ -16,6 +16,26 @@ import os
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+from importlib.metadata import version as pkg_version
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_version("oncopipe")
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section
+
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["bwa_mem"]`
 CFG = op.setup_module(
@@ -23,6 +43,7 @@ CFG = op.setup_module(
     version = "1.1",
     subdirectories = ["inputs", "bwa_mem",  "sort_bam", "mark_dups", "outputs"],
 )
+_UTILS = config["lcr-modules"]["utils"] # this is needed to infer whether output is compressed
 
 # Define rules to be run locally when using a compute cluster
 localrules:
@@ -48,8 +69,8 @@ rule _bwa_mem_input_fastq:
         fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R1.fastq.gz",
         fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R2.fastq.gz",
     run:
-        op.relative_symlink(input.fastq_1, output.fastq_1)
-        op.relative_symlink(input.fastq_2, output.fastq_2)
+        op.absolute_symlink(input.fastq_1, output.fastq_1)
+        op.absolute_symlink(input.fastq_2, output.fastq_2)
 
 
 rule _bwa_mem_run:
@@ -67,18 +88,20 @@ rule _bwa_mem_run:
         opts = CFG["options"]["bwa_mem"]
     conda:
         CFG["conda_envs"]["bwa"]
+    container:
+        CFG["container_envs"]["bwa"]
     threads:
         CFG["threads"]["bwa_mem"]
     resources:
         **CFG["resources"]["bwa_mem"]
-    wildcard_constraints: 
+    wildcard_constraints:
         sample_id = "|".join(sample_ids_bwa_mem)
     shell:
         op.as_one_line("""
-        bwa mem -t {threads} 
+        bwa mem -t {threads}
         {params.opts}
         {input.fasta}
-        {input.fastq_1} {input.fastq_2} 
+        {input.fastq_1} {input.fastq_2}
         > {output.sam}
         2> {log.stderr}
         """)
@@ -88,7 +111,7 @@ rule _bwa_mem_samtools:
     input:
         sam = str(rules._bwa_mem_run.output.sam)
     output:
-        bam = CFG["dirs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}_out.bam", 
+        bam = CFG["dirs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}_out.bam",
         complete = touch(CFG["dirs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}_out.bam.complete")
     log:
         stderr = CFG["logs"]["bwa_mem"] + "{seq_type}--{genome_build}/{sample_id}/samtools.stderr.log"
@@ -96,16 +119,18 @@ rule _bwa_mem_samtools:
         opts = CFG["options"]["samtools"]
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     threads:
         CFG["threads"]["samtools"]
     resources:
         **CFG["resources"]["samtools"]
-    wildcard_constraints: 
+    wildcard_constraints:
         sample_id = "|".join(sample_ids_bwa_mem)
     shell:
         op.as_one_line("""
         samtools view {params.opts}
-        {input.sam} > {output.bam} 
+        {input.sam} > {output.bam}
         2> {log.stderr}
         """)
 
@@ -115,10 +140,10 @@ rule _bwa_mem_symlink_bam:
         bam = str(rules._bwa_mem_samtools.output.bam)
     output:
         bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.bam"
-    wildcard_constraints: 
+    wildcard_constraints:
         sample_id = "|".join(sample_ids_bwa_mem)
     run:
-        op.relative_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bam, output.bam)
 
 
 rule _bwa_mem_symlink_sorted_bam:
@@ -127,29 +152,50 @@ rule _bwa_mem_symlink_sorted_bam:
         bwa_mem_bam = str(rules._bwa_mem_samtools.output.bam)
     output:
         bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam"
-    wildcard_constraints: 
+    wildcard_constraints:
         sample_id = "|".join(sample_ids_bwa_mem)
     run:
-        op.relative_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bam, output.bam)
         os.remove(input.bwa_mem_bam)
         shell("touch {input.bwa_mem_bam}.deleted")
 
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
-rule _bwa_mem_output_bam:
-    input:
-        bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".bam",
-        bai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".bam.bai",
-        sorted_bam = str(rules._bwa_mem_symlink_sorted_bam.input.bam)
-    output:
-        bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
-    wildcard_constraints: 
-        sample_id = "|".join(sample_ids_bwa_mem)
-    run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bam + ".bai")
-        os.remove(input.sorted_bam)
-        shell("touch {input.sorted_bam}.deleted")
+if _UTILS["compress_to_cram"]:
+
+    rule _bwa_mem_output_bam:
+        input:
+            cram = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".cram",
+            crai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".cram.crai",
+            sorted_bam = str(rules._bwa_mem_symlink_sorted_bam.input.bam)
+        output:
+            bam = CFG["dirs"]["outputs"] + "cram/{seq_type}--{genome_build}/{sample_id}.cram"
+        wildcard_constraints:
+            sample_id = "|".join(sample_ids_bwa_mem)
+        run:
+            op.relative_symlink(input.cram, output.bam, in_module=True)
+            op.relative_symlink(input.crai, output.bam + ".crai", in_module=True)
+            os.remove(input.sorted_bam)
+            shell("touch {input.sorted_bam}.deleted")
+elif not _UTILS["compress_to_cram"]:
+    rule _bwa_mem_output_bam:
+        input:
+            bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".bam",
+            bai = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}" + CFG["options"]["suffix"] + ".bam.bai",
+            sorted_bam = str(rules._bwa_mem_symlink_sorted_bam.input.bam)
+        output:
+            bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
+        wildcard_constraints:
+            sample_id = "|".join(sample_ids_bwa_mem)
+        run:
+            op.relative_symlink(input.bam, output.bam, in_module=True)
+            op.relative_symlink(input.bai, output.bam + ".bai", in_module=True)
+            os.remove(input.sorted_bam)
+            shell("touch {input.sorted_bam}.deleted")
+
+else:
+    raise ValueError("config['lcr-modules']['utils']['compress_to_cram'] must be set to a boolean value (True or False)")
+
 
 
 # Generates the target sentinels for each run, which generate the symlinks

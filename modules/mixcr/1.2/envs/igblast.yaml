@@ -1,0 +1,20 @@
+name: igblast
+channels:
+  - bioconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1
+  - _openmp_mutex=4.5
+  - bzip2=1.0.8
+  - icu=58.2
+  - igblast=1.17.1
+  - libgcc-ng=9.3.0
+  - libgomp=9.3.0
+  - libstdcxx-ng=9.3.0
+  - libxml2=2.9.12
+  - ncbi-vdb=2.11.0
+  - perl=5.26.2
+  - xz=5.2.5
+  - zlib=1.2.11
+prefix: /home/mcruz/miniconda3/envs/igblast
+

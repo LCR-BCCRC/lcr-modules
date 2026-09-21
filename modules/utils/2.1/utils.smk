@@ -17,6 +17,26 @@ from os.path import join
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+from importlib.metadata import version as pkg_version
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_version("oncopipe")
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
+
 _UTILS = config["lcr-modules"]["utils"]
 LOG = "/logs/" + op._session.launched_fmt
 
@@ -42,6 +62,8 @@ rule _utils_bam_sort:
         memory= lambda wildcards, resources, threads: int(resources.mem_mb/threads/2)
     conda:
         _UTILS["conda_envs"]["samtools"]
+    container:
+        _UTILS["container_envs"]["samtools"]
     threads:
         _UTILS["threads"]["bam_sort"]
     resources: 
@@ -74,6 +96,8 @@ rule _utils_bam_markdups:
         opts = _UTILS["options"]["bam_markdups"]
     conda:
         _UTILS["conda_envs"]["sambamba"]
+    container:
+        _UTILS["container_envs"]["sambamba"]
     threads:
         _UTILS["threads"]["bam_markdups"]
     resources: 
@@ -102,20 +126,90 @@ rule _utils_bam_index:
         opts = _UTILS["options"]["bam_index"]
     conda:
         _UTILS["conda_envs"]["samtools"]
+    container:
+        _UTILS["container_envs"]["samtools"]
     threads:
         _UTILS["threads"]["bam_index"]
-    resources: 
+    resources:
         mem_mb = _UTILS["mem_mb"]["bam_index"]
     shell:
         op.as_one_line("""
-        samtools index 
-        {params.opts} 
-        -@ {threads} 
+        samtools index
+        {params.opts}
+        -@ {threads}
         {input.bam} 
         > {log.stdout}
         2> {log.stderr}
         """)
 
+
+# run cram compression
+def determine_reference(wildcards):
+    this_genone_build = str(wildcards.prefix).split('--')[1]
+    this_reference = str("genomes/" + this_genone_build + "/genome_fasta/genome.fa")
+    this_fasta = reference_files(this_reference)
+    return this_fasta
+
+rule _utils_bam_to_cram:
+    input:
+        bam = "{out_dir}/{prefix}/{suffix}.mdups.bam",
+        fasta = determine_reference
+    output:
+        cram = "{out_dir}/{prefix}/{suffix}.mdups.cram"
+    log:
+        stdout = "{out_dir}" + LOG + "/{prefix}/{suffix}_bam_to_cram.stdout.log",
+        stderr = "{out_dir}" + LOG + "/{prefix}/{suffix}_bam_to_cram.stderr.log"
+    wildcard_constraints:
+        prefix = ".*(mark_dups).*"
+    params:
+        opts = _UTILS["options"]["bam_to_cram"]
+    conda:
+        _UTILS["conda_envs"]["samtools"]
+    container:
+        _UTILS["container_envs"]["samtools"]
+    threads:
+        _UTILS["threads"]["bam_to_cram"]
+    resources: 
+        mem_mb = _UTILS["mem_mb"]["bam_to_cram"]
+    shell:
+        op.as_one_line("""
+        samtools view -C -T {input.fasta} -@ {threads} -o {output.cram} {input.bam}
+            &&
+        rm {input.bam}
+            &&
+        touch {input.bam}.deleted
+        > {log.stdout}
+        2> {log.stderr}
+        """)
+
+
+rule _utils_cram_index:
+    input:
+        cram = "{out_dir}/{prefix}/{suffix}.cram"
+    output:
+        cram = "{out_dir}/{prefix}/{suffix}.cram.crai"
+    log:
+        stdout = "{out_dir}" + LOG + "/{prefix}/{suffix}_index.stdout.log",
+        stderr = "{out_dir}" + LOG + "/{prefix}/{suffix}_index.stderr.log"
+    params:
+        opts = _UTILS["options"]["bam_index"]
+    conda:
+        _UTILS["conda_envs"]["samtools"]
+    container:
+        _UTILS["container_envs"]["samtools"]
+    threads:
+        _UTILS["threads"]["bam_index"]
+    resources:
+        mem_mb = _UTILS["mem_mb"]["bam_index"]
+    shell:
+        op.as_one_line("""
+        samtools index
+        {params.opts}
+        -@ {threads}
+        {input.cram} 
+        > {log.stdout}
+        2> {log.stderr}
+        """)
 
 rule _utils_create_intervals: # create_interval_list from bed; default exomes
     input:
@@ -125,8 +219,10 @@ rule _utils_create_intervals: # create_interval_list from bed; default exomes
         intervals = "reference/exomes/{genome_build}/interval/{id}_intervals.txt"
     log: 
         "reference/exomes/{genome_build}/interval/{id}_intervals.log"
-    conda: 
+    conda:
         _UTILS["conda_envs"]["picard"]
+    container:
+        _UTILS["container_envs"]["picard"]
     threads:
         _UTILS["threads"]["interval"]
     resources: 

@@ -23,7 +23,12 @@ lcr-modules:
             strelka: "{MODSDIR}/envs/strelka-2.9.10.yaml"
             tabix: "{MODSDIR}/envs/tabix-0.2.6.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.9.yaml"
-            
+
+        container_envs:
+            strelka: "docker://quay.io/biocontainers/strelka:2.9.10--h9ee0642_1"
+            tabix: "docker://quay.io/biocontainers/tabix:0.2.6--ha92aebf_0"
+            bcftools: "docker://quay.io/biocontainers/bcftools:1.9--h47928c2_1"
+
         threads:
             strelka: 12 #if you increase this the mem_mb should also be increased, probably proportionately
 

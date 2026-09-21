@@ -15,6 +15,27 @@
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
 
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.11"
+from importlib.metadata import version as pkg_version
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_version("oncopipe")
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section 
+
+
 # Setup module and store module-specific configuration in `CFG`
 # `CFG` is a shortcut to `config["lcr-modules"]["picard_qc"]`
 CFG = op.setup_module(
@@ -47,8 +68,8 @@ rule _picard_qc_input_bam:
         sample_bam = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bam",
         sample_bai = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
-        op.relative_symlink(input.sample_bam, output.sample_bam)
-        op.relative_symlink(input.sample_bai, output.sample_bai)
+        op.absolute_symlink(input.sample_bam, output.sample_bam)
+        op.absolute_symlink(input.sample_bai, output.sample_bai)
 
 
 rule _picard_qc_alignment_summary:
@@ -64,6 +85,8 @@ rule _picard_qc_alignment_summary:
         opts = CFG["options"]["alignment_summary"]
     conda:
         CFG["conda_envs"]["picard"]
+    container:
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["alignment_summary"]
     resources:
@@ -90,6 +113,8 @@ rule _picard_qc_insert_size:
         opts = CFG["options"]["insert_size"]
     conda:
         CFG["conda_envs"]["picard"]
+    container:
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["insert_size"]
     resources:
@@ -119,6 +144,8 @@ rule _picard_qc_hs_metrics:
         opts = CFG["options"]["hs_metrics"]
     conda:
         CFG["conda_envs"]["picard"]
+    container:
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["hs_metrics"]
     resources:
@@ -143,6 +170,8 @@ rule _picard_qc_rrna_int:
         stderr = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/rrna_int.stderr.log"
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     shell:
         op.as_one_line("""
         samtools view -H {input.bam} | 
@@ -168,6 +197,8 @@ rule _picard_qc_rnaseq_metrics:
         strand = op.switch_on_column("strand", CFG["samples"], CFG["switches"]["rnaseq_metrics"], match_on = "sample")
     conda:
         CFG["conda_envs"]["picard"]
+    container:
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["rnaseq_metrics"]
     resources:
@@ -198,6 +229,8 @@ rule _picard_qc_wgs_metrics:
         opts = CFG["options"]["wgs_metrics"],
     conda:
         CFG["conda_envs"]["picard"]
+    container:
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["wgs_metrics"]
     resources:
@@ -253,6 +286,8 @@ rule _picard_qc_flagstats:
         stderr = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/flagstats.stderr.log"
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     threads:
         CFG["threads"]["flagstats"]
     resources:
@@ -271,7 +306,7 @@ rule _picard_qc_merged_output:
     output:
         metrics = CFG["dirs"]["outputs"] + "merged_metrics/{seq_type}--{genome_build}/all.{metrics}.txt"
     run:
-        op.relative_symlink(input.metrics, output.metrics)
+        op.relative_symlink(input.metrics, output.metrics, in_module=True)
 
 
 rule _picard_qc_flagstats_output:
@@ -280,7 +315,7 @@ rule _picard_qc_flagstats_output:
     output:
         flagstats = CFG["dirs"]["outputs"] + "flagstats/{seq_type}--{genome_build}/{sample_id}.flagstats"
     run:
-        op.relative_symlink(input.flagstats, output.flagstats)
+        op.relative_symlink(input.flagstats, output.flagstats, in_module=True)
 
 
 def _get_picard_qc_files(wildcards):

@@ -1,0 +1,14 @@
+name: modkit
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1
+  - _openmp_mutex=4.5
+  - libgcc=14.2.0
+  - libgomp=14.2.0
+  - libstdcxx=14.2.0
+  - libzlib=1.3.1
+  - ont-modkit=0.4.2
+prefix: /home/hshaalan/miniconda3/envs/modkit

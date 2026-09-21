@@ -40,7 +40,7 @@ rule _bam2fastq_input_bam:
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     run:
-        op.relative_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bam, output.bam)
 
 
 # Conditional rules depending on whether or not fastq outputs will be temporary
@@ -58,6 +58,8 @@ if CFG["temp_outputs"] == True:
             opts = CFG["options"]["bam2fastq"]
         conda:
             CFG["conda_envs"]["picard"]
+        container:
+            CFG["container_envs"]["picard"]
         threads:
             CFG["threads"]["bam2fastq"]
         resources:
@@ -65,7 +67,7 @@ if CFG["temp_outputs"] == True:
         shell:
             op.as_one_line("""
             picard -Xmx{resources.mem_mb}m SamToFastq {params.opts}
-            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2}) 
+            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2})
             > {log.stdout} &> {log.stderr}
             """)
 
@@ -83,6 +85,8 @@ elif CFG["temp_outputs"] == False:
             opts = CFG["options"]["bam2fastq"]
         conda:
             CFG["conda_envs"]["picard"]
+        container:
+            CFG["container_envs"]["picard"]
         threads:
             CFG["threads"]["bam2fastq"]
         resources:
@@ -90,7 +94,7 @@ elif CFG["temp_outputs"] == False:
         shell:
             op.as_one_line("""
             picard -Xmx{resources.mem_mb}m SamToFastq {params.opts}
-            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2}) 
+            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2})
             > {log.stdout} &> {log.stderr}
             """)
 else:
@@ -105,8 +109,8 @@ rule _bam2fastq_output:
         fastq_1 = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.read1.fastq",
         fastq_2 = CFG["dirs"]["outputs"] + "{seq_type}--{genome_build}/{sample_id}.read2.fastq"
     run:
-        op.relative_symlink(input.fastq_1, output.fastq_1)
-        op.relative_symlink(input.fastq_2, output.fastq_2)
+        op.relative_symlink(input.fastq_1, output.fastq_1, in_module = True)
+        op.relative_symlink(input.fastq_2, output.fastq_2, in_module = True)
 
 rule _bam2fastq_all:
     input:

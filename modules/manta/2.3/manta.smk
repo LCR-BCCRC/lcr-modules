@@ -6,30 +6,49 @@
 
 # Original Snakefile Author:    Bruno Grande
 # Module Author:                Bruno Grande
-# Additional Contributors:      N/A
+# Additional Contributors:      Chris Rushton
 
 
 ##### SETUP #####
 
-
-# Import package with useful functions for developing analysis modules.
+# Import package with useful functions for developing analysis modules
 import oncopipe as op
+
+# Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
+min_oncopipe_version="1.0.12"
+from importlib.metadata import version as pkg_version
+try:
+    from packaging import version
+except ModuleNotFoundError:
+    sys.exit("The packaging module dependency is missing. Please install it ('pip install packaging') and ensure you are using the most up-to-date oncopipe version")
+
+# To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
+
+current_version = pkg_version("oncopipe")
+if version.parse(current_version) < version.parse(min_oncopipe_version):
+    logger.warning(
+                '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
+                "\n" f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m'
+                )
+    sys.exit("Instructions for updating to the current version of oncopipe are available at https://lcr-modules.readthedocs.io/en/latest/ (use option 2)")
+
+# End of dependency checking section
 
 # Setup module and store module-specific configuration in `CFG`.
 CFG = op.setup_module(
-    name = "manta", 
+    name = "manta",
     version = "2.3",
     subdirectories = ["inputs", "chrom_bed", "manta", "augment_vcf", "bedpe", "outputs"]
 )
 
 # Define rules to be run locally when using a compute cluster.
-localrules: 
+localrules:
     _manta_input_bam,
     _manta_index_bed,
     _manta_configure_paired,
     _manta_configure_unpaired,
     _manta_output_bedpe,
-    _manta_output_vcf, 
+    _manta_output_vcf,
     _manta_dispatch,
     _manta_all
 
@@ -40,16 +59,16 @@ localrules:
 # Symlinks the input BAM files into the module output directory (under '00-inputs/').
 rule _manta_input_bam:
     input:
-        sample_bam = CFG["inputs"]["sample_bam"],
-        sample_bai = CFG["inputs"]["sample_bai"]
+        sample_bam = ancient(CFG["inputs"]["sample_bam"]),
+        sample_bai = ancient(CFG["inputs"]["sample_bai"])
     output:
         sample_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         sample_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
         sample_crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
-        op.relative_symlink(input.sample_bam, output.sample_bam)
-        op.relative_symlink(input.sample_bai, output.sample_bai)
-        op.relative_symlink(input.sample_bai, output.sample_crai)
+        op.absolute_symlink(input.sample_bam, output.sample_bam)
+        op.absolute_symlink(input.sample_bai, output.sample_bai)
+        op.absolute_symlink(input.sample_bai, output.sample_crai)
 
 
 # bgzip-compress and tabix-index the BED file to meet Manta requirement
@@ -60,6 +79,8 @@ rule _manta_index_bed:
         bedz = CFG["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz"
     conda:
         CFG["conda_envs"]["tabix"]
+    container:
+        CFG["container_envs"]["tabix"]
     shell:
         op.as_one_line("""
         bgzip -c {input.bed} > {output.bedz}
@@ -67,15 +88,28 @@ rule _manta_index_bed:
         tabix {output.bedz}
         """)
 
+def _manta_get_capspace(wildcards):
+    CFG = config["lcr-modules"]["manta"]
+    try:
+        # Get the appropriate capture space for this sample
+        this_bed = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed.gz")
+        this_bed = reference_files(this_bed)
+    except NameError:
+        # If we are using an older version of the reference workflow, use the same region file as the genome sample
+        this_bed = str(config["lcr-modules"]["manta"]["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz")
+    # If this is a genome sample, return a BED file listing all chromosomes
+    if wildcards.seq_type != "capture":
+        this_bed = str(config["lcr-modules"]["manta"]["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz")
+    return this_bed
 
 # Configures the manta workflow with the input BAM files and reference FASTA file.
 rule _manta_configure_paired:
     input:
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
-        normal_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam",
+        tumour_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam"),
+        normal_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{normal_id}.bam"),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         config = op.switch_on_wildcard("seq_type", CFG["switches"]["manta_config"]),
-        bedz = str(rules._manta_index_bed.output.bedz)
+        bedz = _manta_get_capspace
     output:
         runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
@@ -88,6 +122,8 @@ rule _manta_configure_paired:
         pair_status = "matched|unmatched"
     conda:
         CFG["conda_envs"]["manta"]
+    container:
+        CFG["container_envs"]["manta"]
     shell:
         op.as_one_line("""
         configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {input.bedz}
@@ -99,10 +135,10 @@ rule _manta_configure_paired:
 # Configures the manta workflow with the input BAM files and reference FASTA file.
 rule _manta_configure_unpaired:
     input:
-        tumour_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam",
+        tumour_bam = ancient(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{tumour_id}.bam"),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         config = op.switch_on_wildcard("seq_type", CFG["switches"]["manta_config"]),
-        bedz = str(rules._manta_index_bed.output.bedz)
+        bedz = _manta_get_capspace
     output:
         runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     log:
@@ -115,6 +151,8 @@ rule _manta_configure_unpaired:
         pair_status = "no_normal"
     conda:
         CFG["conda_envs"]["manta"]
+    container:
+        CFG["container_envs"]["manta"]
     shell:
         op.as_one_line("""
         configManta.py {params.opts} --referenceFasta {input.fasta} --callRegions {input.bedz}
@@ -128,49 +166,53 @@ rule _manta_run:
     input:
         runwf = CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/runWorkflow.py"
     output:
-        variants_dir = directory(CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/"),
+        variants_dir = directory(CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/results/variants/")
     log:
         stdout = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stdout.log",
         stderr = CFG["logs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_run.stderr.log"
     params:
-        opts = CFG["options"]["manta"]
+        opts = CFG["options"]["manta"],
+        workspace_dir = directory(CFG["dirs"]["manta"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/workspace/")
     conda:
         CFG["conda_envs"]["manta"]
+    container:
+        CFG["container_envs"]["manta"]
     threads:
         CFG["threads"]["manta"]
-    resources: 
+    resources:
         mem_mb = CFG["mem_mb"]["manta"],
         bam = 1
     shell:
         op.as_one_line("""
-        {input.runwf} {params.opts} --jobs {threads} > {log.stdout} 2> {log.stderr}
+            rm -fr {params.workspace_dir}/* ;
+            {input.runwf} {params.opts} --jobs {threads} > {log.stdout} 2> {log.stderr}
             &&
-        rm -rf "$(dirname {input.runwf})/workspace/"
+            rm -rf "$(dirname {input.runwf})/workspace/"
         """)
-
-
 # Calculates the tumour and/or normal variant allele fractions (VAF) from the allele counts
 # and fixes the sample IDs in the VCF header to match sample IDs used in Snakemake
 rule _manta_augment_vcf:
     input:
-        variants_dir = str(rules._manta_run.output.variants_dir)        
+        variants_dir = str(rules._manta_run.output.variants_dir)
     output:
         vcf = CFG["dirs"]["augment_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{vcf_name}.augmented.vcf"
     log:
         stdout = CFG["logs"]["augment_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_augment_vcf.{vcf_name}.stdout.log",
         stderr = CFG["logs"]["augment_vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_augment_vcf.{vcf_name}.stderr.log"
     params:
-        opts = CFG["options"]["augment_vcf"], 
+        opts = CFG["options"]["augment_vcf"],
         aug_vcf = CFG["scripts"]["augment_manta_vcf"]
     conda:
         CFG["conda_envs"]["augment_manta_vcf"]
+    container:
+        CFG["container_envs"]["augment_manta_vcf"]
     threads:
         CFG["threads"]["augment_vcf"]
-    resources: 
+    resources:
         mem_mb = CFG["mem_mb"]["augment_vcf"]
     shell:
         op.as_one_line("""
-        {params.aug_vcf} {params.opts} --tumour_id {wildcards.tumour_id} --normal_id {wildcards.normal_id} 
+        {params.aug_vcf} {params.opts} --tumour_id {wildcards.tumour_id} --normal_id {wildcards.normal_id}
         --vcf_type {wildcards.vcf_name} {input.variants_dir}/{wildcards.vcf_name}.vcf.gz {output.vcf}
         > {log.stdout} 2> {log.stderr}
         """)
@@ -187,9 +229,11 @@ rule _manta_vcf_to_bedpe:
         stderr = CFG["logs"]["bedpe"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/manta_vcf_to_bedpe.{vcf_name}.stderr.log"
     conda:
         CFG["conda_envs"]["svtools"]
+    container:
+        CFG["container_envs"]["svtools"]
     threads:
         CFG["threads"]["vcf_to_bedpe"]
-    resources: 
+    resources:
         mem_mb = CFG["mem_mb"]["vcf_to_bedpe"]
     shell:
         "svtools vcftobedpe -i {input.vcf} > {output.bedpe} 2> {log.stderr}"
@@ -202,7 +246,7 @@ rule _manta_output_vcf:
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.vcf"
     run:
-        op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.vcf, output.vcf, in_module=True)
 
 
 # Symlinks the final BEDPE files
@@ -212,12 +256,12 @@ rule _manta_output_bedpe:
     output:
         bedpe = CFG["dirs"]["outputs"] + "bedpe/{seq_type}--{genome_build}/{vcf_name}/{tumour_id}--{normal_id}--{pair_status}.{vcf_name}.bedpe"
     run:
-        op.relative_symlink(input.bedpe, output.bedpe)
+        op.relative_symlink(input.bedpe, output.bedpe, in_module=True)
 
 
 def _manta_predict_output(wildcards):
     """Request symlinks for all Manta VCF/BEDPE files.
-    
+
     This function is required in conjunction with a Snakemake
     checkpoint because Manta produces different files based
     on whether it's run in paired mode or not and based on
@@ -271,6 +315,7 @@ def _manta_predict_output(wildcards):
     )
 
     return outputs_with_bedpe + outputs_without_bedpe
+
 
 
 # Generates the target symlinks for each run depending on the Manta output VCF files
