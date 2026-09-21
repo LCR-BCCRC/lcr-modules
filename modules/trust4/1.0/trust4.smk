@@ -83,56 +83,72 @@ localrules:
 ##### RULES #####
 
 
-# Normalizes the input into a real BAM under '00-inputs/' -- NOT a plain symlink. Real,
-# confirmed production failure (2026-09): a sample's own inputs.sample_bam was actually CRAM
-# content stored/symlinked with a ".bam" name (the same real-world storage convention
-# modules/mhc_hammer/1.0's own _mhc_hammer_input_bam already documents hitting for DNA BAMs),
-# and TRUST4's own bam-extractor crashed with "[bam_header_read] invalid BAM binary header
-# (this is not a BAM file)". Confirmed via the Makefile that bam-extractor links against the
-# *bundled*, ancient samtools-0.1.19's own libbam.a (`-lbam`), not htslib -- that library
-# predates CRAM entirely, so unlike mhc_hammer's own downstream tools (all real htslib-based
-# `samtools`, which content-sniffs correctly regardless of extension -- mhc_hammer's own fix
-# was purely about index-sidecar naming), no amount of correct sidecar naming fixes this:
-# bam-extractor structurally cannot parse CRAM at all, full stop.
+# Normalizes the input into a real, usable BAM under '00-inputs/'. Real, confirmed production
+# failure (2026-09): a sample's own inputs.sample_bam was actually CRAM content stored/
+# symlinked with a ".bam" name (the same real-world storage convention modules/mhc_hammer/1.0's
+# own _mhc_hammer_input_bam already documents hitting for DNA BAMs), and TRUST4's own
+# bam-extractor crashed with "[bam_header_read] invalid BAM binary header (this is not a BAM
+# file)". Confirmed via the Makefile that bam-extractor links against the *bundled*, ancient
+# samtools-0.1.19's own libbam.a (`-lbam`), not htslib -- that library predates CRAM entirely,
+# so unlike mhc_hammer's own downstream tools (all real htslib-based `samtools`, which content-
+# sniffs correctly regardless of extension -- mhc_hammer's own fix was purely about index-
+# sidecar naming), no amount of correct sidecar naming fixes this: bam-extractor structurally
+# cannot parse CRAM at all, full stop.
 #
-# Fixed by always re-encoding through `samtools view -b` here, rather than symlinking and
-# hoping the extension matches the real content -- this is a real htslib tool, so it content-
-# sniffs correctly and produces a genuine BAM regardless of whether the input was already BAM
-# (a harmless re-encode) or actually CRAM (the real fix). `-T {input.fasta}` is passed
-# unconditionally (ignored for a non-CRAM input, required for correct CRAM reference-based
-# decompression) -- resolved via reference_files() for this exact {genome_build}, matching
+# Content-sniffed by reading the real first 4 bytes directly (same technique already used in
+# this module's own reclaim/diagnostic tooling, not htsfile -- avoids adding a runtime
+# dependency just for a 4-byte check): real BAM/BGZF starts with the gzip magic 1f 8b; real
+# CRAM starts with the literal ASCII "CRAM", regardless of what the file's own name/extension
+# claims. Genuine BAM is symlinked (cheap -- no reason to pay a full re-encode when the input
+# was already fine); genuine CRAM is decoded via `samtools view -b -T {input.fasta}` (a real
+# htslib tool, correct regardless of what upstream naming convention produced it). `-T` is
+# resolved via reference_files() for this exact {genome_build}, matching
 # modules/mhc_hammer/1.0's own _mhc_hammer_vep_annotate's identical idiom. Deliberately NOT
 # relying on CRAM's own automatic REF_CACHE/URL-based reference resolution: mhc_hammer's own
 # CHANGELOG already documents that silently degrading into fetching reference sequences one at
 # a time from EBI's ENA CRAM registry over the network on a real cluster run -- passing -T
-# explicitly avoids that failure mode entirely rather than risking a repeat of it.
+# explicitly avoids that failure mode entirely rather than risking a repeat of it. Anything
+# that's neither real BAM nor real CRAM magic fails loudly here with a clear message, rather
+# than silently symlinking a corrupted/truncated/unrecognized file and letting it surface later
+# as a confusing bam-extractor crash instead.
 #
-# No longer needs inputs.sample_bai/a symlinked index at all -- a plain, non-region-restricted
-# `samtools view -b` conversion doesn't need one, and this rule indexes its own freshly-encoded
-# output directly afterward. Index output named "{sample_id}.bai", NOT "{sample_id}.bam.bai":
-# a real, confirmed AmbiguousRuleException (caught via a real dry-run of demo/run_trust4.smk)
-# -- modules/utils/2.1's own _utils_bam_index rule has a completely generic
-# "{out_dir}/{prefix}/{suffix}.bam.bai" output pattern with no constraints, so a *.bam.bai
-# output here collides with it the moment any Snakefile including both this module and
-# modules/utils needs to build this file (i.e. any real trust4 deployment chained to star,
-# since star itself requires utils). Same class of bug modules/mhc_hammer/1.0's own CHANGELOG
-# documents for _mhc_hammer_novoalign_postprocess's bai, and that module's own conclusion (a
-# ruleorder guard is unreliable, no reliable way to detect whether an arbitrary outer Snakefile
-# happens to load modules/utils) applies equally here. htslib/samtools accept BOTH
-# "{bam}.bam.bai" and "{bam}.bai" as valid index-sidecar names for a file named "{bam}.bam", so
-# this avoids the collision with zero functional downside. `samtools index` itself only knows
-# how to write the "{bam}.bai" convention (no explicit -o output path in samtools 1.9), so the
-# index is generated under that name first, then renamed.
+# Real, requested fix (an earlier version of this rule always re-encoded unconditionally,
+# discarding the "already a real BAM" case's own free symlink option, and never temp()-marked
+# its own output at all): both output.bam/output.bai are temp() -- _trust4_run is their only
+# consumer, so a genuine re-encoded duplicate doesn't sit on disk forever once TRUST4 itself is
+# done with it (and for the symlink case, temp() cleanup is free regardless). The ORIGINAL
+# input.bam this rule reads from is never written to, moved, or deleted either way -- only
+# what lands in 00-inputs/ (symlink or real converted copy) is temp()-managed.
 #
-# No longer a localrule: this now does real, potentially expensive work (a full linear
-# re-encode of the whole input) rather than an instant symlink.
+# Index output named "{sample_id}.bai", NOT "{sample_id}.bam.bai": a real, confirmed
+# AmbiguousRuleException (caught via a real dry-run of demo/run_trust4.smk) -- modules/utils/2.1's
+# own _utils_bam_index rule has a completely generic "{out_dir}/{prefix}/{suffix}.bam.bai"
+# output pattern with no constraints, so a *.bam.bai output here collides with it the moment any
+# Snakefile including both this module and modules/utils needs to build this file (i.e. any real
+# trust4 deployment chained to star, since star itself requires utils). Same class of bug
+# modules/mhc_hammer/1.0's own CHANGELOG documents for _mhc_hammer_novoalign_postprocess's bai,
+# and that module's own conclusion (a ruleorder guard is unreliable, no reliable way to detect
+# whether an arbitrary outer Snakefile happens to load modules/utils) applies equally here.
+# htslib/samtools accept BOTH "{bam}.bam.bai" and "{bam}.bai" as valid index-sidecar names for a
+# file named "{bam}.bam", so this avoids the collision with zero functional downside.
+# `samtools index` itself only knows how to write the "{bam}.bai" convention (no explicit -o
+# output path in samtools 1.9), so the index is generated under that name first, then renamed.
+# Indexing runs unconditionally in both branches (even the cheap symlink one) rather than trying
+# to reuse an existing sidecar from the original input -- a fresh `samtools index` on an
+# already-sorted BAM is a cheap block-boundary scan, not a full re-encode, so it isn't worth the
+# complexity of tracking which sidecar-naming convention (.bam.bai vs .crai) the original might
+# already have.
+#
+# No longer a localrule: the CRAM branch does real, potentially expensive work (a full linear
+# re-encode) -- the symlink branch alone would still be cheap enough to run locally, but which
+# branch a given sample needs isn't known until this rule actually runs.
 rule _trust4_input_bam:
     input:
         bam = CFG["inputs"]["sample_bam"],
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
-        bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
-        bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai"
+        bam = temp(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"),
+        bai = temp(CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai")
     log:
         stdout = CFG["logs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}/normalize_bam.log"
     conda:
@@ -143,10 +159,30 @@ rule _trust4_input_bam:
         CFG["threads"]["input_bam"]
     resources:
         **CFG["resources"]["input_bam"]
+    # NOTE: this is a shell: block, not run:, even though the logic below is a real if/elif/else
+    # -- Snakemake refuses conda:/container: on a run:-based rule ("Conda environments are only
+    # allowed with shell, script, notebook, or wrapper directives"), a real constraint caught via
+    # a real dry-run (an earlier version of this rule used run: + op.absolute_symlink() for the
+    # symlink branch, which is not expressible here as a result). Magic-byte check done with
+    # plain `od`/`tr` (POSIX/coreutils, always available) rather than htsfile, to avoid adding a
+    # runtime dependency just for a 4-byte check -- matches the same raw-byte technique already
+    # used in this module's own reclaim/diagnostic tooling. `op.as_one_line()` only space-joins
+    # lines (never inserts `;`), so every if/elif/else/fi keyword below has an explicit trailing
+    # `;` on the line before it.
     shell:
         op.as_one_line("""
         (
-        samtools view -b -T {input.fasta} -@ {threads} -o {output.bam} {input.bam} &&
+        magic=$(head -c4 {input.bam} | od -An -tx1 | tr -d ' ') ;
+        if [[ "$magic" == 1f8b* ]] ;
+        then
+        ln -sf $(readlink -f {input.bam}) {output.bam} ;
+        elif [[ "$magic" == "4352414d" ]] ;
+        then
+        samtools view -b -T {input.fasta} -@ {threads} -o {output.bam} {input.bam} ;
+        else
+        echo "ERROR: {input.bam}: first 4 bytes are neither real BAM/BGZF magic (1f8b) nor real CRAM magic (4352414d = ASCII 'CRAM') -- got $magic. This file may be corrupted/truncated, or in a format this rule does not recognize." >&2 ;
+        exit 1 ;
+        fi &&
         samtools index -@ {threads} {output.bam} &&
         mv {output.bam}.bai {output.bai}
         ) > {log.stdout} 2>&1
