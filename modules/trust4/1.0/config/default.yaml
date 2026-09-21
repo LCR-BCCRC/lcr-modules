@@ -83,6 +83,10 @@ lcr-modules:
             # for why this exists) -- matches modules/star/1.4's own samtools-based sort/index
             # thread allocation, not the instant-symlink cost this rule used to be.
             input_bam: 8
+            # Opt-in comparison path (_trust4_bam_to_fastq/_trust4_run_fastq) -- see those rules'
+            # own comments. Same real, non-trivial per-sample cost as input_bam/trust4_run above.
+            bam_to_fastq: 8
+            trust4_run_fastq: 8
 
         resources:
             trust4_run:
@@ -93,6 +97,10 @@ lcr-modules:
                 mem_mb: 1000
             input_bam:
                 mem_mb: 8000
+            bam_to_fastq:
+                mem_mb: 8000
+            trust4_run_fastq:
+                mem_mb: 16000
 
         # TRUST4 operates on a single BAM per sample_id -- no tumour/normal relationship of any
         # kind. Mirrors modules/star/1.4's own identical pairing_config exactly (same "mrna"

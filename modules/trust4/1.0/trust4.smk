@@ -77,6 +77,10 @@ localrules:
     _trust4_output_cdr3,
     _trust4_output_annot,
     _trust4_output_airr,
+    _trust4_output_report_reconstructed_fastq,
+    _trust4_output_cdr3_reconstructed_fastq,
+    _trust4_output_annot_reconstructed_fastq,
+    _trust4_output_airr_reconstructed_fastq,
     _trust4_all,
 
 
@@ -339,6 +343,156 @@ rule _trust4_output_airr:
         airr = str(rules._trust4_run.output.airr)
     output:
         airr = CFG["dirs"]["outputs"] + "airr/{seq_type}--{genome_build}/{sample_id}.trust4_airr.tsv"
+    run:
+        op.relative_symlink(input.airr, output.airr, in_module = True)
+
+
+##### OPT-IN: BAM-RECONSTRUCTED-FASTQ COMPARISON PATH #####
+#
+# Real, requested comparison feature, NOT part of this module's default target list
+# (_trust4_all below deliberately does not expand() over these) -- runs TRUST4 in its own
+# FASTQ mode (-1/-2, via fastq-extractor) instead of BAM mode (-b, via bam-extractor), on FASTQ
+# reconstructed from the same already-normalized BAM _trust4_input_bam produces. This sidesteps
+# the entire class of BAM/CRAM-convention issues this module has already hit twice (CRAM
+# disguised as .bam; an aligner that doesn't place unmapped-pair mates adjacently) -- fastq-
+# extractor is a completely different code path with no such assumptions -- at the real cost of
+# not being a truly independent comparison: these FASTQs are reconstructed from an ALREADY-
+# ALIGNED bam (via `samtools collate | samtools fastq`), so they inherit whatever alignment-time
+# decisions already happened (secondary/supplementary alignment filtering, soft-clip handling),
+# not the sample's true original sequencer output. Real cohort has no tracked original FASTQs to
+# use instead (confirmed with the user) -- reconstruction from BAM is what's actually available.
+#
+# Deliberately opt-in rather than doubling every sample's compute by default: request a specific
+# sample's own target directly, e.g.
+#   snakemake ... results/trust4-1.0/99-outputs/report_reconstructed_fastq/{seqbuild}/{sample_id}.trust4_reconstructed_fastq_report.tsv
+# "_reconstructed_fastq" is threaded through every rule/output name here deliberately, so
+# provenance is unambiguous wherever one of these files ends up (never confusable with the
+# primary, BAM-mode report).
+#
+# Verified end-to-end against TRUST4's own bundled example.bam before being wired in here: a
+# real `samtools collate -O -u example.bam | samtools fastq -1 r1.fq -2 r2.fq ...` followed by a
+# real `run-trust4 -f human_IMGT+C.fa --ref human_IMGT+C.fa -1 r1.fq -2 r2.fq` produced the same
+# CDR3 calls/counts as the existing BAM-mode smoke test on that same file.
+#
+# Reuses the existing 02-trust4 numbered directory (nested under a reconstructed_fastq/
+# subpath) rather than adding a new top-level subdirectory -- adding one to CFG["dirs"] would
+# renumber every subdirectory after it (same reasoning already documented for why the
+# completed-samples-style manifest pattern elsewhere in this repo avoids that).
+
+
+# Reconstructs paired FASTQ from _trust4_input_bam's own (already CRAM-normalized, so this
+# never has to deal with CRAM itself) BAM via `samtools collate` (group by read name, required
+# for correct R1/R2 pairing) piped into `samtools fastq` (split into R1/R2; -0/-s discard
+# unpaired/singleton reads rather than writing them anywhere, -n disables read-name /1 /2
+# suffix mangling since TRUST4 doesn't need it). Not shared with _trust4_input_bam's own bam
+# output's temp() lifetime concerns -- Snakemake already extends a temp() file's lifetime to
+# cover every declared consumer, so adding this as a second consumer doesn't risk it being
+# cleaned up before this rule gets to read it.
+rule _trust4_bam_to_fastq:
+    input:
+        bam = str(rules._trust4_input_bam.output.bam)
+    output:
+        fq1 = temp(CFG["dirs"]["trust4"] + "{seq_type}--{genome_build}/{sample_id}/reconstructed_fastq/{sample_id}_1.fq"),
+        fq2 = temp(CFG["dirs"]["trust4"] + "{seq_type}--{genome_build}/{sample_id}/reconstructed_fastq/{sample_id}_2.fq")
+    log:
+        stdout = CFG["logs"]["trust4"] + "{seq_type}--{genome_build}/{sample_id}/reconstructed_fastq/bam_to_fastq.log"
+    conda:
+        CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
+    threads:
+        CFG["threads"]["bam_to_fastq"]
+    resources:
+        **CFG["resources"]["bam_to_fastq"]
+    shell:
+        op.as_one_line("""
+        (
+        samtools collate -O -u -@ {threads} {input.bam} |
+        samtools fastq -@ {threads} -1 {output.fq1} -2 {output.fq2} -0 /dev/null -s /dev/null -n -
+        ) > {log.stdout} 2>&1
+        """)
+
+
+# Same shape as _trust4_run, but FASTQ input (-1/-2) instead of BAM (-b). Real, confirmed
+# difference from run-trust4's own docs: FASTQ mode has no genome coordinates to extract
+# candidate reads by, so -f uses human_IMGT+C.fa here (NOT the genome-coordinate bcrtcr.fa
+# _trust4_run's own BAM-mode invocation needs) -- matches the exact example command in
+# run-trust4's own README ("./run-trust4 -f human_IMGT+C.fa --ref human_IMGT+C.fa -1 ... -2
+# ..."). options.repseq/options.abnormal_unmap_flag still apply here -- both are orthogonal to
+# which input mode is used.
+rule _trust4_run_fastq:
+    input:
+        fq1 = str(rules._trust4_bam_to_fastq.output.fq1),
+        fq2 = str(rules._trust4_bam_to_fastq.output.fq2),
+        imgt = str(rules._trust4_download_imgt.output.imgt)
+    output:
+        report = CFG["dirs"]["trust4"] + "{seq_type}--{genome_build}/{sample_id}/reconstructed_fastq/{sample_id}_report.tsv",
+        cdr3 = CFG["dirs"]["trust4"] + "{seq_type}--{genome_build}/{sample_id}/reconstructed_fastq/{sample_id}_cdr3.out",
+        annot = CFG["dirs"]["trust4"] + "{seq_type}--{genome_build}/{sample_id}/reconstructed_fastq/{sample_id}_annot.fa",
+        airr = CFG["dirs"]["trust4"] + "{seq_type}--{genome_build}/{sample_id}/reconstructed_fastq/{sample_id}_airr.tsv"
+    log:
+        stdout = CFG["logs"]["trust4"] + "{seq_type}--{genome_build}/{sample_id}/reconstructed_fastq/trust4_run.log"
+    params:
+        outdir = lambda wildcards, output: os.path.dirname(output.report),
+        repseq_flag = "--repseq" if CFG["options"]["repseq"] else "",
+        abnormal_unmap_flag = "--abnormalUnmapFlag" if CFG["options"]["abnormal_unmap_flag"] else ""
+    conda:
+        CFG["conda_envs"]["trust4"]
+    container:
+        CFG["container_envs"]["trust4"]
+    threads:
+        CFG["threads"]["trust4_run_fastq"]
+    resources:
+        **CFG["resources"]["trust4_run_fastq"]
+    shell:
+        op.as_one_line("""
+        run-trust4
+        -f {input.imgt}
+        --ref {input.imgt}
+        -1 {input.fq1}
+        -2 {input.fq2}
+        -o {wildcards.sample_id}
+        --od {params.outdir}
+        -t {threads}
+        --clean 1
+        {params.repseq_flag}
+        {params.abnormal_unmap_flag}
+        > {log.stdout} 2>&1
+        """)
+
+
+rule _trust4_output_report_reconstructed_fastq:
+    input:
+        report = str(rules._trust4_run_fastq.output.report)
+    output:
+        report = CFG["dirs"]["outputs"] + "report_reconstructed_fastq/{seq_type}--{genome_build}/{sample_id}.trust4_reconstructed_fastq_report.tsv"
+    run:
+        op.relative_symlink(input.report, output.report, in_module = True)
+
+
+rule _trust4_output_cdr3_reconstructed_fastq:
+    input:
+        cdr3 = str(rules._trust4_run_fastq.output.cdr3)
+    output:
+        cdr3 = CFG["dirs"]["outputs"] + "cdr3_reconstructed_fastq/{seq_type}--{genome_build}/{sample_id}.trust4_reconstructed_fastq_cdr3.out"
+    run:
+        op.relative_symlink(input.cdr3, output.cdr3, in_module = True)
+
+
+rule _trust4_output_annot_reconstructed_fastq:
+    input:
+        annot = str(rules._trust4_run_fastq.output.annot)
+    output:
+        annot = CFG["dirs"]["outputs"] + "annot_reconstructed_fastq/{seq_type}--{genome_build}/{sample_id}.trust4_reconstructed_fastq_annot.fa"
+    run:
+        op.relative_symlink(input.annot, output.annot, in_module = True)
+
+
+rule _trust4_output_airr_reconstructed_fastq:
+    input:
+        airr = str(rules._trust4_run_fastq.output.airr)
+    output:
+        airr = CFG["dirs"]["outputs"] + "airr_reconstructed_fastq/{seq_type}--{genome_build}/{sample_id}.trust4_reconstructed_fastq_airr.tsv"
     run:
         op.relative_symlink(input.airr, output.airr, in_module = True)
 
