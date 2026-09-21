@@ -279,7 +279,9 @@ rule _trust4_run:
         # needed here.
         outdir = lambda wildcards, output: os.path.dirname(output.report),
         # --repseq: see options.repseq's own comment in default.yaml for why this defaults off.
-        repseq_flag = "--repseq" if CFG["options"]["repseq"] else ""
+        repseq_flag = "--repseq" if CFG["options"]["repseq"] else "",
+        # --abnormalUnmapFlag: see options.abnormal_unmap_flag's own comment in default.yaml.
+        abnormal_unmap_flag = "--abnormalUnmapFlag" if CFG["options"]["abnormal_unmap_flag"] else ""
     conda:
         CFG["conda_envs"]["trust4"]
     container:
@@ -299,6 +301,7 @@ rule _trust4_run:
         -t {threads}
         --clean 1
         {params.repseq_flag}
+        {params.abnormal_unmap_flag}
         > {log.stdout} 2>&1
         """)
 

@@ -51,6 +51,20 @@ lcr-modules:
             # capture data through this module.
             repseq: False
 
+            # --abnormalUnmapFlag (-> bam-extractor's own -u): a real, confirmed production
+            # crash (2026-09) -- "Two reads from the unaligned fragment are not showing up
+            # together. Please use -u(--abnormalUnmapFlag from wrapper) option." Confirmed
+            # directly from bam-extractor's own source (BamExtractor.cpp): for a completely
+            # unmapped read pair, it assumes (coordinate-sorted input) the two mates appear as
+            # consecutive records and hard-fails if the very next record isn't the same read's
+            # mate. Some aligners/alignment parameter sets don't place unmapped-pair mates
+            # adjacently in the sort order (hit on a real sample aligned with different STAR
+            # parameters than this cohort's own default pipeline) -- this flag disables that
+            # adjacency assumption entirely. Deliberately OFF by default (only known to be
+            # needed for specific non-standard alignments so far) -- set True per-deployment if
+            # your own BAMs hit this same crash.
+            abnormal_unmap_flag: False
+
         conda_envs:
             trust4: "{MODSDIR}/envs/trust4-1.1.10.yaml"
             trust4_download: "{MODSDIR}/envs/trust4_download.yaml"

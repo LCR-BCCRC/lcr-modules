@@ -14,6 +14,8 @@ TRUST4 is bioconda-installable (`trust4=1.1.10`) with no licensing restriction, 
 
 TRUST4's own GitHub repo ships small, pre-built, plain-text reference FASTAs directly in-repo (not via bioconda): a genome-coordinate-aware V/D/J/C gene FASTA per genome build (`hg19_bcrtcr.fa`/`hg38_bcrtcr.fa`), and a species-only IMGT reference (`human_IMGT+C.fa`). This module downloads both automatically, pinned to a specific commit (`options.trust4_repo_commit`) for reproducibility -- no manual reference-building step needed for standard human genome builds (`grch37`/`hg19`/`grch38`/`hg38`, mapped via `options.trust4_bcrtcr_map`).
 
+**`options.abnormal_unmap_flag`** (default `False`): a real production crash -- `bam-extractor` assumes (confirmed directly from its own source) that a completely unmapped read pair's two mates appear as *consecutive* records in a coordinate-sorted BAM, and hard-fails (`Two reads from the unaligned fragment are not showing up together`) if they don't. Some aligners/alignment parameter sets don't guarantee this placement. Set `True` if your own BAMs hit this crash -- it maps directly to TRUST4's own `--abnormalUnmapFlag` (-> `bam-extractor`'s `-u`), which disables that adjacency assumption entirely.
+
 ## What's not included in v1
 
 - Raw FASTQ input (TRUST4's own `-1/-2/-u` alternative to `-b`) -- this module is BAM-only.
