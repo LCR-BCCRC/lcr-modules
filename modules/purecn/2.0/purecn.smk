@@ -539,7 +539,7 @@ rule _purecn_gatk_depthOfCoverage:
         intervals = str(rules._purecn_gatk_interval_list_chrom.output.chrom_int),
         fasta = str(rules._purecn_symlink_fasta.output.fasta)
     output:
-        coverage = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.sample_interval_summary",
+        coverage = temp(CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.sample_interval_summary"),
         statistics = temp(CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.sample_interval_statistics")
     resources:
         **CFG["resources"]["gatk_depth"]
