@@ -71,7 +71,6 @@ TRUST4_REPO_COMMIT = CFG["options"]["trust4_repo_commit"]
 # I/O, not worth cluster-job scheduling overhead (mirrors modules/mhc_hammer/1.0's own
 # _mhc_hammer_download_reference being listed here for the same reason).
 localrules:
-    _trust4_input_bam,
     _trust4_download_bcrtcr,
     _trust4_download_imgt,
     _trust4_output_report,
@@ -84,37 +83,74 @@ localrules:
 ##### RULES #####
 
 
-# Symlinks the input BAM into the module results directory (under '00-inputs/'). Simpler than
-# modules/mhc_hammer/1.0's own _mhc_hammer_input_bam (no CRAM dual-naming handling needed --
-# this module's own default inputs.sample_bam points at modules/star/1.4's own well-known,
-# single-format plain BAM output, not an arbitrary DNA caller/aligner's BAM-or-CRAM-as-.bam).
+# Normalizes the input into a real BAM under '00-inputs/' -- NOT a plain symlink. Real,
+# confirmed production failure (2026-09): a sample's own inputs.sample_bam was actually CRAM
+# content stored/symlinked with a ".bam" name (the same real-world storage convention
+# modules/mhc_hammer/1.0's own _mhc_hammer_input_bam already documents hitting for DNA BAMs),
+# and TRUST4's own bam-extractor crashed with "[bam_header_read] invalid BAM binary header
+# (this is not a BAM file)". Confirmed via the Makefile that bam-extractor links against the
+# *bundled*, ancient samtools-0.1.19's own libbam.a (`-lbam`), not htslib -- that library
+# predates CRAM entirely, so unlike mhc_hammer's own downstream tools (all real htslib-based
+# `samtools`, which content-sniffs correctly regardless of extension -- mhc_hammer's own fix
+# was purely about index-sidecar naming), no amount of correct sidecar naming fixes this:
+# bam-extractor structurally cannot parse CRAM at all, full stop.
 #
-# Index output deliberately named "{sample_id}.bai", NOT "{sample_id}.bam.bai": a real,
-# confirmed AmbiguousRuleException (caught via a real dry-run of demo/run_trust4.smk, which
-# needs modules/utils included since modules/star/1.4 relies on it for its own sort/markdups/
-# index steps) -- modules/utils/2.1's own _utils_bam_index rule has a completely generic
+# Fixed by always re-encoding through `samtools view -b` here, rather than symlinking and
+# hoping the extension matches the real content -- this is a real htslib tool, so it content-
+# sniffs correctly and produces a genuine BAM regardless of whether the input was already BAM
+# (a harmless re-encode) or actually CRAM (the real fix). `-T {input.fasta}` is passed
+# unconditionally (ignored for a non-CRAM input, required for correct CRAM reference-based
+# decompression) -- resolved via reference_files() for this exact {genome_build}, matching
+# modules/mhc_hammer/1.0's own _mhc_hammer_vep_annotate's identical idiom. Deliberately NOT
+# relying on CRAM's own automatic REF_CACHE/URL-based reference resolution: mhc_hammer's own
+# CHANGELOG already documents that silently degrading into fetching reference sequences one at
+# a time from EBI's ENA CRAM registry over the network on a real cluster run -- passing -T
+# explicitly avoids that failure mode entirely rather than risking a repeat of it.
+#
+# No longer needs inputs.sample_bai/a symlinked index at all -- a plain, non-region-restricted
+# `samtools view -b` conversion doesn't need one, and this rule indexes its own freshly-encoded
+# output directly afterward. Index output named "{sample_id}.bai", NOT "{sample_id}.bam.bai":
+# a real, confirmed AmbiguousRuleException (caught via a real dry-run of demo/run_trust4.smk)
+# -- modules/utils/2.1's own _utils_bam_index rule has a completely generic
 # "{out_dir}/{prefix}/{suffix}.bam.bai" output pattern with no constraints, so a *.bam.bai
 # output here collides with it the moment any Snakefile including both this module and
 # modules/utils needs to build this file (i.e. any real trust4 deployment chained to star,
-# since star itself requires utils). This is the same class of bug modules/mhc_hammer/1.0's
-# own CHANGELOG documents hitting for _mhc_hammer_novoalign_postprocess's bai, and that
-# module's own conclusion (a ruleorder guard is unreliable since it requires both rules to
-# exist at parse time, with no reliable way to detect whether an arbitrary outer Snakefile
-# happens to load modules/utils) applies equally here. The clean fix: htslib/samtools accept
-# BOTH "{bam}.bam.bai" and "{bam}.bai" as valid index-sidecar names for a file named
-# "{bam}.bam" -- naming the tracked output "{sample_id}.bai" avoids the pattern collision
-# entirely with zero functional downside (bam-extractor's own samtools-0.1.19-derived BAM
-# reading still finds it).
+# since star itself requires utils). Same class of bug modules/mhc_hammer/1.0's own CHANGELOG
+# documents for _mhc_hammer_novoalign_postprocess's bai, and that module's own conclusion (a
+# ruleorder guard is unreliable, no reliable way to detect whether an arbitrary outer Snakefile
+# happens to load modules/utils) applies equally here. htslib/samtools accept BOTH
+# "{bam}.bam.bai" and "{bam}.bai" as valid index-sidecar names for a file named "{bam}.bam", so
+# this avoids the collision with zero functional downside. `samtools index` itself only knows
+# how to write the "{bam}.bai" convention (no explicit -o output path in samtools 1.9), so the
+# index is generated under that name first, then renamed.
+#
+# No longer a localrule: this now does real, potentially expensive work (a full linear
+# re-encode of the whole input) rather than an instant symlink.
 rule _trust4_input_bam:
     input:
         bam = CFG["inputs"]["sample_bam"],
-        bai = CFG["inputs"]["sample_bai"]
+        fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa")
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bai"
-    run:
-        op.absolute_symlink(input.bam, output.bam)
-        op.absolute_symlink(input.bai, output.bai)
+    log:
+        stdout = CFG["logs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}/normalize_bam.log"
+    conda:
+        CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
+    threads:
+        CFG["threads"]["input_bam"]
+    resources:
+        **CFG["resources"]["input_bam"]
+    shell:
+        op.as_one_line("""
+        (
+        samtools view -b -T {input.fasta} -@ {threads} -o {output.bam} {input.bam} &&
+        samtools index -@ {threads} {output.bam} &&
+        mv {output.bam}.bai {output.bai}
+        ) > {log.stdout} 2>&1
+        """)
 
 
 # Downloads TRUST4's own pre-built, genome-coordinate-aware V/D/J/C gene FASTA for this

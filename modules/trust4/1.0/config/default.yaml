@@ -7,11 +7,15 @@ lcr-modules:
             # Defaults to modules/star/1.4's own final coordinate-sorted + duplicate-marked BAM
             # output (_star_output_bam). results/unix_group to be prepended to this in Snakefile.
             # Override if your own deployment uses a different star version/path, or a
-            # differently-aligned BAM entirely (any coordinate-sorted, indexed RNA-seq BAM
-            # should work -- TRUST4 itself has no hard STAR dependency, just a real dependency on
-            # having genuine genome coordinates to extract candidate reads from).
+            # differently-aligned BAM entirely (any coordinate-sorted RNA-seq BAM should work --
+            # TRUST4 itself has no hard STAR dependency, just a real dependency on having genuine
+            # genome coordinates to extract candidate reads from). No sample_bai entry needed --
+            # _trust4_input_bam always re-encodes through `samtools view -b` and indexes its own
+            # output directly (see that rule's own comment for why: a real production BAM some
+            # of this cohort's own storage conventions symlink as ".bam" is actually CRAM
+            # content, which TRUST4's own bam-extractor cannot read at all regardless of what
+            # index sidecar is provided).
             sample_bam: "star-1.4/99-outputs/bam/{seq_type}--{genome_build}/{sample_id}.bam"
-            sample_bai: "star-1.4/99-outputs/bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
 
         options:
             # genome_build -> which of TRUST4's own pre-built, genome-coordinate-aware V/D/J/C
@@ -50,15 +54,21 @@ lcr-modules:
         conda_envs:
             trust4: "{MODSDIR}/envs/trust4-1.1.10.yaml"
             trust4_download: "{MODSDIR}/envs/trust4_download.yaml"
+            samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
 
         container_envs:
             trust4: "docker://quay.io/biocontainers/trust4:1.1.10--h5814d7d_0"
             trust4_download: null
+            samtools: "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
 
         threads:
             trust4_run: 8
             download_bcrtcr: 1
             download_imgt: 1
+            # A real, potentially large linear re-encode (see _trust4_input_bam's own comment
+            # for why this exists) -- matches modules/star/1.4's own samtools-based sort/index
+            # thread allocation, not the instant-symlink cost this rule used to be.
+            input_bam: 8
 
         resources:
             trust4_run:
@@ -67,6 +77,8 @@ lcr-modules:
                 mem_mb: 1000
             download_imgt:
                 mem_mb: 1000
+            input_bam:
+                mem_mb: 8000
 
         # TRUST4 operates on a single BAM per sample_id -- no tumour/normal relationship of any
         # kind. Mirrors modules/star/1.4's own identical pairing_config exactly (same "mrna"

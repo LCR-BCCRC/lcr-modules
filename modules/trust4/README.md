@@ -8,6 +8,8 @@ This is a **bulk RNA-seq v1**: it takes an existing coordinate-sorted, indexed B
 
 TRUST4 is bioconda-installable (`trust4=1.1.10`) with no licensing restriction, unlike `modules/mhc_hammer/1.0`'s Novoalign/HLA-HD/VEP dependencies -- this module installs it via a normal conda/container environment, no user-supplied external script directory needed.
 
+**Input BAMs are always re-encoded through `samtools view -b`, never just symlinked.** TRUST4's own `bam-extractor` binary links against a bundled, ancient `samtools-0.1.19` (predates CRAM support entirely) -- a real production run hit this directly: a sample's `inputs.sample_bam` was actually CRAM content stored with a `.bam` name (a real, confirmed storage convention on this cohort's cluster, already documented for DNA BAMs in `modules/mhc_hammer/1.0`), and `bam-extractor` crashed outright (`invalid BAM binary header (this is not a BAM file)`) rather than reading it. `_trust4_input_bam` now always runs the input through `samtools view -b -T <genome_fasta>` first (a real htslib tool, so it content-sniffs correctly and handles both CRAM and already-BAM input transparently) before TRUST4 ever sees it. No `inputs.sample_bai` needed any more -- this rule indexes its own freshly-encoded output directly.
+
 ## Reference files
 
 TRUST4's own GitHub repo ships small, pre-built, plain-text reference FASTAs directly in-repo (not via bioconda): a genome-coordinate-aware V/D/J/C gene FASTA per genome build (`hg19_bcrtcr.fa`/`hg38_bcrtcr.fa`), and a species-only IMGT reference (`human_IMGT+C.fa`). This module downloads both automatically, pinned to a specific commit (`options.trust4_repo_commit`) for reproducibility -- no manual reference-building step needed for standard human genome builds (`grch37`/`hg19`/`grch38`/`hg38`, mapped via `options.trust4_bcrtcr_map`).
@@ -36,7 +38,6 @@ lcr-modules:
             # Defaults to modules/star/1.4's own output -- override only if your own
             # deployment uses a different star version/path, or a different RNA-seq aligner
             sample_bam: "star-1.4/99-outputs/bam/{seq_type}--{genome_build}/{sample_id}.bam"
-            sample_bai: "star-1.4/99-outputs/bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
 ```
 
 The example snakefile:
