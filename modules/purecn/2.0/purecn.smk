@@ -443,7 +443,7 @@ rule _purecn_learn_orient_model:
     input:
         f1r2 = _get_mutect2_chr_f1r2
     output:
-        model =  CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/read-orientation-model.tar.gz"
+        model =  temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/read-orientation-model.tar.gz")
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_learn_orient_model.log"
     conda:
@@ -508,8 +508,8 @@ rule _purecn_mutect2_filter_vcf:
     input:
         vcf = str(rules._purecn_annotate_vcf.output.vcf)
     output:
-        vcf = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_passed.vcf.gz",
-        tbi = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_passed.vcf.gz.tbi"
+        vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_passed.vcf.gz"),
+        tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_passed.vcf.gz.tbi")
     params:
         filter_for_opts = CFG["options"]["mutect2"]["filter_for"],
         filter_out_opts = CFG["options"]["mutect2"]["filter_out"]
