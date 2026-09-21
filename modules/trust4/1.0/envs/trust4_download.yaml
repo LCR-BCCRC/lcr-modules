@@ -1,0 +1,5 @@
+name: trust4_download
+channels:
+  - conda-forge
+dependencies:
+  - wget

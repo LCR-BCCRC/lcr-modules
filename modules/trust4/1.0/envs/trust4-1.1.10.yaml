@@ -1,0 +1,6 @@
+name: trust4
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - trust4=1.1.10

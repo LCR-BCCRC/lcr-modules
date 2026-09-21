@@ -1,0 +1,79 @@
+lcr-modules:
+
+    trust4:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            # Defaults to modules/star/1.4's own final coordinate-sorted + duplicate-marked BAM
+            # output (_star_output_bam). results/unix_group to be prepended to this in Snakefile.
+            # Override if your own deployment uses a different star version/path, or a
+            # differently-aligned BAM entirely (any coordinate-sorted, indexed RNA-seq BAM
+            # should work -- TRUST4 itself has no hard STAR dependency, just a real dependency on
+            # having genuine genome coordinates to extract candidate reads from).
+            sample_bam: "star-1.4/99-outputs/bam/{seq_type}--{genome_build}/{sample_id}.bam"
+            sample_bai: "star-1.4/99-outputs/bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
+
+        options:
+            # genome_build -> which of TRUST4's own pre-built, genome-coordinate-aware V/D/J/C
+            # gene FASTAs to use (-f). Human only for now -- TRUST4 also ships mouse
+            # (GRCm38_bcrtcr.fa/GRCm39_bcrtcr.fa, under its own mouse/ subdirectory) but this
+            # repo's own cohorts are human-only, so mouse isn't wired up here. Mirrors
+            # modules/pvactools/1.0's own VEP_ASSEMBLY_MAP pattern exactly (a per-module copy of
+            # this mapping, not a cross-module reference -- the same convention every other
+            # module in this repo uses for its own genome-build-to-external-tool-naming
+            # translation). Extend with any other genome_build alias your samples table uses.
+            trust4_bcrtcr_map:
+                grch37: "hg19_bcrtcr.fa"
+                hg19: "hg19_bcrtcr.fa"
+                grch38: "hg38_bcrtcr.fa"
+                hg38: "hg38_bcrtcr.fa"
+
+            # Exact commit this module's reference downloads (_trust4_download_bcrtcr/
+            # _trust4_download_imgt) are pinned to -- a real reproducibility guarantee, not
+            # "whatever master happens to contain on download day". Confirmed directly against a
+            # local clone of https://github.com/liulab-dfci/TRUST4 (2026-09) that this exact
+            # commit's hg19_bcrtcr.fa/hg38_bcrtcr.fa/human_IMGT+C.fa are all real, small,
+            # plain-text, pre-built reference files -- no manual BuildDatabaseFa.pl/
+            # BuildImgtAnnot.pl build step needed for standard human genome builds.
+            trust4_repo_commit: "4032f90b82b3cca6d56aaa7645cc7ee51dd3889c"
+
+            # --repseq: TRUST4's own internal shorthand for `--trimLevel 2 --skipMateExtension`
+            # (confirmed directly from run-trust4's own source), intended for dedicated,
+            # non-UMI bulk TCR-seq/BCR-seq CAPTURE libraries. Deliberately OFF by default: this
+            # module's primary use case is generic bulk RNA-seq (via inputs.sample_bam above),
+            # where mate-pair extension genuinely helps recover more complete contigs given how
+            # much sparser on-target VDJ coverage is compared to a dedicated repertoire-seq
+            # capture library. Set True only if you're actually feeding real TCR-seq/BCR-seq
+            # capture data through this module.
+            repseq: False
+
+        conda_envs:
+            trust4: "{MODSDIR}/envs/trust4-1.1.10.yaml"
+            trust4_download: "{MODSDIR}/envs/trust4_download.yaml"
+
+        container_envs:
+            trust4: "docker://quay.io/biocontainers/trust4:1.1.10--h5814d7d_0"
+            trust4_download: null
+
+        threads:
+            trust4_run: 8
+            download_bcrtcr: 1
+            download_imgt: 1
+
+        resources:
+            trust4_run:
+                mem_mb: 16000
+            download_bcrtcr:
+                mem_mb: 1000
+            download_imgt:
+                mem_mb: 1000
+
+        # TRUST4 operates on a single BAM per sample_id -- no tumour/normal relationship of any
+        # kind. Mirrors modules/star/1.4's own identical pairing_config exactly (same "mrna"
+        # seq_type key, same three settings) so oncopipe treats every RNA-seq sample as its own
+        # independent unit rather than trying to pair it with anything.
+        pairing_config:
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

@@ -1,0 +1,21 @@
+lcr-modules:
+    _shared:
+        lcr-modules: "../"
+        lcr-scripts: "../../lcr-scripts/"
+        root_output_dir: "results/"
+        scratch_directory: "scratch/"
+
+    star:
+        inputs:
+            sample_fastq_1: "data/{sample_id}.read1.fastq.gz"
+            sample_fastq_2: "data/{sample_id}.read2.fastq.gz"
+        scratch_subdirectories: []
+
+    trust4:
+        inputs:
+            # Points at star's own real output path once root_output_dir ("results/" above) is
+            # accounted for -- trust4's own config/default.yaml only ships the fragment after
+            # that (see the comment there), same convention modules/manta/2.3 and
+            # modules/stringtie/1.0 already use in demo/mrna_config.yaml for this exact BAM.
+            sample_bam: "results/star-1.4/99-outputs/bam/{seq_type}--{genome_build}/{sample_id}.bam"
+            sample_bai: "results/star-1.4/99-outputs/bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
