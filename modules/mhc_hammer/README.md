@@ -24,6 +24,19 @@ This module requires three things the user must obtain and configure separately 
 
 Every patient in your sample table must have **exactly one** germline WES sample (`tissue_status: normal`) -- unlike upstream, this module does not tolerate multiple germline samples per patient by silently picking one, and it will error instead. Tumour WES samples without a matched germline in the same patient are never processed (see `CFG["paired_runs"]` in the module code) since HLA typing and the personalised reference both require the patient's own germline sample.
 
+## Opt-in: RNA-seq input for HLA-HD typing
+
+HLA typing (Class I and Class II) can optionally also run from RNA-seq, via two independent, default-off options -- both `False` by default, zero behaviour change unless explicitly enabled:
+
+- **`options.rna_hla_typing_fallback`**: type HLA from RNA-seq for patients who have RNA but no germline WES/WGS sample at all -- currently such patients are fully excluded from this module entirely. **Does not extend the DNA-analysis arm** (personalised reference, Novoalign, copy-number/allelic-imbalance, mutation calling) -- those still require a real germline+tumour WES pair; a fallback-typed patient gets an HLA call and nothing else from this module.
+- **`options.rna_hla_typing_comparison`**: additionally runs RNA-based typing for patients who *do* have a real DNA pair, alongside (not instead of) the existing DNA-based typing, so results can be cross-checked.
+
+This uses `inputs.sample_rna_bam`/`inputs.sample_rna_bai` (same three wildcards as `sample_bam`/`sample_bai`) as the RNA BAM source -- typically `modules/star/1.4`'s own output, but any coordinate-sorted RNA-seq BAM works. RNA-seq input for HLA-HD is an officially supported use case, not a hack: per [HLA-HD's own site](https://www.genome.med.kyoto-u.ac.jp/HLA-HD/), "RNA-Seq data can also be applied" -- same CLI, same exon/intron dictionary reconciliation, just fed different FASTQs.
+
+**Real caveat driving the sample-selection logic**: this module's whole DNA-analysis arm exists to detect HLA LOH. RNA-based germline typing sourced from the *tumour* being analysed for LOH risks a genuine circularity -- a lost allele wouldn't be transcribed and could be mistyped as homozygous. `_mhc_hammer_get_rna_typing_sample` therefore prefers a `tissue_status: normal` RNA sample; only falls back to tumour/tumor RNA if no normal RNA exists for that patient (picking deterministically, by sample_id, if multiple tumour RNA samples exist -- e.g. from different biopsies/timepoints). `99-outputs/hla_typing_source_rna/{seq_type}--{genome_build}/{patient_id}.hla_typing_source.csv` always records which sample and tissue_status was actually used, and flags `tumour_derived_loh_risk` explicitly -- check this file before trusting an RNA-sourced call for LOH-sensitive analysis.
+
+Other RNA-specific outputs: `99-outputs/hla_alleles_rna/` and `99-outputs/hla2_alleles_rna/` (same format as the DNA-sourced `hla_alleles`/`hla2_alleles`, so anything already consuming those files can consume these too). `options.hlahd_rna_min_read_length` (independent of `options.hlahd_min_read_length`, since RNA read lengths may differ from this cohort's own DNA reads) controls HLA-HD's own `-m` minimum tag size for the RNA-sourced typing rules specifically.
+
 ## What's not included in v1
 
 - RNA allelic expression, RNA allelic imbalance, and RNA allelic repression (tumour vs. matched-normal RNA) -- upstream's RNA analysis arm.

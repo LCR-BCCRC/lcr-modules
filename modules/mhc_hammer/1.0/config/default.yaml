@@ -7,6 +7,27 @@ lcr-modules:
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
 
+            # Only consulted when options.rna_hla_typing_fallback/rna_hla_typing_comparison is
+            # True (see the "OPT-IN: RNA-SEQ HLA-HD TYPING" section in mhc_hammer.smk). A separate
+            # key rather than overloading sample_bam via {seq_type}: real deployments source RNA
+            # BAMs (e.g. modules/star/1.4's own 99-outputs/bam/) from a genuinely different
+            # upstream module directory convention than DNA BAMs, not just a different {seq_type}
+            # token within an otherwise-shared path shape. Same three wildcards as sample_bam.
+            #
+            # Deliberately NOT "__UPDATE__" (unlike sample_bam/sample_bai above, which this
+            # module has always hard-required): oncopipe's own op.setup_module() hard-fails at
+            # parse time on ANY "__UPDATE__" value anywhere in the config tree, regardless of
+            # whether it's actually used for a given invocation -- since rna_hla_typing_fallback/
+            # rna_hla_typing_comparison both default False (this feature is genuinely opt-in),
+            # defaulting these to "__UPDATE__" would break every existing deployment's config the
+            # moment they pull this change, even ones with zero interest in RNA typing. Mirrors
+            # this module's own inputs.battenberg_cellularity_ploidy precedent (also genuinely
+            # optional, also not "__UPDATE__") -- caught via a real dry-run against demo/
+            # capture_Snakefile.smk before this shipped (that demo's own config never touches
+            # these two keys at all, and correctly failed loudly on the first attempt).
+            sample_rna_bam: ""
+            sample_rna_bai: ""
+
             # VEP's annotation cache directory (reference data VEP reads from, not a tool/script
             # location -- vep_path below, the directory containing the vep executable itself,
             # stays under options, matching vcf2maf's own inputs.vep_cache / options.vep_path
@@ -234,6 +255,42 @@ lcr-modules:
             # lower bound, not an exact-length requirement).
             hlahd_min_read_length: 75
 
+            # OPT-IN: RNA-seq HLA-HD typing (see the "OPT-IN: RNA-SEQ HLA-HD TYPING" section in
+            # mhc_hammer.smk). Both default off -- zero behaviour change for existing deployments
+            # unless explicitly enabled. Independent booleans, not one combined toggle: a user may
+            # want the fallback (RNA-only patients otherwise fully excluded from this module)
+            # without doubling compute on every DNA-paired patient via the comparison arm, or vice
+            # versa. Confirmed directly from HLA-HD's own official site
+            # (https://www.genome.med.kyoto-u.ac.jp/HLA-HD/, 2026-09) that RNA-seq input is an
+            # officially supported use case ("RNA-Seq data can also be applied"), not a hack -- same
+            # hlahd.sh CLI, same exon/intron dictionary reconciliation, just fed different FASTQs.
+            #
+            # rna_hla_typing_fallback: type HLA (Class I + II) from RNA-seq for patients who have
+            # RNA but no real germline WES/WGS sample at all -- currently such patients are fully
+            # excluded from this module. Does NOT extend the DNA-analysis arm (personalised
+            # reference, Novoalign, CN-AIB, mutation calling) -- those still require a real
+            # germline+tumour WES pair; a fallback-typed patient gets an HLA call and nothing else.
+            #
+            # rna_hla_typing_comparison: additionally run RNA-based typing for patients who DO have
+            # a real DNA pair, alongside (not instead of) the existing DNA-based typing, so results
+            # can be cross-checked.
+            #
+            # Real, important caveat for both: this module's whole DNA-analysis arm exists to
+            # detect HLA LOH. RNA-based germline typing sourced from the *tumour* being analysed
+            # for LOH risks a genuine circularity -- a lost allele wouldn't be transcribed and
+            # could be mistyped as homozygous. _mhc_hammer_get_rna_typing_sample therefore prefers
+            # a tissue_status == "normal" RNA sample; only falls back to tumour/tumor RNA if no
+            # normal RNA exists for that patient, and _mhc_hammer_rna_typing_source always records
+            # (in a real, visible output file, not just this comment) which sample/tissue_status
+            # was actually used and whether that carries LOH risk.
+            rna_hla_typing_fallback: False
+            rna_hla_typing_comparison: False
+
+            # Independent of hlahd_min_read_length above (tuned specifically to this cohort's own
+            # 75bp DNA reads) since RNA-seq read lengths may differ -- defaults to the same
+            # starting value but is independently tunable for the RNA-sourced typing rules.
+            hlahd_rna_min_read_length: 75
+
             # Allele BAM filtering
             max_mismatch: 1
 
@@ -378,3 +435,18 @@ lcr-modules:
                 run_paired_tumours: True
                 run_unpaired_tumours_with: "no_normal"
                 run_paired_tumours_as_unpaired: False
+            # Admits mrna rows into CFG["samples"] at all -- op.setup_module() only keeps sample
+            # rows whose seq_type is a declared pairing_config key, so without this entry mrna rows
+            # are silently dropped before this module ever sees them, regardless of
+            # options.rna_hla_typing_fallback/rna_hla_typing_comparison. Identical to
+            # modules/star/1.4's own mrna entry -- every RNA sample is its own independent unit,
+            # never DNA-style tumour/normal-paired. Verified safe (does not leak RNA samples into
+            # the rest of this module's DNA-analysis arm -- CN-AIB, mutation calling, mosdepth,
+            # etc. -- since all of those are scoped to CFG["paired_runs"], not the broader
+            # CFG["samples"], and run_paired_tumours: False here means oncopipe never marks an RNA
+            # "pair" pair_status == "matched", so RNA rows can never enter CFG["paired_runs"] at
+            # all): see mhc_hammer.smk's own "OPT-IN: RNA-SEQ HLA-HD TYPING" section comment.
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True

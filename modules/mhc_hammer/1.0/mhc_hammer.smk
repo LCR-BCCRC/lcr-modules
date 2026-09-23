@@ -225,6 +225,9 @@ localrules:
     _mhc_hammer_output_cohort_table,
     _mhc_hammer_output_hla_final_result,
     _mhc_hammer_output_hla2_alleles,
+    _mhc_hammer_rna_typing_source,
+    _mhc_hammer_output_hla_final_result_rna,
+    _mhc_hammer_output_hla2_alleles_rna,
     _mhc_hammer_all,
 
 
@@ -379,15 +382,40 @@ def _mhc_hammer_get_kmer_file_input(wildcards):
         return [str(rules._mhc_hammer_filter_kmers.output.filtered_kmers)]
     return []
 
+# seq_type-aware input resolution for _mhc_hammer_input_bam -- the ONLY seq_type-specific logic
+# anywhere in the input_bam -> subset_bam -> generate_fqs preprocessing chain (the other two rules
+# stay fully generic across {seq_type}, unmodified -- confirmed by inspection, no seq_type-specific
+# logic inside either). {seq_type} == "mrna" reads from the separate inputs.sample_rna_bam/
+# sample_rna_bai (see the "OPT-IN: RNA-SEQ HLA-HD TYPING" section further down this file); every
+# other seq_type keeps using the original inputs.sample_bam/sample_bai, unchanged.
+def _mhc_hammer_get_input_bam(wildcards):
+    CFG = config["lcr-modules"]["mhc_hammer"]
+    if wildcards.seq_type == "mrna":
+        bam_pattern = CFG["inputs"]["sample_rna_bam"]
+        bai_pattern = CFG["inputs"]["sample_rna_bai"]
+    else:
+        bam_pattern = CFG["inputs"]["sample_bam"]
+        bai_pattern = CFG["inputs"]["sample_bai"]
+    return {
+        "bam": bam_pattern.format(
+            seq_type = wildcards.seq_type, genome_build = wildcards.genome_build, sample_id = wildcards.sample_id
+        ),
+        "bai": bai_pattern.format(
+            seq_type = wildcards.seq_type, genome_build = wildcards.genome_build, sample_id = wildcards.sample_id
+        ),
+    }
+
 
 ##### RULES #####
 
 
-# Symlinks the input files into the module results directory (under '00-inputs/')
+# Symlinks the input files into the module results directory (under '00-inputs/'). Sourced from
+# _mhc_hammer_get_input_bam (seq_type-aware: reads inputs.sample_rna_bam/sample_rna_bai instead of
+# the DNA-oriented sample_bam/sample_bai when {seq_type} == "mrna" -- see that helper's own comment
+# above and the "OPT-IN: RNA-SEQ HLA-HD TYPING" section further down this file).
 rule _mhc_hammer_input_bam:
     input:
-        bam = CFG["inputs"]["sample_bam"],
-        bai = CFG["inputs"]["sample_bai"]
+        unpack(_mhc_hammer_get_input_bam)
     output:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         cram = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.cram",
@@ -2376,6 +2404,329 @@ rule _mhc_hammer_output_hla2_alleles:
         op.relative_symlink(input.hla_alleles, output.hla_alleles, in_module = True)
 
 
+##### OPT-IN: RNA-SEQ HLA-HD TYPING #####
+#
+# Real, requested feature -- not part of this module's default target list unless explicitly
+# enabled via options.rna_hla_typing_fallback/rna_hla_typing_comparison (both default False, zero
+# behaviour change for existing deployments). Confirmed directly from HLA-HD's own official site
+# (https://www.genome.med.kyoto-u.ac.jp/HLA-HD/, 2026-09) that RNA-seq input is an officially
+# supported use case ("RNA-Seq data can also be applied"), not a hack -- same hlahd.sh CLI, same
+# exon/intron dictionary reconciliation (confirmed directly from the user's own local HLA-HD 1.7.1
+# source), just fed different FASTQs. v1.6.0's own changelog ("Improve read score calculation
+# using intron mapped reads") means ribo-minus/total-RNA libraries (which retain real intronic
+# signal, unlike polyA-selected libraries) benefit from HLA-HD's own intron-aware scoring too, not
+# just DNA.
+#
+# Two independent use cases:
+#   rna_hla_typing_fallback: type HLA (Class I + II) from RNA-seq for patients who have RNA but no
+#     real germline WES/WGS sample at all -- currently such patients are fully excluded from this
+#     whole module. Does NOT extend this module's DNA-analysis arm (personalised reference,
+#     Novoalign, CN-AIB, mutation calling) -- those still require a real germline+tumour WES pair;
+#     a fallback-typed patient gets an HLA call and nothing else from this module.
+#   rna_hla_typing_comparison: additionally runs RNA-based typing for patients who DO have a real
+#     DNA pair, alongside (not instead of) the existing DNA-based typing, so results can be
+#     cross-checked.
+#
+# Real scientific caveat driving the sample-selection logic below: this module's whole DNA-
+# analysis arm exists to detect HLA LOH. RNA-based germline typing sourced from the *tumour* being
+# analysed for LOH risks a genuine circularity -- a lost allele wouldn't be transcribed and could
+# be mistyped as homozygous. _mhc_hammer_get_rna_typing_sample therefore prefers a
+# tissue_status == "normal" RNA sample; only falls back to tumour/tumor RNA if no normal RNA
+# exists for that patient, and _mhc_hammer_rna_typing_source below always records (in a real,
+# visible output file, not just this comment) which sample/tissue_status was actually used and
+# whether that carries LOH risk.
+#
+# Reuses the entire existing input_bam -> subset_bam -> generate_fqs preprocessing chain
+# unmodified (see _mhc_hammer_get_input_bam's own comment near the top of this file) -- only the
+# sample-selection step and the HLA-HD invocation itself are new.
+
+
+# Returns (sample_id, tissue_status_lower) for the single representative RNA-seq sample used for
+# patient-level RNA-based HLA-HD typing at this {patient_id}/{genome_build}. Structurally mirrors
+# _mhc_hammer_get_germline_sample_id -- same re-query-CFG["samples"]-directly pattern, same
+# wildcards.patient_id/seq_type/genome_build filter, same diagnostic-dump-on-failure style -- but
+# relaxes the "exactly one" requirement: a patient can have zero, one, or several RNA-seq samples
+# (different biopsies/timepoints -- confirmed real in this cohort), unlike a germline WES sample
+# (always exactly one, by this module's own v1 simplification). {genome_build} here is this rule's
+# OWN wildcard, not inherited from any DNA sample -- HLA-HD's own typing (bowtie2 against its
+# IMGT/HLA dictionaries) doesn't depend on genome_build at all, it only affects which BAM-derived
+# FASTQs feed in, and this cohort has real patients whose DNA and RNA are aligned to different
+# builds.
+def _mhc_hammer_get_rna_typing_sample(wildcards):
+    CFG = config["lcr-modules"]["mhc_hammer"]
+    candidates = op.filter_samples(
+        CFG["samples"],
+        patient_id = wildcards.patient_id,
+        seq_type = wildcards.seq_type,
+        genome_build = wildcards.genome_build,
+    )
+    normal = candidates[candidates["tissue_status"].str.lower() == "normal"]
+    if len(normal) >= 1:
+        chosen = normal.sort_values("sample_id").iloc[0]
+        return chosen["sample_id"], "normal"
+    tumour = candidates[candidates["tissue_status"].str.lower().isin(["tumour", "tumor"])]
+    if len(tumour) == 0:
+        all_patient_samples = op.filter_samples(CFG["samples"], patient_id = wildcards.patient_id)
+        assert False, (
+            f"Expected at least one RNA-seq sample (tissue_status normal or tumour/tumor) for "
+            f"patient '{wildcards.patient_id}' ({wildcards.seq_type}--{wildcards.genome_build}), "
+            f"found 0. ALL sample(s) for patient_id '{wildcards.patient_id}': "
+            f"{all_patient_samples[['sample_id', 'seq_type', 'genome_build', 'tissue_status']].to_dict('records') if len(all_patient_samples) else '(none)'}"
+        )
+    # Deterministic tie-break (sorted by sample_id, first wins) when 2+ tumour RNA candidates
+    # exist and no normal RNA does -- e.g. multiple biopsies/timepoints for the same patient.
+    # _mhc_hammer_rna_typing_source below records exactly which sample_id was actually used.
+    chosen = tumour.sort_values("sample_id").iloc[0]
+    return chosen["sample_id"], str(chosen["tissue_status"]).lower()
+
+
+# Mirrors _mhc_hammer_get_germline_fqs exactly, sourcing sample_id from
+# _mhc_hammer_get_rna_typing_sample instead of _mhc_hammer_get_germline_sample_id.
+def _mhc_hammer_get_rna_typing_fqs(wildcards):
+    sample_id, _ = _mhc_hammer_get_rna_typing_sample(wildcards)
+    return {
+        "fq1": expand(str(rules._mhc_hammer_generate_fqs.output.fq1), sample_id = sample_id, allow_missing = True),
+        "fq2": expand(str(rules._mhc_hammer_generate_fqs.output.fq2), sample_id = sample_id, allow_missing = True),
+    }
+
+
+# Mirrors _mhc_hammer_get_hla2_germline_fqs exactly.
+def _mhc_hammer_get_hla2_rna_typing_fqs(wildcards):
+    sample_id, _ = _mhc_hammer_get_rna_typing_sample(wildcards)
+    return {
+        "fq1": expand(str(rules._mhc_hammer_hla2_generate_fqs.output.fq1), sample_id = sample_id, allow_missing = True),
+        "fq2": expand(str(rules._mhc_hammer_hla2_generate_fqs.output.fq2), sample_id = sample_id, allow_missing = True),
+    }
+
+
+# Same shape/invocation as _mhc_hammer_hlahd (same hlahd.sh params, same A/B/C gene-list
+# restriction, same workdir-wipe/mv-flatten/content-validation logic) -- only the FASTQ source
+# differs. Output deliberately written under a SIBLING "{patient_id}_rna/" directory, not nested
+# under _mhc_hammer_hlahd's own "{patient_id}/" workdir: a real Snakemake AmbiguousRuleException
+# risk caught before writing any shell logic -- Snakemake resolves which rule produces a requested
+# file by structurally matching output-PATTERN STRINGS, not by "this rule is only meant for
+# mrna", so reusing the DNA rule's own output path shape verbatim would make both rules match the
+# same target. Mirrors how _mhc_hammer_hla2_hlahd already avoids the identical collision against
+# _mhc_hammer_hlahd (its own output lives under a sibling "{patient_id}_hla2/") one level further.
+rule _mhc_hammer_hlahd_rna:
+    input:
+        unpack(_mhc_hammer_get_rna_typing_fqs),
+        gtf = str(rules._mhc_hammer_download_reference.output.gtf)
+    output:
+        hla_alleles = CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}_rna/{patient_id}_hla_alleles.csv",
+        result_dir = directory(CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}_rna/result"),
+        hla_final_result = CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}_rna/result/{patient_id}_final.result.txt"
+    wildcard_constraints:
+        seq_type = "mrna"
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 30
+    log:
+        stdout = CFG["logs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}_rna/hlahd.log"
+    params:
+        scripts_dir = SCRIPTS_DIR,
+        hlahd_dir = HLAHD_DIR,
+        workdir = lambda wildcards, output: os.path.dirname(output.hla_alleles),
+        gtf_abs = lambda wildcards, input: os.path.abspath(input.gtf),
+        keep_intermediates = str(CFG["options"]["keep_hlahd_intermediates"]).lower(),
+        min_read_length = CFG["options"]["hlahd_rna_min_read_length"]
+    conda:
+        CFG["conda_envs"]["mhc_hammer_hlahd"]
+    container:
+        None
+    threads:
+        CFG["threads"]["hlahd"]
+    resources:
+        **CFG["resources"]["hlahd"]
+    shell:
+        op.as_one_line("""
+        rm -rf {params.workdir} &&
+        mkdir -p {params.workdir} &&
+        awk '$1 == "A" || $1 == "B" || $1 == "C"' {params.hlahd_dir}/HLA_gene.split.txt
+            > {params.workdir}/hla_class_i_genes.txt &&
+        (
+        export PATH=${{PATH}}:{params.hlahd_dir}/bin &&
+        bash {params.hlahd_dir}/bin/hlahd.sh -m {params.min_read_length} -c 1.0 -t {threads}
+        -f {params.hlahd_dir}/freq_data
+        {input.fq1} {input.fq2}
+        {params.workdir}/hla_class_i_genes.txt
+        {params.hlahd_dir}/dictionary
+        {wildcards.patient_id} {params.workdir} &&
+        if [ "{params.keep_intermediates}" = "false" ]; then
+            rm -rf {params.workdir}/{wildcards.patient_id}/exon {params.workdir}/{wildcards.patient_id}/intron
+                   {params.workdir}/{wildcards.patient_id}/mapfile {params.workdir}/{wildcards.patient_id}/maplist;
+        fi &&
+        rm -f {params.workdir}/{wildcards.patient_id}/pickup.sh {params.workdir}/{wildcards.patient_id}/estimation.sh &&
+        mv {params.workdir}/{wildcards.patient_id}/* {params.workdir}/ &&
+        rmdir {params.workdir}/{wildcards.patient_id}
+        ) > {log.stdout} 2>&1 &&
+        if [ -f {output.result_dir}/{wildcards.patient_id}_A.est.txt ] &&
+           [ -f {output.result_dir}/{wildcards.patient_id}_B.est.txt ] &&
+           [ -f {output.result_dir}/{wildcards.patient_id}_C.est.txt ]; then
+            (cd {params.workdir} &&
+             Rscript {params.scripts_dir}/bin/hlahd_parse_output.R
+             --hlahd_folder result --gtf_path {params.gtf_abs}
+             --sample_id {wildcards.patient_id} --genes A B C &&
+             mv result/{wildcards.patient_id}_hla_alleles.csv {wildcards.patient_id}_hla_alleles.csv) >> {log.stdout} 2>&1;
+            if ! awk -F',' '$2 != "not typed" && $3 != "not typed"' {params.workdir}/{wildcards.patient_id}_hla_alleles.csv | grep -q .; then
+                echo "ERROR: HLA-HD (RNA-sourced) produced A/B/C estimate files for patient {wildcards.patient_id} but failed to confidently type any allele pair -- every gene is 'not typed' in {wildcards.patient_id}_hla_alleles.csv. See {log.stdout}." | tee -a {log.stdout} >&2 &&
+                exit 1;
+            fi;
+        else
+            echo "ERROR: HLA-HD (RNA-sourced) failed to produce HLA A, B and C estimates for patient {wildcards.patient_id}. See {log.stdout}." | tee -a {log.stdout} >&2 &&
+            exit 1;
+        fi
+        """)
+
+
+# Same shape/invocation as _mhc_hammer_hla2_hlahd -- only the FASTQ source differs. Output under a
+# sibling "{patient_id}_hla2_rna/" directory for the same AmbiguousRuleException-avoidance reason
+# as _mhc_hammer_hlahd_rna above.
+rule _mhc_hammer_hla2_hlahd_rna:
+    input:
+        unpack(_mhc_hammer_get_hla2_rna_typing_fqs)
+    output:
+        hla_alleles = CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}_hla2_rna/{patient_id}_hla2_alleles.csv",
+        result_dir = directory(CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}_hla2_rna/result")
+    wildcard_constraints:
+        seq_type = "mrna"
+    # See _mhc_hammer_flagstat's own comment for why this whole chain has increasing priority:.
+    priority: 30
+    log:
+        stdout = CFG["logs"]["hlahd"] + "{seq_type}--{genome_build}/{patient_id}_hla2_rna/hlahd.log"
+    params:
+        parse_script = HLA2_PARSE_SCRIPT,
+        hlahd_dir = HLAHD_DIR,
+        workdir = lambda wildcards, output: os.path.dirname(output.hla_alleles),
+        keep_intermediates = str(CFG["options"]["keep_hlahd_intermediates"]).lower(),
+        min_read_length = CFG["options"]["hlahd_rna_min_read_length"],
+        gene_awk_filter = " || ".join(f'$1 == "{gene}"' for gene in HLA2_GENES),
+        genes = " ".join(HLA2_GENES)
+    conda:
+        CFG["conda_envs"]["mhc_hammer_hlahd"]
+    container:
+        None
+    threads:
+        CFG["threads"]["hla2_hlahd"]
+    resources:
+        **CFG["resources"]["hla2_hlahd"]
+    shell:
+        op.as_one_line("""
+        rm -rf {params.workdir} &&
+        mkdir -p {params.workdir} &&
+        awk '{params.gene_awk_filter}' {params.hlahd_dir}/HLA_gene.split.txt
+            > {params.workdir}/hla_class_ii_genes.txt &&
+        (
+        export PATH=${{PATH}}:{params.hlahd_dir}/bin &&
+        bash {params.hlahd_dir}/bin/hlahd.sh -m {params.min_read_length} -c 1.0 -t {threads}
+        -f {params.hlahd_dir}/freq_data
+        {input.fq1} {input.fq2}
+        {params.workdir}/hla_class_ii_genes.txt
+        {params.hlahd_dir}/dictionary
+        {wildcards.patient_id} {params.workdir} &&
+        if [ "{params.keep_intermediates}" = "false" ]; then
+            rm -rf {params.workdir}/{wildcards.patient_id}/exon {params.workdir}/{wildcards.patient_id}/intron
+                   {params.workdir}/{wildcards.patient_id}/mapfile {params.workdir}/{wildcards.patient_id}/maplist;
+        fi &&
+        rm -f {params.workdir}/{wildcards.patient_id}/pickup.sh {params.workdir}/{wildcards.patient_id}/estimation.sh &&
+        mv {params.workdir}/{wildcards.patient_id}/* {params.workdir}/ &&
+        rmdir {params.workdir}/{wildcards.patient_id}
+        ) > {log.stdout} 2>&1 &&
+        Rscript {params.parse_script}
+        --hlahd_folder {output.result_dir}
+        --sample_id {wildcards.patient_id}
+        --genes {params.genes}
+        --output {output.hla_alleles} >> {log.stdout} 2>&1 &&
+        if ! awk -F',' '$2 != "not typed" && $3 != "not typed"' {output.hla_alleles} | grep -q .; then
+            echo "ERROR: HLA-HD (RNA-sourced) ran for patient {wildcards.patient_id} but failed to confidently type any HLA class II allele pair -- every gene is 'not typed' in {output.hla_alleles}. See {log.stdout}." | tee -a {log.stdout} >&2 &&
+            exit 1;
+        fi
+        """)
+
+
+# Small, standalone audit record -- deliberately NOT folded into either typing rule's own shell
+# block above: _mhc_hammer_get_rna_typing_sample is a pure function of (patient_id, genome_build),
+# so class I and class II would otherwise independently recompute an identical answer, risking two
+# redundant copies silently disagreeing. This is the real, visible LOH-risk flag artifact the
+# design requires -- kept separate from hla_alleles.csv/hla_final_result (rather than modifying
+# hlahd_parse_output.R's own output schema) so the RNA path's own output files stay schema-
+# identical to the DNA path's. Writes directly under 99-outputs/, mirroring
+# _mhc_hammer_patient_completed_samples's own "small standalone manifest, no raw-dir-then-symlink
+# step" shape -- pure config-derived bookkeeping, no BAM/FASTQ/FASTA IO.
+rule _mhc_hammer_rna_typing_source:
+    output:
+        typing_source = CFG["dirs"]["outputs"] + "hla_typing_source_rna/{seq_type}--{genome_build}/{patient_id}.hla_typing_source.csv"
+    wildcard_constraints:
+        seq_type = "mrna"
+    params:
+        rna_sample_id = lambda wildcards: _mhc_hammer_get_rna_typing_sample(wildcards)[0],
+        rna_tissue_status = lambda wildcards: _mhc_hammer_get_rna_typing_sample(wildcards)[1]
+    run:
+        os.makedirs(os.path.dirname(output.typing_source), exist_ok = True)
+        loh_risk = params.rna_tissue_status != "normal"
+        with open(output.typing_source, "w", newline = "") as fh:
+            writer = csv.writer(fh)
+            writer.writerow(["patient_id", "rna_sample_id_used", "tissue_status_used", "tumour_derived_loh_risk"])
+            writer.writerow([wildcards.patient_id, params.rna_sample_id, params.rna_tissue_status, loh_risk])
+
+
+rule _mhc_hammer_output_hla_final_result_rna:
+    input:
+        hla_final_result = str(rules._mhc_hammer_hlahd_rna.output.hla_final_result)
+    output:
+        hla_final_result = CFG["dirs"]["outputs"] + "hla_alleles_rna/{seq_type}--{genome_build}/{patient_id}.hla_alleles.txt"
+    run:
+        op.relative_symlink(input.hla_final_result, output.hla_final_result, in_module = True)
+
+
+rule _mhc_hammer_output_hla2_alleles_rna:
+    input:
+        hla_alleles = str(rules._mhc_hammer_hla2_hlahd_rna.output.hla_alleles)
+    output:
+        hla_alleles = CFG["dirs"]["outputs"] + "hla2_alleles_rna/{seq_type}--{genome_build}/{patient_id}.hla2_alleles.csv"
+    run:
+        op.relative_symlink(input.hla_alleles, output.hla_alleles, in_module = True)
+
+
+# Target-list construction for _mhc_hammer_all below. Same set()-difference idiom
+# _mhc_hammer_all_samples above already uses.
+_mhc_hammer_rna_samples = CFG["samples"][CFG["samples"]["seq_type"] == "mrna"]
+_mhc_hammer_rna_patient_builds = sorted(set(
+    zip(_mhc_hammer_rna_samples["patient_id"], _mhc_hammer_rna_samples["genome_build"])
+))
+# CFG["paired_runs"] is already narrowed to pair_status == "matched" DNA-only pairs near the top
+# of this file -- this set means exactly "patients already typeable via the existing DNA-based
+# path."
+_mhc_hammer_dna_patient_ids = set(CFG["paired_runs"]["tumour_patient_id"])
+
+# Fallback: RNA rows for patients with NO real DNA pair at all.
+_mhc_hammer_rna_fallback_targets = sorted(
+    (patient_id, genome_build)
+    for patient_id, genome_build in _mhc_hammer_rna_patient_builds
+    if patient_id not in _mhc_hammer_dna_patient_ids
+)
+# Comparison arm: RNA rows for patients that DO have a real DNA pair -- requested IN ADDITION TO
+# (not instead of) the existing DNA-based targets for these patients.
+_mhc_hammer_rna_comparison_targets = sorted(
+    (patient_id, genome_build)
+    for patient_id, genome_build in _mhc_hammer_rna_patient_builds
+    if patient_id in _mhc_hammer_dna_patient_ids
+)
+
+
+def _mhc_hammer_rna_typing_targets(patient_builds):
+    return expand(
+        [
+            str(rules._mhc_hammer_output_hla_final_result_rna.output.hla_final_result),
+            str(rules._mhc_hammer_output_hla2_alleles_rna.output.hla_alleles),
+            str(rules._mhc_hammer_rna_typing_source.output.typing_source)
+        ],
+        zip,
+        seq_type = ["mrna"] * len(patient_builds),
+        genome_build = [b for _, b in patient_builds],
+        patient_id = [p for p, _ in patient_builds]
+    )
+
+
 # Generates the target sentinels for each run, which generate the symlinks. Uses
 # CFG["paired_runs"] (not CFG["runs"]) so that tumour samples without a matched germline WES
 # sample -- which this module cannot process at all, since HLA typing and the personalised
@@ -2470,7 +2821,16 @@ rule _mhc_hammer_all:
             seq_type = CFG["paired_runs"]["tumour_seq_type"],
             genome_build = CFG["paired_runs"]["tumour_genome_build"],
             patient_id = CFG["paired_runs"]["tumour_patient_id"]
-        )
+        ),
+        # OPT-IN: RNA-seq HLA-HD typing fallback -- patients with RNA but no real DNA pair,
+        # otherwise fully excluded from this module. See options.rna_hla_typing_fallback.
+        *(_mhc_hammer_rna_typing_targets(_mhc_hammer_rna_fallback_targets)
+          if CFG["options"]["rna_hla_typing_fallback"] else []),
+        # OPT-IN: RNA-seq HLA-HD typing comparison arm -- patients who ALSO have a real DNA pair,
+        # requested alongside the existing DNA-based targets above. See
+        # options.rna_hla_typing_comparison.
+        *(_mhc_hammer_rna_typing_targets(_mhc_hammer_rna_comparison_targets)
+          if CFG["options"]["rna_hla_typing_comparison"] else [])
 
 
 ##### CLEANUP #####
