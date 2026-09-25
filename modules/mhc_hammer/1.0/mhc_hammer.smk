@@ -2436,9 +2436,13 @@ rule _mhc_hammer_output_hla2_alleles:
 # visible output file, not just this comment) which sample/tissue_status was actually used and
 # whether that carries LOH risk.
 #
-# Reuses the entire existing input_bam -> subset_bam -> generate_fqs preprocessing chain
-# unmodified (see _mhc_hammer_get_input_bam's own comment near the top of this file) -- only the
-# sample-selection step and the HLA-HD invocation itself are new.
+# Reuses the existing input_bam -> subset_bam preprocessing chain unmodified (see
+# _mhc_hammer_get_input_bam's own comment near the top of this file). From there, RNA-sourced
+# typing branches into its own downsample_bam -> generate_fqs steps (_mhc_hammer_rna_downsample_bam/
+# _mhc_hammer_rna_generate_fqs and their class II equivalents) rather than reusing
+# _mhc_hammer_generate_fqs directly -- see that rule's own comment for the real, confirmed
+# production problem (HLA-HD's own combinatorial per-read alignment blowup on highly-expressed
+# genes) this exists to prevent.
 
 
 # Returns (sample_id, tissue_status_lower) for the single representative RNA-seq sample used for
@@ -2480,22 +2484,196 @@ def _mhc_hammer_get_rna_typing_sample(wildcards):
     return chosen["sample_id"], str(chosen["tissue_status"]).lower()
 
 
+# Real production problem, not hypothetical: on a real DLBCL RNA-seq sample, the class I subset
+# BAM (already narrowed to options.mhc_coords_by_system + unmapped/contig reads by
+# _mhc_hammer_subset_bam) held 500K+ read pairs -- HLA genes are highly expressed in lymphoid
+# tissue, and RNA-seq depth at an expressed locus has no relationship to WES/WGS coverage, which
+# is what this whole preprocessing chain was originally sized for. Confirmed directly from HLA-HD's
+# own bin/hlahd.sh source that its first typing step runs
+# `bowtie2 --score-min L,-1.0,0 -a -x all_exon_N{len}.fasta -U {reads} -S {id}.all_exon.R{1,2}.pmap.sam`
+# -- `-a` reports EVERY valid alignment per read against the FULL multi-gene, multi-thousand-allele
+# exon dictionary (not narrowed by the gene list this module passes -- that only restricts what's
+# reported downstream), so output size scales as (read count) x (near-identical allele references
+# each read hits). On the sample above this produced a 25GB+ SAM file per read direction and had
+# not finished after an hour. None of hlahd.sh's own CLI flags (-t/-c/-m/-n) touch that hardcoded
+# bowtie2 call, so the only lever available without patching a licensed, user-supplied third-party
+# tool is cutting read count before HLA-HD ever sees it.
+#
+# Downsampling must be RANDOM, not "first N reads" -- these BAMs are coordinate-sorted, so
+# truncating the stream would systematically favour whichever end of the ~1.9Mb window (or which
+# transcript/exon) happens to sort first, silently biasing which alleles get evidence. Uses
+# `samtools view -s {seed}.{fraction}`, which subsamples by hashing each read's QNAME (not its
+# position or file offset) against the given fraction -- genuinely unbiased with respect to
+# coordinate order, and since both mates of a pair share a QNAME, they hash identically and are
+# always kept or dropped together (confirmed from samtools' own documented behaviour for -s).
+# options.rna_hla_typing_max_read_pairs (0 disables) and options.rna_hla_typing_downsample_seed
+# (fixed, not os.urandom-derived, so reruns are reproducible) control this.
+#
+# A new rule rather than folding into _mhc_hammer_subset_bam itself: keeps that rule (and
+# _mhc_hammer_generate_fqs) fully generic/untouched for every other seq_type, matching this
+# module's own established minimal-blast-radius pattern for the RNA opt-in paths elsewhere in this
+# section. Output path is a disjoint "rna_typing/" subtree (not just a wildcard_constraint) for the
+# same AmbiguousRuleException-avoidance reason documented on _mhc_hammer_hlahd_rna above.
+rule _mhc_hammer_rna_downsample_bam:
+    input:
+        bam = str(rules._mhc_hammer_subset_bam.output.bam)
+    output:
+        bam = temp(CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/rna_typing/{sample_id}.subset.downsampled.bam")
+    wildcard_constraints:
+        seq_type = "mrna"
+    log:
+        stdout = CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/rna_typing/downsample_bam.log"
+    params:
+        max_read_pairs = CFG["options"]["rna_hla_typing_max_read_pairs"],
+        seed = CFG["options"]["rna_hla_typing_downsample_seed"]
+    conda:
+        CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
+    threads:
+        CFG["threads"]["rna_downsample_bam"]
+    resources:
+        **CFG["resources"]["rna_downsample_bam"]
+    shell:
+        op.as_one_line("""
+        (
+        mkdir -p $(dirname {output.bam}) &&
+        max_pairs={params.max_read_pairs} &&
+        if [ "$max_pairs" -le 0 ]; then
+            ln -sf $(readlink -f {input.bam}) {output.bam};
+        else
+            total=$(samtools view -c {input.bam}) &&
+            max_records=$((max_pairs * 2)) &&
+            if [ "$total" -le "$max_records" ]; then
+                ln -sf $(readlink -f {input.bam}) {output.bam};
+            else
+                frac=$(awk -v m=$max_records -v t=$total 'BEGIN {{ f = m / t; if (f > 1) f = 1; printf "%.6f", f }}') &&
+                samtools view -b -s {params.seed}${{frac#0}} -@ {threads} -o {output.bam} {input.bam};
+            fi;
+        fi
+        ) > {log.stdout} 2>&1
+        """)
+
+
+# Mirrors _mhc_hammer_generate_fqs exactly, sourcing from the downsampled BAM above instead of
+# _mhc_hammer_subset_bam's output directly. Separate rule (not a reuse of _mhc_hammer_generate_fqs
+# itself) so that rule stays untouched/generic -- see _mhc_hammer_rna_downsample_bam's own comment.
+rule _mhc_hammer_rna_generate_fqs:
+    input:
+        bam = str(rules._mhc_hammer_rna_downsample_bam.output.bam)
+    output:
+        fq1 = temp(CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/rna_typing/{sample_id}.1.fq.gz"),
+        fq2 = temp(CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/rna_typing/{sample_id}.2.fq.gz")
+    wildcard_constraints:
+        seq_type = "mrna"
+    log:
+        stdout = CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/rna_typing/generate_fqs.log"
+    conda:
+        CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
+    threads:
+        CFG["threads"]["rna_generate_fqs"]
+    resources:
+        **CFG["resources"]["rna_generate_fqs"]
+    shell:
+        op.as_one_line("""
+        (
+        samtools collate -@ {threads} -u -O {input.bam} |
+        samtools fastq -@ {threads} -1 {output.fq1} -2 {output.fq2} -s /dev/null -0 /dev/null -n
+        ) > {log.stdout} 2>&1
+        """)
+
+
+# Same downsampling rationale as _mhc_hammer_rna_downsample_bam above, class II path.
+rule _mhc_hammer_hla2_rna_downsample_bam:
+    input:
+        bam = str(rules._mhc_hammer_hla2_subset_bam.output.bam)
+    output:
+        bam = temp(CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/rna_typing/{sample_id}.subset.downsampled.bam")
+    wildcard_constraints:
+        seq_type = "mrna"
+    log:
+        stdout = CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/rna_typing/downsample_bam.log"
+    params:
+        max_read_pairs = CFG["options"]["rna_hla_typing_max_read_pairs"],
+        seed = CFG["options"]["rna_hla_typing_downsample_seed"]
+    conda:
+        CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
+    threads:
+        CFG["threads"]["hla2_rna_downsample_bam"]
+    resources:
+        **CFG["resources"]["hla2_rna_downsample_bam"]
+    shell:
+        op.as_one_line("""
+        (
+        mkdir -p $(dirname {output.bam}) &&
+        max_pairs={params.max_read_pairs} &&
+        if [ "$max_pairs" -le 0 ]; then
+            ln -sf $(readlink -f {input.bam}) {output.bam};
+        else
+            total=$(samtools view -c {input.bam}) &&
+            max_records=$((max_pairs * 2)) &&
+            if [ "$total" -le "$max_records" ]; then
+                ln -sf $(readlink -f {input.bam}) {output.bam};
+            else
+                frac=$(awk -v m=$max_records -v t=$total 'BEGIN {{ f = m / t; if (f > 1) f = 1; printf "%.6f", f }}') &&
+                samtools view -b -s {params.seed}${{frac#0}} -@ {threads} -o {output.bam} {input.bam};
+            fi;
+        fi
+        ) > {log.stdout} 2>&1
+        """)
+
+
+# Mirrors _mhc_hammer_hla2_generate_fqs exactly, sourcing from the downsampled BAM above.
+rule _mhc_hammer_hla2_rna_generate_fqs:
+    input:
+        bam = str(rules._mhc_hammer_hla2_rna_downsample_bam.output.bam)
+    output:
+        fq1 = temp(CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/rna_typing/{sample_id}.1.fq.gz"),
+        fq2 = temp(CFG["dirs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/rna_typing/{sample_id}.2.fq.gz")
+    wildcard_constraints:
+        seq_type = "mrna"
+    log:
+        stdout = CFG["logs"]["preprocess"] + "{seq_type}--{genome_build}/{sample_id}/hla2/rna_typing/generate_fqs.log"
+    conda:
+        CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
+    threads:
+        CFG["threads"]["hla2_rna_generate_fqs"]
+    resources:
+        **CFG["resources"]["hla2_rna_generate_fqs"]
+    shell:
+        op.as_one_line("""
+        (
+        samtools collate -@ {threads} -u -O {input.bam} |
+        samtools fastq -@ {threads} -1 {output.fq1} -2 {output.fq2} -s /dev/null -0 /dev/null -n
+        ) > {log.stdout} 2>&1
+        """)
+
+
 # Mirrors _mhc_hammer_get_germline_fqs exactly, sourcing sample_id from
-# _mhc_hammer_get_rna_typing_sample instead of _mhc_hammer_get_germline_sample_id.
+# _mhc_hammer_get_rna_typing_sample instead of _mhc_hammer_get_germline_sample_id, and reading
+# from _mhc_hammer_rna_generate_fqs (downsampled) rather than _mhc_hammer_generate_fqs directly --
+# see that rule's own comment for why RNA-sourced typing needs its own capped preprocessing chain.
 def _mhc_hammer_get_rna_typing_fqs(wildcards):
     sample_id, _ = _mhc_hammer_get_rna_typing_sample(wildcards)
     return {
-        "fq1": expand(str(rules._mhc_hammer_generate_fqs.output.fq1), sample_id = sample_id, allow_missing = True),
-        "fq2": expand(str(rules._mhc_hammer_generate_fqs.output.fq2), sample_id = sample_id, allow_missing = True),
+        "fq1": expand(str(rules._mhc_hammer_rna_generate_fqs.output.fq1), sample_id = sample_id, allow_missing = True),
+        "fq2": expand(str(rules._mhc_hammer_rna_generate_fqs.output.fq2), sample_id = sample_id, allow_missing = True),
     }
 
 
-# Mirrors _mhc_hammer_get_hla2_germline_fqs exactly.
+# Mirrors _mhc_hammer_get_hla2_germline_fqs exactly, reading from _mhc_hammer_hla2_rna_generate_fqs
+# (downsampled) instead of _mhc_hammer_hla2_generate_fqs directly.
 def _mhc_hammer_get_hla2_rna_typing_fqs(wildcards):
     sample_id, _ = _mhc_hammer_get_rna_typing_sample(wildcards)
     return {
-        "fq1": expand(str(rules._mhc_hammer_hla2_generate_fqs.output.fq1), sample_id = sample_id, allow_missing = True),
-        "fq2": expand(str(rules._mhc_hammer_hla2_generate_fqs.output.fq2), sample_id = sample_id, allow_missing = True),
+        "fq1": expand(str(rules._mhc_hammer_hla2_rna_generate_fqs.output.fq1), sample_id = sample_id, allow_missing = True),
+        "fq2": expand(str(rules._mhc_hammer_hla2_rna_generate_fqs.output.fq2), sample_id = sample_id, allow_missing = True),
     }
 
 

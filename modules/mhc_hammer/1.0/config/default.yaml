@@ -291,6 +291,29 @@ lcr-modules:
             # starting value but is independently tunable for the RNA-sourced typing rules.
             hlahd_rna_min_read_length: 75
 
+            # Caps the number of read PAIRS fed into RNA-sourced HLA-HD typing (both class I and
+            # class II RNA paths), via random (QNAME-hash-based, NOT position-based -- safe for
+            # coordinate-sorted input, see _mhc_hammer_rna_downsample_bam's own comment)
+            # downsampling of each RNA subset BAM before FASTQ conversion. Real, confirmed
+            # production problem this exists to prevent: HLA-HD's own internal typing step
+            # (bowtie2 run with `-a`, reporting EVERY alignment per read against its full
+            # multi-thousand-allele exon dictionary -- confirmed directly from HLA-HD's own
+            # bin/hlahd.sh source, not part of this module's own code) scales combinatorially with
+            # input READ COUNT, not sequencing depth in the ordinary sense. A highly-expressed HLA
+            # locus in RNA-seq (a real DLBCL sample in this cohort produced 500K+ read pairs from
+            # the ~1.9Mb mhc_coords_by_system window alone) blew this up into a 25GB+ intermediate
+            # SAM file and multi-hour-per-sample runtimes. None of HLA-HD's own CLI flags
+            # (-t/-c/-m/-n) touch this step -- the `-a`/`--score-min` bowtie2 call is hardcoded --
+            # so reducing read count before HLA-HD ever sees the data is the only available lever.
+            # Typing tools generally need far fewer reads than this to call confidently (e.g.
+            # arcasHLA/OptiType routinely use tens of thousands), so this costs negligible accuracy
+            # for a large runtime/disk win. Set to 0 to disable (uncapped, original behaviour).
+            rna_hla_typing_max_read_pairs: 100000
+            # Seed for the downsampling above -- fixed (not e.g. derived from os.urandom) so
+            # reruns are reproducible and Snakemake doesn't see spurious output churn across
+            # invocations of the same input.
+            rna_hla_typing_downsample_seed: 42
+
             # Allele BAM filtering
             max_mismatch: 1
 
@@ -376,6 +399,11 @@ lcr-modules:
             hla2_subset_bam: 8
             hla2_generate_fqs: 4
             hla2_hlahd: 4
+            # OPT-IN: RNA-seq HLA-HD typing read-count cap (options.rna_hla_typing_max_read_pairs)
+            rna_downsample_bam: 4
+            rna_generate_fqs: 4
+            hla2_rna_downsample_bam: 4
+            hla2_rna_generate_fqs: 4
 
         resources:
             download_reference:
@@ -425,6 +453,14 @@ lcr-modules:
             # longer (HLA-HD types genes sequentially), not meaningfully more memory-hungry.
             hla2_hlahd:
                 mem_mb: 16000
+            rna_downsample_bam:
+                mem_mb: 4000
+            rna_generate_fqs:
+                mem_mb: 4000
+            hla2_rna_downsample_bam:
+                mem_mb: 4000
+            hla2_rna_generate_fqs:
+                mem_mb: 4000
 
         pairing_config:
             capture:
