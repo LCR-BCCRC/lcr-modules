@@ -2535,20 +2535,32 @@ rule _mhc_hammer_rna_downsample_bam:
     resources:
         **CFG["resources"]["rna_downsample_bam"]
     shell:
+        # Logs which of the three branches actually fired (disabled / already under cap, so just
+        # symlinked through unchanged / genuinely downsampled, with the real total/cap/fraction
+        # used) -- added after a real production run turned out to have already been under the
+        # cap (so no downsampling happened at all) with no way to tell that from the log as it
+        # stood before this. `grep -h "^\[downsample_bam\]"` across sample logs now answers "did
+        # this actually fire, and by how much" directly instead of requiring re-derivation from
+        # file sizes after the fact.
         op.as_one_line("""
         (
         mkdir -p $(dirname {output.bam}) &&
         max_pairs={params.max_read_pairs} &&
         if [ "$max_pairs" -le 0 ]; then
+            echo "[downsample_bam] disabled (rna_hla_typing_max_read_pairs <= 0) -- symlinking {input.bam} unchanged" &&
             ln -sf $(readlink -f {input.bam}) {output.bam};
         else
             total=$(samtools view -c {input.bam}) &&
             max_records=$((max_pairs * 2)) &&
             if [ "$total" -le "$max_records" ]; then
+                echo "[downsample_bam] SKIPPED -- $total read(s) already <= cap of $max_records ($max_pairs pairs) -- symlinking {input.bam} unchanged" &&
                 ln -sf $(readlink -f {input.bam}) {output.bam};
             else
                 frac=$(awk -v m=$max_records -v t=$total 'BEGIN {{ f = m / t; if (f > 1) f = 1; printf "%.6f", f }}') &&
-                samtools view -b -s {params.seed}${{frac#0}} -@ {threads} -o {output.bam} {input.bam};
+                echo "[downsample_bam] DOWNSAMPLING -- $total read(s) > cap of $max_records ($max_pairs pairs) -- using fraction $frac (seed {params.seed})" &&
+                samtools view -b -s {params.seed}${{frac#0}} -@ {threads} -o {output.bam} {input.bam} &&
+                kept=$(samtools view -c {output.bam}) &&
+                echo "[downsample_bam] done -- kept $kept read(s) (~$((kept / 2)) pair(s))";
             fi;
         fi
         ) > {log.stdout} 2>&1
@@ -2607,20 +2619,26 @@ rule _mhc_hammer_hla2_rna_downsample_bam:
     resources:
         **CFG["resources"]["hla2_rna_downsample_bam"]
     shell:
+        # See _mhc_hammer_rna_downsample_bam's own comment for why these log lines exist.
         op.as_one_line("""
         (
         mkdir -p $(dirname {output.bam}) &&
         max_pairs={params.max_read_pairs} &&
         if [ "$max_pairs" -le 0 ]; then
+            echo "[downsample_bam] disabled (rna_hla_typing_max_read_pairs <= 0) -- symlinking {input.bam} unchanged" &&
             ln -sf $(readlink -f {input.bam}) {output.bam};
         else
             total=$(samtools view -c {input.bam}) &&
             max_records=$((max_pairs * 2)) &&
             if [ "$total" -le "$max_records" ]; then
+                echo "[downsample_bam] SKIPPED -- $total read(s) already <= cap of $max_records ($max_pairs pairs) -- symlinking {input.bam} unchanged" &&
                 ln -sf $(readlink -f {input.bam}) {output.bam};
             else
                 frac=$(awk -v m=$max_records -v t=$total 'BEGIN {{ f = m / t; if (f > 1) f = 1; printf "%.6f", f }}') &&
-                samtools view -b -s {params.seed}${{frac#0}} -@ {threads} -o {output.bam} {input.bam};
+                echo "[downsample_bam] DOWNSAMPLING -- $total read(s) > cap of $max_records ($max_pairs pairs) -- using fraction $frac (seed {params.seed})" &&
+                samtools view -b -s {params.seed}${{frac#0}} -@ {threads} -o {output.bam} {input.bam} &&
+                kept=$(samtools view -c {output.bam}) &&
+                echo "[downsample_bam] done -- kept $kept read(s) (~$((kept / 2)) pair(s))";
             fi;
         fi
         ) > {log.stdout} 2>&1
