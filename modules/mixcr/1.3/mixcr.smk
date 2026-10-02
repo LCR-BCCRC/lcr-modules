@@ -142,7 +142,7 @@ rule _mixcr_run:
         chains       = " ".join(RECEPTORS)
     conda: CFG["conda_envs"]["java"]
     container:
-        CFG["container_envs"]["java"]
+        CFG["container_envs"]["mixcr"]
     threads:
         CFG["threads"]["mixcr_run"]
     shell:

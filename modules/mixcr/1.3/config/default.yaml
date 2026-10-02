@@ -35,15 +35,15 @@ lcr-modules:
             mixcr_run:
                 # Extra flags appended after the fixed options (preset, --species, --assemble-longest-contigs).
                 # Add per-seq-type overrides here (e.g. tag patterns, receptor-type constraints).
-                mrna: "--force-overwrite"
-                capture: "--force-overwrite"
-                genome: "--force-overwrite"
+                mrna: "--force-overwrite --impute-germline-on-export "
+                capture: "--force-overwrite --impute-germline-on-export "
+                genome: "--force-overwrite --impute-germline-on-export "
 
         conda_envs:
             java: "{MODSDIR}/envs/java-jdk-8.0.yaml"
 
         container_envs:
-            java: "docker://ghcr.io/milaboratory/mixcr/mixcr:4.7.0-364-develop"
+            mixcr: "docker://ghcr.io/milaboratory/mixcr/mixcr:4.7.0-364-develop"
 
         threads:
             mixcr_run: 4
