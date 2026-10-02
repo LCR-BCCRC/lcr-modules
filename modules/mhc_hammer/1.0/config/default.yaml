@@ -166,6 +166,17 @@ lcr-modules:
             # (33073786-33091655), same padding. The haplotype-dependent DRB3/DRB4/DRB5 genes and
             # the non-classical DMA/DMB/DOA/DOB genes all fall within this same window (confirmed
             # individually) -- only one region is needed, not one per gene.
+            # Default True (matches this module's own original behaviour, before this toggle
+            # existed, where class II typing always ran unconditionally alongside class I) --
+            # set False to skip the entire class II germline-typing path (DNA-sourced
+            # _mhc_hammer_hla2_* rules, AND the RNA-sourced _mhc_hammer_hla2_*_rna rules if
+            # rna_hla_typing_fallback/rna_hla_typing_comparison are also on). Not requesting
+            # _mhc_hammer_output_hla2_alleles(_rna) as a target means the whole upstream chain
+            # (hla2_subset_bam -> hla2_generate_fqs -> hla2_hlahd) never gets scheduled at all for
+            # any patient, not just its final output -- a real, meaningful reduction in per-patient
+            # job count (and queue footprint) for anyone who only wants class I HLA-A/B/C typing.
+            run_hla2_typing: True
+
             hla2_coords_by_system:
                 hg19: "6:32350000-33250000"
                 hg38: "6:32380000-33300000"

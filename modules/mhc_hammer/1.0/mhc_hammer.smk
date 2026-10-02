@@ -2910,12 +2910,17 @@ _mhc_hammer_rna_comparison_targets = sorted(
 
 
 def _mhc_hammer_rna_typing_targets(patient_builds):
+    # options.run_hla2_typing also gates the RNA-sourced class II output here -- see that
+    # option's own comment in default.yaml. Class I and the typing_source audit CSV are
+    # unaffected either way.
+    rna_targets = [
+        str(rules._mhc_hammer_output_hla_final_result_rna.output.hla_final_result),
+        str(rules._mhc_hammer_rna_typing_source.output.typing_source)
+    ]
+    if CFG["options"]["run_hla2_typing"]:
+        rna_targets.append(str(rules._mhc_hammer_output_hla2_alleles_rna.output.hla_alleles))
     return expand(
-        [
-            str(rules._mhc_hammer_output_hla_final_result_rna.output.hla_final_result),
-            str(rules._mhc_hammer_output_hla2_alleles_rna.output.hla_alleles),
-            str(rules._mhc_hammer_rna_typing_source.output.typing_source)
-        ],
+        rna_targets,
         zip,
         seq_type = ["mrna"] * len(patient_builds),
         genome_build = [b for _, b in patient_builds],
@@ -3009,7 +3014,10 @@ rule _mhc_hammer_all:
         ),
         # HLA class II germline typing -- same CFG["paired_runs"] patient scoping as the
         # mutations target above (only patients with a real matched germline get requested).
-        expand(
+        # options.run_hla2_typing (default True): not requesting this target means the whole
+        # upstream hla2_subset_bam -> hla2_generate_fqs -> hla2_hlahd chain never gets scheduled
+        # for any patient either, not just this final symlink -- see that option's own comment.
+        *(expand(
             [
                 str(rules._mhc_hammer_output_hla2_alleles.output.hla_alleles)
             ],
@@ -3017,7 +3025,7 @@ rule _mhc_hammer_all:
             seq_type = CFG["paired_runs"]["tumour_seq_type"],
             genome_build = CFG["paired_runs"]["tumour_genome_build"],
             patient_id = CFG["paired_runs"]["tumour_patient_id"]
-        ),
+        ) if CFG["options"]["run_hla2_typing"] else []),
         # OPT-IN: RNA-seq HLA-HD typing fallback -- patients with RNA but no real DNA pair,
         # otherwise fully excluded from this module. See options.rna_hla_typing_fallback.
         *(_mhc_hammer_rna_typing_targets(_mhc_hammer_rna_fallback_targets)
