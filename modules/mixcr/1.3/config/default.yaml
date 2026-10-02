@@ -20,7 +20,6 @@ lcr-modules:
         scripts:
             mixcr2fasta: "{MODSDIR}/src/mixcr_to_fasta.py"
             mixcr_subset_dominant: "{MODSDIR}/src/mixcr_subset_dominant.py"
-            mixcr_pretty_to_fasta: "{MODSDIR}/src/mixcr_pretty_to_fasta.py"
             mixcr_annotate_glycosylation: "{MODSDIR}/src/mixcr_annotate_glycosylation.py"
             merge_tsv: "{SCRIPTSDIR}/annotate_bcr/1.0/merge_annotation_tsv.py"
 
