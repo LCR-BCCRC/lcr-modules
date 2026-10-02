@@ -29,38 +29,8 @@ CFG = op.setup_module(
 # TODO: Replace with actual rules once you change the rule names
 localrules:
     _pyclone_vi_write_results,
+    _pyclone_vi_output_tsv,
     _pyclone_vi_all
-
-# Install GAMBLR
-
-# Obtain the path to the GAMBLR conda environment
-md5hash = hashlib.md5()
-if workflow.conda_prefix:
-    conda_prefix = workflow.conda_prefix
-else:
-    conda_prefix = os.path.abspath(".snakemake/conda")
-
-md5hash.update(conda_prefix.encode())
-f = open("config/envs/GAMBLR.yaml", 'rb')
-md5hash.update(f.read())
-f.close()
-h = md5hash.hexdigest()
-GAMBLR = glob.glob(conda_prefix + "/" + h[:8] + "*")[0]
-
-rule _pyclone_vi_install_GAMBLR:
-    params:
-        branch = ", ref = \"" + CFG["options"]["build_input"]['gamblr_branch'] + "\"" if CFG["options"]["build_input"]['gamblr_branch'] != "" else "",
-        config_url = CFG["options"]["build_input"]["gamblr_config_url"]
-    output:
-        installed = directory(GAMBLR + "/lib/R/library/GAMBLR"),
-        config = "gamblr.yaml"
-    conda:
-        CFG['conda_envs']['gamblr']
-    shell:
-        op.as_one_line("""
-        wget -qO {output.config} {params.config_url} &&
-        R -q -e 'options(timeout=9999999); devtools::install_github("morinlab/GAMBLR"{params.branch})'
-        """)
 
 
 ##### RULES #####
@@ -93,18 +63,26 @@ rule _pyclone_vi_input_battenberg:
         op.absolute_symlink(input.cellularity, output.cellularity)
         op.absolute_symlink(input.sex, output.sex)
 
+rule _pyclone_vi_gamblr_config:
+    params:
+        config_url = CFG["inputs"]["gamblr_config_url"], 
+    output:
+        config = "config.yml"
+    shell:
+        op.as_one_line("""
+        wget -qO {output.config} {params.config_url} 
+        """)
+
 
 # Prepare Pyclone inputs
-
-
 rule _pyclone_vi_subset_maf:
     input:
         maf = str(rules._pyclone_vi_input_maf.output.maf),
-        GAMBLR = ancient(rules._pyclone_vi_install_GAMBLR.output.installed)
+        GAMBLR = ancient(rules._pyclone_vi_gamblr_config.output.config)
     output:
         maf = CFG["dirs"]["build_inputs"] + "{seq_type}--{genome_build}/{patient_id}/{tumour_id}--{normal_id}--{pair_status}.subset.maf"
     params:
-        script = CFG["scripts"]["subset_maf"]
+        script = os.path.abspath(CFG["scripts"]["subset_maf"])
     conda:
         CFG["conda_envs"]["gamblr"]
     script:

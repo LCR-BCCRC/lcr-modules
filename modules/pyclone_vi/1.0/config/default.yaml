@@ -9,14 +9,14 @@ lcr-modules:
             sample_subclones: "__UPDATE__"
             sample_cellularity: "__UPDATE__"
             sample_sex: "__UPDATE__" # Only {normal_id} available
+            # URL to obtain GAMBLR config.yml
+            gamblr_config_url: "https://raw.githubusercontent.com/morinlab/GAMBLR/master/config.yml"
 
         scratch_subdirectories: []
 
         options:
             build_input:
                 subset_maf: True # Whether to use the full maf or subset to only coding and aSHM mutations.
-                gamblr_branch: ""
-                gamblr_config_url: "https://raw.githubusercontent.com/morinlab/GAMBLR/master/config.yml"
             fit:
                 num_clusters: 30
                 num_restarts: 100
