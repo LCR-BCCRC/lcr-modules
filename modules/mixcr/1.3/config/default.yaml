@@ -20,6 +20,9 @@ lcr-modules:
         scripts:
             mixcr2fasta: "{MODSDIR}/src/mixcr_to_fasta.py"
             mixcr_subset_dominant: "{MODSDIR}/src/mixcr_subset_dominant.py"
+            mixcr_pretty_to_fasta: "{MODSDIR}/src/mixcr_pretty_to_fasta.py"
+            mixcr_annotate_glycosylation: "{MODSDIR}/src/mixcr_annotate_glycosylation.py"
+            merge_tsv: "{SCRIPTSDIR}/annotate_bcr/1.0/merge_annotation_tsv.py"
 
         options:
             # Number of top clones by readFraction to include in the dominant
@@ -41,9 +44,11 @@ lcr-modules:
 
         conda_envs:
             java: "{MODSDIR}/envs/java-jdk-8.0.yaml"
+            glycosylation: "{MODSDIR}/envs/anarci-1.0.yaml"
 
         container_envs:
             mixcr: "docker://ghcr.io/milaboratory/mixcr/mixcr:4.7.0-364-develop"
+            glycosylation: "docker://quay.io/biocontainers/anarci:2024.05.21--pyhdfd78af_0"
 
         threads:
             mixcr_run: 4
