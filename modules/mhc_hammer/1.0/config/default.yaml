@@ -211,6 +211,12 @@ lcr-modules:
             # src/mutations_to_maf.R for why Chromosome/Start_Position/End_Position are synthetic.
             mutations_to_maf_script: "{MODSDIR}/src/mutations_to_maf.R"
 
+            # Module-owned (not MHC Hammer's own bin/) -- see the "OPT-IN: TUMOUR-ONLY VARIANT
+            # CALLING" section in mhc_hammer.smk and the header comment in
+            # src/make_tumour_only_mutation_table.R for why upstream's own bin/make_mutation_table.R
+            # cannot be reused when there's no real germline sample.
+            make_tumour_only_mutation_table_script: "{MODSDIR}/src/make_tumour_only_mutation_table.R"
+
             # BAM subsetting (preprocessing). Setting fish_reads to False also skips the entire
             # genome-wide kmer index build + filter step (_mhc_hammer_build_genome_kmer_index /
             # _mhc_hammer_filter_kmers) as a real Snakemake dependency, not just the internal
@@ -325,6 +331,39 @@ lcr-modules:
             # invocations of the same input.
             rna_hla_typing_downsample_seed: 42
 
+            # OPT-IN: tumour-only (no matched normal DNA) variant calling -- see the "OPT-IN:
+            # TUMOUR-ONLY VARIANT CALLING" section in mhc_hammer.smk. Default False, zero
+            # behaviour change for existing deployments. Closes a real gap: a DNA tumour (WES/WGS)
+            # sample with no matched germline DNA is currently 100% excluded from this module --
+            # it never even reaches HLA typing. When enabled, every such tumour sample is typed,
+            # referenced, and called (Mutect2 tumor-only mode) independently from its own reads --
+            # a patient with multiple tumour-only samples (different biopsies/timepoints) gets one
+            # fully independent track per sample, deliberately NOT collapsed to one shared type,
+            # so biopsy-to-biopsy differences in the called type/mutations can actually surface and
+            # be compared. No CN-AIB/allelic-imbalance/LOH detection is attempted here -- that
+            # inherently needs a germline comparator; only somatic mutation calling is extended to
+            # this population.
+            #
+            # v1 scope: DNA-tumour-only samples only. RNA-sourced tumour-only mutation calling
+            # (patients with tumour RNA but no DNA at all) is deliberately deferred -- Novoalign is
+            # not splice-aware, and this module's personalised reference is purely genomic (it
+            # skips the transcriptome reference MHC Hammer's own upstream also builds), risking
+            # real sensitivity loss at exon-exon junctions. RNA-only patients keep getting exactly
+            # what they already get today from rna_hla_typing_fallback (typing only) -- unchanged.
+            #
+            # Why typing from the tumour itself isn't circular: _mhc_hammer_generate_references'
+            # own reference sequence is the independent IMGT/HLA catalog sequence for whichever
+            # allele HLA-HD calls, never a consensus built from the sample's own reads. A real
+            # somatic mutation (novel, essentially never previously catalogued as a population
+            # germline polymorphism) still shows up as a mismatch against that catalog sequence
+            # regardless of whether typing came from a true normal or the tumour -- nearest-
+            # neighbour allele-calling tolerates a sparse handful of mismatches when picking the
+            # closest catalog entry, so a few somatic point mutations don't change which allele
+            # gets called. _mhc_hammer_tumour_only_typing_source still records (in a real, visible
+            # output file) that every call here is tumour-derived, mirroring
+            # _mhc_hammer_rna_typing_source's own audit-flag pattern.
+            tumour_only_variant_calling: False
+
             # Allele BAM filtering
             max_mismatch: 1
 
@@ -415,6 +454,16 @@ lcr-modules:
             rna_generate_fqs: 4
             hla2_rna_downsample_bam: 4
             hla2_rna_generate_fqs: 4
+            # OPT-IN: tumour-only (no matched normal DNA) variant calling -- see
+            # options.tumour_only_variant_calling. Each mirrors its paired-arm sibling's own value.
+            hlahd_tumour_only_dna: 4
+            generate_references_tumour_only: 1
+            novoalign_tumour_only: 1 # unlicensed Novoalign is single-threaded only
+            novoalign_postprocess_tumour_only: 4
+            make_allele_bams_tumour_only: 1
+            detect_muts_tumour_only: 1
+            parse_mutations_tumour_only: 1
+            mutations_to_maf_tumour_only: 1
 
         resources:
             download_reference:
@@ -472,6 +521,24 @@ lcr-modules:
                 mem_mb: 4000
             hla2_rna_generate_fqs:
                 mem_mb: 4000
+            # OPT-IN: tumour-only (no matched normal DNA) variant calling -- see
+            # options.tumour_only_variant_calling. Each mirrors its paired-arm sibling's own value.
+            hlahd_tumour_only_dna:
+                mem_mb: 16000
+            generate_references_tumour_only:
+                mem_mb: 4000
+            novoalign_tumour_only:
+                mem_mb: 8000
+            novoalign_postprocess_tumour_only:
+                mem_mb: 8000
+            make_allele_bams_tumour_only:
+                mem_mb: 4000
+            detect_muts_tumour_only:
+                mem_mb: 8000
+            parse_mutations_tumour_only:
+                mem_mb: 2000
+            mutations_to_maf_tumour_only:
+                mem_mb: 2000
 
         pairing_config:
             capture:

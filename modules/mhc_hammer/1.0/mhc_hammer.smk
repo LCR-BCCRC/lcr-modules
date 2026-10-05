@@ -175,6 +175,11 @@ HLA2_PARSE_SCRIPT = os.path.abspath(CFG["options"]["hla2_parse_script"])
 # another module-owned {MODSDIR}-templated script path.
 MUTATIONS_TO_MAF_SCRIPT = os.path.abspath(CFG["options"]["mutations_to_maf_script"])
 
+# Same os.path.abspath() treatment, same reason -- see the "OPT-IN: TUMOUR-ONLY VARIANT CALLING"
+# section further down this file for why this module-owned script exists (upstream's own
+# make_mutation_table.R cannot run without a real germline sample).
+TUMOUR_ONLY_MUTATION_TABLE_SCRIPT = os.path.abspath(CFG["options"]["make_tumour_only_mutation_table_script"])
+
 def _mhc_hammer_get_hla2_region_coords(genome_build):
     system = None
     for pattern, candidate_system in MHC_BUILD_COORDINATE_SYSTEM_PATTERNS.items():
@@ -228,6 +233,10 @@ localrules:
     _mhc_hammer_rna_typing_source,
     _mhc_hammer_output_hla_final_result_rna,
     _mhc_hammer_output_hla2_alleles_rna,
+    _mhc_hammer_tumour_only_typing_source,
+    _mhc_hammer_output_hla_final_result_tumour_only,
+    _mhc_hammer_output_mutations_tumour_only,
+    _mhc_hammer_output_mutations_maf_tumour_only,
     _mhc_hammer_all,
 
 
@@ -2928,6 +2937,632 @@ def _mhc_hammer_rna_typing_targets(patient_builds):
     )
 
 
+##### OPT-IN: TUMOUR-ONLY VARIANT CALLING #####
+#
+# Real, requested feature -- not part of this module's default target list unless explicitly
+# enabled via options.tumour_only_variant_calling (default False, zero behaviour change for
+# existing deployments). Closes a real gap: a DNA tumour (WES/WGS) sample with no matched germline
+# DNA is currently 100% excluded from this whole module (CFG["paired_runs"] above is narrowed to
+# pair_status == "matched" only) -- it never even reaches HLA typing. This section types, builds a
+# personalised reference for, aligns, and calls somatic mutations (Mutect2 tumor-only mode) for
+# every such tumour sample.
+#
+# Why this is scientifically sound, not circular: _mhc_hammer_generate_references' own reference
+# sequence is the independent IMGT/HLA catalog sequence for whichever allele HLA-HD calls -- never
+# a consensus built from the sample's own reads (confirmed from create_gtf_and_ref.R's own
+# --mhc_fasta/--hla_path arguments). A real somatic mutation (novel, essentially never previously
+# catalogued as a population germline polymorphism) still shows up as a mismatch against that
+# catalog sequence regardless of whether typing itself was sourced from a true normal or from the
+# tumour -- nearest-neighbour allele-calling tolerates a sparse handful of mismatches when picking
+# the closest catalog entry, so a few somatic point mutations don't change which allele gets
+# called. What genuinely matters is typing-call confidence, which is why _mhc_hammer_tumour_only_
+# typing_source below still records (in a real, visible output file) that every call here is
+# tumour-derived, mirroring _mhc_hammer_rna_typing_source's own audit-flag pattern.
+#
+# Per-tumour typing, deliberately NOT shared per-patient: a patient can have multiple tumour-only
+# DNA samples (different biopsies/timepoints). Rather than picking one "winning" sample to type for
+# the whole patient and sharing that reference across every tumour, EVERY qualifying tumour sample
+# is typed, and referenced, independently from its own reads -- mutation calling for a given
+# tumour always relies on the HLA type/reference derived from that same tumour. This lets biopsy-
+# to-biopsy differences in the called type (and in the resulting mutation calls) actually surface
+# and be compared, rather than being hidden by an arbitrary tie-break; whether to later collapse to
+# one consensus type per patient is an open question to revisit once there's real comparative data.
+#
+# Mechanical consequence of per-tumour typing: every new rule below shares the IDENTICAL
+# {seq_type}--{genome_build}/{sample_id} wildcard triple end-to-end, so (unlike a patient-shared-
+# reference design would require) no rule here needs allow_missing=True wildcard-inheritance
+# indirection or a separate sample->patient_id lookup helper -- each rule just references the
+# previous one's output directly. All new output paths live under a literal "tumour_only/" path
+# prefix throughout, which is what keeps every new rule's output pattern structurally disjoint from
+# the existing _mhc_hammer_hlahd/_mhc_hammer_generate_references/etc. patterns (same
+# {seq_type}--{genome_build}/{sample_id} SHAPE, different literal prefix) -- avoiding the same
+# AmbiguousRuleException risk already identified and fixed twice this session for the RNA-sourced
+# paths.
+#
+# v1 scope: DNA-tumour-only samples only. RNA-sourced tumour-only mutation calling (for patients
+# with tumour RNA but no DNA at all) is deliberately deferred -- Novoalign is not splice-aware, and
+# aligning RNA reads against this module's purely-genomic personalised reference (it deliberately
+# skips the transcriptome reference MHC Hammer's own upstream also builds) risks real sensitivity
+# loss at exon-exon junctions. RNA-only patients keep getting exactly what they already get today
+# from options.rna_hla_typing_fallback (typing only) -- unchanged. No CN-AIB/allelic-imbalance/LOH
+# detection is attempted here either -- that inherently needs a germline comparator; only somatic
+# mutation calling is extended to this population. This pathway also never feeds
+# _mhc_hammer_patient_gene_table/cohort_mhc_hammer_gene_table.csv (confirmed by reading
+# _mhc_hammer_cohort_table's own glob.glob()-based input discovery, scoped to
+# CFG["dirs"]["gene_tables"], which this pathway never writes into).
+
+
+# _mhc_hammer_hlahd's own germline-fastq helper hard-asserts "exactly one normal," so it cannot be
+# reused for a tumour sample. Mirrors _mhc_hammer_hlahd_rna's exact shape (same hlahd.sh
+# invocation, same A/B/C restriction, same workdir-wipe/mv-flatten/validation), sourcing FASTQs
+# directly from the already-fully-generic _mhc_hammer_generate_fqs (works for any sample_id, no
+# changes needed there) -- {sample_id} here is always a tumour sample (this whole section only
+# ever processes rows from _mhc_hammer_dna_tumour_only_runs below), HLA-HD itself has no concept of
+# patient vs. sample, it just takes one arbitrary "sample id" argument.
+rule _mhc_hammer_hlahd_tumour_only_dna:
+    input:
+        fq1 = str(rules._mhc_hammer_generate_fqs.output.fq1),
+        fq2 = str(rules._mhc_hammer_generate_fqs.output.fq2),
+        gtf = str(rules._mhc_hammer_download_reference.output.gtf)
+    output:
+        hla_alleles = CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/{sample_id}_hla_alleles.csv",
+        result_dir = directory(CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/result"),
+        hla_final_result = CFG["dirs"]["hlahd"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/result/{sample_id}_final.result.txt"
+    priority: 30
+    log:
+        stdout = CFG["logs"]["hlahd"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/hlahd.log"
+    params:
+        scripts_dir = SCRIPTS_DIR,
+        hlahd_dir = HLAHD_DIR,
+        workdir = lambda wildcards, output: os.path.dirname(output.hla_alleles),
+        gtf_abs = lambda wildcards, input: os.path.abspath(input.gtf),
+        keep_intermediates = str(CFG["options"]["keep_hlahd_intermediates"]).lower(),
+        # The existing DNA min_read_length -- reused directly. The RNA path's own downsampling
+        # concerns (options.rna_hla_typing_max_read_pairs) are specifically about HLA-HD's bowtie2
+        # -a step scaling with EXPRESSION-driven read volume (confirmed from HLA-HD's own source);
+        # that mechanism doesn't apply to DNA WES/WGS at ordinary sequencing depth, so no analogous
+        # cap is added here.
+        min_read_length = CFG["options"]["hlahd_min_read_length"]
+    conda:
+        CFG["conda_envs"]["mhc_hammer_hlahd"]
+    container:
+        None
+    threads:
+        CFG["threads"]["hlahd_tumour_only_dna"]
+    resources:
+        **CFG["resources"]["hlahd_tumour_only_dna"]
+    shell:
+        op.as_one_line("""
+        rm -rf {params.workdir} &&
+        mkdir -p {params.workdir} &&
+        awk '$1 == "A" || $1 == "B" || $1 == "C"' {params.hlahd_dir}/HLA_gene.split.txt
+            > {params.workdir}/hla_class_i_genes.txt &&
+        (
+        export PATH=${{PATH}}:{params.hlahd_dir}/bin &&
+        bash {params.hlahd_dir}/bin/hlahd.sh -m {params.min_read_length} -c 1.0 -t {threads}
+        -f {params.hlahd_dir}/freq_data
+        {input.fq1} {input.fq2}
+        {params.workdir}/hla_class_i_genes.txt
+        {params.hlahd_dir}/dictionary
+        {wildcards.sample_id} {params.workdir} &&
+        if [ "{params.keep_intermediates}" = "false" ]; then
+            rm -rf {params.workdir}/{wildcards.sample_id}/exon {params.workdir}/{wildcards.sample_id}/intron
+                   {params.workdir}/{wildcards.sample_id}/mapfile {params.workdir}/{wildcards.sample_id}/maplist;
+        fi &&
+        rm -f {params.workdir}/{wildcards.sample_id}/pickup.sh {params.workdir}/{wildcards.sample_id}/estimation.sh &&
+        mv {params.workdir}/{wildcards.sample_id}/* {params.workdir}/ &&
+        rmdir {params.workdir}/{wildcards.sample_id}
+        ) > {log.stdout} 2>&1 &&
+        if [ -f {output.result_dir}/{wildcards.sample_id}_A.est.txt ] &&
+           [ -f {output.result_dir}/{wildcards.sample_id}_B.est.txt ] &&
+           [ -f {output.result_dir}/{wildcards.sample_id}_C.est.txt ]; then
+            (cd {params.workdir} &&
+             Rscript {params.scripts_dir}/bin/hlahd_parse_output.R
+             --hlahd_folder result --gtf_path {params.gtf_abs}
+             --sample_id {wildcards.sample_id} --genes A B C &&
+             mv result/{wildcards.sample_id}_hla_alleles.csv {wildcards.sample_id}_hla_alleles.csv) >> {log.stdout} 2>&1;
+            if ! awk -F',' '$2 != "not typed" && $3 != "not typed"' {params.workdir}/{wildcards.sample_id}_hla_alleles.csv | grep -q .; then
+                echo "ERROR: HLA-HD (tumour-only) produced A/B/C estimate files for sample {wildcards.sample_id} but failed to confidently type any allele pair -- every gene is 'not typed' in {wildcards.sample_id}_hla_alleles.csv. See {log.stdout}." | tee -a {log.stdout} >&2 &&
+                exit 1;
+            fi;
+        else
+            echo "ERROR: HLA-HD (tumour-only) failed to produce HLA A, B and C estimates for sample {wildcards.sample_id}. See {log.stdout}." | tee -a {log.stdout} >&2 &&
+            exit 1;
+        fi
+        """)
+
+
+# Mirrors _mhc_hammer_generate_references's own shell body byte-for-byte -- only {patient_id} is
+# replaced by {sample_id} throughout (upstream's make_bed_file.R/allele_mismatch.R/
+# create_gtf_and_ref.R only ever use --patient_id as a filename-prefix label, never as a lookup
+# key, so passing a sample_id there is fine), and the output directory gets a "_tumour_only"
+# suffix (not a leading path prefix -- a prefix is NOT safe here, see the ruleorder comment right
+# below). One reference PER TUMOUR SAMPLE, not shared per patient -- see the section header above.
+#
+# Real, confirmed AmbiguousRuleException (not just theoretical): _mhc_hammer_generate_references'
+# own output pattern ("{seq_type}--{genome_build}/{patient_id}") structurally matches
+# "{seq_type}--{genome_build}/{sample_id}_tumour_only" too, by binding ITS OWN patient_id wildcard
+# to the whole "{sample_id}_tumour_only" string -- patient_id appears only ONCE in that output, so
+# there's no second occurrence of the same wildcard name forcing an inconsistency (unlike e.g.
+# _mhc_hammer_novoalign's own output, where {sample_id} appears twice -- once in the directory,
+# once in the filename -- so a "_tumour_only"-suffixed directory next to an un-suffixed filename
+# can never satisfy that rule's own self-consistency requirement). Confirmed via a real dry-run
+# (an earlier version of this rule used a leading "tumour_only/" path PREFIX instead of a suffix,
+# which is structurally worse: a prefix gets silently absorbed into the existing rule's own
+# unconstrained {seq_type} wildcard for every single target, not just a rare coincidence). Listing
+# the intended rule first via ruleorder (Snakemake's own documented remedy for this) resolves it
+# without touching _mhc_hammer_generate_references' own definition at all.
+ruleorder: _mhc_hammer_generate_references_tumour_only > _mhc_hammer_generate_references
+# Defensive, same reasoning: _mhc_hammer_hlahd_tumour_only_dna's own result_dir output also has
+# only a single {sample_id} occurrence (no internal consistency check), so it carries the same
+# theoretical risk against _mhc_hammer_hlahd, even though nothing in this pathway currently
+# requests result_dir directly as an input (only hla_alleles/hla_final_result are, both of which
+# ARE safe -- {sample_id} appears twice in each, forcing an inconsistency against {patient_id}
+# appearing twice in _mhc_hammer_hlahd's own matching outputs).
+ruleorder: _mhc_hammer_hlahd_tumour_only_dna > _mhc_hammer_hlahd
+# Pre-existing latent bug found while fixing the above, NOT part of this feature's own scope --
+# fixed defensively since it's the exact same class of issue and costs nothing to resolve.
+# _mhc_hammer_hlahd_rna/_mhc_hammer_hla2_hlahd_rna's own result_dir outputs have the identical
+# single-occurrence-wildcard exposure against _mhc_hammer_hlahd/_mhc_hammer_hla2_hlahd respectively
+# -- confirmed for real (not theoretical) via a direct dry-run request for
+# _mhc_hammer_hlahd_rna's own hla_final_result path: Snakemake silently resolved it to
+# _mhc_hammer_hlahd instead (no AmbiguousRuleException raised at all -- it just picked the wrong
+# rule), crashing with a confusing "Expected exactly one germline WES sample" assertion rather than
+# actually typing from RNA. Never triggered in this module's own normal operation because every
+# real dependency here is expressed via a direct `rules.X.output.Y` reference, which Snakemake
+# resolves without falling back to pattern-matching across all rules -- but a bare command-line
+# target path (or any future code requesting these files by string) would hit it.
+ruleorder: _mhc_hammer_hlahd_rna > _mhc_hammer_hlahd
+ruleorder: _mhc_hammer_hla2_hlahd_rna > _mhc_hammer_hla2_hlahd
+
+
+rule _mhc_hammer_generate_references_tumour_only:
+    input:
+        genotype = str(rules._mhc_hammer_hlahd_tumour_only_dna.output.hla_alleles),
+        mhc_gtf = str(rules._mhc_hammer_download_reference.output.gtf),
+        mhc_fasta = str(rules._mhc_hammer_download_reference.output.genome_fasta)
+    output:
+        patient_dir = directory(CFG["dirs"]["patient_reference"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only")
+    priority: 40
+    log:
+        stdout = CFG["logs"]["patient_reference"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/generate_references.log"
+    params:
+        scripts_dir = SCRIPTS_DIR,
+        novoalign_dir = NOVOALIGN_DIR,
+        genotype_abs = lambda wildcards, input: os.path.abspath(input.genotype),
+        mhc_gtf_abs = lambda wildcards, input: os.path.abspath(input.mhc_gtf),
+        mhc_fasta_abs = lambda wildcards, input: os.path.abspath(input.mhc_fasta)
+    conda:
+        CFG["conda_envs"]["mhc_hammer_reference"]
+    container:
+        None
+    threads:
+        CFG["threads"]["generate_references_tumour_only"]
+    resources:
+        **CFG["resources"]["generate_references_tumour_only"]
+    shell:
+        op.as_one_line("""
+        mkdir -p {output.patient_dir} &&
+        (
+        cd {output.patient_dir} &&
+        export PATH=${{PATH}}:{params.novoalign_dir} &&
+        Rscript {params.scripts_dir}/bin/make_bed_file.R
+          --patient_hla_alleles {params.genotype_abs} --patient_id {wildcards.sample_id} --mhc_gtf {params.mhc_gtf_abs} &&
+        Rscript {params.scripts_dir}/bin/allele_mismatch.R
+          --genome_or_transcriptome genome --patient_id {wildcards.sample_id}
+          --patient_hla_alleles {params.genotype_abs} --mhc_fasta {params.mhc_fasta_abs} &&
+        Rscript {params.scripts_dir}/bin/create_gtf_and_ref.R
+          --gtf_out_path {wildcards.sample_id}.gtf --fa_out_path {wildcards.sample_id}_mhc_genome_reference.fa
+          --genome_out_path {wildcards.sample_id}_genome_size.txt --hla_path {params.genotype_abs}
+          --mhc_fasta {params.mhc_fasta_abs} --mhc_gtf {params.mhc_gtf_abs} &&
+        sort -k1,1 -k4,4n -k5,5n -t$'\\t' {wildcards.sample_id}.gtf > {wildcards.sample_id}_sorted.gtf &&
+        bgzip {wildcards.sample_id}_sorted.gtf &&
+        tabix -p gff {wildcards.sample_id}_sorted.gtf.gz &&
+        samtools faidx {wildcards.sample_id}_mhc_genome_reference.fa &&
+        picard CreateSequenceDictionary -R {wildcards.sample_id}_mhc_genome_reference.fa &&
+        {params.novoalign_dir}/novoindex {wildcards.sample_id}.mhc_genome_fasta.nix {wildcards.sample_id}_mhc_genome_reference.fa
+        ) > {log.stdout} 2>&1
+        """)
+
+
+# _mhc_hammer_novoalign/_mhc_hammer_novoalign_postprocess/_mhc_hammer_make_allele_bams are already
+# fully generic per sample_id (confirmed: no tumour/normal branching anywhere in their bodies), but
+# their input: is statically bound to _mhc_hammer_reference_dir_for_sample, which resolves to the
+# paired-arm's own reference directory. These three new rules exist purely for that input-binding
+# reason -- shell bodies are byte-for-byte copies of the existing ones (zero new alignment logic),
+# and because every wildcard here is {seq_type}--{genome_build}/{sample_id} throughout, each rule
+# references the previous one's output (and _mhc_hammer_generate_references_tumour_only's own
+# output) directly -- no helper function or allow_missing=True resolution needed anywhere.
+rule _mhc_hammer_novoalign_tumour_only:
+    input:
+        fq1 = str(rules._mhc_hammer_generate_fqs.output.fq1),
+        fq2 = str(rules._mhc_hammer_generate_fqs.output.fq2),
+        patient_dir = str(rules._mhc_hammer_generate_references_tumour_only.output.patient_dir)
+    output:
+        bam = CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/{sample_id}.raw.bam"
+    priority: 50
+    log:
+        stderr = CFG["logs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/novoalign.stderr.log"
+    params:
+        novoalign_dir = NOVOALIGN_DIR,
+        novoindex = lambda wildcards, input: f"{input.patient_dir}/{wildcards.sample_id}.mhc_genome_fasta.nix"
+    conda:
+        CFG["conda_envs"]["samtools"]
+    container:
+        None
+    threads:
+        CFG["threads"]["novoalign_tumour_only"]
+    resources:
+        **CFG["resources"]["novoalign_tumour_only"]
+    shell:
+        op.as_one_line("""
+        export PATH=${{PATH}}:{params.novoalign_dir} &&
+        wd=$(dirname {output.bam}) &&
+        rm -f $wd/fq1_uncompressed $wd/fq2_uncompressed &&
+        mkfifo $wd/fq1_uncompressed $wd/fq2_uncompressed ;
+        gzip -cdf {input.fq1} > $wd/fq1_uncompressed &
+        gzip -cdf {input.fq2} > $wd/fq2_uncompressed &
+        {params.novoalign_dir}/novoalign -d {params.novoindex} -f $wd/fq1_uncompressed $wd/fq2_uncompressed
+          -F STDFQ -R 0 -r All 9999 -o SAM -o FullNW 1> $wd/{wildcards.sample_id}.sam 2> {log.stderr} &&
+        samtools view -b -o {output.bam} $wd/{wildcards.sample_id}.sam &&
+        rm $wd/fq1_uncompressed $wd/fq2_uncompressed $wd/{wildcards.sample_id}.sam
+        """)
+
+
+rule _mhc_hammer_novoalign_postprocess_tumour_only:
+    input:
+        bam = str(rules._mhc_hammer_novoalign_tumour_only.output.bam)
+    output:
+        bam = temp(CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/{sample_id}.hla.rehead.bam"),
+        bai = CFG["dirs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/{sample_id}.hla.rehead.bam.bai"
+    priority: 60
+    log:
+        stdout = CFG["logs"]["novoalign"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/novoalign_postprocess.log"
+    conda:
+        CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
+    threads:
+        CFG["threads"]["novoalign_postprocess_tumour_only"]
+    resources:
+        **CFG["resources"]["novoalign_postprocess_tumour_only"]
+    shell:
+        op.as_one_line("""
+        (
+        wd=$(dirname {output.bam}) &&
+        samtools sort -@ {threads} -o $wd/{wildcards.sample_id}.sorted.bam {input.bam} &&
+        samtools view -@ {threads} -f 2 -b -o $wd/{wildcards.sample_id}.hla.bam $wd/{wildcards.sample_id}.sorted.bam &&
+        samtools addreplacerg -r ID:{wildcards.sample_id} -r SM:{wildcards.sample_id} -o {output.bam} $wd/{wildcards.sample_id}.hla.bam &&
+        samtools index -@ {threads} {output.bam} &&
+        rm $wd/{wildcards.sample_id}.sorted.bam $wd/{wildcards.sample_id}.hla.bam
+        ) > {log.stdout} 2>&1
+        """)
+
+
+rule _mhc_hammer_make_allele_bams_tumour_only:
+    input:
+        bam = str(rules._mhc_hammer_novoalign_postprocess_tumour_only.output.bam),
+        patient_dir = str(rules._mhc_hammer_generate_references_tumour_only.output.patient_dir)
+    output:
+        passed_hla_genes = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/{sample_id}_passed_hla_genes.txt",
+        passed_heterozygous_hla_genes = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/{sample_id}_passed_heterozygous_hla_genes.txt",
+        passed_hla_alleles = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/{sample_id}_passed_hla_alleles.txt",
+        passed_heterozygous_hla_alleles = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/{sample_id}_passed_heterozygous_hla_alleles.txt",
+        hla_bam_read_count = CFG["dirs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/{sample_id}_" + MHC_SEQ + "_novoalign.hla_bam_read_count.csv"
+    priority: 70
+    log:
+        stdout = CFG["logs"]["allele_bams"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/make_allele_bams.log"
+    params:
+        scripts_dir = SCRIPTS_DIR,
+        max_mismatch = CFG["options"]["max_mismatch"],
+        mhc_seq = MHC_SEQ,
+        bam_abs = lambda wildcards, input: os.path.abspath(input.bam),
+        fasta_abs = lambda wildcards, input: os.path.abspath(f"{input.patient_dir}/{wildcards.sample_id}_mhc_genome_reference.fa")
+    conda:
+        CFG["conda_envs"]["mhc_hammer_alignment"]
+    container:
+        None
+    threads:
+        CFG["threads"]["make_allele_bams_tumour_only"]
+    resources:
+        **CFG["resources"]["make_allele_bams_tumour_only"]
+    shell:
+        op.as_one_line("""
+        wd=$(dirname {output.passed_hla_genes}) &&
+        mkdir -p $wd &&
+        ln -sf {params.fasta_abs} $wd/{wildcards.sample_id}_mhc_genome_reference.fa &&
+        (cd $wd &&
+         {params.scripts_dir}/bin/make_hla_bams.sh {params.bam_abs} {params.scripts_dir}/bin/
+           {params.max_mismatch} {wildcards.sample_id} {params.mhc_seq} novoalign &&
+         touch {wildcards.sample_id}_passed_heterozygous_hla_genes.txt
+               {wildcards.sample_id}_passed_heterozygous_hla_alleles.txt
+               {wildcards.sample_id}_passed_hla_genes.txt
+               {wildcards.sample_id}_passed_hla_alleles.txt &&
+         hla_genes=$(grep '^>' {params.fasta_abs} | sed 's/^>//' | cut -d '_' -f 1,2 | sort -u) &&
+         for hla_gene in $hla_genes; do
+             alleles=($(grep '^>' {params.fasta_abs} | sed 's/^>//' | grep $hla_gene)) ;
+             allele_count=${{#alleles[@]}} ;
+             if [ $allele_count -eq "2" ]; then
+                 allele1_bam={wildcards.sample_id}_{params.mhc_seq}_novoalign.${{alleles[0]}}.sorted.filtered.bam ;
+                 allele2_bam={wildcards.sample_id}_{params.mhc_seq}_novoalign.${{alleles[1]}}.sorted.filtered.bam ;
+                 if [ -f $allele1_bam ] && [ -f $allele2_bam ]; then
+                     echo $hla_gene >> {wildcards.sample_id}_passed_heterozygous_hla_genes.txt ;
+                     echo $hla_gene >> {wildcards.sample_id}_passed_hla_genes.txt ;
+                 fi ;
+                 if [ -f $allele1_bam ]; then
+                     echo ${{alleles[0]}} >> {wildcards.sample_id}_passed_heterozygous_hla_alleles.txt ;
+                 fi ;
+                 if [ -f $allele2_bam ]; then
+                     echo ${{alleles[1]}} >> {wildcards.sample_id}_passed_heterozygous_hla_alleles.txt ;
+                 fi ;
+             elif [ $allele_count -eq "1" ]; then
+                 allele1_bam={wildcards.sample_id}_{params.mhc_seq}.${{alleles[0]}}.sorted.filtered.bam ;
+                 if [ -f $allele1_bam ]; then
+                     echo $hla_gene >> {wildcards.sample_id}_passed_hla_genes.txt ;
+                 fi ;
+             fi ;
+         done &&
+         alleles_all=$(grep '^>' {params.fasta_abs} | sed 's/^>//' | sort -u) &&
+         for hla_allele in $alleles_all; do
+             bam_path={wildcards.sample_id}_{params.mhc_seq}_novoalign.${{hla_allele}}.sorted.filtered.bam ;
+             if [ -f $bam_path ]; then
+                 echo $hla_allele >> {wildcards.sample_id}_passed_hla_alleles.txt ;
+             fi ;
+         done) > {log.stdout} 2>&1
+        """)
+
+
+# Mirrors _mhc_hammer_detect_muts's own shell body, with two deltas: (1) no comm -12 intersection
+# needed -- a single sample's own passed_hla_alleles.txt is used directly; (2) Mutect2 runs in
+# tumor-only mode (-I {tumour_bam} alone, no second -I/-normal) -- the rest of the chain
+# (LearnReadOrientationModel/FilterMutectCalls/bcftools norm/VEP annotation/VariantsToTable) is
+# unchanged, except VariantsToTable's -GF AD/-GF DP now only ever has one sample's columns in the
+# VCF, since Mutect2 never emits a genotype column for a sample it wasn't given via -I.
+rule _mhc_hammer_detect_muts_tumour_only:
+    input:
+        tumour_marker = str(rules._mhc_hammer_make_allele_bams_tumour_only.output.passed_hla_alleles),
+        patient_dir = str(rules._mhc_hammer_generate_references_tumour_only.output.patient_dir)
+    output:
+        vep_dir = directory(CFG["dirs"]["mutations"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/vep")
+    priority: 80
+    log:
+        stdout = CFG["logs"]["mutations"] + "{seq_type}--{genome_build}/{sample_id}_tumour_only/detect_muts.log"
+    params:
+        scripts_dir = SCRIPTS_DIR,
+        vep_path = VEP_PATH,
+        vep_cache = VEP_CACHE,
+        tumour_marker_abs = lambda wildcards, input: os.path.abspath(input.tumour_marker),
+        patient_dir_abs = lambda wildcards, input: os.path.abspath(input.patient_dir),
+        mem_gb = lambda wildcards, resources: max(1, int(resources.mem_mb / 1000 * 0.8)),
+        mhc_seq = MHC_SEQ
+    conda:
+        CFG["conda_envs"]["mhc_hammer_detect_muts"]
+    container:
+        None
+    threads:
+        CFG["threads"]["detect_muts_tumour_only"]
+    resources:
+        **CFG["resources"]["detect_muts_tumour_only"]
+    shell:
+        op.as_one_line("""
+        mkdir -p {output.vep_dir} &&
+        (
+        cd {output.vep_dir} &&
+        export PATH={params.vep_path}:${{PATH}} &&
+        fasta={params.patient_dir_abs}/{wildcards.sample_id}_mhc_genome_reference.fa &&
+        tumour_dir=$(dirname {params.tumour_marker_abs}) &&
+        bgzip -dc {params.patient_dir_abs}/{wildcards.sample_id}_sorted.gtf.gz > {wildcards.sample_id}.gtf &&
+        alleles=$(cat {params.tumour_marker_abs}) &&
+        for allele in $alleles; do
+            tumour_bam=$tumour_dir/{wildcards.sample_id}_{params.mhc_seq}_novoalign.$allele.sorted.filtered.bam;
+            gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' Mutect2 -R $fasta -I $tumour_bam --f1r2-tar-gz {wildcards.sample_id}.$allele.f1r2.tar.gz --output {wildcards.sample_id}.$allele.vcf;
+            if tail -n 1 {wildcards.sample_id}.$allele.vcf | grep -q CHROM; then continue; fi;
+            gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' LearnReadOrientationModel -I {wildcards.sample_id}.$allele.f1r2.tar.gz -O {wildcards.sample_id}.$allele.read-orientation-model.tar.gz;
+            gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' FilterMutectCalls -V {wildcards.sample_id}.$allele.vcf -R $fasta --ob-priors {wildcards.sample_id}.$allele.read-orientation-model.tar.gz -O {wildcards.sample_id}.$allele.filt.vcf;
+            bcftools norm -m-any {wildcards.sample_id}.$allele.filt.vcf --output {wildcards.sample_id}.$allele.norm.filt.vcf;
+            Rscript {params.scripts_dir}/bin/make_vep_gtf.R --gtf_path {wildcards.sample_id}.gtf --gtf_vep_path {wildcards.sample_id}.$allele.vep.gtf --allele $allele;
+            bgzip {wildcards.sample_id}.$allele.vep.gtf && tabix -p gff {wildcards.sample_id}.$allele.vep.gtf.gz;
+            vep -i {wildcards.sample_id}.$allele.norm.filt.vcf --gtf {wildcards.sample_id}.$allele.vep.gtf.gz --fasta $fasta --dir_cache {params.vep_cache} --vcf -o {wildcards.sample_id}.$allele.norm.filt.vep.vcf --fields "Allele,Consequence,IMPACT,Feature_type,Feature,EXON,INTRON,cDNA_position,CDS_position,Protein_position,Amino_acids,Codons,Existing_variation,DISTANCE,STRAND,FLAGS";
+            gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' VariantsToTable -V {wildcards.sample_id}.$allele.norm.filt.vep.vcf -O {wildcards.sample_id}.$allele.norm.filt.vep.txt -F CHROM -F POS -F REF -F ALT -F FILTER -GF AD -GF DP -F CSQ --show-filtered;
+        done;
+        if ! ls {wildcards.sample_id}.*.vep.txt >/dev/null 2>&1; then touch {wildcards.sample_id}.empty.vep.txt; fi
+        ) > {log.stdout} 2>&1
+        """)
+
+
+# Patient-level, aggregating every tumour-only sample's own independently-typed/referenced/called
+# track -- mirrors _mhc_hammer_get_patient_mutation_inputs's own shape, re-deriving the admission
+# filter fresh from CFG["runs"] inline (CFG-closure gotcha: this is a lazily-evaluated input
+# function, invoked after op.cleanup_module(CFG) has already run) rather than closing over the
+# module-level _mhc_hammer_dna_tumour_only_runs variable defined further below.
+def _mhc_hammer_get_tumour_only_patient_mutation_inputs(wildcards):
+    CFG = config["lcr-modules"]["mhc_hammer"]
+    patient_runs = CFG["runs"][
+        (CFG["runs"]["tumour_patient_id"] == wildcards.patient_id) &
+        (CFG["runs"]["pair_status"] != "matched") &
+        (CFG["runs"]["tumour_seq_type"] != "mrna")
+    ]
+    return {
+        "vep_dirs": expand(
+            str(rules._mhc_hammer_detect_muts_tumour_only.output.vep_dir),
+            zip,
+            seq_type = patient_runs["tumour_seq_type"],
+            genome_build = patient_runs["tumour_genome_build"],
+            sample_id = patient_runs["tumour_sample_id"]
+        ),
+        "tumour_marker": expand(
+            str(rules._mhc_hammer_make_allele_bams_tumour_only.output.passed_hla_alleles),
+            zip,
+            seq_type = patient_runs["tumour_seq_type"],
+            genome_build = patient_runs["tumour_genome_build"],
+            sample_id = patient_runs["tumour_sample_id"]
+        )
+    }
+
+
+# Mirrors _mhc_hammer_parse_mutations's own staging-directory idiom (symlink vep.txt tables +
+# allele BAMs flat into a scratch dir), calling the new module-owned
+# make_tumour_only_mutation_table.R instead of upstream's make_mutation_table.R -- no inventory.csv
+# staged at all (not needed -- no germline mapping exists in this pathway). See that script's own
+# header comment for exactly why upstream's script cannot be reused here (confirmed by reading it
+# directly: --wxs_gl_bam_files is required=TRUE, it stops on a VEP table missing a germline AD/DP
+# column -- which a tumour-only VCF never has -- and it hard-merges/stops against an
+# inventory.csv normal_sample_name mapping this pathway has no equivalent of).
+rule _mhc_hammer_parse_mutations_tumour_only:
+    input:
+        unpack(_mhc_hammer_get_tumour_only_patient_mutation_inputs)
+    output:
+        mutations = CFG["dirs"]["mutations"] + "{patient_id}_tumour_only/{patient_id}_mutations.csv"
+    priority: 90
+    log:
+        stdout = CFG["logs"]["mutations"] + "{patient_id}_tumour_only/parse_mutations.log"
+    params:
+        script = TUMOUR_ONLY_MUTATION_TABLE_SCRIPT,
+        upstream_scripts_dir = SCRIPTS_DIR,
+        mhc_seq = MHC_SEQ,
+        vep_dirs_abs = lambda wildcards, input: " ".join(os.path.abspath(d) for d in input.vep_dirs),
+        bam_dirs_abs = lambda wildcards, input: " ".join(sorted(set(
+            os.path.dirname(os.path.abspath(f)) for f in list(input.tumour_marker)
+        ))),
+        mutations_abs = lambda wildcards, output: os.path.abspath(output.mutations)
+    conda:
+        CFG["conda_envs"]["mhc_hammer_r"]
+    container:
+        None # calls the module-owned script above, which itself sources a script from the
+             # user-supplied mhc_hammer_scripts_dir -- see licensing note near the top of this file
+    threads:
+        CFG["threads"]["parse_mutations_tumour_only"]
+    resources:
+        **CFG["resources"]["parse_mutations_tumour_only"]
+    shell:
+        op.as_one_line("""
+        wd=$(dirname {output.mutations}) && mkdir -p $wd &&
+        stage=$wd/staged && rm -rf $stage && mkdir -p $stage &&
+        (
+        for d in {params.vep_dirs_abs}; do
+            for f in $d/*.vep.txt; do
+                case "$f" in *empty.vep.txt) continue ;; esac;
+                [ -e "$f" ] && ln -sf $(realpath $f) $stage/$(basename $f);
+            done;
+        done;
+        for d in {params.bam_dirs_abs}; do
+            for f in $d/*_{params.mhc_seq}_novoalign.*.sorted.filtered.bam*; do
+                [ -e "$f" ] && ln -sf $(realpath $f) $stage/$(basename $f);
+            done;
+        done;
+        cd $stage &&
+        vep_tables=$(ls *.vep.txt 2>/dev/null || true) &&
+        if [ -z "$vep_tables" ]; then
+            echo "No mutations detected for patient {wildcards.patient_id} -- skipping mutation table";
+            touch {params.mutations_abs};
+        else
+            tumour_bams=$(ls *_{params.mhc_seq}_novoalign.*.sorted.filtered.bam 2>/dev/null) &&
+            Rscript {params.script} --vep_tables $vep_tables --tumour_bam_files $tumour_bams --mutation_save_path {params.mutations_abs} --scripts_dir {params.upstream_scripts_dir}/bin/;
+        fi
+        ) > {log.stdout} 2>&1 &&
+        rm -rf $stage
+        """)
+
+
+rule _mhc_hammer_mutations_to_maf_tumour_only:
+    input:
+        mutations = str(rules._mhc_hammer_parse_mutations_tumour_only.output.mutations)
+    output:
+        maf = CFG["dirs"]["mutations"] + "{patient_id}_tumour_only/{patient_id}_mutations.maf"
+    log:
+        stdout = CFG["logs"]["mutations"] + "{patient_id}_tumour_only/mutations_to_maf.log"
+    params:
+        script = MUTATIONS_TO_MAF_SCRIPT # existing constant, reused verbatim -- zero script changes,
+                                          # since make_tumour_only_mutation_table.R's output schema
+                                          # matches upstream's own column set exactly (every
+                                          # germline_* column present but NA)
+    conda:
+        CFG["conda_envs"]["mhc_hammer_r"]
+    container:
+        None
+    threads:
+        CFG["threads"]["mutations_to_maf_tumour_only"]
+    resources:
+        **CFG["resources"]["mutations_to_maf_tumour_only"]
+    shell:
+        op.as_one_line("""
+        Rscript {params.script}
+        --mutations_csv {input.mutations}
+        --patient_id {wildcards.patient_id}
+        --output_maf {output.maf}
+        > {log.stdout} 2>&1
+        """)
+
+
+# Per sample -- mirrors _mhc_hammer_rna_typing_source's own audit-flag role, simpler since there's
+# no selection logic here (every row is, by construction, the tumour's own type -- admission into
+# this whole section already requires zero real normal DNA sample to exist).
+rule _mhc_hammer_tumour_only_typing_source:
+    output:
+        typing_source = CFG["dirs"]["outputs"] + "hla_typing_source_{seq_type}--{genome_build}/{sample_id}_tumour_only.hla_typing_source.csv"
+    run:
+        os.makedirs(os.path.dirname(output.typing_source), exist_ok = True)
+        with open(output.typing_source, "w", newline = "") as fh:
+            writer = csv.writer(fh)
+            writer.writerow(["sample_id", "seq_type", "genome_build", "tumour_derived_loh_risk"])
+            writer.writerow([wildcards.sample_id, wildcards.seq_type, wildcards.genome_build, True])
+
+
+rule _mhc_hammer_output_hla_final_result_tumour_only:
+    input:
+        hla_final_result = str(rules._mhc_hammer_hlahd_tumour_only_dna.output.hla_final_result)
+    output:
+        hla_final_result = CFG["dirs"]["outputs"] + "hla_alleles_{seq_type}--{genome_build}/{sample_id}_tumour_only.hla_alleles.txt"
+    run:
+        op.relative_symlink(input.hla_final_result, output.hla_final_result, in_module = True)
+
+
+rule _mhc_hammer_output_mutations_tumour_only:
+    input:
+        mutations = str(rules._mhc_hammer_parse_mutations_tumour_only.output.mutations)
+    output:
+        mutations = CFG["dirs"]["outputs"] + "mutations_{patient_id}_tumour_only.mutations.csv"
+    run:
+        op.relative_symlink(input.mutations, output.mutations, in_module = True)
+
+
+rule _mhc_hammer_output_mutations_maf_tumour_only:
+    input:
+        maf = str(rules._mhc_hammer_mutations_to_maf_tumour_only.output.maf)
+    output:
+        maf = CFG["dirs"]["outputs"] + "mutations_maf_{patient_id}_tumour_only.mutations.maf"
+    run:
+        op.relative_symlink(input.maf, output.maf, in_module = True)
+
+
+# Admission: every DNA tumour sample lacking a real matched normal DNA sample. Independent of, and
+# unaffected by, the pair_status == "matched" narrowing already applied to CFG["paired_runs"] near
+# the top of this file -- that narrowing only ever touches paired_runs, never CFG["runs"].
+_mhc_hammer_dna_tumour_only_runs = CFG["runs"][
+    (CFG["runs"]["pair_status"] != "matched") &
+    (CFG["runs"]["tumour_seq_type"] != "mrna")
+]
+
+
+def _mhc_hammer_tumour_only_sample_targets(runs):
+    return expand(
+        [str(rules._mhc_hammer_output_hla_final_result_tumour_only.output.hla_final_result),
+         str(rules._mhc_hammer_tumour_only_typing_source.output.typing_source)],
+        zip,
+        seq_type = runs["tumour_seq_type"],
+        genome_build = runs["tumour_genome_build"],
+        sample_id = runs["tumour_sample_id"]
+    )
+
+
+def _mhc_hammer_tumour_only_patient_targets(runs):
+    return expand(
+        [str(rules._mhc_hammer_output_mutations_tumour_only.output.mutations),
+         str(rules._mhc_hammer_output_mutations_maf_tumour_only.output.maf)],
+        patient_id = sorted(set(runs["tumour_patient_id"]))
+    )
+
+
 # Generates the target sentinels for each run, which generate the symlinks. Uses
 # CFG["paired_runs"] (not CFG["runs"]) so that tumour samples without a matched germline WES
 # sample -- which this module cannot process at all, since HLA typing and the personalised
@@ -3034,7 +3669,14 @@ rule _mhc_hammer_all:
         # requested alongside the existing DNA-based targets above. See
         # options.rna_hla_typing_comparison.
         *(_mhc_hammer_rna_typing_targets(_mhc_hammer_rna_comparison_targets)
-          if CFG["options"]["rna_hla_typing_comparison"] else [])
+          if CFG["options"]["rna_hla_typing_comparison"] else []),
+        # OPT-IN: tumour-only (no matched normal DNA) variant calling -- every DNA tumour sample
+        # with no real matched normal, typed/referenced/called independently from its own reads.
+        # See options.tumour_only_variant_calling and the "OPT-IN: TUMOUR-ONLY VARIANT CALLING"
+        # section above.
+        *(_mhc_hammer_tumour_only_sample_targets(_mhc_hammer_dna_tumour_only_runs) +
+          _mhc_hammer_tumour_only_patient_targets(_mhc_hammer_dna_tumour_only_runs)
+          if CFG["options"]["tumour_only_variant_calling"] else [])
 
 
 ##### CLEANUP #####

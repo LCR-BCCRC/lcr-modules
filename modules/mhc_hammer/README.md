@@ -39,6 +39,20 @@ Other RNA-specific outputs: `99-outputs/hla_alleles_rna/` and `99-outputs/hla2_a
 
 **Read-count cap (`options.rna_hla_typing_max_read_pairs`, default 100000)**: a real, confirmed problem on a highly-expressed HLA locus in RNA-seq -- HLA-HD's own internal typing step (`bowtie2 -a` against its full multi-thousand-allele exon dictionary, hardcoded, not tunable via any of HLA-HD's own CLI flags) produces output that scales combinatorially with input read count. One real DLBCL sample's class I RNA subset held 500K+ read pairs and produced a 25GB+ intermediate SAM file that hadn't finished after an hour. `_mhc_hammer_rna_downsample_bam`/`_mhc_hammer_hla2_rna_downsample_bam` cap each RNA-sourced subset BAM at this many read pairs before FASTQ conversion, using `samtools view -s {seed}.{fraction}` -- subsampling by QNAME hash, not read position, so it's unbiased with respect to these BAMs' own coordinate sort order (no "first N reads" bias toward one end of the region) and keeps both mates of a pair together. `options.rna_hla_typing_downsample_seed` (default 42) is fixed, not random-per-run, so results are reproducible. Set the cap to `0` to disable (uncapped, original behaviour) -- typing tools generally need far fewer reads than this default to call confidently, so the cap costs negligible accuracy for a large runtime/disk win.
 
+## Opt-in: tumour-only (no matched normal DNA) variant calling
+
+A DNA tumour (WES/WGS) sample with no matched germline DNA sample is otherwise 100% excluded from this module -- it never even reaches HLA typing. `options.tumour_only_variant_calling` (default `False`) closes this gap: every such tumour sample is typed (HLA-HD, Class I A/B/C), given its own personalised reference, aligned (Novoalign), split into allele-specific BAMs, and called for somatic mutations (Mutect2 **tumor-only mode**, no `-normal`) -- the same pipeline as the paired DNA arm, just without a second sample.
+
+**Why typing from the tumour itself isn't circular**: the personalised reference's sequence content is the independent IMGT/HLA catalog sequence for whichever allele HLA-HD calls -- never a consensus built from the sample's own reads. A real somatic mutation (novel, essentially never previously catalogued as a population germline polymorphism) still shows up as a mismatch against that catalog sequence regardless of whether typing came from a true normal or the tumour, since nearest-neighbour allele-calling tolerates a sparse handful of mismatches when picking the closest catalog entry. What matters is typing-call *confidence*, not source -- `99-outputs/hla_typing_source_tumour_only/{seq_type}--{genome_build}/{sample_id}.hla_typing_source.csv` records this for every sample (`tumour_derived_loh_risk` is always `True` here, by construction).
+
+**Per-tumour typing, not shared per-patient**: a patient with multiple tumour-only samples (different biopsies/timepoints) gets one fully independent typing+reference+calling track **per tumour sample**, not one shared type picked for the whole patient. This is deliberate: it lets biopsy-to-biopsy differences in the called type (and resulting mutations) actually surface and be compared, rather than being hidden by an arbitrary tie-break. Whether to later collapse to one consensus type per patient is an open question, to be revisited once there's real comparative data. The final mutation table/MAF (`99-outputs/mutations_tumour_only/{patient_id}.mutations.csv`, `99-outputs/mutations_maf_tumour_only/{patient_id}.mutations.maf`) is aggregated per patient, with `tumour_sample_name` distinguishing each tumour's own rows, so this comparison is possible directly from the output.
+
+Other outputs: `99-outputs/hla_alleles_tumour_only/{seq_type}--{genome_build}/{sample_id}.hla_alleles.txt` (per tumour sample, same format as the paired arm's own `hla_alleles/`).
+
+**v1 scope**: DNA-tumour-only samples only. A patient with tumour DNA (no normal) who *also* has tumour RNA keeps getting typed/called from DNA only here -- the existing RNA-sourced typing fallback (`options.rna_hla_typing_fallback`) continues to produce its own, separate `hla_alleles_rna/` output for that same patient independently (both coexist; neither suppresses the other). RNA-sourced tumour-only *mutation calling* is deliberately deferred: Novoalign is not splice-aware, and this module's personalised reference is purely genomic (it skips the transcriptome reference MHC Hammer's own upstream also builds), risking real sensitivity loss at exon-exon junctions.
+
+No CN-AIB/allelic-imbalance/LOH detection is attempted for tumour-only samples -- that inherently needs a germline comparator; only somatic mutation calling is extended to this population. This pathway also never feeds `_mhc_hammer_patient_gene_table`/`cohort_mhc_hammer_gene_table.csv`.
+
 ## What's not included in v1
 
 - RNA allelic expression, RNA allelic imbalance, and RNA allelic repression (tumour vs. matched-normal RNA) -- upstream's RNA analysis arm.
@@ -47,6 +61,8 @@ Other RNA-specific outputs: `99-outputs/hla_alleles_rna/` and `99-outputs/hla2_a
 - The `exon_snps`-restricted variant of copy-number/allelic-imbalance detection (upstream itself has this disabled).
 - BAM-subsetting bypass / pre-typed-HLA-input / preprocessing-only modes.
 - HLA class II somatic disruption detection (personalised reference, Novoalign, copy-number/allelic-imbalance, mutation calling) -- only germline typing is implemented for class II (see above); this is left as a possible future extension of the parallel `_mhc_hammer_hla2_*` path.
+- RNA-sourced tumour-only mutation calling (patients with tumour RNA but no DNA at all) -- deferred, see the tumour-only section above for why.
+- Collapsing multiple tumour-only samples from the same patient to one consensus HLA type -- each is currently typed and called fully independently, by design (see the tumour-only section above).
 
 # Example
 
