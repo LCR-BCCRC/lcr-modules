@@ -1,0 +1,11 @@
+channels:
+    - bioconda
+    - conda-forge
+    - defaults
+dependencies:
+    - python=3.8
+    - hmmer>=3.3
+    - pip
+    - pip:
+        - biopython==1.83
+        - anarci

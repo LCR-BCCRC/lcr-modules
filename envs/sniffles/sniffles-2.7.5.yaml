@@ -1,0 +1,9 @@
+name: sniffles-2.7.5
+channels:
+  - http://repo.anaconda.com/pkgs/r
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.10.15
+  - sniffles=2.7.5

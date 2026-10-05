@@ -35,6 +35,9 @@ lcr-modules:
             star: "{MODSDIR}/envs/star-2.7.3a.yaml"
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             sambamba: "{MODSDIR}/envs/sambamba-0.7.1.yaml"
+        container_envs:
+            star: "docker://quay.io/biocontainers/star:2.7.3a--h5ca1c30_1"
+
             
         threads:
             star: 12

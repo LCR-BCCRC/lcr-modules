@@ -16,7 +16,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -24,7 +24,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
     print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
@@ -44,6 +44,7 @@ CFG = op.setup_module(
 localrules:
     _qc_input_bam,
     _qc_input_references,
+    _qc_download_baits,
     _qc_output_tsv,
     _qc_all
 
@@ -61,9 +62,9 @@ rule _qc_input_bam:
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai",
         crai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.crai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
-        op.relative_symlink(input.bai, output.crai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bai, output.crai)
 
 # symlink the reference files to ensure all index/dictionaries are available for GATK tools
 rule _qc_input_references:
@@ -95,6 +96,8 @@ rule _qc_samtools_stat:
         opts = CFG["options"]["samtools_stat"]
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     threads:
         CFG["threads"]["samtools_stat"]
     resources:
@@ -121,6 +124,8 @@ rule _qc_samtools_coverage:
         opts = CFG["options"]["samtools_coverage"]
     conda:
         CFG["conda_envs"]["samtools_cov"]
+    container:
+        CFG["container_envs"]["samtools_cov"]
     threads:
         CFG["threads"]["samtools_coverage"]
     resources:
@@ -151,6 +156,8 @@ rule _qc_gatk_basequality:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatkR"]
+    container:
+        CFG["container_envs"]["gatkR"]
     threads:
         CFG["threads"]["QualityScoreDistribution"]
     resources:
@@ -190,6 +197,8 @@ rule _qc_gatk_wgs:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatkR"]
+    container:
+        CFG["container_envs"]["gatkR"]
     threads:
         CFG["threads"]["CollectMetrics"]
     resources:
@@ -197,6 +206,7 @@ rule _qc_gatk_wgs:
     shell:
         op.as_one_line("""
         echo "running {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
+        max_read_length=$(grep ^SN {input.samtools_stats} | cut -f 2- | grep "maximum length:" | cut -f 2); 
         gatk
         --java-options "-Xmx{params.jvmheap}m -XX:ConcGCThreads=1"
         CollectWgsMetrics
@@ -204,7 +214,7 @@ rule _qc_gatk_wgs:
         -I {input.bam}
         -O {output.gatk_wgs}
         -R {input.fasta}
-        --READ_LENGTH $(grep ^SN {input.samtools_stats} | cut -f 2- | grep "average length:" | cut -f 2)
+        --READ_LENGTH $((max_read_length + 5)) 
         >> {log.stdout}
         2>> {log.stderr} &&
         echo "DONE {rule} for {wildcards.sample_id} on $(hostname) at $(date)" >> {log.stdout};
@@ -224,9 +234,9 @@ def _qc_get_baits(wildcards):
         if wildcards.baits_regions in list(CFG["baits_regions"][this_genome_build].keys()):
             these_baits = str(wildcards.baits_regions)
         else:
-            print(
+            logger.warning(
                 f"WARNING: the baits regions were specified in the sample table, but were not found in config "
-                f"for {wildcards.genome_build} ({this_genome_build}) and {wildcards.seq_type} combination. Using the default space ..."
+                f"for {wildcards.baits_regions} ({this_genome_build}) and {wildcards.seq_type} combination. Using the default space ..."
             )
             these_baits = "_default"
     else:
@@ -236,38 +246,58 @@ def _qc_get_baits(wildcards):
     return(str(CFG["baits_regions"][this_genome_build][these_baits]))
 
 
+# Downloads the baits BED file from a URL or copies it from a local path.
+# Uses a run: block so it executes in the main Python process — no container
+# needed, avoiding issues with curl/wget absence in bioinformatics containers.
+rule _qc_download_baits:
+    output:
+        raw_baits = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/raw/{baits_regions}.bed")
+    wildcard_constraints:
+        genome_build = "[^/]+",
+        baits_regions = "[^/]+"
+    params:
+        baits = _qc_get_baits
+    run:
+        import urllib.request, shutil, os
+        src = params.baits
+        if os.path.isfile(src):
+            shutil.copy(src, output.raw_baits)
+        else:
+            urllib.request.urlretrieve(src, output.raw_baits)
+
+
 # Subset contigs in bed to those present in the reference and sort the output
 # This is needed to pass GATK validation
 rule _qc_sort_baits:
     input:
-        fai = str(rules._qc_input_references.output.genome_fai)
+        fai = str(rules._qc_input_references.output.genome_fai),
+        raw_baits = str(rules._qc_download_baits.output.raw_baits)
     output:
         baits = CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.bed",
         intermediate_baits = temp(CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.INTERMEDIATE.bed")
+    wildcard_constraints:
+        genome_build = "[^/]+",
+        baits_regions = "[^/]+"
     conda:
         CFG["conda_envs"]["bedtools"]
-    params:
-        baits = _qc_get_baits
+    container:
+        CFG["container_envs"]["bedtools"]
     shell:
         op.as_one_line("""
-        if [ -e {params.baits} ]; then
-            cut -f 1-3 {params.baits} > {output.intermediate_baits};
-        else
-            curl -L {params.baits} | cut -f 1-3 > {output.intermediate_baits};
-        fi
+        cut -f 1-3 {input.raw_baits} > {output.intermediate_baits}
             &&
-        QC_REF_PREFIXED==$(head -1 {input.fai} | cut -f 1)
+        QC_REF_PREFIXED=$(head -1 {input.fai} | cut -f 1)
             &&
-        BED_PREFIXED==$(head -1 {output.intermediate_baits} | cut -f 1)
+        BED_PREFIXED=$(head -1 {output.intermediate_baits} | cut -f 1)
             &&
         if [[ $QC_REF_PREFIXED == *"chr"* && ! $BED_PREFIXED == *"chr"* ]]; then
-            cat {output.intermediate_baits} | perl -ne "s/^/chr/g;print" > {output.intermediate_baits}.fix_prefix;
+            awk '{{print "chr" $0}}' {output.intermediate_baits} > {output.intermediate_baits}.fix_prefix;
             rm {output.intermediate_baits};
             mv {output.intermediate_baits}.fix_prefix {output.intermediate_baits};
         fi
             &&
         cut -f 1-2  {input.fai} |
-        perl -ane 'print "$F[0]\\t0\\t$F[1]\\n"' |
+        awk '{{print $1 "\\t0\\t" $2}}' |
         bedtools intersect -wa -a {output.intermediate_baits} -b stdin |
         bedtools sort |
         bedtools merge >
@@ -283,6 +313,8 @@ rule _qc_baits_to_interval_list:
         interval_list = CFG["dirs"]["inputs"] + "references/{genome_build}/{baits_regions}.interval_list"
     conda:
         CFG["conda_envs"]["gatkR"]
+    container:
+        CFG["container_envs"]["gatkR"]
     shell:
         op.as_one_line("""
         gatk BedToIntervalList
@@ -313,10 +345,14 @@ def _qc_get_intervals(wildcards):
         # If user specified path to bed file in the sample table, use it from dictionary in config
         if str(this_sample.iloc[0]['baits_regions']) in list(CFG["baits_regions"][this_genome_build].keys()):
             these_baits = str(this_sample.iloc[0]['baits_regions'])
+        elif str(this_sample.iloc[0]['baits_regions']) is None:
+            these_baits = "_default"
+        elif str(this_sample.iloc[0]['baits_regions']) in ["none"]:
+            these_baits = "_default"
         else:
-            print(
+            logger.warning(
                 f"WARNING: the baits regions were specified in the sample table, but were not found in config "
-                f"for {wildcards.genome_build} ({this_genome_build}) and {wildcards.seq_type} combination. Using the default space ..."
+                f"for {str(this_sample.iloc[0]['sample_id'])} ({str(this_sample.iloc[0]['baits_regions'])}, {this_genome_build} and {wildcards.seq_type} combination). Using the default space ..."
             )
             these_baits = "_default"
     else:
@@ -342,6 +378,8 @@ rule _qc_gatk_wes:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gatkR"]
+    container:
+        CFG["container_envs"]["gatkR"]
     threads:
         CFG["threads"]["CollectMetrics"]
     resources:
@@ -382,6 +420,8 @@ rule _qc_collect_metrics:
         stat = CFG["dirs"]["aggregated_metrics"] + "{seq_type}--{genome_build}/{sample_id}.metrix.tsv"
     conda:
         CFG["conda_envs"]["gatkR"]
+    container:
+        CFG["container_envs"]["Rscript"]
     threads:
         CFG["threads"]["collect"]
     resources:

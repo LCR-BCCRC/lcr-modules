@@ -27,6 +27,9 @@ lcr-modules:
             bedhg19toseghg19: "{MODSDIR}/src/convert_for_liftover.py"
         conda_envs:
             liftover-366: "{MODSDIR}/envs/liftover-366.yaml"
+        container_envs:
+            liftover-366: "docker://ghcr.io/lcr-bccrc/lcr-scripts/liftover:1.0"
+
         pairing_config:
             genome:
                 run_paired_tumours: True

@@ -16,7 +16,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -24,7 +24,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
     print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
@@ -62,6 +62,8 @@ rule _ecotyper_install:
         folder = CFG["dirs"]["inputs"]
     conda:
         CFG["conda_envs"]["wget"]
+    container:
+        None
     group:
         "preprocessing"
     shell:
@@ -107,6 +109,8 @@ rule _ecotyper_create_mapping:
         stdout = CFG["logs"]["ecotyper"] + "ecotyper_preprocess.stdout.log"
     conda:
         CFG["conda_envs"]["ecotyper"]
+    container:
+        None
     threads:
         CFG["threads"]["processing"]
     resources:
@@ -136,6 +140,8 @@ rule _ecotyper_run:
         out_dir = CFG["dirs"]["ecotyper"]
     conda:
         CFG["conda_envs"]["ecotyper"]
+    container:
+        None
     threads:
         CFG["threads"]["ecotyper"]
     resources:
@@ -181,6 +187,8 @@ rule _ecotyper_postprocess:
         stdout = CFG["logs"]["ecotyper"] + "ecotyper_postprocess.stdout.log"
     conda:
         CFG["conda_envs"]["ecotyper"]
+    container:
+        None
     threads:
         CFG["threads"]["processing"]
     resources:

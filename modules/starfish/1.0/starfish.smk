@@ -52,10 +52,10 @@ rule _starfish_input_vcf:
         vcf1 = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}." + tool1 + ".vcf.gz",
         vcf2 = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}." + tool2 + ".vcf.gz"
     run:
-        op.relative_symlink(input.vcf1, output.vcf1),
-        op.relative_symlink(input.vcf2, output.vcf2),
-        op.relative_symlink(input.vcf1 + ".tbi" , output.vcf1 + ".tbi"),
-        op.relative_symlink(input.vcf2 + ".tbi" , output.vcf2 + ".tbi")
+        op.relative_symlink(input.vcf1, output.vcf1, in_module=True),
+        op.relative_symlink(input.vcf2, output.vcf2, in_module=True),
+        op.relative_symlink(input.vcf1 + ".tbi" , output.vcf1 + ".tbi", in_module=True),
+        op.relative_symlink(input.vcf2 + ".tbi" , output.vcf2 + ".tbi", in_module=True)
 
 rule _starfish_run:
     input:
@@ -81,6 +81,8 @@ rule _starfish_run:
         vcf_dir = run_starfish_base
     conda:
         CFG["conda_envs"]["starfish"]
+    container:
+        CFG["container_envs"]["starfish"]
     threads:
         CFG["threads"]["starfish"]
     resources:
@@ -138,6 +140,8 @@ rule _starfish_vcf_to_bed:
         stderr = CFG["logs"]["starfish"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/vcf_to_bed.stderr.log"
     conda:
         CFG["conda_envs"]["bedops"]
+    container:
+        CFG["container_envs"]["bedops"]
     threads:
         CFG["threads"]["vcf_to_bed"]
     resources:
@@ -170,12 +174,12 @@ rule _starfish_output_bed:
         tool2_only_indel_bed = output_base_bed + tool2 + "-unique.indels.bed",
         intersect_plus_indels = output_base_bed + tool1 + "-and-" + tool2 + "-and-all-indels.bed"
     run:
-        op.relative_symlink(input.tool1_only, output.tool1_only),
-        op.relative_symlink(input.tool2_only, output.tool2_only),
-        op.relative_symlink(input.intersect, output.intersect),
-        op.relative_symlink(input.tool1_only_indel_bed, output.tool1_only_indel_bed),
-        op.relative_symlink(input.tool2_only_indel_bed, output.tool2_only_indel_bed),
-        op.relative_symlink(input.intersect_plus_indels, output.intersect_plus_indels)
+        op.relative_symlink(input.tool1_only, output.tool1_only, in_module=True),
+        op.relative_symlink(input.tool2_only, output.tool2_only, in_module=True),
+        op.relative_symlink(input.intersect, output.intersect, in_module=True),
+        op.relative_symlink(input.tool1_only_indel_bed, output.tool1_only_indel_bed, in_module=True),
+        op.relative_symlink(input.tool2_only_indel_bed, output.tool2_only_indel_bed, in_module=True),
+        op.relative_symlink(input.intersect_plus_indels, output.intersect_plus_indels, in_module=True)
 
 # Generates the target sentinels for each run, which generate the symlinks
 rule _starfish_all:

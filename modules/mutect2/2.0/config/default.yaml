@@ -32,7 +32,12 @@ lcr-modules:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             gatk: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
-            
+
+        container_envs:
+            samtools: "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+            gatk: "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
+            bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+
         threads:
             mutect2_run: 4
             mutect2_f1r2: 1

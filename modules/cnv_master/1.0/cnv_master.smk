@@ -14,10 +14,11 @@
 
 # Import package with useful functions for developing analysis modules
 import oncopipe as op
+from snakemake.logging import logger
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -25,7 +26,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
     print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
@@ -67,11 +68,11 @@ def _find_best_seg(wildcards):
                               projection=wildcards.projection,
                               seq_type=list(CFG["runs"]["tumour_seq_type"].unique())))
     possible_outputs = [path for path in possible_outputs if os.path.exists(path)]
-    assert (len(possible_outputs) >= 1), (
-        f"No ouput was found for the sample {wildcards.tumour_id} in projection {wildcards.projection}. "
-        f"Please ensure it exists at one of the paths specified through config."
-    )
-    return(possible_outputs[0])
+    if (len(possible_outputs) == 0):
+        logger.warning(f"No ouput was found for the sample {wildcards.tumour_id} in projection {wildcards.projection}. Skipping. ")
+        return()
+    else: 
+        return(possible_outputs[0])
 
 # symlink the input files into 00-inputs
 rule _cnv_master_input:
@@ -80,7 +81,12 @@ rule _cnv_master_input:
     output:
         seg = CFG["dirs"]["inputs"] + "seg/{tumour_id}--{normal_id}--{pair_status}--{seq_type}--{projection}.seg"
     run:
-        op.absolute_symlink(input.seg, output.seg)
+        if(input):
+            op.absolute_symlink(input.seg, output.seg)
+        else:
+            with open(output.seg, "w") as f:
+                f.write("ID	chrom	start	end	LOH_flag	log.ratio")
+            logger.warning(f"Creating empty file {output.seg} because no input seg file was found.")
 
 
 def _get_all_segs(this_seq_type):
@@ -107,6 +113,8 @@ rule _cnv_master_merge_genome_projections:
         seq_type="genome"
     conda:
         CFG["conda_envs"]["R"]
+    container:
+        None
     threads:
         CFG["threads"]["cnv_master"]
     resources:
@@ -127,6 +135,8 @@ rule _cnv_master_merge_capture_projections:
         seq_type="capture"
     conda:
         CFG["conda_envs"]["R"]
+    container:
+        None
     threads:
         CFG["threads"]["cnv_master"]
     resources:

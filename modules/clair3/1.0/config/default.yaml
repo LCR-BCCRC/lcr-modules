@@ -25,6 +25,10 @@ lcr-modules:
             clair3: "{MODSDIR}/envs/clair3-1.0.10.yaml"
             samtools: "{MODSDIR}/envs/samtools-1.10.yaml"
             wget: "{MODSDIR}/envs/wget-1.20.1.yaml" 
+        container_envs:
+            clair3: "docker://quay.io/biocontainers/clair3:1.0.10--py39hd649744_1"
+            wget: null
+
             
         threads: 
             clair3: 24

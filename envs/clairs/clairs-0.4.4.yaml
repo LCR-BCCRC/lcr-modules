@@ -1,0 +1,10 @@
+name: clairs-0.4.4
+channels:
+  - bioconda
+  - pytorch
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pytorch
+  - tqdm
+  - clair3-illumina

@@ -22,6 +22,10 @@ lcr-modules:
         conda_envs:
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
             fishhook: "{MODSDIR}/envs/fishhook.yaml"
+        container_envs:
+            fishhook: null
+            prepare_mafs: null
+
             
         threads:
             fishhook: 1

@@ -1,0 +1,35 @@
+diff --git a/sage/src/main/java/com/hartwig/hmftools/sage/candidate/RefContextConsumer.java b/sage/src/main/java/com/hartwig/hmftools/sage/candidate/RefContextConsumer.java
+index 20276c816f..30e04c6898 100644
+--- a/sage/src/main/java/com/hartwig/hmftools/sage/candidate/RefContextConsumer.java
++++ b/sage/src/main/java/com/hartwig/hmftools/sage/candidate/RefContextConsumer.java
+@@ -6,6 +6,7 @@ import static java.lang.Math.round;
+ import static com.hartwig.hmftools.common.bam.CigarUtils.NO_POSITION_INFO;
+ import static com.hartwig.hmftools.common.bam.CigarUtils.getPositionFromReadIndex;
+ import static com.hartwig.hmftools.common.region.BaseRegion.positionsOverlap;
++import static com.hartwig.hmftools.sage.SageCommon.SG_LOGGER;
+ import static com.hartwig.hmftools.sage.SageCommon.isImproperPair;
+ import static com.hartwig.hmftools.sage.SageConstants.DEFAULT_FLANK_LENGTH;
+ import static com.hartwig.hmftools.sage.SageConstants.MIN_INSERT_ALIGNMENT_OVERLAP;
+@@ -347,6 +348,9 @@ public class RefContextConsumer
+ 
+         RefContext refContext = mRefContextCache.getOrCreateRefContext(record.getContig(), refPosition);
+ 
++        if(refContext == null)
++            return;
++
+         readInfo.addAltRead(new AltRead(refContext, ref, alt, readInfo.NumberOfEvents, sufficientMapQuality, record, readIndex));
+     }
+ 
+@@ -522,6 +526,12 @@ public class RefContextConsumer
+ 
+         RefContext refContext = mRefContextCache.getOrCreateRefContext(variant.Chromosome, variant.Position);
+ 
++        if(refContext == null)
++        {
++            SG_LOGGER.debug("soft-clip variant at {}:{} is outside region bounds, skipping", variant.Chromosome, variant.Position);
++            return;
++        }
++
+         AltRead altReadFull = new AltRead(refContext, variant.Ref, variant.Alt, readInfo.NumberOfEvents, sufficientMapQuality, record, readIndex);
+         readInfo.addAltRead(altReadFull);
+     }

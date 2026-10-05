@@ -1,0 +1,9 @@
+name: igv-reports
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python>=3.8
+  - pysam>=0.22
+  - igv-reports=1.16.0

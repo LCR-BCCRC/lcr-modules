@@ -1,0 +1,13 @@
+diff --git a/sage/src/main/java/com/hartwig/hmftools/sage/common/Microhomology.java b/sage/src/main/java/com/hartwig/hmftools/sage/common/Microhomology.java
+index 56a24bf05d..bf683727d6 100644
+--- a/sage/src/main/java/com/hartwig/hmftools/sage/common/Microhomology.java
++++ b/sage/src/main/java/com/hartwig/hmftools/sage/common/Microhomology.java
+@@ -58,7 +58,7 @@ public class Microhomology
+ 
+     public static Microhomology findHomology(final SimpleVariant variant, final byte[] readBases, int varReadIndex, boolean applyIndelLength)
+     {
+-        if(!variant.isIndel())
++        if(!variant.isIndel() || readBases == null)
+             return null;
+ 
+         int indelAltLength = variant.indelLengthAbs();
