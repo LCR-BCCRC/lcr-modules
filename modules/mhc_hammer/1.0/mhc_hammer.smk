@@ -3499,7 +3499,7 @@ rule _mhc_hammer_mutations_to_maf_tumour_only:
 # this whole section already requires zero real normal DNA sample to exist).
 rule _mhc_hammer_tumour_only_typing_source:
     output:
-        typing_source = CFG["dirs"]["outputs"] + "hla_typing_source_{seq_type}--{genome_build}/{sample_id}_tumour_only.hla_typing_source.csv"
+        typing_source = CFG["dirs"]["outputs"] + "hla_typing_source_tumour_only/{seq_type}--{genome_build}/{sample_id}.hla_typing_source.csv"
     run:
         os.makedirs(os.path.dirname(output.typing_source), exist_ok = True)
         with open(output.typing_source, "w", newline = "") as fh:
@@ -3512,7 +3512,7 @@ rule _mhc_hammer_output_hla_final_result_tumour_only:
     input:
         hla_final_result = str(rules._mhc_hammer_hlahd_tumour_only_dna.output.hla_final_result)
     output:
-        hla_final_result = CFG["dirs"]["outputs"] + "hla_alleles_{seq_type}--{genome_build}/{sample_id}_tumour_only.hla_alleles.txt"
+        hla_final_result = CFG["dirs"]["outputs"] + "hla_alleles_tumour_only/{seq_type}--{genome_build}/{sample_id}.hla_alleles.txt"
     run:
         op.relative_symlink(input.hla_final_result, output.hla_final_result, in_module = True)
 
@@ -3521,7 +3521,7 @@ rule _mhc_hammer_output_mutations_tumour_only:
     input:
         mutations = str(rules._mhc_hammer_parse_mutations_tumour_only.output.mutations)
     output:
-        mutations = CFG["dirs"]["outputs"] + "mutations_{patient_id}_tumour_only.mutations.csv"
+        mutations = CFG["dirs"]["outputs"] + "mutations_tumour_only/{patient_id}.mutations.csv"
     run:
         op.relative_symlink(input.mutations, output.mutations, in_module = True)
 
@@ -3530,7 +3530,7 @@ rule _mhc_hammer_output_mutations_maf_tumour_only:
     input:
         maf = str(rules._mhc_hammer_mutations_to_maf_tumour_only.output.maf)
     output:
-        maf = CFG["dirs"]["outputs"] + "mutations_maf_{patient_id}_tumour_only.mutations.maf"
+        maf = CFG["dirs"]["outputs"] + "mutations_maf_tumour_only/{patient_id}.mutations.maf"
     run:
         op.relative_symlink(input.maf, output.maf, in_module = True)
 
