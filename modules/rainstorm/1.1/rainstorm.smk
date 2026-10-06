@@ -18,7 +18,7 @@ import numpy as np
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -26,7 +26,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
     print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
@@ -121,6 +121,8 @@ checkpoint _rainstorm_prepare_maf:
         CFG["logs"]["inputs"] + "{sample_set}--{genome_build}--{launch_date}/prepare_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    container:
+        None
     params:
         include_non_coding = str(CFG["include_non_coding"]).upper(),
         mode = "rainstorm",
@@ -146,6 +148,8 @@ rule _rainstorm_run:
         rainstorm_flags = CFG["options"]["flags"]
     conda:
         CFG["conda_envs"]["rainstorm"]
+    container:
+        None
     threads:
         CFG["threads"]["rainstorm"]
     resources:
@@ -198,6 +202,8 @@ rule _rainstorm_run_doppler:
         out_name = CFG["dirs"]["doppler"] + "{genome_build}/{sample_set}--{launch_date}--{md5sum}/{sample_set}" + "_mean_"
     conda:
         CFG["conda_envs"]["rainstorm"]
+    container:
+        None
     threads:
         CFG["threads"]["rainstorm"]
     resources:
@@ -221,6 +227,8 @@ rule _rainstorm2bed:
         bed = CFG["dirs"]["doppler"] + "{genome_build}/{sample_set}--{launch_date}--{md5sum}/{sample_set}_mean_waveletSummary_withMaf.bed"
     conda:
         CFG["conda_envs"]["rainstorm"]
+    container:
+        None
     shell:
         op.as_one_line("""
         python3 {input.converter}

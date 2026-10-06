@@ -64,6 +64,15 @@ lcr-modules:
             purple: "{MODSDIR}/envs/hmftools-purple-2.48.yaml"
             linx: "{MODSDIR}/envs/hmftools-linx-1.11.yaml"
             snpeff: "{MODSDIR}/envs/snpeff-4.3.1t.yaml"
+        container_envs:
+            amber: "docker://quay.io/biocontainers/hmftools-amber:3.4--0"
+            bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+            cobalt: "docker://quay.io/biocontainers/hmftools-cobalt:1.9--0"
+            linx: "docker://quay.io/biocontainers/hmftools-linx:1.11--0"
+            purple: "docker://quay.io/biocontainers/hmftools-purple:2.48--0"
+            snpeff: "docker://ghcr.io/lcr-bccrc/lcr-scripts/snpeff:1.0"
+            wget: null
+
             
         threads:
             strelka_sample_names: 1

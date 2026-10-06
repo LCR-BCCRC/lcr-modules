@@ -12,7 +12,7 @@ import inspect
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -20,7 +20,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -32,7 +32,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -40,7 +40,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -74,8 +74,10 @@ localrules:
 # Split the samples table in two based on specified 
 # seq_types from the config. 
 
-VCF_SAMPLES = op.filter_samples(CFG["samples"], seq_type = CFG["options"]["vcf_seq_type"])
-BAM_SAMPLES = op.filter_samples(CFG["samples"], seq_type = CFG["options"]["bam_seq_type"])
+VCF_SAMPLES = op.filter_samples(CFG["samples"], seq_type = CFG["options"]["vcf_seq_type"], tissue_status = ["tumour", "tumor"])
+VCF_RUNS = op.filter_samples(CFG["runs"], tumour_seq_type = CFG["options"]["vcf_seq_type"])
+BAM_SAMPLES = op.filter_samples(CFG["samples"], seq_type = CFG["options"]["bam_seq_type"], tissue_status = ["tumour", "tumor"])
+
 
 # Ensure the genome_build for each biopsy in VCF_SAMPLES matches the genome_build in BAM_SAMPLES
 import pandas as pd
@@ -112,11 +114,63 @@ rule _whatshap_input_bam:
         op.absolute_symlink(input.bam, output.bam)
         op.absolute_symlink(input.bai, output.bai)
         op.absolute_symlink(input.bai, output.crai)
+        
+def get_input_vcf(wildcards): 
+    # Function to use paired VCF if specified, or tumour-only VCF
+    CFG = config["lcr-modules"]["whatshap"]
+
+    try:  # For VCFs with only tumour sample id (i.e. from Freebayes)
+        this_vcf = op.filter_samples(
+            CFG["samples"],
+            seq_type=wildcards.seq_type,
+            sample_id=wildcards.sample_id,
+            genome_build=wildcards.genome_build
+        )
+        this_vcf = expand(
+            [
+                CFG["inputs"]["sample_vcf"],
+                CFG["inputs"]["sample_vcf_tbi"]
+            ],
+            zip,
+            sample_id=this_vcf["sample_id"],
+            genome_build=this_vcf["genome_build"],
+            seq_type=CFG["options"]["vcf_seq_type"],
+            allow_missing=True
+        )
+        # Check if the file exists
+        if not all(os.path.exists(vcf) for vcf in this_vcf):
+            raise FileNotFoundError(f"One or more VCF/TBI files specified by {wildcards.sample_id} do not exist.")
+    except FileNotFoundError:
+        try:
+            this_vcf = op.filter_samples(
+                CFG["runs"],
+                tumour_seq_type=wildcards.seq_type,
+                tumour_sample_id=wildcards.sample_id,
+                tumour_genome_build=wildcards.genome_build
+            )
+            this_vcf = expand(
+                [
+                    CFG["inputs"]["sample_vcf"],
+                    CFG["inputs"]["sample_vcf_tbi"]
+                ],
+                zip,
+                tumour_id=this_vcf["tumour_sample_id"],
+                normal_id=this_vcf["normal_sample_id"],
+                pair_status=this_vcf["pair_status"],
+                genome_build=this_vcf["tumour_genome_build"],
+                seq_type=this_vcf["tumour_seq_type"],
+                allow_missing=True
+            )
+            # Check if the file exists
+            if not all(os.path.exists(vcf) for vcf in this_vcf):
+                raise FileNotFoundError(f"One or more VCF/TBI files specified by {wildcards.sample_id} do not exist.")
+        except FileNotFoundError:
+            raise ValueError(f"No VCF files found for sample_id {wildcards.sample_id}.")
+    return {"vcf": str(this_vcf[0]), "tbi": str(this_vcf[1])}
 
 rule _whatshap_input_vcf:
     input:
-        vcf = CFG["inputs"]["sample_vcf"],
-        tbi = CFG["inputs"]["sample_vcf_tbi"]
+        unpack(get_input_vcf)
     output:
         vcf = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.vcf.gz",
         tbi = CFG["dirs"]["inputs"] + "vcf/{seq_type}--{genome_build}/{sample_id}.vcf.gz.tbi"
@@ -173,6 +227,8 @@ rule _whatshap_split_vcf:
         tbi = temp(CFG["dirs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/{chrom}.split.vcf.gz.tbi")
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads: CFG["threads"]["split_vcf"]
     resources: **CFG["resources"]["split_vcf"]
     log:
@@ -200,7 +256,7 @@ def get_vcf(w):
         zip, 
         sample_id = this_vcf["sample_id"], 
         genome_build = this_vcf["genome_build"], 
-        seq_type = CFG["options"]["vcf_seq_type"], 
+        seq_type = this_vcf["seq_type"], 
         allow_missing = True
     )
     if not this_vcf:
@@ -219,6 +275,8 @@ rule _whatshap_phase_vcf:
         options = CFG["options"]["phase_vcf"]
     conda:
         CFG["conda_envs"]["whatshap"] 
+    container:
+        CFG["container_envs"]["whatshap"]
     resources: **CFG["resources"]["phase_vcf"] 
     threads: CFG["threads"]["phase_vcf"]       
     wildcard_constraints: 
@@ -231,7 +289,6 @@ rule _whatshap_phase_vcf:
         op.as_one_line(""" 
             echo "Running whatshap phase on $HOSTNAME" > {log} &&
             whatshap phase 
-                --ignore-read-groups 
                 --reference {input.fasta} 
                 --chromosome {wildcards.chrom} 
                 --output {output.vcf} 
@@ -279,6 +336,8 @@ rule _whatshap_merge_vcf:
         stderr = CFG["logs"]["phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/whatshap_merge_vcfs.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["merge_vcf"]
     resources:
@@ -307,6 +366,8 @@ rule _whatshap_stats:
         options = CFG["options"]["stats"]
     conda:
         CFG["conda_envs"]["whatshap"] 
+    container:
+        CFG["container_envs"]["whatshap"]
     resources: 
         **CFG["resources"]["stats"]  
     threads: CFG["threads"]["stats"]      
@@ -317,6 +378,7 @@ rule _whatshap_stats:
                 --block-list={output.blocks} 
                 --tsv={output.stats} 
                 --gtf={output.gtf} 
+                {params.options}
                 {input.vcf} 
                 > {log} 2>&1
         """)        
@@ -333,6 +395,8 @@ rule _whatshap_phase_bam:
         haptag = CFG["dirs"]["phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.{regions_bed}.haplotag.txt"
     conda:
         CFG["conda_envs"]["whatshap"]
+    container:
+        CFG["container_envs"]["whatshap"]
     resources: 
         **CFG["resources"]["phase_bam"]
     threads:
@@ -364,6 +428,8 @@ rule _whatshap_cram_phased:
         crai = CFG["dirs"]["phase_bam"] + "{seq_type}--{genome_build}/{sample_id}.{regions_bed}.phased.cram.crai"
     conda: 
         CFG["conda_envs"]["whatshap"]
+    container:
+        CFG["container_envs"]["whatshap"]
     resources: **CFG["resources"]["cram"]
     threads: CFG["threads"]["cram"]
     shell: 
@@ -386,6 +452,8 @@ rule _whatshap_split_bam:
         options = CFG["options"]["split_bam"]
     conda:
         CFG["conda_envs"]["whatshap"]
+    container:
+        CFG["container_envs"]["whatshap"]
     resources: 
         **CFG["resources"]["split_bam"] 
     threads: CFG["threads"]["split_bam"]
@@ -413,6 +481,8 @@ rule _whatshap_cram_split:
         crai = CFG["dirs"]["split_bam"] + "{seq_type}--{genome_build}/{sample_id}.{regions_bed}.{haplotype}.cram.crai"
     conda: 
         CFG["conda_envs"]["whatshap"]
+    container:
+        CFG["container_envs"]["whatshap"]
     resources: 
         **CFG["resources"]["cram"]
     threads: CFG["threads"]["cram"]

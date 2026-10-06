@@ -42,8 +42,8 @@ rule _salmon_input_fastq:
         fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.read1.fastq.gz",
         fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}/{sample_id}.read2.fastq.gz"
     run:
-        op.relative_symlink(input.fastq_1, output.fastq_1)
-        op.relative_symlink(input.fastq_2, output.fastq_2)
+        op.absolute_symlink(input.fastq_1, output.fastq_1)
+        op.absolute_symlink(input.fastq_2, output.fastq_2)
 
 
 rule _salmon_quant:
@@ -61,6 +61,8 @@ rule _salmon_quant:
         quant_to = CFG["transcriptome"]["quant_to"]
     conda:
         CFG["conda_envs"]["salmon"]
+    container:
+        CFG["container_envs"]["salmon"]
     threads:
         CFG["threads"]["quant"]
     resources:
@@ -115,6 +117,8 @@ rule build_counts_matrix:
         out_dir = directory(CFG["dirs"]["outputs"] + "quant_to_" + CFG["transcriptome"]["quant_to"] + "_matrix/{seq_type}/")
     conda:
         CFG["conda_envs"]["salmon2counts"]
+    container:
+        None
     resources:
         mem_mb = CFG["mem_mb"]["matrix"]
     shell:

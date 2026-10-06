@@ -45,8 +45,8 @@ rule _bwa_mem_input_fastq:
         fastq_1 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R1.fastq.gz",
         fastq_2 = CFG["dirs"]["inputs"] + "fastq/{seq_type}--{genome_build}/{sample_id}.R2.fastq.gz",
     run:
-        op.relative_symlink(input.fastq_1, output.fastq_1)
-        op.relative_symlink(input.fastq_2, output.fastq_2)
+        op.absolute_symlink(input.fastq_1, output.fastq_1)
+        op.absolute_symlink(input.fastq_2, output.fastq_2)
 
 
 rule _bwa_mem_run:
@@ -62,6 +62,8 @@ rule _bwa_mem_run:
         opts = CFG["options"]["bwa_mem"]
     conda:
         CFG["conda_envs"]["bwa"]
+    container:
+        CFG["container_envs"]["bwa"]
     threads:
         CFG["threads"]["bwa_mem"]
     resources:
@@ -88,6 +90,8 @@ rule _bwa_mem_samtools:
         opts = CFG["options"]["samtools"]
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     threads:
         CFG["threads"]["samtools"]
     resources:
@@ -106,7 +110,7 @@ rule _bwa_mem_symlink_bam:
     output:
         bam = CFG["dirs"]["sort_bam"] + "{seq_type}--{genome_build}/{sample_id}.bam"
     run:
-        op.relative_symlink(input.bam, output.bam)
+        op.relative_symlink(input.bam, output.bam, in_module=True)
 
 
 rule _bwa_mem_symlink_sorted_bam:
@@ -116,7 +120,7 @@ rule _bwa_mem_symlink_sorted_bam:
     output:
         bam = CFG["dirs"]["mark_dups"] + "{seq_type}--{genome_build}/{sample_id}.sort.bam"
     run:
-        op.relative_symlink(input.bam, output.bam)
+        op.relative_symlink(input.bam, output.bam, in_module=True)
         os.remove(input.bwa_mem_bam)
         shell("touch {input.bwa_mem_bam}.deleted")
 
@@ -130,8 +134,8 @@ rule _bwa_mem_output_bam:
     output:
         bam = CFG["dirs"]["outputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bam + ".bai")
+        op.relative_symlink(input.bam, output.bam, in_module=True)
+        op.relative_symlink(input.bai, output.bam + ".bai", in_module=True)
         os.remove(input.sorted_bam)
         shell("touch {input.sorted_bam}.deleted")
 

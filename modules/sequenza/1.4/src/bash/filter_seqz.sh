@@ -5,8 +5,9 @@
 
 SEQZ_FILE="$1"
 DBSNP_POS_FILE="$2"
+SORT_THREADS="${3:-8}"
 RARE_VARIANTS_TMP=$(mktemp /tmp/merge_seqz.sh.XXXXXX)
-RARE_VARIANTS="${3:-${RARE_VARIANTS_TMP}}"
+RARE_VARIANTS="${4:-${RARE_VARIANTS_TMP}}"
 
 BUFFER_SIZE="${BUFFER_SIZE:-20G}"
 export LC_ALL=C  # Set sort locale to be consistent
@@ -18,7 +19,7 @@ set -euf -o pipefail
 zcat "${SEQZ_FILE}" \
 	| egrep -v "^chromosome" \
 	| awk 'BEGIN {FS="\t"} $9 == "het" {print $1 ":" $2}' \
-	| sort -S "${BUFFER_SIZE}" --parallel 8 \
+	| sort -S "${BUFFER_SIZE}" --parallel "${SORT_THREADS}" \
 	| comm - "${DBSNP_POS_FILE}" -2 -3 \
 	| tr ":" "\t" \
 	> "${RARE_VARIANTS}"

@@ -16,7 +16,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -24,7 +24,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
     print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
@@ -94,6 +94,10 @@ config['lcr-modules']['hmftools']['inputs']["gridss_somatic_filtered_tbi"] = str
 # Run hmftools
 include: "../../hmftools/" + CFG_SV["module_versions"]["hmftools"] + "/hmftools.smk"
 
+# Interpret the absolute path of scripts so they don't get interpreted relative to the module snakefile later.
+INTERSECT_SCRIPT =  os.path.abspath(CFG_SV["options"]["intersect"]["combine_svs"])
+ANNOTATE_SCRIPT = os.path.abspath(CFG_SV["options"]["combine_annotated"]["script"])
+
 ##### Intersect Manta and GRIDSS #####
 
 rule _svar_master_input_gridss:
@@ -146,13 +150,15 @@ rule _svar_master_intersect:
         maxgap = CFG_SV["options"]["intersect"]["maxgap"]
     conda:
         CFG_SV["conda_envs"]["filter_svs"]
+    container:
+        None
     threads: CFG_SV["threads"]["intersect"]
     resources:
         **CFG_SV["resources"]["intersect"]
     group:
         "input_and_intersect"
     script:
-        CFG_SV["options"]["intersect"]["combine_svs"]
+        INTERSECT_SCRIPT
 
 rule _svar_master_annotate:
     input:
@@ -166,6 +172,8 @@ rule _svar_master_annotate:
         annotations = op.switch_on_wildcard("genome_build", CFG_SV["switches"]["annotate"]["annotation_bed"])
     conda:
         CFG_SV["conda_envs"]["bedtools"]
+    container:
+        CFG_SV["container_envs"]["bedtools"]
     threads:
         CFG_SV["threads"]["annotate"]
     resources:
@@ -195,12 +203,14 @@ checkpoint _svar_master_annotate_combine:
         CFG_SV["dirs"]["annotate_svs"] + "log/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combine_annotated.RData"
     conda:
         CFG_SV["conda_envs"]["filter_svs"]
+    container:
+        None
     threads:
         CFG_SV["threads"]["combine"]
     resources:
         **CFG_SV["resources"]["combine"]
     script:
-        CFG_SV["options"]["combine_annotated"]["script"]
+        ANNOTATE_SCRIPT
 
 rule _svar_master_touch_empty_file:
     input:

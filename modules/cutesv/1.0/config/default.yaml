@@ -11,6 +11,10 @@ lcr-modules:
         conda_envs:
             cutesv: "{MODSDIR}/envs/cuteSV-1.0.13.yaml"
             svtools: "{MODSDIR}/envs/svtools-0.5.1.yaml"
+        container_envs:
+            cutesv: null  # TODO: no known container
+            svtools: "docker://quay.io/biocontainers/svtools:0.5.1--py_0"
+
 
         threads:
             cutesv: 20

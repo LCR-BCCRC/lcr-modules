@@ -30,6 +30,10 @@ lcr-modules:
         conda_envs:
             whatshap: "{MODSDIR}/envs/whatshap-2.3.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
+        container_envs:
+            bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+            whatshap: "docker://quay.io/biocontainers/whatshap:2.3--py311he264feb_3"
+
 
         threads:
             split_vcf: 4

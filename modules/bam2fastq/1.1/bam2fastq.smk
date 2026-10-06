@@ -50,7 +50,7 @@ rule _bam2fastq_input_bam:
     output:
         bam = CFG["dirs"]["inputs"] + "{seq_type}/{sample_id}.bam"
     run:
-        op.relative_symlink(input, output.bam)
+        op.absolute_symlink(input, output.bam)
 
 
 # Conditional rules depending on whether or not fastq outputs will be temporary
@@ -69,6 +69,8 @@ if CFG["temp_outputs"] == True:
             opts = CFG["options"]["bam2fastq"]
         conda:
             CFG["conda_envs"]["picard"]
+        container:
+            CFG["container_envs"]["picard"]
         threads:
             CFG["threads"]["bam2fastq"]
         resources:
@@ -97,6 +99,8 @@ elif CFG["temp_outputs"] == False:
             opts = CFG["options"]["bam2fastq"]
         conda:
             CFG["conda_envs"]["picard"]
+        container:
+            CFG["container_envs"]["picard"]
         threads:
             CFG["threads"]["bam2fastq"]
         resources:

@@ -17,7 +17,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -25,7 +25,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -76,7 +76,7 @@ rule _bam2fastq_input_bam:
     group:
         CFG["group"]["bam2fastq"]
     run:
-        op.relative_symlink(input, output.bam)
+        op.absolute_symlink(input, output.bam)
 
 
 # Conditional rules depending on whether or not fastq outputs will be temporary
@@ -95,6 +95,8 @@ if CFG["temp_outputs"] == True:
             opts = CFG["options"]["bam2fastq"]
         conda:
             CFG["conda_envs"]["picard"]
+        container:
+            CFG["container_envs"]["picard"]
         threads:
             CFG["threads"]["bam2fastq"]
         resources:
@@ -124,6 +126,8 @@ elif CFG["temp_outputs"] == False:
             opts = CFG["options"]["bam2fastq"]
         conda:
             CFG["conda_envs"]["picard"]
+        container:
+            CFG["container_envs"]["picard"]
         threads:
             CFG["threads"]["bam2fastq"]
         resources:

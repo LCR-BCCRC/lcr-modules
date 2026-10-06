@@ -15,6 +15,9 @@ lcr-modules:
         conda_envs:
             stringtie: "{MODSDIR}/envs/stringtie.yaml"
 
+        container_envs:
+            stringtie: "docker://quay.io/biocontainers/stringtie:2.2.0--ha025227_1"
+
         threads: 
             stringtie_run: 16
 

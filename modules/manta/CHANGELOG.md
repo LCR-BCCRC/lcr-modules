@@ -5,6 +5,16 @@ All notable changes to the `manta` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4] - 2026-05-06
+
+This release was authored by Ryan Morin.
+
+- Added `container_envs` to `config/default.yaml` with verified BioContainers URIs for all four environments (`tabix`, `manta`, `augment_manta_vcf`, `svtools`). The `augment_manta_vcf` container is hosted at `ghcr.io/lcr-bccrc/lcr-scripts/augment_manta_vcf:1.1` and built from the lcr-scripts repository. A `null` value for any entry causes that rule to fall back to its conda environment when running with `--use-apptainer`.
+
+- Added `container:` directives to all rules that carry a `conda:` directive, enabling the module to run fully containerized via Snakemake's `--use-apptainer` flag.
+
+- The `oncopipe` helper (`setup_module`) was updated to initialize `container_envs` as a standard module sub-field and to resolve local `.sif` paths while leaving URIs (`docker://`, `apptainer://`, etc.) and `null` values unchanged.
+
 ## [2.31] - 2020-12-17
 
 This minor version increase enables processing of cram files. The input is expected to be named ".bam" and ".bai" (or symlinks with that naming pointing to the cram and crai). 

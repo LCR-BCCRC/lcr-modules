@@ -26,6 +26,11 @@ lcr-modules:
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             varscan: "{MODSDIR}/envs/varscan-2.4.4.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.9.yaml"
+        container_envs:
+            bcftools: "docker://quay.io/biocontainers/bcftools:1.9--h47928c2_1"
+            samtools: "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+            varscan: "docker://quay.io/biocontainers/varscan:2.4.4--0"
+
 
         threads:
             somatic: 3

@@ -1,0 +1,11 @@
+channels:
+    - conda-forge
+    - defaults
+dependencies:
+    - python>=3.6,<3.13
+    - numpy
+    - requests
+    - pyyaml
+    - pip
+    - pip:
+        - lxml_html_clean==0.4.5

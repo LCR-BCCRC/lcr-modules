@@ -30,6 +30,13 @@ lcr-modules:
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
             gatkR: "{MODSDIR}/envs/gatkR.yaml"
 
+        container_envs:
+            samtools: "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+            samtools_cov: "docker://quay.io/biocontainers/samtools:1.10--h9402c20_2"
+            bedtools: "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
+            gatkR: "docker://broadinstitute/gatk:4.2.6.1"
+            Rscript: "docker://rocker/tidyverse:4.3.3"
+
         threads:
             samtools_stat: 8
             samtools_coverage: 8

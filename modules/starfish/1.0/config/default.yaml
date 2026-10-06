@@ -17,6 +17,10 @@ lcr-modules:
             starfish: "{MODSDIR}/envs/starfish.yaml"
             bedops: "{MODSDIR}/envs/bedops-2.4.39.yaml"
 
+        container_envs:
+            starfish: "docker://quay.io/biocontainers/bcftools:1.11--h7c999a4_0"
+            bedops: "docker://quay.io/biocontainers/bedops:2.4.39--hc9558a2_0"
+
         threads:
             starfish: 4
             vcf_to_bed: 4

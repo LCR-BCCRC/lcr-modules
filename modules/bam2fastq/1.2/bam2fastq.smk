@@ -17,7 +17,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -25,7 +25,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -47,7 +47,6 @@ CFG = op.setup_module(
 # Define rules to be run locally when using a compute cluster
 localrules:
     _bam2fastq_input_bam,
-    _bam2fastq_output,
     _bam2fastq_all,
 
 assert type(CFG["temp_outputs"])==bool, (
@@ -99,14 +98,17 @@ if CFG["temp_outputs"]:
             opts = CFG["options"]["bam2fastq"]
         conda:
             CFG["conda_envs"]["picard"]
+        container:
+            CFG["container_envs"]["picard"]
         threads:
             CFG["threads"]["bam2fastq"]
         resources:
             **CFG["resources"]["bam2fastq"]
         shell:
             op.as_one_line("""
+            if command -v pigz > /dev/null 2>&1; then COMPRESS="pigz -p {threads}"; else COMPRESS="gzip"; fi;
             picard -Xmx{resources.mem_mb}m SamToFastq {params.opts}
-            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2})
+            I={input.bam} FASTQ=>($COMPRESS > {output.fastq_1}) SECOND_END_FASTQ=>($COMPRESS > {output.fastq_2})
             REFERENCE_SEQUENCE={input.genome}
             > {log.stdout} &> {log.stderr}
             """)
@@ -126,14 +128,17 @@ elif not CFG["temp_outputs"]:
             opts = CFG["options"]["bam2fastq"]
         conda:
             CFG["conda_envs"]["picard"]
+        container:
+            CFG["container_envs"]["picard"]
         threads:
             CFG["threads"]["bam2fastq"]
         resources:
             **CFG["resources"]["bam2fastq"]
         shell:
             op.as_one_line("""
+            if command -v pigz > /dev/null 2>&1; then COMPRESS="pigz -p {threads}"; else COMPRESS="gzip"; fi;
             picard -Xmx{resources.mem_mb}m SamToFastq {params.opts}
-            I={input.bam} FASTQ=>(gzip > {output.fastq_1}) SECOND_END_FASTQ=>(gzip > {output.fastq_2})
+            I={input.bam} FASTQ=>($COMPRESS > {output.fastq_1}) SECOND_END_FASTQ=>($COMPRESS > {output.fastq_2})
             REFERENCE_SEQUENCE={input.genome}
             > {log.stdout} &> {log.stderr}
             """)
@@ -141,28 +146,39 @@ else:
     raise ValueError("CFG['temp_outputs'] must be set to a boolean value (True or False)")
 
 
-rule _bam2fastq_output:
-    input:
-        fastq_1 = str(rules._bam2fastq_run.output.fastq_1),
-        fastq_2 = str(rules._bam2fastq_run.output.fastq_2)
-    output:
-        fastq_1 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read1.fastq.gz",
-        fastq_2 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read2.fastq.gz"
-    run:
-        op.relative_symlink(input.fastq_1, output.fastq_1, in_module = True)
-        op.relative_symlink(input.fastq_2, output.fastq_2, in_module = True)
+if CFG["temp_outputs"]:
+    # When outputs are temporary, symlinks in 99-outputs/ would be broken after
+    # the temp files are deleted, and directly tracking temp files would cause
+    # persistent reruns (temp files are always gone after a successful run).
+    # Leave _bam2fastq_all with no inputs: the downstream module's all rule
+    # (e.g. bwa_mem -> utils_bam -> CRAM) is what verifies end-to-end completion.
+    rule _bam2fastq_all:
+        input: []
 
+else:
+    localrules: _bam2fastq_output
 
-rule _bam2fastq_all:
-    input:
-        expand(
-            [
-                rules._bam2fastq_output.output.fastq_1,
-                rules._bam2fastq_output.output.fastq_2,
-            ],
-            zip,  # Run expand() with zip(), not product()
-            seq_type=CFG["samples"]["seq_type"],
-            sample_id=CFG["samples"]["sample_id"])
+    rule _bam2fastq_output:
+        input:
+            fastq_1 = str(rules._bam2fastq_run.output.fastq_1),
+            fastq_2 = str(rules._bam2fastq_run.output.fastq_2)
+        output:
+            fastq_1 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read1.fastq.gz",
+            fastq_2 = CFG["dirs"]["outputs"] + "{seq_type}/{sample_id}.read2.fastq.gz"
+        run:
+            op.relative_symlink(input.fastq_1, output.fastq_1, in_module = True)
+            op.relative_symlink(input.fastq_2, output.fastq_2, in_module = True)
+
+    rule _bam2fastq_all:
+        input:
+            expand(
+                [
+                    rules._bam2fastq_output.output.fastq_1,
+                    rules._bam2fastq_output.output.fastq_2,
+                ],
+                zip,  # Run expand() with zip(), not product()
+                seq_type=CFG["samples"]["seq_type"],
+                sample_id=CFG["samples"]["sample_id"])
 
 ##### CLEANUP #####
 
