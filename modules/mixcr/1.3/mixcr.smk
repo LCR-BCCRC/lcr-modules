@@ -101,6 +101,9 @@ localrules:
     _mixcr_to_fasta,
     _mixcr_output_fasta,
     _mixcr_dominant,
+    _mixcr_annotate_glycosylation,
+    _mixcr_merge_glycosylation,
+    _mixcr_merge_glycosylation_dominant,
     _mixcr_all,
 
 
@@ -142,7 +145,7 @@ rule _mixcr_run:
         chains       = " ".join(RECEPTORS)
     conda: CFG["conda_envs"]["java"]
     container:
-        CFG["container_envs"]["java"]
+        CFG["container_envs"]["mixcr"]
     threads:
         CFG["threads"]["mixcr_run"]
     shell:
@@ -165,8 +168,9 @@ rule _mixcr_to_fasta:
     input:
         mixcr_results = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.tsv",
     output:
-        fasta = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.VDJseq.fasta",
-        seq_info = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.regions.txt"
+        fasta    = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.VDJseq.fasta",
+        seq_info = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.regions.txt",
+        aa_fasta = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.VDJseq.aa.fasta",
     params:
         script = CFG["scripts"]["mixcr2fasta"],
     wildcard_constraints:
@@ -174,9 +178,42 @@ rule _mixcr_to_fasta:
     shell:
         op.as_one_line("""
         if [ -s {input.mixcr_results} ]; then
-            {params.script} -i {input.mixcr_results} -o {output.fasta} -s {output.seq_info} ;
+            python {params.script}
+            -i {input.mixcr_results}
+            -o {output.fasta}
+            -s {output.seq_info}
+            -a {output.aa_fasta} ;
         else
-            touch {output.fasta} {output.seq_info} ;
+            touch {output.fasta} {output.seq_info} {output.aa_fasta} ;
+        fi
+        """)
+
+# Annotates N-linked glycosylation sites (NxS/T) with IMGT numbering via ANARCI
+rule _mixcr_annotate_glycosylation:
+    input:
+        aa_fasta = str(rules._mixcr_to_fasta.output.aa_fasta),
+    output:
+        tsv = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.glycosylation.tsv",
+    log:
+        stdout = CFG["logs"]["mixcr"] + "{seq_type}/{sample_id}/{chain}/annotate_glycosylation.stdout.log",
+        stderr = CFG["logs"]["mixcr"] + "{seq_type}/{sample_id}/{chain}/annotate_glycosylation.stderr.log",
+    params:
+        script = CFG["scripts"]["mixcr_annotate_glycosylation"],
+    wildcard_constraints:
+        chain = '[A-Z]+'
+    conda:
+        CFG["conda_envs"]["glycosylation"]
+    container:
+        CFG["container_envs"]["glycosylation"]
+    shell:
+        op.as_one_line("""
+        if [ -s {input.aa_fasta} ]; then
+            python {params.script}
+            --fasta {input.aa_fasta}
+            --output {output.tsv}
+            > {log.stdout} 2> {log.stderr} ;
+        else
+            touch {output.tsv} ;
         fi
         """)
 
@@ -210,37 +247,106 @@ rule _mixcr_dominant:
         """)
 
 
-# Symlinks the full and dominant clonotype TSVs into '99-outputs/'
+# Left-join glycosylation annotations into the full clonotype TSV on cloneId
+rule _mixcr_merge_glycosylation:
+    input:
+        tsv   = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.tsv",
+        glyco = str(rules._mixcr_annotate_glycosylation.output.tsv),
+    output:
+        merged = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.merged.tsv",
+    log:
+        stdout = CFG["logs"]["mixcr"] + "{seq_type}/{sample_id}/{chain}/merge_glycosylation.stdout.log",
+        stderr = CFG["logs"]["mixcr"] + "{seq_type}/{sample_id}/{chain}/merge_glycosylation.stderr.log",
+    params:
+        script = CFG["scripts"]["merge_tsv"],
+    wildcard_constraints:
+        chain = '[A-Z]+'
+    shell:
+        op.as_one_line("""
+        if [ -s {input.tsv} ]; then
+            python {params.script}
+            --base {input.tsv}
+            --annotation {input.glyco}
+            --base_key cloneId
+            --annot_key sequence_id
+            --sample_id {wildcards.sample_id}
+            --output {output.merged}
+            > {log.stdout} 2> {log.stderr} ;
+        else
+            touch {output.merged} ;
+        fi
+        """)
+
+# Left-join glycosylation annotations into the dominant clonotype TSV on cloneId
+rule _mixcr_merge_glycosylation_dominant:
+    input:
+        tsv   = str(rules._mixcr_dominant.output.tsv),
+        glyco = str(rules._mixcr_annotate_glycosylation.output.tsv),
+    output:
+        merged = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.dominant.merged.tsv",
+    log:
+        stdout = CFG["logs"]["mixcr"] + "{seq_type}/{sample_id}/{chain}/merge_glycosylation_dominant.stdout.log",
+        stderr = CFG["logs"]["mixcr"] + "{seq_type}/{sample_id}/{chain}/merge_glycosylation_dominant.stderr.log",
+    params:
+        script = CFG["scripts"]["merge_tsv"],
+    wildcard_constraints:
+        chain = '[A-Z]+'
+    shell:
+        op.as_one_line("""
+        if [ -s {input.tsv} ]; then
+            python {params.script}
+            --base {input.tsv}
+            --annotation {input.glyco}
+            --base_key cloneId
+            --annot_key sequence_id
+            --sample_id {wildcards.sample_id}
+            --output {output.merged}
+            > {log.stdout} 2> {log.stderr} ;
+        else
+            touch {output.merged} ;
+        fi
+        """)
+
+# Symlinks the full and dominant clonotype TSVs (plain and glyco-merged) into '99-outputs/'
 rule _mixcr_output_txt:
     input:
         results          = CFG["dirs"]["mixcr"] + "{seq_type}/{sample_id}/mixcr.{sample_id}.clones_{chain}.tsv",
         dominant_results = str(rules._mixcr_dominant.output.tsv),
+        merged           = str(rules._mixcr_merge_glycosylation.output.merged),
+        dominant_merged  = str(rules._mixcr_merge_glycosylation_dominant.output.merged),
     output:
         results          = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clones_{chain}.tsv",
         dominant_results = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clones_{chain}.dominant.tsv",
+        merged           = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clones_{chain}.merged.tsv",
+        dominant_merged  = CFG["dirs"]["outputs"] + "txt/{seq_type}/mixcr.{sample_id}.clones_{chain}.dominant.merged.tsv",
     wildcard_constraints:
         chain = '[A-Z]+'
     run:
-        op.relative_symlink(input.results,          output.results,          in_module=True)
+        op.relative_symlink(input.results,         output.results,         in_module=True)
         op.relative_symlink(input.dominant_results, output.dominant_results, in_module=True)
+        op.relative_symlink(input.merged,          output.merged,          in_module=True)
+        op.relative_symlink(input.dominant_merged, output.dominant_merged, in_module=True)
 
 # Symlinks the full and dominant FASTA and seq_info files into '99-outputs/'
 rule _mixcr_output_fasta:
     input:
-        fasta            = str(rules._mixcr_to_fasta.output.fasta),
-        seq_info         = str(rules._mixcr_to_fasta.output.seq_info),
-        dominant_fasta   = str(rules._mixcr_dominant.output.fasta),
+        fasta             = str(rules._mixcr_to_fasta.output.fasta),
+        seq_info          = str(rules._mixcr_to_fasta.output.seq_info),
+        aa_fasta          = str(rules._mixcr_to_fasta.output.aa_fasta),
+        dominant_fasta    = str(rules._mixcr_dominant.output.fasta),
         dominant_seq_info = str(rules._mixcr_dominant.output.seq_info),
     output:
-        fasta            = CFG["dirs"]["outputs"] + "fasta/{seq_type}/mixcr.{sample_id}.clones_{chain}.VDJseq.fasta",
-        seq_info         = CFG["dirs"]["outputs"] + "seq_info/{seq_type}/mixcr.{sample_id}.clones_{chain}.regions.tsv",
-        dominant_fasta   = CFG["dirs"]["outputs"] + "fasta/{seq_type}/mixcr.{sample_id}.clones_{chain}.VDJseq.dominant.fasta",
+        fasta             = CFG["dirs"]["outputs"] + "fasta/{seq_type}/mixcr.{sample_id}.clones_{chain}.VDJseq.fasta",
+        seq_info          = CFG["dirs"]["outputs"] + "seq_info/{seq_type}/mixcr.{sample_id}.clones_{chain}.regions.tsv",
+        aa_fasta          = CFG["dirs"]["outputs"] + "fasta/{seq_type}/mixcr.{sample_id}.clones_{chain}.VDJseq.aa.fasta",
+        dominant_fasta    = CFG["dirs"]["outputs"] + "fasta/{seq_type}/mixcr.{sample_id}.clones_{chain}.VDJseq.dominant.fasta",
         dominant_seq_info = CFG["dirs"]["outputs"] + "seq_info/{seq_type}/mixcr.{sample_id}.clones_{chain}.dominant.regions.tsv",
     wildcard_constraints:
         chain = '[A-Z]+'
     run:
         op.relative_symlink(input.fasta,             output.fasta,             in_module=True)
         op.relative_symlink(input.seq_info,          output.seq_info,          in_module=True)
+        op.relative_symlink(input.aa_fasta,          output.aa_fasta,          in_module=True)
         op.relative_symlink(input.dominant_fasta,    output.dominant_fasta,    in_module=True)
         op.relative_symlink(input.dominant_seq_info, output.dominant_seq_info, in_module=True)
 
@@ -252,7 +358,10 @@ rule _mixcr_all:
                 [
                     str(rules._mixcr_output_txt.output.results),
                     str(rules._mixcr_output_txt.output.dominant_results),
+                    str(rules._mixcr_output_txt.output.merged),
+                    str(rules._mixcr_output_txt.output.dominant_merged),
                     str(rules._mixcr_output_fasta.output.fasta),
+                    str(rules._mixcr_output_fasta.output.aa_fasta),
                     str(rules._mixcr_output_fasta.output.dominant_fasta),
                 ],
                 zip,
