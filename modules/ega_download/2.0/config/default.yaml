@@ -1,0 +1,66 @@
+lcr-modules:
+
+    ega_download:
+
+        egad: "__UPDATE__"
+        # EGA dataset accession ID (e.g. EGAD50000001491).
+        # Files on the Live Outbox SFTP server are at {egad}/{file_name}.c4gh.
+
+        private_key: "__UPDATE__"
+        # Path to crypt4gh Ed25519 private key (.sec file) used for decryption.
+        # Generate a key pair with: crypt4gh-keygen --sk private.key --pk public.key
+        # Submit the public key to EGA for dataset re-encryption in the Live Outbox.
+
+        sftp_server: "__UPDATE__"
+        # EGA Live Outbox SFTP server (e.g. outbox.ega-archive.org).
+        # SFTP authentication uses your registered SSH public key (id_rsa.pub or
+        # id_ed25519.pub), which must be shared with EGA separately from the
+        # crypt4gh key pair.
+
+        sftp_outbox_path: ""
+        # Optional path prefix on the SFTP server before the {egad}/{file_name}.c4gh
+        # structure. Leave empty if files are directly at {egad}/{file_name}.c4gh.
+
+        scratch_subdirectories: []
+
+        conda_envs:
+            crypt4gh: "{MODSDIR}/envs/crypt4gh-1.7.yaml"
+        container_envs:
+            crypt4gh: null   # no Biocontainers image available; falls back to conda env
+
+        threads:
+            ega_file_download: 1
+            ega_file_decrypt: 1
+
+        resources:
+            ega_file_download:
+                mem_mb: 2000
+                download: 1
+            ega_file_decrypt:
+                mem_mb: 4000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            capture:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            mrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            snrna:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            snatac:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
+            lpwgs:
+                run_paired_tumours: False
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: True
