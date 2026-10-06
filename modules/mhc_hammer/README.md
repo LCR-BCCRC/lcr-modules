@@ -53,6 +53,26 @@ Other outputs: `99-outputs/hla_alleles_tumour_only/{seq_type}--{genome_build}/{s
 
 No CN-AIB/allelic-imbalance/LOH detection is attempted for tumour-only samples -- that inherently needs a germline comparator; only somatic mutation calling is extended to this population. This pathway also never feeds `_mhc_hammer_patient_gene_table`/`cohort_mhc_hammer_gene_table.csv`.
 
+## Opt-in: HLA genotype-error detection
+
+Recurrent missense calls out of either mutation-calling arm (paired DNA or tumour-only, above) can look like real somatic mutations but actually be HLA-HD typing-assignment errors: if HLA-HD assigns the wrong (but closely related) germline allele, every position where that wrong allele differs from the patient's TRUE allele shows up as a spurious "somatic" substitution. `options.hla_genotype_qc` (default `False`) adds a purely informational, opt-in annotation pass over both arms' own `{patient_id}_mutations.csv` -- it never changes, drops, or triggers a rerun of anything upstream.
+
+**The core check**: for every apparent missense call, this asks whether the "mutant" residue actually reconstructs a KNOWN GERMLINE state of some OTHER real, catalogued IPD-IMGT/HLA allele -- especially when several apparent mutations on the same assigned allele jointly reconstruct the same alternate allele. Concrete real example that motivated this: HLA-A p.K292E (VEP's own precursor numbering; mature-protein position 268) -- several real HLA-A alleles (e.g. some A\*03/A\*11 sub-lineages) naturally encode E at this position, so a recurrent "K292E" call is far more likely a typing error than real recurrent positive selection.
+
+**No new reference data needed**: the full IPD-IMGT/HLA catalog (protein translations for every known allele, not just the ones typed for a given patient/cohort) is already sitting on disk -- `_mhc_hammer_download_reference`'s own unrestricted `unzip -oq` already extracts `mhc_references/all_allele_info.csv` from the same Zenodo bundle used for typing/reference construction; this feature just additionally declares and consumes that one file.
+
+**How the comparison works**: every non-partial catalog allele at a locus is pairwise-aligned (`Biostrings::pairwiseAlignment`, global, BLOSUM62) against one fixed, data-driven reference sequence for that locus (`_mhc_hammer_build_allele_lookup`, cohort-wide, built once). This reference-anchored coordinate system is what lets alleles of different lengths (indel-bearing alleles included) be compared correctly, rather than either a naive same-length Hamming distance (measured on real data to incorrectly exclude 4-7% of real catalogued alleles per locus -- see `allele_lookup/excluded_alleles.csv`, which in practice is dominated by official IMGT null ("N"-suffixed) alleles, confirmed genuinely non-functional/truncated rather than a parsing artefact) or a full multi-way MSA (unnecessary for this one-reference-anchored comparison).
+
+**Self-consistency check, never silently suppressed**: before trusting anything about an apparent ALT residue, `ref_matches_catalog` reports whether VEP's own REF amino acid actually matches the assigned allele's own catalog translation at that position. A few isolated mismatches are plausibly another instance of the exact genotyping-error phenomenon this feature exists to catch, so they're reported, not dropped. Only a majority-mismatching patient (`options.hla_genotype_qc_max_ref_mismatch_fraction`, default `0.5`) aborts that patient's run, since that pattern is far more consistent with a real numbering/parsing bug than with biology.
+
+**Joint, not independent, scoring**: every apparent mutation on one `(tumour_sample_name, locus, assigned_allele)` group is evaluated together against the same candidate-allele pool, so one alternate allele explaining SEVERAL apparent mutations at once (`suspicion_level: "high"`) ranks far above an alternate explaining only one (`"medium"`).
+
+**Cohort-level recurrence** (`99-outputs/cohort_tables/cohort_hla_genotype_qc_recurrence_summary.csv`): the same apparent mutation (locus, assigned-allele first-field group, mature position, amino acid change), recurring across at least `options.hla_genotype_qc_min_patients_for_cohort_flag` (default `3`) distinct patients, is flagged as a likely systematic typing/reference artefact rather than coincidence.
+
+Per-patient outputs: `99-outputs/hla_genotype_qc/{seq_type}--{genome_build}/{patient_id}.hla_genotype_qc.csv` (paired arm) and `99-outputs/hla_genotype_qc_tumour_only/{patient_id}.hla_genotype_qc.csv` (tumour-only arm, aggregating that patient's own independently-typed tumour samples, same as `mutations_tumour_only/` does).
+
+**This is purely informational.** No mutation call, VCF, BAM, or HLA genotype is ever changed, and no automatic VEP/Mutect2 rerun against a "corrected" reference is triggered, even for `suspicion_level: "high"` -- a human reviews `reason`/`best_alternate_allele` and decides what (if anything) to do about it.
+
 ## What's not included in v1
 
 - RNA allelic expression, RNA allelic imbalance, and RNA allelic repression (tumour vs. matched-normal RNA) -- upstream's RNA analysis arm.
@@ -63,6 +83,9 @@ No CN-AIB/allelic-imbalance/LOH detection is attempted for tumour-only samples -
 - HLA class II somatic disruption detection (personalised reference, Novoalign, copy-number/allelic-imbalance, mutation calling) -- only germline typing is implemented for class II (see above); this is left as a possible future extension of the parallel `_mhc_hammer_hla2_*` path.
 - RNA-sourced tumour-only mutation calling (patients with tumour RNA but no DNA at all) -- deferred, see the tumour-only section above for why.
 - Collapsing multiple tumour-only samples from the same patient to one consensus HLA type -- each is currently typed and called fully independently, by design (see the tumour-only section above).
+- HLA genotype-error detection's own manual-override/rerun workflow -- v1 is purely informational output only (see that section above); nothing is ever auto-corrected.
+- Precise per-site pileup conflict counting for HLA genotype-error detection -- a coarse, gene-level depth-adequacy proxy is used instead (`candidate_region_depth_adequate`); `n_conflicting_observed_sites` always reports `NA`.
+- Cross-locus checking for HLA genotype-error detection (e.g. an HLA-A call is only ever compared against other HLA-A alleles) and HLA class II support (no mutation-calling arm exists for class II at all to annotate).
 
 # Example
 

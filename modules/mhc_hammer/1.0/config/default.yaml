@@ -364,6 +364,64 @@ lcr-modules:
             # _mhc_hammer_rna_typing_source's own audit-flag pattern.
             tumour_only_variant_calling: False
 
+            # OPT-IN: HLA genotype-error detection -- see the "OPT-IN: HLA GENOTYPE-ERROR
+            # DETECTION" section in mhc_hammer.smk. Default False -- this is a brand new,
+            # unvalidated capability (unlike e.g. run_hla2_typing's own True default, which exists
+            # specifically to preserve pre-existing behaviour that doesn't apply here).
+            #
+            # Real problem this addresses: mutations are called against each patient's own
+            # personalised reference -- one contig per HLA-HD-typed allele. If HLA-HD assigns the
+            # wrong (but closely related) germline allele, every position where that wrong allele
+            # differs from the patient's TRUE allele shows up as a spurious "somatic" missense
+            # mutation. Prototype case: HLA-A p.K292E (precursor numbering) / mature K268E --
+            # multiple real HLA-A germline alleles (A*03, A*11, A*01 families) naturally encode E
+            # at this position, so a recurrent "K292E" call is far more likely a typing error than
+            # real recurrent selection. This feature flags (never auto-corrects) apparent missense
+            # calls whose ALT residue reconstructs a KNOWN germline allele state, especially when
+            # several apparent mutations on the same assigned allele jointly reconstruct the same
+            # alternate allele.
+            #
+            # The full IMGT/HLA catalog needed for this (protein translations for every known
+            # allele, not just the ones typed for a given patient) requires no new reference
+            # download at all -- it's already sitting on disk: _mhc_hammer_download_reference's
+            # own `unzip -oq` already extracts mhc_references/all_allele_info.csv from the same
+            # Zenodo bundle used for typing/reference construction (confirmed directly: real row
+            # for A*01:01:01:01 has allele_name in the ORIGINAL IMGT dotted form, a `partial`
+            # filter column, and a `translation` column with the full precursor protein sequence)
+            # -- that rule's own output: block just never declared it.
+            hla_genotype_qc: False
+
+            # Module-owned (not MHC Hammer's own bin/) -- builds the shared, cohort-wide allele
+            # lookup table hla_genotype_qc reads. See that script's own header comment.
+            build_allele_lookup_script: "{MODSDIR}/src/build_allele_lookup.R"
+            # Module-owned -- implements the actual germline-mimic flagging/scoring logic.
+            flag_hla_genotype_errors_script: "{MODSDIR}/src/flag_hla_genotype_errors.R"
+
+            # Classical HLA class I signal peptide length, per gene -- used only to report
+            # ipd_mature_position (= reference-anchored precursor position - this value) alongside
+            # the precursor-numbered position VEP itself reports, for readability when
+            # cross-referencing IPD/IMGT's own mature-protein-numbered documentation. Confirmed
+            # correct against the K292E/K268E prototype case above: 292 - 24 = 268.
+            hla_class_i_signal_peptide_length:
+                A: 24
+                B: 24
+                C: 24
+
+            # Self-consistency check (does VEP's own reported REF amino acid actually match the
+            # assigned allele's own catalog translation at that position?) is reported per-row,
+            # never silently drops a row -- a handful of isolated mismatches is plausibly itself an
+            # instance of the exact genotyping-error phenomenon this feature exists to catch. Only
+            # abort the whole patient's run if the MISMATCHING FRACTION exceeds this threshold,
+            # since that pattern is far more consistent with a real numbering/parsing bug than with
+            # biology.
+            hla_genotype_qc_max_ref_mismatch_fraction: 0.5
+
+            # Cohort-level recurrence flag (user's own "step 7"): the same apparent mutation,
+            # reconstructing the same known germline difference, recurring on the same assigned-
+            # allele family across at least this many DISTINCT patients is flagged as a likely
+            # systematic typing/reference artefact rather than coincidence.
+            hla_genotype_qc_min_patients_for_cohort_flag: 3
+
             # Allele BAM filtering
             max_mismatch: 1
 
@@ -464,6 +522,10 @@ lcr-modules:
             detect_muts_tumour_only: 1
             parse_mutations_tumour_only: 1
             mutations_to_maf_tumour_only: 1
+            # OPT-IN: HLA genotype-error detection -- see options.hla_genotype_qc
+            build_allele_lookup: 1
+            flag_hla_genotype_errors: 1
+            flag_hla_genotype_errors_tumour_only: 1
 
         resources:
             download_reference:
@@ -539,6 +601,17 @@ lcr-modules:
                 mem_mb: 2000
             mutations_to_maf_tumour_only:
                 mem_mb: 2000
+            # OPT-IN: HLA genotype-error detection -- see options.hla_genotype_qc. Thousands of
+            # pairwise global alignments per locus (one per catalogued allele against a single
+            # chosen reference) plus holding the 71MB all_allele_info.csv -- generous one-time
+            # cohort-wide cost. The per-patient flagging rules just load the already-built lookup
+            # table, much cheaper.
+            build_allele_lookup:
+                mem_mb: 8000
+            flag_hla_genotype_errors:
+                mem_mb: 4000
+            flag_hla_genotype_errors_tumour_only:
+                mem_mb: 4000
 
         pairing_config:
             capture:

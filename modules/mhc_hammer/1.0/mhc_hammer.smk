@@ -180,6 +180,12 @@ MUTATIONS_TO_MAF_SCRIPT = os.path.abspath(CFG["options"]["mutations_to_maf_scrip
 # make_mutation_table.R cannot run without a real germline sample).
 TUMOUR_ONLY_MUTATION_TABLE_SCRIPT = os.path.abspath(CFG["options"]["make_tumour_only_mutation_table_script"])
 
+# Same os.path.abspath() treatment, same reason -- module-owned scripts for the OPT-IN HLA
+# genotype-error detection feature (options.hla_genotype_qc). See the "OPT-IN: HLA GENOTYPE-ERROR
+# DETECTION" section further down this file.
+BUILD_ALLELE_LOOKUP_SCRIPT = os.path.abspath(CFG["options"]["build_allele_lookup_script"])
+FLAG_HLA_GENOTYPE_ERRORS_SCRIPT = os.path.abspath(CFG["options"]["flag_hla_genotype_errors_script"])
+
 def _mhc_hammer_get_hla2_region_coords(genome_build):
     system = None
     for pattern, candidate_system in MHC_BUILD_COORDINATE_SYSTEM_PATTERNS.items():
@@ -237,6 +243,11 @@ localrules:
     _mhc_hammer_output_hla_final_result_tumour_only,
     _mhc_hammer_output_mutations_tumour_only,
     _mhc_hammer_output_mutations_maf_tumour_only,
+    _mhc_hammer_cohort_hla_genotype_qc,
+    _mhc_hammer_output_hla_genotype_qc,
+    _mhc_hammer_output_hla_genotype_qc_tumour_only,
+    _mhc_hammer_output_cohort_hla_genotype_qc,
+    _mhc_hammer_output_cohort_hla_genotype_qc_recurrence_summary,
     _mhc_hammer_all,
 
 
@@ -450,7 +461,12 @@ rule _mhc_hammer_download_reference:
     output:
         gtf = CFG["dirs"]["mhc_reference"] + "mhc_references/gtf/mhc.gtf",
         genome_fasta = CFG["dirs"]["mhc_reference"] + "mhc_references/genome/mhc_genome_strand.fasta",
-        kmer_file = CFG["dirs"]["mhc_reference"] + "kmer_files/imgt_30mers.fa"
+        kmer_file = CFG["dirs"]["mhc_reference"] + "kmer_files/imgt_30mers.fa",
+        # Already produced by the unrestricted `unzip -oq` below -- just never declared before.
+        # Real, per-allele IPD-IMGT/HLA catalog (allele_name in original dotted IMGT form, gene,
+        # partial, and the full precursor protein translation) that options.hla_genotype_qc's
+        # _mhc_hammer_build_allele_lookup reads. See that option's own comment in default.yaml.
+        all_allele_info = CFG["dirs"]["mhc_reference"] + "mhc_references/all_allele_info.csv"
     log:
         stdout = CFG["logs"]["mhc_reference"] + "download_reference.log"
     params:
@@ -3563,6 +3579,350 @@ def _mhc_hammer_tumour_only_patient_targets(runs):
     )
 
 
+##### OPT-IN: HLA GENOTYPE-ERROR DETECTION #####
+
+
+# Recurrent missense calls out of _mhc_hammer_parse_mutations/_mhc_hammer_parse_mutations_tumour_only
+# can look like real somatic mutations but actually be HLA-HD typing-assignment errors: if HLA-HD
+# assigns the wrong (but closely related) germline allele, every position where that wrong allele
+# differs from the patient's TRUE allele shows up as a spurious "somatic" substitution. This section
+# adds a purely informational, opt-in (options.hla_genotype_qc, default False) annotation pass over
+# both arms' own mutation tables -- it never changes, drops, or reruns anything upstream. See that
+# option's own full comment in default.yaml (including the real HLA-A p.K292E / mature K268E
+# prototype case this was built to catch) and the two module-owned scripts' own header comments
+# (src/build_allele_lookup.R, src/flag_hla_genotype_errors.R) for the full design rationale.
+#
+# Cohort-wide, one-time reference lookup table (not per-patient) -- built from
+# mhc_references/all_allele_info.csv, which _mhc_hammer_download_reference already extracts to disk
+# for every invocation regardless of whether this option is even on (that rule's own `unzip -oq` has
+# no file-list restriction); this option just additionally declares and consumes that one file. Real
+# compute (thousands of pairwise protein alignments per locus), so deliberately NOT in `localrules:`
+# -- see build_allele_lookup.R's own header comment for exactly why a pairwise alignment against one
+# fixed per-locus reference sequence is used here instead of either a naive same-length Hamming
+# distance (measured on real data to incorrectly exclude 4-7% of real catalogued alleles per locus)
+# or a full multi-way MSA (unnecessary for this one-reference-anchored comparison).
+rule _mhc_hammer_build_allele_lookup:
+    input:
+        all_allele_info = str(rules._mhc_hammer_download_reference.output.all_allele_info)
+    output:
+        translation_matrix = CFG["dirs"]["mhc_reference"] + "allele_lookup/allele_translation_matrix.rds",
+        position_states = CFG["dirs"]["mhc_reference"] + "allele_lookup/allele_position_germline_states.csv.gz",
+        excluded_alleles = CFG["dirs"]["mhc_reference"] + "allele_lookup/excluded_alleles.csv"
+    log:
+        stdout = CFG["logs"]["mhc_reference"] + "build_allele_lookup.log"
+    params:
+        script = BUILD_ALLELE_LOOKUP_SCRIPT
+    conda:
+        CFG["conda_envs"]["mhc_hammer_reference"]
+    container:
+        None # module-owned script, but mhc_hammer_reference has no container_envs entry at all
+             # (see that key's own comment above) -- every rule using this conda env sets this the
+             # same way, e.g. _mhc_hammer_generate_references.
+    threads:
+        CFG["threads"]["build_allele_lookup"]
+    resources:
+        **CFG["resources"]["build_allele_lookup"]
+    shell:
+        op.as_one_line("""
+        mkdir -p $(dirname {output.translation_matrix}) &&
+        Rscript {params.script}
+        --all_allele_info {input.all_allele_info}
+        --translation_matrix_out {output.translation_matrix}
+        --position_states_out {output.position_states}
+        --excluded_alleles_out {output.excluded_alleles}
+        > {log.stdout} 2>&1
+        """)
+
+
+# Patient-level, paired arm: flags _mhc_hammer_parse_mutations' own output against the lookup table
+# above. The patient's one HLA-HD genotype file is reused as the "sample genotype" for every one of
+# their own tumour samples (the paired arm types HLA once per patient, shared across all of that
+# patient's tumours -- unlike the tumour-only arm below) -- mirrors _mhc_hammer_get_patient_run_ids'
+# own tumour_sample_id lookup exactly.
+rule _mhc_hammer_flag_hla_genotype_errors:
+    input:
+        mutations = str(rules._mhc_hammer_parse_mutations.output.mutations),
+        hla_alleles = str(rules._mhc_hammer_hlahd.output.hla_alleles),
+        translation_matrix = str(rules._mhc_hammer_build_allele_lookup.output.translation_matrix)
+    output:
+        qc = CFG["dirs"]["mutations"] + "{seq_type}--{genome_build}/{patient_id}/{patient_id}_hla_genotype_qc.csv"
+    log:
+        stdout = CFG["logs"]["mutations"] + "{seq_type}--{genome_build}/{patient_id}/flag_hla_genotype_errors.log"
+    params:
+        script = FLAG_HLA_GENOTYPE_ERRORS_SCRIPT,
+        sample_genotype_tokens = lambda wildcards, input: " ".join(
+            f"{tumour_id}={input.hla_alleles}"
+            for tumour_id in _mhc_hammer_get_patient_run_ids(wildcards)[0].split()
+        ),
+        signal_peptide_a = CFG["options"]["hla_class_i_signal_peptide_length"]["A"],
+        signal_peptide_b = CFG["options"]["hla_class_i_signal_peptide_length"]["B"],
+        signal_peptide_c = CFG["options"]["hla_class_i_signal_peptide_length"]["C"],
+        max_ref_mismatch_fraction = CFG["options"]["hla_genotype_qc_max_ref_mismatch_fraction"],
+        imgt_release = CFG["options"]["imgt_release"]
+    conda:
+        CFG["conda_envs"]["mhc_hammer_r"]
+    container:
+        None # module-owned script, same reasoning as _mhc_hammer_mutations_to_maf above
+    threads:
+        CFG["threads"]["flag_hla_genotype_errors"]
+    resources:
+        **CFG["resources"]["flag_hla_genotype_errors"]
+    shell:
+        op.as_one_line("""
+        mkdir -p $(dirname {output.qc}) &&
+        Rscript {params.script}
+        --mutations_csv {input.mutations}
+        --translation_matrix {input.translation_matrix}
+        --sample_genotype {params.sample_genotype_tokens}
+        --pathway paired
+        --imgt_release {params.imgt_release}
+        --signal_peptide_length_a {params.signal_peptide_a}
+        --signal_peptide_length_b {params.signal_peptide_b}
+        --signal_peptide_length_c {params.signal_peptide_c}
+        --max_ref_mismatch_fraction {params.max_ref_mismatch_fraction}
+        --mutation_save_path {output.qc}
+        > {log.stdout} 2>&1
+        """)
+
+
+# Gathers one tumour-only patient's own tumour samples' INDEPENDENTLY-TYPED hla_alleles.csv files
+# (unlike the paired arm above, this pathway types HLA separately per tumour sample, not once per
+# patient -- see this module's own README, "Per-tumour typing, not shared per-patient"). Re-derives
+# the same CFG["runs"] admission filter as _mhc_hammer_get_tumour_only_patient_mutation_inputs inline
+# (CFG-closure gotcha -- see this file's own HELPER FUNCTIONS section header comment) rather than
+# closing over _mhc_hammer_dna_tumour_only_runs, so both functions see an identical, consistently-
+# ordered row set for the same patient_id.
+def _mhc_hammer_get_tumour_only_patient_hla_alleles_inputs(wildcards):
+    CFG = config["lcr-modules"]["mhc_hammer"]
+    patient_runs = CFG["runs"][
+        (CFG["runs"]["tumour_patient_id"] == wildcards.patient_id) &
+        (CFG["runs"]["pair_status"] != "matched") &
+        (CFG["runs"]["tumour_seq_type"] != "mrna")
+    ]
+    return {
+        "hla_alleles": expand(
+            str(rules._mhc_hammer_hlahd_tumour_only_dna.output.hla_alleles),
+            zip,
+            seq_type = patient_runs["tumour_seq_type"],
+            genome_build = patient_runs["tumour_genome_build"],
+            sample_id = patient_runs["tumour_sample_id"]
+        )
+    }
+
+# Builds the "{sample_id}={path}" --sample_genotype tokens for the rule below, zipping each tumour
+# sample's own id against its own hla_alleles.csv from the unpack() above -- re-deriving the
+# identical CFG["runs"] filter (same ordering guarantee as the helper above) rather than trying to
+# recover sample_id from the already-resolved input paths.
+def _mhc_hammer_get_tumour_only_sample_genotype_tokens(wildcards, input):
+    CFG = config["lcr-modules"]["mhc_hammer"]
+    patient_runs = CFG["runs"][
+        (CFG["runs"]["tumour_patient_id"] == wildcards.patient_id) &
+        (CFG["runs"]["pair_status"] != "matched") &
+        (CFG["runs"]["tumour_seq_type"] != "mrna")
+    ]
+    sample_ids = patient_runs["tumour_sample_id"].tolist()
+    return " ".join(f"{sid}={path}" for sid, path in zip(sample_ids, input.hla_alleles))
+
+rule _mhc_hammer_flag_hla_genotype_errors_tumour_only:
+    input:
+        unpack(_mhc_hammer_get_tumour_only_patient_hla_alleles_inputs),
+        mutations = str(rules._mhc_hammer_parse_mutations_tumour_only.output.mutations),
+        translation_matrix = str(rules._mhc_hammer_build_allele_lookup.output.translation_matrix)
+    output:
+        qc = CFG["dirs"]["mutations"] + "{patient_id}_tumour_only/{patient_id}_hla_genotype_qc.csv"
+    log:
+        stdout = CFG["logs"]["mutations"] + "{patient_id}_tumour_only/flag_hla_genotype_errors.log"
+    params:
+        script = FLAG_HLA_GENOTYPE_ERRORS_SCRIPT,
+        sample_genotype_tokens = _mhc_hammer_get_tumour_only_sample_genotype_tokens,
+        signal_peptide_a = CFG["options"]["hla_class_i_signal_peptide_length"]["A"],
+        signal_peptide_b = CFG["options"]["hla_class_i_signal_peptide_length"]["B"],
+        signal_peptide_c = CFG["options"]["hla_class_i_signal_peptide_length"]["C"],
+        max_ref_mismatch_fraction = CFG["options"]["hla_genotype_qc_max_ref_mismatch_fraction"],
+        imgt_release = CFG["options"]["imgt_release"]
+    conda:
+        CFG["conda_envs"]["mhc_hammer_r"]
+    container:
+        None # module-owned script, same reasoning as _mhc_hammer_mutations_to_maf above
+    threads:
+        CFG["threads"]["flag_hla_genotype_errors_tumour_only"]
+    resources:
+        **CFG["resources"]["flag_hla_genotype_errors_tumour_only"]
+    shell:
+        op.as_one_line("""
+        mkdir -p $(dirname {output.qc}) &&
+        Rscript {params.script}
+        --mutations_csv {input.mutations}
+        --translation_matrix {input.translation_matrix}
+        --sample_genotype {params.sample_genotype_tokens}
+        --pathway tumour_only
+        --imgt_release {params.imgt_release}
+        --signal_peptide_length_a {params.signal_peptide_a}
+        --signal_peptide_length_b {params.signal_peptide_b}
+        --signal_peptide_length_c {params.signal_peptide_c}
+        --max_ref_mismatch_fraction {params.max_ref_mismatch_fraction}
+        --mutation_save_path {output.qc}
+        > {log.stdout} 2>&1
+        """)
+
+
+rule _mhc_hammer_output_hla_genotype_qc:
+    input:
+        qc = str(rules._mhc_hammer_flag_hla_genotype_errors.output.qc)
+    output:
+        qc = CFG["dirs"]["outputs"] + "hla_genotype_qc/{seq_type}--{genome_build}/{patient_id}.hla_genotype_qc.csv"
+    run:
+        op.relative_symlink(input.qc, output.qc, in_module = True)
+
+rule _mhc_hammer_output_hla_genotype_qc_tumour_only:
+    input:
+        qc = str(rules._mhc_hammer_flag_hla_genotype_errors_tumour_only.output.qc)
+    output:
+        qc = CFG["dirs"]["outputs"] + "hla_genotype_qc_tumour_only/{patient_id}.hla_genotype_qc.csv"
+    run:
+        op.relative_symlink(input.qc, output.qc, in_module = True)
+
+
+# Cohort-wide aggregation of every patient's own QC file, from BOTH pathways -- same untracked,
+# glob-at-runtime-inside-run: idiom as _mhc_hammer_cohort_table above, for the identical reason (see
+# that rule's own comment): declaring every per-patient QC file as a real `input:` would force
+# Snakemake to trace each one's production lineage and re-evaluate long-stale wildcard combinations
+# that may no longer exist in a later invocation's own CFG["samples"]/CFG["runs"]. Forced to rerun on
+# every invocation via _mhc_hammer_invocation_marker, same as _mhc_hammer_cohort_table.
+#
+# Also writes the user's own "step 7" cohort-level recurrence summary: the same apparent mutation
+# (locus, assigned-allele FIRST-FIELD GROUP, ipd_mature_position, vep_amino_acids), recurring across
+# at least options.hla_genotype_qc_min_patients_for_cohort_flag DISTINCT patients, is flagged as a
+# likely systematic typing/reference artefact rather than coincidence. Restricted to rows the
+# per-patient script itself already scored "medium"/"high" -- "none" rows carry no signal here by
+# construction (ALT wasn't a known germline state anywhere, or the row was out of scope). patient_id
+# isn't a column the per-patient script writes (tumour_sample_name is, and the paired arm's tumour
+# sample id isn't the same thing) -- recovered instead from each QC file's own parent directory name,
+# the same reverse of this module's "{patient_id}_tumour_only" suffix convention used elsewhere in
+# this file (e.g. _mhc_hammer_tumour_only_typing_source).
+rule _mhc_hammer_cohort_hla_genotype_qc:
+    input:
+        invocation_marker = _mhc_hammer_invocation_marker
+    output:
+        cohort_qc = CFG["dirs"]["cohort_tables"] + "cohort_hla_genotype_qc.csv",
+        recurrence_summary = CFG["dirs"]["cohort_tables"] + "cohort_hla_genotype_qc_recurrence_summary.csv"
+    run:
+        CFG = config["lcr-modules"]["mhc_hammer"]
+        paired_pattern = str(rules._mhc_hammer_flag_hla_genotype_errors.output.qc).format(
+            seq_type = "*", genome_build = "*", patient_id = "*"
+        )
+        tumour_only_pattern = str(rules._mhc_hammer_flag_hla_genotype_errors_tumour_only.output.qc).format(
+            patient_id = "*"
+        )
+        qc_files = sorted(glob.glob(paired_pattern)) + sorted(glob.glob(tumour_only_pattern))
+        if not qc_files:
+            print(
+                "INFO [mhc_hammer]: no per-patient HLA genotype QC files found on disk yet -- "
+                "writing empty cohort QC tables. This is expected before any patient has finished; "
+                "rerun this same command once at least one patient's own QC file has been produced."
+            )
+        header = None
+        rows = []
+        for path in qc_files:
+            with open(path, newline = "") as fh:
+                reader = csv.reader(fh)
+                file_header = next(reader)
+                if header is None:
+                    header = file_header
+                elif file_header != header:
+                    raise ValueError(
+                        f"{path} has a different column set than {qc_files[0]} -- every per-patient "
+                        f"HLA genotype QC file should share the same columns, since they're all "
+                        f"produced by the same script."
+                    )
+                rows.extend(reader)
+        os.makedirs(os.path.dirname(output.cohort_qc), exist_ok = True)
+        with open(output.cohort_qc, "w", newline = "") as fh:
+            writer = csv.writer(fh)
+            if header is not None:
+                writer.writerow(header)
+            writer.writerows(rows)
+
+        recurrence_header = [
+            "locus", "assigned_allele_group", "ipd_mature_position", "vep_amino_acids",
+            "n_distinct_patients", "cohort_suspicion_flag", "patient_ids"
+        ]
+        os.makedirs(os.path.dirname(output.recurrence_summary), exist_ok = True)
+        if header is None:
+            with open(output.recurrence_summary, "w", newline = "") as fh:
+                csv.writer(fh).writerow(recurrence_header)
+        else:
+            col_idx = {name: i for i, name in enumerate(header)}
+            required = ["locus", "assigned_allele", "ipd_mature_position", "vep_amino_acids", "suspicion_level"]
+            missing = [c for c in required if c not in col_idx]
+            if missing:
+                raise ValueError(f"cohort HLA genotype QC file is missing expected column(s): {missing}")
+            groups = {} # (locus, allele_group, ipd_mature_position, vep_amino_acids) -> set(patient_id)
+            for path in qc_files:
+                patient_id = os.path.basename(os.path.dirname(path))
+                if patient_id.endswith("_tumour_only"):
+                    patient_id = patient_id[:-len("_tumour_only")]
+                with open(path, newline = "") as fh:
+                    reader = csv.reader(fh)
+                    next(reader) # header, already validated above
+                    for row in reader:
+                        if row[col_idx["suspicion_level"]] not in ("medium", "high"):
+                            continue
+                        allele_group = row[col_idx["assigned_allele"]].split(":")[0]
+                        key = (
+                            row[col_idx["locus"]], allele_group,
+                            row[col_idx["ipd_mature_position"]], row[col_idx["vep_amino_acids"]]
+                        )
+                        groups.setdefault(key, set()).add(patient_id)
+            min_patients = CFG["options"]["hla_genotype_qc_min_patients_for_cohort_flag"]
+            with open(output.recurrence_summary, "w", newline = "") as fh:
+                writer = csv.writer(fh)
+                writer.writerow(recurrence_header)
+                for (locus, allele_group, pos, aa), patients in sorted(groups.items()):
+                    writer.writerow([
+                        locus, allele_group, pos, aa, len(patients), len(patients) >= min_patients,
+                        ";".join(sorted(patients))
+                    ])
+
+rule _mhc_hammer_output_cohort_hla_genotype_qc:
+    input:
+        cohort_qc = str(rules._mhc_hammer_cohort_hla_genotype_qc.output.cohort_qc)
+    output:
+        cohort_qc = CFG["dirs"]["outputs"] + "cohort_tables/cohort_hla_genotype_qc.csv"
+    run:
+        op.relative_symlink(input.cohort_qc, output.cohort_qc, in_module = True)
+
+rule _mhc_hammer_output_cohort_hla_genotype_qc_recurrence_summary:
+    input:
+        recurrence_summary = str(rules._mhc_hammer_cohort_hla_genotype_qc.output.recurrence_summary)
+    output:
+        recurrence_summary = CFG["dirs"]["outputs"] + "cohort_tables/cohort_hla_genotype_qc_recurrence_summary.csv"
+    run:
+        op.relative_symlink(input.recurrence_summary, output.recurrence_summary, in_module = True)
+
+
+def _mhc_hammer_hla_genotype_qc_targets():
+    CFG = config["lcr-modules"]["mhc_hammer"]
+    targets = [
+        str(rules._mhc_hammer_output_cohort_hla_genotype_qc.output.cohort_qc),
+        str(rules._mhc_hammer_output_cohort_hla_genotype_qc_recurrence_summary.output.recurrence_summary)
+    ] + expand(
+        str(rules._mhc_hammer_output_hla_genotype_qc.output.qc),
+        zip,
+        seq_type = CFG["paired_runs"]["tumour_seq_type"],
+        genome_build = CFG["paired_runs"]["tumour_genome_build"],
+        patient_id = CFG["paired_runs"]["tumour_patient_id"]
+    )
+    # Tumour-only targets additionally require that pathway to itself be enabled -- mirrors how
+    # _mhc_hammer_all composes the existing tumour-only option with every other option below.
+    if CFG["options"]["tumour_only_variant_calling"]:
+        targets += expand(
+            str(rules._mhc_hammer_output_hla_genotype_qc_tumour_only.output.qc),
+            patient_id = sorted(set(_mhc_hammer_dna_tumour_only_runs["tumour_patient_id"]))
+        )
+    return targets
+
+
 # Generates the target sentinels for each run, which generate the symlinks. Uses
 # CFG["paired_runs"] (not CFG["runs"]) so that tumour samples without a matched germline WES
 # sample -- which this module cannot process at all, since HLA typing and the personalised
@@ -3676,7 +4036,11 @@ rule _mhc_hammer_all:
         # section above.
         *(_mhc_hammer_tumour_only_sample_targets(_mhc_hammer_dna_tumour_only_runs) +
           _mhc_hammer_tumour_only_patient_targets(_mhc_hammer_dna_tumour_only_runs)
-          if CFG["options"]["tumour_only_variant_calling"] else [])
+          if CFG["options"]["tumour_only_variant_calling"] else []),
+        # OPT-IN: HLA genotype-error detection -- annotates both arms' own mutation tables for
+        # apparent somatic calls that look like HLA-HD typing-assignment errors. See
+        # options.hla_genotype_qc and the "OPT-IN: HLA GENOTYPE-ERROR DETECTION" section above.
+        *(_mhc_hammer_hla_genotype_qc_targets() if CFG["options"]["hla_genotype_qc"] else [])
 
 
 ##### CLEANUP #####
