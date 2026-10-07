@@ -3662,6 +3662,7 @@ rule _mhc_hammer_flag_hla_genotype_errors:
         signal_peptide_b = CFG["options"]["hla_class_i_signal_peptide_length"]["B"],
         signal_peptide_c = CFG["options"]["hla_class_i_signal_peptide_length"]["C"],
         max_ref_mismatch_fraction = CFG["options"]["hla_genotype_qc_max_ref_mismatch_fraction"],
+        min_typing_error_alt_fraction = CFG["options"]["hla_genotype_qc_min_typing_error_alt_fraction"],
         imgt_release = CFG["options"]["imgt_release"]
     conda:
         CFG["conda_envs"]["mhc_hammer_r"]
@@ -3684,6 +3685,7 @@ rule _mhc_hammer_flag_hla_genotype_errors:
         --signal_peptide_length_b {params.signal_peptide_b}
         --signal_peptide_length_c {params.signal_peptide_c}
         --max_ref_mismatch_fraction {params.max_ref_mismatch_fraction}
+        --min_typing_error_alt_fraction {params.min_typing_error_alt_fraction}
         --mutation_save_path {output.qc}
         > {log.stdout} 2>&1
         """)
@@ -3743,6 +3745,7 @@ rule _mhc_hammer_flag_hla_genotype_errors_tumour_only:
         signal_peptide_b = CFG["options"]["hla_class_i_signal_peptide_length"]["B"],
         signal_peptide_c = CFG["options"]["hla_class_i_signal_peptide_length"]["C"],
         max_ref_mismatch_fraction = CFG["options"]["hla_genotype_qc_max_ref_mismatch_fraction"],
+        min_typing_error_alt_fraction = CFG["options"]["hla_genotype_qc_min_typing_error_alt_fraction"],
         imgt_release = CFG["options"]["imgt_release"]
     conda:
         CFG["conda_envs"]["mhc_hammer_r"]
@@ -3765,6 +3768,7 @@ rule _mhc_hammer_flag_hla_genotype_errors_tumour_only:
         --signal_peptide_length_b {params.signal_peptide_b}
         --signal_peptide_length_c {params.signal_peptide_c}
         --max_ref_mismatch_fraction {params.max_ref_mismatch_fraction}
+        --min_typing_error_alt_fraction {params.min_typing_error_alt_fraction}
         --mutation_save_path {output.qc}
         > {log.stdout} 2>&1
         """)
@@ -3795,11 +3799,11 @@ rule _mhc_hammer_output_hla_genotype_qc_tumour_only:
 # every invocation via _mhc_hammer_invocation_marker, same as _mhc_hammer_cohort_table.
 #
 # Also writes the user's own "step 7" cohort-level recurrence summary: the same apparent mutation
-# (locus, assigned-allele FIRST-FIELD GROUP, ipd_mature_position, vep_amino_acids), recurring across
+# (locus, ipd_mature_position, vep_amino_acids -- across assigned-allele groups), recurring across
 # at least options.hla_genotype_qc_min_patients_for_cohort_flag DISTINCT patients, is flagged as a
-# likely systematic typing/reference artefact rather than coincidence. Restricted to rows the
-# per-patient script itself already scored "medium"/"high" -- "none" rows carry no signal here by
-# construction (ALT wasn't a known germline state anywhere, or the row was out of scope). patient_id
+# likely systematic typing/reference/mapping artefact rather than coincidence. Includes every row
+# the per-patient script scored "medium"/"high"/"low_fraction" (suspicion_levels says which); "none"
+# rows carry no germline-mimic signal by construction. patient_id
 # isn't a column the per-patient script writes (tumour_sample_name is, and the paired arm's tumour
 # sample id isn't the same thing) -- recovered instead from each QC file's own parent directory name,
 # the same reverse of this module's "{patient_id}_tumour_only" suffix convention used elsewhere in
@@ -3872,9 +3876,14 @@ rule _mhc_hammer_cohort_hla_genotype_qc:
                 writer.writerow(header)
             writer.writerows(rows)
 
+        # Keyed on (locus, position, change) ACROSS assigned-allele groups: the same artefact often
+        # lands on several related groups (e.g. K268E on A*01/A*03/A*11), and splitting by group
+        # hid it below the patient threshold. Rows of every non-"none" level are included, so
+        # recurrent low_fraction artefacts show up too; suspicion_levels says which kind it is.
         recurrence_header = [
-            "locus", "assigned_allele_group", "ipd_mature_position", "vep_amino_acids",
-            "n_distinct_patients", "cohort_suspicion_flag", "patient_ids"
+            "locus", "ipd_mature_position", "vep_amino_acids", "n_distinct_patients",
+            "cohort_suspicion_flag", "assigned_allele_groups", "suspicion_levels",
+            "median_alt_fraction", "patient_ids"
         ]
         os.makedirs(os.path.dirname(output.recurrence_summary), exist_ok = True)
         if header is None:
@@ -3882,11 +3891,12 @@ rule _mhc_hammer_cohort_hla_genotype_qc:
                 csv.writer(fh).writerow(recurrence_header)
         else:
             col_idx = {name: i for i, name in enumerate(header)}
-            required = ["locus", "assigned_allele", "ipd_mature_position", "vep_amino_acids", "suspicion_level"]
+            required = ["locus", "assigned_allele", "ipd_mature_position", "vep_amino_acids",
+                        "suspicion_level", "alt_fraction"]
             missing = [c for c in required if c not in col_idx]
             if missing:
                 raise ValueError(f"cohort HLA genotype QC file is missing expected column(s): {missing}")
-            groups = {} # (locus, allele_group, ipd_mature_position, vep_amino_acids) -> set(patient_id)
+            groups = {} # (locus, ipd_mature_position, vep_amino_acids) -> aggregated fields
             for path in qc_files:
                 patient_id = os.path.basename(os.path.dirname(path))
                 if patient_id.endswith("_tumour_only"):
@@ -3895,22 +3905,41 @@ rule _mhc_hammer_cohort_hla_genotype_qc:
                     reader = csv.reader(fh)
                     next(reader) # header, already validated above
                     for row in reader:
-                        if row[col_idx["suspicion_level"]] not in ("medium", "high"):
+                        level = row[col_idx["suspicion_level"]]
+                        if level in ("", "none"):
                             continue
-                        allele_group = row[col_idx["assigned_allele"]].split(":")[0]
                         key = (
-                            row[col_idx["locus"]], allele_group,
-                            row[col_idx["ipd_mature_position"]], row[col_idx["vep_amino_acids"]]
+                            row[col_idx["locus"]], row[col_idx["ipd_mature_position"]],
+                            row[col_idx["vep_amino_acids"]]
                         )
-                        groups.setdefault(key, set()).add(patient_id)
+                        g = groups.setdefault(key, {"patients": set(), "allele_groups": set(),
+                                                    "levels": set(), "alt_fractions": []})
+                        g["patients"].add(patient_id)
+                        g["allele_groups"].add(row[col_idx["assigned_allele"]].split(":")[0])
+                        g["levels"].add(level)
+                        try:
+                            g["alt_fractions"].append(float(row[col_idx["alt_fraction"]]))
+                        except ValueError:
+                            pass
+            def _median(values):
+                if not values:
+                    return ""
+                values = sorted(values)
+                mid = len(values) // 2
+                med = values[mid] if len(values) % 2 else (values[mid - 1] + values[mid]) / 2
+                return f"{med:.3f}"
+            def _sort_key(item):
+                locus, pos, aa = item[0]
+                return (locus, int(pos) if pos.isdigit() else -1, aa)
             min_patients = CFG["options"]["hla_genotype_qc_min_patients_for_cohort_flag"]
             with open(output.recurrence_summary, "w", newline = "") as fh:
                 writer = csv.writer(fh)
                 writer.writerow(recurrence_header)
-                for (locus, allele_group, pos, aa), patients in sorted(groups.items()):
+                for (locus, pos, aa), g in sorted(groups.items(), key = _sort_key):
                     writer.writerow([
-                        locus, allele_group, pos, aa, len(patients), len(patients) >= min_patients,
-                        ";".join(sorted(patients))
+                        locus, pos, aa, len(g["patients"]), len(g["patients"]) >= min_patients,
+                        ";".join(sorted(g["allele_groups"])), ";".join(sorted(g["levels"])),
+                        _median(g["alt_fractions"]), ";".join(sorted(g["patients"]))
                     ])
 
 rule _mhc_hammer_output_cohort_hla_genotype_qc:

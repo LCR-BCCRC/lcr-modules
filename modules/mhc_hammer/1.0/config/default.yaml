@@ -416,6 +416,13 @@ lcr-modules:
             # biology.
             hla_genotype_qc_max_ref_mismatch_fraction: 0.5
 
+            # Mutect2 runs on allele-specific BAMs, so a genuine typing error puts ~100% of the
+            # allele's reads on ALT. Germline-mimicking calls below this alt_fraction are reported
+            # as suspicion_level "low_fraction" (reads from the patient's other allele, another
+            # locus, or a real subclonal mutation) instead of as a suspected typing error. Very
+            # pure clonal tumours can also exceed it, so a high fraction alone isn't proof.
+            hla_genotype_qc_min_typing_error_alt_fraction: 0.8
+
             # Cohort-level recurrence flag (user's own "step 7"): the same apparent mutation,
             # reconstructing the same known germline difference, recurring on the same assigned-
             # allele family across at least this many DISTINCT patients is flagged as a likely

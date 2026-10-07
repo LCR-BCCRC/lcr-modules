@@ -15,7 +15,12 @@
 # the observed "mutant" state reconstructs a KNOWN GERMLINE HLA allele, especially when several
 # apparent mutations on the SAME assigned allele collectively reconstruct the same alternate
 # allele. Every apparent mutation on a given (tumour_sample_name, assigned allele) is evaluated
-# jointly against the full candidate pool, not independently.
+# jointly against the full candidate pool, not independently -- but each row's suspicion_level is
+# its own: a row the best alternate allele doesn't explain is "none", and an explained row whose
+# alt_fraction is below --min_typing_error_alt_fraction is "low_fraction". Mutect2 runs on
+# allele-specific BAMs, so a true typing error puts ~100% of that allele's reads on ALT; a low
+# fraction instead points to reads from the patient's other allele or another locus (or a real
+# subclonal mutation), never to a typing error.
 
 suppressPackageStartupMessages(library(data.table))
 suppressPackageStartupMessages(library(argparse))
@@ -34,6 +39,8 @@ parser$add_argument('--signal_peptide_length_b', nargs = 1, type = 'integer', de
 parser$add_argument('--signal_peptide_length_c', nargs = 1, type = 'integer', default = 24)
 parser$add_argument('--max_ref_mismatch_fraction', nargs = 1, type = 'double', default = 0.5,
                     help = 'Abort if the fraction of rows where VEP\'s own REF disagrees with the catalog exceeds this')
+parser$add_argument('--min_typing_error_alt_fraction', nargs = 1, type = 'double', default = 0.8,
+                    help = 'Minimum alt_fraction for an explained row to count as a suspected typing error')
 parser$add_argument('--mutation_save_path', nargs = 1, required = TRUE)
 
 args <- parser$parse_args()
@@ -141,7 +148,10 @@ blank_row <- function(sample_name, reason) {
   row
 }
 
+# X is VEP's frameshift/unresolved-codon placeholder, not a residue -- it would otherwise "match"
+# the X that IMGT translations use for a null allele's stop.
 is_simple_missense <- grepl("^[A-Z]/[A-Z]$", muts$vep_amino_acids) &
+  !grepl("X", muts$vep_amino_acids, fixed = TRUE) &
   grepl("^[0-9]+$", trimws(as.character(muts$vep_protein_position)))
 
 out_rows <- vector("list", nrow(muts))
@@ -358,24 +368,70 @@ for (key in unique(comparable$group_key)) {
   setorder(scores, -n_explained, n_conflicting, distance, candidate)
   best <- scores[1]
 
+  # Group-level columns describe the best alternate allele for the whole assigned allele...
   qc[rows_idx, `:=`(
     best_alternate_allele = best$candidate,
     cross_group_candidate = cross_group,
     n_calls_explained_by_alternate = best$n_explained,
     n_calls_conflicting = best$n_conflicting,
-    sequence_distance_to_assigned = best$distance,
-    suspicion_level = fcase(
-      best$n_explained >= 2 & best$n_conflicting == 0, "high",
-      best$n_explained >= 1, "medium",
-      default = "none"
-    ),
-    reason = sprintf(
-      "ALT reconstructs %s (explains %d/%d apparent mutation(s) on this allele, %d conflicting site(s), sequence distance %d)%s",
-      best$candidate, best$n_explained, length(rows_idx), best$n_conflicting, best$distance,
-      if (cross_group) " [candidate is NOT in the same first-field group as the assigned allele]" else ""
-    )
+    sequence_distance_to_assigned = best$distance
   )]
+
+  # ...but suspicion is decided per row: does any candidate in the pool carry THIS row's ALT (the
+  # best-ranked such candidate is named), and is its alt_fraction high enough for a typing error?
+  # Only rows passing both count towards "high". Rows riding along on another row's candidate
+  # pool without being explained themselves are "none".
+  cand_mat <- gene_lookup$matrix[scores$candidate, row_rps, drop = FALSE]
+  row_best <- vapply(seq_along(rows_idx), function(k) {
+    hits <- which(!is.na(cand_mat[, k]) & cand_mat[, k] == row_alts[k])
+    if (length(hits) == 0) NA_character_ else scores$candidate[hits[1]]
+  }, character(1))
+  explained <- !is.na(row_best)
+  row_af <- qc$alt_fraction[rows_idx]
+  typing_like <- explained & (is.na(row_af) | row_af >= args$min_typing_error_alt_fraction)
+  group_level <- if (sum(typing_like) >= 2 && best$n_conflicting == 0) "high" else "medium"
+  cross_note <- if (cross_group) " [candidate is NOT in the same first-field group as the assigned allele]" else ""
+  explains_note <- sprintf("explains %d/%d apparent mutation(s) on this allele, %d conflicting site(s), sequence distance %d",
+                           best$n_explained, length(rows_idx), best$n_conflicting, best$distance)
+
+  for (k in seq_along(rows_idx)) {
+    idx <- rows_idx[k]
+    if (!explained[k]) {
+      level <- "none"
+      why <- sprintf("ALT not carried by any candidate allele for this assigned allele (best overall: %s; %s)%s",
+                     best$candidate, explains_note, cross_note)
+    } else if (!typing_like[k]) {
+      other <- qc$other_patient_allele_matches_alt[idx]
+      likely_source <- if (isTRUE(other)) {
+        "reads from the patient's other allele at this locus (it carries ALT)"
+      } else {
+        "reads from another locus/paralog, or a real subclonal mutation"
+      }
+      level <- "low_fraction"
+      why <- sprintf("ALT matches known allele %s, but alt_fraction %.3f < %.2f is too low for a typing error (expect ~1 on an allele-specific BAM); likely %s",
+                     row_best[k], row_af[k], args$min_typing_error_alt_fraction, likely_source)
+    } else {
+      level <- group_level
+      why <- sprintf("ALT reconstructs %s (best overall %s: %s)%s%s", row_best[k], best$candidate, explains_note, cross_note,
+                     if (is.na(row_af[k])) " [alt_fraction unavailable]" else "")
+    }
+    qc[idx, `:=`(suspicion_level = level, reason = why)]
+  }
 }
+
+# Long carrier lists (thousands of alleles at common residues) are collapsed to per-group counts,
+# e.g. "C*01(212);C*04(388)". Done only now: the ranking loop above needs the full lists.
+summarise_alleles <- function(x, max_listed = 10) {
+  vapply(as.character(x), function(s) {
+    if (is.na(s) || !nzchar(s)) return(s)
+    alleles <- strsplit(s, ";", fixed = TRUE)[[1]]
+    if (length(alleles) <= max_listed) return(s)
+    counts <- table(allele_group(alleles))
+    paste0(names(counts), "(", as.integer(counts), ")", collapse = ";")
+  }, character(1), USE.NAMES = FALSE)
+}
+qc[, alt_known_germline_alleles_same_group := summarise_alleles(alt_known_germline_alleles_same_group)]
+qc[, alt_known_germline_alleles_other_groups := summarise_alleles(alt_known_germline_alleles_other_groups)]
 
 qc[, c("row_idx", "group_key", "ref_position") := NULL]
 fwrite(qc[, ..qc_cols], args$mutation_save_path)
