@@ -3804,9 +3804,34 @@ rule _mhc_hammer_output_hla_genotype_qc_tumour_only:
 # sample id isn't the same thing) -- recovered instead from each QC file's own parent directory name,
 # the same reverse of this module's "{patient_id}_tumour_only" suffix convention used elsewhere in
 # this file (e.g. _mhc_hammer_tumour_only_typing_source).
+#
+# The glob alone is not enough within a single invocation: nothing orders this rule after the
+# per-patient QC jobs, so it can run while they are still pending -- and with --forcerun, after
+# Snakemake has already deleted their old outputs -- silently dropping those patients from the
+# cohort tables. The in-scope patients' QC files are therefore also declared as real inputs. Only
+# this invocation's own runs are listed (same wildcards _mhc_hammer_hla_genotype_qc_targets
+# requests anyway), so the stale-wildcard problem above can't arise; the glob still picks up every
+# other patient already on disk.
+def _mhc_hammer_get_in_scope_hla_genotype_qc(wildcards):
+    CFG = config["lcr-modules"]["mhc_hammer"]
+    qc_files = expand(
+        str(rules._mhc_hammer_flag_hla_genotype_errors.output.qc),
+        zip,
+        seq_type = CFG["paired_runs"]["tumour_seq_type"],
+        genome_build = CFG["paired_runs"]["tumour_genome_build"],
+        patient_id = CFG["paired_runs"]["tumour_patient_id"]
+    )
+    if CFG["options"]["tumour_only_variant_calling"]:
+        qc_files += expand(
+            str(rules._mhc_hammer_flag_hla_genotype_errors_tumour_only.output.qc),
+            patient_id = sorted(set(_mhc_hammer_dna_tumour_only_runs["tumour_patient_id"]))
+        )
+    return sorted(set(qc_files))
+
 rule _mhc_hammer_cohort_hla_genotype_qc:
     input:
-        invocation_marker = _mhc_hammer_invocation_marker
+        invocation_marker = _mhc_hammer_invocation_marker,
+        in_scope_qc = _mhc_hammer_get_in_scope_hla_genotype_qc
     output:
         cohort_qc = CFG["dirs"]["cohort_tables"] + "cohort_hla_genotype_qc.csv",
         recurrence_summary = CFG["dirs"]["cohort_tables"] + "cohort_hla_genotype_qc_recurrence_summary.csv"
