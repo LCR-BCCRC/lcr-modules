@@ -426,8 +426,9 @@ lcr-modules:
             max_mismatch: 1
 
             # Extra arguments passed verbatim to Mutect2 / FilterMutectCalls in BOTH mutation-calling
-            # arms (paired and tumour-only). Changing either reruns mutation calling for every
-            # sample (Snakemake's params rerun trigger).
+            # arms (paired and tumour-only). Changing either only triggers a rerun under Snakemake's
+            # default rerun triggers; with `--rerun-triggers mtime`, force it with
+            # `--forcerun _mhc_hammer_detect_muts _mhc_hammer_detect_muts_tumour_only`.
             #
             # Mutect2's local reassembly reuses soft-clipped read tails, so it can call events that
             # are invisible in IGV's default view. On the personalised HLA references this produces
