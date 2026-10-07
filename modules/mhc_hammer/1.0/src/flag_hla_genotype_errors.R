@@ -53,10 +53,22 @@ sample_to_genotype_path <- setNames(
 genotype_cache <- new.env()
 load_genotype <- function(path) {
   if (is.null(genotype_cache[[path]])) {
-    dt <- fread(path)
-    if (!all(c("gene", "allele1", "allele2") %in% names(dt))) {
-      setnames(dt, c("gene", "allele1", "allele2")[seq_len(ncol(dt))])
+    # hla_alleles.csv is headerless (A,hla_a_03_01_01_01,hla_a_31_01_02_01); fread's header
+    # auto-detection would swallow the HLA-A row as column names, so read without a header and
+    # drop a literal header line if one is ever present.
+    dt <- fread(path, header = FALSE)
+    setnames(dt, c("gene", "allele1", "allele2")[seq_len(ncol(dt))])
+    dt <- dt[tolower(gene) != "gene"]
+    # Alleles are written in contig form (hla_a_03_01_01_01); translation_matrix rownames and
+    # assigned_allele are dotted (A*03:01:01:01). "not typed" etc. pass through and simply never
+    # match a matrix row.
+    to_dotted <- function(x) {
+      x <- sub("^HLA-", "", x)
+      is_contig <- grepl("^hla_", x, ignore.case = TRUE)
+      x[is_contig] <- vapply(x[is_contig], function(a) parse_contig_name(a)$dotted, character(1))
+      x
     }
+    dt[, `:=`(allele1 = to_dotted(allele1), allele2 = to_dotted(allele2))]
     genotype_cache[[path]] <- dt
   }
   genotype_cache[[path]]
@@ -213,6 +225,8 @@ for (i in seq_len(nrow(muts))) {
       typed_alleles <- c(g_row$allele1[1], g_row$allele2[1])
       typed_alleles <- typed_alleles[!is.na(typed_alleles) & nzchar(typed_alleles)]
       other_allele <- typed_alleles[typed_alleles != assigned_allele]
+      # Homozygous: the other copy IS the assigned allele, so it can't carry the ALT.
+      if (length(other_allele) == 0 && assigned_allele %in% typed_alleles) other_allele <- assigned_allele
       if (length(other_allele) >= 1) {
         other_allele <- other_allele[1]
         if (other_allele %in% rownames(gene_lookup$matrix)) {
