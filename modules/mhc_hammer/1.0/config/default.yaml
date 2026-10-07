@@ -439,11 +439,11 @@ lcr-modules:
             #
             # Defaults below remove that pattern while keeping well-supported calls:
             #   --min-median-read-position 10: alt allele must sit >=10 bp from read ends (median)
-            #   --strict-strand-bias true:     filter any call with zero alt reads on one strand
+            #   --min-reads-per-strand 1:      filter any call with zero alt reads on either strand
             # Other useful knobs: --min-median-base-quality (FilterMutectCalls, GATK default 20);
             # --dont-use-soft-clipped-bases true (Mutect2). Set to "" for GATK's own defaults.
             mutect2_extra_args: ""
-            filter_mutect_calls_extra_args: "--min-median-read-position 10 --strict-strand-bias true"
+            filter_mutect_calls_extra_args: "--min-median-read-position 10 --min-reads-per-strand 1"
 
             # DNA allelic imbalance / copy number. Minimum GERMLINE depth (strictly greater than)
             # for a position to be used as one of the many allele-differentiating SNP positions
