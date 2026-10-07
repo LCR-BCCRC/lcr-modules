@@ -92,6 +92,15 @@ translation_matrix <- readRDS(args$translation_matrix)
 cat("Loading", args$mutations_csv, "\n")
 muts <- fread(args$mutations_csv)
 
+# Only score calls that survive FilterMutectCalls -- same rule mutations_to_maf.R applies.
+# mutations.csv is built with VariantsToTable --show-filtered, so it also carries filtered calls
+# (e.g. read-end / strand-bias artefacts) and rows where another sample made the call
+# (mutect_filter NA); scoring those floods the QC and its cohort recurrence summary with noise.
+if (!"mutect_filter" %in% names(muts)) stop("mutations_csv has no mutect_filter column")
+n_before <- nrow(muts)
+muts <- muts[mutect_filter == "PASS"]
+cat("Kept", nrow(muts), "of", n_before, "rows with mutect_filter == PASS\n")
+
 qc_cols <- c("tumour_sample_name", "pathway", "locus", "assigned_allele", "vep_protein_position",
              "ipd_mature_position", "ref_matches_catalog", "vep_amino_acids",
              "other_patient_allele_matches_alt", "alt_known_germline_same_group",

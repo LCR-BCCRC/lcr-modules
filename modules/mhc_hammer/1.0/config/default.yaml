@@ -425,6 +425,25 @@ lcr-modules:
             # Allele BAM filtering
             max_mismatch: 1
 
+            # Extra arguments passed verbatim to Mutect2 / FilterMutectCalls in BOTH mutation-calling
+            # arms (paired and tumour-only). Changing either reruns mutation calling for every
+            # sample (Snakemake's params rerun trigger).
+            #
+            # Mutect2's local reassembly reuses soft-clipped read tails, so it can call events that
+            # are invisible in IGV's default view. On the personalised HLA references this produces
+            # recurrent artefacts: e.g. a phased 1-bp homopolymer deletion + adjacent SNV on
+            # A*03/A*11 exon 4 (apparent p.Q250X/p.D251H), supported only by reverse-strand reads
+            # with the alt allele 2-3 bases from the read end (MPOS=2-3, SB=x,y|0,n) -- both pass
+            # GATK's defaults (--min-median-read-position 1, lenient strand bias).
+            #
+            # Defaults below remove that pattern while keeping well-supported calls:
+            #   --min-median-read-position 10: alt allele must sit >=10 bp from read ends (median)
+            #   --strict-strand-bias true:     filter any call with zero alt reads on one strand
+            # Other useful knobs: --min-median-base-quality (FilterMutectCalls, GATK default 20);
+            # --dont-use-soft-clipped-bases true (Mutect2). Set to "" for GATK's own defaults.
+            mutect2_extra_args: ""
+            filter_mutect_calls_extra_args: "--min-median-read-position 10 --strict-strand-bias true"
+
             # DNA allelic imbalance / copy number. Minimum GERMLINE depth (strictly greater than)
             # for a position to be used as one of the many allele-differentiating SNP positions
             # get_cn.R/get_logr_aib.R aggregate (median + t-test CI) into a copy number/AIB call --

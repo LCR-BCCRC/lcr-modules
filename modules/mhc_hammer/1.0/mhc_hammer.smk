@@ -1612,7 +1612,9 @@ rule _mhc_hammer_detect_muts:
         patient_dir_abs = lambda wildcards, input: os.path.abspath(input.patient_dir[0]),
         patient_id = lambda wildcards: _mhc_hammer_get_patient_id_for_tumour(wildcards.tumour_id, wildcards.seq_type),
         mem_gb = lambda wildcards, resources: max(1, int(resources.mem_mb / 1000 * 0.8)),
-        mhc_seq = MHC_SEQ
+        mhc_seq = MHC_SEQ,
+        mutect2_extra_args = CFG["options"]["mutect2_extra_args"],
+        filter_mutect_calls_extra_args = CFG["options"]["filter_mutect_calls_extra_args"]
     conda:
         CFG["conda_envs"]["mhc_hammer_detect_muts"]
     container:
@@ -1635,10 +1637,10 @@ rule _mhc_hammer_detect_muts:
         for allele in $alleles; do
             normal_bam=$normal_dir/{wildcards.normal_id}_{params.mhc_seq}_novoalign.$allele.sorted.filtered.bam;
             tumour_bam=$tumour_dir/{wildcards.tumour_id}_{params.mhc_seq}_novoalign.$allele.sorted.filtered.bam;
-            gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' Mutect2 -R $fasta -I $normal_bam -I $tumour_bam -normal {wildcards.normal_id} --f1r2-tar-gz {wildcards.tumour_id}.$allele.f1r2.tar.gz --output {wildcards.tumour_id}.$allele.vcf;
+            gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' Mutect2 -R $fasta -I $normal_bam -I $tumour_bam -normal {wildcards.normal_id} --f1r2-tar-gz {wildcards.tumour_id}.$allele.f1r2.tar.gz {params.mutect2_extra_args} --output {wildcards.tumour_id}.$allele.vcf;
             if tail -n 1 {wildcards.tumour_id}.$allele.vcf | grep -q CHROM; then continue; fi;
             gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' LearnReadOrientationModel -I {wildcards.tumour_id}.$allele.f1r2.tar.gz -O {wildcards.tumour_id}.$allele.read-orientation-model.tar.gz;
-            gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' FilterMutectCalls -V {wildcards.tumour_id}.$allele.vcf -R $fasta --ob-priors {wildcards.tumour_id}.$allele.read-orientation-model.tar.gz -O {wildcards.tumour_id}.$allele.filt.vcf;
+            gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' FilterMutectCalls -V {wildcards.tumour_id}.$allele.vcf -R $fasta --ob-priors {wildcards.tumour_id}.$allele.read-orientation-model.tar.gz {params.filter_mutect_calls_extra_args} -O {wildcards.tumour_id}.$allele.filt.vcf;
             bcftools norm -m-any {wildcards.tumour_id}.$allele.filt.vcf --output {wildcards.tumour_id}.$allele.norm.filt.vcf;
             Rscript {params.scripts_dir}/bin/make_vep_gtf.R --gtf_path {wildcards.tumour_id}.gtf --gtf_vep_path {wildcards.tumour_id}.$allele.vep.gtf --allele $allele;
             bgzip {wildcards.tumour_id}.$allele.vep.gtf && tabix -p gff {wildcards.tumour_id}.$allele.vep.gtf.gz;
@@ -3350,7 +3352,9 @@ rule _mhc_hammer_detect_muts_tumour_only:
         tumour_marker_abs = lambda wildcards, input: os.path.abspath(input.tumour_marker),
         patient_dir_abs = lambda wildcards, input: os.path.abspath(input.patient_dir),
         mem_gb = lambda wildcards, resources: max(1, int(resources.mem_mb / 1000 * 0.8)),
-        mhc_seq = MHC_SEQ
+        mhc_seq = MHC_SEQ,
+        mutect2_extra_args = CFG["options"]["mutect2_extra_args"],
+        filter_mutect_calls_extra_args = CFG["options"]["filter_mutect_calls_extra_args"]
     conda:
         CFG["conda_envs"]["mhc_hammer_detect_muts"]
     container:
@@ -3371,10 +3375,10 @@ rule _mhc_hammer_detect_muts_tumour_only:
         alleles=$(cat {params.tumour_marker_abs}) &&
         for allele in $alleles; do
             tumour_bam=$tumour_dir/{wildcards.sample_id}_{params.mhc_seq}_novoalign.$allele.sorted.filtered.bam;
-            gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' Mutect2 -R $fasta -I $tumour_bam --f1r2-tar-gz {wildcards.sample_id}.$allele.f1r2.tar.gz --output {wildcards.sample_id}.$allele.vcf;
+            gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' Mutect2 -R $fasta -I $tumour_bam --f1r2-tar-gz {wildcards.sample_id}.$allele.f1r2.tar.gz {params.mutect2_extra_args} --output {wildcards.sample_id}.$allele.vcf;
             if tail -n 1 {wildcards.sample_id}.$allele.vcf | grep -q CHROM; then continue; fi;
             gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' LearnReadOrientationModel -I {wildcards.sample_id}.$allele.f1r2.tar.gz -O {wildcards.sample_id}.$allele.read-orientation-model.tar.gz;
-            gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' FilterMutectCalls -V {wildcards.sample_id}.$allele.vcf -R $fasta --ob-priors {wildcards.sample_id}.$allele.read-orientation-model.tar.gz -O {wildcards.sample_id}.$allele.filt.vcf;
+            gatk --java-options '-Xmx{params.mem_gb}g -Xms1g' FilterMutectCalls -V {wildcards.sample_id}.$allele.vcf -R $fasta --ob-priors {wildcards.sample_id}.$allele.read-orientation-model.tar.gz {params.filter_mutect_calls_extra_args} -O {wildcards.sample_id}.$allele.filt.vcf;
             bcftools norm -m-any {wildcards.sample_id}.$allele.filt.vcf --output {wildcards.sample_id}.$allele.norm.filt.vcf;
             Rscript {params.scripts_dir}/bin/make_vep_gtf.R --gtf_path {wildcards.sample_id}.gtf --gtf_vep_path {wildcards.sample_id}.$allele.vep.gtf --allele $allele;
             bgzip {wildcards.sample_id}.$allele.vep.gtf && tabix -p gff {wildcards.sample_id}.$allele.vep.gtf.gz;
