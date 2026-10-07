@@ -229,6 +229,17 @@ for (i in seq_len(nrow(muts))) {
       if (length(other_allele) == 0 && assigned_allele %in% typed_alleles) other_allele <- assigned_allele
       if (length(other_allele) >= 1) {
         other_allele <- other_allele[1]
+        # Typed allele missing from the lookup (excluded, or a different field depth): fall back to
+        # any lookup allele sharing its first two fields -- same protein sequence by definition.
+        # Null/expression-variant suffixes (N, Q, ...) are skipped so a stop codon can't stand in.
+        if (!other_allele %in% rownames(gene_lookup$matrix)) {
+          two_field <- sub("^([^:]+:[^:]+).*$", "\\1", other_allele)
+          lookup_names <- rownames(gene_lookup$matrix)
+          same_protein <- lookup_names[(lookup_names == two_field |
+                                          startsWith(lookup_names, paste0(two_field, ":"))) &
+                                         grepl("[0-9]$", lookup_names)]
+          if (length(same_protein) > 0) other_allele <- sort(same_protein)[1]
+        }
         if (other_allele %in% rownames(gene_lookup$matrix)) {
           other_aa <- gene_lookup$matrix[other_allele, ref_position]
           other_match <- !is.na(other_aa) && other_aa == alt_aa
