@@ -42,6 +42,9 @@ CFG = op.setup_module(
     subdirectories = ["inputs", "ega_download", "decrypt", "outputs"],
 )
 
+# Precompute SFTP remote directory at load time (CFG is available here but not in lambdas).
+_EGA_REMOTE_DIR = "/".join(filter(None, [CFG["sftp_outbox_path"], CFG["egad"]]))
+
 # Define rules to be run locally when using a compute cluster
 localrules:
     _ega_output_files,
@@ -63,18 +66,14 @@ rule _ega_download_file:
         stderr = CFG["logs"]["ega_download"] + "{seq_type}/{file_name}_download.stderr.log"
     params:
         sftp_server = CFG["sftp_server"],
-        remote_path = lambda wc: (
-            f"{CFG['sftp_outbox_path']}/{CFG['egad']}/{wc.file_name}.c4gh"
-            if CFG["sftp_outbox_path"]
-            else f"{CFG['egad']}/{wc.file_name}.c4gh"
-        )
+        remote_dir = _EGA_REMOTE_DIR
     threads:
         CFG["threads"]["ega_file_download"]
     resources:
         **CFG["resources"]["ega_file_download"]
     shell:
         op.as_one_line("""
-        printf 'get {params.remote_path} {output.encrypted}\\n'
+        printf 'get {params.remote_dir}/{wildcards.file_name}.c4gh {output.encrypted}\\n'
         | sftp -b - {params.sftp_server}
         > {log.stdout}
         2> {log.stderr}
