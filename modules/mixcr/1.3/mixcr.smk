@@ -13,6 +13,9 @@
 
 
 # Import package with useful functions for developing analysis modules
+import datetime
+import os
+
 import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
@@ -65,6 +68,31 @@ assert all(receptor in RANGE for receptor in RECEPTORS), (
     "Ensure desired receptors are included in config and uppercase. "
     "Choose from: 'ALL', 'BCR', 'TCR' or list of IGH, IGK, IGL, TRA, TRB, TRD, TRG. "
 )
+
+# MiXCR licenses expire after 3 months; abort early if the license file is stale.
+_license_file = CFG["inputs"]["license_file"]
+_mtime = datetime.datetime.fromtimestamp(os.path.getmtime(_license_file))
+_now = datetime.datetime.now()
+_exp_month = _now.month - 3
+_exp_year = _now.year
+if _exp_month <= 0:
+    _exp_month += 12
+    _exp_year -= 1
+try:
+    _three_months_ago = _now.replace(year=_exp_year, month=_exp_month)
+except ValueError:
+    import calendar as _calendar
+    _three_months_ago = _now.replace(
+        year=_exp_year,
+        month=_exp_month,
+        day=_calendar.monthrange(_exp_year, _exp_month)[1],
+    )
+if _mtime < _three_months_ago:
+    sys.exit(
+        f"ERROR: MiXCR license file '{_license_file}' was last modified on "
+        f"{_mtime.strftime('%Y-%m-%d')}, which is more than 3 months ago. "
+        "MiXCR licenses expire after 3 months — please renew your license."
+    )
 
 # Define rules to be run locally when using a compute cluster
 localrules:
