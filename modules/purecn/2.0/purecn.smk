@@ -663,7 +663,7 @@ rule _purecn_make_outdirs_cnvkit_mode:
         seg = str(rules._purecn_symlink_cnvkit_seg.output.seg),
         vcf = str(rules._purecn_mutect2_filter_vcf.output.vcf),
         mapping_bias = str(rules._purecn_symlink_database_cnvkit.output.mapping_bias),
-        blacklist = str(rules._purecn_setup_blacklist_bed.output.blacklist)
+        blacklist = ancient(str(rules._purecn_setup_blacklist_bed.output.blacklist))
     output:
         done_pscbs = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/PSCBS/make_dir.done",
         done_Hclust = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/Hclust/make_dir.done",
@@ -681,7 +681,7 @@ checkpoint _purecn_cnvkit_mode_run:
         seg = str(rules._purecn_symlink_cnvkit_seg.output.seg),
         vcf = str(rules._purecn_mutect2_filter_vcf.output.vcf),
         mapping_bias = str(rules._purecn_symlink_database_cnvkit.output.mapping_bias),
-        blacklist = str(rules._purecn_setup_blacklist_bed.output.blacklist),
+        blacklist = ancient(str(rules._purecn_setup_blacklist_bed.output.blacklist)),
         done_pscbs = str(rules._purecn_make_outdirs_cnvkit_mode.output.done_pscbs),
         done_Hclust = str(rules._purecn_make_outdirs_cnvkit_mode.output.done_Hclust),
         done_none = str(rules._purecn_make_outdirs_cnvkit_mode.output.done_none)
@@ -837,7 +837,7 @@ rule _purecn_make_outdirs_denovo_mode:
         vcf = str(rules._purecn_mutect2_filter_vcf.output.vcf),
         mapping_bias = str(rules._purecn_symlink_database_denovo.output.mapping_bias),
         normal_db = str(rules._purecn_symlink_database_denovo.output.normal_db),
-        blacklist = str(rules._purecn_setup_blacklist_bed.output.blacklist),
+        blacklist = ancient(str(rules._purecn_setup_blacklist_bed.output.blacklist)),
         intervals = str(rules._purecn_symlink_intervals.output.intervals)
     output:
         done_pscbs = CFG["dirs"]["pureCN_denovo"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/PSCBS/make_dir.done",
@@ -856,7 +856,7 @@ checkpoint _purecn_denovo_mode_run:
         vcf = str(rules._purecn_mutect2_filter_vcf.output.vcf),
         mapping_bias = str(rules._purecn_symlink_database_denovo.output.mapping_bias),
         normal_db = str(rules._purecn_symlink_database_denovo.output.normal_db),
-        blacklist = str(rules._purecn_setup_blacklist_bed.output.blacklist),
+        blacklist = ancient(str(rules._purecn_setup_blacklist_bed.output.blacklist)),
         intervals = str(rules._purecn_symlink_intervals.output.intervals),
         done_pscbs = str(rules._purecn_make_outdirs_denovo_mode.output.done_pscbs),
         done_cbs = str(rules._purecn_make_outdirs_denovo_mode.output.done_cbs),
