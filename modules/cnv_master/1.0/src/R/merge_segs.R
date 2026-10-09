@@ -21,45 +21,62 @@ message("Loading data from individual seg files ...")
 
 files <- snakemake@input[]
 
-# This function will handle discrepancy in the output from
-# CNVkit and Pure CN and will harmonize the colnames, output format
-
 my_merge_function <- function(path) {
-    incoming_data <- suppressMessages(
+    col_count <- count.fields(path, sep = "\t")[1]
+    if(col_count == 9){
+        # ID      chrom   start   end     module  LOH_flag        CN      log.ratio       dummy_segment
+        incoming_data <- suppressMessages(
         suppressWarnings(
             read_tsv(
                 path,
-                col_types = "ccddddd"
+                col_types = "cciiciidi",
+                progress = FALSE
+                )
             )
         )
-    )
-
-    colnames(incoming_data) <- gsub(
-        "loc.",
-        "",
-        colnames(incoming_data)
-    )
-
-    if ("seg.mean" %in% colnames(incoming_data)) {
-        incoming_data <- rename(
-            incoming_data,
-            log.ratio = seg.mean
+    }else if(col_count == 7){
+    # ID chrom start end num.mark seg.mean dummy_segment
+    # ID chrom loc.start loc.end num.mark seg.mean dummy_segment
+    # ID chrom start end  LOH_flag  log.ratio  dummy_segment
+        incoming_data <- suppressMessages(
+            suppressWarnings(
+                read_tsv(
+                    path,
+                    col_types = "cciiidi",
+                    progress = FALSE
+                )
+            )
         )
+
+        colnames(incoming_data) <- gsub(
+            "loc.",
+            "",
+            colnames(incoming_data)
+        )
+
+        if ("seg.mean" %in% colnames(incoming_data)) {
+        # ID chrom start end num.mark seg.mean dummy_segment
+            incoming_data <- rename(
+                incoming_data,
+                log.ratio = seg.mean
+            ) %>%
+            select(-num.mark) %>%
+            mutate(
+                LOH_flag = NA,
+                module = NA,
+                CN = NA
+            )
+        }else{
+        # ID chrom start end  LOH_flag  log.ratio  dummy_segment
+            incoming_data <- incoming_data %>%
+                mutate(
+                    module = NA,
+                    CN = NA
+                )
+        }
+        incoming_data <- incoming_data %>%
+            select(ID,chrom,start,end,module,LOH_flag,CN,log.ratio,dummy_segment)
     }
-
-    if ("num.mark" %in% colnames(incoming_data)) {
-        incoming_data <- select(
-            incoming_data,
-            -num.mark
-        )
-
-        incoming_data <- mutate(
-            incoming_data,
-            LOH_flag = NA,
-            .before = "log.ratio"
-        )
-    }
-
     return(incoming_data)
 }
 

@@ -85,7 +85,7 @@ rule _cnv_master_input:
             op.absolute_symlink(input.seg, output.seg)
         else:
             with open(output.seg, "w") as f:
-                f.write("ID	chrom	start	end	LOH_flag	log.ratio")
+                f.write("ID	chrom	start	end	module	LOH_flag	CN	log.ratio	dummy_segment")
             logger.warning(f"Creating empty file {output.seg} because no input seg file was found.")
 
 
