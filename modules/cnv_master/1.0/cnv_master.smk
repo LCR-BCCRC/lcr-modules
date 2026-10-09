@@ -82,7 +82,7 @@ rule _cnv_master_input:
         seg = CFG["dirs"]["inputs"] + "seg/{tumour_id}--{normal_id}--{pair_status}--{seq_type}--{projection}.seg"
     run:
         if(input):
-            op.absolute_symlink(input.seg, output.seg)
+            op.relative_symlink(input.seg, output.seg)
         else:
             with open(output.seg, "w") as f:
                 f.write("ID	chrom	start	end	module	LOH_flag	CN	log.ratio	dummy_segment")
