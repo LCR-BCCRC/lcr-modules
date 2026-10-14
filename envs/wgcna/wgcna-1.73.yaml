@@ -1,0 +1,15 @@
+name: wgcna_r44
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - r-base=4.4
+  - r-readr
+  - r-dplyr
+  - r-matrix
+  - bioconductor-deseq2
+  - r-remotes
+  - r-devtools
+  - r-wgcna=1.73
+
