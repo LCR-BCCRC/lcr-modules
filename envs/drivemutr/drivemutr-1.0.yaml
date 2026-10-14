@@ -1,0 +1,24 @@
+name: drivemutr_r44
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - r-base=4.4
+  - r-dplyr
+  - r-purrr
+  - r-tidyr
+  - r-readr
+  - r-broom
+  - r-ggbeeswarm
+  - r-iml
+  - r-pre
+  - bioconductor-bsgenome.hsapiens.ucsc.hg19
+  - bioconductor-motifdb
+  - r-remotes
+  - r-biocmanager
+  - r-devtools
+  - bioconductor-variantannotation
+  - bioconductor-motifstack
+  - bioconductor-gviz
+  - r-dt
