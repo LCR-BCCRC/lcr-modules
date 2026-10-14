@@ -1,0 +1,9 @@
+name: crypt4gh
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+    - crypt4gh==1.7

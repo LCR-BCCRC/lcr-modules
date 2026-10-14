@@ -350,7 +350,7 @@ rule _purecn_mutect2_merge_stats_per_sample:
     input:
         stats = _get_mutect2_chr_stats
     output:
-        stats = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_tmp.vcf.gz.stats"
+        stats = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_tmp.vcf.gz.stats")
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_merge_stats.log"
     params:
@@ -375,7 +375,7 @@ rule _purecn_pileup_summaries:
         fasta = str(rules._purecn_symlink_fasta.output.fasta),
         gatk_dict = str(rules._purecn_symlink_fasta.output.gatk_dict)
     output:
-        pileup = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/pileupSummary.table"
+        pileup = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/pileupSummary.table")
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_pileupSummary.log"
     conda:
@@ -443,7 +443,7 @@ rule _purecn_learn_orient_model:
     input:
         f1r2 = _get_mutect2_chr_f1r2
     output:
-        model =  CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/read-orientation-model.tar.gz"
+        model =  temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/read-orientation-model.tar.gz")
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_learn_orient_model.log"
     conda:
@@ -508,8 +508,8 @@ rule _purecn_mutect2_filter_vcf:
     input:
         vcf = str(rules._purecn_annotate_vcf.output.vcf)
     output:
-        vcf = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_passed.vcf.gz",
-        tbi = CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_passed.vcf.gz.tbi"
+        vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_passed.vcf.gz"),
+        tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_passed.vcf.gz.tbi")
     params:
         filter_for_opts = CFG["options"]["mutect2"]["filter_for"],
         filter_out_opts = CFG["options"]["mutect2"]["filter_out"]
@@ -539,7 +539,7 @@ rule _purecn_gatk_depthOfCoverage:
         intervals = str(rules._purecn_gatk_interval_list_chrom.output.chrom_int),
         fasta = str(rules._purecn_symlink_fasta.output.fasta)
     output:
-        coverage = CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.sample_interval_summary",
+        coverage = temp(CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.sample_interval_summary"),
         statistics = temp(CFG["dirs"]["coverage"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}.{chrom}.sample_interval_statistics")
     resources:
         **CFG["resources"]["gatk_depth"]
@@ -663,7 +663,7 @@ rule _purecn_make_outdirs_cnvkit_mode:
         seg = str(rules._purecn_symlink_cnvkit_seg.output.seg),
         vcf = str(rules._purecn_mutect2_filter_vcf.output.vcf),
         mapping_bias = str(rules._purecn_symlink_database_cnvkit.output.mapping_bias),
-        blacklist = str(rules._purecn_setup_blacklist_bed.output.blacklist)
+        blacklist = ancient(str(rules._purecn_setup_blacklist_bed.output.blacklist))
     output:
         done_pscbs = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/PSCBS/make_dir.done",
         done_Hclust = CFG["dirs"]["pureCN_cnvkit"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/Hclust/make_dir.done",
@@ -681,7 +681,7 @@ checkpoint _purecn_cnvkit_mode_run:
         seg = str(rules._purecn_symlink_cnvkit_seg.output.seg),
         vcf = str(rules._purecn_mutect2_filter_vcf.output.vcf),
         mapping_bias = str(rules._purecn_symlink_database_cnvkit.output.mapping_bias),
-        blacklist = str(rules._purecn_setup_blacklist_bed.output.blacklist),
+        blacklist = ancient(str(rules._purecn_setup_blacklist_bed.output.blacklist)),
         done_pscbs = str(rules._purecn_make_outdirs_cnvkit_mode.output.done_pscbs),
         done_Hclust = str(rules._purecn_make_outdirs_cnvkit_mode.output.done_Hclust),
         done_none = str(rules._purecn_make_outdirs_cnvkit_mode.output.done_none)
@@ -837,7 +837,7 @@ rule _purecn_make_outdirs_denovo_mode:
         vcf = str(rules._purecn_mutect2_filter_vcf.output.vcf),
         mapping_bias = str(rules._purecn_symlink_database_denovo.output.mapping_bias),
         normal_db = str(rules._purecn_symlink_database_denovo.output.normal_db),
-        blacklist = str(rules._purecn_setup_blacklist_bed.output.blacklist),
+        blacklist = ancient(str(rules._purecn_setup_blacklist_bed.output.blacklist)),
         intervals = str(rules._purecn_symlink_intervals.output.intervals)
     output:
         done_pscbs = CFG["dirs"]["pureCN_denovo"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/PSCBS/make_dir.done",
@@ -856,7 +856,7 @@ checkpoint _purecn_denovo_mode_run:
         vcf = str(rules._purecn_mutect2_filter_vcf.output.vcf),
         mapping_bias = str(rules._purecn_symlink_database_denovo.output.mapping_bias),
         normal_db = str(rules._purecn_symlink_database_denovo.output.normal_db),
-        blacklist = str(rules._purecn_setup_blacklist_bed.output.blacklist),
+        blacklist = ancient(str(rules._purecn_setup_blacklist_bed.output.blacklist)),
         intervals = str(rules._purecn_symlink_intervals.output.intervals),
         done_pscbs = str(rules._purecn_make_outdirs_denovo_mode.output.done_pscbs),
         done_cbs = str(rules._purecn_make_outdirs_denovo_mode.output.done_cbs),

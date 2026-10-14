@@ -1,0 +1,11 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+
+description: Required fields for each sample row in the samples data frame
+
+properties:
+    file_name:
+        type: string
+        description: File name as it appears on the EGA Live Outbox SFTP server, without the .c4gh suffix (e.g. LBCL_scAtlas_2117-01_1_WES-tu_R1.fastq.gz). Obtain by listing the SFTP outbox or from the EGA metadata sample_file.csv.
+
+required:
+    - file_name
