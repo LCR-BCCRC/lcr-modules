@@ -46,7 +46,6 @@ CFG = op.setup_module(
 localrules:
     _fishhook_input_maf,
     _fishhook_input_subsetting_categories,
-    _fishhook_prepare_maf,
     _fishhook_output_tsv,
     _fishhook_aggregate,
     _fishhook_all,
@@ -66,7 +65,7 @@ rule _fishhook_input_maf:
     input:
         maf = CFG["inputs"]["master_maf"]
     output:
-        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/{sample_set}--{launch_date}/input.maf"
+        maf = CFG["dirs"]["inputs"] + "maf/{seq_type}/{sample_set}--{projection}--{launch_date}/input.maf"
     run:
         op.absolute_symlink(input.maf, output.maf)
 
@@ -89,9 +88,13 @@ checkpoint _fishhook_prepare_maf:
                     ),
         subsetting_categories = str(rules._fishhook_input_subsetting_categories.output.subsetting_categories)
     output:
-        CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/done"
+        CFG["dirs"]["prepare_maf"] + "{sample_set}--{projection}--{launch_date}/done"
     log:
-        CFG["logs"]["prepare_maf"] + "{sample_set}--{launch_date}/prepare_maf.log"
+        CFG["logs"]["prepare_maf"] + "{sample_set}--{projection}--{launch_date}/prepare_maf.log"
+    threads:
+        CFG["threads"]["prepare_maf"]
+    resources:
+        **CFG["resources"]["prepare_maf"]
     conda:
         CFG["conda_envs"]["prepare_mafs"]
     container:
@@ -116,16 +119,16 @@ def get_input_if_gene_mode(wildcards):
 # Actual fishHook run
 rule _fishhook_run:
     input:
-        maf = CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/{md5sum}.maf",
-        content = CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/{md5sum}.maf.content"
+        maf = CFG["dirs"]["prepare_maf"] + "{sample_set}--{projection}--{launch_date}/{md5sum}.maf",
+        content = CFG["dirs"]["prepare_maf"] + "{sample_set}--{projection}--{launch_date}/{md5sum}.maf.content"
     output:
-        tsv = CFG["dirs"]["fishhook"] + "{sample_set}--{launch_date}/{md5sum}.fishhook.tsv"
+        tsv = CFG["dirs"]["fishhook"] + "{sample_set}--{projection}--{launch_date}/{md5sum}.fishhook.tsv"
     conda:
         CFG["conda_envs"]["fishhook"]
     container:
         None
     log:
-        log = CFG["logs"]["fishhook"] + "{sample_set}--{launch_date}--{md5sum}_run_fishook.log"
+        log = CFG["logs"]["fishhook"] + "{sample_set}--{projection}--{launch_date}--{md5sum}_run_fishook.log"
     threads:
         CFG["threads"]["fishhook"]
     resources:
@@ -146,7 +149,7 @@ rule _fishhook_output_tsv:
     input:
         tsv = str(rules._fishhook_run.output.tsv)
     output:
-        tsv = CFG["dirs"]["outputs"] + "tsv/{sample_set}--{launch_date}/{md5sum}.fishhook.tsv"
+        tsv = CFG["dirs"]["outputs"] + "tsv/{sample_set}--{projection}--{launch_date}/{md5sum}.fishhook.tsv"
     run:
         op.relative_symlink(input.tsv, output.tsv, in_module= True)
 
@@ -156,7 +159,7 @@ def _for_aggregate(wildcards):
     SUMS, = glob_wildcards(checkpoint_output +"/{md5sum}.maf.content")
     return expand(
         [
-            CFG["dirs"]["outputs"] + "tsv/{{sample_set}}--{{launch_date}}/{md5sum}.fishhook.tsv"
+            CFG["dirs"]["outputs"] + "tsv/{{sample_set}}--{{projection}}--{{launch_date}}/{md5sum}.fishhook.tsv"
         ],
         md5sum = SUMS
         )
@@ -166,7 +169,7 @@ rule _fishhook_aggregate:
     input:
         _for_aggregate
     output:
-        aggregate = CFG["dirs"]["outputs"] + "{sample_set}--{launch_date}.done"
+        aggregate = CFG["dirs"]["outputs"] + "{sample_set}--{projection}--{launch_date}.done"
     shell:
         op.as_one_line("""touch {output.aggregate}""")
 
@@ -175,9 +178,10 @@ rule _fishhook_all:
     input:
         expand(
             [
-                CFG["dirs"]["prepare_maf"] + "{sample_set}--{launch_date}/done",
+                CFG["dirs"]["prepare_maf"] + "{sample_set}--{projection}--{launch_date}/done",
                 str(rules._fishhook_aggregate.output.aggregate),
             ],
+            projection=CFG["inputs"]["projection"],
             sample_set=CFG["sample_set"],
             launch_date = launch_date)
 
