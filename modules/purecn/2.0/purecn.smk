@@ -404,8 +404,8 @@ rule _purecn_calc_contamination:
     input:
         pileup = str(rules._purecn_pileup_summaries.output.pileup)
     output:
-        segments =  CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/segments.table",
-        contamination =  CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/contamination.table"
+        segments =  temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/segments.table"),
+        contamination =  temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/contamination.table")
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_calc_contam.log"
     conda:
@@ -475,7 +475,9 @@ rule _purecn_annotate_vcf:
         model = str(rules._purecn_learn_orient_model.output.model),
         fasta = str(rules._purecn_symlink_fasta.output.fasta)
     output:
-        vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/annotated.vcf.gz")
+        vcf = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/annotated.vcf.gz"),
+        tbi = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/annotated.vcf.gz.tbi"),
+        filt_stats = temp(CFG["dirs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}/annotated.vcf.gz.filteringStats.tsv")
     log:
         CFG["logs"]["mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}_annotate_vcf.log",
     resources:
