@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [Unreleased]
 
 - the `module` column of each seg now records the PureCN mode it came from: `purecn` (de novo) or `purecn_cnvkit` (CNVkit segmentation as prior). Previously cnv2igv was run with `--mode purecn` for both, so the mode was lost once segs were merged downstream (e.g. in the best seg and cnv_master).
+- the `LOH_flag` column of each seg is now set from PureCN's `_loh.csv` (minor copy number `M` from `callLOH`) for the same mode, by passing it to cnv2igv with `--purecn_loh`; it was previously NA for every PureCN segment. Segments without informative SNPs, or with `M.flagged`, remain NA. Requires the cnv2igv 1.5 `--purecn_loh` option (lcr-scripts branch `purecn-2.0-track-mode`)
 - fixed operator precedence in the over-segmentation check of `_purecn_take_lowest_MAD`: dummy (filled) segments are now excluded for gains as well as losses when counting segments with |log ratio| > 0.5
 
 # [2.0] 2026-06-04

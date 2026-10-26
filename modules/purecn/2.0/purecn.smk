@@ -1019,6 +1019,8 @@ rule _purecn_record_seg_fn:
 rule _purecn_cnv2igv:
     input:
         seg = CFG["dirs"]["pureCN_final_result"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg",
+        # LOH regions (callLOH) from the same run, used to set the LOH flag
+        loh = CFG["dirs"]["pureCN_final_result"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_loh.csv",
         txt = str(rules._purecn_record_seg_fn.output.txt)
     output:
         seg = CFG["dirs"]["cnv2igv"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.seg"
@@ -1035,7 +1037,7 @@ rule _purecn_cnv2igv:
     threads: 1
     shell:
         op.as_one_line("""
-        python {params.cnv2igv_script} --mode {params.cnv2igv_mode} {params.opts} --sample {wildcards.tumour_id} {input.seg} > {output.seg} 2>> {log.stderr}
+        python {params.cnv2igv_script} --mode {params.cnv2igv_mode} {params.opts} --sample {wildcards.tumour_id} --purecn_loh {input.loh} {input.seg} > {output.seg} 2>> {log.stderr}
         """)
         
 def _purecn_get_chain(wildcards):
