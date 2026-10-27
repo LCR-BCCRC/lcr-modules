@@ -21,7 +21,7 @@ snakemake_flags=$3
 runtime_config=$4
 
 # Parse runtime config (emits empty strings when no config is provided)
-eval "$(python3 "$SCRIPT_DIR/parse_runtime_config.py" "${runtime_config:-}")"
+eval "$(python3 "$SCRIPT_DIR/../utils/parse_runtime_config.py" "${runtime_config:-}")"
 
 # Build conda flags (omitted in container mode — mutually exclusive)
 conda_flags=()
