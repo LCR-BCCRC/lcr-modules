@@ -17,7 +17,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -25,7 +25,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -102,7 +102,7 @@ rule _hmftools_input_slms3:
         vcf = CFG["dirs"]["inputs"] + "slms3_vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/slms3.vcf.gz" 
     group: "input_and_vcf"
     run: 
-        op.relative_symlink(input.vcf, output.vcf)
+        op.relative_symlink(input.vcf, output.vcf, in_module=True)
 
 rule _hmftools_input_gridss: 
     input: 
@@ -148,6 +148,8 @@ rule _hmftools_get_cobalt_gc:
         alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.gc} {params.url}/GC_profile.1000bp.{params.alt_build}.cnp'
 
@@ -159,6 +161,8 @@ rule _hmftools_get_cobalt_bed:
         alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.bed} {params.url}/DiploidRegions.{params.alt_build}.bed'
 
@@ -171,6 +175,8 @@ rule _hmftools_get_amber_snps:
         alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.vcf} {params.url}/GermlineHetPon.{params.alt_build}.vcf.gz; '
         'wget -O {output.snpcheck} {params.url}/Amber.snpcheck.{params.alt_build}.vcf'
@@ -184,6 +190,8 @@ rule _hmftools_get_purple_drivers:
         alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.hotspots} {params.url}/KnownHotspots.somatic.{params.alt_build}.vcf.gz && '
         'wget -O {output.hotspots}.tbi {params.url}/KnownHotspots.somatic.{params.alt_build}.vcf.gz.tbi && '
@@ -197,6 +205,8 @@ rule _hmftools_get_linx_db:
         alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -r -np -nd -P {output} -A .bed,.csv {params.url}/{params.alt_build}  && '
         'wget -O {output}/viral_host_ref.csv {params.url}/viral_host_ref.csv'
@@ -210,6 +220,8 @@ rule _hmftools_get_ensembl_cache:
         alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build] 
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.cache}/{params.alt_build}.zip {params.url}/{params.alt_build}.zip && '
         'unzip -d {output.cache} {output.cache}/{params.alt_build}.zip'
@@ -225,6 +237,8 @@ rule _hmftools_slms3_sample_names:
     log: CFG["dirs"]["prepare_slms3"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/vcf_sample_names.log"
     conda: 
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads: CFG["threads"]["vcf_sample_names"]
     resources: 
         **CFG["resources"]["vcf_sample_names"]
@@ -255,9 +269,11 @@ rule _hmftools_snpeff_vcf:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     log: 
         CFG["logs"]["prepare_slms3"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/snpeff_slms3.log"
-    conda: 
+    conda:
         CFG["conda_envs"]["snpeff"]
-    threads: 
+    container:
+        CFG["container_envs"]["snpeff"]
+    threads:
         CFG["threads"]["snpeff"]
     shell: 
         op.as_one_line("""
@@ -288,11 +304,13 @@ rule _hmftools_amber_matched:
     log: CFG["logs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/amber.log"
     wildcard_constraints: 
         pair_status = "matched"
-    conda: 
+    conda:
         CFG["conda_envs"]["amber"]
-    threads: 
+    container:
+        CFG["container_envs"]["amber"]
+    threads:
         CFG["threads"]["amber"]
-    shell: 
+    shell:
         op.as_one_line("""
         AMBER -Xmx{params.jvmheap}m
         -reference {wildcards.normal_id} -reference_bam {input.normal_bam}
@@ -321,11 +339,13 @@ rule _hmftools_amber_unmatched:
     log: CFG["logs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/amber.log"
     wildcard_constraints: 
         pair_status = "unmatched"
-    conda: 
+    conda:
         CFG["conda_envs"]["amber"]
-    threads: 
+    container:
+        CFG["container_envs"]["amber"]
+    threads:
         CFG["threads"]["amber"]
-    shell: 
+    shell:
         op.as_one_line("""
         AMBER -Xmx{params.jvmheap}m
         -tumor_only 
@@ -357,9 +377,11 @@ rule _hmftools_cobalt:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     wildcard_constraints: 
         pair_status = "matched|unmatched"
-    conda: 
+    conda:
         CFG["conda_envs"]["cobalt"]
-    threads: 
+    container:
+        CFG["container_envs"]["cobalt"]
+    threads:
         CFG["threads"]["cobalt"]
     shell: 
         op.as_one_line("""
@@ -422,9 +444,11 @@ rule _hmftools_purple_matched:
         pair_status = "matched|unmatched", 
         out_file = "|".join(purple_out), 
         plot_name = "|".join(purple_plots)
-    conda: 
+    conda:
         CFG["conda_envs"]["purple"]
-    threads: 
+    container:
+        CFG["container_envs"]["purple"]
+    threads:
         CFG["threads"]["purple"]
     shell: 
         op.as_one_line("""
@@ -467,11 +491,13 @@ rule _hmftools_linx:
       jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
       options = CFG["options"]["linx"], 
       cache_subdir = lambda w: config["lcr-modules"]["hmftools"]["dirs"]["inputs"] + "references/" + w.genome_build + "/ensembl_cache/" + VERSION_MAP_HMFTOOLS[w.genome_build]
-    conda: 
+    conda:
         CFG["conda_envs"]["linx"]
-    threads: 
+    container:
+        CFG["container_envs"]["linx"]
+    threads:
         CFG["threads"]["linx"]
-    shell: 
+    shell:
         op.as_one_line("""
         linx -Xmx{params.jvmheap}m 
             -sample {wildcards.tumour_id} 
@@ -511,7 +537,9 @@ rule _hmftools_linx_viz:
         alt_build = lambda w: VERSION_MAP_HMFTOOLS[w.genome_build]
     conda:
         CFG["conda_envs"]["linx"]
-    threads: 
+    container:
+        CFG["container_envs"]["linx"]
+    threads:
         CFG["threads"]["linx_viz"]
     
     shell:

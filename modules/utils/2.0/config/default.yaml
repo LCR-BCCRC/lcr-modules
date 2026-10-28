@@ -23,6 +23,11 @@ lcr-modules:
             samtools: "envs/samtools-1.9.yaml"
             sambamba: "envs/sambamba-0.7.1.yaml"
             picard: "envs/picard-2.22.3.yaml"
+        container_envs:
+            picard: "docker://quay.io/biocontainers/picard:2.22.3--0"
+            sambamba: "docker://quay.io/biocontainers/sambamba:0.7.1--h984e79f_3"
+            samtools: "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+
             
         threads:
             bam_sort: 12

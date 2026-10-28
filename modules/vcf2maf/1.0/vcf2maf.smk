@@ -61,6 +61,8 @@ rule _vcf2maf_run:
         build = lambda w: f"{VERSION_UPPER[w.genome_build]}"
     conda:
         CONFIG["conda_envs"]["vcf2maf"]
+    container:
+        CFG["container_envs"]["vcf2maf"]
     threads:
         CONFIG["threads"]["vcf2maf"]
     resources:

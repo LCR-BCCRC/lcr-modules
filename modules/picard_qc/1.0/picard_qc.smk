@@ -17,7 +17,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -25,7 +25,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -85,6 +85,8 @@ rule _picard_qc_alignment_summary:
         opts = CFG["options"]["alignment_summary"]
     conda:
         CFG["conda_envs"]["picard"]
+    container:
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["alignment_summary"]
     resources:
@@ -111,6 +113,8 @@ rule _picard_qc_insert_size:
         opts = CFG["options"]["insert_size"]
     conda:
         CFG["conda_envs"]["picard"]
+    container:
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["insert_size"]
     resources:
@@ -140,6 +144,8 @@ rule _picard_qc_hs_metrics:
         opts = CFG["options"]["hs_metrics"]
     conda:
         CFG["conda_envs"]["picard"]
+    container:
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["hs_metrics"]
     resources:
@@ -164,6 +170,8 @@ rule _picard_qc_rrna_int:
         stderr = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/rrna_int.stderr.log"
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     shell:
         op.as_one_line("""
         samtools view -H {input.bam} | 
@@ -189,6 +197,8 @@ rule _picard_qc_rnaseq_metrics:
         strand = op.switch_on_column("strand", CFG["samples"], CFG["switches"]["rnaseq_metrics"], match_on = "sample")
     conda:
         CFG["conda_envs"]["picard"]
+    container:
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["rnaseq_metrics"]
     resources:
@@ -219,6 +229,8 @@ rule _picard_qc_wgs_metrics:
         opts = CFG["options"]["wgs_metrics"],
     conda:
         CFG["conda_envs"]["picard"]
+    container:
+        CFG["container_envs"]["picard"]
     threads:
         CFG["threads"]["wgs_metrics"]
     resources:
@@ -274,6 +286,8 @@ rule _picard_qc_flagstats:
         stderr = CFG["logs"]["metrics"] + "{seq_type}--{genome_build}/{sample_id}/flagstats.stderr.log"
     conda:
         CFG["conda_envs"]["samtools"]
+    container:
+        CFG["container_envs"]["samtools"]
     threads:
         CFG["threads"]["flagstats"]
     resources:

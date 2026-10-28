@@ -17,7 +17,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -25,7 +25,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -143,6 +143,8 @@ rule _hmftools_get_cobalt_gc:
         alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.gc} {params.url}/GC_profile.{params.alt_build}.1000bp.cnp'
 
@@ -155,6 +157,8 @@ rule _hmftools_get_amber_snps:
         alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.vcf} {params.url}/GermlineHetPon.{params.alt_build}.vcf.gz; '
         'wget -O {output.snpcheck} {params.url}/GermlineHetPon.{params.alt_build}.snpcheck.vcf.gz'
@@ -168,6 +172,8 @@ rule _hmftools_get_purple_drivers:
         alt_build = lambda w: HMFTOOLS_VERSION_MAP[w.genome_build]
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -O {output.hotspots} {params.url}/KnownHotspots.{params.alt_build}.vcf.gz && '
         'wget -O {output.gene_panel} {params.url}/DriverGenePanel.{params.alt_build}.tsv'
@@ -179,6 +185,8 @@ rule _hmftools_get_linx_db:
         url = "www.bcgsc.ca/downloads/morinlab/hmftools-references/linx/"
     conda: 
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell: 
         'wget -r -np -nd -P {output} -A .bed,.csv {params.url} '
 
@@ -193,6 +201,8 @@ rule _hmftools_strelka_sample_names:
     log: CFG["dirs"]["prepare_strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_sample_names.log"
     conda: 
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads: CFG["threads"]["strelka_sample_names"]
     resources: 
         **CFG["resources"]["strelka_sample_names"]
@@ -222,9 +232,11 @@ rule _hmftools_snpeff_strelka:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     log: 
         CFG["logs"]["prepare_strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/snpeff_strelka.log"
-    conda: 
+    conda:
         CFG["conda_envs"]["snpeff"]
-    threads: 
+    container:
+        CFG["container_envs"]["snpeff"]
+    threads:
         CFG["threads"]["snpeff"]
     shell: 
         op.as_one_line("""
@@ -247,7 +259,9 @@ rule _hmftools_annotate_strelka:
         purple_jar = "$(dirname $(readlink -e $(which PURPLE)))/purple.jar"
     log: CFG["logs"]["prepare_strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/annotate_strelka.log"
     conda: CFG["conda_envs"]["purple"]
-    threads: 
+    container:
+        CFG["container_envs"]["purple"]
+    threads:
         CFG["threads"]["annotate_strelka"]
     resources: 
         **CFG["resources"]["annotate_strelka"]
@@ -273,11 +287,13 @@ rule _hmftools_amber_matched:
         options = CFG["options"]["amber"], 
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8) 
     log: CFG["logs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/amber.log"
-    conda: 
+    conda:
         CFG["conda_envs"]["amber"]
-    threads: 
+    container:
+        CFG["container_envs"]["amber"]
+    threads:
         CFG["threads"]["amber"]
-    shell: 
+    shell:
         op.as_one_line("""
         AMBER -Xmx{params.jvmheap}m
         -reference {wildcards.normal_id} -reference_bam {input.normal_bam}
@@ -286,7 +302,7 @@ rule _hmftools_amber_matched:
         -threads {threads}
         -loci {input.snps}
         {params.options}
-        2>&1 | tee -a {log} 
+        2>&1 | tee -a {log}
         """)
 
 rule _hmftools_amber_unmatched: 
@@ -302,11 +318,13 @@ rule _hmftools_amber_unmatched:
         options = CFG["options"]["amber"], 
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     log: CFG["logs"]["amber"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/amber.log"
-    conda: 
+    conda:
         CFG["conda_envs"]["amber"]
-    threads: 
+    container:
+        CFG["container_envs"]["amber"]
+    threads:
         CFG["threads"]["amber"]
-    shell: 
+    shell:
         op.as_one_line("""
         AMBER -Xmx{params.jvmheap}m
         -tumor_only 
@@ -332,9 +350,11 @@ rule _hmftools_cobalt:
     params:
         options = CFG["options"]["cobalt"], 
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
-    conda: 
+    conda:
         CFG["conda_envs"]["cobalt"]
-    threads: 
+    container:
+        CFG["container_envs"]["cobalt"]
+    threads:
         CFG["threads"]["cobalt"]
     shell: 
         op.as_one_line("""
@@ -393,11 +413,13 @@ rule _hmftools_purple_matched:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     wildcard_constraints: 
         pair_status = "matched"
-    conda: 
+    conda:
         CFG["conda_envs"]["purple"]
-    threads: 
+    container:
+        CFG["container_envs"]["purple"]
+    threads:
         CFG["threads"]["purple"]
-    shell: 
+    shell:
         op.as_one_line("""
         PURPLE -Xmx{params.jvmheap}m -driver_catalog 
             -reference {wildcards.normal_id} 
@@ -442,13 +464,15 @@ rule _hmftools_purple_unmatched:
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     wildcard_constraints: 
         pair_status = "unmatched"
-    conda: 
+    conda:
         CFG["conda_envs"]["purple"]
-    threads: 
+    container:
+        CFG["container_envs"]["purple"]
+    threads:
         CFG["threads"]["purple"]
-    shell: 
+    shell:
         op.as_one_line("""
-        PURPLE -Xmx{params.jvmheap}m 
+        PURPLE -Xmx{params.jvmheap}m
             -reference {wildcards.normal_id} 
             -tumor {wildcards.tumour_id} 
             -output_dir {params.outdir} 
@@ -475,8 +499,10 @@ rule _hmftools_linx_prepare_ensembl:
     params: 
         url = op.switch_on_wildcard("ensembl_build", CFG["switches"]["ensembl_url"]),
         jar = "$(dirname $(readlink -e $(which linx)))/sv-linx.jar"
-    conda: 
+    conda:
         CFG["conda_envs"]["linx"]
+    container:
+        CFG["container_envs"]["linx"]
     shell: 
         op.as_one_line("""
         java -cp {params.jar} com.hartwig.hmftools.linx.gene.GenerateEnsemblDataCache
@@ -520,8 +546,10 @@ rule _hmftools_linx:
       }[w.genome_build],
       jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8), 
       options = CFG["options"]["linx"]
-    conda: 
+    conda:
         CFG["conda_envs"]["linx"]
+    container:
+        CFG["container_envs"]["linx"]
     threads: 
         CFG["threads"]["linx"]
     shell: 
@@ -562,9 +590,11 @@ rule _hmftools_linx_viz:
         options = CFG["options"]["linx_viz"]
     conda:
         CFG["conda_envs"]["linx"]
-    threads: 
+    container:
+        CFG["container_envs"]["linx"]
+    threads:
         CFG["threads"]["linx_viz"]
-    
+
     shell:
         op.as_one_line("""
         java -Xmx{params.jvmheap}m -cp {params.linx_jar} com.hartwig.hmftools.linx.visualiser.SvVisualiser 
@@ -602,9 +632,11 @@ rule _hmftools_linx_viz_annotate:
         options = CFG["options"]["linx_viz_annotate"]
     conda:
         CFG["conda_envs"]["linx"]
-    threads: 
+    container:
+        CFG["container_envs"]["linx"]
+    threads:
         CFG["threads"]["linx_viz"]
-    
+
     shell:
         op.as_one_line("""
         touch {log};

@@ -1,0 +1,75 @@
+lcr-modules:
+
+    igv_reports:
+
+        inputs:
+            # Dict mapping a short label (becomes the {tool} wildcard) to a MAF path pattern.
+            # Available wildcards: {seq_type}, {genome_build}, {tumour_id}, {normal_id}, {pair_status}
+            # e.g.:
+            #   mafs:
+            #     sage-only: "results/maf_diff-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.sage-only.maf"
+            #     slms-3-only: "results/maf_diff-1.0/99-outputs/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.slms-3-only.maf"
+            mafs: {}
+            tumour_bam: "__UPDATE__"
+            normal_bam: "__UPDATE__"
+
+        options:
+            # Driver gene filtering (same logic as maf_diff)
+            # Path to a TSV of lymphoma driver genes. Rows where driver_col == driver_col_value
+            # are treated as bona fide drivers.
+            # Source: https://raw.githubusercontent.com/morinlab/LLMPP/refs/heads/main/resources/curated/any_tier1_BL_FL_DLBCL_MCL_MZL_PMBL.tsv
+            driver_genes: "{MODSDIR}/etc/any_tier1_BL_FL_DLBCL_MCL_MZL_PMBL.tsv"
+            driver_gene_col: "Gene"
+            driver_col: "Any_Tier1"
+            driver_col_value: "Yes"
+            maf_gene_col: "Hugo_Symbol"
+            maf_vc_col: "Variant_Classification"
+            coding_variant_classes:
+                - "Missense_Mutation"
+                - "Nonsense_Mutation"
+                - "Frame_Shift_Del"
+                - "Frame_Shift_Ins"
+                - "In_Frame_Del"
+                - "In_Frame_Ins"
+                - "Splice_Site"
+                - "Translation_Start_Site"
+                - "Nonstop_Mutation"
+            # igv-reports create_report options
+            flanking: 1000
+            # Fraction of reads to include per track (0.0–1.0). Null disables subsampling.
+            # Reducing flanking (e.g. to 200) and/or subsampling helps with samples that
+            # have many timepoint BAMs, which produce very large HTML files.
+            subsample: null
+            # MAF columns to display in the variant table
+            info_columns:
+                - "Hugo_Symbol"
+                - "Variant_Classification"
+                - "HGVSp_Short"
+                - "Reference_Allele"
+                - "Tumor_Seq_Allele2"
+                - "t_alt_count"
+                - "dbSNP_RS"
+
+        conda_envs:
+            igv_reports: "{MODSDIR}/envs/igv-reports-1.16.0.yaml"
+            pandas: "{MODSDIR}/envs/pandas-1.4.2.yaml"
+
+        threads:
+            filter_maf: 1
+            igv_reports: 1
+
+        resources:
+            filter_maf:
+                mem_mb: 2000
+            igv_reports:
+                mem_mb: 8000
+
+        pairing_config:
+            genome:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False
+            capture:
+                run_paired_tumours: True
+                run_unpaired_tumours_with: "unmatched_normal"
+                run_paired_tumours_as_unpaired: False

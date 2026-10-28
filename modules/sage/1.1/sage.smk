@@ -17,7 +17,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.12"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -25,7 +25,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -108,6 +108,8 @@ rule _download_sage_references:
         cache_build = lambda w: "38" if "38" in str({w.genome_build}) else "37"
     conda:
         CFG["conda_envs"]["wget"]
+    container:
+        None
     shell:
         op.as_one_line("""
         wget -O {output.hotspots} {params.url}/KnownHotspots.{params.build}.vcf.gz
@@ -158,10 +160,12 @@ rule _run_sage:
         opts = CFG["options"]["sage_run"],
         assembly = lambda w: "38" if "38" in str({w.genome_build}) else "37",
         cache_dir = lambda w: config["lcr-modules"]["sage"]["dirs"]["inputs"] + "references/" + w.genome_build + "/ensembl_cache/" + str("38" if "38" in str({w.genome_build}) else "37"),
-        sage= "$(dirname $(readlink -e $(which SAGE)))/sage.jar",
+        sage= "$(SAGE_REAL=$(readlink -f $(command -v SAGE)); if [[ $SAGE_REAL == *.jar ]]; then echo $SAGE_REAL; else find $(dirname $(dirname $SAGE_REAL)) -maxdepth 3 -name 'sage*.jar' 2>/dev/null | head -1; fi)",
         jvmheap = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["sage"]
+    container:
+        CFG["container_envs"]["sage"]
     threads:
         CFG["threads"]["sage_run"]
     resources:
@@ -206,6 +210,8 @@ rule _sage_filter_vcf:
         heap_mem = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["filter"]
     resources:
@@ -234,6 +240,8 @@ rule _sage_split_vcf:
         stderr = CFG["logs"]["vcf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/split_passed.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     threads:
         CFG["threads"]["filter"]
     resources:

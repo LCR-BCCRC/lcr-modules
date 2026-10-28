@@ -57,6 +57,10 @@ lcr-modules:
         conda_envs:
             filter_svs: "{MODSDIR}/envs/sv_annotation-1.6.0.yaml"
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+        container_envs:
+            bedtools: "docker://quay.io/biocontainers/bedtools:2.29.2--hc088bd4_0"
+            filter_svs: null
+
 
         threads:
             intersect: 1

@@ -80,7 +80,7 @@ wildcard_constraints:
 
 # Define method for download ChromosomeMappings repository
 def download_chrom_mappings(chrom_mappings_dir):
-    chrom_mappings_url = "https://github.com/BrunoGrandePhD/ChromosomeMappings/archive/master.tar.gz"
+    chrom_mappings_url = "https://github.com/LCR-BCCRC/ChromosomeMappings/archive/master.tar.gz"
     tar_file_path = "ChromosomeMappings.tar.gz"
     os.makedirs("./", exist_ok=True)
     urllib.request.urlretrieve(chrom_mappings_url, tar_file_path)

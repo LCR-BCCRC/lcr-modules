@@ -20,6 +20,12 @@ lcr-modules:
             gatk: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
             R: "{SCRIPTSDIR}/salmon2counts/1.0/salmon2counts.yaml"
+        container_envs:
+            R: null
+            gatk: "docker://quay.io/biocontainers/gatk4:4.1.8.1--py38_0"
+            picard: "docker://quay.io/biocontainers/picard:2.22.3--0"
+            samtools: "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+
             
         threads:
             reference: 8

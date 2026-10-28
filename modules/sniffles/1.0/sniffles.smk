@@ -13,7 +13,7 @@ import inspect
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -21,7 +21,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -33,7 +33,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -41,7 +41,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -91,6 +91,8 @@ rule _sniffles:
         vcf = CFG["dirs"]["sniffles"] + "{seq_type}--{genome_build}/{sample_id}.vcf"
     conda: 
         CFG["conda_envs"]["sniffles"]
+    container:
+        CFG["container_envs"]["sniffles"]
     resources: 
        mem_mb = CFG["mem_mb"]["sniffles"]
     threads:    
@@ -116,6 +118,8 @@ rule _sniffles_vcf_to_bedpe:
         stderr = CFG["logs"]["bedpe"] + "{seq_type}--{genome_build}/{sample_id}/sniffles_vcf_to_bedpe.stderr.log"
     conda:
         CFG["conda_envs"]["svtools"]
+    container:
+        CFG["container_envs"]["svtools"]
     threads:
         CFG["threads"]["vcf_to_bedpe"]
     resources: 

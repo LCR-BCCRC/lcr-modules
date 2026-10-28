@@ -39,6 +39,11 @@ lcr-modules:
             prepare_mafs: "{REPODIR}/envs/gatk/gatkR.yaml"
             wget: "{MODSDIR}/envs/wget-1.20.1.yaml"
             dlbclass: "{MODSDIR}/envs/dlbclass.yaml"
+        container_envs:
+            dlbclass: null
+            prepare_mafs: null
+            wget: null
+
 
         threads:
             dlbclass: 2

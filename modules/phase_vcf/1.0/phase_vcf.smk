@@ -14,7 +14,7 @@ import glob
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -22,7 +22,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -34,7 +34,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -42,7 +42,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -91,7 +91,9 @@ rule _clair3:
         dir = CFG["dirs"]["clair3"] + "{seq_type}--{genome_build}/{sample_id}",
         platform = CFG["clair3"]["platform"]
     conda :
-        CFG["conda_envs"]["clair3"]  
+        CFG["conda_envs"]["clair3"]
+    container:
+        CFG["container_envs"]["clair3"]
     threads:
         CFG["threads"]["clair3"]    
     resources: 
@@ -117,6 +119,8 @@ rule _filter_clair3:
         index = CFG["dirs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}.filtered_phased_merged.vcf.gz.tbi"
     conda :
         CFG["conda_envs"]["clair3"]
+    container:
+        CFG["container_envs"]["clair3"]
     log:
         stderr = CFG["logs"]["filter_clair3"] + "{seq_type}--{genome_build}/{sample_id}/filter_clair3.stderr.log"      
     shell :
@@ -128,8 +132,10 @@ rule _whatshap_phase_vcf:
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         vcf = CFG["inputs"]["vcf"] 
     conda :
-        CFG["conda_envs"]["whatshap"] 
-    resources: 
+        CFG["conda_envs"]["whatshap"]
+    container:
+        CFG["container_envs"]["whatshap"]
+    resources:
         mem_mb = CFG["mem_mb"]["whatshap"]        
     log:
         stderr = CFG["logs"]["whatshap_phase_vcf"] + "{seq_type}--{genome_build}/{sample_id}/whatshap_phase_vcf.stderr.log"    

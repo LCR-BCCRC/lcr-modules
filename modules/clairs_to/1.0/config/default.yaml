@@ -40,6 +40,10 @@ lcr-modules:
         conda_envs:
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             clairs_to: "{MODSDIR}/envs/clairs_to-0.4.2.yaml"
+        container_envs:
+            bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+            clairs_to: null
+
             
         threads:
             clairs_to: 24
@@ -48,8 +52,9 @@ lcr-modules:
         resources:
             clairs_to: 
                 mem_mb: 24000
+                bam: 1
             bcftools:
-                mem_mb: 5000
+                mem_mb: 5000                
             
         pairing_config:
             promethION:

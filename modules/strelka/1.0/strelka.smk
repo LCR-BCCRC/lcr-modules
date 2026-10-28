@@ -48,8 +48,8 @@ rule _strelka_input_bam:
         bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
-        op.relative_symlink(input.bam, output.bam)
-        op.relative_symlink(input.bai, output.bai)
+        op.absolute_symlink(input.bam, output.bam)
+        op.absolute_symlink(input.bai, output.bai)
 
 
 rule _strelka_dummy_vcf:
@@ -66,6 +66,8 @@ rule _strelka_input_vcf:
         tbi = CFG["dirs"]["inputs"] + "{seq_type}--{genome_build}/vcf/{tumour_id}--{normal_id}--{pair_status}.candidateSmallIndels.vcf.gz.tbi"
     conda:
         CFG["conda_envs"]["tabix"]
+    container:
+        CFG["container_envs"]["tabix"]
     shell:
         op.as_one_line("""
         bgzip -c {input.manta_vcf} > {output.vcf}
@@ -82,6 +84,8 @@ rule _strelka_index_bed:
         bedz = CFG["dirs"]["chrom_bed"] + "{genome_build}.main_chroms.bed.gz"
     conda:
         CFG["conda_envs"]["tabix"]
+    container:
+        CFG["container_envs"]["tabix"]
     shell:
         op.as_one_line("""
         bgzip -c {input.bed} > {output.bedz}
@@ -119,6 +123,8 @@ rule _strelka_configure_paired: # Somatic
         pair_status = "matched|unmatched"
     conda:
         CFG["conda_envs"]["strelka"]
+    container:
+        CFG["container_envs"]["strelka"]
     shell:
         op.as_one_line("""
         configureStrelkaSomaticWorkflow.py
@@ -151,6 +157,8 @@ rule _strelka_configure_unpaired: # germline
         pair_status = "no_normal"
     conda:
         CFG["conda_envs"]["strelka"]
+    container:
+        CFG["container_envs"]["strelka"]
     shell:
         op.as_one_line("""
         configureStrelkaGermlineWorkflow.py
@@ -175,6 +183,8 @@ rule _strelka_run:
         opts = CFG["options"]["strelka"]
     conda:
         CFG["conda_envs"]["strelka"]
+    container:
+        CFG["container_envs"]["strelka"]
     threads:
         CFG["threads"]["strelka"]
     resources:

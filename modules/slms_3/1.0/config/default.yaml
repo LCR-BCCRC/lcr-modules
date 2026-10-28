@@ -30,6 +30,9 @@ lcr-modules:
         conda_envs:
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
 
+        container_envs:
+            bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
+
         options: 
             cleanup_vcfs: False # Boolean True or False. Indicate whether temp VCF files generated as part of SLMS-3 should be removed upon completion. 
             

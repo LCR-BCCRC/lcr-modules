@@ -234,8 +234,8 @@ def absolute_symlink(src, dest, overwrite=True):
     """
     # Prepare source and destination file paths 
     src, dest = prepare_symlink(src, dest)
-    # Retrieve the absolute file path for the source file
-    src = os.path.abspath(src)
+    # Resolve all symlinks to get the stable absolute path on the storage system
+    src = os.path.realpath(src)
 
     # Check if destination file already exists and error if it does
     compare_links(src, dest, overwrite)
@@ -1611,7 +1611,7 @@ def setup_module(name, version, subdirectories):
     mconfig["version"] = version
 
     # Ensure that common module sub-fields are present
-    subfields = ["inputs", "dirs", "conda_envs", "options", "threads", "mem_mb"]
+    subfields = ["inputs", "dirs", "conda_envs", "container_envs", "options", "threads", "mem_mb"]
     for subfield in subfields:
         if subfield not in mconfig:
             mconfig[subfield] = dict()
@@ -1661,6 +1661,12 @@ def setup_module(name, version, subdirectories):
     for env_name, env_val in mconfig["conda_envs"].items():
         if env_val is not None:
             mconfig["conda_envs"][env_name] = os.path.realpath(env_val)
+
+    # Resolve local .sif paths in container_envs; leave URIs and None values unchanged
+    _container_uri_schemes = ("docker://", "apptainer://", "shub://", "oras://", "https://", "http://")
+    for env_name, env_val in mconfig["container_envs"].items():
+        if env_val is not None and not any(env_val.startswith(s) for s in _container_uri_schemes):
+            mconfig["container_envs"][env_name] = os.path.realpath(env_val)
 
     # Setup output sub-directories
     scratch_subdirs = mconfig.get("scratch_subdirectories", [])

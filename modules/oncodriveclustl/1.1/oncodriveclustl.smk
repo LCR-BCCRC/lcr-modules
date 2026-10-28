@@ -80,6 +80,8 @@ checkpoint _oncodriveclustl_prep_input:
         stdout = CFG["logs"]["prepare_mafs"] + "{genome_build}/{sample_set}--{launch_date}/prep_input/prep_input_maf.log"
     conda:
         CFG["conda_envs"]["prepare_mafs"]
+    container:
+        CFG["container_envs"]["prepare_mafs"]
     params:
         include_non_coding = str(CFG["maf_processing"]["include_non_coding"]).upper(),
         mode = "OncodriveCLUSTL",
@@ -174,6 +176,8 @@ rule _oncodriveclustl_run:
     resources:
         **CFG["resources"]["clustl"]
     conda: CFG["conda_envs"]["clustl"]
+    container:
+        CFG["container_envs"]["clustl"]
     shell:
         op.as_one_line("""
         export BGDATA_LOCAL={params.local_path} &&
@@ -269,8 +273,8 @@ rule _oncodriveclustl_genomic_coordinates_out:
         genomic_coordinates = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/genomic_coordinates_clusters_results_{q_value}.tsv",
         bed = CFG["dirs"]["outputs"] + "{genome_build}/{sample_set}--{launch_date}/{md5sum}/{region}/oncodriveclustl_hotspots_{q_value}.{genome_build}.bed"
     run:
-        op.relative_symlink(input.genomic_coordinates, output.genomic_coordinates)
-        op.relative_symlink(input.bed, output.bed)
+        op.relative_symlink(input.genomic_coordinates, output.genomic_coordinates, in_module=True)
+        op.relative_symlink(input.bed, output.bed, in_module=True)
 
 def _get_oncodriveclustl_outputs(wildcards):
     CFG = config["lcr-modules"]["oncodriveclustl"]

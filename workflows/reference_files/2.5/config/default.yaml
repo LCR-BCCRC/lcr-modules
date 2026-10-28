@@ -80,6 +80,9 @@ capture_space:
         #provider: "ensembl" or "ucsc"
         #capture_bed_url: here provide a link enclosed in "" to download bed file for capture panel if it is available in internet
         #capture_bed_file: this key is optional and in "" you can specify path to a local bed file with capture panel
+        # to add custom baits/robes space for this capture_panel, follow this example and fill in dictionary keys
+        #baits_bed_url: here provide a link enclosed in "" to download a baits bed file for this capture panel if it is available in internet
+        #baits_bed_file: this key is optional and in "" you can specify path to a local bed file 
 
 capture_params:
     padding_size: "200"

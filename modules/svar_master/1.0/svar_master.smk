@@ -16,7 +16,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -24,7 +24,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
     print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
@@ -150,6 +150,8 @@ rule _svar_master_intersect:
         maxgap = CFG_SV["options"]["intersect"]["maxgap"]
     conda:
         CFG_SV["conda_envs"]["filter_svs"]
+    container:
+        None
     threads: CFG_SV["threads"]["intersect"]
     resources:
         **CFG_SV["resources"]["intersect"]
@@ -170,6 +172,8 @@ rule _svar_master_annotate:
         annotations = op.switch_on_wildcard("genome_build", CFG_SV["switches"]["annotate"]["annotation_bed"])
     conda:
         CFG_SV["conda_envs"]["bedtools"]
+    container:
+        CFG_SV["container_envs"]["bedtools"]
     threads:
         CFG_SV["threads"]["annotate"]
     resources:
@@ -199,6 +203,8 @@ checkpoint _svar_master_annotate_combine:
         CFG_SV["dirs"]["annotate_svs"] + "log/{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/combine_annotated.RData"
     conda:
         CFG_SV["conda_envs"]["filter_svs"]
+    container:
+        None
     threads:
         CFG_SV["threads"]["combine"]
     resources:

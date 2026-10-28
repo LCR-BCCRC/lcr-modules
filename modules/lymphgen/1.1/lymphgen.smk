@@ -81,7 +81,7 @@ rule _lymphgen_input_maf:
     output:
         maf = CFG["dirs"]["inputs"] + "maf/" + outprefix + ".maf"
     run:
-        op.relative_symlink(input.maf, output.maf)
+        op.relative_symlink(input.maf, output.maf, in_module=True)
 
 rule _lymphgen_input_seg:
     input:
@@ -89,7 +89,7 @@ rule _lymphgen_input_seg:
     output:
         seg = CFG["dirs"]["inputs"] + "seg/" + outprefix + ".seg"
     run:
-        op.relative_symlink(input.seg, output.seg)
+        op.relative_symlink(input.seg, output.seg, in_module=True)
 
 rule _lymphgen_input_sv:
     input:
@@ -97,15 +97,15 @@ rule _lymphgen_input_sv:
     output:
         sv = CFG["dirs"]["inputs"] + "sv/" + outprefix + "_sv.tsv"
     run:
-        op.relative_symlink(input.sv, output.sv)
-        
-rule _lymphgen_input_gene_list: 
-    input: 
+        op.relative_symlink(input.sv, output.sv, in_module=True)
+
+rule _lymphgen_input_gene_list:
+    input:
         genes = CFG["inputs"]["gene_list"]
-    output: 
+    output:
         genes = CFG["dirs"]["inputs"] + "gene_list/" + outprefix + "gene_list.tsv"
-    run: 
-        op.relative_symlink(input.genes, output.genes)
+    run:
+        op.relative_symlink(input.genes, output.genes, in_module=True)
 
 # STEP 2: REFORMAT SEG FILE
 # Make sure the SEG columns are consistent
@@ -180,6 +180,8 @@ rule _lymphgen_input_cnv:
         logratio = "--log2" if CFG["options"]["lymphgen_input"]["use_log_ratio"].lower() == "true" else ""
     conda:
         CFG['conda_envs']['sorted_containers']
+    container:
+        None
     wildcard_constraints:
         cnvs_wc = "with_cnvs"
     shell:
@@ -208,6 +210,8 @@ rule _lymphgen_input_no_cnv:
         outprefix = "{outprefix}.{cnvs_wc}"
     conda:
         CFG['conda_envs']['sorted_containers']
+    container:
+        None
     wildcard_constraints:
         cnvs_wc = "no_cnvs"
     shell:
@@ -333,6 +337,8 @@ rule _lymphgen_run_cnv_A53:
         lymphgen_path = CFG["options"]["lymphgen_run"]["lymphgen_path"]
     conda:
         CFG['conda_envs']['optparse']
+    container:
+        None
     wildcard_constraints:
         cnvs_wc = "with_cnvs",
         A53_wc = "with_A53"
@@ -358,6 +364,8 @@ rule _lymphgen_run_cnv_noA53:
         lymphgen_path = CFG["options"]["lymphgen_run"]["lymphgen_path"]
     conda:
         CFG['conda_envs']['optparse']
+    container:
+        None
     wildcard_constraints:
         cnvs_wc = "with_cnvs",
         A53_wc = "no_A53"
@@ -381,6 +389,8 @@ rule _lymphgen_run_no_cnv:
         lymphgen_path = CFG["options"]["lymphgen_run"]["lymphgen_path"]
     conda:
         CFG['conda_envs']['optparse']
+    container:
+        None
     wildcard_constraints:
         cnvs_wc = "no_cnvs"
     shell:

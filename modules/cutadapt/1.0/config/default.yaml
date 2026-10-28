@@ -21,6 +21,9 @@ lcr-modules:
 
         conda_envs:
             cutadapt: "{MODSDIR}/envs/cutadapt-4.9.yaml"
+        container_envs:
+            cutadapt: "docker://quay.io/biocontainers/cutadapt:4.9--py311haab0aaa_3"
+
 
         threads:
             fastqc: 4

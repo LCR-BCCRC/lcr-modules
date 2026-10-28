@@ -18,7 +18,7 @@ import inspect
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -26,7 +26,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -157,6 +157,8 @@ rule _slms_3_annotate_strelka_gnomad:
         stderr = CFG_SLMS3["logs"]["strelka_gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_gnomad.stderr.log"
     conda:
         CFG_SLMS3["conda_envs"]["bcftools"]
+    container:
+        CFG_SLMS3["container_envs"]["bcftools"]
     threads:
         CFG_SLMS3["threads"]["strelka_gnomad"]
     resources:
@@ -184,8 +186,10 @@ rule _slms_3_annotate_lofreq_gnomad:
         tbi = CFG_SLMS3["dirs"]["lofreq_gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq.snvs.gnomad.vcf.gz.tbi"
     log:
         stderr = CFG_SLMS3["logs"]["lofreq_gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq_gnomad.stderr.log"
-    conda: 
+    conda:
         CFG_SLMS3["conda_envs"]["bcftools"]
+    container:
+        CFG_SLMS3["container_envs"]["bcftools"]
     resources: 
         **CFG_SLMS3["resources"]["lofreq_gnomad"]
     threads: 
@@ -213,8 +217,10 @@ rule _slms_3_strelka_lofreq_union:
         tbi = CFG_SLMS3["dirs"]["strelka_lofreq_union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.strelka_lofreq_union_gnomad.vcf.gz.tbi"
     log:
         stderr = CFG_SLMS3["logs"]["strelka_lofreq_union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_lofreq_union_gnomad.stderr.log"
-    conda: 
+    conda:
         CFG_SLMS3["conda_envs"]["bcftools"]
+    container:
+        CFG_SLMS3["container_envs"]["bcftools"]
     resources: 
         **CFG_SLMS3["resources"]["strelka_lofreq_union"]
     threads: 
@@ -236,8 +242,10 @@ rule _slms_3_annotate_sage_gnomad:
         tbi = CFG_SLMS3["dirs"]["sage_gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/sage.renamed.vcf.gz.tbi"
     log:
         stderr = CFG_SLMS3["logs"]["sage_gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_lofreq_union_gnomad.stderr.log"
-    conda: 
+    conda:
         CFG_SLMS3["conda_envs"]["bcftools"]
+    container:
+        CFG_SLMS3["container_envs"]["bcftools"]
     resources: 
         **CFG_SLMS3["resources"]["sage_gnomad"]
     threads: 
@@ -296,8 +304,10 @@ rule _slms_3_mutect2_depth_filt:
         tbi = CFG_SLMS3["dirs"]["mutect2_depth_filt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}.depthfilt.mutect2.combined.vcf.gz.tbi"
     log:
         stderr = CFG_SLMS3["logs"]["mutect2_depth_filt"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/mutect2_depth_filt.stderr.log"
-    conda: 
+    conda:
         CFG_SLMS3["conda_envs"]["bcftools"]
+    container:
+        CFG_SLMS3["container_envs"]["bcftools"]
     resources: 
         **CFG_SLMS3["resources"]["mutect2_depth_filt"]
     threads: 
@@ -339,14 +349,16 @@ include: "../../starfish/" + CFG_SLMS3["module_versions"]["starfish"] + "/starfi
 rule _slms_3_rename_samples_all: 
     input: 
         vcf = lambda w: config["lcr-modules"]["starfish"]["inputs"]["vcf"][w.caller]
-    output: 
-        vcf = temp(CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.tmp.vcf.gz"),
-        tbi = temp(CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.tmp.vcf.gz.tbi"), 
-        samples = temp(CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.samples.txt")
+    output:
+        vcf = CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.tmp.vcf.gz",
+        tbi = CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.tmp.vcf.gz.tbi",
+        samples = CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{caller}.samples.txt"
     log:
         stderr = CFG_SLMS3["logs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/rename_samples_{caller}.stderr.log"
-    conda: 
+    conda:
         CFG_SLMS3["conda_envs"]["bcftools"]
+    container:
+        CFG_SLMS3["container_envs"]["bcftools"]
     resources: 
         **CFG_SLMS3["resources"]["rename_all"]
     threads: 
@@ -362,23 +374,25 @@ rule _slms_3_rename_samples_all:
 
 rule _slms_3_union_vcf: 
     input: 
-        vcf = expand(
-            rules._slms_3_rename_samples_all.output.vcf, 
-            caller = config["lcr-modules"]["starfish"]["inputs"]["names"], 
+        vcf = ancient(expand(
+            rules._slms_3_rename_samples_all.output.vcf,
+            caller = config["lcr-modules"]["starfish"]["inputs"]["names"],
             allow_missing = True
-        ), 
-        tbi = expand(
-            rules._slms_3_rename_samples_all.output.tbi, 
-            caller = config["lcr-modules"]["starfish"]["inputs"]["names"], 
+        )),
+        tbi = ancient(expand(
+            rules._slms_3_rename_samples_all.output.tbi,
+            caller = config["lcr-modules"]["starfish"]["inputs"]["names"],
             allow_missing = True
-        )
+        ))
     output: 
         vcf = CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/union.vcf.gz", 
         tbi = CFG_SLMS3["dirs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/union.vcf.gz.tbi"
     log:
         stderr = CFG_SLMS3["logs"]["union"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/union.stderr.log"
-    conda: 
+    conda:
         CFG_SLMS3["conda_envs"]["bcftools"]
+    container:
+        CFG_SLMS3["container_envs"]["bcftools"]
     resources: 
         **CFG_SLMS3["resources"]["union_vcf"]
     threads: 

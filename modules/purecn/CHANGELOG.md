@@ -1,0 +1,32 @@
+# Changelog
+
+All notable changes to the `purecn` module will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+# [Unreleased]
+
+- the `module` column of each seg now records the PureCN mode it came from: `purecn` (de novo) or `purecn_cnvkit` (CNVkit segmentation as prior). Previously cnv2igv was run with `--mode purecn` for both, so the mode was lost once segs were merged downstream (e.g. in the best seg and cnv_master).
+- the `LOH_flag` column of each seg is now set from PureCN's `_loh.csv` (minor copy number `M` from `callLOH`) for the same mode, by passing it to cnv2igv with `--purecn_loh`; it was previously NA for every PureCN segment. Segments without informative SNPs, or with `M.flagged`, remain NA. Requires the cnv2igv 1.5 `--purecn_loh` option (lcr-scripts branch `purecn-2.0-track-mode`)
+- fixed operator precedence in the over-segmentation check of `_purecn_take_lowest_MAD`: dummy (filled) segments are now excluded for gains as well as losses when counting segments with |log ratio| > 0.5
+
+# [2.0] 2026-06-04
+
+This release was authored by Sierra Gillis.
+
+- panel of normals files are listed in the config and symlinked in this module from the panel_of_normals module
+- runs `modes` using a wildcard instead of separate rules for each
+- the `run` step is now a checkpoint that will try the command with different segmentation functions, and the the one that runs successfully will be symlinked for the downstream
+- updated cnv2igv step to have the `--preserve_log_ratio` flag and use 1.5 version of lcr-script; config has an option to remove this flag
+- updated lcr-script versions: liftover --> 2.0, fill_segments --> 1.2
+- updated liftover to expect 0-based input and to write output as 0-based as well, and to fix dropping of large unmapped segments
+- updated fill_segments step to drop non-canonical chrs
+- updated normalize_projections step to format `NA`s correctly in output
+- better formatting of rules and configs i.e. removed the need to specify the output paths in the config and cleaned up prepare_projection input function
+- cleaned up formatting to be consistent between all CNV calling modules
+- updated rule all to prevent ambiguous wildcards
+
+# [1.0] Never fully PR'd
+
+This version is kept here for legacy reasons, and some results have been generated with this version despite it not being PR'd

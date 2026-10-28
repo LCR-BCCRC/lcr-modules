@@ -79,6 +79,8 @@ rule _gridss_setup_references:
         steps = "setupreference"
     conda:
         CFG["conda_envs"]["gridss"]
+    container:
+        CFG["container_envs"]["gridss"]
     resources:
         mem_mb = 4000
     threads: 8
@@ -116,6 +118,8 @@ rule _gridss_setup_viral_ref:
         steps = "setupreference"
     conda:
         CFG["conda_envs"]["gridss"]
+    container:
+        CFG["container_envs"]["gridss"]
     resources:
         mem_mb = 4000
     threads: 8
@@ -139,8 +143,8 @@ rule _gridss_input_bam:
         sample_bam = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam",
         sample_bai = CFG["dirs"]["inputs"] + "bam/{seq_type}--{genome_build}/{sample_id}.bam.bai"
     run:
-        op.relative_symlink(input.sample_bam, output.sample_bam)
-        op.relative_symlink(input.sample_bai, output.sample_bai)
+        op.absolute_symlink(input.sample_bam, output.sample_bam)
+        op.absolute_symlink(input.sample_bai, output.sample_bai)
 
 # Preprocess unmatched normal bams
 rule _gridss_preprocess_unmatched_normal:
@@ -157,6 +161,8 @@ rule _gridss_preprocess_unmatched_normal:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gridss"]
+    container:
+        CFG["container_envs"]["gridss"]
     threads:
         CFG["threads"]["gridss"]
     resources:
@@ -188,7 +194,7 @@ rule _gridss_symlink_preprocessed_normal:
     wildcard_constraints:
         sample_id = "|".join(unmatched_normal_ids)
     run:
-        op.relative_symlink(input.workdir, output.workdir)
+        op.relative_symlink(input.workdir, output.workdir, in_module=True)
 
 # Preprocess all other bams as part of the group job
 rule _gridss_preprocess:
@@ -205,6 +211,8 @@ rule _gridss_preprocess:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gridss"]
+    container:
+        CFG["container_envs"]["gridss"]
     threads:
         CFG["threads"]["gridss"]
     resources:
@@ -251,6 +259,8 @@ rule _gridss_paired:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gridss"]
+    container:
+        CFG["container_envs"]["gridss"]
     threads:
         CFG["threads"]["gridss"]
     resources:
@@ -298,6 +308,8 @@ rule _gridss_unpaired:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gridss"]
+    container:
+        CFG["container_envs"]["gridss"]
     threads:
         CFG["threads"]["gridss"]
     resources:
@@ -340,6 +352,8 @@ rule _gridss_viral_annotation:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gridss"]
+    container:
+        CFG["container_envs"]["gridss"]
     threads:
         CFG["threads"]["viral_annotation"]
     shell:
@@ -362,6 +376,8 @@ rule _gridss_unpaired_filter:
         tbi = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation_filtered.vcf.gz.tbi"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     wildcard_constraints:
         normal_id = "None",
         pair_status = "no_normal"
@@ -380,6 +396,8 @@ rule _gridss_unpaired_to_bedpe:
         bedpe = CFG["dirs"]["viral_annotation"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_viral_annotation_filtered.bedpe"
     conda:
         CFG["conda_envs"]["svtools"]
+    container:
+        CFG["container_envs"]["svtools"]
     shell:
         op.as_one_line("""
         svtools vcftobedpe -i {input.vcf} -o {output.bedpe}
@@ -408,6 +426,8 @@ rule _gridss_run_gripss:
         mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     conda:
         CFG["conda_envs"]["gripss"]
+    container:
+        CFG["container_envs"]["gripss"]
     threads:
         CFG["threads"]["gripss"]
     shell:
@@ -433,6 +453,8 @@ rule _gridss_filter_gripss:
         tbi = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filtered.vcf.gz.tbi"
     conda:
         CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     shell:
         op.as_one_line("""
         zcat {input.vcf} |
@@ -448,6 +470,8 @@ rule _gridss_gripss_to_bedpe:
         bedpe = CFG["dirs"]["gripss"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/gridss_somatic_filtered.bedpe"
     conda:
         CFG["conda_envs"]["svtools"]
+    container:
+        CFG["container_envs"]["svtools"]
     shell:
         op.as_one_line("""
         zcat {input.vcf} |

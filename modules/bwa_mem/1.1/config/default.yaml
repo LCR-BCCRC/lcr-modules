@@ -20,6 +20,10 @@ lcr-modules:
             bwa: "{MODSDIR}/envs/bwa-0.7.17.yaml"
             samtools: "{MODSDIR}/envs/samtools-1.9.yaml"
 
+        container_envs:
+            bwa: "docker://quay.io/biocontainers/bwa:0.7.17--he4a0461_11"
+            samtools: "docker://quay.io/biocontainers/samtools:1.9--h10a08f8_12"
+
         threads:
             bwa_mem: 24
             samtools: 8

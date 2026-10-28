@@ -12,7 +12,7 @@ import inspect
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -20,7 +20,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -32,7 +32,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -40,7 +40,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -111,7 +111,9 @@ rule _nanomethphase_methyl_call:
     threads:
         CFG["threads"]["methyl_call"]
     conda:
-        CFG["conda_envs"]["nanomethphase"] 
+        CFG["conda_envs"]["nanomethphase"]
+    container:
+        CFG["container_envs"]["nanomethphase"]
     resources: **CFG["resources"]["methyl_call"]        
     log: CFG["logs"]["methyl_call"] + "{seq_type}--{genome_build}/{sample_id}/methyl_call_processor.stderr.log"   
     group: "input_and_meth_call"          
@@ -143,7 +145,9 @@ rule _nanomethphase_run:
         prefix =  CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}",
         options = CFG["options"]["nanomethphase"]
     conda:
-        CFG["conda_envs"]["nanomethphase"] 
+        CFG["conda_envs"]["nanomethphase"]
+    container:
+        CFG["container_envs"]["nanomethphase"]
     log: CFG["logs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/nanomethphase.log" 
     shell:
         op.as_one_line("""
@@ -162,8 +166,10 @@ rule _nanomethphase_cram:
         crai = CFG["dirs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/{sample_id}_NanoMethPhase_HP{haplotype}_Converted2Bisulfite.cram.crai"
     threads: CFG["threads"]["cram"]
     resources: **CFG["resources"]["cram"]
-    conda: 
+    conda:
         CFG["conda_envs"]["nanomethphase"]
+    container:
+        CFG["container_envs"]["nanomethphase"]
     log: CFG["logs"]["nanomethphase"] + "{seq_type}--{genome_build}/{sample_id}/HP{haplotype}_cram_conversion.log"
     shell:
         op.as_one_line("""
@@ -182,7 +188,9 @@ rule _nanomethphase_dma:
         outdir = CFG["dirs"]["dma"] + "{seq_type}--{genome_build}/{sample_id}/", 
         options = CFG["options"]["dma"]
     conda:
-        CFG["conda_envs"]["nanomethphase"] 
+        CFG["conda_envs"]["nanomethphase"]
+    container:
+        CFG["container_envs"]["nanomethphase"]
     threads: CFG["threads"]["dma"]
     resources: **CFG["resources"]["dma"]
     shell: 

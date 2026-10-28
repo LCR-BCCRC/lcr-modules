@@ -17,7 +17,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -25,7 +25,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -109,6 +109,8 @@ rule _download_GEM:
         dirOut = CFG["dirs"]["inputs"] + "references/GEM/"
     conda:
         CFG["conda_envs"]["wget"]
+    container:
+        CFG["container_envs"]["wget"]
     resources: **CFG["resources"]["gem"]
     shell:
         "wget https://sourceforge.net/projects/gemlibrary/files/gem-library/Binary%20pre-release%203/GEM-binaries-Linux-x86_64-core_i3-20130406-045632.tbz2/download -O {params.dirOut}/GEM-lib.tbz2 && bzip2 -dc {params.dirOut}/GEM-lib.tbz2 | tar -xvf - -C {params.dirOut}/"
@@ -221,6 +223,8 @@ rule _controlfreec_generate_chrFasta:
         fasta = CFG["dirs"]["inputs"] + "references/{genome_build}/freec/chr/{chromosome}.fa"
     conda:
         CFG["conda_envs"]["controlfreec"]
+    container:
+        CFG["container_envs"]["controlfreec"]
     resources: **CFG["resources"]["gem"]
     shell:
         "samtools faidx {input.fasta} {wildcards.chromosome} > {output.fasta} "
@@ -288,6 +292,8 @@ rule _controlfreec_mpileup_per_chrom:
         pileup = temp(CFG["dirs"]["mpileup"] + "{seq_type}--{genome_build}/{sample_id}.{chrom}.minipileup.pileup.gz")
     conda:
         CFG["conda_envs"]["controlfreec"]
+    container:
+        CFG["container_envs"]["controlfreec"]
     resources:
         **CFG["resources"]["mpileup"]
     group: "controlfreec"
@@ -324,6 +330,8 @@ rule _controlfreec_config:
         CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/config_WGS.txt"
     conda:
         CFG["conda_envs"]["controlfreec"]
+    container:
+        CFG["container_envs"]["controlfreec"]
     params:
         config = CFG["options"]["configFile"],
         dbSNP = reference_files("genomes/{genome_build}/variation/dbsnp.common_all-151.vcf.gz"),
@@ -406,7 +414,10 @@ rule _controlfreec_run:
         ratio = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_ratio.txt",
         CNV = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_CNVs",
         BAF = CFG["dirs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.bam_minipileup.pileup.gz_BAF.txt"
-    conda: CFG["conda_envs"]["controlfreec"]
+    conda:
+        CFG["conda_envs"]["controlfreec"]
+    container:
+        CFG["container_envs"]["controlfreec"]
     threads: CFG["threads"]["controlfreec_run"]
     resources: **CFG["resources"]["controlfreec_run"]
     log:
@@ -426,7 +437,10 @@ rule _controlfreec_calc_sig:
         calc_sig = CFG["software"]["FREEC_sig"]
     threads: CFG["threads"]["calc_sig"]
     resources: **CFG["resources"]["calc_sig"]
-    conda: CFG["conda_envs"]["controlfreec"]
+    conda:
+        CFG["conda_envs"]["controlfreec"]
+    container:
+        CFG["container_envs"]["controlfreec"]
     log:
         stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/calc_sig.stdout.log",
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/calc_sig.stderr.log"
@@ -447,7 +461,10 @@ rule _controlfreec_plot:
         plot = CFG["software"]["FREEC_graph"]
     threads: CFG["threads"]["plot"]
     resources: **CFG["resources"]["plot"]
-    conda: CFG["conda_envs"]["controlfreec"]
+    conda:
+        CFG["conda_envs"]["controlfreec"]
+    container:
+        CFG["container_envs"]["controlfreec"]
     log:
         stdout = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/plot.stdout.log",
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/plot.stderr.log"
@@ -465,7 +482,10 @@ rule _controlfreec_freec2bed:
         freec2bed = CFG["software"]["freec2bed"]
     threads: CFG["threads"]["freec2bed"]
     resources: **CFG["resources"]["freec2bed"]
-    conda: CFG["conda_envs"]["controlfreec"]
+    conda:
+        CFG["conda_envs"]["controlfreec"]
+    container:
+        CFG["container_envs"]["controlfreec"]
     log:
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/freec2bed.stderr.log"
     shell:
@@ -483,7 +503,10 @@ rule _controlfreec_freec2circos:
         freec2circos = CFG["software"]["freec2circos"]
     threads: CFG["threads"]["freec2circos"]
     resources: **CFG["resources"]["freec2circos"]
-    conda: CFG["conda_envs"]["controlfreec"]
+    conda:
+        CFG["conda_envs"]["controlfreec"]
+    container:
+        CFG["container_envs"]["controlfreec"]
     log:
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/freec2circos.stderr.log"
     shell:
@@ -501,7 +524,10 @@ rule _controlfreec_cnv2igv:
         cnv2igv = CFG["software"]["cnv2igv"]
     threads: CFG["threads"]["cnv2igv"]
     resources: **CFG["resources"]["cnv2igv"]
-    conda: CFG["conda_envs"]["controlfreec"]
+    conda:
+        CFG["conda_envs"]["controlfreec"]
+    container:
+        CFG["container_envs"]["controlfreec"]
     log:
         stderr = CFG["logs"]["run"] + "{seq_type}--{genome_build}{masked}/{tumour_id}--{normal_id}--{pair_status}/cnv2igv.stderr.log"
     group: "controlfreec_post_process"
@@ -530,6 +556,8 @@ rule _controlfreec_convert_coordinates:
         liftover_minmatch = CFG["options"]["liftover_minMatch"]
     conda:
         CFG["conda_envs"]["liftover"]
+    container:
+        CFG["container_envs"]["liftover"]
     group: "controlfreec_post_process"
     shell:
         op.as_one_line("""
@@ -594,6 +622,8 @@ rule _controlfreec_fill_segments:
         path = config["lcr-modules"]["_shared"]["lcr-scripts"] + "fill_segments/" + CFG["options"]["fill_segments_version"]
     conda:
         CFG["conda_envs"]["bedtools"]
+    container:
+        CFG["container_envs"]["bedtools"]
     group: "controlfreec_post_process"
     shell:
         op.as_one_line("""

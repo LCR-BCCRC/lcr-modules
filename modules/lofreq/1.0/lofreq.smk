@@ -16,7 +16,7 @@ import oncopipe as op
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -24,7 +24,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     logger.warning(
                 '\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}'
@@ -92,6 +92,8 @@ rule _lofreq_run:
         rm_files = CFG["dirs"]["lofreq"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/normal_relaxed.vcf.gz"
     conda:
         CFG["conda_envs"]["lofreq"]
+    container:
+        CFG["container_envs"]["lofreq"]
     threads:
         CFG["threads"]["lofreq"]
     resources:
@@ -101,7 +103,7 @@ rule _lofreq_run:
         SCRIPT_PATH={SCRIPT_PATH};
         PATH=$SCRIPT_PATH:$PATH;
         SCRIPT="$SCRIPT_PATH/lofreq2_call_pparallel.py";
-        if [[ $(which lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
+        if [[ $(command -v lofreq2_call_pparallel.py) =~ $SCRIPT ]]; then 
             echo "using bundled patched script $SCRIPT";
             if [ ! -e {output.vcf_snvs_filtered} ] && [ -e {params.rm_files} ]; then rm $(dirname {output.vcf_snvs_all})/*; fi
             &&
@@ -110,7 +112,7 @@ rule _lofreq_run:
             > {log.stdout} 2> {log.stderr}
             &&
             rm {params.rm_files};
-        else echo "WARNING: PATH is not set properly, using $(which lofreq2_call_pparallel.py)"; fi
+        else echo "WARNING: PATH is not set properly, using $(command -v lofreq2_call_pparallel.py)"; fi
         """)
 
 # indels are not yet called but this rule merges the empty indels file with the snvs file to produce the consistently named "combined" vcf. 
@@ -126,7 +128,9 @@ rule _lofreq_combine_vcf:
     resources:
         **CFG["resources"]["bcftools_sort"]
     conda:
-        CFG["conda_envs"]["lofreq"]
+        CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     log:
         stdout_all = CFG["logs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq_final.combined.stdout.log",
         stderr_all = CFG["logs"]["combined"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/lofreq_final.combined.stderr.log",
@@ -156,11 +160,13 @@ rule _lofreq_filter_vcf:
     resources:
         **CFG["resources"]["bcftools_sort"]
     conda:
-        CFG["conda_envs"]["lofreq"]
+        CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
     shell:
         op.as_one_line("""
         PATH={SCRIPT_PATH}:$PATH;
-        SCRIPT=$(which lofreq_filter.sh); 
+        SCRIPT=$(command -v lofreq_filter.sh); 
         echo "using bundled custom filtering script $SCRIPT";
         lofreq_filter.sh {input.vcf_all} | bgzip > {output.vcf_all_clean}
           && tabix -p vcf {output.vcf_all_clean}

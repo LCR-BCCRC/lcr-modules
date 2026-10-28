@@ -18,6 +18,10 @@ lcr-modules:
         conda_envs:
             freebayes: "{MODSDIR}/envs/freebayes-1.3.8.yaml"
             crossmap: "{MODSDIR}/envs/crossmap-0.7.0.yaml"
+        container_envs:
+            crossmap: "docker://quay.io/biocontainers/crossmap:0.7.0--pyhdfd78af_0"
+            freebayes: "docker://quay.io/biocontainers/freebayes:1.3.8--h6a68c12_2"
+
             
         threads:
             freebayes: 24

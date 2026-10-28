@@ -18,7 +18,7 @@ from snakemake.logging import logger
 
 # Check that the oncopipe dependency is up-to-date. Add all the following lines to any module that uses new features in oncopipe
 min_oncopipe_version="1.0.11"
-import pkg_resources
+from importlib.metadata import version as pkg_version
 try:
     from packaging import version
 except ModuleNotFoundError:
@@ -26,7 +26,7 @@ except ModuleNotFoundError:
 
 # To avoid this we need to add the "packaging" module as a dependency for LCR-modules or oncopipe
 
-current_version = pkg_resources.get_distribution("oncopipe").version
+current_version = pkg_version("oncopipe")
 if version.parse(current_version) < version.parse(min_oncopipe_version):
     print('\x1b[0;31;40m' + f'ERROR: oncopipe version installed: {current_version}' + '\x1b[0m')
     print('\x1b[0;31;40m' + f"ERROR: This module requires oncopipe version >= {min_oncopipe_version}. Please update oncopipe in your environment" + '\x1b[0m')
@@ -82,10 +82,10 @@ rule _cnv_master_input:
         seg = CFG["dirs"]["inputs"] + "seg/{tumour_id}--{normal_id}--{pair_status}--{seq_type}--{projection}.seg"
     run:
         if(input):
-            op.absolute_symlink(input.seg, output.seg)
+            op.relative_symlink(input.seg, output.seg)
         else:
             with open(output.seg, "w") as f:
-                f.write("ID	chrom	start	end	LOH_flag	log.ratio")
+                f.write("ID	chrom	start	end	module	LOH_flag	CN	log.ratio	dummy_segment")
             logger.warning(f"Creating empty file {output.seg} because no input seg file was found.")
 
 
@@ -113,6 +113,8 @@ rule _cnv_master_merge_genome_projections:
         seq_type="genome"
     conda:
         CFG["conda_envs"]["R"]
+    container:
+        None
     threads:
         CFG["threads"]["cnv_master"]
     resources:
@@ -133,6 +135,8 @@ rule _cnv_master_merge_capture_projections:
         seq_type="capture"
     conda:
         CFG["conda_envs"]["R"]
+    container:
+        None
     threads:
         CFG["threads"]["cnv_master"]
     resources:
