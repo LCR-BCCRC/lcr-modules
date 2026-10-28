@@ -17,3 +17,6 @@ When this module is combined in project snakefile with individual CNV callers, i
 
 ## Update - 2026-10-09
 Fix to handle cases where there are differing numbers of columns due to an update in the cnv callers. 
+## Update - 2026-10-26
+- `merge_segs.R` reads `LOH_flag` and `CN` as decimals rather than integers. Values such as `0.0` or fractional (subclonal) copy numbers from PureCN were read as NA.
+- Empty seg files, and files with only a header line in a layout other than the 9- and 7-column ones, are skipped with a message instead of stopping the merge. Any other unrecognised layout still stops with an error naming the file.

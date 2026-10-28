@@ -1019,6 +1019,8 @@ rule _purecn_record_seg_fn:
 rule _purecn_cnv2igv:
     input:
         seg = CFG["dirs"]["pureCN_final_result"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_dnacopy.seg",
+        # LOH regions (callLOH) from the same run, used to set the LOH flag
+        loh = CFG["dirs"]["pureCN_final_result"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}/{tumour_id}_loh.csv",
         txt = str(rules._purecn_record_seg_fn.output.txt)
     output:
         seg = CFG["dirs"]["cnv2igv"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/{tumour_id}.seg"
@@ -1026,13 +1028,16 @@ rule _purecn_cnv2igv:
         stderr = CFG["logs"]["cnv2igv"] + "{mode}/{seq_type}--{genome_build}/{capture_space}/cnv2igv_{tumour_id}.stderr.log"
     params:
         cnv2igv_script = CFG["options"]["cnv2igv_script_path"],
-        opts = CFG["options"]["preserve"]
+        opts = CFG["options"]["preserve"],
+        # cnv2igv writes its mode into the module column, so the seg records
+        # which PureCN mode it came from: purecn (de novo) or purecn_cnvkit
+        cnv2igv_mode = lambda w: "purecn_cnvkit" if w.mode == "purecn_cnvkit" else "purecn"
     conda:
         CFG["conda_envs"]["cnv2igv"]
     threads: 1
     shell:
         op.as_one_line("""
-        python {params.cnv2igv_script} --mode purecn {params.opts} --sample {wildcards.tumour_id} {input.seg} > {output.seg} 2>> {log.stderr}
+        python {params.cnv2igv_script} --mode {params.cnv2igv_mode} {params.opts} --sample {wildcards.tumour_id} --purecn_loh {input.loh} {input.seg} > {output.seg} 2>> {log.stderr}
         """)
         
 def _purecn_get_chain(wildcards):
@@ -1242,7 +1247,7 @@ def _purecn_take_lowest_MAD(wildcards):
                 for line in file:
                     line = line.rstrip('\n').rstrip('\r')
                     cols = line.split('\t')
-                    if (float(cols[7]) > 0.5 or float(cols[7]) <-0.5 and float(cols[8]) != 1):
+                    if ((float(cols[7]) > 0.5 or float(cols[7]) < -0.5) and float(cols[8]) != 1):
                         count_denovo.append(line)
             count_denovo = len(count_denovo)
 
@@ -1252,7 +1257,7 @@ def _purecn_take_lowest_MAD(wildcards):
                 for line in file:
                     line = line.rstrip('\n').rstrip('\r')
                     cols = line.split('\t')
-                    if (float(cols[7]) > 0.5 or float(cols[7]) <-0.5 and float(cols[8]) != 1):
+                    if ((float(cols[7]) > 0.5 or float(cols[7]) < -0.5) and float(cols[8]) != 1):
                         count_cnvkit.append(line)
             count_cnvkit = len(count_cnvkit)
             if (count_cnvkit > 0):

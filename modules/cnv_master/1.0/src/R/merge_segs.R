@@ -21,15 +21,29 @@ message("Loading data from individual seg files ...")
 
 files <- snakemake@input[]
 
+# zero-row seg with the merged column types, for files with no segments
+empty_seg <- function() {
+    tibble(
+        ID = character(), chrom = character(), start = integer(), end = integer(),
+        module = character(), LOH_flag = double(), CN = double(),
+        log.ratio = double(), dummy_segment = integer()
+    )
+}
+
 my_merge_function <- function(path) {
     col_count <- count.fields(path, sep = "\t")[1]
+    if(length(col_count) == 0 || is.na(col_count)){
+        # empty file
+        message(paste("File is empty, skipping", path))
+        return(empty_seg())
+    }
     if(col_count == 9){
         # ID      chrom   start   end     module  LOH_flag        CN      log.ratio       dummy_segment
         incoming_data <- suppressMessages(
         suppressWarnings(
             read_tsv(
                 path,
-                col_types = "cciiciidi",
+                col_types = "cciicdddi",
                 progress = FALSE
                 )
             )
@@ -42,7 +56,7 @@ my_merge_function <- function(path) {
             suppressWarnings(
                 read_tsv(
                     path,
-                    col_types = "cciiidi",
+                    col_types = "cciiddi",
                     progress = FALSE
                 )
             )
@@ -74,8 +88,18 @@ my_merge_function <- function(path) {
                     CN = NA
                 )
         }
+
         incoming_data <- incoming_data %>%
             select(ID,chrom,start,end,module,LOH_flag,CN,log.ratio,dummy_segment)
+    } else{
+        # other layouts: skip files with only a header line (e.g. one without
+        # dummy_segment); header-only files with 9 or 7 columns are handled above
+        if(length(readLines(path)) == 1){
+            message(paste("File has 1 line, skipping", path))
+            return(empty_seg())
+        }
+        # worst-case scenario, this would need intervention by the person who ran the module
+        stop(paste("file:", path, "has", col_count, "columns"))
     }
     return(incoming_data)
 }
