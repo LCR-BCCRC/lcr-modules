@@ -1,0 +1,121 @@
+lcr-modules:
+  _shared:
+    # lcr modules config (path to repo modules & scripts)
+    lcr-modules: ".../lcr-modules/"
+    lcr-scripts: ".../lcr-scripts/"
+    root_output_dir: ".../pipeline_outputs/" # where to write all the outputs
+
+    pairing_config:
+      genome:
+        run_paired_tumours: True
+        run_unpaired_tumours_with: "unmatched_normal"
+        run_paired_tumours_as_unpaired: False
+      capture:
+        run_paired_tumours: True
+        run_unpaired_tumours_with: "no_normal"
+        run_paired_tumours_as_unpaired: False
+
+    # Reference and panel metadata
+    ref_genome: ".../GRCh38_no_alt.fa"
+    ref_genome_ver: "GRCh38"  # GRCh37 if GRCh37/hg19, GRCh38 if GRCh38/hg38
+
+    # Capture regions: bed-like panels (keyed by capture_space name used in samples)
+    captureregions: {}
+    # Picard Interval List mapping (keyed by capture_space name)
+    captureregionsil: {}
+
+  cfDNA_umi_workflow:
+    # Reference files (BWA index + fasta + .fai and picard .dict)
+    refgenome: ".../GRCh38_no_alt.fa"
+    picard_refgenome: ".../GRCh38_no_alt.fa" # includes the .dict
+    dbsnpvcf: ".../dbSNP.151.all.withChr.vcf.gz"  # BGZipped + tabix indexed
+
+    # Input fastq path templates (must include {sample} wildcard)
+    fastq_r1_path: ".../pipeline_outputs/bam_pipeline/pipeline_inputs/{sample}_R1.fastq.gz"
+    fastq_r2_path: ".../pipeline_outputs/bam_pipeline/pipeline_inputs/{sample}_R2.fastq.gz"
+
+    # Read group metadata
+    readgroup:
+      centre: "morin_lab"
+      platformunit: "ILLUMINA"
+      platformmodel: "NextSeq"
+      description: "CAPPSeq of lymphoma-associated genes"
+
+    # Threads
+    bwa_threads: 8
+    duplexconsensus_threads: 8
+    samtools_sort_threads: 4
+    basequal_threads: 2
+
+    # UMI / read-structure settings
+    # Snakefile expects `read_structure` (used as --read-structures to fgbio).
+    # Keep `barcodelocation` as an alias for human readability.
+    read_structure: "8M+T 8M+T"   # Example: "8M+T 8M+T" = 8bp UMI at start of both reads
+    barcodelength: "8"
+
+    # UMI grouping/consensus parameters
+    umiedits: "2"                # allowed mismatches in UMI grouping
+    min_reads: "0"               # min reads required to call consensus (string to match existing config style)
+    min_input_base_quality: 20   # minimum base quality used by CallDuplexConsensusReads
+
+    # Consensus / filter settings (used in FilterConsensusReads step)
+    filter_min_base_quality: 20
+    filter_max_base_error_rate: 0.3
+
+    # Threads used inside rule params (these are defaults; Snakefile also sets some params inline)
+    sort_threads: 4
+    consensus_threads: 4
+
+    # Other QC / clean up
+    max_base_qual: 70
+    min_base_qual: 20
+
+    # Tags to remove (samtools view -x uses lowercase tag names in the Snakefile)
+    tags_to_remove: {'ad', 'ac', 'bd', 'bc', 'aq', 'bq', 'ae', 'be'}
+
+  cfDNA_SAGE_workflow:
+    # SAGE specific parameters (kept as in your default)
+    notlist: ".../PON/99-PON/capture/ctDNA_panel--hg38/rrDLBCL_ctDNA/somaticvcf/ctDNA_panel_pon.vcf"
+    ensembl: "...resources/ensemble_data_cache/38"
+    sage_hotspots: ".../resources/KnownHotspots.38.vcf.gz"
+    high_conf_bed: ".../pipeline_bed_files/dumby_high_conf.bed"
+    max_depth: "100000"
+
+    blacklist_manifest: ""
+    custom_enst: ".../resources/custom_enst.hg38.txt"
+    vep_data: "..../ensembl_vep_cache/"
+    centre: "morin_lab"
+
+    mask_threshold: "0.05"
+    mask_count: "8"
+
+    hard_min_vaf: "0.002"
+    tumor_panel_min_vaf: "0.005"
+    novel_vaf: "0.01"
+
+    panel_max_germ_rel_raw_bq: 0.08
+    hotspot_max_germ_rel_raw_bq: 0.08
+
+    min_germline_depth: 50
+    max_normal_alt_depth: 10
+    min_map_qual: "40"
+
+    min_alt_depth: 5
+    min_t_depth: 100
+    exac_max_freq: 0.01
+
+    min_UMI_3_count: 2
+    low_alt_thresh: 50
+    low_alt_min_UMI_3_count: 3
+
+    background_rates: ""
+    min_background_samples: 20
+    background_n_std: 2
+    max_background_rate: 0.05
+
+    aug_min_UMI_3_count: 1
+    phase_id_col: "LPS"
+    phased_min_t_alt: 3
+
+    cytoband: ".../resources/cytoband.hg38.txt"
+    genetrack: ".../resources/gencode.v23.gtf.gz"
