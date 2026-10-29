@@ -35,11 +35,16 @@ lcr-modules:
             normal_name:
                 R9: "__UPDATE__" # Update this with the prefix for your R9 normal BAM file
                 R10: "__UPDATE__" # Update this with the prefix for your R10 normal BAM file
-            clairs_args: "__UPDATE__" # Update this with the arguments you wish to add for variant calling with ClairS. Example: "--snv_min_af 0.1 --enable_indel_calling --min_coverage 8 -s TUMOR --snv_min_qual 5"
-            model_path: "{MODSDIR}/modules/clairs/1.0/ClairS-0.4.4/models/" # Update this with the path to ClairS models (ending with /). Likely something like {MODSDIR}/modules/clairs/1.0/ClairS-0.4.4/models/
-            clairs_path: "__UPDATE__" # Update this with the path to the run_clairs script. Likely something like {MODSDIR}/modules/clairs/1.0/ClairS-0.4.4/ClairS/run_clairs
-            filters: 'FILTER="PASS" && INFO/AF < 0.0001 && FMT/DP[0] >= 8 && FMT/AF[0] >= 0.1 && (FMT/NDP[0] < 10 || FMT/NAF[0] < 0.3)' # Update this line if you wish to use different filters
-            modsdir: "{MODSDIR}"
+            clairs_args: "__UPDATE__" # Update this with the arguments you wish to add for variant calling with ClairS.
+            filters: # Update if you wish to use different filters
+                tumour_min_depth: 8
+                snv_min_af: 0.10
+                snv_min_alt_depth: 3
+                indel_min_af: 0.15
+                indel_min_alt_depth: 6
+                normal_min_depth: 10
+                normal_max_af: 0.05
+            cleanup_toggle: true # Switch to false to keep intermediate files
             call_indels: true # Change to false to disable indel calling. NOTE: indel calling is only supported for R10 models
 
         conda_envs:
@@ -47,8 +52,7 @@ lcr-modules:
             clairs: "{MODSDIR}/envs/clairs-0.4.4.yaml"
         container_envs:
             bcftools: "docker://quay.io/biocontainers/bcftools:1.10.2--h4f4756c_3"
-            clairs: null
-
+            clairs: "docker://hkubal/clairs:v0.4.5"
 
         threads:
             clairs: 24

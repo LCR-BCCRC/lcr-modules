@@ -37,8 +37,8 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 # `CFG` is a shortcut to `config["lcr-modules"]["clairs"]`
 CFG = op.setup_module(
     name = "clairs",
-    version = "1.0",
-    subdirectories = ["inputs", "clairs", "gnomad", "filter", "outputs"],
+    version = "1.1",
+    subdirectories = ["inputs", "clairs", "filter", "gnomad", "outputs"]
 )
 
 config["pipeline_name"] = "clairs.yaml"
@@ -47,16 +47,14 @@ config["pipeline_name"] = "clairs.yaml"
 localrules:
     _clairs_input_bam,
     _clairs_input_normal_bam,
-    _clairs_get_resources,
-    _clairs_link_clairs_models,
+    _clairs_input_chrs,
     _clairs_output_vcf,
-    _clairs_clean,
+    _clairs_cleanup_all_chroms,
     _clairs_all
 
 
 VERSION_MAP_CLAIRS = CFG["options"]["version_map"]
 SEQTYPE_MAP_CLAIRS = CFG["options"]["seqtype_map"]
-MODULE_DIR = os.path.abspath(CFG["options"]["modsdir"])
 
 possible_genome_builds = ", ".join(list(VERSION_MAP_CLAIRS.keys()))
 for genome_build in CFG["runs"]["tumour_genome_build"]:
@@ -116,12 +114,24 @@ rule _clairs_input_normal_bam:
         op.absolute_symlink(input.bai, output.crai)
 
 
+# Symlink chromosomes used for parallelization. genome_build-keyed only (not per-sample). Override via options.chromosomes_file (default excludes chrY)
+CLAIRS_CHROMOSOMES_FILE = CFG["options"].get("chromosomes_file", "")
+
+checkpoint _clairs_input_chrs:
+    input:
+        chrs = CLAIRS_CHROMOSOMES_FILE if CLAIRS_CHROMOSOMES_FILE else reference_files("genomes/{genome_build}/genome_fasta/main_chromosomes.txt")
+    output:
+        chrs = CFG["dirs"]["inputs"] + "chroms/{genome_build}/main_chromosomes.txt"
+    run:
+        op.absolute_symlink(input.chrs, output.chrs)
+
+
 def get_platform(wildcards):
     CFG = config["lcr-modules"]["clairs"]
     this_sample = op.filter_samples(
         CFG["runs"],
         sample_id = wildcards.tumour_id,
-        seq_type = wildcards.seq_type, 
+        seq_type = wildcards.seq_type,
         genome_build = wildcards.genome_build
     )
     platform = this_sample["tumour_platform"].tolist()[0]
@@ -133,155 +143,105 @@ def get_normal(wildcards):
     this_sample = op.filter_samples(
         CFG["runs"],
         sample_id = wildcards.tumour_id,
-        seq_type = wildcards.seq_type, 
+        seq_type = wildcards.seq_type,
         genome_build = wildcards.genome_build
     )
     normal = this_sample["normal_name"].tolist()[0]
     return normal
 
 
-def get_clairs_models(wc):
-    CFG = config["lcr-modules"]["clairs"]
-    base = CFG["options"]["model_path"]
-    platform = get_platform(wc)
-    models = {
-        "full_alignment": f"{base}{platform}/full_alignment.pkl",
-        "pileup": f"{base}{platform}/pileup.pkl"
-        }
-    if CFG["options"].get("call_indels", False):
-        models["indel_full"] = f"{base}{platform}/indel/full_alignment.pkl"
-        models["indel_pileup"] = f"{base}{platform}/indel/pileup.pkl"
-    return models
+# Optional restriction to a target-regions BED
+# --bed_fn is ClairS's only region-restriction flag, so it's reused for both the target panel and the chromosome split; no target BED means whole-chromosome, built from genome.fa.fai
+CLAIRS_TARGET_BED = CFG["options"].get("target_regions_bed", "")
 
 
-# Clone ClairS repo at a fixed commit and download ClairS models
-rule _clairs_get_resources:
-    output:
-        resources = touch(os.path.join(MODULE_DIR, "ClairS-0.4.4", "resources_dummy"))
-    params:
-        base_dir = os.path.join(MODULE_DIR, "ClairS-0.4.4"),
-        repo_dir = os.path.join(MODULE_DIR, "ClairS-0.4.4", "ClairS"),
-        models_dir = os.path.join(MODULE_DIR, "ClairS-0.4.4", "models"),
-        tarball = os.path.join(MODULE_DIR, "ClairS-0.4.4", "models", "clairs_models.tar.gz"),
-        commit = "4ff6c5fa3e59d5abb516ba4ed7d341d6b394197c"
-    shell:
-        op.as_one_line("""
-            set -euo pipefail &&
-            mkdir -p {params.base_dir} &&
-            mkdir -p {params.models_dir} &&
-            if [ ! -d {params.repo_dir}/.git ]; then git clone https://github.com/HKU-BAL/ClairS.git {params.repo_dir} ; fi &&
-            cd {params.repo_dir} &&
-            CURRENT_COMMIT="$(git rev-parse HEAD)" &&
-            if [ "$CURRENT_COMMIT" != "{params.commit}" ]; then git fetch --all --tags && git checkout --force {params.commit} ; fi &&
-            if ! find {params.models_dir} -type f -name 'pileup.pkl' | grep -q .; then wget -c -O {params.tarball} https://www.bio8.cs.hku.hk/clairs/models/clairs_models.tar.gz && tar -zxf {params.tarball} -C {params.models_dir} ; fi &&
-            if ! find {params.models_dir} -type f -name 'pileup.pkl' | grep -q .; then echo "ERROR: No pileup.pkl found under models/" >&2 ; exit 1 ; fi &&
-            if ! find {params.models_dir} -type f -name 'full_alignment.pkl' | grep -q .; then echo "ERROR: No full_alignment.pkl found under models/" >&2 ; exit 1 ; fi &&
-            touch {output.resources}
-        """)
-
-
-# Link the ClairS models into the conda env bin
-rule _clairs_link_clairs_models:
+rule _clairs_chrom_bed:
     input:
-        resources = str(rules._clairs_get_resources.output.resources)
+        bed = CLAIRS_TARGET_BED if CLAIRS_TARGET_BED else reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai")
     output:
-        models = touch(os.path.join(MODULE_DIR, "model_dummy"))
-    log:
-        stdout = CFG["logs"]["clairs"] + "link_clairs_models.stdout.log",
-        stderr = CFG["logs"]["clairs"] + "link_clairs_models.stderr.log"
-    conda:
-        CFG["conda_envs"]["clairs"]
-    container:
-        None
+        bed = CFG["dirs"]["inputs"] + "chroms/{genome_build}/target_regions/{chrom}.bed"
     params:
-        link_target = lambda wc: os.path.join(config["lcr-modules"]["clairs"]["options"]["modsdir"], "ClairS-0.4.4", "models"),
-        link_path = "$(dirname $(command -v pypy))/clairs_models"
+        # fai branch synthesizes start/end (0, chrom_length) since a .fai row is name+length, not already BED-shaped
+        using_fai = not bool(CLAIRS_TARGET_BED)
     shell:
         op.as_one_line("""
-            set -euo pipefail &&
-            echo "link_target = {params.link_target}" >&2 &&
-            echo "link_path   = {params.link_path}" >&2 &&
-            TARGET="$(readlink -f {params.link_target})" &&
-            if [ ! -d "$TARGET" ]; then echo "ERROR: Resolved ClairS models directory does not exist: $TARGET" >&2 ; exit 1 ; fi &&
-            if ! find "$TARGET" -type f -name 'pileup.pkl' | grep -q .; then echo "ERROR: ClairS models directory exists but contains no pileup models" >&2 ; exit 1 ; fi &&
-            if ! find "$TARGET" -type f -name 'full_alignment.pkl' | grep -q .; then echo "ERROR: ClairS models directory exists but contains no full-alignment models" >&2 ; exit 1 ; fi &&
-            mkdir -p $(dirname {params.link_path}) &&
-            ln -sfn "$TARGET" {params.link_path} &&
-            test -d {params.link_path} &&
-            touch {output.models}
+        if [ "{params.using_fai}" = "True" ]; then
+            awk -v chrom="{wildcards.chrom}" 'BEGIN {{FS=OFS="\\t"}} $1 == chrom {{print $1, 0, $2}}' {input.bed} > {output.bed}
+        else
+            awk -v chrom="{wildcards.chrom}" '$1 == chrom' {input.bed} > {output.bed}
+        fi
         """)
 
 
-# Calls variants using ClairS
+localrules: _clairs_chrom_bed
+
+
+def _clairs_get_chrom_bed(wildcards):
+    CFG = config["lcr-modules"]["clairs"]
+    return CFG["dirs"]["inputs"] + f"chroms/{wildcards.genome_build}/target_regions/{wildcards.chrom}.bed"
+
+
+# Base dir for run_clairs's own --output_dir (raw per-chromosome scratch: tmp/, tmp_TUMOR/, logs/, output.vcf.gz, indel.vcf.gz before combining). Defaults to the module's own clairs/ subdirectory; override via options.intermediate_results_dir_base to redirect onto different storage. Must be shared/network-visible, NOT node-local; same reasoning as deepsomatic/1.0's equivalent option. _clairs_combine_vcfs's own final combined.vcf.gz always stays module-managed regardless, so downstream rules are unaffected by this override
+CLAIRS_INTERMEDIATE_BASE = CFG["options"].get("intermediate_results_dir_base", "") or CFG["dirs"]["clairs"]
+
+
+# Calls variants using ClairS, one chromosome at a time via --bed_fn. output_dir is keyed by {chrom} too, so concurrent per-chromosome jobs don't clobber each other's files
 rule _clairs_call_variants:
     input:
         tumour_bam = str(rules._clairs_input_bam.output.bam),
         normal_bam = str(rules._clairs_input_normal_bam.output.bam),
         fasta = reference_files("genomes/{genome_build}/genome_fasta/genome.fa"),
         fai = reference_files("genomes/{genome_build}/genome_fasta/genome.fa.fai"),
-        models = str(rules._clairs_link_clairs_models.output.models)
+        chrom_bed = _clairs_get_chrom_bed
     output:
-        vcf = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.vcf.gz"),
-        tbi = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.vcf.gz.tbi")
+        vcf = temp(CLAIRS_INTERMEDIATE_BASE + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/chromosomes/{chrom}/output.vcf.gz"),
+        tbi = temp(CLAIRS_INTERMEDIATE_BASE + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/chromosomes/{chrom}/output.vcf.gz.tbi")
     log:
-        stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs.stdout.log",
-        stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs.stderr.log"
+        stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/{chrom}.clairs.stdout.log",
+        stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/{chrom}.clairs.stderr.log"
     params:
         clairs_args = CFG["options"]["clairs_args"],
         platform = get_platform,
-        output_dir = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/",
-        clairs_path = CFG["options"]["clairs_path"],
-        models = lambda wc: get_clairs_models(wc),
-        indel_p = lambda wc: (
-            "--indel_pileup_model_path " + get_clairs_models(wc)["indel_pileup"]
-            if "indel_pileup" in get_clairs_models(wc) else ""
-            ),
-        indel_fa = lambda wc: (
-            "--indel_full_alignment_model_path " + get_clairs_models(wc)["indel_full"]
-            if "indel_full" in get_clairs_models(wc) else ""
-            ),
+        output_dir = CLAIRS_INTERMEDIATE_BASE + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/chromosomes/{chrom}/",
         call_indels = lambda wc: (
-            "--enable_indel_calling --indel_min_qual 5"
+            "--enable_indel_calling"
             if config["lcr-modules"]["clairs"]["options"].get("call_indels", False) else ""
             )
-    conda:
-        CFG["conda_envs"]["clairs"]
     container:
-        None
+        CFG["container_envs"]["clairs"]
     threads:
-        CFG["threads"]["clairs"]
+        CFG["threads"]["clairs_run"]
     resources:
-        **CFG["resources"]["clairs"]
+        **CFG["resources"]["clairs_run"]
     shell:
         op.as_one_line("""
-        {params.clairs_path}
-            -P {params.models[pileup]}
-            -F {params.models[full_alignment]}
+        /opt/bin/run_clairs
             --tumor_bam_fn {input.tumour_bam}
             --normal_bam_fn {input.normal_bam}
             --ref_fn {input.fasta}
+            --bed_fn {input.chrom_bed}
             --threads {threads}
             --platform {params.platform}
             --output_dir {params.output_dir}
+            --conda_prefix /opt/conda/envs/clairs
+            -s TUMOR
             {params.call_indels}
-            {params.indel_p}
-            {params.indel_fa}
             {params.clairs_args}
             > {log.stdout} 2> {log.stderr}
         """)
 
 
-# Combines ClairS VCF output files so indels and SNVs are in the same file
+# Combines one chromosome's ClairS VCF output files so indels and SNVs are in the same file
 rule _clairs_combine_vcfs:
     input:
         vcf = str(rules._clairs_call_variants.output.vcf),
         tbi = str(rules._clairs_call_variants.output.tbi)
     output:
-        combined_vcf = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/combined.vcf.gz"),
-        combined_tbi = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/combined.vcf.gz.tbi")
+        vcf = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/chromosomes/{chrom}/combined.vcf.gz"),
+        tbi = temp(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/chromosomes/{chrom}/combined.vcf.gz.tbi")
     log:
-        stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/combine_vcfs.stdout.log",
-        stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/combine_vcfs.stderr.log"
+        stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/{chrom}.combine_vcfs.stdout.log",
+        stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/{chrom}.combine_vcfs.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
@@ -291,7 +251,7 @@ rule _clairs_combine_vcfs:
     resources:
         **CFG["resources"]["bcftools"]
     params:
-        output_dir = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/",
+        output_dir = CLAIRS_INTERMEDIATE_BASE + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/chromosomes/{chrom}/",
         indels_enabled = lambda wc: (
             "enabled"
             if config["lcr-modules"]["clairs"]["options"].get("call_indels", False) else ""
@@ -303,55 +263,139 @@ rule _clairs_combine_vcfs:
             bgzip -f {params.output_dir}/indel.vcf &&
             tabix -p vcf {params.output_dir}/indel.vcf.gz ;
         fi ;
-        bcftools sort {params.output_dir}/output.vcf.gz -Oz -o {params.output_dir}/output.sorted.vcf.gz >> {log.stdout} 2>> {log.stderr} &&
-        tabix -p vcf {params.output_dir}/output.sorted.vcf.gz >> {log.stdout} 2>> {log.stderr} &&
-        bcftools sort {params.output_dir}/indel.vcf.gz -Oz -o {params.output_dir}/indel.sorted.vcf.gz >> {log.stdout} 2>> {log.stderr} &&
-        tabix -p vcf  {params.output_dir}/indel.sorted.vcf.gz >> {log.stdout} 2>> {log.stderr} &&
+        bcftools sort
+            {params.output_dir}/output.vcf.gz
+            -Oz
+            -o {params.output_dir}/output.sorted.vcf.gz
+            >> {log.stdout} 2>> {log.stderr}
+        &&
+        tabix -p vcf
+            {params.output_dir}/output.sorted.vcf.gz
+            >> {log.stdout} 2>> {log.stderr}
+        &&
+        bcftools sort
+            {params.output_dir}/indel.vcf.gz
+            -Oz
+            -o {params.output_dir}/indel.sorted.vcf.gz
+            >> {log.stdout} 2>> {log.stderr}
+        &&
+        tabix -p vcf
+            {params.output_dir}/indel.sorted.vcf.gz
+            >> {log.stdout} 2>> {log.stderr}
+        &&
         bcftools concat
             --allow-overlaps
             {params.output_dir}/output.sorted.vcf.gz
             {params.output_dir}/indel.sorted.vcf.gz
-            -Oz -o {output.combined_vcf} >> {log.stdout} 2>> {log.stderr} &&
-        tabix -p vcf {output.combined_vcf} >> {log.stdout} 2>> {log.stderr}
+            -Ou
+            2>> {log.stderr}
+        |
+        bcftools sort
+            -Oz
+            -o {output.vcf}
+            >> {log.stdout} 2>> {log.stderr}
+        &&
+        tabix -p vcf {output.vcf}
+            >> {log.stdout} 2>> {log.stderr}
         """)
 
 
-# Annotates VCF file with gnomAD frequency data and filters out poor calls
-rule _clairs_gnomad_annotation:
+# Cleans up one chromosome's additional ClairS files as soon as that chromosome's own combined VCF has been written
+rule _clairs_clean:
     input:
-        vcf = str(rules._clairs_combine_vcfs.output.combined_vcf),
-        tbi = str(rules._clairs_combine_vcfs.output.combined_tbi),
-        gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")
+        str(rules._clairs_combine_vcfs.output.vcf),
+        str(rules._clairs_combine_vcfs.output.tbi)
     output:
-        vcf = temp(CFG["dirs"]["gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.gnomad.vcf.gz"),
-        tbi = temp(CFG["dirs"]["gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.gnomad.vcf.gz.tbi")
+        cleanup = touch(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/chromosomes/{chrom}/cleanup_complete.txt")
+    params:
+        cleanup_toggle = CFG["options"]["cleanup_toggle"],
+        # explicit path, not derived from output.cleanup's own dirname; that's always module-managed, but the scratch files being cleaned up here live under CLAIRS_INTERMEDIATE_BASE, which may be a different, user-redirected location
+        scratch_dir = CLAIRS_INTERMEDIATE_BASE + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/chromosomes/{chrom}/"
+    shell:
+        op.as_one_line("""
+        d="{params.scratch_dir}" &&
+        if [ "{params.cleanup_toggle}" = "True" ] || [ "{params.cleanup_toggle}" = "true" ]; then
+            rm -rf "$d/tmp/" &&
+            rm -rf "$d/tmp_TUMOR/" &&
+            rm -rf "$d/logs/" &&
+            rm -f "$d"/run_clairs.log* &&
+            rm -f "$d"/output.sorted.vcf.gz* &&
+            rm -f "$d"/indel.sorted.vcf.gz* ;
+        else
+            echo "cleanup_toggle is false; Skipping cleanup" >&2 ;
+        fi
+        """)
+
+
+localrules: _clairs_clean
+
+
+def _clairs_get_chr_vcfs(wildcards):
+    CFG = config["lcr-modules"]["clairs"]
+    chrs = checkpoints._clairs_input_chrs.get(**wildcards).output.chrs
+    with open(chrs) as file:
+        chrs = file.read().rstrip("\n").split("\n")
+    return expand(
+        CFG["dirs"]["clairs"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_name}}--{{chemistry}}--unmatched/chromosomes/{chrom}/combined.vcf.gz",
+        chrom = chrs
+    )
+
+
+def _clairs_get_chr_cleanup(wildcards):
+    CFG = config["lcr-modules"]["clairs"]
+    chrs = checkpoints._clairs_input_chrs.get(**wildcards).output.chrs
+    with open(chrs) as file:
+        chrs = file.read().rstrip("\n").split("\n")
+    return expand(
+        CFG["dirs"]["clairs"] + "{{seq_type}}--{{genome_build}}/{{tumour_id}}--{{normal_name}}--{{chemistry}}--unmatched/chromosomes/{chrom}/cleanup_complete.txt",
+        chrom = chrs
+    )
+
+
+# Merge per-chromosome combined VCFs into one sorted, indexed VCF at the same final path _clairs_combine_vcfs used to produce directly
+rule _clairs_merge_vcfs:
+    input:
+        vcf = _clairs_get_chr_vcfs,
+        cleanup = _clairs_get_chr_cleanup
+    output:
+        vcf = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/combined.vcf.gz",
+        tbi = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/combined.vcf.gz.tbi"
     log:
-        stderr = CFG["logs"]["gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs_gnomad_annotation.stderr.log",
-        stdout = CFG["logs"]["gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs_gnomad_annotation.stdout.log"
+        stdout = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs_merge_vcfs.stdout.log",
+        stderr = CFG["logs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs_merge_vcfs.stderr.log"
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
         CFG["container_envs"]["bcftools"]
     threads:
-        CFG["threads"]["bcftools"]
+        CFG["threads"]["clairs_merge_vcfs"]
     resources:
-        **CFG["resources"]["bcftools"]
+        **CFG["resources"]["clairs_merge_vcfs"]
+    params:
+        mem_mb = lambda wildcards, resources: int(resources.mem_mb * 0.8)
     shell:
         op.as_one_line("""
-        bcftools annotate --threads {threads} 
-        -a {input.gnomad} -c INFO/AF {input.vcf} 2> {log.stderr} |
-        awk 'BEGIN {{FS=OFS="\t"}} {{ if ($1 !~ /^#/ && $8 !~ ";AF=") $8=$8";AF=0"; print $0; }}' |
-        bcftools view -Oz -o {output.vcf} 2> {log.stderr}
+        bcftools concat --threads {threads} -a -O z {input.vcf} 2> {log.stderr}
+            |
+        bcftools sort -m {params.mem_mb}M -O z -o {output.vcf} 2>> {log.stderr}
         &&
-        tabix -p vcf {output.vcf} >> {log.stdout} 2>> {log.stderr}
+        tabix -p vcf {output.vcf} > {log.stdout} 2>> {log.stderr}
         """)
 
 
-# Filters out PoN variants
+# Aggregates all per-chromosome cleanups for one sample-run into a single dummy target
+rule _clairs_cleanup_all_chroms:
+    input:
+        _clairs_get_chr_cleanup
+    output:
+        cleanup = touch(CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/cleanup_complete.txt")
+
+
+# Filters out variants
 rule _clairs_filter:
     input:
-        vcf = str(rules._clairs_gnomad_annotation.output.vcf), 
-        tbi = str(rules._clairs_gnomad_annotation.output.tbi),
+        vcf = str(rules._clairs_merge_vcfs.output.vcf),
+        tbi = str(rules._clairs_merge_vcfs.output.tbi),
         pon = reference_files("genomes/{genome_build}/ont/colorsDb.v1.2.0.deepvariant.glnexus.{genome_build}.vcf.gz")
     output:
         vcf = CFG["dirs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs.final.vcf.gz",
@@ -368,11 +412,57 @@ rule _clairs_filter:
         stderr = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/filter_pon.stderr.log",
         stdout = CFG["logs"]["filter"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/filter_pon.stdout.log"
     params:
-        filters = CFG["options"]["filters"]
+        min_depth = CFG["options"]["filters"]["tumour_min_depth"],
+        snv_min_af = CFG["options"]["filters"]["snv_min_af"],
+        snv_min_alt_depth = CFG["options"]["filters"]["snv_min_alt_depth"],
+        indel_min_af = CFG["options"]["filters"]["indel_min_af"],
+        indel_min_alt_depth = CFG["options"]["filters"]["indel_min_alt_depth"],
+        normal_min_depth = CFG["options"]["filters"]["normal_min_depth"],
+        normal_max_af = CFG["options"]["filters"]["normal_max_af"]
     shell:
         op.as_one_line("""
-        bcftools isec -C -w1 {input.vcf} {input.pon} 2> {log.stderr} | 
-        bcftools view -i '{params.filters}' -Oz -o {output.vcf} 2>> {log.stderr}
+        bcftools isec -C -w1 {input.vcf} {input.pon} 2> {log.stderr} |
+        bcftools view
+            -i 'FILTER="PASS" &&
+                FMT/DP[0] >= {params.min_depth} &&
+                (
+                    (TYPE="snp" && FMT/AF[0] >= {params.snv_min_af} && FMT/AD[0:1] >= {params.snv_min_alt_depth}) ||
+                    (TYPE="indel" && FMT/AF[0] >= {params.indel_min_af} && FMT/AD[0:1] >= {params.indel_min_alt_depth})
+                ) &&
+                FMT/NDP[0] >= {params.normal_min_depth} &&
+                FMT/NAF[0] < {params.normal_max_af}'
+            -Oz -o {output.vcf} 2>> {log.stderr}
+        &&
+        tabix -p vcf {output.vcf} >> {log.stdout} 2>> {log.stderr}
+        """)
+
+
+# Annotates VCF file with gnomAD frequency data and filters out poor calls
+rule _clairs_gnomad_annotation:
+    input:
+        vcf = str(rules._clairs_filter.output.vcf),
+        tbi = str(rules._clairs_filter.output.tbi),
+        gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz")
+    output:
+        vcf = CFG["dirs"]["gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.gnomad.vcf.gz",
+        tbi = CFG["dirs"]["gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/output.gnomad.vcf.gz.tbi"
+    log:
+        stderr = CFG["logs"]["gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs_gnomad_annotation.stderr.log",
+        stdout = CFG["logs"]["gnomad"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/clairs_gnomad_annotation.stdout.log"
+    conda:
+        CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
+    threads:
+        CFG["threads"]["bcftools"]
+    resources:
+        **CFG["resources"]["bcftools"]
+    shell:
+        op.as_one_line("""
+        bcftools annotate --threads {threads}
+        -a {input.gnomad} -c INFO/AF {input.vcf} 2> {log.stderr} |
+        awk 'BEGIN {{FS=OFS="\t"}} {{ if ($1 !~ /^#/ && $8 !~ ";AF=") $8=$8";AF=0"; print $0; }}' |
+        bcftools view -i 'INFO/AF < 0.0001' -Oz -o {output.vcf} 2>> {log.stderr}
         &&
         tabix -p vcf {output.vcf} >> {log.stdout} 2>> {log.stderr}
         """)
@@ -381,33 +471,14 @@ rule _clairs_filter:
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _clairs_output_vcf:
     input:
-        vcf = str(rules._clairs_filter.output.vcf),
-        tbi = str(rules._clairs_filter.output.tbi)
+        vcf = str(rules._clairs_gnomad_annotation.output.vcf),
+        tbi = str(rules._clairs_gnomad_annotation.output.tbi)
     output:
         vcf = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched.clairs.combined.vcf.gz",
         tbi = CFG["dirs"]["outputs"] + "vcf/{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched.clairs.combined.vcf.gz.tbi"
     run:
         op.relative_symlink(input.vcf, output.vcf, in_module= True)
         op.relative_symlink(input.tbi, output.tbi, in_module= True)
-
-
-# Cleans up additional files created by ClairS
-rule _clairs_clean:
-    input:
-        str(rules._clairs_output_vcf.output.vcf)
-    output:
-        cleanup_complete = CFG["dirs"]["clairs"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_name}--{chemistry}--unmatched/cleanup_complete.txt"
-    shell:
-        op.as_one_line("""
-        d=$(dirname {output.cleanup_complete});
-        rm -rf $d/tmp/ &&
-        rm -rf $d/logs/ &&
-        rm -f $d/run_clairs.log* &&
-        rm -f $d/snv.vcf* &&
-        rm -f $d/indel.* &&
-        rm -f $d/output.* &&
-        touch {output.cleanup_complete}
-        """)
 
 
 # Generates the target sentinels for each run, which generate the symlinks
@@ -417,7 +488,7 @@ rule _clairs_all:
             [
                 str(rules._clairs_output_vcf.output.vcf),
                 str(rules._clairs_output_vcf.output.tbi),
-                str(rules._clairs_clean.output.cleanup_complete)
+                str(rules._clairs_cleanup_all_chroms.output.cleanup)
             ],
             zip,
             seq_type=CFG["runs"]["tumour_seq_type"],
