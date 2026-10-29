@@ -1,0 +1,25 @@
+lcr-modules:
+
+  _shared:
+    working_dir: "/projects/rmorin_scratch/prospective_rrDLBCL_trial_data/Fragment_Scores"
+
+  fragmenticity:
+    scripts_dir: "/home/kyakimovich/repos/kurt/modules/fragmenticity/scripts"
+    # example path to bam file, using sample_id as a wildcard
+    bam: "/projects/rmorin_scratch/prospective_rrDLBCL_trial_data/pipeline_outputs/bam_pipeline/99-final/{sample_id}.consensus.mapped.annot.bam"
+    maf: "/projects/rmorin_scratch/prospective_rrDLBCL_trial_data/pipeline_outputs/sage_pipeline/99-final/{sample_id}.processed.maf"
+    fragment_score_reference: "/projects/rmorin_scratch/prospective_rrDLBCL_trial_data/Fragment_Scores/FragmentScoreAtlas/99-FSDistribution/FS_distribution.tsv"
+    bed_file: "/projects/rmorin_scratch/prospective_rrDLBCL_trial_data/bed_files/pipeline_bed_files/cfDNA_hg38panel_genes_ashm_2025-01-22.bed"
+    # for making fragment score atlas
+    # values can be filled in when executing project workflow
+    tumor_samples: [] 
+    healthy_samples: []
+    # params
+    read_count: 1000000
+    min_length: 221
+    max_length: 401
+    seed: 42 # for random sampling
+
+    # New regional analysis parameters
+    top_k_regions: 10           # Number of top-scoring regions for adaptive FS
+    min_reads_per_region: 100  # Minimum reads required per region
