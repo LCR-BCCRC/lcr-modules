@@ -1,0 +1,10 @@
+name: gatk-4.2.6.1
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - gatk4=4.2.6.1
+  - openjdk=11
+  - samtools=1.15
+  - bedtools=2.30.0

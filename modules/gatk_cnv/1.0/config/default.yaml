@@ -1,0 +1,116 @@
+lcr-modules:
+
+    gatk_cnv:
+
+        inputs:
+            # Available wildcards: {seq_type} {genome_build} {sample_id}
+            # Tumours and every normal used for the panel of normals (CRAMs are fine)
+            sample_bam: "__UPDATE__"
+            sample_bai: "__UPDATE__"
+
+        scratch_subdirectories: []
+
+        options:
+            # Normals (sample_id) never used in a panel of normals, e.g. failed or
+            # near-empty libraries. A single bad normal (median count of zero)
+            # makes CreateReadCountPanelOfNormals fail for the whole capture space.
+            pon_exclude: []
+            # Minimum normals per {seq_type}--{genome_build}--{capture_space}
+            pon_min_normals: 10
+
+            preprocess:
+                # exome targets are used as-is (bin length 0) and padded on each side
+                padding: 250
+                # contigs kept for counting, segmentation and allelic counts
+                # (autosomes, as in PureCN's copy number and the DLBClass/ABSOLUTE
+                # segments; also avoids X noise from a mixed-sex panel of normals)
+                chromosome_regex: "^(chr)?([1-9]|1[0-9]|2[0-2])$"
+            # common SNP sites (from gnomAD) at which allele counts are collected
+            min_snp_af: 0.01
+
+            denoise:
+                opts: ""
+            # targets with denoised log2 copy ratio outside these limits are dropped
+            # before segmentation. Below: zero-coverage dropouts (common in FFPE)
+            # that otherwise each become a segment. Above (CN > 64): single-target
+            # artefacts that otherwise become segments with CN in the hundreds; in
+            # the Chapuy FFPE tests no region's local median exceeded log2 3.5
+            # outside the noisiest tumour, so real amplifications keep their segments.
+            min_log2_copy_ratio: -5
+            max_log2_copy_ratio: 5
+
+            model_segments:
+                # Settings from the Chapuy FFPE exome tests (2026-10-30): with GATK
+                # defaults (penalty 1, iterations per fit 0) tumours had 1,400-4,900
+                # segments; with these, 31-121 and better agreement with ABSOLUTE.
+                # GATK's recommended tuning order is penalty, then kernel
+                # variances, then the smoothing credible-interval thresholds.
+                changepoints_penalty_factor: 5
+                smoothing_iterations_per_fit: 1
+                smoothing_credible_interval_threshold: 2
+                # depth filter on tumour allelic counts: 0 (GATK default) with a
+                # matched normal; tumour-only genotyping needs depth
+                min_total_allele_count_case_paired: 0
+                min_total_allele_count_case_no_normal: 30
+                opts: ""
+
+            call:
+                opts: ""
+
+            # standardized seg (ID chrom start end module LOH_flag CN log.ratio):
+            # CN = round(2 * 2^log2), as CNVkit calls without a purity estimate
+            # (not purity-corrected); LOH_flag is NA (no validated rule yet)
+            tool_name: "gatk_cnv"
+
+            # liftOver options to convert between genomic builds
+            liftover_script_path: "{SCRIPTSDIR}/liftover/2.0/liftover.sh"
+            liftover_minMatch: "0.95"
+            fill_segments_version: "1.2/"
+
+        output:
+            requested_projections: ["grch37", "hg38"]
+            # genome-wide PNG per tumour (copy ratio and allele fraction with segments)
+            plot: False
+
+        software:
+            plot_script: "{MODSDIR}/src/plot_modelsegments.R"
+
+        conda_envs:
+            gatk: "{MODSDIR}/envs/gatk-4.2.6.1.yaml"
+            bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/2.0/liftover.yaml"
+            # any R env with optparse, data.table and ggplot2
+            plot: "{MODSDIR}/envs/purecn-2.0.1.yaml"
+
+        threads:
+            preprocess: 1
+            read_counts: 1
+            pon: 4
+            allelic_counts: 1
+            denoise: 1
+            model_segments: 1
+            post_process: 1
+
+        resources:
+            preprocess:
+                mem_mb: 8000
+            read_counts:
+                mem_mb: 8000
+            pon:
+                mem_mb: 32000
+            allelic_counts:
+                mem_mb: 8000
+            denoise:
+                mem_mb: 8000
+            model_segments:
+                mem_mb: 8000
+            post_process:
+                mem_mb: 2000
+
+        pairing_config:
+            capture:
+                run_paired_tumours: True
+                # tumours without a matched normal are segmented tumour-only
+                # (heterozygous sites genotyped from the tumour)
+                run_unpaired_tumours_with: "no_normal"
+                run_paired_tumours_as_unpaired: False
