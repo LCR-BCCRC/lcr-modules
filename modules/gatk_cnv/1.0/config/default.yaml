@@ -81,6 +81,7 @@ lcr-modules:
             denoise: 1
             model_segments: 1
             post_process: 1
+            plot: 1
 
         resources:
             read_counts:
@@ -91,8 +92,12 @@ lcr-modules:
                 mem_mb: 8000
             model_segments:
                 mem_mb: 8000
+            # CallCopyRatioSegments (Java heap is 80% of this), liftover, fill
             post_process:
-                mem_mb: 2000
+                mem_mb: 4000
+            # R plot of ~250k targets and ~20k heterozygous sites
+            plot:
+                mem_mb: 4000
 
         pairing_config:
             capture:

@@ -340,9 +340,9 @@ rule _gatk_cnv_plot:
     conda:
         CFG["conda_envs"]["plot"]
     threads:
-        CFG["threads"]["post_process"]
+        CFG["threads"]["plot"]
     resources:
-        **CFG["resources"]["post_process"]
+        **CFG["resources"]["plot"]
     shell:
         op.as_one_line("""
         Rscript {params.script} --denoised {input.denoised} --hets {input.hets}

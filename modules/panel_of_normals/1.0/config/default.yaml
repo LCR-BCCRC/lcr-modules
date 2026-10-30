@@ -118,8 +118,10 @@ lcr-modules:
                     mem_mb: 8000
                 read_counts:
                     mem_mb: 8000
+                # Spark (limited to `threads` cores); a 60-normal exome panel
+                # used ~4.5 GB, and the matrix is ~0.5 GB even for ~200 normals
                 pon:
-                    mem_mb: 32000
+                    mem_mb: 16000
 
 
         pairing_config:

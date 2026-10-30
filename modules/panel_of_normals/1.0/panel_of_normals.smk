@@ -1490,6 +1490,7 @@ rule _panel_of_normals_gatk_create_pon:
         &&
         gatk --java-options "-Xmx{params.java_mem}" CreateReadCountPanelOfNormals
             {params.inputs} --annotated-intervals {input.annotated} {params.opts}
+            --spark-master local[{threads}]
             -O {output.pon} 2> {log.stderr}
         """)
 
