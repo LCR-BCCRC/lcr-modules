@@ -5,6 +5,8 @@ channels:
   - defaults
 dependencies:
   - gatk4=4.2.6.1
-  - openjdk=11
+  # GATK 4.2 needs Java 8: its Spark (used by CreateReadCountPanelOfNormals)
+  # fails under Java 11 with "Unsupported class file major version 55"
+  - openjdk=8
   - samtools=1.15
   - bedtools=2.30.0
