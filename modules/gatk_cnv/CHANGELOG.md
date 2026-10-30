@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 This release was authored by Ryan Morin.
 
-- GATK4 somatic copy number workflow for exome (capture) data: PreprocessIntervals (padded targets, chromosomes matching `chromosome_regex`, autosomes by default), AnnotateIntervals, CollectReadCounts, one CreateReadCountPanelOfNormals per seq_type--genome_build--capture_space from all normals in the samples table except `pon_exclude`, CollectAllelicCounts at common gnomAD SNPs, DenoiseReadCounts, ModelSegments and CallCopyRatioSegments
+- GATK4 somatic copy number workflow for exome (capture) data: CollectReadCounts and CollectAllelicCounts (at common gnomAD SNPs), DenoiseReadCounts, ModelSegments and CallCopyRatioSegments
+- the read-count panel of normals, padded target intervals and common SNP sites come from the panel_of_normals module (`options: gatk: enabled: True`), listed under `inputs` per seq_type--genome_build--capture_space
 - every GATK step is given the reference FASTA, so CRAM input works
 - targets with denoised log2 copy ratio below `min_log2_copy_ratio` (-5) or above `max_log2_copy_ratio` (5, CN 64) are dropped before segmentation; the zero-coverage dropouts (common in FFPE) and high-side single-target artefacts otherwise each become a segment, the latter with CN in the hundreds
 - ModelSegments defaults (changepoint penalty 5, one smoothing iteration per fit) come from tests on Chapuy FFPE exomes, where GATK's defaults gave 1,400-4,900 segments per tumour and these gave 31-121, with better agreement with the DLBClass ABSOLUTE segments

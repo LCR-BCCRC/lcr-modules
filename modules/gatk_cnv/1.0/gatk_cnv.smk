@@ -40,7 +40,7 @@ if version.parse(current_version) < version.parse(min_oncopipe_version):
 CFG = op.setup_module(
     name = "gatk_cnv",
     version = "1.0",
-    subdirectories = ["inputs", "intervals", "read_counts", "pon", "allelic_counts", "denoise", "model_segments",
+    subdirectories = ["inputs", "read_counts", "allelic_counts", "denoise", "model_segments",
                       "seg", "convert_coordinates", "fill_regions", "normalize", "outputs"]
 )
 
@@ -48,6 +48,7 @@ CFG = op.setup_module(
 localrules:
     _gatk_cnv_input_bam,
     _gatk_cnv_input_references,
+    _gatk_cnv_input_panel,
     _gatk_cnv_filter_dropouts,
     _gatk_cnv_to_seg,
     _gatk_cnv_normalize_projection,
@@ -106,101 +107,30 @@ rule _gatk_cnv_input_references:
         op.absolute_symlink(input.gatk_dict, output.gatk_dict)
 
 
-# Padded capture targets (bin length 0: one interval per target), restricted to
-# the contigs matching `chromosome_regex`
-rule _gatk_cnv_preprocess_intervals:
+# Panel of normals and interval files from the panel_of_normals module (gatk
+# section), per seq_type, genome_build and capture_space
+rule _gatk_cnv_input_panel:
     input:
-        baits = ancient(reference_files("genomes/{genome_build}/capture_space/{capture_space}.baits.bed")),
-        fasta = str(rules._gatk_cnv_input_references.output.fasta),
-        gatk_dict = str(rules._gatk_cnv_input_references.output.gatk_dict)
+        pon = ancient(CFG["inputs"]["gatk_pon"]),
+        intervals = ancient(CFG["inputs"]["gatk_intervals"]),
+        snps = ancient(CFG["inputs"]["gatk_common_snps"]),
+        snps_tbi = ancient(CFG["inputs"]["gatk_common_snps_tbi"])
     output:
-        all_contigs = temp(CFG["dirs"]["intervals"] + "{seq_type}--{genome_build}/{capture_space}/targets.all_contigs.interval_list"),
-        intervals = CFG["dirs"]["intervals"] + "{seq_type}--{genome_build}/{capture_space}/targets.preprocessed.interval_list"
-    log:
-        stderr = CFG["logs"]["intervals"] + "{seq_type}--{genome_build}/{capture_space}/preprocess_intervals.stderr.log"
-    params:
-        java_mem = _gatk_cnv_java_mem("preprocess"),
-        padding = CFG["options"]["preprocess"]["padding"],
-        chromosome_regex = CFG["options"]["preprocess"]["chromosome_regex"]
-    conda:
-        CFG["conda_envs"]["gatk"]
-    threads:
-        CFG["threads"]["preprocess"]
-    resources:
-        **CFG["resources"]["preprocess"]
-    shell:
-        op.as_one_line("""
-        gatk --java-options "-Xmx{params.java_mem}" PreprocessIntervals
-            -R {input.fasta} -L {input.baits} --bin-length 0 --padding {params.padding}
-            --interval-merging-rule OVERLAPPING_ONLY -O {output.all_contigs} 2> {log.stderr}
-        &&
-        awk -v re='{params.chromosome_regex}' '/^@/ {{print; next}} $1 ~ re {{print}}'
-            {output.all_contigs} > {output.intervals}
-        """)
+        pon = CFG["dirs"]["inputs"] + "panel_of_normals/{seq_type}--{genome_build}/{capture_space}/pon.hdf5",
+        intervals = CFG["dirs"]["inputs"] + "panel_of_normals/{seq_type}--{genome_build}/{capture_space}/targets.preprocessed.interval_list",
+        snps = CFG["dirs"]["inputs"] + "panel_of_normals/{seq_type}--{genome_build}/{capture_space}/common_snps.vcf.gz",
+        snps_tbi = CFG["dirs"]["inputs"] + "panel_of_normals/{seq_type}--{genome_build}/{capture_space}/common_snps.vcf.gz.tbi"
+    run:
+        for key in ["pon", "intervals", "snps", "snps_tbi"]:
+            op.absolute_symlink(input[key], output[key])
 
 
-# GC content per target, for the panel of normals' GC correction
-rule _gatk_cnv_annotate_intervals:
-    input:
-        intervals = str(rules._gatk_cnv_preprocess_intervals.output.intervals),
-        fasta = str(rules._gatk_cnv_input_references.output.fasta)
-    output:
-        annotated = CFG["dirs"]["intervals"] + "{seq_type}--{genome_build}/{capture_space}/targets.annotated.tsv"
-    log:
-        stderr = CFG["logs"]["intervals"] + "{seq_type}--{genome_build}/{capture_space}/annotate_intervals.stderr.log"
-    params:
-        java_mem = _gatk_cnv_java_mem("preprocess")
-    conda:
-        CFG["conda_envs"]["gatk"]
-    threads:
-        CFG["threads"]["preprocess"]
-    resources:
-        **CFG["resources"]["preprocess"]
-    shell:
-        op.as_one_line("""
-        gatk --java-options "-Xmx{params.java_mem}" AnnotateIntervals
-            -R {input.fasta} -L {input.intervals} --interval-merging-rule OVERLAPPING_ONLY
-            -O {output.annotated} 2> {log.stderr}
-        """)
-
-
-# Common biallelic SNP sites (gnomAD AF > min_snp_af) within the targets, where
-# allele counts are collected. -R supplies the sequence dictionary, since the
-# gnomAD VCF header may lack ##contig lines.
-rule _gatk_cnv_common_snps:
-    input:
-        intervals = str(rules._gatk_cnv_preprocess_intervals.output.intervals),
-        fasta = str(rules._gatk_cnv_input_references.output.fasta),
-        gnomad = ancient(reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"))
-    output:
-        vcf = CFG["dirs"]["intervals"] + "{seq_type}--{genome_build}/{capture_space}/common_snps.vcf.gz",
-        tbi = CFG["dirs"]["intervals"] + "{seq_type}--{genome_build}/{capture_space}/common_snps.vcf.gz.tbi"
-    log:
-        stderr = CFG["logs"]["intervals"] + "{seq_type}--{genome_build}/{capture_space}/common_snps.stderr.log"
-    params:
-        java_mem = _gatk_cnv_java_mem("preprocess"),
-        min_af = CFG["options"]["min_snp_af"]
-    conda:
-        CFG["conda_envs"]["gatk"]
-    threads:
-        CFG["threads"]["preprocess"]
-    resources:
-        **CFG["resources"]["preprocess"]
-    shell:
-        op.as_one_line("""
-        gatk --java-options "-Xmx{params.java_mem}" SelectVariants
-            -R {input.fasta} -V {input.gnomad} -L {input.intervals}
-            --select-type-to-include SNP --restrict-alleles-to BIALLELIC
-            -select "AF > {params.min_af}" -O {output.vcf} 2> {log.stderr}
-        """)
-
-
-# Read counts per target, for tumours and panel-of-normals normals alike
+# Read counts per target for each tumour, over the panel's intervals
 rule _gatk_cnv_collect_read_counts:
     input:
         bam = str(rules._gatk_cnv_input_bam.output.bam),
         bai = str(rules._gatk_cnv_input_bam.output.bai),
-        intervals = str(rules._gatk_cnv_preprocess_intervals.output.intervals),
+        intervals = str(rules._gatk_cnv_input_panel.output.intervals),
         fasta = str(rules._gatk_cnv_input_references.output.fasta)
     output:
         counts = CFG["dirs"]["read_counts"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}.counts.hdf5"
@@ -222,64 +152,12 @@ rule _gatk_cnv_collect_read_counts:
         """)
 
 
-# Normals in the samples table for this seq_type, genome_build and capture_space,
-# minus `pon_exclude`. Tumours' own normals are included (one panel per capture space).
-def _gatk_cnv_pon_normals(wildcards):
-    CFG = config["lcr-modules"]["gatk_cnv"]
-    tbl = CFG["samples"]
-    normals = tbl[
-        (tbl.tissue_status.str.lower() == "normal") &
-        (tbl.seq_type == wildcards.seq_type) &
-        (tbl.genome_build == wildcards.genome_build) &
-        (tbl.capture_space == wildcards.capture_space) &
-        (~tbl.sample_id.isin(CFG["options"]["pon_exclude"]))
-    ]["sample_id"].drop_duplicates().tolist()
-    if len(normals) < CFG["options"]["pon_min_normals"]:
-        raise ValueError(
-            f"Only {len(normals)} normals for {wildcards.seq_type}--{wildcards.genome_build}--{wildcards.capture_space}; "
-            f"the panel of normals needs at least {CFG['options']['pon_min_normals']} (options: pon_min_normals)."
-        )
-    return expand(
-        str(rules._gatk_cnv_collect_read_counts.output.counts),
-        sample_id = sorted(normals),
-        allow_missing = True
-    )
-
-
-rule _gatk_cnv_create_pon:
-    input:
-        counts = _gatk_cnv_pon_normals,
-        annotated = str(rules._gatk_cnv_annotate_intervals.output.annotated)
-    output:
-        pon = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/{capture_space}/pon.hdf5",
-        normals = CFG["dirs"]["pon"] + "{seq_type}--{genome_build}/{capture_space}/pon_normals.txt"
-    log:
-        stderr = CFG["logs"]["pon"] + "{seq_type}--{genome_build}/{capture_space}/create_pon.stderr.log"
-    params:
-        java_mem = _gatk_cnv_java_mem("pon"),
-        inputs = lambda w, input: " ".join("-I " + f for f in input.counts)
-    conda:
-        CFG["conda_envs"]["gatk"]
-    threads:
-        CFG["threads"]["pon"]
-    resources:
-        **CFG["resources"]["pon"]
-    shell:
-        op.as_one_line("""
-        for f in {input.counts}; do basename $f .counts.hdf5; done > {output.normals}
-        &&
-        gatk --java-options "-Xmx{params.java_mem}" CreateReadCountPanelOfNormals
-            {params.inputs} --annotated-intervals {input.annotated}
-            -O {output.pon} 2> {log.stderr}
-        """)
-
-
 # Ref/alt counts at the common SNP sites (tumours and matched normals)
 rule _gatk_cnv_collect_allelic_counts:
     input:
         bam = str(rules._gatk_cnv_input_bam.output.bam),
         bai = str(rules._gatk_cnv_input_bam.output.bai),
-        snps = str(rules._gatk_cnv_common_snps.output.vcf),
+        snps = str(rules._gatk_cnv_input_panel.output.snps),
         fasta = str(rules._gatk_cnv_input_references.output.fasta)
     output:
         counts = CFG["dirs"]["allelic_counts"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}.allelicCounts.tsv"
@@ -304,7 +182,7 @@ rule _gatk_cnv_collect_allelic_counts:
 rule _gatk_cnv_denoise:
     input:
         counts = CFG["dirs"]["read_counts"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.counts.hdf5",
-        pon = str(rules._gatk_cnv_create_pon.output.pon)
+        pon = str(rules._gatk_cnv_input_panel.output.pon)
     output:
         standardized = CFG["dirs"]["denoise"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.standardizedCR.tsv",
         denoised = CFG["dirs"]["denoise"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.denoisedCR.tsv"
@@ -458,8 +336,7 @@ rule _gatk_cnv_plot:
     params:
         script = CFG["software"]["plot_script"],
         min_log2 = CFG["options"]["min_log2_copy_ratio"],
-        max_log2 = CFG["options"]["max_log2_copy_ratio"],
-        chromosome_regex = CFG["options"]["preprocess"]["chromosome_regex"]
+        max_log2 = CFG["options"]["max_log2_copy_ratio"]
     conda:
         CFG["conda_envs"]["plot"]
     threads:
@@ -471,7 +348,7 @@ rule _gatk_cnv_plot:
         Rscript {params.script} --denoised {input.denoised} --hets {input.hets}
             --segments {input.model_final} --sample {wildcards.tumour_id}
             --min_log2 {params.min_log2} --max_log2 {params.max_log2}
-            --chromosome_regex '{params.chromosome_regex}' --out {output.png} 2> {log.stderr}
+            --out {output.png} 2> {log.stderr}
         """)
 
 

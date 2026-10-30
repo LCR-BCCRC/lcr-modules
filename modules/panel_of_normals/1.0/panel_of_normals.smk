@@ -39,7 +39,9 @@ CFG = op.setup_module(
     version = "1.0",
     subdirectories = ["inputs", "cnvkit_targets_bed", "cnvkit_autobin", "cnvkit_coverage", "cnvkit_pon_cnn", "cnvkit_flat_ref_cnn",
                         "purecn_intervals", "purecn_mutect2", "pon_for_mutect2", "purecn_merge_vcfs",
-                        "purecn_coverage", "purecn_NormalDB", "outputs"],
+                        "purecn_coverage", "purecn_NormalDB",
+                        # appended last so the numbering of the existing subdirectories is unchanged
+                        "gatk_intervals", "gatk_read_counts", "gatk_pon", "outputs"],
 )
 
 # Define rules to be run locally when using a compute cluster
@@ -66,6 +68,7 @@ localrules:
     _panel_of_normals_purecn_output_database_cnvkit,
     _panel_of_normals_purecn_output_database_denovo,
     _panel_of_normals_output_samples_tsv,
+    _panel_of_normals_gatk_output,
     _panel_of_normals_all
 
 ##### REDEFINE SAMPLES TABLE #####
@@ -1332,6 +1335,185 @@ rule _panel_of_normals_purecn_output_database_denovo:
         op.relative_symlink(input.normal_db, output.normal_db, in_module=True)
 
 # ---------------------------------------------------------- #
+# GATK section (read-count panel of normals for gatk_cnv)
+# Only built when options: gatk: enabled is True
+# ---------------------------------------------------------- #
+
+_PON_GATK_CFG = CFG["options"]["gatk"]
+
+# Samples in each combo: the same samples as the CNVkit and PureCN panels (the
+# module's samples table, with flat_ref_combos removed). Which samples go in, and
+# which are excluded, is decided by whatever builds that table.
+def _pon_gatk_panel_samples(seq_type, genome_build, capture_space):
+    tbl = META
+    return sorted(tbl[
+        (tbl.seq_type == seq_type) & (tbl.genome_build == genome_build) & (tbl.capture_space == capture_space)
+    ]["sample_id"].drop_duplicates().tolist())
+
+
+def _pon_gatk_java_mem(step):
+    return str(int(CFG["resources"]["gatk"][step]["mem_mb"] * 0.8)) + "m"
+
+
+# Padded capture targets (bin length 0: one interval per target), restricted
+# to the contigs matching `chromosome_regex`
+rule _panel_of_normals_gatk_preprocess_intervals:
+    input:
+        bed = str(rules._panel_of_normals_canonical_capspace.output.bed),
+        fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta),
+        gatk_dict = str(rules._panel_of_normals_symlink_fasta.output.gatk_dict)
+    output:
+        all_contigs = temp(CFG["dirs"]["gatk_intervals"] + "{seq_type}--{genome_build}/{capture_space}/targets.all_contigs.interval_list"),
+        intervals = CFG["dirs"]["gatk_intervals"] + "{seq_type}--{genome_build}/{capture_space}/targets.preprocessed.interval_list"
+    log:
+        stderr = CFG["logs"]["gatk_intervals"] + "{seq_type}--{genome_build}/{capture_space}/preprocess_intervals.stderr.log"
+    params:
+        java_mem = _pon_gatk_java_mem("preprocess"),
+        padding = _PON_GATK_CFG["padding"],
+        chromosome_regex = _PON_GATK_CFG["chromosome_regex"]
+    conda:
+        CFG["conda_envs"]["gatk4"]
+    resources:
+        **CFG["resources"]["gatk"]["preprocess"]
+    shell:
+        op.as_one_line("""
+        gatk --java-options "-Xmx{params.java_mem}" PreprocessIntervals
+            -R {input.fasta} -L {input.bed} --bin-length 0 --padding {params.padding}
+            --interval-merging-rule OVERLAPPING_ONLY -O {output.all_contigs} 2> {log.stderr}
+        &&
+        awk -v re='{params.chromosome_regex}' '/^@/ {{print; next}} $1 ~ re {{print}}'
+            {output.all_contigs} > {output.intervals}
+        """)
+
+# GC content per target, for the panel's GC correction
+rule _panel_of_normals_gatk_annotate_intervals:
+    input:
+        intervals = str(rules._panel_of_normals_gatk_preprocess_intervals.output.intervals),
+        fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta)
+    output:
+        annotated = CFG["dirs"]["gatk_intervals"] + "{seq_type}--{genome_build}/{capture_space}/targets.annotated.tsv"
+    log:
+        stderr = CFG["logs"]["gatk_intervals"] + "{seq_type}--{genome_build}/{capture_space}/annotate_intervals.stderr.log"
+    params:
+        java_mem = _pon_gatk_java_mem("preprocess")
+    conda:
+        CFG["conda_envs"]["gatk4"]
+    resources:
+        **CFG["resources"]["gatk"]["preprocess"]
+    shell:
+        op.as_one_line("""
+        gatk --java-options "-Xmx{params.java_mem}" AnnotateIntervals
+            -R {input.fasta} -L {input.intervals} --interval-merging-rule OVERLAPPING_ONLY
+            -O {output.annotated} 2> {log.stderr}
+        """)
+
+# Common biallelic SNP sites (gnomAD AF > min_snp_af) within the targets, where
+# gatk_cnv collects allele counts. -R supplies the sequence dictionary, since
+# the gnomAD VCF header may lack ##contig lines.
+rule _panel_of_normals_gatk_common_snps:
+    input:
+        intervals = str(rules._panel_of_normals_gatk_preprocess_intervals.output.intervals),
+        fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta),
+        gnomad = ancient(reference_files("genomes/{genome_build}/variation/af-only-gnomad.{genome_build}.vcf.gz"))
+    output:
+        vcf = CFG["dirs"]["gatk_intervals"] + "{seq_type}--{genome_build}/{capture_space}/common_snps.vcf.gz",
+        tbi = CFG["dirs"]["gatk_intervals"] + "{seq_type}--{genome_build}/{capture_space}/common_snps.vcf.gz.tbi"
+    log:
+        stderr = CFG["logs"]["gatk_intervals"] + "{seq_type}--{genome_build}/{capture_space}/common_snps.stderr.log"
+    params:
+        java_mem = _pon_gatk_java_mem("preprocess"),
+        min_af = _PON_GATK_CFG["min_snp_af"]
+    conda:
+        CFG["conda_envs"]["gatk4"]
+    resources:
+        **CFG["resources"]["gatk"]["preprocess"]
+    shell:
+        op.as_one_line("""
+        gatk --java-options "-Xmx{params.java_mem}" SelectVariants
+            -R {input.fasta} -V {input.gnomad} -L {input.intervals}
+            --select-type-to-include SNP --restrict-alleles-to BIALLELIC
+            -select "AF > {params.min_af}" -O {output.vcf} 2> {log.stderr}
+        """)
+
+# Read counts per target for each sample in the panel (CRAMs are read with -R)
+rule _panel_of_normals_gatk_collect_read_counts:
+    input:
+        bam = str(rules._panel_of_normals_input_bam.output.bam),
+        bai = str(rules._panel_of_normals_index_bam.output.bai),
+        intervals = str(rules._panel_of_normals_gatk_preprocess_intervals.output.intervals),
+        fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta)
+    output:
+        counts = CFG["dirs"]["gatk_read_counts"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}.counts.hdf5"
+    log:
+        stderr = CFG["logs"]["gatk_read_counts"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}.stderr.log"
+    params:
+        java_mem = _pon_gatk_java_mem("read_counts")
+    conda:
+        CFG["conda_envs"]["gatk4"]
+    resources:
+        **CFG["resources"]["gatk"]["read_counts"]
+    shell:
+        op.as_one_line("""
+        gatk --java-options "-Xmx{params.java_mem}" CollectReadCounts
+            -I {input.bam} -R {input.fasta} -L {input.intervals}
+            --interval-merging-rule OVERLAPPING_ONLY -O {output.counts} 2> {log.stderr}
+        """)
+
+def _get_pon_gatk_counts_per_combo(wildcards):
+    return expand(
+        str(rules._panel_of_normals_gatk_collect_read_counts.output.counts),
+        sample_id = _pon_gatk_panel_samples(wildcards.seq_type, wildcards.genome_build, wildcards.capture_space),
+        allow_missing = True)
+
+rule _panel_of_normals_gatk_create_pon:
+    input:
+        counts = _get_pon_gatk_counts_per_combo,
+        annotated = str(rules._panel_of_normals_gatk_annotate_intervals.output.annotated)
+    output:
+        pon = CFG["dirs"]["gatk_pon"] + "{seq_type}--{genome_build}/{capture_space}/pon.hdf5",
+        samples = CFG["dirs"]["gatk_pon"] + "{seq_type}--{genome_build}/{capture_space}/pon_samples.txt"
+    log:
+        stderr = CFG["logs"]["gatk_pon"] + "{seq_type}--{genome_build}/{capture_space}/create_pon.stderr.log"
+    params:
+        java_mem = _pon_gatk_java_mem("pon"),
+        inputs = lambda w, input: " ".join("-I " + f for f in input.counts),
+        opts = _PON_GATK_CFG["pon_opts"]
+    conda:
+        CFG["conda_envs"]["gatk4"]
+    threads:
+        CFG["threads"]["gatk"]["pon"]
+    resources:
+        **CFG["resources"]["gatk"]["pon"]
+    shell:
+        op.as_one_line("""
+        for f in {input.counts}; do basename $f .counts.hdf5; done > {output.samples}
+        &&
+        gatk --java-options "-Xmx{params.java_mem}" CreateReadCountPanelOfNormals
+            {params.inputs} --annotated-intervals {input.annotated} {params.opts}
+            -O {output.pon} 2> {log.stderr}
+        """)
+
+rule _panel_of_normals_gatk_output:
+    input:
+        pon = str(rules._panel_of_normals_gatk_create_pon.output.pon),
+        samples = str(rules._panel_of_normals_gatk_create_pon.output.samples),
+        intervals = str(rules._panel_of_normals_gatk_preprocess_intervals.output.intervals),
+        annotated = str(rules._panel_of_normals_gatk_annotate_intervals.output.annotated),
+        snps = str(rules._panel_of_normals_gatk_common_snps.output.vcf),
+        snps_tbi = str(rules._panel_of_normals_gatk_common_snps.output.tbi)
+    output:
+        pon = CFG["dirs"]["outputs"] + "gatk/{seq_type}--{genome_build}/{capture_space}/pon.hdf5",
+        samples = CFG["dirs"]["outputs"] + "gatk/{seq_type}--{genome_build}/{capture_space}/pon_samples.txt",
+        intervals = CFG["dirs"]["outputs"] + "gatk/{seq_type}--{genome_build}/{capture_space}/targets.preprocessed.interval_list",
+        annotated = CFG["dirs"]["outputs"] + "gatk/{seq_type}--{genome_build}/{capture_space}/targets.annotated.tsv",
+        snps = CFG["dirs"]["outputs"] + "gatk/{seq_type}--{genome_build}/{capture_space}/common_snps.vcf.gz",
+        snps_tbi = CFG["dirs"]["outputs"] + "gatk/{seq_type}--{genome_build}/{capture_space}/common_snps.vcf.gz.tbi"
+    run:
+        for key in ["pon", "samples", "intervals", "annotated", "snps", "snps_tbi"]:
+            op.relative_symlink(input[key], output[key], in_module=True)
+
+
+# ---------------------------------------------------------- #
 # rule all section
 # ---------------------------------------------------------- #
 rule _panel_of_normals_output_samples_tsv:
@@ -1393,7 +1575,22 @@ rule _panel_of_normals_all:
             seq_type=COMBOS["seq_type"],
             genome_build=COMBOS["genome_build"],
             capture_space=COMBOS["capture_space"]
-        )
+        ),
+        # GATK (only when options: gatk: enabled)
+        expand(
+            [
+                str(rules._panel_of_normals_gatk_output.output.pon),
+                str(rules._panel_of_normals_gatk_output.output.samples),
+                str(rules._panel_of_normals_gatk_output.output.intervals),
+                str(rules._panel_of_normals_gatk_output.output.annotated),
+                str(rules._panel_of_normals_gatk_output.output.snps),
+                str(rules._panel_of_normals_gatk_output.output.snps_tbi)
+            ],
+            zip,
+            seq_type=COMBOS["seq_type"],
+            genome_build=COMBOS["genome_build"],
+            capture_space=COMBOS["capture_space"]
+        ) if _PON_GATK_CFG["enabled"] else []
 
 
 ##### CLEANUP #####

@@ -46,6 +46,21 @@ lcr-modules:
                     force: "--force"
                     opts: ""
 
+            # GATK4 read-count panel of normals (CreateReadCountPanelOfNormals) and
+            # interval files for the gatk_cnv module, built from the same samples as
+            # the CNVkit and PureCN panels (this module's samples table). Off by
+            # default, so existing runs of this module build nothing new.
+            gatk:
+                enabled: False
+                # targets are used as-is (bin length 0) and padded on each side
+                padding: 250
+                # contigs kept (autosomes by default, as in PureCN's copy number;
+                # also avoids X noise from a mixed-sex panel)
+                chromosome_regex: "^(chr)?([1-9]|1[0-9]|2[0-2])$"
+                # common SNP sites (from gnomAD) at which gatk_cnv collects allele counts
+                min_snp_af: 0.01
+                pon_opts: ""
+
         software:
             coverage_script: "{MODSDIR}/../../purecn/1.1/etc/Coverage.R"
             normalDB_script: "{MODSDIR}/../../purecn/1.1/etc/NormalDB.R"
@@ -58,6 +73,7 @@ lcr-modules:
             mutect: "{MODSDIR}/envs/gatk-4.1.8.1.yaml"
             bcftools: "{MODSDIR}/envs/bcftools-1.10.2.yaml"
             bedtools: "{MODSDIR}/envs/bedtools-2.29.2.yaml"
+            gatk4: "{MODSDIR}/envs/gatk-4.2.6.1.yaml"
 
         threads:
             cnvkit:
@@ -69,6 +85,8 @@ lcr-modules:
                 post_vcf: 2
                 coverage: 2
                 normalDB: 4
+            gatk:
+                pon: 4
 
         resources:
             cnvkit:
@@ -95,6 +113,13 @@ lcr-modules:
                     mem_mb: 18000
                 normalDB:
                     mem_mb: 10000
+            gatk:
+                preprocess:
+                    mem_mb: 8000
+                read_counts:
+                    mem_mb: 8000
+                pon:
+                    mem_mb: 32000
 
 
         pairing_config:

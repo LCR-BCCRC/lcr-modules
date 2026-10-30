@@ -4,30 +4,23 @@ lcr-modules:
 
         inputs:
             # Available wildcards: {seq_type} {genome_build} {sample_id}
-            # Tumours and every normal used for the panel of normals (CRAMs are fine)
+            # Tumours and their matched normals (CRAMs are fine)
             sample_bam: "__UPDATE__"
             sample_bai: "__UPDATE__"
+
+            # From the panel_of_normals module (options: gatk: enabled: True)
+            # Available wildcards: {seq_type} {genome_build} {capture_space}
+            # panel_of_normals-1.0/99-outputs/gatk/{seq_type}--{genome_build}/{capture_space}/pon.hdf5
+            gatk_pon: "__UPDATE__"
+            # .../targets.preprocessed.interval_list
+            gatk_intervals: "__UPDATE__"
+            # .../common_snps.vcf.gz and its .tbi
+            gatk_common_snps: "__UPDATE__"
+            gatk_common_snps_tbi: "__UPDATE__"
 
         scratch_subdirectories: []
 
         options:
-            # Normals (sample_id) never used in a panel of normals, e.g. failed or
-            # near-empty libraries. A single bad normal (median count of zero)
-            # makes CreateReadCountPanelOfNormals fail for the whole capture space.
-            pon_exclude: []
-            # Minimum normals per {seq_type}--{genome_build}--{capture_space}
-            pon_min_normals: 10
-
-            preprocess:
-                # exome targets are used as-is (bin length 0) and padded on each side
-                padding: 250
-                # contigs kept for counting, segmentation and allelic counts
-                # (autosomes, as in PureCN's copy number and the DLBClass/ABSOLUTE
-                # segments; also avoids X noise from a mixed-sex panel of normals)
-                chromosome_regex: "^(chr)?([1-9]|1[0-9]|2[0-2])$"
-            # common SNP sites (from gnomAD) at which allele counts are collected
-            min_snp_af: 0.01
-
             denoise:
                 opts: ""
             # targets with denoised log2 copy ratio outside these limits are dropped
@@ -83,21 +76,15 @@ lcr-modules:
             plot: "{MODSDIR}/envs/purecn-2.0.1.yaml"
 
         threads:
-            preprocess: 1
             read_counts: 1
-            pon: 4
             allelic_counts: 1
             denoise: 1
             model_segments: 1
             post_process: 1
 
         resources:
-            preprocess:
-                mem_mb: 8000
             read_counts:
                 mem_mb: 8000
-            pon:
-                mem_mb: 32000
             allelic_counts:
                 mem_mb: 8000
             denoise:
