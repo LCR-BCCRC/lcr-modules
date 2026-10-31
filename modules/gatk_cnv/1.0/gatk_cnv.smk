@@ -178,8 +178,12 @@ rule _gatk_cnv_collect_allelic_counts:
         """)
 
 
+# Priorities rise along the pipeline (denoise 1, ModelSegments 2, later steps 3), so a
+# tumour whose inputs are ready goes ahead of the queue of count jobs and finished
+# results appear throughout a cohort run instead of only at the end.
 # Standardize and denoise tumour read counts against the panel of normals
 rule _gatk_cnv_denoise:
+    priority: 1
     input:
         counts = CFG["dirs"]["read_counts"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.counts.hdf5",
         pon = str(rules._gatk_cnv_input_panel.output.pon)
@@ -210,6 +214,7 @@ rule _gatk_cnv_denoise:
 # log2 below min_log2_copy_ratio) and high-side artefacts (above
 # max_log2_copy_ratio), which otherwise each become a few-target segment
 rule _gatk_cnv_filter_dropouts:
+    priority: 1
     input:
         denoised = str(rules._gatk_cnv_denoise.output.denoised)
     output:
@@ -227,6 +232,7 @@ rule _gatk_cnv_filter_dropouts:
 # Joint copy-ratio and allele-fraction segmentation; heterozygous sites are
 # genotyped from the matched normal
 rule _gatk_cnv_model_segments:
+    priority: 2
     input:
         denoised = str(rules._gatk_cnv_filter_dropouts.output.filtered),
         tumour_counts = CFG["dirs"]["allelic_counts"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.allelicCounts.tsv",
@@ -265,6 +271,7 @@ rule _gatk_cnv_model_segments:
 # needs read depth. Copy ratios are as reliable as with a normal; allele
 # fractions are not, in LOH regions of high-purity tumours.
 rule _gatk_cnv_model_segments_no_normal:
+    priority: 2
     input:
         denoised = str(rules._gatk_cnv_filter_dropouts.output.filtered),
         tumour_counts = CFG["dirs"]["allelic_counts"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}.allelicCounts.tsv"
@@ -300,6 +307,7 @@ rule _gatk_cnv_model_segments_no_normal:
 
 # Neutral / amplified / deleted calls for the copy-ratio segments
 rule _gatk_cnv_call_segments:
+    priority: 3
     input:
         cr_seg = CFG["dirs"]["model_segments"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.cr.seg"
     output:
@@ -325,6 +333,7 @@ rule _gatk_cnv_call_segments:
 # Genome-wide plot: denoised copy ratio and allele fraction with the final
 # segments; targets removed before segmentation are shown in grey
 rule _gatk_cnv_plot:
+    priority: 3
     input:
         denoised = str(rules._gatk_cnv_denoise.output.denoised),
         hets = CFG["dirs"]["model_segments"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.hets.tsv",
@@ -357,6 +366,7 @@ rule _gatk_cnv_plot:
 # 1-based closed; starts are converted to 0-based. CN = round(2 * 2^log2)
 # (not purity-corrected); LOH_flag is NA.
 rule _gatk_cnv_to_seg:
+    priority: 3
     input:
         model_final = CFG["dirs"]["model_segments"] + "{seq_type}--{genome_build}/{capture_space}/{tumour_id}--{normal_id}--{pair_status}/{tumour_id}.modelFinal.seg"
     output:
@@ -389,6 +399,7 @@ def _gatk_cnv_get_chain(wildcards):
 
 # Convert the coordinates of the seg file to the other genome build
 rule _gatk_cnv_convert_coordinates:
+    priority: 3
     input:
         native = str(rules._gatk_cnv_to_seg.output.seg),
         chain = _gatk_cnv_get_chain
@@ -437,6 +448,7 @@ def _gatk_cnv_prepare_projection(wildcards):
 
 # Fill the missing segments of seg files with neutral regions to complete the genome coverage
 rule _gatk_cnv_fill_segments:
+    priority: 3
     input:
         unpack(_gatk_cnv_prepare_projection)
     output:
@@ -476,6 +488,7 @@ rule _gatk_cnv_fill_segments:
 
 # Normalize chr prefix of the output file
 rule _gatk_cnv_normalize_projection:
+    priority: 3
     input:
         filled = CFG["dirs"]["fill_regions"] + "seg/{seq_type}--projection/{tumour_id}--{normal_id}--{pair_status}.{tool}.{projection}.seg",
         chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
@@ -495,6 +508,7 @@ rule _gatk_cnv_normalize_projection:
 
 # Symlinks the final output files into the module results directory (under '99-outputs/')
 rule _gatk_cnv_output_projection:
+    priority: 3
     input:
         projection = str(rules._gatk_cnv_normalize_projection.output.projection)
     output:
@@ -519,6 +533,7 @@ def _gatk_cnv_drop_capture_space_wc(wildcards):
 
 
 rule _gatk_cnv_output:
+    priority: 3
     input:
         unpack(_gatk_cnv_drop_capture_space_wc)
     output:
@@ -538,6 +553,7 @@ def _gatk_cnv_plot_wc(wildcards):
 
 
 rule _gatk_cnv_output_plot:
+    priority: 3
     input:
         unpack(_gatk_cnv_plot_wc)
     output:
