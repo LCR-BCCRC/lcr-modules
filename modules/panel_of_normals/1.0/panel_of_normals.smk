@@ -1435,11 +1435,15 @@ rule _panel_of_normals_gatk_common_snps:
             -select "AF > {params.min_af}" -O {output.vcf} 2> {log.stderr}
         """)
 
-# Read counts per target for each sample in the panel (CRAMs are read with -R)
+# Read counts per target for each sample in the panel (CRAMs are read with -R).
+# Reads the original BAM/CRAM and index (inputs: sample_bam, sample_bai) rather
+# than this module's symlink and its temporary re-made index: requesting that
+# index would re-create it, and under mtime rerun triggers that makes every
+# CNVkit and PureCN job using it look out of date.
 rule _panel_of_normals_gatk_collect_read_counts:
     input:
-        bam = str(rules._panel_of_normals_input_bam.output.bam),
-        bai = str(rules._panel_of_normals_index_bam.output.bai),
+        bam = ancient(CFG["inputs"]["sample_bam"]),
+        bai = ancient(CFG["inputs"]["sample_bai"]),
         intervals = str(rules._panel_of_normals_gatk_preprocess_intervals.output.intervals),
         fasta = str(rules._panel_of_normals_symlink_fasta.output.fasta)
     output:
