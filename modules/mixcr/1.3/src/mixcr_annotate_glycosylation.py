@@ -170,7 +170,14 @@ def main():
                 continue
 
             numbered  = number_with_imgt(aa_seq)
-            sites     = find_glycosylation_sites(numbered) if numbered else []
+            if not numbered:
+                writer.writerow({
+                    "sequence_id": seq_id,
+                    "aa_sequence": aa_seq,
+                    **{field: "NA" for field in FIELDS[2:]},
+                })
+                continue
+            sites = find_glycosylation_sites(numbered)
             cdr_sites = [s for s in sites if s[2].startswith("CDR")]
 
             writer.writerow({
