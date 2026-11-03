@@ -7,26 +7,41 @@ readFraction order, so taking the first N rows gives the most abundant clones.
 
 import argparse
 import csv
+import sys
+
+REGION_SUFFIXES = ["FR1", "CDR1", "FR2", "CDR2", "FR3", "CDR3", "FR4"]
 
 
-REGIONS = ["nSeqFR1", "nSeqCDR1", "nSeqFR2", "nSeqCDR2", "nSeqFR3", "nSeqCDR3", "nSeqFR4"]
-REGION_LABELS = ["FR1", "CDR1", "FR2", "CDR2", "FR3", "CDR3", "FR4"]
+def _detect_nt_prefix(fieldnames):
+    """Return 'nSeqImputed' if those columns exist, else 'nSeq', else None."""
+    for prefix in ("nSeqImputed", "nSeq"):
+        if f"{prefix}FR1" in fieldnames:
+            return prefix
+    return None
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input",        required=True, help="MiXCR clonotype TSV")
-    parser.add_argument("-o", "--output_tsv",   required=True, help="output dominant TSV")
-    parser.add_argument("-f", "--output_fasta",  required=True, help="output dominant FASTA")
+    parser.add_argument("-i", "--input",          required=True, help="MiXCR clonotype TSV")
+    parser.add_argument("-o", "--output_tsv",     required=True, help="output dominant TSV")
+    parser.add_argument("-f", "--output_fasta",   required=True, help="output dominant FASTA")
     parser.add_argument("-s", "--output_seq_info", required=True, help="output dominant seq_info")
-    parser.add_argument("-n", "--n_dominant",   type=int, default=5,
+    parser.add_argument("-n", "--n_dominant",     type=int, default=5,
                         help="number of top clones to retain (default: 5)")
     args = parser.parse_args()
 
     with open(args.input) as fh:
         reader = csv.DictReader(fh, delimiter="\t")
         rows = list(reader)
-        fieldnames = reader.fieldnames
+        fieldnames = reader.fieldnames or []
+
+    nt_prefix = _detect_nt_prefix(fieldnames)
+    if nt_prefix is None:
+        sys.exit(
+            "ERROR: could not find nSeqImputedFR1 or nSeqFR1 columns in "
+            f"{args.input}."
+        )
+    nt_cols = [f"{nt_prefix}{r}" for r in REGION_SUFFIXES]
 
     dominant = rows[: args.n_dominant]
 
@@ -43,13 +58,12 @@ def main():
             read_count    = row["readCount"]
 
             seqs = [
-                "" if row.get(r, "") == "region_not_covered" else row.get(r, "")
-                for r in REGIONS
+                "" if row.get(c, "") == "region_not_covered" else row.get(c, "")
+                for c in nt_cols
             ]
-            seq = "".join(seqs)
-            fa.write(f">cloneId_{clone_id}_readFraction_{read_fraction}_readCount_{read_count}\n{seq}\n")
+            fa.write(f">cloneId_{clone_id}_readFraction_{read_fraction}_readCount_{read_count}\n{''.join(seqs)}\n")
 
-            missing = [label for label, s in zip(REGION_LABELS, seqs) if s == ""]
+            missing = [r for r, s in zip(REGION_SUFFIXES, seqs) if s == ""]
             si.write(f"{clone_id}\t{read_fraction}\t{read_count}\t{len(missing)}\t{','.join(missing)}\n")
 
 
