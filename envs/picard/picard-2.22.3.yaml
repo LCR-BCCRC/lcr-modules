@@ -64,7 +64,6 @@ dependencies:
   - pango=1.42.4
   - pcre=8.44
   - picard=2.22.3
-  - pigz
   - pip=20.0.2
   - pixman=0.38.0
   - pthread-stubs=0.4
@@ -99,4 +98,3 @@ dependencies:
   - zlib=1.2.11
   - zstd=1.4.4
 prefix: /home/bgrande/miniconda3/envs/test-picard
-
