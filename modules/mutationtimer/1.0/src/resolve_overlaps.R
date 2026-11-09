@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
 # Script to resolve overlapping segments in a Copy Number bed file made
-#  from Battenberg subclones_filled.txt output that has been run through lcr-scripts/liftover.sh
+# from Battenberg subclones_filled.txt output that has been run through lcr-scripts/liftover.sh
 # If the overlapping regions are clonal, 1:1 (without CN changes), they are merged
 # If one of the overlapping regions has CNA info, that info is kept for the overlapping part
 # If both segments have CNA info, the larger segment's info gets assigned to the overlapping region

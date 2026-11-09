@@ -15,7 +15,7 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
-            liftover_script: "{SCRIPTSDIR}/liftover/1.0/liftover.sh"
+            liftover_script: "{SCRIPTSDIR}/liftover/2.0/liftover.sh"
             liftover_minMatch: 0.95
             resolve_overlaps_script: "{MODSDIR}/src/resolve_overlaps.R"
             mutationtimer_script: "{MODSDIR}/src/MutationTimeR.R"
@@ -23,9 +23,13 @@ lcr-modules:
             plot_mutationtimer_script: "{MODSDIR}/src/plot_MutationTimeR.R"
 
         conda_envs:
-            liftover: "{SCRIPTSDIR}/liftover/1.0/liftover.yaml"
+            liftover: "{SCRIPTSDIR}/liftover/2.0/liftover.yaml"
             mutationtimer: "{MODSDIR}/envs/mutationtimer.yml"
             plot_mutationtimer: "{MODSDIR}/envs/plot_mutationtimer.yml"
+        
+        container_envs:
+            # liftover: "docker://ghcr.io/lcr-bccrc/lcr-scripts/liftover:2.0"
+            mutationtimer: "docker://ghcr.io/lcr-bccrc/lcr-scripts/mutationtimer:1.0"
 
         threads:
             mutationtimer: 4 # coded as 4 in src/MutationTimeR.R
