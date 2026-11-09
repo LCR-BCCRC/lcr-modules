@@ -55,8 +55,6 @@ rule _mutationtimer_input_bb:
         bb = CFG["inputs"]["battenberg_txt"]
     output:
         bb = CFG["dirs"]["inputs"] + "battenberg--{genome_build}/{tumour_id}--{normal_id}_subclones.txt"
-    group:
-        "input_lift_resolve"
     run:
         op.absolute_symlink(input.bb, output.bb)
 
@@ -65,8 +63,6 @@ rule _mutationtimer_input_cellularity:
         cellularity = CFG["inputs"]["cellularity_txt"]
     output:
         cellularity = CFG["dirs"]["inputs"] + "battenberg--{genome_build}/{tumour_id}--{normal_id}_cellularity_ploidy.txt"
-    group:
-        "input_lift_resolve"
     run:
         op.absolute_symlink(input.cellularity, output.cellularity)
 
@@ -75,8 +71,6 @@ rule _mutationtimer_input_augmented_maf:
         maf = CFG["inputs"]["augmented_maf"]
     output:
         maf = CFG["dirs"]["inputs"] + "augmented_maf/all_slms-3--{projection}.maf"
-    group:
-        "input_lift_resolve"
     run:
         op.absolute_symlink(input.maf, output.maf)
 
@@ -89,8 +83,6 @@ rule _mutationtimer_convert2bed:
         bed = CFG["dirs"]["convert2bed"] + "battenberg--{genome_build}/{tumour_id}--{normal_id}_subclones.bed"
     log:
         stderr = CFG["logs"]["mutationtimer"] + "{genome_build}/{tumour_id}--{normal_id}/convert2bed.stderr.log"
-    group:
-        "input_lift_resolve"
     shell:
         op.as_one_line("""
         awk -F"\t" -v OFS="\t" '{{print $1,$2,$3,$8,$9,$10,$11,$12,$13}}' {input.bb} > {output.bed} 2> {log.stderr}
@@ -117,10 +109,10 @@ rule _mutationtimer_liftover:
         minmatch = CFG["options"]["liftover_minMatch"]
     conda:
         CFG["conda_envs"]["liftover"]
+    container:
+        CFG["conda_envs"]["liftover"]
     wildcard_constraints:
         chain = "hg38ToHg19|hg19ToHg38"
-    group:
-        "input_lift_resolve"
     shell:
         op.as_one_line("""
         bash {params.liftover_script}  BED {input.bed}
@@ -164,9 +156,9 @@ rule _mutationtimer_resolve_overlaps:
         script = CFG["options"]["resolve_overlaps_script"]
     conda:
         CFG["conda_envs"]["mutationtimer"]
+    container:
+        CFG["conda_envs"]["mutationtimer"]
     threads: 1
-    group:
-        "input_lift_resolve"
     shell:
         op.as_one_line("""
         Rscript --vanilla {params.script}
@@ -214,6 +206,8 @@ rule  _mutationtimer_run:
         n_bootstrap = CFG["options"]["n_bootstrap"]
     conda:
         CFG["conda_envs"]["mutationtimer"]
+    container:
+        CFG["conda_envs"]["mutationtimer"]
     threads:
         CFG["threads"]["mutationtimer"]
     resources:
@@ -239,8 +233,7 @@ rule _mutationtimer_normalize_prefix_ssm:
         chrom_file = reference_files("genomes/{projection}/genome_fasta/main_chromosomes.txt")
     output:
         timed_ssm = CFG["dirs"]["normalize"] + "{projection}/{tumour_id}--{normal_id}/{tumour_id}_timed_ssm.{projection}.tsv"
-    threads:
-        1
+    threads: 1
     group:
         "normalize_plot"
     run:
@@ -260,7 +253,7 @@ rule _mutationtimer_normalize_prefix_ssm:
             # remove chr prefix
             timed = pd.read_csv(input.timed_ssm, sep = "\t")
             timed["Chromosome"] = timed["Chromosome"].astype(str).str.replace('chr', '')
-            timed.to_csv(output.timed_ssm, sep="\t", index=False)
+            timed.to_csv(output.timed_ssm, sep="\t", index=False, na_rep='NA')
 
 rule _mutationtimer_normalize_prefix_cna:
     input:
@@ -289,7 +282,7 @@ rule _mutationtimer_normalize_prefix_cna:
             # remove chr prefix
             timed = pd.read_csv(input.timed_cna, sep = "\t")
             timed["chr"] = timed["chr"].astype(str).str.replace('chr', '')
-            timed.to_csv(output.timed_cna, sep="\t", index=False)
+            timed.to_csv(output.timed_cna, sep="\t", index=False, na_rep='NA')
 
 
 # Creates plots of timed data
@@ -306,6 +299,8 @@ rule  _mutationtimer_plot:
         script = CFG["options"]["plot_mutationtimer_script"]
     conda:
         CFG["conda_envs"]["plot_mutationtimer"]
+    container:
+        CFG["conda_envs"]["mutationtimer"]
     group:
         "normalize_plot"
     shell:
