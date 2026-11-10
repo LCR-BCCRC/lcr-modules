@@ -29,6 +29,13 @@ cd demo
 ./dry-run.sh mrna_Snakefile.smk
 ```
 
+
+## Citation
+
+If you use LCR-modules in your research, please cite:
+
+Dreval K, Hilton LK, Grande BM, et al. (2026). LCR-modules: a collection of workflows for cancer genome analysis. *Bioinformatics*, 42(6), btag366. https://doi.org/10.1093/bioinformatics/btag366
+
 ## Module levels overview
 
 Level 1 modules perform low-level tasks such as adapter trimming, quality control, and alignment of sequencing files, and obtaining data from repositories such as the European Genome-phenome Archive (EGA). These modules also perform gene expression analyses, including alignment using STAR and calculating mRNA abundance using salmon. Level 2 modules perform routine tasks for cancer analysis, such as detecting and annotating simple somatic mutations, copy-number alterations, and structural variations.  Next, the level 3 modules perform analyses that rely on cohort-level aggregation. The cohorts and data sets can be flexibly defined based on different clinical characteristics through a set of configuration files. The modules at this level operate on the outputs of level 2 modules and perform tasks such as aggregation of individual files into cohort-level merges. Example workflows include analyses of mutation signatures, identification of significantly mutated genes, and sample classification into genetic subgroups.

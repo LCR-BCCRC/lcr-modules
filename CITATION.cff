@@ -1,0 +1,10 @@
+preferred-citation:
+  type: article
+  title: "LCR-modules: a collection of workflows for cancer genome analysis"
+  # Complete list of 18 authors included in the file
+  journal: Bioinformatics
+  year: 2026
+  volume: 42
+  issue: 6
+  doi: "10.1093/bioinformatics/btag366"
+  start: btag366
