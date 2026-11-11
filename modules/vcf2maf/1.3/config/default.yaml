@@ -26,6 +26,8 @@ lcr-modules:
       maf2maf: "--cache-version 100 --species homo_sapiens --retain-cols gnomAD_AF,gnomADg_AF,blacklist_count"
       species: "homo_sapiens"
       gnomAD_cutoff: 0.001 # cut-off to be used for AF frequency of germline variants in gnomAD
+      min_alt_reads: 0 # > 0: drop VCF records before annotation/VEP in which no sample has at least this many reads supporting the first alt allele (FORMAT/AD); 0 disables. VCFs without FORMAT/AD pass unchanged
+      gnomad_prefilter: False # True: drop records with gnomADg_AF > gnomAD_cutoff at the VCF stage, before VEP (much smaller annotated/VEP VCFs, faster VEP); dropped records go to {base_name}.gnomad_prefilter.dropped.vcf.gz
       target_builds: ["hg38", "grch38", "hg19", "grch37"] # Target genome builds for chr-prefixing and CrossMap
       reference_config: "__UPDATE__" # Path to the reference workflow config file. Usef to handle reference genome builds;
       augment: False # Whether or not mafs should be augmented with variants from tumours from the same patient

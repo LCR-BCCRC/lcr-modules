@@ -102,7 +102,20 @@ rule _vcf2maf_annotate_gnomad:
         vcf = str(rules._vcf2maf_input_vcf.output.vcf_gz),
         normalized_gnomad = reference_files("genomes/{genome_build}/variation/af-only-gnomad.normalized.{genome_build}.vcf.gz")
     output:
-        vcf = temp(CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.annotated.vcf")
+        vcf = temp(CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.annotated.vcf"),
+        # records removed by the optional gnomAD pre-filter (header only when the pre-filter is off), kept for auditing
+        dropped_vcf = CFG["dirs"]["vcf2maf"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.gnomad_prefilter.dropped.vcf.gz"
+    params:
+        # gnomad_prefilter: drop records with gnomADg_AF > gnomAD_cutoff before VEP (any alt allele above the cut-off,
+        # as in _vcf2maf_gnomad_filter_maf; records absent from gnomAD are kept). Cuts VEP run time and the size of
+        # the annotated and VEP VCFs; the MAF-level gnomAD filter still runs afterwards.
+        prefilter = "1" if CFG["options"].get("gnomad_prefilter", False) else "0",
+        # min_alt_reads > 0: drop records in which no sample has at least this many reads for the first alt allele
+        # (FORMAT/AD). Records without FORMAT/AD (e.g. Strelka paired somatic output) evaluate as missing and are kept.
+        ad_filter = (f"bcftools view -e 'MAX(FMT/AD[*:1]) < {int(CFG['options'].get('min_alt_reads', 0))}' -Ou - |"
+                     if int(CFG["options"].get("min_alt_reads", 0)) > 0 else ""),
+        cutoff = CFG["options"]["gnomAD_cutoff"],
+        tmp_bcf = CFG["dirs"]["decompressed"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/{base_name}.annotated.tmp.bcf"
     conda:
         CFG["conda_envs"]["bcftools"]
     container:
@@ -116,7 +129,17 @@ rule _vcf2maf_annotate_gnomad:
     group: "vcf_and_annotate"
     shell:
         op.as_one_line("""
-        bcftools annotate --threads {threads} -a {input.normalized_gnomad} {input.vcf} -c "INFO/gnomADg_AF:=INFO/AF" -o {output.vcf}
+        if [[ "{params.prefilter}" == "1" ]]; then
+            bcftools view -Ou {input.vcf} | {params.ad_filter}
+            bcftools annotate --threads {threads} -a {input.normalized_gnomad} -c "INFO/gnomADg_AF:=INFO/AF" -Ob -o {params.tmp_bcf} - &&
+            bcftools view --threads {threads} -i 'INFO/gnomADg_AF > {params.cutoff}' {params.tmp_bcf} -Oz -o {output.dropped_vcf} &&
+            bcftools view --threads {threads} -e 'INFO/gnomADg_AF > {params.cutoff}' {params.tmp_bcf} -o {output.vcf} &&
+            rm -f {params.tmp_bcf};
+        else
+            bcftools view -Ou {input.vcf} | {params.ad_filter}
+            bcftools annotate --threads {threads} -a {input.normalized_gnomad} -c "INFO/gnomADg_AF:=INFO/AF" -o {output.vcf} - &&
+            bcftools view -h {output.vcf} -Oz -o {output.dropped_vcf};
+        fi
         """)
 
 rule _vcf2maf_run:

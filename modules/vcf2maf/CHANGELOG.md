@@ -5,6 +5,11 @@ All notable changes to the `vcf2maf` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3] - unreleased changes
+
+- Optional gnomAD pre-filter before VEP (`options: gnomad_prefilter`, default `False`). When enabled, `_vcf2maf_annotate_gnomad` drops records whose `gnomADg_AF` exceeds `gnomAD_cutoff` (any alternate allele; records absent from gnomAD are kept) before VEP runs, which shrinks the temporary annotated and VEP VCFs and shortens VEP run time. Dropped records are kept in `{base_name}.gnomad_prefilter.dropped.vcf.gz`. The MAF-level gnomAD filter still runs afterwards.
+- Optional alt-read pre-filter (`options: min_alt_reads`, default `0` = off). When > 0, records in which no sample has at least that many reads supporting the first alternate allele (`FORMAT/AD`) are dropped before gnomAD annotation and VEP; records without `FORMAT/AD` (e.g. Strelka paired somatic VCFs) are kept. These records are not written to an audit file.
+
 ## [1.3] - 2022-02-23
 
 This release was kind of authored by Christopher Rushton. Someone else originally authored this release
