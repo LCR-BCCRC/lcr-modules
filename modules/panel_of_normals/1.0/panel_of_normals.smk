@@ -462,30 +462,60 @@ rule _panel_of_normals_cnvkit_output_cnn:
     run:
         op.relative_symlink(input.cnn, output.cnn, in_module= True)
 
+# Need to use expand here for the case where the flat_ref_combos is empty
 rule _panel_of_normals_cnvkit_output_flat_ref_beds:
     input:
-        target = str(rules._panel_of_normals_cnvkit_flat_ref_annotate_targets.output.targets),
-        antitarget = str(rules._panel_of_normals_cnvkit_flat_ref_antitargets.output.antitargets)
+        target = expand(
+            str(rules._panel_of_normals_cnvkit_flat_ref_annotate_targets.output.targets),
+            zip,
+            seq_type=["capture"] * len(CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]),
+            genome_build=CFG["options"]["cnvkit"]["flat_ref_combos"]["genome_builds"],
+            capture_space=CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]
+        ),
+        antitarget = expand(
+            str(rules._panel_of_normals_cnvkit_flat_ref_antitargets.output.antitargets),
+            zip,
+            seq_type=["capture"] * len(CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]),
+            genome_build=CFG["options"]["cnvkit"]["flat_ref_combos"]["genome_builds"],
+            capture_space=CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]
+        )
     output:
-        target = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{capture_space}_target_sites.bed",
-        antitarget = CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{capture_space}_antitarget_sites.bed"
-    wildcard_constraints: # needed in order not to clash with _panel_of_normals_output_beds
-        seq_type="capture",
-        genome_build='|'.join(CFG["options"]["cnvkit"]["flat_ref_combos"]["genome_builds"]),
-        capture_space='|'.join(CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"])
+        target = expand(
+            CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{capture_space}_target_sites.bed",
+            zip,
+            seq_type=["capture"] * len(CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]),
+            genome_build=CFG["options"]["cnvkit"]["flat_ref_combos"]["genome_builds"],
+            capture_space=CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]
+        ),
+        antitarget = expand(
+            CFG["dirs"]["outputs"] + "bed/{seq_type}--{genome_build}/{capture_space}_antitarget_sites.bed",
+            zip,
+            seq_type=["capture"] * len(CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]),
+            genome_build=CFG["options"]["cnvkit"]["flat_ref_combos"]["genome_builds"],
+            capture_space=CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]
+        )
     run:
         op.relative_symlink(input.target, output.target, in_module= True)
         op.relative_symlink(input.antitarget, output.antitarget, in_module= True)
 
+# Need to use expand here for the case where the flat_ref_combos is empty
 rule _panel_of_normals_cnvkit_output_flat_ref:
     input:
-        cnn = str(rules._panel_of_normals_cnvkit_flat_ref.output.cnn)
+        cnn = expand(
+            str(rules._panel_of_normals_cnvkit_flat_ref.output.cnn),
+            zip,
+            seq_type=["capture"] * len(CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]),
+            genome_build=CFG["options"]["cnvkit"]["flat_ref_combos"]["genome_builds"],
+            capture_space=CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]
+        )
     output:
-        cnn = CFG["dirs"]["outputs"] + "cnn/{seq_type}--{genome_build}/{capture_space}_normal_reference.cnn"
-    wildcard_constraints: # needed in order not to clash with _panel_of_normals_output_cnn
-        seq_type="capture",
-        genome_build='|'.join(CFG["options"]["cnvkit"]["flat_ref_combos"]["genome_builds"]),
-        capture_space='|'.join(CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"])
+        cnn = expand(
+            CFG["dirs"]["outputs"] + "cnn/{seq_type}--{genome_build}/{capture_space}_normal_reference.cnn",
+            zip,
+            seq_type=["capture"] * len(CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]),
+            genome_build=CFG["options"]["cnvkit"]["flat_ref_combos"]["genome_builds"],
+            capture_space=CFG["options"]["cnvkit"]["flat_ref_combos"]["capture_spaces"]
+        )
     run:
         op.relative_symlink(input.cnn, output.cnn, in_module= True)
 
@@ -724,7 +754,7 @@ rule _panel_of_normals_purecn_merge_stats_per_sample:
     input:
         stats = _get_mutect2_chr_stats,
     output:
-        stats = CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz.stats"
+        stats = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz.stats")
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_merge_stats.log"
     params: 
