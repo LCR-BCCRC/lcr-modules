@@ -754,7 +754,7 @@ rule _panel_of_normals_purecn_merge_stats_per_sample:
     input:
         stats = _get_mutect2_chr_stats,
     output:
-        stats = CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz.stats"
+        stats = temp(CFG["dirs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}/{sample_id}_tmp.vcf.gz.stats")
     log:
         CFG["logs"]["purecn_mutect2"] + "{seq_type}--{genome_build}/{capture_space}/{sample_id}_merge_stats.log"
     params: 
