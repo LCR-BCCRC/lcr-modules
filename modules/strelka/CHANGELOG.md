@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tabix-indexes it. Seq types not listed are unchanged (default `{}`).
 - Fix: tumour-only (`no_normal`, germline workflow) runs had no rule producing `variants.passed.vcf.gz`, so the
   pipeline could not finish them. New rule `_strelka_filter_unpaired` keeps PASS records and indexes them.
+- Fix: rerunning a sample in an existing run directory failed at Strelka's `addLegacyOutputLink` task
+  (`ln: failed to create symbolic link 'genome.vcf.gz': File exists`). The run rules now remove the previous
+  `results/` and `workspace/` before running.
 
 ## [1.0] - 2020-06-03
 

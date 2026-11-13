@@ -251,6 +251,8 @@ rule _strelka_run_unpaired:
     shell:
         #TODO: separate job from cleanup because of errors that can occur during deletion of the tmp directories. This should not cause Strelka to rerun but it does because Snakemake deletes the output files
         op.as_one_line("""
+        rm -rf "$(dirname {input.runwf})/results/" "$(dirname {input.runwf})/workspace/"
+            &&
         {input.runwf} {params.opts} --jobs {threads} > {log.stdout} 2> {log.stderr}
             &&
         rm -rf "$(dirname {input.runwf})/workspace/"
@@ -279,6 +281,8 @@ rule _strelka_run_paired:
     shell:
         #TODO: separate job from cleanup because of errors that can occur during deletion of the tmp directories. This should not cause Strelka to rerun but it does because Snakemake deletes the output files
         op.as_one_line("""
+        rm -rf "$(dirname {input.runwf})/results/" "$(dirname {input.runwf})/workspace/"
+            &&
         {input.runwf} {params.opts} --jobs {threads} > {log.stdout} 2> {log.stderr}
             &&
         rm -rf "$(dirname {input.runwf})/workspace/"
