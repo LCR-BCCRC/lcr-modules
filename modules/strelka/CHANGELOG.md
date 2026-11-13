@@ -5,6 +5,13 @@ All notable changes to the `strelka` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - strelka 1.1
+
+- Optional `inputs: call_regions: {seq_type: path}`: restrict calling to a BED of regions for a seq_type (e.g. only the
+  genes a classifier needs, for RNA-seq), instead of the main chromosomes or capture space. Plain or gzipped BED; the
+  `{genome_build}` wildcard is filled in. The new local rule `_strelka_index_call_regions` sorts, bgzips and
+  tabix-indexes it. Seq types not listed are unchanged (default `{}`).
+
 ## [1.0] - 2020-06-03
 
 This release was authored by Helena Winata.

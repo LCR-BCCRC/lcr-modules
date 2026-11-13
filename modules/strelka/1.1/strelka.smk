@@ -49,6 +49,7 @@ localrules:
     _strelka_input_vcf,
     _strelka_dummy_vcf,
     _strelka_index_bed,
+    _strelka_index_call_regions,
     _strelka_configure_paired,
     _strelka_configure_unpaired,
     _strelka_filter_combine,
@@ -123,8 +124,30 @@ def _strelka_get_indel_cli_arg(vcf_in = config["lcr-modules"]["strelka"]["inputs
         return param
     return _strelka_get_indel_cli_custom
 
+# bgzip-compress and tabix-index a user-supplied call-regions BED (inputs: call_regions: {seq_type: path})
+rule _strelka_index_call_regions:
+    input:
+        bed = lambda w: config["lcr-modules"]["strelka"]["inputs"]["call_regions"][w.seq_type].format(genome_build = w.genome_build)
+    output:
+        bedz = CFG["dirs"]["chrom_bed"] + "{seq_type}--{genome_build}.call_regions.bed.gz"
+    conda:
+        CFG["conda_envs"]["tabix"]
+    container:
+        CFG["container_envs"]["tabix"]
+    shell:
+        op.as_one_line("""
+        (if [[ {input.bed} == *.gz ]]; then zcat {input.bed}; else cat {input.bed}; fi) | grep -v '^#' | sort -k1,1 -k2,2n | bgzip -c > {output.bedz}
+            &&
+        tabix -p bed {output.bedz}
+        """)
+
+
 def _strelka_get_capspace(wildcards):
     CFG = config["lcr-modules"]["strelka"]
+    # user-supplied call regions for this seq_type take precedence (e.g. classifier genes only for RNA-seq)
+    call_regions = CFG["inputs"].get("call_regions") or {}
+    if wildcards.seq_type in call_regions and call_regions[wildcards.seq_type]:
+        return CFG["dirs"]["chrom_bed"] + "{seq_type}--{genome_build}.call_regions.bed.gz".format(seq_type = wildcards.seq_type, genome_build = wildcards.genome_build)
     try:
         # Get the appropriate capture space for this sample
         this_bed = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed.gz")

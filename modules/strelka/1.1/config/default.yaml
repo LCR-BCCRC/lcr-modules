@@ -10,6 +10,13 @@ lcr-modules:
             # Set these values to `null` (no quotes) or "" if you don't have these files
             candidate_small_indels: "__UPDATE__"
 
+            # Optional: restrict calling to a BED of regions for a seq_type, e.g. only the genes a classifier needs
+            # (much less Strelka and VEP work for RNA-seq). Plain or gzipped BED; {genome_build} is filled in. Contig names
+            # must match the reference. Seq types not listed keep the default (capture space or main chromosomes).
+            # e.g.  call_regions:
+            #           mrna: "/path/lymphgen_call_regions.{genome_build}.bed"
+            call_regions: {}
+
         scratch_subdirectories: []
 
         options:
