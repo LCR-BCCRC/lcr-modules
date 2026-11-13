@@ -315,6 +315,31 @@ rule _strelka_filter_combine:
         """)
 
 
+# Unpaired (germline workflow, e.g. tumour-only RNA): keep PASS records from variants.vcf.gz. Produces the
+# {var_type}.passed.vcf.gz that _strelka_get_output expects for pair_status no_normal (no rule made it since
+# _strelka_filter was replaced by _strelka_filter_combine for the paired case).
+rule _strelka_filter_unpaired:
+    input:
+        vcf = str(rules._strelka_run_unpaired.output.vcf_variants)
+    output:
+        vcf = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/variants.passed.vcf.gz",
+        vcf_tbi = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/variants.passed.vcf.gz.tbi"
+    log:
+        stderr = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_filter_unpaired.stderr.log"
+    wildcard_constraints:
+        pair_status = "no_normal"
+    conda:
+        CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
+    shell:
+        op.as_one_line("""
+        bcftools view -f ".,PASS" -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
+            &&
+        bcftools index -t {output.vcf} 2>> {log.stderr}
+        """)
+
+
 # infers name of output files depending on how Strelka was run
 def _strelka_get_output(wildcards):
     CFG = config["lcr-modules"]["strelka"]

@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   genes a classifier needs, for RNA-seq), instead of the main chromosomes or capture space. Plain or gzipped BED; the
   `{genome_build}` wildcard is filled in. The new local rule `_strelka_index_call_regions` sorts, bgzips and
   tabix-indexes it. Seq types not listed are unchanged (default `{}`).
+- Fix: tumour-only (`no_normal`, germline workflow) runs had no rule producing `variants.passed.vcf.gz`, so the
+  pipeline could not finish them. New rule `_strelka_filter_unpaired` keeps PASS records and indexes them.
 
 ## [1.0] - 2020-06-03
 
