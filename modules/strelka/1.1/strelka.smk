@@ -49,6 +49,7 @@ localrules:
     _strelka_input_vcf,
     _strelka_dummy_vcf,
     _strelka_index_bed,
+    _strelka_index_call_regions,
     _strelka_configure_paired,
     _strelka_configure_unpaired,
     _strelka_filter_combine,
@@ -123,8 +124,30 @@ def _strelka_get_indel_cli_arg(vcf_in = config["lcr-modules"]["strelka"]["inputs
         return param
     return _strelka_get_indel_cli_custom
 
+# bgzip-compress and tabix-index a user-supplied call-regions BED (inputs: call_regions: {seq_type: path})
+rule _strelka_index_call_regions:
+    input:
+        bed = lambda w: config["lcr-modules"]["strelka"]["inputs"]["call_regions"][w.seq_type].format(genome_build = w.genome_build)
+    output:
+        bedz = CFG["dirs"]["chrom_bed"] + "{seq_type}--{genome_build}.call_regions.bed.gz"
+    conda:
+        CFG["conda_envs"]["tabix"]
+    container:
+        CFG["container_envs"]["tabix"]
+    shell:
+        op.as_one_line("""
+        (if [[ {input.bed} == *.gz ]]; then zcat {input.bed}; else cat {input.bed}; fi) | grep -v '^#' | sort -k1,1 -k2,2n | bgzip -c > {output.bedz}
+            &&
+        tabix -p bed {output.bedz}
+        """)
+
+
 def _strelka_get_capspace(wildcards):
     CFG = config["lcr-modules"]["strelka"]
+    # user-supplied call regions for this seq_type take precedence (e.g. classifier genes only for RNA-seq)
+    call_regions = CFG["inputs"].get("call_regions") or {}
+    if wildcards.seq_type in call_regions and call_regions[wildcards.seq_type]:
+        return CFG["dirs"]["chrom_bed"] + "{seq_type}--{genome_build}.call_regions.bed.gz".format(seq_type = wildcards.seq_type, genome_build = wildcards.genome_build)
     try:
         # Get the appropriate capture space for this sample
         this_bed = op.get_capture_space(CFG, wildcards.tumour_id, wildcards.genome_build, wildcards.seq_type, "bed.gz")
@@ -228,6 +251,8 @@ rule _strelka_run_unpaired:
     shell:
         #TODO: separate job from cleanup because of errors that can occur during deletion of the tmp directories. This should not cause Strelka to rerun but it does because Snakemake deletes the output files
         op.as_one_line("""
+        rm -rf "$(dirname {input.runwf})/results/" "$(dirname {input.runwf})/workspace/"
+            &&
         {input.runwf} {params.opts} --jobs {threads} > {log.stdout} 2> {log.stderr}
             &&
         rm -rf "$(dirname {input.runwf})/workspace/"
@@ -256,6 +281,8 @@ rule _strelka_run_paired:
     shell:
         #TODO: separate job from cleanup because of errors that can occur during deletion of the tmp directories. This should not cause Strelka to rerun but it does because Snakemake deletes the output files
         op.as_one_line("""
+        rm -rf "$(dirname {input.runwf})/results/" "$(dirname {input.runwf})/workspace/"
+            &&
         {input.runwf} {params.opts} --jobs {threads} > {log.stdout} 2> {log.stderr}
             &&
         rm -rf "$(dirname {input.runwf})/workspace/"
@@ -289,6 +316,31 @@ rule _strelka_filter_combine:
         bcftools sort --max-mem {params.mem_mb}M -Oz -o {output.vcf}
         > {log.stdout} 2> {log.stderr} && 
         bcftools index -t {output.vcf} >> {log.stdout} 2>> {log.stderr}
+        """)
+
+
+# Unpaired (germline workflow, e.g. tumour-only RNA): keep PASS records from variants.vcf.gz. Produces the
+# {var_type}.passed.vcf.gz that _strelka_get_output expects for pair_status no_normal (no rule made it since
+# _strelka_filter was replaced by _strelka_filter_combine for the paired case).
+rule _strelka_filter_unpaired:
+    input:
+        vcf = str(rules._strelka_run_unpaired.output.vcf_variants)
+    output:
+        vcf = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/variants.passed.vcf.gz",
+        vcf_tbi = CFG["dirs"]["filtered"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/variants.passed.vcf.gz.tbi"
+    log:
+        stderr = CFG["logs"]["strelka"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}--{pair_status}/strelka_filter_unpaired.stderr.log"
+    wildcard_constraints:
+        pair_status = "no_normal"
+    conda:
+        CFG["conda_envs"]["bcftools"]
+    container:
+        CFG["container_envs"]["bcftools"]
+    shell:
+        op.as_one_line("""
+        bcftools view -f ".,PASS" -Oz -o {output.vcf} {input.vcf} 2> {log.stderr}
+            &&
+        bcftools index -t {output.vcf} 2>> {log.stderr}
         """)
 
 

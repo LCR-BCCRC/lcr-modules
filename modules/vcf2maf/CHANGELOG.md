@@ -5,6 +5,12 @@ All notable changes to the `vcf2maf` module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [Unreleased] - vcf2maf 1.3
+
+- Fix: single-sample VCFs (e.g. Strelka germline workflow for tumour-only RNA, whose sample column is the read-group SM
+  rather than the tumour_id) are reheadered so their sample column is TUMOR. Before, the column was only renamed when it
+  equalled tumour_id, and otherwise vcf2maf wrote MAFs with empty read counts.
 ## [1.3] - 2022-02-23
 
 This release was kind of authored by Christopher Rushton. Someone else originally authored this release

@@ -160,10 +160,10 @@ rule _vcf2maf_run:
         fi;
         VCF_INPUT={input.vcf};
         if ! grep -m1 "^#CHROM" {input.vcf} | grep -qw "TUMOR"; then
-            echo "TUMOR/NORMAL not found in VCF header; reheadering sample columns using tumour_id/normal_id wildcards" >> {log.stderr};
+            echo "TUMOR/NORMAL not found in VCF header; reheadering sample columns (a single-sample VCF, e.g. Strelka germline/tumour-only, becomes TUMOR; otherwise by tumour_id/normal_id)" >> {log.stderr};
             REHEADERED_VCF=$(mktemp --suffix=.vcf);
             awk -v t="{wildcards.tumour_id}" -v n="{wildcards.normal_id}"
-            'BEGIN{{OFS="\t"}} /^#CHROM/{{for(i=1;i<=NF;i++){{if($i==t)$i="TUMOR"; else if($i==n)$i="NORMAL"}}}} {{print}}'
+            'BEGIN{{OFS="\t"}} /^#CHROM/{{if(NF==10){{$10="TUMOR"}} else {{for(i=1;i<=NF;i++){{if($i==t)$i="TUMOR"; else if($i==n)$i="NORMAL"}}}}}} {{print}}'
             {input.vcf} > "$REHEADERED_VCF";
             VCF_INPUT="$REHEADERED_VCF";
         fi;
