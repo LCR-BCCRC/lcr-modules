@@ -1,0 +1,83 @@
+sp:
+  picard/markdups:
+    fn: "*.dup_metrics.txt"
+    contents: "MarkDuplicates"
+  picard/alignment_metrics:
+    skip: true
+  picard/basedistributionbycycle:
+    skip: true
+  picard/gcbias:
+    skip: true
+  picard/hsmetrics:
+    fn: "*.hs_metrics.txt"
+  picard/insertsize:
+    fn: "*.insert_size_metrics.txt"
+  oxogmetrics:
+    fn: "*.oxoG_metrics.txt"
+    contents: "CollectOxoGMetrics"
+  picard/pcr_metrics:
+    skip: true
+  picard/quality_by_cycle:
+    skip: true
+  picard/quality_score_distribution:
+    skip: true
+  picard/quality_yield_metrics:
+    skip: true
+  picard/rnaseqmetrics:
+    skip: true
+  picard/rrbs_metrics:
+    skip: true
+  picard/sam_file_validation:
+    fn: "*ValidateSamFile.is_valid"
+  picard/variant_calling_metrics:
+    skip: true
+  picard/wgs_metrics:
+    skip: true
+  fastp:
+    fn: "*.fastp.json"
+
+custom_plot_config:
+  picard_percentage_target_bases:
+    xmax: 4000
+
+picard_config:
+  markdups_merge_multiple_libraries: True
+  general_stats_target_coverage:
+    - 100
+  HsMetrics_table_cols_hidden:
+    - BAIT_DESIGN_EFFICIENCY
+    - MEAN_BAIT_COVERAGE
+    - OFF_BAIT_BASES
+    - NEAR_BAIT_BASES
+
+extra_fn_clean_exts:
+    - ".bwa.unsort"
+    - ".error_rate_by_read_position."
+    - ".dup_metrics."
+    - ".consensus.mapped.ValidateSamFile.is_valid"
+
+table_columns_name:
+    Picard:
+       PERCENT_DUPLICATION: "Duplicate rate (with UMIs)"
+
+table_columns_placement:
+    Picard:
+        file_validation_status: 500
+        CCG_OXIDATION_ERROR_RATE: 600
+        PERCENT_DUPLICATION: 700
+        summed_median: 800
+        PCT_TARGET_BASES_100X: 900
+        FOLD_ENRICHMENT: 950
+    FastQC:
+        total_sequences: 850
+
+custom_table_header_config:
+    general_stats_table:
+        CCG_OXIDATION_ERROR_RATE:
+            format: "{:,.4f}"
+
+table_columns_visible:
+    Picard:
+        BAIT_TERRITORY: False
+        FOLD_80_BASE_PENALTY: False
+        TARGET_TERRITORY: False
