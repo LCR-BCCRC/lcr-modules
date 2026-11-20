@@ -122,7 +122,9 @@ rule _run_battenberg:
         reference_path = lambda w: _battenberg_CFG["reference_path"][w.genome_build],
         script = CFG["inputs"]["battenberg_script"],
         chr_prefixed = lambda w: _battenberg_CFG["options"]["chr_prefixed_reference"][w.genome_build],
-        out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}"
+        out_dir = CFG["dirs"]["battenberg"] + "{seq_type}--{genome_build}/{tumour_id}--{normal_id}",
+        phasing_kmin = CFG["options"].get("phasing_kmin", 1),
+        phasing_gamma = CFG["options"].get("phasing_gamma", 1)
     conda:
         CFG["conda_envs"]["battenberg"]
     container:
@@ -138,7 +140,8 @@ rule _run_battenberg:
         echo "setting sex as $sex";
         Rscript --vanilla {params.script} -t {wildcards.tumour_id}
         -n {wildcards.normal_id} --tb {input.tumour_bam} --nb {input.normal_bam} -f {input.fasta}
-        -o {params.out_dir} --sex $sex --reference {params.reference_path} {params.chr_prefixed} --cpu {threads} >> {log.stdout} 2>> {log.stderr} &&
+        -o {params.out_dir} --sex $sex --reference {params.reference_path} {params.chr_prefixed} --cpu {threads}
+        --phasing_kmin {params.phasing_kmin} --phasing_gamma {params.phasing_gamma} >> {log.stdout} 2>> {log.stderr} &&
         echo "DONE {rule} for {wildcards.tumour_id}--{wildcards.normal_id} on $(hostname) at $(date)" >> {log.stdout};
         """)
 

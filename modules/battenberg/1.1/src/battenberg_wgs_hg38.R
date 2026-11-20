@@ -19,7 +19,9 @@ option_list = list(
   make_option(c("--reference"), type="character", default=NULL, help="Path to reference files", metavar="character"),
   make_option(c("-f","--reference_fasta"), type="character", default=NULL, help="Path to indexed genome fasta file (needed for CRAM compatability)", metavar="character"),
   make_option(c("--chr_prefixed_genome"), type="logical", default=FALSE, action="store_true", help="Flag to specify if the genome has chr prefixes in chromosome names", metavar="character"),
-  make_option(c("--impute_log"), type="character", default="./", help="Full path for where to store impute logs. If blank, these will be written to the main output directory and cleared.")
+  make_option(c("--impute_log"), type="character", default="./", help="Full path for where to store impute logs. If blank, these will be written to the main output directory and cleared."),
+  make_option(c("--phasing_kmin"), type="integer", default=1, help="Minimum number of SNPs per segment when correcting phasing errors before BAF segmentation (Default: 1)", metavar="integer"),
+  make_option(c("--phasing_gamma"), type="double", default=1, help="Penalty for starting a new segment when correcting phasing errors before BAF segmentation; higher values give fewer, larger segments (Default: 1)", metavar="number")
 )
 
 opt_parser = OptionParser(option_list=option_list)
@@ -59,10 +61,11 @@ REPLICCORRECTPREFIX = paste0(REFERENCE_BASE,"/battenberg_wgs_replic_correction_1
 IMPUTE_EXE = "impute2"  #install using conda
 
 PLATFORM_GAMMA = 1
-PHASING_GAMMA = 1
+PHASING_GAMMA = opt$phasing_gamma
 SEGMENTATION_GAMMA = 10
-SEGMENTATIIN_KMIN = 3
-PHASING_KMIN = 1
+SEGMENTATION_KMIN = 3
+PHASING_KMIN = opt$phasing_kmin
+print(paste("phasing_kmin:", PHASING_KMIN, " phasing_gamma:", PHASING_GAMMA))
 CLONALITY_DIST_METRIC = 0
 ASCAT_DIST_METRIC = 1
 MIN_PLOIDY = 1.6
@@ -112,7 +115,7 @@ battenberg(tumourname=TUMOURNAME,
            platform_gamma=PLATFORM_GAMMA,
            phasing_gamma=PHASING_GAMMA,
            segmentation_gamma=SEGMENTATION_GAMMA,
-           segmentation_kmin=SEGMENTATIIN_KMIN,
+           segmentation_kmin=SEGMENTATION_KMIN,
            phasing_kmin=PHASING_KMIN,
            clonality_dist_metric=CLONALITY_DIST_METRIC,
            ascat_dist_metric=ASCAT_DIST_METRIC,

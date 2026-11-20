@@ -28,6 +28,12 @@ lcr-modules:
             liftover_script_path: "{SCRIPTSDIR}/liftover/2.0/liftover.sh"
             liftover_minMatch: "0.95" # Float number from 0 to 1 indicating minimal mapping when converting to a different genome build
             fill_segments_version: "1.1/"
+            # Phase-correction segmentation applied before BAF segmentation. The defaults (1, 1)
+            # reproduce earlier behaviour. On low-depth or noisy (e.g. FFPE) genomes they can
+            # create spurious low-fraction subclonal copy number in balanced regions; larger
+            # values (e.g. phasing_kmin: 5, phasing_gamma: 3) make this step less sensitive.
+            phasing_kmin: 1
+            phasing_gamma: 1
 
         conda_envs:
             battenberg: "{MODSDIR}/envs/battenberg-1.1.yaml"
