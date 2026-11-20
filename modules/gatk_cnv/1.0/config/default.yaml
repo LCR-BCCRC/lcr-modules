@@ -21,6 +21,20 @@ lcr-modules:
         scratch_subdirectories: []
 
         options:
+            # Snakemake job groups: on a cluster, each tumour's steps are submitted as
+            # one job per group instead of one job per step (8+ short jobs per tumour
+            # otherwise). counts = CollectReadCounts and CollectAllelicCounts (for a
+            # paired tumour, also its normal's); segmentation = denoise through
+            # ModelSegments, CallCopyRatioSegments, plot, seg conversion, liftover and
+            # filling. The same name for both (default) gives one job per tumour; two
+            # names give two. null runs a set of steps as separate jobs.
+            # Grouped jobs that can run at once (the two count steps) add their threads
+            # and mem_mb in the group's request. --group-components gatk_cnv=10 on the
+            # command line bundles 10 tumours per job. Tumours sharing a normal join one
+            # group, so don't use a single unmatched normal for many tumours with grouping.
+            group:
+                counts: "gatk_cnv"
+                segmentation: "gatk_cnv"
             denoise:
                 opts: ""
             # targets with denoised log2 copy ratio outside these limits are dropped
